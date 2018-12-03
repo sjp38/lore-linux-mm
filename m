@@ -1,64 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F246B744F
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 07:29:59 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id d35so20586561qtd.20
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 04:29:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i21si11088199qtp.305.2018.12.05.04.29.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 04:29:58 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH RFC 1/7] agp: efficeon: no need to set PG_reserved on GATT tables
-Date: Wed,  5 Dec 2018 13:28:45 +0100
-Message-Id: <20181205122851.5891-2-david@redhat.com>
-In-Reply-To: <20181205122851.5891-1-david@redhat.com>
-References: <20181205122851.5891-1-david@redhat.com>
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 74F756B6A7B
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:05 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id p131so1297616oig.10
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:05 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v7si5802576otk.268.2018.12.03.10.07.04
+        for <linux-mm@kvack.org>;
+        Mon, 03 Dec 2018 10:07:04 -0800 (PST)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v7 08/25] ACPI / APEI: Don't update struct ghes' flags in read/clear estatus
+Date: Mon,  3 Dec 2018 18:05:56 +0000
+Message-Id: <20181203180613.228133-9-james.morse@arm.com>
+In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
+References: <20181203180613.228133-1-james.morse@arm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, David Airlie <airlied@linux.ie>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
 
-The l1 GATT page table is kept in a special on-chip page with 64 entries.
-We allocate the l2 page table pages via get_zeroed_page() and enter them
-into the table. These l2 pages are modified accordingly when
-inserting/removing memory via efficeon_insert_memory and
-efficeon_remove_memory.
+ghes_read_estatus() sets a flag in struct ghes if the buffer of
+CPER records needs to be cleared once the records have been
+processed. This flag value is a problem if a struct ghes can be
+processed concurrently, as happens at probe time if an NMI arrives
+for the same error source. The NMI clears the flag, meaning the
+interrupted handler may never do the ghes_estatus_clear() work.
 
-Apart from that, these pages are not exposed or ioremap'ed. We can stop
-setting them reserved (propably copied from generic code).
+The GHES_TO_CLEAR flags is only set at the same time as
+buffer_paddr, which is now owned by the caller and passed to
+ghes_clear_estatus(). Use this value as the flag.
 
-Cc: David Airlie <airlied@linux.ie>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Signed-off-by: David Hildenbrand <david@redhat.com>
+A non-zero buf_paddr returned by ghes_read_estatus() means
+ghes_clear_estatus() should clear this address. ghes_read_estatus()
+already checks for a read of error_status_address being zero,
+so CPER records cannot be written here.
+
+Signed-off-by: James Morse <james.morse@arm.com>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+
+--
+Changes since v6:
+ * Added Boris' RB, then:
+ * Moved earlier in the series,
+ * Tinkered with the commit message,
+ * Always cleared buf_paddr on errors in the previous patch, which was
+   previously in here.
 ---
- drivers/char/agp/efficeon-agp.c | 2 --
- 1 file changed, 2 deletions(-)
+ drivers/acpi/apei/ghes.c | 8 +-------
+ include/acpi/ghes.h      | 1 -
+ 2 files changed, 1 insertion(+), 8 deletions(-)
 
-diff --git a/drivers/char/agp/efficeon-agp.c b/drivers/char/agp/efficeon-agp.c
-index 7f88490b5479..c53f0f9ef5b0 100644
---- a/drivers/char/agp/efficeon-agp.c
-+++ b/drivers/char/agp/efficeon-agp.c
-@@ -163,7 +163,6 @@ static int efficeon_free_gatt_table(struct agp_bridge_data *bridge)
- 		unsigned long page = efficeon_private.l1_table[index];
- 		if (page) {
- 			efficeon_private.l1_table[index] = 0;
--			ClearPageReserved(virt_to_page((char *)page));
- 			free_page(page);
- 			freed++;
- 		}
-@@ -219,7 +218,6 @@ static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
- 			efficeon_free_gatt_table(agp_bridge);
- 			return -ENOMEM;
- 		}
--		SetPageReserved(virt_to_page((char *)page));
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index f7a0ff1c785a..d06456e60318 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -329,8 +329,6 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ 		return -ENOENT;
+ 	}
  
- 		for (offset = 0; offset < PAGE_SIZE; offset += clflush_chunk)
- 			clflush((char *)page+offset);
+-	ghes->flags |= GHES_TO_CLEAR;
+-
+ 	rc = -EIO;
+ 	len = cper_estatus_len(ghes->estatus);
+ 	if (len < sizeof(*ghes->estatus))
+@@ -357,13 +355,9 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr)
+ {
+ 	ghes->estatus->block_status = 0;
+-	if (!(ghes->flags & GHES_TO_CLEAR))
+-		return;
+-	if (buf_paddr) {
++	if (buf_paddr)
+ 		ghes_copy_tofrom_phys(ghes->estatus, buf_paddr,
+ 				      sizeof(ghes->estatus->block_status), 0);
+-		ghes->flags &= ~GHES_TO_CLEAR;
+-	}
+ }
+ 
+ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int sev)
+diff --git a/include/acpi/ghes.h b/include/acpi/ghes.h
+index f82f4a7ddd90..e3f1cddb4ac8 100644
+--- a/include/acpi/ghes.h
++++ b/include/acpi/ghes.h
+@@ -13,7 +13,6 @@
+  * estatus: memory buffer for error status block, allocated during
+  * HEST parsing.
+  */
+-#define GHES_TO_CLEAR		0x0001
+ #define GHES_EXITING		0x0002
+ 
+ struct ghes {
 -- 
-2.17.2
+2.19.2
