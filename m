@@ -1,66 +1,105 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B6AE56B6A1B
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 11:27:19 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id r16so7125077pgr.15
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 08:27:19 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id o89si15136176pfk.223.2018.12.03.08.27.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 08:27:18 -0800 (PST)
-Received: from mail-wr1-f46.google.com (mail-wr1-f46.google.com [209.85.221.46])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id CF3B021508
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 16:27:17 +0000 (UTC)
-Received: by mail-wr1-f46.google.com with SMTP id t27so12846567wra.6
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 08:27:17 -0800 (PST)
-MIME-Version: 1.0
-References: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com> <1543852035-26634-7-git-send-email-rppt@linux.ibm.com>
-In-Reply-To: <1543852035-26634-7-git-send-email-rppt@linux.ibm.com>
-From: Rob Herring <robh@kernel.org>
-Date: Mon, 3 Dec 2018 10:27:02 -0600
-Message-ID: <CABGGisySdgSma1bSF2Bk586Vf461o-U2f3w9UMgHJcVucQ0oFA@mail.gmail.com>
-Subject: Re: [PATCH v2 6/6] arm, unicore32: remove early_alloc*() wrappers
-Content-Type: text/plain; charset="UTF-8"
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v2 6/6] arm, unicore32: remove early_alloc*() wrappers
+Date: Mon,  3 Dec 2018 17:47:15 +0200
+In-Reply-To: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
+References: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1543852035-26634-7-git-send-email-rppt@linux.ibm.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, davem@davemloft.net, gxt@pku.edu.cn, Greentime Hu <green.hu@gmail.com>, jonas@southpole.se, Michael Ellerman <mpe@ellerman.id.au>, mhocko@suse.com, Michal Simek <monstr@monstr.eu>, msalter@redhat.com, Paul Mackerras <paulus@samba.org>, dalias@libc.org, linux@armlinux.org.uk, stefan.kristiansson@saunalahti.fi, shorne@gmail.com, deanbo422@gmail.com, ysato@users.sourceforge.jp, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-c6x-dev@linux-c6x.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org
 
-On Mon, Dec 3, 2018 at 9:48 AM Mike Rapoport <rppt@linux.ibm.com> wrote:
->
-> On arm and unicore32i the early_alloc_aligned() and and early_alloc() are
-> oneliner wrappers for memblock_alloc.
->
-> Replace their usage with direct call to memblock_alloc.
->
-> Suggested-by: Christoph Hellwig <hch@infradead.org>
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> ---
->  arch/arm/mm/mmu.c       | 11 +++--------
->  arch/unicore32/mm/mmu.c | 12 ++++--------
->  2 files changed, 7 insertions(+), 16 deletions(-)
->
-> diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-> index 0a04c9a5..57de0dd 100644
-> --- a/arch/arm/mm/mmu.c
-> +++ b/arch/arm/mm/mmu.c
-> @@ -719,14 +719,9 @@ EXPORT_SYMBOL(phys_mem_access_prot);
->
->  #define vectors_base() (vectors_high() ? 0xffff0000 : 0)
->
-> -static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
-> -{
-> -       return memblock_alloc(sz, align);
-> -}
-> -
->  static void __init *early_alloc(unsigned long sz)
+On arm and unicore32i the early_alloc_aligned() and and early_alloc() are
+oneliner wrappers for memblock_alloc.
 
-Why not get rid of this wrapper like you do on unicore?
+Replace their usage with direct call to memblock_alloc.
 
->  {
-> -       return early_alloc_aligned(sz, sz);
-> +       return memblock_alloc(sz, sz);
->  }
+Suggested-by: Christoph Hellwig <hch@infradead.org>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ arch/arm/mm/mmu.c       | 11 +++--------
+ arch/unicore32/mm/mmu.c | 12 ++++--------
+ 2 files changed, 7 insertions(+), 16 deletions(-)
+
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 0a04c9a5..57de0dd 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -719,14 +719,9 @@ EXPORT_SYMBOL(phys_mem_access_prot);
+ 
+ #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
+ 
+-static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
+-{
+-	return memblock_alloc(sz, align);
+-}
+-
+ static void __init *early_alloc(unsigned long sz)
+ {
+-	return early_alloc_aligned(sz, sz);
++	return memblock_alloc(sz, sz);
+ }
+ 
+ static void *__init late_alloc(unsigned long sz)
+@@ -998,7 +993,7 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
+ 	if (!nr)
+ 		return;
+ 
+-	svm = early_alloc_aligned(sizeof(*svm) * nr, __alignof__(*svm));
++	svm = memblock_alloc(sizeof(*svm) * nr, __alignof__(*svm));
+ 
+ 	for (md = io_desc; nr; md++, nr--) {
+ 		create_mapping(md);
+@@ -1020,7 +1015,7 @@ void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
+ 	struct vm_struct *vm;
+ 	struct static_vm *svm;
+ 
+-	svm = early_alloc_aligned(sizeof(*svm), __alignof__(*svm));
++	svm = memblock_alloc(sizeof(*svm), __alignof__(*svm));
+ 
+ 	vm = &svm->vm;
+ 	vm->addr = (void *)addr;
+diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
+index 50d8c1a..a402192 100644
+--- a/arch/unicore32/mm/mmu.c
++++ b/arch/unicore32/mm/mmu.c
+@@ -141,16 +141,12 @@ static void __init build_mem_type_table(void)
+ 
+ #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
+ 
+-static void __init *early_alloc(unsigned long sz)
+-{
+-	return memblock_alloc(sz, sz);
+-}
+-
+ static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
+ 		unsigned long prot)
+ {
+ 	if (pmd_none(*pmd)) {
+-		pte_t *pte = early_alloc(PTRS_PER_PTE * sizeof(pte_t));
++		pte_t *pte = memblock_alloc(PTRS_PER_PTE * sizeof(pte_t),
++					    PTRS_PER_PTE * sizeof(pte_t));
+ 		__pmd_populate(pmd, __pa(pte) | prot);
+ 	}
+ 	BUG_ON(pmd_bad(*pmd));
+@@ -352,7 +348,7 @@ static void __init devicemaps_init(void)
+ 	/*
+ 	 * Allocate the vector page early.
+ 	 */
+-	vectors = early_alloc(PAGE_SIZE);
++	vectors = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+ 
+ 	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
+ 		pmd_clear(pmd_off_k(addr));
+@@ -429,7 +425,7 @@ void __init paging_init(void)
+ 	top_pmd = pmd_off_k(0xffff0000);
+ 
+ 	/* allocate the zero page. */
+-	zero_page = early_alloc(PAGE_SIZE);
++	zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+ 
+ 	bootmem_init();
+ 
+-- 
+2.7.4
