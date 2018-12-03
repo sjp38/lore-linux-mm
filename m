@@ -1,202 +1,58 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 04/12] __wr_after_init: x86_64: __wr_op
-Date: Wed, 19 Dec 2018 23:33:30 +0200
-Message-Id: <20181219213338.26619-5-igor.stoppa@huawei.com>
-In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
-References: <20181219213338.26619-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3049A6B68D6
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 06:28:56 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id l131so6710343pga.2
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 03:28:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z1sor18642241pfl.9.2018.12.03.03.28.54
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 03 Dec 2018 03:28:54 -0800 (PST)
+Date: Mon, 3 Dec 2018 14:28:49 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] mm: page_mapped: don't assume compound page is huge
+ or THP
+Message-ID: <20181203112849.jonqywnd4rx2wpe7@kshutemo-mobl1>
+References: <eabca57aa14f4df723173b24891f4a2d9c501f21.1543526537.git.jstancek@redhat.com>
+ <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
+ <35a664c0-6dab-bb32-811e-65250200d195@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35a664c0-6dab-bb32-811e-65250200d195@redhat.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Laszlo Ersek <lersek@redhat.com>
+Cc: Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org, alex.williamson@redhat.com, aarcange@redhat.com, rientjes@google.com, mgorman@techsingularity.net, mhocko@suse.com, linux-kernel@vger.kernel.org
 
-Architecture-specific implementation of the core write rare
-operation.
+On Mon, Dec 03, 2018 at 11:23:58AM +0100, Laszlo Ersek wrote:
+> Totally uninformed side-question:
+> 
+> how large can the return value of compound_order() be? MAX_ORDER?
+> 
+> Apparently, MAX_ORDER can be defined as CONFIG_FORCE_MAX_ZONEORDER.
+> 
+> "config FORCE_MAX_ZONEORDER" is listed in a number of Kconfig files.
+> Among those, "arch/mips/Kconfig" permits "ranges" (?) that extend up to
+> 64. Same applies to "arch/powerpc/Kconfig" and "arch/sh/mm/Kconfig".
+> 
+> If we left-shift "1" -- a signed int, which I assume in practice will
+> always have two's complement representation, 1 sign bit, 31 value bits,
+> and 0 padding bits --, by 31 or more bit positions, we get undefined
+> behavior (as part of the left-shift operation).
+> 
+> Is this a practical concern?
 
-The implementation is based on code from Andy Lutomirski and Nadav Amit
-for patching the text on x86 [here goes reference to commits, once merged]
+Not really.
 
-The modification of write protected data is done through an alternate
-mapping of the same pages, as writable.
-This mapping is persistent, but active only for a core that is
-performing a write rare operation. And only for the duration of said
-operation.
-Local interrupts are disabled, while the alternate mapping is active.
+Assuming 4k PAGE_SIZE, compound_order() == 31 means 8 TiB pages. I doubt
+we will see such allocation requests any time soon.
 
-In theory, it could introduce a non-predictable delay, in a preemptible
-system, however the amount of data to be altered is likely to be far
-smaller than a page.
+Even with 1k base page size, it's still 2 TiB.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+We will see other limitations in page allocaiton path before the compund
+order type will be an issue.
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- arch/x86/Kconfig     |   1 +
- arch/x86/mm/Makefile |   2 +
- arch/x86/mm/prmem.c  | 120 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 123 insertions(+)
- create mode 100644 arch/x86/mm/prmem.c
-
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 8689e794a43c..e5e4fc4fa5c2 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -32,6 +32,7 @@ config X86_64
- 	select SWIOTLB
- 	select X86_DEV_DMA_OPS
- 	select ARCH_HAS_SYSCALL_WRAPPER
-+	select ARCH_HAS_PRMEM
- 
- #
- # Arch settings
-diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
-index 4b101dd6e52f..66652de1e2c7 100644
---- a/arch/x86/mm/Makefile
-+++ b/arch/x86/mm/Makefile
-@@ -53,3 +53,5 @@ obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
-+
-+obj-$(CONFIG_PRMEM)		+= prmem.o
-diff --git a/arch/x86/mm/prmem.c b/arch/x86/mm/prmem.c
-new file mode 100644
-index 000000000000..fc367551e736
---- /dev/null
-+++ b/arch/x86/mm/prmem.c
-@@ -0,0 +1,120 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * prmem.c: Memory Protection Library
-+ *
-+ * (C) Copyright 2017-2018 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ */
-+
-+#include <linux/mm.h>
-+#include <linux/string.h>
-+#include <linux/compiler.h>
-+#include <linux/slab.h>
-+#include <linux/mmu_context.h>
-+#include <linux/rcupdate.h>
-+#include <linux/prmem.h>
-+
-+static __ro_after_init bool wr_ready;
-+static __ro_after_init struct mm_struct *wr_poking_mm;
-+static __ro_after_init unsigned long wr_poking_base;
-+
-+/*
-+ * The following two variables are statically allocated by the linker
-+ * script at the the boundaries of the memory region (rounded up to
-+ * multiples of PAGE_SIZE) reserved for __wr_after_init.
-+ */
-+extern long __start_wr_after_init;
-+extern long __end_wr_after_init;
-+
-+static inline bool is_wr_after_init(unsigned long ptr, __kernel_size_t size)
-+{
-+	unsigned long start = (unsigned long)&__start_wr_after_init;
-+	unsigned long end = (unsigned long)&__end_wr_after_init;
-+	unsigned long low = ptr;
-+	unsigned long high = ptr + size;
-+
-+	return likely(start <= low && low <= high && high <= end);
-+}
-+
-+void *__wr_op(unsigned long dst, unsigned long src, __kernel_size_t len,
-+	      enum wr_op_type op)
-+{
-+	temporary_mm_state_t prev;
-+	unsigned long offset;
-+	unsigned long wr_poking_addr;
-+
-+	/* Confirm that the writable mapping exists. */
-+	if (WARN_ONCE(!wr_ready, "No writable mapping available"))
-+		return (void *)dst;
-+
-+	if (WARN_ONCE(op >= WR_OPS_NUMBER, "Invalid WR operation.") ||
-+	    WARN_ONCE(!is_wr_after_init(dst, len), "Invalid WR range."))
-+		return (void *)dst;
-+
-+	offset = dst - (unsigned long)&__start_wr_after_init;
-+	wr_poking_addr = wr_poking_base + offset;
-+	local_irq_disable();
-+	prev = use_temporary_mm(wr_poking_mm);
-+
-+	if (op == WR_MEMCPY)
-+		copy_to_user((void __user *)wr_poking_addr, (void *)src, len);
-+	else if (op == WR_MEMSET)
-+		memset_user((void __user *)wr_poking_addr, (u8)src, len);
-+
-+	unuse_temporary_mm(prev);
-+	local_irq_enable();
-+	return (void *)dst;
-+}
-+
-+#define TB (1UL << 40)
-+
-+struct mm_struct *copy_init_mm(void);
-+void __init wr_poking_init(void)
-+{
-+	unsigned long start = (unsigned long)&__start_wr_after_init;
-+	unsigned long end = (unsigned long)&__end_wr_after_init;
-+	unsigned long i;
-+	unsigned long wr_range;
-+
-+	wr_poking_mm = copy_init_mm();
-+	if (WARN_ONCE(!wr_poking_mm, "No alternate mapping available."))
-+		return;
-+
-+	wr_range = round_up(end - start, PAGE_SIZE);
-+
-+	/* Randomize the poking address base*/
-+	wr_poking_base = TASK_UNMAPPED_BASE +
-+		(kaslr_get_random_long("Write Rare Poking") & PAGE_MASK) %
-+		(TASK_SIZE - (TASK_UNMAPPED_BASE + wr_range));
-+
-+	/*
-+	 * Place 64TB of kernel address space within 128TB of user address
-+	 * space, at a random page aligned offset.
-+	 */
-+	wr_poking_base = (((unsigned long)kaslr_get_random_long("WR Poke")) &
-+			  PAGE_MASK) % (64 * _BITUL(40));
-+
-+	/* Create alternate mapping for the entire wr_after_init range. */
-+	for (i = start; i < end; i += PAGE_SIZE) {
-+		struct page *page;
-+		spinlock_t *ptl;
-+		pte_t pte;
-+		pte_t *ptep;
-+		unsigned long wr_poking_addr;
-+
-+		page = virt_to_page(i);
-+		if (WARN_ONCE(!page, "WR memory without physical page"))
-+			return;
-+		wr_poking_addr = i - start + wr_poking_base;
-+
-+		/* The lock is not needed, but avoids open-coding. */
-+		ptep = get_locked_pte(wr_poking_mm, wr_poking_addr, &ptl);
-+		if (WARN_ONCE(!ptep, "No pte for writable mapping"))
-+			return;
-+
-+		pte = mk_pte(page, PAGE_KERNEL);
-+		set_pte_at(wr_poking_mm, wr_poking_addr, ptep, pte);
-+		spin_unlock(ptl);
-+	}
-+	wr_ready = true;
-+}
 -- 
-2.19.1
+ Kirill A. Shutemov
