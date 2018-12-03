@@ -1,98 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CE3416B69DB
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 10:47:45 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id o21so6716381edq.4
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 07:47:45 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 91si982189eda.102.2018.12.03.07.47.43
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 631F06B689D
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 05:33:28 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id y83so12566773qka.7
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 02:33:28 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l90si4131613qte.331.2018.12.03.02.33.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 07:47:43 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB3FiFam064919
-	for <linux-mm@kvack.org>; Mon, 3 Dec 2018 10:47:42 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p56u7ta2c-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:47:38 -0500
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 3 Dec 2018 15:47:29 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 0/6] memblock: simplify several early memory allocation
-Date: Mon,  3 Dec 2018 17:47:09 +0200
-Message-Id: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
+        Mon, 03 Dec 2018 02:33:27 -0800 (PST)
+Subject: Re: [PATCH RFCv2 2/4] mm/memory_hotplug: Replace "bool want_memblock"
+ by "int type"
+References: <20181130175922.10425-1-david@redhat.com>
+ <20181130175922.10425-3-david@redhat.com>
+ <20181201015024.3o334nk2fe5mlasj@master>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <5ecbff41-fc41-79fc-696e-4ca1f066f9aa@redhat.com>
+Date: Mon, 3 Dec 2018 11:33:12 +0100
+MIME-Version: 1.0
+In-Reply-To: <20181201015024.3o334nk2fe5mlasj@master>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-acpi@vger.kernel.org, devel@linuxdriverproject.org, xen-devel@lists.xenproject.org, x86@kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oscar Salvador <osalvador@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Christophe Leroy <christophe.leroy@c-s.fr>, Jonathan Neusch??fer <j.neuschaefer@gmx.net>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>, Arun KS <arunks@codeaurora.org>, Rob Herring <robh@kernel.org>, Pavel Tatashin <pasha.tatashin@soleen.com>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Logan Gunthorpe <logang@deltatee.com>, J??r??me Glisse <jglisse@redhat.com>, "Jan H. Sch??nherr" <jschoenh@amazon.de>, Dave Jiang <dave.jiang@intel.com>, Matthew Wilcox <willy@infradead.org>, Mathieu Malaterre <malat@debian.org>
 
-Hi,
+On 01.12.18 02:50, Wei Yang wrote:
+> On Fri, Nov 30, 2018 at 06:59:20PM +0100, David Hildenbrand wrote:
+>> Let's pass a memory block type instead. Pass "MEMORY_BLOCK_NONE" for device
+>> memory and for now "MEMORY_BLOCK_UNSPECIFIED" for anything else. No
+>> functional change.
+> 
+> I would suggest to put more words to this.
 
-These patches simplify some of the early memory allocations by replacing
-usage of older memblock APIs with newer and shinier ones.
+Sure, makes sense, I'll add more details. Thanks!
 
-Quite a few places in the arch/ code allocated memory using a memblock API
-that returns a physical address of the allocated area, then converted this
-physical address to a virtual one and then used memset(0) to clear the
-allocated range.
+> 
+> "
+> Function arch_add_memory()'s last parameter *want_memblock* is used to
+> determin whether it is necessary to create a corresponding memory block
+> device. After introducing the memory block type, this patch replaces the
+> bool type *want_memblock* with memory block type with following rules
+> for now:
+> 
+>   * Pass "MEMORY_BLOCK_NONE" for device memory
+>   * Pass "MEMORY_BLOCK_UNSPECIFIED" for anything else 
+> 
+> Since this parameter is passed deep to __add_section(), all its
+> descendents are effected. Below lists those descendents.
+> 
+>   arch_add_memory()
+>     add_pages()
+>       __add_pages()
+>         __add_section()
+> 
+> "
 
-More recent memblock APIs do all the three steps in one call and their
-usage simplifies the code.
+[...]
 
-It's important to note that regardless of API used, the core allocation is
-nearly identical for any set of memblock allocators: first it tries to find
-a free memory with all the constraints specified by the caller and then
-falls back to the allocation with some or all constraints disabled.
 
-The first three patches perform the conversion of call sites that have
-exact requirements for the node and the possible memory range.
+-- 
 
-The fourth patch is a bit one-off as it simplifies openrisc's
-implementation of pte_alloc_one_kernel(), and not only the memblock usage.
+Thanks,
 
-The fifth patch takes care of simpler cases when the allocation can be
-satisfied with a simple call to memblock_alloc().
-
-The sixth patch removes one-liner wrappers for memblock_alloc on arm and
-unicore32, as suggested by Christoph.
-
-v2:
-* added Ack from Stafford Horne for openrisc changes
-* entirely drop early_alloc wrappers on arm and unicore32, as per Christoph
-Hellwig
-
-Mike Rapoport (6):
-  powerpc: prefer memblock APIs returning virtual address
-  microblaze: prefer memblock API returning virtual address
-  sh: prefer memblock APIs returning virtual address
-  openrisc: simplify pte_alloc_one_kernel()
-  arch: simplify several early memory allocations
-  arm, unicore32: remove early_alloc*() wrappers
-
- arch/arm/mm/mmu.c                      | 13 +++----------
- arch/c6x/mm/dma-coherent.c             |  9 ++-------
- arch/microblaze/mm/init.c              |  5 +++--
- arch/nds32/mm/init.c                   | 12 ++++--------
- arch/openrisc/mm/ioremap.c             | 11 ++++-------
- arch/powerpc/kernel/paca.c             | 14 ++++++--------
- arch/powerpc/kernel/setup-common.c     |  4 ++--
- arch/powerpc/kernel/setup_64.c         | 21 ++++++++++-----------
- arch/powerpc/mm/hash_utils_64.c        |  6 +++---
- arch/powerpc/mm/pgtable-book3e.c       |  8 ++------
- arch/powerpc/mm/pgtable-book3s64.c     |  5 +----
- arch/powerpc/mm/pgtable-radix.c        | 24 +++++++++---------------
- arch/powerpc/mm/pgtable_32.c           |  4 +---
- arch/powerpc/mm/ppc_mmu_32.c           |  3 +--
- arch/powerpc/platforms/pasemi/iommu.c  |  5 +++--
- arch/powerpc/platforms/powernv/opal.c  |  3 +--
- arch/powerpc/platforms/pseries/setup.c | 11 +++++++----
- arch/powerpc/sysdev/dart_iommu.c       |  5 +++--
- arch/sh/mm/init.c                      | 18 +++++-------------
- arch/sh/mm/numa.c                      |  5 ++---
- arch/sparc/kernel/prom_64.c            |  7 ++-----
- arch/sparc/mm/init_64.c                |  9 +++------
- arch/unicore32/mm/mmu.c                | 14 ++++----------
- 23 files changed, 81 insertions(+), 135 deletions(-)
+David / dhildenb
