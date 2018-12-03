@@ -1,99 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A63898E005A
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 10:00:53 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id y35so4211902edb.5
-        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 07:00:53 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x5-v6si3131479ejj.55.2018.12.09.07.00.51
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 409B86B6B2E
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 16:34:23 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 89so11027891ple.19
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 13:34:23 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b5sor20567223pfj.35.2018.12.03.13.34.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Dec 2018 07:00:51 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB9ExJF0096447
-	for <linux-mm@kvack.org>; Sun, 9 Dec 2018 10:00:50 -0500
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p8vghp0yn-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 09 Dec 2018 10:00:50 -0500
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 9 Dec 2018 15:00:48 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v3 3/6] sh: prefer memblock APIs returning virtual address
-Date: Sun,  9 Dec 2018 17:00:21 +0200
-In-Reply-To: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
-References: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1544367624-15376-4-git-send-email-rppt@linux.ibm.com>
+        (Google Transport Security);
+        Mon, 03 Dec 2018 13:34:19 -0800 (PST)
+Date: Mon, 3 Dec 2018 13:34:16 -0800
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] psi: fix reference to kernel commandline enable
+Message-ID: <20181203213416.GA12627@cmpxchg.org>
+References: <99058450a8c792cde07c7ced343bf1711c75b8f3.1543742330.git.baruch@tkos.co.il>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <99058450a8c792cde07c7ced343bf1711c75b8f3.1543742330.git.baruch@tkos.co.il>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Baruch Siach <baruch@tkos.co.il>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-Rather than use the memblock_alloc_base that returns a physical address and
-then convert this address to the virtual one, use appropriate memblock
-function that returns a virtual address.
+On Sun, Dec 02, 2018 at 11:18:50AM +0200, Baruch Siach wrote:
+> The kernel commandline parameter named in CONFIG_PSI_DEFAULT_DISABLED
+> help text contradicts the documentation in kernel-parameters.txt, and
+> the code. Fix that.
+> 
+> Fixes: e0c274472d ("psi: make disabling/enabling easier for vendor kernels")
+> Signed-off-by: Baruch Siach <baruch@tkos.co.il>
 
-There is a small functional change in the allocation of then NODE_DATA().
-Instead of panicing if the local allocation failed, the non-local
-allocation attempt will be made.
+Doh, thanks Baruch.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/sh/mm/init.c | 18 +++++-------------
- arch/sh/mm/numa.c |  5 ++---
- 2 files changed, 7 insertions(+), 16 deletions(-)
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index c8c13c77..3576b5f 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -192,24 +192,16 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
- void __init allocate_pgdat(unsigned int nid)
- {
- 	unsigned long start_pfn, end_pfn;
--#ifdef CONFIG_NEED_MULTIPLE_NODES
--	unsigned long phys;
--#endif
- 
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
- 
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	phys = __memblock_alloc_base(sizeof(struct pglist_data),
--				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
--	/* Retry with all of system memory */
--	if (!phys)
--		phys = __memblock_alloc_base(sizeof(struct pglist_data),
--					SMP_CACHE_BYTES, memblock_end_of_DRAM());
--	if (!phys)
-+	NODE_DATA(nid) = memblock_alloc_try_nid_nopanic(
-+				sizeof(struct pglist_data),
-+				SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
-+				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-+	if (!NODE_DATA(nid))
- 		panic("Can't allocate pgdat for node %d\n", nid);
--
--	NODE_DATA(nid) = __va(phys);
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
- #endif
- 
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
-diff --git a/arch/sh/mm/numa.c b/arch/sh/mm/numa.c
-index 830e8b3..c4bde61 100644
---- a/arch/sh/mm/numa.c
-+++ b/arch/sh/mm/numa.c
-@@ -41,9 +41,8 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
- 	__add_active_range(nid, start_pfn, end_pfn);
- 
- 	/* Node-local pgdat */
--	NODE_DATA(nid) = __va(memblock_alloc_base(sizeof(struct pglist_data),
--					     SMP_CACHE_BYTES, end));
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-+	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
-+					     SMP_CACHE_BYTES, nid);
- 
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
- 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
--- 
-2.7.4
+> ---
+>  init/Kconfig | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/init/Kconfig b/init/Kconfig
+> index cf5b5a0dcbc2..ed9352513c32 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -515,8 +515,8 @@ config PSI_DEFAULT_DISABLED
+>  	depends on PSI
+>  	help
+>  	  If set, pressure stall information tracking will be disabled
+> -	  per default but can be enabled through passing psi_enable=1
+> -	  on the kernel commandline during boot.
+> +	  per default but can be enabled through passing psi=1 on the
+> +	  kernel commandline during boot.
+>  
+>  endmenu # "CPU/Task time and stats accounting"
