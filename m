@@ -1,105 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4172A6B6D89
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:37:26 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id p4so8455016pgj.21
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:37:26 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o16si15820728pgd.117.2018.12.03.23.37.24
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 24FA96B6BB7
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:36:25 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id b26so15290307qtq.14
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:36:25 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u24si3487126qtc.86.2018.12.03.15.36.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 23:37:24 -0800 (PST)
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: [RFC v2 03/13] syscall/x86: Wire up a new system call for memory encryption keys
-Date: Mon,  3 Dec 2018 23:39:50 -0800
-Message-Id: <952381f6d8b394242590f03a4f7122789681ffbb.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
+        Mon, 03 Dec 2018 15:36:24 -0800 (PST)
+From: jglisse@redhat.com
+Subject: [RFC PATCH 13/14] drm/nouveau: register GPU under heterogeneous memory system
+Date: Mon,  3 Dec 2018 18:35:08 -0500
+Message-Id: <20181203233509.20671-14-jglisse@redhat.com>
+In-Reply-To: <20181203233509.20671-1-jglisse@redhat.com>
+References: <20181203233509.20671-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dhowells@redhat.com, tglx@linutronix.de
-Cc: jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-encrypt_mprotect() is a new system call to support memory encryption.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-It takes the same parameters as legacy mprotect, plus an additional
-key serial number that is mapped to an encryption keyid.
+This register NVidia GPU under heterogeneous memory system so that one
+can use the GPU memory with new syscall like hbind() for compute work
+load.
 
-Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 ---
- arch/x86/entry/syscalls/syscall_32.tbl | 1 +
- arch/x86/entry/syscalls/syscall_64.tbl | 1 +
- include/linux/syscalls.h               | 2 ++
- include/uapi/asm-generic/unistd.h      | 4 +++-
- kernel/sys_ni.c                        | 2 ++
- 5 files changed, 9 insertions(+), 1 deletion(-)
+ drivers/gpu/drm/nouveau/Kbuild        |  1 +
+ drivers/gpu/drm/nouveau/nouveau_hms.c | 80 +++++++++++++++++++++++++++
+ drivers/gpu/drm/nouveau/nouveau_hms.h | 46 +++++++++++++++
+ drivers/gpu/drm/nouveau/nouveau_svm.c |  6 ++
+ 4 files changed, 133 insertions(+)
+ create mode 100644 drivers/gpu/drm/nouveau/nouveau_hms.c
+ create mode 100644 drivers/gpu/drm/nouveau/nouveau_hms.h
 
-diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index 3cf7b533b3d1..f41ad857d5c6 100644
---- a/arch/x86/entry/syscalls/syscall_32.tbl
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl
-@@ -398,3 +398,4 @@
- 384	i386	arch_prctl		sys_arch_prctl			__ia32_compat_sys_arch_prctl
- 385	i386	io_pgetevents		sys_io_pgetevents		__ia32_compat_sys_io_pgetevents
- 386	i386	rseq			sys_rseq			__ia32_sys_rseq
-+387	i386	encrypt_mprotect	sys_encrypt_mprotect		__ia32_sys_encrypt_mprotect
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index f0b1709a5ffb..cf2decfa6119 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -343,6 +343,7 @@
- 332	common	statx			__x64_sys_statx
- 333	common	io_pgetevents		__x64_sys_io_pgetevents
- 334	common	rseq			__x64_sys_rseq
-+335	common	encrypt_mprotect	__x64_sys_encrypt_mprotect
+diff --git a/drivers/gpu/drm/nouveau/Kbuild b/drivers/gpu/drm/nouveau/Kbuild
+index a826a4df440d..9c1114b4d8a3 100644
+--- a/drivers/gpu/drm/nouveau/Kbuild
++++ b/drivers/gpu/drm/nouveau/Kbuild
+@@ -37,6 +37,7 @@ nouveau-y += nouveau_prime.o
+ nouveau-y += nouveau_sgdma.o
+ nouveau-y += nouveau_ttm.o
+ nouveau-y += nouveau_vmm.o
++nouveau-$(CONFIG_HMS) += nouveau_hms.o
  
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index 2ac3d13a915b..c728b47e9004 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -907,6 +907,8 @@ asmlinkage long sys_statx(int dfd, const char __user *path, unsigned flags,
- 			  unsigned mask, struct statx __user *buffer);
- asmlinkage long sys_rseq(struct rseq __user *rseq, uint32_t rseq_len,
- 			 int flags, uint32_t sig);
-+asmlinkage long sys_encrypt_mprotect(unsigned long start, size_t len,
-+				     unsigned long prot, key_serial_t serial);
+ # DRM - modesetting
+ nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
+diff --git a/drivers/gpu/drm/nouveau/nouveau_hms.c b/drivers/gpu/drm/nouveau/nouveau_hms.c
+new file mode 100644
+index 000000000000..52af9180e108
+--- /dev/null
++++ b/drivers/gpu/drm/nouveau/nouveau_hms.c
+@@ -0,0 +1,80 @@
++/*
++ * Copyright 2018 Red Hat Inc.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
++ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
++ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
++ * OTHER DEALINGS IN THE SOFTWARE.
++ */
++#include "nouveau_dmem.h"
++#include "nouveau_drv.h"
++#include "nouveau_hms.h"
++
++#include <linux/hms.h>
++
++static int nouveau_hms_migrate(struct hms_target *target, struct mm_struct *mm,
++			       unsigned long start, unsigned long end,
++			       unsigned natoms, uint32_t *atoms)
++{
++	struct nouveau_hms *hms = target->private;
++	struct nouveau_drm *drm = hms->drm;
++	unsigned long addr;
++	int ret = 0;
++
++	down_read(&mm->mmap_sem);
++
++	for (addr = start; addr < end;) {
++		struct vm_area_struct *vma;
++		unsigned long next;
++
++		vma = find_vma_intersection(mm, addr, end);
++		if (!vma)
++			break;
++
++		next = min(vma->vm_end, end);
++		ret = nouveau_dmem_migrate_vma(drm, vma, addr, next);
++		// FIXME ponder more on what to do
++		addr = next;
++	}
++
++	up_read(&mm->mmap_sem);
++
++	return ret;
++}
++
++const static struct hms_target_hbind nouveau_hms_target_hbind = {
++	.migrate = nouveau_hms_migrate,
++};
++
++
++void nouveau_hms_init(struct nouveau_drm *drm, struct nouveau_hms *hms)
++{
++	unsigned long vram_size = drm->gem.vram_available;
++	struct device *parent;
++
++	hms->drm = drm;
++	parent = drm->dev->pdev ? &drm->dev->pdev->dev : drm->dev->dev;
++	hms_target_register(&hms->target, parent, drm->dev->dev->numa_node,
++			    &nouveau_hms_target_hbind, vram_size, 0);
++	if (hms->target) {
++		hms->target->private = hms;
++	}
++}
++
++void nouveau_hms_fini(struct nouveau_drm *drm, struct nouveau_hms *hms)
++{
++	hms_target_unregister(&hms->target);
++}
+diff --git a/drivers/gpu/drm/nouveau/nouveau_hms.h b/drivers/gpu/drm/nouveau/nouveau_hms.h
+new file mode 100644
+index 000000000000..cda111d7044b
+--- /dev/null
++++ b/drivers/gpu/drm/nouveau/nouveau_hms.h
+@@ -0,0 +1,46 @@
++/*
++ * Copyright 2018 Red Hat Inc.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
++ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
++ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
++ * OTHER DEALINGS IN THE SOFTWARE.
++ */
++#ifndef __NOUVEAU_HMS_H__
++#define __NOUVEAU_HMS_H__
++
++#if IS_ENABLED(CONFIG_HMS)
++
++#include <linux/hms.h>
++
++struct nouveau_hms {
++	struct hms_target *target;
++	struct nouveau_drm *drm;
++};
++
++void nouveau_hms_init(struct nouveau_drm *drm, struct nouveau_hms *hms);
++void nouveau_hms_fini(struct nouveau_drm *drm, struct nouveau_hms *hms);
++
++#else /* IS_ENABLED(CONFIG_HMS) */
++
++struct nouveau_hms {
++};
++
++#define nouveau_hms_init(drm, hms)
++#define nouveau_hms_fini(drm, hms)
++
++#endif /* IS_ENABLED(CONFIG_HMS) */
++#endif
+diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouveau/nouveau_svm.c
+index 23435ee27892..26daa6d50766 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_svm.c
++++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
+@@ -23,6 +23,7 @@
+ #include "nouveau_drv.h"
+ #include "nouveau_chan.h"
+ #include "nouveau_dmem.h"
++#include "nouveau_hms.h"
  
- /*
-  * Architecture-specific system calls
-diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
-index 538546edbfbd..696c222ebe40 100644
---- a/include/uapi/asm-generic/unistd.h
-+++ b/include/uapi/asm-generic/unistd.h
-@@ -738,9 +738,11 @@ __SYSCALL(__NR_statx,     sys_statx)
- __SC_COMP(__NR_io_pgetevents, sys_io_pgetevents, compat_sys_io_pgetevents)
- #define __NR_rseq 293
- __SYSCALL(__NR_rseq, sys_rseq)
-+#define __NR_encrypt_mprotect 294
-+__SYSCALL(__NR_encrypt_mprotect, sys_encrypt_mprotect)
+ #include <nvif/notify.h>
+ #include <nvif/object.h>
+@@ -44,6 +45,8 @@ struct nouveau_svm {
+ 	int refs;
+ 	struct list_head inst;
  
- #undef __NR_syscalls
--#define __NR_syscalls 294
-+#define __NR_syscalls 295
++	struct nouveau_hms hms;
++
+ 	struct nouveau_svm_fault_buffer {
+ 		int id;
+ 		struct nvif_object object;
+@@ -766,6 +769,7 @@ nouveau_svm_suspend(struct nouveau_drm *drm)
+ void
+ nouveau_svm_fini(struct nouveau_drm *drm)
+ {
++	nouveau_hms_fini(drm, &drm->svm->hms);
+ 	kfree(drm->svm);
+ }
  
- /*
-  * 32 bit systems traditionally used different
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index df556175be50..1b48f709c265 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -336,6 +336,8 @@ COND_SYSCALL(pkey_mprotect);
- COND_SYSCALL(pkey_alloc);
- COND_SYSCALL(pkey_free);
+@@ -776,6 +780,8 @@ nouveau_svm_init(struct nouveau_drm *drm)
+ 		drm->svm->drm = drm;
+ 		mutex_init(&drm->svm->mutex);
+ 		INIT_LIST_HEAD(&drm->svm->inst);
++
++		nouveau_hms_init(drm, &drm->svm->hms);
+ 	}
+ }
  
-+/* multi-key total memory encryption keys */
-+COND_SYSCALL(encrypt_mprotect);
- 
- /*
-  * Architecture specific weak syscall entries.
 -- 
-2.14.1
+2.17.2
