@@ -1,262 +1,555 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 012206B7EA8
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:42:03 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id s14so2381213pfk.16
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:42:02 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.42.01
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FE726B6BB4
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:36:18 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id w19so15308734qto.13
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:36:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c185si5894447qkb.52.2018.12.03.15.36.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 21:42:01 -0800 (PST)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V8 12/21] swap: Support PMD swap mapping in swapoff
-Date: Fri,  7 Dec 2018 13:41:12 +0800
-Message-Id: <20181207054122.27822-13-ying.huang@intel.com>
-In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
-References: <20181207054122.27822-1-ying.huang@intel.com>
+        Mon, 03 Dec 2018 15:36:16 -0800 (PST)
+From: jglisse@redhat.com
+Subject: [RFC PATCH 10/14] mm/hbind: add heterogeneous memory policy tracking infrastructure
+Date: Mon,  3 Dec 2018 18:35:05 -0500
+Message-Id: <20181203233509.20671-11-jglisse@redhat.com>
+In-Reply-To: <20181203233509.20671-1-jglisse@redhat.com>
+References: <20181203233509.20671-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Rafael J . Wysocki" <rafael@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <balbirs@au1.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Logan Gunthorpe <logang@deltatee.com>, John Hubbard <jhubbard@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Michal Hocko <mhocko@kernel.org>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>, Mel Gorman <mgorman@techsingularity.net>, Dave Airlie <airlied@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-During swapoff, for a huge swap cluster, we need to allocate a THP,
-read its contents into the THP and unuse the PMD and PTE swap mappings
-to it.  If failed to allocate a THP, the huge swap cluster will be
-split.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-During unuse, if it is found that the swap cluster mapped by a PMD
-swap mapping is split already, we will split the PMD swap mapping and
-unuse the PTEs.
+This patch add infrastructure to track heterogeneous memory policy
+within the kernel. Policy are defined over range of virtual address
+of a process and attach to the correspond mm_struct.
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
+User can reset to default policy for range of virtual address using
+hbind() default commands for the range.
+
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Cc: Rafael J. Wysocki <rafael@kernel.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Haggai Eran <haggaie@mellanox.com>
+Cc: Balbir Singh <balbirs@au1.ibm.com>
+Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Felix Kuehling <felix.kuehling@amd.com>
+Cc: Philip Yang <Philip.Yang@amd.com>
+Cc: Christian König <christian.koenig@amd.com>
+Cc: Paul Blinzer <Paul.Blinzer@amd.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
 Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: Vivek Kini <vkini@nvidia.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Dave Airlie <airlied@redhat.com>
+Cc: Ben Skeggs <bskeggs@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/asm-generic/pgtable.h | 14 +-----
- include/linux/huge_mm.h       |  8 ++++
- mm/huge_memory.c              |  4 +-
- mm/swapfile.c                 | 86 ++++++++++++++++++++++++++++++++++-
- 4 files changed, 97 insertions(+), 15 deletions(-)
+ include/linux/hms.h        |  46 ++++++
+ include/linux/mm_types.h   |   6 +
+ include/uapi/linux/hbind.h |   8 +
+ kernel/fork.c              |   3 +
+ mm/hms.c                   | 306 ++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 368 insertions(+), 1 deletion(-)
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 20aab7bfd487..5216124ba13c 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -931,22 +931,12 @@ static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
- 	barrier();
- #endif
- 	/*
--	 * !pmd_present() checks for pmd migration entries
--	 *
--	 * The complete check uses is_pmd_migration_entry() in linux/swapops.h
--	 * But using that requires moving current function and pmd_trans_unstable()
--	 * to linux/swapops.h to resovle dependency, which is too much code move.
--	 *
--	 * !pmd_present() is equivalent to is_pmd_migration_entry() currently,
--	 * because !pmd_present() pages can only be under migration not swapped
--	 * out.
--	 *
--	 * pmd_none() is preseved for future condition checks on pmd migration
-+	 * pmd_none() is preseved for future condition checks on pmd swap
- 	 * entries and not confusing with this function name, although it is
- 	 * redundant with !pmd_present().
- 	 */
- 	if (pmd_none(pmdval) || pmd_trans_huge(pmdval) ||
--		(IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION) && !pmd_present(pmdval)))
-+	    (IS_ENABLED(CONFIG_HAVE_PMD_SWAP_ENTRY) && !pmd_present(pmdval)))
- 		return 1;
- 	if (unlikely(pmd_bad(pmdval))) {
- 		pmd_clear_bad(pmd);
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index ea4999a4b6cd..6236f8b1d04b 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -376,6 +376,8 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma,
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+diff --git a/include/linux/hms.h b/include/linux/hms.h
+index 511b5363d8f2..f39c390b3afb 100644
+--- a/include/linux/hms.h
++++ b/include/linux/hms.h
+@@ -20,6 +20,8 @@
  
- #ifdef CONFIG_THP_SWAP
-+extern int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+			       unsigned long address, pmd_t orig_pmd);
- extern int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd);
+ #include <linux/device.h>
+ #include <linux/types.h>
++#include <linux/mm_types.h>
++#include <linux/mmu_notifier.h>
  
- static inline bool transparent_hugepage_swapin_enabled(
-@@ -401,6 +403,12 @@ static inline bool transparent_hugepage_swapin_enabled(
- 	return false;
- }
- #else /* CONFIG_THP_SWAP */
-+static inline int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+				      unsigned long address, pmd_t orig_pmd)
+ 
+ struct hms_target;
+@@ -34,6 +36,10 @@ struct hms_target_hbind {
+ #if IS_ENABLED(CONFIG_HMS)
+ 
+ 
++#include <linux/interval_tree.h>
++#include <linux/rwsem.h>
++
++
+ #define to_hms_object(device) container_of(device, struct hms_object, device)
+ 
+ enum hms_type {
+@@ -133,6 +139,42 @@ void hms_bridge_register(struct hms_bridge **bridgep,
+ void hms_bridge_unregister(struct hms_bridge **bridgep);
+ 
+ 
++struct hms_policy_targets {
++	struct hms_target **targets;
++	unsigned ntargets;
++	struct kref kref;
++};
++
++struct hms_policy_range {
++	struct hms_policy_targets *ptargets;
++	struct interval_tree_node node;
++	struct kref kref;
++};
++
++struct hms_policy {
++	struct rb_root_cached ranges;
++	struct rw_semaphore sem;
++	struct mmu_notifier mn;
++};
++
++static inline unsigned long hms_policy_range_start(struct hms_policy_range *r)
 +{
-+	return 0;
++	return r->node.start;
 +}
 +
- static inline int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
++static inline unsigned long hms_policy_range_end(struct hms_policy_range *r)
++{
++	return r->node.last + 1;
++}
++
++static inline void hms_policy_init(struct mm_struct *mm)
++{
++	mm->hpolicy = NULL;
++}
++
++void hms_policy_fini(struct mm_struct *mm);
++
++
+ int hms_init(void);
+ 
+ 
+@@ -163,6 +205,10 @@ int hms_init(void);
+ #define hms_bridge_unregister(bridgep)
+ 
+ 
++#define hms_policy_init(mm)
++#define hms_policy_fini(mm)
++
++
+ static inline int hms_init(void)
  {
  	return 0;
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 0ae7f824dbeb..f3c0a9e8fb9a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1721,8 +1721,8 @@ static void __split_huge_swap_pmd(struct vm_area_struct *vma,
- }
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 5ed8f6292a53..3da91767c689 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -26,6 +26,7 @@ typedef int vm_fault_t;
  
- #ifdef CONFIG_THP_SWAP
--static int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
--			       unsigned long address, pmd_t orig_pmd)
-+int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+			unsigned long address, pmd_t orig_pmd)
+ struct address_space;
+ struct mem_cgroup;
++struct hms_policy;
+ struct hmm;
+ 
+ /*
+@@ -491,6 +492,11 @@ struct mm_struct {
+ 		/* HMM needs to track a few things per mm */
+ 		struct hmm *hmm;
+ #endif
++
++#if IS_ENABLED(CONFIG_HMS)
++		/* Heterogeneous Memory System policy */
++		struct hms_policy *hpolicy;
++#endif
+ 	} __randomize_layout;
+ 
+ 	/*
+diff --git a/include/uapi/linux/hbind.h b/include/uapi/linux/hbind.h
+index a9aba17ab142..cc4687587f5a 100644
+--- a/include/uapi/linux/hbind.h
++++ b/include/uapi/linux/hbind.h
+@@ -39,6 +39,14 @@ struct hbind_params {
+ #define HBIND_ATOM_GET_CMD(v) ((v) & 0xfffff)
+ #define HBIND_ATOM_SET_CMD(v) ((v) & 0xfffff)
+ 
++/*
++ * HBIND_CMD_DEFAULT restore default policy ie undo any of the previous policy.
++ *
++ * Additional dwords:
++ *      NONE (DWORDS MUST BE 0 !)
++ */
++#define HBIND_CMD_DEFAULT 0
++
+ 
+ #define HBIND_IOCTL		_IOWR('H', 0x00, struct hbind_params)
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 07cddff89c7b..bc40edcadc69 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -38,6 +38,7 @@
+ #include <linux/mman.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/hmm.h>
++#include <linux/hms.h>
+ #include <linux/fs.h>
+ #include <linux/mm.h>
+ #include <linux/vmacache.h>
+@@ -671,6 +672,7 @@ void __mmdrop(struct mm_struct *mm)
+ 	mm_free_pgd(mm);
+ 	destroy_context(mm);
+ 	hmm_mm_destroy(mm);
++	hms_policy_fini(mm);
+ 	mmu_notifier_mm_destroy(mm);
+ 	check_mm(mm);
+ 	put_user_ns(mm->user_ns);
+@@ -989,6 +991,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	RCU_INIT_POINTER(mm->exe_file, NULL);
+ 	mmu_notifier_mm_init(mm);
+ 	hmm_mm_init(mm);
++	hms_policy_init(mm);
+ 	init_tlb_flush_pending(mm);
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+ 	mm->pmd_huge_pte = NULL;
+diff --git a/mm/hms.c b/mm/hms.c
+index bf328bd577dc..be2c4e526f25 100644
+--- a/mm/hms.c
++++ b/mm/hms.c
+@@ -24,6 +24,7 @@
+ #include <linux/slab.h>
+ #include <linux/init.h>
+ #include <linux/hms.h>
++#include <linux/mm.h>
+ #include <linux/fs.h>
+ 
+ #include <uapi/linux/hbind.h>
+@@ -31,7 +32,6 @@
+ 
+ #define HBIND_FIX_ARRAY 64
+ 
+-
+ static ssize_t hbind_read(struct file *file, char __user *buf,
+ 			size_t count, loff_t *ppos)
  {
- 	struct mm_struct *mm = vma->vm_mm;
- 	spinlock_t *ptl;
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index c22c11b4a879..b85ec810d941 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1931,6 +1931,11 @@ static inline int pte_same_as_swp(pte_t pte, pte_t swp_pte)
- 	return pte_same(pte_swp_clear_soft_dirty(pte), swp_pte);
+@@ -44,6 +44,300 @@ static ssize_t hbind_write(struct file *file, const char __user *buf,
+ 	return -EINVAL;
  }
  
-+static inline int pmd_same_as_swp(pmd_t pmd, pmd_t swp_pmd)
++
++static void hms_policy_targets_get(struct hms_policy_targets *ptargets)
 +{
-+	return pmd_same(pmd_swp_clear_soft_dirty(pmd), swp_pmd);
++	kref_get(&ptargets->kref);
 +}
 +
- /*
-  * No need to decide whether this PTE shares the swap entry with others,
-  * just let do_wp_page work it out if a write is requested later - to
-@@ -1992,6 +1997,53 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 	return ret;
- }
- 
-+#ifdef CONFIG_THP_SWAP
-+static int unuse_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		     unsigned long addr, swp_entry_t entry, struct page *page)
++static void hms_policy_targets_free(struct kref *kref)
 +{
-+	struct mem_cgroup *memcg;
-+	spinlock_t *ptl;
-+	int ret = 1;
++	struct hms_policy_targets *ptargets;
 +
-+	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL,
-+				  &memcg, true)) {
-+		ret = -ENOMEM;
-+		goto out_nolock;
++	ptargets = container_of(kref, struct hms_policy_targets, kref);
++	kfree(ptargets->targets);
++	kfree(ptargets);
++}
++
++static void hms_policy_targets_put(struct hms_policy_targets *ptargets)
++{
++	kref_put(&ptargets->kref, &hms_policy_targets_free);
++}
++
++static struct hms_policy_targets* hms_policy_targets_new(const uint32_t *targets,
++							 unsigned ntargets)
++{
++	struct hms_policy_targets *ptargets;
++	void *_targets;
++	unsigned i, c;
++
++	_targets = kzalloc(ntargets * sizeof(void *), GFP_KERNEL);
++	if (_targets == NULL)
++		return NULL;
++
++	ptargets = kmalloc(sizeof(*ptargets), GFP_KERNEL);
++	if (ptargets == NULL) {
++		kfree(_targets);
++		return NULL;
 +	}
 +
-+	ptl = pmd_lock(vma->vm_mm, pmd);
-+	if (unlikely(!pmd_same_as_swp(*pmd, swp_entry_to_pmd(entry)))) {
-+		mem_cgroup_cancel_charge(page, memcg, true);
-+		ret = 0;
-+		goto out;
++	kref_init(&ptargets->kref);
++	ptargets->targets = _targets;
++	ptargets->ntargets = ntargets;
++
++	for (i = 0, c = 0; i < ntargets; ++i) {
++		ptargets->targets[c] = hms_target_find(targets[i]);
++		c += !!((long)ptargets->targets[i]);
 +	}
 +
-+	add_mm_counter(vma->vm_mm, MM_SWAPENTS, -HPAGE_PMD_NR);
-+	add_mm_counter(vma->vm_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-+	get_page(page);
-+	set_pmd_at(vma->vm_mm, addr, pmd,
-+		   pmd_mkold(mk_huge_pmd(page, vma->vm_page_prot)));
-+	page_add_anon_rmap(page, vma, addr, true);
-+	mem_cgroup_commit_charge(page, memcg, true, true);
-+	swap_free(entry, HPAGE_PMD_NR);
-+	/*
-+	 * Move the page to the active list so it is not
-+	 * immediately swapped out again after swapon.
-+	 */
-+	activate_page(page);
-+out:
-+	spin_unlock(ptl);
-+out_nolock:
++	/* Ignore NULL targets[i] */
++	ptargets->ntargets = c;
++
++	if (!c) {
++		/* No valid targets pointless to waste memory ... */
++		hms_policy_targets_put(ptargets);
++		return NULL;
++	}
++
++	return ptargets;
++}
++
++
++static void hms_policy_range_get(struct hms_policy_range *prange)
++{
++	kref_get(&prange->kref);
++}
++
++static void hms_policy_range_free(struct kref *kref)
++{
++	struct hms_policy_range *prange;
++
++	prange = container_of(kref, struct hms_policy_range, kref);
++	hms_policy_targets_put(prange->ptargets);
++	kfree(prange);
++}
++
++static void hms_policy_range_put(struct hms_policy_range *prange)
++{
++	kref_put(&prange->kref, &hms_policy_range_free);
++}
++
++static struct hms_policy_range *hms_policy_range_new(const uint32_t *targets,
++						     unsigned long start,
++						     unsigned long end,
++						     unsigned ntargets)
++{
++	struct hms_policy_targets *ptargets;
++	struct hms_policy_range *prange;
++
++	ptargets = hms_policy_targets_new(targets, ntargets);
++	if (ptargets == NULL)
++		return NULL;
++
++	prange = kmalloc(sizeof(*prange), GFP_KERNEL);
++	if (prange == NULL)
++		return NULL;
++
++	prange->node.start = start & PAGE_MASK;
++	prange->node.last = PAGE_ALIGN(end) - 1;
++	prange->ptargets = ptargets;
++	kref_init(&prange->kref);
++
++	return prange;
++}
++
++static struct hms_policy_range *
++hms_policy_range_dup(struct hms_policy_range *_prange)
++{
++	struct hms_policy_range *prange;
++
++	prange = kmalloc(sizeof(*prange), GFP_KERNEL);
++	if (prange == NULL)
++		return NULL;
++
++	hms_policy_targets_get(_prange->ptargets);
++	prange->node.start = _prange->node.start;
++	prange->node.last = _prange->node.last;
++	prange->ptargets = _prange->ptargets;
++	kref_init(&prange->kref);
++
++	return prange;
++}
++
++
++void hms_policy_fini(struct mm_struct *mm)
++{
++	struct hms_policy *hpolicy = READ_ONCE(mm->hpolicy);
++	struct interval_tree_node *node;
++
++	spin_lock(&mm->page_table_lock);
++	hpolicy = READ_ONCE(mm->hpolicy);
++	mm->hpolicy = NULL;
++	spin_unlock(&mm->page_table_lock);
++
++	/* No active heterogeneous policy structure so nothing to cleanup. */
++	if (hpolicy == NULL)
++		return;
++
++	mmu_notifier_unregister_no_release(&hpolicy->mn, mm);
++
++	down_write(&hpolicy->sem);
++	node = interval_tree_iter_first(&hpolicy->ranges, 0, -1UL);
++	while (node) {
++		struct hms_policy_range *prange;
++		struct interval_tree_node *next;
++
++		prange = container_of(node, struct hms_policy_range, node);
++		next = interval_tree_iter_next(node, 0, -1UL);
++		interval_tree_remove(node, &hpolicy->ranges);
++		hms_policy_range_put(prange);
++		node = next;
++	}
++	up_write(&hpolicy->sem);
++
++	kfree(hpolicy);
++}
++
++
++static int hbind_default_locked(struct hms_policy *hpolicy,
++				struct hbind_params *params)
++{
++	struct interval_tree_node *node;
++	unsigned long start, last;
++	int ret = 0;
++
++	start = params->start;
++	last = params->end - 1UL;
++
++	node = interval_tree_iter_first(&hpolicy->ranges, start, last);
++	while (node) {
++		struct hms_policy_range *prange;
++		struct interval_tree_node *next;
++
++		prange = container_of(node, struct hms_policy_range, node);
++		next = interval_tree_iter_next(node, start, last);
++		if (node->start < start && node->last > last) {
++			/* Node is split in 2 */
++			struct hms_policy_range *_prange;
++			_prange = hms_policy_range_dup(prange);
++			if (_prange == NULL) {
++				ret = -ENOMEM;
++				break;
++			}
++			prange->node.last = start - 1;
++			_prange->node.start = last + 1;
++			interval_tree_insert(&_prange->node, &hpolicy->ranges);
++			break;
++		} else if (node->start < start) {
++			prange->node.last = start - 1;
++		} else if (node->last > last) {
++			prange->node.start = last + 1;
++		} else {
++			/* Fully inside [start, last] */
++			interval_tree_remove(node, &hpolicy->ranges);
++		}
++
++		node = next;
++	}
++
 +	return ret;
 +}
-+#else
-+static int unuse_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		     unsigned long addr, swp_entry_t entry, struct page *page)
++
++static int hbind_default(struct mm_struct *mm, struct hbind_params *params,
++			 const uint32_t *targets, uint32_t *atoms)
 +{
++	struct hms_policy *hpolicy = READ_ONCE(mm->hpolicy);
++	int ret;
++
++	/* No active heterogeneous policy structure so no range to reset. */
++	if (hpolicy == NULL)
++		return 0;
++
++	down_write(&hpolicy->sem);
++	ret = hbind_default_locked(hpolicy, params);
++	up_write(&hpolicy->sem);
++
++	return ret;
++}
++
++
++static void hms_policy_notifier_release(struct mmu_notifier *mn,
++					struct mm_struct *mm)
++{
++	hms_policy_fini(mm);
++}
++
++static int hms_policy_notifier_invalidate_range_start(struct mmu_notifier *mn,
++				       const struct mmu_notifier_range *range)
++{
++	if (range->event == MMU_NOTIFY_UNMAP) {
++		struct hbind_params params;
++
++		if (!range->blockable)
++			return -EBUSY;
++
++		params.natoms = 0;
++		params.ntargets = 0;
++		params.end = range->end;
++		params.start = range->start;
++		hbind_default(range->mm, &params, NULL, NULL);
++	}
++
 +	return 0;
 +}
-+#endif
 +
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				unsigned long addr, unsigned long end,
- 				swp_entry_t entry, struct page *page)
-@@ -2032,7 +2084,7 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 				unsigned long addr, unsigned long end,
- 				swp_entry_t entry, struct page *page)
- {
--	pmd_t *pmd;
-+	pmd_t swp_pmd = swp_entry_to_pmd(entry), *pmd, orig_pmd;
- 	unsigned long next;
- 	int ret;
- 
-@@ -2040,6 +2092,27 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 	do {
- 		cond_resched();
- 		next = pmd_addr_end(addr, end);
-+		orig_pmd = *pmd;
-+		if (IS_ENABLED(CONFIG_THP_SWAP) && is_swap_pmd(orig_pmd)) {
-+			if (likely(!pmd_same_as_swp(orig_pmd, swp_pmd)))
-+				continue;
-+			/*
-+			 * Huge cluster has been split already, split
-+			 * PMD swap mapping and fallback to unuse PTE
-+			 */
-+			if (!PageTransCompound(page)) {
-+				ret = split_huge_swap_pmd(vma, pmd,
-+							  addr, orig_pmd);
-+				if (ret)
-+					return ret;
-+				ret = unuse_pte_range(vma, pmd, addr,
-+						      next, entry, page);
-+			} else
-+				ret = unuse_pmd(vma, pmd, addr, entry, page);
-+			if (ret)
-+				return ret;
-+			continue;
++static const struct mmu_notifier_ops hms_policy_notifier_ops = {
++	.release = hms_policy_notifier_release,
++	.invalidate_range_start = hms_policy_notifier_invalidate_range_start,
++};
++
++static struct hms_policy *hms_policy_get(struct mm_struct *mm)
++{
++	struct hms_policy *hpolicy = READ_ONCE(mm->hpolicy);
++	bool mmu_notifier = false;
++
++	/*
++	 * The hpolicy struct can only be freed once the mm_struct goes away,
++	 * hence only pre-allocate if none is attach yet.
++	 */
++	if (hpolicy)
++		return hpolicy;
++
++	hpolicy = kzalloc(sizeof(*hpolicy), GFP_KERNEL);
++	if (hpolicy == NULL)
++		return NULL;
++
++	init_rwsem(&hpolicy->sem);
++
++	spin_lock(&mm->page_table_lock);
++	if (!mm->hpolicy) {
++		mm->hpolicy = hpolicy;
++		mmu_notifier = true;
++		hpolicy = NULL;
++	}
++	spin_unlock(&mm->page_table_lock);
++
++	if (mmu_notifier) {
++		int ret;
++
++		hpolicy->mn.ops = &hms_policy_notifier_ops;
++		ret = mmu_notifier_register(&hpolicy->mn, mm);
++		if (ret) {
++			spin_lock(&mm->page_table_lock);
++			hpolicy = mm->hpolicy;
++			mm->hpolicy = NULL;
++			spin_unlock(&mm->page_table_lock);
 +		}
- 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
- 			continue;
- 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
-@@ -2233,6 +2306,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
- 	 * there are races when an instance of an entry might be missed.
- 	 */
- 	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
-+retry:
- 		if (signal_pending(current)) {
- 			retval = -EINTR;
- 			break;
-@@ -2248,6 +2322,8 @@ int try_to_unuse(unsigned int type, bool frontswap,
- 		page = read_swap_cache_async(entry,
- 					GFP_HIGHUSER_MOVABLE, NULL, 0, false);
- 		if (!page) {
-+			struct swap_cluster_info *ci = NULL;
++	}
 +
- 			/*
- 			 * Either swap_duplicate() failed because entry
- 			 * has been freed independently, and will not be
-@@ -2264,6 +2340,14 @@ int try_to_unuse(unsigned int type, bool frontswap,
- 			 */
- 			if (!swcount || swcount == SWAP_MAP_BAD)
- 				continue;
-+			if (si->cluster_info)
-+				ci = si->cluster_info + i / SWAPFILE_CLUSTER;
-+			/* Split huge cluster if failed to allocate huge page */
-+			if (cluster_is_huge(ci)) {
-+				retval = split_swap_cluster(entry, 0);
-+				if (!retval || retval == -EEXIST)
-+					goto retry;
++	if (hpolicy)
++		kfree(hpolicy);
++
++	/* At this point mm->hpolicy is valid */
++	return mm->hpolicy;
++}
++
++
+ static long hbind_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+ {
+ 	uint32_t *targets, *_dtargets = NULL, _ftargets[HBIND_FIX_ARRAY];
+@@ -114,6 +408,16 @@ static long hbind_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+ 	for (i = 0, ndwords = 1; i < params.natoms; i += ndwords) {
+ 		ndwords = 1 + HBIND_ATOM_GET_DWORDS(atoms[i]);
+ 		switch (HBIND_ATOM_GET_CMD(atoms[i])) {
++		case HBIND_CMD_DEFAULT:
++			if (ndwords != 1) {
++				ret = -EINVAL;
++				goto out_mm;
 +			}
- 			retval = -ENOMEM;
- 			break;
- 		}
++			ret = hbind_default(current->mm, &params,
++					    targets, atoms);
++			if (ret)
++				goto out_mm;
++			break;
+ 		default:
+ 			ret = -EINVAL;
+ 			goto out_mm;
 -- 
-2.18.1
+2.17.2
