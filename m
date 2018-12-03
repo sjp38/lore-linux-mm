@@ -1,107 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7766B6892
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 05:24:08 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id t18so13033005qtj.3
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 02:24:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u37si9434653qtu.230.2018.12.03.02.24.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 02:24:07 -0800 (PST)
-Subject: Re: [PATCH v2] mm: page_mapped: don't assume compound page is huge or
- THP
-References: <eabca57aa14f4df723173b24891f4a2d9c501f21.1543526537.git.jstancek@redhat.com>
- <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
-From: Laszlo Ersek <lersek@redhat.com>
-Message-ID: <35a664c0-6dab-bb32-811e-65250200d195@redhat.com>
-Date: Mon, 3 Dec 2018 11:23:58 +0100
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 92B036B6A8A
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:46 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id w6so5968783otb.6
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:46 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 97si6695626otb.98.2018.12.03.10.07.45
+        for <linux-mm@kvack.org>;
+        Mon, 03 Dec 2018 10:07:45 -0800 (PST)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v7 19/25] ACPI / APEI: Only use queued estatus entry during _in_nmi_notify_one()
+Date: Mon,  3 Dec 2018 18:06:07 +0000
+Message-Id: <20181203180613.228133-20-james.morse@arm.com>
+In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
+References: <20181203180613.228133-1-james.morse@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org, alex.williamson@redhat.com, aarcange@redhat.com, rientjes@google.com, kirill@shutemov.name, mgorman@techsingularity.net, mhocko@suse.com
-Cc: linux-kernel@vger.kernel.org
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
 
-On 11/30/18 13:06, Jan Stancek wrote:
-> LTP proc01 testcase has been observed to rarely trigger crashes
-> on arm64:
->     page_mapped+0x78/0xb4
->     stable_page_flags+0x27c/0x338
->     kpageflags_read+0xfc/0x164
->     proc_reg_read+0x7c/0xb8
->     __vfs_read+0x58/0x178
->     vfs_read+0x90/0x14c
->     SyS_read+0x60/0xc0
-> 
-> Issue is that page_mapped() assumes that if compound page is not
-> huge, then it must be THP. But if this is 'normal' compound page
-> (COMPOUND_PAGE_DTOR), then following loop can keep running
-> (for HPAGE_PMD_NR iterations) until it tries to read from memory
-> that isn't mapped and triggers a panic:
->         for (i = 0; i < hpage_nr_pages(page); i++) {
->                 if (atomic_read(&page[i]._mapcount) >= 0)
->                         return true;
-> 	}
-> 
-> I could replicate this on x86 (v4.20-rc4-98-g60b548237fed) only
-> with a custom kernel module [1] which:
-> - allocates compound page (PAGEC) of order 1
-> - allocates 2 normal pages (COPY), which are initialized to 0xff
->   (to satisfy _mapcount >= 0)
-> - 2 PAGEC page structs are copied to address of first COPY page
-> - second page of COPY is marked as not present
-> - call to page_mapped(COPY) now triggers fault on access to 2nd
->   COPY page at offset 0x30 (_mapcount)
-> 
-> [1] https://github.com/jstancek/reproducers/blob/master/kernel/page_mapped_crash/repro.c
-> 
-> Fix the loop to iterate for "1 << compound_order" pages.
-> 
-> Debugged-by: Laszlo Ersek <lersek@redhat.com>
-> Suggested-by: "Kirill A. Shutemov" <kirill@shutemov.name>
-> Signed-off-by: Jan Stancek <jstancek@redhat.com>
-> ---
->  mm/util.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Changes in v2:
-> - change the loop instead so we check also mapcount of subpages
-> 
-> diff --git a/mm/util.c b/mm/util.c
-> index 8bf08b5b5760..5c9c7359ee8a 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -478,7 +478,7 @@ bool page_mapped(struct page *page)
->  		return true;
->  	if (PageHuge(page))
->  		return false;
-> -	for (i = 0; i < hpage_nr_pages(page); i++) {
-> +	for (i = 0; i < (1 << compound_order(page)); i++) {
->  		if (atomic_read(&page[i]._mapcount) >= 0)
->  			return true;
->  	}
-> 
+Each struct ghes has an worst-case sized buffer for storing the
+estatus. If an error is being processed by ghes_proc() in process
+context this buffer will be in use. If the error source then triggers
+an NMI-like notification, the same buffer will be used by
+_in_nmi_notify_one() to stage the estatus data, before
+__process_error() copys it into a queued estatus entry.
 
-Totally uninformed side-question:
+Merge __process_error()s work into _in_nmi_notify_one() so that
+the queued estatus entry is used from the beginning. Use the new
+ghes_peek_estatus() to know how much memory to allocate from
+the ghes_estatus_pool before reading the records.
 
-how large can the return value of compound_order() be? MAX_ORDER?
+Reported-by: Borislav Petkov <bp@suse.de>
+Signed-off-by: James Morse <james.morse@arm.com>
 
-Apparently, MAX_ORDER can be defined as CONFIG_FORCE_MAX_ZONEORDER.
+Change since v6:
+ * Added a comment explaining the 'ack-error, then goto no_work'.
+ * Added missing esatus-clearing, which is necessary after reading the GAS,
+---
+ drivers/acpi/apei/ghes.c | 59 ++++++++++++++++++++++++----------------
+ 1 file changed, 35 insertions(+), 24 deletions(-)
 
-"config FORCE_MAX_ZONEORDER" is listed in a number of Kconfig files.
-Among those, "arch/mips/Kconfig" permits "ranges" (?) that extend up to
-64. Same applies to "arch/powerpc/Kconfig" and "arch/sh/mm/Kconfig".
-
-If we left-shift "1" -- a signed int, which I assume in practice will
-always have two's complement representation, 1 sign bit, 31 value bits,
-and 0 padding bits --, by 31 or more bit positions, we get undefined
-behavior (as part of the left-shift operation).
-
-Is this a practical concern?
-
-Thanks,
-Laszlo
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index 07a12aac4c1a..849da0d43a21 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -856,43 +856,43 @@ static void ghes_print_queued_estatus(void)
+ 	}
+ }
+ 
+-/* Save estatus for further processing in IRQ context */
+-static void __process_error(struct ghes *ghes,
+-			    struct acpi_hest_generic_status *src_estatus)
++static int _in_nmi_notify_one(struct ghes *ghes, int fixmap_idx)
+ {
+-	u32 len, node_len;
++	struct acpi_hest_generic_status *estatus, tmp_header;
+ 	struct ghes_estatus_node *estatus_node;
+-	struct acpi_hest_generic_status *estatus;
++	u32 len, node_len;
++	u64 buf_paddr;
++	int sev, rc;
+ 
+ 	if (!IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG))
+-		return;
++		return -EOPNOTSUPP;
+ 
+-	if (ghes_estatus_cached(src_estatus))
+-		return;
++	rc = __ghes_peek_estatus(ghes, fixmap_idx, &tmp_header, &buf_paddr);
++	if (rc) {
++		ghes_clear_estatus(&tmp_header, buf_paddr, fixmap_idx);
++		return rc;
++	}
+ 
+-	len = cper_estatus_len(src_estatus);
+-	node_len = GHES_ESTATUS_NODE_LEN(len);
++	rc = __ghes_check_estatus(ghes, &tmp_header);
++	if (rc) {
++		ghes_clear_estatus(&tmp_header, buf_paddr, fixmap_idx);
++		return rc;
++	}
+ 
++	len = cper_estatus_len(&tmp_header);
++	node_len = GHES_ESTATUS_NODE_LEN(len);
+ 	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
+ 	if (!estatus_node)
+-		return;
++		return -ENOMEM;
+ 
+ 	estatus_node->ghes = ghes;
+ 	estatus_node->generic = ghes->generic;
+ 	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+-	memcpy(estatus, src_estatus, len);
+-	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
+-}
+-
+-static int _in_nmi_notify_one(struct ghes *ghes, int fixmap_idx)
+-{
+-	struct acpi_hest_generic_status *estatus = ghes->estatus;
+-	u64 buf_paddr;
+-	int sev;
+ 
+-	if (ghes_read_estatus(ghes, estatus, &buf_paddr, fixmap_idx)) {
++	if (__ghes_read_estatus(estatus, buf_paddr, len, fixmap_idx)) {
+ 		ghes_clear_estatus(estatus, buf_paddr, fixmap_idx);
+-		return -ENOENT;
++		rc = -ENOENT;
++		goto no_work;
+ 	}
+ 
+ 	sev = ghes_severity(estatus->error_severity);
+@@ -901,14 +901,25 @@ static int _in_nmi_notify_one(struct ghes *ghes, int fixmap_idx)
+ 		__ghes_panic(ghes, estatus);
+ 	}
+ 
+-	__process_error(ghes, estatus);
+ 	ghes_clear_estatus(estatus, buf_paddr, fixmap_idx);
+ 
+ 	if (is_hest_type_generic_v2(ghes) && ghes_ack_error(ghes->generic_v2))
+ 		pr_warn_ratelimited(FW_WARN GHES_PFX
+ 				    "Failed to ack error status block!\n");
+ 
+-	return 0;
++	/* This error has been reported before, don't process it again. */
++	if (ghes_estatus_cached(estatus))
++		goto no_work;
++
++	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
++
++	return rc;
++
++no_work:
++	gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
++		      node_len);
++
++	return rc;
+ }
+ 
+ static int ghes_estatus_queue_notified(struct list_head *rcu_list,
+-- 
+2.19.2
