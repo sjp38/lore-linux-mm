@@ -1,81 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F2F238E004D
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 03:46:20 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id o9so9363699pgv.19
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 00:46:20 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id d2si12797074pfe.159.2018.12.11.00.46.18
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AE426B6BB6
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:36:24 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id d35so15271482qtd.20
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:36:24 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b129si3134457qke.179.2018.12.03.15.36.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 00:46:19 -0800 (PST)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH 1/2] swap: Fix general protection fault when swapoff
-Date: Tue, 11 Dec 2018 16:46:08 +0800
-Message-Id: <20181211084609.19553-1-ying.huang@intel.com>
+        Mon, 03 Dec 2018 15:36:23 -0800 (PST)
+From: jglisse@redhat.com
+Subject: [RFC PATCH 12/14] mm/hbind: add migrate command to hbind() ioctl
+Date: Mon,  3 Dec 2018 18:35:07 -0500
+Message-Id: <20181203233509.20671-13-jglisse@redhat.com>
+In-Reply-To: <20181203233509.20671-1-jglisse@redhat.com>
+References: <20181203233509.20671-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Vineeth Remanan Pillai <vpillai@digitalocean.com>, Kelley Nielsen <kelleynnn@gmail.com>, Rik van Riel <riel@surriel.com>, Matthew Wilcox <willy@infradead.org>, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Rafael J . Wysocki" <rafael@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <balbirs@au1.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Logan Gunthorpe <logang@deltatee.com>, John Hubbard <jhubbard@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Michal Hocko <mhocko@kernel.org>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>, Mel Gorman <mgorman@techsingularity.net>, Dave Airlie <airlied@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-When VMA based swap readahead is used, which is default if all swap
-devices are SSD, swapoff will trigger general protection fault as
-follow, because vmf->pmd isn't initialized when calling
-swapin_readahead().  This fix could be folded into the patch: mm,
-swap: rid swapoff of quadratic complexity in -mm patchset.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-general protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-CPU: 3 PID: 352 Comm: swapoff Not tainted 4.20.0-rc5-mm1-kvm+ #535
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-1.fc28 04/01/2014
-RIP: 0010:swapin_readahead+0xb7/0x39b
-Code: ff 01 00 00 40 f6 c7 80 49 0f 45 d0 48 21 d7 48 ba 00 00 00 00 80 88 ff ff 48 8d 14 f2 48 01 d7 48 ba ff ff ff ff ff ff ff ef <48> 39 17 0f 87 5d 01 00 00 49 8b 95 b0 00 00 00 48 85 d2 75 05 ba
-RSP: 0018:ffffc900004c3ca0 EFLAGS: 00010207
-RAX: 000055de5d252000 RBX: 000000055de5d252 RCX: 0000000000000003
-RDX: efffffffffffffff RSI: 0000000000000052 RDI: 000f0bc11c600290
-RBP: ffffc900004c3d30 R08: 000fffffffe00000 R09: ffffc900004c3ea0
-R10: ffffc900004c3d50 R11: 0000000000000002 R12: ffffc900004c3da8
-R13: ffff88803b71d780 R14: 0000000000000001 R15: ffff88803b71d780
-FS:  00007f87c20e02c0(0000) GS:ffff88803e800000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 000055a439825398 CR3: 000000003b49a004 CR4: 0000000000360ea0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
- ? list_add_tail_rcu+0x19/0x31
- ? __lock_acquire+0xd61/0xe1c
- ? find_held_lock+0x2b/0x6e
- ? unuse_pte_range+0xe9/0x429
- unuse_pte_range+0xe9/0x429
- ? find_held_lock+0x2b/0x6e
- ? __lock_is_held+0x40/0x71
- try_to_unuse+0x311/0x54b
- __do_sys_swapoff+0x254/0x625
- ? lockdep_hardirqs_off+0x29/0x86
- ? do_syscall_64+0x12/0x65
- do_syscall_64+0x57/0x65
- entry_SYSCALL_64_after_hwframe+0x49/0xbe
+This patch add migrate commands to hbind() ioctl, user space can use
+this commands to migrate a range of virtual address to list of target
+memory.
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Vineeth Remanan Pillai <vpillai@digitalocean.com>
-Cc: Kelley Nielsen <kelleynnn@gmail.com>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>
+This does not change the policy for the range, it also ignores any of
+the existing policy range, it does not changes the policy for the
+range.
+
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Cc: Rafael J. Wysocki <rafael@kernel.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Haggai Eran <haggaie@mellanox.com>
+Cc: Balbir Singh <balbirs@au1.ibm.com>
+Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Felix Kuehling <felix.kuehling@amd.com>
+Cc: Philip Yang <Philip.Yang@amd.com>
+Cc: Christian König <christian.koenig@amd.com>
+Cc: Paul Blinzer <Paul.Blinzer@amd.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: Vivek Kini <vkini@nvidia.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Dave Airlie <airlied@redhat.com>
+Cc: Ben Skeggs <bskeggs@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/swapfile.c | 1 +
- 1 file changed, 1 insertion(+)
+ include/uapi/linux/hbind.h |  9 ++++++++
+ mm/hms.c                   | 43 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 9ca162cc45dc..7464d0a92869 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1904,6 +1904,7 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		swap_map = &si->swap_map[offset];
- 		vmf.vma = vma;
- 		vmf.address = addr;
-+		vmf.pmd = pmd;
- 		page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE, &vmf);
- 		if (!page) {
- 			if (*swap_map == 0 || *swap_map == SWAP_MAP_BAD)
+diff --git a/include/uapi/linux/hbind.h b/include/uapi/linux/hbind.h
+index 7bb876954e3f..ededbba22121 100644
+--- a/include/uapi/linux/hbind.h
++++ b/include/uapi/linux/hbind.h
+@@ -57,6 +57,15 @@ struct hbind_params {
+  */
+ #define HBIND_CMD_BIND 1
+ 
++/*
++ * HBIND_CMD_MIGRATE move existing memory to use listed target memory. This is
++ * a best effort.
++ *
++ * Additional dwords:
++ *      [0] result ie number of pages that have been migrated.
++ */
++#define HBIND_CMD_MIGRATE 2
++
+ 
+ #define HBIND_IOCTL		_IOWR('H', 0x00, struct hbind_params)
+ 
+diff --git a/mm/hms.c b/mm/hms.c
+index 6be6f4acdd49..6764908f47bf 100644
+--- a/mm/hms.c
++++ b/mm/hms.c
+@@ -368,6 +368,39 @@ static int hbind_bind(struct mm_struct *mm, struct hbind_params *params,
+ }
+ 
+ 
++static int hbind_migrate(struct mm_struct *mm, struct hbind_params *params,
++			 const uint32_t *targets, uint32_t *atoms)
++{
++	unsigned long size, npages;
++	int ret = -EINVAL;
++	unsigned i;
++
++	size = PAGE_ALIGN(params->end) - (params->start & PAGE_MASK);
++	npages = size >> PAGE_SHIFT;
++
++	for (i = 0; params->ntargets; ++i) {
++		struct hms_target *target;
++
++		target = hms_target_find(targets[i]);
++		if (target == NULL)
++			continue;
++
++		ret = target->hbind->migrate(target, mm, params->start,
++					     params->end, params->natoms,
++					     atoms);
++		hms_target_put(target);
++
++		if (ret)
++			continue;
++
++		if (atoms[0] >= npages)
++			break;
++	}
++
++	return ret;
++}
++
++
+ static long hbind_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+ {
+ 	uint32_t *targets, *_dtargets = NULL, _ftargets[HBIND_FIX_ARRAY];
+@@ -458,6 +491,16 @@ static long hbind_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+ 			if (ret)
+ 				goto out_mm;
+ 			break;
++		case HBIND_CMD_MIGRATE:
++			if (ndwords != 2) {
++				ret = -EINVAL;
++				goto out_mm;
++			}
++			ret = hbind_migrate(current->mm, &params,
++					    targets, atoms);
++			if (ret)
++				goto out_mm;
++			break;
+ 		default:
+ 			ret = -EINVAL;
+ 			goto out_mm;
 -- 
-2.18.1
+2.17.2
