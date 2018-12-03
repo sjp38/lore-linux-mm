@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 748526B7EBC
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:42:28 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id v12so1933591plp.16
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:42:28 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.42.27
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4496B698D
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 09:35:33 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id t18so13624003qtj.3
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 06:35:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r129sor6948763qke.130.2018.12.03.06.35.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 21:42:27 -0800 (PST)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V8 21/21] swap: Update help of CONFIG_THP_SWAP
-Date: Fri,  7 Dec 2018 13:41:21 +0800
-Message-Id: <20181207054122.27822-22-ying.huang@intel.com>
-In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
-References: <20181207054122.27822-1-ying.huang@intel.com>
+        (Google Transport Security);
+        Mon, 03 Dec 2018 06:35:31 -0800 (PST)
+Subject: Re: [PATCH v2] mm: prototype: rid swapoff of quadratic complexity
+From: Vineeth Remanan Pillai <vpillai@digitalocean.com>
+References: <20181126165521.19777-1-vpillai@digitalocean.com>
+ <20181126172255.GK3065@bombadil.infradead.org>
+ <21acdf55-dbcb-1c8f-4783-9bb496dcbca3@digitalocean.com>
+Message-ID: <8ec7fc5f-3c14-5faa-541e-45f5b980a98d@digitalocean.com>
+Date: Mon, 3 Dec 2018 09:35:24 -0500
+MIME-Version: 1.0
+In-Reply-To: <21acdf55-dbcb-1c8f-4783-9bb496dcbca3@digitalocean.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dan Williams <dan.j.williams@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kelley Nielsen <kelleynnn@gmail.com>, Rik van Riel <riel@surriel.com>
 
-The help of CONFIG_THP_SWAP is updated to reflect the latest progress
-of THP (Tranparent Huge Page) swap optimization.
+Hi Matthew,
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
----
- mm/Kconfig | 2 --
- 1 file changed, 2 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index d7c5299c5b7d..d397baa92a9b 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -417,8 +417,6 @@ config THP_SWAP
- 	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
- 	help
- 	  Swap transparent huge pages in one piece, without splitting.
--	  XXX: For now, swap cluster backing transparent huge page
--	  will be split after swapout.
- 
- 	  For selection by architectures with reasonable THP sizes.
- 
--- 
-2.18.1
+>> This seems terribly complicated.  You run through i_pages, record the
+>> indices of the swap entries, then go back and look them up again by
+>> calling shmem_getpage() which calls the incredibly complex 300 line
+>> shmem_getpage_gfp().
+>>
+>> Can we refactor shmem_getpage_gfp() to skip some of the checks which
+>> aren't necessary when called from this path, and turn this into a nice
+>> simple xas_for_each() loop which works one entry at a time?
+>
+> I shall investigate this and make this simpler as you suggested.
+
+I have looked into this deeper. I think it would be very difficult to 
+consolidate the whole logic into a single xas_for_each() loop because, 
+we do disk io and might sleep. I have refactored the code such that it 
+much more readable now and I am using the same format used by 
+find_get_entries.
+
+Will send out the next revision later today.
+
+
+Thanks,
+
+Vineeth
