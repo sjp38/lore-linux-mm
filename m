@@ -1,106 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 88BD26B6D89
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:35:28 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id t133so16611738iof.20
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:35:28 -0800 (PST)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-eopbgr740041.outbound.protection.outlook.com. [40.107.74.41])
-        by mx.google.com with ESMTPS id i135si5880282iti.83.2018.12.03.23.35.25
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F2EE96B6AE2
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 15:18:33 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id k90so14711989qte.0
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 12:18:33 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j25si2954361qtr.152.2018.12.03.12.18.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 23:35:26 -0800 (PST)
-From: "Koenig, Christian" <Christian.Koenig@amd.com>
-Subject: Re: [PATCH 0/3] mmu notifier contextual informations
-Date: Tue, 4 Dec 2018 07:35:22 +0000
-Message-ID: <2c0ed01b-50f9-961b-ff08-de494e00b1b4@amd.com>
-References: <20181203201817.10759-1-jglisse@redhat.com>
-In-Reply-To: <20181203201817.10759-1-jglisse@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <26511A7B4182974B950897019B73A37F@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        Mon, 03 Dec 2018 12:18:33 -0800 (PST)
+From: jglisse@redhat.com
+Subject: [PATCH 0/3] mmu notifier contextual informations
+Date: Mon,  3 Dec 2018 15:18:14 -0500
+Message-Id: <20181203201817.10759-1-jglisse@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "jglisse@redhat.com" <jglisse@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, "Kuehling, Felix" <Felix.Kuehling@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, Christian Koenig <christian.koenig@amd.com>, Felix Kuehling <felix.kuehling@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org, linux-rdma@vger.kernel.org, linux-fsdevel@vger.kernel.org, dri-devel@lists.freedesktop.org
 
-QW0gMDMuMTIuMTggdW0gMjE6MTggc2NocmllYiBqZ2xpc3NlQHJlZGhhdC5jb206DQo+IEZyb206
-IErDqXLDtG1lIEdsaXNzZSA8amdsaXNzZUByZWRoYXQuY29tPg0KPg0KPiBUaGlzIHBhdGNoc2V0
-IGFkZCBjb250ZXh0dWFsIGluZm9ybWF0aW9uLCB3aHkgYW4gaW52YWxpZGF0aW9uIGlzDQo+IGhh
-cHBlbmluZywgdG8gbW11IG5vdGlmaWVyIGNhbGxiYWNrLiBUaGlzIGlzIG5lY2Vzc2FyeSBmb3Ig
-dXNlcg0KPiBvZiBtbXUgbm90aWZpZXIgdGhhdCB3aXNoIHRvIG1haW50YWlucyB0aGVpciBvd24g
-ZGF0YSBzdHJ1Y3R1cmUNCj4gd2l0aG91dCBoYXZpbmcgdG8gYWRkIG5ldyBmaWVsZHMgdG8gc3Ry
-dWN0IHZtX2FyZWFfc3RydWN0ICh2bWEpLg0KPg0KPiBGb3IgaW5zdGFuY2UgZGV2aWNlIGNhbiBo
-YXZlIHRoZXkgb3duIHBhZ2UgdGFibGUgdGhhdCBtaXJyb3IgdGhlDQo+IHByb2Nlc3MgYWRkcmVz
-cyBzcGFjZS4gV2hlbiBhIHZtYSBpcyB1bm1hcCAobXVubWFwKCkgc3lzY2FsbCkgdGhlDQo+IGRl
-dmljZSBkcml2ZXIgY2FuIGZyZWUgdGhlIGRldmljZSBwYWdlIHRhYmxlIGZvciB0aGUgcmFuZ2Uu
-DQo+DQo+IFRvZGF5IHdlIGRvIG5vdCBoYXZlIGFueSBpbmZvcm1hdGlvbiBvbiB3aHkgYSBtbXUg
-bm90aWZpZXIgY2FsbA0KPiBiYWNrIGlzIGhhcHBlbmluZyBhbmQgdGh1cyBkZXZpY2UgZHJpdmVy
-IGhhdmUgdG8gYXNzdW1lIHRoYXQgaXQNCj4gaXMgYWx3YXlzIGFuIG11bm1hcCgpLiBUaGlzIGlz
-IGluZWZmaWNpZW50IGF0IGl0IG1lYW5zIHRoYXQgaXQNCj4gbmVlZHMgdG8gcmUtYWxsb2NhdGUg
-ZGV2aWNlIHBhZ2UgdGFibGUgb24gbmV4dCBwYWdlIGZhdWx0IGFuZA0KPiByZWJ1aWxkIHRoZSB3
-aG9sZSBkZXZpY2UgZHJpdmVyIGRhdGEgc3RydWN0dXJlIGZvciB0aGUgcmFuZ2UuDQo+DQo+IE90
-aGVyIHVzZSBjYXNlIGJlc2lkZSBtdW5tYXAoKSBhbHNvIGV4aXN0LCBmb3IgaW5zdGFuY2UgaXQg
-aXMNCj4gcG9pbnRsZXNzIGZvciBkZXZpY2UgZHJpdmVyIHRvIGludmFsaWRhdGUgdGhlIGRldmlj
-ZSBwYWdlIHRhYmxlDQo+IHdoZW4gdGhlIGludmFsaWRhdGlvbiBpcyBmb3IgdGhlIHNvZnQgZGly
-dHluZXNzIHRyYWNraW5nLiBPcg0KPiBkZXZpY2UgZHJpdmVyIGNhbiBvcHRpbWl6ZSBhd2F5IG1w
-cm90ZWN0KCkgdGhhdCBjaGFuZ2UgdGhlIHBhZ2UNCj4gdGFibGUgcGVybWlzc2lvbiBhY2Nlc3Mg
-Zm9yIHRoZSByYW5nZS4NCj4NCj4gVGhpcyBwYXRjaHNldCBlbmFibGUgYWxsIHRoaXMgb3B0aW1p
-emF0aW9ucyBmb3IgZGV2aWNlIGRyaXZlci4NCj4gSSBkbyBub3QgaW5jbHVkZSBhbnkgb2YgdGhv
-c2UgaW4gdGhpcyBzZXJpZSBidXQgb3RoZXIgcGF0Y2hzZXQNCj4gaSBhbSBwb3N0aW5nIHdpbGwg
-bGV2ZXJhZ2UgdGhpcy4NCj4NCj4NCj4gIEZyb20gY29kZSBwb2ludCBvZiB2aWV3IHRoZSBwYXRj
-aHNldCBpcyBwcmV0dHkgc2ltcGxlLCB0aGUgZmlyc3QNCj4gdHdvIHBhdGNoZXMgY29uc29saWRh
-dGUgYWxsIG1tdSBub3RpZmllciBhcmd1bWVudHMgaW50byBhIHN0cnVjdA0KPiBzbyB0aGF0IGl0
-IGlzIGVhc2llciB0byBhZGQvY2hhbmdlIGFyZ3VtZW50cy4gVGhlIGxhc3QgcGF0Y2ggYWRkcw0K
-PiB0aGUgY29udGV4dHVhbCBpbmZvcm1hdGlvbiAobXVubWFwLCBwcm90ZWN0aW9uLCBzb2Z0IGRp
-cnR5LCBjbGVhciwNCj4gLi4uKS4NCg0KU2tpbW1pbmcgb3ZlciBpdCBhdCBsZWFzdCB0aGUgcGFy
-dHMgSSdtIGZhbWlsaWFyIHdpdGggbG9vayBjb21wbGV0ZWx5IA0Kc2FuZSB0byBtZS4NCg0KV2hv
-bGUgc2VyaWVzIGlzIEFja2VkLWJ5OiBDaHJpc3RpYW4gS8O2bmlnIDxjaHJpc3RpYW4ua29lbmln
-QGFtZC5jb20+Lg0KDQpSZWdhcmRzLA0KQ2hyaXN0aWFuLg0KDQo+DQo+IENoZWVycywNCj4gSsOp
-csO0bWUNCj4NCj4gQ2M6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+
-DQo+IENjOiBNYXR0aGV3IFdpbGNveCA8bWF3aWxjb3hAbWljcm9zb2Z0LmNvbT4NCj4gQ2M6IFJv
-c3MgWndpc2xlciA8endpc2xlckBrZXJuZWwub3JnPg0KPiBDYzogSmFuIEthcmEgPGphY2tAc3Vz
-ZS5jej4NCj4gQ2M6IERhbiBXaWxsaWFtcyA8ZGFuLmoud2lsbGlhbXNAaW50ZWwuY29tPg0KPiBD
-YzogUGFvbG8gQm9uemluaSA8cGJvbnppbmlAcmVkaGF0LmNvbT4NCj4gQ2M6IFJhZGltIEtyxI1t
-w6HFmSA8cmtyY21hckByZWRoYXQuY29tPg0KPiBDYzogTWljaGFsIEhvY2tvIDxtaG9ja29Aa2Vy
-bmVsLm9yZz4NCj4gQ2M6IENocmlzdGlhbiBLb2VuaWcgPGNocmlzdGlhbi5rb2VuaWdAYW1kLmNv
-bT4NCj4gQ2M6IEZlbGl4IEt1ZWhsaW5nIDxmZWxpeC5rdWVobGluZ0BhbWQuY29tPg0KPiBDYzog
-UmFscGggQ2FtcGJlbGwgPHJjYW1wYmVsbEBudmlkaWEuY29tPg0KPiBDYzogSm9obiBIdWJiYXJk
-IDxqaHViYmFyZEBudmlkaWEuY29tPg0KPiBDYzoga3ZtQHZnZXIua2VybmVsLm9yZw0KPiBDYzog
-bGludXgtcmRtYUB2Z2VyLmtlcm5lbC5vcmcNCj4gQ2M6IGxpbnV4LWZzZGV2ZWxAdmdlci5rZXJu
-ZWwub3JnDQo+IENjOiBkcmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQo+DQo+IErDqXLD
-tG1lIEdsaXNzZSAoMyk6DQo+ICAgIG1tL21tdV9ub3RpZmllcjogdXNlIHN0cnVjdHVyZSBmb3Ig
-aW52YWxpZGF0ZV9yYW5nZV9zdGFydC9lbmQgY2FsbGJhY2sNCj4gICAgbW0vbW11X25vdGlmaWVy
-OiB1c2Ugc3RydWN0dXJlIGZvciBpbnZhbGlkYXRlX3JhbmdlX3N0YXJ0L2VuZCBjYWxscw0KPiAg
-ICBtbS9tbXVfbm90aWZpZXI6IGNvbnRleHR1YWwgaW5mb3JtYXRpb24gZm9yIGV2ZW50IHRyaWdn
-ZXJpbmcNCj4gICAgICBpbnZhbGlkYXRpb24NCj4NCj4gICBkcml2ZXJzL2dwdS9kcm0vYW1kL2Ft
-ZGdwdS9hbWRncHVfbW4uYyAgfCAgNDMgKysrKy0tLS0tDQo+ICAgZHJpdmVycy9ncHUvZHJtL2k5
-MTUvaTkxNV9nZW1fdXNlcnB0ci5jIHwgIDE0ICsrLQ0KPiAgIGRyaXZlcnMvZ3B1L2RybS9yYWRl
-b24vcmFkZW9uX21uLmMgICAgICB8ICAxNiArKy0tDQo+ICAgZHJpdmVycy9pbmZpbmliYW5kL2Nv
-cmUvdW1lbV9vZHAuYyAgICAgIHwgIDIwICsrLS0tDQo+ICAgZHJpdmVycy9pbmZpbmliYW5kL2h3
-L2hmaTEvbW11X3JiLmMgICAgIHwgIDEzICsrLQ0KPiAgIGRyaXZlcnMvbWlzYy9taWMvc2NpZi9z
-Y2lmX2RtYS5jICAgICAgICB8ICAxMSArLS0NCj4gICBkcml2ZXJzL21pc2Mvc2dpLWdydS9ncnV0
-bGJwdXJnZS5jICAgICAgfCAgMTQgKystDQo+ICAgZHJpdmVycy94ZW4vZ250ZGV2LmMgICAgICAg
-ICAgICAgICAgICAgIHwgIDEyICstLQ0KPiAgIGZzL2RheC5jICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICB8ICAxMSArKy0NCj4gICBmcy9wcm9jL3Rhc2tfbW11LmMgICAgICAgICAgICAg
-ICAgICAgICAgfCAgMTAgKystDQo+ICAgaW5jbHVkZS9saW51eC9tbS5oICAgICAgICAgICAgICAg
-ICAgICAgIHwgICA0ICstDQo+ICAgaW5jbHVkZS9saW51eC9tbXVfbm90aWZpZXIuaCAgICAgICAg
-ICAgIHwgMTA2ICsrKysrKysrKysrKysrKy0tLS0tLS0NCj4gICBrZXJuZWwvZXZlbnRzL3Vwcm9i
-ZXMuYyAgICAgICAgICAgICAgICAgfCAgMTMgKy0tDQo+ICAgbW0vaG1tLmMgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgIHwgIDIzICsrLS0tDQo+ICAgbW0vaHVnZV9tZW1vcnkuYyAgICAg
-ICAgICAgICAgICAgICAgICAgIHwgIDU4ICsrKysrKy0tLS0tLQ0KPiAgIG1tL2h1Z2V0bGIuYyAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICB8ICA2MyArKysrKysrLS0tLS0tDQo+ICAgbW0va2h1
-Z2VwYWdlZC5jICAgICAgICAgICAgICAgICAgICAgICAgIHwgIDEzICstLQ0KPiAgIG1tL2tzbS5j
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAyNiArKystLS0NCj4gICBtbS9tYWR2
-aXNlLmMgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgMjIgKystLS0NCj4gICBtbS9tZW1v
-cnkuYyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAxMTIgKysrKysrKysrKysrKystLS0t
-LS0tLS0tDQo+ICAgbW0vbWlncmF0ZS5jICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgIDMw
-ICsrKystLS0NCj4gICBtbS9tbXVfbm90aWZpZXIuYyAgICAgICAgICAgICAgICAgICAgICAgfCAg
-MjIgKysrLS0NCj4gICBtbS9tcHJvdGVjdC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAg
-MTcgKystLQ0KPiAgIG1tL21yZW1hcC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAx
-NCArLS0NCj4gICBtbS9vb21fa2lsbC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgMjAg
-KysrLS0NCj4gICBtbS9ybWFwLmMgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgMzQg
-KysrKy0tLQ0KPiAgIHZpcnQva3ZtL2t2bV9tYWluLmMgICAgICAgICAgICAgICAgICAgICB8ICAx
-NCArKy0NCj4gICAyNyBmaWxlcyBjaGFuZ2VkLCA0MjEgaW5zZXJ0aW9ucygrKSwgMzM0IGRlbGV0
-aW9ucygtKQ0KPg0KDQo=
+From: Jérôme Glisse <jglisse@redhat.com>
+
+This patchset add contextual information, why an invalidation is
+happening, to mmu notifier callback. This is necessary for user
+of mmu notifier that wish to maintains their own data structure
+without having to add new fields to struct vm_area_struct (vma).
+
+For instance device can have they own page table that mirror the
+process address space. When a vma is unmap (munmap() syscall) the
+device driver can free the device page table for the range.
+
+Today we do not have any information on why a mmu notifier call
+back is happening and thus device driver have to assume that it
+is always an munmap(). This is inefficient at it means that it
+needs to re-allocate device page table on next page fault and
+rebuild the whole device driver data structure for the range.
+
+Other use case beside munmap() also exist, for instance it is
+pointless for device driver to invalidate the device page table
+when the invalidation is for the soft dirtyness tracking. Or
+device driver can optimize away mprotect() that change the page
+table permission access for the range.
+
+This patchset enable all this optimizations for device driver.
+I do not include any of those in this serie but other patchset
+i am posting will leverage this.
+
+
+>From code point of view the patchset is pretty simple, the first
+two patches consolidate all mmu notifier arguments into a struct
+so that it is easier to add/change arguments. The last patch adds
+the contextual information (munmap, protection, soft dirty, clear,
+...).
+
+Cheers,
+Jérôme
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Ross Zwisler <zwisler@kernel.org>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Radim Krčmář <rkrcmar@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Christian Koenig <christian.koenig@amd.com>
+Cc: Felix Kuehling <felix.kuehling@amd.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: kvm@vger.kernel.org
+Cc: linux-rdma@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org
+Cc: dri-devel@lists.freedesktop.org
+
+Jérôme Glisse (3):
+  mm/mmu_notifier: use structure for invalidate_range_start/end callback
+  mm/mmu_notifier: use structure for invalidate_range_start/end calls
+  mm/mmu_notifier: contextual information for event triggering
+    invalidation
+
+ drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c  |  43 ++++-----
+ drivers/gpu/drm/i915/i915_gem_userptr.c |  14 ++-
+ drivers/gpu/drm/radeon/radeon_mn.c      |  16 ++--
+ drivers/infiniband/core/umem_odp.c      |  20 ++---
+ drivers/infiniband/hw/hfi1/mmu_rb.c     |  13 ++-
+ drivers/misc/mic/scif/scif_dma.c        |  11 +--
+ drivers/misc/sgi-gru/grutlbpurge.c      |  14 ++-
+ drivers/xen/gntdev.c                    |  12 +--
+ fs/dax.c                                |  11 ++-
+ fs/proc/task_mmu.c                      |  10 ++-
+ include/linux/mm.h                      |   4 +-
+ include/linux/mmu_notifier.h            | 106 +++++++++++++++-------
+ kernel/events/uprobes.c                 |  13 +--
+ mm/hmm.c                                |  23 ++---
+ mm/huge_memory.c                        |  58 ++++++------
+ mm/hugetlb.c                            |  63 +++++++------
+ mm/khugepaged.c                         |  13 +--
+ mm/ksm.c                                |  26 +++---
+ mm/madvise.c                            |  22 ++---
+ mm/memory.c                             | 112 ++++++++++++++----------
+ mm/migrate.c                            |  30 ++++---
+ mm/mmu_notifier.c                       |  22 +++--
+ mm/mprotect.c                           |  17 ++--
+ mm/mremap.c                             |  14 +--
+ mm/oom_kill.c                           |  20 +++--
+ mm/rmap.c                               |  34 ++++---
+ virt/kvm/kvm_main.c                     |  14 ++-
+ 27 files changed, 421 insertions(+), 334 deletions(-)
+
+-- 
+2.17.2
