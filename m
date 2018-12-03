@@ -1,140 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E24416B7548
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 11:42:04 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id t184so12456484oih.22
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 08:42:04 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d64si9016062oia.186.2018.12.05.08.42.02
-        for <linux-mm@kvack.org>;
-        Wed, 05 Dec 2018 08:42:03 -0800 (PST)
-From: Steve Capper <steve.capper@arm.com>
-Subject: [PATCH V4 2/6] arm64: mm: Introduce DEFAULT_MAP_WINDOW
-Date: Wed,  5 Dec 2018 16:41:41 +0000
-Message-Id: <20181205164145.24568-3-steve.capper@arm.com>
-In-Reply-To: <20181205164145.24568-1-steve.capper@arm.com>
-References: <20181205164145.24568-1-steve.capper@arm.com>
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 23AA56B6BB1
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:36:08 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id u32so15365478qte.1
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:36:08 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 35si6223263qvm.133.2018.12.03.15.36.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Dec 2018 15:36:06 -0800 (PST)
+From: jglisse@redhat.com
+Subject: [RFC PATCH 07/14] mm/hms: register main memory with heterogenenous memory system
+Date: Mon,  3 Dec 2018 18:35:02 -0500
+Message-Id: <20181203233509.20671-8-jglisse@redhat.com>
+In-Reply-To: <20181203233509.20671-1-jglisse@redhat.com>
+References: <20181203233509.20671-1-jglisse@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Rafael J . Wysocki" <rafael@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <balbirs@au1.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Logan Gunthorpe <logang@deltatee.com>, John Hubbard <jhubbard@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Michal Hocko <mhocko@kernel.org>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>, Mel Gorman <mgorman@techsingularity.net>, Dave Airlie <airlied@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-We wish to introduce a 52-bit virtual address space for userspace but
-maintain compatibility with software that assumes the maximum VA space
-size is 48 bit.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-In order to achieve this, on 52-bit VA systems, we make mmap behave as
-if it were running on a 48-bit VA system (unless userspace explicitly
-requests a VA where addr[51:48] != 0).
+Register main memory as target under HMS scheme. Memory is registered
+per node (one target device per node). We also create a default link
+to connect main memory and CPU that are in the same node. For details
+see Documentation/vm/hms.rst.
 
-On a system running a 52-bit userspace we need TASK_SIZE to represent
-the 52-bit limit as it is used in various places to distinguish between
-kernelspace and userspace addresses.
+This is done to allow application to use one API for regular memory or
+device memory.
 
-Thus we need a new limit for mmap, stack, ELF loader and EFI (which uses
-TTBR0) to represent the non-extended VA space.
-
-This patch introduces DEFAULT_MAP_WINDOW and DEFAULT_MAP_WINDOW_64 and
-switches the appropriate logic to use that instead of TASK_SIZE.
-
-Signed-off-by: Steve Capper <steve.capper@arm.com>
-
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Cc: Rafael J. Wysocki <rafael@kernel.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Haggai Eran <haggaie@mellanox.com>
+Cc: Balbir Singh <balbirs@au1.ibm.com>
+Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Felix Kuehling <felix.kuehling@amd.com>
+Cc: Philip Yang <Philip.Yang@amd.com>
+Cc: Christian König <christian.koenig@amd.com>
+Cc: Paul Blinzer <Paul.Blinzer@amd.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: Mark Hairgrove <mhairgrove@nvidia.com>
+Cc: Vivek Kini <vkini@nvidia.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Dave Airlie <airlied@redhat.com>
+Cc: Ben Skeggs <bskeggs@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 ---
+ drivers/base/node.c  | 65 +++++++++++++++++++++++++++++++++++++++++++-
+ include/linux/node.h |  6 ++++
+ 2 files changed, 70 insertions(+), 1 deletion(-)
 
-Changed in V3: corrections to allow COMPAT 32-bit EL0 mode to work
----
- arch/arm64/include/asm/elf.h            |  2 +-
- arch/arm64/include/asm/processor.h      | 10 ++++++++--
- arch/arm64/mm/init.c                    |  2 +-
- drivers/firmware/efi/arm-runtime.c      |  2 +-
- drivers/firmware/efi/libstub/arm-stub.c |  2 +-
- 5 files changed, 12 insertions(+), 6 deletions(-)
-
-diff --git a/arch/arm64/include/asm/elf.h b/arch/arm64/include/asm/elf.h
-index 433b9554c6a1..bc9bd9e77d9d 100644
---- a/arch/arm64/include/asm/elf.h
-+++ b/arch/arm64/include/asm/elf.h
-@@ -117,7 +117,7 @@
-  * 64-bit, this is above 4GB to leave the entire 32-bit address
-  * space open for things that want to use the area for 32-bit pointers.
-  */
--#define ELF_ET_DYN_BASE		(2 * TASK_SIZE_64 / 3)
-+#define ELF_ET_DYN_BASE		(2 * DEFAULT_MAP_WINDOW_64 / 3)
- 
- #ifndef __ASSEMBLY__
- 
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index 3e2091708b8e..50586ca6bacb 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -45,19 +45,25 @@
-  * TASK_SIZE - the maximum size of a user space task.
-  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
-  */
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 86d6cd92ce3d..05621ba3cf13 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -323,6 +323,11 @@ static int register_node(struct node *node, int num)
+ 	if (error)
+ 		put_device(&node->dev);
+ 	else {
++		hms_link_register(&node->link, &node->dev, 0);
++		hms_target_register(&node->target, &node->dev,
++				    num, NULL, 0, 0);
++		hms_link_target(node->link, node->target);
 +
-+#define DEFAULT_MAP_WINDOW_64	(UL(1) << VA_BITS)
+ 		hugetlb_register_node(node);
+ 
+ 		compaction_register_node(node);
+@@ -339,6 +344,9 @@ static int register_node(struct node *node, int num)
+  */
+ void unregister_node(struct node *node)
+ {
++	hms_target_unregister(&node->target);
++	hms_link_unregister(&node->link);
 +
- #ifdef CONFIG_COMPAT
- #define TASK_SIZE_32		UL(0x100000000)
- #define TASK_SIZE		(test_thread_flag(TIF_32BIT) ? \
- 				TASK_SIZE_32 : TASK_SIZE_64)
- #define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_32BIT) ? \
- 				TASK_SIZE_32 : TASK_SIZE_64)
-+#define DEFAULT_MAP_WINDOW	(test_thread_flag(TIF_32BIT) ? \
-+				TASK_SIZE_32 : DEFAULT_MAP_WINDOW_64)
- #else
- #define TASK_SIZE		TASK_SIZE_64
-+#define DEFAULT_MAP_WINDOW	DEFAULT_MAP_WINDOW_64
- #endif /* CONFIG_COMPAT */
+ 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
  
--#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
-+#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-+#define STACK_TOP_MAX		DEFAULT_MAP_WINDOW_64
+ 	device_unregister(&node->dev);
+@@ -415,6 +423,9 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+ 	sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
+ 	sect_end_pfn += PAGES_PER_SECTION - 1;
+ 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
++#if defined(CONFIG_HMS)
++		unsigned long size = PAGE_SIZE;
++#endif
+ 		int page_nid;
  
--#define STACK_TOP_MAX		TASK_SIZE_64
- #ifdef CONFIG_COMPAT
- #define AARCH32_VECTORS_BASE	0xffff0000
- #define STACK_TOP		(test_thread_flag(TIF_32BIT) ? \
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 9d9582cac6c4..7239c103be06 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -609,7 +609,7 @@ void __init mem_init(void)
- 	 * detected at build time already.
- 	 */
- #ifdef CONFIG_COMPAT
--	BUILD_BUG_ON(TASK_SIZE_32			> TASK_SIZE_64);
-+	BUILD_BUG_ON(TASK_SIZE_32 > DEFAULT_MAP_WINDOW_64);
- #endif
+ 		/*
+@@ -445,9 +456,35 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+ 		if (ret)
+ 			return ret;
  
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
-diff --git a/drivers/firmware/efi/arm-runtime.c b/drivers/firmware/efi/arm-runtime.c
-index 922cfb813109..952cec5b611a 100644
---- a/drivers/firmware/efi/arm-runtime.c
-+++ b/drivers/firmware/efi/arm-runtime.c
-@@ -38,7 +38,7 @@ static struct ptdump_info efi_ptdump_info = {
- 	.mm		= &efi_mm,
- 	.markers	= (struct addr_marker[]){
- 		{ 0,		"UEFI runtime start" },
--		{ TASK_SIZE_64,	"UEFI runtime end" }
-+		{ DEFAULT_MAP_WINDOW_64, "UEFI runtime end" }
- 	},
- 	.base_addr	= 0,
- };
-diff --git a/drivers/firmware/efi/libstub/arm-stub.c b/drivers/firmware/efi/libstub/arm-stub.c
-index 30ac0c975f8a..d1ec7136e3e1 100644
---- a/drivers/firmware/efi/libstub/arm-stub.c
-+++ b/drivers/firmware/efi/libstub/arm-stub.c
-@@ -33,7 +33,7 @@
- #define EFI_RT_VIRTUAL_SIZE	SZ_512M
+-		return sysfs_create_link_nowarn(&mem_blk->dev.kobj,
++		ret = sysfs_create_link_nowarn(&mem_blk->dev.kobj,
+ 				&node_devices[nid]->dev.kobj,
+ 				kobject_name(&node_devices[nid]->dev.kobj));
++		if (ret)
++			return ret;
++
++#if defined(CONFIG_HMS)
++		/*
++		 * Right now here i do not see any easier way to get the size
++		 * in bytes of valid memory that is added to this node.
++		 */
++		for (++pfn; pfn <= sect_end_pfn; pfn++) {
++			if (!pfn_present(pfn)) {
++				pfn = round_down(pfn + PAGES_PER_SECTION,
++						PAGES_PER_SECTION) - 1;
++				continue;
++			}
++			page_nid = get_nid_for_pfn(pfn);
++			if (page_nid < 0)
++				continue;
++			if (page_nid != nid)
++				continue;
++			size += PAGE_SIZE;
++		}
++
++		hms_target_add_memory(node_devices[nid]->target, size);
++#endif
++
++		return 0;
+ 	}
+ 	/* mem section does not span the specified node */
+ 	return 0;
+@@ -471,6 +508,10 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 	sect_start_pfn = section_nr_to_pfn(phys_index);
+ 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+ 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
++#if defined(CONFIG_HMS)
++		unsigned long size = 0;
++		int page_nid;
++#endif
+ 		int nid;
  
- #ifdef CONFIG_ARM64
--# define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE_64
-+# define EFI_RT_VIRTUAL_LIMIT	DEFAULT_MAP_WINDOW_64
- #else
- # define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE
+ 		nid = get_nid_for_pfn(pfn);
+@@ -484,6 +525,28 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 			 kobject_name(&mem_blk->dev.kobj));
+ 		sysfs_remove_link(&mem_blk->dev.kobj,
+ 			 kobject_name(&node_devices[nid]->dev.kobj));
++
++#if defined(CONFIG_HMS)
++		/*
++		 * Right now here i do not see any easier way to get the size
++		 * in bytes of valid memory that is added to this node.
++		 */
++		for (; pfn <= sect_end_pfn; pfn++) {
++			if (!pfn_present(pfn)) {
++				pfn = round_down(pfn + PAGES_PER_SECTION,
++						PAGES_PER_SECTION) - 1;
++				continue;
++			}
++			page_nid = get_nid_for_pfn(pfn);
++			if (page_nid < 0)
++				continue;
++			if (page_nid != nid)
++				break;
++			size += PAGE_SIZE;
++		}
++
++		hms_target_remove_memory(node_devices[nid]->target, size);
++#endif
+ 	}
+ 	NODEMASK_FREE(unlinked_nodes);
+ 	return 0;
+diff --git a/include/linux/node.h b/include/linux/node.h
+index 257bb3d6d014..297b01d3c1ed 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -15,6 +15,7 @@
+ #ifndef _LINUX_NODE_H_
+ #define _LINUX_NODE_H_
+ 
++#include <linux/hms.h>
+ #include <linux/device.h>
+ #include <linux/cpumask.h>
+ #include <linux/workqueue.h>
+@@ -22,6 +23,11 @@
+ struct node {
+ 	struct device	dev;
+ 
++#if defined(CONFIG_HMS)
++	struct hms_target *target;
++	struct hms_link *link;
++#endif
++
+ #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+ 	struct work_struct	node_work;
  #endif
 -- 
-2.19.2
+2.17.2
