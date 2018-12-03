@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EAEBA6B6712
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 23:00:10 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id a89so4957034otc.8
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2018 20:00:10 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-oln040092006028.outbound.protection.outlook.com. [40.92.6.28])
-        by mx.google.com with ESMTPS id r10si5130924oia.78.2018.12.02.20.00.09
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 417AE6B6707
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 22:51:08 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id v2so9252741plg.6
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2018 19:51:08 -0800 (PST)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-oln040092008020.outbound.protection.outlook.com. [40.92.8.20])
+        by mx.google.com with ESMTPS id o6si13058724plh.23.2018.12.02.19.51.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Dec 2018 20:00:10 -0800 (PST)
+        Sun, 02 Dec 2018 19:51:06 -0800 (PST)
 From: Yueyi Li <liyueyi@live.com>
-Subject: [PATCH v2] memblock: Anonotate memblock_is_reserved() with
+Subject: [PATCH] memblock: Anonotate memblock_is_reserved() with
  __init_memblock.
-Date: Mon, 3 Dec 2018 04:00:08 +0000
-Message-ID: <BLUPR13MB02893411BF12EACB61888E80DFAE0@BLUPR13MB0289.namprd13.prod.outlook.com>
+Date: Mon, 3 Dec 2018 03:51:05 +0000
+Message-ID: <BLUPR13MB0289EFC5F40ADCAC2146F687DFAE0@BLUPR13MB0289.namprd13.prod.outlook.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
@@ -23,7 +23,7 @@ List-ID: <linux-mm.kvack.org>
 To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Found warning:
+Found warring:
 
 WARNING: EXPORT symbol "gsi_write_channel_scratch" [vmlinux] version genera=
 tion failed, symbol will not be versioned.
@@ -39,9 +39,6 @@ Use __init_memblock instead of __init.
 
 Signed-off-by: liyueyi <liyueyi@live.com>
 ---
-
- Changes v2: correct typo in 'warning'.
-
  mm/memblock.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
