@@ -1,79 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0C08E0006
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id s22so15223477pgv.8
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.05
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-Message-Id: <20181226133351.164047705@intel.com>
-Date: Wed, 26 Dec 2018 21:14:48 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [RFC][PATCH v2 02/21] acpi/numa: memorize NUMA node type from SRAT table
-References: <20181226131446.330864849@intel.com>
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A75E6B6A86
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:36 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id j18so5866443oth.11
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:36 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 4si5898124oiz.163.2018.12.03.10.07.34
+        for <linux-mm@kvack.org>;
+        Mon, 03 Dec 2018 10:07:34 -0800 (PST)
+From: James Morse <james.morse@arm.com>
+Subject: [PATCH v7 16/25] ACPI / APEI: Let the notification helper specify the fixmap slot
+Date: Mon,  3 Dec 2018 18:06:04 +0000
+Message-Id: <20181203180613.228133-17-james.morse@arm.com>
+In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
+References: <20181203180613.228133-1-james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=0002-acpi-Memorize-numa-node-type-from-SRAT-table.patch
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Fan Du <fan.du@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
 
-From: Fan Du <fan.du@intel.com>
+ghes_copy_tofrom_phys() uses a different fixmap slot depending on in_nmi().
+This doesn't work when there are multiple NMI-like notifications, that
+could interrupt each other.
 
-Mark NUMA node as DRAM or PMEM.
+As with the locking, move the chosen fixmap_idx to the notification helper.
+This only matters for NMI-like notifications, anything calling
+ghes_proc() can use the IRQ fixmap slot as its already holding an irqsave
+spinlock.
 
-This could happen in boot up state (see the e820 pmem type
-override patch), or on fly when bind devdax device with kmem
-driver.
+This lets us collapse the ghes_ioremap_pfn_*() helpers.
 
-It depends on BIOS supplying PMEM NUMA proximity in SRAT table,
-that's current production BIOS does.
-
-Signed-off-by: Fan Du <fan.du@intel.com>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: James Morse <james.morse@arm.com>
+Reviewed-by: Borislav Petkov <bp@suse.de>
 ---
- arch/x86/include/asm/numa.h |    2 ++
- arch/x86/mm/numa.c          |    2 ++
- drivers/acpi/numa.c         |    5 +++++
- 3 files changed, 9 insertions(+)
 
---- linux.orig/arch/x86/include/asm/numa.h	2018-12-23 19:20:39.890947888 +0800
-+++ linux/arch/x86/include/asm/numa.h	2018-12-23 19:20:39.890947888 +0800
-@@ -30,6 +30,8 @@ extern int numa_off;
-  */
- extern s16 __apicid_to_node[MAX_LOCAL_APIC];
- extern nodemask_t numa_nodes_parsed __initdata;
-+extern nodemask_t numa_nodes_pmem;
-+extern nodemask_t numa_nodes_dram;
+The fixmap-idx and vaddr are passed back to ghes_unmap()
+to allow ioremap() to be used in process context in the
+future. This will let us send tlbi-ipi for notifications
+that don't mask irqs.
+---
+ drivers/acpi/apei/ghes.c | 79 +++++++++++++++-------------------------
+ 1 file changed, 30 insertions(+), 49 deletions(-)
+
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index 30490eff7704..b5c31f65a1c0 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -41,6 +41,7 @@
+ #include <linux/llist.h>
+ #include <linux/genalloc.h>
+ #include <linux/pci.h>
++#include <linux/pfn.h>
+ #include <linux/aer.h>
+ #include <linux/nmi.h>
+ #include <linux/sched/clock.h>
+@@ -127,38 +128,24 @@ static atomic_t ghes_estatus_cache_alloced;
  
- extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
- extern void __init numa_set_distance(int from, int to, int distance);
---- linux.orig/arch/x86/mm/numa.c	2018-12-23 19:20:39.890947888 +0800
-+++ linux/arch/x86/mm/numa.c	2018-12-23 19:20:39.890947888 +0800
-@@ -20,6 +20,8 @@
+ static int ghes_panic_timeout __read_mostly = 30;
  
- int numa_off;
- nodemask_t numa_nodes_parsed __initdata;
-+nodemask_t numa_nodes_pmem;
-+nodemask_t numa_nodes_dram;
+-static void __iomem *ghes_ioremap_pfn_nmi(u64 pfn)
++static void __iomem *ghes_map(u64 pfn, int fixmap_idx)
+ {
+ 	phys_addr_t paddr;
+ 	pgprot_t prot;
  
- struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
- EXPORT_SYMBOL(node_data);
---- linux.orig/drivers/acpi/numa.c	2018-12-23 19:20:39.890947888 +0800
-+++ linux/drivers/acpi/numa.c	2018-12-23 19:20:39.890947888 +0800
-@@ -297,6 +297,11 @@ acpi_numa_memory_affinity_init(struct ac
+-	paddr = pfn << PAGE_SHIFT;
++	paddr = PFN_PHYS(pfn);
+ 	prot = arch_apei_get_mem_attribute(paddr);
+-	__set_fixmap(FIX_APEI_GHES_NMI, paddr, prot);
++	__set_fixmap(fixmap_idx, paddr, prot);
  
- 	node_set(node, numa_nodes_parsed);
+-	return (void __iomem *) fix_to_virt(FIX_APEI_GHES_NMI);
++	return (void __iomem *) __fix_to_virt(fixmap_idx);
+ }
  
-+	if (ma->flags & ACPI_SRAT_MEM_NON_VOLATILE)
-+		node_set(node, numa_nodes_pmem);
-+	else
-+		node_set(node, numa_nodes_dram);
+-static void __iomem *ghes_ioremap_pfn_irq(u64 pfn)
++static void ghes_unmap(int fixmap_idx, void __iomem *vaddr)
+ {
+-	phys_addr_t paddr;
+-	pgprot_t prot;
+-
+-	paddr = pfn << PAGE_SHIFT;
+-	prot = arch_apei_get_mem_attribute(paddr);
+-	__set_fixmap(FIX_APEI_GHES_IRQ, paddr, prot);
++	int _idx = virt_to_fix((unsigned long)vaddr);
+ 
+-	return (void __iomem *) fix_to_virt(FIX_APEI_GHES_IRQ);
+-}
+-
+-static void ghes_iounmap_nmi(void)
+-{
+-	clear_fixmap(FIX_APEI_GHES_NMI);
+-}
+-
+-static void ghes_iounmap_irq(void)
+-{
+-	clear_fixmap(FIX_APEI_GHES_IRQ);
++	WARN_ON_ONCE(fixmap_idx != _idx);
++	clear_fixmap(fixmap_idx);
+ }
+ 
+ int ghes_estatus_pool_init(int num_ghes)
+@@ -268,20 +255,15 @@ static inline int ghes_severity(int severity)
+ }
+ 
+ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+-				  int from_phys)
++				  int from_phys, int fixmap_idx)
+ {
+ 	void __iomem *vaddr;
+-	int in_nmi = in_nmi();
+ 	u64 offset;
+ 	u32 trunk;
+ 
+ 	while (len > 0) {
+ 		offset = paddr - (paddr & PAGE_MASK);
+-		if (in_nmi) {
+-			vaddr = ghes_ioremap_pfn_nmi(paddr >> PAGE_SHIFT);
+-		} else {
+-			vaddr = ghes_ioremap_pfn_irq(paddr >> PAGE_SHIFT);
+-		}
++		vaddr = ghes_map(PHYS_PFN(paddr), fixmap_idx);
+ 		trunk = PAGE_SIZE - offset;
+ 		trunk = min(trunk, len);
+ 		if (from_phys)
+@@ -291,15 +273,12 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+ 		len -= trunk;
+ 		paddr += trunk;
+ 		buffer += trunk;
+-		if (in_nmi) {
+-			ghes_iounmap_nmi();
+-		} else {
+-			ghes_iounmap_irq();
+-		}
++		ghes_unmap(fixmap_idx, vaddr);
+ 	}
+ }
+ 
+-static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
++static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr, int fixmap_idx)
 +
- 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
- 		node, pxm,
- 		(unsigned long long) start, (unsigned long long) end - 1,
+ {
+ 	struct acpi_hest_generic *g = ghes->generic;
+ 	u32 len;
+@@ -317,7 +296,7 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ 		return -ENOENT;
+ 
+ 	ghes_copy_tofrom_phys(ghes->estatus, *buf_paddr,
+-			      sizeof(*ghes->estatus), 1);
++			      sizeof(*ghes->estatus), 1, fixmap_idx);
+ 	if (!ghes->estatus->block_status) {
+ 		*buf_paddr = 0;
+ 		return -ENOENT;
+@@ -333,7 +312,7 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ 		goto err_read_block;
+ 	ghes_copy_tofrom_phys(ghes->estatus + 1,
+ 			      *buf_paddr + sizeof(*ghes->estatus),
+-			      len - sizeof(*ghes->estatus), 1);
++			      len - sizeof(*ghes->estatus), 1, fixmap_idx);
+ 	if (cper_estatus_check(ghes->estatus))
+ 		goto err_read_block;
+ 	rc = 0;
+@@ -346,12 +325,13 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ 	return rc;
+ }
+ 
+-static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr)
++static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr, int fixmap_idx)
+ {
+ 	ghes->estatus->block_status = 0;
+ 	if (buf_paddr)
+ 		ghes_copy_tofrom_phys(ghes->estatus, buf_paddr,
+-				      sizeof(ghes->estatus->block_status), 0);
++				      sizeof(ghes->estatus->block_status), 0,
++				      fixmap_idx);
+ }
+ 
+ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int sev)
+@@ -673,7 +653,7 @@ static int ghes_proc(struct ghes *ghes)
+ 	u64 buf_paddr;
+ 	int rc;
+ 
+-	rc = ghes_read_estatus(ghes, &buf_paddr);
++	rc = ghes_read_estatus(ghes, &buf_paddr, FIX_APEI_GHES_IRQ);
+ 	if (rc)
+ 		goto out;
+ 
+@@ -688,7 +668,7 @@ static int ghes_proc(struct ghes *ghes)
+ 	ghes_do_proc(ghes, ghes->estatus);
+ 
+ out:
+-	ghes_clear_estatus(ghes, buf_paddr);
++	ghes_clear_estatus(ghes, buf_paddr, FIX_APEI_GHES_IRQ);
+ 
+ 	if (rc == -ENOENT)
+ 		return rc;
+@@ -864,13 +844,13 @@ static void __process_error(struct ghes *ghes)
+ #endif
+ }
+ 
+-static int _in_nmi_notify_one(struct ghes *ghes)
++static int _in_nmi_notify_one(struct ghes *ghes, int fixmap_idx)
+ {
+ 	u64 buf_paddr;
+ 	int sev;
+ 
+-	if (ghes_read_estatus(ghes, &buf_paddr)) {
+-		ghes_clear_estatus(ghes, buf_paddr);
++	if (ghes_read_estatus(ghes, &buf_paddr, fixmap_idx)) {
++		ghes_clear_estatus(ghes, buf_paddr, fixmap_idx);
+ 		return -ENOENT;
+ 	}
+ 
+@@ -881,7 +861,7 @@ static int _in_nmi_notify_one(struct ghes *ghes)
+ 	}
+ 
+ 	__process_error(ghes);
+-	ghes_clear_estatus(ghes, buf_paddr);
++	ghes_clear_estatus(ghes, buf_paddr, fixmap_idx);
+ 
+ 	if (is_hest_type_generic_v2(ghes) && ghes_ack_error(ghes->generic_v2))
+ 		pr_warn_ratelimited(FW_WARN GHES_PFX
+@@ -890,14 +870,15 @@ static int _in_nmi_notify_one(struct ghes *ghes)
+ 	return 0;
+ }
+ 
+-static int ghes_estatus_queue_notified(struct list_head *rcu_list)
++static int ghes_estatus_queue_notified(struct list_head *rcu_list,
++				       int fixmap_idx)
+ {
+ 	int ret = -ENOENT;
+ 	struct ghes *ghes;
+ 
+ 	rcu_read_lock();
+ 	list_for_each_entry_rcu(ghes, rcu_list, list) {
+-		if (!_in_nmi_notify_one(ghes))
++		if (!_in_nmi_notify_one(ghes, fixmap_idx))
+ 			ret = 0;
+ 	}
+ 	rcu_read_unlock();
+@@ -921,7 +902,7 @@ int ghes_notify_sea(void)
+ 	int rv;
+ 
+ 	raw_spin_lock(&ghes_notify_lock_sea);
+-	rv = ghes_estatus_queue_notified(&ghes_sea);
++	rv = ghes_estatus_queue_notified(&ghes_sea, FIX_APEI_GHES_NMI);
+ 	raw_spin_unlock(&ghes_notify_lock_sea);
+ 
+ 	return rv;
+@@ -964,7 +945,7 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+ 		return ret;
+ 
+ 	raw_spin_lock(&ghes_notify_lock_nmi);
+-	if (!ghes_estatus_queue_notified(&ghes_nmi))
++	if (!ghes_estatus_queue_notified(&ghes_nmi, FIX_APEI_GHES_NMI))
+ 		ret = NMI_HANDLED;
+ 	raw_spin_unlock(&ghes_notify_lock_nmi);
+ 
+-- 
+2.19.2
