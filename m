@@ -1,206 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D39DE8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 17:41:10 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id i124so2773276pgc.2
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:41:10 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o127si9140416pfo.251.2018.12.20.14.41.09
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8275F6B6A0F
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 11:16:38 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id p141so4403170ywg.17
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 08:16:38 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m185sor2274749ywb.64.2018.12.03.08.16.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 14:41:09 -0800 (PST)
-Date: Thu, 20 Dec 2018 14:41:07 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm/slub: improve performance by skipping checked
- node in get_any_partial()
-Message-Id: <20181220144107.9376344c2be687615ea9aa69@linux-foundation.org>
-In-Reply-To: <20181120033119.30013-1-richard.weiyang@gmail.com>
-References: <20181108011204.9491-1-richard.weiyang@gmail.com>
-	<20181120033119.30013-1-richard.weiyang@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 03 Dec 2018 08:16:37 -0800 (PST)
+Date: Mon, 3 Dec 2018 08:16:33 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v4 00/13] ktask: multithread CPU-intensive kernel work
+Message-ID: <20181203161633.GK2509588@devbig004.ftw2.facebook.com>
+References: <20181105165558.11698-1-daniel.m.jordan@oracle.com>
+ <20181130191819.GJ2509588@devbig004.ftw2.facebook.com>
+ <20181201001307.wmb6o4fuysnl7vcz@ca-dmjordan1.us.oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181201001307.wmb6o4fuysnl7vcz@ca-dmjordan1.us.oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: cl@linux.com, penberg@kernel.org, mhocko@kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-mm@kvack.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, aaron.lu@intel.com, akpm@linux-foundation.org, alex.williamson@redhat.com, bsd@redhat.com, darrick.wong@oracle.com, dave.hansen@linux.intel.com, jgg@mellanox.com, jwadams@google.com, jiangshanlai@gmail.com, mhocko@kernel.org, mike.kravetz@oracle.com, Pavel.Tatashin@microsoft.com, prasad.singamsetty@oracle.com, rdunlap@infradead.org, steven.sistare@oracle.com, tim.c.chen@intel.com, vbabka@suse.cz, peterz@infradead.org, dhaval.giani@oracle.com
 
-Could someone please review this?
+Hello,
+
+On Fri, Nov 30, 2018 at 04:13:07PM -0800, Daniel Jordan wrote:
+> On Fri, Nov 30, 2018 at 11:18:19AM -0800, Tejun Heo wrote:
+> > Hello,
+> > 
+> > On Mon, Nov 05, 2018 at 11:55:45AM -0500, Daniel Jordan wrote:
+> > > Michal, you mentioned that ktask should be sensitive to CPU utilization[1].
+> > > ktask threads now run at the lowest priority on the system to avoid disturbing
+> > > busy CPUs (more details in patches 4 and 5).  Does this address your concern?
+> > > The plan to address your other comments is explained below.
+> > 
+> > Have you tested what kind of impact this has on bandwidth of a system
+> > in addition to latency?  The thing is while this would make a better
+> > use of a system which has idle capacity, it does so by doing more
+> > total work.  It'd be really interesting to see how this affects
+> > bandwidth of a system too.
+> 
+> I guess you mean something like comparing aggregate CPU time across threads to
+> the base single thread time for some job or set of jobs?  Then no, I haven't
+> measured that, but I can for next time.
+
+Yeah, I'm primarily curious how expensive this is on an already loaded
+system, so sth like loading up the system with a workload which can
+saturate the system and comparing the bw impacts of serial and
+parallel page clearings at the same frequency.
 
 Thanks.
 
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: mm/slub.c: improve performance by skipping checked node in get_any_partial()
-
-1. Background
-
-  Current slub has three layers:
-
-    * cpu_slab
-    * percpu_partial
-    * per node partial list
-
-  Slub allocator tries to get an object from top to bottom.  When it
-  can't get an object from the upper two layers, it will search the per
-  node partial list.  The is done in get_partial().
-
-  The abstraction of get_partial() look like this:
-
-      get_partial()
-          get_partial_node()
-          get_any_partial()
-              for_each_zone_zonelist()
-
-  The idea behind this is: first try a local node, then try other nodes
-  if caller doesn't specify a node.
-
-2. Room for Improvement
-
-  When we look one step deeper in get_any_partial(), it tries to get a
-  proper node by for_each_zone_zonelist(), which iterates on the
-  node_zonelists.
-
-  This behavior would introduce some redundant check on the same node. 
-  Because:
-
-    * the local node is already checked in get_partial_node()
-    * one node may have several zones on node_zonelists
-
-3. Solution Proposed in Patch
-
-  We could reduce these redundant check by record the last unsuccessful
-  node and then skip it.
-
-4. Tests & Result
-
-  After some tests, the result shows this may improve the system a little,
-  especially on a machine with only one node.
-
-4.1 Test Description
-
-  There are two cases for two system configurations.
-
-  Test Cases:
-
-    1. counter comparison
-    2. kernel build test
-
-  System Configuration:
-
-    1. One node machine with 4G
-    2. Four node machine with 8G
-
-4.2 Result for Test 1
-
-  Test 1: counter comparison
-
-  This is a test with hacked kernel to record times function
-  get_any_partial() is invoked and times the inner loop iterates. By
-  comparing the ratio of two counters, we get to know how many inner
-  loops we skipped.
-
-  Here is a snip of the test patch.
-
-  ---
-  static void *get_any_partial() {
-
-	get_partial_count++;
-
-        do {
-		for_each_zone_zonelist() {
-			get_partial_try_count++;
-		}
-	} while();
-
-	return NULL;
-  }
-  ---
-
-  The result of (get_partial_count / get_partial_try_count):
-
-   +----------+----------------+------------+-------------+
-   |          |       Base     |    Patched |  Improvement|
-   +----------+----------------+------------+-------------+
-   |One Node  |       1:3      |    1:0     |      - 100% |
-   +----------+----------------+------------+-------------+
-   |Four Nodes|       1:5.8    |    1:2.5   |      -  56% |
-   +----------+----------------+------------+-------------+
-
-4.3 Result for Test 2
-
-  Test 2: kernel build
-
-   Command used:
-
-   > time make -j8 bzImage
-
-   Each version/system configuration combination has four round kernel
-   build tests. Take the average result of real to compare.
-
-   +----------+----------------+------------+-------------+
-   |          |       Base     |   Patched  |  Improvement|
-   +----------+----------------+------------+-------------+
-   |One Node  |      4m41s     |   4m32s    |     - 4.47% |
-   +----------+----------------+------------+-------------+
-   |Four Nodes|      4m45s     |   4m39s    |     - 2.92% |
-   +----------+----------------+------------+-------------+
-
-[akpm@linux-foundation.org: rename variable, tweak comment]
-Link: http://lkml.kernel.org/r/20181120033119.30013-1-richard.weiyang@gmail.com
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/slub.c |   15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
-
---- a/mm/slub.c~mm-slub-improve-performance-by-skipping-checked-node-in-get_any_partial
-+++ a/mm/slub.c
-@@ -1877,7 +1877,7 @@ static void *get_partial_node(struct kme
-  * Get a page from somewhere. Search in increasing NUMA distances.
-  */
- static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
--		struct kmem_cache_cpu *c)
-+		struct kmem_cache_cpu *c, int exclude_nid)
- {
- #ifdef CONFIG_NUMA
- 	struct zonelist *zonelist;
-@@ -1915,6 +1915,9 @@ static void *get_any_partial(struct kmem
- 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
- 			struct kmem_cache_node *n;
- 
-+			if (exclude_nid == zone_to_nid(zone))
-+				continue;
-+
- 			n = get_node(s, zone_to_nid(zone));
- 
- 			if (n && cpuset_zone_allowed(zone, flags) &&
-@@ -1931,6 +1934,14 @@ static void *get_any_partial(struct kmem
- 					return object;
- 				}
- 			}
-+			/*
-+			 * Failed to get an object from this node, either
-+			 * because
-+			 *   1. Failure in the above if check
-+			 *   2. NULL return from get_partial_node()
-+			 * So skip this node next time.
-+			 */
-+			exclude_nid = zone_to_nid(zone);
- 		}
- 	} while (read_mems_allowed_retry(cpuset_mems_cookie));
- #endif
-@@ -1955,7 +1966,7 @@ static void *get_partial(struct kmem_cac
- 	if (object || node != NUMA_NO_NODE)
- 		return object;
- 
--	return get_any_partial(s, flags, c);
-+	return get_any_partial(s, flags, c, searchnode);
- }
- 
- #ifdef CONFIG_PREEMPT
-_
+-- 
+tejun
