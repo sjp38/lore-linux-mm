@@ -1,75 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5795A8E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 16:53:20 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id s19so6364623qke.20
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 13:53:20 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g14si3697961qti.392.2018.12.14.13.53.19
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B5B6B6C6D
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 21:53:49 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id a10so11553105plp.14
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 18:53:49 -0800 (PST)
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id a193si16137169pfa.214.2018.12.03.18.53.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 13:53:19 -0800 (PST)
-From: Waiman Long <longman@redhat.com>
-Subject: [RESEND PATCH v4 0/3] fs/dcache: Track # of negative dentries
-Date: Fri, 14 Dec 2018 16:53:01 -0500
-Message-Id: <1544824384-17668-1-git-send-email-longman@redhat.com>
+        Mon, 03 Dec 2018 18:53:48 -0800 (PST)
+Reply-To: xlpang@linux.alibaba.com
+Subject: Re: [PATCH 3/3] mm/memcg: Avoid reclaiming below hard protection
+References: <20181203080119.18989-1-xlpang@linux.alibaba.com>
+ <20181203080119.18989-3-xlpang@linux.alibaba.com>
+ <20181203115736.GQ31738@dhcp22.suse.cz>
+From: Xunlei Pang <xlpang@linux.alibaba.com>
+Message-ID: <8d8e860d-f9a4-6708-ccab-d47180f0ad0a@linux.alibaba.com>
+Date: Tue, 4 Dec 2018 10:53:32 +0800
+MIME-Version: 1.0
+In-Reply-To: <20181203115736.GQ31738@dhcp22.suse.cz>
+Content-Type: text/plain; charset=gbk
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>, Waiman Long <longman@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
- v3->v4:
-  - Drop patch 4 as it is just a minor optimization.
-  - Add a cc:stable tag to patch 1.
-  - Clean up some comments in patch 3.
+On 2018/12/3 PM 7:57, Michal Hocko wrote:
+> On Mon 03-12-18 16:01:19, Xunlei Pang wrote:
+>> When memcgs get reclaimed after its usage exceeds min, some
+>> usages below the min may also be reclaimed in the current
+>> implementation, the amount is considerably large during kswapd
+>> reclaim according to my ftrace results.
+> 
+> And here again. Describe the setup and the behavior please?
+> 
 
- v2->v3:
-  - With confirmation that the dummy array in dentry_stat structure
-    was never a replacement of a previously used field, patch 3 is now
-    reverted back to use one of dummy field as the negative dentry count
-    instead of adding a new field.
+step 1
+mkdir -p /sys/fs/cgroup/memory/online
+cd /sys/fs/cgroup/memory/online
+echo 512M > memory.max
+echo 409600000 > memory.min
+echo $$ > tasks
+dd if=/dev/sda of=/dev/null
 
- v1->v2:
-  - Clarify what the new nr_dentry_negative per-cpu counter is tracking
-    and open-code the increment and decrement as suggested by Dave Chinner.
-  - Append the new nr_dentry_negative count as the 7th element of dentry-state
-    instead of replacing one of the dummy entries.
-  - Remove patch "fs/dcache: Make negative dentries easier to be
-    reclaimed" for now as I need more time to think about what
-    to do with it.
-  - Add 2 more patches to address issues found while reviewing the
-    dentry code.
-  - Add another patch to change the conditional branch of
-    nr_dentry_negative accounting to conditional move so as to reduce
-    the performance impact of the accounting code.
 
-This patchset addresses 2 issues found in the dentry code and adds a
-new nr_dentry_negative per-cpu counter to track the total number of
-negative dentries in all the LRU lists.
+while true; do sleep 1; cat memory.current ; cat memory.min; done
 
-Patch 1 fixes a bug in the accounting of nr_dentry_unused in
-shrink_dcache_sb().
 
-Patch 2 removes the ____cacheline_aligned_in_smp tag from super_block
-LRU lists.
+step 2
+create global memory pressure by allocating annoymous and cached
+pages to constantly trigger kswap: dd if=/dev/sdb of=/dev/null
 
-Patch 3 adds the new nr_dentry_negative per-cpu counter.
+step 3
+Then observe "online" groups, hundreds of kbytes a little over
+memory.min can cause tens of MiB to be reclaimed by kswapd.
 
-Various filesystem related tests were run and no statistically
-significant changes in performance outside of the possible noise range
-was observed.
+Here is one of test results I got:
+cat memory.current; cat memory.min; echo;
+409485312   // current
+409600000   // min
 
-Waiman Long (3):
-  fs/dcache: Fix incorrect nr_dentry_unused accounting in
-    shrink_dcache_sb()
-  fs: Don't need to put list_lru into its own cacheline
-  fs/dcache: Track & report number of negative dentries
+385052672   // See current got over reclaimed for 23MB
+409600000   // min
 
- Documentation/sysctl/fs.txt | 26 ++++++++++++++++----------
- fs/dcache.c                 | 38 +++++++++++++++++++++++++++++++++-----
- include/linux/dcache.h      |  7 ++++---
- include/linux/fs.h          |  9 +++++----
- 4 files changed, 58 insertions(+), 22 deletions(-)
-
--- 
-1.8.3.1
+Its corresponding ftrace output I monitored:
+kswapd_0-281   [000] ....   304.706632: shrink_node_memcg:
+min_excess=24, nr_reclaimed=6013, sc->nr_to_reclaim=1499997, exceeds
+5989pages
