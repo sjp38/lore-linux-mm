@@ -1,135 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 041596B7119
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 17:48:45 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id g188so9866407pgc.22
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 14:48:44 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 397F56B7095
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 15:36:50 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id v2so13335024plg.6
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 12:36:50 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o19sor24439096pll.44.2018.12.04.14.48.43
+        by mx.google.com with SMTPS id d184sor19509017pgc.58.2018.12.04.12.36.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 04 Dec 2018 14:48:43 -0800 (PST)
+        Tue, 04 Dec 2018 12:36:49 -0800 (PST)
 Content-Type: text/plain;
 	charset=utf-8
 Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
 Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
 From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <CALCETrXLrsKDBzDkN7sc9HYPWe9aV3NQzf4vMvM+FD8j6aA6AQ@mail.gmail.com>
-Date: Tue, 4 Dec 2018 14:48:40 -0800
+In-Reply-To: <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
+Date: Tue, 4 Dec 2018 12:36:44 -0800
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <20CC2F71-308D-42E2-8C54-F64D7CC3863F@gmail.com>
+Message-Id: <A5ABCA50-12F0-4A19-B499-3927D59BF589@gmail.com>
 References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
  <20181128000754.18056-2-rick.p.edgecombe@intel.com>
  <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
- <CALCETrXvddt148fncMJqpjK98uatiK-44knYFWU0-ytf8X+iog@mail.gmail.com>
- <08141F66-F3E6-4CC5-AF91-1ED5F101A54C@gmail.com>
- <CALCETrXLrsKDBzDkN7sc9HYPWe9aV3NQzf4vMvM+FD8j6aA6AQ@mail.gmail.com>
+ <20181204160304.GB7195@arm.com>
+ <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, "Naveen N . Rao" <naveen.n.rao@linux.vnet.ibm.com>, Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, "David S. Miller" <davem@davemloft.net>, Masami Hiramatsu <mhiramat@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, jeyu@kernel.org, Network Development <netdev@vger.kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Jann Horn <jannh@google.com>, Kristen Carlson Accardi <kristen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Cc: "will.deacon@arm.com" <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-> On Dec 4, 2018, at 11:48 AM, Andy Lutomirski <luto@kernel.org> wrote:
->=20
-> On Tue, Dec 4, 2018 at 11:45 AM Nadav Amit <nadav.amit@gmail.com> =
-wrote:
->>> On Dec 4, 2018, at 10:56 AM, Andy Lutomirski <luto@kernel.org> =
-wrote:
->>>=20
->>> On Mon, Dec 3, 2018 at 5:43 PM Nadav Amit <nadav.amit@gmail.com> =
-wrote:
->>>>> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe =
+> On Dec 4, 2018, at 12:02 PM, Edgecombe, Rick P =
 <rick.p.edgecombe@intel.com> wrote:
->>>>>=20
->>>>> Since vfree will lazily flush the TLB, but not lazily free the =
-underlying pages,
->>>>> it often leaves stale TLB entries to freed pages that could get =
-re-used. This is
->>>>> undesirable for cases where the memory being freed has special =
-permissions such
->>>>> as executable.
->>>>=20
->>>> So I am trying to finish my patch-set for preventing transient W+X =
-mappings
->>>> from taking space, by handling kprobes & ftrace that I missed =
-(thanks again for
->>>> pointing it out).
->>>>=20
->>>> But all of the sudden, I don=E2=80=99t understand why we have the =
-problem that this
->>>> (your) patch-set deals with at all. We already change the mappings =
-to make
->>>> the memory writable before freeing the memory, so why can=E2=80=99t =
-we make it
->>>> non-executable at the same time? Actually, why do we make the =
-module memory,
->>>> including its data executable before freeing it???
->>>=20
->>> All the code you're looking at is IMO a very awkward and possibly
->>> incorrect of doing what's actually necessary: putting the direct map
->>> the way it wants to be.
->>>=20
->>> Can't we shove this entirely mess into vunmap?  Have a flag (as part
->>> of vmalloc like in Rick's patch or as a flag passed to a vfree =
-variant
->>> directly) that makes the vunmap code that frees the underlying pages
->>> also reset their permissions?
->>>=20
->>> Right now, we muck with set_memory_rw() and set_memory_nx(), which
->>> both have very awkward (and inconsistent with each other!) semantics
->>> when called on vmalloc memory.  And they have their own flushes, =
-which
->>> is inefficient.  Maybe the right solution is for vunmap to remove =
-the
->>> vmap area PTEs, call into a function like set_memory_rw() that =
-resets
->>> the direct maps to their default permissions *without* flushing, and
->>> then to do a single flush for everything.  Or, even better, to cause
->>> the change_page_attr code to do the flush and also to flush the vmap
->>> area all at once so that very small free operations can flush single
->>> pages instead of flushing globally.
->>=20
->> Thanks for the explanation. I read it just after I realized that =
-indeed the
->> whole purpose of this code is to get cpa_process_alias()
->> update the corresponding direct mapping.
->>=20
->> This thing (pageattr.c) indeed seems over-engineered and very =
-unintuitive.
->> Right now I have a list of patch-sets that I owe, so I don=E2=80=99t =
-have the time
->> to deal with it.
->>=20
->> But, I still think that disable_ro_nx() should not call =
-set_memory_x().
->> IIUC, this breaks W+X of the direct-mapping which correspond with the =
-module
->> memory. Does it ever stop being W+X?? I=E2=80=99ll have another look.
 >=20
-> Dunno.  I did once chase down a bug where some memory got freed while
-> it was still read-only, and the results were hilarious and hard to
-> debug, since the explosion happened long after the buggy code
-> finished.
-
-This piece of code causes me pain and misery.
-
-So, it turns out that the direct map is *not* changed if you just change
-the NX-bit. See change_page_attr_set_clr():
-
-        /* No alias checking for _NX bit modifications */
-        checkalias =3D (pgprot_val(mask_set) | pgprot_val(mask_clr)) !=3D =
-_PAGE_NX;
-
-How many levels of abstraction are broken in the way? What would happen
-if somebody tries to change the NX-bit and some other bit in the PTE?
-Luckily, I don=E2=80=99t think someone does=E2=80=A6 at least for now.
-
-So, again, I think the change I proposed makes sense. nios2 does not =
+> On Tue, 2018-12-04 at 16:03 +0000, Will Deacon wrote:
+>> On Mon, Dec 03, 2018 at 05:43:11PM -0800, Nadav Amit wrote:
+>>>> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe =
+<rick.p.edgecombe@intel.com>
+>>>> wrote:
+>>>>=20
+>>>> Since vfree will lazily flush the TLB, but not lazily free the =
+underlying
+>>>> pages,
+>>>> it often leaves stale TLB entries to freed pages that could get =
+re-used.
+>>>> This is
+>>>> undesirable for cases where the memory being freed has special =
+permissions
+>>>> such
+>>>> as executable.
+>>>=20
+>>> So I am trying to finish my patch-set for preventing transient W+X =
+mappings
+>>> from taking space, by handling kprobes & ftrace that I missed =
+(thanks again
+>>> for
+>>> pointing it out).
+>>>=20
+>>> But all of the sudden, I don=E2=80=99t understand why we have the =
+problem that this
+>>> (your) patch-set deals with at all. We already change the mappings =
+to make
+>>> the memory writable before freeing the memory, so why can=E2=80=99t =
+we make it
+>>> non-executable at the same time? Actually, why do we make the module =
+memory,
+>>> including its data executable before freeing it???
+>>=20
+>> Yeah, this is really confusing, but I have a suspicion it's a =
+combination
+>> of the various different configurations and hysterical raisins. We =
+can't
+>> rely on module_alloc() allocating from the vmalloc area (see nios2) =
+nor
+>> can we rely on disable_ro_nx() being available at build time.
+>>=20
+>> If we *could* rely on module allocations always using vmalloc(), then
+>> we could pass in Rick's new flag and drop disable_ro_nx() altogether
+>> afaict -- who cares about the memory attributes of a mapping that's =
+about
+>> to disappear anyway?
+>>=20
+>> Is it just nios2 that does something different?
+>>=20
+>> Will
+>=20
+> Yea it is really intertwined. I think for x86, set_memory_nx =
+everywhere would
+> solve it as well, in fact that was what I first thought the solution =
+should be
+> until this was suggested. It's interesting that from the other thread =
+Masami
+> Hiramatsu referenced, set_memory_nx was suggested last year and would =
 have
-set_memory_x() and it will not be affected.
+> inadvertently blocked this on x86. But, on the other architectures I =
+have since
+> learned it is a bit different.
+>=20
+> It looks like actually most arch's don't re-define set_memory_*, and =
+so all of
+> the frob_* functions are actually just noops. In which case allocating =
+RWX is
+> needed to make it work at all, because that is what the allocation is =
+going to
+> stay at. So in these archs, set_memory_nx won't solve it because it =
+will do
+> nothing.
+>=20
+> On x86 I think you cannot get rid of disable_ro_nx fully because there =
+is the
+> changing of the permissions on the directmap as well. You don't want =
+some other
+> caller getting a page that was left RO when freed and then trying to =
+write to
+> it, if I understand this.
+>=20
+> The other reasoning was that calling set_memory_nx isn't doing what we =
+are
+> actually trying to do which is prevent the pages from getting released =
+too
+> early.
+>=20
+> A more clear solution for all of this might involve refactoring some =
+of the
+> set_memory_ de-allocation logic out into __weak functions in either =
+modules or
+> vmalloc. As Jessica points out in the other thread though, modules =
+does a lot
+> more stuff there than the other module_alloc callers. I think it may =
+take some
+> thought to centralize AND make it optimal for every =
+module_alloc/vmalloc_exec
+> user and arch.
+>=20
+> But for now with the change in vmalloc, we can block the executable =
+mapping
+> freed page re-use issue in a cross platform way.
 
-[ I can add a comment, although I don=E2=80=99t have know if nios2 has =
-an NX bit,
-and I don=E2=80=99t find any code that defines PTEs. Actually where is =
-pte_present()
-of nios2 being defined? Whatever. ]
+Please understand me correctly - I didn=E2=80=99t mean that your patches =
+are not
+needed.
+
+All I did is asking - how come the PTEs are executable when they are =
+cleared
+they are executable, when in fact we manipulate them when the module is
+removed.
+
+I think I try to deal with a similar problem to the one you encounter -
+broken W^X. The only thing that bothered me in regard to your patches =
+(and
+only after I played with the code) is that there is still a time-window =
+in
+which W^X is broken due to disable_ro_nx().
