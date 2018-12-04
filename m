@@ -1,72 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E74956B79F2
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:24:55 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id d11so88584wrw.4
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:24:55 -0800 (PST)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DDEA26B6EA6
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 07:18:47 -0500 (EST)
+Received: by mail-lf1-f70.google.com with SMTP id y6so1878341lfy.11
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 04:18:47 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 93sor196985wrb.13.2018.12.06.04.24.54
+        by mx.google.com with SMTPS id m10-v6sor9470107lje.8.2018.12.04.04.18.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Dec 2018 04:24:54 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v13 04/25] kasan: rename source files to reflect the new naming scheme
-Date: Thu,  6 Dec 2018 13:24:22 +0100
-Message-Id: <88c6fd2a883e459e6242030497230e5fb0d44d44.1544099024.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
-References: <cover.1544099024.git.andreyknvl@google.com>
+        Tue, 04 Dec 2018 04:18:45 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 4/6] rodata_test: add verification for __wr_after_init
+Date: Tue,  4 Dec 2018 14:18:03 +0200
+Message-Id: <20181204121805.4621-5-igor.stoppa@huawei.com>
+In-Reply-To: <20181204121805.4621-1-igor.stoppa@huawei.com>
+References: <20181204121805.4621-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We now have two KASAN modes: generic KASAN and tag-based KASAN. Rename
-kasan.c to generic.c to reflect that. Also rename kasan_init.c to init.c
-as it contains initialization code for both KASAN modes.
+The write protection of the __wr_after_init data can be verified with the
+same methodology used for const data.
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- mm/kasan/Makefile                 | 8 ++++----
- mm/kasan/{kasan.c => generic.c}   | 0
- mm/kasan/{kasan_init.c => init.c} | 0
- 3 files changed, 4 insertions(+), 4 deletions(-)
- rename mm/kasan/{kasan.c => generic.c} (100%)
- rename mm/kasan/{kasan_init.c => init.c} (100%)
+ mm/rodata_test.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/mm/kasan/Makefile b/mm/kasan/Makefile
-index a6df14bffb6b..d643530b24aa 100644
---- a/mm/kasan/Makefile
-+++ b/mm/kasan/Makefile
-@@ -1,14 +1,14 @@
- # SPDX-License-Identifier: GPL-2.0
- KASAN_SANITIZE := n
- UBSAN_SANITIZE_common.o := n
--UBSAN_SANITIZE_kasan.o := n
-+UBSAN_SANITIZE_generic.o := n
- KCOV_INSTRUMENT := n
+diff --git a/mm/rodata_test.c b/mm/rodata_test.c
+index 3c1e515ca9b1..a98d088ad9cc 100644
+--- a/mm/rodata_test.c
++++ b/mm/rodata_test.c
+@@ -16,7 +16,19 @@
  
--CFLAGS_REMOVE_kasan.o = -pg
-+CFLAGS_REMOVE_generic.o = -pg
- # Function splitter causes unnecessary splits in __asan_load1/__asan_store1
- # see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63533
+ #define INIT_TEST_VAL 0xC3
  
- CFLAGS_common.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
--CFLAGS_kasan.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
-+CFLAGS_generic.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
++/*
++ * Note: __ro_after_init data is, for every practical effect, equivalent to
++ * const data, since they are even write protected at the same time; there
++ * is no need for separate testing.
++ * __wr_after_init data, otoh, is altered also after the write protection
++ * takes place and it cannot be exploitable for altering more permanent
++ * data.
++ */
++
+ static const int rodata_test_data = INIT_TEST_VAL;
++static int wr_after_init_test_data __wr_after_init = INIT_TEST_VAL;
++extern long __start_wr_after_init;
++extern long __end_wr_after_init;
  
--obj-y := common.o kasan.o report.o kasan_init.o quarantine.o
-+obj-y := common.o generic.o report.o init.o quarantine.o
-diff --git a/mm/kasan/kasan.c b/mm/kasan/generic.c
-similarity index 100%
-rename from mm/kasan/kasan.c
-rename to mm/kasan/generic.c
-diff --git a/mm/kasan/kasan_init.c b/mm/kasan/init.c
-similarity index 100%
-rename from mm/kasan/kasan_init.c
-rename to mm/kasan/init.c
+ static bool test_data(char *data_type, const int *data,
+ 		      unsigned long start, unsigned long end)
+@@ -60,6 +72,9 @@ void rodata_test(void)
+ {
+ 	if (test_data("rodata", &rodata_test_data,
+ 		      (unsigned long)&__start_rodata,
+-		      (unsigned long)&__end_rodata))
++		      (unsigned long)&__end_rodata) &&
++	    test_data("wr after init data", &wr_after_init_test_data,
++		      (unsigned long)&__start_wr_after_init,
++		      (unsigned long)&__end_wr_after_init))
+ 		pr_info("all tests were successful\n");
+ }
 -- 
-2.20.0.rc1.387.gf8505762e3-goog
+2.19.1
