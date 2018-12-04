@@ -1,37 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B1F626B6F9E
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 11:28:27 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id h85so10761393oib.9
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 08:28:27 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y132si7530374oig.260.2018.12.04.08.28.25
-        for <linux-mm@kvack.org>;
-        Tue, 04 Dec 2018 08:28:25 -0800 (PST)
-Date: Tue, 4 Dec 2018 16:28:44 +0000
-From: Will Deacon <will.deacon@arm.com>
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4386D6B6F2D
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 09:35:47 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 89so12646970ple.19
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 06:35:47 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 4si16877139pfg.280.2018.12.04.06.35.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Dec 2018 06:35:45 -0800 (PST)
 Subject: Re: [PATCH v2 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page
  tables
-Message-ID: <20181204162844.GA8169@arm.com>
 References: <20181111090341.120786-1-drinkcat@chromium.org>
  <CANMq1KDxmRcWhtaJbrLHqx6yPGkNaK7WNYYf+iFjH1e8XdrwRg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b99dd00f-fe1c-1cac-8ee3-5b0c1af9a92e@suse.cz>
+Date: Tue, 4 Dec 2018 15:35:41 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <CANMq1KDxmRcWhtaJbrLHqx6yPGkNaK7WNYYf+iFjH1e8XdrwRg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Boichat <drinkcat@chromium.org>
-Cc: Robin Murphy <robin.murphy@arm.com>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthias Brugger <matthias.bgg@gmail.com>, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, Joerg Roedel <joro@8bytes.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, Hsin-Yi Wang <hsinyi@chromium.org>, Daniel Kurtz <djkurtz@chromium.org>
+To: Nicolas Boichat <drinkcat@chromium.org>, Robin Murphy <robin.murphy@arm.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Matthias Brugger <matthias.bgg@gmail.com>, hch@infradead.org, Matthew Wilcox <willy@infradead.org>
+Cc: Will Deacon <will.deacon@arm.com>, Joerg Roedel <joro@8bytes.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, Hsin-Yi Wang <hsinyi@chromium.org>, Daniel Kurtz <djkurtz@chromium.org>
 
-On Tue, Dec 04, 2018 at 05:37:13PM +0800, Nicolas Boichat wrote:
+On 12/4/18 10:37 AM, Nicolas Boichat wrote:
 > On Sun, Nov 11, 2018 at 5:04 PM Nicolas Boichat <drinkcat@chromium.org> wrote:
-> >
-> > This is a follow-up to the discussion in [1], to make sure that the page
-> > tables allocated by iommu/io-pgtable-arm-v7s are contained within 32-bit
-> > physical address space.
-> >
-> > [1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
+>>
+>> This is a follow-up to the discussion in [1], to make sure that the page
+>> tables allocated by iommu/io-pgtable-arm-v7s are contained within 32-bit
+>> physical address space.
+>>
+>> [1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
 > 
 > Hi everyone,
 > 
@@ -62,8 +64,19 @@ On Tue, Dec 04, 2018 at 05:37:13PM +0800, Nicolas Boichat wrote:
 > better use of the memory, so that'd be my preference. But I'm probably
 > missing something.
 
-FWIW, I'm open to any solution at this point, since I'd like to see this
-regression fixed. (1) does sound better longer-term, but (3) looks pretty
-much ready to do afaict.
+I would prefer 1 as well. IIRC you already confirmed that alignment
+requirements are not broken for custom kmem caches even in presence of
+SLUB debug options (and I would say it's a bug to be fixed if they
+weren't). I just asked (and didn't get a reply I think) about your
+ability to handle the GFP_ATOMIC allocation failures. They should be
+rare when only single page allocations are needed for the kmem cache.
+But in case they are not an option, then preallocating would be needed,
+thus probably option 2.
 
-Will
+> [2] https://patchwork.kernel.org/cover/10677529/, 3 patches
+> [3] https://patchwork.codeaurora.org/patch/671639/
+> 
+> Thanks,
+> 
+> Nicolas
+> 
