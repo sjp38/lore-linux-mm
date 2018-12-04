@@ -1,77 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 984B16B7B63
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:37:18 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id a9so832397pla.2
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:37:18 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8C16B6DDB
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 03:57:21 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id h11so13458797pfj.13
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 00:57:21 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u6sor1948588pgu.43.2018.12.06.10.37.17
+        by mx.google.com with SMTPS id y23sor20572187pga.35.2018.12.04.00.57.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Dec 2018 10:37:17 -0800 (PST)
-Date: Fri, 7 Dec 2018 00:11:03 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v3 2/9] arch/arm/mm/dma-mapping.c: Convert to use
- vm_insert_range
-Message-ID: <20181206184103.GA25872@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Tue, 04 Dec 2018 00:57:20 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH v4 2/2] mm, sparse: pass nid instead of pgdat to sparse_add_one_section()
+Date: Tue,  4 Dec 2018 16:56:57 +0800
+Message-Id: <20181204085657.20472-2-richard.weiyang@gmail.com>
+In-Reply-To: <20181204085657.20472-1-richard.weiyang@gmail.com>
+References: <20181129155316.8174-1-richard.weiyang@gmail.com>
+ <20181204085657.20472-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: mhocko@suse.com, dave.hansen@intel.com, osalvador@suse.de, david@redhat.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+Since the information needed in sparse_add_one_section() is node id to
+allocate proper memory, it is not necessary to pass its pgdat.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+This patch changes the prototype of sparse_add_one_section() to pass
+node id directly. This is intended to reduce misleading that
+sparse_add_one_section() would touch pgdat.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 ---
- arch/arm/mm/dma-mapping.c | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+* adjust parameter alignment
+---
+ include/linux/memory_hotplug.h | 4 ++--
+ mm/memory_hotplug.c            | 2 +-
+ mm/sparse.c                    | 8 ++++----
+ 3 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 661fe48..4eec323 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1582,31 +1582,24 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
- 		    void *cpu_addr, dma_addr_t dma_addr, size_t size,
- 		    unsigned long attrs)
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 45a5affcab8a..b81cc29482d8 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -333,8 +333,8 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+ 		unsigned long nr_pages, struct vmem_altmap *altmap);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+-extern int sparse_add_one_section(struct pglist_data *pgdat,
+-		unsigned long start_pfn, struct vmem_altmap *altmap);
++extern int sparse_add_one_section(int nid, unsigned long start_pfn,
++				  struct vmem_altmap *altmap);
+ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+ 		unsigned long map_offset, struct vmem_altmap *altmap);
+ extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index f626e7e5f57b..5b3a3d7b4466 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -253,7 +253,7 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+ 	if (pfn_valid(phys_start_pfn))
+ 		return -EEXIST;
+ 
+-	ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn, altmap);
++	ret = sparse_add_one_section(nid, phys_start_pfn, altmap);
+ 	if (ret < 0)
+ 		return ret;
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 5825f276485f..a4fdbcb21514 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -662,8 +662,8 @@ static void free_map_bootmem(struct page *memmap)
+  * set.  If this is <=0, then that means that the passed-in
+  * map was not consumed and must be freed.
+  */
+-int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+-		unsigned long start_pfn, struct vmem_altmap *altmap)
++int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
++				     struct vmem_altmap *altmap)
  {
--	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
-+	unsigned long page_count = vma_pages(vma);
- 	struct page **pages = __iommu_get_pages(cpu_addr, attrs);
- 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
- 	unsigned long off = vma->vm_pgoff;
-+	int err;
- 
- 	if (!pages)
- 		return -ENXIO;
- 
--	if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
-+	if (off >= nr_pages || page_count > nr_pages - off)
- 		return -ENXIO;
- 
- 	pages += off;
-+	err = vm_insert_range(vma, vma->vm_start, pages, page_count);
-+	if (err)
-+		pr_err("Remapping memory failed: %d\n", err);
- 
--	do {
--		int ret = vm_insert_page(vma, uaddr, *pages++);
--		if (ret) {
--			pr_err("Remapping memory failed: %d\n", ret);
--			return ret;
--		}
--		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
--
--	return 0;
-+	return err;
- }
- static int arm_iommu_mmap_attrs(struct device *dev,
- 		struct vm_area_struct *vma, void *cpu_addr,
+ 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+ 	struct mem_section *ms;
+@@ -675,11 +675,11 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+ 	 * no locking for this, because it does its own
+ 	 * plus, it does a kmalloc
+ 	 */
+-	ret = sparse_index_init(section_nr, pgdat->node_id);
++	ret = sparse_index_init(section_nr, nid);
+ 	if (ret < 0 && ret != -EEXIST)
+ 		return ret;
+ 	ret = 0;
+-	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
++	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+ 	if (!memmap)
+ 		return -ENOMEM;
+ 	usemap = __kmalloc_section_usemap();
 -- 
-1.9.1
+2.15.1
