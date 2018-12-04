@@ -1,96 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6348E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 09:31:35 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id w6so4745811otb.6
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 06:31:35 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b7si5434007otk.79.2018.12.10.06.31.34
-        for <linux-mm@kvack.org>;
-        Mon, 10 Dec 2018 06:31:34 -0800 (PST)
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Subject: [RFC][PATCH 3/3] arm64: elf: Advertise relaxed ABI
-Date: Mon, 10 Dec 2018 14:30:44 +0000
-Message-Id: <20181210143044.12714-4-vincenzo.frascino@arm.com>
-In-Reply-To: <20181210143044.12714-1-vincenzo.frascino@arm.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
- <20181210143044.12714-1-vincenzo.frascino@arm.com>
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E3D766B6EA8
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 07:18:50 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id l4-v6so4601425lji.5
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 04:18:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 96-v6sor9443421lja.27.2018.12.04.04.18.48
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 04 Dec 2018 04:18:48 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 6/6] __wr_after_init: lkdtm test
+Date: Tue,  4 Dec 2018 14:18:05 +0200
+Message-Id: <20181204121805.4621-7-igor.stoppa@huawei.com>
+In-Reply-To: <20181204121805.4621-1-igor.stoppa@huawei.com>
+References: <20181204121805.4621-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On arm64 the TCR_EL1.TBI0 bit has been set since Linux 3.x hence
-the userspace (EL0) is allowed to set a non-zero value in the top
-byte but the resulting pointers are not allowed at the user-kernel
-syscall ABI boundary.
+Verify that trying to modify a variable with the __wr_after_init
+modifier wil lcause a crash.
 
-This patch sets ARM64_AT_FLAGS_SYSCALL_TBI (bit[0]) in the AT_FLAGS
-to advertise the relaxation of the ABI to the userspace.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-CC: Andrey Konovalov <andreyknvl@google.com>
-Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- arch/arm64/include/asm/atflags.h      | 7 +++++++
- arch/arm64/include/asm/elf.h          | 5 +++++
- arch/arm64/include/uapi/asm/atflags.h | 8 ++++++++
- 3 files changed, 20 insertions(+)
- create mode 100644 arch/arm64/include/asm/atflags.h
- create mode 100644 arch/arm64/include/uapi/asm/atflags.h
+ drivers/misc/lkdtm/core.c  |  3 +++
+ drivers/misc/lkdtm/lkdtm.h |  3 +++
+ drivers/misc/lkdtm/perms.c | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+)
 
-diff --git a/arch/arm64/include/asm/atflags.h b/arch/arm64/include/asm/atflags.h
-new file mode 100644
-index 000000000000..b20093d61bf2
---- /dev/null
-+++ b/arch/arm64/include/asm/atflags.h
-@@ -0,0 +1,7 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef __ASM_ATFLAGS_H
-+#define __ASM_ATFLAGS_H
-+
-+#include <uapi/asm/atflags.h>
-+
+diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
+index 2837dc77478e..73c34b17c433 100644
+--- a/drivers/misc/lkdtm/core.c
++++ b/drivers/misc/lkdtm/core.c
+@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
+ 	CRASHTYPE(ACCESS_USERSPACE),
+ 	CRASHTYPE(WRITE_RO),
+ 	CRASHTYPE(WRITE_RO_AFTER_INIT),
++#ifdef CONFIG_PRMEM
++	CRASHTYPE(WRITE_WR_AFTER_INIT),
 +#endif
-diff --git a/arch/arm64/include/asm/elf.h b/arch/arm64/include/asm/elf.h
-index 433b9554c6a1..da5a6d310ff4 100644
---- a/arch/arm64/include/asm/elf.h
-+++ b/arch/arm64/include/asm/elf.h
-@@ -16,6 +16,7 @@
- #ifndef __ASM_ELF_H
- #define __ASM_ELF_H
+ 	CRASHTYPE(WRITE_KERN),
+ 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
+ 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
+diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
+index 3c6fd327e166..abba2f52ffa6 100644
+--- a/drivers/misc/lkdtm/lkdtm.h
++++ b/drivers/misc/lkdtm/lkdtm.h
+@@ -38,6 +38,9 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
+ void __init lkdtm_perms_init(void);
+ void lkdtm_WRITE_RO(void);
+ void lkdtm_WRITE_RO_AFTER_INIT(void);
++#ifdef CONFIG_PRMEM
++void lkdtm_WRITE_WR_AFTER_INIT(void);
++#endif
+ void lkdtm_WRITE_KERN(void);
+ void lkdtm_EXEC_DATA(void);
+ void lkdtm_EXEC_STACK(void);
+diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
+index 53b85c9d16b8..f681730aa652 100644
+--- a/drivers/misc/lkdtm/perms.c
++++ b/drivers/misc/lkdtm/perms.c
+@@ -9,6 +9,7 @@
+ #include <linux/vmalloc.h>
+ #include <linux/mman.h>
+ #include <linux/uaccess.h>
++#include <linux/prmem.h>
+ #include <asm/cacheflush.h>
  
-+#include <asm/atflags.h>
- #include <asm/hwcap.h>
+ /* Whether or not to fill the target memory area with do_nothing(). */
+@@ -27,6 +28,10 @@ static const unsigned long rodata = 0xAA55AA55;
+ /* This is marked __ro_after_init, so it should ultimately be .rodata. */
+ static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
  
++/* This is marked __wr_after_init, so it should be in .rodata. */
++static
++unsigned long wr_after_init __wr_after_init = 0x55AA5500;
++
  /*
-@@ -163,6 +164,10 @@ do {									\
- 		NEW_AUX_ENT(AT_IGNORE, 0);				\
- } while (0)
+  * This just returns to the caller. It is designed to be copied into
+  * non-executable memory regions.
+@@ -104,6 +109,28 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
+ 	*ptr ^= 0xabcd1234;
+ }
  
-+/* Platform specific AT_FLAGS */
-+#define ELF_AT_FLAGS			ARM64_AT_FLAGS_SYSCALL_TBI
-+#define COMPAT_ELF_AT_FLAGS		0
++#ifdef CONFIG_PRMEM
 +
- #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
- struct linux_binprm;
- extern int arch_setup_additional_pages(struct linux_binprm *bprm,
-diff --git a/arch/arm64/include/uapi/asm/atflags.h b/arch/arm64/include/uapi/asm/atflags.h
-new file mode 100644
-index 000000000000..1cf25692ffd6
---- /dev/null
-+++ b/arch/arm64/include/uapi/asm/atflags.h
-@@ -0,0 +1,8 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef __UAPI_ASM_ATFLAGS_H
-+#define __UAPI_ASM_ATFLAGS_H
++void lkdtm_WRITE_WR_AFTER_INIT(void)
++{
++	unsigned long *ptr = &wr_after_init;
 +
-+/* Platform specific AT_FLAGS */
-+#define ARM64_AT_FLAGS_SYSCALL_TBI	(1 << 0)
++	/*
++	 * Verify we were written to during init. Since an Oops
++	 * is considered a "success", a failure is to just skip the
++	 * real test.
++	 */
++	if ((*ptr & 0xAA) != 0xAA) {
++		pr_info("%p was NOT written during init!?\n", ptr);
++		return;
++	}
++
++	pr_info("attempting bad wr_after_init write at %p\n", ptr);
++	*ptr ^= 0xabcd1234;
++}
 +
 +#endif
++
+ void lkdtm_WRITE_KERN(void)
+ {
+ 	size_t size;
+@@ -200,4 +227,6 @@ void __init lkdtm_perms_init(void)
+ 	/* Make sure we can write to __ro_after_init values during __init */
+ 	ro_after_init |= 0xAA;
+ 
++	/* Make sure we can write to __wr_after_init during __init */
++	wr_after_init |= 0xAA;
+ }
 -- 
-2.19.2
+2.19.1
