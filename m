@@ -1,50 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C1AD08E004D
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 22:51:36 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id t2so11579875pfj.15
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 19:51:36 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C4B96B6DEA
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 04:11:17 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id v4so7712887edm.18
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 01:11:17 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x5sor19929557pgp.80.2018.12.10.19.51.35
+        by mx.google.com with SMTPS id x1-v6sor4207952ejf.13.2018.12.04.01.11.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Dec 2018 19:51:35 -0800 (PST)
+        Tue, 04 Dec 2018 01:11:15 -0800 (PST)
+Date: Tue, 4 Dec 2018 09:11:14 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm, sparse: remove check with __highest_present_section_nr in for_each_present_section_nr()
-Date: Tue, 11 Dec 2018 11:51:28 +0800
-Message-Id: <20181211035128.43256-1-richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: fix calculation of pgdat->nr_zones
+Message-ID: <20181204091114.cqzepljxxrulju4v@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181117022022.9956-1-richard.weiyang@gmail.com>
+ <20181119094832.GC22247@dhcp22.suse.cz>
+ <20181119133851.GM22247@dhcp22.suse.cz>
+ <20181204090500.GR235790@sasha-vm>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181204090500.GR235790@sasha-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com, osalvador@suse.de, Wei Yang <richard.weiyang@gmail.com>
+To: Sasha Levin <sashal@kernel.org>
+Cc: Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org
 
-A valid present section number is in [0, __highest_present_section_nr].
-And the return value of next_present_section_nr() meets this
-requirement. This means it is not necessary to check it with
-__highest_present_section_nr again in for_each_present_section_nr().
+On Tue, Dec 04, 2018 at 04:05:04AM -0500, Sasha Levin wrote:
+>On Mon, Nov 19, 2018 at 02:38:51PM +0100, Michal Hocko wrote:
+>> Forgot to mention that this should probably go to stable. Having an
+>> incorrect nr_zones might result in all sorts of problems which would be
+>> quite hard to debug (e.g. reclaim not considering the movable zone).
+>> I do not expect many users would suffer from this it but still this is
+>> trivial and obviously right thing to do so backporting to the stable
+>> tree shouldn't be harmful (last famous words).
+>> 
+>> Cc: stable # since 4.13
+>> 
+>> older tress would have to be checked explicitly.
+>
+>While the final commit included Michal's response, it didn't have a
+>stable tag. Could someone confirm it should go in stable?
+>
 
-Since we pass an unsigned long *section_nr* to
-for_each_present_section_nr(), we need to cast it to int before
-comparing.
+I think Michal wants it into stable.
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/sparse.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+>--
+>Thanks,
+>Sasha
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index a4fdbcb21514..9eaa8f98a3d2 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -197,8 +197,7 @@ static inline int next_present_section_nr(int section_nr)
- }
- #define for_each_present_section_nr(start, section_nr)		\
- 	for (section_nr = next_present_section_nr(start-1);	\
--	     ((section_nr >= 0) &&				\
--	      (section_nr <= __highest_present_section_nr));	\
-+	     (int)section_nr >= 0;				\
- 	     section_nr = next_present_section_nr(section_nr))
- 
- static inline unsigned long first_present_section_nr(void)
 -- 
-2.15.1
+Wei Yang
+Help you, Help me
