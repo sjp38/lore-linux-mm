@@ -1,38 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 21D156B7630
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 15:30:21 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id i3so17740841pfj.4
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 12:30:21 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id w8si19321931pgm.467.2018.12.05.12.30.19
+	by kanga.kvack.org (Postfix) with ESMTP id 5118E6B7090
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 15:32:56 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 82so9111958pfs.20
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 12:32:56 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id n30si13937140pgb.406.2018.12.04.12.32.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 12:30:20 -0800 (PST)
-From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
+        Tue, 04 Dec 2018 12:32:55 -0800 (PST)
 Subject: Re: [RFC v2 00/13] Multi-Key Total Memory Encryption API (MKTME)
-Date: Wed, 5 Dec 2018 20:30:15 +0000
-Message-ID: <b7fa2f2337adadd24594d7e799c337a9c7eaf906.camel@intel.com>
 References: <cover.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <3A8A9C5F0E0B8C4FB8F40BC9179B80DA@intel.com>
-Content-Transfer-Encoding: base64
+ <CALCETrUqqQiHR_LJoKB2JE6hCZ-e7LiFprEhmo-qoegDZJ9uYQ@mail.gmail.com>
+ <CALCETrXM_nQMFHsAfQGqqURL3=B46AXdiG+4p8Mpm6n4cOqXsw@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <fa98a8d6-d592-0b49-c084-c20cca9a801f@intel.com>
+Date: Tue, 4 Dec 2018 12:32:54 -0800
 MIME-Version: 1.0
+In-Reply-To: <CALCETrXM_nQMFHsAfQGqqURL3=B46AXdiG+4p8Mpm6n4cOqXsw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, Hansen,, Jun
+To: Andy Lutomirski <luto@kernel.org>
+Cc: alison.schofield@intel.com, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, David Howells <dhowells@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, James Morris <jmorris@namei.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, kai.huang@intel.com, Jun Nakajima <jun.nakajima@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, keyrings@vger.kernel.org, LSM List <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-T24gTW9uLCAyMDE4LTEyLTAzIGF0IDIzOjM5IC0wODAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
-Og0KPiBIaSBUaG9tYXMsIERhdmlkLA0KPiANCj4gSGVyZSBpcyBhbiB1cGRhdGVkIFJGQyBvbiB0
-aGUgQVBJJ3MgdG8gc3VwcG9ydCBNS1RNRS4NCj4gKE11bHRpLUtleSBUb3RhbCBNZW1vcnkgRW5j
-cnlwdGlvbikNCj4gDQo+IFRoaXMgUkZDIHByZXNlbnRzIHRoZSAyIEFQSSBhZGRpdGlvbnMgdG8g
-c3VwcG9ydCB0aGUgY3JlYXRpb24gYW5kDQo+IHVzYWdlIG9mIG1lbW9yeSBlbmNyeXB0aW9uIGtl
-eXM6DQo+ICAxKSBLZXJuZWwgS2V5IFNlcnZpY2UgdHlwZSAibWt0bWUiDQo+ICAyKSBTeXN0ZW0g
-Y2FsbCBlbmNyeXB0X21wcm90ZWN0KCkNCj4gDQo+IFRoaXMgcGF0Y2hzZXQgaXMgYnVpbHQgdXBv
-biBLaXJpbGwgU2h1dGVtb3YncyB3b3JrIGZvciB0aGUgY29yZSBNS1RNRQ0KPiBzdXBwb3J0Lg0K
-DQpQbGVhc2UsIGV4cGxhaW4gd2hhdCBNS1RNRSBpcyByaWdodCBoZXJlLg0KDQpObyByZWZlcmVu
-Y2VzLCBubyBleHBsYW5hdGlvbnMuLi4gRXZlbiB3aXRoIGEgcmVmZXJlbmNlLCBhIHNob3J0DQpz
-dW1tYXJ5IHdvdWxkIGJlIHJlYWxseSBuaWNlIHRvIGhhdmUuDQoNCi9KYXJra28NCg==
+On 12/4/18 12:00 PM, Andy Lutomirski wrote:
+> On Tue, Dec 4, 2018 at 11:19 AM Andy Lutomirski <luto@kernel.org> wrote:
+>> On Mon, Dec 3, 2018 at 11:37 PM Alison Schofield <alison.schofield@intel.com> wrote:
+>> Finally, If you're going to teach the kernel how to have some user
+>> pages that aren't in the direct map, you've essentially done XPO,
+>> which is nifty but expensive.  And I think that doing this gets you
+>> essentially all the benefit of MKTME for the non-pmem use case.  Why
+>> exactly would any software want to use anything other than a
+>> CPU-managed key for anything other than pmem?
+> 
+> Let me say this less abstractly.  Here's a somewhat concrete actual
+> proposal.  Make a new memfd_create() flag like MEMFD_ISOLATED.  The
+> semantics are that the underlying pages are made not-present in the
+> direct map when they're allocated (which is hideously slow, but so be
+> it), and that anything that tries to get_user_pages() the resulting
+> pages fails.  And then make sure we have all the required APIs so that
+> QEMU can still map this stuff into a VM.
+
+I think we need get_user_pages().  We want direct I/O to work, *and* we
+really want direct device assignment into VMs.
+
+> And maybe we get fancy and encrypt this memory when it's swapped, but
+> maybe we should just encrypt everything when it's swapped.
+
+We decided long ago (and this should be in the patches somewhere) that
+we wouldn't force memory to be encrypted in swap.  We would just
+recommend it in the documentation as a best practice, especially when
+using MKTME.
+
+We can walk that back, of course, but that's what we're doing at the moment.
