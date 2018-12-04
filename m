@@ -1,266 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 763F76B69E8
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 10:48:17 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id d41so6525800eda.12
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 07:48:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id u30si3752023edd.348.2018.12.03.07.48.14
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 88BD26B6D89
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:35:28 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id t133so16611738iof.20
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:35:28 -0800 (PST)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-eopbgr740041.outbound.protection.outlook.com. [40.107.74.41])
+        by mx.google.com with ESMTPS id i135si5880282iti.83.2018.12.03.23.35.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 07:48:14 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB3Fiu90044893
-	for <linux-mm@kvack.org>; Mon, 3 Dec 2018 10:48:13 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p56rfauu7-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:48:03 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 3 Dec 2018 15:47:50 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 5/6] arch: simplify several early memory allocations
-Date: Mon,  3 Dec 2018 17:47:14 +0200
-In-Reply-To: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
-References: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1543852035-26634-6-git-send-email-rppt@linux.ibm.com>
+        Mon, 03 Dec 2018 23:35:26 -0800 (PST)
+From: "Koenig, Christian" <Christian.Koenig@amd.com>
+Subject: Re: [PATCH 0/3] mmu notifier contextual informations
+Date: Tue, 4 Dec 2018 07:35:22 +0000
+Message-ID: <2c0ed01b-50f9-961b-ff08-de494e00b1b4@amd.com>
+References: <20181203201817.10759-1-jglisse@redhat.com>
+In-Reply-To: <20181203201817.10759-1-jglisse@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <26511A7B4182974B950897019B73A37F@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: "jglisse@redhat.com" <jglisse@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, "Kuehling, Felix" <Felix.Kuehling@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
 
-There are several early memory allocations in arch/ code that use
-memblock_phys_alloc() to allocate memory, convert the returned physical
-address to the virtual address and then set the allocated memory to zero.
-
-Exactly the same behaviour can be achieved simply by calling
-memblock_alloc(): it allocates the memory in the same way as
-memblock_phys_alloc(), then it performs the phys_to_virt() conversion and
-clears the allocated memory.
-
-Replace the longer sequence with a simpler call to memblock_alloc().
-
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/arm/mm/mmu.c                     |  4 +---
- arch/c6x/mm/dma-coherent.c            |  9 ++-------
- arch/nds32/mm/init.c                  | 12 ++++--------
- arch/powerpc/kernel/setup-common.c    |  4 ++--
- arch/powerpc/mm/pgtable_32.c          |  4 +---
- arch/powerpc/mm/ppc_mmu_32.c          |  3 +--
- arch/powerpc/platforms/powernv/opal.c |  3 +--
- arch/sparc/kernel/prom_64.c           |  7 ++-----
- arch/sparc/mm/init_64.c               |  9 +++------
- arch/unicore32/mm/mmu.c               |  4 +---
- 10 files changed, 18 insertions(+), 41 deletions(-)
-
-diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index f5cc1cc..0a04c9a5 100644
---- a/arch/arm/mm/mmu.c
-+++ b/arch/arm/mm/mmu.c
-@@ -721,9 +721,7 @@ EXPORT_SYMBOL(phys_mem_access_prot);
- 
- static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
- {
--	void *ptr = __va(memblock_phys_alloc(sz, align));
--	memset(ptr, 0, sz);
--	return ptr;
-+	return memblock_alloc(sz, align);
- }
- 
- static void __init *early_alloc(unsigned long sz)
-diff --git a/arch/c6x/mm/dma-coherent.c b/arch/c6x/mm/dma-coherent.c
-index 01305c7..ffc49e2 100644
---- a/arch/c6x/mm/dma-coherent.c
-+++ b/arch/c6x/mm/dma-coherent.c
-@@ -118,8 +118,6 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
-  */
- void __init coherent_mem_init(phys_addr_t start, u32 size)
- {
--	phys_addr_t bitmap_phys;
--
- 	if (!size)
- 		return;
- 
-@@ -135,11 +133,8 @@ void __init coherent_mem_init(phys_addr_t start, u32 size)
- 	if (dma_size & (PAGE_SIZE - 1))
- 		++dma_pages;
- 
--	bitmap_phys = memblock_phys_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
--					  sizeof(long));
--
--	dma_bitmap = phys_to_virt(bitmap_phys);
--	memset(dma_bitmap, 0, dma_pages * PAGE_SIZE);
-+	dma_bitmap = memblock_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
-+				    sizeof(long));
- }
- 
- static void c6x_dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
-diff --git a/arch/nds32/mm/init.c b/arch/nds32/mm/init.c
-index 131104b..9f19be8 100644
---- a/arch/nds32/mm/init.c
-+++ b/arch/nds32/mm/init.c
-@@ -80,8 +80,7 @@ static void __init map_ram(void)
- 		}
- 
- 		/* Alloc one page for holding PTE's... */
--		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--		memset(pte, 0, PAGE_SIZE);
-+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 		set_pmd(pme, __pmd(__pa(pte) + _PAGE_KERNEL_TABLE));
- 
- 		/* Fill the newly allocated page with PTE'S */
-@@ -113,8 +112,7 @@ static void __init fixedrange_init(void)
- 	pgd = swapper_pg_dir + pgd_index(vaddr);
- 	pud = pud_offset(pgd, vaddr);
- 	pmd = pmd_offset(pud, vaddr);
--	fixmap_pmd_p = (pmd_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	memset(fixmap_pmd_p, 0, PAGE_SIZE);
-+	fixmap_pmd_p = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	set_pmd(pmd, __pmd(__pa(fixmap_pmd_p) + _PAGE_KERNEL_TABLE));
- 
- #ifdef CONFIG_HIGHMEM
-@@ -126,8 +124,7 @@ static void __init fixedrange_init(void)
- 	pgd = swapper_pg_dir + pgd_index(vaddr);
- 	pud = pud_offset(pgd, vaddr);
- 	pmd = pmd_offset(pud, vaddr);
--	pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	memset(pte, 0, PAGE_SIZE);
-+	pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	set_pmd(pmd, __pmd(__pa(pte) + _PAGE_KERNEL_TABLE));
- 	pkmap_page_table = pte;
- #endif /* CONFIG_HIGHMEM */
-@@ -152,8 +149,7 @@ void __init paging_init(void)
- 	fixedrange_init();
- 
- 	/* allocate space for empty_zero_page */
--	zero_page = __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	memset(zero_page, 0, PAGE_SIZE);
-+	zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	zone_sizes_init();
- 
- 	empty_zero_page = virt_to_page(zero_page);
-diff --git a/arch/powerpc/kernel/setup-common.c b/arch/powerpc/kernel/setup-common.c
-index 93ee370..8f6c763 100644
---- a/arch/powerpc/kernel/setup-common.c
-+++ b/arch/powerpc/kernel/setup-common.c
-@@ -459,8 +459,8 @@ void __init smp_setup_cpu_maps(void)
- 
- 	DBG("smp_setup_cpu_maps()\n");
- 
--	cpu_to_phys_id = __va(memblock_phys_alloc(nr_cpu_ids * sizeof(u32), __alignof__(u32)));
--	memset(cpu_to_phys_id, 0, nr_cpu_ids * sizeof(u32));
-+	cpu_to_phys_id = memblock_alloc(nr_cpu_ids * sizeof(u32),
-+					__alignof__(u32));
- 
- 	for_each_node_by_type(dn, "cpu") {
- 		const __be32 *intserv;
-diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
-index bda3c6f..9931e68 100644
---- a/arch/powerpc/mm/pgtable_32.c
-+++ b/arch/powerpc/mm/pgtable_32.c
-@@ -50,9 +50,7 @@ __ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
- 	if (slab_is_available()) {
- 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
- 	} else {
--		pte = __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--		if (pte)
--			clear_page(pte);
-+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 	}
- 	return pte;
- }
-diff --git a/arch/powerpc/mm/ppc_mmu_32.c b/arch/powerpc/mm/ppc_mmu_32.c
-index f6f575b..fddf823 100644
---- a/arch/powerpc/mm/ppc_mmu_32.c
-+++ b/arch/powerpc/mm/ppc_mmu_32.c
-@@ -224,8 +224,7 @@ void __init MMU_init_hw(void)
- 	 * Find some memory for the hash table.
- 	 */
- 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
--	Hash = __va(memblock_phys_alloc(Hash_size, Hash_size));
--	memset(Hash, 0, Hash_size);
-+	Hash = memblock_alloc(Hash_size, Hash_size);
- 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
- 
- 	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);
-diff --git a/arch/powerpc/platforms/powernv/opal.c b/arch/powerpc/platforms/powernv/opal.c
-index beed86f..29ee2ea 100644
---- a/arch/powerpc/platforms/powernv/opal.c
-+++ b/arch/powerpc/platforms/powernv/opal.c
-@@ -171,8 +171,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
- 	/*
- 	 * Allocate a buffer to hold the MC recoverable ranges.
- 	 */
--	mc_recoverable_range =__va(memblock_phys_alloc(size, __alignof__(u64)));
--	memset(mc_recoverable_range, 0, size);
-+	mc_recoverable_range = memblock_alloc(size, __alignof__(u64));
- 
- 	for (i = 0; i < mc_recoverable_range_len; i++) {
- 		mc_recoverable_range[i].start_addr =
-diff --git a/arch/sparc/kernel/prom_64.c b/arch/sparc/kernel/prom_64.c
-index c37955d..2a17665 100644
---- a/arch/sparc/kernel/prom_64.c
-+++ b/arch/sparc/kernel/prom_64.c
-@@ -34,16 +34,13 @@
- 
- void * __init prom_early_alloc(unsigned long size)
- {
--	unsigned long paddr = memblock_phys_alloc(size, SMP_CACHE_BYTES);
--	void *ret;
-+	void *ret = memblock_alloc(size, SMP_CACHE_BYTES);
- 
--	if (!paddr) {
-+	if (!ret) {
- 		prom_printf("prom_early_alloc(%lu) failed\n", size);
- 		prom_halt();
- 	}
- 
--	ret = __va(paddr);
--	memset(ret, 0, size);
- 	prom_early_allocated += size;
- 
- 	return ret;
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 3c8aac2..52884f4 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -1089,16 +1089,13 @@ static void __init allocate_node_data(int nid)
- 	struct pglist_data *p;
- 	unsigned long start_pfn, end_pfn;
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	unsigned long paddr;
- 
--	paddr = memblock_phys_alloc_try_nid(sizeof(struct pglist_data),
--					    SMP_CACHE_BYTES, nid);
--	if (!paddr) {
-+	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
-+					     SMP_CACHE_BYTES, nid);
-+	if (!NODE_DATA(nid)) {
- 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
- 		prom_halt();
- 	}
--	NODE_DATA(nid) = __va(paddr);
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
- 
- 	NODE_DATA(nid)->node_id = nid;
- #endif
-diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
-index 040a8c2..50d8c1a 100644
---- a/arch/unicore32/mm/mmu.c
-+++ b/arch/unicore32/mm/mmu.c
-@@ -143,9 +143,7 @@ static void __init build_mem_type_table(void)
- 
- static void __init *early_alloc(unsigned long sz)
- {
--	void *ptr = __va(memblock_phys_alloc(sz, sz));
--	memset(ptr, 0, sz);
--	return ptr;
-+	return memblock_alloc(sz, sz);
- }
- 
- static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
--- 
-2.7.4
+QW0gMDMuMTIuMTggdW0gMjE6MTggc2NocmllYiBqZ2xpc3NlQHJlZGhhdC5jb206DQo+IEZyb206
+IErDqXLDtG1lIEdsaXNzZSA8amdsaXNzZUByZWRoYXQuY29tPg0KPg0KPiBUaGlzIHBhdGNoc2V0
+IGFkZCBjb250ZXh0dWFsIGluZm9ybWF0aW9uLCB3aHkgYW4gaW52YWxpZGF0aW9uIGlzDQo+IGhh
+cHBlbmluZywgdG8gbW11IG5vdGlmaWVyIGNhbGxiYWNrLiBUaGlzIGlzIG5lY2Vzc2FyeSBmb3Ig
+dXNlcg0KPiBvZiBtbXUgbm90aWZpZXIgdGhhdCB3aXNoIHRvIG1haW50YWlucyB0aGVpciBvd24g
+ZGF0YSBzdHJ1Y3R1cmUNCj4gd2l0aG91dCBoYXZpbmcgdG8gYWRkIG5ldyBmaWVsZHMgdG8gc3Ry
+dWN0IHZtX2FyZWFfc3RydWN0ICh2bWEpLg0KPg0KPiBGb3IgaW5zdGFuY2UgZGV2aWNlIGNhbiBo
+YXZlIHRoZXkgb3duIHBhZ2UgdGFibGUgdGhhdCBtaXJyb3IgdGhlDQo+IHByb2Nlc3MgYWRkcmVz
+cyBzcGFjZS4gV2hlbiBhIHZtYSBpcyB1bm1hcCAobXVubWFwKCkgc3lzY2FsbCkgdGhlDQo+IGRl
+dmljZSBkcml2ZXIgY2FuIGZyZWUgdGhlIGRldmljZSBwYWdlIHRhYmxlIGZvciB0aGUgcmFuZ2Uu
+DQo+DQo+IFRvZGF5IHdlIGRvIG5vdCBoYXZlIGFueSBpbmZvcm1hdGlvbiBvbiB3aHkgYSBtbXUg
+bm90aWZpZXIgY2FsbA0KPiBiYWNrIGlzIGhhcHBlbmluZyBhbmQgdGh1cyBkZXZpY2UgZHJpdmVy
+IGhhdmUgdG8gYXNzdW1lIHRoYXQgaXQNCj4gaXMgYWx3YXlzIGFuIG11bm1hcCgpLiBUaGlzIGlz
+IGluZWZmaWNpZW50IGF0IGl0IG1lYW5zIHRoYXQgaXQNCj4gbmVlZHMgdG8gcmUtYWxsb2NhdGUg
+ZGV2aWNlIHBhZ2UgdGFibGUgb24gbmV4dCBwYWdlIGZhdWx0IGFuZA0KPiByZWJ1aWxkIHRoZSB3
+aG9sZSBkZXZpY2UgZHJpdmVyIGRhdGEgc3RydWN0dXJlIGZvciB0aGUgcmFuZ2UuDQo+DQo+IE90
+aGVyIHVzZSBjYXNlIGJlc2lkZSBtdW5tYXAoKSBhbHNvIGV4aXN0LCBmb3IgaW5zdGFuY2UgaXQg
+aXMNCj4gcG9pbnRsZXNzIGZvciBkZXZpY2UgZHJpdmVyIHRvIGludmFsaWRhdGUgdGhlIGRldmlj
+ZSBwYWdlIHRhYmxlDQo+IHdoZW4gdGhlIGludmFsaWRhdGlvbiBpcyBmb3IgdGhlIHNvZnQgZGly
+dHluZXNzIHRyYWNraW5nLiBPcg0KPiBkZXZpY2UgZHJpdmVyIGNhbiBvcHRpbWl6ZSBhd2F5IG1w
+cm90ZWN0KCkgdGhhdCBjaGFuZ2UgdGhlIHBhZ2UNCj4gdGFibGUgcGVybWlzc2lvbiBhY2Nlc3Mg
+Zm9yIHRoZSByYW5nZS4NCj4NCj4gVGhpcyBwYXRjaHNldCBlbmFibGUgYWxsIHRoaXMgb3B0aW1p
+emF0aW9ucyBmb3IgZGV2aWNlIGRyaXZlci4NCj4gSSBkbyBub3QgaW5jbHVkZSBhbnkgb2YgdGhv
+c2UgaW4gdGhpcyBzZXJpZSBidXQgb3RoZXIgcGF0Y2hzZXQNCj4gaSBhbSBwb3N0aW5nIHdpbGwg
+bGV2ZXJhZ2UgdGhpcy4NCj4NCj4NCj4gIEZyb20gY29kZSBwb2ludCBvZiB2aWV3IHRoZSBwYXRj
+aHNldCBpcyBwcmV0dHkgc2ltcGxlLCB0aGUgZmlyc3QNCj4gdHdvIHBhdGNoZXMgY29uc29saWRh
+dGUgYWxsIG1tdSBub3RpZmllciBhcmd1bWVudHMgaW50byBhIHN0cnVjdA0KPiBzbyB0aGF0IGl0
+IGlzIGVhc2llciB0byBhZGQvY2hhbmdlIGFyZ3VtZW50cy4gVGhlIGxhc3QgcGF0Y2ggYWRkcw0K
+PiB0aGUgY29udGV4dHVhbCBpbmZvcm1hdGlvbiAobXVubWFwLCBwcm90ZWN0aW9uLCBzb2Z0IGRp
+cnR5LCBjbGVhciwNCj4gLi4uKS4NCg0KU2tpbW1pbmcgb3ZlciBpdCBhdCBsZWFzdCB0aGUgcGFy
+dHMgSSdtIGZhbWlsaWFyIHdpdGggbG9vayBjb21wbGV0ZWx5IA0Kc2FuZSB0byBtZS4NCg0KV2hv
+bGUgc2VyaWVzIGlzIEFja2VkLWJ5OiBDaHJpc3RpYW4gS8O2bmlnIDxjaHJpc3RpYW4ua29lbmln
+QGFtZC5jb20+Lg0KDQpSZWdhcmRzLA0KQ2hyaXN0aWFuLg0KDQo+DQo+IENoZWVycywNCj4gSsOp
+csO0bWUNCj4NCj4gQ2M6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+
+DQo+IENjOiBNYXR0aGV3IFdpbGNveCA8bWF3aWxjb3hAbWljcm9zb2Z0LmNvbT4NCj4gQ2M6IFJv
+c3MgWndpc2xlciA8endpc2xlckBrZXJuZWwub3JnPg0KPiBDYzogSmFuIEthcmEgPGphY2tAc3Vz
+ZS5jej4NCj4gQ2M6IERhbiBXaWxsaWFtcyA8ZGFuLmoud2lsbGlhbXNAaW50ZWwuY29tPg0KPiBD
+YzogUGFvbG8gQm9uemluaSA8cGJvbnppbmlAcmVkaGF0LmNvbT4NCj4gQ2M6IFJhZGltIEtyxI1t
+w6HFmSA8cmtyY21hckByZWRoYXQuY29tPg0KPiBDYzogTWljaGFsIEhvY2tvIDxtaG9ja29Aa2Vy
+bmVsLm9yZz4NCj4gQ2M6IENocmlzdGlhbiBLb2VuaWcgPGNocmlzdGlhbi5rb2VuaWdAYW1kLmNv
+bT4NCj4gQ2M6IEZlbGl4IEt1ZWhsaW5nIDxmZWxpeC5rdWVobGluZ0BhbWQuY29tPg0KPiBDYzog
+UmFscGggQ2FtcGJlbGwgPHJjYW1wYmVsbEBudmlkaWEuY29tPg0KPiBDYzogSm9obiBIdWJiYXJk
+IDxqaHViYmFyZEBudmlkaWEuY29tPg0KPiBDYzoga3ZtQHZnZXIua2VybmVsLm9yZw0KPiBDYzog
+bGludXgtcmRtYUB2Z2VyLmtlcm5lbC5vcmcNCj4gQ2M6IGxpbnV4LWZzZGV2ZWxAdmdlci5rZXJu
+ZWwub3JnDQo+IENjOiBkcmktZGV2ZWxAbGlzdHMuZnJlZWRlc2t0b3Aub3JnDQo+DQo+IErDqXLD
+tG1lIEdsaXNzZSAoMyk6DQo+ICAgIG1tL21tdV9ub3RpZmllcjogdXNlIHN0cnVjdHVyZSBmb3Ig
+aW52YWxpZGF0ZV9yYW5nZV9zdGFydC9lbmQgY2FsbGJhY2sNCj4gICAgbW0vbW11X25vdGlmaWVy
+OiB1c2Ugc3RydWN0dXJlIGZvciBpbnZhbGlkYXRlX3JhbmdlX3N0YXJ0L2VuZCBjYWxscw0KPiAg
+ICBtbS9tbXVfbm90aWZpZXI6IGNvbnRleHR1YWwgaW5mb3JtYXRpb24gZm9yIGV2ZW50IHRyaWdn
+ZXJpbmcNCj4gICAgICBpbnZhbGlkYXRpb24NCj4NCj4gICBkcml2ZXJzL2dwdS9kcm0vYW1kL2Ft
+ZGdwdS9hbWRncHVfbW4uYyAgfCAgNDMgKysrKy0tLS0tDQo+ICAgZHJpdmVycy9ncHUvZHJtL2k5
+MTUvaTkxNV9nZW1fdXNlcnB0ci5jIHwgIDE0ICsrLQ0KPiAgIGRyaXZlcnMvZ3B1L2RybS9yYWRl
+b24vcmFkZW9uX21uLmMgICAgICB8ICAxNiArKy0tDQo+ICAgZHJpdmVycy9pbmZpbmliYW5kL2Nv
+cmUvdW1lbV9vZHAuYyAgICAgIHwgIDIwICsrLS0tDQo+ICAgZHJpdmVycy9pbmZpbmliYW5kL2h3
+L2hmaTEvbW11X3JiLmMgICAgIHwgIDEzICsrLQ0KPiAgIGRyaXZlcnMvbWlzYy9taWMvc2NpZi9z
+Y2lmX2RtYS5jICAgICAgICB8ICAxMSArLS0NCj4gICBkcml2ZXJzL21pc2Mvc2dpLWdydS9ncnV0
+bGJwdXJnZS5jICAgICAgfCAgMTQgKystDQo+ICAgZHJpdmVycy94ZW4vZ250ZGV2LmMgICAgICAg
+ICAgICAgICAgICAgIHwgIDEyICstLQ0KPiAgIGZzL2RheC5jICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICB8ICAxMSArKy0NCj4gICBmcy9wcm9jL3Rhc2tfbW11LmMgICAgICAgICAgICAg
+ICAgICAgICAgfCAgMTAgKystDQo+ICAgaW5jbHVkZS9saW51eC9tbS5oICAgICAgICAgICAgICAg
+ICAgICAgIHwgICA0ICstDQo+ICAgaW5jbHVkZS9saW51eC9tbXVfbm90aWZpZXIuaCAgICAgICAg
+ICAgIHwgMTA2ICsrKysrKysrKysrKysrKy0tLS0tLS0NCj4gICBrZXJuZWwvZXZlbnRzL3Vwcm9i
+ZXMuYyAgICAgICAgICAgICAgICAgfCAgMTMgKy0tDQo+ICAgbW0vaG1tLmMgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgIHwgIDIzICsrLS0tDQo+ICAgbW0vaHVnZV9tZW1vcnkuYyAgICAg
+ICAgICAgICAgICAgICAgICAgIHwgIDU4ICsrKysrKy0tLS0tLQ0KPiAgIG1tL2h1Z2V0bGIuYyAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICB8ICA2MyArKysrKysrLS0tLS0tDQo+ICAgbW0va2h1
+Z2VwYWdlZC5jICAgICAgICAgICAgICAgICAgICAgICAgIHwgIDEzICstLQ0KPiAgIG1tL2tzbS5j
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAyNiArKystLS0NCj4gICBtbS9tYWR2
+aXNlLmMgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgMjIgKystLS0NCj4gICBtbS9tZW1v
+cnkuYyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAxMTIgKysrKysrKysrKysrKystLS0t
+LS0tLS0tDQo+ICAgbW0vbWlncmF0ZS5jICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgIDMw
+ICsrKystLS0NCj4gICBtbS9tbXVfbm90aWZpZXIuYyAgICAgICAgICAgICAgICAgICAgICAgfCAg
+MjIgKysrLS0NCj4gICBtbS9tcHJvdGVjdC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAg
+MTcgKystLQ0KPiAgIG1tL21yZW1hcC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAx
+NCArLS0NCj4gICBtbS9vb21fa2lsbC5jICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgMjAg
+KysrLS0NCj4gICBtbS9ybWFwLmMgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgfCAgMzQg
+KysrKy0tLQ0KPiAgIHZpcnQva3ZtL2t2bV9tYWluLmMgICAgICAgICAgICAgICAgICAgICB8ICAx
+NCArKy0NCj4gICAyNyBmaWxlcyBjaGFuZ2VkLCA0MjEgaW5zZXJ0aW9ucygrKSwgMzM0IGRlbGV0
+aW9ucygtKQ0KPg0KDQo=
