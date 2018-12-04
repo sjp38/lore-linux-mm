@@ -1,94 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 81D1A8E01D1
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:11:29 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id n50so4636901qtb.9
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:11:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 9si2851024qkv.15.2018.12.14.03.11.28
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 424AB6B6EA4
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 07:18:44 -0500 (EST)
+Received: by mail-lf1-f72.google.com with SMTP id f16so1921677lfc.3
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 04:18:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w25-v6sor9897636ljw.35.2018.12.04.04.18.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 03:11:28 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 9/9] mm: better document PG_reserved
-Date: Fri, 14 Dec 2018 12:10:14 +0100
-Message-Id: <20181214111014.15672-10-david@redhat.com>
-In-Reply-To: <20181214111014.15672-1-david@redhat.com>
-References: <20181214111014.15672-1-david@redhat.com>
+        (Google Transport Security);
+        Tue, 04 Dec 2018 04:18:41 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 1/6] __wr_after_init: linker section and label
+Date: Tue,  4 Dec 2018 14:18:00 +0200
+Message-Id: <20181204121805.4621-2-igor.stoppa@huawei.com>
+In-Reply-To: <20181204121805.4621-1-igor.stoppa@huawei.com>
+References: <20181204121805.4621-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Pavel Tatashin <pasha.tatashin@oracle.com>, Michal Hocko <mhocko@suse.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Anthony Yznaga <anthony.yznaga@oracle.com>, Miles Chen <miles.chen@mediatek.com>, yi.z.zhang@linux.intel.com, Dan Williams <dan.j.williams@intel.com>
+To: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The usage of PG_reserved and how PG_reserved pages are to be treated is
-buried deep down in different parts of the kernel. Let's shine some light
-onto these details by documenting current users and expected
-behavior.
+Introduce a section and a label for statically allocated write rare
+data. The label is named "__wr_after_init".
+As the name implies, after the init phase is completed, this section
+will be modifiable only by invoking write rare functions.
+The section must take up a set of full pages.
 
-Especially, clarify on the "Some of them might not even exist" case.
-These are physical memory gaps that will never be dumped as they
-are not marked as IORESOURCE_SYSRAM. PG_reserved does in general not
-hinder anybody from dumping or swapping. In some cases, these pages
-will not be stored in the hibernation image.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Anthony Yznaga <anthony.yznaga@oracle.com>
-Cc: Miles Chen <miles.chen@mediatek.com>
-Cc: yi.z.zhang@linux.intel.com
-Cc: Dan Williams <dan.j.williams@intel.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- include/linux/page-flags.h | 33 +++++++++++++++++++++++++++++++--
- 1 file changed, 31 insertions(+), 2 deletions(-)
+ include/asm-generic/vmlinux.lds.h | 20 ++++++++++++++++++++
+ include/linux/cache.h             | 17 +++++++++++++++++
+ 2 files changed, 37 insertions(+)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 808b4183e30d..9de2e941cbd5 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -17,8 +17,37 @@
+diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
+index 3d7a6a9c2370..b711dbe6999f 100644
+--- a/include/asm-generic/vmlinux.lds.h
++++ b/include/asm-generic/vmlinux.lds.h
+@@ -311,6 +311,25 @@
+ 	KEEP(*(__jump_table))						\
+ 	__stop___jump_table = .;
+ 
++/*
++ * Allow architectures to handle wr_after_init data on their
++ * own by defining an empty WR_AFTER_INIT_DATA.
++ * However, it's important that pages containing WR_RARE data do not
++ * hold anything else, to avoid both accidentally unprotecting something
++ * that is supposed to stay read-only all the time and also to protect
++ * something else that is supposed to be writeable all the time.
++ */
++#ifndef WR_AFTER_INIT_DATA
++#define WR_AFTER_INIT_DATA(align)					\
++	. = ALIGN(PAGE_SIZE);						\
++	__start_wr_after_init = .;					\
++	. = ALIGN(align);						\
++	*(.data..wr_after_init)						\
++	. = ALIGN(PAGE_SIZE);						\
++	__end_wr_after_init = .;					\
++	. = ALIGN(align);
++#endif
++
  /*
-  * Various page->flags bits:
-  *
-- * PG_reserved is set for special pages, which can never be swapped out. Some
-- * of them might not even exist...
-+ * PG_reserved is set for special pages. The "struct page" of such a page
-+ * should in general not be touched (e.g. set dirty) except by their owner.
-+ * Pages marked as PG_reserved include:
-+ * - Pages part of the kernel image (including vDSO) and similar (e.g. BIOS,
-+ *   initrd, HW tables)
-+ * - Pages reserved or allocated early during boot (before the page allocator
-+ *   was initialized). This includes (depending on the architecture) the
-+ *   initial vmmap, initial page tables, crashkernel, elfcorehdr, and much
-+ *   much more. Once (if ever) freed, PG_reserved is cleared and they will
-+ *   be given to the page allocator.
-+ * - Pages falling into physical memory gaps - not IORESOURCE_SYSRAM. Trying
-+ *   to read/write these pages might end badly. Don't touch!
-+ * - The zero page(s)
-+ * - Pages not added to the page allocator when onlining a section because
-+ *   they were excluded via the online_page_callback() or because they are
-+ *   PG_hwpoison.
-+ * - Pages allocated in the context of kexec/kdump (loaded kernel image,
-+ *   control pages, vmcoreinfo)
-+ * - MMIO/DMA pages. Some architectures don't allow to ioremap pages that are
-+ *   not marked PG_reserved (as they might be in use by somebody else who does
-+ *   not respect the caching strategy).
-+ * - Pages part of an offline section (struct pages of offline sections should
-+ *   not be trusted as they will be initialized when first onlined).
-+ * - MCA pages on ia64
-+ * - Pages holding CPU notes for POWER Firmware Assisted Dump
-+ * - Device memory (e.g. PMEM, DAX, HMM)
-+ * Some PG_reserved pages will be excluded from the hibernation image.
-+ * PG_reserved does in general not hinder anybody from dumping or swapping
-+ * and is no longer required for remap_pfn_range(). ioremap might require it.
-+ * Consequently, PG_reserved for a page mapped into user space can indicate
-+ * the zero page, the vDSO, MMIO pages or device memory.
-  *
-  * The PG_private bitflag is set on pagecache pages if they contain filesystem
-  * specific data (which is normally at page->private). It can be used by
+  * Allow architectures to handle ro_after_init data on their
+  * own by defining an empty RO_AFTER_INIT_DATA.
+@@ -332,6 +351,7 @@
+ 		__start_rodata = .;					\
+ 		*(.rodata) *(.rodata.*)					\
+ 		RO_AFTER_INIT_DATA	/* Read only after init */	\
++		WR_AFTER_INIT_DATA(align) /* wr after init */	\
+ 		KEEP(*(__vermagic))	/* Kernel version magic */	\
+ 		. = ALIGN(8);						\
+ 		__start___tracepoints_ptrs = .;				\
+diff --git a/include/linux/cache.h b/include/linux/cache.h
+index 750621e41d1c..9a7e7134b887 100644
+--- a/include/linux/cache.h
++++ b/include/linux/cache.h
+@@ -31,6 +31,23 @@
+ #define __ro_after_init __attribute__((__section__(".data..ro_after_init")))
+ #endif
+ 
++/*
++ * __wr_after_init is used to mark objects that cannot be modified
++ * directly after init (i.e. after mark_rodata_ro() has been called).
++ * These objects become effectively read-only, from the perspective of
++ * performing a direct write, like a variable assignment.
++ * However, they can be altered through a dedicated function.
++ * It is intended for those objects which are occasionally modified after
++ * init, however they are modified so seldomly, that the extra cost from
++ * the indirect modification is either negligible or worth paying, for the
++ * sake of the protection gained.
++ */
++#ifndef __wr_after_init
++#define __wr_after_init \
++		__attribute__((__section__(".data..wr_after_init")))
++#endif
++
++
+ #ifndef ____cacheline_aligned
+ #define ____cacheline_aligned __attribute__((__aligned__(SMP_CACHE_BYTES)))
+ #endif
 -- 
-2.17.2
+2.19.1
