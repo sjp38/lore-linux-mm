@@ -1,94 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 63E208E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:15:05 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id x18-v6so1903707lji.0
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:15:05 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w77sor6921421lff.36.2018.12.21.10.15.03
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A4E986B6E13
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 04:47:47 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id w185so16204689qka.9
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 01:47:47 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i20si1934737qkh.98.2018.12.04.01.47.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Dec 2018 10:15:03 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 09/12] rodata_test: add verification for __wr_after_init
-Date: Fri, 21 Dec 2018 20:14:20 +0200
-Message-Id: <20181221181423.20455-10-igor.stoppa@huawei.com>
-In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
-References: <20181221181423.20455-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Dec 2018 01:47:47 -0800 (PST)
+Subject: Re: [PATCH RFCv2 3/4] mm/memory_hotplug: Introduce and use more
+ memory types
+References: <20181130175922.10425-1-david@redhat.com>
+ <20181130175922.10425-4-david@redhat.com>
+ <20181204104454.522a3ba2@naga.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <b8e03810-41d6-55cb-9546-62c73c7f4d7f@redhat.com>
+Date: Tue, 4 Dec 2018 10:47:33 +0100
 MIME-Version: 1.0
+In-Reply-To: <20181204104454.522a3ba2@naga.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?UTF-8?Q?Michal_Such=c3=a1nek?= <msuchanek@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-acpi@vger.kernel.org, devel@linuxdriverproject.org, xen-devel@lists.xenproject.org, x86@kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Stefano Stabellini <sstabellini@kernel.org>, Rashmica Gupta <rashmica.g@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Balbir Singh <bsingharora@gmail.com>, Michael Neuling <mikey@neuling.org>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, YueHaibing <yuehaibing@huawei.com>, Vasily Gorbik <gor@linux.ibm.com>, Ingo Molnar <mingo@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Oscar Salvador <osalvador@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mathieu Malaterre <malat@debian.org>, Michal Hocko <mhocko@suse.com>, Arun KS <arunks@codeaurora.org>, Andrew Banman <andrew.banman@hpe.com>, Dave Hansen <dave.hansen@linux.intel.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Dan Williams <dan.j.williams@intel.com>
 
-The write protection of the __wr_after_init data can be verified with the
-same methodology used for const data.
+On 04.12.18 10:44, Michal Suchánek wrote:
+> On Fri, 30 Nov 2018 18:59:21 +0100
+> David Hildenbrand <david@redhat.com> wrote:
+> 
+>> Let's introduce new types for different kinds of memory blocks and use
+>> them in existing code. As I don't see an easy way to split this up,
+>> do it in one hunk for now.
+>>
+>> acpi:
+>>  Use DIMM or DIMM_UNREMOVABLE depending on hotremove support in the kernel.
+>>  Properly change the type when trying to add memory that was already
+>>  detected and used during boot (so this memory will correctly end up as
+>>  "acpi" in user space).
+>>
+>> pseries:
+>>  Use DIMM or DIMM_UNREMOVABLE depending on hotremove support in the kernel.
+>>  As far as I see, handling like in the acpi case for existing blocks is
+>>  not required.
+>>
+>> probed memory from user space:
+>>  Use DIMM_UNREMOVABLE as there is no interface to get rid of this code
+>>  again.
+>>
+>> hv_balloon,xen/balloon:
+>>  Use BALLOON. As simple as that :)
+>>
+>> s390x/sclp:
+>>  Use a dedicated type S390X_STANDBY as this type of memory and it's
+>>  semantics are very s390x specific.
+>>
+>> powernv/memtrace:
+>>  Only allow to use BOOT memory for memtrace. I consider this code in
+>>  general dangerous, but we have to keep it working ... most probably just
+>>  a debug feature.
+> 
+> I don't think it should be arbitrarily restricted like that.
+> 
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+Well code that "randomly" offlines/onlines/removes/adds memory blocks
+that it does not own (hint: nobody else in the kernel does that), should
+be restricted to types we can guarantee to work.
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
-CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- mm/rodata_test.c | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+> Thanks
+> 
+> Michal
+> 
 
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-index e1349520b436..a669cf9f5a61 100644
---- a/mm/rodata_test.c
-+++ b/mm/rodata_test.c
-@@ -16,8 +16,23 @@
- 
- #define INIT_TEST_VAL 0xC3
- 
-+/*
-+ * Note: __ro_after_init data is, for every practical effect, equivalent to
-+ * const data, since they are even write protected at the same time; there
-+ * is no need for separate testing.
-+ * __wr_after_init data, otoh, is altered also after the write protection
-+ * takes place and it cannot be exploitable for altering more permanent
-+ * data.
-+ */
-+
- static const int rodata_test_data = INIT_TEST_VAL;
- 
-+#ifdef CONFIG_PRMEM
-+static int wr_after_init_test_data __wr_after_init = INIT_TEST_VAL;
-+extern long __start_wr_after_init;
-+extern long __end_wr_after_init;
-+#endif
-+
- static bool test_data(char *data_type, const int *data,
- 		      unsigned long start, unsigned long end)
- {
-@@ -59,7 +74,13 @@ static bool test_data(char *data_type, const int *data,
- 
- void rodata_test(void)
- {
--	test_data("rodata", &rodata_test_data,
--		  (unsigned long)&__start_rodata,
--		  (unsigned long)&__end_rodata);
-+	if (!test_data("rodata", &rodata_test_data,
-+		       (unsigned long)&__start_rodata,
-+		       (unsigned long)&__end_rodata))
-+		return;
-+#ifdef CONFIG_PRMEM
-+	    test_data("wr after init data", &wr_after_init_test_data,
-+		      (unsigned long)&__start_wr_after_init,
-+		      (unsigned long)&__end_wr_after_init);
-+#endif
- }
+
 -- 
-2.19.1
+
+Thanks,
+
+David / dhildenb
