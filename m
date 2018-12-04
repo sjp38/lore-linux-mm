@@ -1,294 +1,489 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 131456B7913
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 03:51:46 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id a2so12875308pgt.11
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 00:51:46 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id x23si19547919pgk.272.2018.12.06.00.51.44
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A70626B6D98
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:37:34 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id y8so8459869pgq.12
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:37:34 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id y6si15330213pgb.516.2018.12.03.23.37.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 00:51:44 -0800 (PST)
-From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
-Subject: Re: [RFC v2 10/13] keys/mktme: Add the MKTME Key Service type for
- memory encryption
-Date: Thu, 6 Dec 2018 08:51:36 +0000
-Message-ID: <a19a48ae1d6434a1764b02c2376a99130ce15174.camel@intel.com>
+        Mon, 03 Dec 2018 23:37:27 -0800 (PST)
+From: Alison Schofield <alison.schofield@intel.com>
+Subject: [RFC v2 10/13] keys/mktme: Add the MKTME Key Service type for memory encryption
+Date: Mon,  3 Dec 2018 23:39:57 -0800
+Message-Id: <42d44fb5ddbbf7241a2494fc688e274ade641965.1543903910.git.alison.schofield@intel.com>
+In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
 References: <cover.1543903910.git.alison.schofield@intel.com>
-	 <42d44fb5ddbbf7241a2494fc688e274ade641965.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <42d44fb5ddbbf7241a2494fc688e274ade641965.1543903910.git.alison.schofield@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <71ECDC03E4DA584D8F3E6C8AD2939330@intel.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
+References: <cover.1543903910.git.alison.schofield@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, Hansen,, Jun
+To: dhowells@redhat.com, tglx@linutronix.de
+Cc: jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
-T24gTW9uLCAyMDE4LTEyLTAzIGF0IDIzOjM5IC0wODAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
-Og0KPiBNS1RNRSAoTXVsdGktS2V5IFRvdGFsIE1lbW9yeSBFbmNyeXB0aW9uKSBpcyBhIHRlY2hu
-b2xvZ3kgdGhhdCBhbGxvd3MNCj4gdHJhbnNwYXJlbnQgbWVtb3J5IGVuY3J5cHRpb24gaW4gdXBj
-b21pbmcgSW50ZWwgcGxhdGZvcm1zLiBNS1RNRSB3aWxsDQo+IHN1cHBvcnQgbXVsaXRwbGUgZW5j
-cnlwdGlvbiBkb21haW5zLCBlYWNoIGhhdmluZyB0aGVpciBvd24ga2V5LiBUaGUgbWFpbg0KPiB1
-c2UgY2FzZSBmb3IgdGhlIGZlYXR1cmUgaXMgdmlydHVhbCBtYWNoaW5lIGlzb2xhdGlvbi4gVGhl
-IEFQSSBuZWVkcyB0aGUNCj4gZmxleGliaWxpdHkgdG8gd29yayBmb3IgYSB3aWRlIHJhbmdlIG9m
-IHVzZXMuDQoNClNvbWUsIG1heWJlIGJydXRhbCwgaG9uZXN0eSAoYXBvbG9naWVzKS4uLg0KDQpI
-YXZlIG5ldmVyIHJlYWxseSBnb3QgdGhlIGdyaXAgd2h5IGVpdGhlciBTTUUgb3IgVE1FIHdvdWxk
-IG1ha2UNCmlzb2xhdGlvbiBhbnkgYmV0dGVyLiBJZiB5b3UgY2FuIGJyZWFrIGludG8gaHlwZXJ2
-aXNvciwgeW91J2xsDQpoYXZlIHRoZXNlIHRvb2xzIGF2YWlsYWJlOg0KDQoxLiBSZWFkIHBhZ2Ug
-KGluIGVuY3J5cHRlZCBmb3JtKS4NCjIuIFdyaXRlIHBhZ2UgKGZvciBleGFtcGxlIHJlcGxheSBh
-cyBwYWdlcyBhcmUgbm90IHZlcnNpb25lZCkuDQoNCndpdGggYWxsIHRoZSBzaWRlLWNoYW5uZWwg
-cG9zc2liaWxpdGllcyBvZiBjb3Vyc2Ugc2luY2UgeW91IGNhbg0KY29udHJvbCB0aGUgVk1zIChp
-biB3aGljaCBjb3JlIHRoZXkgZXhlY3V0ZSBldGMuKS4NCg0KSSd2ZSBzZWVuIG5vdyBTTUUgcHJl
-c2VudGF0aW9uIHRocmVlIHRpbWVzIGFuZCBpdCBhbHdheXMgbGVhdmVzDQptZSBhbiBlbXB0eSBm
-ZWVsaW5nLiBUaGlzIGZlZWxzIHRoZSBzYW1lIHNhbWUuDQoNCj4gVGhlIE1LVE1FIGtleSBzZXJ2
-aWNlIHR5cGUgbWFuYWdlcyB0aGUgYWRkaXRpb24gYW5kIHJlbW92YWwgb2YgdGhlIG1lbW9yeQ0K
-PiBlbmNyeXB0aW9uIGtleXMuIEl0IG1hcHMgVXNlcnNwYWNlIEtleXMgdG8gaGFyZHdhcmUgS2V5
-SURzLiBJdCBwcm9ncmFtcw0KPiB0aGUgaGFyZHdhcmUgd2l0aCB0aGUgdXNlciByZXF1ZXN0ZWQg
-ZW5jcnlwdGlvbiBvcHRpb25zLg0KPiANCj4gVGhlIG9ubHkgc3VwcG9ydGVkIGVuY3J5cHRpb24g
-YWxnb3JpdGhtIGlzIEFFUy1YVFMgMTI4Lg0KPiANCj4gVGhlIE1LVE1FIGtleSBzZXJ2aWNlIGlz
-IGhhbGYgb2YgdGhlIE1LVE1FIEFQSSBsZXZlbCBzb2x1dGlvbi4gSXQgcGFpcnMNCj4gd2l0aCBh
-IG5ldyBtZW1vcnkgZW5jcnlwdGlvbiBzeXN0ZW0gY2FsbDogZW5jcnlwdF9tcHJvdGVjdCgpIHRo
-YXQgdXNlcw0KPiB0aGUga2V5cyB0byBlbmNyeXB0IG1lbW9yeS4NCj4gDQo+IFNlZSBEb2N1bWVu
-dGF0aW9uL3g4Ni9ta3RtZS9ta3RtZS5yc3QNCj4gDQo+IENoYW5nZS1JZDogSWRkYTRhZjJiZWFi
-YjczOWM3NzcxOTg5N2FmZmZmMTgzZWU5ZmE3MTYNCj4gU2lnbmVkLW9mZi1ieTogQWxpc29uIFNj
-aG9maWVsZCA8YWxpc29uLnNjaG9maWVsZEBpbnRlbC5jb20+DQo+IFNpZ25lZC1vZmYtYnk6IEtp
-cmlsbCBBLiBTaHV0ZW1vdiA8a2lyaWxsLnNodXRlbW92QGxpbnV4LmludGVsLmNvbT4NCj4gLS0t
-DQo+ICBhcmNoL3g4Ni9LY29uZmlnICAgICAgICAgICB8ICAgMSArDQo+ICBpbmNsdWRlL2tleXMv
-bWt0bWUtdHlwZS5oICB8ICA0MSArKysrKysNCj4gIHNlY3VyaXR5L2tleXMvS2NvbmZpZyAgICAg
-IHwgIDExICsrDQo+ICBzZWN1cml0eS9rZXlzL01ha2VmaWxlICAgICB8ICAgMSArDQo+ICBzZWN1
-cml0eS9rZXlzL21rdG1lX2tleXMuYyB8IDMzOQ0KPiArKysrKysrKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKysrKysrKysrKysNCj4gIDUgZmlsZXMgY2hhbmdlZCwgMzkzIGluc2VydGlvbnMo
-KykNCj4gIGNyZWF0ZSBtb2RlIDEwMDY0NCBpbmNsdWRlL2tleXMvbWt0bWUtdHlwZS5oDQo+ICBj
-cmVhdGUgbW9kZSAxMDA2NDQgc2VjdXJpdHkva2V5cy9ta3RtZV9rZXlzLmMNCj4gDQo+IGRpZmYg
-LS1naXQgYS9hcmNoL3g4Ni9LY29uZmlnIGIvYXJjaC94ODYvS2NvbmZpZw0KPiBpbmRleCA3YWM3
-OGUyODU2YzcuLmMyZTNiYjVhZjA3NyAxMDA2NDQNCj4gLS0tIGEvYXJjaC94ODYvS2NvbmZpZw0K
-PiArKysgYi9hcmNoL3g4Ni9LY29uZmlnDQo+IEBAIC0xNTMxLDYgKzE1MzEsNyBAQCBjb25maWcg
-WDg2X0lOVEVMX01LVE1FDQo+ICAJYm9vbCAiSW50ZWwgTXVsdGktS2V5IFRvdGFsIE1lbW9yeSBF
-bmNyeXB0aW9uIg0KPiAgCXNlbGVjdCBEWU5BTUlDX1BIWVNJQ0FMX01BU0sNCj4gIAlzZWxlY3Qg
-UEFHRV9FWFRFTlNJT04NCj4gKwlzZWxlY3QgTUtUTUVfS0VZUw0KPiAgCWRlcGVuZHMgb24gWDg2
-XzY0ICYmIENQVV9TVVBfSU5URUwNCj4gIAktLS1oZWxwLS0tDQo+ICAJICBTYXkgeWVzIHRvIGVu
-YWJsZSBzdXBwb3J0IGZvciBNdWx0aS1LZXkgVG90YWwgTWVtb3J5IEVuY3J5cHRpb24uDQo+IGRp
-ZmYgLS1naXQgYS9pbmNsdWRlL2tleXMvbWt0bWUtdHlwZS5oIGIvaW5jbHVkZS9rZXlzL21rdG1l
-LXR5cGUuaA0KPiBuZXcgZmlsZSBtb2RlIDEwMDY0NA0KPiBpbmRleCAwMDAwMDAwMDAwMDAuLmM2
-M2M2NTY4MDg3Zg0KPiAtLS0gL2Rldi9udWxsDQo+ICsrKyBiL2luY2x1ZGUva2V5cy9ta3RtZS10
-eXBlLmgNCj4gQEAgLTAsMCArMSw0MSBAQA0KPiArLyogU1BEWC1MaWNlbnNlLUlkZW50aWZpZXI6
-IEdQTC0yLjAgKi8NCj4gKw0KPiArLyogS2V5IHNlcnZpY2UgZm9yIE11bHRpLUtFWSBUb3RhbCBN
-ZW1vcnkgRW5jcnlwdGlvbiAqLw0KPiArDQo+ICsjaWZuZGVmIF9LRVlTX01LVE1FX1RZUEVfSA0K
-PiArI2RlZmluZSBfS0VZU19NS1RNRV9UWVBFX0gNCj4gKw0KPiArI2luY2x1ZGUgPGxpbnV4L2tl
-eS5oPg0KPiArDQo+ICsvKg0KPiArICogVGhlIEFFUy1YVFMgMTI4IGVuY3J5cHRpb24gYWxnb3Jp
-dGhtIHJlcXVpcmVzIDEyOCBiaXRzIGZvciBlYWNoDQo+ICsgKiB1c2VyIHN1cHBsaWVkIGRhdGEg
-a2V5IGFuZCB0d2VhayBrZXkuDQo+ICsgKi8NCj4gKyNkZWZpbmUgTUtUTUVfQUVTX1hUU19TSVpF
-CTE2CS8qIDE2IGJ5dGVzLCAxMjggYml0cyAqLw0KPiArDQo+ICtlbnVtIG1rdG1lX2FsZyB7DQo+
-ICsJTUtUTUVfQUxHX0FFU19YVFNfMTI4LA0KPiArfTsNCj4gKw0KPiArY29uc3QgY2hhciAqY29u
-c3QgbWt0bWVfYWxnX25hbWVzW10gPSB7DQo+ICsJW01LVE1FX0FMR19BRVNfWFRTXzEyOF0JPSAi
-YWVzLXh0cy0xMjgiLA0KPiArfTsNCj4gKw0KPiArZW51bSBta3RtZV90eXBlIHsNCj4gKwlNS1RN
-RV9UWVBFX0VSUk9SID0gLTEsDQo+ICsJTUtUTUVfVFlQRV9VU0VSLA0KPiArCU1LVE1FX1RZUEVf
-Q1BVLA0KPiArCU1LVE1FX1RZUEVfQ0xFQVIsDQo+ICsJTUtUTUVfVFlQRV9OT19FTkNSWVBULA0K
-PiArfTsNCj4gKw0KPiArY29uc3QgY2hhciAqY29uc3QgbWt0bWVfdHlwZV9uYW1lc1tdID0gew0K
-PiArCVtNS1RNRV9UWVBFX1VTRVJdCT0gInVzZXIiLA0KPiArCVtNS1RNRV9UWVBFX0NQVV0JPSAi
-Y3B1IiwNCj4gKwlbTUtUTUVfVFlQRV9DTEVBUl0JPSAiY2xlYXIiLA0KPiArCVtNS1RNRV9UWVBF
-X05PX0VOQ1JZUFRdCT0gIm5vLWVuY3J5cHQiLA0KPiArfTsNCj4gKw0KPiArZXh0ZXJuIHN0cnVj
-dCBrZXlfdHlwZSBrZXlfdHlwZV9ta3RtZTsNCj4gKw0KPiArI2VuZGlmIC8qIF9LRVlTX01LVE1F
-X1RZUEVfSCAqLw0KPiBkaWZmIC0tZ2l0IGEvc2VjdXJpdHkva2V5cy9LY29uZmlnIGIvc2VjdXJp
-dHkva2V5cy9LY29uZmlnDQo+IGluZGV4IDY0NjJlNjY1NGNjZi4uYzM2OTcyMTEzZTY3IDEwMDY0
-NA0KPiAtLS0gYS9zZWN1cml0eS9rZXlzL0tjb25maWcNCj4gKysrIGIvc2VjdXJpdHkva2V5cy9L
-Y29uZmlnDQo+IEBAIC0xMDEsMyArMTAxLDE0IEBAIGNvbmZpZyBLRVlfREhfT1BFUkFUSU9OUw0K
-PiAgCSBpbiB0aGUga2VybmVsLg0KPiAgDQo+ICAJIElmIHlvdSBhcmUgdW5zdXJlIGFzIHRvIHdo
-ZXRoZXIgdGhpcyBpcyByZXF1aXJlZCwgYW5zd2VyIE4uDQo+ICsNCj4gK2NvbmZpZyBNS1RNRV9L
-RVlTDQo+ICsJYm9vbCAiTXVsdGktS2V5IFRvdGFsIE1lbW9yeSBFbmNyeXB0aW9uIEtleXMiDQo+
-ICsJZGVwZW5kcyBvbiBLRVlTICYmIFg4Nl9JTlRFTF9NS1RNRQ0KPiArCWhlbHANCj4gKwkgIFRo
-aXMgb3B0aW9uIHByb3ZpZGVzIHN1cHBvcnQgZm9yIE11bHRpLUtleSBUb3RhbCBNZW1vcnkNCj4g
-KwkgIEVuY3J5cHRpb24gKE1LVE1FKSBvbiBJbnRlbCBwbGF0Zm9ybXMgb2ZmZXJpbmcgdGhlIGZl
-YXR1cmUuDQo+ICsJICBNS1RNRSBhbGxvd3MgdXNlcnNwYWNlIHRvIG1hbmFnZSB0aGUgaGFyZHdh
-cmUgZW5jcnlwdGlvbg0KPiArCSAga2V5cyB0aHJvdWdoIHRoZSBrZXJuZWwga2V5IHNlcnZpY2Vz
-Lg0KPiArDQo+ICsJICBJZiB5b3UgYXJlIHVuc3VyZSBhcyB0byB3aGV0aGVyIHRoaXMgaXMgcmVx
-dWlyZWQsIGFuc3dlciBOLg0KPiBkaWZmIC0tZ2l0IGEvc2VjdXJpdHkva2V5cy9NYWtlZmlsZSBi
-L3NlY3VyaXR5L2tleXMvTWFrZWZpbGUNCj4gaW5kZXggOWNlZjU0MDY0ZjYwLi45NGM4NGYxMGE4
-NTcgMTAwNjQ0DQo+IC0tLSBhL3NlY3VyaXR5L2tleXMvTWFrZWZpbGUNCj4gKysrIGIvc2VjdXJp
-dHkva2V5cy9NYWtlZmlsZQ0KPiBAQCAtMzAsMyArMzAsNCBAQCBvYmotJChDT05GSUdfQVNZTU1F
-VFJJQ19LRVlfVFlQRSkgKz0ga2V5Y3RsX3BrZXkubw0KPiAgb2JqLSQoQ09ORklHX0JJR19LRVlT
-KSArPSBiaWdfa2V5Lm8NCj4gIG9iai0kKENPTkZJR19UUlVTVEVEX0tFWVMpICs9IHRydXN0ZWQu
-bw0KPiAgb2JqLSQoQ09ORklHX0VOQ1JZUFRFRF9LRVlTKSArPSBlbmNyeXB0ZWQta2V5cy8NCj4g
-K29iai0kKENPTkZJR19NS1RNRV9LRVlTKSArPSBta3RtZV9rZXlzLm8NCj4gZGlmZiAtLWdpdCBh
-L3NlY3VyaXR5L2tleXMvbWt0bWVfa2V5cy5jIGIvc2VjdXJpdHkva2V5cy9ta3RtZV9rZXlzLmMN
-Cj4gbmV3IGZpbGUgbW9kZSAxMDA2NDQNCj4gaW5kZXggMDAwMDAwMDAwMDAwLi5lNjE1ZWI1OGU2
-MDANCj4gLS0tIC9kZXYvbnVsbA0KPiArKysgYi9zZWN1cml0eS9rZXlzL21rdG1lX2tleXMuYw0K
-PiBAQCAtMCwwICsxLDMzOSBAQA0KPiArLy8gU1BEWC1MaWNlbnNlLUlkZW50aWZpZXI6IEdQTC0z
-LjANCj4gKw0KPiArLyogRG9jdW1lbnRhdGlvbi94ODYvbWt0bWUvbWt0bWVfa2V5cy5yc3QgKi8N
-Cj4gKw0KPiArI2luY2x1ZGUgPGxpbnV4L2NyZWQuaD4NCj4gKyNpbmNsdWRlIDxsaW51eC9jcHUu
-aD4NCj4gKyNpbmNsdWRlIDxsaW51eC9lcnIuaD4NCj4gKyNpbmNsdWRlIDxsaW51eC9pbml0Lmg+
-DQo+ICsjaW5jbHVkZSA8bGludXgva2V5Lmg+DQo+ICsjaW5jbHVkZSA8bGludXgva2V5LXR5cGUu
-aD4NCj4gKyNpbmNsdWRlIDxsaW51eC9pbml0Lmg+DQo+ICsjaW5jbHVkZSA8bGludXgvcGFyc2Vy
-Lmg+DQo+ICsjaW5jbHVkZSA8bGludXgvcmFuZG9tLmg+DQo+ICsjaW5jbHVkZSA8bGludXgvc2xh
-Yi5oPg0KPiArI2luY2x1ZGUgPGxpbnV4L3N0cmluZy5oPg0KPiArI2luY2x1ZGUgPGFzbS9pbnRl
-bF9wY29uZmlnLmg+DQo+ICsjaW5jbHVkZSA8YXNtL21rdG1lLmg+DQo+ICsjaW5jbHVkZSA8a2V5
-cy9ta3RtZS10eXBlLmg+DQo+ICsjaW5jbHVkZSA8a2V5cy91c2VyLXR5cGUuaD4NCj4gKw0KPiAr
-I2luY2x1ZGUgImludGVybmFsLmgiDQo+ICsNCj4gK3N0cnVjdCBrbWVtX2NhY2hlICpta3RtZV9w
-cm9nX2NhY2hlOwkvKiBIYXJkd2FyZSBwcm9ncmFtbWluZyBjYWNoZSAqLw0KPiArDQo+ICtzdGF0
-aWMgY29uc3QgY2hhciAqIGNvbnN0IG1rdG1lX3Byb2dyYW1fZXJyW10gPSB7DQo+ICsJIktleUlE
-IHdhcyBzdWNjZXNzZnVsbHkgcHJvZ3JhbW1lZCIsCS8qIDAgKi8NCj4gKwkiSW52YWxpZCBLZXlJ
-RCBwcm9ncmFtbWluZyBjb21tYW5kIiwJLyogMSAqLw0KPiArCSJJbnN1ZmZpY2llbnQgZW50cm9w
-eSIsCQkJLyogMiAqLw0KPiArCSJLZXlJRCBub3QgdmFsaWQiLAkJCS8qIDMgKi8NCj4gKwkiSW52
-YWxpZCBlbmNyeXB0aW9uIGFsZ29yaXRobSBjaG9zZW4iLAkvKiA0ICovDQo+ICsJIkZhaWx1cmUg
-dG8gYWNjZXNzIGtleSB0YWJsZSIsCQkvKiA1ICovDQo+ICt9Ow0KPiArDQo+ICtlbnVtIG1rdG1l
-X29wdF9pZCB7DQo+ICsJT1BUX0VSUk9SID0gLTEsDQo+ICsJT1BUX1RZUEUsDQo+ICsJT1BUX0tF
-WSwNCj4gKwlPUFRfVFdFQUssDQo+ICsJT1BUX0FMR09SSVRITSwNCj4gK307DQo+ICsNCj4gK3N0
-YXRpYyBjb25zdCBtYXRjaF90YWJsZV90IG1rdG1lX3Rva2VuID0gew0KPiArCXtPUFRfVFlQRSwg
-InR5cGU9JXMifSwNCj4gKwl7T1BUX0tFWSwgImtleT0lcyJ9LA0KPiArCXtPUFRfVFdFQUssICJ0
-d2Vhaz0lcyJ9LA0KPiArCXtPUFRfQUxHT1JJVEhNLCAiYWxnb3JpdGhtPSVzIn0sDQo+ICsJe09Q
-VF9FUlJPUiwgTlVMTH0NCj4gK307DQo+ICsNCj4gK3N0cnVjdCBta3RtZV9wYXlsb2FkIHsNCj4g
-Kwl1MzIJCWtleWlkX2N0cmw7CS8qIENvbW1hbmQgJiBFbmNyeXB0aW9uIEFsZ29yaXRobSAqLw0K
-PiArCXU4CQlkYXRhX2tleVtNS1RNRV9BRVNfWFRTX1NJWkVdOw0KPiArCXU4CQl0d2Vha19rZXlb
-TUtUTUVfQUVTX1hUU19TSVpFXTsNCj4gK307DQo+ICsNCj4gKy8qIEtleSBTZXJ2aWNlIE1ldGhv
-ZCBjYWxsZWQgd2hlbiBLZXkgaXMgZ2FyYmFnZSBjb2xsZWN0ZWQuICovDQo+ICtzdGF0aWMgdm9p
-ZCBta3RtZV9kZXN0cm95X2tleShzdHJ1Y3Qga2V5ICprZXkpDQo+ICt7DQo+ICsJa2V5X3B1dF9l
-bmNyeXB0X3JlZihta3RtZV9tYXBfa2V5aWRfZnJvbV9rZXkoa2V5KSk7DQo+ICt9DQo+ICsNCj4g
-Ky8qIENvcHkgdGhlIHBheWxvYWQgdG8gdGhlIEhXIHByb2dyYW1taW5nIHN0cnVjdHVyZSBhbmQg
-cHJvZ3JhbSB0aGlzIEtleUlEICovDQo+ICtzdGF0aWMgaW50IG1rdG1lX3Byb2dyYW1fa2V5aWQo
-aW50IGtleWlkLCBzdHJ1Y3QgbWt0bWVfcGF5bG9hZCAqcGF5bG9hZCkNCj4gK3sNCj4gKwlzdHJ1
-Y3QgbWt0bWVfa2V5X3Byb2dyYW0gKmtwcm9nID0gTlVMTDsNCj4gKwl1OCBrZXJuX2VudHJvcHlb
-TUtUTUVfQUVTX1hUU19TSVpFXTsNCj4gKwlpbnQgaSwgcmV0Ow0KPiArDQo+ICsJa3Byb2cgPSBr
-bWVtX2NhY2hlX3phbGxvYyhta3RtZV9wcm9nX2NhY2hlLCBHRlBfS0VSTkVMKTsNCj4gKwlpZiAo
-IWtwcm9nKQ0KPiArCQlyZXR1cm4gLUVOT01FTTsNCj4gKw0KPiArCS8qIEhhcmR3YXJlIHByb2dy
-YW1taW5nIHJlcXVpcmVzIGNhY2hlZCBhbGlnbmVkIHN0cnVjdCAqLw0KPiArCWtwcm9nLT5rZXlp
-ZCA9IGtleWlkOw0KPiArCWtwcm9nLT5rZXlpZF9jdHJsID0gcGF5bG9hZC0+a2V5aWRfY3RybDsN
-Cj4gKwltZW1jcHkoa3Byb2ctPmtleV9maWVsZF8xLCBwYXlsb2FkLT5kYXRhX2tleSwgTUtUTUVf
-QUVTX1hUU19TSVpFKTsNCj4gKwltZW1jcHkoa3Byb2ctPmtleV9maWVsZF8yLCBwYXlsb2FkLT50
-d2Vha19rZXksIE1LVE1FX0FFU19YVFNfU0laRSk7DQo+ICsNCj4gKwkvKiBTdHJlbmd0aGVuIHRo
-ZSBlbnRyb3B5IGZpZWxkcyBmb3IgQ1BVIGdlbmVyYXRlZCBrZXlzICovDQo+ICsJaWYgKChwYXls
-b2FkLT5rZXlpZF9jdHJsICYgMHhmZikgPT0gTUtUTUVfS0VZSURfU0VUX0tFWV9SQU5ET00pIHsN
-Cj4gKwkJZ2V0X3JhbmRvbV9ieXRlcygma2Vybl9lbnRyb3B5LCBzaXplb2Yoa2Vybl9lbnRyb3B5
-KSk7DQo+ICsJCWZvciAoaSA9IDA7IGkgPCAoTUtUTUVfQUVTX1hUU19TSVpFKTsgaSsrKSB7DQo+
-ICsJCQlrcHJvZy0+a2V5X2ZpZWxkXzFbaV0gXj0ga2Vybl9lbnRyb3B5W2ldOw0KPiArCQkJa3By
-b2ctPmtleV9maWVsZF8yW2ldIF49IGtlcm5fZW50cm9weVtpXTsNCj4gKwkJfQ0KPiArCX0NCj4g
-KwlyZXQgPSBta3RtZV9rZXlfcHJvZ3JhbShrcHJvZyk7DQo+ICsJa21lbV9jYWNoZV9mcmVlKG1r
-dG1lX3Byb2dfY2FjaGUsIGtwcm9nKTsNCj4gKwlyZXR1cm4gcmV0Ow0KPiArfQ0KPiArDQo+ICsv
-KiBLZXkgU2VydmljZSBNZXRob2QgdG8gdXBkYXRlIGFuIGV4aXN0aW5nIGtleS4gKi8NCj4gK3N0
-YXRpYyBpbnQgbWt0bWVfdXBkYXRlX2tleShzdHJ1Y3Qga2V5ICprZXksDQo+ICsJCQkgICAgc3Ry
-dWN0IGtleV9wcmVwYXJzZWRfcGF5bG9hZCAqcHJlcCkNCj4gK3sNCj4gKwlzdHJ1Y3QgbWt0bWVf
-cGF5bG9hZCAqcGF5bG9hZCA9IHByZXAtPnBheWxvYWQuZGF0YVswXTsNCj4gKwlpbnQga2V5aWQs
-IHJlZl9jb3VudDsNCj4gKwlpbnQgcmV0Ow0KPiArDQo+ICsJbWt0bWVfbWFwX2xvY2soKTsNCj4g
-KwlrZXlpZCA9IG1rdG1lX21hcF9rZXlpZF9mcm9tX2tleShrZXkpOw0KPiArCWlmIChrZXlpZCA8
-PSAwKQ0KPiArCQlyZXR1cm4gLUVJTlZBTDsNCj4gKwkvKg0KPiArCSAqIHJlZl9jb3VudCB3aWxs
-IGJlIGF0IGxlYXN0IG9uZSB3aGVuIHdlIGdldCBoZXJlIGJlY2F1c2UgdGhlDQo+ICsJICoga2V5
-IGFscmVhZHkgZXhpc3RzLiBJZiByZWZfY291bnQgaXMgbm90ID4gMSwgaXQgaXMgc2FmZSB0bw0K
-PiArCSAqIHVwZGF0ZSB0aGUga2V5IHdoaWxlIGhvbGRpbmcgdGhlIG1rdG1lX21hcF9sb2NrLg0K
-PiArCSAqLw0KPiArCXJlZl9jb3VudCA9IG1rdG1lX3JlYWRfZW5jcnlwdF9yZWYoa2V5aWQpOw0K
-PiArCWlmIChyZWZfY291bnQgPiAxKSB7DQo+ICsJCXByX2RlYnVnKCJta3RtZSBub3QgdXBkYXRp
-bmcga2V5aWRbJWRdIGVuY3J5cHRfY291bnRbJWRdXG4iLA0KPiArCQkJIGtleWlkLCByZWZfY291
-bnQpOw0KPiArCQlyZXR1cm4gLUVCVVNZOw0KPiArCX0NCj4gKwlyZXQgPSBta3RtZV9wcm9ncmFt
-X2tleWlkKGtleWlkLCBwYXlsb2FkKTsNCj4gKwlpZiAocmV0ICE9IE1LVE1FX1BST0dfU1VDQ0VT
-Uykgew0KPiArCQlwcl9kZWJ1ZygiJXM6ICVzXG4iLCBfX2Z1bmNfXywgbWt0bWVfcHJvZ3JhbV9l
-cnJbcmV0XSk7DQo+ICsJCXJldCA9IC1FTk9LRVk7DQo+ICsJfQ0KPiArCW1rdG1lX21hcF91bmxv
-Y2soKTsNCj4gKwlyZXR1cm4gcmV0Ow0KPiArfQ0KPiArDQo+ICsvKiBLZXkgU2VydmljZSBNZXRo
-b2QgdG8gY3JlYXRlIGEgbmV3IGtleS4gUGF5bG9hZCBpcyBwcmVwYXJzZWQuICovDQo+ICtpbnQg
-bWt0bWVfaW5zdGFudGlhdGVfa2V5KHN0cnVjdCBrZXkgKmtleSwgc3RydWN0IGtleV9wcmVwYXJz
-ZWRfcGF5bG9hZA0KPiAqcHJlcCkNCj4gK3sNCj4gKwlzdHJ1Y3QgbWt0bWVfcGF5bG9hZCAqcGF5
-bG9hZCA9IHByZXAtPnBheWxvYWQuZGF0YVswXTsNCj4gKwlpbnQga2V5aWQsIHJldDsNCj4gKw0K
-PiArCW1rdG1lX21hcF9sb2NrKCk7DQo+ICsJa2V5aWQgPSBta3RtZV9tYXBfZ2V0X2ZyZWVfa2V5
-aWQoKTsNCj4gKwlpZiAoa2V5aWQgPT0gMCkgew0KPiArCQlyZXQgPSAtRU5PS0VZOw0KPiArCQln
-b3RvIG91dDsNCj4gKwl9DQo+ICsJcmV0ID0gbWt0bWVfcHJvZ3JhbV9rZXlpZChrZXlpZCwgcGF5
-bG9hZCk7DQo+ICsJaWYgKHJldCAhPSBNS1RNRV9QUk9HX1NVQ0NFU1MpIHsNCj4gKwkJcHJfZGVi
-dWcoIiVzOiAlc1xuIiwgX19mdW5jX18sIG1rdG1lX3Byb2dyYW1fZXJyW3JldF0pOw0KPiArCQly
-ZXQgPSAtRU5PS0VZOw0KPiArCQlnb3RvIG91dDsNCj4gKwl9DQo+ICsJbWt0bWVfbWFwX3NldF9r
-ZXlpZChrZXlpZCwga2V5KTsNCj4gKwlrZXlfZ2V0X2VuY3J5cHRfcmVmKGtleWlkKTsNCj4gK291
-dDoNCj4gKwlta3RtZV9tYXBfdW5sb2NrKCk7DQo+ICsJcmV0dXJuIHJldDsNCj4gK30NCj4gKw0K
-PiArLyogVmVyaWZ5IHRoZSB1c2VyIHByb3ZpZGVkIHRoZSBuZWVkZWQgYXJndW1lbnRzIGZvciB0
-aGUgVFlQRSBvZiBLZXkgKi8NCj4gK3N0YXRpYyBpbnQgbWt0bWVfY2hlY2tfb3B0aW9ucyhzdHJ1
-Y3QgbWt0bWVfcGF5bG9hZCAqcGF5bG9hZCwNCj4gKwkJCSAgICAgICB1bnNpZ25lZCBsb25nIHRv
-a2VuX21hc2ssIGVudW0gbWt0bWVfdHlwZSB0eXBlKQ0KPiArew0KPiArCWlmICghdG9rZW5fbWFz
-aykNCj4gKwkJcmV0dXJuIC1FSU5WQUw7DQo+ICsNCj4gKwlzd2l0Y2ggKHR5cGUpIHsNCj4gKwlj
-YXNlIE1LVE1FX1RZUEVfVVNFUjoNCj4gKwkJaWYgKHRlc3RfYml0KE9QVF9BTEdPUklUSE0sICZ0
-b2tlbl9tYXNrKSkNCj4gKwkJCXBheWxvYWQtPmtleWlkX2N0cmwgfD0gTUtUTUVfQUVTX1hUU18x
-Mjg7DQo+ICsJCWVsc2UNCj4gKwkJCXJldHVybiAtRUlOVkFMOw0KPiArDQo+ICsJCWlmICgodGVz
-dF9iaXQoT1BUX0tFWSwgJnRva2VuX21hc2spKSAmJg0KPiArCQkgICAgKHRlc3RfYml0KE9QVF9U
-V0VBSywgJnRva2VuX21hc2spKSkNCj4gKwkJCXBheWxvYWQtPmtleWlkX2N0cmwgfD0gTUtUTUVf
-S0VZSURfU0VUX0tFWV9ESVJFQ1Q7DQo+ICsJCWVsc2UNCj4gKwkJCXJldHVybiAtRUlOVkFMOw0K
-PiArCQlicmVhazsNCj4gKw0KPiArCWNhc2UgTUtUTUVfVFlQRV9DUFU6DQo+ICsJCWlmICh0ZXN0
-X2JpdChPUFRfQUxHT1JJVEhNLCAmdG9rZW5fbWFzaykpDQo+ICsJCQlwYXlsb2FkLT5rZXlpZF9j
-dHJsIHw9IE1LVE1FX0FFU19YVFNfMTI4Ow0KPiArCQllbHNlDQo+ICsJCQlyZXR1cm4gLUVJTlZB
-TDsNCj4gKw0KPiArCQlwYXlsb2FkLT5rZXlpZF9jdHJsIHw9IE1LVE1FX0tFWUlEX1NFVF9LRVlf
-UkFORE9NOw0KPiArCQlicmVhazsNCj4gKw0KPiArCWNhc2UgTUtUTUVfVFlQRV9DTEVBUjoNCj4g
-KwkJcGF5bG9hZC0+a2V5aWRfY3RybCB8PSBNS1RNRV9LRVlJRF9DTEVBUl9LRVk7DQo+ICsJCWJy
-ZWFrOw0KPiArDQo+ICsJY2FzZSBNS1RNRV9UWVBFX05PX0VOQ1JZUFQ6DQo+ICsJCXBheWxvYWQt
-PmtleWlkX2N0cmwgfD0gTUtUTUVfS0VZSURfTk9fRU5DUllQVDsNCj4gKwkJYnJlYWs7DQo+ICsN
-Cj4gKwlkZWZhdWx0Og0KPiArCQlyZXR1cm4gLUVJTlZBTDsNCj4gKwl9DQo+ICsJcmV0dXJuIDA7
-DQo+ICt9DQo+ICsNCj4gKy8qIFBhcnNlIHRoZSBvcHRpb25zIGFuZCBzdG9yZSB0aGUga2V5IHBy
-b2dyYW1taW5nIGRhdGEgaW4gdGhlIHBheWxvYWQuICovDQo+ICtzdGF0aWMgaW50IG1rdG1lX2dl
-dF9vcHRpb25zKGNoYXIgKm9wdGlvbnMsIHN0cnVjdCBta3RtZV9wYXlsb2FkICpwYXlsb2FkKQ0K
-PiArew0KPiArCWVudW0gbWt0bWVfdHlwZSB0eXBlID0gTUtUTUVfVFlQRV9FUlJPUjsNCj4gKwlz
-dWJzdHJpbmdfdCBhcmdzW01BWF9PUFRfQVJHU107DQo+ICsJdW5zaWduZWQgbG9uZyB0b2tlbl9t
-YXNrID0gMDsNCj4gKwljaGFyICpwID0gb3B0aW9uczsNCj4gKwlpbnQgcmV0LCB0b2tlbjsNCj4g
-Kw0KPiArCXdoaWxlICgocCA9IHN0cnNlcCgmb3B0aW9ucywgIiBcdCIpKSkgew0KPiArCQlpZiAo
-KnAgPT0gJ1wwJyB8fCAqcCA9PSAnICcgfHwgKnAgPT0gJ1x0JykNCj4gKwkJCWNvbnRpbnVlOw0K
-PiArCQl0b2tlbiA9IG1hdGNoX3Rva2VuKHAsIG1rdG1lX3Rva2VuLCBhcmdzKTsNCj4gKwkJaWYg
-KHRlc3RfYW5kX3NldF9iaXQodG9rZW4sICZ0b2tlbl9tYXNrKSkNCj4gKwkJCXJldHVybiAtRUlO
-VkFMOw0KPiArDQo+ICsJCXN3aXRjaCAodG9rZW4pIHsNCj4gKwkJY2FzZSBPUFRfS0VZOg0KPiAr
-CQkJcmV0ID0gaGV4MmJpbihwYXlsb2FkLT5kYXRhX2tleSwgYXJnc1swXS5mcm9tLA0KPiArCQkJ
-CSAgICAgIE1LVE1FX0FFU19YVFNfU0laRSk7DQo+ICsJCQlpZiAocmV0IDwgMCkNCj4gKwkJCQly
-ZXR1cm4gLUVJTlZBTDsNCj4gKwkJCWJyZWFrOw0KPiArDQo+ICsJCWNhc2UgT1BUX1RXRUFLOg0K
-PiArCQkJcmV0ID0gaGV4MmJpbihwYXlsb2FkLT50d2Vha19rZXksIGFyZ3NbMF0uZnJvbSwNCj4g
-KwkJCQkgICAgICBNS1RNRV9BRVNfWFRTX1NJWkUpOw0KPiArCQkJaWYgKHJldCA8IDApDQo+ICsJ
-CQkJcmV0dXJuIC1FSU5WQUw7DQo+ICsJCQlicmVhazsNCj4gKw0KPiArCQljYXNlIE9QVF9UWVBF
-Og0KPiArCQkJdHlwZSA9IG1hdGNoX3N0cmluZyhta3RtZV90eXBlX25hbWVzLA0KPiArCQkJCQkg
-ICAgQVJSQVlfU0laRShta3RtZV90eXBlX25hbWVzKSwNCj4gKwkJCQkJICAgIGFyZ3NbMF0uZnJv
-bSk7DQo+ICsJCQlpZiAodHlwZSA8IDApDQo+ICsJCQkJcmV0dXJuIC1FSU5WQUw7DQo+ICsJCQli
-cmVhazsNCj4gKw0KPiArCQljYXNlIE9QVF9BTEdPUklUSE06DQo+ICsJCQlyZXQgPSBtYXRjaF9z
-dHJpbmcobWt0bWVfYWxnX25hbWVzLA0KPiArCQkJCQkgICBBUlJBWV9TSVpFKG1rdG1lX2FsZ19u
-YW1lcyksDQo+ICsJCQkJCSAgIGFyZ3NbMF0uZnJvbSk7DQo+ICsJCQlpZiAocmV0IDwgMCkNCj4g
-KwkJCQlyZXR1cm4gLUVJTlZBTDsNCj4gKwkJCWJyZWFrOw0KPiArDQo+ICsJCWRlZmF1bHQ6DQo+
-ICsJCQlyZXR1cm4gLUVJTlZBTDsNCj4gKwkJfQ0KPiArCX0NCj4gKwlyZXR1cm4gbWt0bWVfY2hl
-Y2tfb3B0aW9ucyhwYXlsb2FkLCB0b2tlbl9tYXNrLCB0eXBlKTsNCj4gK30NCj4gKw0KPiArdm9p
-ZCBta3RtZV9mcmVlX3ByZXBhcnNlZF9rZXkoc3RydWN0IGtleV9wcmVwYXJzZWRfcGF5bG9hZCAq
-cHJlcCkNCj4gK3sNCj4gKwlremZyZWUocHJlcC0+cGF5bG9hZC5kYXRhWzBdKTsNCj4gK30NCj4g
-Kw0KPiArLyoNCj4gKyAqIEtleSBTZXJ2aWNlIE1ldGhvZCB0byBwcmVwYXJzZSBhIHBheWxvYWQg
-YmVmb3JlIGEga2V5IGlzIGNyZWF0ZWQuDQo+ICsgKiBDaGVjayBwZXJtaXNzaW9ucyBhbmQgdGhl
-IG9wdGlvbnMuIExvYWQgdGhlIHByb3Bvc2VkIGtleSBmaWVsZA0KPiArICogZGF0YSBpbnRvIHRo
-ZSBwYXlsb2FkIGZvciB1c2UgYnkgaW5zdGFudGlhdGUgYW5kIHVwZGF0ZSBtZXRob2RzLg0KPiAr
-ICovDQo+ICtpbnQgbWt0bWVfcHJlcGFyc2Vfa2V5KHN0cnVjdCBrZXlfcHJlcGFyc2VkX3BheWxv
-YWQgKnByZXApDQo+ICt7DQo+ICsJc3RydWN0IG1rdG1lX3BheWxvYWQgKm1rdG1lX3BheWxvYWQ7
-DQo+ICsJc2l6ZV90IGRhdGFsZW4gPSBwcmVwLT5kYXRhbGVuOw0KPiArCWNoYXIgKm9wdGlvbnM7
-DQo+ICsJaW50IHJldDsNCj4gKw0KPiArCWlmICghY2FwYWJsZShDQVBfU1lTX1JFU09VUkNFKSAm
-JiAhY2FwYWJsZShDQVBfU1lTX0FETUlOKSkNCj4gKwkJcmV0dXJuIC1FQUNDRVM7DQo+ICsNCj4g
-KwlpZiAoZGF0YWxlbiA8PSAwIHx8IGRhdGFsZW4gPiAxMDI0IHx8ICFwcmVwLT5kYXRhKQ0KPiAr
-CQlyZXR1cm4gLUVJTlZBTDsNCj4gKw0KPiArCW9wdGlvbnMgPSBrbWVtZHVwKHByZXAtPmRhdGEs
-IGRhdGFsZW4gKyAxLCBHRlBfS0VSTkVMKTsNCj4gKwlpZiAoIW9wdGlvbnMpDQo+ICsJCXJldHVy
-biAtRU5PTUVNOw0KPiArDQo+ICsJb3B0aW9uc1tkYXRhbGVuXSA9ICdcMCc7DQo+ICsNCj4gKwlt
-a3RtZV9wYXlsb2FkID0ga3phbGxvYyhzaXplb2YoKm1rdG1lX3BheWxvYWQpLCBHRlBfS0VSTkVM
-KTsNCj4gKwlpZiAoIW1rdG1lX3BheWxvYWQpIHsNCj4gKwkJcmV0ID0gLUVOT01FTTsNCj4gKwkJ
-Z290byBvdXQ7DQo+ICsJfQ0KPiArCXJldCA9IG1rdG1lX2dldF9vcHRpb25zKG9wdGlvbnMsIG1r
-dG1lX3BheWxvYWQpOw0KPiArCWlmIChyZXQgPCAwKQ0KPiArCQlnb3RvIG91dDsNCj4gKw0KPiAr
-CXByZXAtPnF1b3RhbGVuID0gc2l6ZW9mKG1rdG1lX3BheWxvYWQpOw0KPiArCXByZXAtPnBheWxv
-YWQuZGF0YVswXSA9IG1rdG1lX3BheWxvYWQ7DQo+ICtvdXQ6DQo+ICsJa3pmcmVlKG9wdGlvbnMp
-Ow0KPiArCXJldHVybiByZXQ7DQo+ICt9DQo+ICsNCj4gK3N0cnVjdCBrZXlfdHlwZSBrZXlfdHlw
-ZV9ta3RtZSA9IHsNCj4gKwkubmFtZQkJPSAibWt0bWUiLA0KPiArCS5wcmVwYXJzZQk9IG1rdG1l
-X3ByZXBhcnNlX2tleSwNCj4gKwkuZnJlZV9wcmVwYXJzZQk9IG1rdG1lX2ZyZWVfcHJlcGFyc2Vk
-X2tleSwNCj4gKwkuaW5zdGFudGlhdGUJPSBta3RtZV9pbnN0YW50aWF0ZV9rZXksDQo+ICsJLnVw
-ZGF0ZQkJPSBta3RtZV91cGRhdGVfa2V5LA0KPiArCS5kZXNjcmliZQk9IHVzZXJfZGVzY3JpYmUs
-DQo+ICsJLmRlc3Ryb3kJPSBta3RtZV9kZXN0cm95X2tleSwNCj4gK307DQo+ICsNCj4gKy8qDQo+
-ICsgKiBBbGxvY2F0ZSB0aGUgZ2xvYmFsIG1rdG1lX21hcCBzdHJ1Y3R1cmUgYmFzZWQgb24gdGhl
-IGF2YWlsYWJsZSBrZXlpZHMuDQo+ICsgKiBDcmVhdGUgYSBjYWNoZSBmb3IgdGhlIGhhcmR3YXJl
-IHN0cnVjdHVyZS4gSW5pdGlhbGl6ZSB0aGUgZW5jcnlwdF9jb3VudA0KPiArICogYXJyYXkgdG8g
-dHJhY2sgKiBWTUEncyBwZXIga2V5aWQuIE9uY2UgYWxsIHRoYXQgc3VjY2VlZHMsIHJlZ2lzdGVy
-IHRoZQ0KPiArICogJ21rdG1lJyBrZXkgdHlwZS4NCj4gKyAqLw0KPiArc3RhdGljIGludCBfX2lu
-aXQgaW5pdF9ta3RtZSh2b2lkKQ0KPiArew0KPiArCWludCByZXQ7DQo+ICsNCj4gKwkvKiBWZXJp
-Znkga2V5cyBhcmUgcHJlc2VudCAqLw0KPiArCWlmICghKG1rdG1lX25yX2tleWlkcyA+IDApKQ0K
-PiArCQlyZXR1cm4gLUVJTlZBTDsNCj4gKw0KPiArCWlmICghbWt0bWVfbWFwX2FsbG9jKCkpDQo+
-ICsJCXJldHVybiAtRU5PTUVNOw0KPiArDQo+ICsJbWt0bWVfcHJvZ19jYWNoZSA9IEtNRU1fQ0FD
-SEUobWt0bWVfa2V5X3Byb2dyYW0sIFNMQUJfUEFOSUMpOw0KPiArCWlmICghbWt0bWVfcHJvZ19j
-YWNoZSkNCj4gKwkJZ290byBmcmVlX21hcDsNCj4gKw0KPiArCWlmIChta3RtZV9hbGxvY19lbmNy
-eXB0X2FycmF5KCkgPCAwKQ0KPiArCQlnb3RvIGZyZWVfY2FjaGU7DQo+ICsNCj4gKwlyZXQgPSBy
-ZWdpc3Rlcl9rZXlfdHlwZSgma2V5X3R5cGVfbWt0bWUpOw0KPiArCWlmICghcmV0KQ0KPiArCQly
-ZXR1cm4gcmV0OwkJCS8qIFNVQ0NFU1MgKi8NCj4gKw0KPiArCW1rdG1lX2ZyZWVfZW5jcnlwdF9h
-cnJheSgpOw0KPiArZnJlZV9jYWNoZToNCj4gKwlrbWVtX2NhY2hlX2Rlc3Ryb3kobWt0bWVfcHJv
-Z19jYWNoZSk7DQo+ICtmcmVlX21hcDoNCg0KTWF5YmUgZXJyX2ZyZWVfY2FjaGUgYW5kIGVycl9t
-YXAgKG1vcmUgdGhhbiBjb3NtZXRpYyk/DQoNCj4gKwlta3RtZV9tYXBfZnJlZSgpOw0KPiArDQo+
-ICsJcmV0dXJuIC1FTk9NRU07DQo+ICt9DQo+ICsNCj4gK2xhdGVfaW5pdGNhbGwoaW5pdF9ta3Rt
-ZSk7DQoNCkFzIGZvciBjb2RlIGNoYW5nZS4gT3ZlcmFsbHksIGl0IGxvb2tzIGdvb2QhIEJ1dCBi
-ZWZvcmUgdXNpbmcgdGltZQ0KZm9yIGRldGFpbGVkIHJldmlldyBvciB0ZXN0aW5nIChvbmNlIEkg
-Z2V0IGEgY2hhbmNlIHRvIGFjcXVpcmUNCnNvbWV0aGluZyB0byB0ZXN0IGl0KSBsZXRzIGdvIHRo
-cm91Z2ggdGhlIGRvY3VtZW50YXRpb24gZGlzY3Vzc2lvbi4NCkNsZWFybHkgdGhlcmUgaXMgYnVu
-Y2ggb2Ygc3R1ZmYgdGhhdCBjYW4gYmUgY3V0Li4uDQoNCi9KYXJra28NCg==
+MKTME (Multi-Key Total Memory Encryption) is a technology that allows
+transparent memory encryption in upcoming Intel platforms. MKTME will
+support mulitple encryption domains, each having their own key. The main
+use case for the feature is virtual machine isolation. The API needs the
+flexibility to work for a wide range of uses.
+
+The MKTME key service type manages the addition and removal of the memory
+encryption keys. It maps Userspace Keys to hardware KeyIDs. It programs
+the hardware with the user requested encryption options.
+
+The only supported encryption algorithm is AES-XTS 128.
+
+The MKTME key service is half of the MKTME API level solution. It pairs
+with a new memory encryption system call: encrypt_mprotect() that uses
+the keys to encrypt memory.
+
+See Documentation/x86/mktme/mktme.rst
+
+Change-Id: Idda4af2beabb739c77719897affff183ee9fa716
+Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/Kconfig           |   1 +
+ include/keys/mktme-type.h  |  41 ++++++
+ security/keys/Kconfig      |  11 ++
+ security/keys/Makefile     |   1 +
+ security/keys/mktme_keys.c | 339 +++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 393 insertions(+)
+ create mode 100644 include/keys/mktme-type.h
+ create mode 100644 security/keys/mktme_keys.c
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 7ac78e2856c7..c2e3bb5af077 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1531,6 +1531,7 @@ config X86_INTEL_MKTME
+ 	bool "Intel Multi-Key Total Memory Encryption"
+ 	select DYNAMIC_PHYSICAL_MASK
+ 	select PAGE_EXTENSION
++	select MKTME_KEYS
+ 	depends on X86_64 && CPU_SUP_INTEL
+ 	---help---
+ 	  Say yes to enable support for Multi-Key Total Memory Encryption.
+diff --git a/include/keys/mktme-type.h b/include/keys/mktme-type.h
+new file mode 100644
+index 000000000000..c63c6568087f
+--- /dev/null
++++ b/include/keys/mktme-type.h
+@@ -0,0 +1,41 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++
++/* Key service for Multi-KEY Total Memory Encryption */
++
++#ifndef _KEYS_MKTME_TYPE_H
++#define _KEYS_MKTME_TYPE_H
++
++#include <linux/key.h>
++
++/*
++ * The AES-XTS 128 encryption algorithm requires 128 bits for each
++ * user supplied data key and tweak key.
++ */
++#define MKTME_AES_XTS_SIZE	16	/* 16 bytes, 128 bits */
++
++enum mktme_alg {
++	MKTME_ALG_AES_XTS_128,
++};
++
++const char *const mktme_alg_names[] = {
++	[MKTME_ALG_AES_XTS_128]	= "aes-xts-128",
++};
++
++enum mktme_type {
++	MKTME_TYPE_ERROR = -1,
++	MKTME_TYPE_USER,
++	MKTME_TYPE_CPU,
++	MKTME_TYPE_CLEAR,
++	MKTME_TYPE_NO_ENCRYPT,
++};
++
++const char *const mktme_type_names[] = {
++	[MKTME_TYPE_USER]	= "user",
++	[MKTME_TYPE_CPU]	= "cpu",
++	[MKTME_TYPE_CLEAR]	= "clear",
++	[MKTME_TYPE_NO_ENCRYPT]	= "no-encrypt",
++};
++
++extern struct key_type key_type_mktme;
++
++#endif /* _KEYS_MKTME_TYPE_H */
+diff --git a/security/keys/Kconfig b/security/keys/Kconfig
+index 6462e6654ccf..c36972113e67 100644
+--- a/security/keys/Kconfig
++++ b/security/keys/Kconfig
+@@ -101,3 +101,14 @@ config KEY_DH_OPERATIONS
+ 	 in the kernel.
+ 
+ 	 If you are unsure as to whether this is required, answer N.
++
++config MKTME_KEYS
++	bool "Multi-Key Total Memory Encryption Keys"
++	depends on KEYS && X86_INTEL_MKTME
++	help
++	  This option provides support for Multi-Key Total Memory
++	  Encryption (MKTME) on Intel platforms offering the feature.
++	  MKTME allows userspace to manage the hardware encryption
++	  keys through the kernel key services.
++
++	  If you are unsure as to whether this is required, answer N.
+diff --git a/security/keys/Makefile b/security/keys/Makefile
+index 9cef54064f60..94c84f10a857 100644
+--- a/security/keys/Makefile
++++ b/security/keys/Makefile
+@@ -30,3 +30,4 @@ obj-$(CONFIG_ASYMMETRIC_KEY_TYPE) += keyctl_pkey.o
+ obj-$(CONFIG_BIG_KEYS) += big_key.o
+ obj-$(CONFIG_TRUSTED_KEYS) += trusted.o
+ obj-$(CONFIG_ENCRYPTED_KEYS) += encrypted-keys/
++obj-$(CONFIG_MKTME_KEYS) += mktme_keys.o
+diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
+new file mode 100644
+index 000000000000..e615eb58e600
+--- /dev/null
++++ b/security/keys/mktme_keys.c
+@@ -0,0 +1,339 @@
++// SPDX-License-Identifier: GPL-3.0
++
++/* Documentation/x86/mktme/mktme_keys.rst */
++
++#include <linux/cred.h>
++#include <linux/cpu.h>
++#include <linux/err.h>
++#include <linux/init.h>
++#include <linux/key.h>
++#include <linux/key-type.h>
++#include <linux/init.h>
++#include <linux/parser.h>
++#include <linux/random.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <asm/intel_pconfig.h>
++#include <asm/mktme.h>
++#include <keys/mktme-type.h>
++#include <keys/user-type.h>
++
++#include "internal.h"
++
++struct kmem_cache *mktme_prog_cache;	/* Hardware programming cache */
++
++static const char * const mktme_program_err[] = {
++	"KeyID was successfully programmed",	/* 0 */
++	"Invalid KeyID programming command",	/* 1 */
++	"Insufficient entropy",			/* 2 */
++	"KeyID not valid",			/* 3 */
++	"Invalid encryption algorithm chosen",	/* 4 */
++	"Failure to access key table",		/* 5 */
++};
++
++enum mktme_opt_id {
++	OPT_ERROR = -1,
++	OPT_TYPE,
++	OPT_KEY,
++	OPT_TWEAK,
++	OPT_ALGORITHM,
++};
++
++static const match_table_t mktme_token = {
++	{OPT_TYPE, "type=%s"},
++	{OPT_KEY, "key=%s"},
++	{OPT_TWEAK, "tweak=%s"},
++	{OPT_ALGORITHM, "algorithm=%s"},
++	{OPT_ERROR, NULL}
++};
++
++struct mktme_payload {
++	u32		keyid_ctrl;	/* Command & Encryption Algorithm */
++	u8		data_key[MKTME_AES_XTS_SIZE];
++	u8		tweak_key[MKTME_AES_XTS_SIZE];
++};
++
++/* Key Service Method called when Key is garbage collected. */
++static void mktme_destroy_key(struct key *key)
++{
++	key_put_encrypt_ref(mktme_map_keyid_from_key(key));
++}
++
++/* Copy the payload to the HW programming structure and program this KeyID */
++static int mktme_program_keyid(int keyid, struct mktme_payload *payload)
++{
++	struct mktme_key_program *kprog = NULL;
++	u8 kern_entropy[MKTME_AES_XTS_SIZE];
++	int i, ret;
++
++	kprog = kmem_cache_zalloc(mktme_prog_cache, GFP_KERNEL);
++	if (!kprog)
++		return -ENOMEM;
++
++	/* Hardware programming requires cached aligned struct */
++	kprog->keyid = keyid;
++	kprog->keyid_ctrl = payload->keyid_ctrl;
++	memcpy(kprog->key_field_1, payload->data_key, MKTME_AES_XTS_SIZE);
++	memcpy(kprog->key_field_2, payload->tweak_key, MKTME_AES_XTS_SIZE);
++
++	/* Strengthen the entropy fields for CPU generated keys */
++	if ((payload->keyid_ctrl & 0xff) == MKTME_KEYID_SET_KEY_RANDOM) {
++		get_random_bytes(&kern_entropy, sizeof(kern_entropy));
++		for (i = 0; i < (MKTME_AES_XTS_SIZE); i++) {
++			kprog->key_field_1[i] ^= kern_entropy[i];
++			kprog->key_field_2[i] ^= kern_entropy[i];
++		}
++	}
++	ret = mktme_key_program(kprog);
++	kmem_cache_free(mktme_prog_cache, kprog);
++	return ret;
++}
++
++/* Key Service Method to update an existing key. */
++static int mktme_update_key(struct key *key,
++			    struct key_preparsed_payload *prep)
++{
++	struct mktme_payload *payload = prep->payload.data[0];
++	int keyid, ref_count;
++	int ret;
++
++	mktme_map_lock();
++	keyid = mktme_map_keyid_from_key(key);
++	if (keyid <= 0)
++		return -EINVAL;
++	/*
++	 * ref_count will be at least one when we get here because the
++	 * key already exists. If ref_count is not > 1, it is safe to
++	 * update the key while holding the mktme_map_lock.
++	 */
++	ref_count = mktme_read_encrypt_ref(keyid);
++	if (ref_count > 1) {
++		pr_debug("mktme not updating keyid[%d] encrypt_count[%d]\n",
++			 keyid, ref_count);
++		return -EBUSY;
++	}
++	ret = mktme_program_keyid(keyid, payload);
++	if (ret != MKTME_PROG_SUCCESS) {
++		pr_debug("%s: %s\n", __func__, mktme_program_err[ret]);
++		ret = -ENOKEY;
++	}
++	mktme_map_unlock();
++	return ret;
++}
++
++/* Key Service Method to create a new key. Payload is preparsed. */
++int mktme_instantiate_key(struct key *key, struct key_preparsed_payload *prep)
++{
++	struct mktme_payload *payload = prep->payload.data[0];
++	int keyid, ret;
++
++	mktme_map_lock();
++	keyid = mktme_map_get_free_keyid();
++	if (keyid == 0) {
++		ret = -ENOKEY;
++		goto out;
++	}
++	ret = mktme_program_keyid(keyid, payload);
++	if (ret != MKTME_PROG_SUCCESS) {
++		pr_debug("%s: %s\n", __func__, mktme_program_err[ret]);
++		ret = -ENOKEY;
++		goto out;
++	}
++	mktme_map_set_keyid(keyid, key);
++	key_get_encrypt_ref(keyid);
++out:
++	mktme_map_unlock();
++	return ret;
++}
++
++/* Verify the user provided the needed arguments for the TYPE of Key */
++static int mktme_check_options(struct mktme_payload *payload,
++			       unsigned long token_mask, enum mktme_type type)
++{
++	if (!token_mask)
++		return -EINVAL;
++
++	switch (type) {
++	case MKTME_TYPE_USER:
++		if (test_bit(OPT_ALGORITHM, &token_mask))
++			payload->keyid_ctrl |= MKTME_AES_XTS_128;
++		else
++			return -EINVAL;
++
++		if ((test_bit(OPT_KEY, &token_mask)) &&
++		    (test_bit(OPT_TWEAK, &token_mask)))
++			payload->keyid_ctrl |= MKTME_KEYID_SET_KEY_DIRECT;
++		else
++			return -EINVAL;
++		break;
++
++	case MKTME_TYPE_CPU:
++		if (test_bit(OPT_ALGORITHM, &token_mask))
++			payload->keyid_ctrl |= MKTME_AES_XTS_128;
++		else
++			return -EINVAL;
++
++		payload->keyid_ctrl |= MKTME_KEYID_SET_KEY_RANDOM;
++		break;
++
++	case MKTME_TYPE_CLEAR:
++		payload->keyid_ctrl |= MKTME_KEYID_CLEAR_KEY;
++		break;
++
++	case MKTME_TYPE_NO_ENCRYPT:
++		payload->keyid_ctrl |= MKTME_KEYID_NO_ENCRYPT;
++		break;
++
++	default:
++		return -EINVAL;
++	}
++	return 0;
++}
++
++/* Parse the options and store the key programming data in the payload. */
++static int mktme_get_options(char *options, struct mktme_payload *payload)
++{
++	enum mktme_type type = MKTME_TYPE_ERROR;
++	substring_t args[MAX_OPT_ARGS];
++	unsigned long token_mask = 0;
++	char *p = options;
++	int ret, token;
++
++	while ((p = strsep(&options, " \t"))) {
++		if (*p == '\0' || *p == ' ' || *p == '\t')
++			continue;
++		token = match_token(p, mktme_token, args);
++		if (test_and_set_bit(token, &token_mask))
++			return -EINVAL;
++
++		switch (token) {
++		case OPT_KEY:
++			ret = hex2bin(payload->data_key, args[0].from,
++				      MKTME_AES_XTS_SIZE);
++			if (ret < 0)
++				return -EINVAL;
++			break;
++
++		case OPT_TWEAK:
++			ret = hex2bin(payload->tweak_key, args[0].from,
++				      MKTME_AES_XTS_SIZE);
++			if (ret < 0)
++				return -EINVAL;
++			break;
++
++		case OPT_TYPE:
++			type = match_string(mktme_type_names,
++					    ARRAY_SIZE(mktme_type_names),
++					    args[0].from);
++			if (type < 0)
++				return -EINVAL;
++			break;
++
++		case OPT_ALGORITHM:
++			ret = match_string(mktme_alg_names,
++					   ARRAY_SIZE(mktme_alg_names),
++					   args[0].from);
++			if (ret < 0)
++				return -EINVAL;
++			break;
++
++		default:
++			return -EINVAL;
++		}
++	}
++	return mktme_check_options(payload, token_mask, type);
++}
++
++void mktme_free_preparsed_key(struct key_preparsed_payload *prep)
++{
++	kzfree(prep->payload.data[0]);
++}
++
++/*
++ * Key Service Method to preparse a payload before a key is created.
++ * Check permissions and the options. Load the proposed key field
++ * data into the payload for use by instantiate and update methods.
++ */
++int mktme_preparse_key(struct key_preparsed_payload *prep)
++{
++	struct mktme_payload *mktme_payload;
++	size_t datalen = prep->datalen;
++	char *options;
++	int ret;
++
++	if (!capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN))
++		return -EACCES;
++
++	if (datalen <= 0 || datalen > 1024 || !prep->data)
++		return -EINVAL;
++
++	options = kmemdup(prep->data, datalen + 1, GFP_KERNEL);
++	if (!options)
++		return -ENOMEM;
++
++	options[datalen] = '\0';
++
++	mktme_payload = kzalloc(sizeof(*mktme_payload), GFP_KERNEL);
++	if (!mktme_payload) {
++		ret = -ENOMEM;
++		goto out;
++	}
++	ret = mktme_get_options(options, mktme_payload);
++	if (ret < 0)
++		goto out;
++
++	prep->quotalen = sizeof(mktme_payload);
++	prep->payload.data[0] = mktme_payload;
++out:
++	kzfree(options);
++	return ret;
++}
++
++struct key_type key_type_mktme = {
++	.name		= "mktme",
++	.preparse	= mktme_preparse_key,
++	.free_preparse	= mktme_free_preparsed_key,
++	.instantiate	= mktme_instantiate_key,
++	.update		= mktme_update_key,
++	.describe	= user_describe,
++	.destroy	= mktme_destroy_key,
++};
++
++/*
++ * Allocate the global mktme_map structure based on the available keyids.
++ * Create a cache for the hardware structure. Initialize the encrypt_count
++ * array to track * VMA's per keyid. Once all that succeeds, register the
++ * 'mktme' key type.
++ */
++static int __init init_mktme(void)
++{
++	int ret;
++
++	/* Verify keys are present */
++	if (!(mktme_nr_keyids > 0))
++		return -EINVAL;
++
++	if (!mktme_map_alloc())
++		return -ENOMEM;
++
++	mktme_prog_cache = KMEM_CACHE(mktme_key_program, SLAB_PANIC);
++	if (!mktme_prog_cache)
++		goto free_map;
++
++	if (mktme_alloc_encrypt_array() < 0)
++		goto free_cache;
++
++	ret = register_key_type(&key_type_mktme);
++	if (!ret)
++		return ret;			/* SUCCESS */
++
++	mktme_free_encrypt_array();
++free_cache:
++	kmem_cache_destroy(mktme_prog_cache);
++free_map:
++	mktme_map_free();
++
++	return -ENOMEM;
++}
++
++late_initcall(init_mktme);
+-- 
+2.14.1
