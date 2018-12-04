@@ -1,128 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B146B707A
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 15:10:05 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id k125so9674344pga.5
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 12:10:04 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u25si16811554pgm.532.2018.12.04.12.10.03
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 835966B7072
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 15:02:07 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id e89so14777202pfb.17
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 12:02:07 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id x23si16817893pln.100.2018.12.04.12.02.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Dec 2018 12:10:03 -0800 (PST)
-Received: from mail-wr1-f52.google.com (mail-wr1-f52.google.com [209.85.221.52])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 35FA820879
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 20:10:03 +0000 (UTC)
-Received: by mail-wr1-f52.google.com with SMTP id x10so17302317wrs.8
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 12:10:03 -0800 (PST)
-MIME-Version: 1.0
-References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
- <20181128000754.18056-2-rick.p.edgecombe@intel.com> <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
- <20181204160304.GB7195@arm.com> <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
-In-Reply-To: <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 4 Dec 2018 12:09:49 -0800
-Message-ID: <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com>
+        Tue, 04 Dec 2018 12:02:06 -0800 (PST)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
 Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Date: Tue, 4 Dec 2018 20:02:03 +0000
+Message-ID: <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
+References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+	 <20181128000754.18056-2-rick.p.edgecombe@intel.com>
+	 <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
+	 <20181204160304.GB7195@arm.com>
+In-Reply-To: <20181204160304.GB7195@arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <A505089424EB70449A3E55198D49D917@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Will Deacon <will.deacon@arm.com>, Nadav Amit <nadav.amit@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, jeyu@kernel.org, Steven Rostedt <rostedt@goodmis.org>, Alexei Starovoitov <ast@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linux-MM <linux-mm@kvack.org>, Jann Horn <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Peter Zijlstra <peterz@infradead.org>, Kristen Carlson Accardi <kristen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Masami Hiramatsu <mhiramat@kernel.org>, "Naveen N . Rao" <naveen.n.rao@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Network Development <netdev@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: "will.deacon@arm.com" <will.deacon@arm.com>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "Keshavamurthy, Anil S  <anil.s.keshavamurthy@intel.com>, kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-On Tue, Dec 4, 2018 at 12:02 PM Edgecombe, Rick P
-<rick.p.edgecombe@intel.com> wrote:
->
-> On Tue, 2018-12-04 at 16:03 +0000, Will Deacon wrote:
-> > On Mon, Dec 03, 2018 at 05:43:11PM -0800, Nadav Amit wrote:
-> > > > On Nov 27, 2018, at 4:07 PM, Rick Edgecombe <rick.p.edgecombe@intel=
-.com>
-> > > > wrote:
-> > > >
-> > > > Since vfree will lazily flush the TLB, but not lazily free the unde=
-rlying
-> > > > pages,
-> > > > it often leaves stale TLB entries to freed pages that could get re-=
-used.
-> > > > This is
-> > > > undesirable for cases where the memory being freed has special perm=
-issions
-> > > > such
-> > > > as executable.
-> > >
-> > > So I am trying to finish my patch-set for preventing transient W+X ma=
-ppings
-> > > from taking space, by handling kprobes & ftrace that I missed (thanks=
- again
-> > > for
-> > > pointing it out).
-> > >
-> > > But all of the sudden, I don=E2=80=99t understand why we have the pro=
-blem that this
-> > > (your) patch-set deals with at all. We already change the mappings to=
- make
-> > > the memory writable before freeing the memory, so why can=E2=80=99t w=
-e make it
-> > > non-executable at the same time? Actually, why do we make the module =
-memory,
-> > > including its data executable before freeing it???
-> >
-> > Yeah, this is really confusing, but I have a suspicion it's a combinati=
-on
-> > of the various different configurations and hysterical raisins. We can'=
-t
-> > rely on module_alloc() allocating from the vmalloc area (see nios2) nor
-> > can we rely on disable_ro_nx() being available at build time.
-> >
-> > If we *could* rely on module allocations always using vmalloc(), then
-> > we could pass in Rick's new flag and drop disable_ro_nx() altogether
-> > afaict -- who cares about the memory attributes of a mapping that's abo=
-ut
-> > to disappear anyway?
-> >
-> > Is it just nios2 that does something different?
-> >
-> > Will
->
-> Yea it is really intertwined. I think for x86, set_memory_nx everywhere w=
-ould
-> solve it as well, in fact that was what I first thought the solution shou=
-ld be
-> until this was suggested. It's interesting that from the other thread Mas=
-ami
-> Hiramatsu referenced, set_memory_nx was suggested last year and would hav=
-e
-> inadvertently blocked this on x86. But, on the other architectures I have=
- since
-> learned it is a bit different.
->
-> It looks like actually most arch's don't re-define set_memory_*, and so a=
-ll of
-> the frob_* functions are actually just noops. In which case allocating RW=
-X is
-> needed to make it work at all, because that is what the allocation is goi=
-ng to
-> stay at. So in these archs, set_memory_nx won't solve it because it will =
-do
-> nothing.
->
-> On x86 I think you cannot get rid of disable_ro_nx fully because there is=
- the
-> changing of the permissions on the directmap as well. You don't want some=
- other
-> caller getting a page that was left RO when freed and then trying to writ=
-e to
-> it, if I understand this.
->
-
-Exactly.
-
-After slightly more thought, I suggest renaming VM_IMMEDIATE_UNMAP to
-VM_MAY_ADJUST_PERMS or similar.  It would have the semantics you want,
-but it would also call some arch hooks to put back the direct map
-permissions before the flush.  Does that seem reasonable?  It would
-need to be hooked up that implement set_memory_ro(), but that should
-be quite easy.  If nothing else, it could fall back to set_memory_ro()
-in the absence of a better implementation.
+T24gVHVlLCAyMDE4LTEyLTA0IGF0IDE2OjAzICswMDAwLCBXaWxsIERlYWNvbiB3cm90ZToNCj4g
+T24gTW9uLCBEZWMgMDMsIDIwMTggYXQgMDU6NDM6MTFQTSAtMDgwMCwgTmFkYXYgQW1pdCB3cm90
+ZToNCj4gPiA+IE9uIE5vdiAyNywgMjAxOCwgYXQgNDowNyBQTSwgUmljayBFZGdlY29tYmUgPHJp
+Y2sucC5lZGdlY29tYmVAaW50ZWwuY29tPg0KPiA+ID4gd3JvdGU6DQo+ID4gPiANCj4gPiA+IFNp
+bmNlIHZmcmVlIHdpbGwgbGF6aWx5IGZsdXNoIHRoZSBUTEIsIGJ1dCBub3QgbGF6aWx5IGZyZWUg
+dGhlIHVuZGVybHlpbmcNCj4gPiA+IHBhZ2VzLA0KPiA+ID4gaXQgb2Z0ZW4gbGVhdmVzIHN0YWxl
+IFRMQiBlbnRyaWVzIHRvIGZyZWVkIHBhZ2VzIHRoYXQgY291bGQgZ2V0IHJlLXVzZWQuDQo+ID4g
+PiBUaGlzIGlzDQo+ID4gPiB1bmRlc2lyYWJsZSBmb3IgY2FzZXMgd2hlcmUgdGhlIG1lbW9yeSBi
+ZWluZyBmcmVlZCBoYXMgc3BlY2lhbCBwZXJtaXNzaW9ucw0KPiA+ID4gc3VjaA0KPiA+ID4gYXMg
+ZXhlY3V0YWJsZS4NCj4gPiANCj4gPiBTbyBJIGFtIHRyeWluZyB0byBmaW5pc2ggbXkgcGF0Y2gt
+c2V0IGZvciBwcmV2ZW50aW5nIHRyYW5zaWVudCBXK1ggbWFwcGluZ3MNCj4gPiBmcm9tIHRha2lu
+ZyBzcGFjZSwgYnkgaGFuZGxpbmcga3Byb2JlcyAmIGZ0cmFjZSB0aGF0IEkgbWlzc2VkICh0aGFu
+a3MgYWdhaW4NCj4gPiBmb3INCj4gPiBwb2ludGluZyBpdCBvdXQpLg0KPiA+IA0KPiA+IEJ1dCBh
+bGwgb2YgdGhlIHN1ZGRlbiwgSSBkb27igJl0IHVuZGVyc3RhbmQgd2h5IHdlIGhhdmUgdGhlIHBy
+b2JsZW0gdGhhdCB0aGlzDQo+ID4gKHlvdXIpIHBhdGNoLXNldCBkZWFscyB3aXRoIGF0IGFsbC4g
+V2UgYWxyZWFkeSBjaGFuZ2UgdGhlIG1hcHBpbmdzIHRvIG1ha2UNCj4gPiB0aGUgbWVtb3J5IHdy
+aXRhYmxlIGJlZm9yZSBmcmVlaW5nIHRoZSBtZW1vcnksIHNvIHdoeSBjYW7igJl0IHdlIG1ha2Ug
+aXQNCj4gPiBub24tZXhlY3V0YWJsZSBhdCB0aGUgc2FtZSB0aW1lPyBBY3R1YWxseSwgd2h5IGRv
+IHdlIG1ha2UgdGhlIG1vZHVsZSBtZW1vcnksDQo+ID4gaW5jbHVkaW5nIGl0cyBkYXRhIGV4ZWN1
+dGFibGUgYmVmb3JlIGZyZWVpbmcgaXQ/Pz8NCj4gDQo+IFllYWgsIHRoaXMgaXMgcmVhbGx5IGNv
+bmZ1c2luZywgYnV0IEkgaGF2ZSBhIHN1c3BpY2lvbiBpdCdzIGEgY29tYmluYXRpb24NCj4gb2Yg
+dGhlIHZhcmlvdXMgZGlmZmVyZW50IGNvbmZpZ3VyYXRpb25zIGFuZCBoeXN0ZXJpY2FsIHJhaXNp
+bnMuIFdlIGNhbid0DQo+IHJlbHkgb24gbW9kdWxlX2FsbG9jKCkgYWxsb2NhdGluZyBmcm9tIHRo
+ZSB2bWFsbG9jIGFyZWEgKHNlZSBuaW9zMikgbm9yDQo+IGNhbiB3ZSByZWx5IG9uIGRpc2FibGVf
+cm9fbngoKSBiZWluZyBhdmFpbGFibGUgYXQgYnVpbGQgdGltZS4NCj4gDQo+IElmIHdlICpjb3Vs
+ZCogcmVseSBvbiBtb2R1bGUgYWxsb2NhdGlvbnMgYWx3YXlzIHVzaW5nIHZtYWxsb2MoKSwgdGhl
+bg0KPiB3ZSBjb3VsZCBwYXNzIGluIFJpY2sncyBuZXcgZmxhZyBhbmQgZHJvcCBkaXNhYmxlX3Jv
+X254KCkgYWx0b2dldGhlcg0KPiBhZmFpY3QgLS0gd2hvIGNhcmVzIGFib3V0IHRoZSBtZW1vcnkg
+YXR0cmlidXRlcyBvZiBhIG1hcHBpbmcgdGhhdCdzIGFib3V0DQo+IHRvIGRpc2FwcGVhciBhbnl3
+YXk/DQo+IA0KPiBJcyBpdCBqdXN0IG5pb3MyIHRoYXQgZG9lcyBzb21ldGhpbmcgZGlmZmVyZW50
+Pw0KPiANCj4gV2lsbA0KDQpZZWEgaXQgaXMgcmVhbGx5IGludGVydHdpbmVkLiBJIHRoaW5rIGZv
+ciB4ODYsIHNldF9tZW1vcnlfbnggZXZlcnl3aGVyZSB3b3VsZA0Kc29sdmUgaXQgYXMgd2VsbCwg
+aW4gZmFjdCB0aGF0IHdhcyB3aGF0IEkgZmlyc3QgdGhvdWdodCB0aGUgc29sdXRpb24gc2hvdWxk
+IGJlDQp1bnRpbCB0aGlzIHdhcyBzdWdnZXN0ZWQuIEl0J3MgaW50ZXJlc3RpbmcgdGhhdCBmcm9t
+IHRoZSBvdGhlciB0aHJlYWQgTWFzYW1pDQpIaXJhbWF0c3UgcmVmZXJlbmNlZCwgc2V0X21lbW9y
+eV9ueCB3YXMgc3VnZ2VzdGVkIGxhc3QgeWVhciBhbmQgd291bGQgaGF2ZQ0KaW5hZHZlcnRlbnRs
+eSBibG9ja2VkIHRoaXMgb24geDg2LiBCdXQsIG9uIHRoZSBvdGhlciBhcmNoaXRlY3R1cmVzIEkg
+aGF2ZSBzaW5jZQ0KbGVhcm5lZCBpdCBpcyBhIGJpdCBkaWZmZXJlbnQuDQoNCkl0IGxvb2tzIGxp
+a2UgYWN0dWFsbHkgbW9zdCBhcmNoJ3MgZG9uJ3QgcmUtZGVmaW5lIHNldF9tZW1vcnlfKiwgYW5k
+IHNvIGFsbCBvZg0KdGhlIGZyb2JfKiBmdW5jdGlvbnMgYXJlIGFjdHVhbGx5IGp1c3Qgbm9vcHMu
+IEluIHdoaWNoIGNhc2UgYWxsb2NhdGluZyBSV1ggaXMNCm5lZWRlZCB0byBtYWtlIGl0IHdvcmsg
+YXQgYWxsLCBiZWNhdXNlIHRoYXQgaXMgd2hhdCB0aGUgYWxsb2NhdGlvbiBpcyBnb2luZyB0bw0K
+c3RheSBhdC4gU28gaW4gdGhlc2UgYXJjaHMsIHNldF9tZW1vcnlfbnggd29uJ3Qgc29sdmUgaXQg
+YmVjYXVzZSBpdCB3aWxsIGRvDQpub3RoaW5nLg0KDQpPbiB4ODYgSSB0aGluayB5b3UgY2Fubm90
+IGdldCByaWQgb2YgZGlzYWJsZV9yb19ueCBmdWxseSBiZWNhdXNlIHRoZXJlIGlzIHRoZQ0KY2hh
+bmdpbmcgb2YgdGhlIHBlcm1pc3Npb25zIG9uIHRoZSBkaXJlY3RtYXAgYXMgd2VsbC4gWW91IGRv
+bid0IHdhbnQgc29tZSBvdGhlcg0KY2FsbGVyIGdldHRpbmcgYSBwYWdlIHRoYXQgd2FzIGxlZnQg
+Uk8gd2hlbiBmcmVlZCBhbmQgdGhlbiB0cnlpbmcgdG8gd3JpdGUgdG8NCml0LCBpZiBJIHVuZGVy
+c3RhbmQgdGhpcy4NCg0KVGhlIG90aGVyIHJlYXNvbmluZyB3YXMgdGhhdCBjYWxsaW5nIHNldF9t
+ZW1vcnlfbnggaXNuJ3QgZG9pbmcgd2hhdCB3ZSBhcmUNCmFjdHVhbGx5IHRyeWluZyB0byBkbyB3
+aGljaCBpcyBwcmV2ZW50IHRoZSBwYWdlcyBmcm9tIGdldHRpbmcgcmVsZWFzZWQgdG9vDQplYXJs
+eS4NCg0KQSBtb3JlIGNsZWFyIHNvbHV0aW9uIGZvciBhbGwgb2YgdGhpcyBtaWdodCBpbnZvbHZl
+IHJlZmFjdG9yaW5nIHNvbWUgb2YgdGhlDQpzZXRfbWVtb3J5XyBkZS1hbGxvY2F0aW9uIGxvZ2lj
+IG91dCBpbnRvIF9fd2VhayBmdW5jdGlvbnMgaW4gZWl0aGVyIG1vZHVsZXMgb3INCnZtYWxsb2Mu
+IEFzIEplc3NpY2EgcG9pbnRzIG91dCBpbiB0aGUgb3RoZXIgdGhyZWFkIHRob3VnaCwgbW9kdWxl
+cyBkb2VzIGEgbG90DQptb3JlIHN0dWZmIHRoZXJlIHRoYW4gdGhlIG90aGVyIG1vZHVsZV9hbGxv
+YyBjYWxsZXJzLiBJIHRoaW5rIGl0IG1heSB0YWtlIHNvbWUNCnRob3VnaHQgdG8gY2VudHJhbGl6
+ZSBBTkQgbWFrZSBpdCBvcHRpbWFsIGZvciBldmVyeSBtb2R1bGVfYWxsb2Mvdm1hbGxvY19leGVj
+DQp1c2VyIGFuZCBhcmNoLg0KDQpCdXQgZm9yIG5vdyB3aXRoIHRoZSBjaGFuZ2UgaW4gdm1hbGxv
+Yywgd2UgY2FuIGJsb2NrIHRoZSBleGVjdXRhYmxlIG1hcHBpbmcNCmZyZWVkIHBhZ2UgcmUtdXNl
+IGlzc3VlIGluIGEgY3Jvc3MgcGxhdGZvcm0gd2F5Lg0KDQpUaGFua3MsDQoNClJpY2sNCg0K
