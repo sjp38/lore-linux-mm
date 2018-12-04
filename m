@@ -1,178 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C4438E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:14:50 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id v74-v6so1901138lje.6
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:14:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l20-v6sor16160614lji.21.2018.12.21.10.14.48
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A3F9F6B6DCF
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 03:45:43 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id m16so8605190pgd.0
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 00:45:43 -0800 (PST)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id z136si15432121pgz.28.2018.12.04.00.45.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Dec 2018 10:14:48 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 02/12] __wr_after_init: linker section and label
-Date: Fri, 21 Dec 2018 20:14:13 +0200
-Message-Id: <20181221181423.20455-3-igor.stoppa@huawei.com>
-In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
-References: <20181221181423.20455-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Dec 2018 00:45:42 -0800 (PST)
+Reply-To: xlpang@linux.alibaba.com
+Subject: Re: [PATCH 2/3] mm/vmscan: Enable kswapd to reclaim low-protected
+ memory
+References: <20181203080119.18989-1-xlpang@linux.alibaba.com>
+ <20181203080119.18989-2-xlpang@linux.alibaba.com>
+ <20181203115646.GP31738@dhcp22.suse.cz>
+ <54a3f0a6-6e7d-c620-97f2-ac567c057bc2@linux.alibaba.com>
+ <20181203172007.GG31738@dhcp22.suse.cz>
+ <a77ed2a6-ed9b-4c1b-e2e9-fb9a5108c1f9@linux.alibaba.com>
+ <20181204072508.GU31738@dhcp22.suse.cz>
+From: Xunlei Pang <xlpang@linux.alibaba.com>
+Message-ID: <4e06fac2-7269-23a7-e4f5-18928998ece2@linux.alibaba.com>
+Date: Tue, 4 Dec 2018 16:44:40 +0800
 MIME-Version: 1.0
+In-Reply-To: <20181204072508.GU31738@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Introduce a section and a label for statically allocated write rare
-data. The label is named "__wr_after_init".
-As the name implies, after the init phase is completed, this section
-will be modifiable only by invoking write rare functions.
-The section must take up a set of full pages.
+On 2018/12/4 PM 3:25, Michal Hocko wrote:
+> On Tue 04-12-18 10:40:29, Xunlei Pang wrote:
+>> On 2018/12/4 AM 1:22, Michal Hocko wrote:
+>>> On Mon 03-12-18 23:20:31, Xunlei Pang wrote:
+>>>> On 2018/12/3 下午7:56, Michal Hocko wrote:
+>>>>> On Mon 03-12-18 16:01:18, Xunlei Pang wrote:
+>>>>>> There may be cgroup memory overcommitment, it will become
+>>>>>> even common in the future.
+>>>>>>
+>>>>>> Let's enable kswapd to reclaim low-protected memory in case
+>>>>>> of memory pressure, to mitigate the global direct reclaim
+>>>>>> pressures which could cause jitters to the response time of
+>>>>>> lantency-sensitive groups.
+>>>>>
+>>>>> Please be more descriptive about the problem you are trying to handle
+>>>>> here. I haven't actually read the patch but let me emphasise that the
+>>>>> low limit protection is important isolation tool. And allowing kswapd to
+>>>>> reclaim protected memcgs is going to break the semantic as it has been
+>>>>> introduced and designed.
+>>>>
+>>>> We have two types of memcgs: online groups(important business)
+>>>> and offline groups(unimportant business). Online groups are
+>>>> all configured with MAX low protection, while offline groups
+>>>> are not at all protected(with default 0 low).
+>>>>
+>>>> When offline groups are overcommitted, the global memory pressure
+>>>> suffers. This will cause the memory allocations from online groups
+>>>> constantly go to the slow global direct reclaim in order to reclaim
+>>>> online's page caches, as kswap is not able to reclaim low-protection
+>>>> memory. low is not hard limit, it's reasonable to be reclaimed by
+>>>> kswapd if there's no other reclaimable memory.
+>>>
+>>> I am sorry I still do not follow. What role do offline cgroups play.
+>>> Those are certainly not low mem protected because mem_cgroup_css_offline
+>>> will reset them to 0.
+>>>
+>>
+>> Oh, I meant "offline groups" to be "offline-business groups", memcgs
+>> refered to here are all "online state" from kernel's perspective.
+> 
+> What is offline-business group? Please try to explain the actual problem
+> in much more details and do not let us guess.
+> 
 
-To activate both section and label, the arch must set CONFIG_ARCH_HAS_PRMEM
+Maybe I choosed the wrong word, let me rephase it, and
+here is an example.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+                root 200GB
+           /                  \
+important(100GB)  unimportant(100GB+DYNAMIC)
+  /     |      \         /          \
+docker0 docker1...  normal(100GB) oversold(DYNAMIC)
+                      /  |  \      / |  \
+                     j0 j1 ...    w0 w1 ...
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
-CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- arch/Kconfig                      | 15 +++++++++++++++
- include/asm-generic/vmlinux.lds.h | 25 +++++++++++++++++++++++++
- include/linux/cache.h             | 21 +++++++++++++++++++++
- init/main.c                       |  2 ++
- 4 files changed, 63 insertions(+)
+"DYNAMIC" is controlled by the cluster job scheduler dynamically,
+it periodically samples the available system memory(/proc/meminfo
+"MemAvailable"), and use part of that to launch oversold jobs
+under some special conditions. When "oversold" is active, the
+whole system is put under heavy global memory pressure although
+memcgs are not.
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index e1e540ffa979..8668ffec8098 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -802,6 +802,21 @@ config VMAP_STACK
- 	  the stack to map directly to the KASAN shadow map using a formula
- 	  that is incorrect if the stack is in vmalloc space.
- 
-+config ARCH_HAS_PRMEM
-+	def_bool n
-+	help
-+	  architecture specific symbol stating that the architecture provides
-+	  a back-end function for the write rare operation.
-+
-+config PRMEM
-+	bool "Write protect critical data that doesn't need high write speed."
-+	depends on ARCH_HAS_PRMEM
-+	default y
-+	help
-+	  If the architecture supports it, statically allocated data which
-+	  has been selected for hardening becomes (mostly) read-only.
-+	  The selection happens by labelling the data "__wr_after_init".
-+
- config ARCH_OPTIONAL_KERNEL_RWX
- 	def_bool n
- 
-diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
-index 3d7a6a9c2370..ddb1fd608490 100644
---- a/include/asm-generic/vmlinux.lds.h
-+++ b/include/asm-generic/vmlinux.lds.h
-@@ -311,6 +311,30 @@
- 	KEEP(*(__jump_table))						\
- 	__stop___jump_table = .;
- 
-+/*
-+ * Allow architectures to handle wr_after_init data on their
-+ * own by defining an empty WR_AFTER_INIT_DATA.
-+ * However, it's important that pages containing WR_RARE data do not
-+ * hold anything else, to avoid both accidentally unprotecting something
-+ * that is supposed to stay read-only all the time and also to protect
-+ * something else that is supposed to be writeable all the time.
-+ */
-+#ifndef WR_AFTER_INIT_DATA
-+#ifdef CONFIG_PRMEM
-+#define WR_AFTER_INIT_DATA(align)					\
-+	. = ALIGN(PAGE_SIZE);						\
-+	__start_wr_after_init = .;					\
-+	. = ALIGN(align);						\
-+	*(.data..wr_after_init)						\
-+	. = ALIGN(PAGE_SIZE);						\
-+	__end_wr_after_init = .;					\
-+	. = ALIGN(align);
-+#else
-+#define WR_AFTER_INIT_DATA(align)					\
-+	. = ALIGN(align);
-+#endif
-+#endif
-+
- /*
-  * Allow architectures to handle ro_after_init data on their
-  * own by defining an empty RO_AFTER_INIT_DATA.
-@@ -332,6 +356,7 @@
- 		__start_rodata = .;					\
- 		*(.rodata) *(.rodata.*)					\
- 		RO_AFTER_INIT_DATA	/* Read only after init */	\
-+		WR_AFTER_INIT_DATA(align) /* wr after init */	\
- 		KEEP(*(__vermagic))	/* Kernel version magic */	\
- 		. = ALIGN(8);						\
- 		__start___tracepoints_ptrs = .;				\
-diff --git a/include/linux/cache.h b/include/linux/cache.h
-index 750621e41d1c..09bd0b9284b6 100644
---- a/include/linux/cache.h
-+++ b/include/linux/cache.h
-@@ -31,6 +31,27 @@
- #define __ro_after_init __attribute__((__section__(".data..ro_after_init")))
- #endif
- 
-+/*
-+ * __wr_after_init is used to mark objects that cannot be modified
-+ * directly after init (i.e. after mark_rodata_ro() has been called).
-+ * These objects become effectively read-only, from the perspective of
-+ * performing a direct write, like a variable assignment.
-+ * However, they can be altered through a dedicated function.
-+ * It is intended for those objects which are occasionally modified after
-+ * init, however they are modified so seldomly, that the extra cost from
-+ * the indirect modification is either negligible or worth paying, for the
-+ * sake of the protection gained.
-+ */
-+#ifndef __wr_after_init
-+#ifdef CONFIG_PRMEM
-+#define __wr_after_init \
-+		__attribute__((__section__(".data..wr_after_init")))
-+#else
-+#define __wr_after_init
-+#endif
-+#endif
-+
-+
- #ifndef ____cacheline_aligned
- #define ____cacheline_aligned __attribute__((__aligned__(SMP_CACHE_BYTES)))
- #endif
-diff --git a/init/main.c b/init/main.c
-index a461150adfb1..a36f2e54f937 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -498,6 +498,7 @@ void __init __weak thread_stack_cache_init(void)
- void __init __weak mem_encrypt_init(void) { }
- 
- void __init __weak poking_init(void) { }
-+void __init __weak wr_poking_init(void) { }
- 
- bool initcall_debug;
- core_param(initcall_debug, initcall_debug, bool, 0644);
-@@ -734,6 +735,7 @@ asmlinkage __visible void __init start_kernel(void)
- 	delayacct_init();
- 
- 	poking_init();
-+	wr_poking_init();
- 	check_bugs();
- 
- 	acpi_subsystem_init();
--- 
-2.19.1
+IOW "DYNAMIC" is primarily borrowed from "dockers" temporarily,
+oversold workers will be killed in a timely fashion if "dockers"
+needs their memory back suddenly which is rare.
+
+If kswapd doesn't reclaim low-protected memory configured among
+"important" dockers, memory allocations from dockers will trap
+into global direct reclaim constantly which harms their performance
+and response time. The inactive caches from dockers are allowed
+to be reclaimed although they are under low-protected(we used a
+simple MAX setting), we allow the inactive low-protected memory
+to be reclaimed immediately and asynchronously as long as there's
+no unprotected reclaimable memory. Its's also friendly to disk IO.
+
+For really latency-sensitive docker, memory.min is supposed to be
+used to guarantee its memory QoS.
+
+Thanks
