@@ -1,100 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D43266B75DB
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 14:07:57 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id w15so10314597edl.21
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 11:07:57 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 94si309902edl.165.2018.12.05.11.07.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 11:07:56 -0800 (PST)
-Date: Wed, 5 Dec 2018 20:07:54 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC Get rid of shrink code - memory-hotplug]
-Message-ID: <20181205190754.GU1286@dhcp22.suse.cz>
-References: <72455c1d4347d263cb73517187bc1394@suse.de>
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 77A0D6B6EA7
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 07:43:33 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o21so8189565edq.4
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 04:43:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <72455c1d4347d263cb73517187bc1394@suse.de>
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Tue, 04 Dec 2018 13:43:31 +0100
+From: osalvador@suse.de
+Subject: Re: [RFC Get rid of shrink code - memory-hotplug]
+In-Reply-To: <e167e2b9-f8b6-e322-b469-358096a97bda@redhat.com>
+References: <72455c1d4347d263cb73517187bc1394@suse.de>
+ <e167e2b9-f8b6-e322-b469-358096a97bda@redhat.com>
+Message-ID: <39aa34058fc9641346456463afc2082d@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: osalvador@suse.de
-Cc: david@redhat.com, dan.j.williams@gmail.com, pasha.tatashin@soleen.com, linux-mm@kvack.org
+To: David Hildenbrand <david@redhat.com>
+Cc: mhocko@suse.com, dan.j.williams@gmail.com, pasha.tatashin@soleen.com, linux-mm@kvack.org, owner-linux-mm@kvack.org
 
-On Tue 04-12-18 10:26:00, osalvador@suse.de wrote:
-[...]
-> __pageblock_pfn_to_page()->pfn_to_online_page()
->      In case zone->contiguous, we just return with pfn_to_page().
->      So we just need to make sure that zone->contiguous has the right value.
+On 2018-12-04 12:31, David Hildenbrand wrote:
+  > If I am not wrong, zone_contiguous is a pure mean for performance
+> improvement, right? So leaving zone_contiguous unset is always save. I
+> always disliked the whole clear/set_zone_contiguous thingy. I wonder if
+> we can find a different way to boost performance there (in the general
+> case). Or is this (zone_contiguous) even worth keeping around at all 
+> for
+> now? (do we have performance numbers?)
 
-Or we can consider removing this optimization altogether. THe only
-consumer is compaction and I do not see this to be a hot path.
+It looks like it was introduced by 7cf91a98e607
+("mm/compaction: speed up pageblock_pfn_to_page() when zone is 
+contiguous").
 
->  * create_mem_extents
->    - What?
+The improve numbers are in the commit.
+So I would say that we need to keep it around.
 
-I have crossed that code as well and I cannot say I follow. Anyway I
-suspect we should be safe after saveable_*_page uses pfn_to_online_page
-is used and David has laready sent a patch for that.
 
->  * vmemmap_find_next_valid_pfn()
->    - I am not really sure if this represents a problem
+> I'd say let's give it a try and find out if we are missing something. 
+> +1
+> to simplifying that code.
 
-git grep doesn't see any user of this function.
+I will work on a patch removing this and I will integrate it in [1].
+Then I will run some tests to see if I can catch something bad.
 
->  * kmemleak_scan()
->    - It is ok, but I think we should check for the pfn to belong to the node
-> here?
+[1] https://patchwork.kernel.org/cover/10700783/
 
-This wants to use pfn_to_online_page and chech the node id. Checking the
-node_id would be an optimization because interleaving nodes would check
-the same pfn multiple times.
+Thanks for taking a look!
 
->  * Crash core:
->    - VMCOREINFO_OFFSET(pglist_data, node_start_pfn) is this a problem?
-
-My understanding in this area is very minimal. But I do not see this to
-be a problem. Crash, as the only consumer should have to handle offline
-holes somehow anyway.
-
-> 
->  * lookup_page_ext()
->    - For !CONFIG_SPARSEMEM, node_start_pfn is used.
-
-HOTPLUG is SPARSEMEM only
-
-> So overall, besides a couple of places I am not sure it would cause trouble,
-> I would tend to say this is doable.
-
-Cool! Thanks for crawling all that code. This must have been really
-tedious.
-
-> Another thing that needs remark is that Patchset [3] aims for not
-> touching pages during hot-remove path, so we will have to find another
-> way to trigger clear/set_zone_contiguous, but that is another topic.
-
-I still didn't get around to look into that one, sorry.
-
-> While it is true that the current shrink code can be simplified as
-> showed in [2], I think that getting rid of it would be a nice thing to
-> do unless we need to keep the code around.
-
-Absolutely agreed.
-
-> I would like to hear other opinions though.
-> Is it too risky? Is there anything I overlooked that might cause trouble?
-> Did I miss anything?
-
-No, go ahead. This is a relict from the nasty zone shifting times. The
-more code we can get rid of the better.
- 
-> [1] https://patchwork.kernel.org/patch/10700791/
-> [2] https://patchwork.kernel.org/patch/10700791/
-> [3] https://patchwork.kernel.org/cover/10700783/
-
-Thanks a lot!
--- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
