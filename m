@@ -1,69 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 423876B7112
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 17:42:33 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id c14so13526388pls.21
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 14:42:33 -0800 (PST)
-Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id 205si18271426pfa.199.2018.12.04.14.42.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 04 Dec 2018 14:42:32 -0800 (PST)
-Date: Tue, 4 Dec 2018 14:42:27 -0800
-From: "tip-bot for Paul E. McKenney" <tipbot@zytor.com>
-Message-ID: <tip-ba180314253947f2a6057e21a0f92b5c314454b1@git.kernel.org>
-Reply-To: linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@kernel.org,
-        linux-mm@kvack.org, paulmck@linux.ibm.com, hpa@zytor.com,
-        akpm@linux-foundation.org, rostedt@goodmis.org
-Subject: [tip:core/rcu] main: Replace rcu_barrier_sched() with rcu_barrier()
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4736B754D
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 11:42:07 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id s3so9706227otb.0
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 08:42:07 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j62si9055126oia.268.2018.12.05.08.42.05
+        for <linux-mm@kvack.org>;
+        Wed, 05 Dec 2018 08:42:05 -0800 (PST)
+From: Steve Capper <steve.capper@arm.com>
+Subject: [PATCH V4 1/6] mm: mmap: Allow for "high" userspace addresses
+Date: Wed,  5 Dec 2018 16:41:40 +0000
+Message-Id: <20181205164145.24568-2-steve.capper@arm.com>
+In-Reply-To: <20181205164145.24568-1-steve.capper@arm.com>
+References: <20181205164145.24568-1-steve.capper@arm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-tip-commits@vger.kernel.org
-Cc: tglx@linutronix.de, akpm@linux-foundation.org, hpa@zytor.com, paulmck@linux.ibm.com, linux-mm@kvack.org, mingo@kernel.org, rostedt@goodmis.org
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com, Steve Capper <steve.capper@arm.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Commit-ID:  ba180314253947f2a6057e21a0f92b5c314454b1
-Gitweb:     https://git.kernel.org/tip/ba180314253947f2a6057e21a0f92b5c314454b1
-Author:     Paul E. McKenney <paulmck@linux.ibm.com>
-AuthorDate: Tue, 6 Nov 2018 18:58:01 -0800
-Committer:  Paul E. McKenney <paulmck@linux.ibm.com>
-CommitDate: Tue, 27 Nov 2018 09:21:41 -0800
+This patch adds support for "high" userspace addresses that are
+optionally supported on the system and have to be requested via a hint
+mechanism ("high" addr parameter to mmap).
 
-main: Replace rcu_barrier_sched() with rcu_barrier()
+Architectures such as powerpc and x86 achieve this by making changes to
+their architectural versions of arch_get_unmapped_* functions. However,
+on arm64 we use the generic versions of these functions.
 
-Now that all RCU flavors have been consolidated, rcu_barrier_sched()
-is but a synonym for rcu_barrier().  This commit therefore replaces
-the former with the latter.
+Rather than duplicate the generic arch_get_unmapped_* implementations
+for arm64, this patch instead introduces two architectural helper macros
+and applies them to arch_get_unmapped_*:
+ arch_get_mmap_end(addr) - get mmap upper limit depending on addr hint
+ arch_get_mmap_base(addr, base) - get mmap_base depending on addr hint
 
-Signed-off-by: Paul E. McKenney <paulmck@linux.ibm.com>
+If these macros are not defined in architectural code then they default
+to (TASK_SIZE) and (base) so should not introduce any behavioural
+changes to architectures that do not define them.
+
+Signed-off-by: Steve Capper <steve.capper@arm.com>
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: <linux-mm@kvack.org>
----
- init/main.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/init/main.c b/init/main.c
-index ee147103ba1b..a45486330243 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -1046,12 +1046,12 @@ static void mark_readonly(void)
- {
- 	if (rodata_enabled) {
- 		/*
--		 * load_module() results in W+X mappings, which are cleaned up
--		 * with call_rcu_sched().  Let's make sure that queued work is
-+		 * load_module() results in W+X mappings, which are cleaned
-+		 * up with call_rcu().  Let's make sure that queued work is
- 		 * flushed so that we don't hit false positives looking for
- 		 * insecure pages which are W+X.
- 		 */
--		rcu_barrier_sched();
-+		rcu_barrier();
- 		mark_rodata_ro();
- 		rodata_test();
- 	} else
+---
+
+Changed in V4, added Catalin's reviewed by
+
+Changed in V3, commit log cleared up, explanation given for why core
+code change over just architectural change
+---
+ mm/mmap.c | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 6c04292e16a7..7bb64381e77c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2066,6 +2066,15 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+ 	return gap_end;
+ }
+ 
++
++#ifndef arch_get_mmap_end
++#define arch_get_mmap_end(addr)	(TASK_SIZE)
++#endif
++
++#ifndef arch_get_mmap_base
++#define arch_get_mmap_base(addr, base) (base)
++#endif
++
+ /* Get an address range which is currently unmapped.
+  * For shmat() with addr=0.
+  *
+@@ -2085,8 +2094,9 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma, *prev;
+ 	struct vm_unmapped_area_info info;
++	const unsigned long mmap_end = arch_get_mmap_end(addr);
+ 
+-	if (len > TASK_SIZE - mmap_min_addr)
++	if (len > mmap_end - mmap_min_addr)
+ 		return -ENOMEM;
+ 
+ 	if (flags & MAP_FIXED)
+@@ -2095,7 +2105,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma_prev(mm, addr, &prev);
+-		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
++		if (mmap_end - len >= addr && addr >= mmap_min_addr &&
+ 		    (!vma || addr + len <= vm_start_gap(vma)) &&
+ 		    (!prev || addr >= vm_end_gap(prev)))
+ 			return addr;
+@@ -2104,7 +2114,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	info.flags = 0;
+ 	info.length = len;
+ 	info.low_limit = mm->mmap_base;
+-	info.high_limit = TASK_SIZE;
++	info.high_limit = mmap_end;
+ 	info.align_mask = 0;
+ 	return vm_unmapped_area(&info);
+ }
+@@ -2124,9 +2134,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long addr = addr0;
+ 	struct vm_unmapped_area_info info;
++	const unsigned long mmap_end = arch_get_mmap_end(addr);
+ 
+ 	/* requested length too big for entire address space */
+-	if (len > TASK_SIZE - mmap_min_addr)
++	if (len > mmap_end - mmap_min_addr)
+ 		return -ENOMEM;
+ 
+ 	if (flags & MAP_FIXED)
+@@ -2136,7 +2147,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma_prev(mm, addr, &prev);
+-		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
++		if (mmap_end - len >= addr && addr >= mmap_min_addr &&
+ 				(!vma || addr + len <= vm_start_gap(vma)) &&
+ 				(!prev || addr >= vm_end_gap(prev)))
+ 			return addr;
+@@ -2145,7 +2156,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+ 	info.length = len;
+ 	info.low_limit = max(PAGE_SIZE, mmap_min_addr);
+-	info.high_limit = mm->mmap_base;
++	info.high_limit = arch_get_mmap_base(addr, mm->mmap_base);
+ 	info.align_mask = 0;
+ 	addr = vm_unmapped_area(&info);
+ 
+@@ -2159,7 +2170,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 		VM_BUG_ON(addr != -ENOMEM);
+ 		info.flags = 0;
+ 		info.low_limit = TASK_UNMAPPED_BASE;
+-		info.high_limit = TASK_SIZE;
++		info.high_limit = mmap_end;
+ 		addr = vm_unmapped_area(&info);
+ 	}
+ 
+-- 
+2.19.2
