@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 24AF18E0001
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 03:26:54 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id t83so6502141oie.16
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 00:26:54 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k90sor7707555otk.104.2018.12.17.00.26.52
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 17 Dec 2018 00:26:52 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E8C6B740B
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 06:20:56 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id b18so12199457oii.1
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 03:20:56 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j66si8492324oif.159.2018.12.05.03.20.55
+        for <linux-mm@kvack.org>;
+        Wed, 05 Dec 2018 03:20:55 -0800 (PST)
+Subject: Re: [LKP] [mm] 19717e78a0: stderr.if(target_node==NUMA_NO_NODE){
+References: <20181205050057.GB23332@shao2-debian>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <d75d097f-78a5-865e-a80a-b1e6faeff337@arm.com>
+Date: Wed, 5 Dec 2018 16:50:57 +0530
 MIME-Version: 1.0
-From: vijay nag <vijunag@gmail.com>
-Date: Mon, 17 Dec 2018 13:56:40 +0530
-Message-ID: <CAKhyrx-gbHjzWyeUERrXhH2CGMEMZeFX66Q-POD7Q+hKwWA1kw@mail.gmail.com>
-Subject: Cgroups support for THP
-Content-Type: multipart/alternative; boundary="000000000000fd7415057d338a2d"
+In-Reply-To: <20181205050057.GB23332@shao2-debian>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: kernel test robot <rong.a.chen@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org, netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-media@vger.kernel.org, iommu@lists.linux-foundation.org, linux-rdma@vger.kernel.org, dmaengine@vger.kernel.org, linux-block@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org, linux-alpha@vger.kernel.org, akpm@linux-foundation.org, jiangqi903@gmail.com, hverkuil@xs4all.nl, vkoul@kernel.org, lkp@01.org
 
---000000000000fd7415057d338a2d
-Content-Type: text/plain; charset="UTF-8"
+On 12/05/2018 10:30 AM, kernel test robot wrote:
+> FYI, we noticed the following commit (built with gcc-7):
+> 
+> commit: 19717e78a04d51512cf0e7b9b09c61f06b2af071 ("[PATCH V2] mm: Replace all open encodings for NUMA_NO_NODE")
+> url: https://github.com/0day-ci/linux/commits/Anshuman-Khandual/mm-Replace-all-open-encodings-for-NUMA_NO_NODE/20181126-203831
+> 
+> 
+> in testcase: perf-sanity-tests
+> with following parameters:
+> 
+> 	perf_compiler: gcc
+> 	ucode: 0x7000013
+> 
+> 
+> 
+> on test machine: 16 threads Intel(R) Xeon(R) CPU D-1541 @ 2.10GHz with 8G memory
+> 
+> caused below changes (please refer to attached dmesg/kmsg for entire log/backtrace):
 
-Hello Linux-MM,
-
-My containerized application which is suppose to have a very low RSS(by
-default containers patterns are to have low memory footprint) seems to be
-getting its BSS segment RSS bloated due to THPs. Although there is a huge
-zero page support, the overhead seems to be at-least 2MB even when a byte
-is dirtied. Also there are tune-able to disable this feature,  but this
-seems to be a system wide setting. Is there a plan to make this setting
-cgroup aware ?
-
-Thanks,
-Vijay Nag
-
---000000000000fd7415057d338a2d
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>Hello Linux-MM, <br></div><div><br></div><div>My cont=
-ainerized application which is suppose to have a very low RSS(by default co=
-ntainers patterns are to have low memory footprint) seems to be getting its=
- BSS segment RSS bloated due to THPs. Although there is a huge zero page su=
-pport, the overhead seems to be at-least 2MB even when a byte is dirtied. A=
-lso there are tune-able to disable this feature,=C2=A0 but this seems to be=
- a system wide setting. Is there a plan to make this setting cgroup aware ?=
-</div><div><br></div><div>Thanks,</div><div>Vijay Nag<br></div></div>
-
---000000000000fd7415057d338a2d--
+The fix (in Andrew's staging tree) from Stephen Rothwell which adds <linux/numa.h>
+definitions to <tools/include/linux/numa.h> should fix this.
