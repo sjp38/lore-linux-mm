@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A5E536B74D2
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 09:41:11 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id q11so9256518otl.23
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 06:41:11 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e12si9208418oiy.28.2018.12.05.06.41.10
-        for <linux-mm@kvack.org>;
-        Wed, 05 Dec 2018 06:41:10 -0800 (PST)
-Date: Wed, 5 Dec 2018 14:41:30 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page
- tables
-Message-ID: <20181205144130.GA16121@arm.com>
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A57206B72C9
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 00:51:29 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id g188so10458587pgc.22
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 21:51:29 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l185sor25312459pge.32.2018.12.04.21.51.28
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 04 Dec 2018 21:51:28 -0800 (PST)
+MIME-Version: 1.0
 References: <20181111090341.120786-1-drinkcat@chromium.org>
  <CANMq1KDxmRcWhtaJbrLHqx6yPGkNaK7WNYYf+iFjH1e8XdrwRg@mail.gmail.com>
- <b99dd00f-fe1c-1cac-8ee3-5b0c1af9a92e@suse.cz>
- <CANMq1KDzKJqJwGsW3A90JY_0kgDtAMjOikT-3C9zQG01=3dibQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+ <b99dd00f-fe1c-1cac-8ee3-5b0c1af9a92e@suse.cz> <CANMq1KDzKJqJwGsW3A90JY_0kgDtAMjOikT-3C9zQG01=3dibQ@mail.gmail.com>
 In-Reply-To: <CANMq1KDzKJqJwGsW3A90JY_0kgDtAMjOikT-3C9zQG01=3dibQ@mail.gmail.com>
+From: Nicolas Boichat <drinkcat@chromium.org>
+Date: Wed, 5 Dec 2018 13:51:16 +0800
+Message-ID: <CANMq1KAd4SzyWY+=fS4aeqyj_b3y7AUXmdoUWe3X1gq=ATOD5Q@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Boichat <drinkcat@chromium.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Robin Murphy <robin.murphy@arm.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Matthias Brugger <matthias.bgg@gmail.com>, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, Joerg Roedel <joro@8bytes.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, Hsin-Yi Wang <hsinyi@chromium.org>, Daniel Kurtz <djkurtz@chromium.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Robin Murphy <robin.murphy@arm.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Matthias Brugger <matthias.bgg@gmail.com>, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, Will Deacon <will.deacon@arm.com>, Joerg Roedel <joro@8bytes.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, Hsin-Yi Wang <hsinyi@chromium.org>, Daniel Kurtz <djkurtz@chromium.org>
 
-On Wed, Dec 05, 2018 at 10:04:00AM +0800, Nicolas Boichat wrote:
+On Wed, Dec 5, 2018 at 10:04 AM Nicolas Boichat <drinkcat@chromium.org> wrote:
+>
 > On Tue, Dec 4, 2018 at 10:35 PM Vlastimil Babka <vbabka@suse.cz> wrote:
 > >
 > > On 12/4/18 10:37 AM, Nicolas Boichat wrote:
@@ -71,15 +70,15 @@ On Wed, Dec 05, 2018 at 10:04:00AM +0800, Nicolas Boichat wrote:
 > > requirements are not broken for custom kmem caches even in presence of
 > > SLUB debug options (and I would say it's a bug to be fixed if they
 > > weren't).
-> 
+>
 > > I just asked (and didn't get a reply I think) about your
 > > ability to handle the GFP_ATOMIC allocation failures. They should be
 > > rare when only single page allocations are needed for the kmem cache.
 > > But in case they are not an option, then preallocating would be needed,
 > > thus probably option 2.
-> 
+>
 > Oh, sorry, I missed your question.
-> 
+>
 > I don't have a full answer, but:
 > - The allocations themselves are rare (I count a few 10s of L2 tables
 > at most on my system, I assume we rarely have >100), and yes, we only
@@ -92,8 +91,19 @@ On Wed, Dec 05, 2018 at 10:04:00AM +0800, Nicolas Boichat wrote:
 > need to use GFP_ATOMIC. I suggest we just keep an eye on such issues,
 > and address them if they show up (we can even revisit genalloc at that
 > stage).
+>
+> Anyway, I'll clean up patches for 1 (mostly commit message changes
+> based on the comments in the threads) and resend.
 
-I think the spinlock is the least of our worries: the map/unmap routines
-can be called in irq context and may need to allocate second-level tables.
+Done here: https://patchwork.kernel.org/cover/10713019/ .
 
-Will
+> Thanks,
+>
+> > > [2] https://patchwork.kernel.org/cover/10677529/, 3 patches
+> > > [3] https://patchwork.codeaurora.org/patch/671639/
+> > >
+> > > Thanks,
+> > >
+> > > Nicolas
+> > >
+> >
