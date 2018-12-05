@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 61B4D6B757C
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 12:31:01 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id v8so8984297ioq.5
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 09:31:01 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id a7si12223856jai.54.2018.12.05.09.30.59
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F0BE6B73EC
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 05:52:28 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id j8so4982055plb.1
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 02:52:28 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f13si21222238plm.393.2018.12.05.02.52.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Dec 2018 09:30:59 -0800 (PST)
-References: <f759cc28-309d-930c-da7d-34144a4d5517@deltatee.com>
- <20181204201347.GK2937@redhat.com>
- <2f146730-1bf9-db75-911d-67809fc7afef@deltatee.com>
- <20181204205902.GM2937@redhat.com>
- <e4d8bf6b-5b2c-58a5-577b-66d02f2342c1@deltatee.com>
- <20181204215146.GO2937@redhat.com>
- <c5cf87e8-9104-c2e6-9646-188f66fec581@deltatee.com>
- <20181204235630.GQ2937@redhat.com>
- <b77849e1-e05a-1071-7c48-ac93191e3134@deltatee.com>
- <CAPcyv4ihEesx1G1on6JA8qZ6RooOsgO2CL_=1gXVMXpMJW_N9w@mail.gmail.com>
- <20181205023724.GF3045@redhat.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <2f53e0c0-a8af-b003-5bd7-a341431908df@deltatee.com>
-Date: Wed, 5 Dec 2018 10:25:31 -0700
-MIME-Version: 1.0
-In-Reply-To: <20181205023724.GF3045@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Dec 2018 02:52:26 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB5Amtjw070521
+	for <linux-mm@kvack.org>; Wed, 5 Dec 2018 05:52:26 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2p6by1c07h-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 05 Dec 2018 05:52:26 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 5 Dec 2018 10:52:23 -0000
+Date: Wed, 5 Dec 2018 12:52:11 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
 Subject: Re: [RFC PATCH 02/14] mm/hms: heterogenenous memory system (HMS)
  documentation
+References: <20181203233509.20671-1-jglisse@redhat.com>
+ <20181203233509.20671-3-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181203233509.20671-3-jglisse@redhat.com>
+Message-Id: <20181205105210.GD19181@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Haggai Eran <haggaie@mellanox.com>, balbirs@au1.ibm.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "Kuehling, Felix" <felix.kuehling@amd.com>, Philip.Yang@amd.com, "Koenig, Christian" <christian.koenig@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, John Hubbard <jhubbard@nvidia.com>, rcampbell@nvidia.com
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Rafael J . Wysocki" <rafael@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <balbirs@au1.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Logan Gunthorpe <logang@deltatee.com>, John Hubbard <jhubbard@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Michal Hocko <mhocko@kernel.org>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>, Mel Gorman <mgorman@techsingularity.net>, Dave Airlie <airlied@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-
-
-On 2018-12-04 7:37 p.m., Jerome Glisse wrote:
->>
->> This came up before for apis even better defined than HMS as well as
->> more limited scope, i.e. experimental ABI availability only for -rc
->> kernels. Linus said this:
->>
->> "There are no loopholes. No "but it's been only one release". No, no,
->> no. The whole point is that users are supposed to be able to *trust*
->> the kernel. If we do something, we keep on doing it.
->>
->> And if it makes it harder to add new user-visible interfaces, then
->> that's a *good* thing." [1]
->>
->> The takeaway being don't land work-in-progress ABIs in the kernel.
->> Once an application depends on it, there are no more incompatible
->> changes possible regardless of the warnings, experimental notices, or
->> "staging" designation. DAX is experimental because there are cases
->> where it currently does not work with respect to another kernel
->> feature like xfs-reflink, RDMA. The plan is to fix those, not continue
->> to hide behind an experimental designation, and fix them in a way that
->> preserves the user visible behavior that has already been exposed,
->> i.e. no regressions.
->>
->> [1]: https://lists.linuxfoundation.org/pipermail/ksummit-discuss/2017-August/004742.html
+On Mon, Dec 03, 2018 at 06:34:57PM -0500, jglisse@redhat.com wrote:
+> From: J�r�me Glisse <jglisse@redhat.com>
 > 
-> So i guess i am heading down the vXX road ... such is my life :)
+> Add documentation to what is HMS and what it is for (see patch content).
+> 
+> Signed-off-by: J�r�me Glisse <jglisse@redhat.com>
+> Cc: Rafael J. Wysocki <rafael@kernel.org>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Haggai Eran <haggaie@mellanox.com>
+> Cc: Balbir Singh <balbirs@au1.ibm.com>
+> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Felix Kuehling <felix.kuehling@amd.com>
+> Cc: Philip Yang <Philip.Yang@amd.com>
+> Cc: Christian K�nig <christian.koenig@amd.com>
+> Cc: Paul Blinzer <Paul.Blinzer@amd.com>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Jonathan Cameron <jonathan.cameron@huawei.com>
+> Cc: Mark Hairgrove <mhairgrove@nvidia.com>
+> Cc: Vivek Kini <vkini@nvidia.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Dave Airlie <airlied@redhat.com>
+> Cc: Ben Skeggs <bskeggs@redhat.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  Documentation/vm/hms.rst | 275 ++++++++++++++++++++++++++++++++++-----
+>  1 file changed, 246 insertions(+), 29 deletions(-)
 
-I recommend against it. I really haven't been convinced by any of your
-arguments for having a second topology tree. The existing topology tree
-in sysfs already better describes the links between hardware right now,
-except for the missing GPU links (and those should be addressable within
-the GPU community). Plus, maybe, some other enhancements to sockets/numa
-node descriptions if there's something missing there.
+This document describes userspace API and it's better to put it into
+Documentation/admin-guide/mm.
+The Documentation/vm is more for description of design and implementation.
 
-Then, 'hbind' is another issue but I suspect it would be better
-implemented as an ioctl on existing GPU interfaces. I certainly can't
-see any benefit in using it myself.
+I've spotted a couple of typos, but I think it doesn't make sense to nitpick
+about them before  v10 or so ;-)
+ 
+> diff --git a/Documentation/vm/hms.rst b/Documentation/vm/hms.rst
+> index dbf0f71918a9..bd7c9e8e7077 100644
+> --- a/Documentation/vm/hms.rst
+> +++ b/Documentation/vm/hms.rst
 
-It's better to take an approach that would be less controversial with
-the community than to brow beat them with a patch set 20+ times until
-they take it.
-
-Logan
+-- 
+Sincerely yours,
+Mike.
