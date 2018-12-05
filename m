@@ -1,42 +1,61 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CC2936B74CB
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 09:35:13 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id b17so16836286pfc.11
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 06:35:13 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c3si20156079pls.73.2018.12.05.06.35.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Dec 2018 06:35:12 -0800 (PST)
-Date: Wed, 5 Dec 2018 06:35:10 -0800
-From: Matthew Wilcox <willy@infradead.org>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Wed, 5 Dec 2018 13:59:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH RFC 7/7] mm: better document PG_reserved
-Message-ID: <20181205143510.GA17232@bombadil.infradead.org>
+Message-ID: <20181205125957.GN1286@dhcp22.suse.cz>
 References: <20181205122851.5891-1-david@redhat.com>
  <20181205122851.5891-8-david@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20181205122851.5891-8-david@redhat.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+Sender: linux-kernel-owner@vger.kernel.org
 To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Pavel Tatashin <pasha.tatashin@oracle.com>, Michal Hocko <mhocko@suse.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Anthony Yznaga <anthony.yznaga@oracle.com>, Miles Chen <miles.chen@mediatek.com>, yi.z.zhang@linux.intel.com, Dan Williams <dan.j.williams@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Pavel Tatashin <pasha.tatashin@oracle.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Anthony Yznaga <anthony.yznaga@oracle.com>, Miles Chen <miles.chen@mediatek.com>, yi.z.zhang@linux.intel.com, Dan Williams <dan.j.williams@intel.com>
+List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 05, 2018 at 01:28:51PM +0100, David Hildenbrand wrote:
+On Wed 05-12-18 13:28:51, David Hildenbrand wrote:
+> The usage of PG_reserved and how PG_reserved pages are to be treated is
+> burried deep down in different parts of the kernel. Let's shine some light
+> onto these details by documenting (most?) current users and expected
+> behavior.
+> 
 > I don't see a reason why we have to document "Some of them might not even
 > exist". If there is a user, we should document it. E.g. for balloon
 > drivers we now use PG_offline to indicate that a page might currently
 > not be backed by memory in the hypervisor. And that is independent from
 > PG_reserved.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Anthony Yznaga <anthony.yznaga@oracle.com>
+> Cc: Miles Chen <miles.chen@mediatek.com>
+> Cc: yi.z.zhang@linux.intel.com
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 
-I think you're confused by the meaning of "some of them might not even
-exist".  What this means is that there might not be memory there; maybe
-writes to that memory will be discarded, or maybe they'll cause a machine
-check.  Maybe reads will return ~0, or 0, or cause a machine check.
-We just don't know what's there, and we shouldn't try touching the memory.
+This looks like an improvement. The essential part is that PG_reserved
+page belongs to its user and no generic code should touch it. The rest
+is a description of current users which I haven't checked due to to lack
+of time but yeah, I like the updated wording because I have seen
+multiple people confused from the swapped out part which is not true for
+many many years. I have tried to dig out when it was actually the case
+but failed.
 
+So I cannot give my Ack because I didn't really do a real review but I
+like this FWIW.
+
+> ---
+>  include/linux/page-flags.h | 18 ++++++++++++++++--
+>  1 file changed, 16 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 68b8495e2fbc..112526f5ba61 100644
+> --- a/include/linux/page-flags.h
 > +++ b/include/linux/page-flags.h
 > @@ -17,8 +17,22 @@
 >  /*
@@ -60,5 +79,13 @@ We just don't know what's there, and we shouldn't try touching the memory.
 > + * PG_reserved (as they might be in use by somebody else who does not respect
 > + * the caching strategy). Consequently, PG_reserved for a page mapped into
 > + * user space can indicate the zero page, the vDSO, MMIO pages or device memory.
+>   *
+>   * The PG_private bitflag is set on pagecache pages if they contain filesystem
+>   * specific data (which is normally at page->private). It can be used by
+> -- 
+> 2.17.2
+> 
 
-So maybe just add one more option to the list.
+-- 
+Michal Hocko
+SUSE Labs
