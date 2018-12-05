@@ -1,147 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 655548E0014
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:29 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id n17so3538897pfk.23
-        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:29 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id d8si1744446plo.196.2018.12.13.22.28.27
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 879EB6B7221
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 22:10:06 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id i55so9180221ede.14
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 19:10:06 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c23si3749297edv.143.2018.12.04.19.10.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Dec 2018 22:28:27 -0800 (PST)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V9 16/21] swap: Support to copy PMD swap mapping when fork()
-Date: Fri, 14 Dec 2018 14:27:49 +0800
-Message-Id: <20181214062754.13723-17-ying.huang@intel.com>
-In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
-References: <20181214062754.13723-1-ying.huang@intel.com>
+        Tue, 04 Dec 2018 19:10:05 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB533lEV088380
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2018 22:10:03 -0500
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2p63xf60h5-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 04 Dec 2018 22:10:03 -0500
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Wed, 5 Dec 2018 03:10:02 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH V3 4/5] mm/hugetlb: Add prot_modify_start/commit sequence for hugetlb update
+Date: Wed,  5 Dec 2018 08:39:30 +0530
+In-Reply-To: <20181205030931.12037-1-aneesh.kumar@linux.ibm.com>
+References: <20181205030931.12037-1-aneesh.kumar@linux.ibm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <20181205030931.12037-5-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-During fork, the page table need to be copied from parent to child.  A
-PMD swap mapping need to be copied too and the swap reference count
-need to be increased.
+Architectures like ppc64 requires to do a conditional tlb flush based on the old
+and new value of pte. Follow the regular pte change protection sequence for
+hugetlb too. This allow the architectures to override the update sequence.
 
-When the huge swap cluster has been split already, we need to split
-the PMD swap mapping and fallback to PTE copying.
-
-When swap count continuation failed to allocate a page with
-GFP_ATOMIC, we need to unlock the spinlock and try again with
-GFP_KERNEL.
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 ---
- mm/huge_memory.c | 72 ++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 57 insertions(+), 15 deletions(-)
+ include/linux/hugetlb.h | 20 ++++++++++++++++++++
+ mm/hugetlb.c            |  8 +++++---
+ 2 files changed, 25 insertions(+), 3 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e460241ea761..b083c66a9d09 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -974,6 +974,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	if (unlikely(!pgtable))
- 		goto out;
- 
-+retry:
- 	dst_ptl = pmd_lock(dst_mm, dst_pmd);
- 	src_ptl = pmd_lockptr(src_mm, src_pmd);
- 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
-@@ -981,26 +982,67 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	ret = -EAGAIN;
- 	pmd = *src_pmd;
- 
--#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
- 	if (unlikely(is_swap_pmd(pmd))) {
- 		swp_entry_t entry = pmd_to_swp_entry(pmd);
- 
--		VM_BUG_ON(!is_pmd_migration_entry(pmd));
--		if (is_write_migration_entry(entry)) {
--			make_migration_entry_read(&entry);
--			pmd = swp_entry_to_pmd(entry);
--			if (pmd_swp_soft_dirty(*src_pmd))
--				pmd = pmd_swp_mksoft_dirty(pmd);
--			set_pmd_at(src_mm, addr, src_pmd, pmd);
-+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-+		if (is_migration_entry(entry)) {
-+			if (is_write_migration_entry(entry)) {
-+				make_migration_entry_read(&entry);
-+				pmd = swp_entry_to_pmd(entry);
-+				if (pmd_swp_soft_dirty(*src_pmd))
-+					pmd = pmd_swp_mksoft_dirty(pmd);
-+				set_pmd_at(src_mm, addr, src_pmd, pmd);
-+			}
-+			add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-+			mm_inc_nr_ptes(dst_mm);
-+			pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
-+			set_pmd_at(dst_mm, addr, dst_pmd, pmd);
-+			ret = 0;
-+			goto out_unlock;
- 		}
--		add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
--		mm_inc_nr_ptes(dst_mm);
--		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
--		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
--		ret = 0;
--		goto out_unlock;
--	}
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 087fd5f48c91..39e78b80375c 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -543,6 +543,26 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
+ 	set_huge_pte_at(mm, addr, ptep, pte);
+ }
  #endif
-+		if (IS_ENABLED(CONFIG_THP_SWAP) && !non_swap_entry(entry)) {
-+			ret = swap_duplicate(&entry, HPAGE_PMD_NR);
-+			if (!ret) {
-+				add_mm_counter(dst_mm, MM_SWAPENTS,
-+					       HPAGE_PMD_NR);
-+				mm_inc_nr_ptes(dst_mm);
-+				pgtable_trans_huge_deposit(dst_mm, dst_pmd,
-+							   pgtable);
-+				set_pmd_at(dst_mm, addr, dst_pmd, pmd);
-+				/* make sure dst_mm is on swapoff's mmlist. */
-+				if (unlikely(list_empty(&dst_mm->mmlist))) {
-+					spin_lock(&mmlist_lock);
-+					if (list_empty(&dst_mm->mmlist))
-+						list_add(&dst_mm->mmlist,
-+							 &src_mm->mmlist);
-+					spin_unlock(&mmlist_lock);
-+				}
-+			} else if (ret == -ENOTDIR) {
-+				/*
-+				 * The huge swap cluster has been split, split
-+				 * the PMD swap mapping and fallback to PTE
-+				 */
-+				__split_huge_swap_pmd(vma, addr, src_pmd);
-+				pte_free(dst_mm, pgtable);
-+			} else if (ret == -ENOMEM) {
-+				spin_unlock(src_ptl);
-+				spin_unlock(dst_ptl);
-+				ret = add_swap_count_continuation(entry,
-+								  GFP_KERNEL);
-+				if (ret < 0) {
-+					ret = -ENOMEM;
-+					pte_free(dst_mm, pgtable);
-+					goto out;
-+				}
-+				goto retry;
-+			} else
-+				VM_BUG_ON(1);
-+			goto out_unlock;
-+		}
-+		VM_BUG_ON(1);
-+	}
- 
- 	if (unlikely(!pmd_trans_huge(pmd))) {
- 		pte_free(dst_mm, pgtable);
++
++#ifndef huge_ptep_modify_prot_start
++#define huge_ptep_modify_prot_start huge_ptep_modify_prot_start
++static inline pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
++						unsigned long addr, pte_t *ptep)
++{
++	return huge_ptep_get_and_clear(vma->vm_mm, addr, ptep);
++}
++#endif
++
++#ifndef huge_ptep_modify_prot_commit
++#define huge_ptep_modify_prot_commit huge_ptep_modify_prot_commit
++static inline void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
++						unsigned long addr, pte_t *ptep,
++						pte_t old_pte, pte_t pte)
++{
++	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
++}
++#endif
++
+ #else	/* CONFIG_HUGETLB_PAGE */
+ struct hstate {};
+ #define alloc_huge_page(v, a, r) NULL
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 705a3e9cc910..353bff385595 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4388,10 +4388,12 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+ 			continue;
+ 		}
+ 		if (!huge_pte_none(pte)) {
+-			pte = huge_ptep_get_and_clear(mm, address, ptep);
+-			pte = pte_mkhuge(huge_pte_modify(pte, newprot));
++			pte_t old_pte;
++
++			old_pte = huge_ptep_modify_prot_start(vma, address, ptep);
++			pte = pte_mkhuge(huge_pte_modify(old_pte, newprot));
+ 			pte = arch_make_huge_pte(pte, vma, NULL, 0);
+-			set_huge_pte_at(mm, address, ptep, pte);
++			huge_ptep_modify_prot_commit(vma, address, ptep, old_pte, pte);
+ 			pages++;
+ 		}
+ 		spin_unlock(ptl);
 -- 
-2.18.1
+2.19.2
