@@ -1,78 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 31A908E0001
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2018 05:49:09 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id q63so23084082pfi.19
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 02:49:09 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u27si38587979pfa.103.2018.12.28.02.49.07
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 505886B7383
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 04:07:45 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id m16so10807179pgd.0
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 01:07:45 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id t63si17535120pgd.78.2018.12.05.01.07.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Dec 2018 02:49:07 -0800 (PST)
-Date: Fri, 28 Dec 2018 11:49:05 +0100
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: stable request: mm, page_alloc: actually ignore mempolicies for
- high priority allocations
-Message-ID: <20181228104905.GA15967@kroah.com>
-References: <a66fb268-74fe-6f4e-a99f-3257b8a5ac3b@vyatta.att-mail.com>
- <08ae2e51-672a-37de-2aa6-4e49dbc9de02@suse.cz>
- <fa553398-f4bf-3d57-376b-94593fb2c127@vyatta.att-mail.com>
- <20181108090154.GJ2453@dhcp22.suse.cz>
- <4ad07955-05d5-80ea-ebf1-876b0dc6347a@suse.cz>
- <7300a8a8-588a-2182-f11f-280cbce36fca@vyatta.att-mail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 05 Dec 2018 01:07:40 -0800 (PST)
+Date: Wed, 5 Dec 2018 10:07:34 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC v2 09/13] mm: Restrict memory encryption to anonymous VMA's
+Message-ID: <20181205090734.GA4234@hirez.programming.kicks-ass.net>
+References: <cover.1543903910.git.alison.schofield@intel.com>
+ <0b294e74f06a0d6bee51efcd7b0eb1f20b00babe.1543903910.git.alison.schofield@intel.com>
+ <20181204091044.GP11614@hirez.programming.kicks-ass.net>
+ <20181205053020.GB18596@alison-desk.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7300a8a8-588a-2182-f11f-280cbce36fca@vyatta.att-mail.com>
+In-Reply-To: <20181205053020.GB18596@alison-desk.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Manning <mmanning@vyatta.att-mail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, stable@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Alison Schofield <alison.schofield@intel.com>
+Cc: dhowells@redhat.com, tglx@linutronix.de, jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
-On Thu, Nov 08, 2018 at 09:41:37AM +0000, Mike Manning wrote:
-> On 08/11/2018 09:06, Vlastimil Babka wrote:
-> > On 11/8/18 10:01 AM, Michal Hocko wrote:
-> >> On Thu 08-11-18 08:30:40, Mike Manning wrote:
-> >> [...]
-> >>> 1) The original commit was not suitable for backport to 4.14 and should
-> >>> be reverted.
-> >> Yes, the original patch hasn't been marked for the stable tree and as
-> >> such shouldn't have been backported. Even though it looks simple enough
-> >> it is not really trivial.
-> > I think you confused the two patches.
-> >
-> > Original commit 1d26c112959f ("mm, page_alloc: do not break
-> > __GFP_THISNODE by zonelist reset") was marked for stable, especially
-> > pre-4.7 where SLAB could be potentially broken.
-> >
-> > Commit d6a24df00638 ("mm, page_alloc: actually ignore mempolicies for
-> > high priority allocations") was not marked stable and is being requested
-> > in this thread. But I'm reluctant to agree with this without properly
-> > understanding what went wrong.
+On Tue, Dec 04, 2018 at 09:30:20PM -0800, Alison Schofield wrote:
+> On Tue, Dec 04, 2018 at 10:10:44AM +0100, Peter Zijlstra wrote:
+> > > + * Encrypted mprotect is only supported on anonymous mappings.
+> > > + * All VMA's in the requested range must be anonymous. If this
+> > > + * test fails on any single VMA, the entire mprotect request fails.
+> > > + */
+> > > +bool mem_supports_encryption(struct vm_area_struct *vma, unsigned long end)
+> > 
+> > That's a 'weird' interface and cannot do what the comment says it should
+> > do.
 > 
-> Apologies, the original commit was not a backport, but is a fix in 4.14
-> for pre-4.7 kernels.
-> 
-> All I can do from a user perspective is report the problem and the
-> fortuitous follow-on commit that resolved the issue in our case. It has
-> already taken quite some time to find that the problem was unexpectedly
-> due to the kernel upgrade (this failure is a first, we have been running
-> these tests for some years going back to the 4.1 kernel), then to go
-> through the process of pinpointing the change that caused the issue in
-> our case.
-> 
-> Given that the problem is not manually reproducible, and given that it
-> could take a very substantial period of time to understand how the
-> change is impacting our scale & performance testing, it seems most
-> expedient to backport the 1-line commit that resolves the issue.
+> More please? With MKTME, only anonymous memory supports encryption.
+> Is it the naming that's weird, or you don't see it doing what it says?
 
-Ok, you are asking for this to be added, without really knowing _why_ it
-resolves the issue and Michal is asking to know _why_ before acking it,
-correct?
+It's weird because you don't fully speficy the range -- ie. it cannot
+verify the vma argument. It is also weird because the start and end are
+not of the same type -- or rather, there is no start at all.
 
-So I'll hold off on merging this for now until you all come to some kind
-of resolution :)
+So while the comment talks about a range, there is not in fact a range
+(only the implied @start is somewhere inside @vma). The comment also
+states all vmas in the range, but again, because of a lack of range
+specification it cannot verify this statement.
 
-thanks,
-
-greg k-h
+Now, I don't necessarily object to the function and its implementation,
+but that comment is just plain misleading.
