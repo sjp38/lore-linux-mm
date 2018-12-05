@@ -1,116 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 245776B76D2
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 18:15:25 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id q11so9976711otl.23
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:15:25 -0800 (PST)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-eopbgr780077.outbound.protection.outlook.com. [40.107.78.77])
-        by mx.google.com with ESMTPS id c2si9131244oif.85.2018.12.05.15.15.23
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A0216B76C8
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 18:04:19 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id p24so22427755qtl.2
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:04:19 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s128si1891209qkb.115.2018.12.05.15.04.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 05 Dec 2018 15:15:24 -0800 (PST)
-From: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Dec 2018 15:04:18 -0800 (PST)
+Date: Wed, 5 Dec 2018 18:04:13 -0500
+From: Jerome Glisse <jglisse@redhat.com>
 Subject: Re: [PATCH v2 1/3] mm/mmu_notifier: use structure for
  invalidate_range_start/end callback
-Date: Wed, 5 Dec 2018 23:15:20 +0000
-Message-ID: <be0140a1-a656-2383-4a74-c92bc0f7e568@amd.com>
+Message-ID: <20181205230413.GN3536@redhat.com>
 References: <20181205053628.3210-1-jglisse@redhat.com>
  <20181205053628.3210-2-jglisse@redhat.com>
  <b76dfbdd-a017-4032-d8a1-860ff62dfb59@amd.com>
- <20181205230413.GN3536@redhat.com>
-In-Reply-To: <20181205230413.GN3536@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <163F1F45876CBE43B936CDC5DDF1B141@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <b76dfbdd-a017-4032-d8a1-860ff62dfb59@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, "Koenig, Christian" <Christian.Koenig@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, "Koenig, Christian" <Christian.Koenig@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-T24gMjAxOC0xMi0wNSA2OjA0IHAubS4sIEplcm9tZSBHbGlzc2Ugd3JvdGU6DQo+IE9uIFdlZCwg
-RGVjIDA1LCAyMDE4IGF0IDA5OjQyOjQ1UE0gKzAwMDAsIEt1ZWhsaW5nLCBGZWxpeCB3cm90ZToN
-Cj4+IFRoZSBhbWRncHUgcGFydCBsb29rcyBnb29kIHRvIG1lLg0KPj4NCj4+IEEgbWlub3Igbml0
-LXBpY2sgaW4gbW11X25vdGlmaWVyLmMgKGlubGluZSkuDQo+Pg0KPj4gRWl0aGVyIHdheSwgdGhl
-IHNlcmllcyBpcyBBY2tlZC1ieTogRmVsaXggS3VlaGxpbmcgPEZlbGl4Lkt1ZWhsaW5nQGFtZC5j
-b20+DQo+Pg0KPj4gT24gMjAxOC0xMi0wNSAxMjozNiBhLm0uLCBqZ2xpc3NlQHJlZGhhdC5jb20g
-d3JvdGU6DQo+Pj4gRnJvbTogSsOpcsO0bWUgR2xpc3NlIDxqZ2xpc3NlQHJlZGhhdC5jb20+DQo+
-Pj4NCj4+PiBUbyBhdm9pZCBoYXZpbmcgdG8gY2hhbmdlIG1hbnkgY2FsbGJhY2sgZGVmaW5pdGlv
-biBldmVyeXRpbWUgd2Ugd2FudA0KPj4+IHRvIGFkZCBhIHBhcmFtZXRlciB1c2UgYSBzdHJ1Y3R1
-cmUgdG8gZ3JvdXAgYWxsIHBhcmFtZXRlcnMgZm9yIHRoZQ0KPj4+IG1tdV9ub3RpZmllciBpbnZh
-bGlkYXRlX3JhbmdlX3N0YXJ0L2VuZCBjYWxsYmFjay4gTm8gZnVuY3Rpb25hbCBjaGFuZ2VzDQo+
-Pj4gd2l0aCB0aGlzIHBhdGNoLg0KPj4+DQo+Pj4gU2lnbmVkLW9mZi1ieTogSsOpcsO0bWUgR2xp
-c3NlIDxqZ2xpc3NlQHJlZGhhdC5jb20+DQo+Pj4gQ2M6IEFuZHJldyBNb3J0b24gPGFrcG1AbGlu
-dXgtZm91bmRhdGlvbi5vcmc+DQo+Pj4gQ2M6IE1hdHRoZXcgV2lsY294IDxtYXdpbGNveEBtaWNy
-b3NvZnQuY29tPg0KPj4+IENjOiBSb3NzIFp3aXNsZXIgPHp3aXNsZXJAa2VybmVsLm9yZz4NCj4+
-PiBDYzogSmFuIEthcmEgPGphY2tAc3VzZS5jej4NCj4+PiBDYzogRGFuIFdpbGxpYW1zIDxkYW4u
-ai53aWxsaWFtc0BpbnRlbC5jb20+DQo+Pj4gQ2M6IFBhb2xvIEJvbnppbmkgPHBib256aW5pQHJl
-ZGhhdC5jb20+DQo+Pj4gQ2M6IFJhZGltIEtyxI1tw6HFmSA8cmtyY21hckByZWRoYXQuY29tPg0K
-Pj4+IENjOiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BrZXJuZWwub3JnPg0KPj4+IENjOiBDaHJpc3Rp
-YW4gS29lbmlnIDxjaHJpc3RpYW4ua29lbmlnQGFtZC5jb20+DQo+Pj4gQ2M6IEZlbGl4IEt1ZWhs
-aW5nIDxmZWxpeC5rdWVobGluZ0BhbWQuY29tPg0KPj4+IENjOiBSYWxwaCBDYW1wYmVsbCA8cmNh
-bXBiZWxsQG52aWRpYS5jb20+DQo+Pj4gQ2M6IEpvaG4gSHViYmFyZCA8amh1YmJhcmRAbnZpZGlh
-LmNvbT4NCj4+PiBDYzoga3ZtQHZnZXIua2VybmVsLm9yZw0KPj4+IENjOiBkcmktZGV2ZWxAbGlz
-dHMuZnJlZWRlc2t0b3Aub3JnDQo+Pj4gQ2M6IGxpbnV4LXJkbWFAdmdlci5rZXJuZWwub3JnDQo+
-Pj4gQ2M6IGxpbnV4LWZzZGV2ZWxAdmdlci5rZXJuZWwub3JnDQo+Pj4gLS0tDQo+Pj4gIGRyaXZl
-cnMvZ3B1L2RybS9hbWQvYW1kZ3B1L2FtZGdwdV9tbi5jICB8IDQzICsrKysrKysrKysrLS0tLS0t
-LS0tLS0tLS0NCj4+PiAgZHJpdmVycy9ncHUvZHJtL2k5MTUvaTkxNV9nZW1fdXNlcnB0ci5jIHwg
-MTQgKysrKy0tLS0NCj4+PiAgZHJpdmVycy9ncHUvZHJtL3JhZGVvbi9yYWRlb25fbW4uYyAgICAg
-IHwgMTYgKysrKy0tLS0tDQo+Pj4gIGRyaXZlcnMvaW5maW5pYmFuZC9jb3JlL3VtZW1fb2RwLmMg
-ICAgICB8IDIwICsrKysrLS0tLS0tLQ0KPj4+ICBkcml2ZXJzL2luZmluaWJhbmQvaHcvaGZpMS9t
-bXVfcmIuYyAgICAgfCAxMyArKystLS0tLQ0KPj4+ICBkcml2ZXJzL21pc2MvbWljL3NjaWYvc2Np
-Zl9kbWEuYyAgICAgICAgfCAxMSArKy0tLS0tDQo+Pj4gIGRyaXZlcnMvbWlzYy9zZ2ktZ3J1L2dy
-dXRsYnB1cmdlLmMgICAgICB8IDE0ICsrKystLS0tDQo+Pj4gIGRyaXZlcnMveGVuL2dudGRldi5j
-ICAgICAgICAgICAgICAgICAgICB8IDEyICsrKy0tLS0NCj4+PiAgaW5jbHVkZS9saW51eC9tbXVf
-bm90aWZpZXIuaCAgICAgICAgICAgIHwgMTQgKysrKystLS0NCj4+PiAgbW0vaG1tLmMgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgIHwgMjMgKysrKysrLS0tLS0tLQ0KPj4+ICBtbS9tbXVf
-bm90aWZpZXIuYyAgICAgICAgICAgICAgICAgICAgICAgfCAyMSArKysrKysrKysrLS0NCj4+PiAg
-dmlydC9rdm0va3ZtX21haW4uYyAgICAgICAgICAgICAgICAgICAgIHwgMTQgKysrLS0tLS0NCj4+
-PiAgMTIgZmlsZXMgY2hhbmdlZCwgMTAyIGluc2VydGlvbnMoKyksIDExMyBkZWxldGlvbnMoLSkN
-Cj4+Pg0KPj4gW3NuaXBdDQo+Pj4gZGlmZiAtLWdpdCBhL21tL21tdV9ub3RpZmllci5jIGIvbW0v
-bW11X25vdGlmaWVyLmMNCj4+PiBpbmRleCA1MTE5ZmY4NDY3NjkuLjVmNjY2NWFlM2VlMiAxMDA2
-NDQNCj4+PiAtLS0gYS9tbS9tbXVfbm90aWZpZXIuYw0KPj4+ICsrKyBiL21tL21tdV9ub3RpZmll
-ci5jDQo+Pj4gQEAgLTE3OCwxNCArMTc4LDIwIEBAIGludCBfX21tdV9ub3RpZmllcl9pbnZhbGlk
-YXRlX3JhbmdlX3N0YXJ0KHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLA0KPj4+ICAJCQkJICB1bnNpZ25l
-ZCBsb25nIHN0YXJ0LCB1bnNpZ25lZCBsb25nIGVuZCwNCj4+PiAgCQkJCSAgYm9vbCBibG9ja2Fi
-bGUpDQo+Pj4gIHsNCj4+PiArCXN0cnVjdCBtbXVfbm90aWZpZXJfcmFuZ2UgX3JhbmdlLCAqcmFu
-Z2UgPSAmX3JhbmdlOw0KPj4gSSdtIG5vdCBzdXJlIHdoeSB5b3UgbmVlZCB0byBhY2Nlc3MgX3Jh
-bmdlIGluZGlyZWN0bHkgdGhyb3VnaCBhIHBvaW50ZXIuDQo+PiBTZWUgYmVsb3cuDQo+Pg0KPj4N
-Cj4+PiAgCXN0cnVjdCBtbXVfbm90aWZpZXIgKm1uOw0KPj4+ICAJaW50IHJldCA9IDA7DQo+Pj4g
-IAlpbnQgaWQ7DQo+Pj4gIA0KPj4+ICsJcmFuZ2UtPmJsb2NrYWJsZSA9IGJsb2NrYWJsZTsNCj4+
-PiArCXJhbmdlLT5zdGFydCA9IHN0YXJ0Ow0KPj4+ICsJcmFuZ2UtPmVuZCA9IGVuZDsNCj4+PiAr
-CXJhbmdlLT5tbSA9IG1tOw0KPj4gVGhpcyBjb3VsZCBqdXN0IGFzc2lnbiBfcmFuZ2UuYmxvY2th
-YmxlLCBfcmFuZ2Uuc3RhcnQsIGV0Yy4gd2l0aG91dCB0aGUNCj4+IGluZGlyZWN0aW9uLiBPciB5
-b3UgY291bGQgZXZlbiB1c2UgYW4gaW5pdGlhbGl6ZXIgaW5zdGVhZDoNCj4+DQo+PiBzdHJ1Y3Qg
-bW11X25vdGlmaWVyX3JhbmdlIHJhbmdlID0gew0KPj4gwqDCoMKgIC5ibG9ja2FibGUgPSBibG9j
-a2FibGUsDQo+PiDCoMKgwqAgLnN0YXJ0ID0gc3RhcnQsDQo+PiDCoMKgwqAgLi4uDQo+PiB9Ow0K
-Pj4NCj4+DQo+Pj4gKw0KPj4+ICAJaWQgPSBzcmN1X3JlYWRfbG9jaygmc3JjdSk7DQo+Pj4gIAlo
-bGlzdF9mb3JfZWFjaF9lbnRyeV9yY3UobW4sICZtbS0+bW11X25vdGlmaWVyX21tLT5saXN0LCBo
-bGlzdCkgew0KPj4+ICAJCWlmIChtbi0+b3BzLT5pbnZhbGlkYXRlX3JhbmdlX3N0YXJ0KSB7DQo+
-Pj4gLQkJCWludCBfcmV0ID0gbW4tPm9wcy0+aW52YWxpZGF0ZV9yYW5nZV9zdGFydChtbiwgbW0s
-IHN0YXJ0LCBlbmQsIGJsb2NrYWJsZSk7DQo+Pj4gKwkJCWludCBfcmV0ID0gbW4tPm9wcy0+aW52
-YWxpZGF0ZV9yYW5nZV9zdGFydChtbiwgcmFuZ2UpOw0KPj4gVGhpcyBjb3VsZCBqdXN0IHVzZSAm
-X3JhbmdlIHdpdGhvdXQgdGhlIGluZGlyZWN0aW9uLg0KPj4NCj4+IFNhbWUgaW4gLi4uX2ludmFs
-aWRhdGVfcmFuZ2VfZW5kIGJlbG93Lg0KPiBTbyBleHBsYWluYXRpb24gaXMgdGhhdCB0aGlzIGlz
-IGEgdGVtcG9yYXJ5IHN0ZXAgYWxsIHRoaXMgY29kZSBpcw0KPiByZW1vdmUgaW4gdGhlIHNlY29u
-ZCBwYXRjaC4gSXQgd2FzIGRvbmUgdGhpcyB3YXkgaW4gdGhpcyBwYXRjaCB0bw0KPiBtaW5pbWl6
-ZSB0aGUgZGlmZiB3aXRoaW4gdGhlIG5leHQgcGF0Y2guDQoNCkkgd2FzIGFjdHVhbGx5IGxvb2tp
-bmcgZm9yIHRoYXQgYmVjYXVzZSBJIHN1c3BlY3RlZCB0aGF0IHRoaXMgd291bGQgbWFrZQ0KbW9y
-ZSBzZW5zZSBpbiB0aGUgY29udGV4dCBvZiB0aGUgb3RoZXIgcGF0Y2hlcy4gQnV0IHRoZW4gSSBt
-aXNzZWQgdGhlDQptbXVfbm90aWZpZXIuYyBjaGFuZ2UgaW4gcGF0Y2ggMiBpbiB0aGUgbm9pc2Ug
-b2YgYWxsIHRoZSBvdGhlciBtbQ0KY2hhbmdlcy4gTmV2ZXIgbWluZC4NCg0KDQo+IEkgZGlkIHRo
-aXMgYmVjYXVzZSBpIHdhbnRlZCB0byBkbyB0aGUgY29udmVydGlvbiBpbiAyIHN0ZXBzIHRoZQ0K
-PiBmaXJzdCBzdGVwIGkgY29udmVydCBhbGwgdGhlIGxpc3RlbmVyIG9mIG1tdSBub3RpZmllciBh
-bmQgaW4gdGhlDQo+IHNlY29uZCBzdGVwIGkgY29udmVydCBhbGwgdGhlIGNhbGwgc2l0ZSB0aGF0
-IHRyaWdnZXIgYSBtbXUgbm90aWZlci4NCg0KVGhhdCBwYXJ0IG1ha2VzIHNlbnNlIGFuZCBJIGFw
-cHJlY2lhdGUgdGhhdCBpdCBrZWVwcyB0aGUgcGF0Y2hlcw0KcmVhc29uYWJseSBzZXBhcmF0ZSBm
-b3IgZGlmZmVyZW50IGF1ZGllbmNlcy4NCg0KVGhhbmtzLA0KwqAgRmVsaXgNCg0KDQo+IEkgZGlk
-IHRoYXQgdG8gaGVscCBwZW9wbGUgcmV2aWV3aW5nIG9ubHkgdGhlIHBhcnQgdGhleSBjYXJlIGFi
-b3V0Lg0KPg0KPiBBcHBhcmVudGx5IGl0IGVuZCB1cCBjb25mdXNpbmcgcGVvcGxlIG1vcmUgdGhh
-biBpdCBoZWxwZWQgOikNCj4NCj4gRG8gcGVvcGxlIGhhdmUgc3Ryb25nIGZlZWxpbmcgYWJvdXQg
-Z2V0dGluZyB0aGlzIGNvZGUgdGhhdCBpcw0KPiBkZWxldGVkIGluIHRoZSBzZWNvbmQgcGF0Y2gg
-Zml4IGluIHRoZSBmaXJzdCBwYXRjaCBhbnl3YXkgPw0KPg0KPiBJIGNhbiByZXNwaW4gaWYgc28g
-YnV0IGkgZG9uJ3Qgc2VlIG11Y2ggdmFsdWUgaW4gZm9ybWF0aW5nIGNvZGUNCj4gdGhhdCBpcyBk
-ZWxldGVkIGluIHRoZSBzZXJpZS4NCj4NCj4gVGhhbmsgeW91IGZvciByZXZpZXdpbmcNCj4NCj4g
-Q2hlZXJzLA0KPiBKw6lyw7RtZQ0K
+On Wed, Dec 05, 2018 at 09:42:45PM +0000, Kuehling, Felix wrote:
+> The amdgpu part looks good to me.
+> 
+> A minor nit-pick in mmu_notifier.c (inline).
+> 
+> Either way, the series is Acked-by: Felix Kuehling <Felix.Kuehling@amd.com>
+> 
+> On 2018-12-05 12:36 a.m., jglisse@redhat.com wrote:
+> > From: Jérôme Glisse <jglisse@redhat.com>
+> >
+> > To avoid having to change many callback definition everytime we want
+> > to add a parameter use a structure to group all parameters for the
+> > mmu_notifier invalidate_range_start/end callback. No functional changes
+> > with this patch.
+> >
+> > Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> > Cc: Ross Zwisler <zwisler@kernel.org>
+> > Cc: Jan Kara <jack@suse.cz>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: Paolo Bonzini <pbonzini@redhat.com>
+> > Cc: Radim Krčmář <rkrcmar@redhat.com>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Christian Koenig <christian.koenig@amd.com>
+> > Cc: Felix Kuehling <felix.kuehling@amd.com>
+> > Cc: Ralph Campbell <rcampbell@nvidia.com>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Cc: kvm@vger.kernel.org
+> > Cc: dri-devel@lists.freedesktop.org
+> > Cc: linux-rdma@vger.kernel.org
+> > Cc: linux-fsdevel@vger.kernel.org
+> > ---
+> >  drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c  | 43 +++++++++++--------------
+> >  drivers/gpu/drm/i915/i915_gem_userptr.c | 14 ++++----
+> >  drivers/gpu/drm/radeon/radeon_mn.c      | 16 ++++-----
+> >  drivers/infiniband/core/umem_odp.c      | 20 +++++-------
+> >  drivers/infiniband/hw/hfi1/mmu_rb.c     | 13 +++-----
+> >  drivers/misc/mic/scif/scif_dma.c        | 11 ++-----
+> >  drivers/misc/sgi-gru/grutlbpurge.c      | 14 ++++----
+> >  drivers/xen/gntdev.c                    | 12 +++----
+> >  include/linux/mmu_notifier.h            | 14 +++++---
+> >  mm/hmm.c                                | 23 ++++++-------
+> >  mm/mmu_notifier.c                       | 21 ++++++++++--
+> >  virt/kvm/kvm_main.c                     | 14 +++-----
+> >  12 files changed, 102 insertions(+), 113 deletions(-)
+> >
+> [snip]
+> > diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> > index 5119ff846769..5f6665ae3ee2 100644
+> > --- a/mm/mmu_notifier.c
+> > +++ b/mm/mmu_notifier.c
+> > @@ -178,14 +178,20 @@ int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+> >  				  unsigned long start, unsigned long end,
+> >  				  bool blockable)
+> >  {
+> > +	struct mmu_notifier_range _range, *range = &_range;
+> 
+> I'm not sure why you need to access _range indirectly through a pointer.
+> See below.
+> 
+> 
+> >  	struct mmu_notifier *mn;
+> >  	int ret = 0;
+> >  	int id;
+> >  
+> > +	range->blockable = blockable;
+> > +	range->start = start;
+> > +	range->end = end;
+> > +	range->mm = mm;
+> 
+> This could just assign _range.blockable, _range.start, etc. without the
+> indirection. Or you could even use an initializer instead:
+> 
+> struct mmu_notifier_range range = {
+>     .blockable = blockable,
+>     .start = start,
+>     ...
+> };
+> 
+> 
+> > +
+> >  	id = srcu_read_lock(&srcu);
+> >  	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
+> >  		if (mn->ops->invalidate_range_start) {
+> > -			int _ret = mn->ops->invalidate_range_start(mn, mm, start, end, blockable);
+> > +			int _ret = mn->ops->invalidate_range_start(mn, range);
+> 
+> This could just use &_range without the indirection.
+> 
+> Same in ..._invalidate_range_end below.
+
+So explaination is that this is a temporary step all this code is
+remove in the second patch. It was done this way in this patch to
+minimize the diff within the next patch.
+
+I did this because i wanted to do the convertion in 2 steps the
+first step i convert all the listener of mmu notifier and in the
+second step i convert all the call site that trigger a mmu notifer.
+
+I did that to help people reviewing only the part they care about.
+
+Apparently it end up confusing people more than it helped :)
+
+Do people have strong feeling about getting this code that is
+deleted in the second patch fix in the first patch anyway ?
+
+I can respin if so but i don't see much value in formating code
+that is deleted in the serie.
+
+Thank you for reviewing
+
+Cheers,
+Jérôme
