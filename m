@@ -1,124 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 312496B6B42
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 16:54:55 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id 89so11056130ple.19
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 13:54:55 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h20si12948921pgm.366.2018.12.03.13.54.53
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 908AE6B76CF
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 18:11:23 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id y35so10629448edb.5
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:11:23 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d56si467094eda.343.2018.12.05.15.11.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 13:54:53 -0800 (PST)
-Date: Mon, 3 Dec 2018 13:54:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 201865] New: BUG: Bad rss-counter state
- mm:00000000d5ef1295 idx:1 val:3
-Message-Id: <20181203135450.6b14e4fe678fd84a34035c70@linux-foundation.org>
-In-Reply-To: <bug-201865-27@https.bugzilla.kernel.org/>
-References: <bug-201865-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 05 Dec 2018 15:11:22 -0800 (PST)
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 1/3] mm/memcg: Fix min/low usage in
+ propagate_protected_usage()
+Date: Wed, 5 Dec 2018 23:11:16 +0000
+Message-ID: <20181205231110.GA11330@castle.DHCP.thefacebook.com>
+References: <20181203080119.18989-1-xlpang@linux.alibaba.com>
+ <20181203180008.GB31090@castle.DHCP.thefacebook.com>
+ <03652447-d9ba-45ea-3365-46a4caf96748@linux.alibaba.com>
+In-Reply-To: <03652447-d9ba-45ea-3365-46a4caf96748@linux.alibaba.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <E662CE51E0E9F542824D65D18AFDE335@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, erhard_f@mailbox.org
+To: Xunlei Pang <xlpang@linux.alibaba.com>
+Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On Wed, Dec 05, 2018 at 04:58:31PM +0800, Xunlei Pang wrote:
+> Hi Roman,
+>=20
+> On 2018/12/4 AM 2:00, Roman Gushchin wrote:
+> > On Mon, Dec 03, 2018 at 04:01:17PM +0800, Xunlei Pang wrote:
+> >> When usage exceeds min, min usage should be min other than 0.
+> >> Apply the same for low.
+> >>
+> >> Signed-off-by: Xunlei Pang <xlpang@linux.alibaba.com>
+> >> ---
+> >>  mm/page_counter.c | 12 ++----------
+> >>  1 file changed, 2 insertions(+), 10 deletions(-)
+> >>
+> >> diff --git a/mm/page_counter.c b/mm/page_counter.c
+> >> index de31470655f6..75d53f15f040 100644
+> >> --- a/mm/page_counter.c
+> >> +++ b/mm/page_counter.c
+> >> @@ -23,11 +23,7 @@ static void propagate_protected_usage(struct page_c=
+ounter *c,
+> >>  		return;
+> >> =20
+> >>  	if (c->min || atomic_long_read(&c->min_usage)) {
+> >> -		if (usage <=3D c->min)
+> >> -			protected =3D usage;
+> >> -		else
+> >> -			protected =3D 0;
+> >> -
+> >> +		protected =3D min(usage, c->min);
+> >=20
+> > This change makes sense in the combination with the patch 3, but not as=
+ a
+> > standlone "fix". It's not a bug, it's a required thing unless you start=
+ scanning
+> > proportionally to memory.low/min excess.
+> >=20
+> > Please, reflect this in the commit message. Or, even better, merge it i=
+nto
+> > the patch 3.
+>=20
+> The more I looked the more I think it's a bug, but anyway I'm fine with
+> merging it into patch 3 :-)
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+It's not. I've explained it back to the time when we've been discussing tha=
+t
+patch. TL;DR because the decision to scan or to skip is binary now, to
+prioritize one cgroup over other it's necessary to do this trick. Otherwise
+both cgroups can have their usages above effective memory protections, and
+will be scanned with the same pace.
 
-On Mon, 03 Dec 2018 18:27:24 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+If you have any doubts, you can try to run memcg kselftests with and withou=
+t
+this change, you'll see the difference.
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=201865
-> 
->             Bug ID: 201865
->            Summary: BUG: Bad rss-counter state mm:00000000d5ef1295 idx:1
->                     val:3
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.20-rc5
->           Hardware: PPC-64
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Page Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: erhard_f@mailbox.org
->         Regression: No
-> 
-> Created attachment 279823
->   --> https://bugzilla.kernel.org/attachment.cgi?id=279823&action=edit
-> dmesg output
-> 
-> The kernel (4.20-rc5) tells me:
-> 
-> [  873.263594] BUG: Bad rss-counter state mm:00000000d5ef1295 idx:1 val:3
-> [  873.263605] BUG: non-zero pgtables_bytes on freeing mm: 24576
-> 
-> I've seen bug #196569, but I am not quite sure if this is the same problem. So
-> filing a new bug.
-> 
-> Machine is a Talos II, dual-socket NUMA 4-core POWER9:
-> 
-> # cat /proc/buddyinfo 
-> Node 0, zone      DMA 166543 151725 106193  58527  20325   4948    914    143  
->   11      2      0      2      7 
-> Node 8, zone      DMA 229945 211748 103714  40310  16707   6915   1726    284  
->   34      4      1      2     79 
-> # cat /proc/meminfo 
-> MemTotal:       32769896 kB
-> MemFree:        17302532 kB
-> MemAvailable:   25725428 kB
-> Buffers:           39732 kB
-> Cached:          8185260 kB
-> SwapCached:            0 kB
-> Active:          4121112 kB
-> Inactive:        3958012 kB
-> Active(anon):      69728 kB
-> Inactive(anon):      192 kB
-> Active(file):    4051384 kB
-> Inactive(file):  3957820 kB
-> Unevictable:      282456 kB
-> Mlocked:          282456 kB
-> SwapTotal:      35653624 kB
-> SwapFree:       35653624 kB
-> Dirty:                 0 kB
-> Writeback:             0 kB
-> AnonPages:        136704 kB
-> Mapped:           250228 kB
-> Shmem:             66504 kB
-> KReclaimable:    1855456 kB
-> Slab:            2187396 kB
-> SReclaimable:    1855456 kB
-> SUnreclaim:       331940 kB
-> KernelStack:        6848 kB
-> PageTables:         3408 kB
-> NFS_Unstable:          0 kB
-> Bounce:                0 kB
-> WritebackTmp:          0 kB
-> CommitLimit:    52038572 kB
-> Committed_AS:     522416 kB
-> VmallocTotal:   549755813888 kB
-> VmallocUsed:           0 kB
-> VmallocChunk:          0 kB
-> Percpu:             9344 kB
-> AnonHugePages:         0 kB
-> ShmemHugePages:        0 kB
-> ShmemPmdMapped:        0 kB
-> HugePages_Total:       0
-> HugePages_Free:        0
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
-> Hugetlb:               0 kB
-> DirectMap4k:           0 kB
-> DirectMap64k:           0 kB
-> DirectMap2M:     1048576 kB
-> DirectMap1G:    32505856 kB
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+Thanks!
