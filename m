@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D9EB6B7B63
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:39:25 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id 89so813871ple.19
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:39:25 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h191sor1940358pge.48.2018.12.06.10.39.24
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 201416B7341
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 03:01:19 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id d196so19307167qkb.6
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 00:01:19 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e127si2548996qkc.256.2018.12.05.00.01.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 10:39:24 -0800 (PST)
-Date: Fri, 7 Dec 2018 00:13:11 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v3 5/9] drm/xen/xen_drm_front_gem.c: Convert to use
- vm_insert_range
-Message-ID: <20181206184311.GA29651@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Dec 2018 00:01:18 -0800 (PST)
+Subject: Re: [PATCH] memory_hotplug: remove duplicate declaration of
+ offline_pages()
+References: <20181205031357.24769-1-richard.weiyang@gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <261ce02f-95c1-264f-40d7-eaf630f77c34@redhat.com>
+Date: Wed, 5 Dec 2018 09:01:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20181205031357.24769-1-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, oleksandr_andrushchenko@epam.com, airlied@linux.ie
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
+To: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com
+Cc: linux-mm@kvack.org
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+On 05.12.18 04:13, Wei Yang wrote:
+> Function offline_pages() is already declared in this file.
+> 
+> Just remove the duplicated one.
+> 
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> ---
+>  include/linux/memory_hotplug.h | 1 -
+>  1 file changed, 1 deletion(-)
+> 
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index b81cc29482d8..8cf7f4a18e44 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -331,7 +331,6 @@ extern int arch_add_memory(int nid, u64 start, u64 size,
+>  		struct vmem_altmap *altmap, bool want_memblock);
+>  extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>  		unsigned long nr_pages, struct vmem_altmap *altmap);
+> -extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+>  extern bool is_memblock_offlined(struct memory_block *mem);
+>  extern int sparse_add_one_section(int nid, unsigned long start_pfn,
+>  				  struct vmem_altmap *altmap);
+> 
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Reviewed-by: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
----
- drivers/gpu/drm/xen/xen_drm_front_gem.c | 20 ++++++--------------
- 1 file changed, 6 insertions(+), 14 deletions(-)
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
-diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
-index 47ff019..c21e5d1 100644
---- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
-+++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
-@@ -225,8 +225,7 @@ struct drm_gem_object *
- static int gem_mmap_obj(struct xen_gem_object *xen_obj,
- 			struct vm_area_struct *vma)
- {
--	unsigned long addr = vma->vm_start;
--	int i;
-+	int ret;
- 
- 	/*
- 	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
-@@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
- 	 * FIXME: as we insert all the pages now then no .fault handler must
- 	 * be called, so don't provide one
- 	 */
--	for (i = 0; i < xen_obj->num_pages; i++) {
--		int ret;
--
--		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
--		if (ret < 0) {
--			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
--			return ret;
--		}
--
--		addr += PAGE_SIZE;
--	}
--	return 0;
-+	ret = vm_insert_range(vma, vma->vm_start, xen_obj->pages,
-+				xen_obj->num_pages);
-+	if (ret < 0)
-+		DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
-+	return ret;
- }
- 
- int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 -- 
-1.9.1
+
+Thanks,
+
+David / dhildenb
