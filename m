@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 507886B73AD
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 04:46:50 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id s22so10799565pgv.8
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 01:46:50 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 3B95B6B73A6
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 04:42:14 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id r16so10826422pgr.15
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 01:42:14 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q8si18188276pgc.580.2018.12.05.01.46.48
+        by mx.google.com with ESMTPS id o14si17373357pgj.59.2018.12.05.01.42.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 01:46:48 -0800 (PST)
+        Wed, 05 Dec 2018 01:42:13 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.14 65/69] mm/page_alloc.c: fix calculation of pgdat->nr_zones
-Date: Wed,  5 Dec 2018 04:42:43 -0500
-Message-Id: <20181205094247.6556-65-sashal@kernel.org>
-In-Reply-To: <20181205094247.6556-1-sashal@kernel.org>
-References: <20181205094247.6556-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 116/123] mm/page_alloc.c: fix calculation of pgdat->nr_zones
+Date: Wed,  5 Dec 2018 04:35:48 -0500
+Message-Id: <20181205093555.5386-116-sashal@kernel.org>
+In-Reply-To: <20181205093555.5386-1-sashal@kernel.org>
+References: <20181205093555.5386-1-sashal@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -87,10 +87,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2074f424dabf..86a5cab8b5dc 100644
+index b721631d78ab..6a62b2421cdf 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5554,8 +5554,10 @@ void __meminit init_currently_empty_zone(struct zone *zone,
+@@ -5733,8 +5733,10 @@ void __meminit init_currently_empty_zone(struct zone *zone,
  					unsigned long size)
  {
  	struct pglist_data *pgdat = zone->zone_pgdat;
