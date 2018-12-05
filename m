@@ -1,134 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 237EA8E0001
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 20:15:34 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id r16so6432671pgr.15
-        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 17:15:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n12sor14951447pgs.60.2018.12.09.17.15.32
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 242306B717A
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 19:18:32 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id d23so13660722plj.22
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 16:18:32 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id a11si16090026pga.198.2018.12.04.16.18.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 09 Dec 2018 17:15:32 -0800 (PST)
-From: Nicolas Boichat <drinkcat@chromium.org>
-Subject: [PATCH v6 3/3] mm: Add /sys/kernel/slab/cache/cache_dma32
-Date: Mon, 10 Dec 2018 09:15:04 +0800
-Message-Id: <20181210011504.122604-4-drinkcat@chromium.org>
-In-Reply-To: <20181210011504.122604-1-drinkcat@chromium.org>
-References: <20181210011504.122604-1-drinkcat@chromium.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 04 Dec 2018 16:18:30 -0800 (PST)
+Date: Wed, 5 Dec 2018 11:18:21 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2018-12-04-16-00 uploaded
+Message-ID: <20181205111821.76f2b1dd@canb.auug.org.au>
+In-Reply-To: <20181205000059.PQ0hs%akpm@linux-foundation.org>
+References: <20181205000059.PQ0hs%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/UaHe6/stNTjgMwUpk/mEyTN"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, hsinyi@chromium.org, stable@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: broonie@kernel.org, mhocko@suse.cz, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
 
-A previous patch in this series adds support for SLAB_CACHE_DMA32
-kmem caches. This adds the corresponding
-/sys/kernel/slab/cache/cache_dma32 entries, and fixes slabinfo
-tool.
+--Sig_/UaHe6/stNTjgMwUpk/mEyTN
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
----
+Hi Andrew,
 
-There were different opinions on whether this sysfs entry should
-be added, so I'll leave it up to the mm/slub maintainers to decide
-whether they want to pick this up, or drop it.
+On Tue, 04 Dec 2018 16:00:59 -0800 akpm@linux-foundation.org wrote:
+>
+> * async-remove-some-duplicated-includes.patch
 
-No change since v5.
+This patch has the wrong subject line (mentions kernel/signal.c).
 
- Documentation/ABI/testing/sysfs-kernel-slab |  9 +++++++++
- mm/slub.c                                   | 11 +++++++++++
- tools/vm/slabinfo.c                         |  7 ++++++-
- 3 files changed, 26 insertions(+), 1 deletion(-)
+--=20
+Cheers,
+Stephen Rothwell
 
-diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
-index 29601d93a1c2ea..d742c6cfdffbe9 100644
---- a/Documentation/ABI/testing/sysfs-kernel-slab
-+++ b/Documentation/ABI/testing/sysfs-kernel-slab
-@@ -106,6 +106,15 @@ Description:
- 		are from ZONE_DMA.
- 		Available when CONFIG_ZONE_DMA is enabled.
- 
-+What:		/sys/kernel/slab/cache/cache_dma32
-+Date:		December 2018
-+KernelVersion:	4.21
-+Contact:	Nicolas Boichat <drinkcat@chromium.org>
-+Description:
-+		The cache_dma32 file is read-only and specifies whether objects
-+		are from ZONE_DMA32.
-+		Available when CONFIG_ZONE_DMA32 is enabled.
-+
- What:		/sys/kernel/slab/cache/cpu_slabs
- Date:		May 2007
- KernelVersion:	2.6.22
-diff --git a/mm/slub.c b/mm/slub.c
-index 4caadb926838ef..840f3719d9d543 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5104,6 +5104,14 @@ static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
- SLAB_ATTR_RO(cache_dma);
- #endif
- 
-+#ifdef CONFIG_ZONE_DMA32
-+static ssize_t cache_dma32_show(struct kmem_cache *s, char *buf)
-+{
-+	return sprintf(buf, "%d\n", !!(s->flags & SLAB_CACHE_DMA32));
-+}
-+SLAB_ATTR_RO(cache_dma32);
-+#endif
-+
- static ssize_t usersize_show(struct kmem_cache *s, char *buf)
- {
- 	return sprintf(buf, "%u\n", s->usersize);
-@@ -5444,6 +5452,9 @@ static struct attribute *slab_attrs[] = {
- #ifdef CONFIG_ZONE_DMA
- 	&cache_dma_attr.attr,
- #endif
-+#ifdef CONFIG_ZONE_DMA32
-+	&cache_dma32_attr.attr,
-+#endif
- #ifdef CONFIG_NUMA
- 	&remote_node_defrag_ratio_attr.attr,
- #endif
-diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
-index 334b16db0ebbe9..4ee1bf6e498dfa 100644
---- a/tools/vm/slabinfo.c
-+++ b/tools/vm/slabinfo.c
-@@ -29,7 +29,7 @@ struct slabinfo {
- 	char *name;
- 	int alias;
- 	int refs;
--	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;
-+	int aliases, align, cache_dma, cache_dma32, cpu_slabs, destroy_by_rcu;
- 	unsigned int hwcache_align, object_size, objs_per_slab;
- 	unsigned int sanity_checks, slab_size, store_user, trace;
- 	int order, poison, reclaim_account, red_zone;
-@@ -531,6 +531,8 @@ static void report(struct slabinfo *s)
- 		printf("** Hardware cacheline aligned\n");
- 	if (s->cache_dma)
- 		printf("** Memory is allocated in a special DMA zone\n");
-+	if (s->cache_dma32)
-+		printf("** Memory is allocated in a special DMA32 zone\n");
- 	if (s->destroy_by_rcu)
- 		printf("** Slabs are destroyed via RCU\n");
- 	if (s->reclaim_account)
-@@ -599,6 +601,8 @@ static void slabcache(struct slabinfo *s)
- 		*p++ = '*';
- 	if (s->cache_dma)
- 		*p++ = 'd';
-+	if (s->cache_dma32)
-+		*p++ = 'D';
- 	if (s->hwcache_align)
- 		*p++ = 'A';
- 	if (s->poison)
-@@ -1205,6 +1209,7 @@ static void read_slab_dir(void)
- 			slab->aliases = get_obj("aliases");
- 			slab->align = get_obj("align");
- 			slab->cache_dma = get_obj("cache_dma");
-+			slab->cache_dma32 = get_obj("cache_dma32");
- 			slab->cpu_slabs = get_obj("cpu_slabs");
- 			slab->destroy_by_rcu = get_obj("destroy_by_rcu");
- 			slab->hwcache_align = get_obj("hwcache_align");
--- 
-2.20.0.rc2.403.gdbc3b29805-goog
+--Sig_/UaHe6/stNTjgMwUpk/mEyTN
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlwHGU0ACgkQAVBC80lX
+0GwVBgf/cNsclajJcaBCcidSR1LIRfzy7FplBOh7SEYt+DRwlmJl2JXjsxrWxW7i
+G66BHyDr/P0c2qbu1Ulm3qhIq2kRUGrFVUiDZrbtc5K9G4qaF/DImCgnV/lY8JWz
+LX/xioqWthcoGcDnnCTlgfX00QYdfvTLXJ1rX6GLZ6uNsYkh0q1y+KMyFyQkxowR
+vOMf/ZFWsHsmJ/NQAj/v4WFCWGfLPh9m5rg2T5srVuTUdH7NtSso3HSdTo+HNOIq
+x9Cm9SdjhLHWulyd3gIwBqXcCrRrscMPURAA67Zv8eNekOxuvwHGfGte6M4E+YDV
+wGTTnastlHEFt7AskGh8pH89VzirFA==
+=HBMt
+-----END PGP SIGNATURE-----
+
+--Sig_/UaHe6/stNTjgMwUpk/mEyTN--
