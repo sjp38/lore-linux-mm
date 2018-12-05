@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A4EA66B7D9E
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 06:01:41 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id s50so1788200edd.11
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 03:01:41 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h13-v6si1204072eja.107.2018.12.07.03.01.39
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A173E6B769F
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 17:23:55 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id i12so17902418ita.3
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 14:23:55 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t187sor9475978iod.103.2018.12.05.14.23.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Dec 2018 03:01:40 -0800 (PST)
-Date: Fri, 7 Dec 2018 12:01:38 +0100
-From: Jan Kara <jack@suse.cz>
+        (Google Transport Security);
+        Wed, 05 Dec 2018 14:23:54 -0800 (PST)
+Date: Wed, 5 Dec 2018 14:23:40 -0800
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 3/4] filemap: drop the mmap_sem for all blocking
  operations
-Message-ID: <20181207110138.GE13008@quack2.suse.cz>
+Message-ID: <20181205222340.GB13938@cmpxchg.org>
 References: <20181130195812.19536-1-josef@toxicpanda.com>
  <20181130195812.19536-4-josef@toxicpanda.com>
 MIME-Version: 1.0
@@ -23,9 +23,9 @@ In-Reply-To: <20181130195812.19536-4-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Josef Bacik <josef@toxicpanda.com>
-Cc: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
+Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
 
-On Fri 30-11-18 14:58:11, Josef Bacik wrote:
+On Fri, Nov 30, 2018 at 02:58:11PM -0500, Josef Bacik wrote:
 > Currently we only drop the mmap_sem if there is contention on the page
 > lock.  The idea is that we issue readahead and then go to lock the page
 > while it is under IO and we want to not hold the mmap_sem during the IO.
@@ -34,7 +34,15 @@ On Fri 30-11-18 14:58:11, Josef Bacik wrote:
 > anything.  In the case that the box is under extreme memory or IO
 > pressure we may end up not reading anything at all for readahead, which
 > means we will end up reading in the page under the mmap_sem.
-> 
+
+I'd also add that even if readahead did something, the block request
+queues could be contended enough that merely submitting the io could
+become IO bound if it has to wait for in-flight requests.
+
+Not really a concern with cgroup IO control, but this has always
+somewhat defeated the original purpose of the mmap_sem dropping
+(avoiding serializing page faults when there is a writer queued).
+
 > Instead rework filemap fault path to drop the mmap sem at any point that
 > we may do IO or block for an extended period of time.  This includes
 > while issuing readahead, locking the page, or needing to call ->readpage
@@ -43,98 +51,9 @@ On Fri 30-11-18 14:58:11, Josef Bacik wrote:
 > nicely in-cache page that was gotten outside of the mmap_sem.
 > 
 > Signed-off-by: Josef Bacik <josef@toxicpanda.com>
-> ---
->  mm/filemap.c | 113 ++++++++++++++++++++++++++++++++++++++++++++++++-----------
->  1 file changed, 93 insertions(+), 20 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index f068712c2525..5e76b24b2a0f 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2304,28 +2304,44 @@ EXPORT_SYMBOL(generic_file_read_iter);
->  
->  #ifdef CONFIG_MMU
->  #define MMAP_LOTSAMISS  (100)
-> +static struct file *maybe_unlock_mmap_for_io(struct file *fpin,
-> +					     struct vm_area_struct *vma,
-> +					     int flags)
-> +{
-> +	if (fpin)
-> +		return fpin;
-> +	if ((flags & (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT)) ==
-> +	    FAULT_FLAG_ALLOW_RETRY) {
-> +		fpin = get_file(vma->vm_file);
-> +		up_read(&vma->vm_mm->mmap_sem);
-> +	}
-> +	return fpin;
-> +}
->  
->  /*
->   * Synchronous readahead happens when we don't even find
->   * a page in the page cache at all.
->   */
-> -static void do_sync_mmap_readahead(struct vm_area_struct *vma,
-> -				   struct file_ra_state *ra,
-> -				   struct file *file,
-> -				   pgoff_t offset)
-> +static struct file *do_sync_mmap_readahead(struct vm_area_struct *vma,
-> +					   struct file_ra_state *ra,
-> +					   struct file *file,
-> +					   pgoff_t offset,
-> +					   int flags)
->  {
 
-IMO it would be nicer to pass vmf here at this point. Everything this
-function needs is there and the number of arguments is already quite big.
-But I don't insist.
+Keeping the fpin throughout the fault handler makes things a lot
+simpler than the -EAGAIN and wait_on_page_locked dance from earlier
+versions. Nice.
 
->  /*
->   * Asynchronous readahead happens when we find the page and PG_readahead,
->   * so we want to possibly extend the readahead further..
->   */
-> -static void do_async_mmap_readahead(struct vm_area_struct *vma,
-> -				    struct file_ra_state *ra,
-> -				    struct file *file,
-> -				    struct page *page,
-> -				    pgoff_t offset)
-> +static struct file *do_async_mmap_readahead(struct vm_area_struct *vma,
-> +					    struct file_ra_state *ra,
-> +					    struct file *file,
-> +					    struct page *page,
-> +					    pgoff_t offset, int flags)
->  {
-
-The same here (except for 'page' which needs to be kept).
-
-> @@ -2433,9 +2458,32 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
->  			return vmf_error(-ENOMEM);
->  	}
->  
-> -	if (!lock_page_or_retry(page, vmf->vma->vm_mm, vmf->flags)) {
-> -		put_page(page);
-> -		return ret | VM_FAULT_RETRY;
-> +	/*
-> +	 * We are open-coding lock_page_or_retry here because we want to do the
-> +	 * readpage if necessary while the mmap_sem is dropped.  If there
-> +	 * happens to be a lock on the page but it wasn't being faulted in we'd
-> +	 * come back around without ALLOW_RETRY set and then have to do the IO
-> +	 * under the mmap_sem, which would be a bummer.
-> +	 */
-
-Hum, lock_page_or_retry() has two callers and you've just killed one. I
-think it would be better to modify the function to suit both callers rather
-than opencoding? Maybe something like lock_page_maybe_drop_mmap() which
-would unconditionally acquire the lock and return whether it has dropped
-mmap sem or not? Callers can then decide what to do.
-
-BTW I'm not sure this complication is really worth it. The "drop mmap_sem
-for IO" is never going to be 100% thing if nothing else because only one
-retry is allowed in do_user_addr_fault(). So the second time we get to
-filemap_fault(), we will not have FAULT_FLAG_ALLOW_RETRY set and thus do
-blocking locking. So I think your code needs to catch common cases you
-observe in practice but not those super-rare corner cases...
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
