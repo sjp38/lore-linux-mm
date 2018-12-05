@@ -1,204 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FBF56B78E4
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 03:04:16 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id 89so16722861ple.19
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 00:04:16 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id y6si20695931pgb.516.2018.12.06.00.04.14
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E8636B76E7
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 18:35:51 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id o9so12142471pgv.19
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:35:51 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id ca6si22613107plb.141.2018.12.05.15.35.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 00:04:14 -0800 (PST)
-From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
-Subject: Re: [RFC v2 01/13] x86/mktme: Document the MKTME APIs
-Date: Thu, 6 Dec 2018 08:04:09 +0000
-Message-ID: <10b900d7461d81433120e614287d6f837cea83ef.camel@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
-	 <c2276bbbb19f3a28bd37c3dd6b1021e2d9a10916.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <c2276bbbb19f3a28bd37c3dd6b1021e2d9a10916.1543903910.git.alison.schofield@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <3CA0F20DA0C02A49AA41A917B5C30913@intel.com>
-Content-Transfer-Encoding: base64
+        Wed, 05 Dec 2018 15:35:49 -0800 (PST)
+Received: from mail-wm1-f41.google.com (mail-wm1-f41.google.com [209.85.128.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1F8AB21508
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 23:35:49 +0000 (UTC)
+Received: by mail-wm1-f41.google.com with SMTP id z18so15037271wmc.4
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:35:49 -0800 (PST)
 MIME-Version: 1.0
+References: <cover.1543903910.git.alison.schofield@intel.com>
+ <c2276bbbb19f3a28bd37c3dd6b1021e2d9a10916.1543903910.git.alison.schofield@intel.com>
+ <4ED70A75-9A88-41B4-B595-87FB748772F9@amacapital.net> <20181205192255.GA988@alison-desk.jf.intel.com>
+In-Reply-To: <20181205192255.GA988@alison-desk.jf.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 5 Dec 2018 15:35:36 -0800
+Message-ID: <CALCETrXsh6wAy9kE_m1L+0yW8a6bNOb6g2Tf9nwpQJnyMzdSuw@mail.gmail.com>
+Subject: Re: [RFC v2 01/13] x86/mktme: Document the MKTME APIs
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, Hansen,, Jun
+To: alison.schofield@intel.com
+Cc: David Howells <dhowells@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, James Morris <jmorris@namei.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrew Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, kai.huang@intel.com, Jun Nakajima <jun.nakajima@intel.com>, Dan Williams <dan.j.williams@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, keyrings@vger.kernel.org, LSM List <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-SSdsbCBmb2N1cyBteSByZW1hcmtzIG5vdyB0b3dhcmRzIGRvY3VtZW50YXRpb24gYXMgSSBoYXZl
-IGxvdHMgb2YNCmNhdGNoaW5nIHVwIHRvIGRvIHdpdGggVE1FIDotKSBJJ2xsIGdpdmUgbW9yZSBm
-ZWVkYmFjayBvZiBhY3R1YWwgY29kZQ0KY2hhbmdlcyBvbmNlIHYxOCBvZiB0aGUgU0dYIHBhdGNo
-IHNldCBpcyBvdXQsIHB1bGwgcmVxdWVzdCBmb3IgVFBNIDQuMjENCmNoYW5nZXMgaXMgb3V0IGFu
-ZCBtYXliZSBhIG5ldyB2ZXJzaW9uIG9mIHRoaXMgcGF0Y2ggc2V0IGhhcyBiZWVuDQpyZWxlYXNl
-ZC4NCg0KUmlnaHQgbm93IHRvbyBtdWNoIG9uIG15IHNob3VsZGVycyB0byBnbyB0b28gZGVlcCB3
-aXRoIHRoaXMgcGF0Y2ggc2V0Lg0KDQpPbiBNb24sIDIwMTgtMTItMDMgYXQgMjM6MzkgLTA4MDAs
-IEFsaXNvbiBTY2hvZmllbGQgd3JvdGU6DQo+IFRoaXMgaW5jbHVkZXMgYW4gb3ZlcnZpZXcsIGEg
-c2VjdGlvbiBvbiBlYWNoIEFQSTogTVRLTUUgS2V5cyBhbmQNCj4gc3lzdGVtIGNhbGwgZW5jcnlw
-dF9tcHJvdGVjdCgpLCBhbmQgYSBkZW1vbnN0cmF0aW9uIHByb2dyYW0uDQo+IA0KPiAoU29tZSBv
-ZiB0aGlzIGluZm8gaXMgZGVzdGluZWQgZm9yIG1hbiBwYWdlcy4pDQo+IA0KPiBDaGFuZ2UtSWQ6
-IEkzNGRjOWZmMWExMzA4YzA1N2VjNGJiM2U2NTJjNGQ3Y2U2OTk1NjA2DQo+IFNpZ25lZC1vZmYt
-Ynk6IEFsaXNvbiBTY2hvZmllbGQgPGFsaXNvbi5zY2hvZmllbGRAaW50ZWwuY29tPg0KDQpDby1k
-ZXZlbG9wZWQtYnk6IEtpcmlsbCBBLiBTaHV0ZW1vdiA8a2lyaWxsLnNodXRlbW92QGxpbnV4Lmlu
-dGVsLmNvbT4gPw0KDQpOb3QgbmVlZGVkIGlmIHRoaXMgaXMgZm9yIHRoZSBtb3N0IHBhcnQgd3Jp
-dHRlbiBieSB5b3UuDQoNCj4gU2lnbmVkLW9mZi1ieTogS2lyaWxsIEEuIFNodXRlbW92IDxraXJp
-bGwuc2h1dGVtb3ZAbGludXguaW50ZWwuY29tPg0KPiAtLS0NCj4gIERvY3VtZW50YXRpb24veDg2
-L21rdG1lL2luZGV4LnJzdCAgICAgICAgICB8ICAxMSArKysNCj4gIERvY3VtZW50YXRpb24veDg2
-L21rdG1lL21rdG1lX2RlbW8ucnN0ICAgICB8ICA1MyArKysrKysrKysrKysrKw0KPiAgRG9jdW1l
-bnRhdGlvbi94ODYvbWt0bWUvbWt0bWVfZW5jcnlwdC5yc3QgIHwgIDU4ICsrKysrKysrKysrKysr
-Kw0KPiAgRG9jdW1lbnRhdGlvbi94ODYvbWt0bWUvbWt0bWVfa2V5cy5yc3QgICAgIHwgMTA5DQo+
-ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrDQo+ICBEb2N1bWVudGF0aW9uL3g4Ni9ta3Rt
-ZS9ta3RtZV9vdmVydmlldy5yc3QgfCAgNjAgKysrKysrKysrKysrKysrKw0KPiAgNSBmaWxlcyBj
-aGFuZ2VkLCAyOTEgaW5zZXJ0aW9ucygrKQ0KPiAgY3JlYXRlIG1vZGUgMTAwNjQ0IERvY3VtZW50
-YXRpb24veDg2L21rdG1lL2luZGV4LnJzdA0KPiAgY3JlYXRlIG1vZGUgMTAwNjQ0IERvY3VtZW50
-YXRpb24veDg2L21rdG1lL21rdG1lX2RlbW8ucnN0DQo+ICBjcmVhdGUgbW9kZSAxMDA2NDQgRG9j
-dW1lbnRhdGlvbi94ODYvbWt0bWUvbWt0bWVfZW5jcnlwdC5yc3QNCj4gIGNyZWF0ZSBtb2RlIDEw
-MDY0NCBEb2N1bWVudGF0aW9uL3g4Ni9ta3RtZS9ta3RtZV9rZXlzLnJzdA0KPiAgY3JlYXRlIG1v
-ZGUgMTAwNjQ0IERvY3VtZW50YXRpb24veDg2L21rdG1lL21rdG1lX292ZXJ2aWV3LnJzdA0KPiAN
-Cj4gZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24veDg2L21rdG1lL2luZGV4LnJzdA0KPiBiL0Rv
-Y3VtZW50YXRpb24veDg2L21rdG1lL2luZGV4LnJzdA0KPiBuZXcgZmlsZSBtb2RlIDEwMDY0NA0K
-PiBpbmRleCAwMDAwMDAwMDAwMDAuLjhjNTU2ZDA0Y2JjNA0KPiAtLS0gL2Rldi9udWxsDQo+ICsr
-KyBiL0RvY3VtZW50YXRpb24veDg2L21rdG1lL2luZGV4LnJzdA0KPiBAQCAtMCwwICsxLDExIEBA
-DQo+ICsNCg0KU1BEWD8NCg0KPiArPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09DQo+ICtNdWx0aS1LZXkgVG90YWwgTWVtb3J5IEVuY3J5cHRpb24gKE1LVE1FKSBB
-UEkNCj4gKz09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ0KPiAr
-DQo+ICsuLiB0b2N0cmVlOjoNCj4gKw0KPiArICAgbWt0bWVfb3ZlcnZpZXcNCj4gKyAgIG1rdG1l
-X2tleXMNCj4gKyAgIG1rdG1lX2VuY3J5cHQNCj4gKyAgIG1rdG1lX2RlbW8NCj4gZGlmZiAtLWdp
-dCBhL0RvY3VtZW50YXRpb24veDg2L21rdG1lL21rdG1lX2RlbW8ucnN0DQo+IGIvRG9jdW1lbnRh
-dGlvbi94ODYvbWt0bWUvbWt0bWVfZGVtby5yc3QNCj4gbmV3IGZpbGUgbW9kZSAxMDA2NDQNCj4g
-aW5kZXggMDAwMDAwMDAwMDAwLi5hZmQ1MDc3MmU2NWQNCj4gLS0tIC9kZXYvbnVsbA0KPiArKysg
-Yi9Eb2N1bWVudGF0aW9uL3g4Ni9ta3RtZS9ta3RtZV9kZW1vLnJzdA0KPiBAQCAtMCwwICsxLDUz
-IEBADQo+ICtEZW1vbnN0cmF0aW9uIFByb2dyYW0gdXNpbmcgTUtUTUUgQVBJJ3MNCj4gKz09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ0KDQpQcm9iYWJseSB3b3VsZCBiZSBi
-ZXR0ZXIgaWRlYSB0byBwdXQgaW50byB0b29scy90ZXN0aW5ncy9zZWxmdGVzdC94ODYNCmFuZCBu
-b3QgYXMgcGFydCBvZiB0aGUgZG9jdW1lbnRhdGlvbi4NCg0KPiArDQo+ICsvKiBDb21waWxlIHdp
-dGggdGhlIGtleXV0aWxzIGxpYnJhcnk6IGNjIC1vIG1kZW1vIG1kZW1vLmMgLWxrZXl1dGlscyAq
-Lw0KPiArDQo+ICsjaW5jbHVkZSA8c3lzL21tYW4uaD4NCj4gKyNpbmNsdWRlIDxzeXMvc3lzY2Fs
-bC5oPg0KPiArI2luY2x1ZGUgPHN5cy90eXBlcy5oPg0KPiArI2luY2x1ZGUgPGtleXV0aWxzLmg+
-DQo+ICsjaW5jbHVkZSA8c3RkaW8uaD4NCj4gKyNpbmNsdWRlIDxzdHJpbmcuaD4NCj4gKyNpbmNs
-dWRlIDx1bmlzdGQuaD4NCj4gKw0KPiArI2RlZmluZSBQQUdFX1NJWkUgc3lzY29uZihfU0NfUEFH
-RV9TSVpFKQ0KPiArI2RlZmluZSBzeXNfZW5jcnlwdF9tcHJvdGVjdCAzMzUNCj4gKw0KPiArdm9p
-ZCBtYWluKHZvaWQpDQo+ICt7DQo+ICsJY2hhciAqb3B0aW9uc19DUFUgPSAiYWxnb3JpdGhtPWFl
-cy14dHMtMTI4IHR5cGU9Y3B1IjsNCj4gKwlsb25nIHNpemUgPSBQQUdFX1NJWkU7DQo+ICsgICAg
-ICAgIGtleV9zZXJpYWxfdCBrZXk7DQo+ICsJdm9pZCAqcHRyYTsNCj4gKwlpbnQgcmV0Ow0KPiAr
-DQo+ICsgICAgICAgIC8qIEFsbG9jYXRlIGFuIE1LVE1FIEtleSAqLw0KPiArCWtleSA9IGFkZF9r
-ZXkoIm1rdG1lIiwgInRlc3RrZXkiLCBvcHRpb25zX0NQVSwgc3RybGVuKG9wdGlvbnNfQ1BVKSwN
-Cj4gKyAgICAgICAgICAgICAgICAgICAgICBLRVlfU1BFQ19USFJFQURfS0VZUklORyk7DQo+ICsN
-Cj4gKwlpZiAoa2V5ID09IC0xKSB7DQo+ICsJCXByaW50ZigiYWRka2V5IEZBSUxFRFxuIik7DQo+
-ICsJCXJldHVybjsNCj4gKwl9DQo+ICsgICAgICAgIC8qIE1hcCBhIHBhZ2Ugb2YgQU5PTllNT1VT
-IG1lbW9yeSAqLw0KPiArCXB0cmEgPSBtbWFwKE5VTEwsIHNpemUsIFBST1RfTk9ORSwgTUFQX0FO
-T05ZTU9VU3xNQVBfUFJJVkFURSwgLTEsIDApOw0KPiArCWlmICghcHRyYSkgew0KPiArCQlwcmlu
-dGYoImZhaWxlZCB0byBtbWFwIik7DQo+ICsJCWdvdG8gaW52YWxfa2V5Ow0KPiArCX0NCj4gKyAg
-ICAgICAgLyogRW5jcnlwdCB0aGF0IHBhZ2Ugb2YgbWVtb3J5IHdpdGggdGhlIE1LVE1FIEtleSAq
-Lw0KPiArCXJldCA9IHN5c2NhbGwoc3lzX2VuY3J5cHRfbXByb3RlY3QsIHB0cmEsIHNpemUsIFBS
-T1RfTk9ORSwga2V5KTsNCj4gKwlpZiAocmV0KQ0KPiArCQlwcmludGYoIm1wcm90ZWN0IGVycm9y
-IFslZF1cbiIsIHJldCk7DQo+ICsNCj4gKyAgICAgICAgLyogRW5qb3kgdGhhdCBwYWdlIG9mIGVu
-Y3J5cHRlZCBtZW1vcnkgKi8NCj4gKw0KPiArICAgICAgICAvKiBGcmVlIHRoZSBtZW1vcnkgKi8N
-Cj4gKwlyZXQgPSBtdW5tYXAocHRyYSwgc2l6ZSk7DQo+ICsNCj4gK2ludmFsX2tleToNCj4gKyAg
-ICAgICAgLyogRnJlZSB0aGUgS2V5ICovDQo+ICsJaWYgKGtleWN0bChLRVlDVExfSU5WQUxJREFU
-RSwga2V5KSA9PSAtMSkNCj4gKwkJcHJpbnRmKCJpbnZhbGlkYXRlIGZhaWxlZCBvbiBrZXkgWyVk
-XVxuIiwga2V5KTsNCg0KV291bGQgaXQgbWFrZSBzZW5zZSB0byBwcmludCBlcnJvciBtZXNzYWdl
-cyB0byBzdGRlcnI/DQoNCj4gK30NCj4gZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24veDg2L21r
-dG1lL21rdG1lX2VuY3J5cHQucnN0DQo+IGIvRG9jdW1lbnRhdGlvbi94ODYvbWt0bWUvbWt0bWVf
-ZW5jcnlwdC5yc3QNCj4gbmV3IGZpbGUgbW9kZSAxMDA2NDQNCj4gaW5kZXggMDAwMDAwMDAwMDAw
-Li5lZGU1MjM3MTgzZmMNCj4gLS0tIC9kZXYvbnVsbA0KPiArKysgYi9Eb2N1bWVudGF0aW9uL3g4
-Ni9ta3RtZS9ta3RtZV9lbmNyeXB0LnJzdA0KPiBAQCAtMCwwICsxLDU4IEBADQo+ICtNS1RNRSBB
-UEk6IHN5c3RlbSBjYWxsIGVuY3J5cHRfbXByb3RlY3QoKQ0KPiArPT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT0NCj4gKw0KPiArU3lub3BzaXMNCj4gKy0tLS0tLS0tDQo+
-ICtpbnQgZW5jcnlwdF9tcHJvdGVjdCh2b2lkIFwqYWRkciwgc2l6ZV90IGxlbiwgaW50IHByb3Qs
-IGtleV9zZXJpYWxfdCBzZXJpYWwpOw0KPiArDQo+ICtXaGVyZSAqa2V5X3NlcmlhbF90IHNlcmlh
-bCogaXMgdGhlIHNlcmlhbCBudW1iZXIgb2YgYSBrZXkgYWxsb2NhdGVkDQo+ICt1c2luZyB0aGUg
-TUtUTUUgS2V5IFNlcnZpY2UuDQoNClRoZXJlIGlzIG9ubHkgb25lIGtleSBzZXJ2aWNlIGkuZS4g
-dGhlIGtlcm5lbCBrZXlyaW5nLiBTaG91bGQgYmUgcmVwaHJhc2VkDQpzb21laG93Lg0KDQo+ICsN
-Cj4gK0Rlc2NyaXB0aW9uDQo+ICstLS0tLS0tLS0tLQ0KPiArICAgIGVuY3J5cHRfbXByb3RlY3Qo
-KSBlbmNyeXB0cyB0aGUgbWVtb3J5IHBhZ2VzIGNvbnRhaW5pbmcgYW55IHBhcnQNCj4gKyAgICBv
-ZiB0aGUgYWRkcmVzcyByYW5nZSBpbiB0aGUgaW50ZXJ2YWwgc3BlY2lmaWVkIGJ5IGFkZHIgYW5k
-IGxlbi4NCg0KV2hhdCBkb2VzIGl0IGFjdHVhbGx5IGRvPyBJIGRvbid0IHRoaW5rIHRoZSBzeXNj
-YWxsIGRvZXMgYW55IGVuY3J5cHRpb24sDQpkb2VzIGl0PyBJJ20gbm90IGxvb2tpbmcgU0RNIGxl
-dmVsIGRldGFpbHMgYnV0IHNvbWVob3cgYmV0dGVyDQpkZXNjcmlwdGlvbiB3aGF0IGRvZXMgaXQg
-ZG8gd291bGQgYmUgbmljZS4NCg0KPiArDQo+ICsgICAgZW5jcnlwdF9tcHJvdGVjdCgpIHN1cHBv
-cnRzIHRoZSBsZWdhY3kgbXByb3RlY3QoKSBiZWhhdmlvciBwbHVzDQo+ICsgICAgdGhlIGVuYWJs
-aW5nIG9mIG1lbW9yeSBlbmNyeXB0aW9uLiBUaGF0IG1lYW5zIHRoYXQgaW4gYWRkaXRpb24NCj4g
-KyAgICB0byBlbmNyeXB0aW5nIHRoZSBtZW1vcnksIHRoZSBwcm90ZWN0aW9uIGZsYWdzIHdpbGwg
-YmUgdXBkYXRlZA0KPiArICAgIGFzIHJlcXVlc3RlZCBpbiB0aGUgY2FsbC4NCg0KRGl0dG8uDQoN
-Cj4gKw0KPiArICAgIFRoZSAqYWRkciogYW5kICpsZW4qIG11c3QgYmUgYWxpZ25lZCB0byBhIHBh
-Z2UgYm91bmRhcnkuDQo+ICsNCj4gKyAgICBUaGUgY2FsbGVyIG11c3QgaGF2ZSAqS0VZX05FRURf
-VklFVyogcGVybWlzc2lvbiBvbiB0aGUga2V5Lg0KDQpNYXliZSBtb3JlIHZlcmJvc2UgZGVzY3Jp
-cHRpb24sIGVzcGVjaWFsbHkgd2hlbiBpdCBpcyBhIG11c3QuDQoNCj4gKw0KPiArICAgIFRoZSBy
-YW5nZSBvZiBtZW1vcnkgdGhhdCBpcyB0byBiZSBwcm90ZWN0ZWQgbXVzdCBiZSBtYXBwZWQgYXMN
-Cj4gKyAgICAqQU5PTllNT1VTKi4NCg0KRGl0dG8uDQoNCj4gKw0KPiArRXJyb3JzDQo+ICstLS0t
-LS0NCj4gKyAgICBJbiBhZGRpdGlvbiB0byB0aGUgRXJyb3JzIHJldHVybmVkIGZyb20gbGVnYWN5
-IG1wcm90ZWN0KCkNCj4gKyAgICBlbmNyeXB0X21wcm90ZWN0IHdpbGwgcmV0dXJuOg0KPiArDQo+
-ICsgICAgRU5PS0VZICpzZXJpYWwqIHBhcmFtZXRlciBkb2VzIG5vdCByZXByZXNlbnQgYSB2YWxp
-ZCBrZXkuDQo+ICsNCj4gKyAgICBFSU5WQUwgKmxlbiogcGFyYW1ldGVyIGlzIG5vdCBwYWdlIGFs
-aWduZWQuDQo+ICsNCj4gKyAgICBFQUNDRVMgQ2FsbGVyIGRvZXMgbm90IGhhdmUgKktFWV9ORUVE
-X1ZJRVcqIHBlcm1pc3Npb24gb24gdGhlIGtleS4NCj4gKw0KPiArRVhBTVBMRQ0KPiArLS0tLS0t
-LS0NCj4gKyAgQWxsb2NhdGUgYW4gTUtUTUUgS2V5OjoNCj4gKyAgICAgICAgc2VyaWFsID0gYWRk
-X2tleSgibWt0bWUiLCAibmFtZSIsICJ0eXBlPWNwdSBhbGdvcml0aG09YWVzLXh0cy0xMjgiIEB1
-DQo+ICsNCj4gKyAgTWFwIEFOT05ZTU9VUyBtZW1vcnk6Og0KPiArICAgICAgICBwdHIgPSBtbWFw
-KE5VTEwsIHNpemUsIFBST1RfTk9ORSwgTUFQX0FOT05ZTU9VU3xNQVBfUFJJVkFURSwgLTEsIDAp
-Ow0KPiArDQo+ICsgIFByb3RlY3QgbWVtb3J5OjoNCj4gKyAgICAgICAgcmV0ID0gc3lzY2FsbChT
-WVNfZW5jcnlwdF9tcHJvdGVjdCwgcHRyLCBzaXplLCBQUk9UX1JFQUR8UFJPVF9XUklURSwNCj4g
-KyAgICAgICAgICAgICAgICAgICAgICBzZXJpYWwpOw0KPiArDQo+ICsgIFVzZSB0aGUgZW5jcnlw
-dGVkIG1lbW9yeQ0KPiArDQo+ICsgIEZyZWUgbWVtb3J5OjoNCj4gKyAgICAgICAgcmV0ID0gbXVu
-bWFwKHB0ciwgc2l6ZSk7DQo+ICsNCj4gKyAgRnJlZSB0aGUga2V5IHJlc291cmNlOjoNCj4gKyAg
-ICAgICAgcmV0ID0ga2V5Y3RsKEtFWUNUTF9JTlZBTElEQVRFLCBzZXJpYWwpOw0KPiArDQoNCk5v
-dCByZWFsbHkgc3VyZSB3aGF0IHRoaXMgZXhhbXBsZSBzZXJ2ZXMgYXMgeW91IGFscmVhZHkgaGFk
-IGFuIGV4YW1wbGUNCnByb2dyYW0uLi4NCg0KSGF2ZSB5b3UgcmVhZCBwa2V5cyBtYW4gcGFnZT8g
-SXQgaGFzIHJlYWxseSBnb29kIGJhbGFuY2UgZXhwbGFpbmluZyBob3cNCml0IGlzIGltcGxlbWVu
-dGVkIGFuZCB1c2VkIChtYW4gcGtleXMsIG5vdCBtYW4gcGtleV9tcHJvdGVjdCgpKS4NCg0KV2hh
-dCBpZiB5b3Ugc3VkZGVubHkgY2hhbmdlIGEga2V5IGZvciBWTUE/IEkgZ3Vlc3MgbWVtb3J5IGlz
-IHRoZW4NCmNvcnJ1cHRlZD8gTm90IGRvY3VtZW50ZWQgaGVyZS4gU2hvdWxkIGJlLg0KDQpJIGRp
-ZCBub3QgZmluZCB0aGUgdGhpbmcgSSB3YXMgbG9va2luZyBmb3IgbW9zdCBpLmUuIHNvbWUgaGln
-aCBsZXZlbA0KZGVzY3JpcHRpb24gb2YgdGhlIHRocmVhdCBtb2RlbC4gRW1waGFzaXMgb24gaGln
-aC1sZXZlbCBhcyBrZXJuZWwNCmRvY3VtZW50YXRpb24gaXMgbm90IGEgQ1ZFIGRhdGFiYXNlLg0K
-DQo+IGRpZmYgLS1naXQgYS9Eb2N1bWVudGF0aW9uL3g4Ni9ta3RtZS9ta3RtZV9rZXlzLnJzdA0K
-PiBiL0RvY3VtZW50YXRpb24veDg2L21rdG1lL21rdG1lX2tleXMucnN0DQo+IG5ldyBmaWxlIG1v
-ZGUgMTAwNjQ0DQo+IGluZGV4IDAwMDAwMDAwMDAwMC4uNTgzNzkwOWIyYzU0DQo+IC0tLSAvZGV2
-L251bGwNCj4gKysrIGIvRG9jdW1lbnRhdGlvbi94ODYvbWt0bWUvbWt0bWVfa2V5cy5yc3QNCj4g
-QEAgLTAsMCArMSwxMDkgQEANCj4gK01LVE1FIEtleSBTZXJ2aWNlIEFQSQ0KPiArPT09PT09PT09
-PT09PT09PT09PT09DQo+ICtNS1RNRSBpcyBhIG5ldyBrZXkgc2VydmljZSB0eXBlIGFkZGVkIHRv
-IHRoZSBMaW51eCBLZXJuZWwgS2V5IFNlcnZpY2UuDQo+ICsNCj4gK1RoZSBNS1RNRSBLZXkgU2Vy
-dmljZSB0eXBlIGlzIGF2YWlsYWJsZSB3aGVuIENPTkZJR19YODZfSU5URUxfTUtUTUUgaXMNCj4g
-K3R1cm5lZCBvbiBpbiBJbnRlbCBwbGF0Zm9ybXMgdGhhdCBzdXBwb3J0IHRoZSBNS1RNRSBmZWF0
-dXJlLg0KPiArDQo+ICtUaGUgTUtUTUUgS2V5IFNlcnZpY2UgdHlwZSBtYW5hZ2VzIHRoZSBhbGxv
-Y2F0aW9uIG9mIGhhcmR3YXJlIGVuY3J5cHRpb24NCj4gK2tleXMuIFVzZXJzIGNhbiByZXF1ZXN0
-IGFuIE1LVE1FIHR5cGUga2V5IGFuZCB0aGVuIHVzZSB0aGF0IGtleSB0bw0KPiArZW5jcnlwdCBt
-ZW1vcnkgd2l0aCB0aGUgZW5jcnlwdF9tcHJvdGVjdCgpIHN5c3RlbSBjYWxsLg0KPiArDQo+ICtV
-c2FnZQ0KPiArLS0tLS0NCj4gKyAgICBXaGVuIHVzaW5nIHRoZSBLZXJuZWwgS2V5IFNlcnZpY2Ug
-dG8gcmVxdWVzdCBhbiAqbWt0bWUqIGtleSwNCj4gKyAgICBzcGVjaWZ5IHRoZSAqcGF5bG9hZCog
-YXMgZm9sbG93czoNCj4gKw0KPiArICAgIHR5cGU9DQo+ICsgICAgICAgICp1c2VyKglVc2VyIHdp
-bGwgc3VwcGx5IHRoZSBlbmNyeXB0aW9uIGtleSBkYXRhLiBVc2UgdGhpcw0KPiArICAgICAgICAg
-ICAgICAgIHR5cGUgdG8gZGlyZWN0bHkgcHJvZ3JhbSBhIGhhcmR3YXJlIGVuY3J5cHRpb24ga2V5
-Lg0KPiArDQo+ICsgICAgICAgICpjcHUqCVVzZXIgcmVxdWVzdHMgYSBDUFUgZ2VuZXJhdGVkIGVu
-Y3J5cHRpb24ga2V5Lg0KPiArICAgICAgICAgICAgICAgIFRoZSBDUFUgZ2VuZXJhdGVzIGFuZCBh
-c3NpZ25zIGFuIGVwaGVtZXJhbCBrZXkuDQoNCkhvdyBhcmUgdGhlc2UgaW1wbGVtZW50ZWQ/IElz
-IHRoZXJlIGFuIG9wY29kZSB0byByZXF1ZXN0IENQVSB0byBnZW5lcmF0ZQ0KYSBrZXksIG9yPyBX
-aGF0IGFib3V0IHRoZSB1c2VyIGtleT8gRG9lcyBjcHUga2V5IGV2ZXIgbGVhdmUgb3V0IG9mIHRo
-ZQ0KQ1BVIHBhY2thZ2U/DQoNClRoZSB1c2VyIGtleSBzb3VuZHMgbGlrZSBhIHJlYWxseSBiYWQg
-aWRlYSBhdCB0aGUgZmlyc3Qgc2lnaHQgYW5kIG1heWJlDQpzaG91bGQgYmUgY29uc2lkZXJlZCB0
-byBiZSBsZWZ0IG91dC4gV2hhdCB3b3VsZCBiZSBhIGxlZ2l0IHVzZSBjYXNlIGZvcg0KaXQ/DQoN
-CkFyZSB0aGUga2V5cyBwZXItcHJvY2VzcyBvciBpcyBpdCBhIGdsb2JhbCByZXNvdXJjZT8NCg0K
-PiArICAgICAgICAqY2xlYXIqIFVzZXIgcmVxdWVzdHMgdGhhdCBhIGhhcmR3YXJlIGVuY3J5cHRp
-b24ga2V5IGJlDQo+ICsgICAgICAgICAgICAgICAgY2xlYXJlZC4gVGhpcyB3aWxsIGNsZWFyIHRo
-ZSBlbmNyeXB0aW9uIGtleSBmcm9tDQo+ICsgICAgICAgICAgICAgICAgdGhlIGhhcmR3YXJlLiBP
-biBleGVjdXRpb24gdGhpcyBoYXJkd2FyZSBrZXkgZ2V0cw0KPiArICAgICAgICAgICAgICAgIFRN
-RSBiZWhhdmlvci4NCj4gKw0KPiArICAgICAgICAqbm8tZW5jcnlwdCoNCj4gKyAgICAgICAgICAg
-ICAgICAgVXNlciByZXF1ZXN0cyB0aGF0IGhhcmR3YXJlIGRvZXMgbm90IGVuY3J5cHQNCj4gKyAg
-ICAgICAgICAgICAgICAgbWVtb3J5IHdoZW4gdGhpcyBrZXkgaXMgaW4gdXNlLg0KDQpOb3Qgc3Vy
-ZSBhYm91dCB0aGVzZSB3aXRoIG15IGN1cnJlbnQga25vd2xlZGdlLg0KDQo+ICsNCj4gKyAgICBh
-bGdvcml0aG09DQo+ICsgICAgICAgIFdoZW4gdHlwZT11c2VyIG9yIHR5cGU9Y3B1IHRoZSBhbGdv
-cml0aG0gZmllbGQgbXVzdCBiZQ0KPiArICAgICAgICAqYWVzLXh0cy0xMjgqDQo+ICsNCj4gKyAg
-ICAgICAgV2hlbiB0eXBlPWNsZWFyIG9yIHR5cGU9bm8tZW5jcnlwdCB0aGUgYWxnb3JpdGhtIGZp
-ZWxkDQo+ICsgICAgICAgIG11c3Qgbm90IGJlIHByZXNlbnQgaW4gdGhlIHBheWxvYWQuDQoNClRo
-aXMgcGFyYW1ldGVyIG11c3QgYmUgcmVtb3ZlZCBhcyBpdCBpcyBhIGZ1bmN0aW9uIG9mIG90aGVy
-IHBhcmFtYXRlcnMNCmFuZCBub3RoaW5nIGVsc2UgaS5lLiBjb21wbGV4aXR5IHdpdGhvdXQgZ2Fp
-bi4NCg0KPiArCVRoaXMgZG9jdW1lbnQgZG9lcyBub3QgaW50ZW5kIHRvIGRvY3VtZW50IEtLUywg
-YnV0IG9ubHkgdGhlDQo+ICsJTUtUTUUgdHlwZSBvZiB0aGUgS0tTLiBUaGUgb3B0aW9ucyBvZiB0
-aGUgS0tTIGNhbiBiZSBncm91cGVkDQo+ICsJaW50byAyIGNsYXNzZXMgZm9yIHB1cnBvc2VzIG9m
-IHVuZGVyc3RhbmRpbmcgaG93IE1LVE1FIG9wZXJhdGVzDQo+ICsJd2l0aGluIHRoZSBicm9hZGVy
-IEtLUy4NCg0KTWF5YmUganVzdCBkZWxldGUgdGhpcyBwYXJhZ3JhcGg/IEkgdGhpbmsgaXQgaXMg
-anVzdCBzdGF0aW5nIHRoZQ0Kb2J2aW91cy4NCg0KSSB0aGluayB5b3UgbmVlZCB0aGlzIHBhcmFn
-cmFwaCBvbmx5IGJlY2F1c2UgeW91IGhhdmUgZGVwbG95ZWQgdGhpcw0KZG9jdW1lbnQgdG8gd3Jv
-bmcgcGxhY2UuIEJldHRlciBwYXRoIHdvdWxkIGJlDQoNCkRvY3VtZW50YXRpb24vc2VjdXJpdHkv
-a2V5cy9ta3RtZS5yc3QuDQoNCi9KYXJra28NCg==
+>> On Dec 5, 2018, at 11:22 AM, Alison Schofield <alison.schofield@intel.co=
+m> wrote:
+>>
+>> On Wed, Dec 05, 2018 at 10:11:18AM -0800, Andy Lutomirski wrote:
+>>
+>>
+>>> On Dec 3, 2018, at 11:39 PM, Alison Schofield <alison.schofield@intel.c=
+om> wrote:
+>>
+>> I realize you=E2=80=99re writing code to expose hardware behavior, but I=
+=E2=80=99m not sure this
+>> really makes sense in this context.
+>
+> Your observation is accurate. The Usage defined here is very closely
+> aligned to the Intel MKTME Architecture spec. That's a starting point,
+> but not the ending point. We need to implement the feature set that
+> makes sense. More below...
+>
+>>> +
+>>> +    type=3D
+>>> +        *user*    User will supply the encryption key data. Use this
+>>> +                type to directly program a hardware encryption key.
+>>> +
+>>
+>> I think that =E2=80=9Cuser=E2=80=9D probably sense as a =E2=80=9Ckey ser=
+vice=E2=80=9D key, but I don=E2=80=99t think it is at all useful for non-pe=
+rsistent memory.  Even if we take for granted that MKTME for anonymous memo=
+ry is useful at all, =E2=80=9Ccpu=E2=80=9D seems to be better in all respec=
+ts.
+>>
+>>
+>> Perhaps support for =E2=80=9Cuser=E2=80=9D should be tabled until there=
+=E2=80=99s a design for how to use this for pmem?  I imagine it would look =
+quite a bit like dm-crypt.  Advanced pmem filesystems could plausibly use d=
+ifferent keys for different files, I suppose.
+>>
+>> If =E2=80=9Cuser=E2=80=9D is dropped, I think a lot of the complexity go=
+es away. Hotplug becomes automatic, right?
+>
+> Dropping 'user' type removes a great deal of complexity.
+>
+> Let me follow up in 2 ways:
+> 1) Find out when MKTME support for pmem is required.
+> 2) Go back to the the requirements and get the justification for user
+> type.
+>
+>>
+>>> +        *cpu*    User requests a CPU generated encryption key.
+>>
+>> Okay, maybe, but it=E2=80=99s still unclear to me exactly what the inten=
+ded benefit is, though.
+> *cpu* is the RANDOM key generated by the cpu. If there were no other
+> options, then this would be default, and go away.
+>
+>>> +        *clear* User requests that a hardware encryption key be
+>>> +                cleared. This will clear the encryption key from
+>>> +                the hardware. On execution this hardware key gets
+>>> +                TME behavior.
+>>> +
+>>
+>> Why is this a key type?  Shouldn=E2=80=99t the API to select a key just =
+have an option to ask for no key to be used?
+>
+> The *clear* key has been requested in order to clear/erase the users
+> key data that has been programmed into a hardware slot. User does not
+> want to leave a slot programmed with their encryption data when they
+> are done with it.
+
+Can=E2=80=99t you just clear the key when the key is deleted by the user?
+Asking the user to allocate a *new* key and hope that it somehow ends
+up in the same spot seems like a poor design, especially if future
+hardware gains support for key slot virtualization in some way that
+makes the slot allocation more dynamic.
+
+>
+>>> +        *no-encrypt*
+>>> +                 User requests that hardware does not encrypt
+>>> +                 memory when this key is in use.
+>>
+>> Same as above.  If there=E2=80=99s a performance benefit, then there cou=
+ld be a way to ask for cleartext memory.  Similarly, some pmem users may wa=
+nt a way to keep their pmem unencrypted.
+>
+> So, this is the way to ask for cleartext memory.
+> The entire system will be encrypted with the system wide TME Key.
+> A subset of that will be protected with MKTME Keys.
+> If user wants, no encrypt, this *no-encrypt* is the way to do it.
+>
+
+Understood.  I=E2=80=99m saying that having a *key* (in the add_key sense) =
+for
+it seems unnecessary.  Whatever the final API for controlling the use
+of keys, adding an option to ask for clear text seems reasonable.
+This actually seems more useful for anonymous memory than the
+cpu-generates keys are IMO.
+
+I do think that, before you invest too much time in perfecting the
+series with the current design, you should identify the use cases,
+make sure the use cases are valid, and figure out whether your API
+design is appropriate.  After considerable head-scratching, I haven=E2=80=
+=99t
+thought of a reason that explicit CPU generated keys are any better
+than the default TME key, at least in the absence of additional
+hardware support for locking down what code can use what key.  The
+sole exception is that a key can be removed, which is probably faster
+than directly zeroing large amounts of data.
+
+I understand that it would be very nice to say "hey, cloud customer,
+your VM has all its memory encrypted with a key that is unique to your
+VM", but that seems to be more or less just a platitude with no actual
+effect.  Anyone who snoops the memory bus or steals a DIMM learns
+nothing unless they also take control of the CPU and can replay all
+the data into the CPU.  On the other hand, anyone who can get the CPU
+to read from a given physical address (which seems like the most
+likely threat) can just get the CPU to decrypt any tenant's data.  So,
+for example, if someone manages to write a couple of words to the EPT
+for one VM, then they can easily read another VM's data, MKTME or no
+MKTME, because the memory controller has no clue which VM initiated
+the access.
+
+I suppose there's some smallish value in rotating the key every now
+and then to make old data non-replayable, but an attack that
+compromises the memory bus and only later compromises the CPU is a
+strange threat model.
