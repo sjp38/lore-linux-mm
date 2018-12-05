@@ -1,112 +1,334 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6773D6B7422
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 06:41:30 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id w128so12254532oie.20
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 03:41:30 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o10si9092750oig.219.2018.12.05.03.41.29
-        for <linux-mm@kvack.org>;
-        Wed, 05 Dec 2018 03:41:29 -0800 (PST)
-Date: Wed, 5 Dec 2018 11:41:49 +0000
-From: Will Deacon <will.deacon@arm.com>
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A1FE46B71E1
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 21:09:09 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id y88so15588935pfi.9
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 18:09:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u69sor26838165pfa.13.2018.12.04.18.09.07
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 04 Dec 2018 18:09:08 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
 Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
-Message-ID: <20181205114148.GA15160@arm.com>
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <b82861c1c335056169d28e8d451b60a9e96af706.camel@intel.com>
+Date: Tue, 4 Dec 2018 18:09:04 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <453CE980-0EB6-47B1-9973-9761A14B0B0D@gmail.com>
 References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
  <20181128000754.18056-2-rick.p.edgecombe@intel.com>
  <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
  <20181204160304.GB7195@arm.com>
  <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
- <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com>
+ <A5ABCA50-12F0-4A19-B499-3927D59BF589@gmail.com>
+ <e70c618d10ddbb834b7a3bbdd6e2bebed0f8719d.camel@intel.com>
+ <843E4326-3426-4AEC-B0F7-2DC398A6E59A@gmail.com>
+ <3dc0492f209c630e40e93e9c657722041da0ed29.camel@intel.com>
+ <D092D8BE-711E-4BB4-B179-E897A8354120@gmail.com>
+ <b82861c1c335056169d28e8d451b60a9e96af706.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Nadav Amit <nadav.amit@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, jeyu@kernel.org, Steven Rostedt <rostedt@goodmis.org>, Alexei Starovoitov <ast@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linux-MM <linux-mm@kvack.org>, Jann Horn <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Peter Zijlstra <peterz@infradead.org>, Kristen Carlson Accardi <kristen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Masami Hiramatsu <mhiramat@kernel.org>, "Naveen N . Rao" <naveen.n.rao@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Network Development <netdev@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "ast@kernel.org" <ast@kernel.org>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-On Tue, Dec 04, 2018 at 12:09:49PM -0800, Andy Lutomirski wrote:
-> On Tue, Dec 4, 2018 at 12:02 PM Edgecombe, Rick P
-> <rick.p.edgecombe@intel.com> wrote:
-> >
-> > On Tue, 2018-12-04 at 16:03 +0000, Will Deacon wrote:
-> > > On Mon, Dec 03, 2018 at 05:43:11PM -0800, Nadav Amit wrote:
-> > > > > On Nov 27, 2018, at 4:07 PM, Rick Edgecombe <rick.p.edgecombe@intel.com>
-> > > > > wrote:
-> > > > >
-> > > > > Since vfree will lazily flush the TLB, but not lazily free the underlying
-> > > > > pages,
-> > > > > it often leaves stale TLB entries to freed pages that could get re-used.
-> > > > > This is
-> > > > > undesirable for cases where the memory being freed has special permissions
-> > > > > such
-> > > > > as executable.
-> > > >
-> > > > So I am trying to finish my patch-set for preventing transient W+X mappings
-> > > > from taking space, by handling kprobes & ftrace that I missed (thanks again
-> > > > for
-> > > > pointing it out).
-> > > >
-> > > > But all of the sudden, I don’t understand why we have the problem that this
-> > > > (your) patch-set deals with at all. We already change the mappings to make
-> > > > the memory writable before freeing the memory, so why can’t we make it
-> > > > non-executable at the same time? Actually, why do we make the module memory,
-> > > > including its data executable before freeing it???
-> > >
-> > > Yeah, this is really confusing, but I have a suspicion it's a combination
-> > > of the various different configurations and hysterical raisins. We can't
-> > > rely on module_alloc() allocating from the vmalloc area (see nios2) nor
-> > > can we rely on disable_ro_nx() being available at build time.
-> > >
-> > > If we *could* rely on module allocations always using vmalloc(), then
-> > > we could pass in Rick's new flag and drop disable_ro_nx() altogether
-> > > afaict -- who cares about the memory attributes of a mapping that's about
-> > > to disappear anyway?
-> > >
-> > > Is it just nios2 that does something different?
-> > >
-> > Yea it is really intertwined. I think for x86, set_memory_nx everywhere would
-> > solve it as well, in fact that was what I first thought the solution should be
-> > until this was suggested. It's interesting that from the other thread Masami
-> > Hiramatsu referenced, set_memory_nx was suggested last year and would have
-> > inadvertently blocked this on x86. But, on the other architectures I have since
-> > learned it is a bit different.
-> >
-> > It looks like actually most arch's don't re-define set_memory_*, and so all of
-> > the frob_* functions are actually just noops. In which case allocating RWX is
-> > needed to make it work at all, because that is what the allocation is going to
-> > stay at. So in these archs, set_memory_nx won't solve it because it will do
-> > nothing.
-> >
-> > On x86 I think you cannot get rid of disable_ro_nx fully because there is the
-> > changing of the permissions on the directmap as well. You don't want some other
-> > caller getting a page that was left RO when freed and then trying to write to
-> > it, if I understand this.
-> >
-> 
-> Exactly.
+> On Dec 4, 2018, at 5:45 PM, Edgecombe, Rick P =
+<rick.p.edgecombe@intel.com> wrote:
+>=20
+> On Tue, 2018-12-04 at 16:53 -0800, Nadav Amit wrote:
+>>> On Dec 4, 2018, at 4:29 PM, Edgecombe, Rick P =
+<rick.p.edgecombe@intel.com>
+>>> wrote:
+>>>=20
+>>> On Tue, 2018-12-04 at 16:01 -0800, Nadav Amit wrote:
+>>>>> On Dec 4, 2018, at 3:51 PM, Edgecombe, Rick P <
+>>>>> rick.p.edgecombe@intel.com>
+>>>>> wrote:
+>>>>>=20
+>>>>> On Tue, 2018-12-04 at 12:36 -0800, Nadav Amit wrote:
+>>>>>>> On Dec 4, 2018, at 12:02 PM, Edgecombe, Rick P <
+>>>>>>> rick.p.edgecombe@intel.com>
+>>>>>>> wrote:
+>>>>>>>=20
+>>>>>>> On Tue, 2018-12-04 at 16:03 +0000, Will Deacon wrote:
+>>>>>>>> On Mon, Dec 03, 2018 at 05:43:11PM -0800, Nadav Amit wrote:
+>>>>>>>>>> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe <
+>>>>>>>>>> rick.p.edgecombe@intel.com>
+>>>>>>>>>> wrote:
+>>>>>>>>>>=20
+>>>>>>>>>> Since vfree will lazily flush the TLB, but not lazily free =
+the
+>>>>>>>>>> underlying
+>>>>>>>>>> pages,
+>>>>>>>>>> it often leaves stale TLB entries to freed pages that could
+>>>>>>>>>> get
+>>>>>>>>>> re-
+>>>>>>>>>> used.
+>>>>>>>>>> This is
+>>>>>>>>>> undesirable for cases where the memory being freed has =
+special
+>>>>>>>>>> permissions
+>>>>>>>>>> such
+>>>>>>>>>> as executable.
+>>>>>>>>>=20
+>>>>>>>>> So I am trying to finish my patch-set for preventing transient
+>>>>>>>>> W+X
+>>>>>>>>> mappings
+>>>>>>>>> from taking space, by handling kprobes & ftrace that I missed
+>>>>>>>>> (thanks
+>>>>>>>>> again
+>>>>>>>>> for
+>>>>>>>>> pointing it out).
+>>>>>>>>>=20
+>>>>>>>>> But all of the sudden, I don=E2=80=99t understand why we have =
+the
+>>>>>>>>> problem
+>>>>>>>>> that
+>>>>>>>>> this
+>>>>>>>>> (your) patch-set deals with at all. We already change the
+>>>>>>>>> mappings
+>>>>>>>>> to
+>>>>>>>>> make
+>>>>>>>>> the memory writable before freeing the memory, so why can=E2=80=99=
+t we
+>>>>>>>>> make
+>>>>>>>>> it
+>>>>>>>>> non-executable at the same time? Actually, why do we make the
+>>>>>>>>> module
+>>>>>>>>> memory,
+>>>>>>>>> including its data executable before freeing it???
+>>>>>>>>=20
+>>>>>>>> Yeah, this is really confusing, but I have a suspicion it's a
+>>>>>>>> combination
+>>>>>>>> of the various different configurations and hysterical raisins. =
+We
+>>>>>>>> can't
+>>>>>>>> rely on module_alloc() allocating from the vmalloc area (see
+>>>>>>>> nios2)
+>>>>>>>> nor
+>>>>>>>> can we rely on disable_ro_nx() being available at build time.
+>>>>>>>>=20
+>>>>>>>> If we *could* rely on module allocations always using =
+vmalloc(),
+>>>>>>>> then
+>>>>>>>> we could pass in Rick's new flag and drop disable_ro_nx()
+>>>>>>>> altogether
+>>>>>>>> afaict -- who cares about the memory attributes of a mapping
+>>>>>>>> that's
+>>>>>>>> about
+>>>>>>>> to disappear anyway?
+>>>>>>>>=20
+>>>>>>>> Is it just nios2 that does something different?
+>>>>>>>>=20
+>>>>>>>> Will
+>>>>>>>=20
+>>>>>>> Yea it is really intertwined. I think for x86, set_memory_nx
+>>>>>>> everywhere
+>>>>>>> would
+>>>>>>> solve it as well, in fact that was what I first thought the =
+solution
+>>>>>>> should
+>>>>>>> be
+>>>>>>> until this was suggested. It's interesting that from the other
+>>>>>>> thread
+>>>>>>> Masami
+>>>>>>> Hiramatsu referenced, set_memory_nx was suggested last year and
+>>>>>>> would
+>>>>>>> have
+>>>>>>> inadvertently blocked this on x86. But, on the other =
+architectures I
+>>>>>>> have
+>>>>>>> since
+>>>>>>> learned it is a bit different.
+>>>>>>>=20
+>>>>>>> It looks like actually most arch's don't re-define set_memory_*, =
+and
+>>>>>>> so
+>>>>>>> all
+>>>>>>> of
+>>>>>>> the frob_* functions are actually just noops. In which case
+>>>>>>> allocating
+>>>>>>> RWX
+>>>>>>> is
+>>>>>>> needed to make it work at all, because that is what the =
+allocation
+>>>>>>> is
+>>>>>>> going
+>>>>>>> to
+>>>>>>> stay at. So in these archs, set_memory_nx won't solve it because =
+it
+>>>>>>> will
+>>>>>>> do
+>>>>>>> nothing.
+>>>>>>>=20
+>>>>>>> On x86 I think you cannot get rid of disable_ro_nx fully because
+>>>>>>> there
+>>>>>>> is
+>>>>>>> the
+>>>>>>> changing of the permissions on the directmap as well. You don't =
+want
+>>>>>>> some
+>>>>>>> other
+>>>>>>> caller getting a page that was left RO when freed and then =
+trying to
+>>>>>>> write
+>>>>>>> to
+>>>>>>> it, if I understand this.
+>>>>>>>=20
+>>>>>>> The other reasoning was that calling set_memory_nx isn't doing =
+what
+>>>>>>> we
+>>>>>>> are
+>>>>>>> actually trying to do which is prevent the pages from getting
+>>>>>>> released
+>>>>>>> too
+>>>>>>> early.
+>>>>>>>=20
+>>>>>>> A more clear solution for all of this might involve refactoring =
+some
+>>>>>>> of
+>>>>>>> the
+>>>>>>> set_memory_ de-allocation logic out into __weak functions in =
+either
+>>>>>>> modules
+>>>>>>> or
+>>>>>>> vmalloc. As Jessica points out in the other thread though, =
+modules
+>>>>>>> does
+>>>>>>> a
+>>>>>>> lot
+>>>>>>> more stuff there than the other module_alloc callers. I think it =
+may
+>>>>>>> take
+>>>>>>> some
+>>>>>>> thought to centralize AND make it optimal for every
+>>>>>>> module_alloc/vmalloc_exec
+>>>>>>> user and arch.
+>>>>>>>=20
+>>>>>>> But for now with the change in vmalloc, we can block the =
+executable
+>>>>>>> mapping
+>>>>>>> freed page re-use issue in a cross platform way.
+>>>>>>=20
+>>>>>> Please understand me correctly - I didn=E2=80=99t mean that your =
+patches are
+>>>>>> not
+>>>>>> needed.
+>>>>>=20
+>>>>> Ok, I think I understand. I have been pondering these same things =
+after
+>>>>> Masami
+>>>>> Hiramatsu's comments on this thread the other day.
+>>>>>=20
+>>>>>> All I did is asking - how come the PTEs are executable when they =
+are
+>>>>>> cleared
+>>>>>> they are executable, when in fact we manipulate them when the =
+module
+>>>>>> is
+>>>>>> removed.
+>>>>>=20
+>>>>> I think the directmap used to be RWX so maybe historically its =
+trying to
+>>>>> return
+>>>>> it to its default state? Not sure.
+>>>>>=20
+>>>>>> I think I try to deal with a similar problem to the one you =
+encounter
+>>>>>> -
+>>>>>> broken W^X. The only thing that bothered me in regard to your =
+patches
+>>>>>> (and
+>>>>>> only after I played with the code) is that there is still a time-
+>>>>>> window in
+>>>>>> which W^X is broken due to disable_ro_nx().
+>>>>>=20
+>>>>> Totally agree there is overlap in the fixes and we should sync.
+>>>>>=20
+>>>>> What do you think about Andy's suggestion for doing the vfree =
+cleanup in
+>>>>> vmalloc
+>>>>> with arch hooks? So the allocation goes into vfree fully setup and
+>>>>> vmalloc
+>>>>> frees
+>>>>> it and on x86 resets the direct map.
+>>>>=20
+>>>> As long as you do it, I have no problem ;-)
+>>>>=20
+>>>> You would need to consider all the callers of module_memfree(), and
+>>>> probably
+>>>> to untangle at least part of the mess in pageattr.c . If you are up =
+to it,
+>>>> just say so, and I=E2=80=99ll drop this patch. All I can say is =
+=E2=80=9Cgood luck with
+>>>> all
+>>>> that=E2=80=9D.
+>>>=20
+>>> I thought you were trying to prevent having any memory that at any =
+time was
+>>> W+X,
+>>> how does vfree help with the module load time issues, where it =
+starts WRX on
+>>> x86?
+>>=20
+>> I didn=E2=80=99t say it does. The patch I submitted before [1] should =
+deal with the
+>> issue of module loading, and I still think it is required. I also =
+addressed
+>> the kprobe and ftrace issues that you raised.
+>>=20
+>> Perhaps it makes more sense that I will include the patch I proposed =
+for
+>> module cleanup to make the patch-set =E2=80=9Ccomplete=E2=80=9D. If =
+you finish the changes
+>> you propose before the patch is applied, it could be dropped. I just =
+want to
+>> get rid of this series, as it keeps collecting more and more patches.
+>>=20
+>> I suspect it will not be the last version anyhow.
+>>=20
+>> [1] https://lkml.org/lkml/2018/11/21/305
+>=20
+> That seems fine.
+>=20
+> And not to make it any more complicated, but how much different is a =
+W+X mapping
+> from a RW mapping that is about to turn X? Can't an attacker with the =
+ability to
+> write to the module space just write and wait a short time? If that is =
+the
+> threat model, I think there may still be additional work to do here =
+even after
+> you found all the W+X cases.
 
-Of course, I forgot about the linear mapping. On arm64, we've just queued
-support for reflecting changes to read-only permissions in the linear map
-[1]. So, whilst the linear map is always non-executable, we will need to
-make parts of it writable again when freeing the module.
+I agree that a complete solution may require to block any direct write =
+onto
+a code-page. When I say =E2=80=9Ccomplete=E2=80=9D, I mean for a threat =
+model in which
+dangling pointers are used to inject code, but not to run existing =
+ROP/JOP
+gadgets. (I didn=E2=80=99t think too deeply on the threat-model, so =
+perhaps it needs
+to be further refined).
 
-> After slightly more thought, I suggest renaming VM_IMMEDIATE_UNMAP to
-> VM_MAY_ADJUST_PERMS or similar.  It would have the semantics you want,
-> but it would also call some arch hooks to put back the direct map
-> permissions before the flush.  Does that seem reasonable?  It would
-> need to be hooked up that implement set_memory_ro(), but that should
-> be quite easy.  If nothing else, it could fall back to set_memory_ro()
-> in the absence of a better implementation.
+I think the first stage is to make everybody go through a unified =
+interface
+(text_poke() and text_poke_early()). ftrace, for example, uses an
+independent mechanism to change the code.
 
-You mean set_memory_rw() here, right? Although, eliding the TLB invalidation
-would open up a window where the vmap mapping is executable and the linear
-mapping is writable, which is a bit rubbish.
+Eventually, after boot text_poke_early() should not be used, and =
+text_poke()
+(or something similar) should be used instead. Alternatively, when =
+module
+text is loaded, a hash value can be computed and calculated over it.
 
-Will
+Since Igor Stoppa wants to use the infrastructure that is included in =
+the
+first patches, and since I didn=E2=80=99t intend this patch-set to be a =
+full
+solution for W^X (I was pushed there by tglx+Andy [1]), it may be enough
+as a first step.
 
-[1]
-https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git/commit/?h=for-next/core&id=c55191e96caa9d787e8f682c5e525b7f8172a3b4
+[1] https://lore.kernel.org/patchwork/patch/1006293/#1191341
