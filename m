@@ -1,135 +1,97 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3D766B6EA8
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 07:18:50 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id l4-v6so4601425lji.5
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 04:18:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 96-v6sor9443421lja.27.2018.12.04.04.18.48
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 04:18:48 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 6/6] __wr_after_init: lkdtm test
-Date: Tue,  4 Dec 2018 14:18:05 +0200
-Message-Id: <20181204121805.4621-7-igor.stoppa@huawei.com>
-In-Reply-To: <20181204121805.4621-1-igor.stoppa@huawei.com>
-References: <20181204121805.4621-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Subject: Re: [PATCH v4 3/3] iommu/io-pgtable-arm-v7s: Request DMA32 memory,
+ and improve debugging
+References: <20181205054828.183476-1-drinkcat@chromium.org>
+ <20181205054828.183476-4-drinkcat@chromium.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <cf005731-5f37-4aba-519f-7d7d4da04ec7@suse.cz>
+Date: Wed, 5 Dec 2018 15:43:52 +0100
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
+In-Reply-To: <20181205054828.183476-4-drinkcat@chromium.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+To: Nicolas Boichat <drinkcat@chromium.org>, Will Deacon <will.deacon@arm.com>
+Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Verify that trying to modify a variable with the __wr_after_init
-modifier wil lcause a crash.
+On 12/5/18 6:48 AM, Nicolas Boichat wrote:
+> IOMMUs using ARMv7 short-descriptor format require page tables
+> (level 1 and 2) to be allocated within the first 4GB of RAM, even
+> on 64-bit systems.
+> 
+> For level 1/2 pages, ensure GFP_DMA32 is used if CONFIG_ZONE_DMA32
+> is defined (e.g. on arm64 platforms).
+> 
+> For level 2 pages, allocate a slab cache in SLAB_CACHE_DMA32.
+> 
+> Also, print an error when the physical address does not fit in
+> 32-bit, to make debugging easier in the future.
+> 
+> Fixes: ad67f5a6545f ("arm64: replace ZONE_DMA with ZONE_DMA32")
+> Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
+> ---
+> 
+> Changes since v2:
+>  - Commit message
+> 
+> (v3 used the page_frag approach)
+> 
+>  drivers/iommu/io-pgtable-arm-v7s.c | 20 ++++++++++++++++----
+>  1 file changed, 16 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/iommu/io-pgtable-arm-v7s.c b/drivers/iommu/io-pgtable-arm-v7s.c
+> index 445c3bde04800c..996f7b6d00b44a 100644
+> --- a/drivers/iommu/io-pgtable-arm-v7s.c
+> +++ b/drivers/iommu/io-pgtable-arm-v7s.c
+> @@ -161,6 +161,14 @@
+>  
+>  #define ARM_V7S_TCR_PD1			BIT(5)
+>  
+> +#ifdef CONFIG_ZONE_DMA32
+> +#define ARM_V7S_TABLE_GFP_DMA GFP_DMA32
+> +#define ARM_V7S_TABLE_SLAB_CACHE SLAB_CACHE_DMA32
+> +#else
+> +#define ARM_V7S_TABLE_GFP_DMA GFP_DMA
+> +#define ARM_V7S_TABLE_SLAB_CACHE SLAB_CACHE_DMA
+> +#endif
+> +
+>  typedef u32 arm_v7s_iopte;
+>  
+>  static bool selftest_running;
+> @@ -198,13 +206,17 @@ static void *__arm_v7s_alloc_table(int lvl, gfp_t gfp,
+>  	void *table = NULL;
+>  
+>  	if (lvl == 1)
+> -		table = (void *)__get_dma_pages(__GFP_ZERO, get_order(size));
+> +		table = (void *)__get_free_pages(
+> +			__GFP_ZERO | ARM_V7S_TABLE_GFP_DMA, get_order(size));
+>  	else if (lvl == 2)
+> -		table = kmem_cache_zalloc(data->l2_tables, gfp | GFP_DMA);
+> +		table = kmem_cache_zalloc(data->l2_tables,
+> +					  gfp | ARM_V7S_TABLE_GFP_DMA);
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+So as I've explained in 2/3, you don't need ARM_V7S_TABLE_GFP_DMA here
+(and then you don't need to adjust the slab warnings).
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- drivers/misc/lkdtm/core.c  |  3 +++
- drivers/misc/lkdtm/lkdtm.h |  3 +++
- drivers/misc/lkdtm/perms.c | 29 +++++++++++++++++++++++++++++
- 3 files changed, 35 insertions(+)
-
-diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
-index 2837dc77478e..73c34b17c433 100644
---- a/drivers/misc/lkdtm/core.c
-+++ b/drivers/misc/lkdtm/core.c
-@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
- 	CRASHTYPE(ACCESS_USERSPACE),
- 	CRASHTYPE(WRITE_RO),
- 	CRASHTYPE(WRITE_RO_AFTER_INIT),
-+#ifdef CONFIG_PRMEM
-+	CRASHTYPE(WRITE_WR_AFTER_INIT),
-+#endif
- 	CRASHTYPE(WRITE_KERN),
- 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
- 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
-index 3c6fd327e166..abba2f52ffa6 100644
---- a/drivers/misc/lkdtm/lkdtm.h
-+++ b/drivers/misc/lkdtm/lkdtm.h
-@@ -38,6 +38,9 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
- void __init lkdtm_perms_init(void);
- void lkdtm_WRITE_RO(void);
- void lkdtm_WRITE_RO_AFTER_INIT(void);
-+#ifdef CONFIG_PRMEM
-+void lkdtm_WRITE_WR_AFTER_INIT(void);
-+#endif
- void lkdtm_WRITE_KERN(void);
- void lkdtm_EXEC_DATA(void);
- void lkdtm_EXEC_STACK(void);
-diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
-index 53b85c9d16b8..f681730aa652 100644
---- a/drivers/misc/lkdtm/perms.c
-+++ b/drivers/misc/lkdtm/perms.c
-@@ -9,6 +9,7 @@
- #include <linux/vmalloc.h>
- #include <linux/mman.h>
- #include <linux/uaccess.h>
-+#include <linux/prmem.h>
- #include <asm/cacheflush.h>
- 
- /* Whether or not to fill the target memory area with do_nothing(). */
-@@ -27,6 +28,10 @@ static const unsigned long rodata = 0xAA55AA55;
- /* This is marked __ro_after_init, so it should ultimately be .rodata. */
- static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
- 
-+/* This is marked __wr_after_init, so it should be in .rodata. */
-+static
-+unsigned long wr_after_init __wr_after_init = 0x55AA5500;
-+
- /*
-  * This just returns to the caller. It is designed to be copied into
-  * non-executable memory regions.
-@@ -104,6 +109,28 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
- 	*ptr ^= 0xabcd1234;
- }
- 
-+#ifdef CONFIG_PRMEM
-+
-+void lkdtm_WRITE_WR_AFTER_INIT(void)
-+{
-+	unsigned long *ptr = &wr_after_init;
-+
-+	/*
-+	 * Verify we were written to during init. Since an Oops
-+	 * is considered a "success", a failure is to just skip the
-+	 * real test.
-+	 */
-+	if ((*ptr & 0xAA) != 0xAA) {
-+		pr_info("%p was NOT written during init!?\n", ptr);
-+		return;
-+	}
-+
-+	pr_info("attempting bad wr_after_init write at %p\n", ptr);
-+	*ptr ^= 0xabcd1234;
-+}
-+
-+#endif
-+
- void lkdtm_WRITE_KERN(void)
- {
- 	size_t size;
-@@ -200,4 +227,6 @@ void __init lkdtm_perms_init(void)
- 	/* Make sure we can write to __ro_after_init values during __init */
- 	ro_after_init |= 0xAA;
- 
-+	/* Make sure we can write to __wr_after_init during __init */
-+	wr_after_init |= 0xAA;
- }
--- 
-2.19.1
+>  	phys = virt_to_phys(table);
+> -	if (phys != (arm_v7s_iopte)phys)
+> +	if (phys != (arm_v7s_iopte)phys) {
+>  		/* Doesn't fit in PTE */
+> +		dev_err(dev, "Page table does not fit in PTE: %pa", &phys);
+>  		goto out_free;
+> +	}
+>  	if (table && !(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA)) {
+>  		dma = dma_map_single(dev, table, size, DMA_TO_DEVICE);
+>  		if (dma_mapping_error(dev, dma))
+> @@ -737,7 +749,7 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
+>  	data->l2_tables = kmem_cache_create("io-pgtable_armv7s_l2",
+>  					    ARM_V7S_TABLE_SIZE(2),
+>  					    ARM_V7S_TABLE_SIZE(2),
+> -					    SLAB_CACHE_DMA, NULL);
+> +					    ARM_V7S_TABLE_SLAB_CACHE, NULL);
+>  	if (!data->l2_tables)
+>  		goto out_free_data;
+>  
+> 
