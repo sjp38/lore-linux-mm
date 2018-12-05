@@ -1,130 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E2F08E0002
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id m16so15290285pgd.0
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.06
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7606B7452
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 07:30:08 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id h68so19975903qke.3
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 04:30:08 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f188si8213803qkb.226.2018.12.05.04.30.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-Message-Id: <20181226133351.770245668@intel.com>
-Date: Wed, 26 Dec 2018 21:14:58 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [RFC][PATCH v2 12/21] x86/pgtable: allocate page table pages from DRAM
-References: <20181226131446.330864849@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=0018-pgtable-force-pgtable-allocation-from-DRAM-node-0.patch
+        Wed, 05 Dec 2018 04:30:07 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH RFC 3/7] powerpc/vdso: don't clear PG_reserved
+Date: Wed,  5 Dec 2018 13:28:47 +0100
+Message-Id: <20181205122851.5891-4-david@redhat.com>
+In-Reply-To: <20181205122851.5891-1-david@redhat.com>
+References: <20181205122851.5891-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Christophe Leroy <christophe.leroy@c-s.fr>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
 
-On rand read/writes on large data, we find near half memory accesses
-caused by TLB misses, hence hit the page table pages. So better keep
-page table pages in faster DRAM nodes.
+The VDSO is part of the kernel image and therefore the struct pages are
+marked as reserved during boot.
 
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+As we install a special mapping, the actual struct pages will never be
+exposed to MM via the page tables. We can therefore leave the pages
+marked as reserved.
+
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- arch/x86/include/asm/pgalloc.h |   10 +++++++---
- arch/x86/mm/pgtable.c          |   22 ++++++++++++++++++----
- 2 files changed, 25 insertions(+), 7 deletions(-)
+ arch/powerpc/kernel/vdso.c | 2 --
+ 1 file changed, 2 deletions(-)
 
---- linux.orig/arch/x86/mm/pgtable.c	2018-12-26 19:41:57.494900885 +0800
-+++ linux/arch/x86/mm/pgtable.c	2018-12-26 19:42:35.531621035 +0800
-@@ -22,17 +22,30 @@ EXPORT_SYMBOL(physical_mask);
- #endif
- 
- gfp_t __userpte_alloc_gfp = PGALLOC_GFP | PGALLOC_USER_GFP;
-+nodemask_t all_node_mask = NODE_MASK_ALL;
-+
-+unsigned long __get_free_pgtable_pages(gfp_t gfp_mask,
-+						     unsigned int order)
-+{
-+	struct page *page;
-+
-+	page = __alloc_pages_nodemask(gfp_mask, order, numa_node_id(), &all_node_mask);
-+	if (!page)
-+		return 0;
-+	return (unsigned long) page_address(page);
-+}
-+EXPORT_SYMBOL(__get_free_pgtable_pages);
- 
- pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
- {
--	return (pte_t *)__get_free_page(PGALLOC_GFP & ~__GFP_ACCOUNT);
-+	return (pte_t *)__get_free_pgtable_pages(PGALLOC_GFP & ~__GFP_ACCOUNT, 0);
- }
- 
- pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
- {
- 	struct page *pte;
- 
--	pte = alloc_pages(__userpte_alloc_gfp, 0);
-+	pte = __alloc_pages_nodemask(__userpte_alloc_gfp, 0, numa_node_id(), &all_node_mask);
- 	if (!pte)
- 		return NULL;
- 	if (!pgtable_page_ctor(pte)) {
-@@ -241,7 +254,7 @@ static int preallocate_pmds(struct mm_st
- 		gfp &= ~__GFP_ACCOUNT;
- 
- 	for (i = 0; i < count; i++) {
--		pmd_t *pmd = (pmd_t *)__get_free_page(gfp);
-+		pmd_t *pmd = (pmd_t *)__get_free_pgtable_pages(gfp, 0);
- 		if (!pmd)
- 			failed = true;
- 		if (pmd && !pgtable_pmd_page_ctor(virt_to_page(pmd))) {
-@@ -422,7 +435,8 @@ static inline void _pgd_free(pgd_t *pgd)
- 
- static inline pgd_t *_pgd_alloc(void)
- {
--	return (pgd_t *)__get_free_pages(PGALLOC_GFP, PGD_ALLOCATION_ORDER);
-+	return (pgd_t *)__get_free_pgtable_pages(PGALLOC_GFP,
-+						 PGD_ALLOCATION_ORDER);
- }
- 
- static inline void _pgd_free(pgd_t *pgd)
---- linux.orig/arch/x86/include/asm/pgalloc.h	2018-12-26 19:40:12.992251270 +0800
-+++ linux/arch/x86/include/asm/pgalloc.h	2018-12-26 19:42:35.531621035 +0800
-@@ -96,10 +96,11 @@ static inline pmd_t *pmd_alloc_one(struc
- {
- 	struct page *page;
- 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO;
-+	nodemask_t all_node_mask = NODE_MASK_ALL;
- 
- 	if (mm == &init_mm)
- 		gfp &= ~__GFP_ACCOUNT;
--	page = alloc_pages(gfp, 0);
-+	page = __alloc_pages_nodemask(gfp, 0, numa_node_id(), &all_node_mask);
- 	if (!page)
- 		return NULL;
- 	if (!pgtable_pmd_page_ctor(page)) {
-@@ -141,13 +142,16 @@ static inline void p4d_populate(struct m
- 	set_p4d(p4d, __p4d(_PAGE_TABLE | __pa(pud)));
- }
- 
-+extern unsigned long __get_free_pgtable_pages(gfp_t gfp_mask,
-+					      unsigned int order);
-+
- static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
- {
- 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
- 
- 	if (mm == &init_mm)
- 		gfp &= ~__GFP_ACCOUNT;
--	return (pud_t *)get_zeroed_page(gfp);
-+	return (pud_t *)__get_free_pgtable_pages(gfp | __GFP_ZERO, 0);
- }
- 
- static inline void pud_free(struct mm_struct *mm, pud_t *pud)
-@@ -179,7 +183,7 @@ static inline p4d_t *p4d_alloc_one(struc
- 
- 	if (mm == &init_mm)
- 		gfp &= ~__GFP_ACCOUNT;
--	return (p4d_t *)get_zeroed_page(gfp);
-+	return (p4d_t *)__get_free_pgtable_pages(gfp | __GFP_ZERO, 0);
- }
- 
- static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
+diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
+index 65b3bdb99f0b..d59dc2e9a695 100644
+--- a/arch/powerpc/kernel/vdso.c
++++ b/arch/powerpc/kernel/vdso.c
+@@ -795,7 +795,6 @@ static int __init vdso_init(void)
+ 	BUG_ON(vdso32_pagelist == NULL);
+ 	for (i = 0; i < vdso32_pages; i++) {
+ 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
+-		ClearPageReserved(pg);
+ 		get_page(pg);
+ 		vdso32_pagelist[i] = pg;
+ 	}
+@@ -809,7 +808,6 @@ static int __init vdso_init(void)
+ 	BUG_ON(vdso64_pagelist == NULL);
+ 	for (i = 0; i < vdso64_pages; i++) {
+ 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
+-		ClearPageReserved(pg);
+ 		get_page(pg);
+ 		vdso64_pagelist[i] = pg;
+ 	}
+-- 
+2.17.2
