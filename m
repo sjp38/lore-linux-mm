@@ -1,97 +1,44 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 23B786B74D5
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 09:45:47 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id k76so12549645oih.13
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 06:45:47 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d93si8543084otb.187.2018.12.05.06.45.46
+        for <linux-mm@kvack.org>;
+        Wed, 05 Dec 2018 06:45:46 -0800 (PST)
+Date: Wed, 5 Dec 2018 14:46:06 +0000
+From: Will Deacon <will.deacon@arm.com>
 Subject: Re: [PATCH v4 3/3] iommu/io-pgtable-arm-v7s: Request DMA32 memory,
  and improve debugging
+Message-ID: <20181205144605.GA16171@arm.com>
 References: <20181205054828.183476-1-drinkcat@chromium.org>
  <20181205054828.183476-4-drinkcat@chromium.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cf005731-5f37-4aba-519f-7d7d4da04ec7@suse.cz>
-Date: Wed, 5 Dec 2018 15:43:52 +0100
+ <20181205135406.GA29031@infradead.org>
+ <1d211576-9153-cca1-5cd0-8c9881bd3fa4@arm.com>
+ <20181205144308.GA28409@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20181205054828.183476-4-drinkcat@chromium.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Sender: linux-kernel-owner@vger.kernel.org
-To: Nicolas Boichat <drinkcat@chromium.org>, Will Deacon <will.deacon@arm.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181205144308.GA28409@infradead.org>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Robin Murphy <robin.murphy@arm.com>, Nicolas Boichat <drinkcat@chromium.org>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, Matthew Wilcox <willy@infradead.org>
 
-On 12/5/18 6:48 AM, Nicolas Boichat wrote:
-> IOMMUs using ARMv7 short-descriptor format require page tables
-> (level 1 and 2) to be allocated within the first 4GB of RAM, even
-> on 64-bit systems.
+On Wed, Dec 05, 2018 at 06:43:08AM -0800, Christoph Hellwig wrote:
+> On Wed, Dec 05, 2018 at 02:40:06PM +0000, Robin Murphy wrote:
+> > 32-bit Arm doesn't have ZONE_DMA32, but has (or at least had at the time) a
+> > 2GB ZONE_DMA. Whether we actually need that or not depends on how this all
+> > interacts with LPAE and highmem, but I'm not sure of those details off-hand.
 > 
-> For level 1/2 pages, ensure GFP_DMA32 is used if CONFIG_ZONE_DMA32
-> is defined (e.g. on arm64 platforms).
-> 
-> For level 2 pages, allocate a slab cache in SLAB_CACHE_DMA32.
-> 
-> Also, print an error when the physical address does not fit in
-> 32-bit, to make debugging easier in the future.
-> 
-> Fixes: ad67f5a6545f ("arm64: replace ZONE_DMA with ZONE_DMA32")
-> Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
-> ---
-> 
-> Changes since v2:
->  - Commit message
-> 
-> (v3 used the page_frag approach)
-> 
->  drivers/iommu/io-pgtable-arm-v7s.c | 20 ++++++++++++++++----
->  1 file changed, 16 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/iommu/io-pgtable-arm-v7s.c b/drivers/iommu/io-pgtable-arm-v7s.c
-> index 445c3bde04800c..996f7b6d00b44a 100644
-> --- a/drivers/iommu/io-pgtable-arm-v7s.c
-> +++ b/drivers/iommu/io-pgtable-arm-v7s.c
-> @@ -161,6 +161,14 @@
->  
->  #define ARM_V7S_TCR_PD1			BIT(5)
->  
-> +#ifdef CONFIG_ZONE_DMA32
-> +#define ARM_V7S_TABLE_GFP_DMA GFP_DMA32
-> +#define ARM_V7S_TABLE_SLAB_CACHE SLAB_CACHE_DMA32
-> +#else
-> +#define ARM_V7S_TABLE_GFP_DMA GFP_DMA
-> +#define ARM_V7S_TABLE_SLAB_CACHE SLAB_CACHE_DMA
-> +#endif
-> +
->  typedef u32 arm_v7s_iopte;
->  
->  static bool selftest_running;
-> @@ -198,13 +206,17 @@ static void *__arm_v7s_alloc_table(int lvl, gfp_t gfp,
->  	void *table = NULL;
->  
->  	if (lvl == 1)
-> -		table = (void *)__get_dma_pages(__GFP_ZERO, get_order(size));
-> +		table = (void *)__get_free_pages(
-> +			__GFP_ZERO | ARM_V7S_TABLE_GFP_DMA, get_order(size));
->  	else if (lvl == 2)
-> -		table = kmem_cache_zalloc(data->l2_tables, gfp | GFP_DMA);
-> +		table = kmem_cache_zalloc(data->l2_tables,
-> +					  gfp | ARM_V7S_TABLE_GFP_DMA);
+> Well, arm32 can't address more than 32-bits in the linear kernel
+> mapping, so GFP_KERNEL should be perfectly fine there if the limit
+> really is 32-bits and not 31 or smaller because someone stole a bit
+> or two somewhere.
 
-So as I've explained in 2/3, you don't need ARM_V7S_TABLE_GFP_DMA here
-(and then you don't need to adjust the slab warnings).
+I'm not sure that's necessarily true on the physical side. Wasn't there a
+keystone SoC with /all/ the coherent memory above 4GB?
 
->  	phys = virt_to_phys(table);
-> -	if (phys != (arm_v7s_iopte)phys)
-> +	if (phys != (arm_v7s_iopte)phys) {
->  		/* Doesn't fit in PTE */
-> +		dev_err(dev, "Page table does not fit in PTE: %pa", &phys);
->  		goto out_free;
-> +	}
->  	if (table && !(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA)) {
->  		dma = dma_map_single(dev, table, size, DMA_TO_DEVICE);
->  		if (dma_mapping_error(dev, dma))
-> @@ -737,7 +749,7 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
->  	data->l2_tables = kmem_cache_create("io-pgtable_armv7s_l2",
->  					    ARM_V7S_TABLE_SIZE(2),
->  					    ARM_V7S_TABLE_SIZE(2),
-> -					    SLAB_CACHE_DMA, NULL);
-> +					    ARM_V7S_TABLE_SLAB_CACHE, NULL);
->  	if (!data->l2_tables)
->  		goto out_free_data;
->  
-> 
+Will
