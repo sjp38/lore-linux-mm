@@ -1,120 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D63D8E004D
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:27:53 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id y35so7044193edb.5
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:27:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p7-v6sor4051488ejb.30.2018.12.11.06.27.51
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F246B744F
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 07:29:59 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id d35so20586561qtd.20
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 04:29:59 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i21si11088199qtp.305.2018.12.05.04.29.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Dec 2018 06:27:51 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/3] mm, memory_hotplug: deobfuscate migration part of offlining
-Date: Tue, 11 Dec 2018 15:27:40 +0100
-Message-Id: <20181211142741.2607-3-mhocko@kernel.org>
-In-Reply-To: <20181211142741.2607-1-mhocko@kernel.org>
-References: <20181211142741.2607-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Dec 2018 04:29:58 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH RFC 1/7] agp: efficeon: no need to set PG_reserved on GATT tables
+Date: Wed,  5 Dec 2018 13:28:45 +0100
+Message-Id: <20181205122851.5891-2-david@redhat.com>
+In-Reply-To: <20181205122851.5891-1-david@redhat.com>
+References: <20181205122851.5891-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, David Hildenbrand <david@redhat.com>, Oscar Salvador <osalvador@suse.de>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, David Airlie <airlied@linux.ie>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
 
-From: Michal Hocko <mhocko@suse.com>
+The l1 GATT page table is kept in a special on-chip page with 64 entries.
+We allocate the l2 page table pages via get_zeroed_page() and enter them
+into the table. These l2 pages are modified accordingly when
+inserting/removing memory via efficeon_insert_memory and
+efficeon_remove_memory.
 
-Memory migration might fail during offlining and we keep retrying in
-that case. This is currently obfuscate by goto retry loop. The code
-is hard to follow and as a result it is even suboptimal becase each
-retry round scans the full range from start_pfn even though we have
-successfully scanned/migrated [start_pfn, pfn] range already. This
-is all only because check_pages_isolated failure has to rescan the full
-range again.
+Apart from that, these pages are not exposed or ioremap'ed. We can stop
+setting them reserved (propably copied from generic code).
 
-De-obfuscate the migration retry loop by promoting it to a real for
-loop. In fact remove the goto altogether by making it a proper double
-loop (yeah, gotos are nasty in this specific case). In the end we
-will get a slightly more optimal code which is better readable.
-
-Reviewed-by: David Hildenbrand <david@redhat.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+Cc: David Airlie <airlied@linux.ie>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- mm/memory_hotplug.c | 58 ++++++++++++++++++++++-----------------------
- 1 file changed, 29 insertions(+), 29 deletions(-)
+ drivers/char/agp/efficeon-agp.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6263c8cd4491..c6c42a7425e5 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1591,38 +1591,38 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 		goto failed_removal_isolated;
- 	}
+diff --git a/drivers/char/agp/efficeon-agp.c b/drivers/char/agp/efficeon-agp.c
+index 7f88490b5479..c53f0f9ef5b0 100644
+--- a/drivers/char/agp/efficeon-agp.c
++++ b/drivers/char/agp/efficeon-agp.c
+@@ -163,7 +163,6 @@ static int efficeon_free_gatt_table(struct agp_bridge_data *bridge)
+ 		unsigned long page = efficeon_private.l1_table[index];
+ 		if (page) {
+ 			efficeon_private.l1_table[index] = 0;
+-			ClearPageReserved(virt_to_page((char *)page));
+ 			free_page(page);
+ 			freed++;
+ 		}
+@@ -219,7 +218,6 @@ static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
+ 			efficeon_free_gatt_table(agp_bridge);
+ 			return -ENOMEM;
+ 		}
+-		SetPageReserved(virt_to_page((char *)page));
  
--	pfn = start_pfn;
--repeat:
--	/* start memory hot removal */
--	ret = -EINTR;
--	if (signal_pending(current)) {
--		reason = "signal backoff";
--		goto failed_removal_isolated;
--	}
-+	do {
-+		for (pfn = start_pfn; pfn;) {
-+			if (signal_pending(current)) {
-+				ret = -EINTR;
-+				reason = "signal backoff";
-+				goto failed_removal_isolated;
-+			}
- 
--	cond_resched();
--	lru_add_drain_all();
--	drain_all_pages(zone);
-+			cond_resched();
-+			lru_add_drain_all();
-+			drain_all_pages(zone);
- 
--	pfn = scan_movable_pages(start_pfn, end_pfn);
--	if (pfn) { /* We have movable pages */
--		ret = do_migrate_range(pfn, end_pfn);
--		goto repeat;
--	}
-+			pfn = scan_movable_pages(pfn, end_pfn);
-+			if (pfn) {
-+				/* TODO fatal migration failures should bail out */
-+				do_migrate_range(pfn, end_pfn);
-+			}
-+		}
-+
-+		/*
-+		 * dissolve free hugepages in the memory block before doing offlining
-+		 * actually in order to make hugetlbfs's object counting consistent.
-+		 */
-+		ret = dissolve_free_huge_pages(start_pfn, end_pfn);
-+		if (ret) {
-+			reason = "failure to dissolve huge pages";
-+			goto failed_removal_isolated;
-+		}
-+		/* check again */
-+		offlined_pages = check_pages_isolated(start_pfn, end_pfn);
-+	} while (offlined_pages < 0);
- 
--	/*
--	 * dissolve free hugepages in the memory block before doing offlining
--	 * actually in order to make hugetlbfs's object counting consistent.
--	 */
--	ret = dissolve_free_huge_pages(start_pfn, end_pfn);
--	if (ret) {
--		reason = "failure to dissolve huge pages";
--		goto failed_removal_isolated;
--	}
--	/* check again */
--	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
--	if (offlined_pages < 0)
--		goto repeat;
- 	pr_info("Offlined Pages %ld\n", offlined_pages);
- 	/* Ok, all of our target is isolated.
- 	   We cannot do rollback at this point. */
+ 		for (offset = 0; offset < PAGE_SIZE; offset += clflush_chunk)
+ 			clflush((char *)page+offset);
 -- 
-2.19.2
+2.17.2
