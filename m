@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F0E4A6B7FF3
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 04:57:53 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id o21so1733187edq.4
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 01:57:53 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c23si766318edv.143.2018.12.07.01.57.52
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FE786B7680
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 16:52:21 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id p4so21854961iod.17
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 13:52:21 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 18sor21860248itz.3.2018.12.05.13.52.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Dec 2018 01:57:52 -0800 (PST)
-Date: Fri, 7 Dec 2018 10:57:50 +0100
-From: Jan Kara <jack@suse.cz>
+        (Google Transport Security);
+        Wed, 05 Dec 2018 13:52:18 -0800 (PST)
+Date: Wed, 5 Dec 2018 13:52:09 -0800
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 2/4] filemap: kill page_cache_read usage in filemap_fault
-Message-ID: <20181207095750.GC13008@quack2.suse.cz>
+Message-ID: <20181205215209.GA13938@cmpxchg.org>
 References: <20181130195812.19536-1-josef@toxicpanda.com>
  <20181130195812.19536-3-josef@toxicpanda.com>
 MIME-Version: 1.0
@@ -22,9 +22,9 @@ In-Reply-To: <20181130195812.19536-3-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Josef Bacik <josef@toxicpanda.com>
-Cc: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
+Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
 
-On Fri 30-11-18 14:58:10, Josef Bacik wrote:
+On Fri, Nov 30, 2018 at 02:58:10PM -0500, Josef Bacik wrote:
 > If we do not have a page at filemap_fault time we'll do this weird
 > forced page_cache_read thing to populate the page, and then drop it
 > again and loop around and find it.  This makes for 2 ways we can read a
@@ -36,36 +36,6 @@ On Fri 30-11-18 14:58:10, Josef Bacik wrote:
 > 
 > Signed-off-by: Josef Bacik <josef@toxicpanda.com>
 
-Thanks for the patch. I like the simplification but I think it could be
-even improved... see below.
+That's a great simplification. Looks correct to me.
 
-> @@ -2449,9 +2426,11 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
->  		count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
->  		ret = VM_FAULT_MAJOR;
->  retry_find:
-> -		page = find_get_page(mapping, offset);
-> +		page = pagecache_get_page(mapping, offset,
-> +					  FGP_CREAT|FGP_FOR_MMAP,
-> +					  vmf->gfp_mask);
->  		if (!page)
-> -			goto no_cached_page;
-> +			return vmf_error(-ENOMEM);
-
-So why don't you just do:
-
-		page = pagecache_get_page(mapping, offset,
-					  FGP_CREAT | FGP_LOCK, vmf->gfp_mask);
-		if (!page)
-			return vmf_error(-ENOMEM);
-		goto check_uptodate;
-
-where check_uptodate would be a label before 'PageUptodate' check?
-
-Then you don't have to introduce new flag for pagecache_get_page() and you
-also don't have to unlock and then lock again the page... And you can still
-delete all the code you've deleted.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
