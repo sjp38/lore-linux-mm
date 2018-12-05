@@ -1,93 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 98E226B7403
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 06:16:52 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id v4so9442411edm.18
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 03:16:52 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f48si1691045ede.180.2018.12.05.03.16.50
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 149766B72C9
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 00:53:08 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id k76so11917780oih.13
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 21:53:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t4sor9951935oie.171.2018.12.04.21.53.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 03:16:50 -0800 (PST)
-Date: Wed, 5 Dec 2018 12:16:46 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181205111646.GF22304@quack2.suse.cz>
-References: <20181204001720.26138-1-jhubbard@nvidia.com>
- <20181204001720.26138-2-jhubbard@nvidia.com>
- <CAPcyv4h99JVHAS7Q7k3iPPUq+oc1NxHdyBHMjpgyesF1EjVfWA@mail.gmail.com>
- <a0adcf7c-5592-f003-abc5-a2645eb1d5df@nvidia.com>
+        (Google Transport Security);
+        Tue, 04 Dec 2018 21:53:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a0adcf7c-5592-f003-abc5-a2645eb1d5df@nvidia.com>
+References: <20181204001720.26138-1-jhubbard@nvidia.com> <20181204001720.26138-2-jhubbard@nvidia.com>
+ <CAPcyv4h99JVHAS7Q7k3iPPUq+oc1NxHdyBHMjpgyesF1EjVfWA@mail.gmail.com>
+ <a0adcf7c-5592-f003-abc5-a2645eb1d5df@nvidia.com> <CAPcyv4iNtamDAY9raab=iXhSZByecedBpnGybjLM+PuDMwq7SQ@mail.gmail.com>
+ <3c91d335-921c-4704-d159-2975ff3a5f20@nvidia.com> <20181205011519.GV10377@bombadil.infradead.org>
+In-Reply-To: <20181205011519.GV10377@bombadil.infradead.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 4 Dec 2018 21:52:54 -0800
+Message-ID: <CAPcyv4iFi-gU8POphX=wHoMLFweC6D36PVf-yLmMqwUqD19bVw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: John Hubbard <jhubbard@nvidia.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Tue 04-12-18 13:56:36, John Hubbard wrote:
-> On 12/4/18 12:28 PM, Dan Williams wrote:
-> > On Mon, Dec 3, 2018 at 4:17 PM <john.hubbard@gmail.com> wrote:
-> >>
-> >> From: John Hubbard <jhubbard@nvidia.com>
-> >>
-> >> Introduces put_user_page(), which simply calls put_page().
-> >> This provides a way to update all get_user_pages*() callers,
-> >> so that they call put_user_page(), instead of put_page().
-> >>
-> >> Also introduces put_user_pages(), and a few dirty/locked variations,
-> >> as a replacement for release_pages(), and also as a replacement
-> >> for open-coded loops that release multiple pages.
-> >> These may be used for subsequent performance improvements,
-> >> via batching of pages to be released.
-> >>
-> >> This is the first step of fixing the problem described in [1]. The steps
-> >> are:
-> >>
-> >> 1) (This patch): provide put_user_page*() routines, intended to be used
-> >>    for releasing pages that were pinned via get_user_pages*().
-> >>
-> >> 2) Convert all of the call sites for get_user_pages*(), to
-> >>    invoke put_user_page*(), instead of put_page(). This involves dozens of
-> >>    call sites, and will take some time.
-> >>
-> >> 3) After (2) is complete, use get_user_pages*() and put_user_page*() to
-> >>    implement tracking of these pages. This tracking will be separate from
-> >>    the existing struct page refcounting.
-> >>
-> >> 4) Use the tracking and identification of these pages, to implement
-> >>    special handling (especially in writeback paths) when the pages are
-> >>    backed by a filesystem. Again, [1] provides details as to why that is
-> >>    desirable.
-> > 
-> > I thought at Plumbers we talked about using a page bit to tag pages
-> > that have had their reference count elevated by get_user_pages()? That
-> > way there is no need to distinguish put_page() from put_user_page() it
-> > just happens internally to put_page(). At the conference Matthew was
-> > offering to free up a page bit for this purpose.
-> > 
-> 
-> ...but then, upon further discussion in that same session, we realized that
-> that doesn't help. You need a reference count. Otherwise a random put_page
-> could affect your dma-pinned pages, etc, etc.
+On Tue, Dec 4, 2018 at 5:15 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Tue, Dec 04, 2018 at 04:58:01PM -0800, John Hubbard wrote:
+> > On 12/4/18 3:03 PM, Dan Williams wrote:
+> > > Except the LRU fields are already in use for ZONE_DEVICE pages... how
+> > > does this proposal interact with those?
+> >
+> > Very badly: page->pgmap and page->hmm_data both get corrupted. Is there an entire
+> > use case I'm missing: calling get_user_pages() on ZONE_DEVICE pages? Said another
+> > way: is it reasonable to disallow calling get_user_pages() on ZONE_DEVICE pages?
+> >
+> > If we have to support get_user_pages() on ZONE_DEVICE pages, then the whole
+> > LRU field approach is unusable.
+>
+> We just need to rearrange ZONE_DEVICE pages.  Please excuse the whitespace
+> damage:
+>
+> +++ b/include/linux/mm_types.h
+> @@ -151,10 +151,12 @@ struct page {
+>  #endif
+>                 };
+>                 struct {        /* ZONE_DEVICE pages */
+> +                       unsigned long _zd_pad_2;        /* LRU */
+> +                       unsigned long _zd_pad_3;        /* LRU */
+> +                       unsigned long _zd_pad_1;        /* uses mapping */
+>                         /** @pgmap: Points to the hosting device page map. */
+>                         struct dev_pagemap *pgmap;
+>                         unsigned long hmm_data;
+> -                       unsigned long _zd_pad_1;        /* uses mapping */
+>                 };
+>
+>                 /** @rcu_head: You can use this to free a page by RCU. */
+>
+> You don't use page->private or page->index, do you Dan?
 
-Exactly.
-
-> I was not able to actually find any place where a single additional page
-> bit would help our situation, which is why this still uses LRU fields for
-> both the two bits required (the RFC [1] still applies), and the dma_pinned_count.
-
-So single page bit could help you with performance. In 99% of cases there's
-just one reference from GUP. So if you could store that info in page flags,
-you could safe yourself a relatively expensive removal from LRU and putting
-it back to make space in struct page for proper refcount. But since you
-report that the performance isn't that horrible, I'd leave this idea on a
-backburner. We can always implement it later in case we find in future we
-need to improve the performance.
-
-								Honza
-
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+I don't use page->private, but page->index is used by the
+memory-failure path to do an rmap.
