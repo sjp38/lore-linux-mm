@@ -1,158 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E8636B76E7
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 18:35:51 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id o9so12142471pgv.19
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:35:51 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id ca6si22613107plb.141.2018.12.05.15.35.49
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 64FB26B75E8
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 14:20:25 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id u17so11703560pgn.17
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 11:20:25 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id g8si19197438pgo.166.2018.12.05.11.20.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 15:35:49 -0800 (PST)
-Received: from mail-wm1-f41.google.com (mail-wm1-f41.google.com [209.85.128.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1F8AB21508
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 23:35:49 +0000 (UTC)
-Received: by mail-wm1-f41.google.com with SMTP id z18so15037271wmc.4
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:35:49 -0800 (PST)
-MIME-Version: 1.0
+        Wed, 05 Dec 2018 11:20:24 -0800 (PST)
+Date: Wed, 5 Dec 2018 11:22:55 -0800
+From: Alison Schofield <alison.schofield@intel.com>
+Subject: Re: [RFC v2 01/13] x86/mktme: Document the MKTME APIs
+Message-ID: <20181205192255.GA988@alison-desk.jf.intel.com>
 References: <cover.1543903910.git.alison.schofield@intel.com>
  <c2276bbbb19f3a28bd37c3dd6b1021e2d9a10916.1543903910.git.alison.schofield@intel.com>
- <4ED70A75-9A88-41B4-B595-87FB748772F9@amacapital.net> <20181205192255.GA988@alison-desk.jf.intel.com>
-In-Reply-To: <20181205192255.GA988@alison-desk.jf.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 5 Dec 2018 15:35:36 -0800
-Message-ID: <CALCETrXsh6wAy9kE_m1L+0yW8a6bNOb6g2Tf9nwpQJnyMzdSuw@mail.gmail.com>
-Subject: Re: [RFC v2 01/13] x86/mktme: Document the MKTME APIs
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+ <4ED70A75-9A88-41B4-B595-87FB748772F9@amacapital.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4ED70A75-9A88-41B4-B595-87FB748772F9@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: alison.schofield@intel.com
-Cc: David Howells <dhowells@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, James Morris <jmorris@namei.org>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Andrew Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, kai.huang@intel.com, Jun Nakajima <jun.nakajima@intel.com>, Dan Williams <dan.j.williams@intel.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, keyrings@vger.kernel.org, LSM List <linux-security-module@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: dhowells@redhat.com, tglx@linutronix.de, jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
->> On Dec 5, 2018, at 11:22 AM, Alison Schofield <alison.schofield@intel.co=
-m> wrote:
->>
->> On Wed, Dec 05, 2018 at 10:11:18AM -0800, Andy Lutomirski wrote:
->>
->>
->>> On Dec 3, 2018, at 11:39 PM, Alison Schofield <alison.schofield@intel.c=
-om> wrote:
->>
->> I realize you=E2=80=99re writing code to expose hardware behavior, but I=
-=E2=80=99m not sure this
->> really makes sense in this context.
->
-> Your observation is accurate. The Usage defined here is very closely
-> aligned to the Intel MKTME Architecture spec. That's a starting point,
-> but not the ending point. We need to implement the feature set that
-> makes sense. More below...
->
->>> +
->>> +    type=3D
->>> +        *user*    User will supply the encryption key data. Use this
->>> +                type to directly program a hardware encryption key.
->>> +
->>
->> I think that =E2=80=9Cuser=E2=80=9D probably sense as a =E2=80=9Ckey ser=
-vice=E2=80=9D key, but I don=E2=80=99t think it is at all useful for non-pe=
-rsistent memory.  Even if we take for granted that MKTME for anonymous memo=
-ry is useful at all, =E2=80=9Ccpu=E2=80=9D seems to be better in all respec=
-ts.
->>
->>
->> Perhaps support for =E2=80=9Cuser=E2=80=9D should be tabled until there=
-=E2=80=99s a design for how to use this for pmem?  I imagine it would look =
-quite a bit like dm-crypt.  Advanced pmem filesystems could plausibly use d=
-ifferent keys for different files, I suppose.
->>
->> If =E2=80=9Cuser=E2=80=9D is dropped, I think a lot of the complexity go=
-es away. Hotplug becomes automatic, right?
->
-> Dropping 'user' type removes a great deal of complexity.
->
-> Let me follow up in 2 ways:
-> 1) Find out when MKTME support for pmem is required.
-> 2) Go back to the the requirements and get the justification for user
-> type.
->
->>
->>> +        *cpu*    User requests a CPU generated encryption key.
->>
->> Okay, maybe, but it=E2=80=99s still unclear to me exactly what the inten=
-ded benefit is, though.
-> *cpu* is the RANDOM key generated by the cpu. If there were no other
-> options, then this would be default, and go away.
->
->>> +        *clear* User requests that a hardware encryption key be
->>> +                cleared. This will clear the encryption key from
->>> +                the hardware. On execution this hardware key gets
->>> +                TME behavior.
->>> +
->>
->> Why is this a key type?  Shouldn=E2=80=99t the API to select a key just =
-have an option to ask for no key to be used?
->
-> The *clear* key has been requested in order to clear/erase the users
-> key data that has been programmed into a hardware slot. User does not
-> want to leave a slot programmed with their encryption data when they
-> are done with it.
+On Wed, Dec 05, 2018 at 10:11:18AM -0800, Andy Lutomirski wrote:
+> 
+> 
+> > On Dec 3, 2018, at 11:39 PM, Alison Schofield <alison.schofield@intel.com> wrote:
+> 
+> I realize you’re writing code to expose hardware behavior, but I’m not sure this
+> really makes sense in this context.
 
-Can=E2=80=99t you just clear the key when the key is deleted by the user?
-Asking the user to allocate a *new* key and hope that it somehow ends
-up in the same spot seems like a poor design, especially if future
-hardware gains support for key slot virtualization in some way that
-makes the slot allocation more dynamic.
+Your observation is accurate. The Usage defined here is very closely
+aligned to the Intel MKTME Architecture spec. That's a starting point,
+but not the ending point. We need to implement the feature set that
+makes sense. More below...
 
->
->>> +        *no-encrypt*
->>> +                 User requests that hardware does not encrypt
->>> +                 memory when this key is in use.
->>
->> Same as above.  If there=E2=80=99s a performance benefit, then there cou=
-ld be a way to ask for cleartext memory.  Similarly, some pmem users may wa=
-nt a way to keep their pmem unencrypted.
->
-> So, this is the way to ask for cleartext memory.
-> The entire system will be encrypted with the system wide TME Key.
-> A subset of that will be protected with MKTME Keys.
-> If user wants, no encrypt, this *no-encrypt* is the way to do it.
->
+> > +
+> > +    type=
+> > +        *user*    User will supply the encryption key data. Use this
+> > +                type to directly program a hardware encryption key.
+> > +
+> 
+> I think that “user” probably sense as a “key service” key, but I don’t think it is at all useful for non-persistent memory.  Even if we take for granted that MKTME for anonymous memory is useful at all, “cpu” seems to be better in all respects.
+> 
+> 
+> Perhaps support for “user” should be tabled until there’s a design for how to use this for pmem?  I imagine it would look quite a bit like dm-crypt.  Advanced pmem filesystems could plausibly use different keys for different files, I suppose.
+> 
+> If “user” is dropped, I think a lot of the complexity goes away. Hotplug becomes automatic, right?
 
-Understood.  I=E2=80=99m saying that having a *key* (in the add_key sense) =
-for
-it seems unnecessary.  Whatever the final API for controlling the use
-of keys, adding an option to ask for clear text seems reasonable.
-This actually seems more useful for anonymous memory than the
-cpu-generates keys are IMO.
+Dropping 'user' type removes a great deal of complexity.
 
-I do think that, before you invest too much time in perfecting the
-series with the current design, you should identify the use cases,
-make sure the use cases are valid, and figure out whether your API
-design is appropriate.  After considerable head-scratching, I haven=E2=80=
-=99t
-thought of a reason that explicit CPU generated keys are any better
-than the default TME key, at least in the absence of additional
-hardware support for locking down what code can use what key.  The
-sole exception is that a key can be removed, which is probably faster
-than directly zeroing large amounts of data.
+Let me follow up in 2 ways:
+1) Find out when MKTME support for pmem is required.
+2) Go back to the the requirements and get the justification for user
+type.
 
-I understand that it would be very nice to say "hey, cloud customer,
-your VM has all its memory encrypted with a key that is unique to your
-VM", but that seems to be more or less just a platitude with no actual
-effect.  Anyone who snoops the memory bus or steals a DIMM learns
-nothing unless they also take control of the CPU and can replay all
-the data into the CPU.  On the other hand, anyone who can get the CPU
-to read from a given physical address (which seems like the most
-likely threat) can just get the CPU to decrypt any tenant's data.  So,
-for example, if someone manages to write a couple of words to the EPT
-for one VM, then they can easily read another VM's data, MKTME or no
-MKTME, because the memory controller has no clue which VM initiated
-the access.
+> 
+> > +        *cpu*    User requests a CPU generated encryption key.
+> 
+> Okay, maybe, but it’s still unclear to me exactly what the intended benefit is, though.
+*cpu* is the RANDOM key generated by the cpu. If there were no other
+options, then this would be default, and go away.
 
-I suppose there's some smallish value in rotating the key every now
-and then to make old data non-replayable, but an attack that
-compromises the memory bus and only later compromises the CPU is a
-strange threat model.
+> > +        *clear* User requests that a hardware encryption key be
+> > +                cleared. This will clear the encryption key from
+> > +                the hardware. On execution this hardware key gets
+> > +                TME behavior.
+> > +
+> 
+> Why is this a key type?  Shouldn’t the API to select a key just have an option to ask for no key to be used?
+
+The *clear* key has been requested in order to clear/erase the users
+key data that has been programmed into a hardware slot. User does not
+want to leave a slot programmed with their encryption data when they
+are done with it.
+
+> > +        *no-encrypt*
+> > +                 User requests that hardware does not encrypt
+> > +                 memory when this key is in use.
+> 
+> Same as above.  If there’s a performance benefit, then there could be a way to ask for cleartext memory.  Similarly, some pmem users may want a way to keep their pmem unencrypted.
+
+So, this is the way to ask for cleartext memory.
+The entire system will be encrypted with the system wide TME Key.
+A subset of that will be protected with MKTME Keys.
+If user wants, no encrypt, this *no-encrypt* is the way to do it.
+
+Alison
+> 
+> —Andy
