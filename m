@@ -1,175 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 12A5B6B71CA
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 20:45:10 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id a18so10170629pga.16
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 17:45:10 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o88sor26617098pfa.41.2018.12.04.17.45.08
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B9AF56B71A7
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 20:09:21 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o17so10130394pgi.14
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 17:09:21 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id 92si19061233pld.84.2018.12.04.17.09.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 17:45:08 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Dec 2018 17:09:20 -0800 (PST)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
 Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <3c217322e990eba0269cc5ffea761cc1a5b17f4e.camel@intel.com>
-Date: Tue, 4 Dec 2018 17:45:04 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <BA406CD6-1938-439B-A723-008AF84BFEF3@gmail.com>
+Date: Wed, 5 Dec 2018 01:09:18 +0000
+Message-ID: <3c217322e990eba0269cc5ffea761cc1a5b17f4e.camel@intel.com>
 References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
- <20181128000754.18056-2-rick.p.edgecombe@intel.com>
- <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
- <CALCETrXvddt148fncMJqpjK98uatiK-44knYFWU0-ytf8X+iog@mail.gmail.com>
- <08141F66-F3E6-4CC5-AF91-1ED5F101A54C@gmail.com>
- <CALCETrXLrsKDBzDkN7sc9HYPWe9aV3NQzf4vMvM+FD8j6aA6AQ@mail.gmail.com>
- <20CC2F71-308D-42E2-8C54-F64D7CC3863F@gmail.com>
- <3c217322e990eba0269cc5ffea761cc1a5b17f4e.camel@intel.com>
+	 <20181128000754.18056-2-rick.p.edgecombe@intel.com>
+	 <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
+	 <CALCETrXvddt148fncMJqpjK98uatiK-44knYFWU0-ytf8X+iog@mail.gmail.com>
+	 <08141F66-F3E6-4CC5-AF91-1ED5F101A54C@gmail.com>
+	 <CALCETrXLrsKDBzDkN7sc9HYPWe9aV3NQzf4vMvM+FD8j6aA6AQ@mail.gmail.com>
+	 <20CC2F71-308D-42E2-8C54-F64D7CC3863F@gmail.com>
+In-Reply-To: <20CC2F71-308D-42E2-8C54-F64D7CC3863F@gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <F456652EA8ABFA4E9207D1DA820F082B@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Cc: "luto@kernel.org" <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
+To: "luto@kernel.org" <luto@kernel.org>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-> On Dec 4, 2018, at 5:09 PM, Edgecombe, Rick P =
-<rick.p.edgecombe@intel.com> wrote:
->=20
-> On Tue, 2018-12-04 at 14:48 -0800, Nadav Amit wrote:
->>> On Dec 4, 2018, at 11:48 AM, Andy Lutomirski <luto@kernel.org> =
-wrote:
->>>=20
->>> On Tue, Dec 4, 2018 at 11:45 AM Nadav Amit <nadav.amit@gmail.com> =
-wrote:
->>>>> On Dec 4, 2018, at 10:56 AM, Andy Lutomirski <luto@kernel.org> =
-wrote:
->>>>>=20
->>>>> On Mon, Dec 3, 2018 at 5:43 PM Nadav Amit <nadav.amit@gmail.com> =
-wrote:
->>>>>>> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe <
->>>>>>> rick.p.edgecombe@intel.com> wrote:
->>>>>>>=20
->>>>>>> Since vfree will lazily flush the TLB, but not lazily free the
->>>>>>> underlying pages,
->>>>>>> it often leaves stale TLB entries to freed pages that could get =
-re-
->>>>>>> used. This is
->>>>>>> undesirable for cases where the memory being freed has special
->>>>>>> permissions such
->>>>>>> as executable.
->>>>>>=20
->>>>>> So I am trying to finish my patch-set for preventing transient =
-W+X
->>>>>> mappings
->>>>>> from taking space, by handling kprobes & ftrace that I missed =
-(thanks
->>>>>> again for
->>>>>> pointing it out).
->>>>>>=20
->>>>>> But all of the sudden, I don=E2=80=99t understand why we have the =
-problem that
->>>>>> this
->>>>>> (your) patch-set deals with at all. We already change the =
-mappings to
->>>>>> make
->>>>>> the memory writable before freeing the memory, so why can=E2=80=99t=
- we make it
->>>>>> non-executable at the same time? Actually, why do we make the =
-module
->>>>>> memory,
->>>>>> including its data executable before freeing it???
->>>>>=20
->>>>> All the code you're looking at is IMO a very awkward and possibly
->>>>> incorrect of doing what's actually necessary: putting the direct =
-map
->>>>> the way it wants to be.
->>>>>=20
->>>>> Can't we shove this entirely mess into vunmap?  Have a flag (as =
-part
->>>>> of vmalloc like in Rick's patch or as a flag passed to a vfree =
-variant
->>>>> directly) that makes the vunmap code that frees the underlying =
-pages
->>>>> also reset their permissions?
->>>>>=20
->>>>> Right now, we muck with set_memory_rw() and set_memory_nx(), which
->>>>> both have very awkward (and inconsistent with each other!) =
-semantics
->>>>> when called on vmalloc memory.  And they have their own flushes, =
-which
->>>>> is inefficient.  Maybe the right solution is for vunmap to remove =
-the
->>>>> vmap area PTEs, call into a function like set_memory_rw() that =
-resets
->>>>> the direct maps to their default permissions *without* flushing, =
-and
->>>>> then to do a single flush for everything.  Or, even better, to =
-cause
->>>>> the change_page_attr code to do the flush and also to flush the =
-vmap
->>>>> area all at once so that very small free operations can flush =
-single
->>>>> pages instead of flushing globally.
->>>>=20
->>>> Thanks for the explanation. I read it just after I realized that =
-indeed
->>>> the
->>>> whole purpose of this code is to get cpa_process_alias()
->>>> update the corresponding direct mapping.
->>>>=20
->>>> This thing (pageattr.c) indeed seems over-engineered and very =
-unintuitive.
->>>> Right now I have a list of patch-sets that I owe, so I don=E2=80=99t =
-have the time
->>>> to deal with it.
->>>>=20
->>>> But, I still think that disable_ro_nx() should not call =
-set_memory_x().
->>>> IIUC, this breaks W+X of the direct-mapping which correspond with =
-the
->>>> module
->>>> memory. Does it ever stop being W+X?? I=E2=80=99ll have another =
-look.
->>>=20
->>> Dunno.  I did once chase down a bug where some memory got freed =
-while
->>> it was still read-only, and the results were hilarious and hard to
->>> debug, since the explosion happened long after the buggy code
->>> finished.
->>=20
->> This piece of code causes me pain and misery.
->>=20
->> So, it turns out that the direct map is *not* changed if you just =
-change
->> the NX-bit. See change_page_attr_set_clr():
->>=20
->>        /* No alias checking for _NX bit modifications */
->>        checkalias =3D (pgprot_val(mask_set) | pgprot_val(mask_clr)) =
-!=3D
->> _PAGE_NX;
->>=20
->> How many levels of abstraction are broken in the way? What would =
-happen
->> if somebody tries to change the NX-bit and some other bit in the PTE?
->> Luckily, I don=E2=80=99t think someone does=E2=80=A6 at least for =
-now.
->>=20
->> So, again, I think the change I proposed makes sense. nios2 does not =
-have
->> set_memory_x() and it will not be affected.
-> Hold on...so on architectures that don't have set_memory_ but do have =
-something
-> like NX, wont the executable stale TLB continue to live to re-used =
-pages, and so
-> it doesn't fix the problem this patch is trying to address generally? =
-I see at
-> least a couple archs use vmalloc and have an exec bit, but don't =
-define
-> set_memory_*.
-
-Again, this does not come instead of your patch (the one in this =
-thread).
-And if you follow Andy=E2=80=99s suggestion, the patch I propose will =
-not be needed.
-However, in the meantime - I see no reason to mark data as executable, =
-even
-for a brief period of time.
+T24gVHVlLCAyMDE4LTEyLTA0IGF0IDE0OjQ4IC0wODAwLCBOYWRhdiBBbWl0IHdyb3RlOg0KPiA+
+IE9uIERlYyA0LCAyMDE4LCBhdCAxMTo0OCBBTSwgQW5keSBMdXRvbWlyc2tpIDxsdXRvQGtlcm5l
+bC5vcmc+IHdyb3RlOg0KPiA+IA0KPiA+IE9uIFR1ZSwgRGVjIDQsIDIwMTggYXQgMTE6NDUgQU0g
+TmFkYXYgQW1pdCA8bmFkYXYuYW1pdEBnbWFpbC5jb20+IHdyb3RlOg0KPiA+ID4gPiBPbiBEZWMg
+NCwgMjAxOCwgYXQgMTA6NTYgQU0sIEFuZHkgTHV0b21pcnNraSA8bHV0b0BrZXJuZWwub3JnPiB3
+cm90ZToNCj4gPiA+ID4gDQo+ID4gPiA+IE9uIE1vbiwgRGVjIDMsIDIwMTggYXQgNTo0MyBQTSBO
+YWRhdiBBbWl0IDxuYWRhdi5hbWl0QGdtYWlsLmNvbT4gd3JvdGU6DQo+ID4gPiA+ID4gPiBPbiBO
+b3YgMjcsIDIwMTgsIGF0IDQ6MDcgUE0sIFJpY2sgRWRnZWNvbWJlIDwNCj4gPiA+ID4gPiA+IHJp
+Y2sucC5lZGdlY29tYmVAaW50ZWwuY29tPiB3cm90ZToNCj4gPiA+ID4gPiA+IA0KPiA+ID4gPiA+
+ID4gU2luY2UgdmZyZWUgd2lsbCBsYXppbHkgZmx1c2ggdGhlIFRMQiwgYnV0IG5vdCBsYXppbHkg
+ZnJlZSB0aGUNCj4gPiA+ID4gPiA+IHVuZGVybHlpbmcgcGFnZXMsDQo+ID4gPiA+ID4gPiBpdCBv
+ZnRlbiBsZWF2ZXMgc3RhbGUgVExCIGVudHJpZXMgdG8gZnJlZWQgcGFnZXMgdGhhdCBjb3VsZCBn
+ZXQgcmUtDQo+ID4gPiA+ID4gPiB1c2VkLiBUaGlzIGlzDQo+ID4gPiA+ID4gPiB1bmRlc2lyYWJs
+ZSBmb3IgY2FzZXMgd2hlcmUgdGhlIG1lbW9yeSBiZWluZyBmcmVlZCBoYXMgc3BlY2lhbA0KPiA+
+ID4gPiA+ID4gcGVybWlzc2lvbnMgc3VjaA0KPiA+ID4gPiA+ID4gYXMgZXhlY3V0YWJsZS4NCj4g
+PiA+ID4gPiANCj4gPiA+ID4gPiBTbyBJIGFtIHRyeWluZyB0byBmaW5pc2ggbXkgcGF0Y2gtc2V0
+IGZvciBwcmV2ZW50aW5nIHRyYW5zaWVudCBXK1gNCj4gPiA+ID4gPiBtYXBwaW5ncw0KPiA+ID4g
+PiA+IGZyb20gdGFraW5nIHNwYWNlLCBieSBoYW5kbGluZyBrcHJvYmVzICYgZnRyYWNlIHRoYXQg
+SSBtaXNzZWQgKHRoYW5rcw0KPiA+ID4gPiA+IGFnYWluIGZvcg0KPiA+ID4gPiA+IHBvaW50aW5n
+IGl0IG91dCkuDQo+ID4gPiA+ID4gDQo+ID4gPiA+ID4gQnV0IGFsbCBvZiB0aGUgc3VkZGVuLCBJ
+IGRvbuKAmXQgdW5kZXJzdGFuZCB3aHkgd2UgaGF2ZSB0aGUgcHJvYmxlbSB0aGF0DQo+ID4gPiA+
+ID4gdGhpcw0KPiA+ID4gPiA+ICh5b3VyKSBwYXRjaC1zZXQgZGVhbHMgd2l0aCBhdCBhbGwuIFdl
+IGFscmVhZHkgY2hhbmdlIHRoZSBtYXBwaW5ncyB0bw0KPiA+ID4gPiA+IG1ha2UNCj4gPiA+ID4g
+PiB0aGUgbWVtb3J5IHdyaXRhYmxlIGJlZm9yZSBmcmVlaW5nIHRoZSBtZW1vcnksIHNvIHdoeSBj
+YW7igJl0IHdlIG1ha2UgaXQNCj4gPiA+ID4gPiBub24tZXhlY3V0YWJsZSBhdCB0aGUgc2FtZSB0
+aW1lPyBBY3R1YWxseSwgd2h5IGRvIHdlIG1ha2UgdGhlIG1vZHVsZQ0KPiA+ID4gPiA+IG1lbW9y
+eSwNCj4gPiA+ID4gPiBpbmNsdWRpbmcgaXRzIGRhdGEgZXhlY3V0YWJsZSBiZWZvcmUgZnJlZWlu
+ZyBpdD8/Pw0KPiA+ID4gPiANCj4gPiA+ID4gQWxsIHRoZSBjb2RlIHlvdSdyZSBsb29raW5nIGF0
+IGlzIElNTyBhIHZlcnkgYXdrd2FyZCBhbmQgcG9zc2libHkNCj4gPiA+ID4gaW5jb3JyZWN0IG9m
+IGRvaW5nIHdoYXQncyBhY3R1YWxseSBuZWNlc3Nhcnk6IHB1dHRpbmcgdGhlIGRpcmVjdCBtYXAN
+Cj4gPiA+ID4gdGhlIHdheSBpdCB3YW50cyB0byBiZS4NCj4gPiA+ID4gDQo+ID4gPiA+IENhbid0
+IHdlIHNob3ZlIHRoaXMgZW50aXJlbHkgbWVzcyBpbnRvIHZ1bm1hcD8gIEhhdmUgYSBmbGFnIChh
+cyBwYXJ0DQo+ID4gPiA+IG9mIHZtYWxsb2MgbGlrZSBpbiBSaWNrJ3MgcGF0Y2ggb3IgYXMgYSBm
+bGFnIHBhc3NlZCB0byBhIHZmcmVlIHZhcmlhbnQNCj4gPiA+ID4gZGlyZWN0bHkpIHRoYXQgbWFr
+ZXMgdGhlIHZ1bm1hcCBjb2RlIHRoYXQgZnJlZXMgdGhlIHVuZGVybHlpbmcgcGFnZXMNCj4gPiA+
+ID4gYWxzbyByZXNldCB0aGVpciBwZXJtaXNzaW9ucz8NCj4gPiA+ID4gDQo+ID4gPiA+IFJpZ2h0
+IG5vdywgd2UgbXVjayB3aXRoIHNldF9tZW1vcnlfcncoKSBhbmQgc2V0X21lbW9yeV9ueCgpLCB3
+aGljaA0KPiA+ID4gPiBib3RoIGhhdmUgdmVyeSBhd2t3YXJkIChhbmQgaW5jb25zaXN0ZW50IHdp
+dGggZWFjaCBvdGhlciEpIHNlbWFudGljcw0KPiA+ID4gPiB3aGVuIGNhbGxlZCBvbiB2bWFsbG9j
+IG1lbW9yeS4gIEFuZCB0aGV5IGhhdmUgdGhlaXIgb3duIGZsdXNoZXMsIHdoaWNoDQo+ID4gPiA+
+IGlzIGluZWZmaWNpZW50LiAgTWF5YmUgdGhlIHJpZ2h0IHNvbHV0aW9uIGlzIGZvciB2dW5tYXAg
+dG8gcmVtb3ZlIHRoZQ0KPiA+ID4gPiB2bWFwIGFyZWEgUFRFcywgY2FsbCBpbnRvIGEgZnVuY3Rp
+b24gbGlrZSBzZXRfbWVtb3J5X3J3KCkgdGhhdCByZXNldHMNCj4gPiA+ID4gdGhlIGRpcmVjdCBt
+YXBzIHRvIHRoZWlyIGRlZmF1bHQgcGVybWlzc2lvbnMgKndpdGhvdXQqIGZsdXNoaW5nLCBhbmQN
+Cj4gPiA+ID4gdGhlbiB0byBkbyBhIHNpbmdsZSBmbHVzaCBmb3IgZXZlcnl0aGluZy4gIE9yLCBl
+dmVuIGJldHRlciwgdG8gY2F1c2UNCj4gPiA+ID4gdGhlIGNoYW5nZV9wYWdlX2F0dHIgY29kZSB0
+byBkbyB0aGUgZmx1c2ggYW5kIGFsc28gdG8gZmx1c2ggdGhlIHZtYXANCj4gPiA+ID4gYXJlYSBh
+bGwgYXQgb25jZSBzbyB0aGF0IHZlcnkgc21hbGwgZnJlZSBvcGVyYXRpb25zIGNhbiBmbHVzaCBz
+aW5nbGUNCj4gPiA+ID4gcGFnZXMgaW5zdGVhZCBvZiBmbHVzaGluZyBnbG9iYWxseS4NCj4gPiA+
+IA0KPiA+ID4gVGhhbmtzIGZvciB0aGUgZXhwbGFuYXRpb24uIEkgcmVhZCBpdCBqdXN0IGFmdGVy
+IEkgcmVhbGl6ZWQgdGhhdCBpbmRlZWQNCj4gPiA+IHRoZQ0KPiA+ID4gd2hvbGUgcHVycG9zZSBv
+ZiB0aGlzIGNvZGUgaXMgdG8gZ2V0IGNwYV9wcm9jZXNzX2FsaWFzKCkNCj4gPiA+IHVwZGF0ZSB0
+aGUgY29ycmVzcG9uZGluZyBkaXJlY3QgbWFwcGluZy4NCj4gPiA+IA0KPiA+ID4gVGhpcyB0aGlu
+ZyAocGFnZWF0dHIuYykgaW5kZWVkIHNlZW1zIG92ZXItZW5naW5lZXJlZCBhbmQgdmVyeSB1bmlu
+dHVpdGl2ZS4NCj4gPiA+IFJpZ2h0IG5vdyBJIGhhdmUgYSBsaXN0IG9mIHBhdGNoLXNldHMgdGhh
+dCBJIG93ZSwgc28gSSBkb27igJl0IGhhdmUgdGhlIHRpbWUNCj4gPiA+IHRvIGRlYWwgd2l0aCBp
+dC4NCj4gPiA+IA0KPiA+ID4gQnV0LCBJIHN0aWxsIHRoaW5rIHRoYXQgZGlzYWJsZV9yb19ueCgp
+IHNob3VsZCBub3QgY2FsbCBzZXRfbWVtb3J5X3goKS4NCj4gPiA+IElJVUMsIHRoaXMgYnJlYWtz
+IFcrWCBvZiB0aGUgZGlyZWN0LW1hcHBpbmcgd2hpY2ggY29ycmVzcG9uZCB3aXRoIHRoZQ0KPiA+
+ID4gbW9kdWxlDQo+ID4gPiBtZW1vcnkuIERvZXMgaXQgZXZlciBzdG9wIGJlaW5nIFcrWD8/IEni
+gJlsbCBoYXZlIGFub3RoZXIgbG9vay4NCj4gPiANCj4gPiBEdW5uby4gIEkgZGlkIG9uY2UgY2hh
+c2UgZG93biBhIGJ1ZyB3aGVyZSBzb21lIG1lbW9yeSBnb3QgZnJlZWQgd2hpbGUNCj4gPiBpdCB3
+YXMgc3RpbGwgcmVhZC1vbmx5LCBhbmQgdGhlIHJlc3VsdHMgd2VyZSBoaWxhcmlvdXMgYW5kIGhh
+cmQgdG8NCj4gPiBkZWJ1Zywgc2luY2UgdGhlIGV4cGxvc2lvbiBoYXBwZW5lZCBsb25nIGFmdGVy
+IHRoZSBidWdneSBjb2RlDQo+ID4gZmluaXNoZWQuDQo+IA0KPiBUaGlzIHBpZWNlIG9mIGNvZGUg
+Y2F1c2VzIG1lIHBhaW4gYW5kIG1pc2VyeS4NCj4gDQo+IFNvLCBpdCB0dXJucyBvdXQgdGhhdCB0
+aGUgZGlyZWN0IG1hcCBpcyAqbm90KiBjaGFuZ2VkIGlmIHlvdSBqdXN0IGNoYW5nZQ0KPiB0aGUg
+TlgtYml0LiBTZWUgY2hhbmdlX3BhZ2VfYXR0cl9zZXRfY2xyKCk6DQo+IA0KPiAgICAgICAgIC8q
+IE5vIGFsaWFzIGNoZWNraW5nIGZvciBfTlggYml0IG1vZGlmaWNhdGlvbnMgKi8NCj4gICAgICAg
+ICBjaGVja2FsaWFzID0gKHBncHJvdF92YWwobWFza19zZXQpIHwgcGdwcm90X3ZhbChtYXNrX2Ns
+cikpICE9DQo+IF9QQUdFX05YOw0KPiANCj4gSG93IG1hbnkgbGV2ZWxzIG9mIGFic3RyYWN0aW9u
+IGFyZSBicm9rZW4gaW4gdGhlIHdheT8gV2hhdCB3b3VsZCBoYXBwZW4NCj4gaWYgc29tZWJvZHkg
+dHJpZXMgdG8gY2hhbmdlIHRoZSBOWC1iaXQgYW5kIHNvbWUgb3RoZXIgYml0IGluIHRoZSBQVEU/
+DQo+IEx1Y2tpbHksIEkgZG9u4oCZdCB0aGluayBzb21lb25lIGRvZXPigKYgYXQgbGVhc3QgZm9y
+IG5vdy4NCj4gDQo+IFNvLCBhZ2FpbiwgSSB0aGluayB0aGUgY2hhbmdlIEkgcHJvcG9zZWQgbWFr
+ZXMgc2Vuc2UuIG5pb3MyIGRvZXMgbm90IGhhdmUNCj4gc2V0X21lbW9yeV94KCkgYW5kIGl0IHdp
+bGwgbm90IGJlIGFmZmVjdGVkLg0KPiANCkhvbGQgb24uLi5zbyBvbiBhcmNoaXRlY3R1cmVzIHRo
+YXQgZG9uJ3QgaGF2ZSBzZXRfbWVtb3J5XyBidXQgZG8gaGF2ZSBzb21ldGhpbmcNCmxpa2UgTlgs
+IHdvbnQgdGhlIGV4ZWN1dGFibGUgc3RhbGUgVExCIGNvbnRpbnVlIHRvIGxpdmUgdG8gcmUtdXNl
+ZCBwYWdlcywgYW5kIHNvDQppdCBkb2Vzbid0IGZpeCB0aGUgcHJvYmxlbSB0aGlzIHBhdGNoIGlz
+IHRyeWluZyB0byBhZGRyZXNzIGdlbmVyYWxseT8gSSBzZWUgYXQNCmxlYXN0IGEgY291cGxlIGFy
+Y2hzIHVzZSB2bWFsbG9jIGFuZCBoYXZlIGFuIGV4ZWMgYml0LCBidXQgZG9uJ3QgZGVmaW5lDQpz
+ZXRfbWVtb3J5XyouDQoNCg==
