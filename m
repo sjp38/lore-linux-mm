@@ -1,105 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EE136B7393
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 04:21:51 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id e12so9545691edd.16
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 01:21:51 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 25si3627315edw.305.2018.12.05.01.21.49
+	by kanga.kvack.org (Postfix) with ESMTP id EB6D66B72C6
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 00:50:41 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id d41so9064152eda.12
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 21:50:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d21-v6sor5386982ejc.7.2018.12.04.21.50.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 01:21:49 -0800 (PST)
-Date: Wed, 5 Dec 2018 10:21:48 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/alloc: fallback to first node if the wanted node
- offline
-Message-ID: <20181205092148.GA1286@dhcp22.suse.cz>
-References: <1543892757-4323-1-git-send-email-kernelfans@gmail.com>
- <20181204072251.GT31738@dhcp22.suse.cz>
- <CAFgQCTv56drDBx-sTr6KdeQNKJnojG3g_a-k8wKe_q2y9w9NtA@mail.gmail.com>
- <20181204085601.GC1286@dhcp22.suse.cz>
- <CAFgQCTuyKBZdwWG=fOECE6J8DbZJsErJOyXTrLT0Kog3ec7vhw@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 04 Dec 2018 21:50:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFgQCTuyKBZdwWG=fOECE6J8DbZJsErJOyXTrLT0Kog3ec7vhw@mail.gmail.com>
+References: <1543892757-4323-1-git-send-email-kernelfans@gmail.com>
+ <20181204065453.4rsyhtsk2aej4vim@master> <CAFgQCTvQBC11=4eGQ6T9vyB+KOznFCr4hjdg1wwD8GotSRWpDg@mail.gmail.com>
+ <20181204083428.emgcaomg6vulknaq@master> <CAFgQCTtY28w=9LLgOMT5J-SfKqz-Cirv-bNvXQvjazn_Ev4F4g@mail.gmail.com>
+ <20181204090950.ql3zbnbjjbfnvhdg@master>
+In-Reply-To: <20181204090950.ql3zbnbjjbfnvhdg@master>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Wed, 5 Dec 2018 13:50:28 +0800
+Message-ID: <CAFgQCTtKud54LL+afhf+j4axzho9MNErDN1DCNZLbOtHG-gHWQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/alloc: fallback to first node if the wanted node offline
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
+To: richard.weiyang@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
 
-On Wed 05-12-18 13:38:17, Pingfan Liu wrote:
-> On Tue, Dec 4, 2018 at 4:56 PM Michal Hocko <mhocko@kernel.org> wrote:
+On Tue, Dec 4, 2018 at 5:09 PM Wei Yang <richard.weiyang@gmail.com> wrote:
+>
+> On Tue, Dec 04, 2018 at 04:52:52PM +0800, Pingfan Liu wrote:
+> >On Tue, Dec 4, 2018 at 4:34 PM Wei Yang <richard.weiyang@gmail.com> wrote:
+> >>
+> >> On Tue, Dec 04, 2018 at 03:20:13PM +0800, Pingfan Liu wrote:
+> >> >On Tue, Dec 4, 2018 at 2:54 PM Wei Yang <richard.weiyang@gmail.com> wrote:
+> >> >>
+> >> >> On Tue, Dec 04, 2018 at 11:05:57AM +0800, Pingfan Liu wrote:
+> >> >> >During my test on some AMD machine, with kexec -l nr_cpus=x option, the
+> >> >> >kernel failed to bootup, because some node's data struct can not be allocated,
+> >> >> >e.g, on x86, initialized by init_cpu_to_node()->init_memory_less_node(). But
+> >> >> >device->numa_node info is used as preferred_nid param for
+> >> >>
+> >> >> could we fix the preferred_nid before passed to
+> >> >> __alloc_pages_nodemask()?
+> >> >>
+> >> >Yes, we can doit too, but what is the gain?
+> >>
+> >> node_zonelist() is used some places. If we are sure where the problem
+> >> is, it is not necessary to spread to other places.
+> >>
+> >> >
+> >> >> BTW, I don't catch the function call flow to this point. Would you mind
+> >> >> giving me some hint?
+> >> >>
+> >> >You can track the code along slab_alloc() ->...->__alloc_pages_nodemask()
+> >>
+> >> slab_alloc() pass NUMA_NO_NODE down, so I am lost in where the
+> >> preferred_nid is assigned.
+> >>
+> >You can follow:
+> >[    5.773618]  new_slab+0xa9/0x570
+> >[    5.773618]  ___slab_alloc+0x375/0x540
+> >[    5.773618]  ? pinctrl_bind_pins+0x2b/0x2a0
+> >where static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 > >
-> > On Tue 04-12-18 16:20:32, Pingfan Liu wrote:
-> > > On Tue, Dec 4, 2018 at 3:22 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > >
-> > > > On Tue 04-12-18 11:05:57, Pingfan Liu wrote:
-> > > > > During my test on some AMD machine, with kexec -l nr_cpus=x option, the
-> > > > > kernel failed to bootup, because some node's data struct can not be allocated,
-> > > > > e.g, on x86, initialized by init_cpu_to_node()->init_memory_less_node(). But
-> > > > > device->numa_node info is used as preferred_nid param for
-> > > > > __alloc_pages_nodemask(), which causes NULL reference
-> > > > >   ac->zonelist = node_zonelist(preferred_nid, gfp_mask);
-> > > > > This patch tries to fix the issue by falling back to the first online node,
-> > > > > when encountering such corner case.
-> > > >
-> > > > We have seen similar issues already and the bug was usually that the
-> > > > zonelists were not initialized yet or the node is completely bogus.
-> > > > Zonelists should be initialized by build_all_zonelists quite early so I
-> > > > am wondering whether the later is the case. What is the actual node
-> > > > number the device is associated with?
-> > > >
-> > > The device's node num is 2. And in my case, I used nr_cpus param. Due
-> > > to init_cpu_to_node() initialize all the possible node.  It is hard
-> > > for me to figure out without this param, how zonelists is accessed
-> > > before page allocator works.
-> >
-> > I believe we should focus on this. Why does the node have no zonelist
-> > even though all zonelists should be initialized already? Maybe this is
-> > nr_cpus pecularity and we do not initialize all the existing numa nodes.
-> > Or maybe the device is associated to a non-existing node with that
-> > setup. A full dmesg might help us here.
-> >
-> Requiring the machine again, and I got the following without nr_cpus option
-> [root@dell-per7425-03 ~]# cd /sys/devices/system/node/
-> [root@dell-per7425-03 node]# ls
-> has_cpu  has_memory  has_normal_memory  node0  node1  node2  node3
-> node4  node5  node6  node7  online  possible  power  uevent
-> [root@dell-per7425-03 node]# cat has_cpu
-> 0-7
-> [root@dell-per7425-03 node]# cat has_memory
-> 1,5
-> [root@dell-per7425-03 node]# cat online
-> 0-7
-> [root@dell-per7425-03 node]# cat possible
-> 0-7
-> And lscpu shows the following numa-cpu info:
-> NUMA node0 CPU(s):     0,8,16,24
-> NUMA node1 CPU(s):     2,10,18,26
-> NUMA node2 CPU(s):     4,12,20,28
-> NUMA node3 CPU(s):     6,14,22,30
-> NUMA node4 CPU(s):     1,9,17,25
-> NUMA node5 CPU(s):     3,11,19,27
-> NUMA node6 CPU(s):     5,13,21,29
-> NUMA node7 CPU(s):     7,15,23,31
-> 
-> For the full panic message (I masked some hostname info with xx),
-> please see the attachment.
-> In a short word, it seems a problem with nr_cpus, if without this
-> option, the kernel can bootup correctly.
+>
+> Well, thanks for your patience, but I still don't get it.
+>
+> new_slab(node)
+>     allocate_slab(node)
+>        alloc_slab_page(node)
+>            if (node == NUMA_NO_NODE)
+>                alloc_pages()
+>            eles
+>                __alloc_pages_node(node)
+>
+> As you mentioned, this starts from slab_alloc() which pass NUMA_NO_NODE.
+> This means it goes to alloc_pages() and then alloc_pages_current() ->
+> __alloc_pages_nodemask(). Here we use policy_node() to get the
+> preferred_nid.
+>
+> I didn't catch the relathionship between policy_node() and
+> device->numa_node. Maybe I got wrong in some place. Would you minding
+> sharing more?
+>
+Have uploaded the full panic log. Enjoy it.
 
-Yep.
-[    0.007418] Early memory node ranges
-[    0.007419]   node   1: [mem 0x0000000000001000-0x000000000008efff]
-[    0.007420]   node   1: [mem 0x0000000000090000-0x000000000009ffff]
-[    0.007422]   node   1: [mem 0x0000000000100000-0x000000005c3d6fff]
-[    0.007422]   node   1: [mem 0x00000000643df000-0x0000000068ff7fff]
-[    0.007423]   node   1: [mem 0x000000006c528000-0x000000006fffffff]
-[    0.007424]   node   1: [mem 0x0000000100000000-0x000000047fffffff]
-[    0.007425]   node   5: [mem 0x0000000480000000-0x000000087effffff]
-
-There is clearly no node2. Where did the driver get the node2 from?
--- 
-Michal Hocko
-SUSE Labs
+Regards,
+Pingfan
