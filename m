@@ -1,130 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A7AF08E000B
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id f69so17813903pff.5
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:08 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.07
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CA4B6B7636
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 15:36:30 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id i14so10313583edf.17
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 12:36:30 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a1si5697137edj.47.2018.12.05.12.36.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Message-Id: <20181226133352.189896494@intel.com>
-Date: Wed, 26 Dec 2018 21:15:05 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [RFC][PATCH v2 19/21] mm/migrate.c: add move_pages(MPOL_MF_SW_YOUNG) flag
-References: <20181226131446.330864849@intel.com>
+        Wed, 05 Dec 2018 12:36:28 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB5KTVk1032216
+	for <linux-mm@kvack.org>; Wed, 5 Dec 2018 15:36:27 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2p6knfejvx-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 05 Dec 2018 15:36:27 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Wed, 5 Dec 2018 20:36:25 -0000
+Date: Wed, 5 Dec 2018 12:36:17 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: pkeys: Reserve PKEY_DISABLE_READ
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <20181108201231.GE5481@ram.oc3035372033.ibm.com>
+ <87bm6z71yw.fsf@oldenburg.str.redhat.com>
+ <20181109180947.GF5481@ram.oc3035372033.ibm.com>
+ <87efbqqze4.fsf@oldenburg.str.redhat.com>
+ <20181127102350.GA5795@ram.oc3035372033.ibm.com>
+ <87zhtuhgx0.fsf@oldenburg.str.redhat.com>
+ <58e263a6-9a93-46d6-c5f9-59973064d55e@intel.com>
+ <87va4g5d3o.fsf@oldenburg.str.redhat.com>
+ <20181203040249.GA11930@ram.oc3035372033.ibm.com>
+ <CALCETrXeSQ8T9nvK7WpgPpkraLfg70FoDWvPZeLS3KiDaqXwtw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=0010-migrate-check-if-the-page-is-software-young-when-mov.patch
+In-Reply-To: <CALCETrXeSQ8T9nvK7WpgPpkraLfg70FoDWvPZeLS3KiDaqXwtw@mail.gmail.com>
+Message-Id: <20181205203617.GF11930@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Liu Jingqi <jingqi.liu@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Florian Weimer <fweimer@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-From: Liu Jingqi <jingqi.liu@intel.com>
+On Wed, Dec 05, 2018 at 08:21:02AM -0800, Andy Lutomirski wrote:
+> > On Dec 2, 2018, at 8:02 PM, Ram Pai <linuxram@us.ibm.com> wrote:
+> >
+> >> On Thu, Nov 29, 2018 at 12:37:15PM +0100, Florian Weimer wrote:
+> >> * Dave Hansen:
+> >>
+> >>>> On 11/27/18 3:57 AM, Florian Weimer wrote:
+> >>>> I would have expected something that translates PKEY_DISABLE_WRITE |
+> >>>> PKEY_DISABLE_READ into PKEY_DISABLE_ACCESS, and also accepts
+> >>>> PKEY_DISABLE_ACCESS | PKEY_DISABLE_READ, for consistency with POWER.
+> >>>>
+> >>>> (My understanding is that PKEY_DISABLE_ACCESS does not disable all
+> >>>> access, but produces execute-only memory.)
+> >>>
+> >>> Correct, it disables all data access, but not execution.
+> >>
+> >> So I would expect something like this (completely untested, I did not
+> >> even compile this):
+> >
+> >
+> > Ok. I re-read through the entire email thread to understand the problem and
+> > the proposed solution. Let me summarize it below. Lets see if we are on the same
+> > plate.
+> >
+> > So the problem is as follows:
+> >
+> > Currently the kernel supports  'disable-write'  and 'disable-access'.
+> >
+> > On x86, cpu supports 'disable-write' and 'disable-access'. This
+> > matches with what the kernel supports. All good.
+> >
+> > However on power, cpu supports 'disable-read' too. Since userspace can
+> > program the cpu directly, userspace has the ability to set
+> > 'disable-read' too.  This can lead to inconsistency between the kernel
+> > and the userspace.
+> >
+> > We want the kernel to match userspace on all architectures.
+> >
+> > Proposed Solution:
+> >
+> > Enhance the kernel to understand 'disable-read', and facilitate architectures
+> > that understand 'disable-read' to allow it.
+> >
+> > Also explicitly define the semantics of disable-access  as
+> > 'disable-read and disable-write'
+> >
+> > Did I get this right?  Assuming I did, the implementation has to do
+> > the following --
+> >
+> >    On power, sys_pkey_alloc() should succeed if the init_val
+> >    is PKEY_DISABLE_READ, PKEY_DISABLE_WRITE, PKEY_DISABLE_ACCESS
+> >    or any combination of the three.
+> >
+> >    On x86, sys_pkey_alloc() should succeed if the init_val is
+> >    PKEY_DISABLE_WRITE or PKEY_DISABLE_ACCESS or PKEY_DISABLE_READ
+> >    or any combination of the three, except  PKEY_DISABLE_READ
+> >          specified all by itself.
+> >
+> >    On all other arches, none of the flags are supported.
+> 
+> I don’t really love having a situation where you can use different
+> flag combinations to refer to the same mode.
 
-Introduce MPOL_MF_SW_YOUNG flag to move_pages(). When on,
-the already-in-DRAM pages will be set PG_referenced.
+true. But it is a side-effect of x86 cpu implicitly defining
+'disable-access' as a combination of 'disable-read' and 'disable_write'.
+In other words, if you disable-access on a pte on x86, you are
+automatically disabling read and disabling write on that page.
+The software/kernel just happens to explicitly capture that implicit
+behavior.
 
-Background:
-The use space migration daemon will frequently scan page table and
-read-clear accessed bits to detect hot/cold pages. Then migrate hot
-pages from PMEM to DRAM node. When doing so, it btw tells kernel that
-these are the hot page set. This maintains a persistent view of hot/cold
-pages between kernel and user space daemon.
+> 
+> Also, we should document the effect these flags have on execute permission.
 
-The more concrete steps are
+Actually none of the above flags, interact with execute permission. They
+operate independently; both on x86 and on POWER.  But yes, this
+statement needs to be documented somewhere.
 
-1) do multiple scan of page table, count accessed bits
-2) highest accessed count => hot pages
-3) call move_pages(hot pages, DRAM nodes, MPOL_MF_SW_YOUNG)
-
-(1) regularly clears PTE young, which makes kernel lose access to
-    PTE young information
-
-(2) for anonymous pages, user space daemon defines which is hot and
-    which is cold
-
-(3) conveys user space view of hot/cold pages to kernel through
-    PG_referenced
-
-In the long run, most hot pages could already be in DRAM.
-move_pages(MPOL_MF_SW_YOUNG) sets PG_referenced for those already in
-DRAM hot pages. But not for newly migrated hot pages. Since they are
-expected to put to the end of LRU, thus has long enough time in LRU to
-gather accessed/PG_referenced bit and prove to kernel they are really hot.
-
-The daemon may only select DRAM/2 pages as hot for 2 purposes:
-- avoid thrashing, eg. some warm pages got promoted then demoted soon
-- make sure enough DRAM LRU pages look "cold" to kernel, so that vmscan
-  won't run into trouble busy scanning LRU lists
-
-Signed-off-by: Liu Jingqi <jingqi.liu@intel.com>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- mm/migrate.c |   13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
-
---- linux.orig/mm/migrate.c	2018-12-23 20:37:12.604621319 +0800
-+++ linux/mm/migrate.c	2018-12-23 20:37:12.604621319 +0800
-@@ -55,6 +55,8 @@
- 
- #include "internal.h"
- 
-+#define MPOL_MF_SW_YOUNG (1<<7)
-+
- /*
-  * migrate_prep() needs to be called before we start compiling a list of pages
-  * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
-@@ -1484,12 +1486,13 @@ static int do_move_pages_to_node(struct
-  * the target node
-  */
- static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
--		int node, struct list_head *pagelist, bool migrate_all)
-+		int node, struct list_head *pagelist, int flags)
- {
- 	struct vm_area_struct *vma;
- 	struct page *page;
- 	unsigned int follflags;
- 	int err;
-+	bool migrate_all = flags & MPOL_MF_MOVE_ALL;
- 
- 	down_read(&mm->mmap_sem);
- 	err = -EFAULT;
-@@ -1519,6 +1522,8 @@ static int add_page_for_migration(struct
- 
- 	if (PageHuge(page)) {
- 		if (PageHead(page)) {
-+			if (flags & MPOL_MF_SW_YOUNG)
-+				SetPageReferenced(page);
- 			isolate_huge_page(page, pagelist);
- 			err = 0;
- 		}
-@@ -1531,6 +1536,8 @@ static int add_page_for_migration(struct
- 			goto out_putpage;
- 
- 		err = 0;
-+		if (flags & MPOL_MF_SW_YOUNG)
-+			SetPageReferenced(head);
- 		list_add_tail(&head->lru, pagelist);
- 		mod_node_page_state(page_pgdat(head),
- 			NR_ISOLATED_ANON + page_is_file_cache(head),
-@@ -1606,7 +1613,7 @@ static int do_pages_move(struct mm_struc
- 		 * report them via status
- 		 */
- 		err = add_page_for_migration(mm, addr, current_node,
--				&pagelist, flags & MPOL_MF_MOVE_ALL);
-+				&pagelist, flags);
- 		if (!err)
- 			continue;
- 
-@@ -1725,7 +1732,7 @@ static int kernel_move_pages(pid_t pid,
- 	nodemask_t task_nodes;
- 
- 	/* Check flags */
--	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
-+	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL|MPOL_MF_SW_YOUNG))
- 		return -EINVAL;
- 
- 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
+RP
