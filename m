@@ -1,66 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C41746B6CFB
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 00:14:29 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id d11so12376345wrq.18
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 21:14:29 -0800 (PST)
-Received: from delany.relativists.org (delany.relativists.org. [176.31.98.17])
-        by mx.google.com with ESMTPS id v206si7692256wmb.108.2018.12.03.21.14.27
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 32ED36B7347
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 03:06:51 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id o21so9485794edq.4
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 00:06:51 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id 29-v6si77084ejk.274.2018.12.05.00.06.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 03 Dec 2018 21:14:27 -0800 (PST)
-From: =?UTF-8?q?Adeodato=20Sim=C3=B3?= <dato@net.com.org.es>
-Subject: [PATCH 1/3] mm: add include files so that function definitions have a prototype
-Date: Tue,  4 Dec 2018 02:14:22 -0300
-Message-Id: <466ad4ebe5d788e7be6a14fbbcaaa9596bac7141.1543899764.git.dato@net.com.org.es>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Dec 2018 00:06:49 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 1BE1D1C2096
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 08:06:49 +0000 (GMT)
+Date: Wed, 5 Dec 2018 08:06:47 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 5/5] mm: Stall movable allocations until kswapd
+ progresses during serious external fragmentation event
+Message-ID: <20181205080647.GW23260@techsingularity.net>
+References: <20181123114528.28802-1-mgorman@techsingularity.net>
+ <20181123114528.28802-6-mgorman@techsingularity.net>
+ <e0867205-e5f1-b007-5dc7-bb4655f6e5c1@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <e0867205-e5f1-b007-5dc7-bb4655f6e5c1@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kernel-janitors@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Previously, rodata_test(), usercopy_warn(), and usercopy_abort() were
-defined without a matching prototype. Detected by -Wmissing-prototypes
-GCC flag.
+On Tue, Nov 27, 2018 at 02:20:30PM +0100, Vlastimil Babka wrote:
+> > This patch has a marginal rate on fragmentation rates as it's rare for
+> > the stall logic to actually trigger but the small stalls can be enough for
+> > kswapd to catch up. How much that helps is variable but probably worthwhile
+> > for long-term allocation success rates. It is possible to eliminate
+> > fragmentation events entirely with tuning due to this patch although that
+> > would require careful evaluation to determine if it's worthwhile.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> 
+> The gains here are relatively smaller and noisier than for the previous
+> patches. Also I'm afraid that once antifrag loses against the ultimate
+> adversary workload (see the "Caching/buffers become useless after some
+> time" thread), then this might result in adding stalls to a workload
+> that has no other options but to allocate movable pages from partially
+> filled unmovable blocks, because that's simply the majority of
+> pageblocks in the system, and the stalls can't help the situation. If
+> that proves to be true, we could revert, but then there's the new
+> user-visible tunable... and that all makes it harder for me to decide
+> about this patch :) If only we could find out early while this is in
+> linux-mm/linux-next...
+> 
 
-Signed-off-by: Adeodato Simó <dato@net.com.org.es>
----
-I started poking at this after kernel-janitors got the suggestion[1]
-to look into the -Wmissing-prototypes warnings.
+Andrew, would you mind dropping this patch from mmotm please? I think
+the benefit is marginal relative to the potential loss. If it turns out
+we ever really do need it then hopefully there will be better data
+supporting it.
 
-Thanks for considering!
+Thanks.
 
-[1]: https://www.spinics.net/lists/linux-kernel-janitors/msg43981.html
-
- mm/rodata_test.c | 1 +
- mm/usercopy.c    | 1 +
- 2 files changed, 2 insertions(+)
-
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-index d908c8769b48..01306defbd1b 100644
---- a/mm/rodata_test.c
-+++ b/mm/rodata_test.c
-@@ -11,6 +11,7 @@
-  */
- #define pr_fmt(fmt) "rodata_test: " fmt
- 
-+#include <linux/rodata_test.h>
- #include <linux/uaccess.h>
- #include <asm/sections.h>
- 
-diff --git a/mm/usercopy.c b/mm/usercopy.c
-index 852eb4e53f06..f487ba4888df 100644
---- a/mm/usercopy.c
-+++ b/mm/usercopy.c
-@@ -20,6 +20,7 @@
- #include <linux/sched/task.h>
- #include <linux/sched/task_stack.h>
- #include <linux/thread_info.h>
-+#include <linux/uaccess.h>
- #include <linux/atomic.h>
- #include <linux/jump_label.h>
- #include <asm/sections.h>
 -- 
-2.19.2
+Mel Gorman
+SUSE Labs
