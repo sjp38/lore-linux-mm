@@ -1,162 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 713246B71D5
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 20:57:30 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t2so15575538pfj.15
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 17:57:30 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b5sor24141967pgq.18.2018.12.04.17.57.28
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 313686B71CB
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 20:45:13 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id d18so12090681pfe.0
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 17:45:13 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id y6si17443266pgb.516.2018.12.04.17.45.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 17:57:29 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Dec 2018 17:45:11 -0800 (PST)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
 Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <58a3b01c78b6c299f76c156f96211ff22ec28751.camel@intel.com>
-Date: Tue, 4 Dec 2018 17:57:26 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <1913CD9F-B912-490A-8DEC-8C24CFF0F6D6@amacapital.net>
-References: <20181128000754.18056-1-rick.p.edgecombe@intel.com> <20181128000754.18056-2-rick.p.edgecombe@intel.com> <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com> <20181204160304.GB7195@arm.com> <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com> <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com> <58a3b01c78b6c299f76c156f96211ff22ec28751.camel@intel.com>
+Date: Wed, 5 Dec 2018 01:45:10 +0000
+Message-ID: <b82861c1c335056169d28e8d451b60a9e96af706.camel@intel.com>
+References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+	 <20181128000754.18056-2-rick.p.edgecombe@intel.com>
+	 <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
+	 <20181204160304.GB7195@arm.com>
+	 <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
+	 <A5ABCA50-12F0-4A19-B499-3927D59BF589@gmail.com>
+	 <e70c618d10ddbb834b7a3bbdd6e2bebed0f8719d.camel@intel.com>
+	 <843E4326-3426-4AEC-B0F7-2DC398A6E59A@gmail.com>
+	 <3dc0492f209c630e40e93e9c657722041da0ed29.camel@intel.com>
+	 <D092D8BE-711E-4BB4-B179-E897A8354120@gmail.com>
+In-Reply-To: <D092D8BE-711E-4BB4-B179-E897A8354120@gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <B39A575F11C5984C9837789E96AFBD62@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Cc: "luto@kernel.org" <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "jannh@google.com" <jannh@google.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
+To: "nadav.amit@gmail.com" <nadav.amit@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "ast@kernel.org" <ast@kernel.org>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-
-
-> On Dec 4, 2018, at 3:52 PM, Edgecombe, Rick P <rick.p.edgecombe@intel.com>=
- wrote:
->=20
->> On Tue, 2018-12-04 at 12:09 -0800, Andy Lutomirski wrote:
->> On Tue, Dec 4, 2018 at 12:02 PM Edgecombe, Rick P
->> <rick.p.edgecombe@intel.com> wrote:
->>>=20
->>>> On Tue, 2018-12-04 at 16:03 +0000, Will Deacon wrote:
->>>> On Mon, Dec 03, 2018 at 05:43:11PM -0800, Nadav Amit wrote:
->>>>>> On Nov 27, 2018, at 4:07 PM, Rick Edgecombe <
->>>>>> rick.p.edgecombe@intel.com>
->>>>>> wrote:
->>>>>>=20
->>>>>> Since vfree will lazily flush the TLB, but not lazily free the
->>>>>> underlying
->>>>>> pages,
->>>>>> it often leaves stale TLB entries to freed pages that could get re-
->>>>>> used.
->>>>>> This is
->>>>>> undesirable for cases where the memory being freed has special
->>>>>> permissions
->>>>>> such
->>>>>> as executable.
->>>>>=20
->>>>> So I am trying to finish my patch-set for preventing transient W+X
->>>>> mappings
->>>>> from taking space, by handling kprobes & ftrace that I missed (thanks
->>>>> again
->>>>> for
->>>>> pointing it out).
->>>>>=20
->>>>> But all of the sudden, I don=E2=80=99t understand why we have the prob=
-lem that
->>>>> this
->>>>> (your) patch-set deals with at all. We already change the mappings to
->>>>> make
->>>>> the memory writable before freeing the memory, so why can=E2=80=99t we=
- make it
->>>>> non-executable at the same time? Actually, why do we make the module
->>>>> memory,
->>>>> including its data executable before freeing it???
->>>>=20
->>>> Yeah, this is really confusing, but I have a suspicion it's a combinati=
-on
->>>> of the various different configurations and hysterical raisins. We can'=
-t
->>>> rely on module_alloc() allocating from the vmalloc area (see nios2) nor=
-
->>>> can we rely on disable_ro_nx() being available at build time.
->>>>=20
->>>> If we *could* rely on module allocations always using vmalloc(), then
->>>> we could pass in Rick's new flag and drop disable_ro_nx() altogether
->>>> afaict -- who cares about the memory attributes of a mapping that's abo=
-ut
->>>> to disappear anyway?
->>>>=20
->>>> Is it just nios2 that does something different?
->>>>=20
->>>> Will
->>>=20
->>> Yea it is really intertwined. I think for x86, set_memory_nx everywhere
->>> would
->>> solve it as well, in fact that was what I first thought the solution sho=
-uld
->>> be
->>> until this was suggested. It's interesting that from the other thread Ma=
-sami
->>> Hiramatsu referenced, set_memory_nx was suggested last year and would ha=
-ve
->>> inadvertently blocked this on x86. But, on the other architectures I hav=
-e
->>> since
->>> learned it is a bit different.
->>>=20
->>> It looks like actually most arch's don't re-define set_memory_*, and so a=
-ll
->>> of
->>> the frob_* functions are actually just noops. In which case allocating R=
-WX
->>> is
->>> needed to make it work at all, because that is what the allocation is go=
-ing
->>> to
->>> stay at. So in these archs, set_memory_nx won't solve it because it will=
- do
->>> nothing.
->>>=20
->>> On x86 I think you cannot get rid of disable_ro_nx fully because there i=
-s
->>> the
->>> changing of the permissions on the directmap as well. You don't want som=
-e
->>> other
->>> caller getting a page that was left RO when freed and then trying to wri=
-te
->>> to
->>> it, if I understand this.
->>>=20
->>=20
->> Exactly.
->>=20
->> After slightly more thought, I suggest renaming VM_IMMEDIATE_UNMAP to
->> VM_MAY_ADJUST_PERMS or similar.  It would have the semantics you want,
->> but it would also call some arch hooks to put back the direct map
->> permissions before the flush.  Does that seem reasonable?  It would
->> need to be hooked up that implement set_memory_ro(), but that should
->> be quite easy.  If nothing else, it could fall back to set_memory_ro()
->> in the absence of a better implementation.
->=20
-> With arch hooks, I guess we could remove disable_ro_nx then. I think you w=
-ould
-> still have to flush twice on x86 to really have no W^X violating window fr=
-om the
-> direct map (I think x86 is the only one that sets permissions there?). But=
- this
-> could be down from sometimes 3. You could also directly vfree non exec RO m=
-emory
-> without set_memory_, like in BPF.=20
-
-Just one flush if you=E2=80=99re careful. Set the memory not-present in the d=
-irect map and zap it from the vmap area, then flush, then set it RW in the=20=
-
-
->=20
-> The vfree deferred list would need to be moved since it then couldn't reus=
-e the
-> allocations since now the vfreed memory might be RO. It could kmalloc, or l=
-ookup
-> the vm_struct. So would probably be a little slower in the interrupt case.=
- Is
-> this ok?
-
-I=E2=80=99m fine with that. For eBPF, we should really have a lookaside list=
- for small allocations.
+T24gVHVlLCAyMDE4LTEyLTA0IGF0IDE2OjUzIC0wODAwLCBOYWRhdiBBbWl0IHdyb3RlOg0KPiA+
+IE9uIERlYyA0LCAyMDE4LCBhdCA0OjI5IFBNLCBFZGdlY29tYmUsIFJpY2sgUCA8cmljay5wLmVk
+Z2Vjb21iZUBpbnRlbC5jb20+DQo+ID4gd3JvdGU6DQo+ID4gDQo+ID4gT24gVHVlLCAyMDE4LTEy
+LTA0IGF0IDE2OjAxIC0wODAwLCBOYWRhdiBBbWl0IHdyb3RlOg0KPiA+ID4gPiBPbiBEZWMgNCwg
+MjAxOCwgYXQgMzo1MSBQTSwgRWRnZWNvbWJlLCBSaWNrIFAgPA0KPiA+ID4gPiByaWNrLnAuZWRn
+ZWNvbWJlQGludGVsLmNvbT4NCj4gPiA+ID4gd3JvdGU6DQo+ID4gPiA+IA0KPiA+ID4gPiBPbiBU
+dWUsIDIwMTgtMTItMDQgYXQgMTI6MzYgLTA4MDAsIE5hZGF2IEFtaXQgd3JvdGU6DQo+ID4gPiA+
+ID4gPiBPbiBEZWMgNCwgMjAxOCwgYXQgMTI6MDIgUE0sIEVkZ2Vjb21iZSwgUmljayBQIDwNCj4g
+PiA+ID4gPiA+IHJpY2sucC5lZGdlY29tYmVAaW50ZWwuY29tPg0KPiA+ID4gPiA+ID4gd3JvdGU6
+DQo+ID4gPiA+ID4gPiANCj4gPiA+ID4gPiA+IE9uIFR1ZSwgMjAxOC0xMi0wNCBhdCAxNjowMyAr
+MDAwMCwgV2lsbCBEZWFjb24gd3JvdGU6DQo+ID4gPiA+ID4gPiA+IE9uIE1vbiwgRGVjIDAzLCAy
+MDE4IGF0IDA1OjQzOjExUE0gLTA4MDAsIE5hZGF2IEFtaXQgd3JvdGU6DQo+ID4gPiA+ID4gPiA+
+ID4gPiBPbiBOb3YgMjcsIDIwMTgsIGF0IDQ6MDcgUE0sIFJpY2sgRWRnZWNvbWJlIDwNCj4gPiA+
+ID4gPiA+ID4gPiA+IHJpY2sucC5lZGdlY29tYmVAaW50ZWwuY29tPg0KPiA+ID4gPiA+ID4gPiA+
+ID4gd3JvdGU6DQo+ID4gPiA+ID4gPiA+ID4gPiANCj4gPiA+ID4gPiA+ID4gPiA+IFNpbmNlIHZm
+cmVlIHdpbGwgbGF6aWx5IGZsdXNoIHRoZSBUTEIsIGJ1dCBub3QgbGF6aWx5IGZyZWUgdGhlDQo+
+ID4gPiA+ID4gPiA+ID4gPiB1bmRlcmx5aW5nDQo+ID4gPiA+ID4gPiA+ID4gPiBwYWdlcywNCj4g
+PiA+ID4gPiA+ID4gPiA+IGl0IG9mdGVuIGxlYXZlcyBzdGFsZSBUTEIgZW50cmllcyB0byBmcmVl
+ZCBwYWdlcyB0aGF0IGNvdWxkDQo+ID4gPiA+ID4gPiA+ID4gPiBnZXQNCj4gPiA+ID4gPiA+ID4g
+PiA+IHJlLQ0KPiA+ID4gPiA+ID4gPiA+ID4gdXNlZC4NCj4gPiA+ID4gPiA+ID4gPiA+IFRoaXMg
+aXMNCj4gPiA+ID4gPiA+ID4gPiA+IHVuZGVzaXJhYmxlIGZvciBjYXNlcyB3aGVyZSB0aGUgbWVt
+b3J5IGJlaW5nIGZyZWVkIGhhcyBzcGVjaWFsDQo+ID4gPiA+ID4gPiA+ID4gPiBwZXJtaXNzaW9u
+cw0KPiA+ID4gPiA+ID4gPiA+ID4gc3VjaA0KPiA+ID4gPiA+ID4gPiA+ID4gYXMgZXhlY3V0YWJs
+ZS4NCj4gPiA+ID4gPiA+ID4gPiANCj4gPiA+ID4gPiA+ID4gPiBTbyBJIGFtIHRyeWluZyB0byBm
+aW5pc2ggbXkgcGF0Y2gtc2V0IGZvciBwcmV2ZW50aW5nIHRyYW5zaWVudA0KPiA+ID4gPiA+ID4g
+PiA+IFcrWA0KPiA+ID4gPiA+ID4gPiA+IG1hcHBpbmdzDQo+ID4gPiA+ID4gPiA+ID4gZnJvbSB0
+YWtpbmcgc3BhY2UsIGJ5IGhhbmRsaW5nIGtwcm9iZXMgJiBmdHJhY2UgdGhhdCBJIG1pc3NlZA0K
+PiA+ID4gPiA+ID4gPiA+ICh0aGFua3MNCj4gPiA+ID4gPiA+ID4gPiBhZ2Fpbg0KPiA+ID4gPiA+
+ID4gPiA+IGZvcg0KPiA+ID4gPiA+ID4gPiA+IHBvaW50aW5nIGl0IG91dCkuDQo+ID4gPiA+ID4g
+PiA+ID4gDQo+ID4gPiA+ID4gPiA+ID4gQnV0IGFsbCBvZiB0aGUgc3VkZGVuLCBJIGRvbuKAmXQg
+dW5kZXJzdGFuZCB3aHkgd2UgaGF2ZSB0aGUNCj4gPiA+ID4gPiA+ID4gPiBwcm9ibGVtDQo+ID4g
+PiA+ID4gPiA+ID4gdGhhdA0KPiA+ID4gPiA+ID4gPiA+IHRoaXMNCj4gPiA+ID4gPiA+ID4gPiAo
+eW91cikgcGF0Y2gtc2V0IGRlYWxzIHdpdGggYXQgYWxsLiBXZSBhbHJlYWR5IGNoYW5nZSB0aGUN
+Cj4gPiA+ID4gPiA+ID4gPiBtYXBwaW5ncw0KPiA+ID4gPiA+ID4gPiA+IHRvDQo+ID4gPiA+ID4g
+PiA+ID4gbWFrZQ0KPiA+ID4gPiA+ID4gPiA+IHRoZSBtZW1vcnkgd3JpdGFibGUgYmVmb3JlIGZy
+ZWVpbmcgdGhlIG1lbW9yeSwgc28gd2h5IGNhbuKAmXQgd2UNCj4gPiA+ID4gPiA+ID4gPiBtYWtl
+DQo+ID4gPiA+ID4gPiA+ID4gaXQNCj4gPiA+ID4gPiA+ID4gPiBub24tZXhlY3V0YWJsZSBhdCB0
+aGUgc2FtZSB0aW1lPyBBY3R1YWxseSwgd2h5IGRvIHdlIG1ha2UgdGhlDQo+ID4gPiA+ID4gPiA+
+ID4gbW9kdWxlDQo+ID4gPiA+ID4gPiA+ID4gbWVtb3J5LA0KPiA+ID4gPiA+ID4gPiA+IGluY2x1
+ZGluZyBpdHMgZGF0YSBleGVjdXRhYmxlIGJlZm9yZSBmcmVlaW5nIGl0Pz8/DQo+ID4gPiA+ID4g
+PiA+IA0KPiA+ID4gPiA+ID4gPiBZZWFoLCB0aGlzIGlzIHJlYWxseSBjb25mdXNpbmcsIGJ1dCBJ
+IGhhdmUgYSBzdXNwaWNpb24gaXQncyBhDQo+ID4gPiA+ID4gPiA+IGNvbWJpbmF0aW9uDQo+ID4g
+PiA+ID4gPiA+IG9mIHRoZSB2YXJpb3VzIGRpZmZlcmVudCBjb25maWd1cmF0aW9ucyBhbmQgaHlz
+dGVyaWNhbCByYWlzaW5zLiBXZQ0KPiA+ID4gPiA+ID4gPiBjYW4ndA0KPiA+ID4gPiA+ID4gPiBy
+ZWx5IG9uIG1vZHVsZV9hbGxvYygpIGFsbG9jYXRpbmcgZnJvbSB0aGUgdm1hbGxvYyBhcmVhIChz
+ZWUNCj4gPiA+ID4gPiA+ID4gbmlvczIpDQo+ID4gPiA+ID4gPiA+IG5vcg0KPiA+ID4gPiA+ID4g
+PiBjYW4gd2UgcmVseSBvbiBkaXNhYmxlX3JvX254KCkgYmVpbmcgYXZhaWxhYmxlIGF0IGJ1aWxk
+IHRpbWUuDQo+ID4gPiA+ID4gPiA+IA0KPiA+ID4gPiA+ID4gPiBJZiB3ZSAqY291bGQqIHJlbHkg
+b24gbW9kdWxlIGFsbG9jYXRpb25zIGFsd2F5cyB1c2luZyB2bWFsbG9jKCksDQo+ID4gPiA+ID4g
+PiA+IHRoZW4NCj4gPiA+ID4gPiA+ID4gd2UgY291bGQgcGFzcyBpbiBSaWNrJ3MgbmV3IGZsYWcg
+YW5kIGRyb3AgZGlzYWJsZV9yb19ueCgpDQo+ID4gPiA+ID4gPiA+IGFsdG9nZXRoZXINCj4gPiA+
+ID4gPiA+ID4gYWZhaWN0IC0tIHdobyBjYXJlcyBhYm91dCB0aGUgbWVtb3J5IGF0dHJpYnV0ZXMg
+b2YgYSBtYXBwaW5nDQo+ID4gPiA+ID4gPiA+IHRoYXQncw0KPiA+ID4gPiA+ID4gPiBhYm91dA0K
+PiA+ID4gPiA+ID4gPiB0byBkaXNhcHBlYXIgYW55d2F5Pw0KPiA+ID4gPiA+ID4gPiANCj4gPiA+
+ID4gPiA+ID4gSXMgaXQganVzdCBuaW9zMiB0aGF0IGRvZXMgc29tZXRoaW5nIGRpZmZlcmVudD8N
+Cj4gPiA+ID4gPiA+ID4gDQo+ID4gPiA+ID4gPiA+IFdpbGwNCj4gPiA+ID4gPiA+IA0KPiA+ID4g
+PiA+ID4gWWVhIGl0IGlzIHJlYWxseSBpbnRlcnR3aW5lZC4gSSB0aGluayBmb3IgeDg2LCBzZXRf
+bWVtb3J5X254DQo+ID4gPiA+ID4gPiBldmVyeXdoZXJlDQo+ID4gPiA+ID4gPiB3b3VsZA0KPiA+
+ID4gPiA+ID4gc29sdmUgaXQgYXMgd2VsbCwgaW4gZmFjdCB0aGF0IHdhcyB3aGF0IEkgZmlyc3Qg
+dGhvdWdodCB0aGUgc29sdXRpb24NCj4gPiA+ID4gPiA+IHNob3VsZA0KPiA+ID4gPiA+ID4gYmUN
+Cj4gPiA+ID4gPiA+IHVudGlsIHRoaXMgd2FzIHN1Z2dlc3RlZC4gSXQncyBpbnRlcmVzdGluZyB0
+aGF0IGZyb20gdGhlIG90aGVyDQo+ID4gPiA+ID4gPiB0aHJlYWQNCj4gPiA+ID4gPiA+IE1hc2Ft
+aQ0KPiA+ID4gPiA+ID4gSGlyYW1hdHN1IHJlZmVyZW5jZWQsIHNldF9tZW1vcnlfbnggd2FzIHN1
+Z2dlc3RlZCBsYXN0IHllYXIgYW5kDQo+ID4gPiA+ID4gPiB3b3VsZA0KPiA+ID4gPiA+ID4gaGF2
+ZQ0KPiA+ID4gPiA+ID4gaW5hZHZlcnRlbnRseSBibG9ja2VkIHRoaXMgb24geDg2LiBCdXQsIG9u
+IHRoZSBvdGhlciBhcmNoaXRlY3R1cmVzIEkNCj4gPiA+ID4gPiA+IGhhdmUNCj4gPiA+ID4gPiA+
+IHNpbmNlDQo+ID4gPiA+ID4gPiBsZWFybmVkIGl0IGlzIGEgYml0IGRpZmZlcmVudC4NCj4gPiA+
+ID4gPiA+IA0KPiA+ID4gPiA+ID4gSXQgbG9va3MgbGlrZSBhY3R1YWxseSBtb3N0IGFyY2gncyBk
+b24ndCByZS1kZWZpbmUgc2V0X21lbW9yeV8qLCBhbmQNCj4gPiA+ID4gPiA+IHNvDQo+ID4gPiA+
+ID4gPiBhbGwNCj4gPiA+ID4gPiA+IG9mDQo+ID4gPiA+ID4gPiB0aGUgZnJvYl8qIGZ1bmN0aW9u
+cyBhcmUgYWN0dWFsbHkganVzdCBub29wcy4gSW4gd2hpY2ggY2FzZQ0KPiA+ID4gPiA+ID4gYWxs
+b2NhdGluZw0KPiA+ID4gPiA+ID4gUldYDQo+ID4gPiA+ID4gPiBpcw0KPiA+ID4gPiA+ID4gbmVl
+ZGVkIHRvIG1ha2UgaXQgd29yayBhdCBhbGwsIGJlY2F1c2UgdGhhdCBpcyB3aGF0IHRoZSBhbGxv
+Y2F0aW9uDQo+ID4gPiA+ID4gPiBpcw0KPiA+ID4gPiA+ID4gZ29pbmcNCj4gPiA+ID4gPiA+IHRv
+DQo+ID4gPiA+ID4gPiBzdGF5IGF0LiBTbyBpbiB0aGVzZSBhcmNocywgc2V0X21lbW9yeV9ueCB3
+b24ndCBzb2x2ZSBpdCBiZWNhdXNlIGl0DQo+ID4gPiA+ID4gPiB3aWxsDQo+ID4gPiA+ID4gPiBk
+bw0KPiA+ID4gPiA+ID4gbm90aGluZy4NCj4gPiA+ID4gPiA+IA0KPiA+ID4gPiA+ID4gT24geDg2
+IEkgdGhpbmsgeW91IGNhbm5vdCBnZXQgcmlkIG9mIGRpc2FibGVfcm9fbnggZnVsbHkgYmVjYXVz
+ZQ0KPiA+ID4gPiA+ID4gdGhlcmUNCj4gPiA+ID4gPiA+IGlzDQo+ID4gPiA+ID4gPiB0aGUNCj4g
+PiA+ID4gPiA+IGNoYW5naW5nIG9mIHRoZSBwZXJtaXNzaW9ucyBvbiB0aGUgZGlyZWN0bWFwIGFz
+IHdlbGwuIFlvdSBkb24ndCB3YW50DQo+ID4gPiA+ID4gPiBzb21lDQo+ID4gPiA+ID4gPiBvdGhl
+cg0KPiA+ID4gPiA+ID4gY2FsbGVyIGdldHRpbmcgYSBwYWdlIHRoYXQgd2FzIGxlZnQgUk8gd2hl
+biBmcmVlZCBhbmQgdGhlbiB0cnlpbmcgdG8NCj4gPiA+ID4gPiA+IHdyaXRlDQo+ID4gPiA+ID4g
+PiB0bw0KPiA+ID4gPiA+ID4gaXQsIGlmIEkgdW5kZXJzdGFuZCB0aGlzLg0KPiA+ID4gPiA+ID4g
+DQo+ID4gPiA+ID4gPiBUaGUgb3RoZXIgcmVhc29uaW5nIHdhcyB0aGF0IGNhbGxpbmcgc2V0X21l
+bW9yeV9ueCBpc24ndCBkb2luZyB3aGF0DQo+ID4gPiA+ID4gPiB3ZQ0KPiA+ID4gPiA+ID4gYXJl
+DQo+ID4gPiA+ID4gPiBhY3R1YWxseSB0cnlpbmcgdG8gZG8gd2hpY2ggaXMgcHJldmVudCB0aGUg
+cGFnZXMgZnJvbSBnZXR0aW5nDQo+ID4gPiA+ID4gPiByZWxlYXNlZA0KPiA+ID4gPiA+ID4gdG9v
+DQo+ID4gPiA+ID4gPiBlYXJseS4NCj4gPiA+ID4gPiA+IA0KPiA+ID4gPiA+ID4gQSBtb3JlIGNs
+ZWFyIHNvbHV0aW9uIGZvciBhbGwgb2YgdGhpcyBtaWdodCBpbnZvbHZlIHJlZmFjdG9yaW5nIHNv
+bWUNCj4gPiA+ID4gPiA+IG9mDQo+ID4gPiA+ID4gPiB0aGUNCj4gPiA+ID4gPiA+IHNldF9tZW1v
+cnlfIGRlLWFsbG9jYXRpb24gbG9naWMgb3V0IGludG8gX193ZWFrIGZ1bmN0aW9ucyBpbiBlaXRo
+ZXINCj4gPiA+ID4gPiA+IG1vZHVsZXMNCj4gPiA+ID4gPiA+IG9yDQo+ID4gPiA+ID4gPiB2bWFs
+bG9jLiBBcyBKZXNzaWNhIHBvaW50cyBvdXQgaW4gdGhlIG90aGVyIHRocmVhZCB0aG91Z2gsIG1v
+ZHVsZXMNCj4gPiA+ID4gPiA+IGRvZXMNCj4gPiA+ID4gPiA+IGENCj4gPiA+ID4gPiA+IGxvdA0K
+PiA+ID4gPiA+ID4gbW9yZSBzdHVmZiB0aGVyZSB0aGFuIHRoZSBvdGhlciBtb2R1bGVfYWxsb2Mg
+Y2FsbGVycy4gSSB0aGluayBpdCBtYXkNCj4gPiA+ID4gPiA+IHRha2UNCj4gPiA+ID4gPiA+IHNv
+bWUNCj4gPiA+ID4gPiA+IHRob3VnaHQgdG8gY2VudHJhbGl6ZSBBTkQgbWFrZSBpdCBvcHRpbWFs
+IGZvciBldmVyeQ0KPiA+ID4gPiA+ID4gbW9kdWxlX2FsbG9jL3ZtYWxsb2NfZXhlYw0KPiA+ID4g
+PiA+ID4gdXNlciBhbmQgYXJjaC4NCj4gPiA+ID4gPiA+IA0KPiA+ID4gPiA+ID4gQnV0IGZvciBu
+b3cgd2l0aCB0aGUgY2hhbmdlIGluIHZtYWxsb2MsIHdlIGNhbiBibG9jayB0aGUgZXhlY3V0YWJs
+ZQ0KPiA+ID4gPiA+ID4gbWFwcGluZw0KPiA+ID4gPiA+ID4gZnJlZWQgcGFnZSByZS11c2UgaXNz
+dWUgaW4gYSBjcm9zcyBwbGF0Zm9ybSB3YXkuDQo+ID4gPiA+ID4gDQo+ID4gPiA+ID4gUGxlYXNl
+IHVuZGVyc3RhbmQgbWUgY29ycmVjdGx5IC0gSSBkaWRu4oCZdCBtZWFuIHRoYXQgeW91ciBwYXRj
+aGVzIGFyZQ0KPiA+ID4gPiA+IG5vdA0KPiA+ID4gPiA+IG5lZWRlZC4NCj4gPiA+ID4gDQo+ID4g
+PiA+IE9rLCBJIHRoaW5rIEkgdW5kZXJzdGFuZC4gSSBoYXZlIGJlZW4gcG9uZGVyaW5nIHRoZXNl
+IHNhbWUgdGhpbmdzIGFmdGVyDQo+ID4gPiA+IE1hc2FtaQ0KPiA+ID4gPiBIaXJhbWF0c3UncyBj
+b21tZW50cyBvbiB0aGlzIHRocmVhZCB0aGUgb3RoZXIgZGF5Lg0KPiA+ID4gPiANCj4gPiA+ID4g
+PiBBbGwgSSBkaWQgaXMgYXNraW5nIC0gaG93IGNvbWUgdGhlIFBURXMgYXJlIGV4ZWN1dGFibGUg
+d2hlbiB0aGV5IGFyZQ0KPiA+ID4gPiA+IGNsZWFyZWQNCj4gPiA+ID4gPiB0aGV5IGFyZSBleGVj
+dXRhYmxlLCB3aGVuIGluIGZhY3Qgd2UgbWFuaXB1bGF0ZSB0aGVtIHdoZW4gdGhlIG1vZHVsZQ0K
+PiA+ID4gPiA+IGlzDQo+ID4gPiA+ID4gcmVtb3ZlZC4NCj4gPiA+ID4gDQo+ID4gPiA+IEkgdGhp
+bmsgdGhlIGRpcmVjdG1hcCB1c2VkIHRvIGJlIFJXWCBzbyBtYXliZSBoaXN0b3JpY2FsbHkgaXRz
+IHRyeWluZyB0bw0KPiA+ID4gPiByZXR1cm4NCj4gPiA+ID4gaXQgdG8gaXRzIGRlZmF1bHQgc3Rh
+dGU/IE5vdCBzdXJlLg0KPiA+ID4gPiANCj4gPiA+ID4gPiBJIHRoaW5rIEkgdHJ5IHRvIGRlYWwg
+d2l0aCBhIHNpbWlsYXIgcHJvYmxlbSB0byB0aGUgb25lIHlvdSBlbmNvdW50ZXINCj4gPiA+ID4g
+PiAtDQo+ID4gPiA+ID4gYnJva2VuIFdeWC4gVGhlIG9ubHkgdGhpbmcgdGhhdCBib3RoZXJlZCBt
+ZSBpbiByZWdhcmQgdG8geW91ciBwYXRjaGVzDQo+ID4gPiA+ID4gKGFuZA0KPiA+ID4gPiA+IG9u
+bHkgYWZ0ZXIgSSBwbGF5ZWQgd2l0aCB0aGUgY29kZSkgaXMgdGhhdCB0aGVyZSBpcyBzdGlsbCBh
+IHRpbWUtDQo+ID4gPiA+ID4gd2luZG93IGluDQo+ID4gPiA+ID4gd2hpY2ggV15YIGlzIGJyb2tl
+biBkdWUgdG8gZGlzYWJsZV9yb19ueCgpLg0KPiA+ID4gPiANCj4gPiA+ID4gVG90YWxseSBhZ3Jl
+ZSB0aGVyZSBpcyBvdmVybGFwIGluIHRoZSBmaXhlcyBhbmQgd2Ugc2hvdWxkIHN5bmMuDQo+ID4g
+PiA+IA0KPiA+ID4gPiBXaGF0IGRvIHlvdSB0aGluayBhYm91dCBBbmR5J3Mgc3VnZ2VzdGlvbiBm
+b3IgZG9pbmcgdGhlIHZmcmVlIGNsZWFudXAgaW4NCj4gPiA+ID4gdm1hbGxvYw0KPiA+ID4gPiB3
+aXRoIGFyY2ggaG9va3M/IFNvIHRoZSBhbGxvY2F0aW9uIGdvZXMgaW50byB2ZnJlZSBmdWxseSBz
+ZXR1cCBhbmQNCj4gPiA+ID4gdm1hbGxvYw0KPiA+ID4gPiBmcmVlcw0KPiA+ID4gPiBpdCBhbmQg
+b24geDg2IHJlc2V0cyB0aGUgZGlyZWN0IG1hcC4NCj4gPiA+IA0KPiA+ID4gQXMgbG9uZyBhcyB5
+b3UgZG8gaXQsIEkgaGF2ZSBubyBwcm9ibGVtIDstKQ0KPiA+ID4gDQo+ID4gPiBZb3Ugd291bGQg
+bmVlZCB0byBjb25zaWRlciBhbGwgdGhlIGNhbGxlcnMgb2YgbW9kdWxlX21lbWZyZWUoKSwgYW5k
+DQo+ID4gPiBwcm9iYWJseQ0KPiA+ID4gdG8gdW50YW5nbGUgYXQgbGVhc3QgcGFydCBvZiB0aGUg
+bWVzcyBpbiBwYWdlYXR0ci5jIC4gSWYgeW91IGFyZSB1cCB0byBpdCwNCj4gPiA+IGp1c3Qgc2F5
+IHNvLCBhbmQgSeKAmWxsIGRyb3AgdGhpcyBwYXRjaC4gQWxsIEkgY2FuIHNheSBpcyDigJxnb29k
+IGx1Y2sgd2l0aA0KPiA+ID4gYWxsDQo+ID4gPiB0aGF04oCdLg0KPiA+IA0KPiA+IEkgdGhvdWdo
+dCB5b3Ugd2VyZSB0cnlpbmcgdG8gcHJldmVudCBoYXZpbmcgYW55IG1lbW9yeSB0aGF0IGF0IGFu
+eSB0aW1lIHdhcw0KPiA+IFcrWCwNCj4gPiBob3cgZG9lcyB2ZnJlZSBoZWxwIHdpdGggdGhlIG1v
+ZHVsZSBsb2FkIHRpbWUgaXNzdWVzLCB3aGVyZSBpdCBzdGFydHMgV1JYIG9uDQo+ID4geDg2Pw0K
+PiANCj4gSSBkaWRu4oCZdCBzYXkgaXQgZG9lcy4gVGhlIHBhdGNoIEkgc3VibWl0dGVkIGJlZm9y
+ZSBbMV0gc2hvdWxkIGRlYWwgd2l0aCB0aGUNCj4gaXNzdWUgb2YgbW9kdWxlIGxvYWRpbmcsIGFu
+ZCBJIHN0aWxsIHRoaW5rIGl0IGlzIHJlcXVpcmVkLiBJIGFsc28gYWRkcmVzc2VkDQo+IHRoZSBr
+cHJvYmUgYW5kIGZ0cmFjZSBpc3N1ZXMgdGhhdCB5b3UgcmFpc2VkLg0KPiANCj4gUGVyaGFwcyBp
+dCBtYWtlcyBtb3JlIHNlbnNlIHRoYXQgSSB3aWxsIGluY2x1ZGUgdGhlIHBhdGNoIEkgcHJvcG9z
+ZWQgZm9yDQo+IG1vZHVsZSBjbGVhbnVwIHRvIG1ha2UgdGhlIHBhdGNoLXNldCDigJxjb21wbGV0
+ZeKAnS4gSWYgeW91IGZpbmlzaCB0aGUgY2hhbmdlcw0KPiB5b3UgcHJvcG9zZSBiZWZvcmUgdGhl
+IHBhdGNoIGlzIGFwcGxpZWQsIGl0IGNvdWxkIGJlIGRyb3BwZWQuIEkganVzdCB3YW50IHRvDQo+
+IGdldCByaWQgb2YgdGhpcyBzZXJpZXMsIGFzIGl0IGtlZXBzIGNvbGxlY3RpbmcgbW9yZSBhbmQg
+bW9yZSBwYXRjaGVzLg0KPiANCj4gSSBzdXNwZWN0IGl0IHdpbGwgbm90IGJlIHRoZSBsYXN0IHZl
+cnNpb24gYW55aG93Lg0KPiANCj4gWzFdIGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE4LzExLzIx
+LzMwNQ0KDQpUaGF0IHNlZW1zIGZpbmUuDQoNCkFuZCBub3QgdG8gbWFrZSBpdCBhbnkgbW9yZSBj
+b21wbGljYXRlZCwgYnV0IGhvdyBtdWNoIGRpZmZlcmVudCBpcyBhIFcrWCBtYXBwaW5nDQpmcm9t
+IGEgUlcgbWFwcGluZyB0aGF0IGlzIGFib3V0IHRvIHR1cm4gWD8gQ2FuJ3QgYW4gYXR0YWNrZXIg
+d2l0aCB0aGUgYWJpbGl0eSB0bw0Kd3JpdGUgdG8gdGhlIG1vZHVsZSBzcGFjZSBqdXN0IHdyaXRl
+IGFuZCB3YWl0IGEgc2hvcnQgdGltZT8gSWYgdGhhdCBpcyB0aGUNCnRocmVhdCBtb2RlbCwgSSB0
+aGluayB0aGVyZSBtYXkgc3RpbGwgYmUgYWRkaXRpb25hbCB3b3JrIHRvIGRvIGhlcmUgZXZlbiBh
+ZnRlcg0KeW91IGZvdW5kIGFsbCB0aGUgVytYIGNhc2VzLg0KDQpJJ2xsIHRha2UgYSBzaG90IGF0
+IHdoYXQgQW5keSBzdWdnZXN0ZWQgaW4gdGhlIG5leHQgZmV3IGRheXMuDQoNClRoYW5rcywNCg0K
+Umljaw0K
