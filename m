@@ -1,287 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D80EC8E0014
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:16 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 89so2925184ple.19
-        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:16 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id v19si3555849pfa.80.2018.12.13.22.28.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Dec 2018 22:28:15 -0800 (PST)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V9 12/21] swap: Add sysfs interface to configure THP swapin
-Date: Fri, 14 Dec 2018 14:27:45 +0800
-Message-Id: <20181214062754.13723-13-ying.huang@intel.com>
-In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
-References: <20181214062754.13723-1-ying.huang@intel.com>
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A5E536B74D2
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 09:41:11 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id q11so9256518otl.23
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 06:41:11 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e12si9208418oiy.28.2018.12.05.06.41.10
+        for <linux-mm@kvack.org>;
+        Wed, 05 Dec 2018 06:41:10 -0800 (PST)
+Date: Wed, 5 Dec 2018 14:41:30 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v2 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page
+ tables
+Message-ID: <20181205144130.GA16121@arm.com>
+References: <20181111090341.120786-1-drinkcat@chromium.org>
+ <CANMq1KDxmRcWhtaJbrLHqx6yPGkNaK7WNYYf+iFjH1e8XdrwRg@mail.gmail.com>
+ <b99dd00f-fe1c-1cac-8ee3-5b0c1af9a92e@suse.cz>
+ <CANMq1KDzKJqJwGsW3A90JY_0kgDtAMjOikT-3C9zQG01=3dibQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANMq1KDzKJqJwGsW3A90JY_0kgDtAMjOikT-3C9zQG01=3dibQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Nicolas Boichat <drinkcat@chromium.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Robin Murphy <robin.murphy@arm.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Matthias Brugger <matthias.bgg@gmail.com>, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, Joerg Roedel <joro@8bytes.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, Hsin-Yi Wang <hsinyi@chromium.org>, Daniel Kurtz <djkurtz@chromium.org>
 
-Swapin a THP as a whole isn't desirable in some situations.  For
-example, for completely random access pattern, swapin a THP in one
-piece will inflate the reading greatly.  So a sysfs interface:
-/sys/kernel/mm/transparent_hugepage/swapin_enabled is added to
-configure it.  Three options as follow are provided,
+On Wed, Dec 05, 2018 at 10:04:00AM +0800, Nicolas Boichat wrote:
+> On Tue, Dec 4, 2018 at 10:35 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+> >
+> > On 12/4/18 10:37 AM, Nicolas Boichat wrote:
+> > > On Sun, Nov 11, 2018 at 5:04 PM Nicolas Boichat <drinkcat@chromium.org> wrote:
+> > >>
+> > >> This is a follow-up to the discussion in [1], to make sure that the page
+> > >> tables allocated by iommu/io-pgtable-arm-v7s are contained within 32-bit
+> > >> physical address space.
+> > >>
+> > >> [1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
+> > >
+> > > Hi everyone,
+> > >
+> > > Let's try to summarize here.
+> > >
+> > > First, we confirmed that this is a regression, and IOMMU errors happen
+> > > on 4.19 and linux-next/master on MT8173 (elm, Acer Chromebook R13).
+> > > The issue most likely starts from ad67f5a6545f ("arm64: replace
+> > > ZONE_DMA with ZONE_DMA32"), i.e. 4.15, and presumably breaks a number
+> > > of Mediatek platforms (and maybe others?).
+> > >
+> > > We have a few options here:
+> > > 1. This series [2], that adds support for GFP_DMA32 slab caches,
+> > > _without_ adding kmalloc caches (since there are no users of
+> > > kmalloc(..., GFP_DMA32)). I think I've addressed all the comments on
+> > > the 3 patches, and AFAICT this solution works fine.
+> > > 2. genalloc. That works, but unless we preallocate 4MB for L2 tables
+> > > (which is wasteful as we usually only need a handful of L2 tables),
+> > > we'll need changes in the core (use GFP_ATOMIC) to allow allocating on
+> > > demand, and as it stands we'd have no way to shrink the allocation.
+> > > 3. page_frag [3]. That works fine, and the code is quite simple. One
+> > > drawback is that fragments in partially freed pages cannot be reused
+> > > (from limited experiments, I see that IOMMU L2 tables are rarely
+> > > freed, so it's unlikely a whole page would get freed). But given the
+> > > low number of L2 tables, maybe we can live with that.
+> > >
+> > > I think 2 is out. Any preference between 1 and 3? I think 1 makes
+> > > better use of the memory, so that'd be my preference. But I'm probably
+> > > missing something.
+> >
+> > I would prefer 1 as well. IIRC you already confirmed that alignment
+> > requirements are not broken for custom kmem caches even in presence of
+> > SLUB debug options (and I would say it's a bug to be fixed if they
+> > weren't).
+> 
+> > I just asked (and didn't get a reply I think) about your
+> > ability to handle the GFP_ATOMIC allocation failures. They should be
+> > rare when only single page allocations are needed for the kmem cache.
+> > But in case they are not an option, then preallocating would be needed,
+> > thus probably option 2.
+> 
+> Oh, sorry, I missed your question.
+> 
+> I don't have a full answer, but:
+> - The allocations themselves are rare (I count a few 10s of L2 tables
+> at most on my system, I assume we rarely have >100), and yes, we only
+> need a single page, so the failures should be exceptional.
+> - My change is probably not making anything worse: I assume that even
+> with the current approach using GFP_DMA slab caches on older kernels,
+> failures could potentially happen. I don't think we've seen those. If
+> we are really concerned about this, maybe we'd need to modify
+> mtk_iommu_map to not hold a spinlock (if that's possible), so we don't
+> need to use GFP_ATOMIC. I suggest we just keep an eye on such issues,
+> and address them if they show up (we can even revisit genalloc at that
+> stage).
 
-- always: THP swapin will be enabled always
+I think the spinlock is the least of our worries: the map/unmap routines
+can be called in irq context and may need to allocate second-level tables.
 
-- madvise: THP swapin will be enabled only for VMA with VM_HUGEPAGE
-  flag set.
-
-- never: THP swapin will be disabled always
-
-The default configuration is: madvise.
-
-During page fault, if a PMD swap mapping is found and THP swapin is
-disabled, the huge swap cluster and the PMD swap mapping will be split
-and fallback to normal page swapin.
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
----
- Documentation/admin-guide/mm/transhuge.rst | 21 +++++
- include/linux/huge_mm.h                    | 31 ++++++++
- mm/huge_memory.c                           | 93 +++++++++++++++++-----
- 3 files changed, 126 insertions(+), 19 deletions(-)
-
-diff --git a/Documentation/admin-guide/mm/transhuge.rst b/Documentation/admin-guide/mm/transhuge.rst
-index 85e33f785fd7..23aefb17101c 100644
---- a/Documentation/admin-guide/mm/transhuge.rst
-+++ b/Documentation/admin-guide/mm/transhuge.rst
-@@ -160,6 +160,27 @@ Some userspace (such as a test program, or an optimized memory allocation
- 
- 	cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
- 
-+Transparent hugepage may be swapout and swapin in one piece without
-+splitting.  This will improve the utility of transparent hugepage but
-+may inflate the read/write too.  So whether to enable swapin
-+transparent hugepage in one piece can be configured as follow.
-+
-+	echo always >/sys/kernel/mm/transparent_hugepage/swapin_enabled
-+	echo madvise >/sys/kernel/mm/transparent_hugepage/swapin_enabled
-+	echo never >/sys/kernel/mm/transparent_hugepage/swapin_enabled
-+
-+always
-+	Attempt to allocate a transparent huge page and read it from
-+	swap space in one piece every time.
-+
-+never
-+	Always split the swap space and PMD swap mapping and swapin
-+	the fault normal page during swapin.
-+
-+madvise
-+	Only swapin the transparent huge page in one piece for
-+	MADV_HUGEPAGE madvise regions.
-+
- khugepaged will be automatically started when
- transparent_hugepage/enabled is set to "always" or "madvise, and it'll
- be automatically shutdown if it's set to "never".
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index debe3760e894..06dbbcf6a6dd 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -63,6 +63,8 @@ enum transparent_hugepage_flag {
- #ifdef CONFIG_DEBUG_VM
- 	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
- #endif
-+	TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+	TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
- };
- 
- struct kobject;
-@@ -373,11 +375,40 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- 
- #ifdef CONFIG_THP_SWAP
- extern int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd);
-+
-+static inline bool transparent_hugepage_swapin_enabled(
-+	struct vm_area_struct *vma)
-+{
-+	if (vma->vm_flags & VM_NOHUGEPAGE)
-+		return false;
-+
-+	if (is_vma_temporary_stack(vma))
-+		return false;
-+
-+	if (test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-+		return false;
-+
-+	if (transparent_hugepage_flags &
-+			(1 << TRANSPARENT_HUGEPAGE_SWAPIN_FLAG))
-+		return true;
-+
-+	if (transparent_hugepage_flags &
-+			(1 << TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG))
-+		return !!(vma->vm_flags & VM_HUGEPAGE);
-+
-+	return false;
-+}
- #else /* CONFIG_THP_SWAP */
- static inline int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- {
- 	return 0;
- }
-+
-+static inline bool transparent_hugepage_swapin_enabled(
-+	struct vm_area_struct *vma)
-+{
-+	return false;
-+}
- #endif /* CONFIG_THP_SWAP */
- 
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e1e95e6c86e3..8e8952938c25 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -57,7 +57,8 @@ unsigned long transparent_hugepage_flags __read_mostly =
- #endif
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG)|
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG)|
--	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
-+	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG)|
-+	(1<<TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG);
- 
- static struct shrinker deferred_split_shrinker;
- 
-@@ -316,6 +317,53 @@ static struct kobj_attribute debug_cow_attr =
- 	__ATTR(debug_cow, 0644, debug_cow_show, debug_cow_store);
- #endif /* CONFIG_DEBUG_VM */
- 
-+#ifdef CONFIG_THP_SWAP
-+static ssize_t swapin_enabled_show(struct kobject *kobj,
-+				   struct kobj_attribute *attr, char *buf)
-+{
-+	if (test_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+		     &transparent_hugepage_flags))
-+		return sprintf(buf, "[always] madvise never\n");
-+	else if (test_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			  &transparent_hugepage_flags))
-+		return sprintf(buf, "always [madvise] never\n");
-+	else
-+		return sprintf(buf, "always madvise [never]\n");
-+}
-+
-+static ssize_t swapin_enabled_store(struct kobject *kobj,
-+				    struct kobj_attribute *attr,
-+				    const char *buf, size_t count)
-+{
-+	ssize_t ret = count;
-+
-+	if (!memcmp("always", buf,
-+		    min(sizeof("always")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			  &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+			&transparent_hugepage_flags);
-+	} else if (!memcmp("madvise", buf,
-+			   min(sizeof("madvise")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+			  &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			&transparent_hugepage_flags);
-+	} else if (!memcmp("never", buf,
-+			   min(sizeof("never")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_FLAG,
-+			  &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_SWAPIN_REQ_MADV_FLAG,
-+			  &transparent_hugepage_flags);
-+	} else
-+		ret = -EINVAL;
-+
-+	return ret;
-+}
-+static struct kobj_attribute swapin_enabled_attr =
-+	__ATTR(swapin_enabled, 0644, swapin_enabled_show, swapin_enabled_store);
-+#endif /* CONFIG_THP_SWAP */
-+
- static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
-@@ -326,6 +374,9 @@ static struct attribute *hugepage_attr[] = {
- #endif
- #ifdef CONFIG_DEBUG_VM
- 	&debug_cow_attr.attr,
-+#endif
-+#ifdef CONFIG_THP_SWAP
-+	&swapin_enabled_attr.attr,
- #endif
- 	NULL,
- };
-@@ -1688,6 +1739,9 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- retry:
- 	page = lookup_swap_cache(entry, NULL, vmf->address);
- 	if (!page) {
-+		if (!transparent_hugepage_swapin_enabled(vma))
-+			goto split;
-+
- 		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE, vma,
- 					     haddr, false);
- 		if (!page) {
-@@ -1695,24 +1749,8 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 			 * Back out if somebody else faulted in this pmd
- 			 * while we released the pmd lock.
- 			 */
--			if (likely(pmd_same(*vmf->pmd, orig_pmd))) {
--				/*
--				 * Failed to allocate huge page, split huge swap
--				 * cluster, and fallback to swapin normal page
--				 */
--				ret = split_swap_cluster(entry, 0);
--				/* Somebody else swapin the swap entry, retry */
--				if (ret == -EEXIST) {
--					ret = 0;
--					goto retry;
--				/* swapoff occurs under us */
--				} else if (ret == -EINVAL)
--					ret = 0;
--				else {
--					count_vm_event(THP_SWPIN_FALLBACK);
--					goto fallback;
--				}
--			}
-+			if (likely(pmd_same(*vmf->pmd, orig_pmd)))
-+				goto split;
- 			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 			goto out;
- 		}
-@@ -1816,6 +1854,23 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- out_release:
- 	put_page(page);
- 	return ret;
-+split:
-+	/*
-+	 * Failed to allocate huge page, split huge swap cluster, and
-+	 * fallback to swapin normal page
-+	 */
-+	ret = split_swap_cluster(entry, 0);
-+	/* Somebody else swapin the swap entry, retry */
-+	if (ret == -EEXIST) {
-+		ret = 0;
-+		goto retry;
-+	}
-+	/* swapoff occurs under us */
-+	if (ret == -EINVAL) {
-+		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-+		return 0;
-+	}
-+	count_vm_event(THP_SWPIN_FALLBACK);
- fallback:
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
- 	if (!split_huge_swap_pmd(vmf->vma, vmf->pmd, vmf->address, orig_pmd))
--- 
-2.18.1
+Will
