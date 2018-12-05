@@ -1,109 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 56C7F6B6ABF
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 14:25:33 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id t2so12016598pfj.15
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 11:25:33 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id f63si16103419pfg.136.2018.12.03.11.25.31
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 014D86B74CF
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 09:39:06 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id m128so16581391itd.3
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 06:39:05 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j65sor23319712itj.0.2018.12.05.06.39.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 11:25:32 -0800 (PST)
-Subject: [PATCH RFC 2/3] mm: Add support for exposing if dev_pagemap
- supports refcount pinning
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Mon, 03 Dec 2018 11:25:31 -0800
-Message-ID: <154386513120.27193.7977541941078967487.stgit@ahduyck-desk1.amr.corp.intel.com>
-In-Reply-To: <154386493754.27193.1300965403157243427.stgit@ahduyck-desk1.amr.corp.intel.com>
-References: <154386493754.27193.1300965403157243427.stgit@ahduyck-desk1.amr.corp.intel.com>
+        (Google Transport Security);
+        Wed, 05 Dec 2018 06:39:04 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+References: <1541712198.12945.12.camel@gmx.us> <D7C9EA14-C812-406F-9570-CFF36F4C3983@gmx.us>
+ <20181110165938.lbt6dfamk2ljafcv@localhost> <a2a9180f-32cf-a0fa-3829-f36133e3b924@gmx.us>
+In-Reply-To: <a2a9180f-32cf-a0fa-3829-f36133e3b924@gmx.us>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 5 Dec 2018 15:38:51 +0100
+Message-ID: <CACT4Y+ZXHgvHdZc=VDsiTSBCkG3FomEC3TAhZgw9-_L4RBukjQ@mail.gmail.com>
+Subject: Re: kmemleak: Early log buffer exceeded (525980) during boot
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dan.j.williams@intel.com, pbonzini@redhat.com, yi.z.zhang@linux.intel.com, brho@google.com, kvm@vger.kernel.org, linux-nvdimm@lists.01.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de, rkrcmar@redhat.com, jglisse@redhat.com
+To: cai@gmx.us
+Cc: Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Will Deacon <will.deacon@arm.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>
 
-Add a means of exposing if a pagemap supports refcount pinning. I am doing
-this to expose if a given pagemap has backing struct pages that will allow
-for the reference count of the page to be incremented to lock the page
-into place.
+On Wed, Nov 28, 2018 at 5:21 AM Qian Cai <cai@gmx.us> wrote:
+> On 11/10/18 11:59 AM, Catalin Marinas wrote:
+> > On Sat, Nov 10, 2018 at 10:08:10AM -0500, Qian Cai wrote:
+> >> On Nov 8, 2018, at 4:23 PM, Qian Cai <cai@gmx.us> wrote:
+> >>> The maximum value for DEBUG_KMEMLEAK_EARLY_LOG_SIZE is only 40000, so it
+> >>> disables kmemleak every time on this aarch64 server running the latest mainline
+> >>> (b00d209).
+> >>>
+> >>> # echo scan > /sys/kernel/debug/kmemleak
+> >>> -bash: echo: write error: Device or resource busy
+> >>>
+> >>> Any idea on how to enable kmemleak there?
+> >>
+> >> I have managed to hard-code DEBUG_KMEMLEAK_EARLY_LOG_SIZE to 600000,
+> >
+> > That's quite a high number, I wouldn't have thought it is needed.
+> > Basically the early log buffer is only used until the slub allocator
+> > gets initialised and kmemleak_init() is called from start_kernel(). I
+> > don't know what allocates that much memory so early.
+> >
+>
+> It turned out that kmemleak does not play well with KASAN on those aarch64 (HPE
+> Apollo 70 and Huawei TaiShan 2280) servers.
+>
+> After calling start_kernel()->setup_arch()->kasan_init(), kmemleak early log
+> buffer went from something like from 280 to 260000. The multitude of
+> kmemleak_alloc() calls is,
+>
+> for_each_memblock(memory, reg) x \
+> while (pgdp++, addr = next, addr != end) x \
+> while (ptep++, addr = next, addr != end && \ pte_none(READ_ONCE(*ptep)))
+>
+> Is this expected?
 
-The KVM code already has several spots where it was trying to use a
-pfn_valid check combined with a PageReserved check to determien if it could
-take a reference on the page. I am adding this check so in the case of the
-page having the reserved flag checked we can check the pagemap for the page
-to determine if we might fall into the special DAX case.
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
----
- drivers/nvdimm/pfn_devs.c |    2 ++
- include/linux/memremap.h  |    5 ++++-
- include/linux/mm.h        |   11 +++++++++++
- 3 files changed, 17 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 6f22272e8d80..7a4a85bcf7f4 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -640,6 +640,8 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- 	} else
- 		return -ENXIO;
- 
-+	pgmap->support_refcount_pinning = true;
-+
- 	return 0;
- }
- 
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 55db66b3716f..6e7b85542208 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -109,6 +109,8 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
-  * @page_fault: callback when CPU fault on an unaddressable device page
-  * @page_free: free page callback when page refcount reaches 1
-  * @altmap: pre-allocated/reserved memory for vmemmap allocations
-+ * @altmap_valid: bitflag indicating if altmap is valid
-+ * @support_refcount_pinning: bitflag indicating if we support refcount pinning
-  * @res: physical address range covered by @ref
-  * @ref: reference count that pins the devm_memremap_pages() mapping
-  * @kill: callback to transition @ref to the dead state
-@@ -120,7 +122,8 @@ struct dev_pagemap {
- 	dev_page_fault_t page_fault;
- 	dev_page_free_t page_free;
- 	struct vmem_altmap altmap;
--	bool altmap_valid;
-+	bool altmap_valid:1;
-+	bool support_refcount_pinning:1;
- 	struct resource res;
- 	struct percpu_ref *ref;
- 	void (*kill)(struct percpu_ref *ref);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 3eb3bf7774f1..5faf66dd4559 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -970,6 +970,12 @@ static inline bool is_pci_p2pdma_page(const struct page *page)
- }
- #endif /* CONFIG_PCI_P2PDMA */
- 
-+static inline bool is_device_pinnable_page(const struct page *page)
-+{
-+	return is_zone_device_page(page) &&
-+		page->pgmap->support_refcount_pinning;
-+}
-+
- #else /* CONFIG_DEV_PAGEMAP_OPS */
- static inline void dev_pagemap_get_ops(void)
- {
-@@ -998,6 +1004,11 @@ static inline bool is_pci_p2pdma_page(const struct page *page)
- {
- 	return false;
- }
-+
-+static inline bool is_device_pinnable_page(const struct page *page)
-+{
-+	return false;
-+}
- #endif /* CONFIG_DEV_PAGEMAP_OPS */
- 
- static inline void get_page(struct page *page)
+FTR, this should be resolved by (if put pieces together correctly):
+https://lkml.org/lkml/2018/11/29/191
