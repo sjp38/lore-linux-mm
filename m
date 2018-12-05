@@ -1,312 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 29F748E021D
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:04:56 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c18so3351131edt.23
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 15:04:56 -0800 (PST)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id i3si1022936edk.411.2018.12.14.15.04.54
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C9B996B7406
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 06:47:10 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id q18so15659369wrx.0
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 03:47:10 -0800 (PST)
+Received: from shell.v3.sk (shell.v3.sk. [90.176.6.54])
+        by mx.google.com with ESMTPS id m194si10457831wmb.20.2018.12.05.03.47.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 15:04:54 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id E9E3398473
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 23:04:53 +0000 (UTC)
-Date: Fri, 14 Dec 2018 23:04:49 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 10/14] mm, compaction: Use free lists to quickly locate a
- migration source
-Message-ID: <20181214230449.GA29005@techsingularity.net>
-References: <20181214230310.572-1-mgorman@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20181214230310.572-1-mgorman@techsingularity.net>
+        Wed, 05 Dec 2018 03:47:09 -0800 (PST)
+Message-ID: <f2ca9a41e8c9da66f828a0e40449d01d8e2e6f39.camel@v3.sk>
+Subject: Re: [PATCH V2] mm: Replace all open encodings for NUMA_NO_NODE
+From: Lubomir Rintel <lkundrak@v3.sk>
+Date: Wed, 05 Dec 2018 12:47:00 +0100
+In-Reply-To: <d58f8b38-660c-7673-4466-6651ad32eada@arm.com>
+References: <1543235202-9075-1-git-send-email-anshuman.khandual@arm.com>
+	 <a9082610ae6d99d988f7cc22a29d8474726a12e7.camel@v3.sk>
+	 <d58f8b38-660c-7673-4466-6651ad32eada@arm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: ocfs2-devel@oss.oracle.com, linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org, netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-media@vger.kernel.org, iommu@lists.linux-foundation.org, linux-rdma@vger.kernel.org, dmaengine@vger.kernel.org, linux-block@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org, linux-alpha@vger.kernel.org, akpm@linux-foundation.org, jiangqi903@gmail.com, hverkuil@xs4all.nl, vkoul@kernel.org
 
-The migration scanner is a linear scan of a zone which is a potentially
-very large search space. Furthermore, many pageblocks are unusable such
-as those filled with reserved pages or partially filled with pages that
-cannot migrate. These still get scanned in the common case of allocating
-a THP and the cost accumulates.
+On Wed, 2018-12-05 at 17:01 +0530, Anshuman Khandual wrote:
+> 
+> On 12/05/2018 02:56 AM, Lubomir Rintel wrote:
+> > On Mon, 2018-11-26 at 17:56 +0530, Anshuman Khandual wrote:
+> > > At present there are multiple places where invalid node number is encoded
+> > > as -1. Even though implicitly understood it is always better to have macros
+> > > in there. Replace these open encodings for an invalid node number with the
+> > > global macro NUMA_NO_NODE. This helps remove NUMA related assumptions like
+> > > 'invalid node' from various places redirecting them to a common definition.
+> > > 
+> > > Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> > > ---
+> > > Changes in V2:
+> > > 
+> > > - Added inclusion of 'numa.h' header at various places per Andrew
+> > > - Updated 'dev_to_node' to use NUMA_NO_NODE instead per Vinod
+> > > 
+> > > Changes in V1: (https://lkml.org/lkml/2018/11/23/485)
+> > > 
+> > > - Dropped OCFS2 changes per Joseph
+> > > - Dropped media/video drivers changes per Hans
+> > > 
+> > > RFC - https://patchwork.kernel.org/patch/10678035/
+> > > 
+> > > Build tested this with multiple cross compiler options like alpha, sparc,
+> > > arm64, x86, powerpc, powerpc64le etc with their default config which might
+> > > not have compiled tested all driver related changes. I will appreciate
+> > > folks giving this a test in their respective build environment.
+> > > 
+> > > All these places for replacement were found by running the following grep
+> > > patterns on the entire kernel code. Please let me know if this might have
+> > > missed some instances. This might also have replaced some false positives.
+> > > I will appreciate suggestions, inputs and review.
+> > > 
+> > > 1. git grep "nid == -1"
+> > > 2. git grep "node == -1"
+> > > 3. git grep "nid = -1"
+> > > 4. git grep "node = -1"
+> > > 
+> > >  arch/alpha/include/asm/topology.h             |  3 ++-
+> > >  arch/ia64/kernel/numa.c                       |  2 +-
+> > >  arch/ia64/mm/discontig.c                      |  6 +++---
+> > >  arch/ia64/sn/kernel/io_common.c               |  3 ++-
+> > >  arch/powerpc/include/asm/pci-bridge.h         |  3 ++-
+> > >  arch/powerpc/kernel/paca.c                    |  3 ++-
+> > >  arch/powerpc/kernel/pci-common.c              |  3 ++-
+> > >  arch/powerpc/mm/numa.c                        | 14 +++++++-------
+> > >  arch/powerpc/platforms/powernv/memtrace.c     |  5 +++--
+> > >  arch/sparc/kernel/auxio_32.c                  |  3 ++-
+> > >  arch/sparc/kernel/pci_fire.c                  |  3 ++-
+> > >  arch/sparc/kernel/pci_schizo.c                |  3 ++-
+> > >  arch/sparc/kernel/pcic.c                      |  7 ++++---
+> > >  arch/sparc/kernel/psycho_common.c             |  3 ++-
+> > >  arch/sparc/kernel/sbus.c                      |  3 ++-
+> > >  arch/sparc/mm/init_64.c                       |  6 +++---
+> > >  arch/sparc/prom/init_32.c                     |  3 ++-
+> > >  arch/sparc/prom/init_64.c                     |  5 +++--
+> > >  arch/sparc/prom/tree_32.c                     | 13 +++++++------
+> > >  arch/sparc/prom/tree_64.c                     | 19 ++++++++++---------
+> > >  arch/x86/include/asm/pci.h                    |  3 ++-
+> > >  arch/x86/kernel/apic/x2apic_uv_x.c            |  7 ++++---
+> > >  arch/x86/kernel/smpboot.c                     |  3 ++-
+> > >  arch/x86/platform/olpc/olpc_dt.c              | 17 +++++++++--------
+> > >  drivers/block/mtip32xx/mtip32xx.c             |  5 +++--
+> > >  drivers/dma/dmaengine.c                       |  4 +++-
+> > >  drivers/infiniband/hw/hfi1/affinity.c         |  3 ++-
+> > >  drivers/infiniband/hw/hfi1/init.c             |  3 ++-
+> > >  drivers/iommu/dmar.c                          |  5 +++--
+> > >  drivers/iommu/intel-iommu.c                   |  3 ++-
+> > >  drivers/misc/sgi-xp/xpc_uv.c                  |  3 ++-
+> > >  drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |  5 +++--
+> > >  include/linux/device.h                        |  2 +-
+> > >  init/init_task.c                              |  3 ++-
+> > >  kernel/kthread.c                              |  3 ++-
+> > >  kernel/sched/fair.c                           | 15 ++++++++-------
+> > >  lib/cpumask.c                                 |  3 ++-
+> > >  mm/huge_memory.c                              | 13 +++++++------
+> > >  mm/hugetlb.c                                  |  3 ++-
+> > >  mm/ksm.c                                      |  2 +-
+> > >  mm/memory.c                                   |  7 ++++---
+> > >  mm/memory_hotplug.c                           | 12 ++++++------
+> > >  mm/mempolicy.c                                |  2 +-
+> > >  mm/page_alloc.c                               |  4 ++--
+> > >  mm/page_ext.c                                 |  2 +-
+> > >  net/core/pktgen.c                             |  3 ++-
+> > >  net/qrtr/qrtr.c                               |  3 ++-
+> > >  tools/perf/bench/numa.c                       |  6 +++---
+> > >  48 files changed, 146 insertions(+), 108 deletions(-)
+> > Thanks for the patch. It seems to me that you've got a fairly large
+> > amount of it wrong though -- perhaps relying just on "git grep" alone
+> > is not the best idea.
+> 
+> Hmm, okay.
+> 
+> > The diffstat is not all that big, it is entirely plausible to just
+> > review each hunk manually: just do a "git show -U20" to get some
+> > context.
+> > 
+> > You get a NAK from me for the OLPC DT part, but I think at least the
+> > sparc/prom part also deals with device tree nodes and not NUMA nodes.
+> 
+> Will take a closer look at all the instances you have pointed out and
+> then re-spin the patch. Just wondering how should I take care of
+> Stephen's patch which is a fix for this one and available in Andrew's
+> staging tree. Should I just go ahead and fold both them with Stephen's
+> signed-off-by while re-spinning this patch ? Please suggest.
 
-The patch uses a partial search of the free lists to locate a migration
-source candidate that is marked as MOVABLE when allocating a THP. It
-prefers picking a block with a larger number of free pages already on
-the basis that there are fewer pages to migrate to free the entire block.
-The lowest PFN found during searches is tracked as the basis of the start
-for the linear search after the first search of the free list fails.
-After the search, the free list is shuffled so that the next search will
-not encounter the same page. If the search fails then the subsequent
-searches will be shorter and the linear scanner is used.
+I think it would be better if this had been split into multiple
+patches, one per subsystem, instead of a single large patch. It would
+be easier to review it that way.
 
-If this search fails, or if the request is for a small or
-unmovable/reclaimable allocation then the linear scanner is still used. It
-is somewhat pointless to use the list search in these cases. Small free
-pages must be used for the search and there is no guarantee that movable
-pages are located within that block that are contiguous.
+With Stephen's patch (am I looking at the correct one?) the tools/perf
+part gets its own copy of numa.h and thus is not dependent on the rest
+of the patch, correct?
 
-                                    4.20.0-rc6             4.20.0-rc6
-                                  noboost-v1r4           findmig-v1r4
-Amean     fault-both-3      3753.53 (   0.00%)     3545.40 (   5.54%)
-Amean     fault-both-5      5396.32 (   0.00%)     5431.98 (  -0.66%)
-Amean     fault-both-7      7393.46 (   0.00%)     7185.11 (   2.82%)
-Amean     fault-both-12    12155.50 (   0.00%)    11424.68 (   6.01%)
-Amean     fault-both-18    16445.96 (   0.00%)    14170.10 *  13.84%*
-Amean     fault-both-24    20465.03 (   0.00%)    16143.57 *  21.12%*
-Amean     fault-both-30    20813.54 (   0.00%)    19207.96 (   7.71%)
-Amean     fault-both-32    22384.02 (   0.00%)    20051.01 *  10.42%*
+To me it seems that the best course of action now would be to split off
+a "tools: replace open encodings for NUMA_NO_NODE" patch with Stephen's
+changes folded in. Keep his sign-off and add a "Co-Developed-by" tag. 
 
-Compaction migrate scanned    60836989    51005450
-Compaction free scanned      890084421   780359464
-
-This is showing a 16% reduction in migration scanning with some mild
-improvements on latency. A 2-socket machine showed similar reductions
-of scan rates in percentage terms.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/compaction.c | 179 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- mm/internal.h   |   2 +
- 2 files changed, 179 insertions(+), 2 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 8ba9b3b479e3..65c7ab1847a0 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1041,6 +1041,12 @@ static bool suitable_migration_target(struct compact_control *cc,
- 	return false;
- }
- 
-+static inline unsigned int
-+freelist_scan_limit(struct compact_control *cc)
-+{
-+	return (COMPACT_CLUSTER_MAX >> cc->fast_search_fail) + 1;
-+}
-+
- /*
-  * Test whether the free scanner has reached the same or lower pageblock than
-  * the migration scanner, and compaction should thus terminate.
-@@ -1051,6 +1057,19 @@ static inline bool compact_scanners_met(struct compact_control *cc)
- 		<= (cc->migrate_pfn >> pageblock_order);
- }
- 
-+/* Reorder the free list to reduce repeated future searches */
-+static void
-+move_freelist_tail(struct list_head *freelist, struct page *freepage)
-+{
-+	LIST_HEAD(sublist);
-+
-+	if (!list_is_last(freelist, &freepage->lru)) {
-+		list_cut_position(&sublist, freelist, &freepage->lru);
-+		if (!list_empty(&sublist))
-+			list_splice_tail(&sublist, freelist);
-+	}
-+}
-+
- /*
-  * Based on information in the current compact_control, find blocks
-  * suitable for isolating free pages from and then isolate them.
-@@ -1208,6 +1227,160 @@ typedef enum {
-  */
- int sysctl_compact_unevictable_allowed __read_mostly = 1;
- 
-+static inline void
-+update_fast_start_pfn(struct compact_control *cc, unsigned long pfn)
-+{
-+	if (cc->fast_start_pfn == ULONG_MAX)
-+		return;
-+
-+	if (!cc->fast_start_pfn)
-+		cc->fast_start_pfn = pfn;
-+
-+	cc->fast_start_pfn = min(cc->fast_start_pfn, pfn);
-+}
-+
-+static inline void
-+reinit_migrate_pfn(struct compact_control *cc)
-+{
-+	if (!cc->fast_start_pfn || cc->fast_start_pfn == ULONG_MAX)
-+		return;
-+
-+	cc->migrate_pfn = cc->fast_start_pfn;
-+	cc->fast_start_pfn = ULONG_MAX;
-+}
-+
-+/*
-+ * Briefly search the free lists for a migration source that already has
-+ * some free pages to reduce the number of pages that need migration
-+ * before a pageblock is free.
-+ */
-+static unsigned long fast_find_migrateblock(struct compact_control *cc)
-+{
-+	unsigned int limit = freelist_scan_limit(cc);
-+	unsigned int nr_scanned = 0;
-+	unsigned long distance;
-+	unsigned long pfn = cc->migrate_pfn;
-+	unsigned long high_pfn;
-+	int order;
-+
-+	/* Skip hints are relied on to avoid repeats on the fast search */
-+	if (cc->ignore_skip_hint)
-+		return pfn;
-+
-+	/*
-+	 * If the migrate_pfn is not at the start of a zone or the start
-+	 * of a pageblock then assume this is a continuation of a previous
-+	 * scan restarted due to COMPACT_CLUSTER_MAX.
-+	 */
-+	if (pfn != cc->zone->zone_start_pfn && pfn != pageblock_start_pfn(pfn))
-+		return pfn;
-+
-+	/*
-+	 * For smaller orders, just linearly scan as the number of pages
-+	 * to migrate should be relatively small and does not necessarily
-+	 * justify freeing up a large block for a small allocation.
-+	 */
-+	if (cc->order <= PAGE_ALLOC_COSTLY_ORDER)
-+		return pfn;
-+
-+	/*
-+	 * Only allow kcompactd and direct requests for movable pages to
-+	 * quickly clear out a MOVABLE pageblock for allocation. This
-+	 * reduces the risk that a large movable pageblock is freed for
-+	 * an unmovable/reclaimable small allocation.
-+	 */
-+	if (cc->direct_compaction && cc->migratetype != MIGRATE_MOVABLE)
-+		return pfn;
-+
-+	/*
-+	 * When starting the migration scanner, pick any pageblock within the
-+	 * first half of the search space. Otherwise try and pick a pageblock
-+	 * within the first eighth to reduce the chances that a migration
-+	 * target later becomes a source.
-+	 */
-+	distance = (cc->free_pfn - cc->migrate_pfn) >> 1;
-+	if (cc->migrate_pfn != cc->zone->zone_start_pfn)
-+		distance >>= 2;
-+	high_pfn = pageblock_start_pfn(cc->migrate_pfn + distance);
-+
-+	for (order = cc->order - 1;
-+	     order >= PAGE_ALLOC_COSTLY_ORDER && pfn == cc->migrate_pfn && nr_scanned < limit;
-+	     order--) {
-+		struct free_area *area = &cc->zone->free_area[order];
-+		struct list_head *freelist;
-+		unsigned long nr_skipped = 0;
-+		unsigned long flags;
-+		struct page *freepage;
-+
-+		if (!area->nr_free)
-+			continue;
-+
-+		spin_lock_irqsave(&cc->zone->lock, flags);
-+		freelist = &area->free_list[MIGRATE_MOVABLE];
-+		list_for_each_entry(freepage, freelist, lru) {
-+			unsigned long free_pfn;
-+
-+			nr_scanned++;
-+			free_pfn = page_to_pfn(freepage);
-+			if (free_pfn < high_pfn) {
-+				update_fast_start_pfn(cc, free_pfn);
-+
-+				/*
-+				 * Avoid if skipped recently. Move to the tail
-+				 * of the list so it will not be found again
-+				 * soon
-+				 */
-+				if (get_pageblock_skip(freepage)) {
-+
-+					if (list_is_last(freelist, &freepage->lru))
-+						break;
-+
-+					nr_skipped++;
-+					list_del(&freepage->lru);
-+					list_add_tail(&freepage->lru, freelist);
-+					if (nr_skipped > 2)
-+						break;
-+					continue;
-+				}
-+
-+				/* Reorder to so a future search skips recent pages */
-+				move_freelist_tail(freelist, freepage);
-+
-+				pfn = pageblock_start_pfn(free_pfn);
-+				cc->fast_search_fail = 0;
-+				set_pageblock_skip(freepage);
-+				break;
-+			}
-+
-+			/*
-+			 * If low PFNs are being found and discarded then
-+			 * limit the scan as fast searching is finding
-+			 * poor candidates.
-+			 */
-+			if (free_pfn < cc->migrate_pfn)
-+				limit >>= 1;
-+
-+			if (nr_scanned >= limit) {
-+				cc->fast_search_fail++;
-+				move_freelist_tail(freelist, freepage);
-+				break;
-+			}
-+		}
-+		spin_unlock_irqrestore(&cc->zone->lock, flags);
-+	}
-+
-+	cc->total_migrate_scanned += nr_scanned;
-+
-+	/*
-+	 * If fast scanning failed then use a cached entry for a page block
-+	 * that had free pages as the basis for starting a linear scan.
-+	 */
-+	if (pfn == cc->migrate_pfn)
-+		reinit_migrate_pfn(cc);
-+
-+	return pfn;
-+}
-+
- /*
-  * Isolate all pages that can be migrated from the first suitable block,
-  * starting at the block pointed to by the migrate scanner pfn within
-@@ -1226,9 +1399,10 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 
- 	/*
- 	 * Start at where we last stopped, or beginning of the zone as
--	 * initialized by compact_zone()
-+	 * initialized by compact_zone(). The first failure will use
-+	 * the lowest PFN as the starting point for linear scanning.
- 	 */
--	low_pfn = cc->migrate_pfn;
-+	low_pfn = fast_find_migrateblock(cc);
- 	block_start_pfn = pageblock_start_pfn(low_pfn);
- 	if (block_start_pfn < zone->zone_start_pfn)
- 		block_start_pfn = zone->zone_start_pfn;
-@@ -1551,6 +1725,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 	 * want to compact the whole zone), but check that it is initialised
- 	 * by ensuring the values are within zone boundaries.
- 	 */
-+	cc->fast_start_pfn = 0;
- 	if (cc->whole_zone) {
- 		cc->migrate_pfn = start_pfn;
- 		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
-diff --git a/mm/internal.h b/mm/internal.h
-index 9b32f4cab0ae..983cb975545f 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -188,9 +188,11 @@ struct compact_control {
- 	unsigned int nr_migratepages;	/* Number of pages to migrate */
- 	unsigned long free_pfn;		/* isolate_freepages search base */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
-+	unsigned long fast_start_pfn;	/* a pfn to start linear scan from */
- 	struct zone *zone;
- 	unsigned long total_migrate_scanned;
- 	unsigned long total_free_scanned;
-+	unsigned int fast_search_fail;	/* failures to use free list searches */
- 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* migratetype of direct compactor */
--- 
-2.16.4
+Cheers,
+Lubo
