@@ -1,104 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C4CB06B72C7
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 00:48:51 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id s14so15930043pfk.16
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 21:48:51 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r29sor27233867pfk.38.2018.12.04.21.48.50
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 21:48:50 -0800 (PST)
-From: Nicolas Boichat <drinkcat@chromium.org>
-Subject: [PATCH v4 1/3] mm: slab/slub: Add check_slab_flags function to check for valid flags
-Date: Wed,  5 Dec 2018 13:48:26 +0800
-Message-Id: <20181205054828.183476-2-drinkcat@chromium.org>
-In-Reply-To: <20181205054828.183476-1-drinkcat@chromium.org>
-References: <20181205054828.183476-1-drinkcat@chromium.org>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D48E6B7B50
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:21:17 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id o8so557004otp.16
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:21:17 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e2si430989otf.278.2018.12.06.10.21.16
+        for <linux-mm@kvack.org>;
+        Thu, 06 Dec 2018 10:21:16 -0800 (PST)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [RESEND PATCH v4 1/5] ioremap: Rework pXd_free_pYd_page() API
+Date: Thu,  6 Dec 2018 18:21:31 +0000
+Message-Id: <1544120495-17438-2-git-send-email-will.deacon@arm.com>
+In-Reply-To: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
+References: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-Remove duplicated code between slab and slub, and will make it
-easier to make the test more complicated in the next commits.
+The recently merged API for ensuring break-before-make on page-table
+entries when installing huge mappings in the vmalloc/ioremap region is
+fairly counter-intuitive, resulting in the arch freeing functions
+(e.g. pmd_free_pte_page()) being called even on entries that aren't
+present. This resulted in a minor bug in the arm64 implementation, giving
+rise to spurious VM_WARN messages.
 
-Fixes: ad67f5a6545f ("arm64: replace ZONE_DMA with ZONE_DMA32")
-Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
+This patch moves the pXd_present() checks out into the core code,
+refactoring the callsites at the same time so that we avoid the complex
+conjunctions when determining whether or not we can put down a huge
+mapping.
+
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
 ---
- mm/internal.h | 18 ++++++++++++++++--
- mm/slab.c     |  8 +-------
- mm/slub.c     |  8 +-------
- 3 files changed, 18 insertions(+), 16 deletions(-)
+ lib/ioremap.c | 56 ++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 42 insertions(+), 14 deletions(-)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index f0c9ccde3bdb9e..a2ee82a0cd44ae 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -33,8 +33,22 @@
- /* Control allocation cpuset and node placement constraints */
- #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
+diff --git a/lib/ioremap.c b/lib/ioremap.c
+index 517f5853ffed..6c72764af19c 100644
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -76,6 +76,25 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
+ 	return 0;
+ }
  
--/* Do not use these with a slab allocator */
--#define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
-+/* Check for flags that must not be used with a slab allocator */
-+static inline gfp_t check_slab_flags(gfp_t flags)
++static int ioremap_try_huge_pmd(pmd_t *pmd, unsigned long addr,
++				unsigned long end, phys_addr_t phys_addr,
++				pgprot_t prot)
 +{
-+	gfp_t bug_mask = __GFP_DMA32 | __GFP_HIGHMEM | ~__GFP_BITS_MASK;
++	if (!ioremap_pmd_enabled())
++		return 0;
 +
-+	if (unlikely(flags & bug_mask)) {
-+		gfp_t invalid_mask = flags & bug_mask;
++	if ((end - addr) != PMD_SIZE)
++		return 0;
 +
-+		flags &= ~bug_mask;
-+		pr_warn("Unexpected gfp: %#x (%pGg). Fixing up to gfp: %#x (%pGg). Fix your code!\n",
-+				invalid_mask, &invalid_mask, flags, &flags);
-+		dump_stack();
-+	}
++	if (!IS_ALIGNED(phys_addr, PMD_SIZE))
++		return 0;
 +
-+	return flags;
++	if (pmd_present(*pmd) && !pmd_free_pte_page(pmd, addr))
++		return 0;
++
++	return pmd_set_huge(pmd, phys_addr, prot);
 +}
- 
- void page_writeback_init(void);
- 
-diff --git a/mm/slab.c b/mm/slab.c
-index 73fe23e649c91a..65a774f05e7836 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2643,13 +2643,7 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
- 	 * Be lazy and only check for valid flags here,  keeping it out of the
- 	 * critical path in kmem_cache_alloc().
- 	 */
--	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
--		gfp_t invalid_mask = flags & GFP_SLAB_BUG_MASK;
--		flags &= ~GFP_SLAB_BUG_MASK;
--		pr_warn("Unexpected gfp: %#x (%pGg). Fixing up to gfp: %#x (%pGg). Fix your code!\n",
--				invalid_mask, &invalid_mask, flags, &flags);
--		dump_stack();
--	}
-+	flags = check_slab_flags(flags);
- 	WARN_ON_ONCE(cachep->ctor && (flags & __GFP_ZERO));
- 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index c229a9b7dd5448..21a3f6866da472 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1685,13 +1685,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 
- static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
++
+ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+ 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
  {
--	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
--		gfp_t invalid_mask = flags & GFP_SLAB_BUG_MASK;
--		flags &= ~GFP_SLAB_BUG_MASK;
--		pr_warn("Unexpected gfp: %#x (%pGg). Fixing up to gfp: %#x (%pGg). Fix your code!\n",
--				invalid_mask, &invalid_mask, flags, &flags);
--		dump_stack();
--	}
-+	flags = check_slab_flags(flags);
+@@ -89,13 +108,8 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+ 	do {
+ 		next = pmd_addr_end(addr, end);
  
- 	return allocate_slab(s,
- 		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
+-		if (ioremap_pmd_enabled() &&
+-		    ((next - addr) == PMD_SIZE) &&
+-		    IS_ALIGNED(phys_addr + addr, PMD_SIZE) &&
+-		    pmd_free_pte_page(pmd, addr)) {
+-			if (pmd_set_huge(pmd, phys_addr + addr, prot))
+-				continue;
+-		}
++		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr + addr, prot))
++			continue;
+ 
+ 		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
+ 			return -ENOMEM;
+@@ -103,6 +117,25 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+ 	return 0;
+ }
+ 
++static int ioremap_try_huge_pud(pud_t *pud, unsigned long addr,
++				unsigned long end, phys_addr_t phys_addr,
++				pgprot_t prot)
++{
++	if (!ioremap_pud_enabled())
++		return 0;
++
++	if ((end - addr) != PUD_SIZE)
++		return 0;
++
++	if (!IS_ALIGNED(phys_addr, PUD_SIZE))
++		return 0;
++
++	if (pud_present(*pud) && !pud_free_pmd_page(pud, addr))
++		return 0;
++
++	return pud_set_huge(pud, phys_addr, prot);
++}
++
+ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+ 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+ {
+@@ -116,13 +149,8 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+ 	do {
+ 		next = pud_addr_end(addr, end);
+ 
+-		if (ioremap_pud_enabled() &&
+-		    ((next - addr) == PUD_SIZE) &&
+-		    IS_ALIGNED(phys_addr + addr, PUD_SIZE) &&
+-		    pud_free_pmd_page(pud, addr)) {
+-			if (pud_set_huge(pud, phys_addr + addr, prot))
+-				continue;
+-		}
++		if (ioremap_try_huge_pud(pud, addr, next, phys_addr + addr, prot))
++			continue;
+ 
+ 		if (ioremap_pmd_range(pud, addr, next, phys_addr + addr, prot))
+ 			return -ENOMEM;
 -- 
-2.20.0.rc1.387.gf8505762e3-goog
+2.1.4
