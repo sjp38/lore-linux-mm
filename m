@@ -1,33 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F6F6B78F6
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 03:22:37 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id s70so22597100qks.4
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 00:22:37 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w123si5440187qka.53.2018.12.06.00.22.36
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A3ED96B78C5
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 02:33:02 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id c53so11243309edc.9
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 23:33:02 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k7si3378331edb.132.2018.12.05.23.33.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 00:22:36 -0800 (PST)
+        Wed, 05 Dec 2018 23:33:01 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB67RgFW050577
+	for <linux-mm@kvack.org>; Thu, 6 Dec 2018 02:32:59 -0500
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2p6yd5r6ys-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 06 Dec 2018 02:32:59 -0500
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 6 Dec 2018 07:32:57 -0000
+Date: Thu, 6 Dec 2018 09:32:51 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
 Subject: Re: [PATCH v2 2/2] core-api/memory-hotplug.rst: divide Locking
  Internal section by different locks
 References: <20181205023426.24029-1-richard.weiyang@gmail.com>
  <20181206002622.30675-1-richard.weiyang@gmail.com>
  <20181206002622.30675-2-richard.weiyang@gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <385fd990-7969-197d-e811-a91c63ff3668@redhat.com>
-Date: Thu, 6 Dec 2018 09:22:32 +0100
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20181206002622.30675-2-richard.weiyang@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Message-Id: <20181206073250.GI19181@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>, rppt@linux.ibm.com, mhocko@suse.com, osalvador@suse.de
-Cc: akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: david@redhat.com, mhocko@suse.com, osalvador@suse.de, akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On 06.12.18 01:26, Wei Yang wrote:
+On Thu, Dec 06, 2018 at 08:26:22AM +0800, Wei Yang wrote:
 > Currently locking for memory hotplug is a little complicated.
 > 
 > Generally speaking, we leverage the two global lock:
@@ -47,6 +57,9 @@ On 06.12.18 01:26, Wei Yang wrote:
 > [David: words arrangement]
 > 
 > Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+
+Reviewd-by: Mike Rapoport <rppt@linux.ibm.com>
+
 > ---
 > v2: adjustment based on David and Mike comment
 > ---
@@ -102,12 +115,10 @@ On 06.12.18 01:26, Wei Yang wrote:
 >  
 >  In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
 >  mode allows for a quite efficient get_online_mems/put_online_mems
+> -- 
+> 2.15.1
 > 
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
-
 -- 
-
-Thanks,
-
-David / dhildenb
+Sincerely yours,
+Mike.
