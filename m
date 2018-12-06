@@ -1,74 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 72C766B69E4
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 10:47:59 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id w15so6685799edl.21
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 07:47:59 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id w5si910469edr.322.2018.12.03.07.47.57
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 99E4F6B78FF
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 03:31:30 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r13so12858311pgb.7
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 00:31:30 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 64si21590775pfe.74.2018.12.06.00.31.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 07:47:58 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB3FiCa0000719
-	for <linux-mm@kvack.org>; Mon, 3 Dec 2018 10:47:56 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2p5680mjd8-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:47:55 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 3 Dec 2018 15:47:48 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 4/6] openrisc: simplify pte_alloc_one_kernel()
-Date: Mon,  3 Dec 2018 17:47:13 +0200
-In-Reply-To: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
-References: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1543852035-26634-5-git-send-email-rppt@linux.ibm.com>
+        Thu, 06 Dec 2018 00:31:29 -0800 (PST)
+From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
+Subject: Re: [RFC v2 04/13] x86/mm: Add helper functions for MKTME memory
+ encryption keys
+Date: Thu, 6 Dec 2018 08:31:24 +0000
+Message-ID: <6cabe09dd085f74a3111faebeb285cf0cac1146d.camel@intel.com>
+References: <cover.1543903910.git.alison.schofield@intel.com>
+	 <bd83f72d30ccfc7c1bc7ce9ab81bdf66e78a1d7d.1543903910.git.alison.schofield@intel.com>
+In-Reply-To: <bd83f72d30ccfc7c1bc7ce9ab81bdf66e78a1d7d.1543903910.git.alison.schofield@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <216ECE3FADEC4042AABDCAEF5A292CDA@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
+Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, Hansen,, Jun
 
-The pte_alloc_one_kernel() function allocates a page using
-__get_free_page(GFP_KERNEL) when mm initialization is complete and
-memblock_phys_alloc() on the earlier stages. The physical address of the
-page allocated with memblock_phys_alloc() is converted to the virtual
-address and in the both cases the allocated page is cleared using
-clear_page().
-
-The code is simplified by replacing __get_free_page() with
-get_zeroed_page() and by replacing memblock_phys_alloc() with
-memblock_alloc().
-
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Acked-by: Stafford Horne <shorne@gmail.com>
----
- arch/openrisc/mm/ioremap.c | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
-
-diff --git a/arch/openrisc/mm/ioremap.c b/arch/openrisc/mm/ioremap.c
-index c969752..cfef989 100644
---- a/arch/openrisc/mm/ioremap.c
-+++ b/arch/openrisc/mm/ioremap.c
-@@ -123,13 +123,10 @@ pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm,
- {
- 	pte_t *pte;
- 
--	if (likely(mem_init_done)) {
--		pte = (pte_t *) __get_free_page(GFP_KERNEL);
--	} else {
--		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	}
-+	if (likely(mem_init_done))
-+		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
-+	else
-+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 
--	if (pte)
--		clear_page(pte);
- 	return pte;
- }
--- 
-2.7.4
+T24gTW9uLCAyMDE4LTEyLTAzIGF0IDIzOjM5IC0wODAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
+Og0KPiArZXh0ZXJuIGludCBta3RtZV9tYXBfYWxsb2Modm9pZCk7DQo+ICtleHRlcm4gdm9pZCBt
+a3RtZV9tYXBfZnJlZSh2b2lkKTsNCj4gK2V4dGVybiB2b2lkIG1rdG1lX21hcF9sb2NrKHZvaWQp
+Ow0KPiArZXh0ZXJuIHZvaWQgbWt0bWVfbWFwX3VubG9jayh2b2lkKTsNCj4gK2V4dGVybiBpbnQg
+bWt0bWVfbWFwX21hcHBlZF9rZXlpZHModm9pZCk7DQo+ICtleHRlcm4gdm9pZCBta3RtZV9tYXBf
+c2V0X2tleWlkKGludCBrZXlpZCwgdm9pZCAqa2V5KTsNCj4gK2V4dGVybiB2b2lkIG1rdG1lX21h
+cF9mcmVlX2tleWlkKGludCBrZXlpZCk7DQo+ICtleHRlcm4gaW50IG1rdG1lX21hcF9rZXlpZF9m
+cm9tX2tleSh2b2lkICprZXkpOw0KPiArZXh0ZXJuIHZvaWQgKm1rdG1lX21hcF9rZXlfZnJvbV9r
+ZXlpZChpbnQga2V5aWQpOw0KPiArZXh0ZXJuIGludCBta3RtZV9tYXBfZ2V0X2ZyZWVfa2V5aWQo
+dm9pZCk7DQoNCk5vIG5lZWQgZm9yIGV4dGVybiBrZXl3b3JkIGZvciBmdW5jdGlvbiBkZWNsYXJh
+dGlvbnMuIEl0IGlzDQpvbmx5IG5lZWRlZCBmb3IgdmFyaWFibGUgZGVjbGFyYXRpb25zLg0KDQo+
+ICsNCj4gIERFQ0xBUkVfU1RBVElDX0tFWV9GQUxTRShta3RtZV9lbmFibGVkX2tleSk7DQo+ICBz
+dGF0aWMgaW5saW5lIGJvb2wgbWt0bWVfZW5hYmxlZCh2b2lkKQ0KPiAgew0KPiBkaWZmIC0tZ2l0
+IGEvYXJjaC94ODYvbW0vbWt0bWUuYyBiL2FyY2gveDg2L21tL21rdG1lLmMNCj4gaW5kZXggYzgx
+NzI3NTQwZTdjLi4zNDIyNGQ0ZTNmNDUgMTAwNjQ0DQo+IC0tLSBhL2FyY2gveDg2L21tL21rdG1l
+LmMNCj4gKysrIGIvYXJjaC94ODYvbW0vbWt0bWUuYw0KPiBAQCAtNDAsNiArNDAsOTcgQEAgaW50
+IF9fdm1hX2tleWlkKHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hKQ0KPiAgCXJldHVybiAocHJv
+dCAmIG1rdG1lX2tleWlkX21hc2spID4+IG1rdG1lX2tleWlkX3NoaWZ0Ow0KPiAgfQ0KPiAgDQo+
+ICsvKg0KPiArICogc3RydWN0IG1rdG1lX21hcCBhbmQgdGhlIG1rdG1lX21hcF8qIGZ1bmN0aW9u
+cyBtYW5hZ2UgdGhlIG1hcHBpbmcNCj4gKyAqIG9mIHVzZXJzcGFjZSBLZXlzIHRvIGhhcmR3YXJl
+IEtleUlEcy4gVGhlc2UgYXJlIHVzZWQgYnkgdGhlIE1LVE1FIEtleQ0KDQpXaGF0IGFyZSAidXNl
+cnNwYWNlIEtleXMiIGFueXdheSBhbmQgd2h5IEtleSBhbmQgbm90IGtleT8NCg0KPiArICogU2Vy
+dmljZSBBUEkgYW5kIHRoZSBlbmNyeXB0X21wcm90ZWN0KCkgc3lzdGVtIGNhbGwuDQo+ICsgKi8N
+Cj4gKw0KPiArc3RydWN0IG1rdG1lX21hcHBpbmcgew0KPiArCXN0cnVjdCBtdXRleAlsb2NrOwkJ
+LyogcHJvdGVjdCB0aGlzIG1hcCAmIEhXIHN0YXRlICovDQo+ICsJdW5zaWduZWQgaW50CW1hcHBl
+ZF9rZXlpZHM7DQo+ICsJdm9pZAkJKmtleVtdOw0KPiArfTsNCg0KUGVyc29uYWxseSwgSSBwcmVm
+ZXIgbm90IHRvIGFsaWduIHN0cnVjdCBmaWVsZHMgKEkgZG8gYWxpZ24gZW51bXMNCmJlY2F1c2Ug
+dGhlcmUgaXQgbWFrZXMgbW9yZSBzZW5zZSkgYXMgb2Z0ZW4geW91IGVuZCB1cCByZWFsaWduaW5n
+DQpldmVyeXRoaW5nLg0KDQpEb2N1bWVudGF0aW9uIHdvdWxkIGJyaW5nIG1vcmUgY2xhcml0eS4g
+Rm9yIGV4YW1wbGUsIHdoYXQgZG9lcyBrZXlbXQ0KY29udGFpbiwgd2h5IHRoZXJlIGlzIGEgbG9j
+ayBhbmQgd2hhdCBtYXBwZWRfa2V5aWRzIGZpZWxkIGNvbnRhaW5zPw0KDQovSmFya2tvDQo=
