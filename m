@@ -1,101 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 722C66B69A4
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:06:44 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id r24so3731836otk.7
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:06:44 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r137si6131581oie.147.2018.12.03.10.06.43
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:06:43 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 02/25] ACPI / APEI: Remove silent flag from ghes_read_estatus()
-Date: Mon,  3 Dec 2018 18:05:50 +0000
-Message-Id: <20181203180613.228133-3-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B16F6B79B7
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 06:33:03 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id q63so62414pfi.19
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 03:33:03 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id i5si82610pfo.189.2018.12.06.03.33.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Dec 2018 03:33:02 -0800 (PST)
+Subject: Patch "mm: hide incomplete nr_indirectly_reclaimable in /proc/zoneinfo" has been added to the 4.14-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Thu, 06 Dec 2018 12:31:55 +0100
+In-Reply-To: <20181030174649.16778-1-guro@fb.com>
+Message-ID: <1544095915189163@kroah.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: Kernel-team@fb.com, akpm@linux-foundation.org, gregkh@linuxfoundation.org, guro@fb.com, linux-mm@kvack.org, vbabka@suse.cz, yongqin.liu@linaro.org
+Cc: stable-commits@vger.kernel.org
 
-Subsequent patches will split up ghes_read_estatus(), at which
-point passing around the 'silent' flag gets annoying. This is to
-suppress prink() messages, which prior to commit 42a0bb3f7138
-("printk/nmi: generic solution for safe printk in NMI"), were
-unsafe in NMI context.
 
-This is no longer necessary, remove the flag. printk() messages
-are batched in a per-cpu buffer and printed via irq-work, or a call
-back from panic().
+This is a note to let you know that I've just added the patch titled
 
-Signed-off-by: James Morse <james.morse@arm.com>
+    mm: hide incomplete nr_indirectly_reclaimable in /proc/zoneinfo
+
+to the 4.14-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+
+The filename of the patch is:
+     mm-hide-incomplete-nr_indirectly_reclaimable-in-proc-zoneinfo.patch
+and it can be found in the queue-4.14 subdirectory.
+
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
+
+
+>From guro@fb.com  Thu Dec  6 12:12:35 2018
+From: Roman Gushchin <guro@fb.com>
+Date: Tue, 30 Oct 2018 17:48:25 +0000
+Subject: mm: hide incomplete nr_indirectly_reclaimable in /proc/zoneinfo
+To: "stable@vger.kernel.org" <stable@vger.kernel.org>
+Cc: Yongqin Liu <yongqin.liu@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, "Roman Gushchin" <guro@fb.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Message-ID: <20181030174649.16778-1-guro@fb.com>
+
+From: Roman Gushchin <guro@fb.com>
+
+[fixed differently upstream, this is a work-around to resolve it for 4.14.y]
+
+Yongqin reported that /proc/zoneinfo format is broken in 4.14
+due to commit 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable
+in /proc/vmstat")
+
+Node 0, zone      DMA
+  per-node stats
+      nr_inactive_anon 403
+      nr_active_anon 89123
+      nr_inactive_file 128887
+      nr_active_file 47377
+      nr_unevictable 2053
+      nr_slab_reclaimable 7510
+      nr_slab_unreclaimable 10775
+      nr_isolated_anon 0
+      nr_isolated_file 0
+      <...>
+      nr_vmscan_write 0
+      nr_vmscan_immediate_reclaim 0
+      nr_dirtied   6022
+      nr_written   5985
+                   74240
+      ^^^^^^^^^^
+  pages free     131656
+
+The problem is caused by the nr_indirectly_reclaimable counter,
+which is hidden from the /proc/vmstat, but not from the
+/proc/zoneinfo. Let's fix this inconsistency and hide the
+counter from /proc/zoneinfo exactly as from /proc/vmstat.
+
+BTW, in 4.19+ the counter has been renamed and exported by
+the commit b29940c1abd7 ("mm: rename and change semantics of
+nr_indirectly_reclaimable_bytes"), so there is no such a problem
+anymore.
+
+Cc: <stable@vger.kernel.org> # 4.14.x-4.18.x
+Fixes: 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable in /proc/vmstat")
+Reported-by: Yongqin Liu <yongqin.liu@linaro.org>
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
 ---
-Changes since v6:
- * Moved earlier in the series,
- * Tinkered with the commit message.
- * switched to pr_warn_ratelimited() to shut checkpatch up
+ mm/vmstat.c |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-shutup checkpatch
----
- drivers/acpi/apei/ghes.c | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1500,6 +1500,10 @@ static void zoneinfo_show_print(struct s
+ 	if (is_zone_first_populated(pgdat, zone)) {
+ 		seq_printf(m, "\n  per-node stats");
+ 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
++			/* Skip hidden vmstat items. */
++			if (*vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
++					 NR_VM_NUMA_STAT_ITEMS] == '\0')
++				continue;
+ 			seq_printf(m, "\n      %-12s %lu",
+ 				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
+ 				NR_VM_NUMA_STAT_ITEMS],
 
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index ab2dae6fc7e4..e8503c7d721f 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -324,7 +324,7 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
- 	}
- }
- 
--static int ghes_read_estatus(struct ghes *ghes, int silent)
-+static int ghes_read_estatus(struct ghes *ghes)
- {
- 	struct acpi_hest_generic *g = ghes->generic;
- 	u64 buf_paddr;
-@@ -333,8 +333,7 @@ static int ghes_read_estatus(struct ghes *ghes, int silent)
- 
- 	rc = apei_read(&buf_paddr, &g->error_status_address);
- 	if (rc) {
--		if (!silent && printk_ratelimit())
--			pr_warning(FW_WARN GHES_PFX
-+		pr_warn_ratelimited(FW_WARN GHES_PFX
- "Failed to read error status block address for hardware error source: %d.\n",
- 				   g->header.source_id);
- 		return -EIO;
-@@ -366,9 +365,9 @@ static int ghes_read_estatus(struct ghes *ghes, int silent)
- 	rc = 0;
- 
- err_read_block:
--	if (rc && !silent && printk_ratelimit())
--		pr_warning(FW_WARN GHES_PFX
--			   "Failed to read error status block!\n");
-+	if (rc)
-+		pr_warn_ratelimited(FW_WARN GHES_PFX
-+				    "Failed to read error status block!\n");
- 	return rc;
- }
- 
-@@ -700,7 +699,7 @@ static int ghes_proc(struct ghes *ghes)
- {
- 	int rc;
- 
--	rc = ghes_read_estatus(ghes, 0);
-+	rc = ghes_read_estatus(ghes);
- 	if (rc)
- 		goto out;
- 
-@@ -937,7 +936,7 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
- 		return ret;
- 
- 	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
--		if (ghes_read_estatus(ghes, 1)) {
-+		if (ghes_read_estatus(ghes)) {
- 			ghes_clear_estatus(ghes);
- 			continue;
- 		} else {
--- 
-2.19.2
+
+Patches currently in stable-queue which might be from guro@fb.com are
+
+queue-4.14/mm-hide-incomplete-nr_indirectly_reclaimable-in-proc-zoneinfo.patch
