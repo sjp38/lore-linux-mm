@@ -1,57 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 153296B744D
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 07:29:15 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id j5so20273707qtk.11
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 04:29:15 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o14si4989795qtb.200.2018.12.05.04.29.14
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C781A6B7A0D
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:25:14 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id 49so79583wra.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:25:14 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j10sor190302wrx.15.2018.12.06.04.25.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 04:29:14 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH RFC 0/7] mm: PG_reserved cleanups and documentation
-Date: Wed,  5 Dec 2018 13:28:44 +0100
-Message-Id: <20181205122851.5891-1-david@redhat.com>
+        (Google Transport Security);
+        Thu, 06 Dec 2018 04:25:13 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v13 15/25] kasan, mm: perform untagged pointers comparison in krealloc
+Date: Thu,  6 Dec 2018 13:24:33 +0100
+Message-Id: <14f6190d7846186a3506cd66d82446646fe65090.1544099024.git.andreyknvl@google.com>
+In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
+References: <cover.1544099024.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Albert Ou <aou@eecs.berkeley.edu>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Anthony Yznaga <anthony.yznaga@oracle.com>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Bhupesh Sharma <bhsharma@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Christophe Leroy <christophe.leroy@c-s.fr>, Dan Williams <dan.j.williams@intel.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, David Airlie <airlied@linux.ie>, Geert Uytterhoeven <geert@linux-m68k.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Marc Zyngier <marc.zyngier@arm.com>, Mark Rutland <mark.rutland@arm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matthew Wilcox <willy@infradead.org>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Palmer Dabbelt <palmer@sifive.com>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Souptick Joarder <jrdr.linux@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Tobias Klauser <tklauser@distanz.ch>, Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-I was recently going over all users of PG_reserved. Short story: it is
-difficult and sometimes not really clear if setting/checking for
-PG_reserved is only a relict from the past. Easy to break things.
+The krealloc function checks where the same buffer was reused or a new one
+allocated by comparing kernel pointers. Tag-based KASAN changes memory tag
+on the krealloc'ed chunk of memory and therefore also changes the pointer
+tag of the returned pointer. Therefore we need to perform comparison on
+untagged (with tags reset) pointers to check whether it's the same memory
+region or not.
 
-I had way more cleanups in this series inititally,
-but some architectures take PG_reserved as a way to apply a different
-caching strategy (for MMIO pages). So I decided to only include the most
-obvious changes (that are less likely to break something).
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ mm/slab_common.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-So let's see if the documentation update for PG_reserved I crafted
-actually covers most cases or if there is plenty more.
-
-Most notably, for device memory we can hopefully soon stop setting
-it PG_reserved
-
-I only briefly tested this on s390x.
-
-David Hildenbrand (7):
-  agp: efficeon: no need to set PG_reserved on GATT tables
-  s390/vdso: don't clear PG_reserved
-  powerpc/vdso: don't clear PG_reserved
-  riscv/vdso: don't clear PG_reserved
-  m68k/mm: use __ClearPageReserved()
-  arm64: kexec: no need to ClearPageReserved()
-  mm: better document PG_reserved
-
- arch/arm64/kernel/machine_kexec.c |  1 -
- arch/m68k/mm/memory.c             |  2 +-
- arch/powerpc/kernel/vdso.c        |  2 --
- arch/riscv/kernel/vdso.c          |  1 -
- arch/s390/kernel/vdso.c           |  2 --
- drivers/char/agp/efficeon-agp.c   |  2 --
- include/linux/page-flags.h        | 18 ++++++++++++++++--
- 7 files changed, 17 insertions(+), 11 deletions(-)
-
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 5f3504e26d4c..5aabcbd32d82 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1534,7 +1534,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
+ 	}
+ 
+ 	ret = __do_krealloc(p, new_size, flags);
+-	if (ret && p != ret)
++	if (ret && kasan_reset_tag(p) != kasan_reset_tag(ret))
+ 		kfree(p);
+ 
+ 	return ret;
 -- 
-2.17.2
+2.20.0.rc1.387.gf8505762e3-goog
