@@ -1,106 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AB296B7BFB
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 15:19:38 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id o9so929345pgv.19
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 12:19:38 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id e89si1034962plb.401.2018.12.06.12.19.37
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 25B546B7BF7
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 15:17:29 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id m3so1222505pfj.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 12:17:29 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id w2si968958pgh.565.2018.12.06.12.17.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 12:19:37 -0800 (PST)
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
-Date: Thu, 6 Dec 2018 20:19:35 +0000
-Message-ID: <f6096b80bdab59d2d21ece4ff31fcfd36bf6b809.camel@intel.com>
-References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
-	 <20181128000754.18056-2-rick.p.edgecombe@intel.com>
-	 <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
-	 <20181204160304.GB7195@arm.com>
-	 <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
-	 <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com>
-	 <20181205114148.GA15160@arm.com>
-	 <CALCETrUdTShjY+tQoRsE1uR1cnL9cr2Trbz-g5=WaLGA3rWXzA@mail.gmail.com>
-	 <CAKv+Gu_EEjhwbfp1mdB0Pu3ZyAsZgNeaCDArs569hAeWzHMWpw@mail.gmail.com>
-	 <CALCETrVedB7yacMU=i3JaUZxiwsnM+PnABfG48K9TZK32UWshA@mail.gmail.com>
-	 <20181206190115.GC10086@cisco>
-	 <CALCETrUmxht8dibJPBbPudQnoe6mHsKocEBgkJ7O1eFrVBfekQ@mail.gmail.com>
-In-Reply-To: <CALCETrUmxht8dibJPBbPudQnoe6mHsKocEBgkJ7O1eFrVBfekQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <053DB746C6CC964FB3E0B891B858E078@intel.com>
-Content-Transfer-Encoding: base64
+        Thu, 06 Dec 2018 12:17:27 -0800 (PST)
+Received: from mail-wm1-f42.google.com (mail-wm1-f42.google.com [209.85.128.42])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0A782214F1
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 20:17:27 +0000 (UTC)
+Received: by mail-wm1-f42.google.com with SMTP id f81so2343160wmd.4
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 12:17:26 -0800 (PST)
 MIME-Version: 1.0
+References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+ <20181128000754.18056-2-rick.p.edgecombe@intel.com> <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
+ <20181204160304.GB7195@arm.com> <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
+ <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com>
+ <20181205114148.GA15160@arm.com> <CALCETrUdTShjY+tQoRsE1uR1cnL9cr2Trbz-g5=WaLGA3rWXzA@mail.gmail.com>
+ <CAKv+Gu_EEjhwbfp1mdB0Pu3ZyAsZgNeaCDArs569hAeWzHMWpw@mail.gmail.com>
+ <CALCETrVedB7yacMU=i3JaUZxiwsnM+PnABfG48K9TZK32UWshA@mail.gmail.com>
+ <20181206190115.GC10086@cisco> <CALCETrUmxht8dibJPBbPudQnoe6mHsKocEBgkJ7O1eFrVBfekQ@mail.gmail.com>
+ <F5664C1D-C3E7-433B-8E5A-7967023E0567@gmail.com>
+In-Reply-To: <F5664C1D-C3E7-433B-8E5A-7967023E0567@gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 6 Dec 2018 12:17:13 -0800
+Message-ID: <CALCETrUbmmcL7pixsP9AH1-AE2WMVgbDkoP_E4wAJMbuZ0CzCg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "luto@kernel.org" <luto@kernel.org>, "tycho@tycho.ws" <tycho@tycho.ws>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "ast@kernel.org" <ast@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "jeyu@kernel.org" <jeyu@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andrew Lutomirski <luto@kernel.org>, Tycho Andersen <tycho@tycho.ws>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Rick Edgecombe <rick.p.edgecombe@intel.com>, LKML <linux-kernel@vger.kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Jessica Yu <jeyu@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Alexei Starovoitov <ast@kernel.org>, Linux-MM <linux-mm@kvack.org>, Jann Horn <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Peter Zijlstra <peterz@infradead.org>, Kristen Carlson Accardi <kristen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Masami Hiramatsu <mhiramat@kernel.org>, "Naveen N . Rao" <naveen.n.rao@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Network Development <netdev@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-T24gVGh1LCAyMDE4LTEyLTA2IGF0IDExOjE5IC0wODAwLCBBbmR5IEx1dG9taXJza2kgd3JvdGU6
-DQo+IE9uIFRodSwgRGVjIDYsIDIwMTggYXQgMTE6MDEgQU0gVHljaG8gQW5kZXJzZW4gPHR5Y2hv
-QHR5Y2hvLndzPiB3cm90ZToNCj4gPiANCj4gPiBPbiBUaHUsIERlYyAwNiwgMjAxOCBhdCAxMDo1
-Mzo1MEFNIC0wODAwLCBBbmR5IEx1dG9taXJza2kgd3JvdGU6DQo+ID4gPiA+IElmIHdlIGFyZSBn
-b2luZyB0byB1bm1hcCB0aGUgbGluZWFyIGFsaWFzLCB3aHkgbm90IGRvIGl0IGF0IHZtYWxsb2Mo
-KQ0KPiA+ID4gPiB0aW1lIHJhdGhlciB0aGFuIHZmcmVlKCkgdGltZT8NCj4gPiA+IA0KPiA+ID4g
-VGhhdOKAmXMgbm90IHRvdGFsbHkgbnV0cy4gRG8gd2UgZXZlciBoYXZlIGNvZGUgdGhhdCBleHBl
-Y3RzIF9fdmEoKSB0bw0KPiA+ID4gd29yayBvbiBtb2R1bGUgZGF0YT8gIFBlcmhhcHMgY3J5cHRv
-IGNvZGUgdHJ5aW5nIHRvIGVuY3J5cHQgc3RhdGljDQo+ID4gPiBkYXRhIGJlY2F1c2Ugb3VyIEFQ
-SXMgZG9u4oCZdCB1bmRlcnN0YW5kIHZpcnR1YWwgYWRkcmVzc2VzLiAgSSBndWVzcyBpZg0KPiA+
-ID4gaGlnaG1lbSBpcyBldmVyIHVzZWQgZm9yIG1vZHVsZXMsIHRoZW4gd2Ugc2hvdWxkIGJlIGZp
-bmUuDQo+ID4gPiANCj4gPiA+IFJPIGluc3RlYWQgb2Ygbm90IHByZXNlbnQgbWlnaHQgYmUgc2Fm
-ZXIuICBCdXQgSSBkbyBsaWtlIHRoZSBpZGVhIG9mDQo+ID4gPiByZW5hbWluZyBSaWNrJ3MgZmxh
-ZyB0byBzb21ldGhpbmcgbGlrZSBWTV9YUEZPIG9yIFZNX05PX0RJUkVDVF9NQVAgYW5kDQo+ID4g
-PiBtYWtpbmcgaXQgZG8gYWxsIG9mIHRoaXMuDQo+ID4gDQo+ID4gWWVhaCwgZG9pbmcgaXQgZm9y
-IGV2ZXJ5dGhpbmcgYXV0b21hdGljYWxseSBzZWVtZWQgbGlrZSBpdCB3YXMvaXMNCj4gPiBnb2lu
-ZyB0byBiZSBhIGxvdCBvZiB3b3JrIHRvIGRlYnVnIGFsbCB0aGUgY29ybmVyIGNhc2VzIHdoZXJl
-IHRoaW5ncw0KPiA+IGV4cGVjdCBtZW1vcnkgdG8gYmUgbWFwcGVkIGJ1dCBkb24ndCBleHBsaWNp
-dGx5IHNheSBpdC4gQW5kIGluDQo+ID4gcGFydGljdWxhciwgdGhlIFhQRk8gc2VyaWVzIG9ubHkg
-ZG9lcyBpdCBmb3IgdXNlciBtZW1vcnksIHdoZXJlYXMgYW4NCj4gPiBhZGRpdGlvbmFsIGZsYWcg
-bGlrZSB0aGlzIHdvdWxkIHdvcmsgZm9yIGV4dHJhIHBhcmFub2lkIGFsbG9jYXRpb25zDQo+ID4g
-b2Yga2VybmVsIG1lbW9yeSB0b28uDQo+ID4gDQo+IA0KPiBJIGp1c3QgcmVhZCB0aGUgY29kZSwg
-YW5kIEkgbG9va3MgbGlrZSB2bWFsbG9jKCkgaXMgYWxyZWFkeSB1c2luZw0KPiBoaWdobWVtIChf
-X0dGUF9ISUdIKSBpZiBhdmFpbGFibGUsIHNvLCBvbiBiaWcgeDg2XzMyIHN5c3RlbXMsIGZvcg0K
-PiBleGFtcGxlLCB3ZSBhbHJlYWR5IGRvbid0IGhhdmUgbW9kdWxlcyBpbiB0aGUgZGlyZWN0IG1h
-cC4NCj4gDQo+IFNvIEkgc2F5IHdlIGdvIGZvciBpdC4gIFRoaXMgc2hvdWxkIGJlIHF1aXRlIHNp
-bXBsZSB0byBpbXBsZW1lbnQgLS0NCj4gdGhlIHBhZ2VhdHRyIGNvZGUgYWxyZWFkeSBoYXMgYWxt
-b3N0IGFsbCB0aGUgbmVlZGVkIGxvZ2ljIG9uIHg4Ni4gIFRoZQ0KPiBvbmx5IGFyY2ggc3VwcG9y
-dCB3ZSBzaG91bGQgbmVlZCBpcyBhIHBhaXIgb2YgZnVuY3Rpb25zIHRvIHJlbW92ZSBhDQo+IHZt
-YWxsb2MgYWRkcmVzcyByYW5nZSBmcm9tIHRoZSBhZGRyZXNzIG1hcCAoaWYgaXQgd2FzIHByZXNl
-bnQgaW4gdGhlDQo+IGZpcnN0IHBsYWNlKSBhbmQgYSBmdW5jdGlvbiB0byBwdXQgaXQgYmFjay4g
-IE9uIHg4NiwgdGhpcyBzaG91bGQgb25seQ0KPiBiZSBhIGZldyBsaW5lcyBvZiBjb2RlLg0KPiAN
-Cj4gV2hhdCBkbyB5b3UgYWxsIHRoaW5rPyAgVGhpcyBzaG91bGQgc29sdmUgbW9zdCBvZiB0aGUg
-cHJvYmxlbXMgd2UgaGF2ZS4NCj4gDQo+IElmIHdlIHJlYWxseSB3YW50ZWQgdG8gb3B0aW1pemUg
-dGhpcywgd2UnZCBtYWtlIGl0IHNvIHRoYXQNCj4gbW9kdWxlX2FsbG9jKCkgYWxsb2NhdGVzIG1l
-bW9yeSB0aGUgbm9ybWFsIHdheSwgdGhlbiwgbGF0ZXIgb24sIHdlDQo+IGNhbGwgc29tZSBmdW5j
-dGlvbiB0aGF0LCBhbGwgYXQgb25jZSwgcmVtb3ZlcyB0aGUgbWVtb3J5IGZyb20gdGhlDQo+IGRp
-cmVjdCBtYXAgYW5kIGFwcGxpZXMgdGhlIHJpZ2h0IHBlcm1pc3Npb25zIHRvIHRoZSB2bWFsbG9j
-IGFsaWFzIChvcg0KPiBqdXN0IG1ha2VzIHRoZSB2bWFsbG9jIGFsaWFzIG5vdC1wcmVzZW50IHNv
-IHdlIGNhbiBhZGQgcGVybWlzc2lvbnMNCj4gbGF0ZXIgd2l0aG91dCBmbHVzaGluZyksIGFuZCBm
-bHVzaGVzIHRoZSBUTEIuICBBbmQgd2UgYXJyYW5nZSBmb3INCj4gdnVubWFwIHRvIHphcCB0aGUg
-dm1hbGxvYyByYW5nZSwgdGhlbiBwdXQgdGhlIG1lbW9yeSBiYWNrIGludG8gdGhlDQo+IGRpcmVj
-dCBtYXAsIHRoZW4gZnJlZSB0aGUgcGFnZXMgYmFjayB0byB0aGUgcGFnZSBhbGxvY2F0b3IsIHdp
-dGggdGhlDQo+IGZsdXNoIGluIHRoZSBhcHByb3ByaWF0ZSBwbGFjZS4NCj4gDQo+IEkgZG9uJ3Qg
-c2VlIHdoeSB0aGUgcGFnZSBhbGxvY2F0b3IgbmVlZHMgdG8ga25vdyBhYm91dCBhbnkgb2YgdGhp
-cy4NCj4gSXQncyBhbHJlYWR5IG9rYXkgd2l0aCB0aGUgcGVybWlzc2lvbnMgYmVpbmcgY2hhbmdl
-ZCBvdXQgZnJvbSB1bmRlciBpdA0KPiBvbiB4ODYsIGFuZCBpdCBzZWVtcyBmaW5lLiAgUmljaywg
-ZG8geW91IHdhbnQgdG8gZ2l2ZSBzb21lIHZhcmlhbnQgb2YNCj4gdGhpcyBhIHRyeT8NCkhpLA0K
-DQpTb3JyeSwgSSd2ZSBiZWVuIGhhdmluZyBlbWFpbCB0cm91YmxlcyB0b2RheS4NCg0KSSBmb3Vu
-ZCBzb21lIGNhc2VzIHdoZXJlIHZtYXAgd2l0aCBQQUdFX0tFUk5FTF9STyBoYXBwZW5zLCB3aGlj
-aCB3b3VsZCBub3Qgc2V0DQpOUC9STyBpbiB0aGUgZGlyZWN0bWFwLCBzbyBpdCB3b3VsZCBiZSBz
-b3J0IG9mIGluY29uc2lzdGVudCB3aGV0aGVyIHRoZQ0KZGlyZWN0bWFwIG9mIHZtYWxsb2MgcmFu
-Z2UgYWxsb2NhdGlvbnMgd2VyZSByZWFkYWJsZSBvciBub3QuIEkgY291bGRuJ3Qgc2VlIGFueQ0K
-cGxhY2VzIHdoZXJlIGl0IHdvdWxkIGNhdXNlIHByb2JsZW1zIHRvZGF5IHRob3VnaC4NCg0KSSB3
-YXMgcmVhZHkgdG8gYXNzdW1lIHRoYXQgYWxsIFRMQnMgZG9uJ3QgY2FjaGUgTlAsIGJlY2F1c2Ug
-SSBkb24ndCBrbm93IGhvdw0KdXNhZ2VzIHdoZXJlIGEgcGFnZSBmYXVsdCBpcyB1c2VkIHRvIGxv
-YWQgc29tZXRoaW5nIGNvdWxkIHdvcmsgd2l0aG91dCBsb3RzIG9mDQpmbHVzaGVzLiBJZiB0aGF0
-J3MgdGhlIGNhc2UsIHRoZW4gYWxsIGFyY2hzIHdpdGggZGlyZWN0bWFwIHBlcm1pc3Npb25zIGNv
-dWxkDQpzaGFyZSBhIHNpbmdsZSB2bWFsbG9jIHNwZWNpYWwgcGVybWlzc2lvbiBmbHVzaCBpbXBs
-ZW1lbnRhdGlvbiB0aGF0IHdvcmtzIGxpa2UNCkFuZHkgZGVzY3JpYmVkIG9yaWdpbmFsbHkuIEl0
-IGNvdWxkIGJlIGNvbnRyb2xsZWQgd2l0aCBhbg0KQVJDSF9IQVNfRElSRUNUX01BUF9QRVJNUy4g
-V2Ugd291bGQganVzdCBuZWVkIHNvbWV0aGluZyBsaWtlIHNldF9wYWdlc19ucCBhbmQNCnNldF9w
-YWdlc19ydyBvbiBhbnkgYXJjaHMgd2l0aCBkaXJlY3RtYXAgcGVybWlzc2lvbnMuIFNvIHNlZW1z
-IHNpbXBsZXIgdG8gbWUNCihhbmQgd2hhdCBJIGhhdmUgYmVlbiBkb2luZykgdW5sZXNzIEknbSBt
-aXNzaW5nIHRoZSBwcm9ibGVtLg0KDQpJZiB5b3UgYWxsIHRoaW5rIHNvIEkgY2FuIGluZGVlZCB0
-YWtlIGEgc2hvdCBhdCBpdCwgSSBqdXN0IGRvbid0IHNlZSB3aGF0IHRoZQ0KcHJvYmxlbSB3YXMg
-d2l0aCB0aGUgb3JpZ2luYWwgc29sdXRpb24sIHRoYXQgc2VlbXMgbGVzcyBsaWtlbHkgdG8gYnJl
-YWsNCmFueXRoaW5nLg0KDQpUaGFua3MsDQoNClJpY2sNCg==
+On Thu, Dec 6, 2018 at 11:39 AM Nadav Amit <nadav.amit@gmail.com> wrote:
+>
+> > On Dec 6, 2018, at 11:19 AM, Andy Lutomirski <luto@kernel.org> wrote:
+> >
+> > On Thu, Dec 6, 2018 at 11:01 AM Tycho Andersen <tycho@tycho.ws> wrote:
+> >> On Thu, Dec 06, 2018 at 10:53:50AM -0800, Andy Lutomirski wrote:
+> >>>> If we are going to unmap the linear alias, why not do it at vmalloc(=
+)
+> >>>> time rather than vfree() time?
+> >>>
+> >>> That=E2=80=99s not totally nuts. Do we ever have code that expects __=
+va() to
+> >>> work on module data?  Perhaps crypto code trying to encrypt static
+> >>> data because our APIs don=E2=80=99t understand virtual addresses.  I =
+guess if
+> >>> highmem is ever used for modules, then we should be fine.
+> >>>
+> >>> RO instead of not present might be safer.  But I do like the idea of
+> >>> renaming Rick's flag to something like VM_XPFO or VM_NO_DIRECT_MAP an=
+d
+> >>> making it do all of this.
+> >>
+> >> Yeah, doing it for everything automatically seemed like it was/is
+> >> going to be a lot of work to debug all the corner cases where things
+> >> expect memory to be mapped but don't explicitly say it. And in
+> >> particular, the XPFO series only does it for user memory, whereas an
+> >> additional flag like this would work for extra paranoid allocations
+> >> of kernel memory too.
+> >
+> > I just read the code, and I looks like vmalloc() is already using
+> > highmem (__GFP_HIGH) if available, so, on big x86_32 systems, for
+> > example, we already don't have modules in the direct map.
+> >
+> > So I say we go for it.  This should be quite simple to implement --
+> > the pageattr code already has almost all the needed logic on x86.  The
+> > only arch support we should need is a pair of functions to remove a
+> > vmalloc address range from the address map (if it was present in the
+> > first place) and a function to put it back.  On x86, this should only
+> > be a few lines of code.
+> >
+> > What do you all think?  This should solve most of the problems we have.
+> >
+> > If we really wanted to optimize this, we'd make it so that
+> > module_alloc() allocates memory the normal way, then, later on, we
+> > call some function that, all at once, removes the memory from the
+> > direct map and applies the right permissions to the vmalloc alias (or
+> > just makes the vmalloc alias not-present so we can add permissions
+> > later without flushing), and flushes the TLB.  And we arrange for
+> > vunmap to zap the vmalloc range, then put the memory back into the
+> > direct map, then free the pages back to the page allocator, with the
+> > flush in the appropriate place.
+> >
+> > I don't see why the page allocator needs to know about any of this.
+> > It's already okay with the permissions being changed out from under it
+> > on x86, and it seems fine.  Rick, do you want to give some variant of
+> > this a try?
+>
+> Setting it as read-only may work (and already happens for the read-only
+> module data). I am not sure about setting it as non-present.
+>
+> At some point, a discussion about a threat-model, as Rick indicated, woul=
+d
+> be required. I presume ROP attacks can easily call set_all_modules_text_r=
+w()
+> and override all the protections.
+>
+
+I am far from an expert on exploit techniques, but here's a
+potentially useful model: let's assume there's an attacker who can
+write controlled data to a controlled kernel address but cannot
+directly modify control flow.  It would be nice for such an attacker
+to have a very difficult time of modifying kernel text or of
+compromising control flow.  So we're assuming a feature like kernel
+CET or that the attacker finds it very difficult to do something like
+modifying some thread's IRET frame.
+
+Admittedly, for the kernel, this is an odd threat model, since an
+attacker can presumably quite easily learn the kernel stack address of
+one of their tasks, do some syscall, and then modify their kernel
+thread's stack such that it will IRET right back to a fully controlled
+register state with RSP pointing at an attacker-supplied kernel stack.
+So this threat model gives very strong ROP powers. unless we have
+either CET or some software technique to harden all the RET
+instructions in the kernel.
+
+I wonder if there's a better model to use.  Maybe with stack-protector
+we get some degree of protection?  Or is all of this is rather weak
+until we have CET or a RAP-like feature.
