@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 191228E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:53:41 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id s14so14277035pfk.16
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 22:53:41 -0800 (PST)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id 66si12427233plc.125.2018.12.17.22.53.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Dec 2018 22:53:39 -0800 (PST)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC PATCH 1/2] mm: swap: check if swap backing device is congested or not
-Date: Tue, 18 Dec 2018 14:52:27 +0800
-Message-Id: <1545115948-25467-1-git-send-email-yang.shi@linux.alibaba.com>
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 92E2C6B7B4F
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:21:17 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id r82so599845oie.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:21:17 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 1si472529otg.123.2018.12.06.10.21.16
+        for <linux-mm@kvack.org>;
+        Thu, 06 Dec 2018 10:21:16 -0800 (PST)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [RESEND PATCH v4 3/5] x86/pgtable: Drop pXd_none() checks from pXd_free_pYd_table()
+Date: Thu,  6 Dec 2018 18:21:33 +0000
+Message-Id: <1544120495-17438-4-git-send-email-will.deacon@arm.com>
+In-Reply-To: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
+References: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ying.huang@intel.com, tim.c.chen@intel.com, minchan@kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-Swap readahead would read in a few pages regardless if the underlying
-device is busy or not.  It may incur long waiting time if the device is
-congested, and it may also exacerbate the congestion.
+The core code already has a check for pXd_none(), so remove it from the
+architecture implementation.
 
-Use inode_read_congested() to check if the underlying device is busy or
-not like what file page readahead does.  Get inode from swap_info_struct.
-Although we can add inode information in swap_address_space
-(address_space->host), it may lead some unexpected side effect, i.e.
-it may break mapping_cap_account_dirty().  Using inode from
-swap_info_struct seems simple and good enough.
-
-Just does the check in vma_cluster_readahead() since
-swap_vma_readahead() is just used for non-rotational device which
-much less likely has congestion than traditional HDD.
-
-Although swap slots may be consecutive on swap partition, it still may be
-fragmented on swap file. This check would help to reduce excessive stall
-for such case.
-
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
 ---
- mm/swap_state.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/x86/mm/pgtable.c | 6 ------
+ 1 file changed, 6 deletions(-)
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index fd2f21e..7cc3c29 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -538,11 +538,15 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 	bool do_poll = true, page_allocated;
- 	struct vm_area_struct *vma = vmf->vma;
- 	unsigned long addr = vmf->address;
-+	struct inode *inode = si->swap_file->f_mapping->host;
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 59274e2c1ac4..e95a7d6ac8f8 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -811,9 +811,6 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ 	pte_t *pte;
+ 	int i;
  
- 	mask = swapin_nr_pages(offset) - 1;
- 	if (!mask)
- 		goto skip;
+-	if (pud_none(*pud))
+-		return 1;
+-
+ 	pmd = (pmd_t *)pud_page_vaddr(*pud);
+ 	pmd_sv = (pmd_t *)__get_free_page(GFP_KERNEL);
+ 	if (!pmd_sv)
+@@ -855,9 +852,6 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+ {
+ 	pte_t *pte;
  
-+	if (inode_read_congested(inode))
-+		goto skip;
-+
- 	do_poll = false;
- 	/* Read a page_cluster sized and aligned cluster around offset. */
- 	start_offset = offset & ~mask;
+-	if (pmd_none(*pmd))
+-		return 1;
+-
+ 	pte = (pte_t *)pmd_page_vaddr(*pmd);
+ 	pmd_clear(pmd);
+ 
 -- 
-1.8.3.1
+2.1.4
