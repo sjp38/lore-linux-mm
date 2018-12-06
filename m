@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0282A8E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 17:36:50 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id u20so18846572pfa.1
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 14:36:49 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t11si32019939plo.293.2018.12.26.14.36.48
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B56AB6B771A
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 19:26:33 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id h10so16036353plk.12
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 16:26:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id az5sor29170747plb.11.2018.12.05.16.26.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 14:36:48 -0800 (PST)
-From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 31/97] x86/dump_pagetables: Fix LDT remap address marker
-Date: Wed, 26 Dec 2018 17:34:51 -0500
-Message-Id: <20181226223557.149329-31-sashal@kernel.org>
-In-Reply-To: <20181226223557.149329-1-sashal@kernel.org>
-References: <20181226223557.149329-1-sashal@kernel.org>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Wed, 05 Dec 2018 16:26:32 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH v2 1/2] admin-guide/memory-hotplug.rst: remove locking internal part from admin-guide
+Date: Thu,  6 Dec 2018 08:26:21 +0800
+Message-Id: <20181206002622.30675-1-richard.weiyang@gmail.com>
+In-Reply-To: <20181205023426.24029-1-richard.weiyang@gmail.com>
+References: <20181205023426.24029-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, hans.van.kranenburg@mendix.com, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Sasha Levin <sashal@kernel.org>
+To: rppt@linux.ibm.com, david@redhat.com, mhocko@suse.com, osalvador@suse.de
+Cc: akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Locking Internal section exists in core-api documentation, which is more
+suitable for this.
 
-[ Upstream commit 254eb5505ca0ca749d3a491fc6668b6c16647a99 ]
+This patch removes the duplication part here.
 
-The LDT remap placement has been changed. It's now placed before the direct
-mapping in the kernel virtual address space for both paging modes.
-
-Change address markers order accordingly.
-
-Fixes: d52888aa2753 ("x86/mm: Move LDT remap out of KASLR region on 5-level paging")
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: bp@alien8.de
-Cc: hpa@zytor.com
-Cc: dave.hansen@linux.intel.com
-Cc: luto@kernel.org
-Cc: peterz@infradead.org
-Cc: boris.ostrovsky@oracle.com
-Cc: jgross@suse.com
-Cc: bhe@redhat.com
-Cc: hans.van.kranenburg@mendix.com
-Cc: linux-mm@kvack.org
-Cc: xen-devel@lists.xenproject.org
-Link: https://lkml.kernel.org/r/20181130202328.65359-3-kirill.shutemov@linux.intel.com
-Signed-off-by: Sasha Levin <sashal@kernel.org>
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Acked-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- arch/x86/mm/dump_pagetables.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ Documentation/admin-guide/mm/memory-hotplug.rst | 40 -------------------------
+ 1 file changed, 40 deletions(-)
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 073755c89126..c05a818224bb 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -53,10 +53,10 @@ struct addr_marker {
- enum address_markers_idx {
- 	USER_SPACE_NR = 0,
- 	KERNEL_SPACE_NR,
--	LOW_KERNEL_NR,
--#if defined(CONFIG_MODIFY_LDT_SYSCALL) && defined(CONFIG_X86_5LEVEL)
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
- 	LDT_NR,
- #endif
-+	LOW_KERNEL_NR,
- 	VMALLOC_START_NR,
- 	VMEMMAP_START_NR,
- #ifdef CONFIG_KASAN
-@@ -64,9 +64,6 @@ enum address_markers_idx {
- 	KASAN_SHADOW_END_NR,
- #endif
- 	CPU_ENTRY_AREA_NR,
--#if defined(CONFIG_MODIFY_LDT_SYSCALL) && !defined(CONFIG_X86_5LEVEL)
--	LDT_NR,
--#endif
- #ifdef CONFIG_X86_ESPFIX64
- 	ESPFIX_START_NR,
- #endif
+diff --git a/Documentation/admin-guide/mm/memory-hotplug.rst b/Documentation/admin-guide/mm/memory-hotplug.rst
+index 5c4432c96c4b..241f4ce1e387 100644
+--- a/Documentation/admin-guide/mm/memory-hotplug.rst
++++ b/Documentation/admin-guide/mm/memory-hotplug.rst
+@@ -392,46 +392,6 @@ Need more implementation yet....
+  - Notification completion of remove works by OS to firmware.
+  - Guard from remove if not yet.
+ 
+-
+-Locking Internals
+-=================
+-
+-When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
+-the device_hotplug_lock should be held to:
+-
+-- synchronize against online/offline requests (e.g. via sysfs). This way, memory
+-  block devices can only be accessed (.online/.state attributes) by user
+-  space once memory has been fully added. And when removing memory, we
+-  know nobody is in critical sections.
+-- synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
+-
+-Especially, there is a possible lock inversion that is avoided using
+-device_hotplug_lock when adding memory and user space tries to online that
+-memory faster than expected:
+-
+-- device_online() will first take the device_lock(), followed by
+-  mem_hotplug_lock
+-- add_memory_resource() will first take the mem_hotplug_lock, followed by
+-  the device_lock() (while creating the devices, during bus_add_device()).
+-
+-As the device is visible to user space before taking the device_lock(), this
+-can result in a lock inversion.
+-
+-onlining/offlining of memory should be done via device_online()/
+-device_offline() - to make sure it is properly synchronized to actions
+-via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
+-
+-When adding/removing/onlining/offlining memory or adding/removing
+-heterogeneous/device memory, we should always hold the mem_hotplug_lock in
+-write mode to serialise memory hotplug (e.g. access to global/zone
+-variables).
+-
+-In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
+-mode allows for a quite efficient get_online_mems/put_online_mems
+-implementation, so code accessing memory can protect from that memory
+-vanishing.
+-
+-
+ Future Work
+ ===========
+ 
 -- 
-2.19.1
+2.15.1
