@@ -1,96 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5096B7A43
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 08:19:36 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id w2so364868edc.13
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 05:19:36 -0800 (PST)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id d1si281663edb.435.2018.12.06.05.19.34
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D9EB6B7B63
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:39:25 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id 89so813871ple.19
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:39:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h191sor1940358pge.48.2018.12.06.10.39.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 05:19:34 -0800 (PST)
-From: Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH] mm, kmemleak: Little optimization while scanning
-Date: Thu,  6 Dec 2018 14:19:18 +0100
-Message-Id: <20181206131918.25099-1-osalvador@suse.de>
+        (Google Transport Security);
+        Thu, 06 Dec 2018 10:39:24 -0800 (PST)
+Date: Fri, 7 Dec 2018 00:13:11 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v3 5/9] drm/xen/xen_drm_front_gem.c: Convert to use
+ vm_insert_range
+Message-ID: <20181206184311.GA29651@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, oleksandr_andrushchenko@epam.com, airlied@linux.ie
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
 
-kmemleak_scan() goes through all online nodes and tries
-to scan all used pages.
-We can do better and use pfn_to_online_page(), so in case we have
-CONFIG_MEMORY_HOTPLUG, offlined pages will be skiped automatically.
-For boxes where CONFIG_MEMORY_HOTPLUG is not present, pfn_to_online_page()
-will fallback to pfn_valid().
+Convert to use vm_insert_range() to map range of kernel
+memory to user vma.
 
-Another little optimization is to check if the page belongs to the node
-we are currently checking, so in case we have nodes interleaved we will
-not check the same pfn multiple times.
-
-I ran some tests:
-
-Add some memory to node1 and node2 making it interleaved:
-
-(qemu) object_add memory-backend-ram,id=ram0,size=1G
-(qemu) device_add pc-dimm,id=dimm0,memdev=ram0,node=1
-(qemu) object_add memory-backend-ram,id=ram1,size=1G
-(qemu) device_add pc-dimm,id=dimm1,memdev=ram1,node=2
-(qemu) object_add memory-backend-ram,id=ram2,size=1G
-(qemu) device_add pc-dimm,id=dimm2,memdev=ram2,node=1
-
-Then, we offline that memory:
- # for i in {32..39} ; do echo "offline" > /sys/devices/system/node/node1/memory$i/state;done
- # for i in {48..55} ; do echo "offline" > /sys/devices/system/node/node1/memory$i/state;don
- # for i in {40..47} ; do echo "offline" > /sys/devices/system/node/node2/memory$i/state;done
-
-And we run kmemleak_scan:
-
- # echo "scan" > /sys/kernel/debug/kmemleak
-
-before the patch:
-
-kmemleak: time spend: 41596 us
-
-after the patch:
-
-kmemleak: time spend: 34899 us
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
+Reviewed-by: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
 ---
- mm/kmemleak.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ drivers/gpu/drm/xen/xen_drm_front_gem.c | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 877de4fa0720..5ce1e6a46d77 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -113,6 +113,7 @@
- #include <linux/kmemleak.h>
- #include <linux/memory_hotplug.h>
+diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+index 47ff019..c21e5d1 100644
+--- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
++++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+@@ -225,8 +225,7 @@ struct drm_gem_object *
+ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+ 			struct vm_area_struct *vma)
+ {
+-	unsigned long addr = vma->vm_start;
+-	int i;
++	int ret;
  
-+
- /*
-  * Kmemleak configuration and common defines.
-  */
-@@ -1547,11 +1548,14 @@ static void kmemleak_scan(void)
- 		unsigned long pfn;
+ 	/*
+ 	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
+@@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+ 	 * FIXME: as we insert all the pages now then no .fault handler must
+ 	 * be called, so don't provide one
+ 	 */
+-	for (i = 0; i < xen_obj->num_pages; i++) {
+-		int ret;
+-
+-		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
+-		if (ret < 0) {
+-			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
+-			return ret;
+-		}
+-
+-		addr += PAGE_SIZE;
+-	}
+-	return 0;
++	ret = vm_insert_range(vma, vma->vm_start, xen_obj->pages,
++				xen_obj->num_pages);
++	if (ret < 0)
++		DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
++	return ret;
+ }
  
- 		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
--			struct page *page;
-+			struct page *page = pfn_to_online_page(pfn);
-+
-+			if (!page)
-+				continue;
- 
--			if (!pfn_valid(pfn))
-+			/* only scan pages belonging to this node */
-+			if (page_to_nid(page) != i)
- 				continue;
--			page = pfn_to_page(pfn);
- 			/* only scan if page is in use */
- 			if (page_count(page) == 0)
- 				continue;
+ int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 -- 
-2.13.7
+1.9.1
