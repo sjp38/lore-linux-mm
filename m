@@ -1,67 +1,42 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 18 Dec 2018 01:52:09 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v4 2/9] arch/arm/mm/dma-mapping.c: Convert to use
- vm_insert_range
-Message-ID: <20181217202209.GA8859@jordon-HP-15-Notebook-PC>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B7106B7B12
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 12:20:09 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id g188so613600pgc.22
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 09:20:09 -0800 (PST)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id o9si743634pfe.63.2018.12.06.09.20.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Dec 2018 09:20:08 -0800 (PST)
+Date: Thu, 6 Dec 2018 10:20:01 -0700
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH] docs/core-api: make mm-api.rst more structured
+Message-ID: <20181206102001.7f6d0a00@lwn.net>
+In-Reply-To: <1543416344-25543-1-git-send-email-rppt@linux.ibm.com>
+References: <1543416344-25543-1-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+On Wed, 28 Nov 2018 16:45:44 +0200
+Mike Rapoport <rppt@linux.ibm.com> wrote:
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- arch/arm/mm/dma-mapping.c | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+> The mm-api.rst covers variety of memory management APIs under "More Memory
+> Management Functions" section. The descriptions included there are in a
+> random order there are quite a few of them which makes the section too
+> long.
+> 
+> Regrouping the documentation by subject and splitting the long "More Memory
+> Management Functions" section into several smaller sections makes the
+> generated html more usable.
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 661fe48..7cbcde5 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1582,31 +1582,24 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
- 		    void *cpu_addr, dma_addr_t dma_addr, size_t size,
- 		    unsigned long attrs)
- {
--	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
-+	unsigned long page_count = vma_pages(vma);
- 	struct page **pages = __iommu_get_pages(cpu_addr, attrs);
- 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
- 	unsigned long off = vma->vm_pgoff;
-+	int err;
- 
- 	if (!pages)
- 		return -ENXIO;
- 
--	if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
-+	if (off >= nr_pages)
- 		return -ENXIO;
- 
- 	pages += off;
-+	err = vm_insert_range(vma, vma->vm_start, pages, page_count);
-+	if (err)
-+		pr_err("Remapping memory failed: %d\n", err);
- 
--	do {
--		int ret = vm_insert_page(vma, uaddr, *pages++);
--		if (ret) {
--			pr_err("Remapping memory failed: %d\n", ret);
--			return ret;
--		}
--		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
--
--	return 0;
-+	return err;
- }
- static int arm_iommu_mmap_attrs(struct device *dev,
- 		struct vm_area_struct *vma, void *cpu_addr,
--- 
-1.9.1
+Applied, thanks.
+
+jon
