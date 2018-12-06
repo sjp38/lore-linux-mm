@@ -1,18 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F5056B7C06
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 15:27:37 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id g22so1472848qke.15
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 12:27:37 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m65si893550qke.232.2018.12.06.12.27.36
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE4336B7BF0
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 15:12:15 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id p4so1403854iod.17
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 12:12:15 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id n63si691936jab.15.2018.12.06.12.12.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 12:27:36 -0800 (PST)
-Date: Thu, 6 Dec 2018 15:27:06 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 00/14] Heterogeneous Memory System (HMS) and hbind()
-Message-ID: <20181206202706.GD3544@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Dec 2018 12:12:14 -0800 (PST)
 References: <20181203233509.20671-1-jglisse@redhat.com>
  <6e2a1dba-80a8-42bf-127c-2f5c2441c248@intel.com>
  <20181205001544.GR2937@redhat.com>
@@ -23,157 +19,55 @@ References: <20181203233509.20671-1-jglisse@redhat.com>
  <b8fab9a7-62ed-5d8d-3cb1-aea6aacf77fe@intel.com>
  <20181206192050.GC3544@redhat.com>
  <d6508932-377c-a4d1-d4d8-01d0f55b9190@intel.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <c583be1b-17db-1ed3-0f5a-bd119edc8bfe@deltatee.com>
+Date: Thu, 6 Dec 2018 13:11:28 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
 In-Reply-To: <d6508932-377c-a4d1-d4d8-01d0f55b9190@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
+Subject: Re: [RFC PATCH 00/14] Heterogeneous Memory System (HMS) and hbind()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Rafael J . Wysocki" <rafael@kernel.org>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Keith Busch <keith.busch@intel.com>, Dan Williams <dan.j.williams@intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Logan Gunthorpe <logang@deltatee.com>, John Hubbard <jhubbard@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Michal Hocko <mhocko@kernel.org>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>, Mel Gorman <mgorman@techsingularity.net>, Dave Airlie <airlied@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@surriel.com>, Ben Woodard <woodard@redhat.com>, linux-acpi@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Rafael J . Wysocki" <rafael@kernel.org>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Keith Busch <keith.busch@intel.com>, Dan Williams <dan.j.williams@intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, John Hubbard <jhubbard@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Michal Hocko <mhocko@kernel.org>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>, Mel Gorman <mgorman@techsingularity.net>, Dave Airlie <airlied@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@surriel.com>, Ben Woodard <woodard@redhat.com>, linux-acpi@vger.kernel.org
 
-On Thu, Dec 06, 2018 at 11:31:21AM -0800, Dave Hansen wrote:
+
+
+On 2018-12-06 12:31 p.m., Dave Hansen wrote:
 > On 12/6/18 11:20 AM, Jerome Glisse wrote:
-> >>> For case 1 you can pre-parse stuff but this can be done by helper library
-> >> How would that work?  Would each user/container/whatever do this once?
-> >> Where would they keep the pre-parsed stuff?  How do they manage their
-> >> cache if the topology changes?
-> > Short answer i don't expect a cache, i expect that each program will have
-> > a init function that query the topology and update the application codes
-> > accordingly.
+>>>> For case 1 you can pre-parse stuff but this can be done by helper library
+>>> How would that work?  Would each user/container/whatever do this once?
+>>> Where would they keep the pre-parsed stuff?  How do they manage their
+>>> cache if the topology changes?
+>> Short answer i don't expect a cache, i expect that each program will have
+>> a init function that query the topology and update the application codes
+>> accordingly.
 > 
 > My concern with having folks do per-program parsing, *and* having a huge
 > amount of data to parse makes it unusable.  The largest systems will
 > literally have hundreds of thousands of objects in /sysfs, even in a
 > single directory.  That makes readdir() basically impossible, and makes
 > even open() (if you already know the path you want somehow) hard to do fast.
-> 
-> I just don't think sysfs (or any filesystem, really) can scale to
-> express large, complicated topologies in a way that any normal program
-> can practically parse it.
-> 
-> My suspicion is that we're going to need to have the kernel parse and
-> cache these things.  We *might* have the data available in sysfs, but we
-> can't reasonably expect anyone to go parsing it.
 
-What i am failing to explain is that kernel can not parse because kernel
-does not know what the application cares about and every single applications
-will make different choices and thus select differents devices and memory.
+Is this actually realistic? I find it hard to imagine an actual hardware
+bus that can have even thousands of devices under a single node, let
+alone hundreds of thousands. At some point the laws of physics apply.
+For example, in present hardware, the most ports a single PCI switch can
+have these days is under one hundred. I'd imagine any such large systems
+would have a hierarchy of devices (ie. layers of switch-like devices)
+which implies the existing sysfs bus/devices  should have a path through
+it without navigating a directory with that unreasonable a number of
+objects in it. HMS, on the other hand, has all possible initiators
+(,etc) under a single directory.
 
-It is not even gonna a thing like class A of application will do X and
-class B will do Y. Every single application in class A might do something
-different because somes care about the little details.
+The caveat to this is, that to find an initial starting point in the bus
+hierarchy you might have to go through /sys/dev/{block|char} or
+/sys/class which may have directories with a large number of objects.
+Though, such a system would necessarily have a similarly large number of
+objects in /dev which means means you will probably never get around the
+readdir/open bottleneck you mention... and, thus, this doesn't seem
+overly realistic to me.
 
-So any kind of pre-parsing in the kernel is defeated by the fact that the
-kernel does not know what the application is looking for.
-
-I do not see anyway to express the application logic in something that
-can be some kind of automaton or regular expression. The application can
-litteraly intro-inspect itself and the topology to partition its workload.
-The topology and device selection is expected to be thousands of line of
-code in the most advance application.
-
-Even worse inside one same application, they might be different device
-partition and memory selection for different function in the application.
-
-
-I am not scare about the anount of data to parse really, even on big node
-it is gonna be few dozens of links and bridges, and few dozens of devices.
-So we are talking hundred directories to parse and read.
-
-
-Maybe an example will help. Let say we have an application with the
-following pipeline:
-
-    inA -> functionA -> outA -> functionB -> outB -> functionC -> result
-
-    - inA 8 gigabytes
-    - outA 8 gigabytes
-    - outB one dword
-    - result something small
-    - functionA is doing heavy computation on inA (several thousands of
-      instructions for each dword in inA).
-    - functionB is doing heavy computation for each dword in outA (again
-      thousand of instruction for each dword) and it is looking for a
-      specific result that it knows will be unique among all the dword
-      computation ie it is output only one dword in outB
-    - functionC is something well suited for CPU that take outB and turns
-      it into the final result
-
-Now let see few different system and their topologies:
-    [T2] 1 GPU with 16GB of memory and a handfull of CPU cores
-    [T1] 1 GPU with 8GB of memory and a handfull of CPU cores
-    [T3] 2 GPU with 8GB of memory and a handfull of CPU core
-    [T4] 2 GPU with 8GB of memory and a handfull of CPU core
-         the 2 GPU have a very fast link between each others
-         (400GBytes/s)
-
-Now let see how the program will partition itself for each topology:
-    [T1] Application partition its computation in 3 phases:
-            P1: - migrate inA to GPU memory
-            P2: - execute functionA on inA producing outA
-            P3  - execute functionB on outA producing outB
-                - run functionC and see if functionB have found the
-                  thing and written it to outB if so then kill all
-                  GPU threads and return the result we are done
-
-    [T2] Application partition its computation in 5 phases:
-            P1: - migrate first 4GB of inA to GPU memory
-            P2: - execute functionA for the 4GB and write the 4GB
-                  outA result to the GPU memory
-            P3: - execute functionB for the first 4GB of outA
-                - while functionB is running DMA in the background
-                  the the second 4GB of inA to the GPU memory
-                - once one of the millions of thread running functionB
-                  find the result it is looking for it writes it to
-                  outB which is in main memory
-                - run functionC and see if functionB have found the
-                  thing and written it to outB if so then kill all
-                  GPU thread and DMA and return the result we are
-                  done
-            P4: - run functionA on the second half of inA ie we did
-                  not find the result in the first half so we no
-                  process the second half that have been migrated to
-                  the GPU memory in the background (see above)
-            P5: - run functionB on the second 4GB of outA like
-                  above
-                - run functionC on CPU and kill everything as soon
-                  as one of the thread running functionB has found
-                  the result
-                - return the result
-
-    [T3] Application partition its computation in 3 phases:
-            P1: - migrate first 4GB of inA to GPU1 memory
-                - migrate last 4GB of inA to GPU2 memory
-            P2: - execute functionA on GPU1 on the first 4GB -> outA
-                - execute functionA on GPU2 on the last 4GB -> outA
-            P3: - execute functionB on GPU1 on the first 4GB of outA
-                - execute functionB on GPU2 on the last 4GB of outA
-                - run functionC and see if functionB running on GPU1
-                  and GPU2 have found the thing and written it to outB
-                  if so then kill all GPU threads and return the result
-                  we are done
-
-    [T4] Application partition its computation in 2 phases:
-            P1: - migrate 8GB of inA to GPU1 memory
-                - allocate 8GB for outA in GPU2 memory
-            P2: - execute functionA on GPU1 on the inA 8GB and write
-                  out result to GPU2 through the fast link
-                - execute functionB on GPU2 and look over each
-                  thread on functionB on outA (busy running even
-                  if outA is not valid for each thread running
-                  functionB)
-                - run functionC and see if functionB running on GPU2
-                  have found the thing and written it to outB if so
-                  then kill all GPU threads and return the result
-                  we are done
-
-
-So this is widely different partition that all depends on the topology
-and how accelerator are inter-connected and how much memory they have.
-This is a relatively simple example, they are people out there spending
-month on designing adaptive partitioning algorithm for their application.
-
-Cheers,
-J�r�me
+Logan
