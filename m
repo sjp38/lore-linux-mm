@@ -1,68 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F50F8E000A
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id q64so17734192pfa.18
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-Message-Id: <20181226133351.287359389@intel.com>
-Date: Wed, 26 Dec 2018 21:14:50 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [RFC][PATCH v2 04/21] x86/numa_emulation: pass numa node type to fake nodes
-References: <20181226131446.330864849@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=0021-x86-numa-Fix-fake-numa-in-uniform-case.patch
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 45BBB6B7B4F
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:21:17 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id b18so612393oii.1
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:21:17 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w5si392143otj.24.2018.12.06.10.21.15
+        for <linux-mm@kvack.org>;
+        Thu, 06 Dec 2018 10:21:16 -0800 (PST)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [RESEND PATCH v4 0/5] Clean up huge vmap and ioremap code
+Date: Thu,  6 Dec 2018 18:21:30 +0000
+Message-Id: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Fan Du <fan.du@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Fengguang Wu <fengguang.wu@intel.com>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-From: Fan Du <fan.du@intel.com>
+Hi all,
 
-Signed-off-by: Fan Du <fan.du@intel.com>
----
- arch/x86/mm/numa_emulation.c |   14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+This is a resend of version four of the patches I previously posted here:
 
---- linux.orig/arch/x86/mm/numa_emulation.c	2018-12-23 19:21:11.002206144 +0800
-+++ linux/arch/x86/mm/numa_emulation.c	2018-12-23 19:21:10.998206236 +0800
-@@ -12,6 +12,8 @@
- 
- static int emu_nid_to_phys[MAX_NUMNODES];
- static char *emu_cmdline __initdata;
-+static nodemask_t emu_numa_nodes_pmem;
-+static nodemask_t emu_numa_nodes_dram;
- 
- void __init numa_emu_cmdline(char *str)
- {
-@@ -311,6 +313,12 @@ static int __init split_nodes_size_inter
- 					       min(end, limit) - start);
- 			if (ret < 0)
- 				return ret;
-+
-+			/* Update numa node type for fake numa node */
-+			if (node_isset(i, emu_numa_nodes_pmem))
-+				node_set(nid - 1, numa_nodes_pmem);
-+			else
-+				node_set(nid - 1, numa_nodes_dram);
- 		}
- 	}
- 	return nid;
-@@ -410,6 +418,12 @@ void __init numa_emulation(struct numa_m
- 		unsigned long n;
- 		int nid = 0;
- 
-+		emu_numa_nodes_pmem = numa_nodes_pmem;
-+		emu_numa_nodes_dram = numa_nodes_dram;
-+
-+		nodes_clear(numa_nodes_pmem);
-+		nodes_clear(numa_nodes_dram);
-+
- 		n = simple_strtoul(emu_cmdline, &emu_cmdline, 0);
- 		ret = -1;
- 		for_each_node_mask(i, physnode_mask) {
+  v1: http://lkml.kernel.org/r/1536747974-25875-1-git-send-email-will.deacon@arm.com
+  v2: http://lkml.kernel.org/r/1538478363-16255-1-git-send-email-will.deacon@arm.com
+  v3: http://lkml.kernel.org/r/1539188584-15819-1-git-send-email-will.deacon@arm.com
+  v4: http://lkml.kernel.org/r/1543252067-30831-1-git-send-email-will.deacon@arm.com
+
+The only difference from v4 is that I have added Sean's Reviewed-by to the
+core change.
+
+Andrew, please can you take this via your tree for 4.21?
+
+Thanks,
+
+Will
+
+--->8
+
+Will Deacon (5):
+  ioremap: Rework pXd_free_pYd_page() API
+  arm64: mmu: Drop pXd_present() checks from pXd_free_pYd_table()
+  x86/pgtable: Drop pXd_none() checks from pXd_free_pYd_table()
+  lib/ioremap: Ensure phys_addr actually corresponds to a physical
+    address
+  lib/ioremap: Ensure break-before-make is used for huge p4d mappings
+
+ arch/arm64/mm/mmu.c           |  13 +++---
+ arch/x86/mm/pgtable.c         |  14 +++---
+ include/asm-generic/pgtable.h |   5 ++
+ lib/ioremap.c                 | 103 +++++++++++++++++++++++++++++-------------
+ 4 files changed, 91 insertions(+), 44 deletions(-)
+
+-- 
+2.1.4
