@@ -1,217 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EC7496B7CD0
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 17:51:14 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id d62so979013oia.3
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 14:51:14 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l23si631855otq.154.2018.12.06.14.51.13
-        for <linux-mm@kvack.org>;
-        Thu, 06 Dec 2018 14:51:13 -0800 (PST)
-From: Steve Capper <steve.capper@arm.com>
-Subject: [PATCH V5 6/7] arm64: mm: introduce 52-bit userspace support
-Date: Thu,  6 Dec 2018 22:50:41 +0000
-Message-Id: <20181206225042.11548-7-steve.capper@arm.com>
-In-Reply-To: <20181206225042.11548-1-steve.capper@arm.com>
-References: <20181206225042.11548-1-steve.capper@arm.com>
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 300FD6B7A80
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 09:52:50 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id y7so225896wrr.12
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 06:52:50 -0800 (PST)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140083.outbound.protection.outlook.com. [40.107.14.83])
+        by mx.google.com with ESMTPS id u16si420371wrt.175.2018.12.06.06.52.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 06 Dec 2018 06:52:47 -0800 (PST)
+From: Steve Capper <Steve.Capper@arm.com>
+Subject: Re: [PATCH V4 5/6] arm64: mm: introduce 52-bit userspace support
+Date: Thu, 6 Dec 2018 14:52:46 +0000
+Message-ID: <20181206145236.GA408@capper-debian.cambridge.arm.com>
+References: <20181205164145.24568-1-steve.capper@arm.com>
+ <20181205164145.24568-6-steve.capper@arm.com>
+ <e1a9b147-d635-9f32-2f33-ccd689dba858@arm.com>
+ <20181206122603.GB17473@capper-debian.cambridge.arm.com>
+ <c87c833a-7dfc-6cd4-aad7-119df9bd7178@arm.com>
+In-Reply-To: <c87c833a-7dfc-6cd4-aad7-119df9bd7178@arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <3970E43866B09449B2F3F19F50340B9F@eurprd08.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, suzuki.poulose@arm.com, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
+To: Suzuki Poulose <Suzuki.Poulose@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "jcm@redhat.com" <jcm@redhat.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, nd <nd@arm.com>
 
-On arm64 there is optional support for a 52-bit virtual address space.
-To exploit this one has to be running with a 64KB page size and be
-running on hardware that supports this.
+On Thu, Dec 06, 2018 at 02:35:20PM +0000, Suzuki K Poulose wrote:
+>=20
+>=20
+> On 06/12/2018 12:26, Steve Capper wrote:
+> > On Wed, Dec 05, 2018 at 06:22:27PM +0000, Suzuki K Poulose wrote:
+> > > Hi Steve,
+> > >=20
+> > [...]
+> > > I think we may need a check for the secondary CPUs to make sure that =
+they have
+> > > the 52bit support once the boot CPU has decided to use the feature an=
+d fail the
+> > > CPU bring up (just like we do for the granule support).
+> > >=20
+> > > Suzuki
+> >=20
+> > Hi Suzuki,
+> > I have just written a patch to detect a mismatch between 52-bit VA that
+> > is being tested now.
+> >=20
+> > As 52-bit kernel VA support is coming in future, the patch checks for a
+> > mismatch during the secondary boot path and, if one is found, prevents
+> > the secondary from booting (and displays an error message to the user).
+>=20
+> Right now, it is the boot CPU which decides the Userspace 52bit VA, isn't=
+ it ?
+> Irrespective of the kernel VA support, the userspace must be able to run =
+on
+> all the CPUs on the system, right ? So don't we need it now, with this se=
+ries ?
 
-For an arm64 kernel supporting a 48 bit VA with a 64KB page size,
-some changes are needed to support a 52-bit userspace:
- * TCR_EL1.T0SZ needs to be 12 instead of 16,
- * TASK_SIZE needs to reflect the new size.
+Hi Suzuki,
 
-This patch implements the above when the support for 52-bit VAs is
-detected at early boot time.
+Yes the boot CPU determines vabits_user. My idea was to have the
+secondary CPUs check to see if vabits_user was 52, and if so, then check
+to see if it's capable of supporting 52-bit. If not, then it stops
+booting (and sets a flag to indicate why).
 
-On arm64 userspace addresses translation is controlled by TTBR0_EL1. As
-well as userspace, TTBR0_EL1 controls:
- * The identity mapping,
- * EFI runtime code.
+This check will be valid for 52-bit userspace support and also valid for
+52-bit kernel support (as the check is performed before the secondary
+mmu is enabled). I didn't want to write a higher level detection
+routine for the userspace support and then have to re-write it later
+when introducing 52-bit kernel support.
 
-It is possible to run a kernel with an identity mapping that has a
-larger VA size than userspace (and for this case __cpu_set_tcr_t0sz()
-would set TCR_EL1.T0SZ as appropriate). However, when the conditions for
-52-bit userspace are met; it is possible to keep TCR_EL1.T0SZ fixed at
-12. Thus in this patch, the TCR_EL1.T0SZ size changing logic is
-disabled.
+I'm happy to do what works though, I thought this way was simplest :-).
 
-Signed-off-by: Steve Capper <steve.capper@arm.com>
-
----
-Changed in V5, extra dependency for 52-bit support:
-ARM64_PAN || !ARM64_SW_TTBR0_PAN
-
-Changed in V4, pgd_index logic removed as we offset ttbr1 instead
----
- arch/arm64/Kconfig                   |  4 ++++
- arch/arm64/include/asm/assembler.h   |  7 +++----
- arch/arm64/include/asm/mmu_context.h |  3 +++
- arch/arm64/include/asm/processor.h   | 14 +++++++++-----
- arch/arm64/kernel/head.S             | 13 +++++++++++++
- arch/arm64/mm/fault.c                |  2 +-
- arch/arm64/mm/mmu.c                  |  1 +
- arch/arm64/mm/proc.S                 | 10 +++++++++-
- 8 files changed, 43 insertions(+), 11 deletions(-)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 787d7850e064..6a93d5bc7f76 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -709,6 +709,10 @@ config ARM64_PA_BITS_52
- 
- endchoice
- 
-+config ARM64_52BIT_VA
-+	def_bool y
-+	depends on ARM64_VA_BITS_48 && ARM64_64K_PAGES && (ARM64_PAN || !ARM64_SW_TTBR0_PAN)
-+
- config ARM64_PA_BITS
- 	int
- 	default 48 if ARM64_PA_BITS_48
-diff --git a/arch/arm64/include/asm/assembler.h b/arch/arm64/include/asm/assembler.h
-index e2fe378d2a63..243ec4f0c00f 100644
---- a/arch/arm64/include/asm/assembler.h
-+++ b/arch/arm64/include/asm/assembler.h
-@@ -342,11 +342,10 @@ alternative_endif
- 	.endm
- 
- /*
-- * tcr_set_idmap_t0sz - update TCR.T0SZ so that we can load the ID map
-+ * tcr_set_t0sz - update TCR.T0SZ so that we can load the ID map
-  */
--	.macro	tcr_set_idmap_t0sz, valreg, tmpreg
--	ldr_l	\tmpreg, idmap_t0sz
--	bfi	\valreg, \tmpreg, #TCR_T0SZ_OFFSET, #TCR_TxSZ_WIDTH
-+	.macro	tcr_set_t0sz, valreg, t0sz
-+	bfi	\valreg, \t0sz, #TCR_T0SZ_OFFSET, #TCR_TxSZ_WIDTH
- 	.endm
- 
- /*
-diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
-index 1e58bf58c22b..b125fafc611b 100644
---- a/arch/arm64/include/asm/mmu_context.h
-+++ b/arch/arm64/include/asm/mmu_context.h
-@@ -72,6 +72,9 @@ extern u64 idmap_ptrs_per_pgd;
- 
- static inline bool __cpu_uses_extended_idmap(void)
- {
-+	if (IS_ENABLED(CONFIG_ARM64_52BIT_VA))
-+		return false;
-+
- 	return unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS));
- }
- 
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index fe95fd8b065e..b363fc705be4 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -19,11 +19,12 @@
- #ifndef __ASM_PROCESSOR_H
- #define __ASM_PROCESSOR_H
- 
--#define TASK_SIZE_64		(UL(1) << VA_BITS)
--
--#define KERNEL_DS	UL(-1)
--#define USER_DS		(TASK_SIZE_64 - 1)
--
-+#define KERNEL_DS		UL(-1)
-+#ifdef CONFIG_ARM64_52BIT_VA
-+#define USER_DS			((UL(1) << 52) - 1)
-+#else
-+#define USER_DS			((UL(1) << VA_BITS) - 1)
-+#endif /* CONFIG_ARM64_52IT_VA */
- #ifndef __ASSEMBLY__
- #ifdef __KERNEL__
- 
-@@ -48,6 +49,9 @@
- 
- #define DEFAULT_MAP_WINDOW_64	(UL(1) << VA_BITS)
- 
-+extern u64 vabits_user;
-+#define TASK_SIZE_64		(UL(1) << vabits_user)
-+
- #ifdef CONFIG_COMPAT
- #define TASK_SIZE_32		UL(0x100000000)
- #define TASK_SIZE		(test_thread_flag(TIF_32BIT) ? \
-diff --git a/arch/arm64/kernel/head.S b/arch/arm64/kernel/head.S
-index 58fcc1edd852..c229d9cfe9bf 100644
---- a/arch/arm64/kernel/head.S
-+++ b/arch/arm64/kernel/head.S
-@@ -318,6 +318,19 @@ __create_page_tables:
- 	adrp	x0, idmap_pg_dir
- 	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
- 
-+#ifdef CONFIG_ARM64_52BIT_VA
-+	mrs_s	x6, SYS_ID_AA64MMFR2_EL1
-+	and	x6, x6, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
-+	mov	x5, #52
-+	cbnz	x6, 1f
-+#endif
-+	mov	x5, #VA_BITS
-+1:
-+	adr_l	x6, vabits_user
-+	str	x5, [x6]
-+	dmb	sy
-+	dc	ivac, x6		// Invalidate potentially stale cache line
-+
- 	/*
- 	 * VA_BITS may be too small to allow for an ID mapping to be created
- 	 * that covers system RAM if that is located sufficiently high in the
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 7d9571f4ae3d..5fe6d2e40e9b 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -160,7 +160,7 @@ void show_pte(unsigned long addr)
- 
- 	pr_alert("%s pgtable: %luk pages, %u-bit VAs, pgdp = %p\n",
- 		 mm == &init_mm ? "swapper" : "user", PAGE_SIZE / SZ_1K,
--		 VA_BITS, mm->pgd);
-+		 mm == &init_mm ? VA_BITS : (int) vabits_user, mm->pgd);
- 	pgdp = pgd_offset(mm, addr);
- 	pgd = READ_ONCE(*pgdp);
- 	pr_alert("[%016lx] pgd=%016llx", addr, pgd_val(pgd));
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 394b8d554def..f8fc393143ea 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -52,6 +52,7 @@
- 
- u64 idmap_t0sz = TCR_T0SZ(VA_BITS);
- u64 idmap_ptrs_per_pgd = PTRS_PER_PGD;
-+u64 vabits_user __ro_after_init;
- 
- u64 kimage_voffset __ro_after_init;
- EXPORT_SYMBOL(kimage_voffset);
-diff --git a/arch/arm64/mm/proc.S b/arch/arm64/mm/proc.S
-index 2db1c491d45d..0cf86b17714c 100644
---- a/arch/arm64/mm/proc.S
-+++ b/arch/arm64/mm/proc.S
-@@ -450,7 +450,15 @@ ENTRY(__cpu_setup)
- 	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
- 			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
- 			TCR_TBI0 | TCR_A1
--	tcr_set_idmap_t0sz	x10, x9
-+
-+#ifdef CONFIG_ARM64_52BIT_VA
-+	ldr_l 		x9, vabits_user
-+	sub		x9, xzr, x9
-+	add		x9, x9, #64
-+#else
-+	ldr_l		x9, idmap_t0sz
-+#endif
-+	tcr_set_t0sz	x10, x9
- 
- 	/*
- 	 * Set the IPS bits in TCR_EL1.
--- 
-2.19.2
+Cheers,
+--=20
+Steve
