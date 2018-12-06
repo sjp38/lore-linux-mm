@@ -1,101 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 140506B7BCD
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 14:39:38 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id g7so932561plp.10
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 11:39:38 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ECDC6B7BC5
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 14:36:42 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id t133so1316110iof.20
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 11:36:42 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v13sor2152216pgn.66.2018.12.06.11.39.36
+        by mx.google.com with SMTPS id 139sor3146124ity.22.2018.12.06.11.36.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Dec 2018 11:39:36 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
-Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <CALCETrUmxht8dibJPBbPudQnoe6mHsKocEBgkJ7O1eFrVBfekQ@mail.gmail.com>
-Date: Thu, 6 Dec 2018 11:39:32 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <F5664C1D-C3E7-433B-8E5A-7967023E0567@gmail.com>
-References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
- <20181128000754.18056-2-rick.p.edgecombe@intel.com>
- <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
- <20181204160304.GB7195@arm.com>
- <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
+        Thu, 06 Dec 2018 11:36:40 -0800 (PST)
+MIME-Version: 1.0
+References: <20181204160304.GB7195@arm.com> <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
  <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com>
- <20181205114148.GA15160@arm.com>
- <CALCETrUdTShjY+tQoRsE1uR1cnL9cr2Trbz-g5=WaLGA3rWXzA@mail.gmail.com>
+ <20181205114148.GA15160@arm.com> <CALCETrUdTShjY+tQoRsE1uR1cnL9cr2Trbz-g5=WaLGA3rWXzA@mail.gmail.com>
  <CAKv+Gu_EEjhwbfp1mdB0Pu3ZyAsZgNeaCDArs569hAeWzHMWpw@mail.gmail.com>
  <CALCETrVedB7yacMU=i3JaUZxiwsnM+PnABfG48K9TZK32UWshA@mail.gmail.com>
- <20181206190115.GC10086@cisco>
- <CALCETrUmxht8dibJPBbPudQnoe6mHsKocEBgkJ7O1eFrVBfekQ@mail.gmail.com>
+ <CAKv+Gu_Fo3qG1DaA2T1MZZau_7e6rzZQY7eJ49FQDQe0QnOgHg@mail.gmail.com>
+ <CALCETrUUe+X6dAfcqkL=Lncy5RyDHx6m4s1g9QgMWPE9kOBoVw@mail.gmail.com>
+ <CAKv+Gu8pQcb_5AoRS8yyvT0FxHTe=yUQYNoQX2z6mysyC9noZA@mail.gmail.com> <20181206193108.GA21002@arm.com>
+In-Reply-To: <20181206193108.GA21002@arm.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Thu, 6 Dec 2018 20:36:28 +0100
+Message-ID: <CAKv+Gu-NhxUFuce+tZmpiZPLrsNaKWKjtHAg0-6iBnR1VEWc0g@mail.gmail.com>
+Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Tycho Andersen <tycho@tycho.ws>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Rick Edgecombe <rick.p.edgecombe@intel.com>, LKML <linux-kernel@vger.kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Jessica Yu <jeyu@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Alexei Starovoitov <ast@kernel.org>, Linux-MM <linux-mm@kvack.org>, Jann Horn <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Peter Zijlstra <peterz@infradead.org>, Kristen Carlson Accardi <kristen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Masami Hiramatsu <mhiramat@kernel.org>, "Naveen N . Rao" <naveen.n.rao@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Network Development <netdev@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Rick Edgecombe <rick.p.edgecombe@intel.com>, Nadav Amit <nadav.amit@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Jessica Yu <jeyu@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Alexei Starovoitov <ast@kernel.org>, Linux-MM <linux-mm@kvack.org>, Jann Horn <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Peter Zijlstra <peterz@infradead.org>, kristen@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, anil.s.keshavamurthy@intel.com, Kernel Hardening <kernel-hardening@lists.openwall.com>, Masami Hiramatsu <mhiramat@kernel.org>, naveen.n.rao@linux.vnet.ibm.com, "David S. Miller" <davem@davemloft.net>, "<netdev@vger.kernel.org>" <netdev@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-> On Dec 6, 2018, at 11:19 AM, Andy Lutomirski <luto@kernel.org> wrote:
->=20
-> On Thu, Dec 6, 2018 at 11:01 AM Tycho Andersen <tycho@tycho.ws> wrote:
->> On Thu, Dec 06, 2018 at 10:53:50AM -0800, Andy Lutomirski wrote:
->>>> If we are going to unmap the linear alias, why not do it at =
-vmalloc()
->>>> time rather than vfree() time?
->>>=20
->>> That=E2=80=99s not totally nuts. Do we ever have code that expects =
-__va() to
->>> work on module data?  Perhaps crypto code trying to encrypt static
->>> data because our APIs don=E2=80=99t understand virtual addresses.  I =
-guess if
->>> highmem is ever used for modules, then we should be fine.
->>>=20
->>> RO instead of not present might be safer.  But I do like the idea of
->>> renaming Rick's flag to something like VM_XPFO or VM_NO_DIRECT_MAP =
-and
->>> making it do all of this.
->>=20
->> Yeah, doing it for everything automatically seemed like it was/is
->> going to be a lot of work to debug all the corner cases where things
->> expect memory to be mapped but don't explicitly say it. And in
->> particular, the XPFO series only does it for user memory, whereas an
->> additional flag like this would work for extra paranoid allocations
->> of kernel memory too.
->=20
-> I just read the code, and I looks like vmalloc() is already using
-> highmem (__GFP_HIGH) if available, so, on big x86_32 systems, for
-> example, we already don't have modules in the direct map.
->=20
-> So I say we go for it.  This should be quite simple to implement --
-> the pageattr code already has almost all the needed logic on x86.  The
-> only arch support we should need is a pair of functions to remove a
-> vmalloc address range from the address map (if it was present in the
-> first place) and a function to put it back.  On x86, this should only
-> be a few lines of code.
->=20
-> What do you all think?  This should solve most of the problems we =
-have.
->=20
-> If we really wanted to optimize this, we'd make it so that
-> module_alloc() allocates memory the normal way, then, later on, we
-> call some function that, all at once, removes the memory from the
-> direct map and applies the right permissions to the vmalloc alias (or
-> just makes the vmalloc alias not-present so we can add permissions
-> later without flushing), and flushes the TLB.  And we arrange for
-> vunmap to zap the vmalloc range, then put the memory back into the
-> direct map, then free the pages back to the page allocator, with the
-> flush in the appropriate place.
->=20
-> I don't see why the page allocator needs to know about any of this.
-> It's already okay with the permissions being changed out from under it
-> on x86, and it seems fine.  Rick, do you want to give some variant of
-> this a try?
+On Thu, 6 Dec 2018 at 20:30, Will Deacon <will.deacon@arm.com> wrote:
+>
+> On Thu, Dec 06, 2018 at 08:23:20PM +0100, Ard Biesheuvel wrote:
+> > On Thu, 6 Dec 2018 at 20:21, Andy Lutomirski <luto@kernel.org> wrote:
+> > >
+> > > On Thu, Dec 6, 2018 at 11:04 AM Ard Biesheuvel
+> > > <ard.biesheuvel@linaro.org> wrote:
+> > > >
+> > > > On Thu, 6 Dec 2018 at 19:54, Andy Lutomirski <luto@kernel.org> wrot=
+e:
+> > > > >
+> > >
+> > > > > That=E2=80=99s not totally nuts. Do we ever have code that expect=
+s __va() to
+> > > > > work on module data?  Perhaps crypto code trying to encrypt stati=
+c
+> > > > > data because our APIs don=E2=80=99t understand virtual addresses.=
+  I guess if
+> > > > > highmem is ever used for modules, then we should be fine.
+> > > > >
+> > > >
+> > > > The crypto code shouldn't care, but I think it will probably break =
+hibernate :-(
+> > >
+> > > How so?  Hibernate works (or at least should work) on x86 PAE, where
+> > > __va doesn't work on module data, and, on x86, the direct map has som=
+e
+> > > RO parts with where the module is, so hibernate can't be writing to
+> > > the memory through the direct map with its final permissions.
+> >
+> > On arm64 at least, hibernate reads the contents of memory via the
+> > linear mapping. Not sure about other arches.
+>
+> Can we handle this like the DEBUG_PAGEALLOC case, and extract the pfn fro=
+m
+> the pte when we see that it's PROT_NONE?
+>
 
-Setting it as read-only may work (and already happens for the read-only
-module data). I am not sure about setting it as non-present.
-
-At some point, a discussion about a threat-model, as Rick indicated, =
-would
-be required. I presume ROP attacks can easily call =
-set_all_modules_text_rw()
-and override all the protections.
+As long as we can easily figure out whether a certain linear address
+is mapped or not, having a special case like that for these mappings
+doesn't sound unreasonable.
