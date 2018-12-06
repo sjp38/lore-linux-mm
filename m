@@ -1,63 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 859FA8E000B
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id l9so13984252plt.7
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.06
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B32536B7905
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 03:37:24 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id n17so18983189pfk.23
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 00:37:24 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id t75si22881088pfa.170.2018.12.06.00.37.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-Message-Id: <20181226133352.133164898@intel.com>
-Date: Wed, 26 Dec 2018 21:15:04 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [RFC][PATCH v2 18/21] kvm-ept-idle: enable module
-References: <20181226131446.330864849@intel.com>
+        Thu, 06 Dec 2018 00:37:23 -0800 (PST)
+From: "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
+Subject: Re: [RFC v2 05/13] x86/mm: Set KeyIDs in encrypted VMAs
+Date: Thu, 6 Dec 2018 08:37:15 +0000
+Message-ID: <fedb2e7fa0ffb9ee80ca2e8228f2d674781babbd.camel@intel.com>
+References: <cover.1543903910.git.alison.schofield@intel.com>
+	 <f0ff967e2015a9dffceef22ac52ecd736a1ddb7e.1543903910.git.alison.schofield@intel.com>
+In-Reply-To: <f0ff967e2015a9dffceef22ac52ecd736a1ddb7e.1543903910.git.alison.schofield@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <E9E4F4F5639E404598EE1A0B729BF877@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=0007-kvm-ept-idle-enable-module.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>
+Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "Huang, Kai" <kai.huang@intel.com>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, Hansen,, Jun
 
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- arch/x86/kvm/Kconfig  |   11 +++++++++++
- arch/x86/kvm/Makefile |    4 ++++
- 2 files changed, 15 insertions(+)
-
---- linux.orig/arch/x86/kvm/Kconfig	2018-12-23 20:09:04.628882396 +0800
-+++ linux/arch/x86/kvm/Kconfig	2018-12-23 20:09:04.628882396 +0800
-@@ -96,6 +96,17 @@ config KVM_MMU_AUDIT
- 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
- 	 auditing of KVM MMU events at runtime.
- 
-+config KVM_EPT_IDLE
-+	tristate "KVM EPT idle page tracking"
-+	depends on KVM_INTEL
-+	depends on PROC_PAGE_MONITOR
-+	---help---
-+	  Provides support for walking EPT to get the A bits on Intel
-+	  processors equipped with the VT extensions.
-+
-+	  To compile this as a module, choose M here: the module
-+	  will be called kvm-ept-idle.
-+
- # OK, it's a little counter-intuitive to do this, but it puts it neatly under
- # the virtualization menu.
- source drivers/vhost/Kconfig
---- linux.orig/arch/x86/kvm/Makefile	2018-12-23 20:09:04.628882396 +0800
-+++ linux/arch/x86/kvm/Makefile	2018-12-23 20:09:04.628882396 +0800
-@@ -19,6 +19,10 @@ kvm-y			+= x86.o mmu.o emulate.o i8259.o
- kvm-intel-y		+= vmx.o pmu_intel.o
- kvm-amd-y		+= svm.o pmu_amd.o
- 
-+kvm-ept-idle-y		+= ept_idle.o
-+
- obj-$(CONFIG_KVM)	+= kvm.o
- obj-$(CONFIG_KVM_INTEL)	+= kvm-intel.o
- obj-$(CONFIG_KVM_AMD)	+= kvm-amd.o
-+
-+obj-$(CONFIG_KVM_EPT_IDLE)	+= kvm-ept-idle.o
+T24gTW9uLCAyMDE4LTEyLTAzIGF0IDIzOjM5IC0wODAwLCBBbGlzb24gU2Nob2ZpZWxkIHdyb3Rl
+Og0KPiBNS1RNRSBhcmNoaXRlY3R1cmUgcmVxdWlyZXMgdGhlIEtleUlEIHRvIGJlIHBsYWNlZCBp
+biBQVEUgYml0cyA1MTo0Ni4NCj4gVG8gY3JlYXRlIGFuIGVuY3J5cHRlZCBWTUEsIHBsYWNlIHRo
+ZSBLZXlJRCBpbiB0aGUgdXBwZXIgYml0cyBvZg0KPiB2bV9wYWdlX3Byb3QgdGhhdCBtYXRjaGVz
+IHRoZSBwb3NpdGlvbiBvZiB0aG9zZSBQVEUgYml0cy4NCj4gDQo+IFdoZW4gdGhlIFZNQSBpcyBh
+c3NpZ25lZCBhIEtleUlEIGl0IGlzIGFsd2F5cyBjb25zaWRlcmVkIGEgS2V5SUQNCj4gY2hhbmdl
+LiBUaGUgVk1BIGlzIGVpdGhlciBnb2luZyBmcm9tIG5vdCBlbmNyeXB0ZWQgdG8gZW5jcnlwdGVk
+LA0KPiBvciBmcm9tIGVuY3J5cHRlZCB3aXRoIGFueSBLZXlJRCB0byBlbmNyeXB0ZWQgd2l0aCBh
+bnkgb3RoZXIgS2V5SUQuDQo+IFRvIG1ha2UgdGhlIGNoYW5nZSBzYWZlbHksIHJlbW92ZSB0aGUg
+dXNlciBwYWdlcyBoZWxkIGJ5IHRoZSBWTUENCj4gYW5kIHVubGluayB0aGUgVk1BJ3MgYW5vbnlt
+b3VzIGNoYWluLg0KPiANCj4gQ2hhbmdlLUlkOiBJNjc2MDU2NTI1YzQ5Yzg4MDM4OTgzMTVhMTBi
+MTk2ZWY1YTVjNTQxNQ0KDQpSZW1vdmUuDQoNCj4gU2lnbmVkLW9mZi1ieTogQWxpc29uIFNjaG9m
+aWVsZCA8YWxpc29uLnNjaG9maWVsZEBpbnRlbC5jb20+DQo+IFNpZ25lZC1vZmYtYnk6IEtpcmls
+bCBBLiBTaHV0ZW1vdiA8a2lyaWxsLnNodXRlbW92QGxpbnV4LmludGVsLmNvbT4NCj4gLS0tDQo+
+ICBhcmNoL3g4Ni9pbmNsdWRlL2FzbS9ta3RtZS5oIHwgIDQgKysrKw0KPiAgYXJjaC94ODYvbW0v
+bWt0bWUuYyAgICAgICAgICB8IDI2ICsrKysrKysrKysrKysrKysrKysrKysrKysrDQo+ICBpbmNs
+dWRlL2xpbnV4L21tLmggICAgICAgICAgIHwgIDYgKysrKysrDQo+ICAzIGZpbGVzIGNoYW5nZWQs
+IDM2IGluc2VydGlvbnMoKykNCj4gDQo+IGRpZmYgLS1naXQgYS9hcmNoL3g4Ni9pbmNsdWRlL2Fz
+bS9ta3RtZS5oIGIvYXJjaC94ODYvaW5jbHVkZS9hc20vbWt0bWUuaA0KPiBpbmRleCBkYmI0OTkw
+OWQ2NjUuLmRlM2U1MjlmM2FiMCAxMDA2NDQNCj4gLS0tIGEvYXJjaC94ODYvaW5jbHVkZS9hc20v
+bWt0bWUuaA0KPiArKysgYi9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9ta3RtZS5oDQo+IEBAIC0yNCw2
+ICsyNCwxMCBAQCBleHRlcm4gaW50IG1rdG1lX21hcF9rZXlpZF9mcm9tX2tleSh2b2lkICprZXkp
+Ow0KPiAgZXh0ZXJuIHZvaWQgKm1rdG1lX21hcF9rZXlfZnJvbV9rZXlpZChpbnQga2V5aWQpOw0K
+PiAgZXh0ZXJuIGludCBta3RtZV9tYXBfZ2V0X2ZyZWVfa2V5aWQodm9pZCk7DQo+ICANCj4gKy8q
+IFNldCB0aGUgZW5jcnlwdGlvbiBrZXlpZCBiaXRzIGluIGEgVk1BICovDQo+ICtleHRlcm4gdm9p
+ZCBtcHJvdGVjdF9zZXRfZW5jcnlwdChzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSwgaW50IG5l
+d2tleWlkLA0KPiArCQkJCXVuc2lnbmVkIGxvbmcgc3RhcnQsIHVuc2lnbmVkIGxvbmcgZW5kKTsN
+Cj4gKw0KPiAgREVDTEFSRV9TVEFUSUNfS0VZX0ZBTFNFKG1rdG1lX2VuYWJsZWRfa2V5KTsNCj4g
+IHN0YXRpYyBpbmxpbmUgYm9vbCBta3RtZV9lbmFibGVkKHZvaWQpDQo+ICB7DQo+IGRpZmYgLS1n
+aXQgYS9hcmNoL3g4Ni9tbS9ta3RtZS5jIGIvYXJjaC94ODYvbW0vbWt0bWUuYw0KPiBpbmRleCAz
+NDIyNGQ0ZTNmNDUuLmUzZmRmN2I0ODE3MyAxMDA2NDQNCj4gLS0tIGEvYXJjaC94ODYvbW0vbWt0
+bWUuYw0KPiArKysgYi9hcmNoL3g4Ni9tbS9ta3RtZS5jDQo+IEBAIC0xLDUgKzEsNiBAQA0KPiAg
+I2luY2x1ZGUgPGxpbnV4L21tLmg+DQo+ICAjaW5jbHVkZSA8bGludXgvaGlnaG1lbS5oPg0KPiAr
+I2luY2x1ZGUgPGxpbnV4L3JtYXAuaD4NCj4gICNpbmNsdWRlIDxhc20vbWt0bWUuaD4NCj4gICNp
+bmNsdWRlIDxhc20vc2V0X21lbW9yeS5oPg0KPiAgDQo+IEBAIC0xMzEsNiArMTMyLDMxIEBAIGlu
+dCBta3RtZV9tYXBfZ2V0X2ZyZWVfa2V5aWQodm9pZCkNCj4gIAlyZXR1cm4gMDsNCj4gIH0NCj4g
+IA0KPiArLyogU2V0IHRoZSBlbmNyeXB0aW9uIGtleWlkIGJpdHMgaW4gYSBWTUEgKi8NCg0KTWF5
+YmUgcHJvcGVyIGtkb2M/DQoNCj4gK3ZvaWQgbXByb3RlY3Rfc2V0X2VuY3J5cHQoc3RydWN0IHZt
+X2FyZWFfc3RydWN0ICp2bWEsIGludCBuZXdrZXlpZCwNCj4gKwkJCSAgdW5zaWduZWQgbG9uZyBz
+dGFydCwgdW5zaWduZWQgbG9uZyBlbmQpDQo+ICt7DQo+ICsJaW50IG9sZGtleWlkID0gdm1hX2tl
+eWlkKHZtYSk7DQo+ICsJcGdwcm90dmFsX3QgbmV3cHJvdDsNCj4gKw0KPiArCS8qIFVubWFwIHBh
+Z2VzIHdpdGggb2xkIEtleUlEIGlmIHRoZXJlJ3MgYW55LiAqLw0KPiArCXphcF9wYWdlX3Jhbmdl
+KHZtYSwgc3RhcnQsIGVuZCAtIHN0YXJ0KTsNCj4gKw0KPiArCWlmIChvbGRrZXlpZCA9PSBuZXdr
+ZXlpZCkNCj4gKwkJcmV0dXJuOw0KPiArDQo+ICsJbmV3cHJvdCA9IHBncHJvdF92YWwodm1hLT52
+bV9wYWdlX3Byb3QpOw0KPiArCW5ld3Byb3QgJj0gfm1rdG1lX2tleWlkX21hc2s7DQo+ICsJbmV3
+cHJvdCB8PSAodW5zaWduZWQgbG9uZyluZXdrZXlpZCA8PCBta3RtZV9rZXlpZF9zaGlmdDsNCj4g
+Kwl2bWEtPnZtX3BhZ2VfcHJvdCA9IF9fcGdwcm90KG5ld3Byb3QpOw0KPiArDQo+ICsJLyoNCg0K
+Tm8gZW1wdHkgY29tbWVudCBsaW5lLg0KDQo+ICsJICogVGhlIFZNQSBkb2Vzbid0IGhhdmUgYW55
+IGluaGVyaXRlZCBwYWdlcy4NCj4gKwkgKiBTdGFydCBhbm9uIFZNQSB0cmVlIGZyb20gc2NyYXRj
+aC4NCj4gKwkgKi8NCj4gK30NCj4gKw0KPiAgLyogUHJlcGFyZSBwYWdlIHRvIGJlIHVzZWQgZm9y
+IGVuY3J5cHRpb24uIENhbGxlZCBmcm9tIHBhZ2UgYWxsb2NhdG9yLiAqLw0KPiAgdm9pZCBfX3By
+ZXBfZW5jcnlwdGVkX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBvcmRlciwgaW50IGtleWlk
+LCBib29sDQo+IHplcm8pDQo+ICB7DQo+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L21tLmgg
+Yi9pbmNsdWRlL2xpbnV4L21tLmgNCj4gaW5kZXggMTMwOTc2MWJiNmQwLi5lMmQ4N2U5MmNhNzQg
+MTAwNjQ0DQo+IC0tLSBhL2luY2x1ZGUvbGludXgvbW0uaA0KPiArKysgYi9pbmNsdWRlL2xpbnV4
+L21tLmgNCj4gQEAgLTI4MDYsNSArMjgwNiwxMSBAQCB2b2lkIF9faW5pdCBzZXR1cF9ucl9ub2Rl
+X2lkcyh2b2lkKTsNCj4gIHN0YXRpYyBpbmxpbmUgdm9pZCBzZXR1cF9ucl9ub2RlX2lkcyh2b2lk
+KSB7fQ0KPiAgI2VuZGlmDQo+ICANCj4gKyNpZm5kZWYgQ09ORklHX1g4Nl9JTlRFTF9NS1RNRQ0K
+PiArc3RhdGljIGlubGluZSB2b2lkIG1wcm90ZWN0X3NldF9lbmNyeXB0KHN0cnVjdCB2bV9hcmVh
+X3N0cnVjdCAqdm1hLA0KPiArCQkJCQlpbnQgbmV3a2V5aWQsDQo+ICsJCQkJCXVuc2lnbmVkIGxv
+bmcgc3RhcnQsDQo+ICsJCQkJCXVuc2lnbmVkIGxvbmcgZW5kKSB7fQ0KDQpBZGQgYSBuZXcgbGlu
+ZSBhbmQNCg0Kew0KfQ0KDQoNCj4gKyNlbmRpZiAvKiBDT05GSUdfWDg2X0lOVEVMX01LVE1FICov
+DQo+ICAjZW5kaWYgLyogX19LRVJORUxfXyAqLw0KPiAgI2VuZGlmIC8qIF9MSU5VWF9NTV9IICov
+DQoNCi9KYXJra28NCg==
