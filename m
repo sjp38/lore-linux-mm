@@ -1,228 +1,76 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Subject: [RFC v2 3/3] selftests/vm: add script helper for CONFIG_TEST_VMALLOC_MODULE
-Date: Mon, 31 Dec 2018 14:26:40 +0100
-Message-Id: <20181231132640.21898-4-urezki@gmail.com>
-In-Reply-To: <20181231132640.21898-1-urezki@gmail.com>
-References: <20181231132640.21898-1-urezki@gmail.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 98C5E6B7A67
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 09:11:11 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id h9so312164pgm.1
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 06:11:11 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id n8si357828plp.137.2018.12.06.06.11.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Dec 2018 06:11:10 -0800 (PST)
+Date: Thu, 6 Dec 2018 06:10:45 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 19/34] cxl: drop the dma_set_mask callback from vphb
+Message-ID: <20181206141045.GI29741@infradead.org>
+References: <20181114082314.8965-1-hch@lst.de>
+ <20181114082314.8965-20-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181114082314.8965-20-hch@lst.de>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 
-Add the test script for the kernel test driver to analyse vmalloc
-allocator for benchmarking and stressing purposes. It is just a kernel
-module loader. You can specify and pass different parameters in order
-to investigate allocations behaviour. See "usage" output for more
-details.
+ping?
 
-Also add basic vmalloc smoke test to the "run_vmtests" suite.
-
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
----
- tools/testing/selftests/vm/run_vmtests     |  11 ++
- tools/testing/selftests/vm/test_vmalloc.sh | 173 +++++++++++++++++++++++++++++
- 2 files changed, 184 insertions(+)
- create mode 100755 tools/testing/selftests/vm/test_vmalloc.sh
-
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 88cbe5575f0c..56053ac2bf47 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -200,4 +200,15 @@ else
-     echo "[PASS]"
- fi
- 
-+echo "------------------------------------"
-+echo "running vmalloc stability smoke test"
-+echo "------------------------------------"
-+./test_vmalloc.sh smoke
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
- exit $exitcode
-diff --git a/tools/testing/selftests/vm/test_vmalloc.sh b/tools/testing/selftests/vm/test_vmalloc.sh
-new file mode 100755
-index 000000000000..f4f0d3990f2c
---- /dev/null
-+++ b/tools/testing/selftests/vm/test_vmalloc.sh
-@@ -0,0 +1,173 @@
-+#!/bin/bash
-+# SPDX-License-Identifier: GPL-2.0
-+#
-+# Copyright (C) 2018 Uladzislau Rezki (Sony) <urezki@gmail.com>
-+#
-+# This is a test script for the kernel test driver to analyse vmalloc
-+# allocator. Therefore it is just a kernel module loader. You can specify
-+# and pass different parameters in order to:
-+#     a) analyse performance of vmalloc allocations;
-+#     b) stressing and stability check of vmalloc subsystem.
-+
-+TEST_NAME="vmalloc"
-+DRIVER="test_${TEST_NAME}"
-+
-+# 1 if fails
-+exitcode=1
-+
-+#
-+# Static templates for performance, stressing and smoke tests.
-+# Also it is possible to pass any supported parameters manualy.
-+#
-+PERF_PARAM="single_cpu_test=1 sequential_test_order=1 test_repeat_count=3"
-+SMOKE_PARAM="single_cpu_test=1 test_loop_count=10000 test_repeat_count=10"
-+STRESS_PARAM="test_repeat_count=20"
-+
-+check_test_requirements()
-+{
-+	uid=$(id -u)
-+	if [ $uid -ne 0 ]; then
-+		echo "$0: Must be run as root"
-+		exit $exitcode
-+	fi
-+
-+	if ! which modprobe > /dev/null 2>&1; then
-+		echo "$0: You need modprobe installed"
-+		exit $exitcode
-+	fi
-+
-+	if ! modinfo $DRIVER > /dev/null 2>&1; then
-+		echo "$0: You must have the following enabled in your kernel:"
-+		echo "CONFIG_TEST_VMALLOC=m"
-+		exit $exitcode
-+	fi
-+}
-+
-+run_perfformance_check()
-+{
-+	echo "Run performance tests to evaluate how fast vmalloc allocation is."
-+	echo "It runs all test cases on one single CPU with sequential order."
-+
-+	modprobe $DRIVER $PERF_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Ccheck the kernel message buffer to see the summary."
-+}
-+
-+run_stability_check()
-+{
-+	echo "Run stability tests. In order to stress vmalloc subsystem we run"
-+	echo "all available test cases on all available CPUs simultaneously."
-+	echo "It will take time, so be patient."
-+
-+	modprobe $DRIVER $STRESS_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+run_smoke_check()
-+{
-+	echo "Run smoke test. Note, this test provides basic coverage."
-+	echo "Please check $0 output how it can be used"
-+	echo "for deep performance analysis as well as stress testing."
-+
-+	modprobe $DRIVER $SMOKE_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+usage()
-+{
-+	echo -n "Usage: $0 [ performance ] | [ stress ] | | [ smoke ] | "
-+	echo "manual parameters"
-+	echo
-+	echo "Valid tests and parameters:"
-+	echo
-+	modinfo $DRIVER
-+	echo
-+	echo "Example usage:"
-+	echo
-+	echo "# Shows help message"
-+	echo "./${DRIVER}.sh"
-+	echo
-+	echo "# Runs 1 test(id_1), repeats it 5 times on all online CPUs"
-+	echo "./${DRIVER}.sh run_test_mask=1 test_repeat_count=5"
-+	echo
-+	echo -n "# Runs 4 tests(id_1|id_2|id_4|id_16) on one CPU with "
-+	echo "sequential order"
-+	echo -n "./${DRIVER}.sh single_cpu_test=1 sequential_test_order=1 "
-+	echo "run_test_mask=23"
-+	echo
-+	echo -n "# Runs all tests on all online CPUs, shuffled order, repeats "
-+	echo "20 times"
-+	echo "./${DRIVER}.sh test_repeat_count=20"
-+	echo
-+	echo "# Performance analysis"
-+	echo "./${DRIVER}.sh performance"
-+	echo
-+	echo "# Stress testing"
-+	echo "./${DRIVER}.sh stress"
-+	echo
-+	exit $exitcode
-+}
-+
-+function validate_passed_args()
-+{
-+	VALID_ARGS=`modinfo $DRIVER | awk '/parm:/ {print $2}' | sed 's/:.*//'`
-+
-+	#
-+	# Something has been passed, check it.
-+	#
-+	for passed_arg in $@; do
-+		key=${passed_arg//=*/}
-+		val="${passed_arg:$((${#key}+1))}"
-+		valid=0
-+
-+		for valid_arg in $VALID_ARGS; do
-+			if [[ $key = $valid_arg ]] && [[ $val -gt 0 ]]; then
-+				valid=1
-+				break
-+			fi
-+		done
-+
-+		if [[ $valid -ne 1 ]]; then
-+			echo "Error: key or value is not correct: ${key} $val"
-+			exit $exitcode
-+		fi
-+	done
-+}
-+
-+function run_manual_check()
-+{
-+	#
-+	# Validate passed parameters. If there is wrong one,
-+	# the script exists and does not execute further.
-+	#
-+	validate_passed_args $@
-+
-+	echo "Run the test with following parameters: $@"
-+	modprobe $DRIVER $@ > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+function run_test()
-+{
-+	if [ $# -eq 0 ]; then
-+		usage
-+	else
-+		if [[ "$1" = "performance" ]]; then
-+			run_perfformance_check
-+		elif [[ "$1" = "stress" ]]; then
-+			run_stability_check
-+		elif [[ "$1" = "smoke" ]]; then
-+			run_smoke_check
-+		else
-+			run_manual_check $@
-+		fi
-+	fi
-+}
-+
-+check_test_requirements
-+run_test $@
-+
-+exit 0
--- 
-2.11.0
+On Wed, Nov 14, 2018 at 09:22:59AM +0100, Christoph Hellwig wrote:
+> The CXL code never even looks at the dma mask, so there is no good
+> reason for this sanity check.  Remove it because it gets in the way
+> of the dma ops refactoring.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/misc/cxl/vphb.c | 12 ------------
+>  1 file changed, 12 deletions(-)
+> 
+> diff --git a/drivers/misc/cxl/vphb.c b/drivers/misc/cxl/vphb.c
+> index 7908633d9204..49da2f744bbf 100644
+> --- a/drivers/misc/cxl/vphb.c
+> +++ b/drivers/misc/cxl/vphb.c
+> @@ -11,17 +11,6 @@
+>  #include <misc/cxl.h>
+>  #include "cxl.h"
+>  
+> -static int cxl_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
+> -{
+> -	if (dma_mask < DMA_BIT_MASK(64)) {
+> -		pr_info("%s only 64bit DMA supported on CXL", __func__);
+> -		return -EIO;
+> -	}
+> -
+> -	*(pdev->dev.dma_mask) = dma_mask;
+> -	return 0;
+> -}
+> -
+>  static int cxl_pci_probe_mode(struct pci_bus *bus)
+>  {
+>  	return PCI_PROBE_NORMAL;
+> @@ -220,7 +209,6 @@ static struct pci_controller_ops cxl_pci_controller_ops =
+>  	.reset_secondary_bus = cxl_pci_reset_secondary_bus,
+>  	.setup_msi_irqs = cxl_setup_msi_irqs,
+>  	.teardown_msi_irqs = cxl_teardown_msi_irqs,
+> -	.dma_set_mask = cxl_dma_set_mask,
+>  };
+>  
+>  int cxl_pci_vphb_add(struct cxl_afu *afu)
+> -- 
+> 2.19.1
+> 
+> _______________________________________________
+> iommu mailing list
+> iommu@lists.linux-foundation.org
+> https://lists.linuxfoundation.org/mailman/listinfo/iommu
+---end quoted text---
