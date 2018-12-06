@@ -1,290 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DE3B8E0014
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:08 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id n17so3538416pfk.23
-        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:08 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id v19si3555849pfa.80.2018.12.13.22.28.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Dec 2018 22:28:06 -0800 (PST)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V9 09/21] swap: Support to read a huge swap cluster for swapin a THP
-Date: Fri, 14 Dec 2018 14:27:42 +0800
-Message-Id: <20181214062754.13723-10-ying.huang@intel.com>
-In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
-References: <20181214062754.13723-1-ying.huang@intel.com>
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C30A56B7B55
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:21:18 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id r82so599865oie.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:21:18 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id x13si484031otj.215.2018.12.06.10.21.16
+        for <linux-mm@kvack.org>;
+        Thu, 06 Dec 2018 10:21:17 -0800 (PST)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [RESEND PATCH v4 5/5] lib/ioremap: Ensure break-before-make is used for huge p4d mappings
+Date: Thu,  6 Dec 2018 18:21:35 +0000
+Message-Id: <1544120495-17438-6-git-send-email-will.deacon@arm.com>
+In-Reply-To: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
+References: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
 
-To swapin a THP in one piece, we need to read a huge swap cluster from
-the swap device.  This patch revised the __read_swap_cache_async() and
-its callers and callees to support this.  If __read_swap_cache_async()
-find the swap cluster of the specified swap entry is huge, it will try
-to allocate a THP, add it into the swap cache.  So later the contents
-of the huge swap cluster can be read into the THP.
+Whilst no architectures actually enable support for huge p4d mappings
+in the vmap area, the code that is implemented should be using
+break-before-make, as we do for pud and pmd huge entries.
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Toshi Kani <toshi.kani@hpe.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
 ---
- include/linux/huge_mm.h |  6 +++++
- include/linux/swap.h    |  4 +--
- mm/huge_memory.c        |  4 +--
- mm/swap_state.c         | 60 ++++++++++++++++++++++++++++++++---------
- mm/swapfile.c           |  9 ++++---
- 5 files changed, 64 insertions(+), 19 deletions(-)
+ arch/arm64/mm/mmu.c           |  5 +++++
+ arch/x86/mm/pgtable.c         |  8 ++++++++
+ include/asm-generic/pgtable.h |  5 +++++
+ lib/ioremap.c                 | 27 +++++++++++++++++++++------
+ 4 files changed, 39 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 1c0fda003d6a..72f2617d336b 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -250,6 +250,7 @@ static inline bool thp_migration_supported(void)
- 	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
- }
- 
-+gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma);
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-@@ -363,6 +364,11 @@ static inline bool thp_migration_supported(void)
- {
- 	return false;
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index 786cfa6355be..cf9a26d3d7f5 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -1028,3 +1028,8 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
+ 	pmd_free(NULL, table);
+ 	return 1;
  }
 +
-+static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;	/* Don't attempt a block mapping */
++}
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index e95a7d6ac8f8..b0284eab14dc 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -794,6 +794,14 @@ int pmd_clear_huge(pmd_t *pmd)
+ 	return 0;
+ }
+ 
++/*
++ * Until we support 512GB pages, skip them in the vmap area.
++ */
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
 +{
 +	return 0;
 +}
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 441da4a832a6..4bd532c9315e 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -462,7 +462,7 @@ extern sector_t map_swap_page(struct page *, struct block_device **);
- extern sector_t swapdev_block(int, pgoff_t);
- extern int page_swapcount(struct page *);
- extern int __swap_count(swp_entry_t entry);
--extern int __swp_swapcount(swp_entry_t entry);
-+extern int __swp_swapcount(swp_entry_t entry, int *entry_size);
- extern int swp_swapcount(swp_entry_t entry);
- extern struct swap_info_struct *page_swap_info(struct page *);
- extern struct swap_info_struct *swp_swap_info(swp_entry_t entry);
-@@ -590,7 +590,7 @@ static inline int __swap_count(swp_entry_t entry)
- 	return 0;
- }
- 
--static inline int __swp_swapcount(swp_entry_t entry)
-+static inline int __swp_swapcount(swp_entry_t entry, int *entry_size)
- {
- 	return 0;
- }
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index fc31fc1ae0b3..1cec1eec340e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -629,9 +629,9 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
-  *	    available
-  * never: never stall for any thp allocation
-  */
--static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
-+gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- {
--	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
-+	const bool vma_madvised = vma ? !!(vma->vm_flags & VM_HUGEPAGE) : false;
- 
- 	/* Always do synchronous compaction */
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 97831166994a..5e761bb6e354 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -361,7 +361,9 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- {
- 	struct page *found_page = NULL, *new_page = NULL;
- 	struct swap_info_struct *si;
--	int err;
-+	int err, entry_size = 1;
-+	swp_entry_t hentry;
 +
- 	*new_page_allocated = false;
+ #ifdef CONFIG_X86_64
+ /**
+  * pud_free_pmd_page - Clear pud entry and free pmd page.
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 359fb935ded6..e0381a4ce7d4 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -1019,6 +1019,7 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
+ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
+ int pud_clear_huge(pud_t *pud);
+ int pmd_clear_huge(pmd_t *pmd);
++int p4d_free_pud_page(p4d_t *p4d, unsigned long addr);
+ int pud_free_pmd_page(pud_t *pud, unsigned long addr);
+ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr);
+ #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+@@ -1046,6 +1047,10 @@ static inline int pmd_clear_huge(pmd_t *pmd)
+ {
+ 	return 0;
+ }
++static inline int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
++{
++	return 0;
++}
+ static inline int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+ {
+ 	return 0;
+diff --git a/lib/ioremap.c b/lib/ioremap.c
+index 10d7c5485c39..063213685563 100644
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -156,6 +156,25 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+ 	return 0;
+ }
  
++static int ioremap_try_huge_p4d(p4d_t *p4d, unsigned long addr,
++				unsigned long end, phys_addr_t phys_addr,
++				pgprot_t prot)
++{
++	if (!ioremap_p4d_enabled())
++		return 0;
++
++	if ((end - addr) != P4D_SIZE)
++		return 0;
++
++	if (!IS_ALIGNED(phys_addr, P4D_SIZE))
++		return 0;
++
++	if (p4d_present(*p4d) && !p4d_free_pud_page(p4d, addr))
++		return 0;
++
++	return p4d_set_huge(p4d, phys_addr, prot);
++}
++
+ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+ 		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+ {
+@@ -168,12 +187,8 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
  	do {
-@@ -387,14 +389,41 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		 * as SWAP_HAS_CACHE.  That's done in later part of code or
- 		 * else swap_off will be aborted if we return NULL.
- 		 */
--		if (!__swp_swapcount(entry) && swap_slot_cache_enabled)
-+		if (!__swp_swapcount(entry, &entry_size) &&
-+		    swap_slot_cache_enabled)
- 			break;
+ 		next = p4d_addr_end(addr, end);
  
- 		/*
- 		 * Get a new page to read into from swap.
- 		 */
--		if (!new_page) {
--			new_page = alloc_page_vma(gfp_mask, vma, addr);
-+		if (!new_page ||
-+		    (IS_ENABLED(CONFIG_THP_SWAP) &&
-+		     hpage_nr_pages(new_page) != entry_size)) {
-+			if (new_page)
-+				put_page(new_page);
-+			if (IS_ENABLED(CONFIG_THP_SWAP) &&
-+			    entry_size == HPAGE_PMD_NR) {
-+				gfp_t gfp;
-+
-+				gfp = alloc_hugepage_direct_gfpmask(vma);
-+				/*
-+				 * Make sure huge page allocation flags are
-+				 * compatible with that of normal page
-+				 */
-+				VM_WARN_ONCE(gfp_mask & ~(gfp | __GFP_RECLAIM),
-+					     "ignoring gfp_mask bits: %x",
-+					     gfp_mask & ~(gfp | __GFP_RECLAIM));
-+				new_page = alloc_hugepage_vma(gfp, vma, addr,
-+                                                               HPAGE_PMD_ORDER);
-+				if (new_page)
-+					prep_transhuge_page(new_page);
-+				hentry = swp_entry(swp_type(entry),
-+						   round_down(swp_offset(entry),
-+							      HPAGE_PMD_NR));
-+			} else {
-+				new_page = alloc_page_vma(gfp_mask, vma, addr);
-+				hentry = entry;
-+			}
- 			if (!new_page)
- 				break;		/* Out of memory */
- 		}
-@@ -402,7 +431,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		/*
- 		 * Swap entry may have been freed since our caller observed it.
- 		 */
--		err = swapcache_prepare(entry, 1);
-+		err = swapcache_prepare(hentry, entry_size);
- 		if (err == -EEXIST) {
- 			/*
- 			 * We might race against get_swap_page() and stumble
-@@ -411,18 +440,24 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 			 */
- 			cond_resched();
- 			continue;
-+		} else if (err == -ENOTDIR) {
-+			/* huge swap cluster has been split under us */
+-		if (ioremap_p4d_enabled() &&
+-		    ((next - addr) == P4D_SIZE) &&
+-		    IS_ALIGNED(phys_addr, P4D_SIZE)) {
+-			if (p4d_set_huge(p4d, phys_addr, prot))
+-				continue;
+-		}
++		if (ioremap_try_huge_p4d(p4d, addr, next, phys_addr, prot))
 +			continue;
- 		} else if (err)		/* swp entry is obsolete ? */
- 			break;
  
- 		/* May fail (-ENOMEM) if XArray node allocation failed. */
- 		__SetPageLocked(new_page);
- 		__SetPageSwapBacked(new_page);
--		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
-+		err = add_to_swap_cache(new_page, hentry, gfp_mask & GFP_KERNEL);
- 		if (likely(!err)) {
- 			/* Initiate read into locked page */
- 			SetPageWorkingset(new_page);
- 			lru_cache_add_anon(new_page);
- 			*new_page_allocated = true;
-+			if (IS_ENABLED(CONFIG_THP_SWAP))
-+				new_page += swp_offset(entry) &
-+					(entry_size - 1);
- 			return new_page;
- 		}
- 		__ClearPageLocked(new_page);
-@@ -430,7 +465,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
- 		 * clear SWAP_HAS_CACHE flag.
- 		 */
--		put_swap_page(new_page, entry);
-+		put_swap_page(new_page, hentry);
- 	} while (err != -ENOMEM);
- 
- 	if (new_page)
-@@ -452,7 +487,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 			vma, addr, &page_was_allocated);
- 
- 	if (page_was_allocated)
--		swap_readpage(retpage, do_poll);
-+		swap_readpage(compound_head(retpage), do_poll);
- 
- 	return retpage;
- }
-@@ -571,8 +606,9 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 		if (!page)
- 			continue;
- 		if (page_allocated) {
--			swap_readpage(page, false);
--			if (offset != entry_offset) {
-+			swap_readpage(compound_head(page), false);
-+			if (offset != entry_offset &&
-+			    !PageTransCompound(page)) {
- 				SetPageReadahead(page);
- 				count_vm_event(SWAP_RA);
- 			}
-@@ -733,8 +769,8 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
- 		if (!page)
- 			continue;
- 		if (page_allocated) {
--			swap_readpage(page, false);
--			if (i != ra_info.offset) {
-+			swap_readpage(compound_head(page), false);
-+			if (i != ra_info.offset && !PageTransCompound(page)) {
- 				SetPageReadahead(page);
- 				count_vm_event(SWAP_RA);
- 			}
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index c59cc2ca7c2c..e27fe24a1f41 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1542,7 +1542,8 @@ int __swap_count(swp_entry_t entry)
- 	return count;
- }
- 
--static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
-+static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry,
-+			  int *entry_size)
- {
- 	int count = 0;
- 	pgoff_t offset = swp_offset(entry);
-@@ -1550,6 +1551,8 @@ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
- 
- 	ci = lock_cluster_or_swap_info(si, offset);
- 	count = swap_count(si->swap_map[offset]);
-+	if (entry_size)
-+		*entry_size = ci && cluster_is_huge(ci) ? SWAPFILE_CLUSTER : 1;
- 	unlock_cluster_or_swap_info(si, ci);
- 	return count;
- }
-@@ -1559,14 +1562,14 @@ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
-  * This does not give an exact answer when swap count is continued,
-  * but does include the high COUNT_CONTINUED flag to allow for that.
-  */
--int __swp_swapcount(swp_entry_t entry)
-+int __swp_swapcount(swp_entry_t entry, int *entry_size)
- {
- 	int count = 0;
- 	struct swap_info_struct *si;
- 
- 	si = get_swap_device(entry);
- 	if (si) {
--		count = swap_swapcount(si, entry);
-+		count = swap_swapcount(si, entry, entry_size);
- 		put_swap_device(si);
- 	}
- 	return count;
+ 		if (ioremap_pud_range(p4d, addr, next, phys_addr, prot))
+ 			return -ENOMEM;
 -- 
-2.18.1
+2.1.4
