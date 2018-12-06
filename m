@@ -1,189 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8069E8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:22:03 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id 41so2902871qto.17
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:22:03 -0800 (PST)
-Received: from a9-112.smtp-out.amazonses.com (a9-112.smtp-out.amazonses.com. [54.240.9.112])
-        by mx.google.com with ESMTPS id j62si2339122qkj.139.2018.12.20.11.22.02
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 11:22:02 -0800 (PST)
-Message-ID: <01000167cd114cfc-077a81a2-a425-4578-a5af-89d000f59749-000000@email.amazonses.com>
-Date: Thu, 20 Dec 2018 19:22:02 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 6/7] slub: Extend slabinfo to support -D and -F options
-References: <20181220192145.023162076@linux.com>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 174C36B7AD6
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 11:18:24 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id t83so420356oie.16
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 08:18:24 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e71si291850oic.46.2018.12.06.08.18.23
+        for <linux-mm@kvack.org>;
+        Thu, 06 Dec 2018 08:18:23 -0800 (PST)
+Date: Thu, 6 Dec 2018 16:18:17 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v7 23/25] arm64: acpi: Make apei_claim_sea() synchronise
+ with APEI's irq work
+Message-ID: <20181206161817.GN54495@arrakis.emea.arm.com>
+References: <20181203180613.228133-1-james.morse@arm.com>
+ <20181203180613.228133-24-james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=extend_slabinfo
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181203180613.228133-24-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, Rafael Wysocki <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>, Fan Wu <wufan@codeaurora.org>, Xie XiuQi <xiexiuqi@huawei.com>, Marc Zyngier <marc.zyngier@arm.com>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Dongjiu Geng <gengdongjiu@huawei.com>, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, Len Brown <lenb@kernel.org>
 
--F lists caches that support moving and defragmentation
+On Mon, Dec 03, 2018 at 06:06:11PM +0000, James Morse wrote:
+> APEI is unable to do all of its error handling work in nmi-context, so
+> it defers non-fatal work onto the irq_work queue. arch_irq_work_raise()
+> sends an IPI to the calling cpu, but this is not guaranteed to be taken
+> before returning to user-space.
+> 
+> Unless the exception interrupted a context with irqs-masked,
+> irq_work_run() can run immediately. Otherwise return -EINPROGRESS to
+> indicate ghes_notify_sea() found some work to do, but it hasn't
+> finished yet.
+> 
+> With this apei_claim_sea() returning '0' means this external-abort was
+> also notification of a firmware-first RAS error, and that APEI has
+> processed the CPER records.
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+> Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
+> CC: Xie XiuQi <xiexiuqi@huawei.com>
+> CC: gengdongjiu <gengdongjiu@huawei.com>
 
--C lists caches that use a ctor.
-
-Change field names for defrag_ratio and remote_node_defrag_ratio.
-
-Add determination of the allocation ratio for a slab. The allocation ratio
-is the percentage of available slots for objects in use.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
----
- Documentation/vm/slabinfo.c |   48 +++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 43 insertions(+), 5 deletions(-)
-
-Index: linux/tools/vm/slabinfo.c
-===================================================================
---- linux.orig/tools/vm/slabinfo.c
-+++ linux/tools/vm/slabinfo.c
-@@ -33,6 +33,8 @@ struct slabinfo {
- 	unsigned int hwcache_align, object_size, objs_per_slab;
- 	unsigned int sanity_checks, slab_size, store_user, trace;
- 	int order, poison, reclaim_account, red_zone;
-+	int movable, ctor;
-+	int defrag_ratio, remote_node_defrag_ratio;
- 	unsigned long partial, objects, slabs, objects_partial, objects_total;
- 	unsigned long alloc_fastpath, alloc_slowpath;
- 	unsigned long free_fastpath, free_slowpath;
-@@ -67,6 +69,8 @@ int show_report;
- int show_alias;
- int show_slab;
- int skip_zero = 1;
-+int show_movable;
-+int show_ctor;
- int show_numa;
- int show_track;
- int show_first_alias;
-@@ -109,14 +113,16 @@ static void fatal(const char *x, ...)
- 
- static void usage(void)
- {
--	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
--		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
-+	printf("slabinfo 4/15/2017. (c) 2007 sgi/(c) 2011 Linux Foundation/(c) 2017 Jump Trading LLC.\n\n"
-+		"slabinfo [-aCdDefFhnpvtsz] [-d debugopts] [slab-regexp]\n"
- 		"-a|--aliases           Show aliases\n"
- 		"-A|--activity          Most active slabs first\n"
- 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
-+		"-C|--ctor              Show slabs with ctors\n"
- 		"-D|--display-active    Switch line format to activity\n"
- 		"-e|--empty             Show empty slabs\n"
- 		"-f|--first-alias       Show first alias\n"
-+		"-F|--movable           Show caches that support movable objects\n"
- 		"-h|--help              Show usage information\n"
- 		"-i|--inverted          Inverted list\n"
- 		"-l|--slabs             Show slabs\n"
-@@ -369,7 +375,7 @@ static void slab_numa(struct slabinfo *s
- 		return;
- 
- 	if (!line) {
--		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
-+		printf("\n%-21s: Rto ", mode ? "NUMA nodes" : "Slab");
- 		for(node = 0; node <= highest_node; node++)
- 			printf(" %4d", node);
- 		printf("\n----------------------");
-@@ -378,6 +384,7 @@ static void slab_numa(struct slabinfo *s
- 		printf("\n");
- 	}
- 	printf("%-21s ", mode ? "All slabs" : s->name);
-+	printf("%3d ", s->remote_node_defrag_ratio);
- 	for(node = 0; node <= highest_node; node++) {
- 		char b[20];
- 
-@@ -535,6 +542,8 @@ static void report(struct slabinfo *s)
- 		printf("** Slabs are destroyed via RCU\n");
- 	if (s->reclaim_account)
- 		printf("** Reclaim accounting active\n");
-+	if (s->movable)
-+		printf("** Defragmentation at %d%%\n", s->defrag_ratio);
- 
- 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
- 	printf("------------------------------------------------------------------------\n");
-@@ -585,6 +594,12 @@ static void slabcache(struct slabinfo *s
- 	if (show_empty && s->slabs)
- 		return;
- 
-+	if (show_movable && !s->movable)
-+		return;
-+
-+	if (show_ctor && !s->ctor)
-+		return;
-+
- 	if (sort_loss == 0)
- 		store_size(size_str, slab_size(s));
- 	else
-@@ -599,6 +614,10 @@ static void slabcache(struct slabinfo *s
- 		*p++ = '*';
- 	if (s->cache_dma)
- 		*p++ = 'd';
-+	if (s->movable)
-+		*p++ = 'F';
-+	if (s->ctor)
-+		*p++ = 'C';
- 	if (s->hwcache_align)
- 		*p++ = 'A';
- 	if (s->poison)
-@@ -633,7 +652,8 @@ static void slabcache(struct slabinfo *s
- 		printf("%-21s %8ld %7d %15s %14s %4d %1d %3ld %3ld %s\n",
- 			s->name, s->objects, s->object_size, size_str, dist_str,
- 			s->objs_per_slab, s->order,
--			s->slabs ? (s->partial * 100) / s->slabs : 100,
-+			s->slabs ? (s->partial * 100) /
-+					(s->slabs * s->objs_per_slab) : 100,
- 			s->slabs ? (s->objects * s->object_size * 100) /
- 				(s->slabs * (page_size << s->order)) : 100,
- 			flags);
-@@ -1252,7 +1272,17 @@ static void read_slab_dir(void)
- 			slab->cpu_partial_free = get_obj("cpu_partial_free");
- 			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
- 			slab->deactivate_bypass = get_obj("deactivate_bypass");
-+			slab->defrag_ratio = get_obj("defrag_ratio");
-+			slab->remote_node_defrag_ratio =
-+					get_obj("remote_node_defrag_ratio");
- 			chdir("..");
-+			if (read_slab_obj(slab, "ops")) {
-+				if (strstr(buffer, "ctor :"))
-+					slab->ctor = 1;
-+				if (strstr(buffer, "migrate :"))
-+					slab->movable = 1;
-+			}
-+
- 			if (slab->name[0] == ':')
- 				alias_targets++;
- 			slab++;
-@@ -1329,6 +1359,8 @@ static void xtotals(void)
- }
- 
- struct option opts[] = {
-+	{ "ctor", no_argument, NULL, 'C' },
-+	{ "movable", no_argument, NULL, 'F' },
- 	{ "aliases", no_argument, NULL, 'a' },
- 	{ "activity", no_argument, NULL, 'A' },
- 	{ "debug", optional_argument, NULL, 'd' },
-@@ -1364,7 +1396,7 @@ int main(int argc, char *argv[])
- 
- 	page_size = getpagesize();
- 
--	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
-+	while ((c = getopt_long(argc, argv, "aACd::DefFhil1noprstvzTSN:LXBU",
- 						opts, NULL)) != -1)
- 		switch (c) {
- 		case '1':
-@@ -1420,6 +1452,12 @@ int main(int argc, char *argv[])
- 		case 'z':
- 			skip_zero = 0;
- 			break;
-+		case 'C':
-+			show_ctor = 1;
-+			break;
-+		case 'F':
-+			show_movable = 1;
-+			break;
- 		case 'T':
- 			show_totals = 1;
- 			break;
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
