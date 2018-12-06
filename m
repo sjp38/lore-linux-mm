@@ -1,136 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EC958E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:30 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e12so11935309edd.16
-        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:42:30 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f10si2407421eda.112.2018.12.18.01.42.28
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 77EFE6B78C3
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 02:31:28 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o17so12796228pgi.14
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 23:31:28 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y6si20639125pgb.516.2018.12.05.23.31.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Dec 2018 01:42:28 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBI9dLrS127995
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:27 -0500
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2pew6j3rem-1
+        Wed, 05 Dec 2018 23:31:27 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB67OPks025306
+	for <linux-mm@kvack.org>; Thu, 6 Dec 2018 02:31:26 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2p6wc154c9-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:27 -0500
+	for <linux-mm@kvack.org>; Thu, 06 Dec 2018 02:31:26 -0500
 Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 18 Dec 2018 09:42:26 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V4 5/5] arch/powerpc/mm/hugetlb: NestMMU workaround for hugetlb mprotect RW upgrade
-Date: Tue, 18 Dec 2018 15:11:37 +0530
-In-Reply-To: <20181218094137.13732-1-aneesh.kumar@linux.ibm.com>
-References: <20181218094137.13732-1-aneesh.kumar@linux.ibm.com>
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 6 Dec 2018 07:31:23 -0000
+Date: Thu, 6 Dec 2018 09:31:11 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH v2 2/6] microblaze: prefer memblock API returning virtual
+ address
+References: <1543852035-26634-1-git-send-email-rppt@linux.ibm.com>
+ <1543852035-26634-3-git-send-email-rppt@linux.ibm.com>
+ <0a5e0aef-15fd-2d0c-765c-e7ba60219b00@monstr.eu>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20181218094137.13732-6-aneesh.kumar@linux.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0a5e0aef-15fd-2d0c-765c-e7ba60219b00@monstr.eu>
+Message-Id: <20181206073111.GH19181@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, x86@kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Michal Simek <monstr@monstr.eu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Michal Simek <michal.simek@xilinx.com>
 
-NestMMU requires us to mark the pte invalid and flush the tlb when we do a
-RW upgrade of pte. We fixed a variant of this in the fault path in commit
-Fixes: bd5050e38aec ("powerpc/mm/radix: Change pte relax sequence to handle nest MMU hang")
+On Wed, Dec 05, 2018 at 04:29:40PM +0100, Michal Simek wrote:
+> On 03. 12. 18 16:47, Mike Rapoport wrote:
+> > Rather than use the memblock_alloc_base that returns a physical address and
+> > then convert this address to the virtual one, use appropriate memblock
+> > function that returns a virtual address.
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> > ---
+> >  arch/microblaze/mm/init.c | 5 +++--
+> >  1 file changed, 3 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+> > index b17fd8a..44f4b89 100644
+> > --- a/arch/microblaze/mm/init.c
+> > +++ b/arch/microblaze/mm/init.c
+> > @@ -363,8 +363,9 @@ void __init *early_get_page(void)
+> >  	 * Mem start + kernel_tlb -> here is limit
+> >  	 * because of mem mapping from head.S
+> >  	 */
+> > -	return __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
+> > -				memory_start + kernel_tlb));
+> > +	return memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
+> > +				MEMBLOCK_LOW_LIMIT, memory_start + kernel_tlb,
+> > +				NUMA_NO_NODE);
+> >  }
+> >  
+> >  #endif /* CONFIG_MMU */
+> > 
+> 
+> I can't see any issue with functionality when this patch is applied.
+> If you want me to take this via my tree please let me know.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- arch/powerpc/include/asm/book3s/64/hugetlb.h | 12 +++++++++
- arch/powerpc/mm/hugetlbpage-hash64.c         | 27 ++++++++++++++++++++
- arch/powerpc/mm/hugetlbpage-radix.c          | 17 ++++++++++++
- 3 files changed, 56 insertions(+)
+I thought to route this via mmotm tree.
 
-diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-index 5b0177733994..66c1e4f88d65 100644
---- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
-+++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-@@ -13,6 +13,10 @@ radix__hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 				unsigned long len, unsigned long pgoff,
- 				unsigned long flags);
+> Otherwise:
+> 
+> Tested-by: Michal Simek <michal.simek@xilinx.com>
+
+Thanks!
+
  
-+extern void radix__huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
-+						unsigned long addr, pte_t *ptep,
-+						pte_t old_pte, pte_t pte);
-+
- static inline int hstate_get_psize(struct hstate *hstate)
- {
- 	unsigned long shift;
-@@ -42,4 +46,12 @@ static inline bool gigantic_page_supported(void)
- /* hugepd entry valid bit */
- #define HUGEPD_VAL_BITS		(0x8000000000000000UL)
- 
-+#define huge_ptep_modify_prot_start huge_ptep_modify_prot_start
-+extern pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
-+					 unsigned long addr, pte_t *ptep);
-+
-+#define huge_ptep_modify_prot_commit huge_ptep_modify_prot_commit
-+extern void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
-+					 unsigned long addr, pte_t *ptep,
-+					 pte_t old_pte, pte_t new_pte);
- #endif
-diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
-index 2e6a8f9345d3..48fe74bfeab1 100644
---- a/arch/powerpc/mm/hugetlbpage-hash64.c
-+++ b/arch/powerpc/mm/hugetlbpage-hash64.c
-@@ -121,3 +121,30 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
- 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
- 	return 0;
- }
-+
-+pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
-+				  unsigned long addr, pte_t *ptep)
-+{
-+	unsigned long pte_val;
-+	/*
-+	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
-+	 * possible. Also keep the pte_present true so that we don't take
-+	 * wrong fault.
-+	 */
-+	pte_val = pte_update(vma->vm_mm, addr, ptep,
-+			     _PAGE_PRESENT, _PAGE_INVALID, 1);
-+
-+	return __pte(pte_val);
-+}
-+EXPORT_SYMBOL(huge_ptep_modify_prot_start);
-+
-+void huge_ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
-+				  pte_t *ptep, pte_t old_pte, pte_t pte)
-+{
-+
-+	if (radix_enabled())
-+		return radix__huge_ptep_modify_prot_commit(vma, addr, ptep,
-+							   old_pte, pte);
-+	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
-+}
-+EXPORT_SYMBOL(huge_ptep_modify_prot_commit);
-diff --git a/arch/powerpc/mm/hugetlbpage-radix.c b/arch/powerpc/mm/hugetlbpage-radix.c
-index 2486bee0f93e..11d9ea28a816 100644
---- a/arch/powerpc/mm/hugetlbpage-radix.c
-+++ b/arch/powerpc/mm/hugetlbpage-radix.c
-@@ -90,3 +90,20 @@ radix__hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 
- 	return vm_unmapped_area(&info);
- }
-+
-+void radix__huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
-+					 unsigned long addr, pte_t *ptep,
-+					 pte_t old_pte, pte_t pte)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+
-+	/*
-+	 * To avoid NMMU hang while relaxing access we need to flush the tlb before
-+	 * we set the new value.
-+	 */
-+	if (is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
-+	    (atomic_read(&mm->context.copros) > 0))
-+		radix__flush_hugetlb_page(vma, addr);
-+
-+	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
-+}
+> Thanks,
+> Michal
+> 
+> -- 
+> Michal Simek, Ing. (M.Eng), OpenPGP -> KeyID: FE3D1F91
+> w: www.monstr.eu p: +42-0-721842854
+> Maintainer of Linux kernel - Xilinx Microblaze
+> Maintainer of Linux kernel - Xilinx Zynq ARM and ZynqMP ARM64 SoCs
+> U-Boot custodian - Xilinx Microblaze/Zynq/ZynqMP/Versal SoCs
+> 
+> 
+
+
+
+
 -- 
-2.19.2
+Sincerely yours,
+Mike.
