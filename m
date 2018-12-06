@@ -1,349 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 122546B6ADB
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 15:09:13 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 92so14286932qkx.19
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 12:09:13 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id v11si2539352qvj.128.2018.12.03.12.09.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 12:09:11 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH 1/3] hugetlbfs: use i_mmap_rwsem for more pmd sharing synchronization
-Date: Mon,  3 Dec 2018 12:08:48 -0800
-Message-Id: <20181203200850.6460-2-mike.kravetz@oracle.com>
-In-Reply-To: <20181203200850.6460-1-mike.kravetz@oracle.com>
-References: <20181203200850.6460-1-mike.kravetz@oracle.com>
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 549396B7CD2
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 17:51:17 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id c26so924728otl.19
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 14:51:17 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j5si417562oiw.131.2018.12.06.14.51.16
+        for <linux-mm@kvack.org>;
+        Thu, 06 Dec 2018 14:51:16 -0800 (PST)
+From: Steve Capper <steve.capper@arm.com>
+Subject: [PATCH V5 7/7] arm64: mm: Allow forcing all userspace addresses to 52-bit
+Date: Thu,  6 Dec 2018 22:50:42 +0000
+Message-Id: <20181206225042.11548-8-steve.capper@arm.com>
+In-Reply-To: <20181206225042.11548-1-steve.capper@arm.com>
+References: <20181206225042.11548-1-steve.capper@arm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, suzuki.poulose@arm.com, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
 
-While looking at BUGs associated with invalid huge page map counts,
-it was discovered and observed that a huge pte pointer could become
-'invalid' and point to another task's page table.  Consider the
-following:
+On arm64 52-bit VAs are provided to userspace when a hint is supplied to
+mmap. This helps maintain compatibility with software that expects at
+most 48-bit VAs to be returned.
 
-A task takes a page fault on a shared hugetlbfs file and calls
-huge_pte_alloc to get a ptep.  Suppose the returned ptep points to a
-shared pmd.
+In order to help identify software that has 48-bit VA assumptions, this
+patch allows one to compile a kernel where 52-bit VAs are returned by
+default on HW that supports it.
 
-Now, another task truncates the hugetlbfs file.  As part of truncation,
-it unmaps everyone who has the file mapped.  If the range being
-truncated is covered by a shared pmd, huge_pmd_unshare will be called.
-For all but the last user of the shared pmd, huge_pmd_unshare will
-clear the pud pointing to the pmd.  If the task in the middle of the
-page fault is not the last user, the ptep returned by huge_pte_alloc
-now points to another task's page table or worse.  This leads to bad
-things such as incorrect page map/reference counts or invalid memory
-references.
+This feature is intended to be for development systems only.
 
-To fix, expand the use of i_mmap_rwsem as follows:
-- i_mmap_rwsem is held in read mode whenever huge_pmd_share is called.
-  huge_pmd_share is only called via huge_pte_alloc, so callers of
-  huge_pte_alloc take i_mmap_rwsem before calling.  In addition, callers
-  of huge_pte_alloc continue to hold the semaphore until finished with
-  the ptep.
-- i_mmap_rwsem is held in write mode whenever huge_pmd_unshare is called.
-
-Cc: <stable@vger.kernel.org>
-Fixes: 39dde65c9940 ("shared page table for hugetlb page")
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Steve Capper <steve.capper@arm.com>
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- mm/hugetlb.c        | 70 ++++++++++++++++++++++++++++++++++-----------
- mm/memory-failure.c | 14 ++++++++-
- mm/migrate.c        | 13 ++++++++-
- mm/rmap.c           |  3 ++
- mm/userfaultfd.c    | 11 +++++--
- 5 files changed, 91 insertions(+), 20 deletions(-)
+ arch/arm64/Kconfig                 | 13 +++++++++++++
+ arch/arm64/include/asm/elf.h       |  4 ++++
+ arch/arm64/include/asm/processor.h |  9 ++++++++-
+ 3 files changed, 25 insertions(+), 1 deletion(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 1931a3d9b282..362601b69c56 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3239,6 +3239,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 	int cow;
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long sz = huge_page_size(h);
-+	struct address_space *mapping = vma->vm_file->f_mapping;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
- 	int ret = 0;
-@@ -3252,11 +3253,23 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 6a93d5bc7f76..12658f05bb41 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -1165,6 +1165,19 @@ config ARM64_CNP
+ 	  at runtime, and does not affect PEs that do not implement
+ 	  this feature.
  
- 	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
- 		spinlock_t *src_ptl, *dst_ptl;
++config ARM64_FORCE_52BIT
++	bool "Force 52-bit virtual addresses for userspace"
++	depends on ARM64_52BIT_VA && EXPERT
++	help
++	  For systems with 52-bit userspace VAs enabled, the kernel will attempt
++	  to maintain compatibility with older software by providing 48-bit VAs
++	  unless a hint is supplied to mmap.
 +
- 		src_pte = huge_pte_offset(src, addr, sz);
- 		if (!src_pte)
- 			continue;
++	  This configuration option disables the 48-bit compatibility logic, and
++	  forces all userspace addresses to be 52-bit on HW that supports it. One
++	  should only enable this configuration option for stress testing userspace
++	  memory management code. If unsure say N here.
 +
-+		/*
-+		 * i_mmap_rwsem must be held to call huge_pte_alloc.
-+		 * Continue to hold until finished  with dst_pte, otherwise
-+		 * it could go away if part of a shared pmd.
-+		 *
-+		 * Technically, i_mmap_rwsem is only needed in the non-cow
-+		 * case as cow mappings are not shared.
-+		 */
-+		i_mmap_lock_read(mapping);
- 		dst_pte = huge_pte_alloc(dst, addr, sz);
- 		if (!dst_pte) {
-+			i_mmap_unlock_read(mapping);
- 			ret = -ENOMEM;
- 			break;
- 		}
-@@ -3271,8 +3284,10 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 		 * after taking the lock below.
- 		 */
- 		dst_entry = huge_ptep_get(dst_pte);
--		if ((dst_pte == src_pte) || !huge_pte_none(dst_entry))
-+		if ((dst_pte == src_pte) || !huge_pte_none(dst_entry)) {
-+			i_mmap_unlock_read(mapping);
- 			continue;
-+		}
+ endmenu
  
- 		dst_ptl = huge_pte_lock(h, dst, dst_pte);
- 		src_ptl = huge_pte_lockptr(h, src, src_pte);
-@@ -3321,6 +3336,8 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 		}
- 		spin_unlock(src_ptl);
- 		spin_unlock(dst_ptl);
-+
-+		i_mmap_unlock_read(mapping);
- 	}
- 
- 	if (cow)
-@@ -3772,14 +3789,18 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
- 			};
- 
- 			/*
--			 * hugetlb_fault_mutex must be dropped before
--			 * handling userfault.  Reacquire after handling
--			 * fault to make calling code simpler.
-+			 * hugetlb_fault_mutex and i_mmap_rwsem must be
-+			 * dropped before handling userfault.  Reacquire
-+			 * after handling fault to make calling code simpler.
- 			 */
- 			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
- 							idx, haddr);
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+			i_mmap_unlock_read(mapping);
-+
- 			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
-+
-+			i_mmap_lock_read(mapping);
- 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 			goto out;
- 		}
-@@ -3927,6 +3948,11 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
- 	if (ptep) {
-+		/*
-+		 * Since we hold no locks, ptep could be stale.  That is
-+		 * OK as we are only making decisions based on content and
-+		 * not actually modifying content here.
-+		 */
- 		entry = huge_ptep_get(ptep);
- 		if (unlikely(is_hugetlb_entry_migration(entry))) {
- 			migration_entry_wait_huge(vma, mm, ptep);
-@@ -3934,20 +3960,31 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
- 			return VM_FAULT_HWPOISON_LARGE |
- 				VM_FAULT_SET_HINDEX(hstate_index(h));
--	} else {
--		ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
--		if (!ptep)
--			return VM_FAULT_OOM;
- 	}
- 
-+	/*
-+	 * Acquire i_mmap_rwsem before calling huge_pte_alloc and hold
-+	 * until finished with ptep.  This prevents huge_pmd_unshare from
-+	 * being called elsewhere and making the ptep no longer valid.
-+	 *
-+	 * ptep could have already be assigned via huge_pte_offset.  That
-+	 * is OK, as huge_pte_alloc will return the same value unless
-+	 * something changed.
-+	 */
- 	mapping = vma->vm_file->f_mapping;
--	idx = vma_hugecache_offset(h, vma, haddr);
-+	i_mmap_lock_read(mapping);
-+	ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
-+	if (!ptep) {
-+		i_mmap_unlock_read(mapping);
-+		return VM_FAULT_OOM;
-+	}
- 
- 	/*
- 	 * Serialize hugepage allocation and instantiation, so that we don't
- 	 * get spurious allocation failures if two CPUs race to instantiate
- 	 * the same page in the page cache.
- 	 */
-+	idx = vma_hugecache_offset(h, vma, haddr);
- 	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, haddr);
- 	mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 
-@@ -4035,6 +4072,7 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- out_mutex:
- 	mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+	i_mmap_unlock_read(mapping);
- 	/*
- 	 * Generally it's safe to hold refcount during waiting page lock. But
- 	 * here we just wait to defer the next page fault to avoid busy loop and
-@@ -4639,10 +4677,12 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
-  * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
-  * and returns the corresponding pte. While this is not necessary for the
-  * !shared pmd case because we can allocate the pmd later as well, it makes the
-- * code much cleaner. pmd allocation is essential for the shared case because
-- * pud has to be populated inside the same i_mmap_rwsem section - otherwise
-- * racing tasks could either miss the sharing (see huge_pte_offset) or select a
-- * bad pmd for sharing.
-+ * code much cleaner.
-+ *
-+ * This routine must be called with i_mmap_rwsem held in at least read mode.
-+ * For hugetlbfs, this prevents removal of any page table entries associated
-+ * with the address space.  This is important as we are setting up sharing
-+ * based on existing page table entries (mappings).
+ config ARM64_SVE
+diff --git a/arch/arm64/include/asm/elf.h b/arch/arm64/include/asm/elf.h
+index bc9bd9e77d9d..6adc1a90e7e6 100644
+--- a/arch/arm64/include/asm/elf.h
++++ b/arch/arm64/include/asm/elf.h
+@@ -117,7 +117,11 @@
+  * 64-bit, this is above 4GB to leave the entire 32-bit address
+  * space open for things that want to use the area for 32-bit pointers.
   */
- pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- {
-@@ -4659,7 +4699,6 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	if (!vma_shareable(vma, addr))
- 		return (pte_t *)pmd_alloc(mm, pud, addr);
++#ifdef CONFIG_ARM64_FORCE_52BIT
++#define ELF_ET_DYN_BASE		(2 * TASK_SIZE_64 / 3)
++#else
+ #define ELF_ET_DYN_BASE		(2 * DEFAULT_MAP_WINDOW_64 / 3)
++#endif /* CONFIG_ARM64_FORCE_52BIT */
  
--	i_mmap_lock_write(mapping);
- 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
- 		if (svma == vma)
- 			continue;
-@@ -4689,7 +4728,6 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	spin_unlock(ptl);
- out:
- 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
--	i_mmap_unlock_write(mapping);
- 	return pte;
- }
+ #ifndef __ASSEMBLY__
  
-@@ -4700,7 +4738,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-  * indicated by page_count > 1, unmap is achieved by clearing pud and
-  * decrementing the ref count. If count == 1, the pte page is not shared.
-  *
-- * called with page table lock held.
-+ * Called with page table lock held and i_mmap_rwsem held in write mode.
-  *
-  * returns: 1 successfully unmapped a shared pte page
-  *	    0 the underlying pte page is not shared, or it is the last user
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 0cd3de3550f0..b992d1295578 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1028,7 +1028,19 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	if (kill)
- 		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
+diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
+index b363fc705be4..9abd91570b5b 100644
+--- a/arch/arm64/include/asm/processor.h
++++ b/arch/arm64/include/asm/processor.h
+@@ -65,8 +65,13 @@ extern u64 vabits_user;
+ #define DEFAULT_MAP_WINDOW	DEFAULT_MAP_WINDOW_64
+ #endif /* CONFIG_COMPAT */
  
--	unmap_success = try_to_unmap(hpage, ttu);
-+	if (!PageHuge(hpage)) {
-+		unmap_success = try_to_unmap(hpage, ttu);
-+	} else {
-+		/*
-+		 * For hugetlb pages, try_to_unmap could potentially call
-+		 * huge_pmd_unshare.  Because of this, take semaphore in
-+		 * write mode here and set TTU_RMAP_LOCKED to indicate we
-+		 * have taken the lock at this higer level.
-+		 */
-+		i_mmap_lock_write(mapping);
-+		unmap_success = try_to_unmap(hpage, ttu|TTU_RMAP_LOCKED);
-+		i_mmap_unlock_write(mapping);
-+	}
- 	if (!unmap_success)
- 		pr_err("Memory failure: %#lx: failed to unmap page (mapcount=%d)\n",
- 		       pfn, page_mapcount(hpage));
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 84381b55b2bd..725edaef238a 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1307,8 +1307,19 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 		goto put_anon;
+-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
++#ifdef CONFIG_ARM64_FORCE_52BIT
++#define STACK_TOP_MAX		TASK_SIZE_64
++#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
++#else
+ #define STACK_TOP_MAX		DEFAULT_MAP_WINDOW_64
++#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
++#endif /* CONFIG_ARM64_FORCE_52BIT */
  
- 	if (page_mapped(hpage)) {
-+		struct address_space *mapping = page_mapping(hpage);
-+
-+		/*
-+		 * try_to_unmap could potentially call huge_pmd_unshare.
-+		 * Because of this, take semaphore in write mode here and
-+		 * set TTU_RMAP_LOCKED to let lower levels know we have
-+		 * taken the lock.
-+		 */
-+		i_mmap_lock_write(mapping);
- 		try_to_unmap(hpage,
--			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|
-+			TTU_RMAP_LOCKED);
-+		i_mmap_unlock_write(mapping);
- 		page_was_mapped = 1;
- 	}
+ #ifdef CONFIG_COMPAT
+ #define AARCH32_VECTORS_BASE	0xffff0000
+@@ -76,12 +81,14 @@ extern u64 vabits_user;
+ #define STACK_TOP		STACK_TOP_MAX
+ #endif /* CONFIG_COMPAT */
  
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 1e79fac3186b..aed241f69fcf 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1374,6 +1374,9 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		/*
- 		 * If sharing is possible, start and end will be adjusted
- 		 * accordingly.
-+		 *
-+		 * If called for a huge page, caller must hold i_mmap_rwsem
-+		 * in write mode as it is possible to call huge_pmd_unshare.
- 		 */
- 		adjust_range_if_pmd_sharing_possible(vma, &start, &end);
- 	}
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index 5029f241908f..7cf4d8f7494b 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -244,10 +244,14 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		VM_BUG_ON(dst_addr & ~huge_page_mask(h));
++#ifndef CONFIG_ARM64_FORCE_52BIT
+ #define arch_get_mmap_end(addr) ((addr > DEFAULT_MAP_WINDOW) ? TASK_SIZE :\
+ 				DEFAULT_MAP_WINDOW)
  
- 		/*
--		 * Serialize via hugetlb_fault_mutex
-+		 * Serialize via i_mmap_rwsem and hugetlb_fault_mutex.
-+		 * i_mmap_rwsem ensures the dst_pte remains valid even
-+		 * in the case of shared pmds.  fault mutex prevents
-+		 * races with other faulting threads.
- 		 */
--		idx = linear_page_index(dst_vma, dst_addr);
- 		mapping = dst_vma->vm_file->f_mapping;
-+		i_mmap_lock_read(mapping);
-+		idx = linear_page_index(dst_vma, dst_addr);
- 		hash = hugetlb_fault_mutex_hash(h, dst_mm, dst_vma, mapping,
- 								idx, dst_addr);
- 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
-@@ -256,6 +260,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		dst_pte = huge_pte_alloc(dst_mm, dst_addr, huge_page_size(h));
- 		if (!dst_pte) {
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+			i_mmap_unlock_read(mapping);
- 			goto out_unlock;
- 		}
+ #define arch_get_mmap_base(addr, base) ((addr > DEFAULT_MAP_WINDOW) ? \
+ 					base + TASK_SIZE - DEFAULT_MAP_WINDOW :\
+ 					base)
++#endif /* CONFIG_ARM64_FORCE_52BIT */
  
-@@ -263,6 +268,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		dst_pteval = huge_ptep_get(dst_pte);
- 		if (!huge_pte_none(dst_pteval)) {
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+			i_mmap_unlock_read(mapping);
- 			goto out_unlock;
- 		}
- 
-@@ -270,6 +276,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 						dst_addr, src_addr, &page);
- 
- 		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+		i_mmap_unlock_read(mapping);
- 		vm_alloc_shared = vm_shared;
- 
- 		cond_resched();
+ extern phys_addr_t arm64_dma_phys_limit;
+ #define ARCH_LOW_ADDRESS_LIMIT	(arm64_dma_phys_limit - 1)
 -- 
-2.17.2
+2.19.2
