@@ -1,126 +1,46 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 07/12] __wr_after_init: lkdtm test
-Date: Wed, 19 Dec 2018 23:33:33 +0200
-Message-Id: <20181219213338.26619-8-igor.stoppa@huawei.com>
-In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
-References: <20181219213338.26619-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BFBC26B7A36
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:36:58 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id v3so660400itf.4
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:36:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q20sor126933ioj.113.2018.12.06.04.36.57
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 06 Dec 2018 04:36:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <cover.1541687720.git.andreyknvl@google.com> <c9028422854fb5bfb79d798397b30d4701207062.1541687720.git.andreyknvl@google.com>
+ <20181129182323.GI22027@arrakis.emea.arm.com>
+In-Reply-To: <20181129182323.GI22027@arrakis.emea.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 6 Dec 2018 13:36:46 +0100
+Message-ID: <CAAeHK+y7AwdXsEgBYqLUzps2K8aGcbDsSpS+obCs11voZX55og@mail.gmail.com>
+Subject: Re: [PATCH v8 2/8] uaccess: add untagged_addr definition for other arches
+Content-Type: text/plain; charset="UTF-8"
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgenii Stepanov <eugenis@google.com>
 
-Verify that trying to modify a variable with the __wr_after_init
-attribute will cause a crash.
+On Thu, Nov 29, 2018 at 7:23 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>
+> On Thu, Nov 08, 2018 at 03:36:09PM +0100, Andrey Konovalov wrote:
+> > diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+> > index efe79c1cdd47..c045b4eff95e 100644
+> > --- a/include/linux/uaccess.h
+> > +++ b/include/linux/uaccess.h
+> > @@ -13,6 +13,10 @@
+> >
+> >  #include <asm/uaccess.h>
+> >
+> > +#ifndef untagged_addr
+> > +#define untagged_addr(addr) addr
+> > +#endif
+>
+> Nitpick: add braces around (addr). Otherwise:
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+Will do in v9, thanks!
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- drivers/misc/lkdtm/core.c  |  3 +++
- drivers/misc/lkdtm/lkdtm.h |  3 +++
- drivers/misc/lkdtm/perms.c | 29 +++++++++++++++++++++++++++++
- 3 files changed, 35 insertions(+)
-
-diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
-index 2837dc77478e..73c34b17c433 100644
---- a/drivers/misc/lkdtm/core.c
-+++ b/drivers/misc/lkdtm/core.c
-@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
- 	CRASHTYPE(ACCESS_USERSPACE),
- 	CRASHTYPE(WRITE_RO),
- 	CRASHTYPE(WRITE_RO_AFTER_INIT),
-+#ifdef CONFIG_PRMEM
-+	CRASHTYPE(WRITE_WR_AFTER_INIT),
-+#endif
- 	CRASHTYPE(WRITE_KERN),
- 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
- 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
-index 3c6fd327e166..abba2f52ffa6 100644
---- a/drivers/misc/lkdtm/lkdtm.h
-+++ b/drivers/misc/lkdtm/lkdtm.h
-@@ -38,6 +38,9 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
- void __init lkdtm_perms_init(void);
- void lkdtm_WRITE_RO(void);
- void lkdtm_WRITE_RO_AFTER_INIT(void);
-+#ifdef CONFIG_PRMEM
-+void lkdtm_WRITE_WR_AFTER_INIT(void);
-+#endif
- void lkdtm_WRITE_KERN(void);
- void lkdtm_EXEC_DATA(void);
- void lkdtm_EXEC_STACK(void);
-diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
-index 53b85c9d16b8..f681730aa652 100644
---- a/drivers/misc/lkdtm/perms.c
-+++ b/drivers/misc/lkdtm/perms.c
-@@ -9,6 +9,7 @@
- #include <linux/vmalloc.h>
- #include <linux/mman.h>
- #include <linux/uaccess.h>
-+#include <linux/prmem.h>
- #include <asm/cacheflush.h>
- 
- /* Whether or not to fill the target memory area with do_nothing(). */
-@@ -27,6 +28,10 @@ static const unsigned long rodata = 0xAA55AA55;
- /* This is marked __ro_after_init, so it should ultimately be .rodata. */
- static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
- 
-+/* This is marked __wr_after_init, so it should be in .rodata. */
-+static
-+unsigned long wr_after_init __wr_after_init = 0x55AA5500;
-+
- /*
-  * This just returns to the caller. It is designed to be copied into
-  * non-executable memory regions.
-@@ -104,6 +109,28 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
- 	*ptr ^= 0xabcd1234;
- }
- 
-+#ifdef CONFIG_PRMEM
-+
-+void lkdtm_WRITE_WR_AFTER_INIT(void)
-+{
-+	unsigned long *ptr = &wr_after_init;
-+
-+	/*
-+	 * Verify we were written to during init. Since an Oops
-+	 * is considered a "success", a failure is to just skip the
-+	 * real test.
-+	 */
-+	if ((*ptr & 0xAA) != 0xAA) {
-+		pr_info("%p was NOT written during init!?\n", ptr);
-+		return;
-+	}
-+
-+	pr_info("attempting bad wr_after_init write at %p\n", ptr);
-+	*ptr ^= 0xabcd1234;
-+}
-+
-+#endif
-+
- void lkdtm_WRITE_KERN(void)
- {
- 	size_t size;
-@@ -200,4 +227,6 @@ void __init lkdtm_perms_init(void)
- 	/* Make sure we can write to __ro_after_init values during __init */
- 	ro_after_init |= 0xAA;
- 
-+	/* Make sure we can write to __wr_after_init during __init */
-+	wr_after_init |= 0xAA;
- }
--- 
-2.19.1
+>
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
