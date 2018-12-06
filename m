@@ -1,42 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B7F56B6B9A
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:22:49 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id 4so11244817plc.5
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:22:49 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j1si14810192pff.42.2018.12.03.15.22.47
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E74956B79F2
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:24:55 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id d11so88584wrw.4
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:24:55 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 93sor196985wrb.13.2018.12.06.04.24.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 15:22:48 -0800 (PST)
-Date: Mon, 3 Dec 2018 15:22:43 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] iomap: get/put the page in
- iomap_page_create/release()
-Message-Id: <20181203152243.095e6b846fd9f623a339e4ab@linux-foundation.org>
-In-Reply-To: <20181115184140.1388751-1-pjaroszynski@nvidia.com>
-References: <20181115184140.1388751-1-pjaroszynski@nvidia.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 06 Dec 2018 04:24:54 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v13 04/25] kasan: rename source files to reflect the new naming scheme
+Date: Thu,  6 Dec 2018 13:24:22 +0100
+Message-Id: <88c6fd2a883e459e6242030497230e5fb0d44d44.1544099024.git.andreyknvl@google.com>
+In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
+References: <cover.1544099024.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: p.jaroszynski@gmail.com
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Piotr Jaroszynski <pjaroszynski@nvidia.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-On Thu, 15 Nov 2018 10:41:40 -0800 p.jaroszynski@gmail.com wrote:
+We now have two KASAN modes: generic KASAN and tag-based KASAN. Rename
+kasan.c to generic.c to reflect that. Also rename kasan_init.c to init.c
+as it contains initialization code for both KASAN modes.
 
-> migrate_page_move_mapping() expects pages with private data set to have
-> a page_count elevated by 1. This is what used to happen for xfs through
-> the buffer_heads code before the switch to iomap in commit 82cb14175e7d
-> ("xfs: add support for sub-pagesize writeback without buffer_heads").
-> Not having the count elevated causes move_pages() to fail on memory
-> mapped files coming from xfs.
-> 
-> Make iomap compatible with the migrate_page_move_mapping() assumption
-> by elevating the page count as part of iomap_page_create() and lowering
-> it in iomap_page_release().
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ mm/kasan/Makefile                 | 8 ++++----
+ mm/kasan/{kasan.c => generic.c}   | 0
+ mm/kasan/{kasan_init.c => init.c} | 0
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+ rename mm/kasan/{kasan.c => generic.c} (100%)
+ rename mm/kasan/{kasan_init.c => init.c} (100%)
 
-What are the real-world end-user effects of this bug?
-
-Is a -stable backport warranted?
+diff --git a/mm/kasan/Makefile b/mm/kasan/Makefile
+index a6df14bffb6b..d643530b24aa 100644
+--- a/mm/kasan/Makefile
++++ b/mm/kasan/Makefile
+@@ -1,14 +1,14 @@
+ # SPDX-License-Identifier: GPL-2.0
+ KASAN_SANITIZE := n
+ UBSAN_SANITIZE_common.o := n
+-UBSAN_SANITIZE_kasan.o := n
++UBSAN_SANITIZE_generic.o := n
+ KCOV_INSTRUMENT := n
+ 
+-CFLAGS_REMOVE_kasan.o = -pg
++CFLAGS_REMOVE_generic.o = -pg
+ # Function splitter causes unnecessary splits in __asan_load1/__asan_store1
+ # see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63533
+ 
+ CFLAGS_common.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+-CFLAGS_kasan.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
++CFLAGS_generic.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+ 
+-obj-y := common.o kasan.o report.o kasan_init.o quarantine.o
++obj-y := common.o generic.o report.o init.o quarantine.o
+diff --git a/mm/kasan/kasan.c b/mm/kasan/generic.c
+similarity index 100%
+rename from mm/kasan/kasan.c
+rename to mm/kasan/generic.c
+diff --git a/mm/kasan/kasan_init.c b/mm/kasan/init.c
+similarity index 100%
+rename from mm/kasan/kasan_init.c
+rename to mm/kasan/init.c
+-- 
+2.20.0.rc1.387.gf8505762e3-goog
