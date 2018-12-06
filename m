@@ -1,131 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 342798E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 01:28:23 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c53so4996961edc.9
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:28:23 -0800 (PST)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id gp17-v6si1240695ejb.103.2018.12.20.22.28.20
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 537556B7A11
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:25:18 -0500 (EST)
+Received: by mail-wm1-f72.google.com with SMTP id p16so205538wmc.5
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:25:18 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s15sor463512wmh.13.2018.12.06.04.25.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 22:28:21 -0800 (PST)
-From: Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v3] mm, page_alloc: Fix has_unmovable_pages for HugePages
-Date: Fri, 21 Dec 2018 07:28:09 +0100
-Message-Id: <20181221062809.31771-1-osalvador@suse.de>
+        (Google Transport Security);
+        Thu, 06 Dec 2018 04:25:16 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v13 17/25] kasan: add bug reporting routines for tag-based mode
+Date: Thu,  6 Dec 2018 13:24:35 +0100
+Message-Id: <aee6897b1bd077732a315fd84c6b4f234dbfdfcb.1544099024.git.andreyknvl@google.com>
+In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
+References: <cover.1544099024.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, vbabka@suse.cz, pavel.tatashin@microsoft.com, rppt@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-v3 -> v2: Get rid of the round_up()
-v2 -> v1: Adjust skip pages logic per Michal
+This commit adds rountines, that print tag-based KASAN error reports.
+Those are quite similar to generic KASAN, the difference is:
 
->From 8c057ff497a078f28e293af8c0bd089893a57753 Mon Sep 17 00:00:00 2001
-From: Oscar Salvador <osalvador@suse.de>
-Date: Wed, 19 Dec 2018 00:04:18 +0000
-Subject: [PATCH] mm, page_alloc: fix has_unmovable_pages for HugePages
+1. The way tag-based KASAN finds the first bad shadow cell (with a
+   mismatching tag). Tag-based KASAN compares memory tags from the shadow
+   memory to the pointer tag.
 
-While playing with gigantic hugepages and memory_hotplug, I triggered the
-following #PF when "cat memoryX/removable":
+2. Tag-based KASAN reports all bugs with the "KASAN: invalid-access"
+   header.
 
-<---
-kernel: BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
-kernel: #PF error: [normal kernel read fault]
-kernel: PGD 0 P4D 0
-kernel: Oops: 0000 [#1] SMP PTI
-kernel: CPU: 1 PID: 1481 Comm: cat Tainted: G            E     4.20.0-rc6-mm1-1-default+ #18
-kernel: Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.0.0-prebuilt.qemu-project.org 04/01/2014
-kernel: RIP: 0010:has_unmovable_pages+0x154/0x210
-kernel: Code: 1b ff ff ff eb 32 48 8b 45 00 bf 00 10 00 00 a9 00 00 01 00 74 07 0f b6 4d 51 48 d3 e7 e8 c4 81 05 00 48 85 c0 49 89 c1 75 7e <41> 8b 41 08 83 f8 09 74 41 83 f8 1b 74 3c 4d 2b 64 24 58 49 81 ec
-kernel: RSP: 0018:ffffc90000a1fd30 EFLAGS: 00010246
-kernel: RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000009
-kernel: RDX: ffffffff82aed4f0 RSI: 0000000000001000 RDI: 0000000000001000
-kernel: RBP: ffffea0001800000 R08: 0000000000200000 R09: 0000000000000000
-kernel: R10: 0000000000001000 R11: 0000000000000003 R12: ffff88813ffd45c0
-kernel: R13: 0000000000060000 R14: 0000000000000001 R15: ffffea0000000000
-kernel: FS:  00007fd71d9b3500(0000) GS:ffff88813bb00000(0000) knlGS:0000000000000000
-kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-kernel: CR2: 0000000000000008 CR3: 00000001371c2002 CR4: 00000000003606e0
-kernel: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-kernel: DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-kernel: Call Trace:
-kernel:  is_mem_section_removable+0x7d/0x100
-kernel:  removable_show+0x90/0xb0
-kernel:  dev_attr_show+0x1c/0x50
-kernel:  sysfs_kf_seq_show+0xca/0x1b0
-kernel:  seq_read+0x133/0x380
-kernel:  __vfs_read+0x26/0x180
-kernel:  vfs_read+0x89/0x140
-kernel:  ksys_read+0x42/0x90
-kernel:  do_syscall_64+0x5b/0x180
-kernel:  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-kernel: RIP: 0033:0x7fd71d4c8b41
-kernel: Code: fe ff ff 48 8d 3d 27 9e 09 00 48 83 ec 08 e8 96 02 02 00 66 0f 1f 44 00 00 8b 05 ea fc 2c 00 48 63 ff 85 c0 75 13 31 c0 0f 05 <48> 3d 00 f0 ff ff 77 57 f3 c3 0f 1f 44 00 00 55 53 48 89 d5 48 89
-kernel: RSP: 002b:00007ffeab5f6448 EFLAGS: 00000246 ORIG_RAX: 0000000000000000
-kernel: RAX: ffffffffffffffda RBX: 0000000000020000 RCX: 00007fd71d4c8b41
-kernel: RDX: 0000000000020000 RSI: 00007fd71d809000 RDI: 0000000000000003
-kernel: RBP: 0000000000020000 R08: ffffffffffffffff R09: 0000000000000000
-kernel: R10: 000000000000038b R11: 0000000000000246 R12: 00007fd71d809000
-kernel: R13: 0000000000000003 R14: 00007fd71d80900f R15: 0000000000020000
-kernel: Modules linked in: af_packet(E) xt_tcpudp(E) ipt_REJECT(E) xt_conntrack(E) nf_conntrack(E) nf_defrag_ipv4(E) ip_set(E) nfnetlink(E) ebtable_nat(E) ebtable_broute(E) bridge(E) stp(E) llc(E) iptable_mangle(E) iptable_raw(E) iptable_security(E) ebtable_filter(E) ebtables(E) iptable_filter(E) ip_tables(E) x_tables(E) kvm_intel(E) kvm(E) irqbypass(E) crct10dif_pclmul(E) crc32_pclmul(E) ghash_clmulni_intel(E) bochs_drm(E) ttm(E) drm_kms_helper(E) drm(E) aesni_intel(E) virtio_net(E) syscopyarea(E) net_failover(E) sysfillrect(E) failover(E) aes_x86_64(E) crypto_simd(E) sysimgblt(E) cryptd(E) pcspkr(E) glue_helper(E) parport_pc(E) fb_sys_fops(E) i2c_piix4(E) parport(E) button(E) btrfs(E) libcrc32c(E) xor(E) zstd_decompress(E) zstd_compress(E) raid6_pq(E) sd_mod(E) ata_generic(E) ata_piix(E) ahci(E) libahci(E) serio_raw(E) crc32c_intel(E) virtio_pci(E) virtio_ring(E) virtio(E) libata(E) sg(E) scsi_mod(E) autofs4(E)
-kernel: CR2: 0000000000000008
-kernel: ---[ end trace 49cade81474e40e7 ]---
-kernel: RIP: 0010:has_unmovable_pages+0x154/0x210
-kernel: Code: 1b ff ff ff eb 32 48 8b 45 00 bf 00 10 00 00 a9 00 00 01 00 74 07 0f b6 4d 51 48 d3 e7 e8 c4 81 05 00 48 85 c0 49 89 c1 75 7e <41> 8b 41 08 83 f8 09 74 41 83 f8 1b 74 3c 4d 2b 64 24 58 49 81 ec
-kernel: RSP: 0018:ffffc90000a1fd30 EFLAGS: 00010246
-kernel: RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000009
-kernel: RDX: ffffffff82aed4f0 RSI: 0000000000001000 RDI: 0000000000001000
-kernel: RBP: ffffea0001800000 R08: 0000000000200000 R09: 0000000000000000
-kernel: R10: 0000000000001000 R11: 0000000000000003 R12: ffff88813ffd45c0
-kernel: R13: 0000000000060000 R14: 0000000000000001 R15: ffffea0000000000
-kernel: FS:  00007fd71d9b3500(0000) GS:ffff88813bb00000(0000) knlGS:0000000000000000
-kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-kernel: CR2: 0000000000000008 CR3: 00000001371c2002 CR4: 00000000003606e0
-kernel: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-kernel: DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
---->
+Also simplify generic KASAN find_first_bad_addr.
 
-The reason is we do not pass the Head to page_hstate(), and so, the call
-to compound_order() in page_hstate() returns 0, so we end up checking all
-hstates's size to match PAGE_SIZE.
-
-Obviously, we do not find any hstate matching that size, and we return
-NULL.  Then, we dereference that NULL pointer in
-hugepage_migration_supported() and we got the #PF from above.
-
-Fix that by getting the head page before calling page_hstate().
-
-Also, since gigantic pages span several pageblocks, re-adjust the logic
-for skipping pages.
-While are it, we can also get rid of the round_up().
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
-Acked-by: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/page_alloc.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ mm/kasan/generic_report.c | 16 ++++-------
+ mm/kasan/kasan.h          |  5 ++++
+ mm/kasan/report.c         | 57 +++++++++++++++++++++------------------
+ mm/kasan/tags_report.c    | 18 +++++++++++++
+ 4 files changed, 59 insertions(+), 37 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc407216..995d1079f958 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7802,11 +7802,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		 * handle each tail page individually in migration.
- 		 */
- 		if (PageHuge(page)) {
-+			struct page *head = compound_head(page);
-+			unsigned int skip_pages;
+diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
+index 5201d1770700..a4604cceae59 100644
+--- a/mm/kasan/generic_report.c
++++ b/mm/kasan/generic_report.c
+@@ -33,16 +33,13 @@
+ #include "kasan.h"
+ #include "../slab.h"
  
--			if (!hugepage_migration_supported(page_hstate(page)))
-+			if (!hugepage_migration_supported(page_hstate(head)))
- 				goto unmovable;
+-static const void *find_first_bad_addr(const void *addr, size_t size)
++void *find_first_bad_addr(void *addr, size_t size)
+ {
+-	u8 shadow_val = *(u8 *)kasan_mem_to_shadow(addr);
+-	const void *first_bad_addr = addr;
++	void *p = addr;
  
--			iter = round_up(iter + 1, 1<<compound_order(page)) - 1;
-+			skip_pages = (1 << compound_order(head)) - (page - head);
-+			iter += skip_pages - 1;
- 			continue;
- 		}
+-	while (!shadow_val && first_bad_addr < addr + size) {
+-		first_bad_addr += KASAN_SHADOW_SCALE_SIZE;
+-		shadow_val = *(u8 *)kasan_mem_to_shadow(first_bad_addr);
+-	}
+-	return first_bad_addr;
++	while (p < addr + size && !(*(u8 *)kasan_mem_to_shadow(p)))
++		p += KASAN_SHADOW_SCALE_SIZE;
++	return p;
+ }
  
+ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+@@ -50,9 +47,6 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+ 	const char *bug_type = "unknown-crash";
+ 	u8 *shadow_addr;
+ 
+-	info->first_bad_addr = find_first_bad_addr(info->access_addr,
+-						info->access_size);
+-
+ 	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
+ 
+ 	/*
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index 33cc3b0e017e..82a23b23ff93 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -119,6 +119,7 @@ void kasan_poison_shadow(const void *address, size_t size, u8 value);
+ void check_memory_region(unsigned long addr, size_t size, bool write,
+ 				unsigned long ret_ip);
+ 
++void *find_first_bad_addr(void *addr, size_t size);
+ const char *get_bug_type(struct kasan_access_info *info);
+ 
+ void kasan_report(unsigned long addr, size_t size,
+@@ -139,10 +140,14 @@ static inline void quarantine_remove_cache(struct kmem_cache *cache) { }
+ 
+ #ifdef CONFIG_KASAN_SW_TAGS
+ 
++void print_tags(u8 addr_tag, const void *addr);
++
+ u8 random_tag(void);
+ 
+ #else
+ 
++static inline void print_tags(u8 addr_tag, const void *addr) { }
++
+ static inline u8 random_tag(void)
+ {
+ 	return 0;
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 64a74f334c45..214d85035f99 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -64,11 +64,10 @@ static int __init kasan_set_multi_shot(char *str)
+ }
+ __setup("kasan_multi_shot", kasan_set_multi_shot);
+ 
+-static void print_error_description(struct kasan_access_info *info,
+-					const char *bug_type)
++static void print_error_description(struct kasan_access_info *info)
+ {
+ 	pr_err("BUG: KASAN: %s in %pS\n",
+-		bug_type, (void *)info->ip);
++		get_bug_type(info), (void *)info->ip);
+ 	pr_err("%s of size %zu at addr %px by task %s/%d\n",
+ 		info->is_write ? "Write" : "Read", info->access_size,
+ 		info->access_addr, current->comm, task_pid_nr(current));
+@@ -272,6 +271,8 @@ void kasan_report_invalid_free(void *object, unsigned long ip)
+ 
+ 	start_report(&flags);
+ 	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
++	print_tags(get_tag(object), reset_tag(object));
++	object = reset_tag(object);
+ 	pr_err("\n");
+ 	print_address_description(object);
+ 	pr_err("\n");
+@@ -279,41 +280,45 @@ void kasan_report_invalid_free(void *object, unsigned long ip)
+ 	end_report(&flags);
+ }
+ 
+-static void kasan_report_error(struct kasan_access_info *info)
+-{
+-	unsigned long flags;
+-
+-	start_report(&flags);
+-
+-	print_error_description(info, get_bug_type(info));
+-	pr_err("\n");
+-
+-	if (!addr_has_shadow(info->access_addr)) {
+-		dump_stack();
+-	} else {
+-		print_address_description((void *)info->access_addr);
+-		pr_err("\n");
+-		print_shadow_for_address(info->first_bad_addr);
+-	}
+-
+-	end_report(&flags);
+-}
+-
+ void kasan_report(unsigned long addr, size_t size,
+ 		bool is_write, unsigned long ip)
+ {
+ 	struct kasan_access_info info;
++	void *tagged_addr;
++	void *untagged_addr;
++	unsigned long flags;
+ 
+ 	if (likely(!report_enabled()))
+ 		return;
+ 
+ 	disable_trace_on_warning();
+ 
+-	info.access_addr = (void *)addr;
+-	info.first_bad_addr = (void *)addr;
++	tagged_addr = (void *)addr;
++	untagged_addr = reset_tag(tagged_addr);
++
++	info.access_addr = tagged_addr;
++	if (addr_has_shadow(untagged_addr))
++		info.first_bad_addr = find_first_bad_addr(tagged_addr, size);
++	else
++		info.first_bad_addr = untagged_addr;
+ 	info.access_size = size;
+ 	info.is_write = is_write;
+ 	info.ip = ip;
+ 
+-	kasan_report_error(&info);
++	start_report(&flags);
++
++	print_error_description(&info);
++	if (addr_has_shadow(untagged_addr))
++		print_tags(get_tag(tagged_addr), info.first_bad_addr);
++	pr_err("\n");
++
++	if (addr_has_shadow(untagged_addr)) {
++		print_address_description(untagged_addr);
++		pr_err("\n");
++		print_shadow_for_address(info.first_bad_addr);
++	} else {
++		dump_stack();
++	}
++
++	end_report(&flags);
+ }
+diff --git a/mm/kasan/tags_report.c b/mm/kasan/tags_report.c
+index 8af15e87d3bc..573c51d20d09 100644
+--- a/mm/kasan/tags_report.c
++++ b/mm/kasan/tags_report.c
+@@ -37,3 +37,21 @@ const char *get_bug_type(struct kasan_access_info *info)
+ {
+ 	return "invalid-access";
+ }
++
++void *find_first_bad_addr(void *addr, size_t size)
++{
++	u8 tag = get_tag(addr);
++	void *p = reset_tag(addr);
++	void *end = p + size;
++
++	while (p < end && tag == *(u8 *)kasan_mem_to_shadow(p))
++		p += KASAN_SHADOW_SCALE_SIZE;
++	return p;
++}
++
++void print_tags(u8 addr_tag, const void *addr)
++{
++	u8 *shadow = (u8 *)kasan_mem_to_shadow(addr);
++
++	pr_err("Pointer tag: [%02x], memory tag: [%02x]\n", addr_tag, *shadow);
++}
 -- 
-2.13.7
+2.20.0.rc1.387.gf8505762e3-goog
