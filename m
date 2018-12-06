@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 417AE6B6707
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 22:51:08 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id v2so9252741plg.6
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2018 19:51:08 -0800 (PST)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-oln040092008020.outbound.protection.outlook.com. [40.92.8.20])
-        by mx.google.com with ESMTPS id o6si13058724plh.23.2018.12.02.19.51.06
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EE0916B7A60
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 09:09:42 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id q64so374239pfa.18
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 06:09:42 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g33si350896pgm.426.2018.12.06.06.09.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Dec 2018 19:51:06 -0800 (PST)
-From: Yueyi Li <liyueyi@live.com>
-Subject: [PATCH] memblock: Anonotate memblock_is_reserved() with
- __init_memblock.
-Date: Mon, 3 Dec 2018 03:51:05 +0000
-Message-ID: <BLUPR13MB0289EFC5F40ADCAC2146F687DFAE0@BLUPR13MB0289.namprd13.prod.outlook.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Dec 2018 06:09:41 -0800 (PST)
+Date: Thu, 6 Dec 2018 06:09:22 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 02/34] powerpc: allow NOT_COHERENT_CACHE for amigaone
+Message-ID: <20181206140922.GA29741@infradead.org>
+References: <20181114082314.8965-1-hch@lst.de>
+ <20181114082314.8965-3-hch@lst.de>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181114082314.8965-3-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-arch@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 
-Found warring:
+powerpc maintainers, can you pick this up as this is a bug fix for the
+currently existing powerpc Kconfig code?
 
-WARNING: EXPORT symbol "gsi_write_channel_scratch" [vmlinux] version genera=
-tion failed, symbol will not be versioned.
-WARNING: vmlinux.o(.text+0x1e0a0): Section mismatch in reference from the f=
-unction valid_phys_addr_range() to the function .init.text:memblock_is_rese=
-rved()
-The function valid_phys_addr_range() references
-the function __init memblock_is_reserved().
-This is often because valid_phys_addr_range lacks a __init
-annotation or the annotation of memblock_is_reserved is wrong.
-
-Use __init_memblock instead of __init.
-
-Signed-off-by: liyueyi <liyueyi@live.com>
----
- mm/memblock.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9a2d5ae..81ae63c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1727,7 +1727,7 @@ static int __init_memblock memblock_search(struct mem=
-block_type *type, phys_addr
- 	return -1;
- }
-=20
--bool __init memblock_is_reserved(phys_addr_t addr)
-+bool __init_memblock memblock_is_reserved(phys_addr_t addr)
- {
- 	return memblock_search(&memblock.reserved, addr) !=3D -1;
- }
---=20
-2.7.4
+On Wed, Nov 14, 2018 at 09:22:42AM +0100, Christoph Hellwig wrote:
+> AMIGAONE select NOT_COHERENT_CACHE, so we better allow it.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  arch/powerpc/platforms/Kconfig.cputype | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
+> index f4e2c5729374..6fedbf349fce 100644
+> --- a/arch/powerpc/platforms/Kconfig.cputype
+> +++ b/arch/powerpc/platforms/Kconfig.cputype
+> @@ -412,7 +412,8 @@ config NR_CPUS
+>  
+>  config NOT_COHERENT_CACHE
+>  	bool
+> -	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
+> +	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
+> +		GAMECUBE_COMMON || AMIGAONE
+>  	default n if PPC_47x
+>  	default y
+>  
+> -- 
+> 2.19.1
+> 
+> _______________________________________________
+> iommu mailing list
+> iommu@lists.linux-foundation.org
+> https://lists.linuxfoundation.org/mailman/listinfo/iommu
+---end quoted text---
