@@ -1,98 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C443F6B7117
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 17:47:11 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 143so9922119pgc.3
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 14:47:11 -0800 (PST)
-Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id d1si17219626pla.412.2018.12.04.14.47.10
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 13A9A6B7A1F
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:25:31 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id w12so73813wru.20
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:25:31 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g18sor202882wrw.3.2018.12.06.04.25.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 04 Dec 2018 14:47:10 -0800 (PST)
-Date: Tue, 4 Dec 2018 14:47:04 -0800
-From: "tip-bot for Paul E. McKenney" <tipbot@zytor.com>
-Message-ID: <tip-6564a25e6c185e65ca3148ed6e18f80882f6798f@git.kernel.org>
-Reply-To: tglx@linutronix.de, penberg@kernel.org, mingo@kernel.org,
-        cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, rientjes@google.com,
-        paulmck@linux.ibm.com, hpa@zytor.com
-Subject: [tip:core/rcu] slab: Replace synchronize_sched() with
- synchronize_rcu()
+        (Google Transport Security);
+        Thu, 06 Dec 2018 04:25:29 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v13 25/25] kasan: add SPDX-License-Identifier mark to source files
+Date: Thu,  6 Dec 2018 13:24:43 +0100
+Message-Id: <bce2d1e618afa5142e81961ab8fa4b4165337380.1544099024.git.andreyknvl@google.com>
+In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
+References: <cover.1544099024.git.andreyknvl@google.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-tip-commits@vger.kernel.org
-Cc: iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, hpa@zytor.com, paulmck@linux.ibm.com, rientjes@google.com, mingo@kernel.org, penberg@kernel.org, tglx@linutronix.de, cl@linux.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-Commit-ID:  6564a25e6c185e65ca3148ed6e18f80882f6798f
-Gitweb:     https://git.kernel.org/tip/6564a25e6c185e65ca3148ed6e18f80882f6798f
-Author:     Paul E. McKenney <paulmck@linux.ibm.com>
-AuthorDate: Tue, 6 Nov 2018 19:24:33 -0800
-Committer:  Paul E. McKenney <paulmck@linux.ibm.com>
-CommitDate: Tue, 27 Nov 2018 09:21:45 -0800
+This patch adds a "SPDX-License-Identifier: GPL-2.0" mark to all source
+files under mm/kasan.
 
-slab: Replace synchronize_sched() with synchronize_rcu()
-
-Now that synchronize_rcu() waits for preempt-disable regions of code
-as well as RCU read-side critical sections, synchronize_sched() can be
-replaced by synchronize_rcu().  This commit therefore makes this change.
-
-Signed-off-by: Paul E. McKenney <paulmck@linux.ibm.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: <linux-mm@kvack.org>
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/slab.c        | 4 ++--
- mm/slab_common.c | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ mm/kasan/common.c         | 1 +
+ mm/kasan/generic.c        | 1 +
+ mm/kasan/generic_report.c | 1 +
+ mm/kasan/init.c           | 1 +
+ mm/kasan/quarantine.c     | 1 +
+ mm/kasan/report.c         | 1 +
+ mm/kasan/tags.c           | 1 +
+ mm/kasan/tags_report.c    | 1 +
+ 8 files changed, 8 insertions(+)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 2a5654bb3b3f..3abb9feb3818 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -962,10 +962,10 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
- 	 * To protect lockless access to n->shared during irq disabled context.
- 	 * If n->shared isn't NULL in irq disabled context, accessing to it is
- 	 * guaranteed to be valid until irq is re-enabled, because it will be
--	 * freed after synchronize_sched().
-+	 * freed after synchronize_rcu().
- 	 */
- 	if (old_shared && force_change)
--		synchronize_sched();
-+		synchronize_rcu();
- 
- fail:
- 	kfree(old_shared);
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 7eb8dc136c1c..9c11e8a937d2 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -724,7 +724,7 @@ void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
- 	css_get(&s->memcg_params.memcg->css);
- 
- 	s->memcg_params.deact_fn = deact_fn;
--	call_rcu_sched(&s->memcg_params.deact_rcu_head, kmemcg_deactivate_rcufn);
-+	call_rcu(&s->memcg_params.deact_rcu_head, kmemcg_deactivate_rcufn);
- }
- 
- void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
-@@ -839,11 +839,11 @@ static void flush_memcg_workqueue(struct kmem_cache *s)
- 	mutex_unlock(&slab_mutex);
- 
- 	/*
--	 * SLUB deactivates the kmem_caches through call_rcu_sched. Make
-+	 * SLUB deactivates the kmem_caches through call_rcu. Make
- 	 * sure all registered rcu callbacks have been invoked.
- 	 */
- 	if (IS_ENABLED(CONFIG_SLUB))
--		rcu_barrier_sched();
-+		rcu_barrier();
- 
- 	/*
- 	 * SLAB and SLUB create memcg kmem_caches through workqueue and SLUB
+diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+index 1144e741feb6..03d5d1374ca7 100644
+--- a/mm/kasan/common.c
++++ b/mm/kasan/common.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * This file contains common generic and tag-based KASAN code.
+  *
+diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
+index b8de6d33c55c..ccb6207276e3 100644
+--- a/mm/kasan/generic.c
++++ b/mm/kasan/generic.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * This file contains core generic KASAN code.
+  *
+diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
+index a4604cceae59..5e12035888f2 100644
+--- a/mm/kasan/generic_report.c
++++ b/mm/kasan/generic_report.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * This file contains generic KASAN specific error reporting code.
+  *
+diff --git a/mm/kasan/init.c b/mm/kasan/init.c
+index 2b21d3717d62..34afad56497b 100644
+--- a/mm/kasan/init.c
++++ b/mm/kasan/init.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * This file contains some kasan initialization code.
+  *
+diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+index b209dbaefde8..57334ef2d7ef 100644
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * KASAN quarantine.
+  *
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 214d85035f99..ca9418fe9232 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * This file contains common generic and tag-based KASAN error reporting code.
+  *
+diff --git a/mm/kasan/tags.c b/mm/kasan/tags.c
+index 1d1b79350e28..0777649e07c4 100644
+--- a/mm/kasan/tags.c
++++ b/mm/kasan/tags.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * This file contains core tag-based KASAN code.
+  *
+diff --git a/mm/kasan/tags_report.c b/mm/kasan/tags_report.c
+index 573c51d20d09..8eaf5f722271 100644
+--- a/mm/kasan/tags_report.c
++++ b/mm/kasan/tags_report.c
+@@ -1,3 +1,4 @@
++// SPDX-License-Identifier: GPL-2.0
+ /*
+  * This file contains tag-based KASAN specific error reporting code.
+  *
+-- 
+2.20.0.rc1.387.gf8505762e3-goog
