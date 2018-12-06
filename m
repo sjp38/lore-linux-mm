@@ -1,345 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 015A38E0096
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:30:09 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id w2so7127254edc.13
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:30:09 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v17si605767edl.345.2018.12.11.06.30.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 06:30:08 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 3/3] mm, compaction: introduce deferred async compaction
-Date: Tue, 11 Dec 2018 15:29:41 +0100
-Message-Id: <20181211142941.20500-4-vbabka@suse.cz>
-In-Reply-To: <20181211142941.20500-1-vbabka@suse.cz>
-References: <20181211142941.20500-1-vbabka@suse.cz>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 609AA6B7CB4
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 17:51:04 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id d62so978864oia.3
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 14:51:04 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a144si619666oib.179.2018.12.06.14.51.03
+        for <linux-mm@kvack.org>;
+        Thu, 06 Dec 2018 14:51:03 -0800 (PST)
+From: Steve Capper <steve.capper@arm.com>
+Subject: [PATCH V5 2/7] arm64: mm: Introduce DEFAULT_MAP_WINDOW
+Date: Thu,  6 Dec 2018 22:50:37 +0000
+Message-Id: <20181206225042.11548-3-steve.capper@arm.com>
+In-Reply-To: <20181206225042.11548-1-steve.capper@arm.com>
+References: <20181206225042.11548-1-steve.capper@arm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, suzuki.poulose@arm.com, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
 
-Deferring compaction happens when it fails to fulfill the allocation request at
-given order, and then a number of the following direct compaction attempts for
-same or higher orders is skipped; with further failures, the number grows
-exponentially up to 64. This is reset e.g. when compaction succeeds.
+We wish to introduce a 52-bit virtual address space for userspace but
+maintain compatibility with software that assumes the maximum VA space
+size is 48 bit.
 
-Until now, defering compaction is only performed after a sync compaction fails,
-and then it also blocks async compaction attempts. The rationale is that only a
-failed sync compaction is expected to fully exhaust all compaction potential of
-a zone. However, for THP page faults that use __GFP_NORETRY, this means only
-async compaction is attempted and thus it is never deferred, potentially
-resulting in pointless reclaim/compaction attempts in a badly fragmented node.
+In order to achieve this, on 52-bit VA systems, we make mmap behave as
+if it were running on a 48-bit VA system (unless userspace explicitly
+requests a VA where addr[51:48] != 0).
 
-This patch therefore tracks and checks async compaction deferred status in
-addition, and mostly separately from sync compaction. This allows deferring THP
-fault compaction without affecting any sync pageblock-order compaction.
-Deferring for sync compaction however implies deferring for async compaction as
-well. When deferred status is reset, it is reset for both modes.
+On a system running a 52-bit userspace we need TASK_SIZE to represent
+the 52-bit limit as it is used in various places to distinguish between
+kernelspace and userspace addresses.
 
-The expected outcome is less compaction/reclaim activity for failing THP faults
-likely with some expense on THP fault success rate.
+Thus we need a new limit for mmap, stack, ELF loader and EFI (which uses
+TTBR0) to represent the non-extended VA space.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>
+This patch introduces DEFAULT_MAP_WINDOW and DEFAULT_MAP_WINDOW_64 and
+switches the appropriate logic to use that instead of TASK_SIZE.
+
+Signed-off-by: Steve Capper <steve.capper@arm.com>
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+
 ---
- include/linux/compaction.h        | 10 ++--
- include/linux/mmzone.h            |  6 +--
- include/trace/events/compaction.h | 29 ++++++-----
- mm/compaction.c                   | 80 ++++++++++++++++++-------------
- 4 files changed, 71 insertions(+), 54 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 68250a57aace..f1d4dc1deec9 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -100,11 +100,11 @@ extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern enum compact_result compaction_suitable(struct zone *zone, int order,
- 		unsigned int alloc_flags, int classzone_idx);
- 
--extern void defer_compaction(struct zone *zone, int order);
--extern bool compaction_deferred(struct zone *zone, int order);
-+extern void defer_compaction(struct zone *zone, int order, bool sync);
-+extern bool compaction_deferred(struct zone *zone, int order, bool sync);
- extern void compaction_defer_reset(struct zone *zone, int order,
- 				bool alloc_success);
--extern bool compaction_restarting(struct zone *zone, int order);
-+extern bool compaction_restarting(struct zone *zone, int order, bool sync);
- 
- /* Compaction has made some progress and retrying makes sense */
- static inline bool compaction_made_progress(enum compact_result result)
-@@ -189,11 +189,11 @@ static inline enum compact_result compaction_suitable(struct zone *zone, int ord
- 	return COMPACT_SKIPPED;
- }
- 
--static inline void defer_compaction(struct zone *zone, int order)
-+static inline void defer_compaction(struct zone *zone, int order, bool sync)
- {
- }
- 
--static inline bool compaction_deferred(struct zone *zone, int order)
-+static inline bool compaction_deferred(struct zone *zone, int order, bool sync)
- {
- 	return true;
- }
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 847705a6d0ec..4c59996dd4f9 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -492,9 +492,9 @@ struct zone {
- 	 * are skipped before trying again. The number attempted since
- 	 * last failure is tracked with compact_considered.
- 	 */
--	unsigned int		compact_considered;
--	unsigned int		compact_defer_shift;
--	int			compact_order_failed;
-+	unsigned int		compact_considered[2];
-+	unsigned int		compact_defer_shift[2];
-+	int			compact_order_failed[2];
- #endif
- 
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index 6074eff3d766..7ef40c76bfed 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -245,9 +245,9 @@ DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_suitable,
- 
- DECLARE_EVENT_CLASS(mm_compaction_defer_template,
- 
--	TP_PROTO(struct zone *zone, int order),
-+	TP_PROTO(struct zone *zone, int order, bool sync),
- 
--	TP_ARGS(zone, order),
-+	TP_ARGS(zone, order, sync),
- 
- 	TP_STRUCT__entry(
- 		__field(int, nid)
-@@ -256,45 +256,48 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
- 		__field(unsigned int, considered)
- 		__field(unsigned int, defer_shift)
- 		__field(int, order_failed)
-+		__field(bool, sync)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->nid = zone_to_nid(zone);
- 		__entry->idx = zone_idx(zone);
- 		__entry->order = order;
--		__entry->considered = zone->compact_considered;
--		__entry->defer_shift = zone->compact_defer_shift;
--		__entry->order_failed = zone->compact_order_failed;
-+		__entry->considered = zone->compact_considered[sync];
-+		__entry->defer_shift = zone->compact_defer_shift[sync];
-+		__entry->order_failed = zone->compact_order_failed[sync];
-+		__entry->sync = sync;
- 	),
- 
--	TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
-+	TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu sync=%d",
- 		__entry->nid,
- 		__print_symbolic(__entry->idx, ZONE_TYPE),
- 		__entry->order,
- 		__entry->order_failed,
- 		__entry->considered,
--		1UL << __entry->defer_shift)
-+		1UL << __entry->defer_shift,
-+		__entry->sync)
- );
- 
- DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_deferred,
- 
--	TP_PROTO(struct zone *zone, int order),
-+	TP_PROTO(struct zone *zone, int order, bool sync),
- 
--	TP_ARGS(zone, order)
-+	TP_ARGS(zone, order, sync)
- );
- 
- DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_compaction,
- 
--	TP_PROTO(struct zone *zone, int order),
-+	TP_PROTO(struct zone *zone, int order, bool sync),
- 
--	TP_ARGS(zone, order)
-+	TP_ARGS(zone, order, sync)
- );
- 
- DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
- 
--	TP_PROTO(struct zone *zone, int order),
-+	TP_PROTO(struct zone *zone, int order, bool sync),
- 
--	TP_ARGS(zone, order)
-+	TP_ARGS(zone, order, sync)
- );
- #endif
- 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7c607479de4a..cb139b63a754 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -139,36 +139,40 @@ EXPORT_SYMBOL(__ClearPageMovable);
-  * allocation success. 1 << compact_defer_limit compactions are skipped up
-  * to a limit of 1 << COMPACT_MAX_DEFER_SHIFT
+Changed in V3: corrections to allow COMPAT 32-bit EL0 mode to work
+---
+ arch/arm64/include/asm/elf.h            |  2 +-
+ arch/arm64/include/asm/processor.h      | 10 ++++++++--
+ arch/arm64/mm/init.c                    |  2 +-
+ drivers/firmware/efi/arm-runtime.c      |  2 +-
+ drivers/firmware/efi/libstub/arm-stub.c |  2 +-
+ 5 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm64/include/asm/elf.h b/arch/arm64/include/asm/elf.h
+index 433b9554c6a1..bc9bd9e77d9d 100644
+--- a/arch/arm64/include/asm/elf.h
++++ b/arch/arm64/include/asm/elf.h
+@@ -117,7 +117,7 @@
+  * 64-bit, this is above 4GB to leave the entire 32-bit address
+  * space open for things that want to use the area for 32-bit pointers.
   */
--void defer_compaction(struct zone *zone, int order)
-+void defer_compaction(struct zone *zone, int order, bool sync)
- {
--	zone->compact_considered = 0;
--	zone->compact_defer_shift++;
-+	zone->compact_considered[sync] = 0;
-+	zone->compact_defer_shift[sync]++;
+-#define ELF_ET_DYN_BASE		(2 * TASK_SIZE_64 / 3)
++#define ELF_ET_DYN_BASE		(2 * DEFAULT_MAP_WINDOW_64 / 3)
  
--	if (order < zone->compact_order_failed)
--		zone->compact_order_failed = order;
-+	if (order < zone->compact_order_failed[sync])
-+		zone->compact_order_failed[sync] = order;
+ #ifndef __ASSEMBLY__
  
--	if (zone->compact_defer_shift > COMPACT_MAX_DEFER_SHIFT)
--		zone->compact_defer_shift = COMPACT_MAX_DEFER_SHIFT;
-+	if (zone->compact_defer_shift[sync] > COMPACT_MAX_DEFER_SHIFT)
-+		zone->compact_defer_shift[sync] = COMPACT_MAX_DEFER_SHIFT;
- 
--	trace_mm_compaction_defer_compaction(zone, order);
-+	trace_mm_compaction_defer_compaction(zone, order, sync);
+diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
+index 3e2091708b8e..50586ca6bacb 100644
+--- a/arch/arm64/include/asm/processor.h
++++ b/arch/arm64/include/asm/processor.h
+@@ -45,19 +45,25 @@
+  * TASK_SIZE - the maximum size of a user space task.
+  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
+  */
 +
-+	/* deferred sync compaciton implies deferred async compaction */
-+	if (sync)
-+		defer_compaction(zone, order, false);
- }
- 
- /* Returns true if compaction should be skipped this time */
--bool compaction_deferred(struct zone *zone, int order)
-+bool compaction_deferred(struct zone *zone, int order, bool sync)
- {
--	unsigned long defer_limit = 1UL << zone->compact_defer_shift;
-+	unsigned long defer_limit = 1UL << zone->compact_defer_shift[sync];
- 
--	if (order < zone->compact_order_failed)
-+	if (order < zone->compact_order_failed[sync])
- 		return false;
- 
- 	/* Avoid possible overflow */
--	if (++zone->compact_considered > defer_limit)
--		zone->compact_considered = defer_limit;
-+	if (++zone->compact_considered[sync] > defer_limit)
-+		zone->compact_considered[sync] = defer_limit;
- 
--	if (zone->compact_considered >= defer_limit)
-+	if (zone->compact_considered[sync] >= defer_limit)
- 		return false;
- 
--	trace_mm_compaction_deferred(zone, order);
-+	trace_mm_compaction_deferred(zone, order, sync);
- 
- 	return true;
- }
-@@ -181,24 +185,32 @@ bool compaction_deferred(struct zone *zone, int order)
- void compaction_defer_reset(struct zone *zone, int order,
- 		bool alloc_success)
- {
--	if (alloc_success) {
--		zone->compact_considered = 0;
--		zone->compact_defer_shift = 0;
--	}
--	if (order >= zone->compact_order_failed)
--		zone->compact_order_failed = order + 1;
-+	int sync;
++#define DEFAULT_MAP_WINDOW_64	(UL(1) << VA_BITS)
 +
-+	for (sync = 0; sync <= 1; sync++) {
-+		if (alloc_success) {
-+			zone->compact_considered[sync] = 0;
-+			zone->compact_defer_shift[sync] = 0;
-+		}
-+		if (order >= zone->compact_order_failed[sync])
-+			zone->compact_order_failed[sync] = order + 1;
+ #ifdef CONFIG_COMPAT
+ #define TASK_SIZE_32		UL(0x100000000)
+ #define TASK_SIZE		(test_thread_flag(TIF_32BIT) ? \
+ 				TASK_SIZE_32 : TASK_SIZE_64)
+ #define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_32BIT) ? \
+ 				TASK_SIZE_32 : TASK_SIZE_64)
++#define DEFAULT_MAP_WINDOW	(test_thread_flag(TIF_32BIT) ? \
++				TASK_SIZE_32 : DEFAULT_MAP_WINDOW_64)
+ #else
+ #define TASK_SIZE		TASK_SIZE_64
++#define DEFAULT_MAP_WINDOW	DEFAULT_MAP_WINDOW_64
+ #endif /* CONFIG_COMPAT */
  
--	trace_mm_compaction_defer_reset(zone, order);
-+		trace_mm_compaction_defer_reset(zone, order, sync);
-+	}
- }
+-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
++#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
++#define STACK_TOP_MAX		DEFAULT_MAP_WINDOW_64
  
- /* Returns true if restarting compaction after many failures */
--bool compaction_restarting(struct zone *zone, int order)
-+bool compaction_restarting(struct zone *zone, int order, bool sync)
- {
--	if (order < zone->compact_order_failed)
-+	int defer_shift;
-+
-+	if (order < zone->compact_order_failed[sync])
- 		return false;
- 
--	return zone->compact_defer_shift == COMPACT_MAX_DEFER_SHIFT &&
--		zone->compact_considered >= 1UL << zone->compact_defer_shift;
-+	defer_shift = zone->compact_defer_shift[sync];
-+
-+	return defer_shift == COMPACT_MAX_DEFER_SHIFT &&
-+		zone->compact_considered[sync] >= 1UL << defer_shift;
- }
- 
- /* Returns true if the pageblock should be scanned for pages to isolate. */
-@@ -1555,7 +1567,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 	 * Clear pageblock skip if there were failures recently and compaction
- 	 * is about to be retried after being deferred.
+-#define STACK_TOP_MAX		TASK_SIZE_64
+ #ifdef CONFIG_COMPAT
+ #define AARCH32_VECTORS_BASE	0xffff0000
+ #define STACK_TOP		(test_thread_flag(TIF_32BIT) ? \
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 9d9582cac6c4..7239c103be06 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -609,7 +609,7 @@ void __init mem_init(void)
+ 	 * detected at build time already.
  	 */
--	if (compaction_restarting(zone, cc->order))
-+	if (compaction_restarting(zone, cc->order, sync))
- 		__reset_isolation_suitable(zone);
+ #ifdef CONFIG_COMPAT
+-	BUILD_BUG_ON(TASK_SIZE_32			> TASK_SIZE_64);
++	BUILD_BUG_ON(TASK_SIZE_32 > DEFAULT_MAP_WINDOW_64);
+ #endif
  
- 	/*
-@@ -1767,7 +1779,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 		enum compact_result status;
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+diff --git a/drivers/firmware/efi/arm-runtime.c b/drivers/firmware/efi/arm-runtime.c
+index 922cfb813109..952cec5b611a 100644
+--- a/drivers/firmware/efi/arm-runtime.c
++++ b/drivers/firmware/efi/arm-runtime.c
+@@ -38,7 +38,7 @@ static struct ptdump_info efi_ptdump_info = {
+ 	.mm		= &efi_mm,
+ 	.markers	= (struct addr_marker[]){
+ 		{ 0,		"UEFI runtime start" },
+-		{ TASK_SIZE_64,	"UEFI runtime end" }
++		{ DEFAULT_MAP_WINDOW_64, "UEFI runtime end" }
+ 	},
+ 	.base_addr	= 0,
+ };
+diff --git a/drivers/firmware/efi/libstub/arm-stub.c b/drivers/firmware/efi/libstub/arm-stub.c
+index 30ac0c975f8a..d1ec7136e3e1 100644
+--- a/drivers/firmware/efi/libstub/arm-stub.c
++++ b/drivers/firmware/efi/libstub/arm-stub.c
+@@ -33,7 +33,7 @@
+ #define EFI_RT_VIRTUAL_SIZE	SZ_512M
  
- 		if (prio > MIN_COMPACT_PRIORITY
--					&& compaction_deferred(zone, order)) {
-+				&& compaction_deferred(zone, order,
-+					prio != COMPACT_PRIO_ASYNC)) {
- 			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
- 			continue;
- 		}
-@@ -1789,14 +1802,15 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 			break;
- 		}
- 
--		if (prio != COMPACT_PRIO_ASYNC && (status == COMPACT_COMPLETE ||
--					status == COMPACT_PARTIAL_SKIPPED))
-+		if (status == COMPACT_COMPLETE ||
-+				status == COMPACT_PARTIAL_SKIPPED)
- 			/*
- 			 * We think that allocation won't succeed in this zone
- 			 * so we defer compaction there. If it ends up
- 			 * succeeding after all, it will be reset.
- 			 */
--			defer_compaction(zone, order);
-+			defer_compaction(zone, order,
-+						prio != COMPACT_PRIO_ASYNC);
- 
- 		/*
- 		 * We might have stopped compacting due to need_resched() in
-@@ -1966,7 +1980,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 		if (!populated_zone(zone))
- 			continue;
- 
--		if (compaction_deferred(zone, cc.order))
-+		if (compaction_deferred(zone, cc.order, true))
- 			continue;
- 
- 		if (compaction_suitable(zone, cc.order, 0, zoneid) !=
-@@ -2000,7 +2014,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 			 * We use sync migration mode here, so we defer like
- 			 * sync direct compaction does.
- 			 */
--			defer_compaction(zone, cc.order);
-+			defer_compaction(zone, cc.order, true);
- 		}
- 
- 		count_compact_events(KCOMPACTD_MIGRATE_SCANNED,
+ #ifdef CONFIG_ARM64
+-# define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE_64
++# define EFI_RT_VIRTUAL_LIMIT	DEFAULT_MAP_WINDOW_64
+ #else
+ # define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE
+ #endif
 -- 
 2.19.2
