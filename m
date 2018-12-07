@@ -1,144 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0779C6B6D94
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:37:29 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id g188so8437136pgc.22
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:37:28 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id 3si17199771plx.33.2018.12.03.23.37.27
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3619F6B7EA9
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:42:06 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id 75so2391469pfq.8
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:42:06 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.42.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 23:37:27 -0800 (PST)
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: [RFC v2 11/13] keys/mktme: Program memory encryption keys on a system wide basis
-Date: Mon,  3 Dec 2018 23:39:58 -0800
-Message-Id: <72dd5f38c1fdbc4c532f8caf2d2010f1ddfa8439.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
+        Thu, 06 Dec 2018 21:42:04 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V8 13/21] swap: Support PMD swap mapping in madvise_free()
+Date: Fri,  7 Dec 2018 13:41:13 +0800
+Message-Id: <20181207054122.27822-14-ying.huang@intel.com>
+In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
+References: <20181207054122.27822-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dhowells@redhat.com, tglx@linutronix.de
-Cc: jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-The kernel manages the MKTME (Multi-Key Total Memory Encryption) Keys
-as a system wide single pool of keys. The hardware, however, manages
-the keys on a per physical package basis. Each physical package
-maintains a Key Table that all CPU's in that package share.
+When madvise_free() found a PMD swap mapping, if only part of the huge
+swap cluster is operated on, the PMD swap mapping will be split and
+fallback to PTE swap mapping processing.  Otherwise, if all huge swap
+cluster is operated on, free_swap_and_cache() will be called to
+decrease the PMD swap mapping count and probably free the swap space
+and the THP in swap cache too.
 
-In order to maintain the consistent, system wide view that the kernel
-requires, program all physical packages during a key program request.
-
-Change-Id: I0ff46f37fde47a0305842baeb8ea600b6c568639
-Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- security/keys/mktme_keys.c | 61 +++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 60 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 52 ++++++++++++++++++++++++++++++++++--------------
+ mm/madvise.c     |  2 +-
+ 2 files changed, 38 insertions(+), 16 deletions(-)
 
-diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-index e615eb58e600..7f113146acf2 100644
---- a/security/keys/mktme_keys.c
-+++ b/security/keys/mktme_keys.c
-@@ -21,6 +21,7 @@
- #include "internal.h"
- 
- struct kmem_cache *mktme_prog_cache;	/* Hardware programming cache */
-+cpumask_var_t mktme_leadcpus;		/* one cpu per pkg to program keys */
- 
- static const char * const mktme_program_err[] = {
- 	"KeyID was successfully programmed",	/* 0 */
-@@ -59,6 +60,37 @@ static void mktme_destroy_key(struct key *key)
- 	key_put_encrypt_ref(mktme_map_keyid_from_key(key));
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index f3c0a9e8fb9a..9cf5d4fa6d98 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1899,6 +1899,15 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
  }
+ #endif
  
-+struct mktme_hw_program_info {
-+	struct mktme_key_program *key_program;
-+	unsigned long status;
-+};
-+
-+/* Program a KeyID on a single package. */
-+static void mktme_program_package(void *hw_program_info)
++static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
 +{
-+	struct mktme_hw_program_info *info = hw_program_info;
-+	int ret;
++	pgtable_t pgtable;
 +
-+	ret = mktme_key_program(info->key_program);
-+	if (ret != MKTME_PROG_SUCCESS)
-+		WRITE_ONCE(info->status, ret);
-+}
-+
-+/* Program a KeyID across the entire system. */
-+static int mktme_program_system(struct mktme_key_program *key_program,
-+				cpumask_var_t mktme_cpumask)
-+{
-+	struct mktme_hw_program_info info = {
-+		.key_program = key_program,
-+		.status = MKTME_PROG_SUCCESS,
-+	};
-+	get_online_cpus();
-+	on_each_cpu_mask(mktme_cpumask, mktme_program_package, &info, 1);
-+	put_online_cpus();
-+
-+	return info.status;
-+}
-+
- /* Copy the payload to the HW programming structure and program this KeyID */
- static int mktme_program_keyid(int keyid, struct mktme_payload *payload)
- {
-@@ -84,7 +116,7 @@ static int mktme_program_keyid(int keyid, struct mktme_payload *payload)
- 			kprog->key_field_2[i] ^= kern_entropy[i];
- 		}
- 	}
--	ret = mktme_key_program(kprog);
-+	ret = mktme_program_system(kprog, mktme_leadcpus);
- 	kmem_cache_free(mktme_prog_cache, kprog);
- 	return ret;
- }
-@@ -299,6 +331,28 @@ struct key_type key_type_mktme = {
- 	.destroy	= mktme_destroy_key,
- };
- 
-+static int mktme_build_leadcpus_mask(void)
-+{
-+	int online_cpu, mktme_cpu;
-+	int online_pkgid, mktme_pkgid = -1;
-+
-+	if (!zalloc_cpumask_var(&mktme_leadcpus, GFP_KERNEL))
-+		return -ENOMEM;
-+
-+	for_each_online_cpu(online_cpu) {
-+		online_pkgid = topology_physical_package_id(online_cpu);
-+
-+		for_each_cpu(mktme_cpu, mktme_leadcpus) {
-+			mktme_pkgid = topology_physical_package_id(mktme_cpu);
-+			if (mktme_pkgid == online_pkgid)
-+				break;
-+		}
-+		if (mktme_pkgid != online_pkgid)
-+			cpumask_set_cpu(online_cpu, mktme_leadcpus);
-+	}
-+	return 0;
++	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
++	pte_free(mm, pgtable);
++	mm_dec_nr_ptes(mm);
 +}
 +
  /*
-  * Allocate the global mktme_map structure based on the available keyids.
-  * Create a cache for the hardware structure. Initialize the encrypt_count
-@@ -323,10 +377,15 @@ static int __init init_mktme(void)
- 	if (mktme_alloc_encrypt_array() < 0)
- 		goto free_cache;
+  * Return true if we do MADV_FREE successfully on entire pmd page.
+  * Otherwise, return false.
+@@ -1919,15 +1928,37 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		goto out_unlocked;
  
-+	if (mktme_build_leadcpus_mask() < 0)
-+		goto free_array;
+ 	orig_pmd = *pmd;
+-	if (is_huge_zero_pmd(orig_pmd))
+-		goto out;
+-
+ 	if (unlikely(!pmd_present(orig_pmd))) {
+-		VM_BUG_ON(thp_migration_supported() &&
+-				  !is_pmd_migration_entry(orig_pmd));
+-		goto out;
++		swp_entry_t entry = pmd_to_swp_entry(orig_pmd);
 +
- 	ret = register_key_type(&key_type_mktme);
- 	if (!ret)
- 		return ret;			/* SUCCESS */
++		if (is_migration_entry(entry)) {
++			VM_BUG_ON(!thp_migration_supported());
++			goto out;
++		} else if (IS_ENABLED(CONFIG_THP_SWAP) &&
++			   !non_swap_entry(entry)) {
++			/*
++			 * If part of THP is discarded, split the PMD
++			 * swap mapping and operate on the PTEs
++			 */
++			if (next - addr != HPAGE_PMD_SIZE) {
++				__split_huge_swap_pmd(vma, addr, pmd);
++				goto out;
++			}
++			free_swap_and_cache(entry, HPAGE_PMD_NR);
++			pmd_clear(pmd);
++			zap_deposited_table(mm, pmd);
++			if (current->mm == mm)
++				sync_mm_rss(mm);
++			add_mm_counter(mm, MM_SWAPENTS, -HPAGE_PMD_NR);
++			ret = true;
++			goto out;
++		} else
++			VM_BUG_ON(1);
+ 	}
  
-+	free_cpumask_var(mktme_leadcpus);
-+free_array:
- 	mktme_free_encrypt_array();
- free_cache:
- 	kmem_cache_destroy(mktme_prog_cache);
++	if (is_huge_zero_pmd(orig_pmd))
++		goto out;
++
+ 	page = pmd_page(orig_pmd);
+ 	/*
+ 	 * If other processes are mapping this page, we couldn't discard
+@@ -1973,15 +2004,6 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 	return ret;
+ }
+ 
+-static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
+-{
+-	pgtable_t pgtable;
+-
+-	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+-	pte_free(mm, pgtable);
+-	mm_dec_nr_ptes(mm);
+-}
+-
+ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		 pmd_t *pmd, unsigned long addr)
+ {
+diff --git a/mm/madvise.c b/mm/madvise.c
+index cbb3d7e38e51..0c1f96c605f8 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -321,7 +321,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	unsigned long next;
+ 
+ 	next = pmd_addr_end(addr, end);
+-	if (pmd_trans_huge(*pmd))
++	if (pmd_trans_huge(*pmd) || is_swap_pmd(*pmd))
+ 		if (madvise_free_huge_pmd(tlb, vma, pmd, addr, next))
+ 			goto next;
+ 
 -- 
-2.14.1
+2.18.1
