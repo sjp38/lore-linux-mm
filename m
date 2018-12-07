@@ -1,40 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F3E8E004D
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:27:51 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e17so6962348edr.7
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:27:51 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n19-v6sor3779554ejr.12.2018.12.11.06.27.50
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 762566B7EAF
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:42:14 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id a10so1935983plp.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:42:14 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.42.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Dec 2018 06:27:50 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/3] few memory offlining enhancements
-Date: Tue, 11 Dec 2018 15:27:38 +0100
-Message-Id: <20181211142741.2607-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Dec 2018 21:42:13 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V8 16/21] swap: Free PMD swap mapping when zap_huge_pmd()
+Date: Fri,  7 Dec 2018 13:41:16 +0800
+Message-Id: <20181207054122.27822-17-ying.huang@intel.com>
+In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
+References: <20181207054122.27822-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Oscar Salvador <osalvador@suse.de>, Pavel Tatashin <pasha.tatashin@soleen.com>, William Kucharski <william.kucharski@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-This has been posted as an RFC [1]. There was a general agreement for
-these patches. I hope I have addressed all the review feedback.
+For a PMD swap mapping, zap_huge_pmd() will clear the PMD and call
+free_swap_and_cache() to decrease the swap reference count and maybe
+free or split the huge swap cluster and the THP in swap cache.
 
-Original cover:
-I have been chasing memory offlining not making progress recently. On
-the way I have noticed few weird decisions in the code. The migration
-itself is restricted without a reasonable justification and the retry
-loop around the migration is quite messy. This is addressed by patch 1
-and patch 2.
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+---
+ mm/huge_memory.c | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)
 
-Patch 3 is targeting on the faultaround code which has been a hot
-candidate for the initial issue reported upstream [2] and that I am
-debugging internally. It turned out to be not the main contributor
-in the end but I believe we should address it regardless. See the patch
-description for more details.
-
-[1] http://lkml.kernel.org/r/20181120134323.13007-1-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/20181114070909.GB2653@MiWiFi-R3L-srv
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 077d569da13e..5b2eb7871cd7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2071,7 +2071,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		spin_unlock(ptl);
+ 		if (is_huge_zero_pmd(orig_pmd))
+ 			tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
+-	} else if (is_huge_zero_pmd(orig_pmd)) {
++	} else if (pmd_present(orig_pmd) && is_huge_zero_pmd(orig_pmd)) {
+ 		zap_deposited_table(tlb->mm, pmd);
+ 		spin_unlock(ptl);
+ 		tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
+@@ -2084,17 +2084,27 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			page_remove_rmap(page, true);
+ 			VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
+ 			VM_BUG_ON_PAGE(!PageHead(page), page);
+-		} else if (thp_migration_supported()) {
+-			swp_entry_t entry;
+-
+-			VM_BUG_ON(!is_pmd_migration_entry(orig_pmd));
+-			entry = pmd_to_swp_entry(orig_pmd);
+-			page = pfn_to_page(swp_offset(entry));
++		} else {
++			swp_entry_t entry = pmd_to_swp_entry(orig_pmd);
++
++			if (thp_migration_supported() &&
++			    is_migration_entry(entry))
++				page = pfn_to_page(swp_offset(entry));
++			else if (IS_ENABLED(CONFIG_THP_SWAP) &&
++				 !non_swap_entry(entry))
++				free_swap_and_cache(entry, HPAGE_PMD_NR);
++			else {
++				WARN_ONCE(1,
++"Non present huge pmd without pmd migration or swap enabled!");
++				goto unlock;
++			}
+ 			flush_needed = 0;
+-		} else
+-			WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
++		}
+ 
+-		if (PageAnon(page)) {
++		if (!page) {
++			zap_deposited_table(tlb->mm, pmd);
++			add_mm_counter(tlb->mm, MM_SWAPENTS, -HPAGE_PMD_NR);
++		} else if (PageAnon(page)) {
+ 			zap_deposited_table(tlb->mm, pmd);
+ 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+ 		} else {
+@@ -2102,7 +2112,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 				zap_deposited_table(tlb->mm, pmd);
+ 			add_mm_counter(tlb->mm, mm_counter_file(page), -HPAGE_PMD_NR);
+ 		}
+-
++unlock:
+ 		spin_unlock(ptl);
+ 		if (flush_needed)
+ 			tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
+-- 
+2.18.1
