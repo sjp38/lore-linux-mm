@@ -1,41 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EECF6B711D
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 17:49:47 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id q64so15145364pfa.18
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 14:49:47 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g31si18901542pld.358.2018.12.04.14.49.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Dec 2018 14:49:46 -0800 (PST)
-Date: Tue, 4 Dec 2018 14:49:42 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] mm: infrastructure for page fault page caching
-Message-Id: <20181204144942.63c98a3147071f054d77427d@linux-foundation.org>
-In-Reply-To: <20181130195812.19536-2-josef@toxicpanda.com>
-References: <20181130195812.19536-1-josef@toxicpanda.com>
-	<20181130195812.19536-2-josef@toxicpanda.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F280E6B7EB0
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 16:19:30 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id p131so2480437oia.21
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 13:19:30 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id h64si1865551oif.143.2018.12.07.13.19.29
+        for <linux-mm@kvack.org>;
+        Fri, 07 Dec 2018 13:19:30 -0800 (PST)
+Subject: Re: [PATCH v3 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
+ vm_insert_range
+References: <20181206184227.GA28656@jordon-HP-15-Notebook-PC>
+ <ca1779ea-7a87-971c-24c4-4a1c77a72e92@arm.com>
+ <CAFqt6zbMbvB1ckwhSsBATrq5M-HQ6qk95sCWCoTTFFnwzBAnng@mail.gmail.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <fd6b10d7-de66-f16a-f500-29a13b909f46@arm.com>
+Date: Fri, 7 Dec 2018 21:19:24 +0000
+MIME-Version: 1.0
+In-Reply-To: <CAFqt6zbMbvB1ckwhSsBATrq5M-HQ6qk95sCWCoTTFFnwzBAnng@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, Linux-MM <linux-mm@kvack.org>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-rockchip@lists.infradead.org
 
-On Fri, 30 Nov 2018 14:58:09 -0500 Josef Bacik <josef@toxicpanda.com> wrote:
-
-> We want to be able to cache the result of a previous loop of a page
-> fault in the case that we use VM_FAULT_RETRY,
-
-Please explain here why we want to do that.
-
-> so introduce
-> handle_mm_fault_cacheable that will take a struct vm_fault directly, add
-> a ->cached_page field to vm_fault, and add helpers to init/cleanup the
-> struct vm_fault.
+On 2018-12-07 8:30 pm, Souptick Joarder wrote:
+> On Fri, Dec 7, 2018 at 8:20 PM Robin Murphy <robin.murphy@arm.com> wrote:
+>>
+>> On 06/12/2018 18:42, Souptick Joarder wrote:
+>>> Convert to use vm_insert_range() to map range of kernel
+>>> memory to user vma.
+>>>
+>>> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>>> Tested-by: Heiko Stuebner <heiko@sntech.de>
+>>> Acked-by: Heiko Stuebner <heiko@sntech.de>
+>>> ---
+>>>    drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 20 ++------------------
+>>>    1 file changed, 2 insertions(+), 18 deletions(-)
+>>>
+>>> diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+>>> index a8db758..2cb83bb 100644
+>>> --- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+>>> +++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+>>> @@ -221,26 +221,10 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+>>>                                              struct vm_area_struct *vma)
+>>>    {
+>>>        struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+>>> -     unsigned int i, count = obj->size >> PAGE_SHIFT;
+>>>        unsigned long user_count = vma_pages(vma);
+>>> -     unsigned long uaddr = vma->vm_start;
+>>> -     unsigned long offset = vma->vm_pgoff;
+>>> -     unsigned long end = user_count + offset;
+>>> -     int ret;
+>>> -
+>>> -     if (user_count == 0)
+>>> -             return -ENXIO;
+>>> -     if (end > count)
+>>> -             return -ENXIO;
+>>>
+>>> -     for (i = offset; i < end; i++) {
+>>> -             ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
+>>> -             if (ret)
+>>> -                     return ret;
+>>> -             uaddr += PAGE_SIZE;
+>>> -     }
+>>> -
+>>> -     return 0;
+>>> +     return vm_insert_range(vma, vma->vm_start, rk_obj->pages,
+>>> +                             user_count);
+>>
+>> We're losing vm_pgoff handling here, which given the implication in
+>> 57de50af162b, may well be a regression for at least some combination of
+>> GPU and userspace driver (I assume that commit was in the context of
+>> some version of the Arm Mali driver, possibly on RK3288).
 > 
-> I've converted x86, other arch's can follow suit if they so wish, it's
-> relatively straightforward.
+> In commit  57de50af162b, vma->vm_pgoff = 0 for GEM mmap handler context
+> and removing it from common path which means if call stack looks like
+> rockchip_gem_mmap_buf() -> rockchip_drm_gem_object_mmap() ->
+> rockchip_drm_gem_object_mmap_iommu(), then we might have a non zero
+> vma->vm_pgoff context which is not handled.
 > 
+> This is the problem you are pointing ? right ?
+
+Exactly - if unconditionally zeroing the offset in the PRIME mmap() path 
+was a problem, then the implication is that there are callers of that 
+path who expect the offset to be honoured here.
+
+Robin.
