@@ -1,111 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 069E18E006F
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 20:05:53 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id c14so9416025pls.21
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 17:05:52 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D78F66B7EAD
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:42:11 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id p9so2406285pfj.3
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:42:11 -0800 (PST)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id i1si11402278pfj.276.2018.12.10.17.05.51
+        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.42.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 17:05:51 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv2 08/12] acpi/hmat: Register performance attributes
-Date: Mon, 10 Dec 2018 18:03:06 -0700
-Message-Id: <20181211010310.8551-9-keith.busch@intel.com>
-In-Reply-To: <20181211010310.8551-1-keith.busch@intel.com>
-References: <20181211010310.8551-1-keith.busch@intel.com>
+        Thu, 06 Dec 2018 21:42:10 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V8 15/21] swap: Support to copy PMD swap mapping when fork()
+Date: Fri,  7 Dec 2018 13:41:15 +0800
+Message-Id: <20181207054122.27822-16-ying.huang@intel.com>
+In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
+References: <20181207054122.27822-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Save the best performance access attributes and register these with the
-memory's node if HMAT provides the locality table.
+During fork, the page table need to be copied from parent to child.  A
+PMD swap mapping need to be copied too and the swap reference count
+need to be increased.
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
+When the huge swap cluster has been split already, we need to split
+the PMD swap mapping and fallback to PTE copying.
+
+When swap count continuation failed to allocate a page with
+GFP_ATOMIC, we need to unlock the spinlock and try again with
+GFP_KERNEL.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- drivers/acpi/Kconfig |  1 +
- drivers/acpi/hmat.c  | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 35 insertions(+)
+ mm/huge_memory.c | 72 ++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 57 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
-index 9a05af3a18cf..6b5f6ca690af 100644
---- a/drivers/acpi/Kconfig
-+++ b/drivers/acpi/Kconfig
-@@ -330,6 +330,7 @@ config ACPI_NUMA
- config ACPI_HMAT
- 	bool "ACPI Heterogeneous Memory Attribute Table Support"
- 	depends on ACPI_NUMA
-+	select HMEM_REPORTING
- 	help
- 	 Parses representation of the ACPI Heterogeneous Memory Attributes
- 	 Table (HMAT) and set the memory node relationships and access
-diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
-index 5d8747ad025f..40bc83f4b593 100644
---- a/drivers/acpi/hmat.c
-+++ b/drivers/acpi/hmat.c
-@@ -23,6 +23,8 @@ struct memory_target {
- 	struct list_head node;
- 	unsigned int memory_pxm;
- 	unsigned long p_nodes[BITS_TO_LONGS(MAX_NUMNODES)];
-+	bool hmem_valid;
-+	struct node_hmem_attrs hmem;
- };
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 83140c895b58..077d569da13e 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -986,6 +986,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	if (unlikely(!pgtable))
+ 		goto out;
  
- static __init struct memory_target *find_mem_target(unsigned int m)
-@@ -108,6 +110,34 @@ static __init void hmat_update_access(u8 type, u32 value, u32 *best)
- 	}
- }
++retry:
+ 	dst_ptl = pmd_lock(dst_mm, dst_pmd);
+ 	src_ptl = pmd_lockptr(src_mm, src_pmd);
+ 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+@@ -993,26 +994,67 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	ret = -EAGAIN;
+ 	pmd = *src_pmd;
  
-+static __init void hmat_update_target(struct memory_target *t, u8 type,
-+				      u32 value)
-+{
-+	switch (type) {
-+	case ACPI_HMAT_ACCESS_LATENCY:
-+		t->hmem.read_latency = value;
-+		t->hmem.write_latency = value;
-+		break;
-+	case ACPI_HMAT_READ_LATENCY:
-+		t->hmem.read_latency = value;
-+		break;
-+	case ACPI_HMAT_WRITE_LATENCY:
-+		t->hmem.write_latency = value;
-+		break;
-+	case ACPI_HMAT_ACCESS_BANDWIDTH:
-+		t->hmem.read_bandwidth = value;
-+		t->hmem.write_bandwidth = value;
-+		break;
-+	case ACPI_HMAT_READ_BANDWIDTH:
-+		t->hmem.read_bandwidth = value;
-+		break;
-+	case ACPI_HMAT_WRITE_BANDWIDTH:
-+		t->hmem.write_bandwidth = value;
-+		break;
-+	}
-+	t->hmem_valid = true;
-+}
-+
- static __init int hmat_parse_locality(union acpi_subtable_headers *header,
- 				      const unsigned long end)
- {
-@@ -166,6 +196,8 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
- 					set_bit(p_node, t->p_nodes);
- 			}
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+ 	if (unlikely(is_swap_pmd(pmd))) {
+ 		swp_entry_t entry = pmd_to_swp_entry(pmd);
+ 
+-		VM_BUG_ON(!is_pmd_migration_entry(pmd));
+-		if (is_write_migration_entry(entry)) {
+-			make_migration_entry_read(&entry);
+-			pmd = swp_entry_to_pmd(entry);
+-			if (pmd_swp_soft_dirty(*src_pmd))
+-				pmd = pmd_swp_mksoft_dirty(pmd);
+-			set_pmd_at(src_mm, addr, src_pmd, pmd);
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++		if (is_migration_entry(entry)) {
++			if (is_write_migration_entry(entry)) {
++				make_migration_entry_read(&entry);
++				pmd = swp_entry_to_pmd(entry);
++				if (pmd_swp_soft_dirty(*src_pmd))
++					pmd = pmd_swp_mksoft_dirty(pmd);
++				set_pmd_at(src_mm, addr, src_pmd, pmd);
++			}
++			add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
++			mm_inc_nr_ptes(dst_mm);
++			pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
++			set_pmd_at(dst_mm, addr, dst_pmd, pmd);
++			ret = 0;
++			goto out_unlock;
  		}
-+		if (t && best)
-+			hmat_update_target(t, type, best);
- 	}
- 	return 0;
- }
-@@ -267,6 +299,8 @@ static __init void hmat_register_targets(void)
- 		m = pxm_to_node(t->memory_pxm);
- 		for_each_set_bit(p, t->p_nodes, MAX_NUMNODES)
- 			register_memory_node_under_compute_node(m, p);
-+		if (t->hmem_valid)
-+			node_set_perf_attrs(m, &t->hmem);
- 		kfree(t);
- 	}
- }
+-		add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
+-		mm_inc_nr_ptes(dst_mm);
+-		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
+-		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+-		ret = 0;
+-		goto out_unlock;
+-	}
+ #endif
++		if (IS_ENABLED(CONFIG_THP_SWAP) && !non_swap_entry(entry)) {
++			ret = swap_duplicate(&entry, HPAGE_PMD_NR);
++			if (!ret) {
++				add_mm_counter(dst_mm, MM_SWAPENTS,
++					       HPAGE_PMD_NR);
++				mm_inc_nr_ptes(dst_mm);
++				pgtable_trans_huge_deposit(dst_mm, dst_pmd,
++							   pgtable);
++				set_pmd_at(dst_mm, addr, dst_pmd, pmd);
++				/* make sure dst_mm is on swapoff's mmlist. */
++				if (unlikely(list_empty(&dst_mm->mmlist))) {
++					spin_lock(&mmlist_lock);
++					if (list_empty(&dst_mm->mmlist))
++						list_add(&dst_mm->mmlist,
++							 &src_mm->mmlist);
++					spin_unlock(&mmlist_lock);
++				}
++			} else if (ret == -ENOTDIR) {
++				/*
++				 * The huge swap cluster has been split, split
++				 * the PMD swap mapping and fallback to PTE
++				 */
++				__split_huge_swap_pmd(vma, addr, src_pmd);
++				pte_free(dst_mm, pgtable);
++			} else if (ret == -ENOMEM) {
++				spin_unlock(src_ptl);
++				spin_unlock(dst_ptl);
++				ret = add_swap_count_continuation(entry,
++								  GFP_KERNEL);
++				if (ret < 0) {
++					ret = -ENOMEM;
++					pte_free(dst_mm, pgtable);
++					goto out;
++				}
++				goto retry;
++			} else
++				VM_BUG_ON(1);
++			goto out_unlock;
++		}
++		VM_BUG_ON(1);
++	}
+ 
+ 	if (unlikely(!pmd_trans_huge(pmd))) {
+ 		pte_free(dst_mm, pgtable);
 -- 
-2.14.4
+2.18.1
