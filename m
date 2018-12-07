@@ -1,294 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C6FC66B6BB3
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:36:13 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id v74so14804920qkb.21
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:36:13 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j1si1907qkj.111.2018.12.03.15.36.12
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1204A6B7DDE
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 22:06:26 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id r13so1608595pgb.7
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 19:06:26 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y188si1943401pfb.59.2018.12.06.19.06.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 15:36:12 -0800 (PST)
-From: jglisse@redhat.com
-Subject: [RFC PATCH 09/14] mm/hms: hbind() for heterogeneous memory system (aka mbind() for HMS)
-Date: Mon,  3 Dec 2018 18:35:04 -0500
-Message-Id: <20181203233509.20671-10-jglisse@redhat.com>
-In-Reply-To: <20181203233509.20671-1-jglisse@redhat.com>
-References: <20181203233509.20671-1-jglisse@redhat.com>
+        Thu, 06 Dec 2018 19:06:24 -0800 (PST)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Subject: Re: [PATCH 1/2] vmalloc: New flag for flush before releasing pages
+Date: Fri, 7 Dec 2018 03:06:22 +0000
+Message-ID: <7b2ef6c657d2ab32c221f2ecbf69e8221e3dc844.camel@intel.com>
+References: <20181128000754.18056-1-rick.p.edgecombe@intel.com>
+	 <20181128000754.18056-2-rick.p.edgecombe@intel.com>
+	 <4883FED1-D0EC-41B0-A90F-1A697756D41D@gmail.com>
+	 <20181204160304.GB7195@arm.com>
+	 <51281e69a3722014f718a6840f43b2e6773eed90.camel@intel.com>
+	 <CALCETrUiEWkSjnruCbBSi8WsDm071YiU5WEqoPhZbjezS0CrFw@mail.gmail.com>
+	 <20181205114148.GA15160@arm.com>
+	 <CALCETrUdTShjY+tQoRsE1uR1cnL9cr2Trbz-g5=WaLGA3rWXzA@mail.gmail.com>
+	 <CAKv+Gu_EEjhwbfp1mdB0Pu3ZyAsZgNeaCDArs569hAeWzHMWpw@mail.gmail.com>
+	 <CALCETrVedB7yacMU=i3JaUZxiwsnM+PnABfG48K9TZK32UWshA@mail.gmail.com>
+	 <20181206190115.GC10086@cisco>
+	 <CALCETrUmxht8dibJPBbPudQnoe6mHsKocEBgkJ7O1eFrVBfekQ@mail.gmail.com>
+	 <F5664C1D-C3E7-433B-8E5A-7967023E0567@gmail.com>
+	 <CALCETrUbmmcL7pixsP9AH1-AE2WMVgbDkoP_E4wAJMbuZ0CzCg@mail.gmail.com>
+	 <EFB09636-D34F-4C63-87E6-76C49007C2CA@gmail.com>
+In-Reply-To: <EFB09636-D34F-4C63-87E6-76C49007C2CA@gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <846C93EE93403740BA4E3D176076C182@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Rafael J . Wysocki" <rafael@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <balbirs@au1.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, John Hubbard <jhubbard@nvidia.com>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>
+To: "keescook@chromium.org" <keescook@chromium.org>, "luto@kernel.org" <luto@kernel.org>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "ast@kernel.org" <ast@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "jeyu@kernel.org" <jeyu@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "igor.stoppa@gmail.com" <igor.stoppa@gmail.com>, "tycho@tycho.ws" <tycho@tycho.ws>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-From: Jérôme Glisse <jglisse@redhat.com>
-
-With the advance of heterogeneous computing and the new kind of memory
-topology that are now becoming more widespread (CPU HBM, persistent
-memory, ...). We no longer just have a flat memory topology inside a
-numa node. Instead there is a hierarchy of memory for instance HBM for
-CPU versus main memory. Moreover there is also device memory a good
-example is GPU which have a large amount of memory (several giga bytes
-and it keeps growing).
-
-In face of this the mbind() API is too limited to allow precise selection
-of which memory to use inside a node. This is why this patchset introduce
-a new API hbind() for heterogeneous bind, that allow to bind any kind of
-memory wether it is some specific memory like CPU's HBM in a node, or some
-device memory.
-
-Instead of using a bitmap, hbind() take an array of uid and each uid is
-a unique memory target inside the new HMS topology description.
-
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Cc: Rafael J. Wysocki <rafael@kernel.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Haggai Eran <haggaie@mellanox.com>
-Cc: Balbir Singh <balbirs@au1.ibm.com>
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-Cc: Felix Kuehling <felix.kuehling@amd.com>
-Cc: Philip Yang <Philip.Yang@amd.com>
-Cc: Christian König <christian.koenig@amd.com>
-Cc: Paul Blinzer <Paul.Blinzer@amd.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Jonathan Cameron <jonathan.cameron@huawei.com>
-Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-Cc: Vivek Kini <vkini@nvidia.com>
-Cc: linux-mm@kvack.org
----
- include/uapi/linux/hbind.h |  46 +++++++++++
- mm/Makefile                |   1 +
- mm/hms.c                   | 158 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 205 insertions(+)
- create mode 100644 include/uapi/linux/hbind.h
- create mode 100644 mm/hms.c
-
-diff --git a/include/uapi/linux/hbind.h b/include/uapi/linux/hbind.h
-new file mode 100644
-index 000000000000..a9aba17ab142
---- /dev/null
-+++ b/include/uapi/linux/hbind.h
-@@ -0,0 +1,46 @@
-+/*
-+ * Copyright 2018 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of
-+ * the License, or (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors:
-+ * Jérôme Glisse <jglisse@redhat.com>
-+ */
-+/* Heterogeneous memory system (HMS) see Documentation/vm/hms.rst */
-+#ifndef LINUX_UAPI_HBIND
-+#define LINUX_UAPI_HBIND
-+
-+
-+/* For now just freak out if it is bigger than a page. */
-+#define HBIND_MAX_TARGETS (4096 / 4)
-+#define HBIND_MAX_ATOMS (4096 / 4)
-+
-+
-+struct hbind_params {
-+	uint64_t start;
-+	uint64_t end;
-+	uint32_t ntargets;
-+	uint32_t natoms;
-+	uint64_t targets;
-+	uint64_t atoms;
-+};
-+
-+
-+#define HBIND_ATOM_GET_DWORDS(v) (((v) >> 20) & 0xfff)
-+#define HBIND_ATOM_SET_DWORDS(v) (((v) & 0xfff) << 20)
-+#define HBIND_ATOM_GET_CMD(v) ((v) & 0xfffff)
-+#define HBIND_ATOM_SET_CMD(v) ((v) & 0xfffff)
-+
-+
-+#define HBIND_IOCTL		_IOWR('H', 0x00, struct hbind_params)
-+
-+
-+#endif /* LINUX_UAPI_HBIND */
-diff --git a/mm/Makefile b/mm/Makefile
-index d210cc9d6f80..0537a95f6cbd 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -99,3 +99,4 @@ obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
- obj-$(CONFIG_PERCPU_STATS) += percpu-stats.o
- obj-$(CONFIG_HMM) += hmm.o
- obj-$(CONFIG_MEMFD_CREATE) += memfd.o
-+obj-$(CONFIG_HMS) += hms.o
-diff --git a/mm/hms.c b/mm/hms.c
-new file mode 100644
-index 000000000000..bf328bd577dc
---- /dev/null
-+++ b/mm/hms.c
-@@ -0,0 +1,158 @@
-+/*
-+ * Copyright 2018 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of
-+ * the License, or (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors:
-+ * Jérôme Glisse <jglisse@redhat.com>
-+ */
-+/* Heterogeneous memory system (HMS) see Documentation/vm/hms.rst */
-+#define pr_fmt(fmt) "hms: " fmt
-+
-+#include <linux/miscdevice.h>
-+#include <linux/sched/mm.h>
-+#include <linux/uaccess.h>
-+#include <linux/module.h>
-+#include <linux/slab.h>
-+#include <linux/init.h>
-+#include <linux/hms.h>
-+#include <linux/fs.h>
-+
-+#include <uapi/linux/hbind.h>
-+
-+
-+#define HBIND_FIX_ARRAY 64
-+
-+
-+static ssize_t hbind_read(struct file *file, char __user *buf,
-+			size_t count, loff_t *ppos)
-+{
-+	return -EINVAL;
-+}
-+
-+static ssize_t hbind_write(struct file *file, const char __user *buf,
-+			 size_t count, loff_t *ppos)
-+{
-+	return -EINVAL;
-+}
-+
-+static long hbind_ioctl(struct file *file, unsigned cmd, unsigned long arg)
-+{
-+	uint32_t *targets, *_dtargets = NULL, _ftargets[HBIND_FIX_ARRAY];
-+	uint32_t *atoms, *_datoms = NULL, _fatoms[HBIND_FIX_ARRAY];
-+	void __user *uarg = (void __user *)arg;
-+	struct hbind_params params;
-+	uint32_t i, ndwords;
-+	int ret;
-+
-+	switch(cmd) {
-+	case HBIND_IOCTL:
-+		break;
-+	default:
-+		return -EINVAL;
-+	}
-+
-+	ret = copy_from_user(&params, uarg, sizeof(params));
-+	if (ret)
-+		return ret;
-+
-+	/* Some sanity checks */
-+	params.start &= PAGE_MASK;
-+	params.end = PAGE_ALIGN(params.end);
-+	if (params.end <= params.start)
-+		return -EINVAL;
-+
-+	/* More sanity checks */
-+	if (params.ntargets > HBIND_MAX_TARGETS)
-+		return -EINVAL;
-+
-+	/* We need at least one atoms. */
-+	if (!params.natoms || params.natoms > HBIND_MAX_ATOMS)
-+		return -EINVAL;
-+
-+	/* Let's allocate memory for parameters. */
-+	if (params.ntargets > HBIND_FIX_ARRAY) {
-+		_dtargets = kzalloc(4 * params.ntargets, GFP_KERNEL);
-+		if (_dtargets == NULL)
-+			return -ENOMEM;
-+		targets = _dtargets;
-+	} else {
-+		targets = _ftargets;
-+	}
-+	if (params.natoms > HBIND_FIX_ARRAY) {
-+		_datoms = kzalloc(4 * params.natoms, GFP_KERNEL);
-+		if (_datoms == NULL) {
-+			ret = -ENOMEM;
-+			goto out;
-+		}
-+		atoms = _datoms;
-+	} else {
-+		atoms = _fatoms;
-+	}
-+
-+	/* Let's fetch hbind() parameters. */
-+	ret = copy_from_user(atoms, (void __user *)params.atoms,
-+			     4 * params.natoms);
-+	if (ret)
-+		goto out;
-+	ret = copy_from_user(targets, (void __user *)params.targets,
-+			     4 * params.ntargets);
-+	if (ret)
-+		goto out;
-+
-+	mmget(current->mm);
-+
-+	/* Sanity checks atoms and execute them. */
-+	for (i = 0, ndwords = 1; i < params.natoms; i += ndwords) {
-+		ndwords = 1 + HBIND_ATOM_GET_DWORDS(atoms[i]);
-+		switch (HBIND_ATOM_GET_CMD(atoms[i])) {
-+		default:
-+			ret = -EINVAL;
-+			goto out_mm;
-+		}
-+	}
-+
-+out_mm:
-+	copy_to_user((void __user *)params.atoms, atoms, 4 * params.natoms);
-+	mmput(current->mm);
-+out:
-+	kfree(_dtargets);
-+	kfree(_datoms);
-+	return ret;
-+}
-+
-+const struct file_operations hbind_fops = {
-+	.llseek		= no_llseek,
-+	.read		= hbind_read,
-+	.write		= hbind_write,
-+	.unlocked_ioctl	= hbind_ioctl,
-+	.owner		= THIS_MODULE,
-+};
-+
-+static struct miscdevice hbind_device = {
-+	.minor = MISC_DYNAMIC_MINOR,
-+	.fops = &hbind_fops,
-+	.name = "hbind",
-+};
-+
-+int __init hbind_init(void)
-+{
-+	pr_info("Heterogeneous memory system (HMS) hbind() driver\n");
-+	return misc_register(&hbind_device);
-+}
-+
-+void __exit hbind_fini(void)
-+{
-+	misc_deregister(&hbind_device);
-+}
-+
-+module_init(hbind_init);
-+module_exit(hbind_fini);
--- 
-2.17.2
+T24gVGh1LCAyMDE4LTEyLTA2IGF0IDE1OjA4IC0wODAwLCBOYWRhdiBBbWl0IHdyb3RlOg0KPiA+
+IE9uIERlYyA2LCAyMDE4LCBhdCAxMjoxNyBQTSwgQW5keSBMdXRvbWlyc2tpIDxsdXRvQGtlcm5l
+bC5vcmc+IHdyb3RlOg0KPiA+IA0KPiA+IE9uIFRodSwgRGVjIDYsIDIwMTggYXQgMTE6MzkgQU0g
+TmFkYXYgQW1pdCA8bmFkYXYuYW1pdEBnbWFpbC5jb20+IHdyb3RlOg0KPiA+ID4gPiBPbiBEZWMg
+NiwgMjAxOCwgYXQgMTE6MTkgQU0sIEFuZHkgTHV0b21pcnNraSA8bHV0b0BrZXJuZWwub3JnPiB3
+cm90ZToNCj4gPiA+ID4gDQo+ID4gPiA+IE9uIFRodSwgRGVjIDYsIDIwMTggYXQgMTE6MDEgQU0g
+VHljaG8gQW5kZXJzZW4gPHR5Y2hvQHR5Y2hvLndzPiB3cm90ZToNCj4gPiA+ID4gPiBPbiBUaHUs
+IERlYyAwNiwgMjAxOCBhdCAxMDo1Mzo1MEFNIC0wODAwLCBBbmR5IEx1dG9taXJza2kgd3JvdGU6
+DQo+ID4gPiA+ID4gPiA+IElmIHdlIGFyZSBnb2luZyB0byB1bm1hcCB0aGUgbGluZWFyIGFsaWFz
+LCB3aHkgbm90IGRvIGl0IGF0DQo+ID4gPiA+ID4gPiA+IHZtYWxsb2MoKQ0KPiA+ID4gPiA+ID4g
+PiB0aW1lIHJhdGhlciB0aGFuIHZmcmVlKCkgdGltZT8NCj4gPiA+ID4gPiA+IA0KPiA+ID4gPiA+
+ID4gVGhhdOKAmXMgbm90IHRvdGFsbHkgbnV0cy4gRG8gd2UgZXZlciBoYXZlIGNvZGUgdGhhdCBl
+eHBlY3RzIF9fdmEoKSB0bw0KPiA+ID4gPiA+ID4gd29yayBvbiBtb2R1bGUgZGF0YT8gIFBlcmhh
+cHMgY3J5cHRvIGNvZGUgdHJ5aW5nIHRvIGVuY3J5cHQgc3RhdGljDQo+ID4gPiA+ID4gPiBkYXRh
+IGJlY2F1c2Ugb3VyIEFQSXMgZG9u4oCZdCB1bmRlcnN0YW5kIHZpcnR1YWwgYWRkcmVzc2VzLiAg
+SSBndWVzcw0KPiA+ID4gPiA+ID4gaWYNCj4gPiA+ID4gPiA+IGhpZ2htZW0gaXMgZXZlciB1c2Vk
+IGZvciBtb2R1bGVzLCB0aGVuIHdlIHNob3VsZCBiZSBmaW5lLg0KPiA+ID4gPiA+ID4gDQo+ID4g
+PiA+ID4gPiBSTyBpbnN0ZWFkIG9mIG5vdCBwcmVzZW50IG1pZ2h0IGJlIHNhZmVyLiAgQnV0IEkg
+ZG8gbGlrZSB0aGUgaWRlYSBvZg0KPiA+ID4gPiA+ID4gcmVuYW1pbmcgUmljaydzIGZsYWcgdG8g
+c29tZXRoaW5nIGxpa2UgVk1fWFBGTyBvciBWTV9OT19ESVJFQ1RfTUFQDQo+ID4gPiA+ID4gPiBh
+bmQNCj4gPiA+ID4gPiA+IG1ha2luZyBpdCBkbyBhbGwgb2YgdGhpcy4NCj4gPiA+ID4gPiANCj4g
+PiA+ID4gPiBZZWFoLCBkb2luZyBpdCBmb3IgZXZlcnl0aGluZyBhdXRvbWF0aWNhbGx5IHNlZW1l
+ZCBsaWtlIGl0IHdhcy9pcw0KPiA+ID4gPiA+IGdvaW5nIHRvIGJlIGEgbG90IG9mIHdvcmsgdG8g
+ZGVidWcgYWxsIHRoZSBjb3JuZXIgY2FzZXMgd2hlcmUgdGhpbmdzDQo+ID4gPiA+ID4gZXhwZWN0
+IG1lbW9yeSB0byBiZSBtYXBwZWQgYnV0IGRvbid0IGV4cGxpY2l0bHkgc2F5IGl0LiBBbmQgaW4N
+Cj4gPiA+ID4gPiBwYXJ0aWN1bGFyLCB0aGUgWFBGTyBzZXJpZXMgb25seSBkb2VzIGl0IGZvciB1
+c2VyIG1lbW9yeSwgd2hlcmVhcyBhbg0KPiA+ID4gPiA+IGFkZGl0aW9uYWwgZmxhZyBsaWtlIHRo
+aXMgd291bGQgd29yayBmb3IgZXh0cmEgcGFyYW5vaWQgYWxsb2NhdGlvbnMNCj4gPiA+ID4gPiBv
+ZiBrZXJuZWwgbWVtb3J5IHRvby4NCj4gPiA+ID4gDQo+ID4gPiA+IEkganVzdCByZWFkIHRoZSBj
+b2RlLCBhbmQgSSBsb29rcyBsaWtlIHZtYWxsb2MoKSBpcyBhbHJlYWR5IHVzaW5nDQo+ID4gPiA+
+IGhpZ2htZW0gKF9fR0ZQX0hJR0gpIGlmIGF2YWlsYWJsZSwgc28sIG9uIGJpZyB4ODZfMzIgc3lz
+dGVtcywgZm9yDQo+ID4gPiA+IGV4YW1wbGUsIHdlIGFscmVhZHkgZG9uJ3QgaGF2ZSBtb2R1bGVz
+IGluIHRoZSBkaXJlY3QgbWFwLg0KPiA+ID4gPiANCj4gPiA+ID4gU28gSSBzYXkgd2UgZ28gZm9y
+IGl0LiAgVGhpcyBzaG91bGQgYmUgcXVpdGUgc2ltcGxlIHRvIGltcGxlbWVudCAtLQ0KPiA+ID4g
+PiB0aGUgcGFnZWF0dHIgY29kZSBhbHJlYWR5IGhhcyBhbG1vc3QgYWxsIHRoZSBuZWVkZWQgbG9n
+aWMgb24geDg2LiAgVGhlDQo+ID4gPiA+IG9ubHkgYXJjaCBzdXBwb3J0IHdlIHNob3VsZCBuZWVk
+IGlzIGEgcGFpciBvZiBmdW5jdGlvbnMgdG8gcmVtb3ZlIGENCj4gPiA+ID4gdm1hbGxvYyBhZGRy
+ZXNzIHJhbmdlIGZyb20gdGhlIGFkZHJlc3MgbWFwIChpZiBpdCB3YXMgcHJlc2VudCBpbiB0aGUN
+Cj4gPiA+ID4gZmlyc3QgcGxhY2UpIGFuZCBhIGZ1bmN0aW9uIHRvIHB1dCBpdCBiYWNrLiAgT24g
+eDg2LCB0aGlzIHNob3VsZCBvbmx5DQo+ID4gPiA+IGJlIGEgZmV3IGxpbmVzIG9mIGNvZGUuDQo+
+ID4gPiA+IA0KPiA+ID4gPiBXaGF0IGRvIHlvdSBhbGwgdGhpbms/ICBUaGlzIHNob3VsZCBzb2x2
+ZSBtb3N0IG9mIHRoZSBwcm9ibGVtcyB3ZSBoYXZlLg0KPiA+ID4gPiANCj4gPiA+ID4gSWYgd2Ug
+cmVhbGx5IHdhbnRlZCB0byBvcHRpbWl6ZSB0aGlzLCB3ZSdkIG1ha2UgaXQgc28gdGhhdA0KPiA+
+ID4gPiBtb2R1bGVfYWxsb2MoKSBhbGxvY2F0ZXMgbWVtb3J5IHRoZSBub3JtYWwgd2F5LCB0aGVu
+LCBsYXRlciBvbiwgd2UNCj4gPiA+ID4gY2FsbCBzb21lIGZ1bmN0aW9uIHRoYXQsIGFsbCBhdCBv
+bmNlLCByZW1vdmVzIHRoZSBtZW1vcnkgZnJvbSB0aGUNCj4gPiA+ID4gZGlyZWN0IG1hcCBhbmQg
+YXBwbGllcyB0aGUgcmlnaHQgcGVybWlzc2lvbnMgdG8gdGhlIHZtYWxsb2MgYWxpYXMgKG9yDQo+
+ID4gPiA+IGp1c3QgbWFrZXMgdGhlIHZtYWxsb2MgYWxpYXMgbm90LXByZXNlbnQgc28gd2UgY2Fu
+IGFkZCBwZXJtaXNzaW9ucw0KPiA+ID4gPiBsYXRlciB3aXRob3V0IGZsdXNoaW5nKSwgYW5kIGZs
+dXNoZXMgdGhlIFRMQi4gIEFuZCB3ZSBhcnJhbmdlIGZvcg0KPiA+ID4gPiB2dW5tYXAgdG8gemFw
+IHRoZSB2bWFsbG9jIHJhbmdlLCB0aGVuIHB1dCB0aGUgbWVtb3J5IGJhY2sgaW50byB0aGUNCj4g
+PiA+ID4gZGlyZWN0IG1hcCwgdGhlbiBmcmVlIHRoZSBwYWdlcyBiYWNrIHRvIHRoZSBwYWdlIGFs
+bG9jYXRvciwgd2l0aCB0aGUNCj4gPiA+ID4gZmx1c2ggaW4gdGhlIGFwcHJvcHJpYXRlIHBsYWNl
+Lg0KPiA+ID4gPiANCj4gPiA+ID4gSSBkb24ndCBzZWUgd2h5IHRoZSBwYWdlIGFsbG9jYXRvciBu
+ZWVkcyB0byBrbm93IGFib3V0IGFueSBvZiB0aGlzLg0KPiA+ID4gPiBJdCdzIGFscmVhZHkgb2th
+eSB3aXRoIHRoZSBwZXJtaXNzaW9ucyBiZWluZyBjaGFuZ2VkIG91dCBmcm9tIHVuZGVyIGl0DQo+
+ID4gPiA+IG9uIHg4NiwgYW5kIGl0IHNlZW1zIGZpbmUuICBSaWNrLCBkbyB5b3Ugd2FudCB0byBn
+aXZlIHNvbWUgdmFyaWFudCBvZg0KPiA+ID4gPiB0aGlzIGEgdHJ5Pw0KPiA+ID4gDQo+ID4gPiBT
+ZXR0aW5nIGl0IGFzIHJlYWQtb25seSBtYXkgd29yayAoYW5kIGFscmVhZHkgaGFwcGVucyBmb3Ig
+dGhlIHJlYWQtb25seQ0KPiA+ID4gbW9kdWxlIGRhdGEpLiBJIGFtIG5vdCBzdXJlIGFib3V0IHNl
+dHRpbmcgaXQgYXMgbm9uLXByZXNlbnQuDQo+ID4gPiANCj4gPiA+IEF0IHNvbWUgcG9pbnQsIGEg
+ZGlzY3Vzc2lvbiBhYm91dCBhIHRocmVhdC1tb2RlbCwgYXMgUmljayBpbmRpY2F0ZWQsIHdvdWxk
+DQo+ID4gPiBiZSByZXF1aXJlZC4gSSBwcmVzdW1lIFJPUCBhdHRhY2tzIGNhbiBlYXNpbHkgY2Fs
+bA0KPiA+ID4gc2V0X2FsbF9tb2R1bGVzX3RleHRfcncoKQ0KPiA+ID4gYW5kIG92ZXJyaWRlIGFs
+bCB0aGUgcHJvdGVjdGlvbnMuDQo+ID4gDQo+ID4gSSBhbSBmYXIgZnJvbSBhbiBleHBlcnQgb24g
+ZXhwbG9pdCB0ZWNobmlxdWVzLCBidXQgaGVyZSdzIGENCj4gPiBwb3RlbnRpYWxseSB1c2VmdWwg
+bW9kZWw6IGxldCdzIGFzc3VtZSB0aGVyZSdzIGFuIGF0dGFja2VyIHdobyBjYW4NCj4gPiB3cml0
+ZSBjb250cm9sbGVkIGRhdGEgdG8gYSBjb250cm9sbGVkIGtlcm5lbCBhZGRyZXNzIGJ1dCBjYW5u
+b3QNCj4gPiBkaXJlY3RseSBtb2RpZnkgY29udHJvbCBmbG93LiAgSXQgd291bGQgYmUgbmljZSBm
+b3Igc3VjaCBhbiBhdHRhY2tlcg0KPiA+IHRvIGhhdmUgYSB2ZXJ5IGRpZmZpY3VsdCB0aW1lIG9m
+IG1vZGlmeWluZyBrZXJuZWwgdGV4dCBvciBvZg0KPiA+IGNvbXByb21pc2luZyBjb250cm9sIGZs
+b3cuICBTbyB3ZSdyZSBhc3N1bWluZyBhIGZlYXR1cmUgbGlrZSBrZXJuZWwNCj4gPiBDRVQgb3Ig
+dGhhdCB0aGUgYXR0YWNrZXIgZmluZHMgaXQgdmVyeSBkaWZmaWN1bHQgdG8gZG8gc29tZXRoaW5n
+IGxpa2UNCj4gPiBtb2RpZnlpbmcgc29tZSB0aHJlYWQncyBJUkVUIGZyYW1lLg0KPiA+IA0KPiA+
+IEFkbWl0dGVkbHksIGZvciB0aGUga2VybmVsLCB0aGlzIGlzIGFuIG9kZCB0aHJlYXQgbW9kZWws
+IHNpbmNlIGFuDQo+ID4gYXR0YWNrZXIgY2FuIHByZXN1bWFibHkgcXVpdGUgZWFzaWx5IGxlYXJu
+IHRoZSBrZXJuZWwgc3RhY2sgYWRkcmVzcyBvZg0KPiA+IG9uZSBvZiB0aGVpciB0YXNrcywgZG8g
+c29tZSBzeXNjYWxsLCBhbmQgdGhlbiBtb2RpZnkgdGhlaXIga2VybmVsDQo+ID4gdGhyZWFkJ3Mg
+c3RhY2sgc3VjaCB0aGF0IGl0IHdpbGwgSVJFVCByaWdodCBiYWNrIHRvIGEgZnVsbHkgY29udHJv
+bGxlZA0KPiA+IHJlZ2lzdGVyIHN0YXRlIHdpdGggUlNQIHBvaW50aW5nIGF0IGFuIGF0dGFja2Vy
+LXN1cHBsaWVkIGtlcm5lbCBzdGFjay4NCj4gPiBTbyB0aGlzIHRocmVhdCBtb2RlbCBnaXZlcyB2
+ZXJ5IHN0cm9uZyBST1AgcG93ZXJzLiB1bmxlc3Mgd2UgaGF2ZQ0KPiA+IGVpdGhlciBDRVQgb3Ig
+c29tZSBzb2Z0d2FyZSB0ZWNobmlxdWUgdG8gaGFyZGVuIGFsbCB0aGUgUkVUDQo+ID4gaW5zdHJ1
+Y3Rpb25zIGluIHRoZSBrZXJuZWwuDQo+ID4gDQo+ID4gSSB3b25kZXIgaWYgdGhlcmUncyBhIGJl
+dHRlciBtb2RlbCB0byB1c2UuICBNYXliZSB3aXRoIHN0YWNrLXByb3RlY3Rvcg0KPiA+IHdlIGdl
+dCBzb21lIGRlZ3JlZSBvZiBwcm90ZWN0aW9uPyAgT3IgaXMgYWxsIG9mIHRoaXMgaXMgcmF0aGVy
+IHdlYWsNCj4gPiB1bnRpbCB3ZSBoYXZlIENFVCBvciBhIFJBUC1saWtlIGZlYXR1cmUuDQo+IA0K
+PiBJIGJlbGlldmUgdGhhdCBzZWVpbmcgdGhlIGVuZC1nb2FsIHdvdWxkIG1ha2UgcmVhc29uaW5n
+IGFib3V0IHBhdGNoZXMNCj4gZWFzaWVyLCBvdGhlcndpc2UgdGhlIGNvbXBsYWludCDigJxidXQg
+YW55aG93IGl04oCZcyBhbGwgaW5zZWN1cmXigJ0ga2VlcHMgcG9wcGluZw0KPiB1cC4NCj4gDQo+
+IEnigJltIG5vdCBzdXJlIENFVCBvciBvdGhlciBDRkkgd291bGQgYmUgZW5vdWdoIGV2ZW4gd2l0
+aCB0aGlzIHRocmVhdC1tb2RlbC4NCj4gVGhlIHBhZ2UtdGFibGVzICh0aGUgdmVyeSBsZWFzdCkg
+bmVlZCB0byBiZSB3cml0ZS1wcm90ZWN0ZWQsIGFzIG90aGVyd2lzZQ0KPiBjb250cm9sbGVkIGRh
+dGEgd3JpdGVzIG1heSBqdXN0IG1vZGlmeSB0aGVtLiBUaGVyZSBhcmUgdmFyaW91cyBwb3NzaWJs
+ZQ0KPiBzb2x1dGlvbnMgSSBwcmVzdW1lOiB3cml0ZV9yYXJlIGZvciBwYWdlLXRhYmxlcywgaHlw
+ZXJ2aXNvci1hc3Npc3RlZA0KPiBzZWN1cml0eSB0byBvYnRhaW4gcGh5c2ljYWwgbGV2ZWwgTlgv
+Uk8gKGEtbGEgTWljcm9zb2Z0IFZCUykgb3Igc29tZSBzb3J0IG9mDQo+IGhhcmR3YXJlIGVuY2xh
+dmUuDQo+IA0KPiBXaGF0IGRvIHlvdSB0aGluaz8NCg0KSSBhbSBub3Qgc3VyZSB3aGljaCBpc3N1
+ZSB5b3UgYXJlIHRhbGtpbmcgYWJvdXQuIEkgdGhpbmsgdGhlcmUgYXJlIGFjdHVhbGx5IHR3bw0K
+c2VwYXJhdGUgaXNzdWVzIHRoYXQgYXJlIG1lcmdlZCBkaXNjdXNzaW9ucyBmcm9tIG92ZXJsYXAg
+b2YgZml4IGZvciB0aGUgdGVhcmRvd24NCldeWCB3aW5kb3cuDQoNCkZvciB0aGUgV15YIHN0dWZm
+IEkgaGFkIG9yaWdpbmFsbHkgaW1hZ2luZWQgdGhlIHByb3RlY3Rpb24gd2FzIGZvciB3aGVuIGFu
+DQphdHRhY2tlciBoYXMgYSBsaW1pdGVkIGJ1ZyB0aGF0IGNvdWxkIHdyaXRlIHRvIGEgbG9jYXRp
+b24gaW4gdGhlIG1vZHVsZSBzcGFjZSwNCmJ1dCBub3Qgb3RoZXIgbG9jYXRpb25zIGR1ZSB0byBv
+bmx5IGhhdmluZyB0aGUgYWJpbGl0eSB0byBvdmVyd3JpdGUgcGFydCBvZiBhDQpwb2ludGVyIG9y
+IHNvbWUgc29tZXRoaW5nIGxpa2UgdGhhdC4gVGhlbiB0aGUgbW9kdWxlIGNvdWxkIGV4ZWN1dGUg
+dGhlIG5ldyBjb2RlDQphcyBpdCByYW4gbm9ybWFsbHkgYWZ0ZXIgZmluaXNoaW5nIGxvYWRpbmcu
+IFNvIHRoYXQgaXMgd2h5IEkgd2FzIHdvbmRlcmluZyBhYm91dA0KdGhlIFJXIHdpbmRvdyBkdXJp
+bmcgbG9hZC4gU3RpbGwgc2VlbXMgZ2VuZXJhbGx5IHNlbnNpYmxlIHRvIGVuZm9yY2UgV15YIHRo
+b3VnaC4NCg0KSSBsaWtlIHlvdXIgaWRlYSBhYm91dCBzb21ldGhpbmcgbGlrZSB0ZXh0X3Bva2Ug
+dG8gbG9hZCBtb2R1bGVzLiBJIHRoaW5rIG1heWJlDQpteSBtb2R1bGVzIEtBU0xSIHBhdGNoc2V0
+IGNvdWxkIGhlbHAgdGhlIGFib3ZlIHNvbWV3aGF0IHRvbyBzaW5jZSBpdCBsb2FkcyBhdCBhDQpm
+cmVzaGx5IHJhbmRvbWl6ZWQgYWRkcmVzcy4NCg0KU2luY2UgdGhlIGlzc3VlIHdpdGggdGhlIGZy
+ZWVkIHBhZ2VzIGJlZm9yZSBmbHVzaCAodGhlIG9yaWdpbmFsIHNvdXJjZSBvZiB0aGlzDQp0aHJl
+YWQpIGRvZXNuJ3QgcmVxdWlyZSBhIHdyaXRlIGJ1ZyB0byBpbnNlcnQgdGhlIGNvZGUsIGJ1dCBk
+b2VzIHJlcXVpcmUgYSB3YXkNCnRvIGp1bXAgdG8gaXQsIGl0cyBraW5kIG9mIHRoZSBvcHBvc2l0
+ZSBtb2RlbCBvZiB0aGUgYWJvdmUuIFNvIHRoYXQncyB3aHkgSQ0KdGhpbmsgdGhleSBhcmUgZGlm
+ZmVyZW50Lg0KDQpJIGFtIHN0aWxsIGxlYXJuaW5nIGxvdHMgb24ga2VybmVsIGV4cGxvaXRzIHRo
+b3VnaCwgbWF5YmUgS2VlcyBjYW4gcHJvdmlkZSBzb21lDQpiZXR0ZXIgaW5zaWdodCBoZXJlPw0K
+DQpUaGFua3MsDQoNClJpY2sNCg0KDQoNCg0K
