@@ -1,123 +1,102 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 18 Dec 2018 01:51:21 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v4 1/9] mm: Introduce new vm_insert_range API
-Message-ID: <20181217202121.GA4335@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CA036B7E96
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:41:41 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id m3so2388333pfj.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:41:41 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.41.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Dec 2018 21:41:39 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V8 04/21] swap: Support PMD swap mapping in put_swap_page()
+Date: Fri,  7 Dec 2018 13:41:04 +0800
+Message-Id: <20181207054122.27822-5-ying.huang@intel.com>
+In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
+References: <20181207054122.27822-1-ying.huang@intel.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Previouly drivers have their own way of mapping range of
-kernel pages/memory into user vma and this was done by
-invoking vm_insert_page() within a loop.
+Previously, during swapout, all PMD page mapping will be split and
+replaced with PTE swap mapping.  And when clearing the SWAP_HAS_CACHE
+flag for the huge swap cluster in put_swap_page(), the huge swap
+cluster will be split.  Now, during swapout, the PMD page mappings to
+the THP will be changed to PMD swap mappings to the corresponding swap
+cluster.  So when clearing the SWAP_HAS_CACHE flag, the huge swap
+cluster will only be split if the PMD swap mapping count is 0.
+Otherwise, we will keep it as the huge swap cluster.  So that we can
+swapin a THP in one piece later.
 
-As this pattern is common across different drivers, it can
-be generalized by creating a new function and use it across
-the drivers.
-
-vm_insert_range is the new API which will be used to map a
-range of kernel memory/pages to user vma.
-
-This API is tested by Heiko for Rockchip drm driver, on rk3188,
-rk3288, rk3328 and rk3399 with graphics.
-
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
-Reviewed-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-Tested-by: Heiko Stuebner <heiko@sntech.de>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- include/linux/mm.h |  2 ++
- mm/memory.c        | 41 +++++++++++++++++++++++++++++++++++++++++
- mm/nommu.c         |  7 +++++++
- 3 files changed, 50 insertions(+)
+ mm/swapfile.c | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fcf9cc9..2bc399f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2506,6 +2506,8 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count);
- vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
- vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
-diff --git a/mm/memory.c b/mm/memory.c
-index 15c417e..d44d4a8 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1478,6 +1478,47 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 37e20ce4983c..f30eed59c355 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1314,6 +1314,15 @@ void swap_free(swp_entry_t entry)
  
- /**
-+ * vm_insert_range - insert range of kernel pages into user vma
-+ * @vma: user vma to map to
-+ * @addr: target user address of this page
-+ * @pages: pointer to array of source kernel pages
-+ * @page_count: number of pages need to insert into user vma
-+ *
-+ * This allows drivers to insert range of kernel pages they've allocated
-+ * into a user vma. This is a generic function which drivers can use
-+ * rather than using their own way of mapping range of kernel pages into
-+ * user vma.
-+ *
-+ * If we fail to insert any page into the vma, the function will return
-+ * immediately leaving any previously-inserted pages present.  Callers
-+ * from the mmap handler may immediately return the error as their caller
-+ * will destroy the vma, removing any successfully-inserted pages. Other
-+ * callers should make their own arrangements for calling unmap_region().
-+ *
-+ * Context: Process context. Called by mmap handlers.
-+ * Return: 0 on success and error code otherwise
-+ */
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count)
-+{
-+	unsigned long uaddr = addr;
-+	int ret = 0, i;
-+
-+	if (page_count > vma_pages(vma))
-+		return -ENXIO;
-+
-+	for (i = 0; i < page_count; i++) {
-+		ret = vm_insert_page(vma, uaddr, pages[i]);
-+		if (ret < 0)
-+			return ret;
-+		uaddr += PAGE_SIZE;
-+	}
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(vm_insert_range);
-+
-+/**
-  * vm_insert_page - insert single page into user vma
-  * @vma: user vma to map to
-  * @addr: target user address of this page
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 749276b..d6ef5c7 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -473,6 +473,13 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- EXPORT_SYMBOL(vm_insert_page);
- 
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count)
-+{
-+	return -EINVAL;
-+}
-+EXPORT_SYMBOL(vm_insert_range);
-+
  /*
-  *  sys_brk() for the most part doesn't need the global kernel
-  *  lock, except when an application is doing something nasty
+  * Called after dropping swapcache to decrease refcnt to swap entries.
++ *
++ * When a THP is added into swap cache, the SWAP_HAS_CACHE flag will
++ * be set in the swap_map[] of all swap entries in the huge swap
++ * cluster backing the THP.  This huge swap cluster will not be split
++ * unless the THP is split even if its PMD swap mapping count dropped
++ * to 0.  Later, when the THP is removed from swap cache, the
++ * SWAP_HAS_CACHE flag will be cleared in the swap_map[] of all swap
++ * entries in the huge swap cluster.  And this huge swap cluster will
++ * be split if its PMD swap mapping count is 0.
+  */
+ void put_swap_page(struct page *page, swp_entry_t entry)
+ {
+@@ -1332,15 +1341,23 @@ void put_swap_page(struct page *page, swp_entry_t entry)
+ 
+ 	ci = lock_cluster_or_swap_info(si, offset);
+ 	if (size == SWAPFILE_CLUSTER) {
+-		VM_BUG_ON(!cluster_is_huge(ci));
++		VM_BUG_ON(!IS_ALIGNED(offset, size));
+ 		map = si->swap_map + offset;
+-		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+-			val = map[i];
+-			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+-			if (val == SWAP_HAS_CACHE)
+-				free_entries++;
++		/*
++		 * No PMD swap mapping, the swap cluster will be freed
++		 * if all swap entries becoming free, otherwise the
++		 * huge swap cluster will be split.
++		 */
++		if (!cluster_swapcount(ci)) {
++			for (i = 0; i < SWAPFILE_CLUSTER; i++) {
++				val = map[i];
++				VM_BUG_ON(!(val & SWAP_HAS_CACHE));
++				if (val == SWAP_HAS_CACHE)
++					free_entries++;
++			}
++			if (free_entries != SWAPFILE_CLUSTER)
++				cluster_clear_huge(ci);
+ 		}
+-		cluster_clear_huge(ci);
+ 		if (free_entries == SWAPFILE_CLUSTER) {
+ 			unlock_cluster_or_swap_info(si, ci);
+ 			spin_lock(&si->lock);
 -- 
-1.9.1
+2.18.1
