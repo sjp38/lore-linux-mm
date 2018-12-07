@@ -1,59 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B4FF48E0014
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 21:39:21 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id p3so2643712plk.9
-        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 18:39:21 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A4746B7EE2
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 01:16:45 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id bj3so1981896plb.17
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 22:16:45 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z83sor5868780pfd.11.2018.12.13.18.39.20
+        by mx.google.com with SMTPS id t1sor3896441plr.61.2018.12.06.22.16.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 13 Dec 2018 18:39:20 -0800 (PST)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm, page_isolation: remove drain_all_pages() in set_migratetype_isolate()
-Date: Fri, 14 Dec 2018 10:39:12 +0800
-Message-Id: <20181214023912.77474-1-richard.weiyang@gmail.com>
+        Thu, 06 Dec 2018 22:16:43 -0800 (PST)
+From: Nicolas Boichat <drinkcat@chromium.org>
+Subject: [PATCH v5 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
+Date: Fri,  7 Dec 2018 14:16:17 +0800
+Message-Id: <20181207061620.107881-1-drinkcat@chromium.org>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com, osalvador@suse.de, david@redhat.com, Wei Yang <richard.weiyang@gmail.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>
 
-Below is a brief call flow for __offline_pages() and
-alloc_contig_range():
+This is a follow-up to the discussion in [1], [2].
 
-  __offline_pages()/alloc_contig_range()
-      start_isolate_page_range()
-          set_migratetype_isolate()
-              drain_all_pages()
-      drain_all_pages()
+IOMMUs using ARMv7 short-descriptor format require page tables
+(level 1 and 2) to be allocated within the first 4GB of RAM, even
+on 64-bit systems.
 
-Since set_migratetype_isolate() is only used in
-start_isolate_page_range(), which is just used in __offline_pages() and
-alloc_contig_range(). And both of them call drain_all_pages() if every
-check looks good. This means it is not necessary call drain_all_pages()
-in each iteration of set_migratetype_isolate().
+For L1 tables that are bigger than a page, we can just use __get_free_pages
+with GFP_DMA32 (on arm64 systems only, arm would still use GFP_DMA).
 
-By doing so, the logic seems a little bit clearer.
-set_migratetype_isolate() handles pages in Buddy, while
-drain_all_pages() takes care of pages in pcp.
+For L2 tables that only take 1KB, it would be a waste to allocate a full
+page, so we considered 3 approaches:
+ 1. This series, adding support for GFP_DMA32 slab caches.
+ 2. genalloc, which requires pre-allocating the maximum number of L2 page
+    tables (4096, so 4MB of memory).
+ 3. page_frag, which is not very memory-efficient as it is unable to reuse
+    freed fragments until the whole page is freed. [3]
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/page_isolation.c | 2 --
- 1 file changed, 2 deletions(-)
+This series is the most memory-efficient approach.
 
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 43e085608846..f44c0e333bed 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -83,8 +83,6 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
- 	}
- 
- 	spin_unlock_irqrestore(&zone->lock, flags);
--	if (!ret)
--		drain_all_pages(zone);
- 	return ret;
- }
- 
+[1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
+[2] https://lists.linuxfoundation.org/pipermail/iommu/2018-December/031696.html
+[3] https://patchwork.codeaurora.org/patch/671639/
+
+Changes since v1:
+ - Add support for SLAB_CACHE_DMA32 in slab and slub (patches 1/2)
+ - iommu/io-pgtable-arm-v7s (patch 3):
+   - Changed approach to use SLAB_CACHE_DMA32 added by the previous
+     commit.
+   - Use DMA or DMA32 depending on the architecture (DMA for arm,
+     DMA32 for arm64).
+
+Changes since v2:
+ - Reworded and expanded commit messages
+ - Added cache_dma32 documentation in PATCH 2/3.
+
+v3 used the page_frag approach, see [3].
+
+Changes since v4:
+ - Dropped change that removed GFP_DMA32 from GFP_SLAB_BUG_MASK:
+   instead we can just call kmem_cache_*alloc without GFP_DMA32
+   parameter. This also means that we can drop PATCH v4 1/3, as we
+   do not make any changes in GFP flag verification.
+ - Dropped hunks that added cache_dma32 sysfs file, and moved
+   the hunks to PATCH v5 3/3, so that maintainer can decide whether
+   to pick the change independently.
+
+Nicolas Boichat (3):
+  mm: Add support for kmem caches in DMA32 zone
+  iommu/io-pgtable-arm-v7s: Request DMA32 memory, and improve debugging
+  mm: Add /sys/kernel/slab/cache/cache_dma32
+
+ Documentation/ABI/testing/sysfs-kernel-slab |  9 +++++++++
+ drivers/iommu/io-pgtable-arm-v7s.c          | 19 +++++++++++++++----
+ include/linux/slab.h                        |  2 ++
+ mm/slab.c                                   |  2 ++
+ mm/slab.h                                   |  3 ++-
+ mm/slab_common.c                            |  2 +-
+ mm/slub.c                                   | 16 ++++++++++++++++
+ tools/vm/slabinfo.c                         |  7 ++++++-
+ 8 files changed, 53 insertions(+), 7 deletions(-)
+
 -- 
-2.15.1
+2.20.0.rc2.403.gdbc3b29805-goog
