@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 08E086B5CF6
-	for <linux-mm@kvack.org>; Sat,  1 Dec 2018 03:54:36 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id e17so5982870wrw.13
-        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 00:54:35 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v23sor5272924wrd.4.2018.12.01.00.54.33
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F27A6B7DA1
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 06:03:19 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id l45so1820072edb.1
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 03:03:19 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g18-v6si1158894ejo.82.2018.12.07.03.03.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 01 Dec 2018 00:54:34 -0800 (PST)
-Subject: Re: [PATCH] madvise.2: MADV_FREE clarify swapless behavior
-References: <20181129181048.11010-1-mhocko@kernel.org>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <79858664-94a8-0b32-f8f0-866c018d7b20@gmail.com>
-Date: Sat, 1 Dec 2018 09:54:32 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Dec 2018 03:03:17 -0800 (PST)
+Date: Fri, 7 Dec 2018 12:03:17 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 4/4] mm: use the cached page for filemap_fault
+Message-ID: <20181207110317.GF13008@quack2.suse.cz>
+References: <20181130195812.19536-1-josef@toxicpanda.com>
+ <20181130195812.19536-5-josef@toxicpanda.com>
+ <20181204145034.4b69bdea36506be45946f8c9@linux-foundation.org>
+ <20181205145808.kzsro4a7vqaxx3cu@MacBook-Pro-91.local>
 MIME-Version: 1.0
-In-Reply-To: <20181129181048.11010-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181205145808.kzsro4a7vqaxx3cu@MacBook-Pro-91.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: mtk.manpages@gmail.com, linux-mm@kvack.org, =?UTF-8?Q?Niklas_Hamb=c3=bcc?= =?UTF-8?Q?hen?= <mail@nh2.me>, Shaohua Li <shli@fb.com>, linux-man@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
 
-On 11/29/18 7:10 PM, mhocko@kernel.org wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed 05-12-18 09:58:10, Josef Bacik wrote:
+> On Tue, Dec 04, 2018 at 02:50:34PM -0800, Andrew Morton wrote:
+> > On Fri, 30 Nov 2018 14:58:12 -0500 Josef Bacik <josef@toxicpanda.com> wrote:
+> > 
+> > > If we drop the mmap_sem we have to redo the vma lookup which requires
+> > > redoing the fault handler.  Chances are we will just come back to the
+> > > same page, so save this page in our vmf->cached_page and reuse it in the
+> > > next loop through the fault handler.
+> > > 
+> > 
+> > Is this really worthwhile?  Rerunning the fault handler is rare (we
+> > hope) and a single pagecache lookup is fast.
+> > 
+> > Some performance testing results would be helpful here.  It's
+> > practically obligatory when claiming a performance improvement.
+> > 
+> > 
 > 
-> Since 93e06c7a6453 ("mm: enable MADV_FREE for swapless system") we
-> handle MADV_FREE on a swapless system the same way as with the swap
-> available. Clarify that fact in the man page.
-
-Thanks, Michal (and Niklas). Patch applied.
-
-Cheers,
-
-Michael
-
-> Reported-by: Niklas Hambüchen <mail@nh2.me>
-> ---
->  man2/madvise.2 | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> Honestly the big thing is just not doing IO under the mmap_sem.  I had this
+> infrastructure originally for the mkwrite portion of these patches that I
+> dropped, because I was worried about the page being messed with after we did all
+> the mkwrite work.  However since I'm not doing that anymore there's less of a
+> need for it.  I have no performance numbers for this, just seemed like a good
+> idea since we are likely to just have the page again, and this keeps us from
+> evicting the page right away and causing more thrashing.
 > 
-> diff --git a/man2/madvise.2 b/man2/madvise.2
-> index eb82a57a1cf5..d9135a05a1c2 100644
-> --- a/man2/madvise.2
-> +++ b/man2/madvise.2
-> @@ -403,7 +403,7 @@ The
->  operation
->  can be applied only to private anonymous pages (see
->  .BR mmap (2)).
-> -On a swapless system, freeing pages in a given range happens instantly,
-> +Prior to 4.12 on a swapless system, freeing pages in a given range happens instantly,
->  regardless of memory pressure.
->  .TP
->  .BR MADV_WIPEONFORK " (since Linux 4.14)"
-> 
+> I'll try and set something up to see if there's a difference.  If there's no
+> difference do you want me to drop this?  Thanks,
 
+If there's no difference, I'd like to drop this as well. It just
+complicates the fault state handling which is already complex enough.
 
+								Honza
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
