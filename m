@@ -1,96 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 84F186B71F7
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 21:35:33 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id g188so10219014pgc.22
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 18:35:33 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f21sor24925599pgm.40.2018.12.04.18.35.32
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 01FB96B7E90
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:41:33 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id 202so1838094pgb.6
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:41:32 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.41.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 18:35:32 -0800 (PST)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 2/2] core-api/memory-hotplug.rst: divide Locking Internal section by different locks
-Date: Wed,  5 Dec 2018 10:34:26 +0800
-Message-Id: <20181205023426.24029-2-richard.weiyang@gmail.com>
-In-Reply-To: <20181205023426.24029-1-richard.weiyang@gmail.com>
-References: <20181205023426.24029-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Dec 2018 21:41:31 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V8 01/21] swap: Enable PMD swap operations for CONFIG_THP_SWAP
+Date: Fri,  7 Dec 2018 13:41:01 +0800
+Message-Id: <20181207054122.27822-2-ying.huang@intel.com>
+In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
+References: <20181207054122.27822-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@redhat.com, mhocko@suse.com, osalvador@suse.de
-Cc: akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Currently locking for memory hotplug is a little complicated.
+Currently, "the swap entry" in the page tables is used for a number of
+things outside of actual swap, like page migration, etc.  We support
+the THP/PMD "swap entry" for page migration currently and the
+functions behind this are tied to page migration's config
+option (CONFIG_ARCH_ENABLE_THP_MIGRATION).
 
-Generally speaking, we leverage the two global lock:
+But, we also need them for THP swap optimization.  So a new config
+option (CONFIG_HAVE_PMD_SWAP_ENTRY) is added.  It is enabled when
+either CONFIG_ARCH_ENABLE_THP_MIGRATION or CONFIG_THP_SWAP is enabled.
+And PMD swap entry functions are tied to this new config option
+instead.  Some functions enabled by CONFIG_ARCH_ENABLE_THP_MIGRATION
+are for page migration only, they are still enabled only for that.
 
-  * device_hotplug_lock
-  * mem_hotplug_lock
-
-to serialise the process.
-
-While for the long term, we are willing to have more fine-grained lock
-to provide higher scalability.
-
-This patch divides Locking Internal section based on these two global
-locks to help readers to understand it. Also it adds some new finding to
-enrich it.
-
-[David: words arrangement]
-
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- Documentation/core-api/memory-hotplug.rst | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/pgtable.h |  2 +-
+ include/asm-generic/pgtable.h  |  2 +-
+ include/linux/swapops.h        | 44 ++++++++++++++++++----------------
+ mm/Kconfig                     |  8 +++++++
+ 4 files changed, 33 insertions(+), 23 deletions(-)
 
-diff --git a/Documentation/core-api/memory-hotplug.rst b/Documentation/core-api/memory-hotplug.rst
-index de7467e48067..95662b283328 100644
---- a/Documentation/core-api/memory-hotplug.rst
-+++ b/Documentation/core-api/memory-hotplug.rst
-@@ -89,6 +89,20 @@ NOTIFY_STOP stops further processing of the notification queue.
- Locking Internals
- =================
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 40616e805292..e830ab345551 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1333,7 +1333,7 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
+ 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
+ }
  
-+There are three locks involved in memory-hotplug, two global lock and one local
-+lock:
-+
-+- device_hotplug_lock
-+- mem_hotplug_lock
-+- device_lock
-+
-+Currently, they are twisted together for all kinds of reasons. The following
-+part is divided into device_hotplug_lock and mem_hotplug_lock parts
-+respectively to describe those tricky situations.
-+
-+device_hotplug_lock
-+---------------------
-+
- When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
- the device_hotplug_lock should be held to:
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
+ {
+ 	return pmd_set_flags(pmd, _PAGE_SWP_SOFT_DIRTY);
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 359fb935ded6..20aab7bfd487 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -675,7 +675,7 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
+ #endif
  
-@@ -111,13 +125,20 @@ As the device is visible to user space before taking the device_lock(), this
- can result in a lock inversion.
+ #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+-#ifndef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#ifndef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
+ {
+ 	return pmd;
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index 4d961668e5fc..905ddc65caa3 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -254,17 +254,7 @@ static inline int is_write_migration_entry(swp_entry_t entry)
  
- onlining/offlining of memory should be done via device_online()/
--device_offline() - to make sure it is properly synchronized to actions
--via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
-+device_offline() - to make sure it is properly synchronized to actions via
-+sysfs. Even mem_hotplug_lock is used to protect the process, because of the
-+lock inversion described above, holding device_hotplug_lock is still advised
-+(to e.g. protect online_type)
+ #endif
+ 
+-struct page_vma_mapped_walk;
+-
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+-extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+-		struct page *page);
+-
+-extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
+-		struct page *new);
+-
+-extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
+-
++#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+ {
+ 	swp_entry_t arch_entry;
+@@ -282,6 +272,28 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+ 	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
+ 	return __swp_entry_to_pmd(arch_entry);
+ }
++#else
++static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
++{
++	return swp_entry(0, 0);
++}
 +
-+mem_hotplug_lock
-+---------------------
++static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
++{
++	return __pmd(0);
++}
++#endif
++
++struct page_vma_mapped_walk;
++
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
++		struct page *page);
++
++extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
++		struct page *new);
++
++extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
  
- When adding/removing/onlining/offlining memory or adding/removing
- heterogeneous/device memory, we should always hold the mem_hotplug_lock in
- write mode to serialise memory hotplug (e.g. access to global/zone
--variables).
-+variables). Currently, we take advantage of this to serialise sparsemem's
-+mem_section handling in sparse_add_one_section() and
-+sparse_remove_one_section().
+ static inline int is_pmd_migration_entry(pmd_t pmd)
+ {
+@@ -302,16 +314,6 @@ static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
  
- In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
- mode allows for a quite efficient get_online_mems/put_online_mems
+ static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
+ 
+-static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+-{
+-	return swp_entry(0, 0);
+-}
+-
+-static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+-{
+-	return __pmd(0);
+-}
+-
+ static inline int is_pmd_migration_entry(pmd_t pmd)
+ {
+ 	return 0;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 25c71eb8a7db..d7c5299c5b7d 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -422,6 +422,14 @@ config THP_SWAP
+ 
+ 	  For selection by architectures with reasonable THP sizes.
+ 
++#
++# "PMD swap entry" in the page table is used both for migration and
++# actual swap.
++#
++config HAVE_PMD_SWAP_ENTRY
++	def_bool y
++	depends on THP_SWAP || ARCH_ENABLE_THP_MIGRATION
++
+ config	TRANSPARENT_HUGE_PAGECACHE
+ 	def_bool y
+ 	depends on TRANSPARENT_HUGEPAGE
 -- 
-2.15.1
+2.18.1
