@@ -1,41 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B7E48E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 18:04:56 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id r13so2803781pgb.7
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 15:04:56 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a9si18754504plp.323.2018.12.20.15.04.54
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D7C1F8E0001
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 05:09:15 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id r16so2233417pgr.15
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 02:09:15 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j1sor4580489plk.57.2018.12.07.02.09.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 15:04:54 -0800 (PST)
-Date: Thu, 20 Dec 2018 15:04:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, page_alloc: calculate first_deferred_pfn directly
-Message-Id: <20181220150451.e89fc059660fc08e9c108d2f@linux-foundation.org>
-In-Reply-To: <20181207100859.8999-1-richard.weiyang@gmail.com>
-References: <20181207100859.8999-1-richard.weiyang@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 07 Dec 2018 02:09:14 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm, page_alloc: calculate first_deferred_pfn directly
+Date: Fri,  7 Dec 2018 18:08:59 +0800
+Message-Id: <20181207100859.8999-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, pavel.tatashin@microsoft.com, mhocko@suse.com
+To: linux-mm@kvack.org
+Cc: pavel.tatashin@microsoft.com, akpm@linux-foundation.org, mhocko@suse.com, Wei Yang <richard.weiyang@gmail.com>
 
-Does anyone care to review this one?
+After commit c9e97a1997fb ("mm: initialize pages on demand during
+boot"), the behavior of DEFERRED_STRUCT_PAGE_INIT is changed to
+initialize first section for highest zone on each node.
 
-Thanks.
-
-
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: mm/page_alloc.c: calculate first_deferred_pfn directly
-
-After c9e97a1997fb ("mm: initialize pages on demand during boot"), the
-behavior of DEFERRED_STRUCT_PAGE_INIT is changed to initialize the first
-section for the highest zone on each node.
-
-Instead of testing each pfn during the iteration, we can calculate the
+Instead of test each pfn during iteration, we could calculate the
 first_deferred_pfn directly with necessary information.
 
 By doing so, we also get some performance benefit during bootup:
@@ -51,20 +38,16 @@ By doing so, we also get some performance benefit during bootup:
 Test result is retrieved from dmesg time stamp by add printk around
 free_area_init_nodes().
 
-Link: http://lkml.kernel.org/r/20181207100859.8999-1-richard.weiyang@gmail.com
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-Cc: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Oscar Salvador <OSalvador@suse.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
-
- mm/page_alloc.c |   57 +++++++++++++++++++++-------------------------
+ mm/page_alloc.c | 57 +++++++++++++++++++++++++++------------------------------
  1 file changed, 27 insertions(+), 30 deletions(-)
 
---- a/mm/page_alloc.c~mm-page_alloc-calculate-first_deferred_pfn-directly
-+++ a/mm/page_alloc.c
-@@ -306,38 +306,33 @@ static inline bool __meminit early_page_
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index baf473f80800..5f077bf07f3e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -306,38 +306,33 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
  }
  
  /*
@@ -124,7 +107,7 @@ Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
  }
  #else
  static inline bool early_page_uninitialised(unsigned long pfn)
-@@ -345,9 +340,11 @@ static inline bool early_page_uninitiali
+@@ -345,9 +340,11 @@ static inline bool early_page_uninitialised(unsigned long pfn)
  	return false;
  }
  
@@ -138,22 +121,23 @@ Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
  }
  #endif
  
-@@ -5785,6 +5782,8 @@ void __meminit memmap_init_zone(unsigned
- 		return;
+@@ -5514,6 +5511,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
  	}
+ #endif
  
 +	end_pfn = defer_pfn(nid, start_pfn, end_pfn, context);
 +
  	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
- 		struct page *page;
- 
-@@ -5798,8 +5797,6 @@ void __meminit memmap_init_zone(unsigned
- 			continue;
- 		if (overlap_memmap_init(zone, &pfn))
- 			continue;
--		if (defer_init(nid, pfn, end_pfn))
--			break;
+ 		/*
+ 		 * There can be holes in boot-time mem_map[]s handed to this
+@@ -5526,8 +5525,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 				continue;
+ 			if (overlap_memmap_init(zone, &pfn))
+ 				continue;
+-			if (defer_init(nid, pfn, end_pfn))
+-				break;
+ 		}
  
  		page = pfn_to_page(pfn);
- 		__init_single_page(page, pfn, zone, nid);
-_
+-- 
+2.15.1
