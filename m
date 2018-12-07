@@ -1,47 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 806F48E0004
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 06:47:17 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id q64so3084507pfa.18
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 03:47:17 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b5sor4849660pgq.18.2018.12.07.03.47.14
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3393B6B7F0B
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 01:45:32 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r16so1922615pgr.15
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 22:45:32 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id r6si2218538pli.248.2018.12.06.22.45.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Dec 2018 03:47:15 -0800 (PST)
-Date: Fri, 7 Dec 2018 14:47:09 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Dec 2018 22:45:31 -0800 (PST)
+Date: Thu, 6 Dec 2018 22:45:25 -0800
+From: Jarkko Sakkinen <jarkko.sakkinen@intel.com>
 Subject: Re: [RFC v2 12/13] keys/mktme: Save MKTME data if kernel cmdline
  parameter allows
-Message-ID: <20181207114709.kmrbghihyrht2l65@kshutemo-mobl1>
+Message-ID: <20181207064524.GC12969@intel.com>
 References: <cover.1543903910.git.alison.schofield@intel.com>
  <c2668d6d260bff3c88440ad097eb1445ea005860.1543903910.git.alison.schofield@intel.com>
  <1544148839.28511.28.camel@intel.com>
+ <20181207063918.GB12969@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1544148839.28511.28.camel@intel.com>
+In-Reply-To: <20181207063918.GB12969@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Huang, Kai" <kai.huang@intel.com>
-Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "bp@alien8.de" <bp@alien8.de>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
+Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
 
-On Fri, Dec 07, 2018 at 02:14:03AM +0000, Huang, Kai wrote:
-> Alternatively, we can choose to use per-socket keyID, but not to program
-> keyID globally across all sockets, so you don't have to save key while
-> still supporting CPU hotplug.
+On Thu, Dec 06, 2018 at 10:39:18PM -0800, Jarkko Sakkinen wrote:
+> On Thu, Dec 06, 2018 at 06:14:03PM -0800, Huang, Kai wrote:
+> > On Mon, 2018-12-03 at 23:39 -0800, Alison Schofield wrote:
+> > > MKTME (Multi-Key Total Memory Encryption) key payloads may include
+> > > data encryption keys, tweak keys, and additional entropy bits. These
+> > > are used to program the MKTME encryption hardware. By default, the
+> > > kernel destroys this payload data once the hardware is programmed.
+> > > 
+> > > However, in order to fully support CPU Hotplug, saving the key data
+> > > becomes important. The MKTME Key Service cannot allow a new physical
+> > > package to come online unless it can program the new packages Key Table
+> > > to match the Key Tables of all existing physical packages.
+> > > 
+> > > With CPU generated keys (a.k.a. random keys or ephemeral keys) the
+> > > saving of user key data is not an issue. The kernel and MKTME hardware
+> > > can generate strong encryption keys without recalling any user supplied
+> > > data.
+> > > 
+> > > With USER directed keys (a.k.a. user type) saving the key programming
+> > > data (data and tweak key) becomes an issue. The data and tweak keys
+> > > are required to program those keys on a new physical package.
+> > > 
+> > > In preparation for adding CPU hotplug support:
+> > > 
+> > >    Add an 'mktme_vault' where key data is stored.
+> > > 
+> > >    Add 'mktme_savekeys' kernel command line parameter that directs
+> > >    what key data can be stored. If it is not set, kernel does not
+> > >    store users data key or tweak key.
+> > > 
+> > >    Add 'mktme_bitmap_user_type' to track when USER type keys are in
+> > >    use. If no USER type keys are currently in use, a physical package
+> > >    may be brought online, despite the absence of 'mktme_savekeys'.
+> > 
+> > Overall, I am not sure whether saving key is good idea, since it
+> > breaks coldboot attack IMHO. We need to tradeoff between supporting
+> > CPU hotplug and security. I am not sure whether supporting CPU hotplug
+> > is that important, since for some other features such as SGX, we don't
+> > support CPU hotplug anyway.
+> 
+> What is the application for saving the key anyway?
+> 
+> With my current knowledge, I'm not even sure what is the application
+> for user provided keys.
 
-Per-socket KeyID approach would make things more complex. For instance
-KeyID on its own will not be enough to refer a key. You will need a node
-too. It will also require a way to track whether theirs an KeyID on other
-node for the key.
+Ugh, right of course, you need to save the key in order to support
+hotplug.
 
-It also makes memory management less flexible: runtime migration of the
-memory between nodes will be limited and it can hurt memory availablity
-for non-encrypted tasks too.
+Cold boot is like the main security use case for this (probably would
+be worth to mention this in the documentation).
 
-In general, I don't see per-socket KeyID handling very attractive. It
-creates more problems than solves.
-
--- 
- Kirill A. Shutemov
+/Jarkko
