@@ -1,64 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 442FB8E004D
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:27:54 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id e29so7120426ede.19
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:27:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id ge18-v6sor4064756ejb.16.2018.12.11.06.27.52
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Dec 2018 06:27:52 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/3] mm, fault_around: do not take a reference to a locked page
-Date: Tue, 11 Dec 2018 15:27:41 +0100
-Message-Id: <20181211142741.2607-4-mhocko@kernel.org>
-In-Reply-To: <20181211142741.2607-1-mhocko@kernel.org>
-References: <20181211142741.2607-1-mhocko@kernel.org>
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EFEE68E0004
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 07:02:51 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id z22so101644oto.11
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 04:02:51 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id y23si1478802otj.129.2018.12.07.04.02.50
+        for <linux-mm@kvack.org>;
+        Fri, 07 Dec 2018 04:02:50 -0800 (PST)
+Subject: Re: [PATCH V5 4/7] arm64: mm: Offset TTBR1 to allow 52-bit
+ PTRS_PER_PGD
+References: <20181206225042.11548-1-steve.capper@arm.com>
+ <20181206225042.11548-5-steve.capper@arm.com>
+From: Suzuki K Poulose <suzuki.poulose@arm.com>
+Message-ID: <bc7581b3-2cb9-b11f-d33f-4999cbff3a0f@arm.com>
+Date: Fri, 7 Dec 2018 12:04:21 +0000
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181206225042.11548-5-steve.capper@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, William Kucharski <william.kucharski@oracle.com>
+To: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com
 
-From: Michal Hocko <mhocko@suse.com>
+On 12/06/2018 10:50 PM, Steve Capper wrote:
+> Enabling 52-bit VAs on arm64 requires that the PGD table expands from 64
+> entries (for the 48-bit case) to 1024 entries. This quantity,
+> PTRS_PER_PGD is used as follows to compute which PGD entry corresponds
+> to a given virtual address, addr:
+> 
+> pgd_index(addr) -> (addr >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1)
+> 
+> Userspace addresses are prefixed by 0's, so for a 48-bit userspace
+> address, uva, the following is true:
+> (uva >> PGDIR_SHIFT) & (1024 - 1) == (uva >> PGDIR_SHIFT) & (64 - 1)
+> 
+> In other words, a 48-bit userspace address will have the same pgd_index
+> when using PTRS_PER_PGD = 64 and 1024.
+> 
+> Kernel addresses are prefixed by 1's so, given a 48-bit kernel address,
+> kva, we have the following inequality:
+> (kva >> PGDIR_SHIFT) & (1024 - 1) != (kva >> PGDIR_SHIFT) & (64 - 1)
+> 
+> In other words a 48-bit kernel virtual address will have a different
+> pgd_index when using PTRS_PER_PGD = 64 and 1024.
+> 
+> If, however, we note that:
+> kva = 0xFFFF << 48 + lower (where lower[63:48] == 0b)
+> and, PGDIR_SHIFT = 42 (as we are dealing with 64KB PAGE_SIZE)
+> 
+> We can consider:
+> (kva >> PGDIR_SHIFT) & (1024 - 1) - (kva >> PGDIR_SHIFT) & (64 - 1)
+>   = (0xFFFF << 6) & 0x3FF - (0xFFFF << 6) & 0x3F	// "lower" cancels out
+>   = 0x3C0
+> 
+> In other words, one can switch PTRS_PER_PGD to the 52-bit value globally
+> provided that they increment ttbr1_el1 by 0x3C0 * 8 = 0x1E00 bytes when
+> running with 48-bit kernel VAs (TCR_EL1.T1SZ = 16).
+> 
+> For kernel configuration where 52-bit userspace VAs are possible, this
+> patch offsets ttbr1_el1 and sets PTRS_PER_PGD corresponding to the
+> 52-bit value.
+> 
+> Suggested-by: Catalin Marinas <catalin.marinas@arm.com>
+> Signed-off-by: Steve Capper <steve.capper@arm.com>
+> 
+> ---
+> 
+> Changed in V5, removed ttbr1 save/restore logic for software PAN as
+> hardware PAN is a mandatory ARMv8.1 feature anyway. The logic to enable
+> 52-bit VAs has also been changed to depend on
+> ARM64_PAN || !ARM64_SW_TTBR0_PAN
+> (in a later patch)
+> 
+> This patch is new in V4 of the series
+> ---
+>   arch/arm64/include/asm/assembler.h     | 23 +++++++++++++++++++++++
+>   arch/arm64/include/asm/pgtable-hwdef.h |  9 +++++++++
+>   arch/arm64/kernel/head.S               |  1 +
+>   arch/arm64/kernel/hibernate-asm.S      |  1 +
+>   arch/arm64/mm/proc.S                   |  4 ++++
+>   5 files changed, 38 insertions(+)
+> 
+> diff --git a/arch/arm64/include/asm/assembler.h b/arch/arm64/include/asm/assembler.h
+> index 6142402c2eb4..e2fe378d2a63 100644
+> --- a/arch/arm64/include/asm/assembler.h
+> +++ b/arch/arm64/include/asm/assembler.h
+> @@ -515,6 +515,29 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
+>   	mrs	\rd, sp_el0
+>   	.endm
+>   
+> +/*
+> + * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
+> + * orr is used as it can cover the immediate value (and is idempotent).
+> + * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
+> + * 	ttbr: Value of ttbr to set, modified.
+> + */
+> +	.macro	offset_ttbr1, ttbr
+> +#ifdef CONFIG_ARM64_52BIT_VA
+> +	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+> +#endif
+> +	.endm
+> +
+> +/*
+> + * Perform the reverse of offset_ttbr1.
+> + * bic is used as it can cover the immediate value and, in future, won't need
+> + * to be nop'ed out when dealing with 52-bit kernel VAs.
+> + */
+> +	.macro	restore_ttbr1, ttbr
+> +#ifdef CONFIG_ARM64_52BIT_VA
+> +	bic	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+> +#endif
+> +	.endm
+> +
 
-filemap_map_pages takes a speculative reference to each page in the
-range before it tries to lock that page. While this is correct it
-also can influence page migration which will bail out when seeing
-an elevated reference count. The faultaround code would bail on
-seeing a locked page so we can pro-actively check the PageLocked
-bit before page_cache_get_speculative and prevent from pointless
-reference count churn.
+The above operation is safe as long as the TTBR1_BADDR_4852_OFFSET is
+aligned to 2^6 or more. Otherwise we could corrupt the Bits[51:48]
+of the BADDR stored in TTBR1[5:2] and thus the TTBR1:BADDR must be 
+aligned to 64bytes minimum as per v8.2LVA restrictions. Since we have
+restricted the VA_BITS to 48, we should be safe here.
 
-Suggested-by: Jan Kara <jack@suse.cz>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: David Hildenbrand <david@redhat.com>
-Acked-by: Hugh Dickins <hughd@google.com>
-Reviewed-by: William Kucharski <william.kucharski@oracle.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/filemap.c | 7 +++++++
- 1 file changed, 7 insertions(+)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 81adec8ee02c..a87f71fff879 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2553,6 +2553,13 @@ void filemap_map_pages(struct vm_fault *vmf,
- 			goto next;
- 
- 		head = compound_head(page);
-+
-+		/*
-+		 * Check for a locked page first, as a speculative
-+		 * reference may adversely influence page migration.
-+		 */
-+		if (PageLocked(head))
-+			goto next;
- 		if (!page_cache_get_speculative(head))
- 			goto next;
- 
--- 
-2.19.2
+Do we need a BUILD_BUG_ON() or something to check if this is still valid?
+
+Eitherway,
+
+Reviewed-by: Suzuki K Poulose <suzuki.poulose@arm.com>
