@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F7838E01C5
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:10:45 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id 42so4541647qtr.7
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:10:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x3si1874161qtd.345.2018.12.14.03.10.44
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0118B8E0004
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 14:59:24 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id q64so4195508pfa.18
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 11:59:24 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u3si3717929plb.99.2018.12.07.11.59.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 03:10:44 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 0/9] mm: PG_reserved cleanups and documentation
-Date: Fri, 14 Dec 2018 12:10:05 +0100
-Message-Id: <20181214111014.15672-1-david@redhat.com>
+        Fri, 07 Dec 2018 11:59:24 -0800 (PST)
+Date: Fri, 7 Dec 2018 11:56:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mm/sparse: add common helper to mark all memblocks
+ present
+Message-Id: <20181207115626.dd578402f407e3df798aad0c@linux-foundation.org>
+In-Reply-To: <71168447-7470-d2ba-d30e-200ff6202b35@deltatee.com>
+References: <20181107173859.24096-1-logang@deltatee.com>
+	<20181107173859.24096-3-logang@deltatee.com>
+	<20181107121207.62cb37cf58484b7cc80a8fd8@linux-foundation.org>
+	<71168447-7470-d2ba-d30e-200ff6202b35@deltatee.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Albert Ou <aou@eecs.berkeley.edu>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Anthony Yznaga <anthony.yznaga@oracle.com>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Bhupesh Sharma <bhsharma@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, CHANDAN VN <chandan.vn@samsung.com>, Christophe Leroy <christophe.leroy@c-s.fr>, Dan Williams <dan.j.williams@intel.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, David Airlie <airlied@linux.ie>, David Howells <dhowells@redhat.com>, Fenghua Yu <fenghua.yu@intel.com>, Florian Fainelli <f.fainelli@gmail.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Greg Hackmann <ghackmann@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, James Morse <james.morse@arm.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Kristina Martsenko <kristina.martsenko@arm.com>, Laura Abbott <labbott@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Marc Zyngier <marc.zyngier@arm.com>, Mark Rutland <mark.rutland@arm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matthew Wilcox <willy@infradead.org>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Oleg Nesterov <oleg@redhat.com>, Palmer Dabbelt <palmer@sifive.com>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Souptick Joarder <jrdr.linux@gmail.com>, Stefan Agner <stefan@agner.ch>, Stephen Rothwell <sfr@canb.auug.org.au>, Tobias Klauser <tklauser@distanz.ch>, Tony Luck <tony.luck@intel.com>, Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>
+To: Logan Gunthorpe <logang@deltatee.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-riscv@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Stephen Bates <sbates@raithlin.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, Christoph Hellwig <hch@lst.de>, Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>
 
-I was recently going over all users of PG_reserved. Short story: it is
-difficult and sometimes not really clear if setting/checking for
-PG_reserved is only a relict from the past. Easy to break things. I
-guess I know have a pretty good idea wh things are like that
-nowadays and how they evolved.
+On Thu, 6 Dec 2018 10:40:31 -0700 Logan Gunthorpe <logang@deltatee.com> wrote:
 
-I had way more cleanups in this series inititally,
-but some architectures take PG_reserved as a way to apply a different
-caching strategy (for MMIO pages). So I decided to only include the most
-obvious changes (that are less likely to break something). So the big
-chunk of manual SetPageReserved users are MMIO/DMA related things on
-device buffers.
+> Hey Andrew,
+> 
+> On 2018-11-07 1:12 p.m., Andrew Morton wrote:
+> > Acked-by: Andrew Morton <akpm@linux-foundation.org>
+> > 
+> > I can grab both patches and shall sneak them into 4.20-rcX, but feel
+> > free to merge them into some git tree if you'd prefer.  If I see them
+> > turn up in linux-next I shall drop my copy.
+> 
+> Just wanted to check if you are still planning to get these patches into
+> 4.20-rcX. It would really help us if you can do this seeing we then
+> won't have to delay a cycle and can target the riscv sparsemem code for
+> 4.21.
+> 
 
-Most notably, for device memory we will hopefully soon stop setting
-PG_reserved. The the documentation has to be updated.
+Ah, OK, I assumed that it would be merged via an arm tree.
 
-RFC -> V1:
-- Add more details to "mm: better document PG_reserved"
-- Add "arm64: kdump: No need to mark crashkernel pages manually
-       PG_reserved"
-- Add "ia64: perfmon: Don't mark buffer pages as PG_reserved"
-- Added ACKs
+I moved 
 
-David Hildenbrand (9):
-  agp: efficeon: no need to set PG_reserved on GATT tables
-  s390/vdso: don't clear PG_reserved
-  powerpc/vdso: don't clear PG_reserved
-  riscv/vdso: don't clear PG_reserved
-  m68k/mm: use __ClearPageReserved()
-  arm64: kexec: no need to ClearPageReserved()
-  arm64: kdump: No need to mark crashkernel pages manually PG_reserved
-  ia64: perfmon: Don't mark buffer pages as PG_reserved
-  mm: better document PG_reserved
+mm-introduce-common-struct_page_max_shift-define.patch
+mm-sparse-add-common-helper-to-mark-all-memblocks-present.patch
 
- arch/arm64/kernel/machine_kexec.c |  3 +-
- arch/arm64/mm/init.c              | 27 --------------
- arch/ia64/kernel/perfmon.c        | 59 +++----------------------------
- arch/m68k/mm/memory.c             |  2 +-
- arch/powerpc/kernel/vdso.c        |  2 --
- arch/riscv/kernel/vdso.c          |  1 -
- arch/s390/kernel/vdso.c           |  2 --
- drivers/char/agp/efficeon-agp.c   |  2 --
- include/linux/page-flags.h        | 33 +++++++++++++++--
- 9 files changed, 37 insertions(+), 94 deletions(-)
-
--- 
-2.17.2
+to head-of-queue.  Shall send to Linus next week.
