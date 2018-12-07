@@ -1,115 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 93FE38E00B6
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:21:51 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id c14so10998522pls.21
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:21:51 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j21si12437231pll.150.2018.12.11.09.21.50
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 70DDA6B7EB3
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:42:20 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id m16so1851325pgd.0
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:42:20 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.42.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 09:21:50 -0800 (PST)
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id BE8E6B012
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 17:21:48 +0000 (UTC)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/6] mm: migrate: Lock buffers before migrate_page_move_mapping()
-Date: Tue, 11 Dec 2018 18:21:39 +0100
-Message-Id: <20181211172143.7358-3-jack@suse.cz>
-In-Reply-To: <20181211172143.7358-1-jack@suse.cz>
-References: <20181211172143.7358-1-jack@suse.cz>
+        Thu, 06 Dec 2018 21:42:18 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V8 18/21] swap: Support PMD swap mapping in mincore()
+Date: Fri,  7 Dec 2018 13:41:18 +0800
+Message-Id: <20181207054122.27822-19-ying.huang@intel.com>
+In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
+References: <20181207054122.27822-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mhocko@suse.cz, mgorman@suse.de, Jan Kara <jack@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-Lock buffers before calling into migrate_page_move_mapping() so that
-that function doesn't have to know about buffers (which is somewhat
-unexpected anyway) and all the buffer head logic is in
-buffer_migrate_page().
+During mincore(), for PMD swap mapping, swap cache will be looked up.
+If the resulting page isn't compound page, the PMD swap mapping will
+be split and fallback to PTE swap mapping processing.
 
-Signed-off-by: Jan Kara <jack@suse.cz>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- mm/migrate.c | 39 +++++++++++++--------------------------
- 1 file changed, 13 insertions(+), 26 deletions(-)
+ mm/mincore.c | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 789c7bc90a0c..d58a8ecf275e 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -490,20 +490,6 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 		return -EAGAIN;
+diff --git a/mm/mincore.c b/mm/mincore.c
+index aa0e542569f9..1d861fac82ee 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -48,7 +48,8 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
+  * and is up to date; i.e. that no page-in operation would be required
+  * at this time if an application were to map and access this page.
+  */
+-static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
++static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff,
++				  bool *compound)
+ {
+ 	unsigned char present = 0;
+ 	struct page *page;
+@@ -86,6 +87,8 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ #endif
+ 	if (page) {
+ 		present = PageUptodate(page);
++		if (compound)
++			*compound = PageCompound(page);
+ 		put_page(page);
  	}
  
--	/*
--	 * In the async migration case of moving a page with buffers, lock the
--	 * buffers using trylock before the mapping is moved. If the mapping
--	 * was moved, we later failed to lock the buffers and could not move
--	 * the mapping back due to an elevated page count, we would have to
--	 * block waiting on other references to be dropped.
--	 */
--	if (mode == MIGRATE_ASYNC && head &&
--			!buffer_migrate_lock_buffers(head, mode)) {
--		page_ref_unfreeze(page, expected_count);
--		xas_unlock_irq(&xas);
--		return -EAGAIN;
--	}
+@@ -103,7 +106,8 @@ static int __mincore_unmapped_range(unsigned long addr, unsigned long end,
+ 
+ 		pgoff = linear_page_index(vma, addr);
+ 		for (i = 0; i < nr; i++, pgoff++)
+-			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
++			vec[i] = mincore_page(vma->vm_file->f_mapping,
++					      pgoff, NULL);
+ 	} else {
+ 		for (i = 0; i < nr; i++)
+ 			vec[i] = 0;
+@@ -127,14 +131,36 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 	pte_t *ptep;
+ 	unsigned char *vec = walk->private;
+ 	int nr = (end - addr) >> PAGE_SHIFT;
++	swp_entry_t entry;
+ 
+ 	ptl = pmd_trans_huge_lock(pmd, vma);
+ 	if (ptl) {
+-		memset(vec, 1, nr);
++		unsigned char val = 1;
++		bool compound;
++
++		if (IS_ENABLED(CONFIG_THP_SWAP) && is_swap_pmd(*pmd)) {
++			entry = pmd_to_swp_entry(*pmd);
++			if (!non_swap_entry(entry)) {
++				val = mincore_page(swap_address_space(entry),
++						   swp_offset(entry),
++						   &compound);
++				/*
++				 * The huge swap cluster has been
++				 * split under us
++				 */
++				if (!compound) {
++					__split_huge_swap_pmd(vma, addr, pmd);
++					spin_unlock(ptl);
++					goto fallback;
++				}
++			}
++		}
++		memset(vec, val, nr);
+ 		spin_unlock(ptl);
+ 		goto out;
+ 	}
+ 
++fallback:
+ 	if (pmd_trans_unstable(pmd)) {
+ 		__mincore_unmapped_range(addr, end, vma, vec);
+ 		goto out;
+@@ -150,8 +176,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 		else if (pte_present(pte))
+ 			*vec = 1;
+ 		else { /* pte is a swap entry */
+-			swp_entry_t entry = pte_to_swp_entry(pte);
 -
- 	/*
- 	 * Now we know that no one else is looking at the page:
- 	 * no turning back from here.
-@@ -779,24 +765,23 @@ int buffer_migrate_page(struct address_space *mapping,
- {
- 	struct buffer_head *bh, *head;
- 	int rc;
-+	int expected_count;
- 
- 	if (!page_has_buffers(page))
- 		return migrate_page(mapping, newpage, page, mode);
- 
--	head = page_buffers(page);
-+	/* Check whether page does not have extra refs before we do more work */
-+	expected_count = expected_page_refs(page);
-+	if (page_count(page) != expected_count)
-+		return -EAGAIN;
- 
--	rc = migrate_page_move_mapping(mapping, newpage, page, head, mode, 0);
-+	head = page_buffers(page);
-+	if (!buffer_migrate_lock_buffers(head, mode))
-+		return -EAGAIN;
- 
-+	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
- 	if (rc != MIGRATEPAGE_SUCCESS)
--		return rc;
--
--	/*
--	 * In the async case, migrate_page_move_mapping locked the buffers
--	 * with an IRQ-safe spinlock held. In the sync case, the buffers
--	 * need to be locked now
--	 */
--	if (mode != MIGRATE_ASYNC)
--		BUG_ON(!buffer_migrate_lock_buffers(head, mode));
-+		goto unlock_buffers;
- 
- 	ClearPagePrivate(page);
- 	set_page_private(newpage, page_private(page));
-@@ -818,6 +803,8 @@ int buffer_migrate_page(struct address_space *mapping,
- 	else
- 		migrate_page_states(newpage, page);
- 
-+	rc = MIGRATEPAGE_SUCCESS;
-+unlock_buffers:
- 	bh = head;
- 	do {
- 		unlock_buffer(bh);
-@@ -826,7 +813,7 @@ int buffer_migrate_page(struct address_space *mapping,
- 
- 	} while (bh != head);
- 
--	return MIGRATEPAGE_SUCCESS;
-+	return rc;
- }
- EXPORT_SYMBOL(buffer_migrate_page);
- #endif
++			entry = pte_to_swp_entry(pte);
+ 			if (non_swap_entry(entry)) {
+ 				/*
+ 				 * migration or hwpoison entries are always
+@@ -161,7 +186,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			} else {
+ #ifdef CONFIG_SWAP
+ 				*vec = mincore_page(swap_address_space(entry),
+-						    swp_offset(entry));
++						    swp_offset(entry), NULL);
+ #else
+ 				WARN_ON(1);
+ 				*vec = 1;
 -- 
-2.16.4
+2.18.1
