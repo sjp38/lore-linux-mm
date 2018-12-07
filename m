@@ -1,239 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 61B9E8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 22:41:11 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id p9so17173723pfj.3
-        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 19:41:11 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 2si15197562pfd.154.2018.12.18.19.41.09
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 012206B7EA8
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:42:03 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id s14so2381213pfk.16
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:42:02 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.42.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Dec 2018 19:41:09 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBJ3dKVP063399
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 22:41:08 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pfb4e71ak-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 22:41:08 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 19 Dec 2018 03:41:07 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V5 1/3] mm: Add get_user_pages_cma_migrate
-Date: Wed, 19 Dec 2018 09:10:45 +0530
-In-Reply-To: <20181219034047.16305-1-aneesh.kumar@linux.ibm.com>
-References: <20181219034047.16305-1-aneesh.kumar@linux.ibm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20181219034047.16305-2-aneesh.kumar@linux.ibm.com>
+        Thu, 06 Dec 2018 21:42:01 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V8 12/21] swap: Support PMD swap mapping in swapoff
+Date: Fri,  7 Dec 2018 13:41:12 +0800
+Message-Id: <20181207054122.27822-13-ying.huang@intel.com>
+In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
+References: <20181207054122.27822-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-This helper does a get_user_pages_fast and if it find pages in the CMA area
-it will try to migrate them before taking page reference. This makes sure that
-we don't keep non-movable pages (due to page reference count) in the CMA area.
-Not able to move pages out of CMA area result in CMA allocation failures.
+During swapoff, for a huge swap cluster, we need to allocate a THP,
+read its contents into the THP and unuse the PMD and PTE swap mappings
+to it.  If failed to allocate a THP, the huge swap cluster will be
+split.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+During unuse, if it is found that the swap cluster mapped by a PMD
+swap mapping is split already, we will split the PMD swap mapping and
+unuse the PTEs.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- include/linux/hugetlb.h |   2 +
- include/linux/migrate.h |   3 +
- mm/hugetlb.c            |   4 +-
- mm/migrate.c            | 139 ++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 146 insertions(+), 2 deletions(-)
+ include/asm-generic/pgtable.h | 14 +-----
+ include/linux/huge_mm.h       |  8 ++++
+ mm/huge_memory.c              |  4 +-
+ mm/swapfile.c                 | 86 ++++++++++++++++++++++++++++++++++-
+ 4 files changed, 97 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 087fd5f48c91..1eed0cdaec0e 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -371,6 +371,8 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
- 				nodemask_t *nmask);
- struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
- 				unsigned long address);
-+struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-+				     int nid, nodemask_t *nmask);
- int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
- 			pgoff_t idx);
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 20aab7bfd487..5216124ba13c 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -931,22 +931,12 @@ static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
+ 	barrier();
+ #endif
+ 	/*
+-	 * !pmd_present() checks for pmd migration entries
+-	 *
+-	 * The complete check uses is_pmd_migration_entry() in linux/swapops.h
+-	 * But using that requires moving current function and pmd_trans_unstable()
+-	 * to linux/swapops.h to resovle dependency, which is too much code move.
+-	 *
+-	 * !pmd_present() is equivalent to is_pmd_migration_entry() currently,
+-	 * because !pmd_present() pages can only be under migration not swapped
+-	 * out.
+-	 *
+-	 * pmd_none() is preseved for future condition checks on pmd migration
++	 * pmd_none() is preseved for future condition checks on pmd swap
+ 	 * entries and not confusing with this function name, although it is
+ 	 * redundant with !pmd_present().
+ 	 */
+ 	if (pmd_none(pmdval) || pmd_trans_huge(pmdval) ||
+-		(IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION) && !pmd_present(pmdval)))
++	    (IS_ENABLED(CONFIG_HAVE_PMD_SWAP_ENTRY) && !pmd_present(pmdval)))
+ 		return 1;
+ 	if (unlikely(pmd_bad(pmdval))) {
+ 		pmd_clear_bad(pmd);
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ea4999a4b6cd..6236f8b1d04b 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -376,6 +376,8 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma,
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index f2b4abbca55e..d82b35afd2eb 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -286,6 +286,9 @@ static inline int migrate_vma(const struct migrate_vma_ops *ops,
+ #ifdef CONFIG_THP_SWAP
++extern int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++			       unsigned long address, pmd_t orig_pmd);
+ extern int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd);
+ 
+ static inline bool transparent_hugepage_swapin_enabled(
+@@ -401,6 +403,12 @@ static inline bool transparent_hugepage_swapin_enabled(
+ 	return false;
  }
- #endif /* IS_ENABLED(CONFIG_MIGRATE_VMA_HELPER) */
- 
-+extern int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
-+				      struct page **pages);
-+
- #endif /* CONFIG_MIGRATION */
- 
- #endif /* _LINUX_MIGRATE_H */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 7f2a28ab46d5..faf3102ae45e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1585,8 +1585,8 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
- 	return page;
- }
- 
--static struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
--		int nid, nodemask_t *nmask)
-+struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-+				     int nid, nodemask_t *nmask)
- {
- 	struct page *page;
- 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f7e4bfdc13b7..d564558fba03 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -2946,3 +2946,142 @@ int migrate_vma(const struct migrate_vma_ops *ops,
- }
- EXPORT_SYMBOL(migrate_vma);
- #endif /* defined(MIGRATE_VMA_HELPER) */
-+
-+static struct page *new_non_cma_page(struct page *page, unsigned long private)
+ #else /* CONFIG_THP_SWAP */
++static inline int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++				      unsigned long address, pmd_t orig_pmd)
 +{
-+	/*
-+	 * We want to make sure we allocate the new page from the same node
-+	 * as the source page.
-+	 */
-+	int nid = page_to_nid(page);
-+	/*
-+	 * Trying to allocate a page for migration. Ignore allocation
-+	 * failure warnings
-+	 */
-+	gfp_t gfp_mask = GFP_USER | __GFP_THISNODE | __GFP_NOWARN;
-+
-+	if (PageHighMem(page))
-+		gfp_mask |= __GFP_HIGHMEM;
-+
-+#ifdef CONFIG_HUGETLB_PAGE
-+	if (PageHuge(page)) {
-+		struct hstate *h = page_hstate(page);
-+		/*
-+		 * We don't want to dequeue from the pool because pool pages will
-+		 * mostly be from the CMA region.
-+		 */
-+		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
-+	}
-+#endif
-+	if (PageTransHuge(page)) {
-+		struct page *thp;
-+		/*
-+		 * ignore allocation failure warnings
-+		 */
-+		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_THISNODE | __GFP_NOWARN;
-+
-+		/*
-+		 * Remove the movable mask so that we don't allocate from
-+		 * CMA area again.
-+		 */
-+		thp_gfpmask &= ~__GFP_MOVABLE;
-+		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
-+	}
-+
-+	return __alloc_pages_node(nid, gfp_mask, 0);
++	return 0;
 +}
 +
-+/**
-+ * get_user_pages_cma_migrate() - pin user pages in memory by migrating pages in CMA region
-+ * @start:	starting user address
-+ * @nr_pages:	number of pages from start to pin
-+ * @write:	whether pages will be written to
-+ * @pages:	array that receives pointers to the pages pinned.
-+ *		Should be at least nr_pages long.
-+ *
-+ * Attempt to pin user pages in memory without taking mm->mmap_sem.
-+ * If not successful, it will fall back to taking the lock and
-+ * calling get_user_pages().
-+ *
-+ * If the pinned pages are backed by CMA region, we migrate those pages out,
-+ * allocating new pages from non-CMA region. This helps in avoiding keeping
-+ * pages pinned in the CMA region for a long time thereby resulting in
-+ * CMA allocation failures.
-+ *
-+ * Returns number of pages pinned. This may be fewer than the number
-+ * requested. If nr_pages is 0 or negative, returns 0. If no pages
-+ * were pinned, returns -errno.
-+ */
-+
-+int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
-+			       struct page **pages)
+ static inline int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ {
+ 	return 0;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 0ae7f824dbeb..f3c0a9e8fb9a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1721,8 +1721,8 @@ static void __split_huge_swap_pmd(struct vm_area_struct *vma,
+ }
+ 
+ #ifdef CONFIG_THP_SWAP
+-static int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+-			       unsigned long address, pmd_t orig_pmd)
++int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++			unsigned long address, pmd_t orig_pmd)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	spinlock_t *ptl;
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index c22c11b4a879..b85ec810d941 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1931,6 +1931,11 @@ static inline int pte_same_as_swp(pte_t pte, pte_t swp_pte)
+ 	return pte_same(pte_swp_clear_soft_dirty(pte), swp_pte);
+ }
+ 
++static inline int pmd_same_as_swp(pmd_t pmd, pmd_t swp_pmd)
 +{
-+	int i, ret;
-+	bool drain_allow = true;
-+	bool migrate_allow = true;
-+	LIST_HEAD(cma_page_list);
++	return pmd_same(pmd_swp_clear_soft_dirty(pmd), swp_pmd);
++}
 +
-+get_user_again:
-+	ret = get_user_pages_fast(start, nr_pages, write, pages);
-+	if (ret <= 0)
-+		return ret;
+ /*
+  * No need to decide whether this PTE shares the swap entry with others,
+  * just let do_wp_page work it out if a write is requested later - to
+@@ -1992,6 +1997,53 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_THP_SWAP
++static int unuse_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++		     unsigned long addr, swp_entry_t entry, struct page *page)
++{
++	struct mem_cgroup *memcg;
++	spinlock_t *ptl;
++	int ret = 1;
 +
-+	for (i = 0; i < ret; ++i) {
-+		/*
-+		 * If we get a page from the CMA zone, since we are going to
-+		 * be pinning these entries, we might as well move them out
-+		 * of the CMA zone if possible.
-+		 */
-+		if (is_migrate_cma_page(pages[i]) && migrate_allow) {
-+
-+			struct page *head = compound_head(pages[i]);
-+
-+			if (PageHuge(head))
-+				isolate_huge_page(head, &cma_page_list);
-+			else {
-+				if (!PageLRU(head) && drain_allow) {
-+					lru_add_drain_all();
-+					drain_allow = false;
-+				}
-+
-+				if (!isolate_lru_page(head)) {
-+					list_add_tail(&head->lru, &cma_page_list);
-+					mod_node_page_state(page_pgdat(head),
-+							    NR_ISOLATED_ANON +
-+							    page_is_file_cache(head),
-+							    hpage_nr_pages(head));
-+				}
-+			}
-+		}
++	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL,
++				  &memcg, true)) {
++		ret = -ENOMEM;
++		goto out_nolock;
 +	}
-+	if (!list_empty(&cma_page_list)) {
-+		/*
-+		 * drop the above get_user_pages reference.
-+		 */
-+		for (i = 0; i < ret; ++i)
-+			put_page(pages[i]);
 +
-+		if (migrate_pages(&cma_page_list, new_non_cma_page,
-+				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
-+			/*
-+			 * some of the pages failed migration. Do get_user_pages
-+			 * without migration.
-+			 */
-+			migrate_allow = false;
-+
-+			if (!list_empty(&cma_page_list))
-+				putback_movable_pages(&cma_page_list);
-+		}
-+		/*
-+		 * We did migrate all the pages, Try to get the page references again
-+		 * migrating any new CMA pages which we failed to isolate earlier.
-+		 */
-+		drain_allow = true;
-+		goto get_user_again;
++	ptl = pmd_lock(vma->vm_mm, pmd);
++	if (unlikely(!pmd_same_as_swp(*pmd, swp_entry_to_pmd(entry)))) {
++		mem_cgroup_cancel_charge(page, memcg, true);
++		ret = 0;
++		goto out;
 +	}
++
++	add_mm_counter(vma->vm_mm, MM_SWAPENTS, -HPAGE_PMD_NR);
++	add_mm_counter(vma->vm_mm, MM_ANONPAGES, HPAGE_PMD_NR);
++	get_page(page);
++	set_pmd_at(vma->vm_mm, addr, pmd,
++		   pmd_mkold(mk_huge_pmd(page, vma->vm_page_prot)));
++	page_add_anon_rmap(page, vma, addr, true);
++	mem_cgroup_commit_charge(page, memcg, true, true);
++	swap_free(entry, HPAGE_PMD_NR);
++	/*
++	 * Move the page to the active list so it is not
++	 * immediately swapped out again after swapon.
++	 */
++	activate_page(page);
++out:
++	spin_unlock(ptl);
++out_nolock:
 +	return ret;
 +}
++#else
++static int unuse_pmd(struct vm_area_struct *vma, pmd_t *pmd,
++		     unsigned long addr, swp_entry_t entry, struct page *page)
++{
++	return 0;
++}
++#endif
++
+ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 				unsigned long addr, unsigned long end,
+ 				swp_entry_t entry, struct page *page)
+@@ -2032,7 +2084,7 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 				unsigned long addr, unsigned long end,
+ 				swp_entry_t entry, struct page *page)
+ {
+-	pmd_t *pmd;
++	pmd_t swp_pmd = swp_entry_to_pmd(entry), *pmd, orig_pmd;
+ 	unsigned long next;
+ 	int ret;
+ 
+@@ -2040,6 +2092,27 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 	do {
+ 		cond_resched();
+ 		next = pmd_addr_end(addr, end);
++		orig_pmd = *pmd;
++		if (IS_ENABLED(CONFIG_THP_SWAP) && is_swap_pmd(orig_pmd)) {
++			if (likely(!pmd_same_as_swp(orig_pmd, swp_pmd)))
++				continue;
++			/*
++			 * Huge cluster has been split already, split
++			 * PMD swap mapping and fallback to unuse PTE
++			 */
++			if (!PageTransCompound(page)) {
++				ret = split_huge_swap_pmd(vma, pmd,
++							  addr, orig_pmd);
++				if (ret)
++					return ret;
++				ret = unuse_pte_range(vma, pmd, addr,
++						      next, entry, page);
++			} else
++				ret = unuse_pmd(vma, pmd, addr, entry, page);
++			if (ret)
++				return ret;
++			continue;
++		}
+ 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+ 			continue;
+ 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
+@@ -2233,6 +2306,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
+ 	 * there are races when an instance of an entry might be missed.
+ 	 */
+ 	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
++retry:
+ 		if (signal_pending(current)) {
+ 			retval = -EINTR;
+ 			break;
+@@ -2248,6 +2322,8 @@ int try_to_unuse(unsigned int type, bool frontswap,
+ 		page = read_swap_cache_async(entry,
+ 					GFP_HIGHUSER_MOVABLE, NULL, 0, false);
+ 		if (!page) {
++			struct swap_cluster_info *ci = NULL;
++
+ 			/*
+ 			 * Either swap_duplicate() failed because entry
+ 			 * has been freed independently, and will not be
+@@ -2264,6 +2340,14 @@ int try_to_unuse(unsigned int type, bool frontswap,
+ 			 */
+ 			if (!swcount || swcount == SWAP_MAP_BAD)
+ 				continue;
++			if (si->cluster_info)
++				ci = si->cluster_info + i / SWAPFILE_CLUSTER;
++			/* Split huge cluster if failed to allocate huge page */
++			if (cluster_is_huge(ci)) {
++				retval = split_swap_cluster(entry, 0);
++				if (!retval || retval == -EEXIST)
++					goto retry;
++			}
+ 			retval = -ENOMEM;
+ 			break;
+ 		}
 -- 
-2.19.2
+2.18.1
