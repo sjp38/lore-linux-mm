@@ -1,107 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0057A8E021D
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 23:17:40 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id u32so7897495qte.1
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 20:17:40 -0800 (PST)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id q7si3717273qvc.195.2018.12.14.20.17.37
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 806F48E0004
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 06:47:17 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id q64so3084507pfa.18
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 03:47:17 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b5sor4849660pgq.18.2018.12.07.03.47.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 20:17:37 -0800 (PST)
-Date: Fri, 14 Dec 2018 23:17:26 -0500
-From: Rik van Riel <riel@surriel.com>
-Subject: [PATCH] fork,memcg: fix crash in free_thread_stack on memcg charge
- fail
-Message-ID: <20181214231726.7ee4843c@imladris.surriel.com>
+        (Google Transport Security);
+        Fri, 07 Dec 2018 03:47:15 -0800 (PST)
+Date: Fri, 7 Dec 2018 14:47:09 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC v2 12/13] keys/mktme: Save MKTME data if kernel cmdline
+ parameter allows
+Message-ID: <20181207114709.kmrbghihyrht2l65@kshutemo-mobl1>
+References: <cover.1543903910.git.alison.schofield@intel.com>
+ <c2668d6d260bff3c88440ad097eb1445ea005860.1543903910.git.alison.schofield@intel.com>
+ <1544148839.28511.28.camel@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1544148839.28511.28.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: kernel-team@fb.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>
+To: "Huang, Kai" <kai.huang@intel.com>
+Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "Schofield, Alison" <alison.schofield@intel.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "bp@alien8.de" <bp@alien8.de>, "Hansen, Dave" <dave.hansen@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
 
-Changeset 9b6f7e163cd0 ("mm: rework memcg kernel stack accounting")
-will result in fork failing if allocating a kernel stack for a task
-in dup_task_struct exceeds the kernel memory allowance for that cgroup.
+On Fri, Dec 07, 2018 at 02:14:03AM +0000, Huang, Kai wrote:
+> Alternatively, we can choose to use per-socket keyID, but not to program
+> keyID globally across all sockets, so you don't have to save key while
+> still supporting CPU hotplug.
 
-Unfortunately, it also results in a crash.
+Per-socket KeyID approach would make things more complex. For instance
+KeyID on its own will not be enough to refer a key. You will need a node
+too. It will also require a way to track whether theirs an KeyID on other
+node for the key.
 
-This is due to the code jumping to free_stack and calling free_thread_stack
-when the memcg kernel stack charge fails, but without tsk->stack pointing
-at the freshly allocated stack.
+It also makes memory management less flexible: runtime migration of the
+memory between nodes will be limited and it can hurt memory availablity
+for non-encrypted tasks too.
 
-This in turn results in the vfree_atomic in free_thread_stack oopsing
-with a backtrace like this:
-
-#5 [ffffc900244efc88] die at ffffffff8101f0ab
- #6 [ffffc900244efcb8] do_general_protection at ffffffff8101cb86
- #7 [ffffc900244efce0] general_protection at ffffffff818ff082
-    [exception RIP: llist_add_batch+7]
-    RIP: ffffffff8150d487  RSP: ffffc900244efd98  RFLAGS: 00010282
-    RAX: 0000000000000000  RBX: ffff88085ef55980  RCX: 0000000000000000
-    RDX: ffff88085ef55980  RSI: 343834343531203a  RDI: 343834343531203a
-    RBP: ffffc900244efd98   R8: 0000000000000001   R9: ffff8808578c3600
-    R10: 0000000000000000  R11: 0000000000000001  R12: ffff88029f6c21c0
-    R13: 0000000000000286  R14: ffff880147759b00  R15: 0000000000000000
-    ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0018
- #8 [ffffc900244efda0] vfree_atomic at ffffffff811df2c7
- #9 [ffffc900244efdb8] copy_process at ffffffff81086e37
-#10 [ffffc900244efe98] _do_fork at ffffffff810884e0
-#11 [ffffc900244eff10] sys_vfork at ffffffff810887ff
-#12 [ffffc900244eff20] do_syscall_64 at ffffffff81002a43
-    RIP: 000000000049b948  RSP: 00007ffcdb307830  RFLAGS: 00000246
-    RAX: ffffffffffffffda  RBX: 0000000000896030  RCX: 000000000049b948
-    RDX: 0000000000000000  RSI: 00007ffcdb307790  RDI: 00000000005d7421
-    RBP: 000000000067370f   R8: 00007ffcdb3077b0   R9: 000000000001ed00
-    R10: 0000000000000008  R11: 0000000000000246  R12: 0000000000000040
-    R13: 000000000000000f  R14: 0000000000000000  R15: 000000000088d018
-    ORIG_RAX: 000000000000003a  CS: 0033  SS: 002b
-
-The simplest fix is to assign tsk->stack right where it is allocated.
-
-Fixes: 9b6f7e163cd0 ("mm: rework memcg kernel stack accounting")
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>
-Signed-off-by: Rik van Riel <riel@surriel.com>
----
- kernel/fork.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 07cddff89c7b..e2a5156bc9c3 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -240,8 +240,10 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
- 	 * free_thread_stack() can be called in interrupt context,
- 	 * so cache the vm_struct.
- 	 */
--	if (stack)
-+	if (stack) {
- 		tsk->stack_vm_area = find_vm_area(stack);
-+		tsk->stack = stack;
-+	}
- 	return stack;
- #else
- 	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
-@@ -288,7 +290,10 @@ static struct kmem_cache *thread_stack_cache;
- static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
- 						  int node)
- {
--	return kmem_cache_alloc_node(thread_stack_cache, THREADINFO_GFP, node);
-+	unsigned long *stack;
-+	stack = kmem_cache_alloc_node(thread_stack_cache, THREADINFO_GFP, node);
-+	tsk->stack = stack;
-+	return stack;
- }
- 
- static void free_thread_stack(struct task_struct *tsk)
-
+In general, I don't see per-socket KeyID handling very attractive. It
+creates more problems than solves.
 
 -- 
-All rights reversed.
+ Kirill A. Shutemov
