@@ -1,79 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A14448E0004
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 21:07:47 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id t72so4867844pfi.21
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 18:07:47 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id w32si1144195pga.337.2018.12.07.18.07.46
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EE7958E0004
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 20:33:46 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id p3so3992547plk.9
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 17:33:46 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id j191si4203204pgc.15.2018.12.07.17.33.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Dec 2018 18:07:46 -0800 (PST)
+        Fri, 07 Dec 2018 17:33:45 -0800 (PST)
 From: "Huang, Kai" <kai.huang@intel.com>
 Subject: Re: [RFC v2 00/13] Multi-Key Total Memory Encryption API (MKTME)
-Date: Sat, 8 Dec 2018 02:07:41 +0000
-Message-ID: <1544234854.28511.60.camel@intel.com>
+Date: Sat, 8 Dec 2018 01:33:39 +0000
+Message-ID: <1544232812.28511.39.camel@intel.com>
 References: <cover.1543903910.git.alison.schofield@intel.com>
 	 <CALCETrUqqQiHR_LJoKB2JE6hCZ-e7LiFprEhmo-qoegDZJ9uYQ@mail.gmail.com>
-	 <c610138f-32dd-a24c-dc52-4e0006a21409@intel.com>
-	 <CALCETrU34U3berTaEQbvNt0rfCdsjwj+xDb8x7bgAMFHEo=eUw@mail.gmail.com>
-	 <1544147742.28511.18.camel@intel.com>
-	 <CALCETrWHqE-H1jTJY-ApuuLt5cyZ3N1UdgH+szgYm+7mUMZ2pg@mail.gmail.com>
-In-Reply-To: <CALCETrWHqE-H1jTJY-ApuuLt5cyZ3N1UdgH+szgYm+7mUMZ2pg@mail.gmail.com>
+	 <0a21eadd05b245f762f7d536d8fdf579c113a9bc.camel@intel.com>
+	 <20181207115713.ia5jbrx5e3osaqxi@kshutemo-mobl1>
+	 <fd94ec722edc45008097a39d0c84a5d7134641c7.camel@intel.com>
+	 <19c539f8c6c9b34974e4cb4f268eb64fe7ba4297.camel@intel.com>
+In-Reply-To: <19c539f8c6c9b34974e4cb4f268eb64fe7ba4297.camel@intel.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <F77482DBCC9B2E488EA73293CF91CD44@intel.com>
+Content-ID: <46E7BAFAD6900E49A15D0F2333E48D4E@intel.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "luto@kernel.org" <luto@kernel.org>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "jmorris@namei.org" <jmorris@namei.org>, "peterz@infradead.org" <peterz@infradead.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "dhowells@redhat.com" <dhowells@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>, "bp@alien8.de" <bp@alien8.de>, "Hansen, Dave" <dave.hansen@intel.com>, "Schofield, Alison" <alison.schofield@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
+To: "kirill@shutemov.name" <kirill@shutemov.name>, "Sakkinen, Jarkko" <jarkko.sakkinen@intel.com>
+Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "peterz@infradead.org" <peterz@infradead.org>, "jmorris@namei.org" <jmorris@namei.org>, "keyrings@vger.kernel.org" <keyrings@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dhowells@redhat.com" <dhowells@redhat.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "luto@kernel.org" <luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, Hansen,, Alison  <alison.schofield@intel.com>, "Nakajima, Jun" <jun.nakajima@intel.com>
 
-DQo+ID4gVGhlcmUgYXJlIHNvbWUgb3RoZXIgdXNlIGNhc2VzIHRoYXQgYWxyZWFkeSByZXF1aXJl
-IHRlbmFudCB0byBzZW5kIGtleSB0byBDU1AuIEZvciBleGFtcGxlLCB0aGUNCj4gPiBWTQ0KPiA+
-IGltYWdlIGNhbiBiZSBwcm92aWRlZCBieSB0ZW5hbnQgYW5kIGVuY3J5cHRlZCBieSB0ZW5hbnQn
-cyBvd24ga2V5LCBhbmQgdGVuYW50IG5lZWRzIHRvIHNlbmQga2V5DQo+ID4gdG8NCj4gPiBDU1Ag
-d2hlbiBhc2tpbmcgQ1NQIHRvIHJ1biB0aGF0IGVuY3J5cHRlZCBpbWFnZS4NCj4gDQo+IA0KPiBJ
-IGNhbiBpbWFnaW5lIGEgZmV3IHJlYXNvbnMgd2h5IG9uZSB3b3VsZCB3YW50IHRvIGVuY3J5cHQg
-b25l4oCZcyBpbWFnZS4NCj4gRm9yIGV4YW1wbGUsIHRoZSBDU1AgY291bGQgaXNzdWUgYSBwdWJs
-aWMga2V5IGFuZCBzdGF0ZSwgb3IgZXZlbg0KPiBhdHRlc3QsIHRoYXQgdGhlIGtleSBpcyB3cmFw
-cGVkIGFuZCBsb2NrZWQgdG8gcGFydGljdWxhciBQQ1JzIG9mIHRoZWlyDQo+IFRQTSBvciBvdGhl
-cndpc2UgcHJvdGVjdGVkIGJ5IGFuIGVuY2xhdmUgdGhhdCB2ZXJpZmllcyB0aGF0IHRoZSBrZXkg
-aXMNCj4gb25seSB1c2VkIHRvIGRlY3J5cHQgdGhlIGltYWdlIGZvciB0aGUgYmVuZWZpdCBvZiBh
-IGh5cGVydmlzb3IuDQoNClJpZ2h0LiBJIHRoaW5rIGJlZm9yZSB0ZW5hbnQgcmVsZWFzZXMga2V5
-IHRvIENTUCBpdCBzaG91bGQgYWx3YXlzIHVzZSBhdHRlc3RhdGlvbiBhdXRob3JpdHkgdG8NCnZl
-cmlmeSB0aGUgdHJ1c3RpbmVzcyBvZiBjb21wdXRlciBub2RlLiBJIGNhbiB1bmRlcnN0YW5kIHRo
-YXQgdGhlIGtleSBjYW4gYmUgd3JhcHBlZCBieSBUUE0gYmVmb3JlDQpzZW5kaW5nIHRvIENTUCBi
-dXQgbmVlZCBzb21lIGNhdGNoIHVwIGFib3V0IHVzaW5nIGVuY2xhdmUgcGFydC4gDQoNClRoZSB0
-aGluZyBpcyBjb21wdXRlciBub2RlIGNhbiBiZSB0cnVzdGVkIGRvZXNuJ3QgbWVhbiBpdCBjYW5u
-b3QgYmUgYXR0YWNrZWQsIG9yIGV2ZW4gaXQgZG9lc24ndA0KbWVhbiBpdCBjYW4gcHJldmVudCwg
-aWUgc29tZSBtYWxpY2lvdXMgYWRtaW4sIHRvIGdldCB0ZW5hbnQga2V5IGV2ZW4gYnkgdXNpbmcg
-bGVnaXRpbWF0ZSB3YXkuIFRoZXJlDQphcmUgbWFueSBTVyBjb21wb25lbnRzIGludm9sdmVkIGhl
-cmUuIEFueXdheSB0aGlzIGlzIG5vdCByZWxhdGVkIHRvIE1LVE1FIGl0c2VsZiBsaWtlIHlvdSBt
-ZW50aW9uZWQNCmJlbG93LCB0aGVyZWZvcmUgdGhlIHBvaW50IGlzLCBhcyB3ZSBhbHJlYWR5IHNl
-ZSBNS1RNRSBpdHNlbGYgcHJvdmlkZXMgdmVyeSB3ZWFrIHNlY3VyaXR5DQpwcm90ZWN0aW9uLCB3
-ZSBuZWVkIHRvIHNlZSB3aGV0aGVyIE1LVE1FIGhhcyB2YWx1ZSBmcm9tIHRoZSB3aG9sZSB1c2Ug
-Y2FzZSdzIHBvaW50IG9mIHZpZXcNCihpbmNsdWRpbmcgYWxsIHRoZSB0aGluZ3MgeW91IG1lbnRp
-b25lZCBhYm92ZSkgLS0gd2UgZGVmaW5lIHRoZSB3aG9sZSB1c2UgY2FzZSwgd2UgY2xlYXJseSBz
-dGF0ZQ0Kd2hvL3doYXQgc2hvdWxkIGJlIGluIHRydXN0IGJvdW5kYXJ5LCBhbmQgd2hhdCB3ZSBj
-YW4gcHJldmVudCwgZXRjLg0KDQo+IA0KPiBJIGRvbuKAmXQgc2VlIHdoYXQgTUtUTUUgaGFzIHRv
-IGRvIHdpdGggdGhpcy4gVGhlIG9ubHkgcmVtb3RlbHkNCj4gcGxhdXNpYmxlIHdheSBJIGNhbiBz
-ZWUgdG8gdXNlIE1LVE1FIGZvciB0aGlzIGlzIHRvIGhhdmUgdGhlDQo+IGh5cGVydmlzb3IgbG9h
-ZCBhIFRQTSAob3Igb3RoZXIgZW5jbGF2ZSkgcHJvdGVjdGVkIGtleSBpbnRvIGFuIE1LVE1FDQo+
-IHVzZXIga2V5IHNsb3QgYW5kIHRvIGxvYWQgY3VzdG9tZXItcHJvdmlkZWQgY2lwaGVydGV4dCBp
-bnRvIHRoZQ0KPiBjb3JyZXNwb25kaW5nIHBoeXNpY2FsIG1lbW9yeSAodXNpbmcgYW4gTUtUTUUg
-bm8tZW5jcnlwdCBzbG90KS4gIEJ1dA0KPiB0aGlzIGhhcyB0aHJlZSBtYWpvciBwcm9ibGVtcy4g
-IEZpcnN0LCBpdCdzIGVmZmVjdGl2ZWx5IGp1c3QgYSBmYW5jeQ0KPiB3YXkgdG8gYXZvaWQgb25l
-IEFFUyBwYXNzIG92ZXIgdGhlIGRhdGEuICBTZWNvbmQsIHNlbnNpYmxlIHNjaGVtZSBmb3INCj4g
-dGhpcyB0eXBlIG9mIFZNIGltYWdlIHByb3RlY3Rpb24gd291bGQgdXNlICphdXRoZW50aWNhdGVk
-KiBlbmNyeXB0aW9uDQo+IG9yIGF0IGxlYXN0IHZlcmlmeSBhIHNpZ25hdHVyZSwgd2hpY2ggTUtU
-TUUgY2FuJ3QgZG8uICBUaGUgdGhpcmQNCj4gcHJvYmxlbSBpcyB0aGUgcmVhbCBzaG93LXN0b3Bw
-ZXIsIHRob3VnaDogdGhpcyBzY2hlbWUgcmVxdWlyZXMgdGhhdA0KPiB0aGUgY2lwaGVydGV4dCBn
-byBpbnRvIHByZWRldGVybWluZWQgcGh5c2ljYWwgYWRkcmVzc2VzLCB3aGljaCB3b3VsZA0KPiBi
-ZSBhIGdpYW50IG1lc3MuDQoNCk15IGludGVudGlvbiB3YXMgdG8gc2F5IGlmIHdlIGFyZSBhbHJl
-YWR5IHNlbmRpbmcga2V5IHRvIENTUCwgdGhlbiB3ZSBtYXkgcHJlZmVyIHRvIHVzZSB0aGUga2V5
-IGZvcg0KTUtUTUUgVk0gcnVudGltZSBwcm90ZWN0aW9uIGFzIHdlbGwsIGJ1dCBsaWtlIHlvdSBz
-YWlkIHdlIG1heSBub3QgaGF2ZSByZWFsIHNlY3VyaXR5IGdhaW4gaGVyZQ0KY29tcGFyaW5nIHRv
-IFRNRSwgc28gSSBhZ3JlZSB3ZSBuZWVkIHRvIGZpbmQgb3V0IG9uZSBzcGVjaWZpYyBjYXNlIHRv
-IHByb3ZlIHRoYXQuDQoNClRoYW5rcywNCi1LYWk=
+T24gRnJpLCAyMDE4LTEyLTA3IGF0IDIzOjQ1ICswMDAwLCBTYWtraW5lbiwgSmFya2tvIHdyb3Rl
+Og0KPiBPbiBGcmksIDIwMTgtMTItMDcgYXQgMTM6NTkgLTA4MDAsIEphcmtrbyBTYWtraW5lbiB3
+cm90ZToNCj4gPiBPbiBGcmksIDIwMTgtMTItMDcgYXQgMTQ6NTcgKzAzMDAsIEtpcmlsbCBBLiBT
+aHV0ZW1vdiB3cm90ZToNCj4gPiA+ID4gV2hhdCBpcyB0aGUgdGhyZWF0IG1vZGVsIGFueXdheSBm
+b3IgQU1EIGFuZCBJbnRlbCB0ZWNobm9sb2dpZXM/DQo+ID4gPiA+IA0KPiA+ID4gPiBGb3IgbWUg
+aXQgbG9va3MgbGlrZSB0aGF0IHlvdSBjYW4gcmVhZCwgd3JpdGUgYW5kIGV2ZW4gcmVwbGF5IA0K
+PiA+ID4gPiBlbmNyeXB0ZWQgcGFnZXMgYm90aCBpbiBTTUUgYW5kIFRNRS4gDQo+ID4gPiANCj4g
+PiA+IFdoYXQgcmVwbGF5IGF0dGFjayBhcmUgeW91IHRhbGtpbmcgYWJvdXQ/IE1LVE1FIHVzZXMg
+QUVTLVhUUyB3aXRoIHBoeXNpY2FsDQo+ID4gPiBhZGRyZXNzIHR3ZWFrLiBTbyB0aGUgZGF0YSBp
+cyB0aWVkIHRvIHRoZSBwbGFjZSBpbiBwaHlzaWNhbCBhZGRyZXNzIHNwYWNlDQo+ID4gPiBhbmQN
+Cj4gPiA+IHJlcGxhY2luZyBvbmUgZW5jcnlwdGVkIHBhZ2Ugd2l0aCBhbm90aGVyIGVuY3J5cHRl
+ZCBwYWdlIGZyb20gZGlmZmVyZW50DQo+ID4gPiBhZGRyZXNzIHdpbGwgcHJvZHVjZSBnYXJiYWdl
+IG9uIGRlY3J5cHRpb24uDQo+ID4gDQo+ID4gSnVzdCB0cnlpbmcgdG8gdW5kZXJzdGFuZCBob3cg
+dGhpcyB3b3Jrcy4NCj4gPiANCj4gPiBTbyB5b3UgdXNlIHBoeXNpY2FsIGFkZHJlc3MgbGlrZSBh
+IG5vbmNlL3ZlcnNpb24gZm9yIHRoZSBwYWdlIGFuZA0KPiA+IHRodXMgcHJldmVudCByZXBsYXk/
+IFdhcyBub3QgYXdhcmUgb2YgdGhpcy4NCj4gDQo+IFRoZSBicnV0YWwgZmFjdCBpcyB0aGF0IGEg
+cGh5c2ljYWwgYWRkcmVzcyBpcyBhbiBhc3Ryb25vbWljYWwgc3RyZXRjaA0KPiBmcm9tIGEgcmFu
+ZG9tIHZhbHVlIG9yIGluY3JlYXNpbmcgY291bnRlci4gVGh1cywgaXQgaXMgZmFpciB0byBzYXkg
+dGhhdA0KPiBNS1RNRSBwcm92aWRlcyBvbmx5IG5haXZlIG1lYXN1cmVzIGFnYWluc3QgcmVwbGF5
+IGF0dGFja3MuLi4NCj4gDQo+IC9KYXJra28NCg0KQ3VycmVudGx5IHRoZXJlJ3Mgbm8gbm9uY2Ug
+dG8gcHJvdGVjdCBjYWNoZSBsaW5lIHNvIFRNRS9NS1RNRSBpcyBub3QgYWJsZSB0byBwcmV2ZW50
+IHJlcGxheSBhdHRhY2sNCnlvdSBtZW50aW9uZWQuIEN1cnJlbnRseSBNS1RNRSBvbmx5IGludm9s
+dmVzIEFFUy1YVFMtMTI4IGVuY3J5cHRpb24gYnV0IG5vdGhpbmcgZWxzZS4gQnV0IGxpa2UgSQ0K
+c2FpZCBpZiBJIHVuZGVyc3RhbmQgY29ycmVjdGx5IGV2ZW4gU0VWIGRvZXNuJ3QgaGF2ZSBpbnRl
+Z3JpdHkgcHJvdGVjdGlvbiBzbyBub3QgYWJsZSB0byBwcmV2ZW50DQpyZXBseSBhdHRhY2sgYXMg
+d2VsbC4NCg0KVGhhbmtzLA0KLUthaQ==
