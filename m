@@ -1,19 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 505BC8E0004
-	for <linux-mm@kvack.org>; Sat,  8 Dec 2018 05:52:34 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id 49so2162778wra.14
-        for <linux-mm@kvack.org>; Sat, 08 Dec 2018 02:52:34 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id u141si4422397wmu.75.2018.12.08.02.52.32
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CE9606B7FAD
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 19:40:57 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id q62so3695183pgq.9
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 16:40:57 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z197sor7578691pgz.64.2018.12.07.16.40.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 08 Dec 2018 02:52:32 -0800 (PST)
-Date: Sat, 8 Dec 2018 11:52:20 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Should this_cpu_read() be volatile?
-Message-ID: <20181208105220.GF5289@hirez.programming.kicks-ass.net>
-References: <20181203161352.GP10377@bombadil.infradead.org>
+        (Google Transport Security);
+        Fri, 07 Dec 2018 16:40:56 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
+Subject: Should this_cpu_read() be volatile?
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <C29C792A-3F47-482D-B0D8-99EABEDF8882@gmail.com>
+Date: Fri, 7 Dec 2018 16:40:52 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <C064896E-268A-4462-8D51-E43C1CF10104@gmail.com>
+References: <20181128140136.GG10377@bombadil.infradead.org>
+ <3264149f-e01e-faa2-3bc8-8aa1c255e075@suse.cz>
+ <20181203161352.GP10377@bombadil.infradead.org>
  <4F09425C-C9AB-452F-899C-3CF3D4B737E1@gmail.com>
  <20181203224920.GQ10377@bombadil.infradead.org>
  <C377D9EF-A0F4-4142-8145-6942DC29A353@gmail.com>
@@ -22,63 +29,130 @@ References: <20181203161352.GP10377@bombadil.infradead.org>
  <55B665E1-3F64-4D87-B779-D1B4AFE719A9@gmail.com>
  <20181207084550.GA2237@hirez.programming.kicks-ass.net>
  <C29C792A-3F47-482D-B0D8-99EABEDF8882@gmail.com>
- <C064896E-268A-4462-8D51-E43C1CF10104@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <C064896E-268A-4462-8D51-E43C1CF10104@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>
 Cc: Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, Dec 07, 2018 at 04:40:52PM -0800, Nadav Amit wrote:
+[Resend, changing title & adding lkml and some others ]
 
-> > I'm actually having difficulty finding the this_cpu_read() in any of the
-> > functions you mention, so I cannot make any concrete suggestions other
-> > than pointing at the alternative functions available.
-> 
-> 
-> So I got deeper into the code to understand a couple of differences. In the
-> case of select_idle_sibling(), the patch (Peter’s) increase the function
-> code size by 123 bytes (over the baseline of 986). The per-cpu variable is
-> called through the following call chain:
-> 
-> 	select_idle_sibling()
-> 	=> select_idle_cpu()
-> 	=> local_clock()
-> 	=> raw_smp_processor_id()
-> 
-> And results in 2 more calls to sched_clock_cpu(), as the compiler assumes
-> the processor id changes in between (which obviously wouldn’t happen).
+On Dec 7, 2018, at 3:12 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
 
-That is the thing with raw_smp_processor_id(), it is allowed to be used
-in preemptible context, and there it _obviously_ can change between
-subsequent invocations.
+[ We can start a new thread, since I have the tendency to hijack =
+threads. ]
 
-So again, this change is actually good.
+> On Dec 7, 2018, at 12:45 AM, Peter Zijlstra <peterz@infradead.org> =
+wrote:
+>=20
+> On Thu, Dec 06, 2018 at 09:26:24AM -0800, Nadav Amit wrote:
+>>> On Dec 6, 2018, at 2:25 AM, Peter Zijlstra <peterz@infradead.org> =
+wrote:
+>>>=20
+>>> On Thu, Dec 06, 2018 at 12:28:26AM -0800, Nadav Amit wrote:
+>>>> [ +Peter ]
+>>>>=20
 
-If we want to fix select_idle_cpu(), we should maybe not use
-local_clock() there but use sched_clock_cpu() with a stable argument,
-this code runs with IRQs disabled and therefore the CPU number is stable
-for us here.
+[snip]
 
-> There may be more changes around, which I didn’t fully analyze. But
-> the very least reading the processor id should not get “volatile”.
-> 
-> As for finish_task_switch(), the impact is only few bytes, but still
-> unnecessary. It appears that with your patch preempt_count() causes multiple
-> reads of __preempt_count in this code:
-> 
->        if (WARN_ONCE(preempt_count() != 2*PREEMPT_DISABLE_OFFSET,
->                      "corrupted preempt_count: %s/%d/0x%x\n",
->                      current->comm, current->pid, preempt_count()))
->                preempt_count_set(FORK_PREEMPT_COUNT);
+>>>>=20
+>>>> *But* there is one thing that may require some attention - patch
+>>>> b59167ac7bafd ("x86/percpu: Fix this_cpu_read()=E2=80=9D) set =
+ordering constraints
+>>>> on the VM_ARGS() evaluation. And this patch also imposes, it =
+appears,
+>>>> (unnecessary) constraints on other pieces of code.
+>>>>=20
+>>>> These constraints are due to the addition of the volatile keyword =
+for
+>>>> this_cpu_read() by the patch. This affects at least 68 functions in =
+my
+>>>> kernel build, some of which are hot (I think), e.g., =
+finish_task_switch(),
+>>>> smp_x86_platform_ipi() and select_idle_sibling().
+>>>>=20
+>>>> Peter, perhaps the solution was too big of a hammer? Is it possible =
+instead
+>>>> to create a separate "this_cpu_read_once()=E2=80=9D with the =
+volatile keyword? Such
+>>>> a function can be used for native_sched_clock() and other seqlocks, =
+etc.
+>>>=20
+>>> No. like the commit writes this_cpu_read() _must_ imply READ_ONCE(). =
+If
+>>> you want something else, use something else, there's plenty other
+>>> options available.
+>>>=20
+>>> There's this_cpu_op_stable(), but also __this_cpu_read() and
+>>> raw_this_cpu_read() (which currently don't differ from =
+this_cpu_read()
+>>> but could).
+>>=20
+>> Would setting the inline assembly memory operand both as input and =
+output be
+>> better than using the =E2=80=9Cvolatile=E2=80=9D?
+>=20
+> I don't know.. I'm forever befuddled by the exact semantics of gcc
+> inline asm.
+>=20
+>> I think that If you do that, the compiler would should the =
+this_cpu_read()
+>> as something that changes the per-cpu-variable, which would make it =
+invalid
+>> to re-read the value. At the same time, it would not prevent =
+reordering the
+>> read with other stuff.
+>=20
+> So the thing is; as I wrote, the generic version of this_cpu_*() is:
+>=20
+> 	local_irq_save();
+> 	__this_cpu_*();
+> 	local_irq_restore();
+>=20
+> And per local_irq_{save,restore}() including compiler barriers that
+> cannot be reordered around either.
+>=20
+> And per the principle of least surprise, I think our primitives should
+> have similar semantics.
 
-My patch proposed here:
+I guess so, but as you=E2=80=99ll see below, the end result is ugly.
 
-  https://marc.info/?l=linux-mm&m=154409548410209
+> I'm actually having difficulty finding the this_cpu_read() in any of =
+the
+> functions you mention, so I cannot make any concrete suggestions other
+> than pointing at the alternative functions available.
 
-would actually fix that one I think, preempt_count() uses
-raw_cpu_read_4() which will loose the volatile with that patch.
+
+So I got deeper into the code to understand a couple of differences. In =
+the
+case of select_idle_sibling(), the patch (Peter=E2=80=99s) increase the =
+function
+code size by 123 bytes (over the baseline of 986). The per-cpu variable =
+is
+called through the following call chain:
+
+	select_idle_sibling()
+	=3D> select_idle_cpu()
+	=3D> local_clock()
+	=3D> raw_smp_processor_id()
+
+And results in 2 more calls to sched_clock_cpu(), as the compiler =
+assumes
+the processor id changes in between (which obviously wouldn=E2=80=99t =
+happen). There
+may be more changes around, which I didn=E2=80=99t fully analyze. But =
+the very least
+reading the processor id should not get =E2=80=9Cvolatile=E2=80=9D.
+
+As for finish_task_switch(), the impact is only few bytes, but still
+unnecessary. It appears that with your patch preempt_count() causes =
+multiple
+reads of __preempt_count in this code:
+
+       if (WARN_ONCE(preempt_count() !=3D 2*PREEMPT_DISABLE_OFFSET,
+                     "corrupted preempt_count: %s/%d/0x%x\n",
+                     current->comm, current->pid, preempt_count()))
+               preempt_count_set(FORK_PREEMPT_COUNT);
+
+Again, this is unwarranted, as the preemption count should not be =
+changed in
+any interrupt.
