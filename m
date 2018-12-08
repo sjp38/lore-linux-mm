@@ -1,94 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1118E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 05:28:53 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id f17so3966416edm.20
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 02:28:53 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s23si143913edm.254.2018.12.10.02.28.51
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C21828E0004
+	for <linux-mm@kvack.org>; Sat,  8 Dec 2018 13:45:32 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id s19so6624173qke.20
+        for <linux-mm@kvack.org>; Sat, 08 Dec 2018 10:45:32 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c5si4191940qth.210.2018.12.08.10.45.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 02:28:51 -0800 (PST)
-Date: Mon, 10 Dec 2018 11:28:46 +0100
-From: Jan Kara <jack@suse.cz>
+        Sat, 08 Dec 2018 10:45:32 -0800 (PST)
+Date: Sat, 8 Dec 2018 13:45:26 -0500
+From: Jerome Glisse <jglisse@redhat.com>
 Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181210102846.GC29289@quack2.suse.cz>
-References: <a0adcf7c-5592-f003-abc5-a2645eb1d5df@nvidia.com>
- <CAPcyv4iNtamDAY9raab=iXhSZByecedBpnGybjLM+PuDMwq7SQ@mail.gmail.com>
- <3c91d335-921c-4704-d159-2975ff3a5f20@nvidia.com>
- <20181205011519.GV10377@bombadil.infradead.org>
- <20181205014441.GA3045@redhat.com>
+Message-ID: <20181208184525.GC2952@redhat.com>
+References: <20181205014441.GA3045@redhat.com>
  <59ca5c4b-fd5b-1fc6-f891-c7986d91908e@nvidia.com>
  <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com>
  <20181207191620.GD3293@redhat.com>
  <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com>
- <20181208022445.GA7024@redhat.com>
+ <CAPcyv4hwtMA+4qc6500ucn5vf6fRrNdfyMHru_Jhzx86=1Wwww@mail.gmail.com>
+ <20181208163353.GA2952@redhat.com>
+ <20181208164825.GA26154@infradead.org>
+ <20181208174730.GB2952@redhat.com>
+ <20181208182604.GA24564@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20181208022445.GA7024@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181208182604.GA24564@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
-> Another crazy idea, why not treating GUP as another mapping of the page
-> and caller of GUP would have to provide either a fake anon_vma struct or
-> a fake vma struct (or both for PRIVATE mapping of a file where you can
-> have a mix of both private and file page thus only if it is a read only
-> GUP) that would get added to the list of existing mapping.
->
-> So the flow would be:
->     somefunction_thatuse_gup()
->     {
->         ...
->         GUP(_fast)(vma, ..., fake_anon, fake_vma);
->         ...
->     }
+On Sat, Dec 08, 2018 at 10:26:04AM -0800, Christoph Hellwig wrote:
+> On Sat, Dec 08, 2018 at 12:47:30PM -0500, Jerome Glisse wrote:
+> > Most of the user of GUP are well behave (everything under driver/gpu and
+> > so is mellanox driver and many other) ie they abide by mmu notifier
+> > invalidation call backs. They are a handfull of device driver that thought
+> > they could just do GUP and ignore the mmu notifier part and those are the
+> > one being problematic. So to me it feels like bystander are be shot for no
+> > good reasons.
 > 
->     GUP(vma, ..., fake_anon, fake_vma)
->     {
->         if (vma->flags == ANON) {
->             // Add the fake anon vma to the anon vma chain as a child
->             // of current vma
->         } else {
->             // Add the fake vma to the mapping tree
->         }
-> 
->         // The existing GUP except that now it inc mapcount and not
->         // refcount
->         GUP_old(..., &nanonymous, &nfiles);
-> 
->         atomic_add(&fake_anon->refcount, nanonymous);
->         atomic_add(&fake_vma->refcount, nfiles);
-> 
->         return nanonymous + nfiles;
->     }
+> get_user_pages is used by every single direct I/O, and while the race
+> windows in that case are small they very much exists.
 
-Thanks for your idea! This is actually something like I was suggesting back
-at LSF/MM in Deer Valley. There were two downsides to this I remember
-people pointing out:
+Yes and my proposal allow to fix that in even a better way than
+the pin count would ie allowing to provide a callback for write
+back to wait on direct I/O as you said for direct I/O it is a
+small window so it would be fine to have write back wait on it.
 
-1) This cannot really work with __get_user_pages_fast(). You're not allowed
-to get necessary locks to insert new entry into the VMA tree in that
-context. So essentially we'd loose get_user_pages_fast() functionality.
-
-2) The overhead e.g. for direct IO may be noticeable. You need to allocate
-the fake tracking VMA, get VMA interval tree lock, insert into the tree.
-Then on IO completion you need to queue work to unpin the pages again as you
-cannot remove the fake VMA directly from interrupt context where the IO is
-completed.
-
-You are right that the cost could be amortized if gup() is called for
-multiple consecutive pages however for small IOs there's no help...
-
-So this approach doesn't look like a win to me over using counter in struct
-page and I'd rather try looking into squeezing HMM public page usage of
-struct page so that we can fit that gup counter there as well. I know that
-it may be easier said than done...
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Cheers,
+J�r�me
