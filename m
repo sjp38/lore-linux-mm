@@ -1,59 +1,105 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3661D6B6ABD
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 14:25:23 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id b8so11994138pfe.10
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 11:25:23 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id f63si16103419pfg.136.2018.12.03.11.25.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 11:25:21 -0800 (PST)
-Subject: [PATCH RFC 0/3] Fix KVM misinterpreting Reserved page as an MMIO
- page
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Mon, 03 Dec 2018 11:25:20 -0800
-Message-ID: <154386493754.27193.1300965403157243427.stgit@ahduyck-desk1.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v3 6/6] arm, unicore32: remove early_alloc*() wrappers
+Date: Sun,  9 Dec 2018 17:00:24 +0200
+In-Reply-To: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
+References: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1544367624-15376-7-git-send-email-rppt@linux.ibm.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 List-ID: <linux-mm.kvack.org>
-To: dan.j.williams@intel.com, pbonzini@redhat.com, yi.z.zhang@linux.intel.com, brho@google.com, kvm@vger.kernel.org, linux-nvdimm@lists.01.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de, rkrcmar@redhat.com, jglisse@redhat.com
 
-I have loosely based this patch series off of the following patch series
-from Zhang Yi:
-https://lore.kernel.org/lkml/cover.1536342881.git.yi.z.zhang@linux.intel.com
+On arm and unicore32i the early_alloc_aligned() and and early_alloc() are
+oneliner wrappers for memblock_alloc.
 
-The original set had attempted to address the fact that DAX pages were
-treated like MMIO pages which had resulted in reduced performance. It
-attempted to address this by ignoring the PageReserved flag if the page
-was either a DEV_DAX or FS_DAX page.
+Replace their usage with direct call to memblock_alloc.
 
-I am proposing this as an alternative to that set. The main reason for this
-is because I believe there are a few issues that were overlooked with that
-original set. Specifically KVM seems to have two different uses for the
-PageReserved flag. One being whether or not we can pin the memory, the other
-being if we should be marking the pages as dirty or accessed. I believe
-only the pinning really applies so I have split the uses of
-kvm_is_reserved_pfn and updated the function uses to determine support for
-page pinning to include a check of the pgmap to see if it supports pinning.
-
+Suggested-by: Christoph Hellwig <hch@infradead.org>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
+ arch/arm/mm/mmu.c       | 11 +++--------
+ arch/unicore32/mm/mmu.c | 12 ++++--------
+ 2 files changed, 7 insertions(+), 16 deletions(-)
 
-Alexander Duyck (3):
-      kvm: Split use cases for kvm_is_reserved_pfn to kvm_is_refcounted_pfn
-      mm: Add support for exposing if dev_pagemap supports refcount pinning
-      kvm: Add additional check to determine if a page is refcounted
-
-
- arch/x86/kvm/mmu.c        |    6 +++---
- drivers/nvdimm/pfn_devs.c |    2 ++
- include/linux/kvm_host.h  |    2 +-
- include/linux/memremap.h  |    5 ++++-
- include/linux/mm.h        |   11 +++++++++++
- virt/kvm/kvm_main.c       |   34 +++++++++++++++++++++++++---------
- 6 files changed, 46 insertions(+), 14 deletions(-)
-
---
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 0a04c9a5..57de0dd 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -719,14 +719,9 @@ EXPORT_SYMBOL(phys_mem_access_prot);
+ 
+ #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
+ 
+-static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
+-{
+-	return memblock_alloc(sz, align);
+-}
+-
+ static void __init *early_alloc(unsigned long sz)
+ {
+-	return early_alloc_aligned(sz, sz);
++	return memblock_alloc(sz, sz);
+ }
+ 
+ static void *__init late_alloc(unsigned long sz)
+@@ -998,7 +993,7 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
+ 	if (!nr)
+ 		return;
+ 
+-	svm = early_alloc_aligned(sizeof(*svm) * nr, __alignof__(*svm));
++	svm = memblock_alloc(sizeof(*svm) * nr, __alignof__(*svm));
+ 
+ 	for (md = io_desc; nr; md++, nr--) {
+ 		create_mapping(md);
+@@ -1020,7 +1015,7 @@ void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
+ 	struct vm_struct *vm;
+ 	struct static_vm *svm;
+ 
+-	svm = early_alloc_aligned(sizeof(*svm), __alignof__(*svm));
++	svm = memblock_alloc(sizeof(*svm), __alignof__(*svm));
+ 
+ 	vm = &svm->vm;
+ 	vm->addr = (void *)addr;
+diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
+index 50d8c1a..a402192 100644
+--- a/arch/unicore32/mm/mmu.c
++++ b/arch/unicore32/mm/mmu.c
+@@ -141,16 +141,12 @@ static void __init build_mem_type_table(void)
+ 
+ #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
+ 
+-static void __init *early_alloc(unsigned long sz)
+-{
+-	return memblock_alloc(sz, sz);
+-}
+-
+ static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
+ 		unsigned long prot)
+ {
+ 	if (pmd_none(*pmd)) {
+-		pte_t *pte = early_alloc(PTRS_PER_PTE * sizeof(pte_t));
++		pte_t *pte = memblock_alloc(PTRS_PER_PTE * sizeof(pte_t),
++					    PTRS_PER_PTE * sizeof(pte_t));
+ 		__pmd_populate(pmd, __pa(pte) | prot);
+ 	}
+ 	BUG_ON(pmd_bad(*pmd));
+@@ -352,7 +348,7 @@ static void __init devicemaps_init(void)
+ 	/*
+ 	 * Allocate the vector page early.
+ 	 */
+-	vectors = early_alloc(PAGE_SIZE);
++	vectors = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+ 
+ 	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
+ 		pmd_clear(pmd_off_k(addr));
+@@ -429,7 +425,7 @@ void __init paging_init(void)
+ 	top_pmd = pmd_off_k(0xffff0000);
+ 
+ 	/* allocate the zero page. */
+-	zero_page = early_alloc(PAGE_SIZE);
++	zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+ 
+ 	bootmem_init();
+ 
+-- 
+2.7.4
