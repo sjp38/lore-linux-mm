@@ -1,83 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 669B68E0001
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 17:23:06 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id v27-v6so2354961ljv.1
-        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 14:23:06 -0800 (PST)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EAD288E0001
+	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 17:09:47 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id g92-v6so2282200ljg.23
+        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 14:09:47 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m191sor2260507lfa.53.2018.12.09.14.23.04
+        by mx.google.com with SMTPS id a4sor2300538lfj.30.2018.12.09.14.09.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 09 Dec 2018 14:23:04 -0800 (PST)
+        Sun, 09 Dec 2018 14:09:46 -0800 (PST)
 Subject: Re: [PATCH 2/6] __wr_after_init: write rare for static allocation
 References: <20181204121805.4621-1-igor.stoppa@huawei.com>
  <20181204121805.4621-3-igor.stoppa@huawei.com>
- <20181206044413.GB24603@bombadil.infradead.org>
+ <CALCETrVvoui0vksdt0Y9rdGL5ipEn_FtSXVVUFdH03ZC93cy_A@mail.gmail.com>
 From: Igor Stoppa <igor.stoppa@gmail.com>
-Message-ID: <8959c79b-dd9d-8b1f-87b6-e2c971aa2342@gmail.com>
-Date: Mon, 10 Dec 2018 00:22:56 +0200
+Message-ID: <8c4c45a5-a4c9-7094-002e-9b6006eb2f9e@gmail.com>
+Date: Mon, 10 Dec 2018 00:09:40 +0200
 MIME-Version: 1.0
-In-Reply-To: <20181206044413.GB24603@bombadil.infradead.org>
+In-Reply-To: <CALCETrVvoui0vksdt0Y9rdGL5ipEn_FtSXVVUFdH03ZC93cy_A@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>, igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>, Igor Stoppa <igor.stoppa@huawei.com>, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity <linux-integrity@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On 06/12/2018 01:13, Andy Lutomirski wrote:
 
+>> +       kasan_disable_current();
+>> +       if (op == WR_MEMCPY)
+>> +               memcpy((void *)wr_poking_addr, (void *)src, len);
+>> +       else if (op == WR_MEMSET)
+>> +               memset((u8 *)wr_poking_addr, (u8)src, len);
+>> +       else if (op == WR_RCU_ASSIGN_PTR)
+>> +               /* generic version of rcu_assign_pointer */
+>> +               smp_store_release((void **)wr_poking_addr,
+>> +                                 RCU_INITIALIZER((void **)src));
+>> +       kasan_enable_current();
+> 
+> Hmm.  I suspect this will explode quite badly on sane architectures
+> like s390.  (In my book, despite how weird s390 is, it has a vastly
+> nicer model of "user" memory than any other architecture I know
+> of...).
 
-On 06/12/2018 06:44, Matthew Wilcox wrote:
-> On Tue, Dec 04, 2018 at 02:18:01PM +0200, Igor Stoppa wrote:
->> +void *__wr_op(unsigned long dst, unsigned long src, __kernel_size_t len,
->> +	      enum wr_op_type op)
->> +{
->> +	temporary_mm_state_t prev;
->> +	unsigned long flags;
->> +	unsigned long offset;
->> +	unsigned long wr_poking_addr;
+I see. I can try to setup also a qemu target for s390, for my tests.
+There seems to be a Debian image, to have a fully bootable system.
+
+> I think you should use copy_to_user(), etc, instead.
+
+I'm having troubles with the "etc" part: as far as I can see, there are 
+both generic and specific support for both copying and clearing 
+user-space memory from kernel, however I couldn't find something that 
+looks like a memset_user().
+
+I can of course roll my own, for example iterating copy_to_user() with 
+the support of a pre-allocated static buffer (1 page should be enough).
+
+But, before I go down this path, I wanted to confirm that there's really 
+nothing better that I could use.
+
+If that's really the case, the static buffer instance should be 
+replicated for each core, I think, since each core could be performing 
+its own memset_user() at the same time.
+
+Alternatively, I could do a loop of WRITE_ONCE(), however I'm not sure 
+how that would work with (lack-of) alignment and might require also a 
+preamble/epilogue to deal with unaligned data?
+
+>  I'm not
+> entirely sure what the best smp_store_release() replacement is.
+> Making this change may also mean you can get rid of the
+> kasan_disable_current().
+> 
 >> +
->> +	/* Confirm that the writable mapping exists. */
->> +	BUG_ON(!wr_ready);
+>> +       barrier(); /* XXX redundant? */
+> 
+> I think it's redundant.  If unuse_temporary_mm() allows earlier stores
+> to hit the wrong address space, then something is very very wrong, and
+> something is also very very wrong if the optimizer starts moving
+> stores across a function call that is most definitely a barrier.
+
+ok, thanks
+
 >> +
->> +	if (WARN_ONCE(op >= WR_OPS_NUMBER, "Invalid WR operation.") ||
->> +	    WARN_ONCE(!is_wr_after_init(dst, len), "Invalid WR range."))
->> +		return (void *)dst;
->> +
->> +	offset = dst - (unsigned long)&__start_wr_after_init;
->> +	wr_poking_addr = wr_poking_base + offset;
->> +	local_irq_save(flags);
+>> +       unuse_temporary_mm(prev);
+>> +       /* XXX make the verification optional? */
+>> +       if (op == WR_MEMCPY)
+>> +               BUG_ON(memcmp((void *)dst, (void *)src, len));
+>> +       else if (op == WR_MEMSET)
+>> +               BUG_ON(memtst((void *)dst, (u8)src, len));
+>> +       else if (op == WR_RCU_ASSIGN_PTR)
+>> +               BUG_ON(*(unsigned long *)dst != src);
 > 
-> Why not local_irq_disable()?  Do we have a use-case for wanting to access
-> this from interrupt context?
+> Hmm.  If you allowed cmpxchg or even plain xchg, then these bug_ons
+> would be thoroughly buggy, but maybe they're okay.  But they should,
+> at most, be WARN_ON_ONCE(), 
 
-No, not that I can think of. It was "just in case", but I can remove it.
+I have to confess that I do not understand why Nadav's patchset was 
+required to use BUG_ON(), while here it's not correct, not even for 
+memcopy or memset .
 
->> +	/* XXX make the verification optional? */
-> 
-> Well, yes.  It seems like debug code to me.
+Is it because it is single-threaded?
+Or is it because text_poke() is patching code, instead of data?
+I can turn to WARN_ON_ONCE(), but I'd like to understand the reason.
 
-Ok, I was not sure about this, because text_poke() does it as part of 
-its normal operations.
+> given that you can trigger them by writing
+> the same addresses from two threads at once, and this isn't even
+> entirely obviously bogus given the presence of smp_store_release().
 
->> +	/* Randomize the poking address base*/
->> +	wr_poking_base = TASK_UNMAPPED_BASE +
->> +		(kaslr_get_random_long("Write Rare Poking") & PAGE_MASK) %
->> +		(TASK_SIZE - (TASK_UNMAPPED_BASE + wr_range));
-> 
-> I don't think this is a great idea.  We want to use the same mm for both
-> static and dynamic wr memory, yes?  So we should have enough space for
-> all of ram, not splatter the static section all over the address space.
-> 
-> On x86-64 (4 level page tables), we have a 64TB space for all of physmem
-> and 128TB of user space, so we can place the base anywhere in a 64TB
-> range.
+True, however would it be reasonable to require the use of an explicit 
+writer lock, from the user?
 
-I was actually wondering about the dynamic part.
-It's still not clear to me if it's possible to write the code in a 
-sufficiently generic way that it could work on all 64 bit architectures.
-I'll start with x86-64 as you suggest.
+This operation is not exactly fast and should happen seldom; I'm not 
+sure if it's worth supporting cmpxchg. The speedup would be minimal.
+
+I'd rather not implement the locking implicitly, even if it would be 
+possible to detect simultaneous writes, because it might lead to overall 
+inconsistent data.
 
 --
 igor
