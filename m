@@ -1,52 +1,83 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D29E28E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 15:10:39 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id f5-v6so3057800ljj.17
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 12:10:39 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v6-v6sor6846517ljh.37.2018.12.10.12.10.37
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Dec 2018 12:10:38 -0800 (PST)
-Date: Mon, 10 Dec 2018 23:10:36 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH] ksm: React on changing "sleep_millisecs" parameter faster
-Message-ID: <20181210201036.GC2342@uranus.lan>
-References: <154445792450.3178.16241744401215933502.stgit@localhost.localdomain>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Subject: [PATCH] ksm: React on changing "sleep_millisecs" parameter faster
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Mon, 10 Dec 2018 19:06:18 +0300
+Message-ID: <154445792450.3178.16241744401215933502.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <154445792450.3178.16241744401215933502.stgit@localhost.localdomain>
-Sender: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+To: akpm@linux-foundation.org, mhocko@suse.com, ktkhai@virtuozzo.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gorcunov@virtuozzo.com
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gorcunov@virtuozzo.com
 
-On Mon, Dec 10, 2018 at 07:06:18PM +0300, Kirill Tkhai wrote:
-> ksm thread unconditionally sleeps in ksm_scan_thread()
-> after each iteration:
-> 
-> 	schedule_timeout_interruptible(
-> 		msecs_to_jiffies(ksm_thread_sleep_millisecs))
-> 
-> The timeout is configured in /sys/kernel/mm/ksm/sleep_millisecs.
-> 
-> In case of user writes a big value by a mistake, and the thread
-> enters into schedule_timeout_interruptible(), it's not possible
-> to cancel the sleep by writing a new smaler value; the thread
-> is just sleeping till timeout expires.
-> 
-> The patch fixes the problem by waking the thread each time
-> after the value is updated.
-> 
-> This also may be useful for debug purposes; and also for userspace
-> daemons, which change sleep_millisecs value in dependence of
-> system load.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+ksm thread unconditionally sleeps in ksm_scan_thread()
+after each iteration:
 
-Kirill, can we rather reuse @ksm_thread variable from ksm_init
-(by moving it to static file level variable). Also wakening up
-unconditionally on write looks somehow suspicious to me
-though I don't have a precise argument against.
+	schedule_timeout_interruptible(
+		msecs_to_jiffies(ksm_thread_sleep_millisecs))
+
+The timeout is configured in /sys/kernel/mm/ksm/sleep_millisecs.
+
+In case of user writes a big value by a mistake, and the thread
+enters into schedule_timeout_interruptible(), it's not possible
+to cancel the sleep by writing a new smaler value; the thread
+is just sleeping till timeout expires.
+
+The patch fixes the problem by waking the thread each time
+after the value is updated.
+
+This also may be useful for debug purposes; and also for userspace
+daemons, which change sleep_millisecs value in dependence of
+system load.
+
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ mm/ksm.c |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 723bd32d4dd0..31452122e52b 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -294,6 +294,7 @@ static int ksm_nr_node_ids = 1;
+ #define KSM_RUN_OFFLINE	4
+ static unsigned long ksm_run = KSM_RUN_STOP;
+ static void wait_while_offlining(void);
++static struct task_struct *ksm_task = NULL;
+ 
+ static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
+ static DEFINE_MUTEX(ksm_thread_mutex);
+@@ -2435,8 +2436,9 @@ static int ksm_scan_thread(void *nothing)
+ 	set_freezable();
+ 	set_user_nice(current, 5);
+ 
++	mutex_lock(&ksm_thread_mutex);
++	ksm_task = current;
+ 	while (!kthread_should_stop()) {
+-		mutex_lock(&ksm_thread_mutex);
+ 		wait_while_offlining();
+ 		if (ksmd_should_run())
+ 			ksm_do_scan(ksm_thread_pages_to_scan);
+@@ -2451,7 +2453,10 @@ static int ksm_scan_thread(void *nothing)
+ 			wait_event_freezable(ksm_thread_wait,
+ 				ksmd_should_run() || kthread_should_stop());
+ 		}
++		mutex_lock(&ksm_thread_mutex);
+ 	}
++	ksm_task = NULL;
++	mutex_unlock(&ksm_thread_mutex);
+ 	return 0;
+ }
+ 
+@@ -2864,7 +2869,11 @@ static ssize_t sleep_millisecs_store(struct kobject *kobj,
+ 	if (err || msecs > UINT_MAX)
+ 		return -EINVAL;
+ 
++	mutex_lock(&ksm_thread_mutex);
++	if (ksm_task)
++		wake_up_state(ksm_task, TASK_INTERRUPTIBLE);
+ 	ksm_thread_sleep_millisecs = msecs;
++	mutex_unlock(&ksm_thread_mutex);
+ 
+ 	return count;
+ }
