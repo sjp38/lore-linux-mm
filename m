@@ -1,76 +1,68 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5532A8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 05:44:45 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id h7so11026389iof.19
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 02:44:45 -0800 (PST)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-eopbgr740058.outbound.protection.outlook.com. [40.107.74.58])
-        by mx.google.com with ESMTPS id w126si6380220itb.82.2018.12.10.02.44.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 02:44:44 -0800 (PST)
-From: "Koenig, Christian" <Christian.Koenig@amd.com>
-Subject: Re: [PATCH 1/4] mm: Check if mmu notifier callbacks are allowed to
- fail
-Date: Mon, 10 Dec 2018 10:44:38 +0000
-Message-ID: <36496bd3-1568-ee6e-e0a2-159a1315d767@amd.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Subject: [PATCH 1/4] mm: Check if mmu notifier callbacks are allowed to fail
+Date: Mon, 10 Dec 2018 11:36:38 +0100
+Message-Id: <20181210103641.31259-2-daniel.vetter@ffwll.ch>
+In-Reply-To: <20181210103641.31259-1-daniel.vetter@ffwll.ch>
 References: <20181210103641.31259-1-daniel.vetter@ffwll.ch>
- <20181210103641.31259-2-daniel.vetter@ffwll.ch>
-In-Reply-To: <20181210103641.31259-2-daniel.vetter@ffwll.ch>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <54D819CB7E41C14EBD4B6A84065B1BE3@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Sender: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Sender: linux-kernel-owner@vger.kernel.org
+To: Intel Graphics Development <intel-gfx@lists.freedesktop.org>
+Cc: DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@ffwll.ch>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Daniel Vetter <daniel.vetter@intel.com>
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>
-Cc: DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Daniel Vetter <daniel.vetter@intel.com>
 
-UGF0Y2hlcyAjMSBhbmQgIzMgYXJlIFJldmlld2VkLWJ5OiBDaHJpc3RpYW4gS8O2bmlnIA0KPGNo
-cmlzdGlhbi5rb2VuaWdAYW1kLmNvbT4NCg0KUGF0Y2ggIzIgaXMgQWNrZWQtYnk6IENocmlzdGlh
-biBLw7ZuaWcgPGNocmlzdGlhbi5rb2VuaWdAYW1kLmNvbT4gYmVjYXVzZSANCkkgY2FuJ3QganVk
-Z2UgaWYgYWRkaW5nIHRoZSBjb3VudGVyIGluIHRoZSB0aHJlYWQgc3RydWN0dXJlIGlzIGFjdHVh
-bGx5IA0KYSBnb29kIGlkZWEuDQoNCkluIHBhdGNoICM0IEkgaG9uZXN0bHkgZG9uJ3QgdW5kZXJz
-dGFuZCBhdCBhbGwgaG93IHRoaXMgc3R1ZmYgd29ya3MsIHNvIA0Kbm8tY29tbWVudCBmcm9tIG15
-IHNpZGUgb24gdGhpcy4NCg0KQ2hyaXN0aWFuLg0KDQpBbSAxMC4xMi4xOCB1bSAxMTozNiBzY2hy
-aWViIERhbmllbCBWZXR0ZXI6DQo+IEp1c3QgYSBiaXQgb2YgcGFyYW5vaWEsIHNpbmNlIGlmIHdl
-IHN0YXJ0IHB1c2hpbmcgdGhpcyBkZWVwIGludG8NCj4gY2FsbGNoYWlucyBpdCdzIGhhcmQgdG8g
-c3BvdCBhbGwgcGxhY2VzIHdoZXJlIGFuIG1tdSBub3RpZmllcg0KPiBpbXBsZW1lbnRhdGlvbiBt
-aWdodCBmYWlsIHdoZW4gaXQncyBub3QgYWxsb3dlZCB0by4NCj4NCj4gSW5zcGlyZWQgYnkgc29t
-ZSBjb25mdXNpb24gd2UgaGFkIGRpc2N1c3NpbmcgaTkxNSBtbXUgbm90aWZpZXJzIGFuZA0KPiB3
-aGV0aGVyIHdlIGNvdWxkIHVzZSB0aGUgbmV3bHktaW50cm9kdWNlZCByZXR1cm4gdmFsdWUgdG8g
-aGFuZGxlIHNvbWUNCj4gY29ybmVyIGNhc2VzLiBVbnRpbCB3ZSByZWFsaXplZCB0aGF0IHRoZXNl
-IGFyZSBvbmx5IGZvciB3aGVuIGEgdGFzaw0KPiBoYXMgYmVlbiBraWxsZWQgYnkgdGhlIG9vbSBy
-ZWFwZXIuDQo+DQo+IEFuIGFsdGVybmF0aXZlIGFwcHJvYWNoIHdvdWxkIGJlIHRvIHNwbGl0IHRo
-ZSBjYWxsYmFjayBpbnRvIHR3bw0KPiB2ZXJzaW9ucywgb25lIHdpdGggdGhlIGludCByZXR1cm4g
-dmFsdWUsIGFuZCB0aGUgb3RoZXIgd2l0aCB2b2lkDQo+IHJldHVybiB2YWx1ZSBsaWtlIGluIG9s
-ZGVyIGtlcm5lbHMuIEJ1dCB0aGF0J3MgYSBsb3QgbW9yZSBjaHVybiBmb3INCj4gZmFpcmx5IGxp
-dHRsZSBnYWluIEkgdGhpbmsuDQo+DQo+IFN1bW1hcnkgZnJvbSB0aGUgbS1sIGRpc2N1c3Npb24g
-b24gd2h5IHdlIHdhbnQgc29tZXRoaW5nIGF0IHdhcm5pbmcNCj4gbGV2ZWw6IFRoaXMgYWxsb3dz
-IGF1dG9tYXRlZCB0b29saW5nIGluIENJIHRvIGNhdGNoIGJ1Z3Mgd2l0aG91dA0KPiBodW1hbnMg
-aGF2aW5nIHRvIGxvb2sgYXQgZXZlcnl0aGluZy4gSWYgd2UganVzdCB1cGdyYWRlIHRoZSBleGlz
-dGluZw0KPiBwcl9pbmZvIHRvIGEgcHJfd2FybiwgdGhlbiB3ZSdsbCBoYXZlIGZhbHNlIHBvc2l0
-aXZlcy4gQW5kIGFzLWlzLCBubw0KPiBvbmUgd2lsbCBldmVyIHNwb3QgdGhlIHByb2JsZW0gc2lu
-Y2UgaXQncyBsb3N0IGluIHRoZSBtYXNzaXZlIGFtb3VudHMNCj4gb2Ygb3ZlcmFsbCBkbWVzZyBu
-b2lzZS4NCj4NCj4gdjI6IERyb3AgdGhlIGZ1bGwgV0FSTl9PTiBiYWNrdHJhY2UgaW4gZmF2b3Vy
-IG9mIGp1c3QgYSBwcl93YXJuIGZvcg0KPiB0aGUgcHJvYmxlbWF0aWMgY2FzZSAoTWljaGFsIEhv
-Y2tvKS4NCj4NCj4gQ2M6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+
-DQo+IENjOiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BzdXNlLmNvbT4NCj4gQ2M6ICJDaHJpc3RpYW4g
-S8O2bmlnIiA8Y2hyaXN0aWFuLmtvZW5pZ0BhbWQuY29tPg0KPiBDYzogRGF2aWQgUmllbnRqZXMg
-PHJpZW50amVzQGdvb2dsZS5jb20+DQo+IENjOiBEYW5pZWwgVmV0dGVyIDxkYW5pZWwudmV0dGVy
-QGZmd2xsLmNoPg0KPiBDYzogIkrDqXLDtG1lIEdsaXNzZSIgPGpnbGlzc2VAcmVkaGF0LmNvbT4N
-Cj4gQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZw0KPiBDYzogUGFvbG8gQm9uemluaSA8cGJvbnppbmlA
-cmVkaGF0LmNvbT4NCj4gU2lnbmVkLW9mZi1ieTogRGFuaWVsIFZldHRlciA8ZGFuaWVsLnZldHRl
-ckBpbnRlbC5jb20+DQo+IC0tLQ0KPiAgIG1tL21tdV9ub3RpZmllci5jIHwgMyArKysNCj4gICAx
-IGZpbGUgY2hhbmdlZCwgMyBpbnNlcnRpb25zKCspDQo+DQo+IGRpZmYgLS1naXQgYS9tbS9tbXVf
-bm90aWZpZXIuYyBiL21tL21tdV9ub3RpZmllci5jDQo+IGluZGV4IDUxMTlmZjg0Njc2OS4uY2Nj
-MjJmMjFiNzM1IDEwMDY0NA0KPiAtLS0gYS9tbS9tbXVfbm90aWZpZXIuYw0KPiArKysgYi9tbS9t
-bXVfbm90aWZpZXIuYw0KPiBAQCAtMTkwLDYgKzE5MCw5IEBAIGludCBfX21tdV9ub3RpZmllcl9p
-bnZhbGlkYXRlX3JhbmdlX3N0YXJ0KHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLA0KPiAgIAkJCQlwcl9p
-bmZvKCIlcFMgY2FsbGJhY2sgZmFpbGVkIHdpdGggJWQgaW4gJXNibG9ja2FibGUgY29udGV4dC5c
-biIsDQo+ICAgCQkJCQkJbW4tPm9wcy0+aW52YWxpZGF0ZV9yYW5nZV9zdGFydCwgX3JldCwNCj4g
-ICAJCQkJCQkhYmxvY2thYmxlID8gIm5vbi0iIDogIiIpOw0KPiArCQkJCWlmIChibG9ja2FibGUp
-DQo+ICsJCQkJCXByX3dhcm4oIiVwUyBjYWxsYmFjayBmYWlsdXJlIG5vdCBhbGxvd2VkXG4iLA0K
-PiArCQkJCQkJbW4tPm9wcy0+aW52YWxpZGF0ZV9yYW5nZV9zdGFydCk7DQo+ICAgCQkJCXJldCA9
-IF9yZXQ7DQo+ICAgCQkJfQ0KPiAgIAkJfQ0KDQo=
+Just a bit of paranoia, since if we start pushing this deep into
+callchains it's hard to spot all places where an mmu notifier
+implementation might fail when it's not allowed to.
+
+Inspired by some confusion we had discussing i915 mmu notifiers and
+whether we could use the newly-introduced return value to handle some
+corner cases. Until we realized that these are only for when a task
+has been killed by the oom reaper.
+
+An alternative approach would be to split the callback into two
+versions, one with the int return value, and the other with void
+return value like in older kernels. But that's a lot more churn for
+fairly little gain I think.
+
+Summary from the m-l discussion on why we want something at warning
+level: This allows automated tooling in CI to catch bugs without
+humans having to look at everything. If we just upgrade the existing
+pr_info to a pr_warn, then we'll have false positives. And as-is, no
+one will ever spot the problem since it's lost in the massive amounts
+of overall dmesg noise.
+
+v2: Drop the full WARN_ON backtrace in favour of just a pr_warn for
+the problematic case (Michal Hocko).
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: "Christian König" <christian.koenig@amd.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: "Jérôme Glisse" <jglisse@redhat.com>
+Cc: linux-mm@kvack.org
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
+---
+ mm/mmu_notifier.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 5119ff846769..ccc22f21b735 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -190,6 +190,9 @@ int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				pr_info("%pS callback failed with %d in %sblockable context.\n",
+ 						mn->ops->invalidate_range_start, _ret,
+ 						!blockable ? "non-" : "");
++				if (blockable)
++					pr_warn("%pS callback failure not allowed\n",
++						mn->ops->invalidate_range_start);
+ 				ret = _ret;
+ 			}
+ 		}
+-- 
+2.20.0.rc1
