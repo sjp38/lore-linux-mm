@@ -1,158 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 184EF6B7220
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 22:10:01 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c34so6739412edb.8
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 19:10:01 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o1-v6si51560ejb.330.2018.12.04.19.09.58
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A5D968E0018
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 11:30:22 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id b26so12063778qtq.14
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:30:22 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x13si1369715qtq.206.2018.12.10.08.30.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Dec 2018 19:09:59 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB533kFl110673
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2018 22:09:57 -0500
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p63s1xde2-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Dec 2018 22:09:57 -0500
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 5 Dec 2018 03:09:56 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V3 3/5] arch/powerpc/mm: Nest MMU workaround for mprotect RW upgrade.
-Date: Wed,  5 Dec 2018 08:39:29 +0530
-In-Reply-To: <20181205030931.12037-1-aneesh.kumar@linux.ibm.com>
-References: <20181205030931.12037-1-aneesh.kumar@linux.ibm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20181205030931.12037-4-aneesh.kumar@linux.ibm.com>
+        Mon, 10 Dec 2018 08:30:21 -0800 (PST)
+From: Waiman Long <longman@redhat.com>
+Subject: [PATCH] mm/page_alloc: Don't call kasan_free_pages() at deferred mem init
+Date: Mon, 10 Dec 2018 11:29:48 -0500
+Message-Id: <1544459388-8736-1-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Michal Hocko <mhocko@suse.com>, Waiman Long <longman@redhat.com>
 
-NestMMU requires us to mark the pte invalid and flush the tlb when we do a
-RW upgrade of pte. We fixed a variant of this in the fault path in commit
-Fixes: bd5050e38aec ("powerpc/mm/radix: Change pte relax sequence to handle nest MMU hang")
+When CONFIG_KASAN is enabled on large memory SMP systems, the deferrred
+pages initialization can take a long time. Below were the reported init
+times on a 8-socket 96-core 4TB IvyBridge system.
 
-Do the same for mprotect upgrades.
+  1) Non-debug kernel without CONFIG_KASAN
+     [    8.764222] node 1 initialised, 132086516 pages in 7027ms
 
-Hugetlb is handled in the next patch.
+  2) Debug kernel with CONFIG_KASAN
+     [  146.288115] node 1 initialised, 132075466 pages in 143052ms
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+So the page init time in a debug kernel was 20X of the non-debug kernel.
+The long init time can be problematic as the page initialization is
+done with interrupt disabled. In this particular case, it caused the
+appearance of following warning messages as well as NMI backtraces
+of all the cores that were doing the initialization.
+
+[   68.240049] rcu: INFO: rcu_sched detected stalls on CPUs/tasks:
+[   68.241000] rcu: 	25-...0: (100 ticks this GP) idle=b72/1/0x4000000000000000 softirq=915/915 fqs=16252
+[   68.241000] rcu: 	44-...0: (95 ticks this GP) idle=49a/1/0x4000000000000000 softirq=788/788 fqs=16253
+[   68.241000] rcu: 	54-...0: (104 ticks this GP) idle=03a/1/0x4000000000000000 softirq=721/825 fqs=16253
+[   68.241000] rcu: 	60-...0: (103 ticks this GP) idle=cbe/1/0x4000000000000000 softirq=637/740 fqs=16253
+[   68.241000] rcu: 	72-...0: (105 ticks this GP) idle=786/1/0x4000000000000000 softirq=536/641 fqs=16253
+[   68.241000] rcu: 	84-...0: (99 ticks this GP) idle=292/1/0x4000000000000000 softirq=537/537 fqs=16253
+[   68.241000] rcu: 	111-...0: (104 ticks this GP) idle=bde/1/0x4000000000000000 softirq=474/476 fqs=16253
+[   68.241000] rcu: 	(detected by 13, t=65018 jiffies, g=249, q=2)
+
+The long init time was mainly caused by the call to kasan_free_pages() to
+poison the newly initialized pages. On a 4TB system, we are talking about
+almost 500GB of memory probably on the same node.
+
+In reality, we may not need to poison the newly initialized pages before
+they are ever allocated. So KASAN poisoning of freed pages before the
+completion of deferred memory initialization is now disabled. Those
+pages will be properly poisoned when they are allocated or freed after
+deferred pages initialization is done.
+
+With this change, the new page initialization time became:
+
+[   21.948010] node 1 initialised, 132075466 pages in 18702ms
+
+This was still about double the non-debug kernel time, but was much
+better than before.
+
+Signed-off-by: Waiman Long <longman@redhat.com>
 ---
- arch/powerpc/include/asm/book3s/64/pgtable.h | 18 +++++++++++++
- arch/powerpc/include/asm/book3s/64/radix.h   |  4 +++
- arch/powerpc/mm/pgtable-book3s64.c           | 27 ++++++++++++++++++++
- arch/powerpc/mm/pgtable-radix.c              | 18 +++++++++++++
- 4 files changed, 67 insertions(+)
+ mm/page_alloc.c | 37 +++++++++++++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 8 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 2e6ada28da64..92eaea164700 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -1314,6 +1314,24 @@ static inline int pud_pfn(pud_t pud)
- 	BUILD_BUG();
- 	return 0;
- }
-+#define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
-+pte_t ptep_modify_prot_start(struct vm_area_struct *, unsigned long, pte_t *);
-+void ptep_modify_prot_commit(struct vm_area_struct *, unsigned long,
-+			     pte_t *, pte_t, pte_t);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2ec9cc4..941161d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -294,6 +294,32 @@ bool pm_suspended_storage(void)
+ int page_group_by_mobility_disabled __read_mostly;
+ 
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++/*
++ * During boot we initialize deferred pages on-demand, as needed, but once
++ * page_alloc_init_late() has finished, the deferred pages are all initialized,
++ * and we can permanently disable that path.
++ */
++static DEFINE_STATIC_KEY_TRUE(deferred_pages);
 +
 +/*
-+ * Returns true for a R -> RW upgrade of pte
++ * Calling kasan_free_pages() only after deferred memory initialization
++ * has completed. Poisoning pages during deferred memory init will greatly
++ * lengthen the process and cause problem in large memory systems as the
++ * deferred pages initialization is done with interrupt disabled.
++ *
++ * Assuming that there will be no reference to those newly initialized
++ * pages before they are ever allocated, this should have no effect on
++ * KASAN memory tracking as the poison will be properly inserted at page
++ * allocation time. The only corner case is when pages are allocated by
++ * on-demand allocation and then freed again before the deferred pages
++ * initialization is done, but this is not likely to happen.
 + */
-+static inline bool is_pte_rw_upgrade(unsigned long old_val, unsigned long new_val)
++static inline void kasan_free_nondeferred_pages(struct page *page, int order)
 +{
-+	if (!(old_val & _PAGE_READ))
-+		return false;
-+
-+	if ((!(old_val & _PAGE_WRITE)) && (new_val & _PAGE_WRITE))
-+		return true;
-+
-+	return false;
++	if (!static_branch_unlikely(&deferred_pages))
++		kasan_free_pages(page, order);
 +}
- 
- #endif /* __ASSEMBLY__ */
- #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */
-diff --git a/arch/powerpc/include/asm/book3s/64/radix.h b/arch/powerpc/include/asm/book3s/64/radix.h
-index 7d1a3d1543fc..5ab134eeed20 100644
---- a/arch/powerpc/include/asm/book3s/64/radix.h
-+++ b/arch/powerpc/include/asm/book3s/64/radix.h
-@@ -127,6 +127,10 @@ extern void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep
- 					 pte_t entry, unsigned long address,
- 					 int psize);
- 
-+extern void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
-+					   unsigned long addr, pte_t *ptep,
-+					   pte_t old_pte, pte_t pte);
 +
- static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
- 					       unsigned long set)
+ /* Returns true if the struct page for the pfn is uninitialised */
+ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
  {
-diff --git a/arch/powerpc/mm/pgtable-book3s64.c b/arch/powerpc/mm/pgtable-book3s64.c
-index 9f93c9f985c5..3d126353b11e 100644
---- a/arch/powerpc/mm/pgtable-book3s64.c
-+++ b/arch/powerpc/mm/pgtable-book3s64.c
-@@ -482,3 +482,30 @@ void arch_report_meminfo(struct seq_file *m)
- 		   atomic_long_read(&direct_pages_count[MMU_PAGE_1G]) << 20);
+@@ -335,6 +361,8 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
+ 	return false;
  }
- #endif /* CONFIG_PROC_FS */
+ #else
++#define kasan_free_nondeferred_pages(p, o)	kasan_free_pages(p, o)
 +
-+pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
-+			     pte_t *ptep)
-+{
-+	unsigned long pte_val;
-+
-+	/*
-+	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
-+	 * possible. Also keep the pte_present true so that we don't take
-+	 * wrong fault.
-+	 */
-+	pte_val = pte_update(vma->vm_mm, addr, ptep, _PAGE_PRESENT, _PAGE_INVALID, 0);
-+
-+	return __pte(pte_val);
-+
-+}
-+EXPORT_SYMBOL(ptep_modify_prot_start);
-+
-+void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
-+			     pte_t *ptep, pte_t old_pte, pte_t pte)
-+{
-+	if (radix_enabled())
-+		return radix__ptep_modify_prot_commit(vma, addr,
-+						      ptep, old_pte, pte);
-+	set_pte_at(vma->vm_mm, addr, ptep, pte);
-+}
-+EXPORT_SYMBOL(ptep_modify_prot_commit);
-diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
-index 931156069a81..dced3cd241c2 100644
---- a/arch/powerpc/mm/pgtable-radix.c
-+++ b/arch/powerpc/mm/pgtable-radix.c
-@@ -1063,3 +1063,21 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
- 	}
- 	/* See ptesync comment in radix__set_pte_at */
+ static inline bool early_page_uninitialised(unsigned long pfn)
+ {
+ 	return false;
+@@ -1037,7 +1065,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ 	arch_free_page(page, order);
+ 	kernel_poison_pages(page, 1 << order, 0);
+ 	kernel_map_pages(page, 1 << order, 0);
+-	kasan_free_pages(page, order);
++	kasan_free_nondeferred_pages(page, order);
+ 
+ 	return true;
  }
-+
-+void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
-+				    unsigned long addr, pte_t *ptep,
-+				    pte_t old_pte, pte_t pte)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+
-+	/*
-+	 * To avoid NMMU hang while relaxing access we need to flush the tlb before
-+	 * we set the new value. We need to do this only for radix, because hash
-+	 * translation does flush when updating the linux pte.
-+	 */
-+	if (is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
-+	    (atomic_read(&mm->context.copros) > 0))
-+		radix__flush_tlb_page(vma, addr);
-+
-+	set_pte_at(mm, addr, ptep, pte);
-+}
+@@ -1606,13 +1634,6 @@ static int __init deferred_init_memmap(void *data)
+ }
+ 
+ /*
+- * During boot we initialize deferred pages on-demand, as needed, but once
+- * page_alloc_init_late() has finished, the deferred pages are all initialized,
+- * and we can permanently disable that path.
+- */
+-static DEFINE_STATIC_KEY_TRUE(deferred_pages);
+-
+-/*
+  * If this zone has deferred pages, try to grow it by initializing enough
+  * deferred pages to satisfy the allocation specified by order, rounded up to
+  * the nearest PAGES_PER_SECTION boundary.  So we're adding memory in increments
 -- 
-2.19.2
+1.8.3.1
