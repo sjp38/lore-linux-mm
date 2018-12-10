@@ -1,65 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 132D78E0001
-	for <linux-mm@kvack.org>; Tue, 25 Dec 2018 10:39:35 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id e8-v6so4626793ljg.22
-        for <linux-mm@kvack.org>; Tue, 25 Dec 2018 07:39:35 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id g8-v6si29917005lji.127.2018.12.25.07.39.32
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B1C1A8E0001
+	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 20:36:29 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id d35so10270459qtd.20
+        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 17:36:29 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b50si6373507qtb.258.2018.12.09.17.36.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Dec 2018 07:39:33 -0800 (PST)
-From: Konstantin Khorenko <khorenko@virtuozzo.com>
-Subject: [RFC PATCH 0/1] mm: add a warning about high order allocations
-Date: Tue, 25 Dec 2018 18:39:26 +0300
-Message-Id: <20181225153927.2873-1-khorenko@virtuozzo.com>
+        Sun, 09 Dec 2018 17:36:28 -0800 (PST)
+Date: Sun, 9 Dec 2018 20:36:26 -0500
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH]  Fix mm->owner point to a task that does not exists
+Message-ID: <20181209201309-mutt-send-email-mst@kernel.org>
+References: <1544340077-11491-1-git-send-email-gchen.guomin@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1544340077-11491-1-git-send-email-gchen.guomin@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khorenko <khorenko@virtuozzo.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>
+To: gchen.guomin@gmail.com
+Cc: guominchen <guominchen@tencent.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jason Wang <jasowang@redhat.com>, netdev@vger.kernel.org, paulmck@linux.vnet.ibm.com
 
-Q: Why do we need to bother at all?
-A: If a node is highly loaded and its memory is significantly fragmented
-(unfortunately almost any node with serious load has highly fragmented memory)
-then any high order memory allocation can trigger massive memory shrink and
-result in quite a big allocation latency. And the node becomes less responsive
-and users don't like it.
-The ultimate solution here is to get rid of large allocations, but we need an
-instrument to detect them.
+On Sun, Dec 09, 2018 at 03:21:17PM +0800, gchen.guomin@gmail.com wrote:
+> From: guominchen <guominchen@tencent.com>
+> 
+>   Under normal circumstances,When do_exit exits, mm->owner will
+>   be updated, but when the kernel process calls unuse_mm and exits,
+>   mm->owner cannot be updated. And will point to a task that has
+>   been released.
+> 
+>   Below is my issue on vhost_net:
+>     A, B are two kernel processes(such as vhost_worker),
+>     C is a user space process(such as qemu), and all
+>     three use the mm of the user process C.
+>     Now, because user process C exits abnormally, the owner of this
+>     mm becomes A. When A calls unuse_mm and exits, this mm->ower
+>     still points to the A that has been released.
+>     When B accesses this mm->owner again, A has been released.
+> 
+>   Process A		Process B
+>  vhost_worker()	       vhost_worker()
+>   ---------    		---------
+>   use_mm()		use_mm()
+>    ...
+>   unuse_mm()
+>      tsk->mm=NULL
+>    do_exit()     	page fault
+>     exit_mm()	 	access mm->owner
+>    can't update owner	kernel Oops
+> 
+> 			unuse_mm()
+> 
+> Cc: <linux-mm@kvack.org>
+> Cc: <linux-kernel@vger.kernel.org>
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Cc: Jason Wang <jasowang@redhat.com>
+> Cc: <netdev@vger.kernel.org>
+> Signed-off-by: guominchen <guominchen@tencent.com>
+> ---
+>  mm/mmu_context.c | 1 -
+>  1 file changed, 1 deletion(-)
+> 
+> diff --git a/mm/mmu_context.c b/mm/mmu_context.c
+> index 3e612ae..185bb23 100644
+> --- a/mm/mmu_context.c
+> +++ b/mm/mmu_context.c
+> @@ -56,7 +56,6 @@ void unuse_mm(struct mm_struct *mm)
+>  
+>  	task_lock(tsk);
+>  	sync_mm_rss(mm);
+> -	tsk->mm = NULL;
+>  	/* active_mm is still 'mm' */
+>  	enter_lazy_tlb(mm, tsk);
+>  	task_unlock(tsk);
 
-Q: Why warning? Use tracepoints!
-A: Well, this is a matter of magic defaults.
-Yes, you can use tracepoints to catch large allocations, but you need to do this
-on purpose and regularly and this is to be done by every developer which is
-quite unreal.
-On the other hand if you develop something and get a warning, you'll have to
-think about the reason and either succeed with reworking the code to use
-smaller allocation sizes (and thus decrease allocation latency!) or just use
-kvmalloc() if you don't really need physically continuos chunk or come to the
-conclusion you definitely need physically continuos memory and shut up the
-warning.
+So that will work for vhost because we never drop
+the mm reference before destroying the task.
+I wonder whether that's true for other users though.
 
-Q: Why compile time config option?
-A: In order not to decrease the performance even a bit in case someone does not
-want to hunt for large allocations.
-In an ideal life i'd prefer this check/warning is enabled by default and may be
-even without a config option so it works on every node. Once we find and rework
-or mark all large allocations that would be good by default. Until that though
-it will be noisy.
+It would seem cleaner to onvoke some callback so
+tasks such as vhost can drop the reference.
 
-Another option is to rework the patch via static keys (having the warning
-disabled by default surely). That makes it possible to turn on the feature
-without recompiling the kernel - during testing period for example.
+And looking at all this code, I don't understand why
+is mm->owner safe to change like this:
+        mm->owner = NULL;
 
-If you prefer this way, i would be happy to rework the patch via static keys.
+when users seem to use it under RCU.
 
-Konstantin Khorenko (1):
-  mm/page_alloc: add warning about high order allocations
 
- kernel/sysctl.c | 15 +++++++++++++++
- mm/Kconfig      | 18 ++++++++++++++++++
- mm/page_alloc.c | 25 +++++++++++++++++++++++++
- 3 files changed, 58 insertions(+)
 
--- 
-2.15.1
+> -- 
+> 1.8.3.1
