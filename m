@@ -1,104 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DB906B6A4E
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 12:06:46 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id t62-v6so4538766wmg.6
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 09:06:46 -0800 (PST)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id x12si11016001wrt.114.2018.12.03.09.06.44
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7158E0018
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 18:10:10 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id b17so10987232pfc.11
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 15:10:10 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id t64si10268418pgd.202.2018.12.10.15.10.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 09:06:44 -0800 (PST)
-Message-Id: <dd9ef91add7fcf5a9e369dde322b1822e90eb218.1543811917.git.christophe.leroy@c-s.fr>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH 1/2] mm: add probe_user_read() and probe_user_address()
-Date: Mon,  3 Dec 2018 17:06:42 +0000 (UTC)
+        Mon, 10 Dec 2018 15:10:09 -0800 (PST)
+Date: Mon, 10 Dec 2018 18:10:07 -0500
+From: Sasha Levin <sashal@kernel.org>
+Subject: Re: x86: e820 regression
+Message-ID: <20181210231007.GI97256@sasha-vm>
+References: <20181210082837.hjduflu7ou642e2m@YUKI.localdomain>
+ <20181210085421.GA30792@hori1.linux.bs1.fc.nec.co.jp>
+ <20181210094909.GA27385@kroah.com>
+ <20181210142151.xme3ncueelvi3xfa@YUKI.localdomain>
+ <20181210165831.GA97256@sasha-vm>
+ <20181210171555.pjbypquyg6bqjovh@YUKI.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20181210171555.pjbypquyg6bqjovh@YUKI.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Erick Cafferata <erick@cafferata.me>
+Cc: stable@vger.kernel.org, linux-mm@kvack.org
 
-In the powerpc, there are several places implementing safe
-access to user data. This is sometimes implemented using
-probe_kernel_address() with additional access_ok() verification,
-sometimes with get_user() enclosed in a pagefault_disable()/enable()
-pair, etc... :
-    show_user_instructions()
-    bad_stack_expansion()
-    p9_hmi_special_emu()
-    fsl_pci_mcheck_exception()
-    read_user_stack_64()
-    read_user_stack_32() on PPC64
-    read_user_stack_32() on PPC32
-    power_pmu_bhrb_to()
+On Mon, Dec 10, 2018 at 12:15:56PM -0500, Erick Cafferata wrote:
+>On 12/10 11:58, Sasha Levin wrote:
+>> On Mon, Dec 10, 2018 at 09:21:52AM -0500, Erick Cafferata wrote:
+>> > On 12/10 10:49, Greg KH wrote:
+>> > > On Mon, Dec 10, 2018 at 08:54:21AM +0000, Naoya Horiguchi wrote:
+>> > > > Hi Erick,
+>> > > >
+>> > > > On Mon, Dec 10, 2018 at 03:28:37AM -0500, Erick Cafferata wrote:
+>> > > > > The following commit introduced a regression on my system.
+>> > > > >
+>> > > > > 124049decbb121ec32742c94fb5d9d6bed8f24d8
+>> > > > > x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
+>> > > > >
+>> > > > > and it was backported to stable, stopping the kernel to boot on my system since around 4.17.4.
+>> > > > > It was reverted on upstream a couple months ago.
+>> > > > > commit 2a5bda5a624d6471d25e953b9adba5182ab1b51f upstream
+>> > > >
+>> > > > This commit seems not a correct pointer.
+>> > > > In mainline, commit 124049decbb was reverted by
+>> > > >
+>> > > >     commit 9fd61bc95130d4971568b89c9548b5e0a4e18e0e
+>> > > >     Author: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+>> > > >     Date:   Fri Oct 26 15:10:24 2018 -0700
+>> > > >
+>> > > >         Revert "x86/e820: put !E820_TYPE_RAM regions into memblock.reserved"
+>> > > >
+>> > > > and, the original problem was finally fixed by
+>> > > >
+>> > > >     commit 907ec5fca3dc38d37737de826f06f25b063aa08e
+>> > > >     Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> > > >     Date:   Fri Oct 26 15:10:15 2018 -0700
+>> > > >
+>> > > >         mm: zero remaining unavailable struct pages
+>> > > >
+>> > > >         Patch series "mm: Fix for movable_node boot option", v3.
+>> > > >
+>> > > > so I think both patches should be backported onto v4.17.z.
+>> > >
+>> > > 4.17.y and 4.18.y are long end-of-life, there's nothing I can do there.
+>> > >
+>> > > I can apply the above patches to the 4.19.y tree, is that sufficient?
+>> > >
+>> > > thanks,
+>> > >
+>> > > greg k-h
+>> > If it were possible to backport it to 4.14 as well. It would be better,
+>> > but 4.19 is already good.
+>> > Also, would you port only the revert commit, or also the correct fix for
+>> > the previous issue?
+>> >
+>> > PD: also, as it was pointed out previously, the correct commit is
+>> > 9fd61bc95130d4971568b89c9548b5e0a4e18e0e.
+>> > PD2: sorry about removing the context in the previous mail.
+>>
+>> 9fd61bc95130d4971568b89c9548b5e0a4e18e0e looks like the commit that
+>> reverts the patch in question, not an additional fix.
+>>
+>> --
+>> Thanks,
+>> Sasha
+>That's right, that commit is the revert. The commit I'm most interested
+>in getting backported. However, I was referring to the other 3 commits
+>affecting arch/x86/kernel/e820.c:
+>
+>7e1c4e27928e memblock: stop using implicit alignment to SMP_CACHE_BYTES
+>57c8a661d95d mm: remove include/linux/bootmem.h
+>2a5bda5a624d memblock: replace alloc_bootmem with memblock_alloc
+>
+>This 3 probably fixed the original issue, for which
+>
+>124049decbb1 x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
+>
+>was pushed. I was asking if those 3(or more, if needed) would get
+>backported as well.
+>regards
 
-In the same spirit as probe_kernel_read() and probe_kernel_address(),
-this patch adds probe_user_read() and probe_user_address().
++ linux-mm@
 
-probe_user_read() does the same as probe_kernel_read() but
-first checks that it is really a user address.
+These commits touch quite a lot of code, and even though they look
+simple they are quite invasive, so I wouldn't want to take them without
+a proper backport someone tested and acked by the mm folks.
 
-probe_user_address() is a shortcut to probe_user_read()
-
-Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
----
- Changes since RFC: Made a static inline function instead of weak function as recommended by Kees.
-
- include/linux/uaccess.h | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
-
-diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-index efe79c1cdd47..83ea8aefca75 100644
---- a/include/linux/uaccess.h
-+++ b/include/linux/uaccess.h
-@@ -266,6 +266,48 @@ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
- #define probe_kernel_address(addr, retval)		\
- 	probe_kernel_read(&retval, addr, sizeof(retval))
- 
-+/**
-+ * probe_user_read(): safely attempt to read from a user location
-+ * @dst: pointer to the buffer that shall take the data
-+ * @src: address to read from
-+ * @size: size of the data chunk
-+ *
-+ * Safely read from address @src to the buffer at @dst.  If a kernel fault
-+ * happens, handle that and return -EFAULT.
-+ *
-+ * We ensure that the copy_from_user is executed in atomic context so that
-+ * do_page_fault() doesn't attempt to take mmap_sem.  This makes
-+ * probe_user_read() suitable for use within regions where the caller
-+ * already holds mmap_sem, or other locks which nest inside mmap_sem.
-+ */
-+
-+#ifndef probe_user_read
-+static __always_inline long probe_user_read(void *dst, const void __user *src,
-+					    size_t size)
-+{
-+	long ret;
-+
-+	if (!access_ok(VERIFY_READ, src, size))
-+		return -EFAULT;
-+
-+	pagefault_disable();
-+	ret = __copy_from_user_inatomic(dst, src, size);
-+	pagefault_enable();
-+
-+	return ret ? -EFAULT : 0;
-+}
-+#endif
-+
-+/**
-+ * probe_user_address(): safely attempt to read from a user location
-+ * @addr: address to read from
-+ * @retval: read into this variable
-+ *
-+ * Returns 0 on success, or -EFAULT.
-+ */
-+#define probe_user_address(addr, retval)		\
-+	probe_user_read(&(retval), addr, sizeof(retval))
-+
- #ifndef user_access_begin
- #define user_access_begin() do { } while (0)
- #define user_access_end() do { } while (0)
--- 
-2.13.3
+--
+Thanks,
+Sasha
