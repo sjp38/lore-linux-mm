@@ -1,50 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 907F98E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 05:36:49 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id f17so3974812edm.20
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 02:36:49 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t21-v6sor2892988ejx.10.2018.12.10.02.36.47
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Dec 2018 02:36:48 -0800 (PST)
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Subject: [PATCH 0/4] mmu notifier debug checks v2
-Date: Mon, 10 Dec 2018 11:36:37 +0100
-Message-Id: <20181210103641.31259-1-daniel.vetter@ffwll.ch>
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BBFD38E0001
+	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 22:14:17 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id 202so6602311pgb.6
+        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 19:14:17 -0800 (PST)
+Received: from mail2.tencent.com (mail2.tencent.com. [163.177.67.195])
+        by mx.google.com with ESMTP id b3si9257864pld.282.2018.12.09.19.14.15
+        for <linux-mm@kvack.org>;
+        Sun, 09 Dec 2018 19:14:16 -0800 (PST)
+From: =?gb2312?B?Z3VvbWluY2hlbiizwrn6w/Ep?= <guominchen@tencent.com>
+Subject: =?gb2312?B?tPC4tDogW1BBVENIXSAgRml4IG1tLT5vd25lciBwb2ludCB0byBhIHRhc2sg?=
+ =?gb2312?Q?that_does_not_exists(Internet_mail)?=
+Date: Mon, 10 Dec 2018 03:14:10 +0000
+Message-ID: <0D556C4F8D27C74EB25927291B4B0602A90358@EXMBX-SZ087.tencent.com>
+References: <1544340077-11491-1-git-send-email-gchen.guomin@gmail.com>
+ <20181209201309-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20181209201309-mutt-send-email-mst@kernel.org>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Intel Graphics Development <intel-gfx@lists.freedesktop.org>
-Cc: DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: "Michael S. Tsirkin" <mst@redhat.com>, "gchen.guomin@gmail.com" <gchen.guomin@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jason Wang <jasowang@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
 
-Hi all,
-
-Here's v2 of my mmu notifier debug checks.
-
-I think the last two patches could probably be extended to all callbacks,
-but I'm not really clear on the exact rules. But happy to extend them if
-there's interest.
-
-This stuff helps us catch issues in the i915 mmu notifier implementation.
-
-Thanks, Daniel
-
-Daniel Vetter (4):
-  mm: Check if mmu notifier callbacks are allowed to fail
-  kernel.h: Add non_block_start/end()
-  mm, notifier: Catch sleeping/blocking for !blockable
-  mm, notifier: Add a lockdep map for invalidate_range_start
-
- include/linux/kernel.h       | 10 +++++++++-
- include/linux/mmu_notifier.h |  6 ++++++
- include/linux/sched.h        |  4 ++++
- kernel/sched/core.c          |  6 +++---
- mm/mmu_notifier.c            | 18 +++++++++++++++++-
- 5 files changed, 39 insertions(+), 5 deletions(-)
-
--- 
-2.20.0.rc1
+Pj4gRnJvbTogZ3VvbWluY2hlbiA8Z3VvbWluY2hlbkB0ZW5jZW50LmNvbT4NCj4+IA0KPj4gICBV
+bmRlciBub3JtYWwgY2lyY3Vtc3RhbmNlcyxXaGVuIGRvX2V4aXQgZXhpdHMsIG1tLT5vd25lciB3
+aWxsDQo+PiAgIGJlIHVwZGF0ZWQsIGJ1dCB3aGVuIHRoZSBrZXJuZWwgcHJvY2VzcyBjYWxscyB1
+bnVzZV9tbSBhbmQgZXhpdHMsDQo+PiAgIG1tLT5vd25lciBjYW5ub3QgYmUgdXBkYXRlZC4gQW5k
+IHdpbGwgcG9pbnQgdG8gYSB0YXNrIHRoYXQgaGFzDQo+PiAgIGJlZW4gcmVsZWFzZWQuDQo+PiAN
+Cj4+ICAgQmVsb3cgaXMgbXkgaXNzdWUgb24gdmhvc3RfbmV0Og0KPj4gICAgIEEsIEIgYXJlIHR3
+byBrZXJuZWwgcHJvY2Vzc2VzKHN1Y2ggYXMgdmhvc3Rfd29ya2VyKSwNCj4+ICAgICBDIGlzIGEg
+dXNlciBzcGFjZSBwcm9jZXNzKHN1Y2ggYXMgcWVtdSksIGFuZCBhbGwNCj4+ICAgICB0aHJlZSB1
+c2UgdGhlIG1tIG9mIHRoZSB1c2VyIHByb2Nlc3MgQy4NCj4+ICAgICBOb3csIGJlY2F1c2UgdXNl
+ciBwcm9jZXNzIEMgZXhpdHMgYWJub3JtYWxseSwgdGhlIG93bmVyIG9mIHRoaXMNCj4+ICAgICBt
+bSBiZWNvbWVzIEEuIFdoZW4gQSBjYWxscyB1bnVzZV9tbSBhbmQgZXhpdHMsIHRoaXMgbW0tPm93
+ZXINCj4+ICAgICBzdGlsbCBwb2ludHMgdG8gdGhlIEEgdGhhdCBoYXMgYmVlbiByZWxlYXNlZC4N
+Cj4+ICAgICBXaGVuIEIgYWNjZXNzZXMgdGhpcyBtbS0+b3duZXIgYWdhaW4sIEEgaGFzIGJlZW4g
+cmVsZWFzZWQuDQo+PiANCj4+ICAgUHJvY2VzcyBBCQlQcm9jZXNzIEINCj4+ICB2aG9zdF93b3Jr
+ZXIoKQkgICAgICAgdmhvc3Rfd29ya2VyKCkNCj4+ICAgLS0tLS0tLS0tICAgIAkJLS0tLS0tLS0t
+DQo+PiAgIHVzZV9tbSgpCQl1c2VfbW0oKQ0KPj4gICAgLi4uDQo+PiAgIHVudXNlX21tKCkNCj4+
+ICAgICAgdHNrLT5tbT1OVUxMDQo+PiAgICBkb19leGl0KCkgICAgIAlwYWdlIGZhdWx0DQo+PiAg
+ICAgZXhpdF9tbSgpCSAJYWNjZXNzIG1tLT5vd25lcg0KPj4gICAgY2FuJ3QgdXBkYXRlIG93bmVy
+CWtlcm5lbCBPb3BzDQo+PiANCj4+IAkJCXVudXNlX21tKCkNCj4+IA0KPj4gQ2M6IDxsaW51eC1t
+bUBrdmFjay5vcmc+DQo+PiBDYzogPGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc+DQo+PiBD
+YzogIk1pY2hhZWwgUy4gVHNpcmtpbiIgPG1zdEByZWRoYXQuY29tPg0KPj4gQ2M6IEphc29uIFdh
+bmcgPGphc293YW5nQHJlZGhhdC5jb20+DQo+PiBDYzogPG5ldGRldkB2Z2VyLmtlcm5lbC5vcmc+
+DQo+PiBTaWduZWQtb2ZmLWJ5OiBndW9taW5jaGVuIDxndW9taW5jaGVuQHRlbmNlbnQuY29tPg0K
+Pj4gLS0tDQo+PiAgbW0vbW11X2NvbnRleHQuYyB8IDEgLQ0KPj4gIDEgZmlsZSBjaGFuZ2VkLCAx
+IGRlbGV0aW9uKC0pDQo+PiANCj4+IGRpZmYgLS1naXQgYS9tbS9tbXVfY29udGV4dC5jIGIvbW0v
+bW11X2NvbnRleHQuYyBpbmRleCANCj4+IDNlNjEyYWUuLjE4NWJiMjMgMTAwNjQ0DQo+PiAtLS0g
+YS9tbS9tbXVfY29udGV4dC5jDQo+PiArKysgYi9tbS9tbXVfY29udGV4dC5jDQo+PiBAQCAtNTYs
+NyArNTYsNiBAQCB2b2lkIHVudXNlX21tKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tKQ0KPj4gIA0KPj4g
+IAl0YXNrX2xvY2sodHNrKTsNCj4+ICAJc3luY19tbV9yc3MobW0pOw0KPj4gLQl0c2stPm1tID0g
+TlVMTDsNCj4+ICAJLyogYWN0aXZlX21tIGlzIHN0aWxsICdtbScgKi8NCj4+ICAJZW50ZXJfbGF6
+eV90bGIobW0sIHRzayk7DQo+PiAgCXRhc2tfdW5sb2NrKHRzayk7DQoNCj5TbyB0aGF0IHdpbGwg
+d29yayBmb3Igdmhvc3QgYmVjYXVzZSB3ZSBuZXZlciBkcm9wIHRoZSBtbSByZWZlcmVuY2UgYmVm
+b3JlIGRlc3Ryb3lpbmcgdGhlIHRhc2suDQo+SSB3b25kZXIgd2hldGhlciB0aGF0J3MgdHJ1ZSBm
+b3Igb3RoZXIgdXNlcnMgdGhvdWdoLg0KDQo+SXQgd291bGQgc2VlbSBjbGVhbmVyIHRvIG9udm9r
+ZSBzb21lIGNhbGxiYWNrIHNvIHRhc2tzIHN1Y2ggYXMgdmhvc3QgY2FuIGRyb3AgdGhlIHJlZmVy
+ZW5jZS4NCg0KWWVzLCBJIGNhbiByZW1vdmUgdGhpcyBjYWxsIGluIHZob3N0LCBidXQgSSB0aGlu
+ayB1c2VfbW0oKSwgYW5kIHVudXNlX21tKCkgYXJlIGNhbGxlZCBpbiBwYWlycyBpbg0Kb3JkZXIg
+dG8gc2hhcmUgbW0uDQpBbmQgZXhpdF9tbSgpIGFzIGEgdW5pZmllZCBtbSBoYW5kbGVyLCBpdCBk
+b2luZyB2ZXJ5IHdlbGwsIFNvIHdlIHNob3VsZCBsZWF2ZSBtbSB0byBleGl0X21tKCkgDQp0byBo
+YW5kbGUgaXQuDQoNCj5BbmQgbG9va2luZyBhdCBhbGwgdGhpcyBjb2RlLCBJIGRvbid0IHVuZGVy
+c3RhbmQgd2h5IGlzIG1tLT5vd25lciBzYWZlIHRvIGNoYW5nZSBsaWtlIHRoaXM6DQo+ICAgICAg
+ICBtbS0+b3duZXIgPSBOVUxMOw0KPndoZW4gdXNlcnMgc2VlbSB0byB1c2UgaXQgdW5kZXIgUkNV
+Lg0KDQpJIHRoaW5rIHRoYXQgbW0tPm93bmVyPU5VTEwganVzdCBjaGFuZ2VzIHRoZSB2YWx1ZSBv
+ZiB0aGUgcG9pbnRlciwgYW5kIHRoZSB0YXNrX3N0cnVjdCBpdCBwb2ludHMgdG8gDQppcyBwcmVz
+ZW50IGFuZCBub3QgcmVsZWFzZWQuDQoNCg0KPj4gLS0NCj4+IDEuOC4zLjENCg0K
