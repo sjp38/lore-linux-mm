@@ -1,96 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4425A8E021B
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:03:14 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id l45so3463112edb.1
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 15:03:14 -0800 (PST)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id e18si316800eds.58.2018.12.14.15.03.12
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B1428E0001
+	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 20:15:26 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id e68so7213692plb.3
+        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 17:15:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k196sor14426089pga.61.2018.12.09.17.15.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 15:03:12 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 82EC91C208A
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 23:03:12 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 07/14] mm, compaction: Always finish scanning of a full pageblock
-Date: Fri, 14 Dec 2018 23:03:03 +0000
-Message-Id: <20181214230310.572-8-mgorman@techsingularity.net>
-In-Reply-To: <20181214230310.572-1-mgorman@techsingularity.net>
-References: <20181214230310.572-1-mgorman@techsingularity.net>
+        (Google Transport Security);
+        Sun, 09 Dec 2018 17:15:24 -0800 (PST)
+From: Nicolas Boichat <drinkcat@chromium.org>
+Subject: [PATCH v6 1/3] mm: Add support for kmem caches in DMA32 zone
+Date: Mon, 10 Dec 2018 09:15:02 +0800
+Message-Id: <20181210011504.122604-2-drinkcat@chromium.org>
+In-Reply-To: <20181210011504.122604-1-drinkcat@chromium.org>
+References: <20181210011504.122604-1-drinkcat@chromium.org>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, hsinyi@chromium.org, stable@vger.kernel.org
 
-When compaction is finishing, it uses a flag to ensure the pageblock is
-complete.  However, in general it makes sense to always complete migration
-of a pageblock. Minimally, skip information is based on a pageblock and
-partially scanned pageblocks may incur more scanning in the future. The
-pageblock skip handling also becomes more strict later in the series and
-the hint is more useful if a complete pageblock was always scanned.
+IOMMUs using ARMv7 short-descriptor format require page tables
+to be allocated within the first 4GB of RAM, even on 64-bit systems.
+On arm64, this is done by passing GFP_DMA32 flag to memory allocation
+functions.
 
-The impact here is potentially on latencies as more scanning is done
-but it's not a consistent win or loss as the scanning is not always a
-high percentage of the pageblock and sometimes it is offset by future
-reductions in scanning. Hence, the results are not presented this time as
-it's a mix of gains/losses without any clear pattern. However, completing
-scanning of the pageblock is important for later patches.
+For IOMMU L2 tables that only take 1KB, it would be a waste to allocate
+a full page using get_free_pages, so we considered 3 approaches:
+ 1. This patch, adding support for GFP_DMA32 slab caches.
+ 2. genalloc, which requires pre-allocating the maximum number of L2
+    page tables (4096, so 4MB of memory).
+ 3. page_frag, which is not very memory-efficient as it is unable
+    to reuse freed fragments until the whole page is freed.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+This change makes it possible to create a custom cache in DMA32 zone
+using kmem_cache_create, then allocate memory using kmem_cache_alloc.
+
+We do not create a DMA32 kmalloc cache array, as there are currently
+no users of kmalloc(..., GFP_DMA32). These calls will continue to
+trigger a warning, as we keep GFP_DMA32 in GFP_SLAB_BUG_MASK.
+
+This implies that calls to kmem_cache_*alloc on a SLAB_CACHE_DMA32
+kmem_cache must _not_ use GFP_DMA32 (it is anyway redundant and
+unnecessary).
+
+Cc: stable@vger.kernel.org
+Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 19 ++++++++-----------
- mm/internal.h   |  1 -
- 2 files changed, 8 insertions(+), 12 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 8134dba47584..4f51435c645a 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1338,16 +1338,14 @@ static enum compact_result __compact_finished(struct compact_control *cc)
- 	if (is_via_compact_memory(cc->order))
- 		return COMPACT_CONTINUE;
+Changes since v2:
+ - Clarified commit message
+ - Add entry in sysfs-kernel-slab to document the new sysfs file
+
+(v3 used the page_frag approach)
+
+Changes since v4:
+ - Added details to commit message
+ - Dropped change that removed GFP_DMA32 from GFP_SLAB_BUG_MASK:
+   instead we can just call kmem_cache_*alloc without GFP_DMA32
+   parameter. This also means that we can drop PATCH 1/3, as we
+   do not make any changes in GFP flag verification.
+ - Dropped hunks that added cache_dma32 sysfs file, and moved
+   the hunks to PATCH 3/3, so that maintainer can decide whether
+   to pick the change independently.
+
+(no change since v5)
+
+ include/linux/slab.h | 2 ++
+ mm/slab.c            | 2 ++
+ mm/slab.h            | 3 ++-
+ mm/slab_common.c     | 2 +-
+ mm/slub.c            | 5 +++++
+ 5 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 11b45f7ae4057c..9449b19c5f107a 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -32,6 +32,8 @@
+ #define SLAB_HWCACHE_ALIGN	((slab_flags_t __force)0x00002000U)
+ /* Use GFP_DMA memory */
+ #define SLAB_CACHE_DMA		((slab_flags_t __force)0x00004000U)
++/* Use GFP_DMA32 memory */
++#define SLAB_CACHE_DMA32	((slab_flags_t __force)0x00008000U)
+ /* DEBUG: Store the last owner for bug hunting */
+ #define SLAB_STORE_USER		((slab_flags_t __force)0x00010000U)
+ /* Panic if kmem_cache_create() fails */
+diff --git a/mm/slab.c b/mm/slab.c
+index 73fe23e649c91a..124f8c556d27fb 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2109,6 +2109,8 @@ int __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
+ 	cachep->allocflags = __GFP_COMP;
+ 	if (flags & SLAB_CACHE_DMA)
+ 		cachep->allocflags |= GFP_DMA;
++	if (flags & SLAB_CACHE_DMA32)
++		cachep->allocflags |= GFP_DMA32;
+ 	if (flags & SLAB_RECLAIM_ACCOUNT)
+ 		cachep->allocflags |= __GFP_RECLAIMABLE;
+ 	cachep->size = size;
+diff --git a/mm/slab.h b/mm/slab.h
+index 4190c24ef0e9df..fcf717e12f0a86 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -127,7 +127,8 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
  
--	if (cc->finishing_block) {
--		/*
--		 * We have finished the pageblock, but better check again that
--		 * we really succeeded.
--		 */
--		if (IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages))
--			cc->finishing_block = false;
--		else
--			return COMPACT_CONTINUE;
--	}
-+	/*
-+	 * Always finish scanning a pageblock to reduce the possibility of
-+	 * fallbacks in the future. This is particularly important when
-+	 * migration source is unmovable/reclaimable but it's not worth
-+	 * special casing.
-+	 */
-+	if (!IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages))
-+		return COMPACT_CONTINUE;
  
- 	/* Direct compactor: Is a suitable page free? */
- 	for (order = cc->order; order < MAX_ORDER; order++) {
-@@ -1389,7 +1387,6 @@ static enum compact_result __compact_finished(struct compact_control *cc)
- 				return COMPACT_SUCCESS;
- 			}
+ /* Legal flag mask for kmem_cache_create(), for various configurations */
+-#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
++#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
++			 SLAB_CACHE_DMA32 | SLAB_PANIC | \
+ 			 SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
  
--			cc->finishing_block = true;
- 			return COMPACT_CONTINUE;
- 		}
- 	}
-diff --git a/mm/internal.h b/mm/internal.h
-index f40d06d70683..9b32f4cab0ae 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -203,7 +203,6 @@ struct compact_control {
- 	bool direct_compaction;		/* False from kcompactd or /proc/... */
- 	bool whole_zone;		/* Whole zone should/has been scanned */
- 	bool contended;			/* Signal lock or sched contention */
--	bool finishing_block;		/* Finishing current pageblock */
- };
+ #if defined(CONFIG_DEBUG_SLAB)
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 70b0cc85db67f8..18b7b809c8d064 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -53,7 +53,7 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
+ 		SLAB_FAILSLAB | SLAB_KASAN)
  
- unsigned long
+ #define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
+-			 SLAB_ACCOUNT)
++			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT)
+ 
+ /*
+  * Merge control. If this is set then no merging of slab caches will occur.
+diff --git a/mm/slub.c b/mm/slub.c
+index c229a9b7dd5448..4caadb926838ef 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3583,6 +3583,9 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
+ 	if (s->flags & SLAB_CACHE_DMA)
+ 		s->allocflags |= GFP_DMA;
+ 
++	if (s->flags & SLAB_CACHE_DMA32)
++		s->allocflags |= GFP_DMA32;
++
+ 	if (s->flags & SLAB_RECLAIM_ACCOUNT)
+ 		s->allocflags |= __GFP_RECLAIMABLE;
+ 
+@@ -5671,6 +5674,8 @@ static char *create_unique_id(struct kmem_cache *s)
+ 	 */
+ 	if (s->flags & SLAB_CACHE_DMA)
+ 		*p++ = 'd';
++	if (s->flags & SLAB_CACHE_DMA32)
++		*p++ = 'D';
+ 	if (s->flags & SLAB_RECLAIM_ACCOUNT)
+ 		*p++ = 'a';
+ 	if (s->flags & SLAB_CONSISTENCY_CHECKS)
 -- 
-2.16.4
+2.20.0.rc2.403.gdbc3b29805-goog
