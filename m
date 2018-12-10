@@ -1,111 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 265B38E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:22:01 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id n50so2961039qtb.9
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:22:01 -0800 (PST)
-Received: from a9-34.smtp-out.amazonses.com (a9-34.smtp-out.amazonses.com. [54.240.9.34])
-        by mx.google.com with ESMTPS id s188si603132qkh.260.2018.12.20.11.22.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 11:22:00 -0800 (PST)
-Message-ID: <01000167cd1143e3-1533fccc-7036-4a4e-97ea-5be8b347bbf0-000000@email.amazonses.com>
-Date: Thu, 20 Dec 2018 19:22:00 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 4/7] slub: Sort slab cache list and establish maximum objects for defrag slabs
-References: <20181220192145.023162076@linux.com>
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8935A8E0018
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 10:35:04 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id s12so4741183otc.12
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 07:35:04 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g63si4674532oia.256.2018.12.10.07.35.03
+        for <linux-mm@kvack.org>;
+        Mon, 10 Dec 2018 07:35:03 -0800 (PST)
+Date: Mon, 10 Dec 2018 15:35:24 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v6 2/3] iommu/io-pgtable-arm-v7s: Request DMA32 memory,
+ and improve debugging
+Message-ID: <20181210153524.GB24554@edgewater-inn.cambridge.arm.com>
+References: <20181210011504.122604-1-drinkcat@chromium.org>
+ <20181210011504.122604-3-drinkcat@chromium.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=sort_and_max
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181210011504.122604-3-drinkcat@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Nicolas Boichat <drinkcat@chromium.org>
+Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, hsinyi@chromium.org, stable@vger.kernel.org
 
-It is advantageous to have all defragmentable slabs together at the
-beginning of the list of slabs so that there is no need to scan the
-complete list. Put defragmentable caches first when adding a slab cache
-and others last.
+On Mon, Dec 10, 2018 at 09:15:03AM +0800, Nicolas Boichat wrote:
+> IOMMUs using ARMv7 short-descriptor format require page tables
+> (level 1 and 2) to be allocated within the first 4GB of RAM, even
+> on 64-bit systems.
+> 
+> For level 1/2 pages, ensure GFP_DMA32 is used if CONFIG_ZONE_DMA32
+> is defined (e.g. on arm64 platforms).
+> 
+> For level 2 pages, allocate a slab cache in SLAB_CACHE_DMA32. Note
+> that we do not explicitly pass GFP_DMA[32] to kmem_cache_zalloc,
+> as this is not strictly necessary, and would cause a warning
+> in mm/sl*b.c, as we did not update GFP_SLAB_BUG_MASK.
+> 
+> Also, print an error when the physical address does not fit in
+> 32-bit, to make debugging easier in the future.
+> 
+> Cc: stable@vger.kernel.org
+> Fixes: ad67f5a6545f ("arm64: replace ZONE_DMA with ZONE_DMA32")
+> Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
+> ---
 
-Determine the maximum number of objects in defragmentable slabs. This allows
-the sizing of the array holding refs to objects in a slab later.
+Acked-by: Will Deacon <will.deacon@arm.com>
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
----
- mm/slub.c |   26 ++++++++++++++++++++++++--
- 1 file changed, 24 insertions(+), 2 deletions(-)
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -196,6 +196,9 @@ static inline bool kmem_cache_has_cpu_pa
- /* Use cmpxchg_double */
- #define __CMPXCHG_DOUBLE	((slab_flags_t __force)0x40000000U)
- 
-+/* Maximum objects in defragmentable slabs */
-+static unsigned int max_defrag_slab_objects;
-+
- /*
-  * Tracking user of a slab.
-  */
-@@ -4310,22 +4313,45 @@ int __kmem_cache_create(struct kmem_cach
- 	return err;
- }
- 
-+/*
-+ * Allocate a slab scratch space that is sufficient to keep at least
-+ * max_defrag_slab_objects pointers to individual objects and also a bitmap
-+ * for max_defrag_slab_objects.
-+ */
-+static inline void *alloc_scratch(void)
-+{
-+	return kmalloc(max_defrag_slab_objects * sizeof(void *) +
-+		BITS_TO_LONGS(max_defrag_slab_objects) * sizeof(unsigned long),
-+		GFP_KERNEL);
-+}
-+
- void kmem_cache_setup_mobility(struct kmem_cache *s,
- 	kmem_isolate_func isolate, kmem_migrate_func migrate)
- {
-+	int max_objects = oo_objects(s->max);
-+
- 	/*
- 	 * Defragmentable slabs must have a ctor otherwise objects may be
- 	 * in an undetermined state after they are allocated.
- 	 */
- 	BUG_ON(!s->ctor);
-+
-+	mutex_lock(&slab_mutex);
-+
- 	s->isolate = isolate;
- 	s->migrate = migrate;
-+
- 	/*
- 	 * Sadly serialization requirements currently mean that we have
- 	 * to disable fast cmpxchg based processing.
- 	 */
- 	s->flags &= ~__CMPXCHG_DOUBLE;
- 
-+	list_move(&s->list, &slab_caches);	/* Move to top */
-+	if (max_objects > max_defrag_slab_objects)
-+		max_defrag_slab_objects = max_objects;
-+
-+	mutex_unlock(&slab_mutex);
- }
- EXPORT_SYMBOL(kmem_cache_setup_mobility);
- 
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c
-+++ linux/mm/slab_common.c
-@@ -393,7 +393,7 @@ static struct kmem_cache *create_cache(c
- 		goto out_free_cache;
- 
- 	s->refcount = 1;
--	list_add(&s->list, &slab_caches);
-+	list_add_tail(&s->list, &slab_caches);
- 	memcg_link_cache(s);
- out:
- 	if (err)
+Will
