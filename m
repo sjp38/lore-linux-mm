@@ -1,64 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 32ED36B7347
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 03:06:51 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id o21so9485794edq.4
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 00:06:51 -0800 (PST)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id 29-v6si77084ejk.274.2018.12.05.00.06.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 00:06:49 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 1BE1D1C2096
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 08:06:49 +0000 (GMT)
-Date: Wed, 5 Dec 2018 08:06:47 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 5/5] mm: Stall movable allocations until kswapd
- progresses during serious external fragmentation event
-Message-ID: <20181205080647.GW23260@techsingularity.net>
-References: <20181123114528.28802-1-mgorman@techsingularity.net>
- <20181123114528.28802-6-mgorman@techsingularity.net>
- <e0867205-e5f1-b007-5dc7-bb4655f6e5c1@suse.cz>
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C70DC8E0018
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 11:31:49 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id q23so4927503otn.3
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:31:49 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g14si4873426otj.14.2018.12.10.08.31.48
+        for <linux-mm@kvack.org>;
+        Mon, 10 Dec 2018 08:31:48 -0800 (PST)
+Subject: Re: [PATCH v3 6/9] iommu/dma-iommu.c: Convert to use vm_insert_range
+References: <20181206184343.GA30569@jordon-HP-15-Notebook-PC>
+ <d02ad9d7-d0f6-c891-bb7e-fdf6661f651c@arm.com>
+ <CAFqt6zYF5fFQuGFGss3D1q=jKJGPOD33XLmZiAkBFT9zx_55LA@mail.gmail.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <67137be3-c56f-fb01-5ebe-86e9ebf5714b@arm.com>
+Date: Mon, 10 Dec 2018 16:31:45 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <e0867205-e5f1-b007-5dc7-bb4655f6e5c1@suse.cz>
+In-Reply-To: <CAFqt6zYF5fFQuGFGss3D1q=jKJGPOD33XLmZiAkBFT9zx_55LA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, joro@8bytes.org, Linux-MM <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 27, 2018 at 02:20:30PM +0100, Vlastimil Babka wrote:
-> > This patch has a marginal rate on fragmentation rates as it's rare for
-> > the stall logic to actually trigger but the small stalls can be enough for
-> > kswapd to catch up. How much that helps is variable but probably worthwhile
-> > for long-term allocation success rates. It is possible to eliminate
-> > fragmentation events entirely with tuning due to this patch although that
-> > would require careful evaluation to determine if it's worthwhile.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On 07/12/2018 20:41, Souptick Joarder wrote:
+> On Fri, Dec 7, 2018 at 7:17 PM Robin Murphy <robin.murphy@arm.com> wrote:
+>>
+>> On 06/12/2018 18:43, Souptick Joarder wrote:
+>>> Convert to use vm_insert_range() to map range of kernel
+>>> memory to user vma.
+>>>
+>>> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>>> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+>>> ---
+>>>    drivers/iommu/dma-iommu.c | 13 +++----------
+>>>    1 file changed, 3 insertions(+), 10 deletions(-)
+>>>
+>>> diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
+>>> index d1b0475..a2c65e2 100644
+>>> --- a/drivers/iommu/dma-iommu.c
+>>> +++ b/drivers/iommu/dma-iommu.c
+>>> @@ -622,17 +622,10 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
+>>>
+>>>    int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma)
+>>>    {
+>>> -     unsigned long uaddr = vma->vm_start;
+>>> -     unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+>>> -     int ret = -ENXIO;
+>>> +     unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+>>>
+>>> -     for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
+>>> -             ret = vm_insert_page(vma, uaddr, pages[i]);
+>>> -             if (ret)
+>>> -                     break;
+>>> -             uaddr += PAGE_SIZE;
+>>> -     }
+>>> -     return ret;
+>>> +     return vm_insert_range(vma, vma->vm_start,
+>>> +                             pages + vma->vm_pgoff, count);
+>>
+>> You also need to adjust count to compensate for the pages skipped by
+>> vm_pgoff, otherwise you've got an out-of-bounds dereference triggered
+>> from userspace, which is pretty high up the "not good" scale (not to
+>> mention the entire call would then propagate -EFAULT back from
+>> vm_insert_page() and thus always appear to fail for nonzero offsets).
 > 
-> The gains here are relatively smaller and noisier than for the previous
-> patches. Also I'm afraid that once antifrag loses against the ultimate
-> adversary workload (see the "Caching/buffers become useless after some
-> time" thread), then this might result in adding stalls to a workload
-> that has no other options but to allocate movable pages from partially
-> filled unmovable blocks, because that's simply the majority of
-> pageblocks in the system, and the stalls can't help the situation. If
-> that proves to be true, we could revert, but then there's the new
-> user-visible tunable... and that all makes it harder for me to decide
-> about this patch :) If only we could find out early while this is in
-> linux-mm/linux-next...
+> So this should something similar to ->
+> 
+>          return vm_insert_range(vma, vma->vm_start,
+>                                  pages + vma->vm_pgoff, count - vma->vm_pgoff);
 > 
 
-Andrew, would you mind dropping this patch from mmotm please? I think
-the benefit is marginal relative to the potential loss. If it turns out
-we ever really do need it then hopefully there will be better data
-supporting it.
+Yup, I think that looks appropriate.
 
-Thanks.
-
--- 
-Mel Gorman
-SUSE Labs
+Robin.
