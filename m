@@ -1,105 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FE348E0095
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:36:54 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id f17so5885696edm.20
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:36:54 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DFBFB8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 07:51:18 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id w12so3458308wru.20
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 04:51:18 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k26sor8087632edd.12.2018.12.11.06.36.52
+        by mx.google.com with SMTPS id k1sor6958567wrx.19.2018.12.10.04.51.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 11 Dec 2018 06:36:52 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/3] mm, proc: report PR_SET_THP_DISABLE in proc
-Date: Tue, 11 Dec 2018 15:36:41 +0100
-Message-Id: <20181211143641.3503-4-mhocko@kernel.org>
-In-Reply-To: <20181211143641.3503-1-mhocko@kernel.org>
-References: <20181211143641.3503-1-mhocko@kernel.org>
+        Mon, 10 Dec 2018 04:51:17 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v9 5/8] lib, arm64: untag addrs passed to strncpy_from_user and strnlen_user
+Date: Mon, 10 Dec 2018 13:51:02 +0100
+Message-Id: <2c573564b456327708d175f3124256bc71081bd8.1544445454.git.andreyknvl@google.com>
+In-Reply-To: <cover.1544445454.git.andreyknvl@google.com>
+References: <cover.1544445454.git.andreyknvl@google.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-api@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Andrey Konovalov <andreyknvl@google.com>
 
-From: Michal Hocko <mhocko@suse.com>
+strncpy_from_user and strnlen_user accept user addresses as arguments, and
+do not go through the same path as copy_from_user and others, so here we
+need to handle the case of tagged user addresses separately.
 
-David Rientjes has reported that 1860033237d4 ("mm: make
-PR_SET_THP_DISABLE immediately active") has changed the way how
-we report THPable VMAs to the userspace. Their monitoring tool is
-triggering false alarms on PR_SET_THP_DISABLE tasks because it considers
-an insufficient THP usage as a memory fragmentation resp. memory
-pressure issue.
+Untag user pointers passed to these functions.
 
-Before the said commit each newly created VMA inherited VM_NOHUGEPAGE
-flag and that got exposed to the userspace via /proc/<pid>/smaps file.
-This implementation had its downsides as explained in the commit message
-but it is true that the userspace doesn't have any means to query for
-the process wide THP enabled/disabled status.
-
-PR_SET_THP_DISABLE is a process wide flag so it makes a lot of sense
-to export in the process wide context rather than per-vma. Introduce
-a new field to /proc/<pid>/status which export this status.  If
-PR_SET_THP_DISABLE is used then it reports false same as when the THP is
-not compiled in. It doesn't consider the global THP status because we
-already export that information via sysfs
-
-Fixes: 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- Documentation/filesystems/proc.txt |  3 +++
- fs/proc/array.c                    | 10 ++++++++++
- 2 files changed, 13 insertions(+)
+ lib/strncpy_from_user.c | 2 ++
+ lib/strnlen_user.c      | 2 ++
+ 2 files changed, 4 insertions(+)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index cd465304bec4..b24fd9bccc99 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -182,6 +182,7 @@ For example, to get the status information of a process, all you have to do is
-   VmSwap:        0 kB
-   HugetlbPages:          0 kB
-   CoreDumping:    0
-+  THP_enabled:	  1
-   Threads:        1
-   SigQ:   0/28578
-   SigPnd: 0000000000000000
-@@ -256,6 +257,8 @@ Table 1-2: Contents of the status files (as of 4.8)
-  HugetlbPages                size of hugetlb memory portions
-  CoreDumping                 process's memory is currently being dumped
-                              (killing the process may lead to a corrupted core)
-+ THP_enabled		     process is allowed to use THP (returns 0 when
-+			     PR_SET_THP_DISABLE is set on the process
-  Threads                     number of threads
-  SigQ                        number of signals queued/max. number for queue
-  SigPnd                      bitmap of pending signals for the thread
-diff --git a/fs/proc/array.c b/fs/proc/array.c
-index 0ceb3b6b37e7..9d428d5a0ac8 100644
---- a/fs/proc/array.c
-+++ b/fs/proc/array.c
-@@ -392,6 +392,15 @@ static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
- 	seq_putc(m, '\n');
- }
+diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
+index b53e1b5d80f4..97467cd2bc59 100644
+--- a/lib/strncpy_from_user.c
++++ b/lib/strncpy_from_user.c
+@@ -106,6 +106,8 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
+ 	if (unlikely(count <= 0))
+ 		return 0;
  
-+static inline void task_thp_status(struct seq_file *m, struct mm_struct *mm)
-+{
-+	bool thp_enabled = IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE);
++	src = untagged_addr(src);
 +
-+	if (thp_enabled)
-+		thp_enabled = !test_bit(MMF_DISABLE_THP, &mm->flags);
-+	seq_printf(m, "THP_enabled:\t%d\n", thp_enabled);
-+}
+ 	max_addr = user_addr_max();
+ 	src_addr = (unsigned long)src;
+ 	if (likely(src_addr < max_addr)) {
+diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
+index 60d0bbda8f5e..8b5f56466e00 100644
+--- a/lib/strnlen_user.c
++++ b/lib/strnlen_user.c
+@@ -108,6 +108,8 @@ long strnlen_user(const char __user *str, long count)
+ 	if (unlikely(count <= 0))
+ 		return 0;
+ 
++	str = untagged_addr(str);
 +
- int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
- 			struct pid *pid, struct task_struct *task)
- {
-@@ -406,6 +415,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
- 	if (mm) {
- 		task_mem(m, mm);
- 		task_core_dumping(m, mm);
-+		task_thp_status(m, mm);
- 		mmput(mm);
- 	}
- 	task_sig(m, task);
+ 	max_addr = user_addr_max();
+ 	src_addr = (unsigned long)str;
+ 	if (likely(src_addr < max_addr)) {
 -- 
-2.19.2
+2.20.0.rc2.403.gdbc3b29805-goog
