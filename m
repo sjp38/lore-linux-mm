@@ -1,99 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C9508E005B
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:58 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id r16so24060534pgr.15
-        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 01:29:58 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c30si34817814pgn.52.2018.12.31.01.29.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Dec 2018 01:29:57 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBV9SiF0135364
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:57 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pqd5cxsk8-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:56 -0500
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 31 Dec 2018 09:29:54 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v4 3/6] sh: prefer memblock APIs returning virtual address
-Date: Mon, 31 Dec 2018 11:29:23 +0200
-In-Reply-To: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
-References: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1546248566-14910-4-git-send-email-rppt@linux.ibm.com>
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 44E3D8E0018
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 11:32:12 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id 32so4890975ots.15
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:32:12 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d17si5070143oth.75.2018.12.10.08.32.10
+        for <linux-mm@kvack.org>;
+        Mon, 10 Dec 2018 08:32:10 -0800 (PST)
+Subject: Re: [PATCH v3 2/9] arch/arm/mm/dma-mapping.c: Convert to use
+ vm_insert_range
+References: <20181206184103.GA25872@jordon-HP-15-Notebook-PC>
+ <CAFqt6zY9JjGhedtmhYh-+mxSMrYs6P5vtQDMSzCfL02CbLys=g@mail.gmail.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <217b80f9-e02c-d02c-3c82-425c550e4ed7@arm.com>
+Date: Mon, 10 Dec 2018 16:32:06 +0000
+MIME-Version: 1.0
+In-Reply-To: <CAFqt6zY9JjGhedtmhYh-+mxSMrYs6P5vtQDMSzCfL02CbLys=g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jonas Bonn <jonas@southpole.se>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org
 
-Rather than use the memblock_alloc_base that returns a physical address and
-then convert this address to the virtual one, use appropriate memblock
-function that returns a virtual address.
+On 08/12/2018 20:01, Souptick Joarder wrote:
+> Hi Robin,
+> 
+> On Fri, Dec 7, 2018 at 12:07 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>>
+>> Convert to use vm_insert_range() to map range of kernel
+>> memory to user vma.
+>>
+>> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>> ---
+>>   arch/arm/mm/dma-mapping.c | 21 +++++++--------------
+>>   1 file changed, 7 insertions(+), 14 deletions(-)
+>>
+>> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+>> index 661fe48..4eec323 100644
+>> --- a/arch/arm/mm/dma-mapping.c
+>> +++ b/arch/arm/mm/dma-mapping.c
+>> @@ -1582,31 +1582,24 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
+>>                      void *cpu_addr, dma_addr_t dma_addr, size_t size,
+>>                      unsigned long attrs)
+>>   {
+>> -       unsigned long uaddr = vma->vm_start;
+>> -       unsigned long usize = vma->vm_end - vma->vm_start;
+>> +       unsigned long page_count = vma_pages(vma);
+>>          struct page **pages = __iommu_get_pages(cpu_addr, attrs);
+>>          unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+>>          unsigned long off = vma->vm_pgoff;
+>> +       int err;
+>>
+>>          if (!pages)
+>>                  return -ENXIO;
+>>
+>> -       if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
+>> +       if (off >= nr_pages || page_count > nr_pages - off)
+>>                  return -ENXIO;
+>>
+>>          pages += off;
+>> +       err = vm_insert_range(vma, vma->vm_start, pages, page_count);
+> 
+> Just to clarify, do we need to adjust page_count with vma->vm_pgoff as
+> original code
+> have not consider it and run the loop for entire range irrespective of
+> vma->vm_pgoff value ?
 
-There is a small functional change in the allocation of then NODE_DATA().
-Instead of panicing if the local allocation failed, the non-local
-allocation attempt will be made.
+In this instance, page_count is the size of the VMA, not the size of the 
+pages array itself, so as I understand things this patch is true to the 
+original code as-is.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/sh/mm/init.c | 18 +++++-------------
- arch/sh/mm/numa.c |  5 ++---
- 2 files changed, 7 insertions(+), 16 deletions(-)
+Robin.
 
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index a8e5c0e..a0fa4de 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -192,24 +192,16 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
- void __init allocate_pgdat(unsigned int nid)
- {
- 	unsigned long start_pfn, end_pfn;
--#ifdef CONFIG_NEED_MULTIPLE_NODES
--	unsigned long phys;
--#endif
- 
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
- 
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	phys = __memblock_alloc_base(sizeof(struct pglist_data),
--				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
--	/* Retry with all of system memory */
--	if (!phys)
--		phys = __memblock_alloc_base(sizeof(struct pglist_data),
--					SMP_CACHE_BYTES, memblock_end_of_DRAM());
--	if (!phys)
-+	NODE_DATA(nid) = memblock_alloc_try_nid_nopanic(
-+				sizeof(struct pglist_data),
-+				SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
-+				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-+	if (!NODE_DATA(nid))
- 		panic("Can't allocate pgdat for node %d\n", nid);
--
--	NODE_DATA(nid) = __va(phys);
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
- #endif
- 
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
-diff --git a/arch/sh/mm/numa.c b/arch/sh/mm/numa.c
-index 830e8b3..c4bde61 100644
---- a/arch/sh/mm/numa.c
-+++ b/arch/sh/mm/numa.c
-@@ -41,9 +41,8 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
- 	__add_active_range(nid, start_pfn, end_pfn);
- 
- 	/* Node-local pgdat */
--	NODE_DATA(nid) = __va(memblock_alloc_base(sizeof(struct pglist_data),
--					     SMP_CACHE_BYTES, end));
--	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
-+	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
-+					     SMP_CACHE_BYTES, nid);
- 
- 	NODE_DATA(nid)->node_start_pfn = start_pfn;
- 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
--- 
-2.7.4
+> 
+>> +       if (err)
+>> +               pr_err("Remapping memory failed: %d\n", err);
+>>
+>> -       do {
+>> -               int ret = vm_insert_page(vma, uaddr, *pages++);
+>> -               if (ret) {
+>> -                       pr_err("Remapping memory failed: %d\n", ret);
+>> -                       return ret;
+>> -               }
+>> -               uaddr += PAGE_SIZE;
+>> -               usize -= PAGE_SIZE;
+>> -       } while (usize > 0);
+>> -
+>> -       return 0;
+>> +       return err;
+>>   }
+>>   static int arm_iommu_mmap_attrs(struct device *dev,
+>>                  struct vm_area_struct *vma, void *cpu_addr,
+>> --
+>> 1.9.1
+>>
