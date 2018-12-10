@@ -1,165 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C066B7A17
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:25:23 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id d11so89062wrw.4
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:25:23 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w8sor180158wrl.37.2018.12.06.04.25.21
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1562C8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:28:02 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id v4so5182736edm.18
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 05:28:02 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a17-v6si276553ejs.24.2018.12.10.05.28.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 04:25:21 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v13 20/25] kasan, arm64: add brk handler for inline instrumentation
-Date: Thu,  6 Dec 2018 13:24:38 +0100
-Message-Id: <c91fe7684070e34dc34b419e6b69498f4dcacc2d.1544099024.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
-References: <cover.1544099024.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Dec 2018 05:28:00 -0800 (PST)
+Date: Mon, 10 Dec 2018 14:27:59 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/4] mm: Check if mmu notifier callbacks are allowed to
+ fail
+Message-ID: <20181210132759.GP1286@dhcp22.suse.cz>
+References: <20181210103641.31259-1-daniel.vetter@ffwll.ch>
+ <20181210103641.31259-2-daniel.vetter@ffwll.ch>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181210103641.31259-2-daniel.vetter@ffwll.ch>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Daniel Vetter <daniel.vetter@intel.com>
 
-Tag-based KASAN inline instrumentation mode (which embeds checks of shadow
-memory into the generated code, instead of inserting a callback) generates
-a brk instruction when a tag mismatch is detected.
+On Mon 10-12-18 11:36:38, Daniel Vetter wrote:
+> Just a bit of paranoia, since if we start pushing this deep into
+> callchains it's hard to spot all places where an mmu notifier
+> implementation might fail when it's not allowed to.
+> 
+> Inspired by some confusion we had discussing i915 mmu notifiers and
+> whether we could use the newly-introduced return value to handle some
+> corner cases. Until we realized that these are only for when a task
+> has been killed by the oom reaper.
+> 
+> An alternative approach would be to split the callback into two
+> versions, one with the int return value, and the other with void
+> return value like in older kernels. But that's a lot more churn for
+> fairly little gain I think.
+> 
+> Summary from the m-l discussion on why we want something at warning
+> level: This allows automated tooling in CI to catch bugs without
+> humans having to look at everything. If we just upgrade the existing
+> pr_info to a pr_warn, then we'll have false positives. And as-is, no
+> one will ever spot the problem since it's lost in the massive amounts
+> of overall dmesg noise.
 
-This commit adds a tag-based KASAN specific brk handler, that decodes the
-immediate value passed to the brk instructions (to extract information
-about the memory access that triggered the mismatch), reads the register
-values (x0 contains the guilty address) and reports the bug.
+OK, fair enough. If this is going to help with testing then I do not
+have any objections of course.
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- arch/arm64/include/asm/brk-imm.h |  2 ++
- arch/arm64/kernel/traps.c        | 60 ++++++++++++++++++++++++++++++++
- include/linux/kasan.h            |  3 ++
- 3 files changed, 65 insertions(+)
+> v2: Drop the full WARN_ON backtrace in favour of just a pr_warn for
+> the problematic case (Michal Hocko).
 
-diff --git a/arch/arm64/include/asm/brk-imm.h b/arch/arm64/include/asm/brk-imm.h
-index ed693c5bcec0..2945fe6cd863 100644
---- a/arch/arm64/include/asm/brk-imm.h
-+++ b/arch/arm64/include/asm/brk-imm.h
-@@ -16,10 +16,12 @@
-  * 0x400: for dynamic BRK instruction
-  * 0x401: for compile time BRK instruction
-  * 0x800: kernel-mode BUG() and WARN() traps
-+ * 0x9xx: tag-based KASAN trap (allowed values 0x900 - 0x9ff)
-  */
- #define FAULT_BRK_IMM			0x100
- #define KGDB_DYN_DBG_BRK_IMM		0x400
- #define KGDB_COMPILED_DBG_BRK_IMM	0x401
- #define BUG_BRK_IMM			0x800
-+#define KASAN_BRK_IMM			0x900
- 
- #endif
-diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
-index 5f4d9acb32f5..cdc71cf70aad 100644
---- a/arch/arm64/kernel/traps.c
-+++ b/arch/arm64/kernel/traps.c
-@@ -35,6 +35,7 @@
- #include <linux/sizes.h>
- #include <linux/syscalls.h>
- #include <linux/mm_types.h>
-+#include <linux/kasan.h>
- 
- #include <asm/atomic.h>
- #include <asm/bug.h>
-@@ -969,6 +970,58 @@ static struct break_hook bug_break_hook = {
- 	.fn = bug_handler,
- };
- 
-+#ifdef CONFIG_KASAN_SW_TAGS
-+
-+#define KASAN_ESR_RECOVER	0x20
-+#define KASAN_ESR_WRITE	0x10
-+#define KASAN_ESR_SIZE_MASK	0x0f
-+#define KASAN_ESR_SIZE(esr)	(1 << ((esr) & KASAN_ESR_SIZE_MASK))
-+
-+static int kasan_handler(struct pt_regs *regs, unsigned int esr)
-+{
-+	bool recover = esr & KASAN_ESR_RECOVER;
-+	bool write = esr & KASAN_ESR_WRITE;
-+	size_t size = KASAN_ESR_SIZE(esr);
-+	u64 addr = regs->regs[0];
-+	u64 pc = regs->pc;
-+
-+	if (user_mode(regs))
-+		return DBG_HOOK_ERROR;
-+
-+	kasan_report(addr, size, write, pc);
-+
-+	/*
-+	 * The instrumentation allows to control whether we can proceed after
-+	 * a crash was detected. This is done by passing the -recover flag to
-+	 * the compiler. Disabling recovery allows to generate more compact
-+	 * code.
-+	 *
-+	 * Unfortunately disabling recovery doesn't work for the kernel right
-+	 * now. KASAN reporting is disabled in some contexts (for example when
-+	 * the allocator accesses slab object metadata; this is controlled by
-+	 * current->kasan_depth). All these accesses are detected by the tool,
-+	 * even though the reports for them are not printed.
-+	 *
-+	 * This is something that might be fixed at some point in the future.
-+	 */
-+	if (!recover)
-+		die("Oops - KASAN", regs, 0);
-+
-+	/* If thread survives, skip over the brk instruction and continue: */
-+	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-+	return DBG_HOOK_HANDLED;
-+}
-+
-+#define KASAN_ESR_VAL (0xf2000000 | KASAN_BRK_IMM)
-+#define KASAN_ESR_MASK 0xffffff00
-+
-+static struct break_hook kasan_break_hook = {
-+	.esr_val = KASAN_ESR_VAL,
-+	.esr_mask = KASAN_ESR_MASK,
-+	.fn = kasan_handler,
-+};
-+#endif
-+
- /*
-  * Initial handler for AArch64 BRK exceptions
-  * This handler only used until debug_traps_init().
-@@ -976,6 +1029,10 @@ static struct break_hook bug_break_hook = {
- int __init early_brk64(unsigned long addr, unsigned int esr,
- 		struct pt_regs *regs)
- {
-+#ifdef CONFIG_KASAN_SW_TAGS
-+	if ((esr & KASAN_ESR_MASK) == KASAN_ESR_VAL)
-+		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;
-+#endif
- 	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
- }
- 
-@@ -983,4 +1040,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
- void __init trap_init(void)
- {
- 	register_break_hook(&bug_break_hook);
-+#ifdef CONFIG_KASAN_SW_TAGS
-+	register_break_hook(&kasan_break_hook);
-+#endif
- }
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index a477ce2abdc9..8da7b7a4397a 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -173,6 +173,9 @@ void kasan_init_tags(void);
- 
- void *kasan_reset_tag(const void *addr);
- 
-+void kasan_report(unsigned long addr, size_t size,
-+		bool is_write, unsigned long ip);
-+
- #else /* CONFIG_KASAN_SW_TAGS */
- 
- static inline void kasan_init_tags(void) { }
+Thanks!
+
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: "Christian K�nig" <christian.koenig@amd.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+> Cc: "J�r�me Glisse" <jglisse@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
+> ---
+>  mm/mmu_notifier.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> index 5119ff846769..ccc22f21b735 100644
+> --- a/mm/mmu_notifier.c
+> +++ b/mm/mmu_notifier.c
+> @@ -190,6 +190,9 @@ int __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+>  				pr_info("%pS callback failed with %d in %sblockable context.\n",
+>  						mn->ops->invalidate_range_start, _ret,
+>  						!blockable ? "non-" : "");
+> +				if (blockable)
+> +					pr_warn("%pS callback failure not allowed\n",
+> +						mn->ops->invalidate_range_start);
+>  				ret = _ret;
+>  			}
+>  		}
+> -- 
+> 2.20.0.rc1
+> 
+
 -- 
-2.20.0.rc1.387.gf8505762e3-goog
+Michal Hocko
+SUSE Labs
