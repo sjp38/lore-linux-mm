@@ -1,62 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 16F578E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 12:05:01 -0500 (EST)
-Received: by mail-vs1-f71.google.com with SMTP id t136so6615665vsc.12
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 09:05:01 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g126sor5662751vka.31.2018.12.10.09.04.59
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 204398E0018
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 10:54:14 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id 197so4840530wmw.4
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 07:54:14 -0800 (PST)
+Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::6])
+        by mx.google.com with ESMTPS id v11si7322601wrt.142.2018.12.10.07.54.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Dec 2018 09:04:59 -0800 (PST)
-MIME-Version: 1.0
-References: <CALjTZvZzHSZ=s0W0Pd-MVd7OA0hYxu0LzsZ+GxYybXKoUQQR6Q@mail.gmail.com>
- <20181130103222.GA23393@lst.de> <CALjTZvZsk0qA+Yxu7S+8pfa5y6rpihnThrHiAKkZMWsdyC-tVg@mail.gmail.com>
- <42b1408cafe77ebac1b1ad909db237fe34e4d177.camel@kernel.crashing.org> <20181208171746.GB15228@lst.de>
-In-Reply-To: <20181208171746.GB15228@lst.de>
-From: Rui Salvaterra <rsalvaterra@gmail.com>
-Date: Mon, 10 Dec 2018 17:04:46 +0000
-Message-ID: <CALjTZvb4+Ox5Jdm-xwQuxMDz_ub=mHAgPLA4NgrVNZTmUZwhnQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Dec 2018 07:54:12 -0800 (PST)
 Subject: Re: use generic DMA mapping code in powerpc V4
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+References: <20181129170351.GC27951@lst.de>
+ <d0e04a85-f17d-414e-6fea-971414417430@xenosoft.de>
+ <20181130105346.GB26765@lst.de>
+ <8694431d-c669-b7b9-99fa-e99db5d45a7d@xenosoft.de>
+ <20181130131056.GA5211@lst.de>
+ <25999587-2d91-a63c-ed38-c3fb0075d9f1@xenosoft.de>
+ <c5202d29-863d-1377-0e2d-762203b317e2@xenosoft.de>
+ <58c61afb-290f-6196-c72c-ac7b61b84718@xenosoft.de>
+ <20181204142426.GA2743@lst.de>
+ <ef56d279-f75d-008e-71ba-7068c1b37c48@xenosoft.de>
+ <20181205140550.GA27549@lst.de>
+ <1948cf84-49ab-543c-472c-d18e27751903@xenosoft.de>
+ <5a2ea855-b4b0-e48a-5c3e-c859a8451ca2@xenosoft.de>
+ <7B6DDB28-8BF6-4589-84ED-F1D4D13BFED6@xenosoft.de>
+ <8a2c4581-0c85-8065-f37e-984755eb31ab@xenosoft.de>
+ <424bb228-c9e5-6593-1ab7-5950d9b2bd4e@xenosoft.de>
+ <c86d76b4-b199-557e-bc64-4235729c1e72@xenosoft.de>
+ <1ecb7692-f3fb-a246-91f9-2db1b9496305@xenosoft.de>
+Message-ID: <6c997c03-e072-97a9-8ae0-38a4363df919@xenosoft.de>
+Date: Mon, 10 Dec 2018 16:54:05 +0100
+MIME-Version: 1.0
+In-Reply-To: <1ecb7692-f3fb-a246-91f9-2db1b9496305@xenosoft.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: de-DE
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hch@lst.de
-Cc: benh@kernel.crashing.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-On Sat, 8 Dec 2018 at 17:17, Christoph Hellwig <hch@lst.de> wrote:
+Next step: 64ecd2c160bbef31465c4d34efc0f076a2aad4df (powerpc/dma: use 
+phys_to_dma instead of get_dma_offset)
+
+The P5020 board boots and the PASEMI onboard ethernet works.
+
+-- Christian
+
+
+On 09 December 2018 at 7:26PM, Christian Zigotzky wrote:
+> Next step: c1bfcad4b0cf38ce5b00f7ad880d3a13484c123a (dma-mapping, 
+> powerpc: simplify the arch dma_set_mask override)
 >
-> On Sun, Dec 02, 2018 at 05:11:02PM +1100, Benjamin Herrenschmidt wrote:
-> > Talking of which ... Christoph, not sure if we can do something about
-> > this at the DMA API level or keep hacks but some adapters such as the
-> > nVidia GPUs have a HW hack we can use to work around their limitations
-> > in that case.
-> >
-> > They have a register that can program a fixed value for the top bits
-> > that they don't support.
-> >
-> > This works fine for any linear mapping with an offset, provided they
-> > can program the offset in that register and they have enough DMA range
-> > to cover all memory from that offset.
-> >
-> > I can probably get the info about this from them so we can exploit it
-> > in nouveau.
+> Result: No problems with the PASEMI onboard ethernet and with booting 
+> the X5000 (P5020 board).
 >
-> I think we can expose the direct mapping offset if people care enough,
-> we just have to be very careful designing the API.  I'll happily leave
-> that to those that actually want to use it, but I'll gladly help
-> reviewing it.
-
-Hi, Christoph and Ben,
-
-It just came to my mind (and this is most likely a stupid question,
-but still)=E2=80=A6 Is there any possibility of these changes having an
-(positive) effect on the long-standing problem of Power Mac machines
-with AGP graphics cards (which have to be limited to PCI transfers,
-otherwise they'll hang, due to coherence issues)? If so, I have a G4
-machine where I'd gladly test them.
-
-Thanks,
-
-Rui
+> -- Christian
+>
+>
+> On 09 December 2018 at 3:20PM, Christian Zigotzky wrote:
+>> Next step: 602307b034734ce77a05da4b99333a2eaf6b6482 (powerpc/fsl_pci: 
+>> simplify fsl_pci_dma_set_mask)
+>>
+>> git checkout 602307b034734ce77a05da4b99333a2eaf6b6482
+>>
+>> The PASEMI onboard ethernet works and the X5000 boots.
+>>
+>> -- Christian
+>>
+>>
+>> On 08 December 2018 at 2:47PM, Christian Zigotzky wrote:
+>>> Next step: e15cd8173ef85e9cc3e2a9c7cc2982f5c1355615 (powerpc/dma: 
+>>> fix an off-by-one in dma_capable)
+>>>
+>>> git checkout e15cd8173ef85e9cc3e2a9c7cc2982f5c1355615
+>>>
+>>> The PASEMI onboard ethernet also works with this commit and the 
+>>> X5000 boots without any problems.
+>>>
+>>> -- Christian
+>>>
+>>>
+>>> On 08 December 2018 at 11:29AM, Christian Zigotzky wrote:
+>>>> Next step: 7ebc44c535f6bd726d553756d38b137acc718443 (powerpc/dma: 
+>>>> remove max_direct_dma_addr)
+>>>>
+>>>> git checkout 7ebc44c535f6bd726d553756d38b137acc718443
+>>>>
+>>>> OK, the PASEMI onboard ethernet works and the P5020 board boots.
+>>>>
+>>>> -- Christian
+>>>>
+>>>>
+>>>> On 07 December 2018 at 7:33PM, Christian Zigotzky wrote:
+>>>>> Next step: 13c1fdec5682b6e13257277fa16aa31f342d167d (powerpc/dma: 
+>>>>> move pci_dma_dev_setup_swiotlb to fsl_pci.c)
+>>>>>
+>>>>> git checkout 13c1fdec5682b6e13257277fa16aa31f342d167d
+>>>>>
+>>>>> Result: The PASEMI onboard ethernet works and the P5020 board boots.
+>>>>>
+>>>>> — Christian
+>>>>
+>>>>
+>>>>
+>>>
+>>>
+>>
+>>
+>
+>
