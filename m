@@ -1,484 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D89A6B6BB8
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:36:26 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id w1so15013218qta.12
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:36:26 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a41si9428631qtb.19.2018.12.03.15.36.24
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B87B8E0001
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 03:29:33 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id i14so4924652edf.17
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 00:29:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m37sor5809606edd.6.2018.12.10.00.29.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 15:36:25 -0800 (PST)
-From: jglisse@redhat.com
-Subject: [RFC PATCH 14/14] test/hms: tests for heterogeneous memory system
-Date: Mon,  3 Dec 2018 18:35:09 -0500
-Message-Id: <20181203233509.20671-15-jglisse@redhat.com>
-In-Reply-To: <20181203233509.20671-1-jglisse@redhat.com>
-References: <20181203233509.20671-1-jglisse@redhat.com>
+        (Google Transport Security);
+        Mon, 10 Dec 2018 00:29:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+References: <1544158388-20832-1-git-send-email-kernelfans@gmail.com>
+ <7aa8d326-cffc-f2b6-2c03-01d9bd4c54b4@suse.cz> <CAFgQCTvvgGitdmNLUd8qr0wXt2uecWWssECDFyxMQVSuOW0KmQ@mail.gmail.com>
+ <c18f2fc5-b7df-3c51-80b9-94828b86754c@suse.cz>
+In-Reply-To: <c18f2fc5-b7df-3c51-80b9-94828b86754c@suse.cz>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Mon, 10 Dec 2018 16:29:19 +0800
+Message-ID: <CAFgQCTstQC86c2nXehMBwC6bYer0wxvq2hjFGcQ5R0=ebvyXzg@mail.gmail.com>
+Subject: Re: [PATCHv2] mm/pageblock: throw compiling time error if
+ pageblock_bits can not hold MIGRATE_TYPES
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, Oscar Salvador <osalvador@suse.de>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-From: Jérôme Glisse <jglisse@redhat.com>
+On Mon, Dec 10, 2018 at 3:46 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> On 12/10/18 4:15 AM, Pingfan Liu wrote:
+> > On Fri, Dec 7, 2018 at 3:36 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+> >>
+> >> On 12/7/18 5:53 AM, Pingfan Liu wrote:
+> >>> Currently, NR_PAGEBLOCK_BITS and MIGRATE_TYPES are not associated by code.
+> >>> If someone adds extra migrate type, then he may forget to enlarge the
+> >>> NR_PAGEBLOCK_BITS. Hence it requires some way to fix.
+> >>> NR_PAGEBLOCK_BITS depends on MIGRATE_TYPES, while these macro
+> >>> spread on two different .h file with reverse dependency, it is a little
+> >>> hard to refer to MIGRATE_TYPES in pageblock-flag.h. This patch tries to
+> >>> remind such relation in compiling-time.
+> >>>
+> >>> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+> >>> Cc: Andrew Morton <akpm@linux-foundation.org>
+> >>> Cc: Michal Hocko <mhocko@suse.com>
+> >>> Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> >>> Cc: Vlastimil Babka <vbabka@suse.cz>
+> >>> Cc: Oscar Salvador <osalvador@suse.de>
+> >>> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> >>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>> Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> >>> ---
+> >>>  include/linux/pageblock-flags.h | 5 +++--
+> >>>  mm/page_alloc.c                 | 3 ++-
+> >>>  2 files changed, 5 insertions(+), 3 deletions(-)
+> >>>
+> >>> diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
+> >>> index 9132c5c..fe0aec4 100644
+> >>> --- a/include/linux/pageblock-flags.h
+> >>> +++ b/include/linux/pageblock-flags.h
+> >>> @@ -25,11 +25,12 @@
+> >>>
+> >>>  #include <linux/types.h>
+> >>>
+> >>> +#define PB_migratetype_bits 3
+> >>>  /* Bit indices that affect a whole block of pages */
+> >>>  enum pageblock_bits {
+> >>>       PB_migrate,
+> >>> -     PB_migrate_end = PB_migrate + 3 - 1,
+> >>> -                     /* 3 bits required for migrate types */
+> >>> +     PB_migrate_end = PB_migrate + PB_migratetype_bits - 1,
+> >>> +                     /* n bits required for migrate types */
+> >>>       PB_migrate_skip,/* If set the block is skipped by compaction */
+> >>>
+> >>>       /*
+> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >>> index 2ec9cc4..1a22d8d 100644
+> >>> --- a/mm/page_alloc.c
+> >>> +++ b/mm/page_alloc.c
+> >>> @@ -425,7 +425,8 @@ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
+> >>>       unsigned long bitidx, word_bitidx;
+> >>>       unsigned long old_word, word;
+> >>>
+> >>> -     BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
+> >>
+> >> Why delete this one? It's for something a bit different and also still
+> >> valid.
+> >>
+> >
+> > I think it is dependent on PB_migratetype_bits (plus 1 dedicated bit
+> > for skip), hence the later one implies it.
+>
+> No, NR_PAGEBLOCK_BITS simply to be 4 (or other number that can divide
+> the number of bits in a word with no remainder), or
+> set_pfnblock_flags_mask() will not function correctly.
+>
 
-Set of tests for heterogeneous memory system (migration, binding, ...)
+Yes, you are right. It will break the atomic.
+> >>> +     BUILD_BUG_ON(order_base_2(MIGRATE_TYPES)
+> >>> +             != (PB_migratetype_bits - 1));
+> >>
+> >> I think this should use the '>' operator. It's fine if there are less
+> >
+> > If ">" is chosen, then it allows wasted bits. I had thought it is not
+> > the purpose of the design, hence disard the ">".
+>
+> We do allow wasted bits, because we need NR_PAGEBLOCK_BITS to be 4 in
+> any case, as explained above.
+>
 
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
----
- tools/testing/hms/Makefile                    |  17 ++
- tools/testing/hms/hbind-create-device-file.sh |  11 +
- tools/testing/hms/test-hms-migrate.c          |  77 ++++++
- tools/testing/hms/test-hms.c                  | 237 ++++++++++++++++++
- tools/testing/hms/test-hms.h                  |  67 +++++
- 5 files changed, 409 insertions(+)
- create mode 100644 tools/testing/hms/Makefile
- create mode 100755 tools/testing/hms/hbind-create-device-file.sh
- create mode 100644 tools/testing/hms/test-hms-migrate.c
- create mode 100644 tools/testing/hms/test-hms.c
- create mode 100644 tools/testing/hms/test-hms.h
+Right!
+> > Otherwise, what about
+> > using warning on ">"?
+>
+> I think it would be needed.
+>
+OK.
+> >> types than what can fit into 3 bits. AFAICS for !CONFIG_DMA and
+> >> !CONFIG_MEMORY_ISOLATION there are just 4 types that fit into 2 bits...
+> >>
+> > Oh, yes, you are right. How about this:
+> > #if defined(CONFIG_DMA) || defined(CONFIG_MEMORY_ISOLATION)
+> > #define PB_migratetype_bits 3
+> > #else
+> > #define PB_migratetype_bits 2
+> > #endif
+>
+> I think it's not necessary. Really, we need to have 4 NR_PAGEBLOCK_BITS
+> with the current code, and this leaves us with 3 bits for migratetype.
+> The only thing to check is whether migratetypes fit into these 3 bits, IMHO.
+>
+OK. I will update v3.
 
-diff --git a/tools/testing/hms/Makefile b/tools/testing/hms/Makefile
-new file mode 100644
-index 000000000000..57223a671cb0
---- /dev/null
-+++ b/tools/testing/hms/Makefile
-@@ -0,0 +1,17 @@
-+# SPDX-License-Identifier: GPL-2.0
-+LDFLAGS += -fsanitize=address -fsanitize=undefined
-+CFLAGS += -std=c99 -D_GNU_SOURCE -I. -I../../../include/uapi -g -Og -Wall
-+LDLIBS += -lpthread
-+TARGETS = test-hms-migrate
-+OFILES = test-hms
-+
-+targets: $(TARGETS)
-+
-+$(TARGETS): $(OFILES:%=%.o) $(TARGETS:%=%.c)
-+	$(CC) $(CFLAGS) -o $@ $(OFILES:%=%.o) $@.c
-+
-+clean:
-+	$(RM) $(TARGETS) *.o
-+
-+%.o: Makefile *.h %.c
-+	$(CC) $(CFLAGS) -o $@ -c $(@:%.o=%.c)
-diff --git a/tools/testing/hms/hbind-create-device-file.sh b/tools/testing/hms/hbind-create-device-file.sh
-new file mode 100755
-index 000000000000..60c2533cc85d
---- /dev/null
-+++ b/tools/testing/hms/hbind-create-device-file.sh
-@@ -0,0 +1,11 @@
-+#!/bin/sh
-+# SPDX-License-Identifier: GPL-2.0
-+
-+major=10
-+minor=$(awk "\$2==\"hbind\" {print \$1}" /proc/misc)
-+
-+echo hbind device minor is $minor, creating device file:
-+sudo rm /dev/hbind
-+sudo mknod /dev/hbind c $major $minor
-+sudo chmod 666 /dev/hbind
-+echo /dev/hbind created
-diff --git a/tools/testing/hms/test-hms-migrate.c b/tools/testing/hms/test-hms-migrate.c
-new file mode 100644
-index 000000000000..b90f701c0b75
---- /dev/null
-+++ b/tools/testing/hms/test-hms-migrate.c
-@@ -0,0 +1,77 @@
-+/*
-+ * Copyright 2018 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of
-+ * the License, or (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors:
-+ * Jérôme Glisse <jglisse@redhat.com>
-+ */
-+#include <stdio.h>
-+
-+#include "test-hms.h"
-+
-+int main(int argc, char *argv[])
-+{
-+    struct hms_context ctx;
-+    struct hms_object *target = NULL;
-+    uint64_t targets[1], ntargets = 1;
-+    unsigned long size = 64 << 10;
-+    unsigned long start, end, i;
-+    unsigned *ptr;
-+    int ret;
-+
-+    if (argc != 2) {
-+        printf("EE: usage: %s targetname\n", argv[0]);
-+        return -1;
-+    }
-+
-+    hms_context_init(&ctx);
-+
-+    /* Find target */
-+    do {
-+        target = hms_context_object_find_reference(&ctx, target, argv[1]);
-+    } while (target && target->type != HMS_TARGET);
-+    if (target == NULL) {
-+        printf("EE: could not find %s target\n", argv[1]);
-+        return -1;
-+    }
-+
-+    /* Allocate memory */
-+    ptr = hms_malloc(size);
-+    for (i = 0; i < (size / 4); ++i) {
-+        ptr[i] = i;
-+    }
-+
-+    /* Migrate to target */
-+    targets[0] = target->id;
-+    start = (uintptr_t)ptr;
-+    end = start + size;
-+    ntargets = 1;
-+    ret = hms_migrate(&ctx, start, end, targets, ntargets);
-+    if (ret) {
-+        printf("EE: migration failure (%d)\n", ret);
-+    } else {
-+        for (i = 0; i < (size / 4); ++i) {
-+            if (ptr[i] != i) {
-+                printf("EE: migration failure ptr[%ld] = %d\n", i, ptr[i]);
-+                goto out;
-+            }
-+        }
-+        printf("OK: migration successful\n");
-+    }
-+
-+out:
-+    /* Free */
-+    hms_mfree(ptr, size);
-+
-+    hms_context_fini(&ctx);
-+    return 0;
-+}
-diff --git a/tools/testing/hms/test-hms.c b/tools/testing/hms/test-hms.c
-new file mode 100644
-index 000000000000..0502f49198c4
---- /dev/null
-+++ b/tools/testing/hms/test-hms.c
-@@ -0,0 +1,237 @@
-+/*
-+ * Copyright 2018 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of
-+ * the License, or (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors:
-+ * Jérôme Glisse <jglisse@redhat.com>
-+ */
-+#include <sys/ioctl.h>
-+#include <sys/types.h>
-+#include <sys/stat.h>
-+#include <sys/mman.h>
-+#include <strings.h>
-+#include <dirent.h>
-+#include <stdlib.h>
-+#include <string.h>
-+#include <unistd.h>
-+#include <errno.h>
-+#include <fcntl.h>
-+#include <stdio.h>
-+
-+#include "test-hms.h"
-+#include "linux/hbind.h"
-+
-+
-+static unsigned long page_mask = 0;
-+static int page_size = 0;
-+static int page_shift = 0;
-+
-+static inline void page_shift_init(void)
-+{
-+    if (!page_shift) {
-+        page_size = sysconf(_SC_PAGE_SIZE);
-+
-+        page_shift = ffs(page_size) - 1;
-+        page_mask = ~((unsigned long)(page_size - 1));
-+    }
-+}
-+
-+static unsigned long page_align(unsigned long size)
-+{
-+    return (size + page_size - 1) & page_mask;
-+}
-+
-+void hms_object_parse_dir(struct hms_object *object, const char *ctype)
-+{
-+    struct dirent *dirent;
-+    char dirname[256];
-+    DIR *dirp;
-+
-+    snprintf(dirname, 255, "/sys/bus/hms/devices/v%u-%u-%s",
-+             object->version, object->id, ctype);
-+    dirp = opendir(dirname);
-+    if (dirp == NULL) {
-+        return;
-+    }
-+    while ((dirent = readdir(dirp))) {
-+        struct hms_reference *reference;
-+
-+        if (dirent->d_type != DT_LNK || !strcmp(dirent->d_name, "subsystem")) {
-+            continue;
-+        }
-+
-+        reference = malloc(sizeof(*reference));
-+        strcpy(reference->name, dirent->d_name);
-+        reference->object = NULL;
-+
-+        reference->next = object->references;
-+        object->references = reference;
-+    }
-+    closedir(dirp);
-+}
-+
-+void hms_object_free(struct hms_object *object)
-+{
-+    struct hms_reference *reference = object->references;
-+
-+    for (; reference; reference = object->references) {
-+        object->references = reference->next;
-+        free(reference);
-+    }
-+
-+    free(object);
-+}
-+
-+
-+void hms_context_init(struct hms_context *ctx)
-+{
-+    struct dirent *dirent;
-+    DIR *dirp;
-+
-+    ctx->objects = NULL;
-+
-+    /* Scan targets, initiators, links, bridges ... */
-+    dirp = opendir("/sys/bus/hms/devices/");
-+    if (dirp == NULL) {
-+        printf("EE: could not open /sys/bus/hms/devices/\n");
-+        exit(-1);
-+    }
-+    while ((dirent = readdir(dirp))) {
-+        struct hms_object *object;
-+        unsigned version, id;
-+        enum hms_type type;
-+        char ctype[256];
-+
-+        if (dirent->d_type != DT_LNK || dirent->d_name[0] != 'v') {
-+            continue;
-+        }
-+        if (sscanf(dirent->d_name, "v%d-%d-%s", &version, &id, ctype) != 3) {
-+            continue;
-+        }
-+
-+        if (!strcmp("link", ctype)) {
-+            type = HMS_LINK;
-+        } else if (!strcmp("bridge", ctype)) {
-+            type = HMS_BRIDGE;
-+        } else if (!strcmp("target", ctype)) {
-+            type = HMS_TARGET;
-+        } else if (!strcmp("initiator", ctype)) {
-+            type = HMS_INITIATOR;
-+        } else {
-+            continue;
-+        }
-+
-+        object = malloc(sizeof(*object));
-+        object->references = NULL;
-+        object->version = version;
-+        object->type = type;
-+        object->id = id;
-+
-+        object->next = ctx->objects;
-+        ctx->objects = object;
-+
-+        hms_object_parse_dir(object, ctype);
-+    }
-+    closedir(dirp);
-+
-+    ctx->fd = open("/dev/hbind", O_RDWR);
-+    if (ctx->fd < 0) {
-+        printf("EE: could not open /dev/hbind\n");
-+        exit(-1);
-+    }
-+}
-+
-+void hms_context_fini(struct hms_context *ctx)
-+{
-+    struct hms_object *object = ctx->objects;
-+
-+    for (; object; object = ctx->objects) {
-+        ctx->objects = object->next;
-+        hms_object_free(object);
-+    }
-+
-+    close(ctx->fd);
-+}
-+
-+struct hms_object *hms_context_object_find_reference(struct hms_context *ctx,
-+                                                     struct hms_object *object,
-+                                                     const char *name)
-+{
-+    object = object ? object->next : ctx->objects;
-+    for (; object; object = object->next) {
-+        struct hms_reference *reference = object->references;
-+
-+        for (; reference; reference = reference->next) {
-+            if (!strcmp(reference->name, name)) {
-+                return object;
-+            }
-+        }
-+    }
-+
-+    return NULL;
-+}
-+
-+
-+int hms_migrate(struct hms_context *ctx,
-+                unsigned long start,
-+                unsigned long end,
-+                uint64_t *targets,
-+                unsigned ntargets)
-+{
-+    struct hbind_params params;
-+    uint64_t atoms[2], natoms;
-+    int ret;
-+
-+    atoms[0] = HBIND_ATOM_SET_CMD(HBIND_CMD_MIGRATE) |
-+               HBIND_ATOM_SET_DWORDS(1);
-+    atoms[1] = 0;
-+    natoms = 2;
-+
-+    params.targets = (uintptr_t)targets;
-+    params.atoms = (uintptr_t)atoms;
-+
-+    params.ntargets = ntargets;
-+    params.natoms = natoms;
-+    params.start = start;
-+    params.end = end;
-+
-+    do {
-+        ret = ioctl(ctx->fd, HBIND_IOCTL, &params);
-+printf("ret %d artoms %d\n", ret, (int)atoms[1]);
-+    } while (ret && (errno == EINTR));
-+
-+    /* Result of migration is in the atoms after cmd dword */
-+printf("ret %d artoms %d\n", ret, (int)atoms[1]);
-+    ret = ret ? ret : atoms[1];
-+
-+    return ret;
-+}
-+
-+
-+void *hms_malloc(unsigned long size)
-+{
-+    void *ptr;
-+
-+    page_shift_init();
-+
-+    ptr = mmap(0, page_align(size), PROT_READ | PROT_WRITE,
-+               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-+    if (ptr == MAP_FAILED) {
-+        return NULL;
-+    }
-+    return ptr;
-+}
-+
-+void hms_mfree(void *ptr, unsigned long size)
-+{
-+    munmap(ptr, page_align(size));
-+}
-diff --git a/tools/testing/hms/test-hms.h b/tools/testing/hms/test-hms.h
-new file mode 100644
-index 000000000000..b5d625e18d59
---- /dev/null
-+++ b/tools/testing/hms/test-hms.h
-@@ -0,0 +1,67 @@
-+/*
-+ * Copyright 2018 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of
-+ * the License, or (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors:
-+ * Jérôme Glisse <jglisse@redhat.com>
-+ */
-+#ifndef TEST_HMS_H
-+#define TEST_HMS_H
-+
-+#include <stdint.h>
-+
-+enum hms_type {
-+    HMS_LINK = 0,
-+    HMS_BRIDGE,
-+    HMS_TARGET,
-+    HMS_INITIATOR,
-+};
-+
-+struct hms_reference {
-+    char name[256];
-+    struct hms_object *object;
-+    struct hms_reference *next;
-+};
-+
-+struct hms_object {
-+    struct hms_reference *references;
-+    struct hms_object *next;
-+    unsigned version;
-+    unsigned id;
-+    enum hms_type type;
-+};
-+
-+struct hms_context {
-+    struct hms_object *objects;
-+    int fd;
-+};
-+
-+void hms_context_init(struct hms_context *ctx);
-+void hms_context_fini(struct hms_context *ctx);
-+struct hms_object *hms_context_object_find_reference(struct hms_context *ctx,
-+                                                     struct hms_object *object,
-+                                                     const char *name);
-+
-+
-+int hms_migrate(struct hms_context *ctx,
-+                unsigned long start,
-+                unsigned long end,
-+                uint64_t *targets,
-+                unsigned ntargets);
-+
-+
-+/* Provide page align memory allocations */
-+void *hms_malloc(unsigned long size);
-+void hms_mfree(void *ptr, unsigned long size);
-+
-+
-+#endif
--- 
-2.17.2
+Thanks and regards,
+Pingfan
