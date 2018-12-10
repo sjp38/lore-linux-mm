@@ -1,77 +1,101 @@
 Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Pingfan Liu <kernelfans@gmail.com>
-Subject: [PATCHv2 3/3] powerpc/numa: make all possible node be instanced against NULL reference in node_zonelist()
-Date: Thu, 20 Dec 2018 17:50:39 +0800
-Message-Id: <1545299439-31370-4-git-send-email-kernelfans@gmail.com>
-In-Reply-To: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
-References: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Subject: [PATCH 4/4] mm, notifier: Add a lockdep map for invalidate_range_start
+Date: Mon, 10 Dec 2018 11:36:41 +0100
+Message-Id: <20181210103641.31259-5-daniel.vetter@ffwll.ch>
+In-Reply-To: <20181210103641.31259-1-daniel.vetter@ffwll.ch>
+References: <20181210103641.31259-1-daniel.vetter@ffwll.ch>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
+To: Intel Graphics Development <intel-gfx@lists.freedesktop.org>
+Cc: DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@ffwll.ch>, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Daniel Vetter <daniel.vetter@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch tries to resolve a bug rooted at mm when using nr_cpus. It was
-reported at [1]. The root cause is: device->numa_node info is used as
-preferred_nid param for __alloc_pages_nodemask(), which causes NULL
-reference when ac->zonelist = node_zonelist(preferred_nid, gfp_mask), due to
-the preferred_nid is not online and not instanced. Hence the bug affects
-all archs if a machine having a memory less numa-node, but a device on the
-node is used and provide numa_node info to __alloc_pages_nodemask().
-This patch makes all possible node online for ppc.
+This is a similar idea to the fs_reclaim fake lockdep lock. It's
+fairly easy to provoke a specific notifier to be run on a specific
+range: Just prep it, and then munmap() it.
 
-[1]: https://lore.kernel.org/patchwork/patch/1020838/
+A bit harder, but still doable, is to provoke the mmu notifiers for
+all the various callchains that might lead to them. But both at the
+same time is really hard to reliable hit, especially when you want to
+exercise paths like direct reclaim or compaction, where it's not
+easy to control what exactly will be unmapped.
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: x86@kernel.org
-Cc: linux-kernel@vger.kernel.org
+By introducing a lockdep map to tie them all together we allow lockdep
+to see a lot more dependencies, without having to actually hit them
+in a single challchain while testing.
+
+Aside: Since I typed this to test i915 mmu notifiers I've only rolled
+this out for the invaliate_range_start callback. If there's
+interest, we should probably roll this out to all of them. But my
+undestanding of core mm is seriously lacking, and I'm not clear on
+whether we need a lockdep map for each callback, or whether some can
+be shared.
+
+v2: Use lock_map_acquire/release() like fs_reclaim, to avoid confusion
+with this being a real mutex (Chris Wilson).
+
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Bjorn Helgaas <bhelgaas@google.com>
-Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
 Cc: David Rientjes <rientjes@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: "Jérôme Glisse" <jglisse@redhat.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: "Christian König" <christian.koenig@amd.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
 ---
-Note:
-[1-2/3] implements one way to fix the bug, while this patch tries another way.
-Hence using this patch when [1-2/3] is not acceptable.
+ include/linux/mmu_notifier.h | 6 ++++++
+ mm/mmu_notifier.c            | 7 +++++++
+ 2 files changed, 13 insertions(+)
 
- arch/powerpc/mm/numa.c | 13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
-
-diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
-index ce28ae5..31d81a4 100644
---- a/arch/powerpc/mm/numa.c
-+++ b/arch/powerpc/mm/numa.c
-@@ -864,10 +864,19 @@ void __init initmem_init(void)
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 9893a6432adf..19be442606c6 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -12,6 +12,10 @@ struct mmu_notifier_ops;
  
- 	memblock_dump_all();
+ #ifdef CONFIG_MMU_NOTIFIER
  
--	for_each_online_node(nid) {
-+	/* Instance all possible nodes to overcome potential NULL reference
-+	 * issue on node_zonelist() when using nr_cpus
-+	 */
-+	for_each_node(nid) {
- 		unsigned long start_pfn, end_pfn;
++#ifdef CONFIG_LOCKDEP
++extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
++#endif
++
+ /*
+  * The mmu notifier_mm structure is allocated and installed in
+  * mm->mmu_notifier_mm inside the mm_take_all_locks() protected
+@@ -267,8 +271,10 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
+ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
++	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
+ 	if (mm_has_notifiers(mm))
+ 		__mmu_notifier_invalidate_range_start(mm, start, end, true);
++	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
+ }
  
--		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-+		if (node_online(nid))
-+			get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-+		else {
-+			start_pfn = end_pfn = 0;
-+			/* online it, so later zonelists[] will be built */
-+			node_set_online(nid);
-+		}
- 		setup_node_data(nid, start_pfn, end_pfn);
- 		sparse_memory_present_with_active_regions(nid);
- 	}
+ static inline int mmu_notifier_invalidate_range_start_nonblock(struct mm_struct *mm,
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index a50ed7d1ecef..c91d58fe388b 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -23,6 +23,13 @@
+ /* global SRCU for all MMs */
+ DEFINE_STATIC_SRCU(srcu);
+ 
++#ifdef CONFIG_LOCKDEP
++struct lockdep_map __mmu_notifier_invalidate_range_start_map = {
++	.name = "mmu_notifier_invalidate_range_start"
++};
++EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start_map);
++#endif
++
+ /*
+  * This function allows mmu_notifier::release callback to delay a call to
+  * a function that will free appropriate resources. The function must be
 -- 
-2.7.4
+2.20.0.rc1
