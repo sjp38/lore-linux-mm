@@ -1,200 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 05B6B8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:22:00 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id k90so2981600qte.0
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:22:00 -0800 (PST)
-Received: from a9-32.smtp-out.amazonses.com (a9-32.smtp-out.amazonses.com. [54.240.9.32])
-        by mx.google.com with ESMTPS id t7si3981848qvh.32.2018.12.20.11.21.59
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 069E18E006F
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 20:05:53 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id c14so9416025pls.21
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 17:05:52 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i1si11402278pfj.276.2018.12.10.17.05.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 11:21:59 -0800 (PST)
-Message-ID: <01000167cd113f16-b5a2b2db-e75a-4bad-a47a-0a66fbf7fd8a-000000@email.amazonses.com>
-Date: Thu, 20 Dec 2018 19:21:58 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 3/7] slub: Add isolate() and migrate() methods
-References: <20181220192145.023162076@linux.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=isolate_and_migrate_methods
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Dec 2018 17:05:51 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv2 08/12] acpi/hmat: Register performance attributes
+Date: Mon, 10 Dec 2018 18:03:06 -0700
+Message-Id: <20181211010310.8551-9-keith.busch@intel.com>
+In-Reply-To: <20181211010310.8551-1-keith.busch@intel.com>
+References: <20181211010310.8551-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-Add the two methods needed for moving objects and enable the
-display of the callbacks via the /sys/kernel/slab interface.
+Save the best performance access attributes and register these with the
+memory's node if HMAT provides the locality table.
 
-Add documentation explaining the use of these methods and the prototypes
-for slab.h. Add functions to setup the callbacks method for a slab cache.
-
-Add empty functions for SLAB/SLOB. The API is generic so it
-could be theoretically implemented for these allocators as well.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
+Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- include/linux/slab.h     |   50 +++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/slub_def.h |    3 ++
- mm/slub.c                |   29 ++++++++++++++++++++++++++-
- 3 files changed, 81 insertions(+), 1 deletion(-)
+ drivers/acpi/Kconfig |  1 +
+ drivers/acpi/hmat.c  | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
 
-Index: linux/include/linux/slub_def.h
-===================================================================
---- linux.orig/include/linux/slub_def.h
-+++ linux/include/linux/slub_def.h
-@@ -99,6 +99,9 @@ struct kmem_cache {
- 	gfp_t allocflags;	/* gfp flags to use on each alloc */
- 	int refcount;		/* Refcount for slab cache destroy */
- 	void (*ctor)(void *);
-+	kmem_isolate_func *isolate;
-+	kmem_migrate_func *migrate;
-+
- 	unsigned int inuse;		/* Offset to metadata */
- 	unsigned int align;		/* Alignment */
- 	unsigned int red_left_pad;	/* Left redzone padding size */
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -3498,7 +3498,6 @@ static int calculate_sizes(struct kmem_c
- 	else
- 		s->flags &= ~__OBJECT_POISON;
+diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
+index 9a05af3a18cf..6b5f6ca690af 100644
+--- a/drivers/acpi/Kconfig
++++ b/drivers/acpi/Kconfig
+@@ -330,6 +330,7 @@ config ACPI_NUMA
+ config ACPI_HMAT
+ 	bool "ACPI Heterogeneous Memory Attribute Table Support"
+ 	depends on ACPI_NUMA
++	select HMEM_REPORTING
+ 	help
+ 	 Parses representation of the ACPI Heterogeneous Memory Attributes
+ 	 Table (HMAT) and set the memory node relationships and access
+diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
+index 5d8747ad025f..40bc83f4b593 100644
+--- a/drivers/acpi/hmat.c
++++ b/drivers/acpi/hmat.c
+@@ -23,6 +23,8 @@ struct memory_target {
+ 	struct list_head node;
+ 	unsigned int memory_pxm;
+ 	unsigned long p_nodes[BITS_TO_LONGS(MAX_NUMNODES)];
++	bool hmem_valid;
++	struct node_hmem_attrs hmem;
+ };
  
--
- 	/*
- 	 * If we are Redzoning then check if there is some space between the
- 	 * end of the object and the free pointer. If not then add an
-@@ -4311,6 +4310,25 @@ int __kmem_cache_create(struct kmem_cach
- 	return err;
+ static __init struct memory_target *find_mem_target(unsigned int m)
+@@ -108,6 +110,34 @@ static __init void hmat_update_access(u8 type, u32 value, u32 *best)
+ 	}
  }
  
-+void kmem_cache_setup_mobility(struct kmem_cache *s,
-+	kmem_isolate_func isolate, kmem_migrate_func migrate)
++static __init void hmat_update_target(struct memory_target *t, u8 type,
++				      u32 value)
 +{
-+	/*
-+	 * Defragmentable slabs must have a ctor otherwise objects may be
-+	 * in an undetermined state after they are allocated.
-+	 */
-+	BUG_ON(!s->ctor);
-+	s->isolate = isolate;
-+	s->migrate = migrate;
-+	/*
-+	 * Sadly serialization requirements currently mean that we have
-+	 * to disable fast cmpxchg based processing.
-+	 */
-+	s->flags &= ~__CMPXCHG_DOUBLE;
-+
++	switch (type) {
++	case ACPI_HMAT_ACCESS_LATENCY:
++		t->hmem.read_latency = value;
++		t->hmem.write_latency = value;
++		break;
++	case ACPI_HMAT_READ_LATENCY:
++		t->hmem.read_latency = value;
++		break;
++	case ACPI_HMAT_WRITE_LATENCY:
++		t->hmem.write_latency = value;
++		break;
++	case ACPI_HMAT_ACCESS_BANDWIDTH:
++		t->hmem.read_bandwidth = value;
++		t->hmem.write_bandwidth = value;
++		break;
++	case ACPI_HMAT_READ_BANDWIDTH:
++		t->hmem.read_bandwidth = value;
++		break;
++	case ACPI_HMAT_WRITE_BANDWIDTH:
++		t->hmem.write_bandwidth = value;
++		break;
++	}
++	t->hmem_valid = true;
 +}
-+EXPORT_SYMBOL(kmem_cache_setup_mobility);
 +
- void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, unsigned long caller)
+ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+ 				      const unsigned long end)
  {
- 	struct kmem_cache *s;
-@@ -5004,6 +5022,20 @@ static ssize_t ops_show(struct kmem_cach
- 
- 	if (s->ctor)
- 		x += sprintf(buf + x, "ctor : %pS\n", s->ctor);
-+
-+	if (s->isolate) {
-+		x += sprintf(buf + x, "isolate : ");
-+		x += sprint_symbol(buf + x,
-+				(unsigned long)s->isolate);
-+		x += sprintf(buf + x, "\n");
-+	}
-+
-+	if (s->migrate) {
-+		x += sprintf(buf + x, "migrate : ");
-+		x += sprint_symbol(buf + x,
-+				(unsigned long)s->migrate);
-+		x += sprintf(buf + x, "\n");
-+	}
- 	return x;
+@@ -166,6 +196,8 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+ 					set_bit(p_node, t->p_nodes);
+ 			}
+ 		}
++		if (t && best)
++			hmat_update_target(t, type, best);
+ 	}
+ 	return 0;
  }
- SLAB_ATTR_RO(ops);
-Index: linux/include/linux/slab.h
-===================================================================
---- linux.orig/include/linux/slab.h
-+++ linux/include/linux/slab.h
-@@ -153,6 +153,68 @@ void memcg_deactivate_kmem_caches(struct
- void memcg_destroy_kmem_caches(struct mem_cgroup *);
- 
- /*
-+ * Function prototypes passed to kmem_cache_setup_mobility() to enable mobile
-+ * objects and targeted reclaim in slab caches.
-+ */
-+
-+/*
-+ * kmem_cache_isolate_func() is called with locks held so that the slab
-+ * objects cannot be freed. We are in an atomic context and no slab
-+ * operations may be performed. The purpose of kmem_cache_isolate_func()
-+ * is to pin the object so that it cannot be freed until
-+ * kmem_cache_migrate_func() has processed them. This may be accomplished
-+ * by increasing the refcount or setting a flag.
-+ *
-+ * Parameters passed are the number of objects to process and an array of
-+ * pointers to objects which are intended to be moved.
-+ *
-+ * Returns a pointer that is passed to the migrate function. If any objects
-+ * cannot be touched at this point then the pointer may indicate a
-+ * failure and then the migration function can simply remove the references
-+ * that were already obtained. The private data could be used to track
-+ * the objects that were already pinned.
-+ *
-+ * The object pointer array passed is also passed to kmem_cache_migrate().
-+ * The function may remove objects from the array by setting pointers to
-+ * NULL. This is useful if we can determine that an object is being freed
-+ * because kmem_cache_isolate_func() was called when the subsystem
-+ * was calling kmem_cache_free().
-+ * In that case it is not necessary to increase the refcount or
-+ * specially mark the object because the release of the slab lock
-+ * will lead to the immediate freeing of the object.
-+ */
-+typedef void *kmem_isolate_func(struct kmem_cache *, void **, int);
-+
-+/*
-+ * kmem_cache_move_migrate_func is called with no locks held and interrupts
-+ * enabled. Sleeping is possible. Any operation may be performed in
-+ * migrate(). kmem_cache_migrate_func should allocate new objects and
-+ * free all the objects.
-+ **
-+ * Parameters passed are the number of objects in the array, the array of
-+ * pointers to the objects, the NUMA node where the object should be
-+ * allocated and the pointer returned by kmem_cache_isolate_func().
-+ *
-+ * Success is checked by examining the number of remaining objects in
-+ * the slab. If the number is zero then the objects will be freed.
-+ */
-+typedef void kmem_migrate_func(struct kmem_cache *, void **, int nr, int node, void *private);
-+
-+/*
-+ * kmem_cache_setup_mobility() is used to setup callbacks for a slab cache.
-+ */
-+#ifdef CONFIG_SLUB
-+void kmem_cache_setup_mobility(struct kmem_cache *, kmem_isolate_func,
-+						kmem_migrate_func);
-+#else
-+static inline void kmem_cache_setup_mobility(struct kmem_cache *s,
-+	kmem_isolate_func isolate, kmem_migrate_func migrate) {}
-+#endif
-+
-+/*
-+ * Allocator specific definitions. These are mainly used to establish optimized
-+ * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by
-+ * selecting the appropriate general cache at compile time.
-  * Please use this macro to create slab caches. Simply specify the
-  * name of the structure and maybe some flags that are listed above.
-  *
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c
-+++ linux/mm/slab_common.c
-@@ -298,7 +298,7 @@ int slab_unmergeable(struct kmem_cache *
- 	if (!is_root_cache(s))
- 		return 1;
- 
--	if (s->ctor)
-+	if (s->ctor || s->isolate || s->migrate)
- 		return 1;
- 
- 	if (s->usersize)
+@@ -267,6 +299,8 @@ static __init void hmat_register_targets(void)
+ 		m = pxm_to_node(t->memory_pxm);
+ 		for_each_set_bit(p, t->p_nodes, MAX_NUMNODES)
+ 			register_memory_node_under_compute_node(m, p);
++		if (t->hmem_valid)
++			node_set_perf_attrs(m, &t->hmem);
+ 		kfree(t);
+ 	}
+ }
+-- 
+2.14.4
