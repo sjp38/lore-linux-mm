@@ -1,85 +1,56 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 982656B79F6
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:24:59 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id f193so205987wme.8
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:24:59 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g18sor201934wrw.3.2018.12.06.04.24.58
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 04:24:58 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v13 06/25] kasan, arm64: adjust shadow size for tag-based mode
-Date: Thu,  6 Dec 2018 13:24:24 +0100
-Message-Id: <308b6bd49f756bb5e533be93c6f085ba99b30339.1544099024.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
-References: <cover.1544099024.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Content-Type: text/plain;
+        charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [PATCH v2] userfaultfd: clear flag if remap event not enabled
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20181211053409.20317-1-peterx@redhat.com>
+Date: Tue, 11 Dec 2018 06:46:13 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <FB9EEE4D-B2E6-44B9-9145-259E785AD3F4@oracle.com>
+References: <20181211053409.20317-1-peterx@redhat.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Peter Xu <peterx@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Pravin Shedge <pravin.shedge4linux@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-Tag-based KASAN uses 1 shadow byte for 16 bytes of kernel memory, so it
-requires 1/16th of the kernel virtual address space for the shadow memory.
 
-This commit sets KASAN_SHADOW_SCALE_SHIFT to 4 when the tag-based KASAN
-mode is enabled.
 
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- arch/arm64/Makefile             | 11 ++++++++++-
- arch/arm64/include/asm/memory.h |  7 +++----
- 2 files changed, 13 insertions(+), 5 deletions(-)
+> On Dec 10, 2018, at 10:34 PM, Peter Xu <peterx@redhat.com> wrote:
+>=20
+> ---
+> fs/userfaultfd.c | 10 +++++++++-
+> 1 file changed, 9 insertions(+), 1 deletion(-)
+>=20
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index cd58939dc977..4567b5b6fd32 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -736,10 +736,18 @@ void mremap_userfaultfd_prep(struct =
+vm_area_struct *vma,
+> 	struct userfaultfd_ctx *ctx;
+>=20
+> 	ctx =3D vma->vm_userfaultfd_ctx.ctx;
+> -	if (ctx && (ctx->features & UFFD_FEATURE_EVENT_REMAP)) {
+> +
+> +	if (!ctx)
+> +		return;
+> +
+> +	if (ctx->features & UFFD_FEATURE_EVENT_REMAP) {
+> 		vm_ctx->ctx =3D ctx;
+> 		userfaultfd_ctx_get(ctx);
+> 		WRITE_ONCE(ctx->mmap_changing, true);
+> +	} else {
+> +		/* Drop uffd context if remap feature not enabled */
+> +		vma->vm_userfaultfd_ctx =3D NULL_VM_UFFD_CTX;
+> +		vma->vm_flags &=3D ~(VM_UFFD_WP | VM_UFFD_MISSING);
+> 	}
+> }
+>=20
+> --=20
+> 2.17.1
+>=20
 
-diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 6cb9fc7e9382..99e7d08c6083 100644
---- a/arch/arm64/Makefile
-+++ b/arch/arm64/Makefile
-@@ -91,10 +91,19 @@ else
- TEXT_OFFSET := 0x00080000
- endif
- 
-+ifeq ($(CONFIG_KASAN_SW_TAGS), y)
-+KASAN_SHADOW_SCALE_SHIFT := 4
-+else
-+KASAN_SHADOW_SCALE_SHIFT := 3
-+endif
-+
-+KBUILD_CFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
-+KBUILD_CPPFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
-+KBUILD_AFLAGS += -DKASAN_SHADOW_SCALE_SHIFT=$(KASAN_SHADOW_SCALE_SHIFT)
-+
- # KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
- #				 - (1 << (64 - KASAN_SHADOW_SCALE_SHIFT))
- # in 32-bit arithmetic
--KASAN_SHADOW_SCALE_SHIFT := 3
- KASAN_SHADOW_OFFSET := $(shell printf "0x%08x00000000\n" $$(( \
- 	(0xffffffff & (-1 << ($(CONFIG_ARM64_VA_BITS) - 32))) \
- 	+ (1 << ($(CONFIG_ARM64_VA_BITS) - 32 - $(KASAN_SHADOW_SCALE_SHIFT))) \
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index b96442960aea..05fbc7ffcd31 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -74,12 +74,11 @@
- #define KERNEL_END        _end
- 
- /*
-- * KASAN requires 1/8th of the kernel virtual address space for the shadow
-- * region. KASAN can bloat the stack significantly, so double the (minimum)
-- * stack size when KASAN is in use.
-+ * Generic and tag-based KASAN require 1/8th and 1/16th of the kernel virtual
-+ * address space for the shadow region respectively. They can bloat the stack
-+ * significantly, so double the (minimum) stack size when they are in use.
-  */
- #ifdef CONFIG_KASAN
--#define KASAN_SHADOW_SCALE_SHIFT 3
- #define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
- #define KASAN_THREAD_SHIFT	1
- #else
--- 
-2.20.0.rc1.387.gf8505762e3-goog
+Looks good.
+
+Reviewed-by: William Kucharski <william.kucharski@oracle.com>=
