@@ -1,96 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 74F756B6A7B
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:05 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id p131so1297616oig.10
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:05 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v7si5802576otk.268.2018.12.03.10.07.04
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:07:04 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 08/25] ACPI / APEI: Don't update struct ghes' flags in read/clear estatus
-Date: Mon,  3 Dec 2018 18:05:56 +0000
-Message-Id: <20181203180613.228133-9-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AFBA8E006F
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 20:05:56 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id l22so11267689pfb.2
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 17:05:56 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i1si11402278pfj.276.2018.12.10.17.05.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Dec 2018 17:05:54 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv2 11/12] acpi/hmat: Register memory side cache attributes
+Date: Mon, 10 Dec 2018 18:03:09 -0700
+Message-Id: <20181211010310.8551-12-keith.busch@intel.com>
+In-Reply-To: <20181211010310.8551-1-keith.busch@intel.com>
+References: <20181211010310.8551-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-ghes_read_estatus() sets a flag in struct ghes if the buffer of
-CPER records needs to be cleared once the records have been
-processed. This flag value is a problem if a struct ghes can be
-processed concurrently, as happens at probe time if an NMI arrives
-for the same error source. The NMI clears the flag, meaning the
-interrupted handler may never do the ghes_estatus_clear() work.
+Register memory side cache attributes with the memory's node if HMAT
+provides the side cache information table.
 
-The GHES_TO_CLEAR flags is only set at the same time as
-buffer_paddr, which is now owned by the caller and passed to
-ghes_clear_estatus(). Use this value as the flag.
-
-A non-zero buf_paddr returned by ghes_read_estatus() means
-ghes_clear_estatus() should clear this address. ghes_read_estatus()
-already checks for a read of error_status_address being zero,
-so CPER records cannot be written here.
-
-Signed-off-by: James Morse <james.morse@arm.com>
-Reviewed-by: Borislav Petkov <bp@suse.de>
-
---
-Changes since v6:
- * Added Boris' RB, then:
- * Moved earlier in the series,
- * Tinkered with the commit message,
- * Always cleared buf_paddr on errors in the previous patch, which was
-   previously in here.
+Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- drivers/acpi/apei/ghes.c | 8 +-------
- include/acpi/ghes.h      | 1 -
- 2 files changed, 1 insertion(+), 8 deletions(-)
+ drivers/acpi/hmat.c | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
 
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index f7a0ff1c785a..d06456e60318 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -329,8 +329,6 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
- 		return -ENOENT;
- 	}
- 
--	ghes->flags |= GHES_TO_CLEAR;
--
- 	rc = -EIO;
- 	len = cper_estatus_len(ghes->estatus);
- 	if (len < sizeof(*ghes->estatus))
-@@ -357,13 +355,9 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
- static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr)
+diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
+index 40bc83f4b593..48d53ceb4778 100644
+--- a/drivers/acpi/hmat.c
++++ b/drivers/acpi/hmat.c
+@@ -206,6 +206,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+ 				   const unsigned long end)
  {
- 	ghes->estatus->block_status = 0;
--	if (!(ghes->flags & GHES_TO_CLEAR))
--		return;
--	if (buf_paddr) {
-+	if (buf_paddr)
- 		ghes_copy_tofrom_phys(ghes->estatus, buf_paddr,
- 				      sizeof(ghes->estatus->block_status), 0);
--		ghes->flags &= ~GHES_TO_CLEAR;
--	}
+ 	struct acpi_hmat_cache *cache = (void *)header;
++	struct node_cache_attrs cache_attrs;
+ 	u32 attrs;
+ 
+ 	if (cache->header.length < sizeof(*cache)) {
+@@ -219,6 +220,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+ 		cache->memory_PD, cache->cache_size, attrs,
+ 		cache->number_of_SMBIOShandles);
+ 
++	cache_attrs.size = cache->cache_size;
++	cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
++	cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
++
++	switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
++	case ACPI_HMAT_CA_DIRECT_MAPPED:
++		cache_attrs.associativity = NODE_CACHE_DIRECT_MAP;
++		break;
++	case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
++		cache_attrs.associativity = NODE_CACHE_INDEXED;
++		break;
++	case ACPI_HMAT_CA_NONE:
++	default:
++		cache_attrs.associativity = NODE_CACHE_OTHER;
++		break;
++	}
++
++	switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
++	case ACPI_HMAT_CP_WB:
++		cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
++		break;
++	case ACPI_HMAT_CP_WT:
++		cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
++		break;
++	case ACPI_HMAT_CP_NONE:
++	default:
++		cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
++		break;
++	}
++
++	node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
+ 	return 0;
  }
  
- static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int sev)
-diff --git a/include/acpi/ghes.h b/include/acpi/ghes.h
-index f82f4a7ddd90..e3f1cddb4ac8 100644
---- a/include/acpi/ghes.h
-+++ b/include/acpi/ghes.h
-@@ -13,7 +13,6 @@
-  * estatus: memory buffer for error status block, allocated during
-  * HEST parsing.
-  */
--#define GHES_TO_CLEAR		0x0001
- #define GHES_EXITING		0x0002
- 
- struct ghes {
 -- 
-2.19.2
+2.14.4
