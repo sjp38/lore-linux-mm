@@ -1,193 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E94C86B6A9D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:08:03 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id h85so8764435oib.9
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:08:03 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f36si6885153otf.163.2018.12.03.10.08.02
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:08:02 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 24/25] firmware: arm_sdei: Add ACPI GHES registration helper
-Date: Mon,  3 Dec 2018 18:06:12 +0000
-Message-Id: <20181203180613.228133-25-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A458E8E00B9
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:38:09 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id s10-v6so10181491ybj.5
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:38:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g136sor2058820ywb.33.2018.12.11.09.38.07
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 11 Dec 2018 09:38:07 -0800 (PST)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH 1/3] filemap: kill page_cache_read usage in filemap_fault
+Date: Tue, 11 Dec 2018 12:37:59 -0500
+Message-Id: <20181211173801.29535-2-josef@toxicpanda.com>
+In-Reply-To: <20181211173801.29535-1-josef@toxicpanda.com>
+References: <20181211173801.29535-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
 
-APEI's Generic Hardware Error Source structures do not describe
-whether the SDEI event is shared or private, as this information is
-discoverable via the API.
+If we do not have a page at filemap_fault time we'll do this weird
+forced page_cache_read thing to populate the page, and then drop it
+again and loop around and find it.  This makes for 2 ways we can read a
+page in filemap_fault, and it's not really needed.  Instead add a
+FGP_FOR_MMAP flag so that pagecache_get_page() will return a unlocked
+page that's in pagecache.  Then use the normal page locking and readpage
+logic already in filemap_fault.  This simplifies the no page in page
+cache case significantly.
 
-GHES needs to know whether an event is normal or critical to avoid
-sharing locks or fixmap entries, but GHES shouldn't have to know about
-the SDEI API.
-
-Add a helper to register the GHES using the appropriate normal or
-critical callback.
-
-Signed-off-by: James Morse <james.morse@arm.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Josef Bacik <josef@toxicpanda.com>
 ---
-Changes since v4:
- * Moved normal/critical callbacks into the helper, as APEI needs to know.
- * Tinkered with the commit message.
- * Dropped Punit's Reviewed-by.
+ include/linux/pagemap.h |  1 +
+ mm/filemap.c            | 73 ++++++++++---------------------------------------
+ 2 files changed, 16 insertions(+), 58 deletions(-)
 
-Changes since v3:
- * Removed acpi_disabled() checks that aren't necessary after v2s #ifdef
-   change.
-
-Changes since v2:
- * Added header file, thanks kbuild-robot!
- * changed ifdef to the GHES version to match the fixmap definition
-
-Changes since v1:
- * ghes->fixmap_idx variable rename
----
- arch/arm64/include/asm/fixmap.h |  4 ++
- drivers/firmware/arm_sdei.c     | 70 +++++++++++++++++++++++++++++++++
- include/linux/arm_sdei.h        |  6 +++
- 3 files changed, 80 insertions(+)
-
-diff --git a/arch/arm64/include/asm/fixmap.h b/arch/arm64/include/asm/fixmap.h
-index 966dd4bb23f2..f987b8a8f325 100644
---- a/arch/arm64/include/asm/fixmap.h
-+++ b/arch/arm64/include/asm/fixmap.h
-@@ -56,6 +56,10 @@ enum fixed_addresses {
- 	/* Used for GHES mapping from assorted contexts */
- 	FIX_APEI_GHES_IRQ,
- 	FIX_APEI_GHES_SEA,
-+#ifdef CONFIG_ARM_SDE_INTERFACE
-+	FIX_APEI_GHES_SDEI_NORMAL,
-+	FIX_APEI_GHES_SDEI_CRITICAL,
-+#endif
- #endif /* CONFIG_ACPI_APEI_GHES */
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 226f96f0dee0..b13c2442281f 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -252,6 +252,7 @@ pgoff_t page_cache_prev_miss(struct address_space *mapping,
+ #define FGP_WRITE		0x00000008
+ #define FGP_NOFS		0x00000010
+ #define FGP_NOWAIT		0x00000020
++#define FGP_FOR_MMAP		0x00000040
  
- #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-diff --git a/drivers/firmware/arm_sdei.c b/drivers/firmware/arm_sdei.c
-index 1ea71640fdc2..4bcbe3a3f597 100644
---- a/drivers/firmware/arm_sdei.c
-+++ b/drivers/firmware/arm_sdei.c
-@@ -2,6 +2,7 @@
- // Copyright (C) 2017 Arm Ltd.
- #define pr_fmt(fmt) "sdei: " fmt
+ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 		int fgp_flags, gfp_t cache_gfp_mask);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 81adec8ee02c..03bce38d8f2b 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1503,6 +1503,9 @@ EXPORT_SYMBOL(find_lock_entry);
+  *   @gfp_mask and added to the page cache and the VM's LRU
+  *   list. The page is returned locked and with an increased
+  *   refcount. Otherwise, NULL is returned.
++ * - FGP_FOR_MMAP: Similar to FGP_CREAT, only we want to allow the caller to do
++ *   its own locking dance if the page is already in cache, or unlock the page
++ *   before returning if we had to add the page to pagecache.
+  *
+  * If FGP_LOCK or FGP_CREAT are specified then the function may sleep even
+  * if the GFP flags specified for FGP_CREAT are atomic.
+@@ -1555,7 +1558,7 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 		if (!page)
+ 			return NULL;
  
-+#include <acpi/ghes.h>
- #include <linux/acpi.h>
- #include <linux/arm_sdei.h>
- #include <linux/arm-smccc.h>
-@@ -32,6 +33,8 @@
- #include <linux/spinlock.h>
- #include <linux/uaccess.h>
+-		if (WARN_ON_ONCE(!(fgp_flags & FGP_LOCK)))
++		if (WARN_ON_ONCE(!(fgp_flags & (FGP_LOCK | FGP_FOR_MMAP))))
+ 			fgp_flags |= FGP_LOCK;
  
-+#include <asm/fixmap.h>
+ 		/* Init accessed so avoid atomic mark_page_accessed later */
+@@ -1569,6 +1572,13 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 			if (err == -EEXIST)
+ 				goto repeat;
+ 		}
 +
- /*
-  * The call to use to reach the firmware.
-  */
-@@ -887,6 +890,73 @@ static void sdei_smccc_hvc(unsigned long function_id,
- 	arm_smccc_hvc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
- }
- 
-+int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
-+		       sdei_event_callback *critical_cb)
-+{
-+	int err;
-+	u64 result;
-+	u32 event_num;
-+	sdei_event_callback *cb;
-+
-+	if (!IS_ENABLED(CONFIG_ACPI_APEI_GHES))
-+		return -EOPNOTSUPP;
-+
-+	event_num = ghes->generic->notify.vector;
-+	if (event_num == 0) {
 +		/*
-+		 * Event 0 is reserved by the specification for
-+		 * SDEI_EVENT_SIGNAL.
++		 * add_to_page_cache_lru lock's the page, and for mmap we expect
++		 * a unlocked page.
 +		 */
-+		return -EINVAL;
-+	}
-+
-+	err = sdei_api_event_get_info(event_num, SDEI_EVENT_INFO_EV_PRIORITY,
-+				      &result);
-+	if (err)
-+		return err;
-+
-+	if (result == SDEI_EVENT_PRIORITY_CRITICAL)
-+		cb = critical_cb;
-+	else
-+		cb = normal_cb;
-+
-+	err = sdei_event_register(event_num, cb, ghes);
-+	if (!err)
-+		err = sdei_event_enable(event_num);
-+
-+	return err;
-+}
-+
-+int sdei_unregister_ghes(struct ghes *ghes)
-+{
-+	int i;
-+	int err;
-+	u32 event_num = ghes->generic->notify.vector;
-+
-+	might_sleep();
-+
-+	if (!IS_ENABLED(CONFIG_ACPI_APEI_GHES))
-+		return -EOPNOTSUPP;
-+
-+	/*
-+	 * The event may be running on another CPU. Disable it
-+	 * to stop new events, then try to unregister a few times.
-+	 */
-+	err = sdei_event_disable(event_num);
-+	if (err)
-+		return err;
-+
-+	for (i = 0; i < 3; i++) {
-+		err = sdei_event_unregister(event_num);
-+		if (err != -EINPROGRESS)
-+			break;
-+
-+		schedule();
-+	}
-+
-+	return err;
-+}
-+
- static int sdei_get_conduit(struct platform_device *pdev)
- {
- 	const char *method;
-diff --git a/include/linux/arm_sdei.h b/include/linux/arm_sdei.h
-index 942afbd544b7..393899192906 100644
---- a/include/linux/arm_sdei.h
-+++ b/include/linux/arm_sdei.h
-@@ -11,6 +11,7 @@ enum sdei_conduit_types {
- 	CONDUIT_HVC,
- };
++		if (fgp_flags & FGP_FOR_MMAP)
++			unlock_page(page);
+ 	}
  
-+#include <acpi/ghes.h>
- #include <asm/sdei.h>
+ 	return page;
+@@ -2293,39 +2303,6 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+ EXPORT_SYMBOL(generic_file_read_iter);
  
- /* Arch code should override this to set the entry point from firmware... */
-@@ -39,6 +40,11 @@ int sdei_event_unregister(u32 event_num);
- int sdei_event_enable(u32 event_num);
- int sdei_event_disable(u32 event_num);
+ #ifdef CONFIG_MMU
+-/**
+- * page_cache_read - adds requested page to the page cache if not already there
+- * @file:	file to read
+- * @offset:	page index
+- * @gfp_mask:	memory allocation flags
+- *
+- * This adds the requested page to the page cache if it isn't already there,
+- * and schedules an I/O to read in its contents from disk.
+- */
+-static int page_cache_read(struct file *file, pgoff_t offset, gfp_t gfp_mask)
+-{
+-	struct address_space *mapping = file->f_mapping;
+-	struct page *page;
+-	int ret;
+-
+-	do {
+-		page = __page_cache_alloc(gfp_mask);
+-		if (!page)
+-			return -ENOMEM;
+-
+-		ret = add_to_page_cache_lru(page, mapping, offset, gfp_mask);
+-		if (ret == 0)
+-			ret = mapping->a_ops->readpage(file, page);
+-		else if (ret == -EEXIST)
+-			ret = 0; /* losing race to add is OK */
+-
+-		put_page(page);
+-
+-	} while (ret == AOP_TRUNCATED_PAGE);
+-
+-	return ret;
+-}
+-
+ #define MMAP_LOTSAMISS  (100)
  
-+/* GHES register/unregister helpers */
-+int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
-+		       sdei_event_callback *critical_cb);
-+int sdei_unregister_ghes(struct ghes *ghes);
-+
- #ifdef CONFIG_ARM_SDE_INTERFACE
- /* For use by arch code when CPU hotplug notifiers are not appropriate. */
- int sdei_mask_local_cpu(void);
+ /*
+@@ -2449,9 +2426,11 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+ 		count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
+ 		ret = VM_FAULT_MAJOR;
+ retry_find:
+-		page = find_get_page(mapping, offset);
++		page = pagecache_get_page(mapping, offset,
++					  FGP_CREAT|FGP_FOR_MMAP,
++					  vmf->gfp_mask);
+ 		if (!page)
+-			goto no_cached_page;
++			return vmf_error(-ENOMEM);
+ 	}
+ 
+ 	if (!lock_page_or_retry(page, vmf->vma->vm_mm, vmf->flags)) {
+@@ -2488,28 +2467,6 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+ 	vmf->page = page;
+ 	return ret | VM_FAULT_LOCKED;
+ 
+-no_cached_page:
+-	/*
+-	 * We're only likely to ever get here if MADV_RANDOM is in
+-	 * effect.
+-	 */
+-	error = page_cache_read(file, offset, vmf->gfp_mask);
+-
+-	/*
+-	 * The page we want has now been added to the page cache.
+-	 * In the unlikely event that someone removed it in the
+-	 * meantime, we'll just come back here and read it again.
+-	 */
+-	if (error >= 0)
+-		goto retry_find;
+-
+-	/*
+-	 * An error return from page_cache_read can result if the
+-	 * system is low on memory, or a problem occurs while trying
+-	 * to schedule I/O.
+-	 */
+-	return vmf_error(error);
+-
+ page_not_uptodate:
+ 	/*
+ 	 * Umm, take care of errors if the page isn't up-to-date.
 -- 
-2.19.2
+2.14.3
