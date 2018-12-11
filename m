@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 596B96B754C
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 11:42:06 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id r82so12783430oie.14
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 08:42:06 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y8si11921497otb.143.2018.12.05.08.42.05
-        for <linux-mm@kvack.org>;
-        Wed, 05 Dec 2018 08:42:05 -0800 (PST)
-From: Steve Capper <steve.capper@arm.com>
-Subject: [PATCH V4 3/6] arm64: mm: Define arch_get_mmap_end, arch_get_mmap_base
-Date: Wed,  5 Dec 2018 16:41:42 +0000
-Message-Id: <20181205164145.24568-4-steve.capper@arm.com>
-In-Reply-To: <20181205164145.24568-1-steve.capper@arm.com>
-References: <20181205164145.24568-1-steve.capper@arm.com>
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 748CF8E0095
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:18:40 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id 18so923966wmw.6
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:18:40 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id b84si400413wme.1.2018.12.11.09.18.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Dec 2018 09:18:39 -0800 (PST)
+Date: Tue, 11 Dec 2018 18:18:30 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v7 07/25] ACPI / APEI: Remove spurious GHES_TO_CLEAR check
+Message-ID: <20181211171830.GL27375@zn.tnic>
+References: <20181203180613.228133-1-james.morse@arm.com>
+ <20181203180613.228133-8-james.morse@arm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20181203180613.228133-8-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
 
-Now that we have DEFAULT_MAP_WINDOW defined, we can arch_get_mmap_end
-and arch_get_mmap_base helpers to allow for high addresses in mmap.
+On Mon, Dec 03, 2018 at 06:05:55PM +0000, James Morse wrote:
+> ghes_notify_nmi() checks ghes->flags for GHES_TO_CLEAR before going
+> on to __process_error(). This is pointless as ghes_read_estatus()
+> will always set this flag if it returns success, which was checked
+> earlier in the loop. Remove it.
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> ---
+>  drivers/acpi/apei/ghes.c | 3 ---
+>  1 file changed, 3 deletions(-)
+> 
+> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+> index acf0c37e9af9..f7a0ff1c785a 100644
+> --- a/drivers/acpi/apei/ghes.c
+> +++ b/drivers/acpi/apei/ghes.c
+> @@ -936,9 +936,6 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+>  			__ghes_panic(ghes);
+>  		}
+>  
+> -		if (!(ghes->flags & GHES_TO_CLEAR))
+> -			continue;
+> -
+>  		__process_error(ghes);
+>  		ghes_clear_estatus(ghes, buf_paddr);
+>  	}
+> -- 
 
-Signed-off-by: Steve Capper <steve.capper@arm.com>
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
----
- arch/arm64/include/asm/processor.h | 7 +++++++
- 1 file changed, 7 insertions(+)
+Reviewed-by: Borislav Petkov <bp@suse.de>
 
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index 50586ca6bacb..fe95fd8b065e 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -72,6 +72,13 @@
- #define STACK_TOP		STACK_TOP_MAX
- #endif /* CONFIG_COMPAT */
- 
-+#define arch_get_mmap_end(addr) ((addr > DEFAULT_MAP_WINDOW) ? TASK_SIZE :\
-+				DEFAULT_MAP_WINDOW)
-+
-+#define arch_get_mmap_base(addr, base) ((addr > DEFAULT_MAP_WINDOW) ? \
-+					base + TASK_SIZE - DEFAULT_MAP_WINDOW :\
-+					base)
-+
- extern phys_addr_t arm64_dma_phys_limit;
- #define ARCH_LOW_ADDRESS_LIMIT	(arm64_dma_phys_limit - 1)
- 
 -- 
-2.19.2
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
