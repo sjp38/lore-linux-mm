@@ -1,67 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D9B816B6E08
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 04:37:26 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id g7so4664822plp.10
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 01:37:26 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s7sor21787571plp.27.2018.12.04.01.37.25
+	by kanga.kvack.org (Postfix) with ESMTP id 161268E00C9
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 16:45:02 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id l9so11468411plt.7
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 13:45:02 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 2si12798844pgj.104.2018.12.11.13.45.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 01:37:25 -0800 (PST)
-MIME-Version: 1.0
-References: <20181111090341.120786-1-drinkcat@chromium.org>
-In-Reply-To: <20181111090341.120786-1-drinkcat@chromium.org>
-From: Nicolas Boichat <drinkcat@chromium.org>
-Date: Tue, 4 Dec 2018 17:37:13 +0800
-Message-ID: <CANMq1KDxmRcWhtaJbrLHqx6yPGkNaK7WNYYf+iFjH1e8XdrwRg@mail.gmail.com>
-Subject: Re: [PATCH v2 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Dec 2018 13:45:01 -0800 (PST)
+Date: Tue, 11 Dec 2018 13:44:57 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v13 00/25] kasan: add software tag-based mode for arm64
+Message-Id: <20181211134457.2eff4a98b13ceda564ab9b37@linux-foundation.org>
+In-Reply-To: <20181211160018.GA12597@edgewater-inn.cambridge.arm.com>
+References: <cover.1544099024.git.andreyknvl@google.com>
+	<20181211151829.GB11718@edgewater-inn.cambridge.arm.com>
+	<CAAeHK+xxNsOfaUZhcErc+fjEEv0YZ-dbQ0fTXzQUO4dZbM-GgA@mail.gmail.com>
+	<20181211160018.GA12597@edgewater-inn.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthias Brugger <matthias.bgg@gmail.com>, hch@infradead.org, Matthew Wilcox <willy@infradead.org>
-Cc: Will Deacon <will.deacon@arm.com>, Joerg Roedel <joro@8bytes.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Tomasz Figa <tfiga@google.com>, yingjoe.chen@mediatek.com, Hsin-Yi Wang <hsinyi@chromium.org>, Daniel Kurtz <djkurtz@chromium.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgenii Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-On Sun, Nov 11, 2018 at 5:04 PM Nicolas Boichat <drinkcat@chromium.org> wrote:
->
-> This is a follow-up to the discussion in [1], to make sure that the page
-> tables allocated by iommu/io-pgtable-arm-v7s are contained within 32-bit
-> physical address space.
->
-> [1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
+On Tue, 11 Dec 2018 16:00:19 +0000 Will Deacon <will.deacon@arm.com> wrote:
 
-Hi everyone,
+> > Yes, that was the intention of sending v13. Should have I sent a
+> > separate patch with v12->v13 fixes instead? I don't know what's the
+> > usual way to make changes to the patchset once it's in the mm tree.
 
-Let's try to summarize here.
-
-First, we confirmed that this is a regression, and IOMMU errors happen
-on 4.19 and linux-next/master on MT8173 (elm, Acer Chromebook R13).
-The issue most likely starts from ad67f5a6545f ("arm64: replace
-ZONE_DMA with ZONE_DMA32"), i.e. 4.15, and presumably breaks a number
-of Mediatek platforms (and maybe others?).
-
-We have a few options here:
-1. This series [2], that adds support for GFP_DMA32 slab caches,
-_without_ adding kmalloc caches (since there are no users of
-kmalloc(..., GFP_DMA32)). I think I've addressed all the comments on
-the 3 patches, and AFAICT this solution works fine.
-2. genalloc. That works, but unless we preallocate 4MB for L2 tables
-(which is wasteful as we usually only need a handful of L2 tables),
-we'll need changes in the core (use GFP_ATOMIC) to allow allocating on
-demand, and as it stands we'd have no way to shrink the allocation.
-3. page_frag [3]. That works fine, and the code is quite simple. One
-drawback is that fragments in partially freed pages cannot be reused
-(from limited experiments, I see that IOMMU L2 tables are rarely
-freed, so it's unlikely a whole page would get freed). But given the
-low number of L2 tables, maybe we can live with that.
-
-I think 2 is out. Any preference between 1 and 3? I think 1 makes
-better use of the memory, so that'd be my preference. But I'm probably
-missing something.
-
-[2] https://patchwork.kernel.org/cover/10677529/, 3 patches
-[3] https://patchwork.codeaurora.org/patch/671639/
-
-Thanks,
-
-Nicolas
+I usually convert replacement patches into deltas so people can see
+what changed.  In this case it got messy so I dropped v12 and remerged
+v13 wholesale.
