@@ -1,63 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ADF96B79EF
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:24:52 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id y74so8559364wmc.0
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:24:52 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y15sor177318wrd.35.2018.12.06.04.24.50
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9A68E004D
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 00:50:18 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id x15so6432973edd.2
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 21:50:18 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h88si1549189edc.299.2018.12.10.21.50.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 04:24:50 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v13 02/25] kasan, slub: handle pointer tags in early_kmem_cache_node_alloc
-Date: Thu,  6 Dec 2018 13:24:20 +0100
-Message-Id: <fc8d0fdcf733a7a52e8d0daaa650f4736a57de8c.1544099024.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
-References: <cover.1544099024.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Dec 2018 21:50:17 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBB5meeC027098
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 00:50:15 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2pa75s8cuw-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 00:50:15 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 11 Dec 2018 05:50:14 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: Re: [PATCH 00/18] my generic mmu_gather patches
+In-Reply-To: <20180926113623.863696043@infradead.org>
+References: <20180926113623.863696043@infradead.org>
+Date: Tue, 11 Dec 2018 11:20:01 +0530
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+Message-Id: <87woogsjcm.fsf@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Peter Zijlstra <peterz@infradead.org>, will.deacon@arm.com, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, npiggin@gmail.com
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux@armlinux.org.uk, heiko.carstens@de.ibm.com, riel@surriel.com, fengguang.wu@intel.com
 
-The previous patch updated KASAN hooks signatures and their usage in SLAB
-and SLUB code, except for the early_kmem_cache_node_alloc function. This
-patch handles that function separately, as it requires to reorder some of
-the initialization code to correctly propagate a tagged pointer in case a
-tag is assigned by kasan_kmalloc.
+Peter Zijlstra <peterz@infradead.org> writes:
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/slub.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+> Hi,
+>
+> Here is my current stash of generic mmu_gather patches that goes on top of Will's
+> tlb patches:
+>
+>   git://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git tlb/asm-generic
+>
+> And they include the s390 patches done by Heiko. At the end of this, there is
+> not a single arch left with a custom mmu_gather.
+>
+> I've been slow posting these, because the 0-day bot seems to be having trouble
+> and I've not been getting the regular cross-build green light emails that I
+> otherwise rely upon.
+>
+> I hope to have addressed all the feedback from the last time, and I've added a
+> bunch of missing Cc's from last time.
+>
+> Please review with care.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index fdd4a86aa882..8561a32910dd 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3364,16 +3364,16 @@ static void early_kmem_cache_node_alloc(int node)
- 
- 	n = page->freelist;
- 	BUG_ON(!n);
--	page->freelist = get_freepointer(kmem_cache_node, n);
--	page->inuse = 1;
--	page->frozen = 0;
--	kmem_cache_node->node[node] = n;
- #ifdef CONFIG_SLUB_DEBUG
- 	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
- 	init_tracking(kmem_cache_node, n);
- #endif
--	kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node),
-+	n = kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node),
- 		      GFP_KERNEL);
-+	page->freelist = get_freepointer(kmem_cache_node, n);
-+	page->inuse = 1;
-+	page->frozen = 0;
-+	kmem_cache_node->node[node] = n;
- 	init_kmem_cache_node(n);
- 	inc_slabs_node(kmem_cache_node, node, page->objects);
- 
--- 
-2.20.0.rc1.387.gf8505762e3-goog
+What is the update with this patch series? Looks good to be merged
+upstream?
+
+You can also add
+
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+
+to the series.
+
+-aneesh
