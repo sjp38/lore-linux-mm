@@ -1,64 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7606B7452
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 07:30:08 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id h68so19975903qke.3
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 04:30:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f188si8213803qkb.226.2018.12.05.04.30.07
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C5548E0095
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 10:20:02 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id x18-v6so3874095lji.0
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 07:20:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j81-v6sor8971604ljb.30.2018.12.11.07.20.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 04:30:07 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH RFC 3/7] powerpc/vdso: don't clear PG_reserved
-Date: Wed,  5 Dec 2018 13:28:47 +0100
-Message-Id: <20181205122851.5891-4-david@redhat.com>
-In-Reply-To: <20181205122851.5891-1-david@redhat.com>
-References: <20181205122851.5891-1-david@redhat.com>
+        (Google Transport Security);
+        Tue, 11 Dec 2018 07:20:00 -0800 (PST)
+Date: Tue, 11 Dec 2018 18:19:57 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH v3] ksm: React on changing "sleep_millisecs" parameter
+ faster
+Message-ID: <20181211151957.GJ2342@uranus.lan>
+References: <2dd9cc7b-9384-df11-bb5a-3aed45cc914b@virtuozzo.com>
+ <154454107680.3258.3558002210423531566.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <154454107680.3258.3558002210423531566.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Christophe Leroy <christophe.leroy@c-s.fr>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gorcunov@virtuozzo.com
 
-The VDSO is part of the kernel image and therefore the struct pages are
-marked as reserved during boot.
+On Tue, Dec 11, 2018 at 06:11:25PM +0300, Kirill Tkhai wrote:
+> ksm thread unconditionally sleeps in ksm_scan_thread()
+> after each iteration:
+> 
+> 	schedule_timeout_interruptible(
+> 		msecs_to_jiffies(ksm_thread_sleep_millisecs))
+> 
+> The timeout is configured in /sys/kernel/mm/ksm/sleep_millisecs.
+> 
+> In case of user writes a big value by a mistake, and the thread
+> enters into schedule_timeout_interruptible(), it's not possible
+> to cancel the sleep by writing a new smaler value; the thread
+> is just sleeping till timeout expires.
+> 
+> The patch fixes the problem by waking the thread each time
+> after the value is updated.
+> 
+> This also may be useful for debug purposes; and also for userspace
+> daemons, which change sleep_millisecs value in dependence of
+> system load.
+> 
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> 
+> v3: Do not use mutex: to acquire it may take much time in case long
+>     list of ksm'able mm and pages.
+> v2: Use wait_event_interruptible_timeout() instead of unconditional
+>     schedule_timeout().
+Looks ok to me, thanks!
 
-As we install a special mapping, the actual struct pages will never be
-exposed to MM via the page tables. We can therefore leave the pages
-marked as reserved.
-
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- arch/powerpc/kernel/vdso.c | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-index 65b3bdb99f0b..d59dc2e9a695 100644
---- a/arch/powerpc/kernel/vdso.c
-+++ b/arch/powerpc/kernel/vdso.c
-@@ -795,7 +795,6 @@ static int __init vdso_init(void)
- 	BUG_ON(vdso32_pagelist == NULL);
- 	for (i = 0; i < vdso32_pages; i++) {
- 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
--		ClearPageReserved(pg);
- 		get_page(pg);
- 		vdso32_pagelist[i] = pg;
- 	}
-@@ -809,7 +808,6 @@ static int __init vdso_init(void)
- 	BUG_ON(vdso64_pagelist == NULL);
- 	for (i = 0; i < vdso64_pages; i++) {
- 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
--		ClearPageReserved(pg);
- 		get_page(pg);
- 		vdso64_pagelist[i] = pg;
- 	}
--- 
-2.17.2
+Acked-by: Cyrill Gorcunov <gorcunov@gmail.com>
