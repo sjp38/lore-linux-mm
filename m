@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D93E8E00C5
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 13:37:47 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id p66so3076734itc.0
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 10:37:47 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EB858E00C5
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 13:36:45 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id i12so3053791ita.3
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 10:36:45 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r185sor4800867ita.21.2018.12.11.10.37.46
+        by mx.google.com with SMTPS id b191sor4817322itc.22.2018.12.11.10.36.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 11 Dec 2018 10:37:46 -0800 (PST)
+        Tue, 11 Dec 2018 10:36:44 -0800 (PST)
 Subject: Re: [PATCH] aio: Convert ioctx_table to XArray
+From: Jens Axboe <axboe@kernel.dk>
 References: <20181128183531.5139-1-willy@infradead.org>
  <x49va46e1p0.fsf@segfault.boston.devel.redhat.com>
  <x49pnuee1gm.fsf@segfault.boston.devel.redhat.com>
@@ -17,23 +18,21 @@ References: <20181128183531.5139-1-willy@infradead.org>
  <20181211175156.GF6830@bombadil.infradead.org>
  <x495zw0lz68.fsf@segfault.boston.devel.redhat.com>
  <0f77a532-0d88-78bc-b9cc-06bb203a0405@kernel.dk>
- <x49y38wkkaa.fsf@segfault.boston.devel.redhat.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <cad87c5f-532c-fb3d-b904-70af0d8ad150@kernel.dk>
-Date: Tue, 11 Dec 2018 11:37:44 -0700
+ <6b9a45c4-47a2-4c44-aa7e-6e5e90eff9df@kernel.dk>
+Message-ID: <78dfbfa3-b2d1-4e9d-f59c-b263678a9866@kernel.dk>
+Date: Tue, 11 Dec 2018 11:36:41 -0700
 MIME-Version: 1.0
-In-Reply-To: <x49y38wkkaa.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <6b9a45c4-47a2-4c44-aa7e-6e5e90eff9df@kernel.dk>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Carpenter <dan.carpenter@oracle.com>, kent.overstreet@gmail.com
+To: Jeff Moyer <jmoyer@redhat.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Carpenter <dan.carpenter@oracle.com>, kent.overstreet@gmail.com
 
-On 12/11/18 11:09 AM, Jeff Moyer wrote:
-> Jens Axboe <axboe@kernel.dk> writes:
-> 
+On 12/11/18 11:32 AM, Jens Axboe wrote:
+> On 12/11/18 11:05 AM, Jens Axboe wrote:
 >> On 12/11/18 11:02 AM, Jeff Moyer wrote:
 >>> Matthew Wilcox <willy@infradead.org> writes:
 >>>
@@ -67,9 +66,6 @@ On 12/11/18 11:09 AM, Jeff Moyer wrote:
 >>>
 >>> I think the most common use case is a small number of ioctx-s, so I'd
 >>> like to see that use case not regress (that should be easy, right?).
-> 
-> Bah, I meant a small number of threads doing submit/getevents.
-> 
 >>> Kent, what were the tests you were using when doing this work?  Jens,
 >>> since you're doing performance work in this area now, are there any
 >>> particular test cases you care about?
@@ -77,11 +73,14 @@ On 12/11/18 11:09 AM, Jeff Moyer wrote:
 >> I can give it a spin, ioctx lookup is in the fast path, and for "classic"
 >> aio we do it twice for each IO...
 > 
-> Thanks!
+> Don't see any regressions. But if we're fiddling with it anyway, can't
+> we do something smarter? Make the fast path just index a table, and put
+> all the big hammers in setup/destroy. We're spending a non-substantial
+> amount of time doing lookups, that's really no different before and
+> after the patch.
 
-You can add my reviewed-by/tested-by. Do you want me to carry this one?
-I can rebase on top of the aio.c nospec lookup patch, we should do
-those separately.
+Looks like it's the percpu ref get, in terms of "lookup" we already
+look pretty good.
 
 -- 
 Jens Axboe
