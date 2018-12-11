@@ -1,133 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 556546B6A7F
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:21 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id c26so5971829otl.19
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:21 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 4si6455839otq.38.2018.12.03.10.07.19
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:07:20 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 12/25] ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
-Date: Mon,  3 Dec 2018 18:06:00 +0000
-Message-Id: <20181203180613.228133-13-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A2A98E006C
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 20:05:50 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r13so8634399pgb.7
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 17:05:50 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i1si11402278pfj.276.2018.12.10.17.05.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Dec 2018 17:05:48 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv2 05/12] acpi/hmat: Register processor domain to its memory
+Date: Mon, 10 Dec 2018 18:03:03 -0700
+Message-Id: <20181211010310.8551-6-keith.busch@intel.com>
+In-Reply-To: <20181211010310.8551-1-keith.busch@intel.com>
+References: <20181211010310.8551-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-Now that the estatus queue can be used by more than one notification
-method, we can move notifications that have NMI-like behaviour over.
+If the HMAT Subsystem Address Range provides a valid processor proximity
+domain for a memory domain, or a processor domain with the highest
+performing access, register the node as one of the initiator's primary
+memory targets so this relationship will be visible under the node's
+sysfs directory.
 
-Switch NOTIFY_SEA over to use the estatus queue. This makes it behave
-in the same way as x86's NOTIFY_NMI.
+Since HMAT requires valid address ranges have an equivalent SRAT entry,
+verify each memory target satisfies this requirement.
 
-Remove Kconfig's ability to turn ACPI_APEI_SEA off if ACPI_APEI_GHES
-is selected. This roughly matches the x86 NOTIFY_NMI behaviour, and means
-each architecture has at least one user of the estatus-queue, meaning it
-doesn't need guarding with ifdef.
-
-Signed-off-by: James Morse <james.morse@arm.com>
+Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
-Changes since v6:
- * Lost all the pool grow/shrink stuff,
- * Changed Kconfig so this can't be turned off to avoid kconfig complexity:
- * Dropped Tyler's tested-by.
- * For now we need #ifdef around the SEA code as the arch code assumes its there.
- * Removed Punit's reviewed-by due to the swirling #ifdeffery
----
- drivers/acpi/apei/Kconfig | 12 +-----------
- drivers/acpi/apei/ghes.c  | 22 +++++-----------------
- 2 files changed, 6 insertions(+), 28 deletions(-)
+ drivers/acpi/hmat.c | 149 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 142 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/acpi/apei/Kconfig b/drivers/acpi/apei/Kconfig
-index 52ae5438edeb..6b18f8bc7be3 100644
---- a/drivers/acpi/apei/Kconfig
-+++ b/drivers/acpi/apei/Kconfig
-@@ -41,19 +41,9 @@ config ACPI_APEI_PCIEAER
- 	  Turn on this option to enable the corresponding support.
+diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
+index ef3881f0f370..5d8747ad025f 100644
+--- a/drivers/acpi/hmat.c
++++ b/drivers/acpi/hmat.c
+@@ -17,6 +17,43 @@
+ #include <linux/slab.h>
+ #include <linux/sysfs.h>
  
- config ACPI_APEI_SEA
--	bool "APEI Synchronous External Abort logging/recovering support"
-+	bool
- 	depends on ARM64 && ACPI_APEI_GHES
- 	default y
--	help
--	  This option should be enabled if the system supports
--	  firmware first handling of SEA (Synchronous External Abort).
--	  SEA happens with certain faults of data abort or instruction
--	  abort synchronous exceptions on ARMv8 systems. If a system
--	  supports firmware first handling of SEA, the platform analyzes
--	  and handles hardware error notifications from SEA, and it may then
--	  form a HW error record for the OS to parse and handle. This
--	  option allows the OS to look for such hardware error record, and
--	  take appropriate action.
- 
- config ACPI_APEI_MEMORY_FAILURE
- 	bool "APEI memory error recovering support"
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index 00fe4785e469..4b33fa562e32 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -765,7 +765,6 @@ static struct notifier_block ghes_notifier_hed = {
- 	.notifier_call = ghes_notify_hed,
- };
- 
--#ifdef CONFIG_HAVE_ACPI_APEI_NMI
- /*
-  * Handlers for CPER records may not be NMI safe. For example,
-  * memory_failure_queue() takes spinlocks and calls schedule_work_on().
-@@ -905,7 +904,6 @@ static int ghes_estatus_queue_notified(struct list_head *rcu_list)
- 
- 	return ret;
- }
--#endif /* CONFIG_HAVE_ACPI_APEI_NMI */
- 
- #ifdef CONFIG_ACPI_APEI_SEA
- static LIST_HEAD(ghes_sea);
-@@ -916,16 +914,7 @@ static LIST_HEAD(ghes_sea);
-  */
- int ghes_notify_sea(void)
++static LIST_HEAD(targets);
++
++struct memory_target {
++	struct list_head node;
++	unsigned int memory_pxm;
++	unsigned long p_nodes[BITS_TO_LONGS(MAX_NUMNODES)];
++};
++
++static __init struct memory_target *find_mem_target(unsigned int m)
++{
++	struct memory_target *t;
++
++	list_for_each_entry(t, &targets, node)
++		if (t->memory_pxm == m)
++			return t;
++	return NULL;
++}
++
++static __init void alloc_memory_target(unsigned int mem_pxm)
++{
++	struct memory_target *t;
++
++	if (pxm_to_node(mem_pxm) == NUMA_NO_NODE)
++		return;
++
++	t = find_mem_target(mem_pxm);
++	if (t)
++		return;
++
++	t = kzalloc(sizeof(*t), GFP_KERNEL);
++	if (!t)
++		return;
++
++	t->memory_pxm = mem_pxm;
++	list_add_tail(&t->node, &targets);
++}
++
+ static __init const char *hmat_data_type(u8 type)
  {
--	struct ghes *ghes;
--	int ret = -ENOENT;
--
--	rcu_read_lock();
--	list_for_each_entry_rcu(ghes, &ghes_sea, list) {
--		if (!ghes_proc(ghes))
--			ret = 0;
--	}
--	rcu_read_unlock();
--	return ret;
-+	return ghes_estatus_queue_notified(&ghes_sea);
+ 	switch (type) {
+@@ -53,11 +90,30 @@ static __init const char *hmat_data_type_suffix(u8 type)
+ 	};
  }
  
- static void ghes_sea_add(struct ghes *ghes)
-@@ -992,16 +981,15 @@ static void ghes_nmi_remove(struct ghes *ghes)
- 	 */
- 	synchronize_rcu();
- }
-+#else /* CONFIG_HAVE_ACPI_APEI_NMI */
-+static inline void ghes_nmi_add(struct ghes *ghes) { }
-+static inline void ghes_nmi_remove(struct ghes *ghes) { }
-+#endif /* CONFIG_HAVE_ACPI_APEI_NMI */
- 
- static void ghes_nmi_init_cxt(void)
++static __init void hmat_update_access(u8 type, u32 value, u32 *best)
++{
++	switch (type) {
++	case ACPI_HMAT_ACCESS_LATENCY:
++	case ACPI_HMAT_READ_LATENCY:
++	case ACPI_HMAT_WRITE_LATENCY:
++		if (!*best || *best > value)
++			*best = value;
++		break;
++	case ACPI_HMAT_ACCESS_BANDWIDTH:
++	case ACPI_HMAT_READ_BANDWIDTH:
++	case ACPI_HMAT_WRITE_BANDWIDTH:
++		if (!*best || *best < value)
++			*best = value;
++		break;
++	}
++}
++
+ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+ 				      const unsigned long end)
  {
- 	init_irq_work(&ghes_proc_irq_work, ghes_proc_in_irq);
- }
--#else /* CONFIG_HAVE_ACPI_APEI_NMI */
--static inline void ghes_nmi_add(struct ghes *ghes) { }
--static inline void ghes_nmi_remove(struct ghes *ghes) { }
--static inline void ghes_nmi_init_cxt(void) { }
--#endif /* CONFIG_HAVE_ACPI_APEI_NMI */
- 
- static int ghes_probe(struct platform_device *ghes_dev)
++	struct memory_target *t;
+ 	struct acpi_hmat_locality *loc = (void *)header;
+-	unsigned int init, targ, total_size, ipds, tpds;
++	unsigned int init, targ, pass, p_node, total_size, ipds, tpds;
+ 	u32 *inits, *targs, value;
+ 	u16 *entries;
+ 	u8 type;
+@@ -87,12 +143,28 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+ 	targs = &inits[ipds];
+ 	entries = (u16 *)(&targs[tpds]);
+ 	for (targ = 0; targ < tpds; targ++) {
+-		for (init = 0; init < ipds; init++) {
+-			value = entries[init * tpds + targ];
+-			value = (value * loc->entry_base_unit) / 10;
+-			pr_info("  Initiator-Target[%d-%d]:%d%s\n",
+-				inits[init], targs[targ], value,
+-				hmat_data_type_suffix(type));
++		u32 best = 0;
++
++		t = find_mem_target(targs[targ]);
++		for (pass = 0; pass < 2; pass++) {
++			for (init = 0; init < ipds; init++) {
++				value = entries[init * tpds + targ];
++				value = (value * loc->entry_base_unit) / 10;
++
++				if (!pass) {
++					hmat_update_access(type, value, &best);
++					pr_info("  Initiator-Target[%d-%d]:%d%s\n",
++						inits[init], targs[targ], value,
++						hmat_data_type_suffix(type));
++					continue;
++				}
++
++				if (!t)
++					continue;
++				p_node = pxm_to_node(inits[init]);
++				if (p_node != NUMA_NO_NODE && value == best)
++					set_bit(p_node, t->p_nodes);
++			}
+ 		}
+ 	}
+ 	return 0;
+@@ -122,6 +194,7 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
+ 					   const unsigned long end)
  {
+ 	struct acpi_hmat_address_range *spa = (void *)header;
++	struct memory_target *t = NULL;
+ 
+ 	if (spa->header.length != sizeof(*spa)) {
+ 		pr_err("HMAT: Unexpected address range header length: %d\n",
+@@ -131,6 +204,23 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
+ 	pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
+ 		spa->physical_address_base, spa->physical_address_length,
+ 		spa->flags, spa->processor_PD, spa->memory_PD);
++
++	if (spa->flags & ACPI_HMAT_MEMORY_PD_VALID) {
++		t = find_mem_target(spa->memory_PD);
++		if (!t) {
++			pr_warn("HMAT: Memory Domain missing from SRAT\n");
++			return -EINVAL;
++		}
++	}
++	if (t && spa->flags & ACPI_HMAT_PROCESSOR_PD_VALID) {
++		int p_node = pxm_to_node(spa->processor_PD);
++
++		if (p_node == NUMA_NO_NODE) {
++			pr_warn("HMAT: Invalid Processor Domain\n");
++			return -EINVAL;
++		}
++		set_bit(p_node, t->p_nodes);
++	}
+ 	return 0;
+ }
+ 
+@@ -154,6 +244,33 @@ static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
+ 	}
+ }
+ 
++static __init int srat_parse_mem_affinity(union acpi_subtable_headers *header,
++					  const unsigned long end)
++{
++	struct acpi_srat_mem_affinity *ma = (void *)header;
++
++	if (!ma)
++		return -EINVAL;
++	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
++		return 0;
++	alloc_memory_target(ma->proximity_domain);
++	return 0;
++}
++
++static __init void hmat_register_targets(void)
++{
++	struct memory_target *t, *next;
++	unsigned m, p;
++
++	list_for_each_entry_safe(t, next, &targets, node) {
++		list_del(&t->node);
++		m = pxm_to_node(t->memory_pxm);
++		for_each_set_bit(p, t->p_nodes, MAX_NUMNODES)
++			register_memory_node_under_compute_node(m, p);
++		kfree(t);
++	}
++}
++
+ static __init int parse_noop(struct acpi_table_header *table)
+ {
+ 	return 0;
+@@ -169,6 +286,23 @@ static __init int hmat_init(void)
+ 	if (srat_disabled())
+ 		return 0;
+ 
++	status = acpi_get_table(ACPI_SIG_SRAT, 0, &tbl);
++	if (ACPI_FAILURE(status))
++		return 0;
++
++	if (acpi_table_parse(ACPI_SIG_SRAT, parse_noop))
++		goto out_put;
++
++	memset(&subtable_proc, 0, sizeof(subtable_proc));
++	subtable_proc.id = ACPI_SRAT_TYPE_MEMORY_AFFINITY;
++	subtable_proc.handler = srat_parse_mem_affinity;
++
++	if (acpi_table_parse_entries_array(ACPI_SIG_SRAT,
++				sizeof(struct acpi_table_srat),
++				&subtable_proc, 1, 0) < 0)
++		goto out_put;
++	acpi_put_table(tbl);
++
+ 	status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
+ 	if (ACPI_FAILURE(status))
+ 		return 0;
+@@ -185,6 +319,7 @@ static __init int hmat_init(void)
+ 					&subtable_proc, 1, 0) < 0)
+ 			goto out_put;
+ 	}
++	hmat_register_targets();
+  out_put:
+ 	acpi_put_table(tbl);
+ 	return 0;
 -- 
-2.19.2
+2.14.4
