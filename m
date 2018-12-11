@@ -1,79 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DA73C8E0005
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:06 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id bj3so13962427plb.17
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.05
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 168DD8E0095
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:36:51 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id v4so6861640edm.18
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:36:51 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p2-v6sor3750551ejr.31.2018.12.11.06.36.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-Message-Id: <20181226133351.348801665@intel.com>
-Date: Wed, 26 Dec 2018 21:14:51 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [RFC][PATCH v2 05/21] mmzone: new pgdat flags for DRAM and PMEM
-References: <20181226131446.330864849@intel.com>
+        (Google Transport Security);
+        Tue, 11 Dec 2018 06:36:49 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/3] THP eligibility reporting via proc
+Date: Tue, 11 Dec 2018 15:36:38 +0100
+Message-Id: <20181211143641.3503-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=0003-mmzone-Introduce-new-flag-to-tag-pgdat-type.patch
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Fan Du <fan.du@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+Cc: linux-api@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
 
-From: Fan Du <fan.du@intel.com>
+Hi,
+I've posted this as an RFC [1] and there didn't seem to be any pushback
+so I am posting it for inclusion. If there are any concerns, please
+speak up.
 
-One system with DRAM and PMEM, we need new flag
-to tag pgdat is made of DRAM or peristent memory.
+Original cover:
+This series of three patches aims at making THP eligibility reporting
+much more robust and long term sustainable. The trigger for the change
+is a regression report [2] and the long follow up discussion. In short
+the specific application didn't have good API to query whether a particular
+mapping can be backed by THP so it has used VMA flags to workaround that.
+These flags represent a deep internal state of VMAs and as such they should
+be used by userspace with a great deal of caution.
 
-This patch serves as preparetion one for follow up patch.
+A similar has happened for [3] when users complained that VM_MIXEDMAP is
+no longer set on DAX mappings. Again a lack of a proper API led to an
+abuse.
 
-Signed-off-by: Fan Du <fan.du@intel.com>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- include/linux/mmzone.h |   26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+The first patch in the series tries to emphasise that that the semantic
+of flags might change and any application consuming those should be really
+careful.
 
---- linux.orig/include/linux/mmzone.h	2018-12-23 19:29:42.430602202 +0800
-+++ linux/include/linux/mmzone.h	2018-12-23 19:29:42.430602202 +0800
-@@ -522,6 +522,8 @@ enum pgdat_flags {
- 					 * many pages under writeback
- 					 */
- 	PGDAT_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
-+	PGDAT_DRAM,			/* Volatile DRAM memory node */
-+	PGDAT_PMEM,			/* Persistent memory node */
- };
- 
- static inline unsigned long zone_end_pfn(const struct zone *zone)
-@@ -919,6 +921,30 @@ extern struct pglist_data contig_page_da
- 
- #endif /* !CONFIG_NEED_MULTIPLE_NODES */
- 
-+static inline int is_node_pmem(int nid)
-+{
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
-+	return test_bit(PGDAT_PMEM, &pgdat->flags);
-+}
-+
-+static inline int is_node_dram(int nid)
-+{
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
-+	return test_bit(PGDAT_DRAM, &pgdat->flags);
-+}
-+
-+static inline void set_node_type(int nid)
-+{
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
-+	if (node_isset(nid, numa_nodes_pmem))
-+		set_bit(PGDAT_PMEM, &pgdat->flags);
-+	else
-+		set_bit(PGDAT_DRAM, &pgdat->flags);
-+}
-+
- extern struct pglist_data *first_online_pgdat(void);
- extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
- extern struct zone *next_zone(struct zone *zone);
+The remaining two patches provide a more suitable interface to address [2]
+and provide a consistent API to query the THP status both for each VMA
+and process wide as well.
+
+[1] http://lkml.kernel.org/r/20181120103515.25280-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/http://lkml.kernel.org/r/alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com
+[3] http://lkml.kernel.org/r/20181002100531.GC4135@quack2.suse.cz
