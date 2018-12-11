@@ -1,109 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A7C48E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 09:31:26 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id w4so4747743otj.2
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 06:31:26 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 10si3666053ois.229.2018.12.10.06.31.25
-        for <linux-mm@kvack.org>;
-        Mon, 10 Dec 2018 06:31:25 -0800 (PST)
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Subject: [RFC][PATCH 1/3] elf: Make AT_FLAGS arch configurable
-Date: Mon, 10 Dec 2018 14:30:42 +0000
-Message-Id: <20181210143044.12714-2-vincenzo.frascino@arm.com>
-In-Reply-To: <20181210143044.12714-1-vincenzo.frascino@arm.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
- <20181210143044.12714-1-vincenzo.frascino@arm.com>
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D99E68E0095
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:30:09 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id o21so7040297edq.4
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:30:09 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q19-v6si1846770ejt.57.2018.12.11.06.30.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Dec 2018 06:30:08 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC 2/3] mm, page_alloc: reclaim for __GFP_NORETRY costly requests only when compaction was skipped
+Date: Tue, 11 Dec 2018 15:29:40 +0100
+Message-Id: <20181211142941.20500-3-vbabka@suse.cz>
+In-Reply-To: <20181211142941.20500-1-vbabka@suse.cz>
+References: <20181211142941.20500-1-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
 
-Currently, the AT_FLAGS in the elf auxiliary vector are set to 0
-by default by the kernel.
-Some architectures might need to expose to the userspace a non-zero
-value to advertise some platform specific ABI functionalities.
+For costly __GFP_NORETRY allocations (including THP's) we first do an initial
+compaction attempt and if that fails, we proceed with reclaim and another
+round of compaction, unless compaction was deferred due to earlier multiple
+failures. Andrea proposed [1] that we count all compaction failures as the
+defered case in try_to_compact_pages(), but I don't think that's a good idea
+in general. Instead, change the __GFP_NORETRY specific condition so that it
+only proceeds with further reclaim/compaction when the initial compaction
+attempt was skipped due to lack of free base pages.
 
-This patch makes AT_FLAGS configurable by the architectures that
-require it.
+Note that the original condition probably never worked properly for THP's,
+because compaction can only become deferred after a sync compaction failure,
+and THP's only perform async compaction, except khugepaged, which is
+infrequent, or madvised faults (until the previous patch restored __GFP_NORETRY
+for those) which are not the default case. Deferring due to async compaction
+failures should be however also beneficial and thus introduced in the next
+patch.
 
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-CC: Andrey Konovalov <andreyknvl@google.com>
-CC: Alexander Viro <viro@zeniv.linux.org.uk>
-Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Also note that due to how try_to_compact_pages() constructs its return value
+from compaction attempts across the whole zonelist, returning COMPACT_SKIPPED
+means that compaction was skipped for *all* attempted zones/nodes, which means
+all zones/nodes are low on memory at the same moment. This is probably rare,
+which would mean that the resulting 'goto nopage' would be very common, just
+because e.g. a single zone had enough memory and compaction failed there, while
+the rest of nodes could succeed after reclaim.  However, since THP faults use
+__GFP_THISNODE, compaction is also attempted only for a single node, so in
+practice there should be no significant loss of information when constructing
+the return value, nor bias towards 'goto nopage' for THP faults.
+
+[1] https://lkml.kernel.org/r/20181206005425.GB21159@redhat.com
+
+Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>
 ---
- fs/binfmt_elf.c        | 6 +++++-
- fs/binfmt_elf_fdpic.c  | 6 +++++-
- fs/compat_binfmt_elf.c | 5 +++++
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ mm/page_alloc.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 54207327f98f..9fa20cc4a437 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -86,6 +86,10 @@ static int elf_core_dump(struct coredump_params *cprm);
- #define ELF_CORE_EFLAGS	0
- #endif
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2ec9cc407216..3d83a6093ada 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4129,14 +4129,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		 */
+ 		if (costly_order && (gfp_mask & __GFP_NORETRY)) {
+ 			/*
+-			 * If compaction is deferred for high-order allocations,
+-			 * it is because sync compaction recently failed. If
+-			 * this is the case and the caller requested a THP
+-			 * allocation, we do not want to heavily disrupt the
+-			 * system, so we fail the allocation instead of entering
+-			 * direct reclaim.
++			 * If compaction was skipped because of insufficient
++			 * free pages, proceed with reclaim and another
++			 * compaction attempt. If it failed for other reasons or
++			 * was deferred, do not reclaim and retry, as we do not
++			 * want to heavily disrupt the system for a costly
++			 * __GFP_NORETRY allocation such as THP.
+ 			 */
+-			if (compact_result == COMPACT_DEFERRED)
++			if (compact_result != COMPACT_SKIPPED)
+ 				goto nopage;
  
-+#ifndef ELF_AT_FLAGS
-+#define ELF_AT_FLAGS	0
-+#endif
-+
- #define ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
- #define ELF_PAGEOFFSET(_v) ((_v) & (ELF_MIN_ALIGN-1))
- #define ELF_PAGEALIGN(_v) (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
-@@ -251,7 +255,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
- 	NEW_AUX_ENT(AT_PHENT, sizeof(struct elf_phdr));
- 	NEW_AUX_ENT(AT_PHNUM, exec->e_phnum);
- 	NEW_AUX_ENT(AT_BASE, interp_load_addr);
--	NEW_AUX_ENT(AT_FLAGS, 0);
-+	NEW_AUX_ENT(AT_FLAGS, ELF_AT_FLAGS);
- 	NEW_AUX_ENT(AT_ENTRY, exec->e_entry);
- 	NEW_AUX_ENT(AT_UID, from_kuid_munged(cred->user_ns, cred->uid));
- 	NEW_AUX_ENT(AT_EUID, from_kuid_munged(cred->user_ns, cred->euid));
-diff --git a/fs/binfmt_elf_fdpic.c b/fs/binfmt_elf_fdpic.c
-index b53bb3729ac1..cf1e680a6b88 100644
---- a/fs/binfmt_elf_fdpic.c
-+++ b/fs/binfmt_elf_fdpic.c
-@@ -82,6 +82,10 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *,
- static int elf_fdpic_core_dump(struct coredump_params *cprm);
- #endif
- 
-+#ifndef ELF_AT_FLAGS
-+#define ELF_AT_FLAGS	0
-+#endif
-+
- static struct linux_binfmt elf_fdpic_format = {
- 	.module		= THIS_MODULE,
- 	.load_binary	= load_elf_fdpic_binary,
-@@ -651,7 +655,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
- 	NEW_AUX_ENT(AT_PHENT,	sizeof(struct elf_phdr));
- 	NEW_AUX_ENT(AT_PHNUM,	exec_params->hdr.e_phnum);
- 	NEW_AUX_ENT(AT_BASE,	interp_params->elfhdr_addr);
--	NEW_AUX_ENT(AT_FLAGS,	0);
-+	NEW_AUX_ENT(AT_FLAGS,	ELF_AT_FLAGS);
- 	NEW_AUX_ENT(AT_ENTRY,	exec_params->entry_addr);
- 	NEW_AUX_ENT(AT_UID,	(elf_addr_t) from_kuid_munged(cred->user_ns, cred->uid));
- 	NEW_AUX_ENT(AT_EUID,	(elf_addr_t) from_kuid_munged(cred->user_ns, cred->euid));
-diff --git a/fs/compat_binfmt_elf.c b/fs/compat_binfmt_elf.c
-index 15f6e96b3bd9..a21cf99701ae 100644
---- a/fs/compat_binfmt_elf.c
-+++ b/fs/compat_binfmt_elf.c
-@@ -79,6 +79,11 @@
- #define	ELF_HWCAP2		COMPAT_ELF_HWCAP2
- #endif
- 
-+#ifdef	COMPAT_ELF_AT_FLAGS
-+#undef	ELF_AT_FLAGS
-+#define	ELF_AT_FLAGS		COMPAT_ELF_AT_FLAGS
-+#endif
-+
- #ifdef	COMPAT_ARCH_DLINFO
- #undef	ARCH_DLINFO
- #define	ARCH_DLINFO		COMPAT_ARCH_DLINFO
+ 			/*
 -- 
 2.19.2
