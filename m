@@ -1,101 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D89F8E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 12:16:17 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id u17so4289048pgn.17
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 09:16:17 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D5EC8E00C9
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 17:24:18 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id o21so7620430edq.4
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 14:24:18 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y64sor9074266pgd.38.2018.12.14.09.16.16
+        by mx.google.com with SMTPS id z25-v6sor4090100eja.49.2018.12.11.14.24.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 14 Dec 2018 09:16:16 -0800 (PST)
-From: Suren Baghdasaryan <surenb@google.com>
-Subject: [PATCH 2/6] kernel: cgroup: add poll file operation
-Date: Fri, 14 Dec 2018 09:15:04 -0800
-Message-Id: <20181214171508.7791-3-surenb@google.com>
-In-Reply-To: <20181214171508.7791-1-surenb@google.com>
-References: <20181214171508.7791-1-surenb@google.com>
+        Tue, 11 Dec 2018 14:24:17 -0800 (PST)
+Date: Tue, 11 Dec 2018 22:24:15 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 1/1] mm, memory_hotplug: Initialize struct pages for the
+ full memory section
+Message-ID: <20181211222415.yfco6l2dmywxgid7@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181210130712.30148-1-zaslonko@linux.ibm.com>
+ <20181210130712.30148-2-zaslonko@linux.ibm.com>
+ <20181210132451.GO1286@dhcp22.suse.cz>
+ <20181211094938.3mykr3n3tp6rfz4p@master>
+ <e23ad186-31d4-176d-7330-8c22378891ee@linux.bm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e23ad186-31d4-176d-7330-8c22378891ee@linux.bm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
+To: Zaslonko Mikhail <zaslonko@linux.bm.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Michal Hocko <mhocko@kernel.org>, Mikhail Zaslonko <zaslonko@linux.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pavel.Tatashin@microsoft.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+On Tue, Dec 11, 2018 at 04:17:34PM +0100, Zaslonko Mikhail wrote:
+>
+>
+>On 11.12.2018 10:49, Wei Yang wrote:
+>> On Mon, Dec 10, 2018 at 02:24:51PM +0100, Michal Hocko wrote:
+>>> On Mon 10-12-18 14:07:12, Mikhail Zaslonko wrote:
+>>>> If memory end is not aligned with the sparse memory section boundary, the
+>>>> mapping of such a section is only partly initialized.
+>>>
+>>> It would be great to mention how you can end up in the situation like
+>>> this(a user provided memmap or a strange HW). 
+>>>
+>>>> This may lead to
+>>>> VM_BUG_ON due to uninitialized struct page access from
+>>>> is_mem_section_removable() or test_pages_in_a_zone() function triggered by
+>>>> memory_hotplug sysfs handlers:
+>>>>
+>>>>  page:000003d082008000 is uninitialized and poisoned
+>>>>  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+>>>>  Call Trace:
+>>>>  ([<0000000000385b26>] test_pages_in_a_zone+0xde/0x160)
+>>>>   [<00000000008f15c4>] show_valid_zones+0x5c/0x190
+>>>>   [<00000000008cf9c4>] dev_attr_show+0x34/0x70
+>>>>   [<0000000000463ad0>] sysfs_kf_seq_show+0xc8/0x148
+>>>>   [<00000000003e4194>] seq_read+0x204/0x480
+>>>>   [<00000000003b53ea>] __vfs_read+0x32/0x178
+>>>>   [<00000000003b55b2>] vfs_read+0x82/0x138
+>>>>   [<00000000003b5be2>] ksys_read+0x5a/0xb0
+>>>>   [<0000000000b86ba0>] system_call+0xdc/0x2d8
+>>>>  Last Breaking-Event-Address:
+>>>>   [<0000000000385b26>] test_pages_in_a_zone+0xde/0x160
+>>>>  Kernel panic - not syncing: Fatal exception: panic_on_oops
+>>>>
+>>>> Fix the problem by initializing the last memory section of the highest zone
+>>>> in memmap_init_zone() till the very end, even if it goes beyond the zone
+>>>> end.
+>>>
+>>> Why do we need to restrict this to the highest zone? In other words, why
+>>> cannot we do what I was suggesting earlier [1]. What does prevent other
+>>> zones to have an incomplete section boundary?
+>>>
+>>> [1] http://lkml.kernel.org/r/20181105183533.GQ4361@dhcp22.suse.cz
+>>>
+>> 
+>> I tried to go through the original list and make myself familiar with
+>> the bug.
+>> 
+>> Confused why initialize the *last* end_pfn could fix this, since
+>> is_mem_section_removable() will iterate on each page of a section. This
+>> means we need to initialize all the pages left in the section.
+>That's exactly what the fix does. We initialize all the pages left in 
+>the section.
+>
 
-Cgroup has a standardized poll/notification mechanism for waking all
-pollers on all fds when a filesystem node changes. To allow polling
-for custom events, add a .poll callback that can override the default.
+You are right, I misunderstand your code.
 
-This is in preparation for pollable cgroup pressure files which have
-per-fd trigger configurations.
+>> 
+>> One way to fix this in my mind is to record the last pfn in mem_section.
+>Do you mean last initialized pfn? I guess we have agreed upon that the 
+>entire section should be initialized.  
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Suren Baghdasaryan <surenb@google.com>
----
- include/linux/cgroup-defs.h |  4 ++++
- kernel/cgroup/cgroup.c      | 12 ++++++++++++
- 2 files changed, 16 insertions(+)
+Well, that would be great.
 
-diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
-index 5e1694fe035b..6f9ea8601421 100644
---- a/include/linux/cgroup-defs.h
-+++ b/include/linux/cgroup-defs.h
-@@ -32,6 +32,7 @@ struct kernfs_node;
- struct kernfs_ops;
- struct kernfs_open_file;
- struct seq_file;
-+struct poll_table_struct;
- 
- #define MAX_CGROUP_TYPE_NAMELEN 32
- #define MAX_CGROUP_ROOT_NAMELEN 64
-@@ -573,6 +574,9 @@ struct cftype {
- 	ssize_t (*write)(struct kernfs_open_file *of,
- 			 char *buf, size_t nbytes, loff_t off);
- 
-+	__poll_t (*poll)(struct kernfs_open_file *of,
-+			 struct poll_table_struct *pt);
-+
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- 	struct lock_class_key	lockdep_key;
- #endif
-diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
-index 6aaf5dd5383b..ffcd7483b8ee 100644
---- a/kernel/cgroup/cgroup.c
-+++ b/kernel/cgroup/cgroup.c
-@@ -3499,6 +3499,16 @@ static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
- 	return ret ?: nbytes;
- }
- 
-+static __poll_t cgroup_file_poll(struct kernfs_open_file *of, poll_table *pt)
-+{
-+	struct cftype *cft = of->kn->priv;
-+
-+	if (cft->poll)
-+		return cft->poll(of, pt);
-+
-+	return kernfs_generic_poll(of, pt);
-+}
-+
- static void *cgroup_seqfile_start(struct seq_file *seq, loff_t *ppos)
- {
- 	return seq_cft(seq)->seq_start(seq, ppos);
-@@ -3537,6 +3547,7 @@ static struct kernfs_ops cgroup_kf_single_ops = {
- 	.open			= cgroup_file_open,
- 	.release		= cgroup_file_release,
- 	.write			= cgroup_file_write,
-+	.poll			= cgroup_file_poll,
- 	.seq_show		= cgroup_seqfile_show,
- };
- 
-@@ -3545,6 +3556,7 @@ static struct kernfs_ops cgroup_kf_ops = {
- 	.open			= cgroup_file_open,
- 	.release		= cgroup_file_release,
- 	.write			= cgroup_file_write,
-+	.poll			= cgroup_file_poll,
- 	.seq_start		= cgroup_seqfile_start,
- 	.seq_next		= cgroup_seqfile_next,
- 	.seq_stop		= cgroup_seqfile_stop,
+>
+>> This could be done in memory_preset(), since after that we may assume
+>> the section is full. Not sure whether you would like it.
+>> 
+
 -- 
-2.20.0.405.gbc1bbc6f85-goog
+Wei Yang
+Help you, Help me
