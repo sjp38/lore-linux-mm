@@ -1,37 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7854B8E004D
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 05:48:23 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id t199so506381wmd.3
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 02:48:23 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id w8si8664671wrp.196.2018.12.11.02.48.22
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B80AF8E004D
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 05:36:59 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id l22so12379825pfb.2
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 02:36:59 -0800 (PST)
+Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
+        by mx.google.com with ESMTPS id e11si11990602pgf.450.2018.12.11.02.36.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Dec 2018 02:48:22 -0800 (PST)
-Date: Tue, 11 Dec 2018 11:47:52 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [tip:x86/pti] x86/speculation/l1tf: Drop the swap storage limit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 11 Dec 2018 02:36:58 -0800 (PST)
+Date: Tue, 11 Dec 2018 02:36:54 -0800
+From: tip-bot for Michal Hocko <tipbot@zytor.com>
+Message-ID: <tip-d7409e79dbec2d2834fb6ccca53664197ab65505@git.kernel.org>
+Reply-To: tglx@linutronix.de, jkosina@suse.cz, torvalds@linux-foundation.org,
+        linux-kernel@vger.kernel.org, pasha.tatashin@soleen.com,
+        dave.hansen@intel.com, ak@linux.intel.com, hpa@zytor.com, bp@suse.de,
+        mingo@kernel.org, mhocko@suse.com, linux-mm@kvack.org
+In-Reply-To: <20181113184910.26697-1-mhocko@kernel.org>
+References: <20181113184910.26697-1-mhocko@kernel.org>
+Subject: [tip:x86/pti] x86/speculation/l1tf: Drop the swap storage limit
  restriction when l1tf=off
-In-Reply-To: <20181211090056.GA30493@gmail.com>
-Message-ID: <alpine.DEB.2.21.1812111147300.8611@nanos.tec.linutronix.de>
-References: <20181113184910.26697-1-mhocko@kernel.org> <tip-f4abaa98c4575cc06ea5e1a593e3bc2c8de8ef48@git.kernel.org> <20181211090056.GA30493@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-mm@kvack.org, mhocko@suse.com, bp@suse.de, pasha.tatashin@soleen.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, torvalds@linux-foundation.org, hpa@zytor.com, jkosina@suse.cz, ak@linux.intel.com, linux-tip-commits@vger.kernel.org
+To: linux-tip-commits@vger.kernel.org
+Cc: jkosina@suse.cz, tglx@linutronix.de, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, pasha.tatashin@soleen.com, dave.hansen@intel.com, hpa@zytor.com, ak@linux.intel.com, mhocko@suse.com, linux-mm@kvack.org, bp@suse.de, mingo@kernel.org
 
-On Tue, 11 Dec 2018, Ingo Molnar wrote:
-> >    off		Disables hypervisor mitigations and doesn't emit any
-> >  		warnings.
-> > +		It also drops the swap size and available RAM limit restrictions
-> > +                on both hypervisor and bare metal.
-> > +
-> 
-> Note tha there's also some whitespace damage here: all other similar 
-> lines in this RST file start with two tabs, this one starts with 8 
-> spaces.
+Commit-ID:  d7409e79dbec2d2834fb6ccca53664197ab65505
+Gitweb:     https://git.kernel.org/tip/d7409e79dbec2d2834fb6ccca53664197ab65505
+Author:     Michal Hocko <mhocko@suse.com>
+AuthorDate: Tue, 13 Nov 2018 19:49:10 +0100
+Committer:  Thomas Gleixner <tglx@linutronix.de>
+CommitDate: Tue, 11 Dec 2018 11:13:32 +0100
 
-Fixed...
+x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
+
+Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
+the system is deemed affected by L1TF vulnerability. Even though the limit
+is quite high for most deployments it seems to be too restrictive for
+deployments which are willing to live with the mitigation disabled.
+
+We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
+clearly out of the limit.
+
+Drop the swap restriction when l1tf=off is specified. It also doesn't make
+much sense to warn about too much memory for the l1tf mitigation when it is
+forcefully disabled by the administrator.
+
+[ tglx: Folded the documentation delta change ]
+
+Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: Jiri Kosina <jkosina@suse.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: <linux-mm@kvack.org>
+Cc: stable@vger.kernel.org
+Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
+---
+ Documentation/admin-guide/kernel-parameters.txt | 3 +++
+ Documentation/admin-guide/l1tf.rst              | 6 +++++-
+ arch/x86/kernel/cpu/bugs.c                      | 3 ++-
+ arch/x86/mm/init.c                              | 2 +-
+ 4 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index 05a252e5178d..835e422572eb 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -2095,6 +2095,9 @@
+ 			off
+ 				Disables hypervisor mitigations and doesn't
+ 				emit any warnings.
++				It also drops the swap size and available
++				RAM limit restriction on both hypervisor and
++				bare metal.
+ 
+ 			Default is 'flush'.
+ 
+diff --git a/Documentation/admin-guide/l1tf.rst b/Documentation/admin-guide/l1tf.rst
+index b85dd80510b0..2e65e6cb033e 100644
+--- a/Documentation/admin-guide/l1tf.rst
++++ b/Documentation/admin-guide/l1tf.rst
+@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid arguments for this option are:
+ 
+   off		Disables hypervisor mitigations and doesn't emit any
+ 		warnings.
++		It also drops the swap size and available RAM limit restrictions
++                on both hypervisor and bare metal.
++
+   ============  =============================================================
+ 
+ The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
+@@ -576,7 +579,8 @@ Default mitigations
+   The kernel default mitigations for vulnerable processors are:
+ 
+   - PTE inversion to protect against malicious user space. This is done
+-    unconditionally and cannot be controlled.
++    unconditionally and cannot be controlled. The swap storage is limited
++    to ~16TB.
+ 
+   - L1D conditional flushing on VMENTER when EPT is enabled for
+     a guest.
+diff --git a/arch/x86/kernel/cpu/bugs.c b/arch/x86/kernel/cpu/bugs.c
+index a68b32cb845a..58689ac64440 100644
+--- a/arch/x86/kernel/cpu/bugs.c
++++ b/arch/x86/kernel/cpu/bugs.c
+@@ -1002,7 +1002,8 @@ static void __init l1tf_select_mitigation(void)
+ #endif
+ 
+ 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
+-	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
++	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
++			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
+ 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
+ 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
+ 				half_pa);
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index ef99f3892e1f..427a955a2cf2 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
+ 
+ 	pages = generic_max_swapfile_size();
+ 
+-	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
++	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
+ 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
+ 		unsigned long long l1tf_limit = l1tf_pfn_limit();
+ 		/*
