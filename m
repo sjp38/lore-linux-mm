@@ -1,247 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 436E16B68C6
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 06:16:18 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id u32so13162441qte.1
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 03:16:18 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b88si1479608qva.135.2018.12.03.03.16.16
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CC7F68E00B9
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:38:07 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id l69so9059980ywb.7
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:38:07 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e16sor2722609ywa.208.2018.12.11.09.38.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 03:16:17 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1] drivers/base/memory.c: Use DEVICE_ATTR_RO and friends
-Date: Mon,  3 Dec 2018 12:16:11 +0100
-Message-Id: <20181203111611.10633-1-david@redhat.com>
+        (Google Transport Security);
+        Tue, 11 Dec 2018 09:38:06 -0800 (PST)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH 0/3][V5] drop the mmap_sem when doing IO in the fault path
+Date: Tue, 11 Dec 2018 12:37:58 -0500
+Message-Id: <20181211173801.29535-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Oscar Salvador <osalvador@suse.com>, Michal Hocko <mhocko@kernel.org>, Wei Yang <richard.weiyang@gmail.com>
+To: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
 
-Let's use the easier to read (and not mess up) variants:
-- Use DEVICE_ATTR_RO
-- Use DEVICE_ATTR_WO
-- Use DEVICE_ATTR_RW
-instead of the more generic DEVICE_ATTR() we're using right now.
+Here's the latest version, slimmed down a bit from my last submission with more
+details in the changelogs as requested.
 
-We have to rename most callback functions. By fixing the intendations we
-can even save some LOCs.
+v4->v5:
+- dropped the cached_page infrastructure and the addition of the
+  handle_mm_fault_cacheable helper as it had no discernable bearing on
+  performance in my performance testing.
+- reworked the page lock dropping logic in order to be it's own helper, which
+  comments describing how to use it.
+- added more details to the changelog for the fpin patch.
+- added a patch to cleanup the arguments for the readahead functions for mmap as
+  per Jan's suggestion.
 
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Oscar Salvador <osalvador@suse.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- drivers/base/memory.c | 79 ++++++++++++++++++++-----------------------
- 1 file changed, 36 insertions(+), 43 deletions(-)
+v3->v4:
+- dropped the ->page_mkwrite portion of these patches, we don't actually see
+  issues with mkwrite in production, and I kept running into corner cases where
+  I missed something important.  I want to wait on that part until I have a real
+  reason to do the work so I can have a solid test in place.
+- completely reworked how we drop the mmap_sem in filemap_fault and cleaned it
+  up a bit.  Once I started actually testing this with our horrifying reproducer
+  I saw a bunch of places where we still ended up doing IO under the mmap_sem
+  because I had missed a few corner cases.  Fixed this by reworking
+  filemap_fault to only return RETRY once it has a completely uptodate page
+  ready to be used.
+- lots more testing, including production testing.
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 0c290f86ab20..c9c1ee564edb 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -109,8 +109,8 @@ static unsigned long get_memory_block_size(void)
-  * uses.
-  */
- 
--static ssize_t show_mem_start_phys_index(struct device *dev,
--			struct device_attribute *attr, char *buf)
-+static ssize_t phys_index_show(struct device *dev,
-+			       struct device_attribute *attr, char *buf)
- {
- 	struct memory_block *mem = to_memory_block(dev);
- 	unsigned long phys_index;
-@@ -122,8 +122,8 @@ static ssize_t show_mem_start_phys_index(struct device *dev,
- /*
-  * Show whether the section of memory is likely to be hot-removable
-  */
--static ssize_t show_mem_removable(struct device *dev,
--			struct device_attribute *attr, char *buf)
-+static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
-+			      char *buf)
- {
- 	unsigned long i, pfn;
- 	int ret = 1;
-@@ -146,8 +146,8 @@ static ssize_t show_mem_removable(struct device *dev,
- /*
-  * online, offline, going offline, etc.
-  */
--static ssize_t show_mem_state(struct device *dev,
--			struct device_attribute *attr, char *buf)
-+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
-+			  char *buf)
- {
- 	struct memory_block *mem = to_memory_block(dev);
- 	ssize_t len = 0;
-@@ -286,7 +286,7 @@ static int memory_subsys_online(struct device *dev)
- 		return 0;
- 
- 	/*
--	 * If we are called from store_mem_state(), online_type will be
-+	 * If we are called from state_store(), online_type will be
- 	 * set >= 0 Otherwise we were called from the device online
- 	 * attribute and need to set the online_type.
- 	 */
-@@ -315,9 +315,8 @@ static int memory_subsys_offline(struct device *dev)
- 	return memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
- }
- 
--static ssize_t
--store_mem_state(struct device *dev,
--		struct device_attribute *attr, const char *buf, size_t count)
-+static ssize_t state_store(struct device *dev, struct device_attribute *attr,
-+			   const char *buf, size_t count)
- {
- 	struct memory_block *mem = to_memory_block(dev);
- 	int ret, online_type;
-@@ -374,7 +373,7 @@ store_mem_state(struct device *dev,
-  * s.t. if I offline all of these sections I can then
-  * remove the physical device?
-  */
--static ssize_t show_phys_device(struct device *dev,
-+static ssize_t phys_device_show(struct device *dev,
- 				struct device_attribute *attr, char *buf)
- {
- 	struct memory_block *mem = to_memory_block(dev);
-@@ -395,7 +394,7 @@ static void print_allowed_zone(char *buf, int nid, unsigned long start_pfn,
- 	}
- }
- 
--static ssize_t show_valid_zones(struct device *dev,
-+static ssize_t valid_zones_show(struct device *dev,
- 				struct device_attribute *attr, char *buf)
- {
- 	struct memory_block *mem = to_memory_block(dev);
-@@ -435,33 +434,31 @@ static ssize_t show_valid_zones(struct device *dev,
- 
- 	return strlen(buf);
- }
--static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
-+static DEVICE_ATTR_RO(valid_zones);
- #endif
- 
--static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
--static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
--static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
--static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
-+static DEVICE_ATTR_RO(phys_index);
-+static DEVICE_ATTR_RW(state);
-+static DEVICE_ATTR_RO(phys_device);
-+static DEVICE_ATTR_RO(removable);
- 
- /*
-  * Block size attribute stuff
-  */
--static ssize_t
--print_block_size(struct device *dev, struct device_attribute *attr,
--		 char *buf)
-+static ssize_t block_size_bytes_show(struct device *dev,
-+				     struct device_attribute *attr, char *buf)
- {
- 	return sprintf(buf, "%lx\n", get_memory_block_size());
- }
- 
--static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
-+static DEVICE_ATTR_RO(block_size_bytes);
- 
- /*
-  * Memory auto online policy.
-  */
- 
--static ssize_t
--show_auto_online_blocks(struct device *dev, struct device_attribute *attr,
--			char *buf)
-+static ssize_t auto_online_blocks_show(struct device *dev,
-+				       struct device_attribute *attr, char *buf)
- {
- 	if (memhp_auto_online)
- 		return sprintf(buf, "online\n");
-@@ -469,9 +466,9 @@ show_auto_online_blocks(struct device *dev, struct device_attribute *attr,
- 		return sprintf(buf, "offline\n");
- }
- 
--static ssize_t
--store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
--			 const char *buf, size_t count)
-+static ssize_t auto_online_blocks_store(struct device *dev,
-+					struct device_attribute *attr,
-+					const char *buf, size_t count)
- {
- 	if (sysfs_streq(buf, "online"))
- 		memhp_auto_online = true;
-@@ -483,8 +480,7 @@ store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
- 	return count;
- }
- 
--static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
--		   store_auto_online_blocks);
-+static DEVICE_ATTR_RW(auto_online_blocks);
- 
- /*
-  * Some architectures will have custom drivers to do this, and
-@@ -493,9 +489,8 @@ static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
-  * and will require this interface.
-  */
- #ifdef CONFIG_ARCH_MEMORY_PROBE
--static ssize_t
--memory_probe_store(struct device *dev, struct device_attribute *attr,
--		   const char *buf, size_t count)
-+static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
-+			   const char *buf, size_t count)
- {
- 	u64 phys_addr;
- 	int nid, ret;
-@@ -525,7 +520,7 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
- 	return ret;
- }
- 
--static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
-+static DEVICE_ATTR_WO(probe);
- #endif
- 
- #ifdef CONFIG_MEMORY_FAILURE
-@@ -534,10 +529,9 @@ static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
-  */
- 
- /* Soft offline a page */
--static ssize_t
--store_soft_offline_page(struct device *dev,
--			struct device_attribute *attr,
--			const char *buf, size_t count)
-+static ssize_t soft_offline_page_store(struct device *dev,
-+				       struct device_attribute *attr,
-+				       const char *buf, size_t count)
- {
- 	int ret;
- 	u64 pfn;
-@@ -553,10 +547,9 @@ store_soft_offline_page(struct device *dev,
- }
- 
- /* Forcibly offline a page, including killing processes. */
--static ssize_t
--store_hard_offline_page(struct device *dev,
--			struct device_attribute *attr,
--			const char *buf, size_t count)
-+static ssize_t hard_offline_page_store(struct device *dev,
-+				       struct device_attribute *attr,
-+				       const char *buf, size_t count)
- {
- 	int ret;
- 	u64 pfn;
-@@ -569,8 +562,8 @@ store_hard_offline_page(struct device *dev,
- 	return ret ? ret : count;
- }
- 
--static DEVICE_ATTR(soft_offline_page, S_IWUSR, NULL, store_soft_offline_page);
--static DEVICE_ATTR(hard_offline_page, S_IWUSR, NULL, store_hard_offline_page);
-+static DEVICE_ATTR_WO(soft_offline_page);
-+static DEVICE_ATTR_WO(hard_offline_page);
- #endif
- 
- /*
--- 
-2.17.2
+v2->v3:
+- dropped the RFC, ready for a real review.
+- fixed a kbuild error for !MMU configs.
+- dropped the swapcache patches since Johannes is still working on those parts.
+
+v1->v2:
+- reworked so it only affects x86, since its the only arch I can build and test.
+- fixed the fact that do_page_mkwrite wasn't actually sending ALLOW_RETRY down
+  to ->page_mkwrite.
+- fixed error handling in do_page_mkwrite/callers to explicitly catch
+  VM_FAULT_RETRY.
+- fixed btrfs to set ->cached_page properly.
+
+-- Original message --
+
+Now that we have proper isolation in place with cgroups2 we have started going
+through and fixing the various priority inversions.  Most are all gone now, but
+this one is sort of weird since it's not necessarily a priority inversion that
+happens within the kernel, but rather because of something userspace does.
+
+We have giant applications that we want to protect, and parts of these giant
+applications do things like watch the system state to determine how healthy the
+box is for load balancing and such.  This involves running 'ps' or other such
+utilities.  These utilities will often walk /proc/<pid>/whatever, and these
+files can sometimes need to down_read(&task->mmap_sem).  Not usually a big deal,
+but we noticed when we are stress testing that sometimes our protected
+application has latency spikes trying to get the mmap_sem for tasks that are in
+lower priority cgroups.
+
+This is because any down_write() on a semaphore essentially turns it into a
+mutex, so even if we currently have it held for reading, any new readers will
+not be allowed on to keep from starving the writer.  This is fine, except a
+lower priority task could be stuck doing IO because it has been throttled to the
+point that its IO is taking much longer than normal.  But because a higher
+priority group depends on this completing it is now stuck behind lower priority
+work.
+
+In order to avoid this particular priority inversion we want to use the existing
+retry mechanism to stop from holding the mmap_sem at all if we are going to do
+IO.  This already exists in the read case sort of, but needed to be extended for
+more than just grabbing the page lock.  With io.latency we throttle at
+submit_bio() time, so the readahead stuff can block and even page_cache_read can
+block, so all these paths need to have the mmap_sem dropped.
+
+The other big thing is ->page_mkwrite.  btrfs is particularly shitty here
+because we have to reserve space for the dirty page, which can be a very
+expensive operation.  We use the same retry method as the read path, and simply
+cache the page and verify the page is still setup properly the next pass through
+->page_mkwrite().
+
+I've tested these patches with xfstests and there are no regressions.  Let me
+know what you think.  Thanks,
+
+Josef
