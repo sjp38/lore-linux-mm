@@ -1,143 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B5278E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 09:31:22 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id d62so6428380oia.3
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 06:31:22 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l72si4927434otl.175.2018.12.10.06.31.20
-        for <linux-mm@kvack.org>;
-        Mon, 10 Dec 2018 06:31:20 -0800 (PST)
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Subject: [RFC][PATCH 0/3] arm64 relaxed ABI
-Date: Mon, 10 Dec 2018 14:30:41 +0000
-Message-Id: <20181210143044.12714-1-vincenzo.frascino@arm.com>
-In-Reply-To: <cover.1544445454.git.andreyknvl@google.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 786028E00CE
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 13:54:56 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id i12so3103276ita.3
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 10:54:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 194sor4821324itx.31.2018.12.11.10.54.55
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 11 Dec 2018 10:54:55 -0800 (PST)
+Subject: Re: [PATCH] aio: Convert ioctx_table to XArray
+References: <20181128183531.5139-1-willy@infradead.org>
+ <09e3d156-66fc-ca17-efac-63f080a27a1d@kernel.dk>
+ <20181211184553.GH6830@bombadil.infradead.org>
+ <75267003-9407-101f-33ee-685e345a2c8a@kernel.dk>
+ <20181211185311.GJ6830@bombadil.infradead.org>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <1629a25c-a9e7-e731-230d-e179e9f7a9a7@kernel.dk>
+Date: Tue, 11 Dec 2018 11:54:53 -0700
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181211185311.GJ6830@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Benjamin LaHaise <bcrl@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, fsdevel <linux-fsdevel@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Carpenter <dan.carpenter@oracle.com>
 
-On arm64 the TCR_EL1.TBI0 bit has been set since Linux 3.x hence
-the userspace (EL0) is allowed to set a non-zero value in the top
-byte but the resulting pointers are not allowed at the user-kernel
-syscall ABI boundary.
+On 12/11/18 11:53 AM, Matthew Wilcox wrote:
+> On Tue, Dec 11, 2018 at 11:46:53AM -0700, Jens Axboe wrote:
+>> On 12/11/18 11:45 AM, Matthew Wilcox wrote:
+>>> I think we need the rcu read lock here to prevent ctx from being freed
+>>> under us by free_ioctx().
+>>
+>> Then that begs the question, how about __xa_load() that is already called
+>> under RCU read lock?
+> 
+> I've been considering adding it to the API, yes.  I was under the
+> impression that nested rcu_read_lock() calls were not expensive, even
+> with CONFIG_PREEMPT.
 
-This patchset proposes a relaxation of the ABI and a mechanism to
-advertise it to the userspace via an AT_FLAGS.
-
-The rationale behind the choice of AT_FLAGS is that the Unix System V
-ABI defines AT_FLAGS as "flags", leaving some degree of freedom in
-interpretation.
-There are two previous attempts of using AT_FLAGS in the Linux Kernel
-for different reasons: the first was more generic and was used to expose
-the support for the GNU STACK NX feature [1] and the second was done for
-the MIPS architecture and was used to expose the support of "MIPS ABI
-Extension for IEEE Std 754 Non-Compliant Interlinking" [2].
-Both the changes are currently _not_ merged in mainline.
-The only architecture that reserves some of the bits in AT_FLAGS is
-currently MIPS, which introduced the concept of platform specific ABI
-(psABI) reserving the top-byte [3].
-
-When ARM64_AT_FLAGS_SYSCALL_TBI is set the kernel is advertising
-to the userspace that a relaxed ABI is supported hence this type
-of pointers are now allowed to be passed to the syscalls when they are
-in memory ranges obtained by anonymous mmap() or brk().
-
-The userspace _must_ verify that the flag is set before passing tagged
-pointers to the syscalls allowed by this relaxation.
-
-More in general, exposing the ARM64_AT_FLAGS_SYSCALL_TBI flag and mandating
-to the software to check that the feature is present, before using the
-associated functionality, it provides a degree of control on the decision
-of disabling such a feature in future without consequently breaking the
-userspace.
-
-The change required a modification of the elf common code, because in Linux
-the AT_FLAGS are currently set to zero by default by the kernel.
-
-The newly added flag has been verified on arm64 using the code below.
-#include <stdio.h>
-#include <stdbool.h>
-#include <sys/auxv.h>
-
-#define ARM64_AT_FLAGS_SYSCALL_TBI     (1 << 0)
-
-bool arm64_syscall_tbi_is_present(void)
-{
-        unsigned long at_flags = getauxval(AT_FLAGS);
-        if (at_flags & ARM64_AT_FLAGS_SYSCALL_TBI)
-                return true;
-
-        return false;
-}
-
-void main()
-{
-        if (arm64_syscall_tbi_is_present())
-                printf("ARM64_AT_FLAGS_SYSCALL_TBI is present\n");
-}
-
-This patchset should be merged together with [4].
-
-[1] https://patchwork.ozlabs.org/patch/579578/
-[2] https://lore.kernel.org/patchwork/cover/618280/
-[3] ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/psABI_mips3.0.pdf
-[4] https://patchwork.kernel.org/cover/10674351/
-
-ABI References:
----------------
-Sco SysV ABI: http://www.sco.com/developers/gabi/2003-12-17/contents.html
-PowerPC AUXV: http://openpowerfoundation.org/wp-content/uploads/resources/leabi/content/dbdoclet.50655242_98651.html
-AMD64 ABI: https://www.cs.tufts.edu/comp/40-2012f/readings/amd64-abi.pdf
-x86 ABI: https://www.uclibc.org/docs/psABI-i386.pdf
-MIPS ABI: ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/psABI_mips3.0.pdf
-ARM ABI: http://infocenter.arm.com/help/topic/com.arm.doc.ihi0044f/IHI0044F_aaelf.pdf
-SPARC ABI: http://math-atlas.sourceforge.net/devel/assembly/abi_sysV_sparc.pdf
-
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Robin Murphy <robin.murphy@arm.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Kate Stewart <kstewart@linuxfoundation.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Shuah Khan <shuah@kernel.org>
-Cc: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Jacob Bramley <Jacob.Bramley@arm.com>
-Cc: Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>
-Cc: Lee Smith <Lee.Smith@arm.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>,
-Cc: Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>
-Cc: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Cc: Evgeniy Stepanov <eugenis@google.com>
-CC: Alexander Viro <viro@zeniv.linux.org.uk>
-Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-
-Vincenzo Frascino (3):
-  elf: Make AT_FLAGS arch configurable
-  arm64: Define Documentation/arm64/elf_at_flags.txt
-  arm64: elf: Advertise relaxed ABI
-
- Documentation/arm64/elf_at_flags.txt  | 111 ++++++++++++++++++++++++++
- arch/arm64/include/asm/atflags.h      |   7 ++
- arch/arm64/include/asm/elf.h          |   5 ++
- arch/arm64/include/uapi/asm/atflags.h |   8 ++
- fs/binfmt_elf.c                       |   6 +-
- fs/binfmt_elf_fdpic.c                 |   6 +-
- fs/compat_binfmt_elf.c                |   5 ++
- 7 files changed, 146 insertions(+), 2 deletions(-)
- create mode 100644 Documentation/arm64/elf_at_flags.txt
- create mode 100644 arch/arm64/include/asm/atflags.h
- create mode 100644 arch/arm64/include/uapi/asm/atflags.h
+They are not expensive, but they are not free either. And if we know we
+are already under a rcu read lock, it seems pretty pointless. For the
+two cases (memremap and aio), the rcu read lock is right there, before
+the call. Easy to verify that it's safe.
 
 -- 
-2.19.2
+Jens Axboe
