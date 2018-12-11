@@ -1,105 +1,103 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v3 6/6] arm, unicore32: remove early_alloc*() wrappers
-Date: Sun,  9 Dec 2018 17:00:24 +0200
-In-Reply-To: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
-References: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1544367624-15376-7-git-send-email-rppt@linux.ibm.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F1EE8E0095
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:04:40 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id d11so4989109wrq.18
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:04:40 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id m12si358474wmd.167.2018.12.11.09.04.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Dec 2018 09:04:39 -0800 (PST)
+Date: Tue, 11 Dec 2018 18:04:30 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v7 06/25] ACPI / APEI: Don't store CPER records physical
+ address in struct ghes
+Message-ID: <20181211170430.GK27375@zn.tnic>
+References: <20181203180613.228133-1-james.morse@arm.com>
+ <20181203180613.228133-7-james.morse@arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20181203180613.228133-7-james.morse@arm.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
 
-On arm and unicore32i the early_alloc_aligned() and and early_alloc() are
-oneliner wrappers for memblock_alloc.
+On Mon, Dec 03, 2018 at 06:05:54PM +0000, James Morse wrote:
+> When CPER records are found the address of the records is stashed
+> in the struct ghes. Once the records have been processed, this
+> address is overwritten with zero so that it won't be processed
+> again without being re-populated by firmware.
+> 
+> This goes wrong if a struct ghes can be processed concurrently,
+> as can happen at probe time when an NMI occurs. If the NMI arrives
+> on another CPU, the probing CPU may call ghes_clear_estatus() on the
+> records before the handler had finished with them.
+> Even on the same CPU, once the interrupted handler is resumed, it
+> will call ghes_clear_estatus() on the NMIs records, this memory may
+> have already been re-used by firmware.
+> 
+> Avoid this stashing by letting the caller hold the address. A
+> later patch will do away with the use of ghes->flags in the
+> read/clear code too.
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> 
+> ---
+> Changes since v6:
+>  * Moved earlier in the series
+>  * Added buf_adder = 0 on all the error paths, and test for it in
+>    ghes_estatus_clear() for extra sanity.
+> ---
+>  drivers/acpi/apei/ghes.c | 40 +++++++++++++++++++++++-----------------
+>  include/acpi/ghes.h      |  1 -
+>  2 files changed, 23 insertions(+), 18 deletions(-)
 
-Replace their usage with direct call to memblock_alloc.
+...
 
-Suggested-by: Christoph Hellwig <hch@infradead.org>
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/arm/mm/mmu.c       | 11 +++--------
- arch/unicore32/mm/mmu.c | 12 ++++--------
- 2 files changed, 7 insertions(+), 16 deletions(-)
+> @@ -349,17 +350,20 @@ static int ghes_read_estatus(struct ghes *ghes)
+>  	if (rc)
+>  		pr_warn_ratelimited(FW_WARN GHES_PFX
+>  				    "Failed to read error status block!\n");
+> +
+>  	return rc;
+>  }
+>  
+> -static void ghes_clear_estatus(struct ghes *ghes)
+> +static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr)
+>  {
+>  	ghes->estatus->block_status = 0;
+>  	if (!(ghes->flags & GHES_TO_CLEAR))
+>  		return;
+> -	ghes_copy_tofrom_phys(ghes->estatus, ghes->buffer_paddr,
+> -			      sizeof(ghes->estatus->block_status), 0);
+> -	ghes->flags &= ~GHES_TO_CLEAR;
 
-diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index 0a04c9a5..57de0dd 100644
---- a/arch/arm/mm/mmu.c
-+++ b/arch/arm/mm/mmu.c
-@@ -719,14 +719,9 @@ EXPORT_SYMBOL(phys_mem_access_prot);
- 
- #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
- 
--static void __init *early_alloc_aligned(unsigned long sz, unsigned long align)
--{
--	return memblock_alloc(sz, align);
--}
--
- static void __init *early_alloc(unsigned long sz)
- {
--	return early_alloc_aligned(sz, sz);
-+	return memblock_alloc(sz, sz);
- }
- 
- static void *__init late_alloc(unsigned long sz)
-@@ -998,7 +993,7 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
- 	if (!nr)
- 		return;
- 
--	svm = early_alloc_aligned(sizeof(*svm) * nr, __alignof__(*svm));
-+	svm = memblock_alloc(sizeof(*svm) * nr, __alignof__(*svm));
- 
- 	for (md = io_desc; nr; md++, nr--) {
- 		create_mapping(md);
-@@ -1020,7 +1015,7 @@ void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
- 	struct vm_struct *vm;
- 	struct static_vm *svm;
- 
--	svm = early_alloc_aligned(sizeof(*svm), __alignof__(*svm));
-+	svm = memblock_alloc(sizeof(*svm), __alignof__(*svm));
- 
- 	vm = &svm->vm;
- 	vm->addr = (void *)addr;
-diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
-index 50d8c1a..a402192 100644
---- a/arch/unicore32/mm/mmu.c
-+++ b/arch/unicore32/mm/mmu.c
-@@ -141,16 +141,12 @@ static void __init build_mem_type_table(void)
- 
- #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
- 
--static void __init *early_alloc(unsigned long sz)
--{
--	return memblock_alloc(sz, sz);
--}
--
- static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
- 		unsigned long prot)
- {
- 	if (pmd_none(*pmd)) {
--		pte_t *pte = early_alloc(PTRS_PER_PTE * sizeof(pte_t));
-+		pte_t *pte = memblock_alloc(PTRS_PER_PTE * sizeof(pte_t),
-+					    PTRS_PER_PTE * sizeof(pte_t));
- 		__pmd_populate(pmd, __pa(pte) | prot);
- 	}
- 	BUG_ON(pmd_bad(*pmd));
-@@ -352,7 +348,7 @@ static void __init devicemaps_init(void)
- 	/*
- 	 * Allocate the vector page early.
- 	 */
--	vectors = early_alloc(PAGE_SIZE);
-+	vectors = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 
- 	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
- 		pmd_clear(pmd_off_k(addr));
-@@ -429,7 +425,7 @@ void __init paging_init(void)
- 	top_pmd = pmd_off_k(0xffff0000);
- 
- 	/* allocate the zero page. */
--	zero_page = early_alloc(PAGE_SIZE);
-+	zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
- 
- 	bootmem_init();
- 
+<---- newline here.
+
+> +	if (buf_paddr) {
+
+Also, you can save yourself an indendation level:
+
+	if (!buf_paddr)
+		return;
+
+	ghes_copy...
+
+> +		ghes_copy_tofrom_phys(ghes->estatus, buf_paddr,
+> +				      sizeof(ghes->estatus->block_status), 0);
+> +		ghes->flags &= ~GHES_TO_CLEAR;
+> +	}
+>  }
+
+With that addressed:
+
+Reviewed-by: Borislav Petkov <bp@suse.de>
+
 -- 
-2.7.4
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
