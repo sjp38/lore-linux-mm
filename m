@@ -1,68 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 631F06B689D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 05:33:28 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id y83so12566773qka.7
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 02:33:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l90si4131613qte.331.2018.12.03.02.33.27
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C5E68E00B9
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:45:00 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id f193so946929wme.8
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:45:00 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id f196si409503wme.198.2018.12.11.09.44.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 02:33:27 -0800 (PST)
-Subject: Re: [PATCH RFCv2 2/4] mm/memory_hotplug: Replace "bool want_memblock"
- by "int type"
-References: <20181130175922.10425-1-david@redhat.com>
- <20181130175922.10425-3-david@redhat.com>
- <20181201015024.3o334nk2fe5mlasj@master>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <5ecbff41-fc41-79fc-696e-4ca1f066f9aa@redhat.com>
-Date: Mon, 3 Dec 2018 11:33:12 +0100
+        Tue, 11 Dec 2018 09:44:59 -0800 (PST)
+Date: Tue, 11 Dec 2018 18:44:49 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v7 09/25] ACPI / APEI: Generalise the estatus queue's
+ notify code
+Message-ID: <20181211174449.GM27375@zn.tnic>
+References: <20181203180613.228133-1-james.morse@arm.com>
+ <20181203180613.228133-10-james.morse@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20181201015024.3o334nk2fe5mlasj@master>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20181203180613.228133-10-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-acpi@vger.kernel.org, devel@linuxdriverproject.org, xen-devel@lists.xenproject.org, x86@kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oscar Salvador <osalvador@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Christophe Leroy <christophe.leroy@c-s.fr>, Jonathan Neusch??fer <j.neuschaefer@gmx.net>, Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>, Arun KS <arunks@codeaurora.org>, Rob Herring <robh@kernel.org>, Pavel Tatashin <pasha.tatashin@soleen.com>, "mike.travis@hpe.com" <mike.travis@hpe.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Logan Gunthorpe <logang@deltatee.com>, J??r??me Glisse <jglisse@redhat.com>, "Jan H. Sch??nherr" <jschoenh@amazon.de>, Dave Jiang <dave.jiang@intel.com>, Matthew Wilcox <willy@infradead.org>, Mathieu Malaterre <malat@debian.org>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
 
-On 01.12.18 02:50, Wei Yang wrote:
-> On Fri, Nov 30, 2018 at 06:59:20PM +0100, David Hildenbrand wrote:
->> Let's pass a memory block type instead. Pass "MEMORY_BLOCK_NONE" for device
->> memory and for now "MEMORY_BLOCK_UNSPECIFIED" for anything else. No
->> functional change.
+On Mon, Dec 03, 2018 at 06:05:57PM +0000, James Morse wrote:
+> Refactor the estatus queue's pool notification routine from
+> NOTIFY_NMI's handlers. This will allow another notification
+> method to use the estatus queue without duplicating this code.
 > 
-> I would suggest to put more words to this.
+> This patch adds rcu_read_lock()/rcu_read_unlock() around the list
 
-Sure, makes sense, I'll add more details. Thanks!
+s/This patch adds/Add/
 
+> list_for_each_entry_rcu() walker. These aren't strictly necessary as
+> the whole nmi_enter/nmi_exit() window is a spooky RCU read-side
+> critical section.
 > 
-> "
-> Function arch_add_memory()'s last parameter *want_memblock* is used to
-> determin whether it is necessary to create a corresponding memory block
-> device. After introducing the memory block type, this patch replaces the
-> bool type *want_memblock* with memory block type with following rules
-> for now:
+> _in_nmi_notify_one() is separate from the rcu-list walker for a later
+> caller that doesn't need to walk a list.
 > 
->   * Pass "MEMORY_BLOCK_NONE" for device memory
->   * Pass "MEMORY_BLOCK_UNSPECIFIED" for anything else 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+> Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
 > 
-> Since this parameter is passed deep to __add_section(), all its
-> descendents are effected. Below lists those descendents.
+> ---
+> Changes since v6:
+>  * Removed pool grow/remove code as this is no longer necessary.
 > 
->   arch_add_memory()
->     add_pages()
->       __add_pages()
->         __add_section()
-> 
-> "
+> Changes since v3:
+>  * Removed duplicate or redundant paragraphs in commit message.
+>  * Fixed the style of a zero check.
+> Changes since v1:
+>    * Tidied up _in_nmi_notify_one().
+> ---
+>  drivers/acpi/apei/ghes.c | 63 ++++++++++++++++++++++++++--------------
+>  1 file changed, 41 insertions(+), 22 deletions(-)
 
-[...]
+...
 
+> +static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+> +{
+> +	int ret = NMI_DONE;
+> +
+> +	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
+> +		return ret;
+> +
+> +	if (!ghes_estatus_queue_notified(&ghes_nmi))
+> +		ret = NMI_HANDLED;
+
+So this reads kinda the other way around, at least to me:
+
+	"if the queue was *not* notified, the NMI was handled."
+
+Maybe rename to this:
+
+	err = process_queue(&ghes_nmi);
+	if (!err)
+		ret = NMI_HANDLED;
+
+to make it clearer...
+
+And yeah, all those static functions having "ghes_" prefix is just
+encumbering readability for no good reason.
+
+Thx.
 
 -- 
+Regards/Gruss,
+    Boris.
 
-Thanks,
-
-David / dhildenb
+Good mailing practices for 400: avoid top-posting and trim the reply.
