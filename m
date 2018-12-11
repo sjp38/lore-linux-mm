@@ -1,115 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A8C738E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:27:23 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id z10so8873035edz.15
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 09:27:23 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id q10-v6si2701968ejf.1.2018.12.12.09.27.21
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8998E004D
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:30:09 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id w15so7010261edl.21
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:30:09 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k21-v6si805323ejp.31.2018.12.11.06.30.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Dec 2018 09:27:21 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBCHJY79140390
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:27:20 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2pb5y2a73y-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:27:20 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zaslonko@linux.ibm.com>;
-	Wed, 12 Dec 2018 17:27:18 -0000
-From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Subject: [PATCH v2 1/1] mm, memory_hotplug: Initialize struct pages for the full memory section
-Date: Wed, 12 Dec 2018 18:27:12 +0100
-In-Reply-To: <20181212172712.34019-1-zaslonko@linux.ibm.com>
-References: <20181212172712.34019-1-zaslonko@linux.ibm.com>
-Message-Id: <20181212172712.34019-2-zaslonko@linux.ibm.com>
+        Tue, 11 Dec 2018 06:30:08 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC 1/3] mm, thp: restore __GFP_NORETRY for madvised thp fault allocations
+Date: Tue, 11 Dec 2018 15:29:39 +0100
+Message-Id: <20181211142941.20500-2-vbabka@suse.cz>
+In-Reply-To: <20181211142941.20500-1-vbabka@suse.cz>
+References: <20181211142941.20500-1-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, Pavel.Tatashin@microsoft.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, zaslonko@linux.ibm.com
+To: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
 
-If memory end is not aligned with the sparse memory section boundary, the
-mapping of such a section is only partly initialized. This may lead to
-VM_BUG_ON due to uninitialized struct page access from
-is_mem_section_removable() or test_pages_in_a_zone() function triggered by
-memory_hotplug sysfs handlers:
+Commit 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and
+madvised allocations") intended to make THP faults in MADV_HUGEPAGE areas more
+successful for processes that indicate that they are willing to pay a higher
+initial setup cost for long-term THP benefits. In the current page allocator
+implementation this means that the allocations will try to use reclaim and the
+more costly sync compaction mode, in case the initial direct async compaction
+fails.
 
-Here are the the panic examples:
- CONFIG_DEBUG_VM=y
- CONFIG_DEBUG_VM_PGFLAGS=y
+However, THP faults also include __GFP_THISNODE, which, combined with direct
+reclaim, can result in a node-reclaim-like local node thrashing behavior, as
+reported by Andrea [1].
 
- kernel parameter mem=2050M
- --------------------------
- page:000003d082008000 is uninitialized and poisoned
- page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
- Call Trace:
- ([<0000000000385b26>] test_pages_in_a_zone+0xde/0x160)
-  [<00000000008f15c4>] show_valid_zones+0x5c/0x190
-  [<00000000008cf9c4>] dev_attr_show+0x34/0x70
-  [<0000000000463ad0>] sysfs_kf_seq_show+0xc8/0x148
-  [<00000000003e4194>] seq_read+0x204/0x480
-  [<00000000003b53ea>] __vfs_read+0x32/0x178
-  [<00000000003b55b2>] vfs_read+0x82/0x138
-  [<00000000003b5be2>] ksys_read+0x5a/0xb0
-  [<0000000000b86ba0>] system_call+0xdc/0x2d8
- Last Breaking-Event-Address:
-  [<0000000000385b26>] test_pages_in_a_zone+0xde/0x160
- Kernel panic - not syncing: Fatal exception: panic_on_oops
+While this patch is not a full fix, the first step is to restore __GFP_NORETRY
+for madvised THP faults. The expected downside are potentially worse THP
+fault success rates for the madvised areas, which will have to then rely more
+on khugepaged. For khugepaged, __GFP_NORETRY is not restored, as its activity
+should be limited enough by sleeping to cause noticeable thrashing.
 
- kernel parameter mem=3075M
- --------------------------
- page:000003d08300c000 is uninitialized and poisoned
- page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
- Call Trace:
- ([<000000000038596c>] is_mem_section_removable+0xb4/0x190)
-  [<00000000008f12fa>] show_mem_removable+0x9a/0xd8
-  [<00000000008cf9c4>] dev_attr_show+0x34/0x70
-  [<0000000000463ad0>] sysfs_kf_seq_show+0xc8/0x148
-  [<00000000003e4194>] seq_read+0x204/0x480
-  [<00000000003b53ea>] __vfs_read+0x32/0x178
-  [<00000000003b55b2>] vfs_read+0x82/0x138
-  [<00000000003b5be2>] ksys_read+0x5a/0xb0
-  [<0000000000b86ba0>] system_call+0xdc/0x2d8
- Last Breaking-Event-Address:
-  [<000000000038596c>] is_mem_section_removable+0xb4/0x190
- Kernel panic - not syncing: Fatal exception: panic_on_oops
+Note that alloc_new_node_page() and new_page() is probably another candidate as
+they handle the migrate_pages(2), resp. mbind(2) syscall, which can thus allow
+unprivileged node-reclaim-like behavior.
 
-Fix the problem by initializing the last memory section of each zone
-in memmap_init_zone() till the very end, even if it goes beyond the zone
-end.
+The patch also updates the comments in alloc_hugepage_direct_gfpmask() because
+elsewhere compaction during page fault is called direct compaction, and
+'synchronous' refers to the migration mode, which is not used for THP faults.
 
-Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Reviewed-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: <stable@vger.kernel.org>
+[1] https://lkml.kernel.org/m/20180820032204.9591-1-aarcange@redhat.com
+
+Reported-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>
 ---
- mm/page_alloc.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ mm/huge_memory.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc407216..e2afdb2dc2c5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5542,6 +5542,18 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			cond_resched();
- 		}
- 	}
-+#ifdef CONFIG_SPARSEMEM
-+	/*
-+	 * If the zone does not span the rest of the section then
-+	 * we should at least initialize those pages. Otherwise we
-+	 * could blow up on a poisoned page in some paths which depend
-+	 * on full sections being initialized (e.g. memory hotplug).
-+	 */
-+	while (end_pfn % PAGES_PER_SECTION) {
-+		__init_single_page(pfn_to_page(end_pfn), end_pfn, zone, nid);
-+		end_pfn++;
-+	}
-+#endif
- }
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 5da55b38b1b7..c442b12b060c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -633,24 +633,23 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ {
+ 	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
  
- #ifdef CONFIG_ZONE_DEVICE
+-	/* Always do synchronous compaction */
++	/* Always try direct compaction */
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+-		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
++		return GFP_TRANSHUGE | __GFP_NORETRY;
+ 
+ 	/* Kick kcompactd and fail quickly */
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+ 		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
+ 
+-	/* Synchronous compaction if madvised, otherwise kick kcompactd */
++	/* Direct compaction if madvised, otherwise kick kcompactd */
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
+ 		return GFP_TRANSHUGE_LIGHT |
+-			(vma_madvised ? __GFP_DIRECT_RECLAIM :
++			(vma_madvised ? (__GFP_DIRECT_RECLAIM | __GFP_NORETRY):
+ 					__GFP_KSWAPD_RECLAIM);
+ 
+-	/* Only do synchronous compaction if madvised */
++	/* Only do direct compaction if madvised */
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+-		return GFP_TRANSHUGE_LIGHT |
+-		       (vma_madvised ? __GFP_DIRECT_RECLAIM : 0);
++		return vma_madvised ? (GFP_TRANSHUGE | __GFP_NORETRY) : GFP_TRANSHUGE_LIGHT;
+ 
+ 	return GFP_TRANSHUGE_LIGHT;
+ }
 -- 
-2.16.4
+2.19.2
