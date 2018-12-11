@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 219AF8E01C5
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:10:56 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id 92so4268066qkx.19
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:10:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z202si1901938qkz.83.2018.12.14.03.10.54
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ADD8C8E004D
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 07:52:36 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id d41so6742947eda.12
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 04:52:36 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s34si2188665edb.417.2018.12.11.04.52.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 03:10:55 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 3/9] powerpc/vdso: don't clear PG_reserved
-Date: Fri, 14 Dec 2018 12:10:08 +0100
-Message-Id: <20181214111014.15672-4-david@redhat.com>
-In-Reply-To: <20181214111014.15672-1-david@redhat.com>
-References: <20181214111014.15672-1-david@redhat.com>
+        Tue, 11 Dec 2018 04:52:35 -0800 (PST)
+Date: Tue, 11 Dec 2018 13:52:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: Don't bail out in do_migrate_range
+ prematurely
+Message-ID: <20181211125234.GI1286@dhcp22.suse.cz>
+References: <20181211085042.2696-1-osalvador@suse.de>
+ <20181211101818.GE1286@dhcp22.suse.cz>
+ <6009dea8a638aaa5b88088a117297edf@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6009dea8a638aaa5b88088a117297edf@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Christophe Leroy <christophe.leroy@c-s.fr>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: osalvador@suse.de
+Cc: akpm@linux-foundation.org, david@redhat.com, pasha.tatashin@soleen.com, dan.j.williams@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The VDSO is part of the kernel image and therefore the struct pages are
-marked as reserved during boot.
+On Tue 11-12-18 13:22:27, osalvador@suse.de wrote:
+> On 2018-12-11 11:18, Michal Hocko wrote:
+[...]
+> > The main question here is. Do we want to migrate as much as possible or
+> > do we want to be conservative and bail out early. The later could be an
+> > advantage if the next attempt could fail the whole operation because the
+> > impact of the failed operation would be somehow reduced. The former
+> > should be better for throughput because easily done stuff is done first.
+> > 
+> > I would go with the throuput because our failure mode is to bail out
+> > much earlier - even before we try to migrate. Even though the detection
+> > is not perfect it works reasonably well for most usecases.
+> 
+> I agree here.
+> I think it is better to do as much work as possible at once.
 
-As we install a special mapping, the actual struct pages will never be
-exposed to MM via the page tables. We can therefore leave the pages
-marked as reserved.
+This would be great to mention in the changelog. Because that is the
+real justification for the change IMHO.
 
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- arch/powerpc/kernel/vdso.c | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-index 65b3bdb99f0b..d59dc2e9a695 100644
---- a/arch/powerpc/kernel/vdso.c
-+++ b/arch/powerpc/kernel/vdso.c
-@@ -795,7 +795,6 @@ static int __init vdso_init(void)
- 	BUG_ON(vdso32_pagelist == NULL);
- 	for (i = 0; i < vdso32_pages; i++) {
- 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
--		ClearPageReserved(pg);
- 		get_page(pg);
- 		vdso32_pagelist[i] = pg;
- 	}
-@@ -809,7 +808,6 @@ static int __init vdso_init(void)
- 	BUG_ON(vdso64_pagelist == NULL);
- 	for (i = 0; i < vdso64_pages; i++) {
- 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
--		ClearPageReserved(pg);
- 		get_page(pg);
- 		vdso64_pagelist[i] = pg;
- 	}
 -- 
-2.17.2
+Michal Hocko
+SUSE Labs
