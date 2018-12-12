@@ -1,38 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5180A8E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 10:57:23 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id s50so8656140edd.11
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 07:57:23 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h13si1615067edi.431.2018.12.12.07.57.22
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 000D08E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 10:51:03 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id s50so8647949edd.11
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 07:51:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s23-v6sor4676301eju.43.2018.12.12.07.51.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Dec 2018 07:57:22 -0800 (PST)
-Date: Wed, 12 Dec 2018 16:57:15 +0100
+        (Google Transport Security);
+        Wed, 12 Dec 2018 07:51:02 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, memcg: fix reclaim deadlock with writeback
-Message-ID: <20181212155715.GU1286@dhcp22.suse.cz>
+Subject: [PATCH v2] mm, memcg: fix reclaim deadlock with writeback
+Date: Wed, 12 Dec 2018 16:50:55 +0100
+Message-Id: <20181212155055.1269-1-mhocko@kernel.org>
+In-Reply-To: <20181211132645.31053-1-mhocko@kernel.org>
 References: <20181211132645.31053-1-mhocko@kernel.org>
- <201812122333.JV0874ol%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201812122333.JV0874ol%fengguang.wu@intel.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Liu Bo <bo.liu@linux.alibaba.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Liu Bo <bo.liu@linux.alibaba.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed 12-12-18 23:33:10, kbuild test robot wrote:
-> Hi Michal,
-> 
-> I love your patch! Yet something to improve:
+From: Michal Hocko <mhocko@suse.com>
 
-Well, I hate it ;) (like all obviously broken patches) Sorry this is a
-typo. v2 sent out
+Liu Bo has experienced a deadlock between memcg (legacy) reclaim and the
+ext4 writeback
+task1:
+[<ffffffff811aaa52>] wait_on_page_bit+0x82/0xa0
+[<ffffffff811c5777>] shrink_page_list+0x907/0x960
+[<ffffffff811c6027>] shrink_inactive_list+0x2c7/0x680
+[<ffffffff811c6ba4>] shrink_node_memcg+0x404/0x830
+[<ffffffff811c70a8>] shrink_node+0xd8/0x300
+[<ffffffff811c73dd>] do_try_to_free_pages+0x10d/0x330
+[<ffffffff811c7865>] try_to_free_mem_cgroup_pages+0xd5/0x1b0
+[<ffffffff8122df2d>] try_charge+0x14d/0x720
+[<ffffffff812320cc>] memcg_kmem_charge_memcg+0x3c/0xa0
+[<ffffffff812321ae>] memcg_kmem_charge+0x7e/0xd0
+[<ffffffff811b68a8>] __alloc_pages_nodemask+0x178/0x260
+[<ffffffff8120bff5>] alloc_pages_current+0x95/0x140
+[<ffffffff81074247>] pte_alloc_one+0x17/0x40
+[<ffffffff811e34de>] __pte_alloc+0x1e/0x110
+[<ffffffffa06739de>] alloc_set_pte+0x5fe/0xc20
+[<ffffffff811e5d93>] do_fault+0x103/0x970
+[<ffffffff811e6e5e>] handle_mm_fault+0x61e/0xd10
+[<ffffffff8106ea02>] __do_page_fault+0x252/0x4d0
+[<ffffffff8106ecb0>] do_page_fault+0x30/0x80
+[<ffffffff8171bce8>] page_fault+0x28/0x30
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-Thanks!
+task2:
+[<ffffffff811aadc6>] __lock_page+0x86/0xa0
+[<ffffffffa02f1e47>] mpage_prepare_extent_to_map+0x2e7/0x310 [ext4]
+[<ffffffffa08a2689>] ext4_writepages+0x479/0xd60
+[<ffffffff811bbede>] do_writepages+0x1e/0x30
+[<ffffffff812725e5>] __writeback_single_inode+0x45/0x320
+[<ffffffff81272de2>] writeback_sb_inodes+0x272/0x600
+[<ffffffff81273202>] __writeback_inodes_wb+0x92/0xc0
+[<ffffffff81273568>] wb_writeback+0x268/0x300
+[<ffffffff81273d24>] wb_workfn+0xb4/0x390
+[<ffffffff810a2f19>] process_one_work+0x189/0x420
+[<ffffffff810a31fe>] worker_thread+0x4e/0x4b0
+[<ffffffff810a9786>] kthread+0xe6/0x100
+[<ffffffff8171a9a1>] ret_from_fork+0x41/0x50
+[<ffffffffffffffff>] 0xffffffffffffffff
+
+He adds
+: task1 is waiting for the PageWriteback bit of the page that task2 has
+: collected in mpd->io_submit->io_bio, and tasks2 is waiting for the LOCKED
+: bit the page which tasks1 has locked.
+
+More precisely task1 is handling a page fault and it has a page locked
+while it charges a new page table to a memcg. That in turn hits a memory
+limit reclaim and the memcg reclaim for legacy controller is waiting on
+the writeback but that is never going to finish because the writeback
+itself is waiting for the page locked in the #PF path. So this is
+essentially ABBA deadlock.
+
+Waiting for the writeback in legacy memcg controller is a workaround
+for pre-mature OOM killer invocations because there is no dirty IO
+throttling available for the controller. There is no easy way around
+that unfortunately. Therefore fix this specific issue by pre-allocating
+the page table outside of the page lock. We have that handy
+infrastructure for that already so simply reuse the fault-around pattern
+which already does this.
+
+Reported-and-Debugged-by: Liu Bo <bo.liu@linux.alibaba.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/memory.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 4ad2d293ddc2..bb78e90a9b70 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2993,6 +2993,17 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	vm_fault_t ret;
+ 
++	/*
++	 * Preallocate pte before we take page_lock because this might lead to
++	 * deadlocks for memcg reclaim which waits for pages under writeback.
++	 */
++	if (pmd_none(*vmf->pmd) && !vmf->prealloc_pte) {
++		vmf->prealloc_pte = pte_alloc_one(vmf->vma->vm_mm, vmf->address);
++		if (!vmf->prealloc_pte)
++			return VM_FAULT_OOM;
++		smp_wmb(); /* See comment in __pte_alloc() */
++	}
++
+ 	ret = vma->vm_ops->fault(vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY |
+ 			    VM_FAULT_DONE_COW)))
 -- 
-Michal Hocko
-SUSE Labs
+2.19.2
