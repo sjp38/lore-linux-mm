@@ -1,134 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F17978E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 13:54:14 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id b17so15941726pfc.11
-        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 10:54:14 -0800 (PST)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id z20si13629875pgv.159.2018.12.18.10.54.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Dec 2018 10:54:13 -0800 (PST)
-From: Vineet Gupta <vineet.gupta1@synopsys.com>
-Subject: [PATCH 1/2] ARC: show_regs: avoid page allocator
-Date: Tue, 18 Dec 2018 10:53:58 -0800
-Message-ID: <1545159239-30628-2-git-send-email-vgupta@synopsys.com>
-In-Reply-To: <1545159239-30628-1-git-send-email-vgupta@synopsys.com>
-References: <1545159239-30628-1-git-send-email-vgupta@synopsys.com>
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 29DD78E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:35:07 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id q11so7801677otl.23
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 09:35:07 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f75si6983290oig.184.2018.12.12.09.35.05
+        for <linux-mm@kvack.org>;
+        Wed, 12 Dec 2018 09:35:05 -0800 (PST)
+Date: Wed, 12 Dec 2018 17:34:57 +0000
+From: Dave Martin <Dave.Martin@arm.com>
+Subject: Re: [RFC][PATCH 2/3] arm64: Define
+ Documentation/arm64/elf_at_flags.txt
+Message-ID: <20181212173457.GA3505@e103592.cambridge.arm.com>
+References: <cover.1544445454.git.andreyknvl@google.com>
+ <20181210143044.12714-1-vincenzo.frascino@arm.com>
+ <20181210143044.12714-3-vincenzo.frascino@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181210143044.12714-3-vincenzo.frascino@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-snps-arc@lists.infradead.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Vineet  Gupta <vineet.gupta1@synopsys.com>
+To: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
 
-Use on-stack smaller buffers instead of dynamic pages.
+On Mon, Dec 10, 2018 at 02:30:43PM +0000, Vincenzo Frascino wrote:
+> On arm64 the TCR_EL1.TBI0 bit has been set since Linux 3.x hence
+> the userspace (EL0) is allowed to set a non-zero value in the
+> top byte but the resulting pointers are not allowed at the
+> user-kernel syscall ABI boundary.
+> 
+> With the relaxed ABI proposed through this document, it is now possible
+> to pass tagged pointers to the syscalls, when these pointers are in
+> memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap() or brk().
 
-The motivation for this change was to address lockdep splat when
-signal handling code calls show_regs (with preemption disabled) and
-ARC show_regs calls into sleepable page allocator.
+What about other anonymous memory such as the process stack?
 
-| potentially unexpected fatal signal 11.
-| BUG: sleeping function called from invalid context at ../mm/page_alloc.c:4317
-| in_atomic(): 1, irqs_disabled(): 0, pid: 57, name: segv
-| no locks held by segv/57.
-| Preemption disabled at:
-| [<8182f17e>] get_signal+0x4a6/0x7c4
-| CPU: 0 PID: 57 Comm: segv Not tainted 4.17.0+ #23
-|
-| Stack Trace:
-|  arc_unwind_core.constprop.1+0xd0/0xf4
-|  __might_sleep+0x1f6/0x234
-|  __get_free_pages+0x174/0xca0
-|  show_regs+0x22/0x330
-|  get_signal+0x4ac/0x7c4     # print_fatal_signals() -> preempt_disable()
-|  do_signal+0x30/0x224
-|  resume_user_mode_begin+0x90/0xd8
+What about MAP_PRIVATE mappings of /dev/zero (i.e., oldskool "anonymous"
+mappings)?
 
-Despite this, lockdep still barfs (see next change), but this patch
-still has merit as in we use smaller/localized buffers now and there's
-less instructoh trace to sift thru when debugging pesky issues.
+I wonder whether this should really say MAP_PRIVATE rather than
+MAP_ANONYMOUS.  There are two requirements here:
 
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- arch/arc/kernel/troubleshoot.c | 22 +++++++++-------------
- 1 file changed, 9 insertions(+), 13 deletions(-)
+ * the memory must be the exclusive property of a single process,
+   otherwise tagging it on-the-fly could break some other process;
 
-diff --git a/arch/arc/kernel/troubleshoot.c b/arch/arc/kernel/troubleshoot.c
-index e8d9fb452346..2885bec71fb8 100644
---- a/arch/arc/kernel/troubleshoot.c
-+++ b/arch/arc/kernel/troubleshoot.c
-@@ -58,11 +58,12 @@ static void show_callee_regs(struct callee_regs *cregs)
- 	print_reg_file(&(cregs->r13), 13);
- }
- 
--static void print_task_path_n_nm(struct task_struct *tsk, char *buf)
-+static void print_task_path_n_nm(struct task_struct *tsk)
- {
- 	char *path_nm = NULL;
- 	struct mm_struct *mm;
- 	struct file *exe_file;
-+	char buf[256];
- 
- 	mm = get_task_mm(tsk);
- 	if (!mm)
-@@ -80,10 +81,9 @@ static void print_task_path_n_nm(struct task_struct *tsk, char *buf)
- 	pr_info("Path: %s\n", !IS_ERR(path_nm) ? path_nm : "?");
- }
- 
--static void show_faulting_vma(unsigned long address, char *buf)
-+static void show_faulting_vma(unsigned long address)
- {
- 	struct vm_area_struct *vma;
--	char *nm = buf;
- 	struct mm_struct *active_mm = current->active_mm;
- 
- 	/* can't use print_vma_addr() yet as it doesn't check for
-@@ -96,8 +96,11 @@ static void show_faulting_vma(unsigned long address, char *buf)
- 	 * if the container VMA is not found
- 	 */
- 	if (vma && (vma->vm_start <= address)) {
-+		char buf[256];
-+		char *nm = "?";
-+
- 		if (vma->vm_file) {
--			nm = file_path(vma->vm_file, buf, PAGE_SIZE - 1);
-+			nm = file_path(vma->vm_file, buf, 256-1);
- 			if (IS_ERR(nm))
- 				nm = "?";
- 		}
-@@ -173,13 +176,8 @@ void show_regs(struct pt_regs *regs)
- {
- 	struct task_struct *tsk = current;
- 	struct callee_regs *cregs;
--	char *buf;
--
--	buf = (char *)__get_free_page(GFP_KERNEL);
--	if (!buf)
--		return;
- 
--	print_task_path_n_nm(tsk, buf);
-+	print_task_path_n_nm(tsk);
- 	show_regs_print_info(KERN_INFO);
- 
- 	show_ecr_verbose(regs);
-@@ -189,7 +187,7 @@ void show_regs(struct pt_regs *regs)
- 		(void *)regs->blink, (void *)regs->ret);
- 
- 	if (user_mode(regs))
--		show_faulting_vma(regs->ret, buf); /* faulting code, not data */
-+		show_faulting_vma(regs->ret); /* faulting code, not data */
- 
- 	pr_info("[STAT32]: 0x%08lx", regs->status32);
- 
-@@ -221,8 +219,6 @@ void show_regs(struct pt_regs *regs)
- 	cregs = (struct callee_regs *)current->thread.callee_reg;
- 	if (cregs)
- 		show_callee_regs(cregs);
--
--	free_page((unsigned long)buf);
- }
- 
- void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
--- 
-2.7.4
+ * the memory should be regular memory, i.e., not something like a
+   mapped device.  Since copy-on-write mappings of devices make little
+   sense, and we want writes to devices to propagate to the hardware
+   directly, MAP_PRIVATE doesn't make a lot of sense for such mappings.
+
+MAP_ANONYMOUS | MAP_SHARED is theoretically possible, and we should
+make sure that it does the expected thing.  Tagging such memory is
+probably a bad idea, just like any other MAP_SHARED memory.
+
+I'm assuming here that tagging some currently shared copy-on-write pages
+would throw a page fault and trigger a copy, so that we end up tagging
+the calling process's private copy of the page.
+
+I also don't see how the above requirements conflict with regular file-
+backed mappings (which would need to work if you want to be able to
+tag objects in .bss or .data etc.)
+
+> This change in the ABI requires a mechanism to inform the userspace
+> that such an option is available.
+> 
+> This patch specifies and documents the way on which AT_FLAGS can be
+> used to advertise this feature to the userspace.
+> 
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> CC: Andrey Konovalov <andreyknvl@google.com>
+> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> ---
+>  Documentation/arm64/elf_at_flags.txt | 111 +++++++++++++++++++++++++++
+>  1 file changed, 111 insertions(+)
+>  create mode 100644 Documentation/arm64/elf_at_flags.txt
+> 
+> diff --git a/Documentation/arm64/elf_at_flags.txt b/Documentation/arm64/elf_at_flags.txt
+> new file mode 100644
+> index 000000000000..153e657c058a
+> --- /dev/null
+> +++ b/Documentation/arm64/elf_at_flags.txt
+> @@ -0,0 +1,111 @@
+> +ARM64 ELF AT_FLAGS
+> +==================
+> +
+> +This document describes the usage and semantics of AT_FLAGS on arm64.
+> +
+> +1. Introduction
+> +---------------
+> +
+> +AT_FLAGS is part of the Auxiliary Vector, contains the flags and it
+> +is currently set to zero by the kernel on arm64.
+> +
+> +The auxiliary vector can be accessed by the userspace using the
+> +getauxval() API provided by the C library.
+> +getauxval() returns an unsigned long and when a flag is present in
+> +the AT_FLAGS, the corresponding bit in the returned value is set to 1.
+> +
+> +The AT_FLAGS with a "defined semantic" on arm64 are exposed to the
+> +userspace via user API (uapi/asm/atflags.h).
+> +The AT_FLAGS bits with "undefined semantics" are set to zero by default.
+> +This means that the AT_FLAGS bits to which this document does not assign
+> +an explicit meaning are to be intended reserved for future use.
+> +The kernel will populate all such bits with zero until meanings are
+> +assigned to them. If and when meanings are assigned, it is guaranteed
+> +that they will not impact the functional operation of existing userspace
+> +software. Userspace software should ignore any AT_FLAGS bit whose meaning
+> +is not defined when the software is written.
+> +
+> +The userspace software can test for features by acquiring the AT_FLAGS
+> +entry of the auxiliary vector, and testing whether a relevant flag
+> +is set.
+> +
+> +Example of a userspace test function:
+> +
+> +bool feature_x_is_present(void)
+> +{
+> +	unsigned long at_flags = getauxval(AT_FLAGS);
+> +	if (at_flags & FEATURE_X)
+> +		return true;
+> +
+> +	return false;
+> +}
+> +
+> +Where the software relies on a feature advertised by AT_FLAGS, it
+> +should check that the feature is present before attempting to
+> +use it.
+> +
+> +2. Features exposed via AT_FLAGS
+> +--------------------------------
+> +
+> +bit[0]: ARM64_AT_FLAGS_SYSCALL_TBI
+> +
+> +    On arm64 the TCR_EL1.TBI0 bit has been set since Linux 3.x hence
+> +    the userspace (EL0) is allowed to set a non-zero value in the top
+> +    byte but the resulting pointers are not allowed at the user-kernel
+> +    syscall ABI boundary.
+> +    When bit[0] is set to 1 the kernel is advertising to the userspace
+> +    that a relaxed ABI is supported hence this type of pointers are now
+> +    allowed to be passed to the syscalls, when these pointers are in
+> +    memory ranges obtained by anonymous (MAP_ANONYMOUS) mmap() or brk().
+
+"TBI" is a slightly odd name.
+
+The kernel seems not to be ignoring the top byte, otherwise how could
+it make a difference whehter the memory is anonymous or something else?
+
+(With memory tagging enabled, the top byte is also not architecturally
+ignored.)
+
+> +    In these cases the tag is preserved as the pointer goes through the
+> +    kernel. Only when the kernel needs to check if a pointer is coming
+> +    from userspace (i.e. access_ok()) an untag operation is required.
+
+Does the last sentence belong here?  That's about kernel internals,
+whereas the rest all seems user-facing.
+
+> +
+> +3. ARM64_AT_FLAGS_SYSCALL_TBI
+> +-----------------------------
+> +
+> +When ARM64_AT_FLAGS_SYSCALL_TBI is enabled every syscalls can accept tagged
+> +pointers, when these pointers are in memory ranges obtained by an anonymous
+> +(MAP_ANONYMOUS) mmap() or brk().
+> +
+> +A definition of the meaning of tagged pointers on arm64 can be found in:
+> +Documentation/arm64/tagged-pointers.txt.
+> +
+> +When a pointer does not are in a memory range obtained by an anonymous mmap()
+> +or brk(), this can not be passed to a syscall if it is tagged.
+> +
+> +To be more explicit: a syscall can accept pointers whose memory range is
+> +obtained by a non-anonymous mmap() or brk() if and only if the tag encoded in
+> +the top-byte is 0x00.
+> +
+> +When a new syscall is added, this can accept tagged pointers if and only if
+> +these pointers are in memory ranges obtained by an anonymous (MAP_ANONYMOUS)
+> +mmap() or brk(). In all the other cases, the tag encoded in the top-byte is
+> +expected to be 0x00.
+
+Does this apply to kernel interfaces that are not syscalls?
+
+And does it apply to ioctls in general (I think from discussions
+elsewhere that it can't).
+
+What about things that flow through the kernel, like an
+si_value.sival_ptr that propagates from sigqueue(2) to the signal frame
+of the signalled thread, or registered with the kernel via aio_read(2)?
+
+This kind of thing is why I would like to define a set of rules for
+making an educated guess about how the kernel should interpret
+arbitrary arguments (in an ideal world).
+
+
+With issues like this in the mix, it seems difficult to extract general
+guarantees from ARM64_AT_FLAGS_SYSCALL_TBI.  If it means that just
+certain specific uses of a few specific syscalls work with tagged
+pointers, that may not be very useful by ifself?  It sounds like if
+you are tagging memory at all, you suddenly need to port every random
+library you're using.
+
+[...]
+
+Cheers
+---Dave
