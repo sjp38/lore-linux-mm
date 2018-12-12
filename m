@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CF008E021C
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:03:14 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id f31so281587edf.17
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 15:03:14 -0800 (PST)
-Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id k13si643824edl.377.2018.12.14.15.03.12
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 594C08E00E5
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 22:54:41 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id u32so16997704qte.1
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 19:54:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i64sor8684583qke.133.2018.12.11.19.54.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 15:03:12 -0800 (PST)
-Received: from mail.blacknight.com (unknown [81.17.254.10])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 4AFED1C1D19
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 23:03:12 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 06/14] mm, migrate: Immediately fail migration of a page with no migration handler
-Date: Fri, 14 Dec 2018 23:03:02 +0000
-Message-Id: <20181214230310.572-7-mgorman@techsingularity.net>
-In-Reply-To: <20181214230310.572-1-mgorman@techsingularity.net>
-References: <20181214230310.572-1-mgorman@techsingularity.net>
+        (Google Transport Security);
+        Tue, 11 Dec 2018 19:54:40 -0800 (PST)
+Subject: Re: [PATCH] arm64: increase stack size for KASAN_EXTRA
+References: <721E7B42-2D55-4866-9C1A-3E8D64F33F9C@gmx.us>
+ <20181207223449.38808-1-cai@lca.pw>
+ <CAK8P3a20kRDrkS1YFLp6cYeKcUoC9s+O_tnYNbKEMWGukia1Tg@mail.gmail.com>
+ <1544548707.18411.3.camel@lca.pw>
+ <CAK8P3a3ghizoj5xwkQayuwu2Z1HppSqHLwHGPp97dUG4upv+LA@mail.gmail.com>
+ <1544565158.18411.5.camel@lca.pw>
+ <CAK8P3a0DiaeHtUKhWGniXQfrx3DOk9goSXp_d2-dcMunY8jRyg@mail.gmail.com>
+ <1544565572.18411.7.camel@lca.pw>
+ <CAK8P3a2kStKc8bB1cXh=PEaVUMcg01o5AqtGM5NyJ0RT0JLPuA@mail.gmail.com>
+ <1544566937.18411.9.camel@lca.pw>
+ <CAK8P3a2T-DDfmpN_KcLB8cZKTszE4tohR8ChtktP3-du76hJog@mail.gmail.com>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <9248f272-4b8f-183d-73eb-28fed1debcd2@lca.pw>
+Date: Tue, 11 Dec 2018 22:54:37 -0500
+MIME-Version: 1.0
+In-Reply-To: <CAK8P3a2T-DDfmpN_KcLB8cZKTszE4tohR8ChtktP3-du76hJog@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Pages with no migration handler use a fallback hander which sometimes
-works and sometimes persistently fails such as blockdev pages. Migration
-will retry a number of times on these persistent pages which is wasteful
-during compaction. This patch will fail migration immediately unless the
-caller is in MIGRATE_SYNC mode which indicates the caller is willing to
-wait while being persistent.
 
-This is not expected to help THP allocation success rates but it does
-reduce latencies slightly.
 
-1-socket thpfioscale
-                                    4.20.0-rc6             4.20.0-rc6
-                               noreserved-v1r4          failfast-v1r4
-Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-Amean     fault-both-3      2276.15 (   0.00%)     3867.54 * -69.92%*
-Amean     fault-both-5      4992.20 (   0.00%)     5313.20 (  -6.43%)
-Amean     fault-both-7      7373.30 (   0.00%)     7039.11 (   4.53%)
-Amean     fault-both-12    11911.52 (   0.00%)    11328.29 (   4.90%)
-Amean     fault-both-18    17209.42 (   0.00%)    16455.34 (   4.38%)
-Amean     fault-both-24    20943.71 (   0.00%)    20448.94 (   2.36%)
-Amean     fault-both-30    22703.00 (   0.00%)    21655.07 (   4.62%)
-Amean     fault-both-32    22461.41 (   0.00%)    21415.35 (   4.66%)
+On 12/11/18 6:06 PM, Arnd Bergmann wrote:
+>> I am thinking about something it is probably best just waiting for those major
+>> distors to complete upgrading to GCC9 or back-porting those stack reduction
+>> patches first. Then, it is good time to tie up loose ends for those default
+>> stack sizes in all combinations.
+> 
+> I was basically trying to make sure we don't forget it when it gets to that.
 
-The 2-socket results are not materially different. Scan rates are
-similar as expected.
+I added a reminder in my calendar to check the GCC9 adoption in Q2 FY19.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/migrate.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index df17a710e2c7..0e27a10429e2 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -885,7 +885,7 @@ static int fallback_migrate_page(struct address_space *mapping,
- 	 */
- 	if (page_has_private(page) &&
- 	    !try_to_release_page(page, GFP_KERNEL))
--		return -EAGAIN;
-+		return mode == MIGRATE_SYNC ? -EAGAIN : -EBUSY;
- 
- 	return migrate_page(mapping, newpage, page, mode);
- }
--- 
-2.16.4
+> 
+> Another alternative would be to just disable KASAN_EXTRA now
+> for gcc versions before 9, which essentially means for everyone,
+> but then we get it back once a working version gets released. As
+> I understand, this kasan option is actually fairly useless given its
+> cost, so very few people would miss it.
+> 
+> On a related note, I think we have to turn off asan-stack entirely
+> on all released clang versions. asan-stack in general is much more
+> useful than the use-after-scope check, but we clang produces some
+> very large stack frames with it and we probably can't even work
+> around it with KASAN_THREAD_SHIFT=2 but would need even
+> more than that otherwise.
+> 
+>          Arnd
+> 
