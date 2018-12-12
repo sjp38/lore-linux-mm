@@ -1,143 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 13E658E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 14:51:35 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id m3so16165109pfj.14
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 11:51:35 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id o9si16118004pfe.63.2018.12.12.11.51.33
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D7C118E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 01:31:03 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id p66so4642979itc.0
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 22:31:03 -0800 (PST)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-eopbgr740043.outbound.protection.outlook.com. [40.107.74.43])
+        by mx.google.com with ESMTPS id t185si2355514itt.131.2018.12.11.22.31.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Dec 2018 11:51:33 -0800 (PST)
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 11 Dec 2018 22:31:02 -0800 (PST)
+From: Nadav Amit <namit@vmware.com>
 Subject: Re: [PATCH v2 4/4] x86/vmalloc: Add TLB efficient x86 arch_vunmap
-Date: Wed, 12 Dec 2018 19:51:18 +0000
-Message-ID: <5c2383449991a272ab3e3fe63b758e894172dd66.camel@intel.com>
+Date: Wed, 12 Dec 2018 06:30:56 +0000
+Message-ID: <90B10050-0CF1-48B2-B671-508FB092C2FE@vmware.com>
 References: <20181212000354.31955-1-rick.p.edgecombe@intel.com>
-	 <20181212000354.31955-5-rick.p.edgecombe@intel.com>
-	 <CALCETrWunJbO=SmPGCPaZRmbvPeaqm3Cx0Ygm0EOKo-zVyrHZQ@mail.gmail.com>
-In-Reply-To: <CALCETrWunJbO=SmPGCPaZRmbvPeaqm3Cx0Ygm0EOKo-zVyrHZQ@mail.gmail.com>
+ <20181212000354.31955-5-rick.p.edgecombe@intel.com>
+In-Reply-To: <20181212000354.31955-5-rick.p.edgecombe@intel.com>
 Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <304B36728249D6428F8062333FE26377@intel.com>
-Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <7D8FBBAF5802454AB9BBEEE3320BC3F6@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "luto@kernel.org" <luto@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "ast@kernel.org" <ast@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jannh@google.com" <jannh@google.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "namit@vmware.com" <namit@vmware.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Keshavamurthy, Anil S" <anil.s.keshavamurthy@intel.com>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "naveen.n.rao@linux.vnet.ibm.com" <naveen.n.rao@linux.vnet.ibm.com>, "anil.s.keshavamurthy@intel.com" <anil.s.keshavamurthy@intel.com>, "davem@davemloft.net" <davem@davemloft.net>, "mhiramat@kernel.org" <mhiramat@kernel.org>, "rostedt@goodmis.org" <rostedt@goodmis.org>, "mingo@redhat.com" <mingo@redhat.com>, "ast@kernel.org" <ast@kernel.org>, "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "jannh@google.com" <jannh@google.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "deneen.t.dock@intel.com" <deneen.t.dock@intel.com>
 
-T24gVHVlLCAyMDE4LTEyLTExIGF0IDE4OjI0IC0wODAwLCBBbmR5IEx1dG9taXJza2kgd3JvdGU6
-DQo+IE9uIFR1ZSwgRGVjIDExLCAyMDE4IGF0IDQ6MTIgUE0gUmljayBFZGdlY29tYmUNCj4gPHJp
-Y2sucC5lZGdlY29tYmVAaW50ZWwuY29tPiB3cm90ZToNCj4gPiANCj4gPiBUaGlzIGFkZHMgYSBt
-b3JlIGVmZmljaWVudCB4ODYgYXJjaGl0ZWN0dXJlIHNwZWNpZmljIGltcGxlbWVudGF0aW9uIG9m
-DQo+ID4gYXJjaF92dW5tYXAsIHRoYXQgY2FuIGZyZWUgYW55IHR5cGUgb2Ygc3BlY2lhbCBwZXJt
-aXNzaW9uIG1lbW9yeSB3aXRoIG9ubHkgMQ0KPiA+IFRMQg0KPiA+IGZsdXNoLg0KPiA+IA0KPiA+
-IEluIG9yZGVyIHRvIGVuYWJsZSB0aGlzLCBfc2V0X3BhZ2VzX3AgYW5kIF9zZXRfcGFnZXNfbnAg
-YXJlIG1hZGUgbm9uLXN0YXRpYw0KPiA+IGFuZA0KPiA+IHJlbmFtZWQgc2V0X3BhZ2VzX3Bfbm9m
-bHVzaCBhbmQgc2V0X3BhZ2VzX25wX25vZmx1c2ggdG8gYmV0dGVyIGNvbW11bmljYXRlDQo+ID4g
-dGhlaXIgZGlmZmVyZW50IChub24tZmx1c2hpbmcpIGJlaGF2aW9yIGZyb20gdGhlIHJlc3Qgb2Yg
-dGhlIHNldF9wYWdlc18qDQo+ID4gZnVuY3Rpb25zLg0KPiA+IA0KPiA+IFRoZSBtZXRob2QgZm9y
-IGRvaW5nIHRoaXMgd2l0aCBvbmx5IDEgVExCIGZsdXNoIHdhcyBzdWdnZXN0ZWQgYnkgQW5keQ0K
-PiA+IEx1dG9taXJza2kuDQo+ID4gDQo+ID4gU3VnZ2VzdGVkLWJ5OiBBbmR5IEx1dG9taXJza2kg
-PGx1dG9Aa2VybmVsLm9yZz4NCj4gPiBTaWduZWQtb2ZmLWJ5OiBSaWNrIEVkZ2Vjb21iZSA8cmlj
-ay5wLmVkZ2Vjb21iZUBpbnRlbC5jb20+DQo+ID4gLS0tDQo+ID4gIGFyY2gveDg2L2luY2x1ZGUv
-YXNtL3NldF9tZW1vcnkuaCB8ICAyICsNCj4gPiAgYXJjaC94ODYvbW0vTWFrZWZpbGUgICAgICAg
-ICAgICAgIHwgIDMgKy0NCj4gPiAgYXJjaC94ODYvbW0vcGFnZWF0dHIuYyAgICAgICAgICAgIHwg
-MTEgKysrLS0NCj4gPiAgYXJjaC94ODYvbW0vdm1hbGxvYy5jICAgICAgICAgICAgIHwgNzEgKysr
-KysrKysrKysrKysrKysrKysrKysrKysrKysrKw0KPiA+ICA0IGZpbGVzIGNoYW5nZWQsIDgwIGlu
-c2VydGlvbnMoKyksIDcgZGVsZXRpb25zKC0pDQo+ID4gIGNyZWF0ZSBtb2RlIDEwMDY0NCBhcmNo
-L3g4Ni9tbS92bWFsbG9jLmMNCj4gPiANCj4gPiBkaWZmIC0tZ2l0IGEvYXJjaC94ODYvaW5jbHVk
-ZS9hc20vc2V0X21lbW9yeS5oDQo+ID4gYi9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9zZXRfbWVtb3J5
-LmgNCj4gPiBpbmRleCAwN2EyNTc1M2U4NWMuLjcwZWU4MWU4OTE0YiAxMDA2NDQNCj4gPiAtLS0g
-YS9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9zZXRfbWVtb3J5LmgNCj4gPiArKysgYi9hcmNoL3g4Ni9p
-bmNsdWRlL2FzbS9zZXRfbWVtb3J5LmgNCj4gPiBAQCAtODQsNiArODQsOCBAQCBpbnQgc2V0X3Bh
-Z2VzX3goc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBudW1wYWdlcyk7DQo+ID4gIGludCBzZXRfcGFn
-ZXNfbngoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBudW1wYWdlcyk7DQo+ID4gIGludCBzZXRfcGFn
-ZXNfcm8oc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBudW1wYWdlcyk7DQo+ID4gIGludCBzZXRfcGFn
-ZXNfcncoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBudW1wYWdlcyk7DQo+ID4gK2ludCBzZXRfcGFn
-ZXNfbnBfbm9mbHVzaChzdHJ1Y3QgcGFnZSAqcGFnZSwgaW50IG51bXBhZ2VzKTsNCj4gPiAraW50
-IHNldF9wYWdlc19wX25vZmx1c2goc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBudW1wYWdlcyk7DQo+
-ID4gDQo+ID4gIGV4dGVybiBpbnQga2VybmVsX3NldF90b19yZWFkb25seTsNCj4gPiAgdm9pZCBz
-ZXRfa2VybmVsX3RleHRfcncodm9pZCk7DQo+ID4gZGlmZiAtLWdpdCBhL2FyY2gveDg2L21tL01h
-a2VmaWxlIGIvYXJjaC94ODYvbW0vTWFrZWZpbGUNCj4gPiBpbmRleCA0YjEwMWRkNmU1MmYuLjE4
-OTY4MWY4NjNhNiAxMDA2NDQNCj4gPiAtLS0gYS9hcmNoL3g4Ni9tbS9NYWtlZmlsZQ0KPiA+ICsr
-KyBiL2FyY2gveDg2L21tL01ha2VmaWxlDQo+ID4gQEAgLTEzLDcgKzEzLDggQEAgQ0ZMQUdTX1JF
-TU9WRV9tZW1fZW5jcnlwdF9pZGVudGl0eS5vICA9IC1wZw0KPiA+ICBlbmRpZg0KPiA+IA0KPiA+
-ICBvYmoteSAgOj0gIGluaXQubyBpbml0XyQoQklUUykubyBmYXVsdC5vIGlvcmVtYXAubyBleHRh
-YmxlLm8gcGFnZWF0dHIubw0KPiA+IG1tYXAubyBcDQo+ID4gLSAgICAgICAgICAgcGF0Lm8gcGd0
-YWJsZS5vIHBoeXNhZGRyLm8gc2V0dXBfbngubyB0bGIubyBjcHVfZW50cnlfYXJlYS5vDQo+ID4g
-KyAgICAgICAgICAgcGF0Lm8gcGd0YWJsZS5vIHBoeXNhZGRyLm8gc2V0dXBfbngubyB0bGIubyBj
-cHVfZW50cnlfYXJlYS5vIFwNCj4gPiArICAgICAgICAgICB2bWFsbG9jLm8NCj4gPiANCj4gPiAg
-IyBNYWtlIHN1cmUgX19waHlzX2FkZHIgaGFzIG5vIHN0YWNrcHJvdGVjdG9yDQo+ID4gIG5vc3Rh
-Y2twIDo9ICQoY2FsbCBjYy1vcHRpb24sIC1mbm8tc3RhY2stcHJvdGVjdG9yKQ0KPiA+IGRpZmYg
-LS1naXQgYS9hcmNoL3g4Ni9tbS9wYWdlYXR0ci5jIGIvYXJjaC94ODYvbW0vcGFnZWF0dHIuYw0K
-PiA+IGluZGV4IGRiN2ExMDA4MjIzOC4uZGIwYTRkZmI1YTdmIDEwMDY0NA0KPiA+IC0tLSBhL2Fy
-Y2gveDg2L21tL3BhZ2VhdHRyLmMNCj4gPiArKysgYi9hcmNoL3g4Ni9tbS9wYWdlYXR0ci5jDQo+
-ID4gQEAgLTIyNDgsOSArMjI0OCw3IEBAIGludCBzZXRfcGFnZXNfcncoc3RydWN0IHBhZ2UgKnBh
-Z2UsIGludCBudW1wYWdlcykNCj4gPiAgICAgICAgIHJldHVybiBzZXRfbWVtb3J5X3J3KGFkZHIs
-IG51bXBhZ2VzKTsNCj4gPiAgfQ0KPiA+IA0KPiA+IC0jaWZkZWYgQ09ORklHX0RFQlVHX1BBR0VB
-TExPQw0KPiA+IC0NCj4gPiAtc3RhdGljIGludCBfX3NldF9wYWdlc19wKHN0cnVjdCBwYWdlICpw
-YWdlLCBpbnQgbnVtcGFnZXMpDQo+ID4gK2ludCBzZXRfcGFnZXNfcF9ub2ZsdXNoKHN0cnVjdCBw
-YWdlICpwYWdlLCBpbnQgbnVtcGFnZXMpDQo+IA0KPiBNYXliZSBzZXRfcGFnZXNfcndwX25vZmx1
-c2goKT8NClN1cmUuDQo+ID4gZGlmZiAtLWdpdCBhL2FyY2gveDg2L21tL3ZtYWxsb2MuYyBiL2Fy
-Y2gveDg2L21tL3ZtYWxsb2MuYw0KPiA+IG5ldyBmaWxlIG1vZGUgMTAwNjQ0DQo+ID4gaW5kZXgg
-MDAwMDAwMDAwMDAwLi5iZTllYTQyYzNkZmUNCj4gPiAtLS0gL2Rldi9udWxsDQo+ID4gKysrIGIv
-YXJjaC94ODYvbW0vdm1hbGxvYy5jDQo+ID4gQEAgLTAsMCArMSw3MSBAQA0KPiA+ICsvLyBTUERY
-LUxpY2Vuc2UtSWRlbnRpZmllcjogR1BMLTIuMA0KPiA+ICsvKg0KPiA+ICsgKiB2bWFsbG9jLmM6
-IHg4NiBhcmNoIHZlcnNpb24gb2Ygdm1hbGxvYy5jDQo+ID4gKyAqDQo+ID4gKyAqIChDKSBDb3B5
-cmlnaHQgMjAxOCBJbnRlbCBDb3Jwb3JhdGlvbg0KPiA+ICsgKg0KPiA+ICsgKiBUaGlzIHByb2dy
-YW0gaXMgZnJlZSBzb2Z0d2FyZTsgeW91IGNhbiByZWRpc3RyaWJ1dGUgaXQgYW5kL29yDQo+ID4g
-KyAqIG1vZGlmeSBpdCB1bmRlciB0aGUgdGVybXMgb2YgdGhlIEdOVSBHZW5lcmFsIFB1YmxpYyBM
-aWNlbnNlDQo+ID4gKyAqIGFzIHB1Ymxpc2hlZCBieSB0aGUgRnJlZSBTb2Z0d2FyZSBGb3VuZGF0
-aW9uOyB2ZXJzaW9uIDINCj4gPiArICogb2YgdGhlIExpY2Vuc2UuDQo+IA0KPiBUaGlzIHBhcmFn
-cmFwaCBtYXkgYmUgcmVkdW5kYW50IHdpdGggdGhlIFNQRFggbGluZS4NCk9rLg0KPiA+ICsgKi8N
-Cj4gPiArDQo+ID4gKyNpbmNsdWRlIDxsaW51eC9tbS5oPg0KPiA+ICsjaW5jbHVkZSA8bGludXgv
-c2V0X21lbW9yeS5oPg0KPiA+ICsjaW5jbHVkZSA8bGludXgvdm1hbGxvYy5oPg0KPiA+ICsNCj4g
-PiArc3RhdGljIHZvaWQgc2V0X2FyZWFfZGlyZWN0X25wKHN0cnVjdCB2bV9zdHJ1Y3QgKmFyZWEp
-DQo+ID4gK3sNCj4gPiArICAgICAgIGludCBpOw0KPiA+ICsNCj4gPiArICAgICAgIGZvciAoaSA9
-IDA7IGkgPCBhcmVhLT5ucl9wYWdlczsgaSsrKQ0KPiA+ICsgICAgICAgICAgICAgICBzZXRfcGFn
-ZXNfbnBfbm9mbHVzaChhcmVhLT5wYWdlc1tpXSwgMSk7DQo+ID4gK30NCj4gPiArDQo+ID4gK3N0
-YXRpYyB2b2lkIHNldF9hcmVhX2RpcmVjdF9wcncoc3RydWN0IHZtX3N0cnVjdCAqYXJlYSkNCj4g
-PiArew0KPiA+ICsgICAgICAgaW50IGk7DQo+ID4gKw0KPiA+ICsgICAgICAgZm9yIChpID0gMDsg
-aSA8IGFyZWEtPm5yX3BhZ2VzOyBpKyspDQo+ID4gKyAgICAgICAgICAgICAgIHNldF9wYWdlc19w
-X25vZmx1c2goYXJlYS0+cGFnZXNbaV0sIDEpOw0KPiA+ICt9DQo+ID4gKw0KPiA+ICt2b2lkIGFy
-Y2hfdnVubWFwKHN0cnVjdCB2bV9zdHJ1Y3QgKmFyZWEsIGludCBkZWFsbG9jYXRlX3BhZ2VzKQ0K
-PiA+ICt7DQo+ID4gKyAgICAgICBpbnQgaW1tZWRpYXRlID0gYXJlYS0+ZmxhZ3MgJiBWTV9JTU1F
-RElBVEVfVU5NQVA7DQo+ID4gKyAgICAgICBpbnQgc3BlY2lhbCA9IGFyZWEtPmZsYWdzICYgVk1f
-SEFTX1NQRUNJQUxfUEVSTVM7DQo+ID4gKw0KPiA+ICsgICAgICAgLyogVW5tYXAgZnJvbSB2bWFs
-bG9jIGFyZWEgKi8NCj4gPiArICAgICAgIHJlbW92ZV92bV9hcmVhKGFyZWEtPmFkZHIpOw0KPiA+
-ICsNCj4gPiArICAgICAgIC8qIElmIG5vIG5lZWQgdG8gcmVzZXQgZGlyZWN0bWFwIHBlcm1zLCBq
-dXN0IGNoZWNrIGlmIG5lZWQgdG8gZmx1c2gNCj4gPiAqLw0KPiA+ICsgICAgICAgaWYgKCEoZGVh
-bGxvY2F0ZV9wYWdlcyB8fCBzcGVjaWFsKSkgew0KPiA+ICsgICAgICAgICAgICAgICBpZiAoaW1t
-ZWRpYXRlKQ0KPiA+ICsgICAgICAgICAgICAgICAgICAgICAgIHZtX3VubWFwX2FsaWFzZXMoKTsN
-Cj4gPiArICAgICAgICAgICAgICAgcmV0dXJuOw0KPiA+ICsgICAgICAgfQ0KPiA+ICsNCj4gPiAr
-ICAgICAgIC8qIEZyb20gaGVyZSB3ZSBuZWVkIHRvIG1ha2Ugc3VyZSB0byByZXNldCB0aGUgZGly
-ZWN0IG1hcCBwZXJtcyAqLw0KPiA+ICsNCj4gPiArICAgICAgIC8qDQo+ID4gKyAgICAgICAgKiBJ
-ZiB0aGUgYXJlYSBiZWluZyBmcmVlZCBkb2VzIG5vdCBoYXZlIGFueSBleHRyYSBjYXBhYmlsaXRp
-ZXMsIHdlDQo+ID4gY2FuDQo+ID4gKyAgICAgICAgKiBqdXN0IHJlc2V0IHRoZSBkaXJlY3RtYXAg
-dG8gUlcgYmVmb3JlIGZyZWVpbmcuDQo+ID4gKyAgICAgICAgKi8NCj4gPiArICAgICAgIGlmICgh
-aW1tZWRpYXRlKSB7DQo+ID4gKyAgICAgICAgICAgICAgIHNldF9hcmVhX2RpcmVjdF9wcncoYXJl
-YSk7DQo+ID4gKyAgICAgICAgICAgICAgIHZtX3VubWFwX2FsaWFzZXMoKTsNCj4gPiArICAgICAg
-ICAgICAgICAgcmV0dXJuOw0KPiA+ICsgICAgICAgfQ0KPiA+ICsNCj4gPiArICAgICAgIC8qDQo+
-ID4gKyAgICAgICAgKiBJZiB0aGUgdm0gYmVpbmcgZnJlZWQgaGFzIHNlY3VyaXR5IHNlbnNpdGl2
-ZSBjYXBhYmlsaXRpZXMgc3VjaCBhcw0KPiA+ICsgICAgICAgICogZXhlY3V0YWJsZSB3ZSBuZWVk
-IHRvIG1ha2Ugc3VyZSB0aGVyZSBpcyBubyBXIHdpbmRvdyBvbiB0aGUNCj4gPiBkaXJlY3RtYXAN
-Cj4gPiArICAgICAgICAqIGJlZm9yZSByZW1vdmluZyB0aGUgWCBpbiB0aGUgVExCLiBTbyB3ZSBz
-ZXQgbm90IHByZXNlbnQgZmlyc3Qgc28NCj4gPiB3ZQ0KPiA+ICsgICAgICAgICogY2FuIGZsdXNo
-IHdpdGhvdXQgYW55IG90aGVyIENQVSBwaWNraW5nIHVwIHRoZSBtYXBwaW5nLiBUaGVuIHdlDQo+
-ID4gcmVzZXQNCj4gPiArICAgICAgICAqIFJXK1Agd2l0aG91dCBhIGZsdXNoLCBzaW5jZSBOUCBw
-cmV2ZW50ZWQgaXQgZnJvbSBiZWluZyBjYWNoZWQgYnkNCj4gPiArICAgICAgICAqIG90aGVyIGNw
-dXMuDQo+ID4gKyAgICAgICAgKi8NCj4gPiArICAgICAgIHNldF9hcmVhX2RpcmVjdF9ucChhcmVh
-KTsNCj4gPiArICAgICAgIHZtX3VubWFwX2FsaWFzZXMoKTsNCj4gPiArICAgICAgIHNldF9hcmVh
-X2RpcmVjdF9wcncoYXJlYSk7DQo+IA0KPiBIZXJlIHlvdSdyZSB1c2luZyAiaW1tZWRpYXRlIiBh
-cyBhIHByb3h5IGZvciAid2FzIGV4ZWN1dGFibGUiLiAgQW5kDQo+IGl0J3MgYmFyZWx5IGZhc3Rl
-ciB0byBvbWl0IGltbWVkaWF0ZSAtLSBpdCdzIHRoZSBzYW1lIG51bWJlciBvZg0KPiBmbHVzaGVz
-LCBhbmQgYWxsIHlvdSBzYXZlIGlzIG9uZSBwYXNzIG92ZXIgdGhlIGRpcmVjdCBtYXAuDQpOb3Qg
-c3VyZSBJIHVuZGVyc3RhbmQsIEkgdGhpbmsgaXRzIHN0aWxsIGdlbmVyaWMgdG8gInNwZWNpYWwg
-Y2FwYWJpbGl0aWVzIi4gWW91DQptZWFuIGZpeCB0aGUgY29tbWVudD8NCg0KPiBEbyB3ZSByZWFs
-bHkgbmVlZCB0byBzdXBwb3J0IGFsbCB0aGVzZSBjb21iaW5hdGlvbnM/ICBFdmVuIGlmIHdlIGRv
-DQo+IHN1cHBvcnQgdGhlbSwgSSB0aGluayB0aGF0ICJpbW1lZGlhdGUiIG5lZWRzIGEgYmV0dGVy
-IG5hbWUuDQpJdCBzYXZlcyBUTEIgZmx1c2hlcyBpbiB0aGUgZ2VuZXJpYyBpbXBsZW1lbnRhdGlv
-biBmb3IgdGhlIGp1c3QgUk8gY2FzZSwgYnV0IHllYQ0KaGVyZSBpdCBkb2Vzbid0IHNhdmUgbXVj
-aCBoZXJlLg0K
+> On Dec 11, 2018, at 4:03 PM, Rick Edgecombe <rick.p.edgecombe@intel.com> =
+wrote:
+>=20
+> This adds a more efficient x86 architecture specific implementation of
+> arch_vunmap, that can free any type of special permission memory with onl=
+y 1 TLB
+> flush.
+>=20
+> In order to enable this, _set_pages_p and _set_pages_np are made non-stat=
+ic and
+> renamed set_pages_p_noflush and set_pages_np_noflush to better communicat=
+e
+> their different (non-flushing) behavior from the rest of the set_pages_*
+> functions.
+>=20
+> The method for doing this with only 1 TLB flush was suggested by Andy
+> Lutomirski.
+>=20
+
+[snip]
+
+> +	/*
+> +	 * If the vm being freed has security sensitive capabilities such as
+> +	 * executable we need to make sure there is no W window on the directma=
+p
+> +	 * before removing the X in the TLB. So we set not present first so we
+> +	 * can flush without any other CPU picking up the mapping. Then we rese=
+t
+> +	 * RW+P without a flush, since NP prevented it from being cached by
+> +	 * other cpus.
+> +	 */
+> +	set_area_direct_np(area);
+> +	vm_unmap_aliases();
+
+Does vm_unmap_aliases() flush in the TLB the direct mapping range as well? =
+I
+can only find the flush of the vmalloc range.
