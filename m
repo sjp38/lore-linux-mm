@@ -1,74 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 752A78E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:14:58 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id k22-v6so1860789ljk.12
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:14:58 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 308758E00E5
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 20:12:55 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id e29so7874145ede.19
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 17:12:55 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p12sor7472827lfk.37.2018.12.21.10.14.56
+        by mx.google.com with SMTPS id k26sor8987277edd.12.2018.12.11.17.12.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Dec 2018 10:14:56 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 06/12] __wr_after_init: Documentation: self-protection
-Date: Fri, 21 Dec 2018 20:14:17 +0200
-Message-Id: <20181221181423.20455-7-igor.stoppa@huawei.com>
-In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
-References: <20181221181423.20455-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+        Tue, 11 Dec 2018 17:12:53 -0800 (PST)
+Date: Wed, 12 Dec 2018 01:12:51 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 1/3] mm, memory_hotplug: try to migrate full pfn range
+Message-ID: <20181212011251.6wchg5kr2ngp5niq@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181211142741.2607-1-mhocko@kernel.org>
+ <20181211142741.2607-2-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181211142741.2607-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, David Hildenbrand <david@redhat.com>, Oscar Salvador <osalvador@suse.de>, Pavel Tatashin <pasha.tatashin@soleen.com>
 
-Update the self-protection documentation, to mention also the use of the
-__wr_after_init attribute.
+On Tue, Dec 11, 2018 at 03:27:39PM +0100, Michal Hocko wrote:
+>From: Michal Hocko <mhocko@suse.com>
+>
+>do_migrate_range has been limiting the number of pages to migrate to 256
+>for some reason which is not documented. Even if the limit made some
+>sense back then when it was introduced it doesn't really serve a good
+>purpose these days. If the range contains huge pages then
+>we break out of the loop too early and go through LRU and pcp
+>caches draining and scan_movable_pages is quite suboptimal.
+>
+>The only reason to limit the number of pages I can think of is to reduce
+>the potential time to react on the fatal signal. But even then the
+>number of pages is a questionable metric because even a single page
+>might migration block in a non-killable state (e.g. __unmap_and_move).
+>
+>Remove the limit and offline the full requested range (this is one
+>membblock worth of pages with the current code). Should we ever get a
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+s/membblock/memblock/
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
-CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- Documentation/security/self-protection.rst | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+Or memory block is more accurate? May memblock confuse audience with
+lower level facility?
 
-diff --git a/Documentation/security/self-protection.rst b/Documentation/security/self-protection.rst
-index f584fb74b4ff..df2614bc25b9 100644
---- a/Documentation/security/self-protection.rst
-+++ b/Documentation/security/self-protection.rst
-@@ -84,12 +84,14 @@ For variables that are initialized once at ``__init`` time, these can
- be marked with the (new and under development) ``__ro_after_init``
- attribute.
- 
--What remains are variables that are updated rarely (e.g. GDT). These
--will need another infrastructure (similar to the temporary exceptions
--made to kernel code mentioned above) that allow them to spend the rest
--of their lifetime read-only. (For example, when being updated, only the
--CPU thread performing the update would be given uninterruptible write
--access to the memory.)
-+Others, which are statically allocated, but still need to be updated
-+rarely, can be marked with the ``__wr_after_init`` attribute.
-+
-+The update mechanism must avoid exposing the data to rogue alterations
-+during the update. For example, only the CPU thread performing the update
-+would be given uninterruptible write access to the memory.
-+
-+Currently there is no protection available for data allocated dynamically.
- 
- Segregation of kernel memory from userspace memory
- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>report that offlining takes too long to react on fatal signal then we
+>should rather fix the core migration to use killable waits and bailout
+>on a signal.
+>
+>Reviewed-by: David Hildenbrand <david@redhat.com>
+>Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+>Reviewed-by: Oscar Salvador <osalvador@suse.de>
+>Signed-off-by: Michal Hocko <mhocko@suse.com>
+>---
+> mm/memory_hotplug.c | 8 ++------
+> 1 file changed, 2 insertions(+), 6 deletions(-)
+>
+>diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>index c82193db4be6..6263c8cd4491 100644
+>--- a/mm/memory_hotplug.c
+>+++ b/mm/memory_hotplug.c
+>@@ -1339,18 +1339,16 @@ static struct page *new_node_page(struct page *page, unsigned long private)
+> 	return new_page_nodemask(page, nid, &nmask);
+> }
+> 
+>-#define NR_OFFLINE_AT_ONCE_PAGES	(256)
+> static int
+> do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+> {
+> 	unsigned long pfn;
+> 	struct page *page;
+>-	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
+> 	int not_managed = 0;
+> 	int ret = 0;
+> 	LIST_HEAD(source);
+> 
+>-	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
+>+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+> 		if (!pfn_valid(pfn))
+> 			continue;
+> 		page = pfn_to_page(pfn);
+>@@ -1362,8 +1360,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+> 				ret = -EBUSY;
+> 				break;
+> 			}
+>-			if (isolate_huge_page(page, &source))
+>-				move_pages -= 1 << compound_order(head);
+>+			isolate_huge_page(page, &source);
+> 			continue;
+> 		} else if (PageTransHuge(page))
+> 			pfn = page_to_pfn(compound_head(page))
+>@@ -1382,7 +1379,6 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+> 		if (!ret) { /* Success */
+> 			put_page(page);
+> 			list_add_tail(&page->lru, &source);
+>-			move_pages--;
+> 			if (!__PageMovable(page))
+> 				inc_node_page_state(page, NR_ISOLATED_ANON +
+> 						    page_is_file_cache(page));
+>-- 
+>2.19.2
+
 -- 
-2.19.1
+Wei Yang
+Help you, Help me
