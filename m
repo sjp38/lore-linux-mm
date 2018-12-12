@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7A48E00E5
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 22:35:10 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id t2so7812011edb.22
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 19:35:10 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8A88E00E5
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 19:57:14 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e12so7740129edd.16
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 16:57:14 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w5-v6sor4227018ejq.5.2018.12.11.19.35.08
+        by mx.google.com with SMTPS id p7-v6sor4462449ejb.30.2018.12.11.16.57.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 11 Dec 2018 19:35:08 -0800 (PST)
-Date: Wed, 12 Dec 2018 03:35:06 +0000
+        Tue, 11 Dec 2018 16:57:13 -0800 (PST)
+Date: Wed, 12 Dec 2018 00:57:11 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [PATCH v2] mm, memory_hotplug: Don't bail out in
  do_migrate_range prematurely
-Message-ID: <20181212033506.tyj747b7kzyvsp4c@master>
+Message-ID: <20181212005711.smbujty5nviw6tvd@master>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20181211135312.27034-1-osalvador@suse.de>
 MIME-Version: 1.0
@@ -40,6 +40,9 @@ On Tue, Dec 11, 2018 at 02:53:12PM +0100, Oscar Salvador wrote:
 > prematurely
 >
 >do_migrate_ranges() takes a memory range and tries to isolate the
+
+I think it is do_migrate_range().
+
 >pages to put them into a list.
 >This list will be later on used in migrate_pages() to know
 >the pages we need to migrate.
@@ -93,11 +96,6 @@ On Tue, Dec 11, 2018 at 02:53:12PM +0100, Oscar Salvador wrote:
 > 		} else {
 > 			pr_warn("failed to isolate pfn %lx\n", pfn);
 > 			dump_page(page, "isolation failed");
-
-I see the above code is wrapped with CONFIG_DEBUG_VM on current Linus tree.
-
-This is removed by someone else?
-
 >-			put_page(page);
 >-			/* Because we don't have big zone->lock. we should
 >-			   check this again here. */
