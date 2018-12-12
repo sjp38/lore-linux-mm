@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B23838E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 19:40:31 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id x3so780234itb.6
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 16:40:31 -0800 (PST)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 183A08E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 16:56:45 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id a6so18606913iok.0
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 13:56:45 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j66sor202071iof.43.2018.12.12.16.40.30
+        by mx.google.com with SMTPS id a19sor640836ita.27.2018.12.12.13.56.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 12 Dec 2018 16:40:30 -0800 (PST)
+        Wed, 12 Dec 2018 13:56:44 -0800 (PST)
 MIME-Version: 1.0
 References: <CAJmjG29a7Fax5ZW5Q+W+-1xPEXVUqdrMYwoUpSwL1Msiso6gtw@mail.gmail.com>
  <20181212062841.GI431@jagdpanzerIV> <20181212064841.GB2746@sasha-vm>
@@ -16,59 +16,45 @@ References: <CAJmjG29a7Fax5ZW5Q+W+-1xPEXVUqdrMYwoUpSwL1Msiso6gtw@mail.gmail.com>
  <20181212135939.GA10170@tigerII.localdomain> <20181212174333.GC2746@sasha-vm>
  <CAJmjG2_zey77QxMzq997ALkD56d0UtHmGjF4dhq=TbEc2gox5A@mail.gmail.com>
  <20181212214337.GD2746@sasha-vm> <CAJmjG2_C0YRtVmNh2sg4JqhJJ11LMmbRHqwADxyO9CGh9ixQbA@mail.gmail.com>
- <20181212215225.GE2746@sasha-vm> <CAJmjG28s9bz51k=5i8eoKH2crj8e7-qM_EYWMqtUKZ_nGREQOg@mail.gmail.com>
-In-Reply-To: <CAJmjG28s9bz51k=5i8eoKH2crj8e7-qM_EYWMqtUKZ_nGREQOg@mail.gmail.com>
+ <20181212215225.GE2746@sasha-vm>
+In-Reply-To: <20181212215225.GE2746@sasha-vm>
 From: Daniel Wang <wonderfly@google.com>
-Date: Wed, 12 Dec 2018 16:40:17 -0800
-Message-ID: <CAJmjG29PnAfkUsU4PuVaFvjW-okO=U-MbHZHg7Sj_bBJ6EO09w@mail.gmail.com>
+Date: Wed, 12 Dec 2018 13:56:31 -0800
+Message-ID: <CAJmjG28s9bz51k=5i8eoKH2crj8e7-qM_EYWMqtUKZ_nGREQOg@mail.gmail.com>
 Subject: Re: 4.14 backport request for dbdda842fe96f: "printk: Add console
  owner and waiter logic to load balance console writes"
 Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256;
-	boundary="000000000000cbbff1057cdc8fdb"
+	boundary="00000000000017a632057cda465e"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sasha Levin <sashal@kernel.org>
 Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, stable@vger.kernel.org, Alexander.Levin@microsoft.com, Andrew Morton <akpm@linux-foundation.org>, byungchul.park@lge.com, dave.hansen@intel.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Mel Gorman <mgorman@suse.de>, mhocko@kernel.org, pavel@ucw.cz, penguin-kernel@i-love.sakura.ne.jp, Peter Zijlstra <peterz@infradead.org>, tj@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, vbabka@suse.cz, Cong Wang <xiyou.wangcong@gmail.com>, Peter Feiner <pfeiner@google.com>
 
---000000000000cbbff1057cdc8fdb
+--00000000000017a632057cda465e
 Content-Type: text/plain; charset="UTF-8"
 
-In case this was buried in previous messages, the commit I'd like to
-get backported to 4.14 is dbdda842fe96f: printk: Add console owner and
-waiter logic to load balance console writes. But another followup
-patch that fixes a bug in that patch is also required. That is
-c14376de3a1b: printk: Wake klogd when passing console_lock owner.
+Thank you!
 
-On Wed, Dec 12, 2018 at 1:56 PM Daniel Wang <wonderfly@google.com> wrote:
+On Wed, Dec 12, 2018 at 1:52 PM Sasha Levin <sashal@kernel.org> wrote:
 >
-> Thank you!
+> On Wed, Dec 12, 2018 at 01:49:25PM -0800, Daniel Wang wrote:
+> >Thanks for the clarification. So I guess I don't need to start another
+> >thread for it? What are the next steps?
 >
-> On Wed, Dec 12, 2018 at 1:52 PM Sasha Levin <sashal@kernel.org> wrote:
-> >
-> > On Wed, Dec 12, 2018 at 01:49:25PM -0800, Daniel Wang wrote:
-> > >Thanks for the clarification. So I guess I don't need to start another
-> > >thread for it? What are the next steps?
-> >
-> > Nothing here, I'll queue it once Sergey or Petr clarify if they wanted
-> > additional information in the -stable commit message.
-> >
-> > --
-> > Thanks,
-> > Sasha
-> >
->
+> Nothing here, I'll queue it once Sergey or Petr clarify if they wanted
+> additional information in the -stable commit message.
 >
 > --
-> Best,
-> Daniel
-
+> Thanks,
+> Sasha
+>
 
 
 -- 
 Best,
 Daniel
 
---000000000000cbbff1057cdc8fdb
+--00000000000017a632057cda465e
 Content-Type: application/pkcs7-signature; name="smime.p7s"
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename="smime.p7s"
@@ -150,14 +136,14 @@ I3UgrUAhzwFXOlZSk57FgvAZ9472grnkSI8aW1mZp1gf5BNYEVb6y/e1hxlNeZbtIa0vvWDm+tK1
 ENfcc+LgRCL4gqiu3v3MEyXXeq/eH/iibrGhissORpiy+nMuWzsTGYOkRRn9RtyEmJAh48WUKCt3
 SR4lOce76r8Fd1Dg0XA0lCCwrFRzMYICXjCCAloCAQEwXDBMMQswCQYDVQQGEwJCRTEZMBcGA1UE
 ChMQR2xvYmFsU2lnbiBudi1zYTEiMCAGA1UEAxMZR2xvYmFsU2lnbiBIViBTL01JTUUgQ0EgMQIM
-IxVzVdM/KCmBJokVMA0GCWCGSAFlAwQCAQUAoIHUMC8GCSqGSIb3DQEJBDEiBCCz+phdNpIcJCHj
-UkN0IlYX8VnPPhnYDOI772tQLMAX8TAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3
-DQEJBTEPFw0xODEyMTMwMDQwMzBaMGkGCSqGSIb3DQEJDzFcMFowCwYJYIZIAWUDBAEqMAsGCWCG
+IxVzVdM/KCmBJokVMA0GCWCGSAFlAwQCAQUAoIHUMC8GCSqGSIb3DQEJBDEiBCC5FMDO01vcPQJK
+Icc6JoJ0pFNemtMt09XURgdJ5zhnfDAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3
+DQEJBTEPFw0xODEyMTIyMTU2NDRaMGkGCSqGSIb3DQEJDzFcMFowCwYJYIZIAWUDBAEqMAsGCWCG
 SAFlAwQBFjALBglghkgBZQMEAQIwCgYIKoZIhvcNAwcwCwYJKoZIhvcNAQEKMAsGCSqGSIb3DQEB
-BzALBglghkgBZQMEAgEwDQYJKoZIhvcNAQEBBQAEggEAEYsc4c+gs/J2cO5dL6W3+Tm7vK2NcUdP
-bjSmQWKcIgcHoTFZEtN64jBJFpyU8N8rDF+1ClqXRwLQY5vyjJcel97Z+3oOhUdJjb8OdxvGy/+s
-9E5mX1jReJ/RFdwUydO7G57LQUwQxKObnvYTAhEItkhNtkJKkHyEhDagb+qYa9lcsa5qMEtHm8TL
-GSwIy0t0siBA+m88lvMK5cSxkHSHGftkv6aNVv9ZQNRi4XJ4F3HI8L2aW1Z1IPsAu8Xux7crqqR5
-pzL4bRSPWUI0YND3XCvR9xWmWt5RisNg3oZjjr6Gn5eOogUd+5Mc54xkyw8brcNKWk3LNl/Nhqw0
-WDdbDg==
---000000000000cbbff1057cdc8fdb--
+BzALBglghkgBZQMEAgEwDQYJKoZIhvcNAQEBBQAEggEAbpQXMPQp4UjcntC5laF4L6XaEhATZrIb
+JyS2v5KTWZKmnTsJETPKImAVm2kB1hJPTqDSKOu2VYx/VOOA9c+3IhlLS7as5rWjq1M3047oY4K6
+UiICEiWfYFo2FLqZjykml65/z0VItmn5cwb0oLybspXmAG+Ln4O9UTb0bHMCvwembne5xg57xBqY
+1xRaWqqiv9XX9Lr3YnVNnj2+5IsOSYNSODEbNJjebuW9qmBpe0ecz5ctqfkTDiNms6lhUnVMBEI+
+87ZR6kG/DfWojR/vElsLHZ6Y0Em+hdquAR0X3tPt/eyxXKU+iCq7rP4jtvzUGKIsy8rBxhB/oJmL
+I95U7g==
+--00000000000017a632057cda465e--
