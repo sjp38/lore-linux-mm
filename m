@@ -1,166 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BC4E6B6D8C
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:37:26 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id o17so8476334pgi.14
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:37:26 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B17008E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 09:48:23 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id l9so13000945plt.7
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 06:48:23 -0800 (PST)
 Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id f1si16900259pld.92.2018.12.03.23.37.24
+        by mx.google.com with ESMTPS id o1si4948210plk.257.2018.12.12.06.48.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 23:37:24 -0800 (PST)
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: [RFC v2 04/13] x86/mm: Add helper functions for MKTME memory encryption keys
-Date: Mon,  3 Dec 2018 23:39:51 -0800
-Message-Id: <bd83f72d30ccfc7c1bc7ce9ab81bdf66e78a1d7d.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
+        Wed, 12 Dec 2018 06:48:22 -0800 (PST)
+Date: Wed, 12 Dec 2018 07:45:53 -0700
+From: Keith Busch <keith.busch@intel.com>
+Subject: Re: [PATCHv2 12/12] doc/mm: New documentation for memory performance
+Message-ID: <20181212144553.GB10780@localhost.localdomain>
+References: <20181211010310.8551-1-keith.busch@intel.com>
+ <20181211010310.8551-13-keith.busch@intel.com>
+ <681f14eb-def4-bf40-fdfd-b5fb89045132@linux.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <681f14eb-def4-bf40-fdfd-b5fb89045132@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dhowells@redhat.com, tglx@linutronix.de
-Cc: jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-Define a global mapping structure to manage the mapping of userspace
-Keys to hardware KeyIDs in MKTME (Multi-Key Total Memory Encryption).
-Implement helper functions that access this mapping structure.
+On Wed, Dec 12, 2018 at 10:23:24AM +0530, Aneesh Kumar K.V wrote:
+> On 12/11/18 6:33 AM, Keith Busch wrote:
+> > +When multiple memory initiators exist, they may not all have the same
+> > +performance when accessing a given memory target. The highest performing
+> > +initiator to a given target is considered to be one of that target's
+> > +local initiators. Any given target may have one or more local initiators,
+> > +and any given initiator may have multiple local memory targets.
+> > +
+> 
+> Can you also add summary here suggesting node X is compute and Node y is
+> memory target
 
-The helpers will be used by these MKTME API's:
- >  Key Service API: security/keys/mktme_keys.c
- >  encrypt_mprotect() system call: mm/mprotect.c
-
-Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/include/asm/mktme.h | 12 ++++++
- arch/x86/mm/mktme.c          | 91 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 103 insertions(+)
-
-diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index f05baa15e6f6..dbb49909d665 100644
---- a/arch/x86/include/asm/mktme.h
-+++ b/arch/x86/include/asm/mktme.h
-@@ -12,6 +12,18 @@ extern phys_addr_t mktme_keyid_mask;
- extern int mktme_nr_keyids;
- extern int mktme_keyid_shift;
+Sure thing.
  
-+/* Manage mappings between hardware KeyIDs and userspace Keys */
-+extern int mktme_map_alloc(void);
-+extern void mktme_map_free(void);
-+extern void mktme_map_lock(void);
-+extern void mktme_map_unlock(void);
-+extern int mktme_map_mapped_keyids(void);
-+extern void mktme_map_set_keyid(int keyid, void *key);
-+extern void mktme_map_free_keyid(int keyid);
-+extern int mktme_map_keyid_from_key(void *key);
-+extern void *mktme_map_key_from_keyid(int keyid);
-+extern int mktme_map_get_free_keyid(void);
-+
- DECLARE_STATIC_KEY_FALSE(mktme_enabled_key);
- static inline bool mktme_enabled(void)
- {
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index c81727540e7c..34224d4e3f45 100644
---- a/arch/x86/mm/mktme.c
-+++ b/arch/x86/mm/mktme.c
-@@ -40,6 +40,97 @@ int __vma_keyid(struct vm_area_struct *vma)
- 	return (prot & mktme_keyid_mask) >> mktme_keyid_shift;
- }
- 
-+/*
-+ * struct mktme_map and the mktme_map_* functions manage the mapping
-+ * of userspace Keys to hardware KeyIDs. These are used by the MKTME Key
-+ * Service API and the encrypt_mprotect() system call.
-+ */
-+
-+struct mktme_mapping {
-+	struct mutex	lock;		/* protect this map & HW state */
-+	unsigned int	mapped_keyids;
-+	void		*key[];
-+};
-+
-+struct mktme_mapping *mktme_map;
-+
-+static inline long mktme_map_size(void)
-+{
-+	long size = 0;
-+
-+	size += sizeof(*mktme_map);
-+	size += sizeof(mktme_map->key[0]) * (mktme_nr_keyids + 1);
-+	return size;
-+}
-+
-+int mktme_map_alloc(void)
-+{
-+	mktme_map = kvzalloc(mktme_map_size(), GFP_KERNEL);
-+	if (!mktme_map)
-+		return 0;
-+	mutex_init(&mktme_map->lock);
-+	return 1;
-+}
-+
-+void mktme_map_free(void)
-+{
-+	kvfree(mktme_map);
-+}
-+
-+void mktme_map_lock(void)
-+{
-+	mutex_lock(&mktme_map->lock);
-+}
-+
-+void mktme_map_unlock(void)
-+{
-+	mutex_unlock(&mktme_map->lock);
-+}
-+
-+int mktme_map_mapped_keyids(void)
-+{
-+	return mktme_map->mapped_keyids;
-+}
-+
-+void mktme_map_set_keyid(int keyid, void *key)
-+{
-+	mktme_map->key[keyid] = key;
-+	mktme_map->mapped_keyids++;
-+}
-+
-+void mktme_map_free_keyid(int keyid)
-+{
-+	mktme_map->key[keyid] = 0;
-+	mktme_map->mapped_keyids--;
-+}
-+
-+int mktme_map_keyid_from_key(void *key)
-+{
-+	int i;
-+
-+	for (i = 1; i <= mktme_nr_keyids; i++)
-+		if (mktme_map->key[i] == key)
-+			return i;
-+	return 0;
-+}
-+
-+void *mktme_map_key_from_keyid(int keyid)
-+{
-+	return mktme_map->key[keyid];
-+}
-+
-+int mktme_map_get_free_keyid(void)
-+{
-+	int i;
-+
-+	if (mktme_map->mapped_keyids < mktme_nr_keyids) {
-+		for (i = 1; i <= mktme_nr_keyids; i++)
-+			if (mktme_map->key[i] == 0)
-+				return i;
-+	}
-+	return 0;
-+}
-+
- /* Prepare page to be used for encryption. Called from page allocator. */
- void __prep_encrypted_page(struct page *page, int order, int keyid, bool zero)
- {
--- 
-2.14.1
+> > +To aid applications matching memory targets with their initiators,
+> > +the kernel provide symlinks to each other like the following example::
+> > +
+> > +	# ls -l /sys/devices/system/node/nodeX/local_target*
+> > +	/sys/devices/system/node/nodeX/local_targetY -> ../nodeY
+> > +
+> > +	# ls -l /sys/devices/system/node/nodeY/local_initiator*
+> > +	/sys/devices/system/node/nodeY/local_initiatorX -> ../nodeX
+> > +
+> 
+> the patch series had primary_target and primary_initiator
+
+Yeah, I noticed that mistake too. I went through several iterations of
+naming this, and I think it will yet be named something else in the
+final revision to accomodate different access levels since it sounds
+like some people may wish to show more than just the best.
+
+> > +When the kernel first registers a memory cache with a node, the kernel
+> > +will create the following directory::
+> > +
+> > +	/sys/devices/system/node/nodeX/side_cache/
+> > +
+> 
+> This is something even the patch commit message didn't explain we create
+> side_cache directory in memory target nodes or initiator nodes? I assume it
+> is part of memory target nodes. If so to be consistent can you use nodeY?
+
+Right, only memory targets may have memory side caches. Will use more
+consistent symbols.
