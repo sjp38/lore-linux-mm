@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BDEED8E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 05:05:45 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id l45so8312884edb.1
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 02:05:45 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 98D738E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 04:48:35 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id m19so8277599edc.6
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 01:48:35 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d60si336758edc.237.2018.12.12.02.05.44
+        by mx.google.com with ESMTPS id i17si5665250edb.85.2018.12.12.01.48.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Dec 2018 02:05:44 -0800 (PST)
-Date: Wed, 12 Dec 2018 11:05:42 +0100
-From: Jan Kara <jack@suse.cz>
+        Wed, 12 Dec 2018 01:48:34 -0800 (PST)
+Date: Wed, 12 Dec 2018 10:48:32 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm, memcg: fix reclaim deadlock with writeback
-Message-ID: <20181212100542.GA10902@quack2.suse.cz>
+Message-ID: <20181212094832.GN1286@dhcp22.suse.cz>
 References: <20181211132645.31053-1-mhocko@kernel.org>
  <20181212094249.cw4xjrdchqsp2tkt@kshutemo-mobl1>
 MIME-Version: 1.0
@@ -22,7 +22,7 @@ In-Reply-To: <20181212094249.cw4xjrdchqsp2tkt@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Liu Bo <bo.liu@linux.alibaba.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Liu Bo <bo.liu@linux.alibaba.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
 On Wed 12-12-18 12:42:49, Kirill A. Shutemov wrote:
 > On Tue, Dec 11, 2018 at 02:26:45PM +0100, Michal Hocko wrote:
@@ -84,31 +84,36 @@ On Wed 12-12-18 12:42:49, Kirill A. Shutemov wrote:
 > Side node:
 > 
 > Do we have PG_writeback vs. PG_locked ordering documentated somewhere?
-> 
+
+I am not aware of any
+
 > IIUC, the trace from task2 suggests that we must not wait for writeback
 > on the locked page.
-
-Well, waiting on writeback of page A when A is locked has always been fine.
-After all that's the only easy way to make sure you really have a page for
-which no IO is running as page lock protects you from new writeback attempt
-starting.
-
-Waiting on writeback of page B while having page A locked *is* problematic
-and prone to deadlocks due to code paths like in task2.
-
+> 
 > But that not what I see for many wait_on_page_writeback() users: it usally
 > called with the page locked. I see it for truncate, shmem, swapfile,
 > splice...
 > 
 > Maybe the problem is within task2 codepath after all?
 
-So ->writepages() methods in filesystems have the property that to complete
-writeback on page with index X, they may need page lock from page X+1. I
-agree that this is a bit hairy but from fs point of view it makes a lot of
-sense and AFAIK nothing besides that memcg IO throttling can create
-deadlocks with such a locking scheme.
+Jack and David have explained that this is due to an optimization
+multiple filesystems do. They lock and set wribeback on multiple pages
+and then send a largeer IO at once. So in this case we have the
+following pattern
 
-								Honza
+                                        lock_page(B)
+                                        SetPageWriteback(B)
+                                        unlock_page(B)
+lock_page(A)
+                                        lock_page(A)
+pte_alloc_pne
+  shrink_page_list
+    wait_on_page_writeback(B)
+                                        SetPageWriteback(A)
+                                        unlock_page(A)
+
+                                        # flush A, B to clear the writeback
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
