@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3980C6B7C45
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 16:13:14 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id q62so1042900pgq.9
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 13:13:14 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 91BE38E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:27:21 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id y88so15877257pfi.9
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 09:27:21 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b11si1007151pgb.536.2018.12.06.13.13.12
+        by mx.google.com with ESMTPS id j70si14567077pgd.138.2018.12.12.09.27.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 13:13:12 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB6LAYZw038349
-	for <linux-mm@kvack.org>; Thu, 6 Dec 2018 16:13:12 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2p79k9vqaf-1
+        Wed, 12 Dec 2018 09:27:20 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBCHJZLj136171
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:27:19 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pb4kxx2m5-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Dec 2018 16:13:12 -0500
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:27:19 -0500
 Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 6 Dec 2018 21:13:09 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 0/2] docs/mm-api: link kernel-doc comments from slab_common.c
-Date: Thu,  6 Dec 2018 23:12:59 +0200
-Message-Id: <1544130781-13443-1-git-send-email-rppt@linux.ibm.com>
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zaslonko@linux.ibm.com>;
+	Wed, 12 Dec 2018 17:27:16 -0000
+From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Subject: [PATCH v2 0/1] Initialize struct pages for the full section
+Date: Wed, 12 Dec 2018 18:27:11 +0100
+Message-Id: <20181212172712.34019-1-zaslonko@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, Pavel.Tatashin@microsoft.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, zaslonko@linux.ibm.com
 
-Hi,
+This patch refers to the older thread:
+https://marc.info/?t=153658306400001&r=1&w=2
 
-These patches update formatting of function descriptions in
-mm/slab_common.c and link the comments from this file to "The Slab Cache"
-section of the MM API reference.
+As suggested by Michal Hocko, instead of adjusting memory_hotplug paths,
+I have changed memmap_init_zone() to initialize struct pages beyond the
+zone end (if zone end is not aligned with the section boundary).
 
-As the changes to mm/slab_common.c only touch the comments, I think these
-patches can go via the docs tree.
+Mikhail Zaslonko (1):
+  mm, memory_hotplug: Initialize struct pages for the full memory
+    section
 
-Mike Rapoport (2):
-  slab: make kmem_cache_create{_usercopy} description proper kernel-doc
-  docs/mm-api: link slab_common.c to "The Slab Cache" section
-
- Documentation/core-api/mm-api.rst |  3 +++
- mm/slab_common.c                  | 35 +++++++++++++++++++++++++++++++----
- 2 files changed, 34 insertions(+), 4 deletions(-)
+ mm/page_alloc.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
 -- 
-2.7.4
+2.16.4
