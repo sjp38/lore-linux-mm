@@ -1,118 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CD6B8E004D
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 08:53:25 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id d41so6814724eda.12
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 05:53:25 -0800 (PST)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id gf7-v6si1060003ejb.92.2018.12.11.05.53.23
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B6B9A8E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 05:27:01 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c53so8429489edc.9
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 02:27:01 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b27sor9648066edn.5.2018.12.12.02.26.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 05:53:23 -0800 (PST)
-From: Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v2] mm, memory_hotplug: Don't bail out in do_migrate_range prematurely
-Date: Tue, 11 Dec 2018 14:53:12 +0100
-Message-Id: <20181211135312.27034-1-osalvador@suse.de>
+        (Google Transport Security);
+        Wed, 12 Dec 2018 02:27:00 -0800 (PST)
+Date: Wed, 12 Dec 2018 11:26:56 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH 2/4] kernel.h: Add non_block_start/end()
+Message-ID: <20181212102656.GS21184@phenom.ffwll.local>
+References: <20181210103641.31259-1-daniel.vetter@ffwll.ch>
+ <20181210103641.31259-3-daniel.vetter@ffwll.ch>
+ <20181210141337.GQ1286@dhcp22.suse.cz>
+ <20181210144711.GN5289@hirez.programming.kicks-ass.net>
+ <20181210150159.GR1286@dhcp22.suse.cz>
+ <20181210152253.GP5289@hirez.programming.kicks-ass.net>
+ <20181210162010.GS1286@dhcp22.suse.cz>
+ <20181210163009.GR5289@hirez.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181210163009.GR5289@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, david@redhat.com, pasha.tatashin@soleen.com, dan.j.williams@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Daniel Vetter <daniel.vetter@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, DRI Development <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Daniel Vetter <daniel.vetter@intel.com>
 
-v1 -> v2:
-        - Keep branch to decrease refcount and print out
-          the failed pfn/page
-        - Modified changelog per Michal's feedback
-        - move put_page() out of the if/else branch
+On Mon, Dec 10, 2018 at 05:30:09PM +0100, Peter Zijlstra wrote:
+> On Mon, Dec 10, 2018 at 05:20:10PM +0100, Michal Hocko wrote:
+> > > OK, no real objections to the thing.  Just so long we're all on the same
+> > > page as to what it does and doesn't do ;-)
+> > 
+> > I am not really sure whether there are other potential users besides
+> > this one and whether the check as such is justified.
+> 
+> It's a debug option...
+> 
+> > > I suppose you could extend the check to include schedule_debug() as
+> > > well, maybe something like:
+> > 
+> > Do you mean to make the check cheaper?
+> 
+> Nah, so the patch only touched might_sleep(), the below touches
+> schedule().
+> 
+> If there were a patch that hits schedule() without going through a
+> might_sleep() (rare in practise I think, but entirely possible) then you
+> won't get a splat without something like the below on top.
 
----
->From f81da873be9a5b7845249d1e62a423f054c487d5 Mon Sep 17 00:00:00 2001
-From: Oscar Salvador <osalvador@suse.com>
-Date: Tue, 11 Dec 2018 11:45:19 +0100
-Subject: [PATCH] mm, memory_hotplug: Don't bail out in do_migrate_range
- prematurely
+We have a bunch of schedule() calls in i915, for e.g. waiting for multiple
+events at the same time (when we want to unblock if any of them fire). And
+there's no might_sleep in these cases afaict. Adding the check in
+schedule() sounds useful, I'll include your snippet in v2. Plus try a bit
+better to explain in the commit message why Michal suggested these.
 
-do_migrate_ranges() takes a memory range and tries to isolate the
-pages to put them into a list.
-This list will be later on used in migrate_pages() to know
-the pages we need to migrate.
+Thanks, Daniel
 
-Currently, if we fail to isolate a single page, we put all already
-isolated pages back to their LRU and we bail out from the function.
-This is quite suboptimal, as this will force us to start over again
-because scan_movable_pages will give us the same range.
-If there is no chance that we can isolate that page, we will loop here
-forever.
+> 
+> > > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> > > index f66920173370..b1aaa278f1af 100644
+> > > --- a/kernel/sched/core.c
+> > > +++ b/kernel/sched/core.c
+> > > @@ -3278,13 +3278,18 @@ static noinline void __schedule_bug(struct task_struct *prev)
+> > >  /*
+> > >   * Various schedule()-time debugging checks and statistics:
+> > >   */
+> > > -static inline void schedule_debug(struct task_struct *prev)
+> > > +static inline void schedule_debug(struct task_struct *prev, bool preempt)
+> > >  {
+> > >  #ifdef CONFIG_SCHED_STACK_END_CHECK
+> > >  	if (task_stack_end_corrupted(prev))
+> > >  		panic("corrupted stack end detected inside scheduler\n");
+> > >  #endif
+> > >  
+> > > +#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+> > > +	if (!preempt && prev->state && prev->non_block_count)
+> > > +		// splat
+> > > +#endif
+> > > +
+> > >  	if (unlikely(in_atomic_preempt_off())) {
+> > >  		__schedule_bug(prev);
+> > >  		preempt_count_set(PREEMPT_DISABLED);
+> > > @@ -3391,7 +3396,7 @@ static void __sched notrace __schedule(bool preempt)
+> > >  	rq = cpu_rq(cpu);
+> > >  	prev = rq->curr;
+> > >  
+> > > -	schedule_debug(prev);
+> > > +	schedule_debug(prev, preempt);
+> > >  
+> > >  	if (sched_feat(HRTICK))
+> > >  		hrtick_clear(rq);
+> > 
+> > -- 
+> > Michal Hocko
+> > SUSE Labs
 
-Issue debugged in [1] has proved that.
-During the debugging of that issue, it was noticed that if
-do_migrate_ranges() fails to isolate a single page, we will
-just discard the work we have done so far and bail out, which means
-that scan_movable_pages() will find again the same set of pages.
-
-Instead, we can just skip the error, keep isolating as much pages
-as possible and then proceed with the call to migrate_pages().
-
-This will allow us to do as much work as possible at once.
-
-[1] https://lkml.org/lkml/2018/12/6/324
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
----
- mm/memory_hotplug.c | 18 ++----------------
- 1 file changed, 2 insertions(+), 16 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 86ab673fc4e3..68e740b1768e 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1339,7 +1339,6 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 	unsigned long pfn;
- 	struct page *page;
- 	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
--	int not_managed = 0;
- 	int ret = 0;
- 	LIST_HEAD(source);
- 
-@@ -1388,7 +1387,6 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 		else
- 			ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
- 		if (!ret) { /* Success */
--			put_page(page);
- 			list_add_tail(&page->lru, &source);
- 			move_pages--;
- 			if (!__PageMovable(page))
-@@ -1398,22 +1396,10 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 		} else {
- 			pr_warn("failed to isolate pfn %lx\n", pfn);
- 			dump_page(page, "isolation failed");
--			put_page(page);
--			/* Because we don't have big zone->lock. we should
--			   check this again here. */
--			if (page_count(page)) {
--				not_managed++;
--				ret = -EBUSY;
--				break;
--			}
- 		}
-+		put_page(page);
- 	}
- 	if (!list_empty(&source)) {
--		if (not_managed) {
--			putback_movable_pages(&source);
--			goto out;
--		}
--
- 		/* Allocate a new page from the nearest neighbor node */
- 		ret = migrate_pages(&source, new_node_page, NULL, 0,
- 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
-@@ -1426,7 +1412,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 			putback_movable_pages(&source);
- 		}
- 	}
--out:
-+
- 	return ret;
- }
- 
 -- 
-2.13.7
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
