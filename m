@@ -1,73 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 669DD8E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 18:37:07 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id x65so110123oix.0
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 15:37:07 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k11sor94872oif.101.2018.12.12.15.37.06
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C08F8E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 17:17:30 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id p9so30486pfj.3
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 14:17:30 -0800 (PST)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id y73si3231pgd.478.2018.12.12.14.17.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Dec 2018 15:37:06 -0800 (PST)
-Date: Wed, 12 Dec 2018 16:37:03 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Dec 2018 14:17:29 -0800 (PST)
 Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181212233703.GB2947@ziepe.ca>
-References: <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com>
- <20181207191620.GD3293@redhat.com>
+References: <20181207191620.GD3293@redhat.com>
  <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com>
- <20181208022445.GA7024@redhat.com>
- <20181210102846.GC29289@quack2.suse.cz>
+ <20181208022445.GA7024@redhat.com> <20181210102846.GC29289@quack2.suse.cz>
  <20181212150319.GA3432@redhat.com>
  <CAPcyv4go0Xzhz8rXdfscWuXDu83BO9v8WD4upDUJWb7gKzX5OQ@mail.gmail.com>
  <20181212213005.GE5037@redhat.com>
- <CAPcyv4gJHeFjEgna1S-2uE4KxkSUgkc=e=2E5oqfoirec84C-w@mail.gmail.com>
- <20181212215348.GF5037@redhat.com>
+ <514cc9e1-dc4d-b979-c6bc-88ac503c098d@nvidia.com>
+ <20181212220418.GH5037@redhat.com>
+ <311cd7a7-6727-a298-964e-ad238a30bdef@nvidia.com>
+ <20181212221446.GI5037@redhat.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <2483bf1b-944e-ad3b-74f6-773a0aa8813c@nvidia.com>
+Date: Wed, 12 Dec 2018 14:17:27 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181212215348.GF5037@redhat.com>
+In-Reply-To: <20181212221446.GI5037@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jerome Glisse <jglisse@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Weiny, Ira" <ira.weiny@intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Wed, Dec 12, 2018 at 04:53:49PM -0500, Jerome Glisse wrote:
-> > Almost, we need some safety around assuming that DMA is complete the
-> > page, so the notification would need to go all to way to userspace
-> > with something like a file lease notification. It would also need to
-> > be backstopped by an IOMMU in the case where the hardware does not /
-> > can not stop in-flight DMA.
+On 12/12/18 2:14 PM, Jerome Glisse wrote:
+> On Wed, Dec 12, 2018 at 02:11:58PM -0800, John Hubbard wrote:
+>> On 12/12/18 2:04 PM, Jerome Glisse wrote:
+>>> On Wed, Dec 12, 2018 at 01:56:00PM -0800, John Hubbard wrote:
+>>>> On 12/12/18 1:30 PM, Jerome Glisse wrote:
+>>>>> On Wed, Dec 12, 2018 at 08:27:35AM -0800, Dan Williams wrote:
+>>>>>> On Wed, Dec 12, 2018 at 7:03 AM Jerome Glisse <jglisse@redhat.com> wrote:
+>>>>>>>
+>>>>>>> On Mon, Dec 10, 2018 at 11:28:46AM +0100, Jan Kara wrote:
+>>>>>>>> On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
+[...]
+>>>
+>>>>>     Patch 1: register mmu notifier
+>>>>>     Patch 2: listen to MMU_NOTIFY_TRUNCATE and MMU_NOTIFY_UNMAP
+>>>>>              when that happens update the device page table or
+>>>>>              usage to point to a crappy page and do put_user_page
+>>>>>              on all previously held page
+>>>>
+>>>> Minor point, this sequence should be done within a wrapper around existing 
+>>>> get_user_pages(), such as get_user_pages_revokable() or something.
+>>>
+>>> No we want to teach everyone to abide by the rules, if we add yet another
+>>> GUP function prototype people will use the one where they don;t have to
+>>> say they abide by the rules. It is time we advertise the fact that GUP
+>>> should not be use willy nilly for anything without worrying about the
+>>> implication it has :)
+>>
+>> Well, the best way to do that is to provide a named function call that 
+>> implements the rules. That also makes it easy to grep around and see which
+>> call sites still need upgrades, and which don't.
+>>
+>>>
+>>> So i would rather see a consolidation in the number of GUP prototype we
+>>> have than yet another one.
+>>
+>> We could eventually get rid of the older GUP prototypes, once we're done
+>> converting. Having a new, named function call will *without question* make
+>> the call site conversion go much easier, and the end result is also better:
+>> the common code is in a central function, rather than being at all the call
+>> sites.
+>>
 > 
-> You can always reprogram the hardware right away it will redirect
-> any dma to the crappy page.
+> Then last patch in the patchset must remove all GUP prototype except
+> ones with the right API :)
+> 
 
-That causes silent data corruption for RDMA users - we can't do that.
+Yes, exactly.
 
-The only way out for current hardware is to forcibly terminate the
-RDMA activity somehow (and I'm not even sure this is possible, at
-least it would be driver specific)
 
-Even the IOMMU idea probably doesn't work, I doubt all current
-hardware can handle a PCI-E error TLP properly. 
-
-On some hardware it probably just protects DAX by causing data
-corruption for RDMA - I fail to see how that is a win for system
-stability if the user obviously wants to use DAX and RDMA together...
-
-I think your approach with ODP only is the only one that meets your
-requirements, the only other data-integrity-preserving approach is to
-block/fail ftruncate/etc.
-
-> From my point of view driver should listen to ftruncate before the
-> mmu notifier kicks in and send event to userspace and maybe wait
-> and block ftruncate (or move it to a worker thread).
-
-We can do this, but we can't guarantee forward progress in userspace
-and the best way we have to cancel that is portable to all RDMA
-hardware is to kill the process(es)..
-
-So if that is acceptable then we could use user notifiers and allow
-non-ODP users...
-
-Jason
+thanks,
+-- 
+John Hubbard
+NVIDIA
