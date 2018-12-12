@@ -1,121 +1,29 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 01/12] x86_64: memset_user()
-Date: Wed, 19 Dec 2018 23:33:27 +0200
-Message-Id: <20181219213338.26619-2-igor.stoppa@huawei.com>
-In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
-References: <20181219213338.26619-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 14D328E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 16:01:52 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id o13so8186037otl.20
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 13:01:52 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id b9si7172554oif.84.2018.12.12.13.01.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Dec 2018 13:01:50 -0800 (PST)
+Subject: Re: INFO: rcu detected stall in sys_mount (2)
+References: <0000000000004a25cc057cd65aad@google.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <240fff25-0288-a0e6-a018-2e1593afc228@I-love.SAKURA.ne.jp>
+Date: Thu, 13 Dec 2018 06:01:05 +0900
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+In-Reply-To: <0000000000004a25cc057cd65aad@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: syzbot <syzbot+5751b57c82cd229ffbee@syzkaller.appspotmail.com>, syzkaller-bugs@googlegroups.com
+Cc: akpm@linux-foundation.org, amir73il@gmail.com, darrick.wong@oracle.com, david@fromorbit.com, hannes@cmpxchg.org, jrdr.linux@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org
 
-Create x86_64 specific version of memset for user space, based on
-clear_user().
-This will be used for implementing wr_memset() in the __wr_after_init
-scenario, where write-rare variables have an alternate mapping for
-writing.
+Stalling inside __getblk_gfp()...
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- arch/x86/include/asm/uaccess_64.h |  6 ++++
- arch/x86/lib/usercopy_64.c        | 54 +++++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+)
-
-diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
-index a9d637bc301d..f194bfce4866 100644
---- a/arch/x86/include/asm/uaccess_64.h
-+++ b/arch/x86/include/asm/uaccess_64.h
-@@ -213,4 +213,10 @@ copy_user_handle_tail(char *to, char *from, unsigned len);
- unsigned long
- mcsafe_handle_tail(char *to, char *from, unsigned len);
- 
-+unsigned long __must_check
-+memset_user(void __user *mem, int c, unsigned long len);
-+
-+unsigned long __must_check
-+__memset_user(void __user *mem, int c, unsigned long len);
-+
- #endif /* _ASM_X86_UACCESS_64_H */
-diff --git a/arch/x86/lib/usercopy_64.c b/arch/x86/lib/usercopy_64.c
-index 1bd837cdc4b1..84f8f8a20b30 100644
---- a/arch/x86/lib/usercopy_64.c
-+++ b/arch/x86/lib/usercopy_64.c
-@@ -9,6 +9,60 @@
- #include <linux/uaccess.h>
- #include <linux/highmem.h>
- 
-+/*
-+ * Memset Userspace
-+ */
-+
-+unsigned long __memset_user(void __user *addr, int c, unsigned long size)
-+{
-+	long __d0;
-+	unsigned long  pattern = 0;
-+	int i;
-+
-+	for (i = 0; i < 8; i++)
-+		pattern = (pattern << 8) | (0xFF & c);
-+	might_fault();
-+	/* no memory constraint: gcc doesn't know about this memory */
-+	stac();
-+	asm volatile(
-+		"       movq %[val], %%rdx\n"
-+		"	testq  %[size8],%[size8]\n"
-+		"	jz     4f\n"
-+		"0:	mov %%rdx,(%[dst])\n"
-+		"	addq   $8,%[dst]\n"
-+		"	decl %%ecx ; jnz   0b\n"
-+		"4:	movq  %[size1],%%rcx\n"
-+		"	testl %%ecx,%%ecx\n"
-+		"	jz     2f\n"
-+		"1:	movb   %%dl,(%[dst])\n"
-+		"	incq   %[dst]\n"
-+		"	decl %%ecx ; jnz  1b\n"
-+		"2:\n"
-+		".section .fixup,\"ax\"\n"
-+		"3:	lea 0(%[size1],%[size8],8),%[size8]\n"
-+		"	jmp 2b\n"
-+		".previous\n"
-+		_ASM_EXTABLE_UA(0b, 3b)
-+		_ASM_EXTABLE_UA(1b, 2b)
-+		: [size8] "=&c"(size), [dst] "=&D" (__d0)
-+		: [size1] "r"(size & 7), "[size8]" (size / 8), "[dst]"(addr),
-+		  [val] "ri"(pattern)
-+		: "rdx");
-+
-+	clac();
-+	return size;
-+}
-+EXPORT_SYMBOL(__memset_user);
-+
-+unsigned long memset_user(void __user *to, int c, unsigned long n)
-+{
-+	if (access_ok(VERIFY_WRITE, to, n))
-+		return __memset_user(to, c, n);
-+	return n;
-+}
-+EXPORT_SYMBOL(memset_user);
-+
-+
- /*
-  * Zero Userspace
-  */
--- 
-2.19.1
+#syz dup: INFO: rcu detected stall in sys_creat
