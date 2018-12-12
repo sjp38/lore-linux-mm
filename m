@@ -1,33 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8946D8E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:49:48 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id s14so15888097pfk.16
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 09:49:48 -0800 (PST)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id c17si15101087pgl.385.2018.12.12.09.49.46
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 95CE18E00E5
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 12:24:58 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id q82so11030762ywg.22
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 09:24:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s187sor2500099ywd.157.2018.12.12.09.24.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Dec 2018 09:49:47 -0800 (PST)
-Date: Wed, 12 Dec 2018 09:49:03 -0800
-From: Liu Bo <bo.liu@linux.alibaba.com>
-Subject: Re: [PATCH v2] mm, memcg: fix reclaim deadlock with writeback
-Message-ID: <20181212174902.zaxfbebwmd7hjqh7@US-160370MP2.local>
-Reply-To: bo.liu@linux.alibaba.com
-References: <20181211132645.31053-1-mhocko@kernel.org>
- <20181212155055.1269-1-mhocko@kernel.org>
+        (Google Transport Security);
+        Wed, 12 Dec 2018 09:24:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+References: <20181211132645.31053-1-mhocko@kernel.org> <20181212155055.1269-1-mhocko@kernel.org>
 In-Reply-To: <20181212155055.1269-1-mhocko@kernel.org>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 12 Dec 2018 09:24:45 -0800
+Message-ID: <CALvZod4A237wvwsDjQXdwGBXEV9gLrjbARtP5-MaMAD_9OhQrg@mail.gmail.com>
+Subject: Re: [PATCH v2] mm, memcg: fix reclaim deadlock with writeback
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, bo.liu@linux.alibaba.com, Jan Kara <jack@suse.cz>, david@fromorbit.com, tytso@mit.edu, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Dec 12, 2018 at 04:50:55PM +0100, Michal Hocko wrote:
+On Wed, Dec 12, 2018 at 7:51 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
 > From: Michal Hocko <mhocko@suse.com>
-> 
+>
 > Liu Bo has experienced a deadlock between memcg (legacy) reclaim and the
 > ext4 writeback
 > task1:
@@ -52,7 +50,7 @@ On Wed, Dec 12, 2018 at 04:50:55PM +0100, Michal Hocko wrote:
 > [<ffffffff8106ecb0>] do_page_fault+0x30/0x80
 > [<ffffffff8171bce8>] page_fault+0x28/0x30
 > [<ffffffffffffffff>] 0xffffffffffffffff
-> 
+>
 > task2:
 > [<ffffffff811aadc6>] __lock_page+0x86/0xa0
 > [<ffffffffa02f1e47>] mpage_prepare_extent_to_map+0x2e7/0x310 [ext4]
@@ -68,44 +66,19 @@ On Wed, Dec 12, 2018 at 04:50:55PM +0100, Michal Hocko wrote:
 > [<ffffffff810a9786>] kthread+0xe6/0x100
 > [<ffffffff8171a9a1>] ret_from_fork+0x41/0x50
 > [<ffffffffffffffff>] 0xffffffffffffffff
-> 
+>
 > He adds
 > : task1 is waiting for the PageWriteback bit of the page that task2 has
 > : collected in mpd->io_submit->io_bio, and tasks2 is waiting for the LOCKED
 > : bit the page which tasks1 has locked.
-> 
+>
 > More precisely task1 is handling a page fault and it has a page locked
 > while it charges a new page table to a memcg. That in turn hits a memory
 > limit reclaim and the memcg reclaim for legacy controller is waiting on
 > the writeback but that is never going to finish because the writeback
 > itself is waiting for the page locked in the #PF path. So this is
 > essentially ABBA deadlock.
-
-Thanks for the patch, Michal.
-
-Could you please append the followings (quoted from your reply in
-other thread)?  It'd be much easier for reviewers to pick up what was
-happening.
-
------------------------------------------------------------------
-                                        lock_page(B)
-                                        SetPageWriteback(B)
-                                        unlock_page(B)
-lock_page(A)
-                                        lock_page(A)
-pte_alloc_pne
-  shrink_page_list
-    wait_on_page_writeback(B)
-                                        SetPageWriteback(A)
-                                        unlock_page(A)
-
-                                        # flush A, B to clear the writeback 
------------------------------------------------------------------
-
-thanks,
--liubo
-
-> 
+>
 > Waiting for the writeback in legacy memcg controller is a workaround
 > for pre-mature OOM killer invocations because there is no dirty IO
 > throttling available for the controller. There is no easy way around
@@ -113,34 +86,16 @@ thanks,
 > the page table outside of the page lock. We have that handy
 > infrastructure for that already so simply reuse the fault-around pattern
 > which already does this.
-> 
-> Reported-and-Debugged-by: Liu Bo <bo.liu@linux.alibaba.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/memory.c | 11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 4ad2d293ddc2..bb78e90a9b70 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2993,6 +2993,17 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
->  	struct vm_area_struct *vma = vmf->vma;
->  	vm_fault_t ret;
->  
-> +	/*
-> +	 * Preallocate pte before we take page_lock because this might lead to
-> +	 * deadlocks for memcg reclaim which waits for pages under writeback.
-> +	 */
-> +	if (pmd_none(*vmf->pmd) && !vmf->prealloc_pte) {
-> +		vmf->prealloc_pte = pte_alloc_one(vmf->vma->vm_mm, vmf->address);
-> +		if (!vmf->prealloc_pte)
-> +			return VM_FAULT_OOM;
-> +		smp_wmb(); /* See comment in __pte_alloc() */
-> +	}
-> +
->  	ret = vma->vm_ops->fault(vmf);
->  	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY |
->  			    VM_FAULT_DONE_COW)))
-> -- 
-> 2.19.2
+
+Michal, can you please add the following para in the commit message as
+well which was in the first version. This fact should be documented at
+least in the commit message.
+
+>
+> There are probably other hidden __GFP_ACCOUNT | GFP_KERNEL allocations
+> from under a fs page locked but they should be really rare. I am not
+> aware of a better solution unfortunately.
+>
+
+thanks,
+Shakeel
