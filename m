@@ -1,116 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A8376B7550
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 11:42:13 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id b18so12674905oii.1
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 08:42:13 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c189si8702063oia.80.2018.12.05.08.42.11
-        for <linux-mm@kvack.org>;
-        Wed, 05 Dec 2018 08:42:11 -0800 (PST)
-From: Steve Capper <steve.capper@arm.com>
-Subject: [PATCH V4 6/6] arm64: mm: Allow forcing all userspace addresses to 52-bit
-Date: Wed,  5 Dec 2018 16:41:45 +0000
-Message-Id: <20181205164145.24568-7-steve.capper@arm.com>
-In-Reply-To: <20181205164145.24568-1-steve.capper@arm.com>
-References: <20181205164145.24568-1-steve.capper@arm.com>
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 191808E00C9
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 19:12:11 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id a10so11738343plp.14
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 16:12:11 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id f18si13139318pgl.457.2018.12.11.16.12.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Dec 2018 16:12:09 -0800 (PST)
+From: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Subject: =?UTF-8?q?=5BPATCH=20v2=200/4=5D=20Don=E2=80=99t=20leave=20executable=20TLB=20entries=20to=20freed=20pages?=
+Date: Tue, 11 Dec 2018 16:03:50 -0800
+Message-Id: <20181212000354.31955-1-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, jcm@redhat.com, Steve Capper <steve.capper@arm.com>
+To: akpm@linux-foundation.org, luto@kernel.org, will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, naveen.n.rao@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, davem@davemloft.net, mhiramat@kernel.org, rostedt@goodmis.org, mingo@redhat.com, ast@kernel.org, daniel@iogearbox.net, jeyu@kernel.org, namit@vmware.com, netdev@vger.kernel.org, ard.biesheuvel@linaro.org, jannh@google.com
+Cc: kristen@linux.intel.com, dave.hansen@intel.com, deneen.t.dock@intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-On arm64 52-bit VAs are provided to userspace when a hint is supplied to
-mmap. This helps maintain compatibility with software that expects at
-most 48-bit VAs to be returned.
+Sometimes when memory is freed via the module subsystem, an executable
+permissioned TLB entry can remain to a freed page. If the page is re-used to
+back an address that will receive data from userspace, it can result in user
+data being mapped as executable in the kernel. The root of this behavior is
+vfree lazily flushing the TLB, but not lazily freeing the underlying pages.
 
-In order to help identify software that has 48-bit VA assumptions, this
-patch allows one to compile a kernel where 52-bit VAs are returned by
-default on HW that supports it.
+This v2 enables vfree to handle freeing memory with special permissions. So now
+it can be done with no W^X window, centralizing the logic for this operation,
+and also to do this with only one TLB flush on x86.
 
-This feature is intended to be for development systems only.
+I'm not sure if the algorithm Andy Lutomirski suggested (to do the whole
+teardown with one TLB flush) will work across other architectures or not, so it
+is in an x86 arch breakout(arch_vunmap) in this version. The default arch_vunmap
+implementation does what Nadav is proposing users of module_alloc do on tear
+down so it should be unchanged in behavior, just centralized. The main
+difference will be BPF teardown will now get an extra TLB flush on archs that
+have set_memory_* defined from set_memory_nx in addition to set_memory_rw. On
+x86, due to the more efficient arch version, it will be unchanged at one flush.
 
-Signed-off-by: Steve Capper <steve.capper@arm.com>
----
- arch/arm64/Kconfig                 | 13 +++++++++++++
- arch/arm64/include/asm/elf.h       |  4 ++++
- arch/arm64/include/asm/processor.h |  9 ++++++++-
- 3 files changed, 25 insertions(+), 1 deletion(-)
+The logic enabling this behavior is plugged into kernel/module.c and bpf cross
+arch pieces. So it should be enabled for all architectures for regular .ko
+modules and bpf but the other module_alloc users will be unchanged for now.
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index eab02d24f5d1..9f50dc8af110 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -1165,6 +1165,19 @@ config ARM64_CNP
- 	  at runtime, and does not affect PEs that do not implement
- 	  this feature.
- 
-+config ARM64_FORCE_52BIT
-+	bool "Force 52-bit virtual addresses for userspace"
-+	depends on ARM64_52BIT_VA && EXPERT
-+	help
-+	  For systems with 52-bit userspace VAs enabled, the kernel will attempt
-+	  to maintain compatibility with older software by providing 48-bit VAs
-+	  unless a hint is supplied to mmap.
-+
-+	  This configuration option disables the 48-bit compatibility logic, and
-+	  forces all userspace addresses to be 52-bit on HW that supports it. One
-+	  should only enable this configuration option for stress testing userspace
-+	  memory management code. If unsure say N here.
-+
- endmenu
- 
- config ARM64_SVE
-diff --git a/arch/arm64/include/asm/elf.h b/arch/arm64/include/asm/elf.h
-index bc9bd9e77d9d..6adc1a90e7e6 100644
---- a/arch/arm64/include/asm/elf.h
-+++ b/arch/arm64/include/asm/elf.h
-@@ -117,7 +117,11 @@
-  * 64-bit, this is above 4GB to leave the entire 32-bit address
-  * space open for things that want to use the area for 32-bit pointers.
-  */
-+#ifdef CONFIG_ARM64_FORCE_52BIT
-+#define ELF_ET_DYN_BASE		(2 * TASK_SIZE_64 / 3)
-+#else
- #define ELF_ET_DYN_BASE		(2 * DEFAULT_MAP_WINDOW_64 / 3)
-+#endif /* CONFIG_ARM64_FORCE_52BIT */
- 
- #ifndef __ASSEMBLY__
- 
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index b363fc705be4..9abd91570b5b 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -65,8 +65,13 @@ extern u64 vabits_user;
- #define DEFAULT_MAP_WINDOW	DEFAULT_MAP_WINDOW_64
- #endif /* CONFIG_COMPAT */
- 
--#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-+#ifdef CONFIG_ARM64_FORCE_52BIT
-+#define STACK_TOP_MAX		TASK_SIZE_64
-+#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
-+#else
- #define STACK_TOP_MAX		DEFAULT_MAP_WINDOW_64
-+#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(DEFAULT_MAP_WINDOW / 4))
-+#endif /* CONFIG_ARM64_FORCE_52BIT */
- 
- #ifdef CONFIG_COMPAT
- #define AARCH32_VECTORS_BASE	0xffff0000
-@@ -76,12 +81,14 @@ extern u64 vabits_user;
- #define STACK_TOP		STACK_TOP_MAX
- #endif /* CONFIG_COMPAT */
- 
-+#ifndef CONFIG_ARM64_FORCE_52BIT
- #define arch_get_mmap_end(addr) ((addr > DEFAULT_MAP_WINDOW) ? TASK_SIZE :\
- 				DEFAULT_MAP_WINDOW)
- 
- #define arch_get_mmap_base(addr, base) ((addr > DEFAULT_MAP_WINDOW) ? \
- 					base + TASK_SIZE - DEFAULT_MAP_WINDOW :\
- 					base)
-+#endif /* CONFIG_ARM64_FORCE_52BIT */
- 
- extern phys_addr_t arm64_dma_phys_limit;
- #define ARCH_LOW_ADDRESS_LIMIT	(arm64_dma_phys_limit - 1)
+I did find one small downside with this approach, and that is that there is
+occasionally one extra directmap page split in modules tear down, since one of
+the modules subsections is RW. The x86 arch_vunmap will set the RW directmap of
+the pages not present, since it doesn't know the whole thing is not executable,
+so sometimes this results in an splitting an extra large page because the paging
+structure would have its first special permission. But on the plus side many TLB
+flushes are reduced down to one (on x86 here, and likely others in the future).
+The other usages of modules (bpf, etc) will not have RW subsections and so this
+will not increase. So I am thinking its not a big downside for a few modules
+compared to reducing TLB flushes, removing executable stale TLB entries and code
+simplicity.
+
+Todo:
+ - Merge with Nadav Amit's patchset
+ - Test on x86 32 bit with highmem
+ - Plug into ftrace and kprobes implementations in Nadav's next version of his
+   patchset
+
+Changes since v1:
+ - New efficient algorithm on x86 for tearing down executable RO memory and
+   flag for this (Andy Lutomirski)
+ - Have no W^X violating window on tear down (Nadav Amit)
+
+
+Rick Edgecombe (4):
+  vmalloc: New flags for safe vfree on special perms
+  modules: Add new special vfree flags
+  bpf: switch to new vmalloc vfree flags
+  x86/vmalloc: Add TLB efficient x86 arch_vunmap
+
+ arch/x86/include/asm/set_memory.h |  2 +
+ arch/x86/mm/Makefile              |  3 +-
+ arch/x86/mm/pageattr.c            | 11 +++--
+ arch/x86/mm/vmalloc.c             | 71 ++++++++++++++++++++++++++++++
+ include/linux/filter.h            | 26 +++++------
+ include/linux/vmalloc.h           |  2 +
+ kernel/bpf/core.c                 |  1 -
+ kernel/module.c                   | 43 +++++-------------
+ mm/vmalloc.c                      | 73 ++++++++++++++++++++++++++++---
+ 9 files changed, 173 insertions(+), 59 deletions(-)
+ create mode 100644 arch/x86/mm/vmalloc.c
+
 -- 
-2.19.2
+2.17.1
