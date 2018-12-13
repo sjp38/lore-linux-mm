@@ -1,121 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E730C6B7A1B
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:25:25 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id t194so204108wmt.7
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:25:25 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n12sor197711wrm.10.2018.12.06.04.25.24
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C92CD8E0161
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 05:25:06 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id y83so1275737qka.7
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 02:25:06 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a2si830774qkj.36.2018.12.13.02.25.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 04:25:24 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v13 22/25] kasan: add __must_check annotations to kasan hooks
-Date: Thu,  6 Dec 2018 13:24:40 +0100
-Message-Id: <03b269c5e453945f724bfca3159d4e1333a8fb1c.1544099024.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
-References: <cover.1544099024.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Dec 2018 02:25:06 -0800 (PST)
+Date: Thu, 13 Dec 2018 18:24:57 +0800
+From: Peter Xu <peterx@redhat.com>
+Subject: Re: [PATCH v3] mm: thp: fix flags for pmd migration when split
+Message-ID: <20181213102457.GA22285@xz-x1>
+References: <20181213051510.20306-1-peterx@redhat.com>
+ <20181213095942.3y7lfdwndek6sja4@kshutemo-mobl1>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20181213095942.3y7lfdwndek6sja4@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org, stable@vger.kernel.org
 
-This patch adds __must_check annotations to kasan hooks that return a
-pointer to make sure that a tagged pointer always gets propagated.
+On Thu, Dec 13, 2018 at 12:59:42PM +0300, Kirill A. Shutemov wrote:
+> On Thu, Dec 13, 2018 at 01:15:10PM +0800, Peter Xu wrote:
+> > When splitting a huge migrating PMD, we'll transfer all the existing
+> > PMD bits and apply them again onto the small PTEs.  However we are
+> > fetching the bits unconditionally via pmd_soft_dirty(), pmd_write()
+> > or pmd_yound() while actually they don't make sense at all when it's
+> > a migration entry.  Fix them up.  Since at it, drop the ifdef together
+> > as not needed.
+> > 
+> > Note that if my understanding is correct about the problem then if
+> > without the patch there is chance to lose some of the dirty bits in
+> > the migrating pmd pages (on x86_64 we're fetching bit 11 which is part
+> > of swap offset instead of bit 2) and it could potentially corrupt the
+> > memory of an userspace program which depends on the dirty bit.
+> > 
+> > CC: Andrea Arcangeli <aarcange@redhat.com>
+> > CC: Andrew Morton <akpm@linux-foundation.org>
+> > CC: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > CC: Matthew Wilcox <willy@infradead.org>
+> > CC: Michal Hocko <mhocko@suse.com>
+> > CC: Dave Jiang <dave.jiang@intel.com>
+> > CC: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> > CC: Souptick Joarder <jrdr.linux@gmail.com>
+> > CC: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> > CC: Zi Yan <zi.yan@cs.rutgers.edu>
+> > CC: linux-mm@kvack.org
+> > CC: linux-kernel@vger.kernel.org
+> > Signed-off-by: Peter Xu <peterx@redhat.com>
+> 
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> 
+> Stable?
 
-Suggested-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- include/linux/kasan.h | 16 ++++++++++------
- mm/kasan/common.c     | 15 +++++++++------
- 2 files changed, 19 insertions(+), 12 deletions(-)
+Sorry I missed the reply from Zi.  I think it should be:
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index 8da7b7a4397a..b40ea104dd36 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -49,16 +49,20 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
- void kasan_poison_slab(struct page *page);
- void kasan_unpoison_object_data(struct kmem_cache *cache, void *object);
- void kasan_poison_object_data(struct kmem_cache *cache, void *object);
--void *kasan_init_slab_obj(struct kmem_cache *cache, const void *object);
-+void * __must_check kasan_init_slab_obj(struct kmem_cache *cache,
-+					const void *object);
- 
--void *kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
-+void * __must_check kasan_kmalloc_large(const void *ptr, size_t size,
-+						gfp_t flags);
- void kasan_kfree_large(void *ptr, unsigned long ip);
- void kasan_poison_kfree(void *ptr, unsigned long ip);
--void *kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size,
--		  gfp_t flags);
--void *kasan_krealloc(const void *object, size_t new_size, gfp_t flags);
-+void * __must_check kasan_kmalloc(struct kmem_cache *s, const void *object,
-+					size_t size, gfp_t flags);
-+void * __must_check kasan_krealloc(const void *object, size_t new_size,
-+					gfp_t flags);
- 
--void *kasan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags);
-+void * __must_check kasan_slab_alloc(struct kmem_cache *s, void *object,
-+					gfp_t flags);
- bool kasan_slab_free(struct kmem_cache *s, void *object, unsigned long ip);
- 
- struct kasan_cache {
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 195ca385cf7a..1144e741feb6 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -373,7 +373,8 @@ static u8 assign_tag(struct kmem_cache *cache, const void *object, bool new)
- #endif
- }
- 
--void *kasan_init_slab_obj(struct kmem_cache *cache, const void *object)
-+void * __must_check kasan_init_slab_obj(struct kmem_cache *cache,
-+						const void *object)
- {
- 	struct kasan_alloc_meta *alloc_info;
- 
-@@ -389,7 +390,8 @@ void *kasan_init_slab_obj(struct kmem_cache *cache, const void *object)
- 	return (void *)object;
- }
- 
--void *kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
-+void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
-+					gfp_t flags)
- {
- 	return kasan_kmalloc(cache, object, cache->object_size, flags);
- }
-@@ -449,8 +451,8 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
- 	return __kasan_slab_free(cache, object, ip, true);
- }
- 
--void *kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
--		   gfp_t flags)
-+void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
-+					size_t size, gfp_t flags)
- {
- 	unsigned long redzone_start;
- 	unsigned long redzone_end;
-@@ -482,7 +484,8 @@ void *kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
- }
- EXPORT_SYMBOL(kasan_kmalloc);
- 
--void *kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
-+void * __must_check kasan_kmalloc_large(const void *ptr, size_t size,
-+						gfp_t flags)
- {
- 	struct page *page;
- 	unsigned long redzone_start;
-@@ -506,7 +509,7 @@ void *kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
- 	return (void *)ptr;
- }
- 
--void *kasan_krealloc(const void *object, size_t size, gfp_t flags)
-+void * __must_check kasan_krealloc(const void *object, size_t size, gfp_t flags)
- {
- 	struct page *page;
- 
+CC: linux-stable <stable@vger.kernel.org> # 4.14+
+
+Thanks,
+
 -- 
-2.20.0.rc1.387.gf8505762e3-goog
+Peter Xu
