@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 93F758E0014
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 17:46:46 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id p15so2765650pfk.7
-        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 14:46:46 -0800 (PST)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id q13si2515378pgj.86.2018.12.13.14.46.44
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C0AF8E0014
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 17:04:04 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id 71so1935568ybl.0
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 14:04:04 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m68-v6sor1444428yba.122.2018.12.13.14.04.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Dec 2018 14:46:44 -0800 (PST)
-Date: Thu, 13 Dec 2018 14:43:14 -0800
-From: Liu Bo <bo.liu@linux.alibaba.com>
+        (Google Transport Security);
+        Thu, 13 Dec 2018 14:04:02 -0800 (PST)
+Date: Thu, 13 Dec 2018 17:04:00 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH v3] mm, memcg: fix reclaim deadlock with writeback
-Message-ID: <20181213224313.jty2h5cxlchtisez@US-160370MP2.local>
-Reply-To: bo.liu@linux.alibaba.com
+Message-ID: <20181213220400.GA9829@cmpxchg.org>
 References: <20181212155055.1269-1-mhocko@kernel.org>
  <20181213092221.27270-1-mhocko@kernel.org>
 MIME-Version: 1.0
@@ -23,7 +22,7 @@ In-Reply-To: <20181213092221.27270-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@suse.com>, Stable tree <stable@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Liu Bo <bo.liu@linux.alibaba.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@suse.com>, Stable tree <stable@vger.kernel.org>
 
 On Thu, Dec 13, 2018 at 10:22:21AM +0100, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
@@ -108,28 +107,15 @@ On Thu, Dec 13, 2018 at 10:22:21AM +0100, Michal Hocko wrote:
 > from under a fs page locked but they should be really rare. I am not
 > aware of a better solution unfortunately.
 > 
-
-Thanks for the update.
-
-Looks good to me.
-
-Reviewed-by: Liu Bo <bo.liu@linux.alibaba.com>
-
-thanks,
--liubo
-
 > Reported-and-Debugged-by: Liu Bo <bo.liu@linux.alibaba.com>
 > Cc: stable
 > Fixes: c3b94f44fcb0 ("memcg: further prevent OOM with too many dirty pages")
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/memory.c | 11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 4ad2d293ddc2..bb78e90a9b70 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Just one nit:
+
 > @@ -2993,6 +2993,17 @@ static vm_fault_t __do_fault(struct vm_fault *vmf)
 >  	struct vm_area_struct *vma = vmf->vma;
 >  	vm_fault_t ret;
@@ -144,9 +130,11 @@ thanks,
 > +			return VM_FAULT_OOM;
 > +		smp_wmb(); /* See comment in __pte_alloc() */
 > +	}
-> +
->  	ret = vma->vm_ops->fault(vmf);
->  	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY |
->  			    VM_FAULT_DONE_COW)))
-> -- 
-> 2.19.2
+
+Could you be more specific in the deadlock comment? git blame will
+work fine for a while, but it becomes a pain to find corresponding
+patches after stuff gets moved around for years.
+
+In particular the race diagram between reclaim with a page lock held
+and the fs doing SetPageWriteback batches before kicking off IO would
+be useful directly in the code, IMO.
