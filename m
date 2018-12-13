@@ -1,94 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FD798E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:07:23 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e29so5359800ede.19
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 05:07:23 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f48si4676572ede.180.2018.12.10.05.07.21
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 32F748E0161
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 10:35:27 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id e29so1339953ede.19
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 07:35:27 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y2si1038819edy.36.2018.12.13.07.35.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 05:07:21 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBAD4hM3015793
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:07:20 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2p9p370kd9-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 08:07:19 -0500
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zaslonko@linux.ibm.com>;
-	Mon, 10 Dec 2018 13:07:18 -0000
-From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Subject: [PATCH 1/1] mm, memory_hotplug: Initialize struct pages for the full memory section
-Date: Mon, 10 Dec 2018 14:07:12 +0100
-In-Reply-To: <20181210130712.30148-1-zaslonko@linux.ibm.com>
-References: <20181210130712.30148-1-zaslonko@linux.ibm.com>
-Message-Id: <20181210130712.30148-2-zaslonko@linux.ibm.com>
+        Thu, 13 Dec 2018 07:35:25 -0800 (PST)
+Received: from relay1.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 856E5ADD7
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 15:35:25 +0000 (UTC)
+Date: Thu, 13 Dec 2018 15:35:23 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 5/6] blkdev: Avoid migration stalls for blkdev pages
+Message-ID: <20181213153523.GE28934@suse.de>
+References: <20181211172143.7358-1-jack@suse.cz>
+ <20181211172143.7358-6-jack@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20181211172143.7358-6-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, Pavel.Tatashin@microsoft.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, zaslonko@linux.ibm.com
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, mhocko@suse.cz
 
-If memory end is not aligned with the sparse memory section boundary, the
-mapping of such a section is only partly initialized. This may lead to
-VM_BUG_ON due to uninitialized struct page access from
-is_mem_section_removable() or test_pages_in_a_zone() function triggered by
-memory_hotplug sysfs handlers:
+On Tue, Dec 11, 2018 at 06:21:42PM +0100, Jan Kara wrote:
+> Currently, block device pages don't provide a ->migratepage callback and
+> thus fallback_migrate_page() is used for them. This handler cannot deal
+> with dirty pages in async mode and also with the case a buffer head is in
+> the LRU buffer head cache (as it has elevated b_count). Thus such page can
+> block memory offlining.
+> 
+> Fix the problem by using buffer_migrate_page_norefs() for migrating
+> block device pages. That function takes care of dropping bh LRU in case
+> migration would fail due to elevated buffer refcount to avoid stalls and
+> can also migrate dirty pages without writing them.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
- page:000003d082008000 is uninitialized and poisoned
- page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
- Call Trace:
- ([<0000000000385b26>] test_pages_in_a_zone+0xde/0x160)
-  [<00000000008f15c4>] show_valid_zones+0x5c/0x190
-  [<00000000008cf9c4>] dev_attr_show+0x34/0x70
-  [<0000000000463ad0>] sysfs_kf_seq_show+0xc8/0x148
-  [<00000000003e4194>] seq_read+0x204/0x480
-  [<00000000003b53ea>] __vfs_read+0x32/0x178
-  [<00000000003b55b2>] vfs_read+0x82/0x138
-  [<00000000003b5be2>] ksys_read+0x5a/0xb0
-  [<0000000000b86ba0>] system_call+0xdc/0x2d8
- Last Breaking-Event-Address:
-  [<0000000000385b26>] test_pages_in_a_zone+0xde/0x160
- Kernel panic - not syncing: Fatal exception: panic_on_oops
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Fix the problem by initializing the last memory section of the highest zone
-in memmap_init_zone() till the very end, even if it goes beyond the zone
-end.
-
-Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Reviewed-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: <stable@vger.kernel.org>
----
- mm/page_alloc.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc407216..41ef5508e5f1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5542,6 +5542,21 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 			cond_resched();
- 		}
- 	}
-+#ifdef CONFIG_SPARSEMEM
-+	/*
-+	 * If there is no zone spanning the rest of the section
-+	 * then we should at least initialize those pages. Otherwise we
-+	 * could blow up on a poisoned page in some paths which depend
-+	 * on full sections being initialized (e.g. memory hotplug).
-+	 */
-+	if (end_pfn == max_pfn) {
-+		while (end_pfn % PAGES_PER_SECTION) {
-+			__init_single_page(pfn_to_page(end_pfn), end_pfn, zone,
-+					   nid);
-+			end_pfn++;
-+		}
-+	}
-+#endif
- }
- 
- #ifdef CONFIG_ZONE_DEVICE
 -- 
-2.16.4
+Mel Gorman
+SUSE Labs
