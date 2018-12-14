@@ -1,124 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0898E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 10:43:28 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id b3so2964392edi.0
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 07:43:28 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z7si686328edh.60.2018.12.14.07.43.26
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9BD8E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 10:25:46 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id s19so5036140qke.20
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 07:25:46 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e56si610066qtc.139.2018.12.14.07.25.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 07:43:26 -0800 (PST)
-Date: Fri, 14 Dec 2018 16:43:21 +0100
-From: Jan Kara <jack@suse.cz>
+        Fri, 14 Dec 2018 07:25:45 -0800 (PST)
+Date: Fri, 14 Dec 2018 10:25:38 -0500
+From: Jerome Glisse <jglisse@redhat.com>
 Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181214154321.GF8896@quack2.suse.cz>
-References: <20181205011519.GV10377@bombadil.infradead.org>
- <20181205014441.GA3045@redhat.com>
- <59ca5c4b-fd5b-1fc6-f891-c7986d91908e@nvidia.com>
- <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com>
- <20181207191620.GD3293@redhat.com>
- <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com>
- <20181208022445.GA7024@redhat.com>
- <20181210102846.GC29289@quack2.suse.cz>
- <20181212150319.GA3432@redhat.com>
- <20181212214641.GB29416@dastard>
+Message-ID: <20181214152538.GC3645@redhat.com>
+References: <20181212150319.GA3432@redhat.com>
+ <CAPcyv4go0Xzhz8rXdfscWuXDu83BO9v8WD4upDUJWb7gKzX5OQ@mail.gmail.com>
+ <20181212213005.GE5037@redhat.com>
+ <CAPcyv4gJHeFjEgna1S-2uE4KxkSUgkc=e=2E5oqfoirec84C-w@mail.gmail.com>
+ <20181212215348.GF5037@redhat.com>
+ <20181212233703.GB2947@ziepe.ca>
+ <20181213000109.GK5037@redhat.com>
+ <20181213032043.GA3204@ziepe.ca>
+ <20181213124325.GA3186@redhat.com>
+ <20181214104125.GE8896@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20181212214641.GB29416@dastard>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181214104125.GE8896@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Weiny, Ira" <ira.weiny@intel.com>
 
-Hi!
-
-On Thu 13-12-18 08:46:41, Dave Chinner wrote:
-> On Wed, Dec 12, 2018 at 10:03:20AM -0500, Jerome Glisse wrote:
-> > On Mon, Dec 10, 2018 at 11:28:46AM +0100, Jan Kara wrote:
-> > > On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
-> > > So this approach doesn't look like a win to me over using counter in struct
-> > > page and I'd rather try looking into squeezing HMM public page usage of
-> > > struct page so that we can fit that gup counter there as well. I know that
-> > > it may be easier said than done...
+On Fri, Dec 14, 2018 at 11:41:25AM +0100, Jan Kara wrote:
+> On Thu 13-12-18 07:43:25, Jerome Glisse wrote:
+> > On Wed, Dec 12, 2018 at 08:20:43PM -0700, Jason Gunthorpe wrote:
+> > > On Wed, Dec 12, 2018 at 07:01:09PM -0500, Jerome Glisse wrote:
+> > > > > Even the IOMMU idea probably doesn't work, I doubt all current
+> > > > > hardware can handle a PCI-E error TLP properly. 
+> > > > 
+> > > > What i saying is reprogram hardware to crappy page ie valid page
+> > > > dma map but that just has random content as a last resort to allow
+> > > > filesystem to reuse block. So their should be no PCIE error unless
+> > > > hardware freak out to see its page table reprogram randomly.
+> > > 
+> > > No, that isn't an option. You can't silently provide corrupted data
+> > > for RDMA to transfer out onto the network, or silently discard data
+> > > coming in!! 
+> > > 
+> > > Think of the consequences of that - I have a fileserver process and
+> > > someone does ftruncate and now my clients receive corrupted data??
 > > 
-> > So i want back to the drawing board and first i would like to ascertain
-> > that we all agree on what the objectives are:
-> > 
-> >     [O1] Avoid write back from a page still being written by either a
-> >          device or some direct I/O or any other existing user of GUP.
-> >          This would avoid possible file system corruption.
-> > 
-> >     [O2] Avoid crash when set_page_dirty() is call on a page that is
-> >          considered clean by core mm (buffer head have been remove and
-> >          with some file system this turns into an ugly mess).
+> > This is what happens _today_ ie today someone do GUP on page file
+> > and then someone else do truncate the first GUP is effectively
+> > streaming _random_ data to network as the page does not correspond
+> > to anything anymore and once the RDMA MR goes aways and release
+> > the page the page content will be lost. So i am not changing anything
+> > here, what i proposed was to make it explicit to device driver at
+> > least that they were streaming random data. Right now this is all
+> > silent but this is what is happening wether you like it or not :)
 > 
-> I think that's wrong. This isn't an "avoid a crash" case, this is a
-> "prevent data and/or filesystem corruption" case. The primary goal
-> we have here is removing our exposure to potential corruption, which
-> has the secondary effect of avoiding the crash/panics that currently
-> occur as a result of inconsistent page/filesystem state.
+> I think you're making the current behaviour sound worse than it really is.
+> You are correct that currently driver can setup RDMA with some page, one
+> instant later that page can get truncated from the file and thus has no
+> association to the file anymore. That can lead to *stale* data being
+> streamed over RDMA or loss of data that are coming from RDMA. But none of
+> this is actually a security issue - no streaming of random data or memory
+> corruption. And that's all kernel cares about. It is userspace
+> responsibility to make sure file cannot be truncated if it cannot tolerate
+> stale data.
 > 
-> i.e. The goal is to have ->page_mkwrite() called on the clean page
-> /before/ the file-backed page is marked dirty, and hence we don't
-> expose ourselves to potential corruption or crashes that are a
-> result of inappropriately calling set_page_dirty() on clean
-> file-backed pages.
+> So your "redirect RDMA to dummy page" solution has to make sure you really
+> swap one real page for one dummy page and copy old real page contents to
+> the dummy page contents. Then it will be equivalent to the current behavior
+> and if the hardware can do the swapping, then I'm fine with such
+> solution...
 
-I agree that [O1] - i.e., avoid corrupting fs data - is more important and
-[O2] is just one consequence of [O1].
+Yeah sorry if i make it sounds worse than it is, from my point of view
+it is random data because it no longer match to anything but yes it is
+still correspond to the correct file data before the truncate so in that
+sense it is not random.
 
-> > For [O1] and [O2] i believe a solution with mapcount would work. So
-> > no new struct, no fake vma, nothing like that. In GUP for file back
-> > pages we increment both refcount and mapcount (we also need a special
-> > put_user_page to decrement mapcount when GUP user are done with the
-> > page).
-> 
-> I don't see how a mapcount can prevent anyone from calling
-> set_page_dirty() inappropriately.
-> 
-> > Now for [O1] the write back have to call page_mkclean() to go through
-> > all reverse mapping of the page and map read only. This means that
-> > we can count the number of real mapping and see if the mapcount is
-> > bigger than that. If mapcount is bigger than page is pin and we need
-> > to use a bounce page to do the writeback.
-> 
-> Doesn't work. Generally filesystems have already mapped the page
-> into bios before they call clear_page_dirty_for_io(), so it's too
-> late for the filesystem to bounce the page at that point.
+Yes for copying the existing content to the new crappy page i said that
+at one point during the discussion to make the crappy page less crapy.
+But it seems people feels that device that do not abide by mmu notifier
+are also the device that can not be updated at _any_ time and thus that
+reprogramming their dma engine is a non starter.
 
-Yes, for filesystem it is too late. But the plan we figured back in October
-was to do the bouncing in the block layer. I.e., mark the bio (or just the
-particular page) as needing bouncing and then use the existing page
-bouncing mechanism in the block layer to do the bouncing for us. Ext3 (when
-it was still a separate fs driver) has been using a mechanism like this to
-make DIF/DIX work with its metadata.
+I believe the truncate and revoke issue is something that should be
+discussed sub-system by sub-system where people knows what their device
+can and can not do. I will try to write a document that explains the
+GUP pitfalls so that it can be use to explain the issue.
 
-> > For [O2] i believe we can handle that case in the put_user_page()
-> > function to properly dirty the page without causing filesystem
-> > freak out.
-> 
-> I'm pretty sure you can't call ->page_mkwrite() from
-> put_user_page(), so I don't think this is workable at all.
-
-Yes, calling ->page_mkwrite() in put_user_page() is not only technically
-complicated but also too late - DMA has already modified page contents.
-What we planned to do (again discussed back in October) was to never allow
-the pinned page to become clean. I.e., clear_page_dirty_for_io() would
-leave pinned pages dirty. Also we would skip pinned pages for WB_SYNC_NONE
-writeback as there's no point in that really. That way MM and filesystems
-would be aware of the real page state - i.e., what's in memory is not in
-sync (potentially) with what's on disk. I was thinking whether this
-permanently-dirty state couldn't confuse filesystem in some way but I
-didn't find anything serious - the worst I could think of are places that
-do filemap_write_and_wait() and then invalidate page cache e.g. before hole
-punching or extent shifting. But these should work fine as is (page cache
-invalidation will just happily truncate dirty pages). DIO might get
-confused by the inability to invalidate dirty pages but then user combining
-RDMA with DIO on the same file at one moment gets what he deserves...
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Cheers,
+J�r�me
