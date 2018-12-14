@@ -1,81 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DDEA26B6EA6
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 07:18:47 -0500 (EST)
-Received: by mail-lf1-f70.google.com with SMTP id y6so1878341lfy.11
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 04:18:47 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m10-v6sor9470107lje.8.2018.12.04.04.18.45
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E48348E01C5
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:10:51 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id z68so4280507qkb.14
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:10:51 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o5si2807662qkh.112.2018.12.14.03.10.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 04:18:45 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 4/6] rodata_test: add verification for __wr_after_init
-Date: Tue,  4 Dec 2018 14:18:03 +0200
-Message-Id: <20181204121805.4621-5-igor.stoppa@huawei.com>
-In-Reply-To: <20181204121805.4621-1-igor.stoppa@huawei.com>
-References: <20181204121805.4621-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Dec 2018 03:10:51 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 2/9] s390/vdso: don't clear PG_reserved
+Date: Fri, 14 Dec 2018 12:10:07 +0100
+Message-Id: <20181214111014.15672-3-david@redhat.com>
+In-Reply-To: <20181214111014.15672-1-david@redhat.com>
+References: <20181214111014.15672-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Vasily Gorbik <gor@linux.ibm.com>, Kees Cook <keescook@chromium.org>, Souptick Joarder <jrdr.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
 
-The write protection of the __wr_after_init data can be verified with the
-same methodology used for const data.
+The VDSO is part of the kernel image and therefore the struct pages are
+marked as reserved during boot.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+As we install a special mapping, the actual struct pages will never be
+exposed to MM via the page tables. We can therefore leave the pages
+marked as reserved.
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
+Suggested-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vasily Gorbik <gor@linux.ibm.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- mm/rodata_test.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ arch/s390/kernel/vdso.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-index 3c1e515ca9b1..a98d088ad9cc 100644
---- a/mm/rodata_test.c
-+++ b/mm/rodata_test.c
-@@ -16,7 +16,19 @@
- 
- #define INIT_TEST_VAL 0xC3
- 
-+/*
-+ * Note: __ro_after_init data is, for every practical effect, equivalent to
-+ * const data, since they are even write protected at the same time; there
-+ * is no need for separate testing.
-+ * __wr_after_init data, otoh, is altered also after the write protection
-+ * takes place and it cannot be exploitable for altering more permanent
-+ * data.
-+ */
-+
- static const int rodata_test_data = INIT_TEST_VAL;
-+static int wr_after_init_test_data __wr_after_init = INIT_TEST_VAL;
-+extern long __start_wr_after_init;
-+extern long __end_wr_after_init;
- 
- static bool test_data(char *data_type, const int *data,
- 		      unsigned long start, unsigned long end)
-@@ -60,6 +72,9 @@ void rodata_test(void)
- {
- 	if (test_data("rodata", &rodata_test_data,
- 		      (unsigned long)&__start_rodata,
--		      (unsigned long)&__end_rodata))
-+		      (unsigned long)&__end_rodata) &&
-+	    test_data("wr after init data", &wr_after_init_test_data,
-+		      (unsigned long)&__start_wr_after_init,
-+		      (unsigned long)&__end_wr_after_init))
- 		pr_info("all tests were successful\n");
- }
+diff --git a/arch/s390/kernel/vdso.c b/arch/s390/kernel/vdso.c
+index ebe748a9f472..9e24d23c26c0 100644
+--- a/arch/s390/kernel/vdso.c
++++ b/arch/s390/kernel/vdso.c
+@@ -292,7 +292,6 @@ static int __init vdso_init(void)
+ 	BUG_ON(vdso32_pagelist == NULL);
+ 	for (i = 0; i < vdso32_pages - 1; i++) {
+ 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
+-		ClearPageReserved(pg);
+ 		get_page(pg);
+ 		vdso32_pagelist[i] = pg;
+ 	}
+@@ -310,7 +309,6 @@ static int __init vdso_init(void)
+ 	BUG_ON(vdso64_pagelist == NULL);
+ 	for (i = 0; i < vdso64_pages - 1; i++) {
+ 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
+-		ClearPageReserved(pg);
+ 		get_page(pg);
+ 		vdso64_pagelist[i] = pg;
+ 	}
 -- 
-2.19.1
+2.17.2
