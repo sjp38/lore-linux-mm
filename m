@@ -1,57 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F8E26B7C48
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 16:13:19 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id g188so1021557pgc.22
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 13:13:19 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n11-v6si1153018plg.300.2018.12.06.13.13.18
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 93EA48E01C5
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:11:14 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id 92so4268656qkx.19
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:11:14 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 126si894299qkh.155.2018.12.14.03.11.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 13:13:18 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB6LAkXC021620
-	for <linux-mm@kvack.org>; Thu, 6 Dec 2018 16:13:18 -0500
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2p79kx5693-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Dec 2018 16:13:17 -0500
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 6 Dec 2018 21:13:15 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 2/2] docs/mm-api: link slab_common.c to "The Slab Cache" section
-Date: Thu,  6 Dec 2018 23:13:01 +0200
-In-Reply-To: <1544130781-13443-1-git-send-email-rppt@linux.ibm.com>
-References: <1544130781-13443-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1544130781-13443-3-git-send-email-rppt@linux.ibm.com>
+        Fri, 14 Dec 2018 03:11:13 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 7/9] arm64: kdump: No need to mark crashkernel pages manually PG_reserved
+Date: Fri, 14 Dec 2018 12:10:12 +0100
+Message-Id: <20181214111014.15672-8-david@redhat.com>
+In-Reply-To: <20181214111014.15672-1-david@redhat.com>
+References: <20181214111014.15672-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, James Morse <james.morse@arm.com>, Bhupesh Sharma <bhsharma@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Florian Fainelli <f.fainelli@gmail.com>, Stefan Agner <stefan@agner.ch>, Laura Abbott <labbott@redhat.com>, Greg Hackmann <ghackmann@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Kristina Martsenko <kristina.martsenko@arm.com>, CHANDAN VN <chandan.vn@samsung.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Logan Gunthorpe <logang@deltatee.com>
 
-Several functions in mm/slab_common.c have kernel-doc comments, it makes
-perfect sense to link them to the MM API reference.
+The crashkernel is reserved via memblock_reserve(). memblock_free_all()
+will call free_low_memory_core_early(), which will go over all reserved
+memblocks, marking the pages as PG_reserved.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+So manually marking pages as PG_reserved is not necessary, they are
+already in the desired state (otherwise they would have been handed over
+to the buddy as free pages and bad things would happen).
+
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: James Morse <james.morse@arm.com>
+Cc: Bhupesh Sharma <bhsharma@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Dave Kleikamp <dave.kleikamp@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Florian Fainelli <f.fainelli@gmail.com>
+Cc: Stefan Agner <stefan@agner.ch>
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: Greg Hackmann <ghackmann@android.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Kristina Martsenko <kristina.martsenko@arm.com>
+Cc: CHANDAN VN <chandan.vn@samsung.com>
+Cc: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- Documentation/core-api/mm-api.rst | 3 +++
- 1 file changed, 3 insertions(+)
+ arch/arm64/kernel/machine_kexec.c |  2 +-
+ arch/arm64/mm/init.c              | 27 ---------------------------
+ 2 files changed, 1 insertion(+), 28 deletions(-)
 
-diff --git a/Documentation/core-api/mm-api.rst b/Documentation/core-api/mm-api.rst
-index c81e754..aa8e54b8 100644
---- a/Documentation/core-api/mm-api.rst
-+++ b/Documentation/core-api/mm-api.rst
-@@ -46,6 +46,9 @@ The Slab Cache
- .. kernel-doc:: mm/slab.c
-    :export:
+diff --git a/arch/arm64/kernel/machine_kexec.c b/arch/arm64/kernel/machine_kexec.c
+index 6f0587b5e941..66b5d697d943 100644
+--- a/arch/arm64/kernel/machine_kexec.c
++++ b/arch/arm64/kernel/machine_kexec.c
+@@ -321,7 +321,7 @@ void crash_post_resume(void)
+  * but does not hold any data of loaded kernel image.
+  *
+  * Note that all the pages in crash dump kernel memory have been initially
+- * marked as Reserved in kexec_reserve_crashkres_pages().
++ * marked as Reserved as memory was allocated via memblock_reserve().
+  *
+  * In hibernation, the pages which are Reserved and yet "nosave" are excluded
+  * from the hibernation iamge. crash_is_nosave() does thich check for crash
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index a8f2e4792ef9..9dcfa809b7ab 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -118,35 +118,10 @@ static void __init reserve_crashkernel(void)
+ 	crashk_res.start = crash_base;
+ 	crashk_res.end = crash_base + crash_size - 1;
+ }
+-
+-static void __init kexec_reserve_crashkres_pages(void)
+-{
+-#ifdef CONFIG_HIBERNATION
+-	phys_addr_t addr;
+-	struct page *page;
+-
+-	if (!crashk_res.end)
+-		return;
+-
+-	/*
+-	 * To reduce the size of hibernation image, all the pages are
+-	 * marked as Reserved initially.
+-	 */
+-	for (addr = crashk_res.start; addr < (crashk_res.end + 1);
+-			addr += PAGE_SIZE) {
+-		page = phys_to_page(addr);
+-		SetPageReserved(page);
+-	}
+-#endif
+-}
+ #else
+ static void __init reserve_crashkernel(void)
+ {
+ }
+-
+-static void __init kexec_reserve_crashkres_pages(void)
+-{
+-}
+ #endif /* CONFIG_KEXEC_CORE */
  
-+.. kernel-doc:: mm/slab_common.c
-+   :export:
-+
- .. kernel-doc:: mm/util.c
-    :functions: kfree_const kvmalloc_node kvfree
+ #ifdef CONFIG_CRASH_DUMP
+@@ -586,8 +561,6 @@ void __init mem_init(void)
+ 	/* this will put all unused low memory onto the freelists */
+ 	memblock_free_all();
  
+-	kexec_reserve_crashkres_pages();
+-
+ 	mem_init_print_info(NULL);
+ 
+ 	/*
 -- 
-2.7.4
+2.17.2
