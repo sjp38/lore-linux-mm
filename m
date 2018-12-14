@@ -1,128 +1,359 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 533426B6F83
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 11:01:53 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id b186so6666640wmc.8
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 08:01:53 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id w18si13927737wru.362.2018.12.04.08.01.51
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5FF8E01AD
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:01 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id s14so3544394pfk.16
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:01 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v19si3555849pfa.80.2018.12.13.22.27.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Dec 2018 08:01:51 -0800 (PST)
-Date: Tue, 4 Dec 2018 17:01:45 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v6 04/26] x86/fpu/xstate: Introduce XSAVES system
- states
-Message-ID: <20181204160144.GG11803@zn.tnic>
-References: <20181119214809.6086-1-yu-cheng.yu@intel.com>
- <20181119214809.6086-5-yu-cheng.yu@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20181119214809.6086-5-yu-cheng.yu@intel.com>
+        Thu, 13 Dec 2018 22:27:59 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 04/21] swap: Support PMD swap mapping in swap_duplicate()
+Date: Fri, 14 Dec 2018 14:27:37 +0800
+Message-Id: <20181214062754.13723-5-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Mon, Nov 19, 2018 at 01:47:47PM -0800, Yu-cheng Yu wrote:
-> Control-flow Enforcement (CET) MSR contents are XSAVES system states.
-> To support CET, introduce XSAVES system states first.
-> 
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/include/asm/fpu/internal.h |  3 +-
->  arch/x86/include/asm/fpu/xstate.h   |  4 +-
->  arch/x86/kernel/fpu/core.c          |  6 +-
->  arch/x86/kernel/fpu/init.c          | 10 ---
->  arch/x86/kernel/fpu/xstate.c        | 94 +++++++++++++++++++----------
->  5 files changed, 69 insertions(+), 48 deletions(-)
+To support to swapin the THP in one piece, we need to create PMD swap
+mapping during swapout, and maintain PMD swap mapping count.  This
+patch implements the support to increase the PMD swap mapping
+count (for swapout, fork, etc.)  and set SWAP_HAS_CACHE flag (for
+swapin, etc.) for a huge swap cluster in swap_duplicate() function
+family.  Although it only implements a part of the design of the swap
+reference count with PMD swap mapping, the whole design is described
+as follow to make it easy to understand the patch and the whole
+picture.
 
-...
+A huge swap cluster is used to hold the contents of a swapouted THP.
+After swapout, a PMD page mapping to the THP will become a PMD
+swap mapping to the huge swap cluster via a swap entry in PMD.  While
+a PTE page mapping to a subpage of the THP will become the PTE swap
+mapping to a swap slot in the huge swap cluster via a swap entry in
+PTE.
 
-> @@ -704,6 +710,7 @@ static int init_xstate_size(void)
->   */
->  static void fpu__init_disable_system_xstate(void)
->  {
-> +	xfeatures_mask_all = 0;
->  	xfeatures_mask_user = 0;
->  	cr4_clear_bits(X86_CR4_OSXSAVE);
->  	fpu__xstate_clear_all_cpu_caps();
-> @@ -717,6 +724,8 @@ void __init fpu__init_system_xstate(void)
->  {
->  	unsigned int eax, ebx, ecx, edx;
->  	static int on_boot_cpu __initdata = 1;
-> +	u64 cpu_system_xfeatures_mask;
-> +	u64 cpu_user_xfeatures_mask;
+If there is no PMD swap mapping and the corresponding THP is removed
+from the page cache (reclaimed), the huge swap cluster will be split
+and become a normal swap cluster.
 
-So what I had in mind is to not have those local vars but use
-xfeatures_mask_user and xfeatures_mask_system here directly...
+The count (cluster_count()) of the huge swap cluster is
+SWAPFILE_CLUSTER (= HPAGE_PMD_NR) + PMD swap mapping count.  Because
+all swap slots in the huge swap cluster are mapped by PTE or PMD, or
+has SWAP_HAS_CACHE bit set, the usage count of the swap cluster is
+HPAGE_PMD_NR.  And the PMD swap mapping count is recorded too to make
+it easy to determine whether there are remaining PMD swap mappings.
 
->  	int err;
->  	int i;
->  
-> @@ -739,10 +748,23 @@ void __init fpu__init_system_xstate(void)
->  		return;
->  	}
->  
-> +	/*
-> +	 * Find user states supported by the processor.
-> +	 * Only these bits can be set in XCR0.
-> +	 */
->  	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
-> -	xfeatures_mask_user = eax + ((u64)edx << 32);
-> +	cpu_user_xfeatures_mask = eax + ((u64)edx << 32);
->  
-> -	if ((xfeatures_mask_user & XFEATURE_MASK_FPSSE) != XFEATURE_MASK_FPSSE) {
-> +	/*
-> +	 * Find system states supported by the processor.
-> +	 * Only these bits can be set in IA32_XSS MSR.
-> +	 */
-> +	cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
-> +	cpu_system_xfeatures_mask = ecx + ((u64)edx << 32);
-> +
-> +	xfeatures_mask_all = cpu_user_xfeatures_mask | cpu_system_xfeatures_mask;
+The count in swap_map[offset] is the sum of PTE and PMD swap mapping
+count.  This means when we increase the PMD swap mapping count, we
+need to increase swap_map[offset] for all swap slots inside the swap
+cluster.  An alternative choice is to make swap_map[offset] to record
+PTE swap map count only, given we have recorded PMD swap mapping count
+in the count of the huge swap cluster.  But this need to increase
+swap_map[offset] when splitting the PMD swap mapping, that may fail
+because of memory allocation for swap count continuation.  That is
+hard to dealt with.  So we choose current solution.
 
-... and not introduce xfeatures_mask_all at all but everywhere you need
-all features, to do:
+The PMD swap mapping to a huge swap cluster may be split when unmap a
+part of PMD mapping etc.  That is easy because only the count of the
+huge swap cluster need to be changed.  When the last PMD swap mapping
+is gone and SWAP_HAS_CACHE is unset, we will split the huge swap
+cluster (clear the huge flag).  This makes it easy to reason the
+cluster state.
 
-	(xfeatures_mask_user | xfeatures_mask_system)
+A huge swap cluster will be split when splitting the THP in swap
+cache, or failing to allocate THP during swapin, etc.  But when
+splitting the huge swap cluster, we will not try to split all PMD swap
+mappings, because we haven't enough information available for that
+sometimes.  Later, when the PMD swap mapping is duplicated or swapin,
+etc, the PMD swap mapping will be split and fallback to the PTE
+operation.
 
-and work with that.
+When a THP is added into swap cache, the SWAP_HAS_CACHE flag will be
+set in the swap_map[offset] of all swap slots inside the huge swap
+cluster backing the THP.  This huge swap cluster will not be split
+unless the THP is split even if its PMD swap mapping count dropped to
+0.  Later, when the THP is removed from swap cache, the SWAP_HAS_CACHE
+flag will be cleared in the swap_map[offset] of all swap slots inside
+the huge swap cluster.  And this huge swap cluster will be split if
+its PMD swap mapping count is 0.
 
-...
+The first parameter of swap_duplicate() is changed to return the swap
+entry to call add_swap_count_continuation() for.  Because we may need
+to call it for a swap entry in the middle of a huge swap cluster.
 
-> @@ -1178,7 +1208,7 @@ int copy_kernel_to_xstate(struct xregs_state *xsave, const void *kbuf)
->  	 * The state that came in from userspace was user-state only.
->  	 * Mask all the user states out of 'xfeatures':
->  	 */
-> -	xsave->header.xfeatures &= XFEATURE_MASK_SUPERVISOR;
-> +	xsave->header.xfeatures &= (xfeatures_mask_all & ~xfeatures_mask_user);
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+---
+ include/linux/swap.h |   9 ++--
+ mm/memory.c          |   2 +-
+ mm/rmap.c            |   2 +-
+ mm/swap_state.c      |   2 +-
+ mm/swapfile.c        | 109 ++++++++++++++++++++++++++++++++++++-------
+ 5 files changed, 99 insertions(+), 25 deletions(-)
 
-... and this would be
-
-	xsave->header.xfeatures &= xfeatures_mask_system;
-
->  
->  	/*
->  	 * Add back in the features that came in from userspace:
-> @@ -1234,7 +1264,7 @@ int copy_user_to_xstate(struct xregs_state *xsave, const void __user *ubuf)
->  	 * The state that came in from userspace was user-state only.
->  	 * Mask all the user states out of 'xfeatures':
->  	 */
-> -	xsave->header.xfeatures &= XFEATURE_MASK_SUPERVISOR;
-> +	xsave->header.xfeatures &= (xfeatures_mask_all & ~xfeatures_mask_user);
-
-Ditto here.
-
-This way you have *two* mask variables and code queries them only.
-
-Hmmm?
-
-Or am I missing something?
-
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 928550bd28f3..70a6ede1e7e0 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -451,8 +451,8 @@ extern swp_entry_t get_swap_page_of_type(int);
+ extern int get_swap_pages(int n, swp_entry_t swp_entries[], int entry_size);
+ extern int add_swap_count_continuation(swp_entry_t, gfp_t);
+ extern void swap_shmem_alloc(swp_entry_t);
+-extern int swap_duplicate(swp_entry_t);
+-extern int swapcache_prepare(swp_entry_t);
++extern int swap_duplicate(swp_entry_t *entry, int entry_size);
++extern int swapcache_prepare(swp_entry_t entry, int entry_size);
+ extern void swap_free(swp_entry_t);
+ extern void swapcache_free_entries(swp_entry_t *entries, int n);
+ extern int free_swap_and_cache(swp_entry_t);
+@@ -510,7 +510,8 @@ static inline void show_swap_cache_info(void)
+ }
+ 
+ #define free_swap_and_cache(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
+-#define swapcache_prepare(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
++#define swapcache_prepare(e, s)						\
++	({(is_migration_entry(e) || is_device_private_entry(e)); })
+ 
+ static inline int add_swap_count_continuation(swp_entry_t swp, gfp_t gfp_mask)
+ {
+@@ -521,7 +522,7 @@ static inline void swap_shmem_alloc(swp_entry_t swp)
+ {
+ }
+ 
+-static inline int swap_duplicate(swp_entry_t swp)
++static inline int swap_duplicate(swp_entry_t *swp, int entry_size)
+ {
+ 	return 0;
+ }
+diff --git a/mm/memory.c b/mm/memory.c
+index 532061217e03..5efb9259d47b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -709,7 +709,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		swp_entry_t entry = pte_to_swp_entry(pte);
+ 
+ 		if (likely(!non_swap_entry(entry))) {
+-			if (swap_duplicate(entry) < 0)
++			if (swap_duplicate(&entry, 1) < 0)
+ 				return entry.val;
+ 
+ 			/* make sure dst_mm is on swapoff's mmlist. */
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 896c61dbf16c..e9b07016f587 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1609,7 +1609,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				break;
+ 			}
+ 
+-			if (swap_duplicate(entry) < 0) {
++			if (swap_duplicate(&entry, 1) < 0) {
+ 				set_pte_at(mm, address, pvmw.pte, pteval);
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 5a1cc9387151..97831166994a 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -402,7 +402,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		/*
+ 		 * Swap entry may have been freed since our caller observed it.
+ 		 */
+-		err = swapcache_prepare(entry);
++		err = swapcache_prepare(entry, 1);
+ 		if (err == -EEXIST) {
+ 			/*
+ 			 * We might race against get_swap_page() and stumble
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 5adc0787343f..bd8756ac3bcc 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -534,6 +534,40 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
+ 		free_cluster(p, idx);
+ }
+ 
++/*
++ * When swapout a THP in one piece, PMD page mappings to THP are
++ * replaced by PMD swap mappings to the corresponding swap cluster.
++ * cluster_swapcount() returns the PMD swap mapping count.
++ *
++ * cluster_count() = PMD swap mapping count + count of allocated swap
++ * entries in cluster.  If a cluster is mapped by PMD, all swap
++ * entries inside is used, so here cluster_count() = PMD swap mapping
++ * count + SWAPFILE_CLUSTER.
++ */
++static inline int cluster_swapcount(struct swap_cluster_info *ci)
++{
++	VM_BUG_ON(!cluster_is_huge(ci) || cluster_count(ci) < SWAPFILE_CLUSTER);
++	return cluster_count(ci) - SWAPFILE_CLUSTER;
++}
++
++/*
++ * Set PMD swap mapping count for the huge cluster
++ */
++static inline void cluster_set_swapcount(struct swap_cluster_info *ci,
++					 unsigned int count)
++{
++	VM_BUG_ON(!cluster_is_huge(ci) || cluster_count(ci) < SWAPFILE_CLUSTER);
++	cluster_set_count(ci, SWAPFILE_CLUSTER + count);
++}
++
++static inline void cluster_add_swapcount(struct swap_cluster_info *ci, int add)
++{
++	int count = cluster_swapcount(ci) + add;
++
++	VM_BUG_ON(count < 0);
++	cluster_set_swapcount(ci, count);
++}
++
+ /*
+  * It's possible scan_swap_map() uses a free cluster in the middle of free
+  * cluster list. Avoiding such abuse to avoid list corruption.
+@@ -3394,35 +3428,66 @@ static int __swap_duplicate_locked(struct swap_info_struct *p,
+ }
+ 
+ /*
+- * Verify that a swap entry is valid and increment its swap map count.
++ * Verify that the swap entries from *entry is valid and increment their
++ * PMD/PTE swap mapping count.
+  *
+  * Returns error code in following case.
+  * - success -> 0
+  * - swp_entry is invalid -> EINVAL
+- * - swp_entry is migration entry -> EINVAL
+  * - swap-cache reference is requested but there is already one. -> EEXIST
+  * - swap-cache reference is requested but the entry is not used. -> ENOENT
+  * - swap-mapped reference requested but needs continued swap count. -> ENOMEM
++ * - the huge swap cluster has been split. -> ENOTDIR
+  */
+-static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
++static int __swap_duplicate(swp_entry_t *entry, int entry_size,
++			    unsigned char usage)
+ {
+ 	struct swap_info_struct *p;
+ 	struct swap_cluster_info *ci;
+ 	unsigned long offset;
+ 	int err = -EINVAL;
++	int i, size = swap_entry_size(entry_size);
+ 
+-	p = get_swap_device(entry);
++	p = get_swap_device(*entry);
+ 	if (!p)
+ 		goto out;
+ 
+-	offset = swp_offset(entry);
++	offset = swp_offset(*entry);
+ 	ci = lock_cluster_or_swap_info(p, offset);
+-	err = __swap_duplicate_locked(p, offset, usage);
++	if (size == SWAPFILE_CLUSTER) {
++		/*
++		 * The huge swap cluster has been split, for example, failed to
++		 * allocate huge page during swapin, the caller should split
++		 * the PMD swap mapping and operate on normal swap entries.
++		 */
++		if (!cluster_is_huge(ci)) {
++			err = -ENOTDIR;
++			goto unlock;
++		}
++		VM_BUG_ON(!IS_ALIGNED(offset, size));
++		/* If cluster is huge, all swap entries inside is in-use */
++		VM_BUG_ON(cluster_count(ci) < SWAPFILE_CLUSTER);
++	}
++	/* p->swap_map[] = PMD swap map count + PTE swap map count */
++	for (i = 0; i < size; i++) {
++		err = __swap_duplicate_locked(p, offset + i, usage);
++		if (err && size != 1) {
++			*entry = swp_entry(p->type, offset + i);
++			goto undup;
++		}
++	}
++	if (size == SWAPFILE_CLUSTER && usage == 1)
++		cluster_add_swapcount(ci, usage);
++unlock:
+ 	unlock_cluster_or_swap_info(p, ci);
+ 
+ 	put_swap_device(p);
+ out:
+ 	return err;
++undup:
++	for (i--; i >= 0; i--)
++		__swap_entry_free_locked(p, offset + i, usage);
++	goto unlock;
+ }
+ 
+ /*
+@@ -3431,36 +3496,44 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+  */
+ void swap_shmem_alloc(swp_entry_t entry)
+ {
+-	__swap_duplicate(entry, SWAP_MAP_SHMEM);
++	__swap_duplicate(&entry, 1, SWAP_MAP_SHMEM);
+ }
+ 
+ /*
+  * Increase reference count of swap entry by 1.
+- * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
+- * but could not be atomically allocated.  Returns 0, just as if it succeeded,
+- * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
+- * might occur if a page table entry has got corrupted.
++ *
++ * Return error code in following case.
++ * - success -> 0
++ * - swap_count_continuation is required but could not be atomically allocated.
++ *   *entry is used to return swap entry to call add_swap_count_continuation().
++ *								      -> ENOMEM
++ * - otherwise same as __swap_duplicate()
+  */
+-int swap_duplicate(swp_entry_t entry)
++int swap_duplicate(swp_entry_t *entry, int entry_size)
+ {
+ 	int err = 0;
+ 
+-	while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
+-		err = add_swap_count_continuation(entry, GFP_ATOMIC);
++	while (!err &&
++	       (err = __swap_duplicate(entry, entry_size, 1)) == -ENOMEM)
++		err = add_swap_count_continuation(*entry, GFP_ATOMIC);
++	/* If kernel works correctly, other errno is impossible */
++	VM_BUG_ON(err && err != -ENOMEM && err != -ENOTDIR);
+ 	return err;
+ }
+ 
+ /*
+  * @entry: swap entry for which we allocate swap cache.
++ * @entry_size: size of the swap entry, 1 or SWAPFILE_CLUSTER
+  *
+  * Called when allocating swap cache for existing swap entry,
+  * This can return error codes. Returns 0 at success.
+- * -EBUSY means there is a swap cache.
+- * Note: return code is different from swap_duplicate().
++ * -EINVAL means the swap device has been swapoff.
++ * -EEXIST means there is a swap cache.
++ * Otherwise same as __swap_duplicate()
+  */
+-int swapcache_prepare(swp_entry_t entry)
++int swapcache_prepare(swp_entry_t entry, int entry_size)
+ {
+-	return __swap_duplicate(entry, SWAP_HAS_CACHE);
++	return __swap_duplicate(&entry, entry_size, SWAP_HAS_CACHE);
+ }
+ 
+ struct swap_info_struct *swp_swap_info(swp_entry_t entry)
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.18.1
