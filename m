@@ -1,37 +1,192 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-MIME-Version: 1.0
-References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
-In-Reply-To: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 4 Dec 2018 17:06:13 -0800
-Message-ID: <CAGXu5jKsX=0HE17JRiK-agq7R6RWg+03Ww_CaB9BzL4odLnZjA@mail.gmail.com>
-Subject: Re: [PATCH 00/16] v6 kernel core pieces refcount conversions
-Content-Type: text/plain; charset="UTF-8"
-Sender: linux-kernel-owner@vger.kernel.org
-To: "Reshetova, Elena" <elena.reshetova@intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Greg KH <gregkh@linuxfoundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Eric Paris <eparis@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B28D8E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:40 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id s71so3538376pfi.22
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:40 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id d8si1744446plo.196.2018.12.13.22.28.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Dec 2018 22:28:38 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 20/21] swap: Support PMD swap mapping in common path
+Date: Fri, 14 Dec 2018 14:27:53 +0800
+Message-Id: <20181214062754.13723-21-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On Wed, Nov 15, 2017 at 6:07 AM Elena Reshetova
-<elena.reshetova@intel.com> wrote:
-> Changes in v6:
->  * memory ordering differences are outlined in each patch
->    together with potential problematic areas.
->   Note: I didn't include any statements in individual patches
->   on why I think the memory ordering changes do not matter
->   in that particular case since ultimately these are only
->   known by maintainers (unless explicitly documented) and
->   very hard to figure out reliably from the code.
->   Therefore maintainers are expected to double check the
->   specific pointed functions and make the end decision.
->  * rebase on top of today's linux-next/master
+Original code is only for PMD migration entry, it is revised to
+support PMD swap mapping.
 
-*thread resurrection*
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+---
+ fs/proc/task_mmu.c | 12 +++++-------
+ mm/gup.c           | 36 ++++++++++++++++++++++++------------
+ mm/huge_memory.c   |  7 ++++---
+ mm/mempolicy.c     |  2 +-
+ 4 files changed, 34 insertions(+), 23 deletions(-)
 
-Was there a v7 for this series? I'd like to finish off any of the
-known outstanding refcount_t conversions.
-
-Thanks!
-
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index dc36909a73c6..fa41822574e1 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -986,7 +986,7 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+ 		pmd = pmd_clear_soft_dirty(pmd);
+ 
+ 		set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
+-	} else if (is_migration_entry(pmd_to_swp_entry(pmd))) {
++	} else if (is_swap_pmd(pmd)) {
+ 		pmd = pmd_swp_clear_soft_dirty(pmd);
+ 		set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
+ 	}
+@@ -1320,9 +1320,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 			if (pm->show_pfn)
+ 				frame = pmd_pfn(pmd) +
+ 					((addr & ~PMD_MASK) >> PAGE_SHIFT);
+-		}
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+-		else if (is_swap_pmd(pmd)) {
++		} else if (IS_ENABLED(CONFIG_HAVE_PMD_SWAP_ENTRY) &&
++			   is_swap_pmd(pmd)) {
+ 			swp_entry_t entry = pmd_to_swp_entry(pmd);
+ 			unsigned long offset;
+ 
+@@ -1335,10 +1334,9 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 			flags |= PM_SWAP;
+ 			if (pmd_swp_soft_dirty(pmd))
+ 				flags |= PM_SOFT_DIRTY;
+-			VM_BUG_ON(!is_pmd_migration_entry(pmd));
+-			page = migration_entry_to_page(entry);
++			if (is_pmd_migration_entry(pmd))
++				page = migration_entry_to_page(entry);
+ 		}
+-#endif
+ 
+ 		if (page && page_mapcount(page) == 1)
+ 			flags |= PM_MMAP_EXCLUSIVE;
+diff --git a/mm/gup.c b/mm/gup.c
+index 6dd33e16a806..460565825ef0 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -215,6 +215,7 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 	spinlock_t *ptl;
+ 	struct page *page;
+ 	struct mm_struct *mm = vma->vm_mm;
++	swp_entry_t entry;
+ 
+ 	pmd = pmd_offset(pudp, address);
+ 	/*
+@@ -242,18 +243,22 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 	if (!pmd_present(pmdval)) {
+ 		if (likely(!(flags & FOLL_MIGRATION)))
+ 			return no_page_table(vma, flags);
+-		VM_BUG_ON(thp_migration_supported() &&
+-				  !is_pmd_migration_entry(pmdval));
+-		if (is_pmd_migration_entry(pmdval))
++		entry = pmd_to_swp_entry(pmdval);
++		if (thp_migration_supported() && is_migration_entry(entry)) {
+ 			pmd_migration_entry_wait(mm, pmd);
+-		pmdval = READ_ONCE(*pmd);
+-		/*
+-		 * MADV_DONTNEED may convert the pmd to null because
+-		 * mmap_sem is held in read mode
+-		 */
+-		if (pmd_none(pmdval))
++			pmdval = READ_ONCE(*pmd);
++			/*
++			 * MADV_DONTNEED may convert the pmd to null because
++			 * mmap_sem is held in read mode
++			 */
++			if (pmd_none(pmdval))
++				return no_page_table(vma, flags);
++			goto retry;
++		}
++		if (IS_ENABLED(CONFIG_THP_SWAP) && !non_swap_entry(entry))
+ 			return no_page_table(vma, flags);
+-		goto retry;
++		WARN_ON(1);
++		return no_page_table(vma, flags);
+ 	}
+ 	if (pmd_devmap(pmdval)) {
+ 		ptl = pmd_lock(mm, pmd);
+@@ -275,11 +280,18 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 		return no_page_table(vma, flags);
+ 	}
+ 	if (unlikely(!pmd_present(*pmd))) {
++		entry = pmd_to_swp_entry(*pmd);
+ 		spin_unlock(ptl);
+ 		if (likely(!(flags & FOLL_MIGRATION)))
+ 			return no_page_table(vma, flags);
+-		pmd_migration_entry_wait(mm, pmd);
+-		goto retry_locked;
++		if (thp_migration_supported() && is_migration_entry(entry)) {
++			pmd_migration_entry_wait(mm, pmd);
++			goto retry_locked;
++		}
++		if (IS_ENABLED(CONFIG_THP_SWAP) && !non_swap_entry(entry))
++			return no_page_table(vma, flags);
++		WARN_ON(1);
++		return no_page_table(vma, flags);
+ 	}
+ 	if (unlikely(!pmd_trans_huge(*pmd))) {
+ 		spin_unlock(ptl);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 6d144d687e69..38904d673339 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2122,7 +2122,7 @@ static inline int pmd_move_must_withdraw(spinlock_t *new_pmd_ptl,
+ static pmd_t move_soft_dirty_pmd(pmd_t pmd)
+ {
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+-	if (unlikely(is_pmd_migration_entry(pmd)))
++	if (unlikely(is_swap_pmd(pmd)))
+ 		pmd = pmd_swp_mksoft_dirty(pmd);
+ 	else if (pmd_present(pmd))
+ 		pmd = pmd_mksoft_dirty(pmd);
+@@ -2206,11 +2206,12 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	preserve_write = prot_numa && pmd_write(*pmd);
+ 	ret = 1;
+ 
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#if defined(CONFIG_ARCH_ENABLE_THP_MIGRATION) || defined(CONFIG_THP_SWAP)
+ 	if (is_swap_pmd(*pmd)) {
+ 		swp_entry_t entry = pmd_to_swp_entry(*pmd);
+ 
+-		VM_BUG_ON(!is_pmd_migration_entry(*pmd));
++		VM_BUG_ON(!IS_ENABLED(CONFIG_THP_SWAP) &&
++			  !is_migration_entry(entry));
+ 		if (is_write_migration_entry(entry)) {
+ 			pmd_t newpmd;
+ 			/*
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index d4496d9d34f5..253d9aa25667 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -436,7 +436,7 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+ 	struct queue_pages *qp = walk->private;
+ 	unsigned long flags;
+ 
+-	if (unlikely(is_pmd_migration_entry(*pmd))) {
++	if (unlikely(is_swap_pmd(*pmd))) {
+ 		ret = 1;
+ 		goto unlock;
+ 	}
 -- 
-Kees Cook
+2.18.1
