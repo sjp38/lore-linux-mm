@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 73A108E0014
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:57:17 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id s71so3287217pfi.22
-        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 19:57:17 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k189si3013133pgd.589.2018.12.13.19.57.15
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4FF48E0014
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2018 21:39:21 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id p3so2643712plk.9
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 18:39:21 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z83sor5868780pfd.11.2018.12.13.18.39.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Dec 2018 19:57:16 -0800 (PST)
-Date: Thu, 13 Dec 2018 19:57:12 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, page_isolation: remove drain_all_pages() in
- set_migratetype_isolate()
-Message-Id: <20181213195712.1e7bacce774c403e82fe9fab@linux-foundation.org>
-In-Reply-To: <20181214023912.77474-1-richard.weiyang@gmail.com>
-References: <20181214023912.77474-1-richard.weiyang@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 13 Dec 2018 18:39:20 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm, page_isolation: remove drain_all_pages() in set_migratetype_isolate()
+Date: Fri, 14 Dec 2018 10:39:12 +0800
+Message-Id: <20181214023912.77474-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, mhocko@suse.com, osalvador@suse.de, david@redhat.com, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, osalvador@suse.de, david@redhat.com, Wei Yang <richard.weiyang@gmail.com>
 
-On Fri, 14 Dec 2018 10:39:12 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+Below is a brief call flow for __offline_pages() and
+alloc_contig_range():
 
-> Below is a brief call flow for __offline_pages()
+  __offline_pages()/alloc_contig_range()
+      start_isolate_page_range()
+          set_migratetype_isolate()
+              drain_all_pages()
+      drain_all_pages()
 
-Offtopic...
+Since set_migratetype_isolate() is only used in
+start_isolate_page_range(), which is just used in __offline_pages() and
+alloc_contig_range(). And both of them call drain_all_pages() if every
+check looks good. This means it is not necessary call drain_all_pages()
+in each iteration of set_migratetype_isolate().
 
-set_migratetype_isolate() has the comment
+By doing so, the logic seems a little bit clearer.
+set_migratetype_isolate() handles pages in Buddy, while
+drain_all_pages() takes care of pages in pcp.
 
-	/*
-	 * immobile means "not-on-lru" pages. If immobile is larger than
-	 * removable-by-driver pages reported by notifier, we'll fail.
-	 */
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/page_isolation.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-what the heck does that mean?  It used to talk about unmovable pages,
-but this was mysteriously changed to use the unique term "immobile" by
-Minchan's ee6f509c32 ("mm: factor out memory isolate functions"). 
-Could someone please take a look?
-
-
-> and
-> alloc_contig_range():
-> 
->   __offline_pages()/alloc_contig_range()
->       start_isolate_page_range()
->           set_migratetype_isolate()
->               drain_all_pages()
->       drain_all_pages()
-> 
-> Since set_migratetype_isolate() is only used in
-> start_isolate_page_range(), which is just used in __offline_pages() and
-> alloc_contig_range(). And both of them call drain_all_pages() if every
-> check looks good. This means it is not necessary call drain_all_pages()
-> in each iteration of set_migratetype_isolate().
->
-> By doing so, the logic seems a little bit clearer.
-> set_migratetype_isolate() handles pages in Buddy, while
-> drain_all_pages() takes care of pages in pcp.
-
-Well.  drain_all_pages() moves pages from pcp to buddy so I'm not sure
-that argument holds water.
-
-Can we step back a bit and ask ourselves what all these draining
-operations are actually for?  What is the intent behind each callsite? 
-Figuring that out (and perhaps even documenting it!) would help us
-decide the most appropriate places from which to perform the drain.
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 43e085608846..f44c0e333bed 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -83,8 +83,6 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
+ 	}
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+-	if (!ret)
+-		drain_all_pages(zone);
+ 	return ret;
+ }
+ 
+-- 
+2.15.1
