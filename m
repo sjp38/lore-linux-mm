@@ -1,44 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0048E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 18:24:04 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id r145so25222516qke.20
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 15:24:04 -0800 (PST)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id c16sor29844652qtq.58.2018.12.27.15.24.03
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0ED8E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 12:16:28 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id f69so4882333pff.5
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 09:16:28 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a33sor3694174pla.29.2018.12.14.09.16.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 27 Dec 2018 15:24:03 -0800 (PST)
-Date: Thu, 27 Dec 2018 15:23:54 -0800
-Message-Id: <20181227232354.64562-1-ksspiers@google.com>
-Mime-Version: 1.0
-Subject: [PATCH] include/linux/gfp.h: fix typo
-From: Kyle Spiers <ksspiers@google.com>
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 14 Dec 2018 09:16:27 -0800 (PST)
+From: Suren Baghdasaryan <surenb@google.com>
+Subject: [PATCH 5/6] psi: rename psi fields in preparation for psi trigger addition
+Date: Fri, 14 Dec 2018 09:15:07 -0800
+Message-Id: <20181214171508.7791-6-surenb@google.com>
+In-Reply-To: <20181214171508.7791-1-surenb@google.com>
+References: <20181214171508.7791-1-surenb@google.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyle Spiers <ksspiers@google.com>
+To: gregkh@linuxfoundation.org
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
 
-Fix misspelled "satisfied"
+Renaming psi_group structure member fields used for calculating psi
+totals and averages for clear distinction between them and trigger-related
+fields that will be added next.
 
-Signed-off-by: Kyle Spiers <ksspiers@google.com>
+Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 ---
- include/linux/gfp.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/psi_types.h | 15 ++++++++-------
+ kernel/sched/psi.c        | 26 ++++++++++++++------------
+ 2 files changed, 22 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0705164f928c..5f5e25fd6149 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -81,7 +81,7 @@ struct vm_area_struct;
-  *
-  * %__GFP_HARDWALL enforces the cpuset memory allocation policy.
-  *
-- * %__GFP_THISNODE forces the allocation to be satisified from the requested
-+ * %__GFP_THISNODE forces the allocation to be satisfied from the requested
-  * node with no fallbacks or placement policy enforcements.
-  *
-  * %__GFP_ACCOUNT causes the allocation to be accounted to kmemcg.
+diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
+index 2c6e9b67b7eb..11b32b3395a2 100644
+--- a/include/linux/psi_types.h
++++ b/include/linux/psi_types.h
+@@ -69,20 +69,21 @@ struct psi_group_cpu {
+ };
+ 
+ struct psi_group {
+-	/* Protects data updated during an aggregation */
+-	struct mutex stat_lock;
++	/* Protects data used by the aggregator */
++	struct mutex update_lock;
+ 
+ 	/* Per-cpu task state & time tracking */
+ 	struct psi_group_cpu __percpu *pcpu;
+ 
+-	/* Periodic aggregation state */
+-	u64 total_prev[NR_PSI_STATES - 1];
+-	u64 last_update;
+-	u64 next_update;
+ 	struct delayed_work clock_work;
+ 
+-	/* Total stall times and sampled pressure averages */
++	/* Total stall times observed */
+ 	u64 total[NR_PSI_STATES - 1];
++
++	/* Running pressure averages */
++	u64 avg_total[NR_PSI_STATES - 1];
++	u64 avg_last_update;
++	u64 avg_next_update;
+ 	unsigned long avg[NR_PSI_STATES - 1][3];
+ };
+ 
+diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
+index 153c0624976b..694edefdd333 100644
+--- a/kernel/sched/psi.c
++++ b/kernel/sched/psi.c
+@@ -172,9 +172,9 @@ static void group_init(struct psi_group *group)
+ 
+ 	for_each_possible_cpu(cpu)
+ 		seqcount_init(&per_cpu_ptr(group->pcpu, cpu)->seq);
+-	group->next_update = sched_clock() + psi_period;
++	group->avg_next_update = sched_clock() + psi_period;
+ 	INIT_DELAYED_WORK(&group->clock_work, psi_update_work);
+-	mutex_init(&group->stat_lock);
++	mutex_init(&group->update_lock);
+ }
+ 
+ void __init psi_init(void)
+@@ -268,7 +268,7 @@ static void update_stats(struct psi_group *group)
+ 	int cpu;
+ 	int s;
+ 
+-	mutex_lock(&group->stat_lock);
++	mutex_lock(&group->update_lock);
+ 
+ 	/*
+ 	 * Collect the per-cpu time buckets and average them into a
+@@ -309,7 +309,7 @@ static void update_stats(struct psi_group *group)
+ 
+ 	/* avgX= */
+ 	now = sched_clock();
+-	expires = group->next_update;
++	expires = group->avg_next_update;
+ 	if (now < expires)
+ 		goto out;
+ 
+@@ -320,14 +320,14 @@ static void update_stats(struct psi_group *group)
+ 	 * But the deltas we sample out of the per-cpu buckets above
+ 	 * are based on the actual time elapsing between clock ticks.
+ 	 */
+-	group->next_update = expires + psi_period;
+-	period = now - group->last_update;
+-	group->last_update = now;
++	group->avg_next_update = expires + psi_period;
++	period = now - group->avg_last_update;
++	group->avg_last_update = now;
+ 
+ 	for (s = 0; s < NR_PSI_STATES - 1; s++) {
+ 		u32 sample;
+ 
+-		sample = group->total[s] - group->total_prev[s];
++		sample = group->total[s] - group->avg_total[s];
+ 		/*
+ 		 * Due to the lockless sampling of the time buckets,
+ 		 * recorded time deltas can slip into the next period,
+@@ -347,11 +347,11 @@ static void update_stats(struct psi_group *group)
+ 		 */
+ 		if (sample > period)
+ 			sample = period;
+-		group->total_prev[s] += sample;
++		group->avg_total[s] += sample;
+ 		calc_avgs(group->avg[s], sample, period);
+ 	}
+ out:
+-	mutex_unlock(&group->stat_lock);
++	mutex_unlock(&group->update_lock);
+ }
+ 
+ static void psi_update_work(struct work_struct *work)
+@@ -375,8 +375,10 @@ static void psi_update_work(struct work_struct *work)
+ 	update_stats(group);
+ 
+ 	now = sched_clock();
+-	if (group->next_update > now)
+-		delay = nsecs_to_jiffies(group->next_update - now) + 1;
++	if (group->avg_next_update > now) {
++		delay = nsecs_to_jiffies(
++				group->avg_next_update - now) + 1;
++	}
+ 	schedule_delayed_work(dwork, delay);
+ }
+ 
 -- 
-2.20.1.415.g653613c723-goog
+2.20.0.405.gbc1bbc6f85-goog
