@@ -1,44 +1,50 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 18 Dec 2018 01:56:44 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v4 9/9] xen/privcmd-buf.c: Convert to use vm_insert_range
-Message-ID: <20181217202644.GA19376@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, boris.ostrovsky@oracle.com, jgross@suse.com
-Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C4748E01C5
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:11:02 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id z6so4562233qtj.21
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:11:02 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k8si2695774qvp.96.2018.12.14.03.11.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Dec 2018 03:11:01 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 5/9] m68k/mm: use __ClearPageReserved()
+Date: Fri, 14 Dec 2018 12:10:10 +0100
+Message-Id: <20181214111014.15672-6-david@redhat.com>
+In-Reply-To: <20181214111014.15672-1-david@redhat.com>
+References: <20181214111014.15672-1-david@redhat.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+The PG_reserved flag is cleared from memory that is part of the kernel
+image (and therefore marked as PG_reserved). Avoid using PG_reserved
+directly.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- drivers/xen/privcmd-buf.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ arch/m68k/mm/memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/xen/privcmd-buf.c b/drivers/xen/privcmd-buf.c
-index df1ed37..d31b837 100644
---- a/drivers/xen/privcmd-buf.c
-+++ b/drivers/xen/privcmd-buf.c
-@@ -180,12 +180,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
- 	if (vma_priv->n_pages != count)
- 		ret = -ENOMEM;
- 	else
--		for (i = 0; i < vma_priv->n_pages; i++) {
--			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
--					     vma_priv->pages[i]);
--			if (ret)
--				break;
--		}
-+		ret = vm_insert_range(vma, vma->vm_start, vma_priv->pages,
-+					vma_priv->n_pages);
+diff --git a/arch/m68k/mm/memory.c b/arch/m68k/mm/memory.c
+index b86a2e21693b..227c04fe60d2 100644
+--- a/arch/m68k/mm/memory.c
++++ b/arch/m68k/mm/memory.c
+@@ -51,7 +51,7 @@ void __init init_pointer_table(unsigned long ptable)
+ 	pr_debug("init_pointer_table: %lx, %x\n", ptable, PD_MARKBITS(dp));
  
- 	if (ret)
- 		privcmd_buf_vmapriv_free(vma_priv);
+ 	/* unreserve the page so it's possible to free that page */
+-	PD_PAGE(dp)->flags &= ~(1 << PG_reserved);
++	__ClearPageReserved(PD_PAGE(dp));
+ 	init_page_count(PD_PAGE(dp));
+ 
+ 	return;
 -- 
-1.9.1
+2.17.2
