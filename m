@@ -1,150 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E1DB8E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 14:39:14 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id r24so2860554otk.7
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 11:39:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k22sor4035309otn.183.2018.12.14.11.39.12
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EC0898E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 10:43:28 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id b3so2964392edi.0
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 07:43:28 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z7si686328edh.60.2018.12.14.07.43.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 14 Dec 2018 11:39:12 -0800 (PST)
-MIME-Version: 1.0
-References: <20181205014441.GA3045@redhat.com> <59ca5c4b-fd5b-1fc6-f891-c7986d91908e@nvidia.com>
- <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com> <20181207191620.GD3293@redhat.com>
- <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com> <20181208022445.GA7024@redhat.com>
- <20181210102846.GC29289@quack2.suse.cz> <20181212150319.GA3432@redhat.com>
- <20181212214641.GB29416@dastard> <20181212215931.GG5037@redhat.com>
- <20181213005119.GD29416@dastard> <05a68829-6e6d-b766-11b4-99e1ba4bc87b@nvidia.com>
- <CAPcyv4jyG3YTtghyr04wws_hcSBAmPBpnCm0tFcKgz9VwrV=ow@mail.gmail.com> <01cf4e0c-b2d6-225a-3ee9-ef0f7e53684d@nvidia.com>
-In-Reply-To: <01cf4e0c-b2d6-225a-3ee9-ef0f7e53684d@nvidia.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 14 Dec 2018 11:38:59 -0800
-Message-ID: <CAPcyv4hrbA9H20bi+QMpKNi7r=egstt61MdQSD5Fb293W1btaw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Dec 2018 07:43:26 -0800 (PST)
+Date: Fri, 14 Dec 2018 16:43:21 +0100
+From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20181214154321.GF8896@quack2.suse.cz>
+References: <20181205011519.GV10377@bombadil.infradead.org>
+ <20181205014441.GA3045@redhat.com>
+ <59ca5c4b-fd5b-1fc6-f891-c7986d91908e@nvidia.com>
+ <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com>
+ <20181207191620.GD3293@redhat.com>
+ <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com>
+ <20181208022445.GA7024@redhat.com>
+ <20181210102846.GC29289@quack2.suse.cz>
+ <20181212150319.GA3432@redhat.com>
+ <20181212214641.GB29416@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181212214641.GB29416@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: david <david@fromorbit.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Thu, Dec 13, 2018 at 10:11 PM John Hubbard <jhubbard@nvidia.com> wrote:
->
-> On 12/13/18 9:21 PM, Dan Williams wrote:
-> > On Thu, Dec 13, 2018 at 7:53 PM John Hubbard <jhubbard@nvidia.com> wrote:
-> >>
-> >> On 12/12/18 4:51 PM, Dave Chinner wrote:
-> >>> On Wed, Dec 12, 2018 at 04:59:31PM -0500, Jerome Glisse wrote:
-> >>>> On Thu, Dec 13, 2018 at 08:46:41AM +1100, Dave Chinner wrote:
-> >>>>> On Wed, Dec 12, 2018 at 10:03:20AM -0500, Jerome Glisse wrote:
-> >>>>>> On Mon, Dec 10, 2018 at 11:28:46AM +0100, Jan Kara wrote:
-> >>>>>>> On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
-> >>>>>>> So this approach doesn't look like a win to me over using counter in struct
-> >>>>>>> page and I'd rather try looking into squeezing HMM public page usage of
-> >>>>>>> struct page so that we can fit that gup counter there as well. I know that
-> >>>>>>> it may be easier said than done...
-> >>>>>>
-> >>
-> >> Agreed. After all the discussion this week, I'm thinking that the original idea
-> >> of a per-struct-page counter is better. Fortunately, we can do the moral equivalent
-> >> of that, unless I'm overlooking something: Jerome had another proposal that he
-> >> described, off-list, for doing that counting, and his idea avoids the problem of
-> >> finding space in struct page. (And in fact, when I responded yesterday, I initially
-> >> thought that's where he was going with this.)
-> >>
-> >> So how about this hybrid solution:
-> >>
-> >> 1. Stay with the basic RFC approach of using a per-page counter, but actually
-> >> store the counter(s) in the mappings instead of the struct page. We can use
-> >> !PageAnon and page_mapping to look up all the mappings, stash the dma_pinned_count
-> >> there. So the total pinned count is scattered across mappings. Probably still need
-> >> a PageDmaPinned bit.
-> >
-> > How do you safely look at page->mapping from the get_user_pages_fast()
-> > path? You'll be racing invalidation disconnecting the page from the
-> > mapping.
-> >
->
-> I don't have an answer for that, so maybe the page->mapping idea is dead already.
->
-> So in that case, there is still one more way to do all of this, which is to
-> combine ZONE_DEVICE, HMM, and gup/dma information in a per-page struct, and get
-> there via basically page->private, more or less like this:
+Hi!
 
-If we're going to allocate something new out-of-line then maybe we
-should go even further to allow for a page "proxy" object to front a
-real struct page. This idea arose from Dave Hansen as I explained to
-him the dax-reflink problem, and dovetails with Dave Chinner's
-suggestion earlier in this thread for dax-reflink.
+On Thu 13-12-18 08:46:41, Dave Chinner wrote:
+> On Wed, Dec 12, 2018 at 10:03:20AM -0500, Jerome Glisse wrote:
+> > On Mon, Dec 10, 2018 at 11:28:46AM +0100, Jan Kara wrote:
+> > > On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
+> > > So this approach doesn't look like a win to me over using counter in struct
+> > > page and I'd rather try looking into squeezing HMM public page usage of
+> > > struct page so that we can fit that gup counter there as well. I know that
+> > > it may be easier said than done...
+> > 
+> > So i want back to the drawing board and first i would like to ascertain
+> > that we all agree on what the objectives are:
+> > 
+> >     [O1] Avoid write back from a page still being written by either a
+> >          device or some direct I/O or any other existing user of GUP.
+> >          This would avoid possible file system corruption.
+> > 
+> >     [O2] Avoid crash when set_page_dirty() is call on a page that is
+> >          considered clean by core mm (buffer head have been remove and
+> >          with some file system this turns into an ugly mess).
+> 
+> I think that's wrong. This isn't an "avoid a crash" case, this is a
+> "prevent data and/or filesystem corruption" case. The primary goal
+> we have here is removing our exposure to potential corruption, which
+> has the secondary effect of avoiding the crash/panics that currently
+> occur as a result of inconsistent page/filesystem state.
+> 
+> i.e. The goal is to have ->page_mkwrite() called on the clean page
+> /before/ the file-backed page is marked dirty, and hence we don't
+> expose ourselves to potential corruption or crashes that are a
+> result of inappropriately calling set_page_dirty() on clean
+> file-backed pages.
 
-Have get_user_pages() allocate a proxy object that gets passed around
-to drivers. Something like a struct page pointer with bit 0 set. This
-would add a conditional branch and pointer chase to many page
-operations, like page_to_pfn(), I thought something like it would be
-unacceptable a few years ago, but then HMM went and added similar
-overhead to put_page() and nobody balked.
+I agree that [O1] - i.e., avoid corrupting fs data - is more important and
+[O2] is just one consequence of [O1].
 
-This has the additional benefit of catching cases that might be doing
-a get_page() on a get_user_pages() result and should instead switch to
-a "ref_user_page()" (opposite of put_user_page()) as the API to take
-additional references on a get_user_pages() result.
+> > For [O1] and [O2] i believe a solution with mapcount would work. So
+> > no new struct, no fake vma, nothing like that. In GUP for file back
+> > pages we increment both refcount and mapcount (we also need a special
+> > put_user_page to decrement mapcount when GUP user are done with the
+> > page).
+> 
+> I don't see how a mapcount can prevent anyone from calling
+> set_page_dirty() inappropriately.
+> 
+> > Now for [O1] the write back have to call page_mkclean() to go through
+> > all reverse mapping of the page and map read only. This means that
+> > we can count the number of real mapping and see if the mapcount is
+> > bigger than that. If mapcount is bigger than page is pin and we need
+> > to use a bounce page to do the writeback.
+> 
+> Doesn't work. Generally filesystems have already mapped the page
+> into bios before they call clear_page_dirty_for_io(), so it's too
+> late for the filesystem to bounce the page at that point.
 
-page->index and page->mapping could be overridden by similar
-attributes in the proxy, and allow an N:1 relationship of proxy
-instances to actual pages. Filesystems could generate dynamic proxies
-as well.
+Yes, for filesystem it is too late. But the plan we figured back in October
+was to do the bouncing in the block layer. I.e., mark the bio (or just the
+particular page) as needing bouncing and then use the existing page
+bouncing mechanism in the block layer to do the bouncing for us. Ext3 (when
+it was still a separate fs driver) has been using a mechanism like this to
+make DIF/DIX work with its metadata.
 
-The auxiliary information (dev_pagemap, hmm_data, etc...) moves to the
-proxy and stops polluting the base struct page which remains the
-canonical location for dirty-tracking and dma operations.
+> > For [O2] i believe we can handle that case in the put_user_page()
+> > function to properly dirty the page without causing filesystem
+> > freak out.
+> 
+> I'm pretty sure you can't call ->page_mkwrite() from
+> put_user_page(), so I don't think this is workable at all.
 
-The difficulties are reconciling the source of the proxies as both
-get_user_pages() and filesystem may want to be the source of the
-allocation. In the get_user_pages_fast() path we may not be able to
-ask the filesystem for the proxy, at least not without destroying the
-performance expectations of get_user_pages_fast().
+Yes, calling ->page_mkwrite() in put_user_page() is not only technically
+complicated but also too late - DMA has already modified page contents.
+What we planned to do (again discussed back in October) was to never allow
+the pinned page to become clean. I.e., clear_page_dirty_for_io() would
+leave pinned pages dirty. Also we would skip pinned pages for WB_SYNC_NONE
+writeback as there's no point in that really. That way MM and filesystems
+would be aware of the real page state - i.e., what's in memory is not in
+sync (potentially) with what's on disk. I was thinking whether this
+permanently-dirty state couldn't confuse filesystem in some way but I
+didn't find anything serious - the worst I could think of are places that
+do filemap_write_and_wait() and then invalidate page cache e.g. before hole
+punching or extent shifting. But these should work fine as is (page cache
+invalidation will just happily truncate dirty pages). DIO might get
+confused by the inability to invalidate dirty pages but then user combining
+RDMA with DIO on the same file at one moment gets what he deserves...
 
->
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 5ed8f6292a53..13f651bb5cc1 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -67,6 +67,13 @@ struct hmm;
->  #define _struct_page_alignment
->  #endif
->
-> +struct page_aux {
-> +       struct dev_pagemap *pgmap;
-> +       unsigned long hmm_data;
-> +       unsigned long private;
-> +       atomic_t dma_pinned_count;
-> +};
-> +
->  struct page {
->         unsigned long flags;            /* Atomic flags, some possibly
->                                          * updated asynchronously */
-> @@ -149,11 +156,13 @@ struct page {
->                         spinlock_t ptl;
->  #endif
->                 };
-> -               struct {        /* ZONE_DEVICE pages */
-> +               struct {        /* ZONE_DEVICE, HMM or get_user_pages() pages */
->                         /** @pgmap: Points to the hosting device page map. */
-> -                       struct dev_pagemap *pgmap;
-> -                       unsigned long hmm_data;
-> -                       unsigned long _zd_pad_1;        /* uses mapping */
-> +                       unsigned long _zd_pad_1;        /* LRU */
-> +                       unsigned long _zd_pad_2;        /* LRU */
-> +                       unsigned long _zd_pad_3;        /* mapping */
-> +                       unsigned long _zd_pad_4;        /* index */
-> +                       struct page_aux *aux;           /* private */
->                 };
->
->                 /** @rcu_head: You can use this to free a page by RCU. */
->
-> ...is there any appetite for that approach?
->
-> --
-> thanks,
-> John Hubbard
-> NVIDIA
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
