@@ -1,54 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 52CFD8E0001
-	for <linux-mm@kvack.org>; Tue, 25 Dec 2018 21:35:48 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id x125so19240656qka.17
-        for <linux-mm@kvack.org>; Tue, 25 Dec 2018 18:35:48 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i188sor11088843qki.56.2018.12.25.18.35.47
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 655548E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:29 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id n17so3538897pfk.23
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:29 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id d8si1744446plo.196.2018.12.13.22.28.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 25 Dec 2018 18:35:47 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-Subject: [PATCH -mmotm] efi: drop kmemleak_ignore() for page allocator
-Date: Tue, 25 Dec 2018 21:35:34 -0500
-Message-Id: <20181226023534.64048-1-cai@lca.pw>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Dec 2018 22:28:27 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 16/21] swap: Support to copy PMD swap mapping when fork()
+Date: Fri, 14 Dec 2018 14:27:49 +0800
+Message-Id: <20181214062754.13723-17-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: ard.biesheuvel@linaro.org, catalin.marinas@arm.com, mingo@kernel.org, linux-mm@kvack.org, linux-efi@vger.kernel.org, linux-kernel@vger.kernel.org, Qian Cai <cai@lca.pw>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-a0fc5578f1d (efi: Let kmemleak ignore false positives) is no longer
-needed due to efi_mem_reserve_persistent() uses __get_free_page()
-instead where kmemelak is not able to track regardless. Otherwise,
-kernel reported "kmemleak: Trying to color unknown object at
-0xffff801060ef0000 as Black"
+During fork, the page table need to be copied from parent to child.  A
+PMD swap mapping need to be copied too and the swap reference count
+need to be increased.
 
-Signed-off-by: Qian Cai <cai@lca.pw>
+When the huge swap cluster has been split already, we need to split
+the PMD swap mapping and fallback to PTE copying.
+
+When swap count continuation failed to allocate a page with
+GFP_ATOMIC, we need to unlock the spinlock and try again with
+GFP_KERNEL.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- drivers/firmware/efi/efi.c | 3 ---
- 1 file changed, 3 deletions(-)
+ mm/huge_memory.c | 72 ++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 57 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
-index 7ac09dd8f268..4c46ff6f2242 100644
---- a/drivers/firmware/efi/efi.c
-+++ b/drivers/firmware/efi/efi.c
-@@ -31,7 +31,6 @@
- #include <linux/acpi.h>
- #include <linux/ucs2_string.h>
- #include <linux/memblock.h>
--#include <linux/kmemleak.h>
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index e460241ea761..b083c66a9d09 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -974,6 +974,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	if (unlikely(!pgtable))
+ 		goto out;
  
- #include <asm/early_ioremap.h>
++retry:
+ 	dst_ptl = pmd_lock(dst_mm, dst_pmd);
+ 	src_ptl = pmd_lockptr(src_mm, src_pmd);
+ 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+@@ -981,26 +982,67 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	ret = -EAGAIN;
+ 	pmd = *src_pmd;
  
-@@ -1027,8 +1026,6 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
- 	if (!rsv)
- 		return -ENOMEM;
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+ 	if (unlikely(is_swap_pmd(pmd))) {
+ 		swp_entry_t entry = pmd_to_swp_entry(pmd);
  
--	kmemleak_ignore(rsv);
--
- 	rsv->size = EFI_MEMRESERVE_COUNT(PAGE_SIZE);
- 	atomic_set(&rsv->count, 1);
- 	rsv->entry[0].base = addr;
+-		VM_BUG_ON(!is_pmd_migration_entry(pmd));
+-		if (is_write_migration_entry(entry)) {
+-			make_migration_entry_read(&entry);
+-			pmd = swp_entry_to_pmd(entry);
+-			if (pmd_swp_soft_dirty(*src_pmd))
+-				pmd = pmd_swp_mksoft_dirty(pmd);
+-			set_pmd_at(src_mm, addr, src_pmd, pmd);
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++		if (is_migration_entry(entry)) {
++			if (is_write_migration_entry(entry)) {
++				make_migration_entry_read(&entry);
++				pmd = swp_entry_to_pmd(entry);
++				if (pmd_swp_soft_dirty(*src_pmd))
++					pmd = pmd_swp_mksoft_dirty(pmd);
++				set_pmd_at(src_mm, addr, src_pmd, pmd);
++			}
++			add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
++			mm_inc_nr_ptes(dst_mm);
++			pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
++			set_pmd_at(dst_mm, addr, dst_pmd, pmd);
++			ret = 0;
++			goto out_unlock;
+ 		}
+-		add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
+-		mm_inc_nr_ptes(dst_mm);
+-		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
+-		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+-		ret = 0;
+-		goto out_unlock;
+-	}
+ #endif
++		if (IS_ENABLED(CONFIG_THP_SWAP) && !non_swap_entry(entry)) {
++			ret = swap_duplicate(&entry, HPAGE_PMD_NR);
++			if (!ret) {
++				add_mm_counter(dst_mm, MM_SWAPENTS,
++					       HPAGE_PMD_NR);
++				mm_inc_nr_ptes(dst_mm);
++				pgtable_trans_huge_deposit(dst_mm, dst_pmd,
++							   pgtable);
++				set_pmd_at(dst_mm, addr, dst_pmd, pmd);
++				/* make sure dst_mm is on swapoff's mmlist. */
++				if (unlikely(list_empty(&dst_mm->mmlist))) {
++					spin_lock(&mmlist_lock);
++					if (list_empty(&dst_mm->mmlist))
++						list_add(&dst_mm->mmlist,
++							 &src_mm->mmlist);
++					spin_unlock(&mmlist_lock);
++				}
++			} else if (ret == -ENOTDIR) {
++				/*
++				 * The huge swap cluster has been split, split
++				 * the PMD swap mapping and fallback to PTE
++				 */
++				__split_huge_swap_pmd(vma, addr, src_pmd);
++				pte_free(dst_mm, pgtable);
++			} else if (ret == -ENOMEM) {
++				spin_unlock(src_ptl);
++				spin_unlock(dst_ptl);
++				ret = add_swap_count_continuation(entry,
++								  GFP_KERNEL);
++				if (ret < 0) {
++					ret = -ENOMEM;
++					pte_free(dst_mm, pgtable);
++					goto out;
++				}
++				goto retry;
++			} else
++				VM_BUG_ON(1);
++			goto out_unlock;
++		}
++		VM_BUG_ON(1);
++	}
+ 
+ 	if (unlikely(!pmd_trans_huge(pmd))) {
+ 		pte_free(dst_mm, pgtable);
 -- 
-2.17.2 (Apple Git-113)
+2.18.1
