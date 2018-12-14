@@ -1,231 +1,312 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 455CD8E021D
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 21:01:18 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id f125so5218661pgc.20
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:01:18 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 36si5383817pgt.213.2018.12.14.18.01.16
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 29F748E021D
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:04:56 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id c18so3351131edt.23
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 15:04:56 -0800 (PST)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id i3si1022936edk.411.2018.12.14.15.04.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 18:01:16 -0800 (PST)
-Subject: [PATCH v5 2/5] acpi/numa: Set the memory-side-cache size in
- memblocks
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 14 Dec 2018 17:48:40 -0800
-Message-ID: <154483852084.1672629.6281294122517430332.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <154483851047.1672629.15001135860756738866.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <154483851047.1672629.15001135860756738866.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 14 Dec 2018 15:04:54 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id E9E3398473
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 23:04:53 +0000 (UTC)
+Date: Fri, 14 Dec 2018 23:04:49 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 10/14] mm, compaction: Use free lists to quickly locate a
+ migration source
+Message-ID: <20181214230449.GA29005@techsingularity.net>
+References: <20181214230310.572-1-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20181214230310.572-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: x86@kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Mike Rapoport <rppt@linux.ibm.com>, Keith Busch <keith.busch@intel.com>, linux-mm@kvack.orgx86@kernel.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-From: Keith Busch <keith.busch@intel.com>
+The migration scanner is a linear scan of a zone which is a potentially
+very large search space. Furthermore, many pageblocks are unusable such
+as those filled with reserved pages or partially filled with pages that
+cannot migrate. These still get scanned in the common case of allocating
+a THP and the cost accumulates.
 
-Add memblock based enumeration of memory-side-cache of System RAM.
-Detect the capability in early init through HMAT tables, and set the
-size in the address range memblocks if a direct mapped side cache is
-present.
+The patch uses a partial search of the free lists to locate a migration
+source candidate that is marked as MOVABLE when allocating a THP. It
+prefers picking a block with a larger number of free pages already on
+the basis that there are fewer pages to migrate to free the entire block.
+The lowest PFN found during searches is tracked as the basis of the start
+for the linear search after the first search of the free list fails.
+After the search, the free list is shuffled so that the next search will
+not encounter the same page. If the search fails then the subsequent
+searches will be shorter and the linear scanner is used.
 
-Cc: <x86@kernel.org>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Signed-off-by: Keith Busch <keith.busch@intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+If this search fails, or if the request is for a small or
+unmovable/reclaimable allocation then the linear scanner is still used. It
+is somewhat pointless to use the list search in these cases. Small free
+pages must be used for the search and there is no guarantee that movable
+pages are located within that block that are contiguous.
+
+                                    4.20.0-rc6             4.20.0-rc6
+                                  noboost-v1r4           findmig-v1r4
+Amean     fault-both-3      3753.53 (   0.00%)     3545.40 (   5.54%)
+Amean     fault-both-5      5396.32 (   0.00%)     5431.98 (  -0.66%)
+Amean     fault-both-7      7393.46 (   0.00%)     7185.11 (   2.82%)
+Amean     fault-both-12    12155.50 (   0.00%)    11424.68 (   6.01%)
+Amean     fault-both-18    16445.96 (   0.00%)    14170.10 *  13.84%*
+Amean     fault-both-24    20465.03 (   0.00%)    16143.57 *  21.12%*
+Amean     fault-both-30    20813.54 (   0.00%)    19207.96 (   7.71%)
+Amean     fault-both-32    22384.02 (   0.00%)    20051.01 *  10.42%*
+
+Compaction migrate scanned    60836989    51005450
+Compaction free scanned      890084421   780359464
+
+This is showing a 16% reduction in migration scanning with some mild
+improvements on latency. A 2-socket machine showed similar reductions
+of scan rates in percentage terms.
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- arch/x86/Kconfig         |    1 +
- drivers/acpi/numa.c      |   32 ++++++++++++++++++++++++++++++++
- include/linux/memblock.h |   36 ++++++++++++++++++++++++++++++++++++
- mm/Kconfig               |    3 +++
- mm/memblock.c            |   20 ++++++++++++++++++++
- 5 files changed, 92 insertions(+)
+ mm/compaction.c | 179 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ mm/internal.h   |   2 +
+ 2 files changed, 179 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 8689e794a43c..3f9c413d8eb5 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -171,6 +171,7 @@ config X86
- 	select HAVE_KVM
- 	select HAVE_LIVEPATCH			if X86_64
- 	select HAVE_MEMBLOCK_NODE_MAP
-+	select HAVE_MEMBLOCK_CACHE_INFO		if ACPI_NUMA
- 	select HAVE_MIXED_BREAKPOINTS_REGS
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select HAVE_NMI
-diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
-index f5e09c39ff22..ec7e849f1c19 100644
---- a/drivers/acpi/numa.c
-+++ b/drivers/acpi/numa.c
-@@ -40,6 +40,12 @@ static int pxm_to_node_map[MAX_PXM_DOMAINS]
- static int node_to_pxm_map[MAX_NUMNODES]
- 			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
- 
-+struct mem_cacheinfo {
-+	phys_addr_t size;
-+	bool direct_mapped;
-+};
-+static struct mem_cacheinfo side_cached_pxms[MAX_PXM_DOMAINS] __initdata;
-+
- unsigned char acpi_srat_revision __initdata;
- int acpi_numa __initdata;
- 
-@@ -262,6 +268,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 	u64 start, end;
- 	u32 hotpluggable;
- 	int node, pxm;
-+	u64 cache_size;
-+	bool direct;
- 
- 	if (srat_disabled())
- 		goto out_err;
-@@ -308,6 +316,13 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 		pr_warn("SRAT: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
- 			(unsigned long long)start, (unsigned long long)end - 1);
- 
-+	cache_size = side_cached_pxms[pxm].size;
-+	direct = side_cached_pxms[pxm].direct_mapped;
-+	if (cache_size &&
-+	    memblock_set_sidecache(start, ma->length, cache_size, direct))
-+		pr_warn("SRAT: Failed to mark side cached range [mem %#010Lx-%#010Lx] in memblock\n",
-+			(unsigned long long)start, (unsigned long long)end - 1);
-+
- 	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
- 
- 	return 0;
-@@ -411,6 +426,18 @@ acpi_parse_memory_affinity(union acpi_subtable_headers * header,
- 	return 0;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8ba9b3b479e3..65c7ab1847a0 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1041,6 +1041,12 @@ static bool suitable_migration_target(struct compact_control *cc,
+ 	return false;
  }
  
-+static int __init
-+acpi_parse_cache(union acpi_subtable_headers *header, const unsigned long end)
++static inline unsigned int
++freelist_scan_limit(struct compact_control *cc)
 +{
-+	struct acpi_hmat_cache *c = (void *)header;
-+	u32 attrs = (c->cache_attributes & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8;
-+
-+	if (attrs == ACPI_HMAT_CA_DIRECT_MAPPED)
-+		side_cached_pxms[c->memory_PD].direct_mapped = true;
-+	side_cached_pxms[c->memory_PD].size += c->cache_size;
-+	return 0;
++	return (COMPACT_CLUSTER_MAX >> cc->fast_search_fail) + 1;
 +}
 +
- static int __init acpi_parse_srat(struct acpi_table_header *table)
- {
- 	struct acpi_table_srat *srat = (struct acpi_table_srat *)table;
-@@ -460,6 +487,11 @@ int __init acpi_numa_init(void)
- 					sizeof(struct acpi_table_srat),
- 					srat_proc, ARRAY_SIZE(srat_proc), 0);
- 
-+		acpi_table_parse_entries(ACPI_SIG_HMAT,
-+					 sizeof(struct acpi_table_hmat),
-+					 ACPI_HMAT_TYPE_CACHE,
-+					 acpi_parse_cache, 0);
-+
- 		cnt = acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY,
- 					    acpi_parse_memory_affinity, 0);
- 	}
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index aee299a6aa76..169ed3dd456d 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -60,6 +60,10 @@ struct memblock_region {
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	int nid;
- #endif
-+#ifdef CONFIG_HAVE_MEMBLOCK_CACHE_INFO
-+	phys_addr_t cache_size;
-+	bool direct_mapped;
-+#endif
- };
- 
- /**
-@@ -317,6 +321,38 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
- }
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK_CACHE_INFO
-+int memblock_set_sidecache(phys_addr_t base, phys_addr_t size,
-+			   phys_addr_t cache_size, bool direct_mapped);
-+
-+static inline bool memblock_sidecache_direct_mapped(struct memblock_region *m)
-+{
-+	return m->direct_mapped;
-+}
-+
-+static inline phys_addr_t memblock_sidecache_size(struct memblock_region *m)
-+{
-+	return m->cache_size;
-+}
-+#else
-+static inline int memblock_set_sidecache(phys_addr_t base, phys_addr_t size,
-+					 phys_addr_t cache_size,
-+					 bool direct_mapped)
-+{
-+	return 0;
-+}
-+
-+static inline phys_addr_t memblock_sidecache_size(struct memblock_region *m)
-+{
-+	return 0;
-+}
-+
-+static inline bool memblock_sidecache_direct_mapped(struct memblock_region *m)
-+{
-+	return false;
-+}
-+#endif /* CONFIG_HAVE_MEMBLOCK_CACHE_INFO */
-+
- /* Flags for memblock allocation APIs */
- #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)
- #define MEMBLOCK_ALLOC_ACCESSIBLE	0
-diff --git a/mm/Kconfig b/mm/Kconfig
-index d85e39da47ae..c7944299a89e 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -142,6 +142,9 @@ config ARCH_DISCARD_MEMBLOCK
- config MEMORY_ISOLATION
- 	bool
- 
-+config HAVE_MEMBLOCK_CACHE_INFO
-+	bool
-+
- #
- # Only be set on architectures that have completely implemented memory hotplug
- # feature. If you are not sure, don't touch it.
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9a2d5ae81ae1..185bfd4e87bb 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -822,6 +822,26 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- 	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
+ /*
+  * Test whether the free scanner has reached the same or lower pageblock than
+  * the migration scanner, and compaction should thus terminate.
+@@ -1051,6 +1057,19 @@ static inline bool compact_scanners_met(struct compact_control *cc)
+ 		<= (cc->migrate_pfn >> pageblock_order);
  }
  
-+#ifdef CONFIG_HAVE_MEMBLOCK_CACHE_INFO
-+int __init_memblock memblock_set_sidecache(phys_addr_t base, phys_addr_t size,
-+			   phys_addr_t cache_size, bool direct_mapped)
++/* Reorder the free list to reduce repeated future searches */
++static void
++move_freelist_tail(struct list_head *freelist, struct page *freepage)
 +{
-+	struct memblock_type *type = &memblock.memory;
-+	int i, ret, start_rgn, end_rgn;
++	LIST_HEAD(sublist);
 +
-+	ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
-+	if (ret)
-+		return ret;
++	if (!list_is_last(freelist, &freepage->lru)) {
++		list_cut_position(&sublist, freelist, &freepage->lru);
++		if (!list_empty(&sublist))
++			list_splice_tail(&sublist, freelist);
++	}
++}
 +
-+	for (i = start_rgn; i < end_rgn; i++) {
-+		type->regions[i].cache_size = cache_size;
-+		type->regions[i].direct_mapped = direct_mapped;
+ /*
+  * Based on information in the current compact_control, find blocks
+  * suitable for isolating free pages from and then isolate them.
+@@ -1208,6 +1227,160 @@ typedef enum {
+  */
+ int sysctl_compact_unevictable_allowed __read_mostly = 1;
+ 
++static inline void
++update_fast_start_pfn(struct compact_control *cc, unsigned long pfn)
++{
++	if (cc->fast_start_pfn == ULONG_MAX)
++		return;
++
++	if (!cc->fast_start_pfn)
++		cc->fast_start_pfn = pfn;
++
++	cc->fast_start_pfn = min(cc->fast_start_pfn, pfn);
++}
++
++static inline void
++reinit_migrate_pfn(struct compact_control *cc)
++{
++	if (!cc->fast_start_pfn || cc->fast_start_pfn == ULONG_MAX)
++		return;
++
++	cc->migrate_pfn = cc->fast_start_pfn;
++	cc->fast_start_pfn = ULONG_MAX;
++}
++
++/*
++ * Briefly search the free lists for a migration source that already has
++ * some free pages to reduce the number of pages that need migration
++ * before a pageblock is free.
++ */
++static unsigned long fast_find_migrateblock(struct compact_control *cc)
++{
++	unsigned int limit = freelist_scan_limit(cc);
++	unsigned int nr_scanned = 0;
++	unsigned long distance;
++	unsigned long pfn = cc->migrate_pfn;
++	unsigned long high_pfn;
++	int order;
++
++	/* Skip hints are relied on to avoid repeats on the fast search */
++	if (cc->ignore_skip_hint)
++		return pfn;
++
++	/*
++	 * If the migrate_pfn is not at the start of a zone or the start
++	 * of a pageblock then assume this is a continuation of a previous
++	 * scan restarted due to COMPACT_CLUSTER_MAX.
++	 */
++	if (pfn != cc->zone->zone_start_pfn && pfn != pageblock_start_pfn(pfn))
++		return pfn;
++
++	/*
++	 * For smaller orders, just linearly scan as the number of pages
++	 * to migrate should be relatively small and does not necessarily
++	 * justify freeing up a large block for a small allocation.
++	 */
++	if (cc->order <= PAGE_ALLOC_COSTLY_ORDER)
++		return pfn;
++
++	/*
++	 * Only allow kcompactd and direct requests for movable pages to
++	 * quickly clear out a MOVABLE pageblock for allocation. This
++	 * reduces the risk that a large movable pageblock is freed for
++	 * an unmovable/reclaimable small allocation.
++	 */
++	if (cc->direct_compaction && cc->migratetype != MIGRATE_MOVABLE)
++		return pfn;
++
++	/*
++	 * When starting the migration scanner, pick any pageblock within the
++	 * first half of the search space. Otherwise try and pick a pageblock
++	 * within the first eighth to reduce the chances that a migration
++	 * target later becomes a source.
++	 */
++	distance = (cc->free_pfn - cc->migrate_pfn) >> 1;
++	if (cc->migrate_pfn != cc->zone->zone_start_pfn)
++		distance >>= 2;
++	high_pfn = pageblock_start_pfn(cc->migrate_pfn + distance);
++
++	for (order = cc->order - 1;
++	     order >= PAGE_ALLOC_COSTLY_ORDER && pfn == cc->migrate_pfn && nr_scanned < limit;
++	     order--) {
++		struct free_area *area = &cc->zone->free_area[order];
++		struct list_head *freelist;
++		unsigned long nr_skipped = 0;
++		unsigned long flags;
++		struct page *freepage;
++
++		if (!area->nr_free)
++			continue;
++
++		spin_lock_irqsave(&cc->zone->lock, flags);
++		freelist = &area->free_list[MIGRATE_MOVABLE];
++		list_for_each_entry(freepage, freelist, lru) {
++			unsigned long free_pfn;
++
++			nr_scanned++;
++			free_pfn = page_to_pfn(freepage);
++			if (free_pfn < high_pfn) {
++				update_fast_start_pfn(cc, free_pfn);
++
++				/*
++				 * Avoid if skipped recently. Move to the tail
++				 * of the list so it will not be found again
++				 * soon
++				 */
++				if (get_pageblock_skip(freepage)) {
++
++					if (list_is_last(freelist, &freepage->lru))
++						break;
++
++					nr_skipped++;
++					list_del(&freepage->lru);
++					list_add_tail(&freepage->lru, freelist);
++					if (nr_skipped > 2)
++						break;
++					continue;
++				}
++
++				/* Reorder to so a future search skips recent pages */
++				move_freelist_tail(freelist, freepage);
++
++				pfn = pageblock_start_pfn(free_pfn);
++				cc->fast_search_fail = 0;
++				set_pageblock_skip(freepage);
++				break;
++			}
++
++			/*
++			 * If low PFNs are being found and discarded then
++			 * limit the scan as fast searching is finding
++			 * poor candidates.
++			 */
++			if (free_pfn < cc->migrate_pfn)
++				limit >>= 1;
++
++			if (nr_scanned >= limit) {
++				cc->fast_search_fail++;
++				move_freelist_tail(freelist, freepage);
++				break;
++			}
++		}
++		spin_unlock_irqrestore(&cc->zone->lock, flags);
 +	}
 +
-+	return 0;
-+}
-+#endif
++	cc->total_migrate_scanned += nr_scanned;
 +
- /**
-  * memblock_setclr_flag - set or clear flag for a memory region
-  * @base: base address of the region
++	/*
++	 * If fast scanning failed then use a cached entry for a page block
++	 * that had free pages as the basis for starting a linear scan.
++	 */
++	if (pfn == cc->migrate_pfn)
++		reinit_migrate_pfn(cc);
++
++	return pfn;
++}
++
+ /*
+  * Isolate all pages that can be migrated from the first suitable block,
+  * starting at the block pointed to by the migrate scanner pfn within
+@@ -1226,9 +1399,10 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 
+ 	/*
+ 	 * Start at where we last stopped, or beginning of the zone as
+-	 * initialized by compact_zone()
++	 * initialized by compact_zone(). The first failure will use
++	 * the lowest PFN as the starting point for linear scanning.
+ 	 */
+-	low_pfn = cc->migrate_pfn;
++	low_pfn = fast_find_migrateblock(cc);
+ 	block_start_pfn = pageblock_start_pfn(low_pfn);
+ 	if (block_start_pfn < zone->zone_start_pfn)
+ 		block_start_pfn = zone->zone_start_pfn;
+@@ -1551,6 +1725,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
+ 	 * want to compact the whole zone), but check that it is initialised
+ 	 * by ensuring the values are within zone boundaries.
+ 	 */
++	cc->fast_start_pfn = 0;
+ 	if (cc->whole_zone) {
+ 		cc->migrate_pfn = start_pfn;
+ 		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
+diff --git a/mm/internal.h b/mm/internal.h
+index 9b32f4cab0ae..983cb975545f 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -188,9 +188,11 @@ struct compact_control {
+ 	unsigned int nr_migratepages;	/* Number of pages to migrate */
+ 	unsigned long free_pfn;		/* isolate_freepages search base */
+ 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
++	unsigned long fast_start_pfn;	/* a pfn to start linear scan from */
+ 	struct zone *zone;
+ 	unsigned long total_migrate_scanned;
+ 	unsigned long total_free_scanned;
++	unsigned int fast_search_fail;	/* failures to use free list searches */
+ 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+ 	int order;			/* order a direct compactor needs */
+ 	int migratetype;		/* migratetype of direct compactor */
+-- 
+2.16.4
