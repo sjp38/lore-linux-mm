@@ -1,63 +1,63 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 75EA08E01D1
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 07:26:41 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 68so4203815pfr.6
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 04:26:41 -0800 (PST)
-Received: from sonic311-21.consmr.mail.gq1.yahoo.com (sonic311-21.consmr.mail.gq1.yahoo.com. [98.137.65.202])
-        by mx.google.com with ESMTPS id o2si4037599pfb.166.2018.12.14.04.26.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 04:26:40 -0800 (PST)
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Richard Weinberger <richard@nod.at>
 Subject: Re: [PATCH] fix page_count in ->iomap_migrate_page()
+Date: Fri, 14 Dec 2018 12:25:50 +0100
+Message-ID: <1618433.IpySj692Hd@blindfold>
+In-Reply-To: <1544766961-3492-1-git-send-email-openzhangj@gmail.com>
 References: <1544766961-3492-1-git-send-email-openzhangj@gmail.com>
- <1618433.IpySj692Hd@blindfold>
-From: Gao Xiang <hsiangkao@aol.com>
-Message-ID: <2b19b3c4-2bc4-15fa-15cc-27a13e5c7af1@aol.com>
-Date: Fri, 14 Dec 2018 20:26:28 +0800
 MIME-Version: 1.0
-In-Reply-To: <1618433.IpySj692Hd@blindfold>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Sender: linux-kernel-owner@vger.kernel.org
+To: zhangjun <openzhangj@gmail.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, hch@lst.de, bfoster@redhat.comdarrick.wong@oracle.com, Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, aarcange@redhat.com, willy@infradead.org, linux@dominikbrodowski.net, linux-mm@kvack.org, Gao Xiang <gaoxiang25@huawei.com>
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: zhangjun <openzhangj@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, hch@lst.de, bfoster@redhat.com, Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, aarcange@redhat.com, willy@infradead.org, linux@dominikbrodowski.net, linux-mm@kvack.org, Gao Xiang <gaoxiang25@huawei.com>
 
-Hi Richard,
+[CC'ing authors of the code plus mm folks]
 
-On 2018/12/14 19:25, Richard Weinberger wrote:
-> This is the third place which needs this workaround.
-> UBIFS, F2FS, and now iomap.
+Am Freitag, 14. Dezember 2018, 06:56:01 CET schrieb zhangjun:
+> IOMAP uses PG_private a little different with buffer_head based
+> filesystem.
+> It uses it as marker and when set, the page counter is not incremented,
+> migrate_page_move_mapping() assumes that PG_private indicates a counter
+> of +1.
+> so, we have to pass a extra count of -1 to migrate_page_move_mapping()
+> if the flag is set.
 > 
-> I agree with Dave that nobody can assume that PG_private implies an additional
-> page reference.
-> But page migration does that. Including parts of the write back code.
+> Signed-off-by: zhangjun <openzhangj@gmail.com>
+> ---
+>  fs/iomap.c | 11 ++++++++++-
+>  1 file changed, 10 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/iomap.c b/fs/iomap.c
+> index 64ce240..352e58a 100644
+> --- a/fs/iomap.c
+> +++ b/fs/iomap.c
+> @@ -544,8 +544,17 @@ iomap_migrate_page(struct address_space *mapping, struct page *newpage,
+>  		struct page *page, enum migrate_mode mode)
+>  {
+>  	int ret;
+> +	int extra_count = 0;
+>  
+> -	ret = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
+> +	/*
+> +	 * IOMAP uses PG_private as marker and does not raise the page counter.
+> +	 * migrate_page_move_mapping() expects a incremented counter if PG_private
+> +	 * is set. Therefore pass -1 as extra_count for this case.
+> +	 */
+> +	if (page_has_private(page))
+> +		extra_count = -1;
+> +	ret = migrate_page_move_mapping(mapping, newpage, page,
+> +		       NULL, mode, extra_count);
+>  	if (ret != MIGRATEPAGE_SUCCESS)
+>  		return ret;
 
-It seems that it's clearly documented in
-https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/mm.h#n780
+This is the third place which needs this workaround.
+UBIFS, F2FS, and now iomap.
 
- * A pagecache page contains an opaque `private' member, which belongs to the
- * page's address_space. Usually, this is the address of a circular list of
- * the page's disk buffers. PG_private must be set to tell the VM to call
- * into the filesystem to release these pages.
- *
- * A page may belong to an inode's memory mapping. In this case, page->mapping
- * is the pointer to the inode, and page->index is the file offset of the page,
- * in units of PAGE_SIZE.
- *
- * If pagecache pages are not associated with an inode, they are said to be
- * anonymous pages. These may become associated with the swapcache, and in that
- * case PG_swapcache is set, and page->private is an offset into the swapcache.
- *
- * In either case (swapcache or inode backed), the pagecache itself holds one
- * reference to the page. Setting PG_private should also increment the
- * refcount. The each user mapping also has a reference to the page.
-
-and when I looked into that, I found
-https://lore.kernel.org/lkml/3CB3CA93.D141680B@zip.com.au/
-
+I agree with Dave that nobody can assume that PG_private implies an additional
+page reference.
+But page migration does that. Including parts of the write back code.
 
 Thanks,
-Gao Xiang
+//richard
