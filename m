@@ -1,90 +1,135 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 2/3] filemap: pass vm_fault to the mmap ra helpers
-Date: Tue, 11 Dec 2018 12:38:00 -0500
-Message-Id: <20181211173801.29535-3-josef@toxicpanda.com>
-In-Reply-To: <20181211173801.29535-1-josef@toxicpanda.com>
-References: <20181211173801.29535-1-josef@toxicpanda.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: kernel-team@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, david@fromorbit.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, jack@suse.cz
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8F08E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:37 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 82so3551028pfs.20
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:37 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id d8si1744446plo.196.2018.12.13.22.28.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Dec 2018 22:28:35 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 19/21] swap: Support PMD swap mapping in mincore()
+Date: Fri, 14 Dec 2018 14:27:52 +0800
+Message-Id: <20181214062754.13723-20-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-All of the arguments to these functions come from the vmf, and the
-following patches are going to add more arguments.  Cut down on the
-amount of arguments passed by simply passing in the vmf to these two
-helpers.
+During mincore(), for PMD swap mapping, swap cache will be looked up.
+If the resulting page isn't compound page, the PMD swap mapping will
+be split and fallback to PTE swap mapping processing.
 
-Signed-off-by: Josef Bacik <josef@toxicpanda.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- mm/filemap.c | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+ mm/mincore.c | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 03bce38d8f2b..8fc45f24b201 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2309,20 +2309,20 @@ EXPORT_SYMBOL(generic_file_read_iter);
-  * Synchronous readahead happens when we don't even find
-  * a page in the page cache at all.
+diff --git a/mm/mincore.c b/mm/mincore.c
+index aa0e542569f9..1d861fac82ee 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -48,7 +48,8 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
+  * and is up to date; i.e. that no page-in operation would be required
+  * at this time if an application were to map and access this page.
   */
--static void do_sync_mmap_readahead(struct vm_area_struct *vma,
--				   struct file_ra_state *ra,
--				   struct file *file,
--				   pgoff_t offset)
-+static void do_sync_mmap_readahead(struct vm_fault *vmf)
+-static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
++static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff,
++				  bool *compound)
  {
-+	struct file *file = vmf->vma->vm_file;
-+	struct file_ra_state *ra = &file->f_ra;
- 	struct address_space *mapping = file->f_mapping;
-+	pgoff_t offset = vmf->pgoff;
+ 	unsigned char present = 0;
+ 	struct page *page;
+@@ -86,6 +87,8 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ #endif
+ 	if (page) {
+ 		present = PageUptodate(page);
++		if (compound)
++			*compound = PageCompound(page);
+ 		put_page(page);
+ 	}
  
- 	/* If we don't want any read-ahead, don't bother */
--	if (vma->vm_flags & VM_RAND_READ)
-+	if (vmf->vma->vm_flags & VM_RAND_READ)
- 		return;
- 	if (!ra->ra_pages)
- 		return;
+@@ -103,7 +106,8 @@ static int __mincore_unmapped_range(unsigned long addr, unsigned long end,
  
--	if (vma->vm_flags & VM_SEQ_READ) {
-+	if (vmf->vma->vm_flags & VM_SEQ_READ) {
- 		page_cache_sync_readahead(mapping, ra, file, offset,
- 					  ra->ra_pages);
- 		return;
-@@ -2352,16 +2352,16 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
-  * Asynchronous readahead happens when we find the page and PG_readahead,
-  * so we want to possibly extend the readahead further..
-  */
--static void do_async_mmap_readahead(struct vm_area_struct *vma,
--				    struct file_ra_state *ra,
--				    struct file *file,
--				    struct page *page,
--				    pgoff_t offset)
-+static void do_async_mmap_readahead(struct vm_fault *vmf,
-+				    struct page *page)
- {
-+	struct file *file = vmf->vma->vm_file;
-+	struct file_ra_state *ra = &file->f_ra;
- 	struct address_space *mapping = file->f_mapping;
-+	pgoff_t offset = vmf->pgoff;
+ 		pgoff = linear_page_index(vma, addr);
+ 		for (i = 0; i < nr; i++, pgoff++)
+-			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
++			vec[i] = mincore_page(vma->vm_file->f_mapping,
++					      pgoff, NULL);
+ 	} else {
+ 		for (i = 0; i < nr; i++)
+ 			vec[i] = 0;
+@@ -127,14 +131,36 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 	pte_t *ptep;
+ 	unsigned char *vec = walk->private;
+ 	int nr = (end - addr) >> PAGE_SHIFT;
++	swp_entry_t entry;
  
- 	/* If we don't want any read-ahead, don't bother */
--	if (vma->vm_flags & VM_RAND_READ)
-+	if (vmf->vma->vm_flags & VM_RAND_READ)
- 		return;
- 	if (ra->mmap_miss > 0)
- 		ra->mmap_miss--;
-@@ -2418,10 +2418,10 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
- 		 * We found the page, so try async readahead before
- 		 * waiting for the lock.
- 		 */
--		do_async_mmap_readahead(vmf->vma, ra, file, page, offset);
-+		do_async_mmap_readahead(vmf, page);
- 	} else if (!page) {
- 		/* No page in the page cache at all */
--		do_sync_mmap_readahead(vmf->vma, ra, file, offset);
-+		do_sync_mmap_readahead(vmf);
- 		count_vm_event(PGMAJFAULT);
- 		count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
- 		ret = VM_FAULT_MAJOR;
+ 	ptl = pmd_trans_huge_lock(pmd, vma);
+ 	if (ptl) {
+-		memset(vec, 1, nr);
++		unsigned char val = 1;
++		bool compound;
++
++		if (IS_ENABLED(CONFIG_THP_SWAP) && is_swap_pmd(*pmd)) {
++			entry = pmd_to_swp_entry(*pmd);
++			if (!non_swap_entry(entry)) {
++				val = mincore_page(swap_address_space(entry),
++						   swp_offset(entry),
++						   &compound);
++				/*
++				 * The huge swap cluster has been
++				 * split under us
++				 */
++				if (!compound) {
++					__split_huge_swap_pmd(vma, addr, pmd);
++					spin_unlock(ptl);
++					goto fallback;
++				}
++			}
++		}
++		memset(vec, val, nr);
+ 		spin_unlock(ptl);
+ 		goto out;
+ 	}
+ 
++fallback:
+ 	if (pmd_trans_unstable(pmd)) {
+ 		__mincore_unmapped_range(addr, end, vma, vec);
+ 		goto out;
+@@ -150,8 +176,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 		else if (pte_present(pte))
+ 			*vec = 1;
+ 		else { /* pte is a swap entry */
+-			swp_entry_t entry = pte_to_swp_entry(pte);
+-
++			entry = pte_to_swp_entry(pte);
+ 			if (non_swap_entry(entry)) {
+ 				/*
+ 				 * migration or hwpoison entries are always
+@@ -161,7 +186,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			} else {
+ #ifdef CONFIG_SWAP
+ 				*vec = mincore_page(swap_address_space(entry),
+-						    swp_offset(entry));
++						    swp_offset(entry), NULL);
+ #else
+ 				WARN_ON(1);
+ 				*vec = 1;
 -- 
-2.14.3
+2.18.1
