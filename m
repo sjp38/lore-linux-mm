@@ -1,342 +1,290 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E77576B6BAB
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 18:35:47 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id p24so15318294qtl.2
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 15:35:47 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v40si3164371qta.42.2018.12.03.15.35.46
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE3B8E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:08 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id n17so3538416pfk.23
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:08 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v19si3555849pfa.80.2018.12.13.22.28.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 15:35:46 -0800 (PST)
-From: jglisse@redhat.com
-Subject: [RFC PATCH 02/14] mm/hms: heterogenenous memory system (HMS) documentation
-Date: Mon,  3 Dec 2018 18:34:57 -0500
-Message-Id: <20181203233509.20671-3-jglisse@redhat.com>
-In-Reply-To: <20181203233509.20671-1-jglisse@redhat.com>
-References: <20181203233509.20671-1-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        Thu, 13 Dec 2018 22:28:06 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 09/21] swap: Support to read a huge swap cluster for swapin a THP
+Date: Fri, 14 Dec 2018 14:27:42 +0800
+Message-Id: <20181214062754.13723-10-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Rafael J . Wysocki" <rafael@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Haggai Eran <haggaie@mellanox.com>, Balbir Singh <balbirs@au1.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Felix Kuehling <felix.kuehling@amd.com>, Philip Yang <Philip.Yang@amd.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Logan Gunthorpe <logang@deltatee.com>, John Hubbard <jhubbard@nvidia.com>, Ralph Campbell <rcampbell@nvidia.com>, Michal Hocko <mhocko@kernel.org>, Jonathan Cameron <jonathan.cameron@huawei.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Vivek Kini <vkini@nvidia.com>, Mel Gorman <mgorman@techsingularity.net>, Dave Airlie <airlied@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-From: Jérôme Glisse <jglisse@redhat.com>
+To swapin a THP in one piece, we need to read a huge swap cluster from
+the swap device.  This patch revised the __read_swap_cache_async() and
+its callers and callees to support this.  If __read_swap_cache_async()
+find the swap cluster of the specified swap entry is huge, it will try
+to allocate a THP, add it into the swap cache.  So later the contents
+of the huge swap cluster can be read into the THP.
 
-Add documentation to what is HMS and what it is for (see patch content).
-
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Cc: Rafael J. Wysocki <rafael@kernel.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Haggai Eran <haggaie@mellanox.com>
-Cc: Balbir Singh <balbirs@au1.ibm.com>
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Felix Kuehling <felix.kuehling@amd.com>
-Cc: Philip Yang <Philip.Yang@amd.com>
-Cc: Christian König <christian.koenig@amd.com>
-Cc: Paul Blinzer <Paul.Blinzer@amd.com>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Jonathan Cameron <jonathan.cameron@huawei.com>
-Cc: Mark Hairgrove <mhairgrove@nvidia.com>
-Cc: Vivek Kini <vkini@nvidia.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Dave Airlie <airlied@redhat.com>
-Cc: Ben Skeggs <bskeggs@redhat.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- Documentation/vm/hms.rst | 275 ++++++++++++++++++++++++++++++++++-----
- 1 file changed, 246 insertions(+), 29 deletions(-)
+ include/linux/huge_mm.h |  6 +++++
+ include/linux/swap.h    |  4 +--
+ mm/huge_memory.c        |  4 +--
+ mm/swap_state.c         | 60 ++++++++++++++++++++++++++++++++---------
+ mm/swapfile.c           |  9 ++++---
+ 5 files changed, 64 insertions(+), 19 deletions(-)
 
-diff --git a/Documentation/vm/hms.rst b/Documentation/vm/hms.rst
-index dbf0f71918a9..bd7c9e8e7077 100644
---- a/Documentation/vm/hms.rst
-+++ b/Documentation/vm/hms.rst
-@@ -4,32 +4,249 @@
- Heterogeneous Memory System (HMS)
- =================================
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 1c0fda003d6a..72f2617d336b 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -250,6 +250,7 @@ static inline bool thp_migration_supported(void)
+ 	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
+ }
  
--System with complex memory topology needs a more versatile memory topology
--description than just node where a node is a collection of memory and CPU.
--In heterogeneous memory system we consider four types of object::
--   - target: which is any kind of memory
--   - initiator: any kind of device or CPU
--   - inter-connect: any kind of links that connects target and initiator
--   - bridge: a link between two inter-connects
--
--Properties (like bandwidth, latency, bus width, ...) are define per bridge
--and per inter-connect. Property of an inter-connect apply to all initiators
--which are link to that inter-connect. Not all initiators are link to all
--inter-connect and thus not all initiators can access all memory (this apply
--to CPU too ie some CPU might not be able to access all memory).
--
--Bridges allow initiators (that can use the bridge) to access target for
--which they do not have a direct link with (ie they do not share a common
--inter-connect with the target).
--
--Through this four types of object we can describe any kind of system memory
--topology. To expose this to userspace we expose a new sysfs hierarchy (that
--co-exist with the existing one)::
--   - /sys/bus/hms/target* all targets in the system
--   - /sys/bus/hms/initiator* all initiators in the system
--   - /sys/bus/hms/interconnect* all inter-connects in the system
--   - /sys/bus/hms/bridge* all bridges in the system
--
--Inside each bridge or inter-connect directory they are symlinks to targets
--and initiators that are linked to that bridge or inter-connect. Properties
--are defined inside bridge and inter-connect directory.
-+Heterogeneous memory system are becoming more and more the norm, in
-+those system there is not only the main system memory for each node,
-+but also device memory and|or memory hierarchy to consider. Device
-+memory can comes from a device like GPU, FPGA, ... or from a memory
-+only device (persistent memory, or high density memory device).
++gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma);
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
+@@ -363,6 +364,11 @@ static inline bool thp_migration_supported(void)
+ {
+ 	return false;
+ }
 +
-+Memory hierarchy is when you not only have the main memory but also
-+other type of memory like HBM (High Bandwidth Memory often stack up
-+on CPU die or GPU die), peristent memory or high density memory (ie
-+something slower then regular DDR DIMM but much bigger).
++static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
++{
++	return 0;
++}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+ #endif /* _LINUX_HUGE_MM_H */
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 441da4a832a6..4bd532c9315e 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -462,7 +462,7 @@ extern sector_t map_swap_page(struct page *, struct block_device **);
+ extern sector_t swapdev_block(int, pgoff_t);
+ extern int page_swapcount(struct page *);
+ extern int __swap_count(swp_entry_t entry);
+-extern int __swp_swapcount(swp_entry_t entry);
++extern int __swp_swapcount(swp_entry_t entry, int *entry_size);
+ extern int swp_swapcount(swp_entry_t entry);
+ extern struct swap_info_struct *page_swap_info(struct page *);
+ extern struct swap_info_struct *swp_swap_info(swp_entry_t entry);
+@@ -590,7 +590,7 @@ static inline int __swap_count(swp_entry_t entry)
+ 	return 0;
+ }
+ 
+-static inline int __swp_swapcount(swp_entry_t entry)
++static inline int __swp_swapcount(swp_entry_t entry, int *entry_size)
+ {
+ 	return 0;
+ }
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index fc31fc1ae0b3..1cec1eec340e 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -629,9 +629,9 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+  *	    available
+  * never: never stall for any thp allocation
+  */
+-static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
++gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ {
+-	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
++	const bool vma_madvised = vma ? !!(vma->vm_flags & VM_HUGEPAGE) : false;
+ 
+ 	/* Always do synchronous compaction */
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 97831166994a..5e761bb6e354 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -361,7 +361,9 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ {
+ 	struct page *found_page = NULL, *new_page = NULL;
+ 	struct swap_info_struct *si;
+-	int err;
++	int err, entry_size = 1;
++	swp_entry_t hentry;
 +
-+On top of this diversity of memories you also have to account for the
-+system bus topology ie how all CPUs and devices are connected to each
-+others. Userspace do not care about the exact physical topology but
-+care about topology from behavior point of view ie what are all the
-+paths between an initiator (anything that can initiate memory access
-+like CPU, GPU, FGPA, network controller ...) and a target memory and
-+what are all the properties of each of those path (bandwidth, latency,
-+granularity, ...).
+ 	*new_page_allocated = false;
+ 
+ 	do {
+@@ -387,14 +389,41 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		 * as SWAP_HAS_CACHE.  That's done in later part of code or
+ 		 * else swap_off will be aborted if we return NULL.
+ 		 */
+-		if (!__swp_swapcount(entry) && swap_slot_cache_enabled)
++		if (!__swp_swapcount(entry, &entry_size) &&
++		    swap_slot_cache_enabled)
+ 			break;
+ 
+ 		/*
+ 		 * Get a new page to read into from swap.
+ 		 */
+-		if (!new_page) {
+-			new_page = alloc_page_vma(gfp_mask, vma, addr);
++		if (!new_page ||
++		    (IS_ENABLED(CONFIG_THP_SWAP) &&
++		     hpage_nr_pages(new_page) != entry_size)) {
++			if (new_page)
++				put_page(new_page);
++			if (IS_ENABLED(CONFIG_THP_SWAP) &&
++			    entry_size == HPAGE_PMD_NR) {
++				gfp_t gfp;
 +
-+This means that it is no longer sufficient to consider a flat view
-+for each node in a system but for maximum performance we need to
-+account for all of this new memory but also for system topology.
-+This is why this proposal is unlike the HMAT proposal [1] which
-+tries to extend the existing NUMA for new type of memory. Here we
-+are tackling a much more profound change that depart from NUMA.
-+
-+
-+One of the reasons for radical change is the advance of accelerator
-+like GPU or FPGA means that CPU is no longer the only piece where
-+computation happens. It is becoming more and more common for an
-+application to use a mix and match of different accelerator to
-+perform its computation. So we can no longer satisfy our self with
-+a CPU centric and flat view of a system like NUMA and NUMA distance.
-+
-+
-+HMS tackle this problems through three aspects:
-+    1 - Expose complex system topology and various kind of memory
-+        to user space so that application have a standard way and
-+        single place to get all the information it cares about.
-+    2 - A new API for user space to bind/provide hint to kernel on
-+        which memory to use for range of virtual address (a new
-+        mbind() syscall).
-+    3 - Kernel side changes for vm policy to handle this changes
-+
-+
-+The rest of this documents is splits in 3 sections, the first section
-+talks about complex system topology: what it is, how it is use today
-+and how to describe it tomorrow. The second sections talks about
-+new API to bind/provide hint to kernel for range of virtual address.
-+The third section talks about new mechanism to track bind/hint
-+provided by user space or device driver inside the kernel.
-+
-+
-+1) Complex system topology and representing them
-+================================================
-+
-+Inside a node you can have a complex topology of memory, for instance
-+you can have multiple HBM memory in a node, each HBM memory tie to a
-+set of CPUs (all of which are in the same node). This means that you
-+have a hierarchy of memory for CPUs. The local fast HBM but which is
-+expected to be relatively small compare to main memory and then the
-+main memory. New memory technology might also deepen this hierarchy
-+with another level of yet slower memory but gigantic in size (some
-+persistent memory technology might fall into that category). Another
-+example is device memory, and device themself can have a hierarchy
-+like HBM on top of device core and main device memory.
-+
-+On top of that you can have multiple path to access each memory and
-+each path can have different properties (latency, bandwidth, ...).
-+Also there is not always symmetry ie some memory might only be
-+accessible by some device or CPU ie not accessible by everyone.
-+
-+So a flat hierarchy for each node is not capable of representing this
-+kind of complexity. To simplify discussion and because we do not want
-+to single out CPU from device, from here on out we will use initiator
-+to refer to either CPU or device. An initiator is any kind of CPU or
-+device that can access memory (ie initiate memory access).
-+
-+At this point a example of such system might help:
-+    - 2 nodes and for each node:
-+        - 1 CPU per node with 2 complex of CPUs cores per CPU
-+        - one HBM memory for each complex of CPUs cores (200GB/s)
-+        - CPUs cores complex are linked to each other (100GB/s)
-+        - main memory is (90GB/s)
-+        - 4 GPUs each with:
-+            - HBM memory for each GPU (1000GB/s) (not CPU accessible)
-+            - GDDR memory for each GPU (500GB/s) (CPU accessible)
-+            - connected to CPU root controller (60GB/s)
-+            - connected to other GPUs (even GPUs from the second
-+              node) with GPU link (400GB/s)
-+
-+In this example we restrict our self to bandwidth and ignore bus width
-+or latency, this is just to simplify discussions but obviously they
-+also factor in.
-+
-+
-+Userspace very much would like to know about this information, for
-+instance HPC folks have develop complex library to manage this and
-+there is wide research on the topics [2] [3] [4] [5]. Today most of
-+the work is done by hardcoding thing for specific platform. Which is
-+somewhat acceptable for HPC folks where the platform stays the same
-+for a long period of time.
-+
-+Roughly speaking i see two broads use case for topology information.
-+First is for virtualization and vm where you want to segment your
-+hardware properly for each vm (binding memory, CPU and GPU that are
-+all close to each others). Second is for application, many of which
-+can partition their workload to minimize exchange between partition
-+allowing each partition to be bind to a subset of device and CPUs
-+that are close to each others (for maximum locality). Here it is much
-+more than just NUMA distance, you can leverage the memory hierarchy
-+and  the system topology all-together (see [2] [3] [4] [5] for more
-+references and details).
-+
-+So this is not exposing topology just for the sake of cool graph in
-+userspace. They are active user today of such information and if we
-+want to growth and broaden the usage we should provide a unified API
-+to standardize how that information is accessible to every one.
-+
-+
-+One proposal so far to handle new type of memory is to user CPU less
-+node for those [6]. While same idea can apply for device memory, it is
-+still hard to describe multiple path with different property in such
-+scheme. While it is backward compatible and have minimum changes, it
-+simplify can not convey complex topology (think any kind of random
-+graph, not just a tree like graph).
-+
-+So HMS use a new way to expose to userspace the system topology. It
-+relies on 4 types of objects:
-+    - target: any kind of memory (main memory, HBM, device, ...)
-+    - initiator: CPU or device (anything that can access memory)
-+    - link: anything that link initiator and target
-+    - bridges: anything that allow group of initiator to access
-+      remote target (ie target they are not connected with directly
-+      through an link)
-+
-+Properties like bandwidth, latency, ... are all sets per bridges and
-+links. All initiators connected to an link can access any target memory
-+also connected to the same link and all with the same link properties.
-+
-+Link do not need to match physical hardware ie you can have a single
-+physical link match a single or multiples software expose link. This
-+allows to model device connected to same physical link (like PCIE
-+for instance) but not with same characteristics (like number of lane
-+or lane speed in PCIE). The reverse is also true ie having a single
-+software expose link match multiples physical link.
-+
-+Bridges allows initiator to access remote link. A bridges connect two
-+links to each others and is also specific to list of initiators (ie
-+not all initiators connected to each of the link can use the bridge).
-+Bridges have their own properties (bandwidth, latency, ...) so that
-+the actual property value for each property is the lowest common
-+denominator between bridge and each of the links.
-+
-+
-+This model allows to describe any kind of directed graph and thus
-+allows to describe any kind of topology we might see in the future.
-+It is also easier to add new properties to each object type.
-+
-+Moreover it can be use to expose devices capable to do peer to peer
-+between them. For that simply have all devices capable to peer to
-+peer to have a common link or use the bridge object if the peer to
-+peer capabilities is only one way for instance.
-+
-+
-+HMS use the above scheme to expose system topology through sysfs under
-+/sys/bus/hms/ with:
-+    - /sys/bus/hms/devices/v%version-%id-target/ : a target memory,
-+      each has a UID and you can usual value in that folder (node id,
-+      size, ...)
-+
-+    - /sys/bus/hms/devices/v%version-%id-initiator/ : an initiator
-+      (CPU or device), each has a HMS UID but also a CPU id for CPU
-+      (which match CPU id in (/sys/bus/cpu/). For device you have a
-+      path that can be PCIE BUS ID for instance)
-+
-+    - /sys/bus/hms/devices/v%version-%id-link : an link, each has a
-+      UID and a file per property (bandwidth, latency, ...) you also
-+      find a symlink to every target and initiator connected to that
-+      link.
-+
-+    - /sys/bus/hms/devices/v%version-%id-bridge : a bridge, each has
-+      a UID and a file per property (bandwidth, latency, ...) you
-+      also find a symlink to all initiators that can use that bridge.
-+
-+To help with forward compatibility each object as a version value and
-+it is mandatory for user space to only use target or initiator with
-+version supported by the user space. For instance if user space only
-+knows about what version 1 means and sees a target with version 2 then
-+the user space must ignore that target as if it does not exist.
-+
-+Mandating that allows the additions of new properties that break back-
-+ward compatibility ie user space must know how this new property affect
-+the object to be able to use it safely.
-+
-+Main memory of each node is expose under a common target. For now
-+device driver are responsible to register memory they want to expose
-+through that scheme but in the future that information might come from
-+the system firmware (this is a different discussion).
-+
-+
-+
-+2) hbind() bind range of virtual address to heterogeneous memory
-+================================================================
-+
-+So instead of using a bitmap, hbind() take an array of uid and each uid
-+is a unique memory target inside the new memory topology description.
-+User space also provide an array of modifiers. Modifier can be seen as
-+the flags parameter of mbind() but here we use an array so that user
-+space can not only supply a modifier but also value with it. This should
-+allow the API to grow more features in the future. Kernel should return
-+-EINVAL if it is provided with an unkown modifier and just ignore the
-+call all together, forcing the user space to restrict itself to modifier
-+supported by the kernel it is running on (i know i am dreaming about well
-+behave user space).
-+
-+
-+Note that none of this is exclusive of automatic memory placement like
-+autonuma. I also believe that we will see something similar to autonuma
-+for device memory.
-+
-+
-+3) Tracking and applying heterogeneous memory policies
-+======================================================
-+
-+Current memory policy infrastructure is node oriented, instead of
-+changing that and risking breakage and regression HMS adds a new
-+heterogeneous policy tracking infra-structure. The expectation is
-+that existing application can keep using mbind() and all existing
-+infrastructure under-disturb and unaffected, while new application
-+will use the new API and should avoid mix and matching both (as they
-+can achieve the same thing with the new API).
-+
-+Also the policy is not directly tie to the vma structure for a few
-+reasons:
-+    - avoid having to split vma for policy that do not cover full vma
-+    - avoid changing too much vma code
-+    - avoid growing the vma structure with an extra pointer
-+
-+The overall design is simple, on hbind() call a hms policy structure
-+is created for the supplied range and hms use the callback associated
-+with the target memory. This callback is provided by device driver
-+for device memory or by core HMS for regular main memory. The callback
-+can decide to migrate the range to the target memories or do nothing
-+(this can be influenced by flags provided to hbind() too).
++				gfp = alloc_hugepage_direct_gfpmask(vma);
++				/*
++				 * Make sure huge page allocation flags are
++				 * compatible with that of normal page
++				 */
++				VM_WARN_ONCE(gfp_mask & ~(gfp | __GFP_RECLAIM),
++					     "ignoring gfp_mask bits: %x",
++					     gfp_mask & ~(gfp | __GFP_RECLAIM));
++				new_page = alloc_hugepage_vma(gfp, vma, addr,
++                                                               HPAGE_PMD_ORDER);
++				if (new_page)
++					prep_transhuge_page(new_page);
++				hentry = swp_entry(swp_type(entry),
++						   round_down(swp_offset(entry),
++							      HPAGE_PMD_NR));
++			} else {
++				new_page = alloc_page_vma(gfp_mask, vma, addr);
++				hentry = entry;
++			}
+ 			if (!new_page)
+ 				break;		/* Out of memory */
+ 		}
+@@ -402,7 +431,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		/*
+ 		 * Swap entry may have been freed since our caller observed it.
+ 		 */
+-		err = swapcache_prepare(entry, 1);
++		err = swapcache_prepare(hentry, entry_size);
+ 		if (err == -EEXIST) {
+ 			/*
+ 			 * We might race against get_swap_page() and stumble
+@@ -411,18 +440,24 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			 */
+ 			cond_resched();
+ 			continue;
++		} else if (err == -ENOTDIR) {
++			/* huge swap cluster has been split under us */
++			continue;
+ 		} else if (err)		/* swp entry is obsolete ? */
+ 			break;
+ 
+ 		/* May fail (-ENOMEM) if XArray node allocation failed. */
+ 		__SetPageLocked(new_page);
+ 		__SetPageSwapBacked(new_page);
+-		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
++		err = add_to_swap_cache(new_page, hentry, gfp_mask & GFP_KERNEL);
+ 		if (likely(!err)) {
+ 			/* Initiate read into locked page */
+ 			SetPageWorkingset(new_page);
+ 			lru_cache_add_anon(new_page);
+ 			*new_page_allocated = true;
++			if (IS_ENABLED(CONFIG_THP_SWAP))
++				new_page += swp_offset(entry) &
++					(entry_size - 1);
+ 			return new_page;
+ 		}
+ 		__ClearPageLocked(new_page);
+@@ -430,7 +465,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+ 		 * clear SWAP_HAS_CACHE flag.
+ 		 */
+-		put_swap_page(new_page, entry);
++		put_swap_page(new_page, hentry);
+ 	} while (err != -ENOMEM);
+ 
+ 	if (new_page)
+@@ -452,7 +487,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			vma, addr, &page_was_allocated);
+ 
+ 	if (page_was_allocated)
+-		swap_readpage(retpage, do_poll);
++		swap_readpage(compound_head(retpage), do_poll);
+ 
+ 	return retpage;
+ }
+@@ -571,8 +606,9 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 		if (!page)
+ 			continue;
+ 		if (page_allocated) {
+-			swap_readpage(page, false);
+-			if (offset != entry_offset) {
++			swap_readpage(compound_head(page), false);
++			if (offset != entry_offset &&
++			    !PageTransCompound(page)) {
+ 				SetPageReadahead(page);
+ 				count_vm_event(SWAP_RA);
+ 			}
+@@ -733,8 +769,8 @@ static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+ 		if (!page)
+ 			continue;
+ 		if (page_allocated) {
+-			swap_readpage(page, false);
+-			if (i != ra_info.offset) {
++			swap_readpage(compound_head(page), false);
++			if (i != ra_info.offset && !PageTransCompound(page)) {
+ 				SetPageReadahead(page);
+ 				count_vm_event(SWAP_RA);
+ 			}
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index c59cc2ca7c2c..e27fe24a1f41 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1542,7 +1542,8 @@ int __swap_count(swp_entry_t entry)
+ 	return count;
+ }
+ 
+-static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
++static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry,
++			  int *entry_size)
+ {
+ 	int count = 0;
+ 	pgoff_t offset = swp_offset(entry);
+@@ -1550,6 +1551,8 @@ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
+ 
+ 	ci = lock_cluster_or_swap_info(si, offset);
+ 	count = swap_count(si->swap_map[offset]);
++	if (entry_size)
++		*entry_size = ci && cluster_is_huge(ci) ? SWAPFILE_CLUSTER : 1;
+ 	unlock_cluster_or_swap_info(si, ci);
+ 	return count;
+ }
+@@ -1559,14 +1562,14 @@ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
+  * This does not give an exact answer when swap count is continued,
+  * but does include the high COUNT_CONTINUED flag to allow for that.
+  */
+-int __swp_swapcount(swp_entry_t entry)
++int __swp_swapcount(swp_entry_t entry, int *entry_size)
+ {
+ 	int count = 0;
+ 	struct swap_info_struct *si;
+ 
+ 	si = get_swap_device(entry);
+ 	if (si) {
+-		count = swap_swapcount(si, entry);
++		count = swap_swapcount(si, entry, entry_size);
+ 		put_swap_device(si);
+ 	}
+ 	return count;
 -- 
-2.17.2
+2.18.1
