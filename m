@@ -1,64 +1,50 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 18 Dec 2018 01:54:14 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v4 5/9] drm/xen/xen_drm_front_gem.c: Convert to use
- vm_insert_range
-Message-ID: <20181217202414.GA13431@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, oleksandr_andrushchenko@epam.com, airlied@linux.ie
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BC518E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 16:22:50 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id 74so5422356pfk.12
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 13:22:50 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h3si4824257pgi.391.2018.12.14.13.22.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Dec 2018 13:22:48 -0800 (PST)
+Date: Fri, 14 Dec 2018 13:22:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3] hugetlbfs: use i_mmap_rwsem for better
+ synchronization
+Message-Id: <20181214132239.9b74e2ca4bc4e38a409736dc@linux-foundation.org>
+In-Reply-To: <20181203200850.6460-1-mike.kravetz@oracle.com>
+References: <20181203200850.6460-1-mike.kravetz@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+On Mon,  3 Dec 2018 12:08:47 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Reviewed-by: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
----
- drivers/gpu/drm/xen/xen_drm_front_gem.c | 20 ++++++--------------
- 1 file changed, 6 insertions(+), 14 deletions(-)
+> These patches are a follow up to the RFC,
+> http://lkml.kernel.org/r/20181024045053.1467-1-mike.kravetz@oracle.com
+> Comments made by Naoya were addressed.
+> 
+> There are two primary issues addressed here:
+> 1) For shared pmds, huge PE pointers returned by huge_pte_alloc can become
+>    invalid via a call to huge_pmd_unshare by another thread.
+> 2) hugetlbfs page faults can race with truncation causing invalid global
+>    reserve counts and state.
+> Both issues are addressed by expanding the use of i_mmap_rwsem.
+> 
+> These issues have existed for a long time.  They can be recreated with a
+> test program that causes page fault/truncation races.  For simple mappings,
+> this results in a negative HugePages_Rsvd count.  If racing with mappings
+> that contain shared pmds, we can hit "BUG at fs/hugetlbfs/inode.c:444!" or
+> Oops! as the result of an invalid memory reference.
+> 
+> I broke up the larger RFC into separate patches addressing each issue.
+> Hopefully, this is easier to understand/review.
 
-diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
-index 47ff019..c21e5d1 100644
---- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
-+++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
-@@ -225,8 +225,7 @@ struct drm_gem_object *
- static int gem_mmap_obj(struct xen_gem_object *xen_obj,
- 			struct vm_area_struct *vma)
- {
--	unsigned long addr = vma->vm_start;
--	int i;
-+	int ret;
- 
- 	/*
- 	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
-@@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
- 	 * FIXME: as we insert all the pages now then no .fault handler must
- 	 * be called, so don't provide one
- 	 */
--	for (i = 0; i < xen_obj->num_pages; i++) {
--		int ret;
--
--		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
--		if (ret < 0) {
--			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
--			return ret;
--		}
--
--		addr += PAGE_SIZE;
--	}
--	return 0;
-+	ret = vm_insert_range(vma, vma->vm_start, xen_obj->pages,
-+				xen_obj->num_pages);
-+	if (ret < 0)
-+		DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
-+	return ret;
- }
- 
- int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
--- 
-1.9.1
+Three patches tagged for -stable and no reviewers yet.  Could people
+please take a close look?
