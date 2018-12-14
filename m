@@ -1,200 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EF7E26B6A84
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:32 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id j13so8564488oii.8
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:32 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 17si6644804oty.291.2018.12.03.10.07.31
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:07:31 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 15/25] ACPI / APEI: Move locking to the notification helper
-Date: Mon,  3 Dec 2018 18:06:03 +0000
-Message-Id: <20181203180613.228133-16-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D10C48E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 12:16:13 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id l22so4893493pfb.2
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 09:16:13 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y23sor8848733pga.35.2018.12.14.09.16.12
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 14 Dec 2018 09:16:12 -0800 (PST)
+From: Suren Baghdasaryan <surenb@google.com>
+Subject: [PATCH 1/6] fs: kernfs: add poll file operation
+Date: Fri, 14 Dec 2018 09:15:03 -0800
+Message-Id: <20181214171508.7791-2-surenb@google.com>
+In-Reply-To: <20181214171508.7791-1-surenb@google.com>
+References: <20181214171508.7791-1-surenb@google.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: gregkh@linuxfoundation.org
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
 
-ghes_copy_tofrom_phys() takes different locks depending on in_nmi().
-This doesn't work if there are multiple NMI-like notifications, that
-can interrupt each other.
+From: Johannes Weiner <hannes@cmpxchg.org>
 
-Now that NOTIFY_SEA is always called in the same context, move the
-lock-taking to the notification helper. The helper will always know
-which lock to take. This avoids ghes_copy_tofrom_phys() taking a guess
-based on in_nmi().
+Kernfs has a standardized poll/notification mechanism for waking all
+pollers on all fds when a filesystem node changes. To allow polling
+for custom events, add a .poll callback that can override the default.
 
-This splits NOTIFY_NMI and NOTIFY_SEA to use different locks. All
-the other notifications use ghes_proc(), and are called in process
-or IRQ context. Move the spin_lock_irqsave() around their ghes_proc()
-calls.
+This is in preparation for pollable cgroup pressure files which have
+per-fd trigger configurations.
 
-Signed-off-by: James Morse <james.morse@arm.com>
-Reviewed-by: Borislav Petkov <bp@suse.de>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 ---
-Changes since v6:
- * Tinkered with the commit message
- * Lock definitions have moved due to the #ifdefs
----
- drivers/acpi/apei/ghes.c | 34 +++++++++++++++++++++++++---------
- 1 file changed, 25 insertions(+), 9 deletions(-)
+ fs/kernfs/file.c       | 31 ++++++++++++++++++++-----------
+ include/linux/kernfs.h |  6 ++++++
+ 2 files changed, 26 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index 4b33fa562e32..30490eff7704 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -114,11 +114,10 @@ static DEFINE_MUTEX(ghes_list_mutex);
-  * handler, but general ioremap can not be used in atomic context, so
-  * the fixmap is used instead.
-  *
-- * These 2 spinlocks are used to prevent the fixmap entries from being used
-+ * This spinlock is used to prevent the fixmap entry from being used
-  * simultaneously.
+diff --git a/fs/kernfs/file.c b/fs/kernfs/file.c
+index dbf5bc250bfd..2d8b91f4475d 100644
+--- a/fs/kernfs/file.c
++++ b/fs/kernfs/file.c
+@@ -832,26 +832,35 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
+  * to see if it supports poll (Neither 'poll' nor 'select' return
+  * an appropriate error code).  When in doubt, set a suitable timeout value.
   */
--static DEFINE_RAW_SPINLOCK(ghes_ioremap_lock_nmi);
--static DEFINE_SPINLOCK(ghes_ioremap_lock_irq);
-+static DEFINE_SPINLOCK(ghes_notify_lock_irq);
- 
- static struct gen_pool *ghes_estatus_pool;
- static unsigned long ghes_estatus_pool_size_request;
-@@ -272,7 +271,6 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
- 				  int from_phys)
- {
- 	void __iomem *vaddr;
--	unsigned long flags = 0;
- 	int in_nmi = in_nmi();
- 	u64 offset;
- 	u32 trunk;
-@@ -280,10 +278,8 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
- 	while (len > 0) {
- 		offset = paddr - (paddr & PAGE_MASK);
- 		if (in_nmi) {
--			raw_spin_lock(&ghes_ioremap_lock_nmi);
- 			vaddr = ghes_ioremap_pfn_nmi(paddr >> PAGE_SHIFT);
- 		} else {
--			spin_lock_irqsave(&ghes_ioremap_lock_irq, flags);
- 			vaddr = ghes_ioremap_pfn_irq(paddr >> PAGE_SHIFT);
- 		}
- 		trunk = PAGE_SIZE - offset;
-@@ -297,10 +293,8 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
- 		buffer += trunk;
- 		if (in_nmi) {
- 			ghes_iounmap_nmi();
--			raw_spin_unlock(&ghes_ioremap_lock_nmi);
- 		} else {
- 			ghes_iounmap_irq();
--			spin_unlock_irqrestore(&ghes_ioremap_lock_irq, flags);
- 		}
- 	}
- }
-@@ -727,8 +721,11 @@ static void ghes_add_timer(struct ghes *ghes)
- static void ghes_poll_func(struct timer_list *t)
- {
- 	struct ghes *ghes = from_timer(ghes, t, timer);
-+	unsigned long flags;
- 
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	ghes_proc(ghes);
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
- 	if (!(ghes->flags & GHES_EXITING))
- 		ghes_add_timer(ghes);
- }
-@@ -736,9 +733,12 @@ static void ghes_poll_func(struct timer_list *t)
- static irqreturn_t ghes_irq_func(int irq, void *data)
- {
- 	struct ghes *ghes = data;
-+	unsigned long flags;
- 	int rc;
- 
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	rc = ghes_proc(ghes);
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
- 	if (rc)
- 		return IRQ_NONE;
- 
-@@ -749,14 +749,17 @@ static int ghes_notify_hed(struct notifier_block *this, unsigned long event,
- 			   void *data)
- {
- 	struct ghes *ghes;
-+	unsigned long flags;
- 	int ret = NOTIFY_DONE;
- 
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(ghes, &ghes_hed, list) {
- 		if (!ghes_proc(ghes))
- 			ret = NOTIFY_OK;
- 	}
- 	rcu_read_unlock();
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
- 
- 	return ret;
- }
-@@ -906,6 +909,7 @@ static int ghes_estatus_queue_notified(struct list_head *rcu_list)
- }
- 
- #ifdef CONFIG_ACPI_APEI_SEA
-+static DEFINE_RAW_SPINLOCK(ghes_notify_lock_sea);
- static LIST_HEAD(ghes_sea);
- 
- /*
-@@ -914,7 +918,13 @@ static LIST_HEAD(ghes_sea);
-  */
- int ghes_notify_sea(void)
- {
--	return ghes_estatus_queue_notified(&ghes_sea);
-+	int rv;
++__poll_t kernfs_generic_poll(struct kernfs_open_file *of, poll_table *wait)
++{
++	struct kernfs_node *kn = kernfs_dentry_node(of->file->f_path.dentry);
++	struct kernfs_open_node *on = kn->attr.open;
 +
-+	raw_spin_lock(&ghes_notify_lock_sea);
-+	rv = ghes_estatus_queue_notified(&ghes_sea);
-+	raw_spin_unlock(&ghes_notify_lock_sea);
++	poll_wait(of->file, &on->poll, wait);
 +
-+	return rv;
++	if (of->event != atomic_read(&on->event))
++		return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
++
++	return DEFAULT_POLLMASK;
++}
++
+ static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
+ {
+ 	struct kernfs_open_file *of = kernfs_of(filp);
+ 	struct kernfs_node *kn = kernfs_dentry_node(filp->f_path.dentry);
+-	struct kernfs_open_node *on = kn->attr.open;
++	__poll_t ret;
+ 
+ 	if (!kernfs_get_active(kn))
+-		goto trigger;
++		return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
+ 
+-	poll_wait(filp, &on->poll, wait);
++	if (kn->attr.ops->poll)
++		ret = kn->attr.ops->poll(of, wait);
++	else
++		ret = kernfs_generic_poll(of, wait);
+ 
+ 	kernfs_put_active(kn);
+-
+-	if (of->event != atomic_read(&on->event))
+-		goto trigger;
+-
+-	return DEFAULT_POLLMASK;
+-
+- trigger:
+-	return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
++	return ret;
  }
  
- static void ghes_sea_add(struct ghes *ghes)
-@@ -943,6 +953,7 @@ static inline void ghes_sea_remove(struct ghes *ghes) { }
-  */
- static atomic_t ghes_in_nmi = ATOMIC_INIT(0);
+ static void kernfs_notify_workfn(struct work_struct *work)
+diff --git a/include/linux/kernfs.h b/include/linux/kernfs.h
+index 5b36b1287a5a..0cac1207bb00 100644
+--- a/include/linux/kernfs.h
++++ b/include/linux/kernfs.h
+@@ -25,6 +25,7 @@ struct seq_file;
+ struct vm_area_struct;
+ struct super_block;
+ struct file_system_type;
++struct poll_table_struct;
  
-+static DEFINE_RAW_SPINLOCK(ghes_notify_lock_nmi);
- static LIST_HEAD(ghes_nmi);
+ struct kernfs_open_node;
+ struct kernfs_iattrs;
+@@ -261,6 +262,9 @@ struct kernfs_ops {
+ 	ssize_t (*write)(struct kernfs_open_file *of, char *buf, size_t bytes,
+ 			 loff_t off);
  
- static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
-@@ -952,8 +963,10 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
- 	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
- 		return ret;
++	__poll_t (*poll)(struct kernfs_open_file *of,
++			 struct poll_table_struct *pt);
++
+ 	int (*mmap)(struct kernfs_open_file *of, struct vm_area_struct *vma);
  
-+	raw_spin_lock(&ghes_notify_lock_nmi);
- 	if (!ghes_estatus_queue_notified(&ghes_nmi))
- 		ret = NMI_HANDLED;
-+	raw_spin_unlock(&ghes_notify_lock_nmi);
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+@@ -350,6 +354,8 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
+ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
+ 		     const char *new_name, const void *new_ns);
+ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
++__poll_t kernfs_generic_poll(struct kernfs_open_file *of,
++			     struct poll_table_struct *pt);
+ void kernfs_notify(struct kernfs_node *kn);
  
- 	atomic_dec(&ghes_in_nmi);
- 	return ret;
-@@ -995,6 +1008,7 @@ static int ghes_probe(struct platform_device *ghes_dev)
- {
- 	struct acpi_hest_generic *generic;
- 	struct ghes *ghes = NULL;
-+	unsigned long flags;
- 
- 	int rc = -EINVAL;
- 
-@@ -1097,7 +1111,9 @@ static int ghes_probe(struct platform_device *ghes_dev)
- 	ghes_edac_register(ghes, &ghes_dev->dev);
- 
- 	/* Handle any pending errors right away */
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	ghes_proc(ghes);
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
- 
- 	return 0;
- 
+ const void *kernfs_super_ns(struct super_block *sb);
 -- 
-2.19.2
+2.20.0.405.gbc1bbc6f85-goog
