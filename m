@@ -1,141 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E3E418E0001
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 12:38:01 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id x82so8002642ita.9
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 09:38:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f191sor9516662itc.25.2018.12.19.09.38.00
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6978E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:31 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id s71so3538137pfi.22
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:31 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id d8si1744446plo.196.2018.12.13.22.28.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 19 Dec 2018 09:38:00 -0800 (PST)
-From: Roman Gushchin <guroan@gmail.com>
-Subject: [PATCH 1/3] mm: refactor __vunmap() to avoid duplicated call to find_vm_area()
-Date: Wed, 19 Dec 2018 09:37:49 -0800
-Message-Id: <20181219173751.28056-2-guro@fb.com>
-In-Reply-To: <20181219173751.28056-1-guro@fb.com>
-References: <20181219173751.28056-1-guro@fb.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Dec 2018 22:28:30 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 17/21] swap: Free PMD swap mapping when zap_huge_pmd()
+Date: Fri, 14 Dec 2018 14:27:50 +0800
+Message-Id: <20181214062754.13723-18-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Matthew Wilcox <willy@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Roman Gushchin <guro@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-__vunmap() calls find_vm_area() twice without an obvious reason:
-first directly to get the area pointer, second indirectly by calling
-remove_vm_area(), which is again searching for the area.
+For a PMD swap mapping, zap_huge_pmd() will clear the PMD and call
+free_swap_and_cache() to decrease the swap reference count and maybe
+free or split the huge swap cluster and the THP in swap cache.
 
-To remove this redundancy, let's split remove_vm_area() into
-__remove_vm_area(struct vmap_area *), which performs the actual area
-removal, and remove_vm_area(const void *addr) wrapper, which can
-be used everywhere, where it has been used before.
-
-On my test setup, I've got up to 12% speed up on vfree()'ing 1000000
-of 4-pages vmalloc blocks.
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- mm/vmalloc.c | 47 +++++++++++++++++++++++++++--------------------
- 1 file changed, 27 insertions(+), 20 deletions(-)
+ mm/huge_memory.c | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 871e41c55e23..7660e3ef4133 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1462,6 +1462,24 @@ struct vm_struct *find_vm_area(const void *addr)
- 	return NULL;
- }
- 
-+static struct vm_struct *__remove_vm_area(struct vmap_area *va)
-+{
-+	struct vm_struct *vm = va->vm;
-+
-+	might_sleep();
-+
-+	spin_lock(&vmap_area_lock);
-+	va->vm = NULL;
-+	va->flags &= ~VM_VM_AREA;
-+	va->flags |= VM_LAZY_FREE;
-+	spin_unlock(&vmap_area_lock);
-+
-+	kasan_free_shadow(vm);
-+	free_unmap_vmap_area(va);
-+
-+	return vm;
-+}
-+
- /**
-  *	remove_vm_area  -  find and remove a continuous kernel virtual area
-  *	@addr:		base address
-@@ -1472,31 +1490,20 @@ struct vm_struct *find_vm_area(const void *addr)
-  */
- struct vm_struct *remove_vm_area(const void *addr)
- {
-+	struct vm_struct *vm = NULL;
- 	struct vmap_area *va;
- 
--	might_sleep();
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index b083c66a9d09..6d144d687e69 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2055,7 +2055,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		spin_unlock(ptl);
+ 		if (is_huge_zero_pmd(orig_pmd))
+ 			tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
+-	} else if (is_huge_zero_pmd(orig_pmd)) {
++	} else if (pmd_present(orig_pmd) && is_huge_zero_pmd(orig_pmd)) {
+ 		zap_deposited_table(tlb->mm, pmd);
+ 		spin_unlock(ptl);
+ 		tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
+@@ -2068,17 +2068,27 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			page_remove_rmap(page, true);
+ 			VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
+ 			VM_BUG_ON_PAGE(!PageHead(page), page);
+-		} else if (thp_migration_supported()) {
+-			swp_entry_t entry;
 -
- 	va = find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA) {
--		struct vm_struct *vm = va->vm;
+-			VM_BUG_ON(!is_pmd_migration_entry(orig_pmd));
+-			entry = pmd_to_swp_entry(orig_pmd);
+-			page = pfn_to_page(swp_offset(entry));
++		} else {
++			swp_entry_t entry = pmd_to_swp_entry(orig_pmd);
++
++			if (thp_migration_supported() &&
++			    is_migration_entry(entry))
++				page = pfn_to_page(swp_offset(entry));
++			else if (IS_ENABLED(CONFIG_THP_SWAP) &&
++				 !non_swap_entry(entry))
++				free_swap_and_cache(entry, HPAGE_PMD_NR);
++			else {
++				WARN_ONCE(1,
++"Non present huge pmd without pmd migration or swap enabled!");
++				goto unlock;
++			}
+ 			flush_needed = 0;
+-		} else
+-			WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
++		}
+ 
+-		if (PageAnon(page)) {
++		if (!page) {
++			zap_deposited_table(tlb->mm, pmd);
++			add_mm_counter(tlb->mm, MM_SWAPENTS, -HPAGE_PMD_NR);
++		} else if (PageAnon(page)) {
+ 			zap_deposited_table(tlb->mm, pmd);
+ 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+ 		} else {
+@@ -2086,7 +2096,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 				zap_deposited_table(tlb->mm, pmd);
+ 			add_mm_counter(tlb->mm, mm_counter_file(page), -HPAGE_PMD_NR);
+ 		}
 -
--		spin_lock(&vmap_area_lock);
--		va->vm = NULL;
--		va->flags &= ~VM_VM_AREA;
--		va->flags |= VM_LAZY_FREE;
--		spin_unlock(&vmap_area_lock);
--
--		kasan_free_shadow(vm);
--		free_unmap_vmap_area(va);
-+	if (va && va->flags & VM_VM_AREA)
-+		vm = __remove_vm_area(va);
- 
--		return vm;
--	}
--	return NULL;
-+	return vm;
- }
- 
- static void __vunmap(const void *addr, int deallocate_pages)
- {
- 	struct vm_struct *area;
-+	struct vmap_area *va;
- 
- 	if (!addr)
- 		return;
-@@ -1505,17 +1512,18 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 			addr))
- 		return;
- 
--	area = find_vmap_area((unsigned long)addr)->vm;
--	if (unlikely(!area)) {
-+	va = find_vmap_area((unsigned long)addr);
-+	if (unlikely(!va || !va->vm)) {
- 		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
- 				addr);
- 		return;
- 	}
- 
-+	area = va->vm;
- 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
- 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
- 
--	remove_vm_area(addr);
-+	__remove_vm_area(va);
- 	if (deallocate_pages) {
- 		int i;
- 
-@@ -1530,7 +1538,6 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 	}
- 
- 	kfree(area);
--	return;
- }
- 
- static inline void __vfree_deferred(const void *addr)
++unlock:
+ 		spin_unlock(ptl);
+ 		if (flush_needed)
+ 			tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
 -- 
-2.19.2
+2.18.1
