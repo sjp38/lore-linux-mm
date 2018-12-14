@@ -1,167 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F27088E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 09:31:30 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id u63so6293463oie.17
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 06:31:30 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k3si4742532otn.156.2018.12.10.06.31.29
-        for <linux-mm@kvack.org>;
-        Mon, 10 Dec 2018 06:31:29 -0800 (PST)
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Subject: [RFC][PATCH 2/3] arm64: Define Documentation/arm64/elf_at_flags.txt
-Date: Mon, 10 Dec 2018 14:30:43 +0000
-Message-Id: <20181210143044.12714-3-vincenzo.frascino@arm.com>
-In-Reply-To: <20181210143044.12714-1-vincenzo.frascino@arm.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
- <20181210143044.12714-1-vincenzo.frascino@arm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C82F18E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:28:13 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id g188so3112593pgc.22
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:28:13 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v19si3555849pfa.80.2018.12.13.22.28.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Dec 2018 22:28:12 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 11/21] swap: Support to count THP swapin and its fallback
+Date: Fri, 14 Dec 2018 14:27:44 +0800
+Message-Id: <20181214062754.13723-12-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Evgeniy Stepanov <eugenis@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-On arm64 the TCR_EL1.TBI0 bit has been set since Linux 3.x hence
-the userspace (EL0) is allowed to set a non-zero value in the
-top byte but the resulting pointers are not allowed at the
-user-kernel syscall ABI boundary.
+2 new /proc/vmstat fields are added, "thp_swapin" and
+"thp_swapin_fallback" to count swapin a THP from swap device in one
+piece and fallback to normal page swapin.
 
-With the relaxed ABI proposed through this document, it is now possible
-to pass tagged pointers to the syscalls, when these pointers are in
-memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap() or brk().
-
-This change in the ABI requires a mechanism to inform the userspace
-that such an option is available.
-
-This patch specifies and documents the way on which AT_FLAGS can be
-used to advertise this feature to the userspace.
-
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-CC: Andrey Konovalov <andreyknvl@google.com>
-Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- Documentation/arm64/elf_at_flags.txt | 111 +++++++++++++++++++++++++++
- 1 file changed, 111 insertions(+)
- create mode 100644 Documentation/arm64/elf_at_flags.txt
+ Documentation/admin-guide/mm/transhuge.rst |  8 ++++++++
+ include/linux/vm_event_item.h              |  2 ++
+ mm/huge_memory.c                           |  4 +++-
+ mm/page_io.c                               | 15 ++++++++++++---
+ mm/vmstat.c                                |  2 ++
+ 5 files changed, 27 insertions(+), 4 deletions(-)
 
-diff --git a/Documentation/arm64/elf_at_flags.txt b/Documentation/arm64/elf_at_flags.txt
-new file mode 100644
-index 000000000000..153e657c058a
---- /dev/null
-+++ b/Documentation/arm64/elf_at_flags.txt
-@@ -0,0 +1,111 @@
-+ARM64 ELF AT_FLAGS
-+==================
+diff --git a/Documentation/admin-guide/mm/transhuge.rst b/Documentation/admin-guide/mm/transhuge.rst
+index 7ab93a8404b9..85e33f785fd7 100644
+--- a/Documentation/admin-guide/mm/transhuge.rst
++++ b/Documentation/admin-guide/mm/transhuge.rst
+@@ -364,6 +364,14 @@ thp_swpout_fallback
+ 	Usually because failed to allocate some continuous swap space
+ 	for the huge page.
+ 
++thp_swpin
++	is incremented every time a huge page is swapin in one piece
++	without splitting.
 +
-+This document describes the usage and semantics of AT_FLAGS on arm64.
++thp_swpin_fallback
++	is incremented if a huge page has to be split during swapin.
++	Usually because failed to allocate a huge page.
 +
-+1. Introduction
-+---------------
-+
-+AT_FLAGS is part of the Auxiliary Vector, contains the flags and it
-+is currently set to zero by the kernel on arm64.
-+
-+The auxiliary vector can be accessed by the userspace using the
-+getauxval() API provided by the C library.
-+getauxval() returns an unsigned long and when a flag is present in
-+the AT_FLAGS, the corresponding bit in the returned value is set to 1.
-+
-+The AT_FLAGS with a "defined semantic" on arm64 are exposed to the
-+userspace via user API (uapi/asm/atflags.h).
-+The AT_FLAGS bits with "undefined semantics" are set to zero by default.
-+This means that the AT_FLAGS bits to which this document does not assign
-+an explicit meaning are to be intended reserved for future use.
-+The kernel will populate all such bits with zero until meanings are
-+assigned to them. If and when meanings are assigned, it is guaranteed
-+that they will not impact the functional operation of existing userspace
-+software. Userspace software should ignore any AT_FLAGS bit whose meaning
-+is not defined when the software is written.
-+
-+The userspace software can test for features by acquiring the AT_FLAGS
-+entry of the auxiliary vector, and testing whether a relevant flag
-+is set.
-+
-+Example of a userspace test function:
-+
-+bool feature_x_is_present(void)
+ As the system ages, allocating huge pages may be expensive as the
+ system uses memory compaction to copy data around memory to free a
+ huge page for use. There are some counters in ``/proc/vmstat`` to help
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 47a3441cf4c4..c20b655cfdcc 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -88,6 +88,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_ZERO_PAGE_ALLOC_FAILED,
+ 		THP_SWPOUT,
+ 		THP_SWPOUT_FALLBACK,
++		THP_SWPIN,
++		THP_SWPIN_FALLBACK,
+ #endif
+ #ifdef CONFIG_MEMORY_BALLOON
+ 		BALLOON_INFLATE,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 644cb5d6b056..e1e95e6c86e3 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1708,8 +1708,10 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 				/* swapoff occurs under us */
+ 				} else if (ret == -EINVAL)
+ 					ret = 0;
+-				else
++				else {
++					count_vm_event(THP_SWPIN_FALLBACK);
+ 					goto fallback;
++				}
+ 			}
+ 			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 			goto out;
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 67a7f64d6c1a..00774b453dca 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -348,6 +348,15 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+ 	return ret;
+ }
+ 
++static inline void count_swpin_vm_event(struct page *page)
 +{
-+	unsigned long at_flags = getauxval(AT_FLAGS);
-+	if (at_flags & FEATURE_X)
-+		return true;
-+
-+	return false;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	if (unlikely(PageTransHuge(page)))
++		count_vm_event(THP_SWPIN);
++#endif
++	count_vm_events(PSWPIN, hpage_nr_pages(page));
 +}
 +
-+Where the software relies on a feature advertised by AT_FLAGS, it
-+should check that the feature is present before attempting to
-+use it.
-+
-+2. Features exposed via AT_FLAGS
-+--------------------------------
-+
-+bit[0]: ARM64_AT_FLAGS_SYSCALL_TBI
-+
-+    On arm64 the TCR_EL1.TBI0 bit has been set since Linux 3.x hence
-+    the userspace (EL0) is allowed to set a non-zero value in the top
-+    byte but the resulting pointers are not allowed at the user-kernel
-+    syscall ABI boundary.
-+    When bit[0] is set to 1 the kernel is advertising to the userspace
-+    that a relaxed ABI is supported hence this type of pointers are now
-+    allowed to be passed to the syscalls, when these pointers are in
-+    memory ranges obtained by anonymous (MAP_ANONYMOUS) mmap() or brk().
-+    In these cases the tag is preserved as the pointer goes through the
-+    kernel. Only when the kernel needs to check if a pointer is coming
-+    from userspace (i.e. access_ok()) an untag operation is required.
-+
-+3. ARM64_AT_FLAGS_SYSCALL_TBI
-+-----------------------------
-+
-+When ARM64_AT_FLAGS_SYSCALL_TBI is enabled every syscalls can accept tagged
-+pointers, when these pointers are in memory ranges obtained by an anonymous
-+(MAP_ANONYMOUS) mmap() or brk().
-+
-+A definition of the meaning of tagged pointers on arm64 can be found in:
-+Documentation/arm64/tagged-pointers.txt.
-+
-+When a pointer does not are in a memory range obtained by an anonymous mmap()
-+or brk(), this can not be passed to a syscall if it is tagged.
-+
-+To be more explicit: a syscall can accept pointers whose memory range is
-+obtained by a non-anonymous mmap() or brk() if and only if the tag encoded in
-+the top-byte is 0x00.
-+
-+When a new syscall is added, this can accept tagged pointers if and only if
-+these pointers are in memory ranges obtained by an anonymous (MAP_ANONYMOUS)
-+mmap() or brk(). In all the other cases, the tag encoded in the top-byte is
-+expected to be 0x00.
-+
-+Example of correct usage (pseudo-code) for a userspace application:
-+
-+bool arm64_syscall_tbi_is_present(void)
-+{
-+	unsigned long at_flags = getauxval(AT_FLAGS);
-+	if (at_flags & ARM64_AT_FLAGS_SYSCALL_TBI)
-+			return true;
-+
-+	return false;
-+}
-+
-+void main(void)
-+{
-+	char *addr = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
-+			  MAP_ANONYMOUS, -1, 0);
-+
-+	/* Check if the relaxed ABI is supported */
-+	if (arm64_syscall_tbi_is_present()) {
-+		/* Add a tag to the pointer and to the memory */
-+		addr = tag_pointer_and_memory(addr);
-+	}
-+
-+	/* Write to memory */
-+	strcpy("Hello World\n", addr);
-+}
-+
+ int swap_readpage(struct page *page, bool synchronous)
+ {
+ 	struct bio *bio;
+@@ -371,7 +380,7 @@ int swap_readpage(struct page *page, bool synchronous)
+ 
+ 		ret = mapping->a_ops->readpage(swap_file, page);
+ 		if (!ret)
+-			count_vm_event(PSWPIN);
++			count_swpin_vm_event(page);
+ 		return ret;
+ 	}
+ 
+@@ -382,7 +391,7 @@ int swap_readpage(struct page *page, bool synchronous)
+ 			unlock_page(page);
+ 		}
+ 
+-		count_vm_event(PSWPIN);
++		count_swpin_vm_event(page);
+ 		return 0;
+ 	}
+ 
+@@ -403,7 +412,7 @@ int swap_readpage(struct page *page, bool synchronous)
+ 	bio_set_op_attrs(bio, REQ_OP_READ, 0);
+ 	if (synchronous)
+ 		bio->bi_opf |= REQ_HIPRI;
+-	count_vm_event(PSWPIN);
++	count_swpin_vm_event(page);
+ 	bio_get(bio);
+ 	qc = submit_bio(bio);
+ 	while (synchronous) {
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 83b30edc2f7f..80a731e9a5e5 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1265,6 +1265,8 @@ const char * const vmstat_text[] = {
+ 	"thp_zero_page_alloc_failed",
+ 	"thp_swpout",
+ 	"thp_swpout_fallback",
++	"thp_swpin",
++	"thp_swpin_fallback",
+ #endif
+ #ifdef CONFIG_MEMORY_BALLOON
+ 	"balloon_inflate",
 -- 
-2.19.2
+2.18.1
