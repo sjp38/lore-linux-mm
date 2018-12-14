@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 88DA38E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 07:51:14 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id 51so3466775wrb.15
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 04:51:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 62sor7642030wmp.0.2018.12.10.04.51.13
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7838E01C5
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:10:45 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id 42so4541647qtr.7
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:10:45 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x3si1874161qtd.345.2018.12.14.03.10.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Dec 2018 04:51:13 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v9 2/8] uaccess: add untagged_addr definition for other arches
-Date: Mon, 10 Dec 2018 13:50:59 +0100
-Message-Id: <35f97a89d5cc881f0f4052f43d56b3b7ed736581.1544445454.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544445454.git.andreyknvl@google.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Dec 2018 03:10:44 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 0/9] mm: PG_reserved cleanups and documentation
+Date: Fri, 14 Dec 2018 12:10:05 +0100
+Message-Id: <20181214111014.15672-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Andrey Konovalov <andreyknvl@google.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Albert Ou <aou@eecs.berkeley.edu>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Anthony Yznaga <anthony.yznaga@oracle.com>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Bhupesh Sharma <bhsharma@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, CHANDAN VN <chandan.vn@samsung.com>, Christophe Leroy <christophe.leroy@c-s.fr>, Dan Williams <dan.j.williams@intel.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, David Airlie <airlied@linux.ie>, David Howells <dhowells@redhat.com>, Fenghua Yu <fenghua.yu@intel.com>, Florian Fainelli <f.fainelli@gmail.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Greg Hackmann <ghackmann@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, James Morse <james.morse@arm.com>, Johannes Weiner <hannes@cmpxchg.org>, Kees Cook <keescook@chromium.org>, Kristina Martsenko <kristina.martsenko@arm.com>, Laura Abbott <labbott@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Marc Zyngier <marc.zyngier@arm.com>, Mark Rutland <mark.rutland@arm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matthew Wilcox <willy@infradead.org>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Miles Chen <miles.chen@mediatek.com>, Oleg Nesterov <oleg@redhat.com>, Palmer Dabbelt <palmer@sifive.com>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Souptick Joarder <jrdr.linux@gmail.com>, Stefan Agner <stefan@agner.ch>, Stephen Rothwell <sfr@canb.auug.org.au>, Tobias Klauser <tklauser@distanz.ch>, Tony Luck <tony.luck@intel.com>, Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>
 
-To allow arm64 syscalls accept tagged pointers from userspace, we must
-untag them when they are passed to the kernel. Since untagging is done in
-generic parts of the kernel, the untagged_addr macro needs to be defined
-for all architectures.
+I was recently going over all users of PG_reserved. Short story: it is
+difficult and sometimes not really clear if setting/checking for
+PG_reserved is only a relict from the past. Easy to break things. I
+guess I know have a pretty good idea wh things are like that
+nowadays and how they evolved.
 
-Define it as a noop for other architectures besides arm64.
+I had way more cleanups in this series inititally,
+but some architectures take PG_reserved as a way to apply a different
+caching strategy (for MMIO pages). So I decided to only include the most
+obvious changes (that are less likely to break something). So the big
+chunk of manual SetPageReserved users are MMIO/DMA related things on
+device buffers.
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- include/linux/uaccess.h | 4 ++++
- 1 file changed, 4 insertions(+)
+Most notably, for device memory we will hopefully soon stop setting
+PG_reserved. The the documentation has to be updated.
 
-diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-index efe79c1cdd47..42b7a4ac65e2 100644
---- a/include/linux/uaccess.h
-+++ b/include/linux/uaccess.h
-@@ -13,6 +13,10 @@
- 
- #include <asm/uaccess.h>
- 
-+#ifndef untagged_addr
-+#define untagged_addr(addr) (addr)
-+#endif
-+
- /*
-  * Architectures should provide two primitives (raw_copy_{to,from}_user())
-  * and get rid of their private instances of copy_{to,from}_user() and
+RFC -> V1:
+- Add more details to "mm: better document PG_reserved"
+- Add "arm64: kdump: No need to mark crashkernel pages manually
+       PG_reserved"
+- Add "ia64: perfmon: Don't mark buffer pages as PG_reserved"
+- Added ACKs
+
+David Hildenbrand (9):
+  agp: efficeon: no need to set PG_reserved on GATT tables
+  s390/vdso: don't clear PG_reserved
+  powerpc/vdso: don't clear PG_reserved
+  riscv/vdso: don't clear PG_reserved
+  m68k/mm: use __ClearPageReserved()
+  arm64: kexec: no need to ClearPageReserved()
+  arm64: kdump: No need to mark crashkernel pages manually PG_reserved
+  ia64: perfmon: Don't mark buffer pages as PG_reserved
+  mm: better document PG_reserved
+
+ arch/arm64/kernel/machine_kexec.c |  3 +-
+ arch/arm64/mm/init.c              | 27 --------------
+ arch/ia64/kernel/perfmon.c        | 59 +++----------------------------
+ arch/m68k/mm/memory.c             |  2 +-
+ arch/powerpc/kernel/vdso.c        |  2 --
+ arch/riscv/kernel/vdso.c          |  1 -
+ arch/s390/kernel/vdso.c           |  2 --
+ drivers/char/agp/efficeon-agp.c   |  2 --
+ include/linux/page-flags.h        | 33 +++++++++++++++--
+ 9 files changed, 37 insertions(+), 94 deletions(-)
+
 -- 
-2.20.0.rc2.403.gdbc3b29805-goog
+2.17.2
