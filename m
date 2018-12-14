@@ -1,41 +1,57 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EDC688E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 08:55:17 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id d35so5122348qtd.20
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 05:55:17 -0800 (PST)
-Received: from sonic310-12.consmr.mail.ir2.yahoo.com (sonic310-12.consmr.mail.ir2.yahoo.com. [77.238.177.33])
-        by mx.google.com with ESMTPS id j14si110493qvm.164.2018.12.14.05.55.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 05:55:17 -0800 (PST)
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Richard Weinberger <richard@nod.at>
 Subject: Re: [PATCH] fix page_count in ->iomap_migrate_page()
-References: <1544766961-3492-1-git-send-email-openzhangj@gmail.com>
- <1618433.IpySj692Hd@blindfold> <2b19b3c4-2bc4-15fa-15cc-27a13e5c7af1@aol.com>
- <5520068.cAKZ7BqcUI@blindfold>
-From: Gao Xiang <hsiangkao@aol.com>
-Message-ID: <d18a4e12-c062-0c6c-52e4-83d5e2a14da5@aol.com>
-Date: Fri, 14 Dec 2018 21:55:01 +0800
+Date: Fri, 14 Dec 2018 14:35:38 +0100
+Message-ID: <5520068.cAKZ7BqcUI@blindfold>
+In-Reply-To: <2b19b3c4-2bc4-15fa-15cc-27a13e5c7af1@aol.com>
+References: <1544766961-3492-1-git-send-email-openzhangj@gmail.com> <1618433.IpySj692Hd@blindfold> <2b19b3c4-2bc4-15fa-15cc-27a13e5c7af1@aol.com>
 MIME-Version: 1.0
-In-Reply-To: <5520068.cAKZ7BqcUI@blindfold>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Sender: linux-kernel-owner@vger.kernel.org
+To: Gao Xiang <hsiangkao@aol.com>, Artem Bityutskiy <dedekind1@gmail.com>
+Cc: zhangjun <openzhangj@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, hch@lst.de, bfoster@redhat.com, Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, aarcange@redhat.com, willy@infradead.org, linux@dominikbrodowski.net, linux-mm@kvack.org, Gao Xiang <gaoxiang25@huawei.com>
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: Artem Bityutskiy <dedekind1@gmail.com>, zhangjun <openzhangj@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, hch@lst.de, bfoster@redhat.com, Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, aarcange@redhat.com, willy@infradead.org, linux@dominikbrodowski.net, linux-mm@kvack.org, Gao Xiang <gaoxiang25@huawei.com>
 
-Hi Richard,
+Am Freitag, 14. Dezember 2018, 13:26:28 CET schrieb Gao Xiang:
+> Hi Richard,
+> 
+> On 2018/12/14 19:25, Richard Weinberger wrote:
+> > This is the third place which needs this workaround.
+> > UBIFS, F2FS, and now iomap.
+> > 
+> > I agree with Dave that nobody can assume that PG_private implies an additional
+> > page reference.
+> > But page migration does that. Including parts of the write back code.
+> 
+> It seems that it's clearly documented in
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/linux/mm.h#n780
+> 
+>  * A pagecache page contains an opaque `private' member, which belongs to the
+>  * page's address_space. Usually, this is the address of a circular list of
+>  * the page's disk buffers. PG_private must be set to tell the VM to call
+>  * into the filesystem to release these pages.
+>  *
+>  * A page may belong to an inode's memory mapping. In this case, page->mapping
+>  * is the pointer to the inode, and page->index is the file offset of the page,
+>  * in units of PAGE_SIZE.
+>  *
+>  * If pagecache pages are not associated with an inode, they are said to be
+>  * anonymous pages. These may become associated with the swapcache, and in that
+>  * case PG_swapcache is set, and page->private is an offset into the swapcache.
+>  *
+>  * In either case (swapcache or inode backed), the pagecache itself holds one
+>  * reference to the page. Setting PG_private should also increment the
+>  * refcount. The each user mapping also has a reference to the page.
+> 
+> and when I looked into that, I found
+> https://lore.kernel.org/lkml/3CB3CA93.D141680B@zip.com.au/
 
-On 2018/12/14 21:35, Richard Weinberger wrote:
-> Hmm, in case of UBIFS it seems easy. We can add a get/put_page() around setting/clearing
-> the flag.
-> I did that now and so far none of my tests exploded.
+Hmm, in case of UBIFS it seems easy. We can add a get/put_page() around setting/clearing
+the flag.
+I did that now and so far none of my tests exploded.
 
-Yes, many existed codes are based on this restriction in order to be freeable race-free.
-and that's it since PG_Private was once introduced at first by Andrew Morton in 2002
-for many Linux versions....and it's not bad I think... :)
+Artem, do you remember why UBIFS never raised the page counter when setting PG_private?
 
 Thanks,
-Gao Xiang
+//richard
