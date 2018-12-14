@@ -1,161 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AD3F98E0014
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:00:19 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id s27so3119431pgm.4
-        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:00:19 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id h7si1850587pls.326.2018.12.13.22.00.16
-        for <linux-mm@kvack.org>;
-        Thu, 13 Dec 2018 22:00:18 -0800 (PST)
-Date: Fri, 14 Dec 2018 17:00:12 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181214060012.GA10644@dastard>
-References: <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com>
- <20181207191620.GD3293@redhat.com>
- <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com>
- <20181208022445.GA7024@redhat.com>
- <20181210102846.GC29289@quack2.suse.cz>
- <20181212150319.GA3432@redhat.com>
- <20181212214641.GB29416@dastard>
- <20181212215931.GG5037@redhat.com>
- <20181213005119.GD29416@dastard>
- <20181213020229.GN5037@redhat.com>
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9724F8E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 00:21:39 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id k76so2049243oih.13
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 21:21:39 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f3sor2057723oia.156.2018.12.13.21.21.38
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 13 Dec 2018 21:21:38 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181213020229.GN5037@redhat.com>
+References: <20181205014441.GA3045@redhat.com> <59ca5c4b-fd5b-1fc6-f891-c7986d91908e@nvidia.com>
+ <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com> <20181207191620.GD3293@redhat.com>
+ <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com> <20181208022445.GA7024@redhat.com>
+ <20181210102846.GC29289@quack2.suse.cz> <20181212150319.GA3432@redhat.com>
+ <20181212214641.GB29416@dastard> <20181212215931.GG5037@redhat.com>
+ <20181213005119.GD29416@dastard> <05a68829-6e6d-b766-11b4-99e1ba4bc87b@nvidia.com>
+In-Reply-To: <05a68829-6e6d-b766-11b4-99e1ba4bc87b@nvidia.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 13 Dec 2018 21:21:26 -0800
+Message-ID: <CAPcyv4jyG3YTtghyr04wws_hcSBAmPBpnCm0tFcKgz9VwrV=ow@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: david <david@fromorbit.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Wed, Dec 12, 2018 at 09:02:29PM -0500, Jerome Glisse wrote:
-> On Thu, Dec 13, 2018 at 11:51:19AM +1100, Dave Chinner wrote:
+On Thu, Dec 13, 2018 at 7:53 PM John Hubbard <jhubbard@nvidia.com> wrote:
+>
+> On 12/12/18 4:51 PM, Dave Chinner wrote:
 > > On Wed, Dec 12, 2018 at 04:59:31PM -0500, Jerome Glisse wrote:
-> > > On Thu, Dec 13, 2018 at 08:46:41AM +1100, Dave Chinner wrote:
-> > > > On Wed, Dec 12, 2018 at 10:03:20AM -0500, Jerome Glisse wrote:
-> > > > > On Mon, Dec 10, 2018 at 11:28:46AM +0100, Jan Kara wrote:
-> > > > > > On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
-> > > > > > So this approach doesn't look like a win to me over using counter in struct
-> > > > > > page and I'd rather try looking into squeezing HMM public page usage of
-> > > > > > struct page so that we can fit that gup counter there as well. I know that
-> > > > > > it may be easier said than done...
-> > > > > 
-> > > > > So i want back to the drawing board and first i would like to ascertain
-> > > > > that we all agree on what the objectives are:
-> > > > > 
-> > > > >     [O1] Avoid write back from a page still being written by either a
-> > > > >          device or some direct I/O or any other existing user of GUP.
-> > 
-> > IOWs, you need to mark pages being written to by a GUP as
-> > PageWriteback, so all attempts to write the page will block on
-> > wait_on_page_writeback() before trying to write the dirty page.
-> 
-> No you don't and you can't for the simple reasons is that the GUP
-> of some device driver can last days, weeks, months, years ... so
-> it is not something you want to do. Here is what happens today:
->     - user space submit directio read from a file and writing to
->       virtual address and the problematic case is when that virtual
->       address is actualy a mmap of a file itself
->     - kernel do GUP on the virtual address, if the page has write
->       permission in the CPU page table mapping then the page
->       refcount is incremented and the page is return to directio
->       kernel code that do memcpy
-> 
->       It means that the page already went through page_mkwrite so
->       all is fine from fs point of view.
->       If page does not have write permission then a page fault is
->       triggered and page_mkwrite will happen and prep the page
->       accordingly
+> >> On Thu, Dec 13, 2018 at 08:46:41AM +1100, Dave Chinner wrote:
+> >>> On Wed, Dec 12, 2018 at 10:03:20AM -0500, Jerome Glisse wrote:
+> >>>> On Mon, Dec 10, 2018 at 11:28:46AM +0100, Jan Kara wrote:
+> >>>>> On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
+> >>>>> So this approach doesn't look like a win to me over using counter in struct
+> >>>>> page and I'd rather try looking into squeezing HMM public page usage of
+> >>>>> struct page so that we can fit that gup counter there as well. I know that
+> >>>>> it may be easier said than done...
+> >>>>
+>
+> Agreed. After all the discussion this week, I'm thinking that the original idea
+> of a per-struct-page counter is better. Fortunately, we can do the moral equivalent
+> of that, unless I'm overlooking something: Jerome had another proposal that he
+> described, off-list, for doing that counting, and his idea avoids the problem of
+> finding space in struct page. (And in fact, when I responded yesterday, I initially
+> thought that's where he was going with this.)
+>
+> So how about this hybrid solution:
+>
+> 1. Stay with the basic RFC approach of using a per-page counter, but actually
+> store the counter(s) in the mappings instead of the struct page. We can use
+> !PageAnon and page_mapping to look up all the mappings, stash the dma_pinned_count
+> there. So the total pinned count is scattered across mappings. Probably still need
+> a PageDmaPinned bit.
 
-Yes, the short term GUP references do the right thing. They aren't
-the issue - the problem is the long term GUP references that dirty
-clean pages without first having called ->page_mkwrite.
-
-> In the above scheme a page write back might happens after we looked
-> up the page from the CPU page table and before directio finish with
-> memcpy so that the page content during the write back might not be
-> stable. This is a small window for things to go bad and i do not
-> think we know if anybody ever experience a bug because of that.
-> 
-> For other GUP users the flow is the same except that device driver
-> that keep the page around and do continuous dma to it might last
-> days, weeks, months, years ... so for those the race window is big
-> enough for bad things to happen. Jan have report of such bugs.
-
-i.e. this case.
-
-GUP faults the page, gets marked dirty, time passes, page
-writeback occurs, it's now mapped clean, time passes, another RDMA
-hits those pages, it calls set_page_dirty() again and things go
-boom.
-
-Basically, you are saying that the problem here is that writeback
-of a dirty page occurred while there was an active GUP, and that
-you want us to ....
-
-> So what i am proposing to fix the above is have page_mkclean return
-> a is_pin boolean if page is pin than the fs code use a bounce page
-> to do the write back giving a stable bounce page. More over fs will
-> need to keep around all buffer_head, blocks, ... ie whatever is
-> associated with that file offset so that any latter set_page_dirty
-> would not freak out and would not need to reallocate blocks or do
-> anything heavy weight.
-
-.... keep the dirty page pinned and never written back until the GUP
-is released.
-
-Which, quite frankly, is insanity.  The whole point of
-->page_mkwrite() is that we can clean file backed mapped pages at
-any point in time and have the next write access correctly mark it
-dirty again so it can be written back.
-
-This is *absolutely necessary* for data integrity (i.e. fsync,
-sync(), etc) as well as filesystem management operations (e.g.
-filesystem freeze) to work correctly and not lose data if the system
-crashes or generate corrupt snapshots for backup or migration
-purposes.
-
-> We have a separate discussion on what to do about truncate and other
-> fs event that inherently invalidate portion of file so i do not
-> want to complexify present discussion with those but we also have
-> that in mind.
-> 
-> Do you see any fundamental issues with that ? It abides by all
-> existing fs standard AFAICT (you have a page_mkwrite and we ask
-> fs to keep the result of that around).
-
-The fundamental issue is that ->page_mkwrite must be called on every
-write access to a clean file backed page, not just the first one.
-How long the GUP reference lasts is irrelevant, if the page is clean
-and you need to dirty it, you must call ->page_mkwrite before it is
-marked writeable and dirtied. Every. Time.
-
-> > Think ENOSPC - that has to be handled before we do the DMA, not
-> > after. Before the DMA it is a recoverable error, after the DMA it is
-> > data loss/corruption failure.
-> 
-> Yes agree and i hope that the above explaination properly explains
-> that it would become legal to do set_page_dirty in put_user_page
-> thanks to page_mkclean telling fs code not to recycle anything
-> after write back finish.
-
-No, page_mkclean doesn't help at all. Every time the page is dirtied
-it may require block allocation (think COW filesystems) and so
-ENOSPC (and block allocation) must be done /before/ the page is
-dirtied. YOU can't just keep re-dirtying the same page and assuming
-that the filesystem will just work with that - that's essentially
-what the current code does with long term GUP references, and that's
-why it's so broken.
-
-/me is getting tired of explaining the same thing over and over
-again.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+How do you safely look at page->mapping from the get_user_pages_fast()
+path? You'll be racing invalidation disconnecting the page from the
+mapping.
