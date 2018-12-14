@@ -1,133 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EFED56B7A07
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:25:09 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id t77so211922wmt.5
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:25:09 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i13sor447490wmb.11.2018.12.06.04.25.08
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2B18E0014
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 01:27:47 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id q62so3149012pgq.9
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2018 22:27:47 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id m28si2919232pgn.273.2018.12.13.22.27.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 04:25:08 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v13 12/25] kasan: preassign tags to objects with ctors or SLAB_TYPESAFE_BY_RCU
-Date: Thu,  6 Dec 2018 13:24:30 +0100
-Message-Id: <f158a8a74a031d66f0a9398a5b0ed453c37ba09a.1544099024.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
-References: <cover.1544099024.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Dec 2018 22:27:46 -0800 (PST)
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH -V9 02/21] swap: Enable PMD swap operations for CONFIG_THP_SWAP
+Date: Fri, 14 Dec 2018 14:27:35 +0800
+Message-Id: <20181214062754.13723-3-ying.huang@intel.com>
+In-Reply-To: <20181214062754.13723-1-ying.huang@intel.com>
+References: <20181214062754.13723-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
 
-An object constructor can initialize pointers within this objects based on
-the address of the object. Since the object address might be tagged, we
-need to assign a tag before calling constructor.
+Currently, "the swap entry" in the page tables is used for a number of
+things outside of actual swap, like page migration, etc.  We support
+the THP/PMD "swap entry" for page migration currently and the
+functions behind this are tied to page migration's config
+option (CONFIG_ARCH_ENABLE_THP_MIGRATION).
 
-The implemented approach is to assign tags to objects with constructors
-when a slab is allocated and call constructors once as usual. The
-downside is that such object would always have the same tag when it is
-reallocated, so we won't catch use-after-frees on it.
+But, we also need them for THP swap optimization.  So a new config
+option (CONFIG_HAVE_PMD_SWAP_ENTRY) is added.  It is enabled when
+either CONFIG_ARCH_ENABLE_THP_MIGRATION or CONFIG_THP_SWAP is enabled.
+And PMD swap entry functions are tied to this new config option
+instead.  Some functions enabled by CONFIG_ARCH_ENABLE_THP_MIGRATION
+are for page migration only, they are still enabled only for that.
 
-Also pressign tags for objects from SLAB_TYPESAFE_BY_RCU caches, since
-they can be validy accessed after having been freed.
-
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- mm/slab.c |  2 +-
- mm/slub.c | 24 ++++++++++++++----------
- 2 files changed, 15 insertions(+), 11 deletions(-)
+ arch/x86/include/asm/pgtable.h |  2 +-
+ include/asm-generic/pgtable.h  |  2 +-
+ include/linux/swapops.h        | 44 ++++++++++++++++++----------------
+ mm/Kconfig                     |  8 +++++++
+ 4 files changed, 33 insertions(+), 23 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 26f60a22e5e0..27859fb39889 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2574,7 +2574,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
- 
- 	for (i = 0; i < cachep->num; i++) {
- 		objp = index_to_obj(cachep, page, i);
--		kasan_init_slab_obj(cachep, objp);
-+		objp = kasan_init_slab_obj(cachep, objp);
- 
- 		/* constructor could break poison info */
- 		if (DEBUG == 0 && cachep->ctor) {
-diff --git a/mm/slub.c b/mm/slub.c
-index e739d46600b9..08740c3f3745 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1451,16 +1451,17 @@ static inline bool slab_free_freelist_hook(struct kmem_cache *s,
- #endif
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 40616e805292..e830ab345551 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1333,7 +1333,7 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
+ 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
  }
  
--static void setup_object(struct kmem_cache *s, struct page *page,
-+static void *setup_object(struct kmem_cache *s, struct page *page,
- 				void *object)
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
  {
- 	setup_object_debug(s, page, object);
--	kasan_init_slab_obj(s, object);
-+	object = kasan_init_slab_obj(s, object);
- 	if (unlikely(s->ctor)) {
- 		kasan_unpoison_object_data(s, object);
- 		s->ctor(object);
- 		kasan_poison_object_data(s, object);
- 	}
-+	return object;
+ 	return pmd_set_flags(pmd, _PAGE_SWP_SOFT_DIRTY);
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index e0381a4ce7d4..2a619f378297 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -675,7 +675,7 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
+ #endif
+ 
+ #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+-#ifndef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#ifndef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
+ {
+ 	return pmd;
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index 4d961668e5fc..905ddc65caa3 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -254,17 +254,7 @@ static inline int is_write_migration_entry(swp_entry_t entry)
+ 
+ #endif
+ 
+-struct page_vma_mapped_walk;
+-
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+-extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+-		struct page *page);
+-
+-extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
+-		struct page *new);
+-
+-extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
+-
++#ifdef CONFIG_HAVE_PMD_SWAP_ENTRY
+ static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+ {
+ 	swp_entry_t arch_entry;
+@@ -282,6 +272,28 @@ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+ 	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
+ 	return __swp_entry_to_pmd(arch_entry);
  }
++#else
++static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
++{
++	return swp_entry(0, 0);
++}
++
++static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
++{
++	return __pmd(0);
++}
++#endif
++
++struct page_vma_mapped_walk;
++
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
++		struct page *page);
++
++extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
++		struct page *new);
++
++extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
  
- /*
-@@ -1568,16 +1569,16 @@ static bool shuffle_freelist(struct kmem_cache *s, struct page *page)
- 	/* First entry is used as the base of the freelist */
- 	cur = next_freelist_entry(s, page, &pos, start, page_limit,
- 				freelist_count);
-+	cur = setup_object(s, page, cur);
- 	page->freelist = cur;
+ static inline int is_pmd_migration_entry(pmd_t pmd)
+ {
+@@ -302,16 +314,6 @@ static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
  
- 	for (idx = 1; idx < page->objects; idx++) {
--		setup_object(s, page, cur);
- 		next = next_freelist_entry(s, page, &pos, start, page_limit,
- 			freelist_count);
-+		next = setup_object(s, page, next);
- 		set_freepointer(s, cur, next);
- 		cur = next;
- 	}
--	setup_object(s, page, cur);
- 	set_freepointer(s, cur, NULL);
+ static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
  
- 	return true;
-@@ -1599,7 +1600,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	struct page *page;
- 	struct kmem_cache_order_objects oo = s->oo;
- 	gfp_t alloc_gfp;
--	void *start, *p;
-+	void *start, *p, *next;
- 	int idx, order;
- 	bool shuffle;
+-static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+-{
+-	return swp_entry(0, 0);
+-}
+-
+-static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+-{
+-	return __pmd(0);
+-}
+-
+ static inline int is_pmd_migration_entry(pmd_t pmd)
+ {
+ 	return 0;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 25c71eb8a7db..d7c5299c5b7d 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -422,6 +422,14 @@ config THP_SWAP
  
-@@ -1651,13 +1652,16 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	  For selection by architectures with reasonable THP sizes.
  
- 	if (!shuffle) {
- 		for_each_object_idx(p, idx, s, start, page->objects) {
--			setup_object(s, page, p);
--			if (likely(idx < page->objects))
--				set_freepointer(s, p, p + s->size);
--			else
-+			if (likely(idx < page->objects)) {
-+				next = p + s->size;
-+				next = setup_object(s, page, next);
-+				set_freepointer(s, p, next);
-+			} else
- 				set_freepointer(s, p, NULL);
- 		}
--		page->freelist = fixup_red_left(s, start);
-+		start = fixup_red_left(s, start);
-+		start = setup_object(s, page, start);
-+		page->freelist = start;
- 	}
- 
- 	page->inuse = page->objects;
++#
++# "PMD swap entry" in the page table is used both for migration and
++# actual swap.
++#
++config HAVE_PMD_SWAP_ENTRY
++	def_bool y
++	depends on THP_SWAP || ARCH_ENABLE_THP_MIGRATION
++
+ config	TRANSPARENT_HUGE_PAGECACHE
+ 	def_bool y
+ 	depends on TRANSPARENT_HUGEPAGE
 -- 
-2.20.0.rc1.387.gf8505762e3-goog
+2.18.1
