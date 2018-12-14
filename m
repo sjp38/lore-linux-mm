@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F0C286B7B53
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:21:17 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id 32so553565ots.15
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:21:17 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y132si384466oig.260.2018.12.06.10.21.16
-        for <linux-mm@kvack.org>;
-        Thu, 06 Dec 2018 10:21:16 -0800 (PST)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [RESEND PATCH v4 2/5] arm64: mmu: Drop pXd_present() checks from pXd_free_pYd_table()
-Date: Thu,  6 Dec 2018 18:21:32 +0000
-Message-Id: <1544120495-17438-3-git-send-email-will.deacon@arm.com>
-In-Reply-To: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
-References: <1544120495-17438-1-git-send-email-will.deacon@arm.com>
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D89398E01C5
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:10:47 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id n95so4576035qte.16
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:10:47 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o1si808121qvm.82.2018.12.14.03.10.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Dec 2018 03:10:47 -0800 (PST)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 1/9] agp: efficeon: no need to set PG_reserved on GATT tables
+Date: Fri, 14 Dec 2018 12:10:06 +0100
+Message-Id: <20181214111014.15672-2-david@redhat.com>
+In-Reply-To: <20181214111014.15672-1-david@redhat.com>
+References: <20181214111014.15672-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpandya@codeaurora.org, toshi.kani@hpe.com, tglx@linutronix.de, mhocko@suse.com, sean.j.christopherson@intel.com, Will Deacon <will.deacon@arm.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, David Airlie <airlied@linux.ie>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
 
-The core code already has a check for pXd_none(), so remove it from the
-architecture implementation.
+The l1 GATT page table is kept in a special on-chip page with 64 entries.
+We allocate the l2 page table pages via get_zeroed_page() and enter them
+into the table. These l2 pages are modified accordingly when
+inserting/removing memory via efficeon_insert_memory and
+efficeon_remove_memory.
 
-Cc: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Michal Hocko <mhocko@suse.com>
+Apart from that, these pages are not exposed or ioremap'ed. We can stop
+setting them reserved (propably copied from generic code).
+
+Cc: David Airlie <airlied@linux.ie>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- arch/arm64/mm/mmu.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ drivers/char/agp/efficeon-agp.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index d1d6601b385d..786cfa6355be 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -989,10 +989,8 @@ int pmd_free_pte_page(pmd_t *pmdp, unsigned long addr)
+diff --git a/drivers/char/agp/efficeon-agp.c b/drivers/char/agp/efficeon-agp.c
+index 7f88490b5479..c53f0f9ef5b0 100644
+--- a/drivers/char/agp/efficeon-agp.c
++++ b/drivers/char/agp/efficeon-agp.c
+@@ -163,7 +163,6 @@ static int efficeon_free_gatt_table(struct agp_bridge_data *bridge)
+ 		unsigned long page = efficeon_private.l1_table[index];
+ 		if (page) {
+ 			efficeon_private.l1_table[index] = 0;
+-			ClearPageReserved(virt_to_page((char *)page));
+ 			free_page(page);
+ 			freed++;
+ 		}
+@@ -219,7 +218,6 @@ static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
+ 			efficeon_free_gatt_table(agp_bridge);
+ 			return -ENOMEM;
+ 		}
+-		SetPageReserved(virt_to_page((char *)page));
  
- 	pmd = READ_ONCE(*pmdp);
- 
--	if (!pmd_present(pmd))
--		return 1;
- 	if (!pmd_table(pmd)) {
--		VM_WARN_ON(!pmd_table(pmd));
-+		VM_WARN_ON(1);
- 		return 1;
- 	}
- 
-@@ -1012,10 +1010,8 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
- 
- 	pud = READ_ONCE(*pudp);
- 
--	if (!pud_present(pud))
--		return 1;
- 	if (!pud_table(pud)) {
--		VM_WARN_ON(!pud_table(pud));
-+		VM_WARN_ON(1);
- 		return 1;
- 	}
- 
+ 		for (offset = 0; offset < PAGE_SIZE; offset += clflush_chunk)
+ 			clflush((char *)page+offset);
 -- 
-2.1.4
+2.17.2
