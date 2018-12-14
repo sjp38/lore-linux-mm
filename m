@@ -1,92 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 584FA8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2018 05:57:23 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id i55so25465719ede.14
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 02:57:23 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s6-v6si854193eji.172.2018.12.28.02.57.21
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 95A1B8E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 11:59:13 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id w5so5296516iom.3
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 08:59:13 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 5sor10432868itx.25.2018.12.14.08.59.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Dec 2018 02:57:21 -0800 (PST)
-Subject: Re: + mm-thp-always-specify-disabled-vmas-as-nh-in-smaps.patch added
- to -mm tree
-References: <alpine.DEB.2.21.1812210123210.232416@chino.kir.corp.google.com>
- <14e15543-c18b-6fa0-e107-194216ef3ada@suse.cz>
- <20181221151256.GA6410@dhcp22.suse.cz>
- <20181221140301.0e87b79b923ceb6d0f683749@linux-foundation.org>
- <alpine.DEB.2.21.1812211419320.219499@chino.kir.corp.google.com>
- <20181224080426.GC9063@dhcp22.suse.cz>
- <alpine.DEB.2.21.1812240058060.114867@chino.kir.corp.google.com>
- <20181224091731.GB16738@dhcp22.suse.cz>
- <20181227111114.5tvvkddyp7cytzeb@kshutemo-mobl1>
- <20181227213100.aeee730c1f9ec5cb11de39a3@linux-foundation.org>
- <20181228081847.GP16738@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <00ec4644-70c2-4bd1-ec3f-b994fa0669e8@suse.cz>
-Date: Fri, 28 Dec 2018 11:54:17 +0100
+        (Google Transport Security);
+        Fri, 14 Dec 2018 08:59:12 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20181228081847.GP16738@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <0000000000004ea80b057cfae21e@google.com> <CACT4Y+Z+AhQxf6=ecOkX1bOU5h7kMHYnR6CAhBv9eO5jQVeG3g@mail.gmail.com>
+ <20181214132836.GE5343@dhcp22.suse.cz> <CACT4Y+aXFXnObgC-7NVe87-1bbqs2oNBBXe2mrfshLKnFqkTGA@mail.gmail.com>
+ <20181214135419.GG5343@dhcp22.suse.cz> <CACT4Y+b1Qc069LO25JhJh51zTAMBL6t_E7LRZiSPi8FP0v+zUQ@mail.gmail.com>
+ <20181214165258.GI5343@dhcp22.suse.cz>
+In-Reply-To: <20181214165258.GI5343@dhcp22.suse.cz>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 14 Dec 2018 17:59:00 +0100
+Message-ID: <CACT4Y+be8ZX8rTX9aogU23r267XR1_8P25iQ16YK72zFLd_u_w@mail.gmail.com>
+Subject: Re: general protection fault in watchdog
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, kirill.shutemov@linux.intel.com, adobriyan@gmail.com, Linux API <linux-api@vger.kernel.org>, Andrei Vagin <avagin@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM layout <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Florian Westphal <fw@strlen.de>, David Miller <davem@davemloft.net>, NetFilter <netfilter-devel@vger.kernel.org>, netdev <netdev@vger.kernel.org>, syzbot <syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, rafael.j.wysocki@intel.com, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, vkuznets@redhat.com, Linux-MM <linux-mm@kvack.org>
 
-On 12/28/18 9:18 AM, Michal Hocko wrote:
-> On Thu 27-12-18 21:31:00, Andrew Morton wrote:
->> On Thu, 27 Dec 2018 14:11:14 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
->>
->>> On Mon, Dec 24, 2018 at 10:17:31AM +0100, Michal Hocko wrote:
->>>> On Mon 24-12-18 01:05:57, David Rientjes wrote:
->>>> [...]
->>>>> I'm not interested in having a 100 email thread about this when a clear 
->>>>> and simple fix exists that actually doesn't break user code.
->>>>
->>>> You are breaking everybody who really wants to query MADV_NOHUGEPAGE
->>>> status by this flag. Is there anybody doing that?
->>>
->>> Yes.
->>>
->>> https://github.com/checkpoint-restore/criu/blob/v3.11/criu/proc_parse.c#L143
->>
->> Ugh.  So the regression fix causes a regression?
-> 
-> Yes. The patch from David will hardcode the nohugepage vm flag if the
-> THP was disabled by the prctl at the time of the snapshot. And if the
-> application later enables THP by the prctl then existing mappings would
-> never get the THP enabled status back.
-> 
-> This is the kind of a potential regression I was poiting out earlier
-> when explaining that the patch encodes the logic into the flag exporting
-> and that means that whoever wants to get the raw value of the flag will
-> not be able to do so. Please note that the raw value is exactly what
-> this interface is documented and supposed to export. And as the
-> documentation explains it is implementation specific and anybody to use
-> it should be careful.
+On Fri, Dec 14, 2018 at 5:53 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Fri 14-12-18 15:31:44, Dmitry Vyukov wrote:
+> > On Fri, Dec 14, 2018 at 2:54 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Fri 14-12-18 14:42:33, Dmitry Vyukov wrote:
+> > > > On Fri, Dec 14, 2018 at 2:28 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > >
+> > > > > On Fri 14-12-18 14:11:05, Dmitry Vyukov wrote:
+> > > > > > On Fri, Dec 14, 2018 at 1:51 PM syzbot
+> > > > > > <syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com> wrote:
+> > > > > > >
+> > > > > > > Hello,
+> > > > > > >
+> > > > > > > syzbot found the following crash on:
+> > > > > > >
+> > > > > > > HEAD commit:    f5d582777bcb Merge branch 'for-linus' of git://git.kernel...
+> > > > > > > git tree:       upstream
+> > > > > > > console output: https://syzkaller.appspot.com/x/log.txt?x=16aca143400000
+> > > > > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=c8970c89a0efbb23
+> > > > > > > dashboard link: https://syzkaller.appspot.com/bug?extid=7713f3aa67be76b1552c
+> > > > > > > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> > > > > > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=1131381b400000
+> > > > > > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=13bae593400000
+> > > > > > >
+> > > > > > > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > > > > > > Reported-by: syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com
+> > > > > >
+> > > > > > +linux-mm for memcg question
+> > > > > >
+> > > > > > What the repro does is effectively just
+> > > > > > setsockopt(EBT_SO_SET_ENTRIES). This eats all machine memory and
+> > > > > > causes OOMs. Somehow it also caused the GPF in watchdog when it
+> > > > > > iterates over task list, perhaps some scheduler code leaves a dangling
+> > > > > > pointer on OOM failures.
+> > > > > >
+> > > > > > But what bothers me is a different thing. syzkaller test processes are
+> > > > > > sandboxed with a restrictive memcg which should prevent them from
+> > > > > > eating all memory. do_replace_finish calls vmalloc, which uses
+> > > > > > GFP_KERNEL, which does not include GFP_ACCOUNT (GFP_KERNEL_ACCOUNT
+> > > > > > does). And page alloc seems to change memory against memcg iff
+> > > > > > GFP_ACCOUNT is provided.
+> > > > > > Am I missing something or vmalloc is indeed not accounted (DoS)? I see
+> > > > > > some explicit uses of GFP_KERNEL_ACCOUNT, e.g. the one below, but they
+> > > > > > seem to be very sparse.
+> > > > > >
+> > > > > > static void *seq_buf_alloc(unsigned long size)
+> > > > > > {
+> > > > > >      return kvmalloc(size, GFP_KERNEL_ACCOUNT);
+> > > > > > }
+> > > > > >
+> > > > > > Now looking at the code I also don't see how kmalloc(GFP_KERNEL) is
+> > > > > > accounted... Which makes me think I am still missing something.
+> > > > >
+> > > > > You are not missing anything. We do not account all allocations and you
+> > > > > have to explicitly opt-in by __GFP_ACCOUNT. This is a deliberate
+> > > > > decision. If the allocation is directly controlable by an untrusted user
+> > > > > and the memory is associated with a process life time then this looks
+> > > > > like a good usecase for __GFP_ACCOUNT. If an allocation outlives a
+> > > > > process then there the flag should be considered with a great care
+> > > > > because oom killer is not able to resolve the memcg pressure and so the
+> > > > > limit enforcement is not effective.
+> > > >
+> > > > Interesting.
+> > > > I understand that namespaces, memcg's and processes (maybe even
+> > > > threads) can have arbitrary overlapping. But I naively thought that in
+> > > > canonical hierarchical cases it should all somehow work.
+> > > > Question 1: is there some other, stricter sandboxing mechanism?
+> > >
+> > > I do not think so
+> > >
+> > > > We try
+> > > > to sandbox syzkaller processes with everything available , because
+> > > > these OOMs usually leads either to dead machines or hang/stall false
+> > > > positives, which are nasty.
+> > >
+> > > Which is a useful test on its own. If you are able to trigger the global
+> > > OOM from a restricted environment then you have a good candidate to
+> > > consider a new __GFP_ACCOUNT user.
+> > >
+> > > > Question 2: this is a simple DoS vector, right? If I put a container
+> > > > into a 1MB memcg, it can still eat arbitrary amount of non-pagable
+> > > > kernel memory?
+> > >
+> > > As I've said. If there is a direct vector to allocated an unbounded
+> > > amount of memory from the userspace (trusted users aside) then yes this
+> > > sounds like a DoS to me.
+> >
+> > +netfilter maintainers for this easy DoS vector
+> > short story: vmalloc in do_replace_finish allows unbounded memory
+> > allocation not accounted to memcg
+>
+> Haven't we discussed that recently?
 
-Let's add some CRIU guys in the loop (dunno if the right ones). We're
-discussing David's patch [1] that makes 'nh' and 'hg' flags reported in
-/proc/pid/smaps (and set by madvise) overridable by
-prctl(PR_SET_THP_DISABLE). This was sort of accidental behavior (but
-only for mappings created after the prctl call) before 4.13 commit
-1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active").
+I just gave an executive summary to the new people I added to CC.
 
-For David's userspace that commit is a regression as there are false
-positives when checking for vma's that are eligible for THP (=don't have
-the 'nh' flag in smaps) but didn't really obtain THP's. The userspace
-assumes it's due to fragmentation (=bad) and cannot know that it's due
-to the prctl(). But we fear that making prctl() affect smaps vma flags
-means that CRIU can't query them accurately anymore, and thus it's a
-regression for CRIU. Can you comment on that?
-Michal has a patch [2] that reports the prctl() status separately, but
-that doesn't help David's existing userspace. For CRIU this also won't
-help as long the smaps vma flags still silently included the prctl()
-status. Do you see some solution that would work for everybody?
+> > Looks pretty unbounded:
+> >
+> > [  763.451796] syz-executor681: vmalloc: allocation failure, allocated
+> > 1027440640 of 1879052288 bytes, mode:0x6000c0(GFP_KERNEL),
+> > nodemask=(null)
+> >
+> > But how does this play with what you said about memory outliving
+> > process? Netfilter tables can definitely outlive the process, they are
+> > attached to net ns.
+>
+> Not very well, but it is not hopeless either. The charged memory
+> wouldn't go away with oom victims so it will stay there until somebody
+> destroys those objects. On the other hand any process within that memcg
+> would be killed so a DoS should be somehow contained.
+>
+> > Also, am I reading this correctly that potentially thousands of kernel
+> > memory allocations need to be converted to ACCOUNT? I mean for small
+> > ones we maybe care less, but they _should_ be accounted. They can also
+> > build up, or just simply allow small repeated allocations.
+> >
+> > GFP_KERNEL Referenced in 11070 files:
+> > https://elixir.bootlin.com/linux/latest/ident/GFP_KERNEL
+> >
+> > GFP_KERNEL_ACCOUNT Referenced in 19 files:
+> > https://elixir.bootlin.com/linux/latest/ident/GFP_KERNEL_ACCOUNT
+>
+> Yes, we do not care about all kernel objects. Most of them are contained
+> by some high-level objects already. The purpose of the kmem accounting
+> is to limit those objects that can grow really large and are reclaimable
+> in some way.
 
-[1]
-https://www.ozlabs.org/~akpm/mmots/broken-out/mm-thp-always-specify-disabled-vmas-as-nh-in-smaps.patch
-[2]
-https://www.ozlabs.org/~akpm/mmots/broken-out/mm-proc-report-pr_set_thp_disable-in-proc.patch
+I see, thanks for the explanations.
