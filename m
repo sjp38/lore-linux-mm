@@ -1,56 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FC5C6B6EE9
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 08:29:59 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id w2so8331638edc.13
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 05:29:59 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k1si4151788eda.363.2018.12.04.05.29.57
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 86EA28E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 12:16:08 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id f125so4303849pgc.20
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 09:16:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t7sor8209003plo.3.2018.12.14.09.16.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Dec 2018 05:29:58 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB4DOvMo013692
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2018 08:29:56 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p5t3asjbb-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Dec 2018 08:29:56 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 4 Dec 2018 13:29:54 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: Re: [PATCH V2 4/5] mm/hugetlb: Add prot_modify_start/commit sequence for hugetlb update
-In-Reply-To: <d7ee1b8c-2f45-f430-b413-9d511e7d78c4@linux.ibm.com>
-References: <20181128143438.29458-1-aneesh.kumar@linux.ibm.com> <20181128143438.29458-5-aneesh.kumar@linux.ibm.com> <20181128141051.ff38f23023f652759b06f828@linux-foundation.org> <d7ee1b8c-2f45-f430-b413-9d511e7d78c4@linux.ibm.com>
-Date: Tue, 04 Dec 2018 18:59:43 +0530
+        (Google Transport Security);
+        Fri, 14 Dec 2018 09:16:07 -0800 (PST)
+From: Suren Baghdasaryan <surenb@google.com>
+Subject: [PATCH 0/6] psi: pressure stall monitors
+Date: Fri, 14 Dec 2018 09:15:02 -0800
+Message-Id: <20181214171508.7791-1-surenb@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87va495sjc.fsf@linux.ibm.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: gregkh@linuxfoundation.org
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
+Android is adopting psi to detect and remedy memory pressure that
+results in stuttering and decreased responsiveness on mobile devices.
 
-> On 11/29/18 3:40 AM, Andrew Morton wrote:
->> On Wed, 28 Nov 2018 20:04:37 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
->> 
->>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
->> 
->> Some explanation of the motivation would be useful.
->
-> I will update the commit message.
->
+Psi gives us the stall information, but because we're dealing with
+latencies in the millisecond range, periodically reading the pressure
+files to detect stalls in a timely fashion is not feasible. Psi also
+doesn't aggregate its averages at a high-enough frequency right now.
 
-Is this good?
+This patch series extends the psi interface such that users can
+configure sensitive latency thresholds and use poll() and friends to
+be notified when these are breached.
 
-    mm/hugetlb: Add prot_modify_start/commit sequence for hugetlb update
-    
-    Architectures like ppc64 requires to do a conditional tlb flush based on the old
-    and new value of pte. Follow the regular pte change protection sequence for
-    hugetlb too. This allow the architectures to override the update sequence.
+As high-frequency aggregation is costly, it implements an aggregation
+method that is optimized for fast, short-interval averaging, and makes
+the aggregation frequency adaptive, such that high-frequency updates
+only happen while monitored stall events are actively occurring.
 
--aneesh
+With these patches applied, Android can monitor for, and ward off,
+mounting memory shortages before they cause problems for the user.
+For example, using memory stall monitors in userspace low memory
+killer daemon (lmkd) we can detect mounting pressure and kill less
+important processes before device becomes visibly sluggish. In our
+memory stress testing psi memory monitors produce roughly 10x less
+false positives compared to vmpressure signals. Having ability to
+specify multiple triggers for the same psi metric allows other parts
+of Android framework to monitor memory state of the device and act
+accordingly.
+
+The new interface is straight-forward. The user opens one of the
+pressure files for writing and writes a trigger description into the
+file descriptor that defines the stall state - some or full, and the
+maximum stall time over a given window of time. E.g.:
+
+        /* Signal when stall time exceeds 100ms of a 1s window */
+        char trigger[] = "full 100000 1000000"
+        fd = open("/proc/pressure/memory")
+        write(fd, trigger, sizeof(trigger))
+        while (poll() >= 0) {
+                ...
+        };
+        close(fd);
+
+When the monitored stall state is entered, psi adapts its aggregation
+frequency according to what the configured time window requires in
+order to emit event signals in a timely fashion. Once the stalling
+subsides, aggregation reverts back to normal.
+
+The trigger is associated with the open file descriptor. To stop
+monitoring, the user only needs to close the file descriptor and the
+trigger is discarded.
+
+Patches 1-5 prepare the psi code for polling support. Patch 6
+implements the adaptive polling logic, the pressure growth detection
+optimized for short intervals, and hooks up write() and poll() on the
+pressure files.
+
+The patches were developed in collaboration with Johannes Weiner.
+
+The patches are based on 4.20-rc6.
+
+Johannes Weiner (3):
+  fs: kernfs: add poll file operation
+  kernel: cgroup: add poll file operation
+  psi: eliminate lazy clock mode
+
+Suren Baghdasaryan (3):
+  psi: introduce state_mask to represent stalled psi states
+  psi: rename psi fields in preparation for psi trigger addition
+  psi: introduce psi monitor
+
+ Documentation/accounting/psi.txt | 105 ++++++
+ fs/kernfs/file.c                 |  31 +-
+ include/linux/cgroup-defs.h      |   4 +
+ include/linux/kernfs.h           |   6 +
+ include/linux/psi.h              |  10 +
+ include/linux/psi_types.h        |  90 ++++-
+ kernel/cgroup/cgroup.c           | 119 ++++++-
+ kernel/sched/psi.c               | 586 +++++++++++++++++++++++++++----
+ 8 files changed, 865 insertions(+), 86 deletions(-)
+
+-- 
+2.20.0.405.gbc1bbc6f85-goog
