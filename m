@@ -1,72 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BBFD38E0001
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 22:14:17 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 202so6602311pgb.6
-        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 19:14:17 -0800 (PST)
-Received: from mail2.tencent.com (mail2.tencent.com. [163.177.67.195])
-        by mx.google.com with ESMTP id b3si9257864pld.282.2018.12.09.19.14.15
-        for <linux-mm@kvack.org>;
-        Sun, 09 Dec 2018 19:14:16 -0800 (PST)
-From: =?gb2312?B?Z3VvbWluY2hlbiizwrn6w/Ep?= <guominchen@tencent.com>
-Subject: =?gb2312?B?tPC4tDogW1BBVENIXSAgRml4IG1tLT5vd25lciBwb2ludCB0byBhIHRhc2sg?=
- =?gb2312?Q?that_does_not_exists(Internet_mail)?=
-Date: Mon, 10 Dec 2018 03:14:10 +0000
-Message-ID: <0D556C4F8D27C74EB25927291B4B0602A90358@EXMBX-SZ087.tencent.com>
-References: <1544340077-11491-1-git-send-email-gchen.guomin@gmail.com>
- <20181209201309-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20181209201309-mutt-send-email-mst@kernel.org>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5730D8E01DC
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 13:24:56 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id y8so4451074pgq.12
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 10:24:56 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s123si4614714pfb.274.2018.12.14.10.24.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 14 Dec 2018 10:24:55 -0800 (PST)
+Date: Fri, 14 Dec 2018 10:24:52 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC 1/4] mm: refactor __vunmap() to avoid duplicated call to
+ find_vm_area()
+Message-ID: <20181214182452.GD10600@bombadil.infradead.org>
+References: <20181214180720.32040-1-guro@fb.com>
+ <20181214180720.32040-2-guro@fb.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181214180720.32040-2-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>, "gchen.guomin@gmail.com" <gchen.guomin@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jason Wang <jasowang@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>
+To: Roman Gushchin <guroan@gmail.com>
+Cc: linux-mm@kvack.org, Alexey Dobriyan <adobriyan@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Roman Gushchin <guro@fb.com>
 
-Pj4gRnJvbTogZ3VvbWluY2hlbiA8Z3VvbWluY2hlbkB0ZW5jZW50LmNvbT4NCj4+IA0KPj4gICBV
-bmRlciBub3JtYWwgY2lyY3Vtc3RhbmNlcyxXaGVuIGRvX2V4aXQgZXhpdHMsIG1tLT5vd25lciB3
-aWxsDQo+PiAgIGJlIHVwZGF0ZWQsIGJ1dCB3aGVuIHRoZSBrZXJuZWwgcHJvY2VzcyBjYWxscyB1
-bnVzZV9tbSBhbmQgZXhpdHMsDQo+PiAgIG1tLT5vd25lciBjYW5ub3QgYmUgdXBkYXRlZC4gQW5k
-IHdpbGwgcG9pbnQgdG8gYSB0YXNrIHRoYXQgaGFzDQo+PiAgIGJlZW4gcmVsZWFzZWQuDQo+PiAN
-Cj4+ICAgQmVsb3cgaXMgbXkgaXNzdWUgb24gdmhvc3RfbmV0Og0KPj4gICAgIEEsIEIgYXJlIHR3
-byBrZXJuZWwgcHJvY2Vzc2VzKHN1Y2ggYXMgdmhvc3Rfd29ya2VyKSwNCj4+ICAgICBDIGlzIGEg
-dXNlciBzcGFjZSBwcm9jZXNzKHN1Y2ggYXMgcWVtdSksIGFuZCBhbGwNCj4+ICAgICB0aHJlZSB1
-c2UgdGhlIG1tIG9mIHRoZSB1c2VyIHByb2Nlc3MgQy4NCj4+ICAgICBOb3csIGJlY2F1c2UgdXNl
-ciBwcm9jZXNzIEMgZXhpdHMgYWJub3JtYWxseSwgdGhlIG93bmVyIG9mIHRoaXMNCj4+ICAgICBt
-bSBiZWNvbWVzIEEuIFdoZW4gQSBjYWxscyB1bnVzZV9tbSBhbmQgZXhpdHMsIHRoaXMgbW0tPm93
-ZXINCj4+ICAgICBzdGlsbCBwb2ludHMgdG8gdGhlIEEgdGhhdCBoYXMgYmVlbiByZWxlYXNlZC4N
-Cj4+ICAgICBXaGVuIEIgYWNjZXNzZXMgdGhpcyBtbS0+b3duZXIgYWdhaW4sIEEgaGFzIGJlZW4g
-cmVsZWFzZWQuDQo+PiANCj4+ICAgUHJvY2VzcyBBCQlQcm9jZXNzIEINCj4+ICB2aG9zdF93b3Jr
-ZXIoKQkgICAgICAgdmhvc3Rfd29ya2VyKCkNCj4+ICAgLS0tLS0tLS0tICAgIAkJLS0tLS0tLS0t
-DQo+PiAgIHVzZV9tbSgpCQl1c2VfbW0oKQ0KPj4gICAgLi4uDQo+PiAgIHVudXNlX21tKCkNCj4+
-ICAgICAgdHNrLT5tbT1OVUxMDQo+PiAgICBkb19leGl0KCkgICAgIAlwYWdlIGZhdWx0DQo+PiAg
-ICAgZXhpdF9tbSgpCSAJYWNjZXNzIG1tLT5vd25lcg0KPj4gICAgY2FuJ3QgdXBkYXRlIG93bmVy
-CWtlcm5lbCBPb3BzDQo+PiANCj4+IAkJCXVudXNlX21tKCkNCj4+IA0KPj4gQ2M6IDxsaW51eC1t
-bUBrdmFjay5vcmc+DQo+PiBDYzogPGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc+DQo+PiBD
-YzogIk1pY2hhZWwgUy4gVHNpcmtpbiIgPG1zdEByZWRoYXQuY29tPg0KPj4gQ2M6IEphc29uIFdh
-bmcgPGphc293YW5nQHJlZGhhdC5jb20+DQo+PiBDYzogPG5ldGRldkB2Z2VyLmtlcm5lbC5vcmc+
-DQo+PiBTaWduZWQtb2ZmLWJ5OiBndW9taW5jaGVuIDxndW9taW5jaGVuQHRlbmNlbnQuY29tPg0K
-Pj4gLS0tDQo+PiAgbW0vbW11X2NvbnRleHQuYyB8IDEgLQ0KPj4gIDEgZmlsZSBjaGFuZ2VkLCAx
-IGRlbGV0aW9uKC0pDQo+PiANCj4+IGRpZmYgLS1naXQgYS9tbS9tbXVfY29udGV4dC5jIGIvbW0v
-bW11X2NvbnRleHQuYyBpbmRleCANCj4+IDNlNjEyYWUuLjE4NWJiMjMgMTAwNjQ0DQo+PiAtLS0g
-YS9tbS9tbXVfY29udGV4dC5jDQo+PiArKysgYi9tbS9tbXVfY29udGV4dC5jDQo+PiBAQCAtNTYs
-NyArNTYsNiBAQCB2b2lkIHVudXNlX21tKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tKQ0KPj4gIA0KPj4g
-IAl0YXNrX2xvY2sodHNrKTsNCj4+ICAJc3luY19tbV9yc3MobW0pOw0KPj4gLQl0c2stPm1tID0g
-TlVMTDsNCj4+ICAJLyogYWN0aXZlX21tIGlzIHN0aWxsICdtbScgKi8NCj4+ICAJZW50ZXJfbGF6
-eV90bGIobW0sIHRzayk7DQo+PiAgCXRhc2tfdW5sb2NrKHRzayk7DQoNCj5TbyB0aGF0IHdpbGwg
-d29yayBmb3Igdmhvc3QgYmVjYXVzZSB3ZSBuZXZlciBkcm9wIHRoZSBtbSByZWZlcmVuY2UgYmVm
-b3JlIGRlc3Ryb3lpbmcgdGhlIHRhc2suDQo+SSB3b25kZXIgd2hldGhlciB0aGF0J3MgdHJ1ZSBm
-b3Igb3RoZXIgdXNlcnMgdGhvdWdoLg0KDQo+SXQgd291bGQgc2VlbSBjbGVhbmVyIHRvIG9udm9r
-ZSBzb21lIGNhbGxiYWNrIHNvIHRhc2tzIHN1Y2ggYXMgdmhvc3QgY2FuIGRyb3AgdGhlIHJlZmVy
-ZW5jZS4NCg0KWWVzLCBJIGNhbiByZW1vdmUgdGhpcyBjYWxsIGluIHZob3N0LCBidXQgSSB0aGlu
-ayB1c2VfbW0oKSwgYW5kIHVudXNlX21tKCkgYXJlIGNhbGxlZCBpbiBwYWlycyBpbg0Kb3JkZXIg
-dG8gc2hhcmUgbW0uDQpBbmQgZXhpdF9tbSgpIGFzIGEgdW5pZmllZCBtbSBoYW5kbGVyLCBpdCBk
-b2luZyB2ZXJ5IHdlbGwsIFNvIHdlIHNob3VsZCBsZWF2ZSBtbSB0byBleGl0X21tKCkgDQp0byBo
-YW5kbGUgaXQuDQoNCj5BbmQgbG9va2luZyBhdCBhbGwgdGhpcyBjb2RlLCBJIGRvbid0IHVuZGVy
-c3RhbmQgd2h5IGlzIG1tLT5vd25lciBzYWZlIHRvIGNoYW5nZSBsaWtlIHRoaXM6DQo+ICAgICAg
-ICBtbS0+b3duZXIgPSBOVUxMOw0KPndoZW4gdXNlcnMgc2VlbSB0byB1c2UgaXQgdW5kZXIgUkNV
-Lg0KDQpJIHRoaW5rIHRoYXQgbW0tPm93bmVyPU5VTEwganVzdCBjaGFuZ2VzIHRoZSB2YWx1ZSBv
-ZiB0aGUgcG9pbnRlciwgYW5kIHRoZSB0YXNrX3N0cnVjdCBpdCBwb2ludHMgdG8gDQppcyBwcmVz
-ZW50IGFuZCBub3QgcmVsZWFzZWQuDQoNCg0KPj4gLS0NCj4+IDEuOC4zLjENCg0K
+On Fri, Dec 14, 2018 at 10:07:17AM -0800, Roman Gushchin wrote:
+> __vunmap() calls find_vm_area() twice without an obvious reason:
+> first directly to get the area pointer, second indirectly by calling
+> remove_vm_area(), which is again searching for the area.
+> 
+> To remove this redundancy, let's split remove_vm_area() into
+> __remove_vm_area(struct vmap_area *), which performs the actual area
+> removal, and remove_vm_area(const void *addr) wrapper, which can
+> be used everywhere, where it has been used before.
+> 
+> On my test setup, I've got up to 12% speed up on vfree()'ing 1000000
+> of 4-pages vmalloc blocks.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
