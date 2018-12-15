@@ -1,40 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EE7C8E005B
-	for <linux-mm@kvack.org>; Sun, 30 Dec 2018 03:25:07 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id e12so28272078edd.16
-        for <linux-mm@kvack.org>; Sun, 30 Dec 2018 00:25:07 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l12-v6sor11427900ejs.38.2018.12.30.00.25.06
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E2CCE8E021D
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 21:22:37 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id d63so6424553iog.4
+        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:22:37 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0024.hostedemail.com. [216.40.44.24])
+        by mx.google.com with ESMTPS id 192si3926790its.82.2018.12.14.18.22.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 30 Dec 2018 00:25:06 -0800 (PST)
-Date: Sun, 30 Dec 2018 08:25:04 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 3/3] mm, slub: make the comment of put_cpu_partial()
- complete
-Message-ID: <20181230082504.vcnganjvzgbdviw3@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20181025094437.18951-1-richard.weiyang@gmail.com>
- <20181025094437.18951-3-richard.weiyang@gmail.com>
- <01000166ab75d745-5552a8fd-dd37-4734-96f1-f0912dab14eb-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01000166ab75d745-5552a8fd-dd37-4734-96f1-f0912dab14eb-000000@email.amazonses.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Dec 2018 18:22:36 -0800 (PST)
+Message-ID: <f990f087a667031887804028abfe525283dad09a.camel@perches.com>
+Subject: Re: [RFC 2/4] mm: separate memory allocation and actual work in
+ alloc_vmap_area()
+From: Joe Perches <joe@perches.com>
+Date: Fri, 14 Dec 2018 18:22:33 -0800
+In-Reply-To: <20181214194500.GF10600@bombadil.infradead.org>
+References: <20181214180720.32040-1-guro@fb.com>
+	 <20181214180720.32040-3-guro@fb.com>
+	 <20181214181322.GC10600@bombadil.infradead.org>
+	 <0192c1984f42ad0a33e4c9aca04df90c97ebf412.camel@perches.com>
+	 <20181214194500.GF10600@bombadil.infradead.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Roman Gushchin <guroan@gmail.com>, linux-mm@kvack.org, Alexey Dobriyan <adobriyan@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Roman Gushchin <guro@fb.com>
 
-On Thu, Oct 25, 2018 at 01:41:58PM +0000, Christopher Lameter wrote:
->
->Acked-by: Christoph Lameter <cl@linux.com>
+On Fri, 2018-12-14 at 11:45 -0800, Matthew Wilcox wrote:
+> On Fri, Dec 14, 2018 at 11:40:45AM -0800, Joe Perches wrote:
+> > On Fri, 2018-12-14 at 10:13 -0800, Matthew Wilcox wrote:
+> > > On Fri, Dec 14, 2018 at 10:07:18AM -0800, Roman Gushchin wrote:
+> > > > +/*
+> > > > + * Allocate a region of KVA of the specified size and alignment, within the
+> > > > + * vstart and vend.
+> > > > + */
+> > > > +static struct vmap_area *alloc_vmap_area(unsigned long size,
+> > > > +					 unsigned long align,
+> > > > +					 unsigned long vstart,
+> > > > +					 unsigned long vend,
+> > > > +					 int node, gfp_t gfp_mask)
+> > > > +{
+> > > > +	struct vmap_area *va;
+> > > > +	int ret;
+> > > > +
+> > > > +	va = kmalloc_node(sizeof(struct vmap_area),
+> > > > +			gfp_mask & GFP_RECLAIM_MASK, node);
+> > > > +	if (unlikely(!va))
+> > > > +		return ERR_PTR(-ENOMEM);
+> > > > +
+> > > > +	ret = init_vmap_area(va, size, align, vstart, vend, node, gfp_mask);
+> > > > +	if (ret) {
+> > > > +		kfree(va);
+> > > > +		return ERR_PTR(ret);
+> > > > +	}
+> > > > +
+> > > > +	return va;
+> > > >  }
+> > > >  
+> > > > +
+> > > 
+> > > Another spurious blank line?
 
-Andrew,
+[wrong spacing noticed]
 
-Do you like this one?
+> Umm ... this blank line changed the file from having one blank line
+> after the function to having two blank lines after the function.
 
--- 
-Wei Yang
-Help you, Help me
+right. thanks.
