@@ -1,181 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 441E58E005B
-	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 04:34:35 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id e12-v6so7305494ljb.18
-        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 01:34:35 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id l127si33627377lfg.70.2018.12.29.01.34.32
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 48C138E0002
+	for <linux-mm@kvack.org>; Sat, 15 Dec 2018 04:18:29 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id 77so3001525wmr.5
+        for <linux-mm@kvack.org>; Sat, 15 Dec 2018 01:18:29 -0800 (PST)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40099.outbound.protection.outlook.com. [40.107.4.99])
+        by mx.google.com with ESMTPS id a140si4964557wme.181.2018.12.15.01.18.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Dec 2018 01:34:33 -0800 (PST)
-Subject: Re: [PATCH] mm: Reuse only-pte-mapped KSM page in do_wp_page()
-References: <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
+        Sat, 15 Dec 2018 01:18:27 -0800 (PST)
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <3ffdbc4d-6344-d209-3062-1f5b6b2146b4@virtuozzo.com>
-Date: Sat, 29 Dec 2018 12:34:23 +0300
-MIME-Version: 1.0
-In-Reply-To: <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [PATCH] mm: Reuse only-pte-mapped KSM page in do_wp_page()
+Date: Sat, 15 Dec 2018 09:18:23 +0000
+Message-ID: <b1e37dbe-5a1d-7883-8423-45d2a5f74b66@virtuozzo.com>
+References: 
+ <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
+ <5d5bfbd2-8411-e707-1628-18bde66a6793@linux.alibaba.com>
+ <a394a604-20d6-e261-1735-bc225e39f2a2@virtuozzo.com>
+ <00af5cd2-e226-89e3-3506-de5e6de05060@linux.alibaba.com>
+In-Reply-To: <00af5cd2-e226-89e3-3506-de5e6de05060@linux.alibaba.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <8B4BB8D11FB64C45B33B49D558665F7C@eurprd08.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: kirill@shutemov.name, hughd@google.com, aarcange@redhat.com, christian.koenig@amd.com, imbrenda@linux.vnet.ibm.com, yang.shi@linux.alibaba.com, riel@surriel.com, ying.huang@intel.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yang Shi <yang.shi@linux.alibaba.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill@shutemov.name" <kirill@shutemov.name>, "hughd@google.com" <hughd@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>
+Cc: "christian.koenig@amd.com" <christian.koenig@amd.com>, "imbrenda@linux.vnet.ibm.com" <imbrenda@linux.vnet.ibm.com>, "riel@surriel.com" <riel@surriel.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi, Andrew!
-
-How do you look at this patch? It had been reviewed.
-
-Thanks,
-Kirill
-
-On 13.12.2018 18:29, Kirill Tkhai wrote:
-> This patch adds an optimization for KSM pages almost
-> in the same way, that we have for ordinary anonymous
-> pages. If there is a write fault in a page, which is
-> mapped to an only pte, and it is not related to swap
-> cache; the page may be reused without copying its
-> content.
-> 
-> [Note, that we do not consider PageSwapCache() pages
->  at least for now, since we don't want to complicate
->  __get_ksm_page(), which has nice optimization based
->  on this (for the migration case). Currenly it is
->  spinning on PageSwapCache() pages, waiting for when
->  they have unfreezed counters (i.e., for the migration
->  finish). But we don't want to make it also spinning
->  on swap cache pages, which we try to reuse, since
->  there is not a very high probability to reuse them.
->  So, for now we do not consider PageSwapCache() pages
->  at all.]
-> 
-> So, in reuse_ksm_page() we check for 1)PageSwapCache()
-> and 2)page_stable_node(), to skip a page, which KSM
-> is currently trying to link to stable tree. Then we
-> do page_ref_freeze() to prohibit KSM to merge one more
-> page into the page, we are reusing. After that, nobody
-> can refer to the reusing page: KSM skips !PageSwapCache()
-> pages with zero refcount; and the protection against
-> of all other participants is the same as for reused
-> ordinary anon pages pte lock, page lock and mmap_sem.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> ---
->  include/linux/ksm.h |    7 +++++++
->  mm/ksm.c            |   25 +++++++++++++++++++++++--
->  mm/memory.c         |   16 ++++++++++++++--
->  3 files changed, 44 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-> index 161e8164abcf..e48b1e453ff5 100644
-> --- a/include/linux/ksm.h
-> +++ b/include/linux/ksm.h
-> @@ -53,6 +53,8 @@ struct page *ksm_might_need_to_copy(struct page *page,
->  
->  void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
->  void ksm_migrate_page(struct page *newpage, struct page *oldpage);
-> +bool reuse_ksm_page(struct page *page,
-> +			struct vm_area_struct *vma, unsigned long address);
->  
->  #else  /* !CONFIG_KSM */
->  
-> @@ -86,6 +88,11 @@ static inline void rmap_walk_ksm(struct page *page,
->  static inline void ksm_migrate_page(struct page *newpage, struct page *oldpage)
->  {
->  }
-> +static inline bool reuse_ksm_page(struct page *page,
-> +			struct vm_area_struct *vma, unsigned long address)
-> +{
-> +	return false;
-> +}
->  #endif /* CONFIG_MMU */
->  #endif /* !CONFIG_KSM */
->  
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 383f961e577a..fbd14264d784 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -707,8 +707,9 @@ static struct page *__get_ksm_page(struct stable_node *stable_node,
->  	 * case this node is no longer referenced, and should be freed;
->  	 * however, it might mean that the page is under page_ref_freeze().
->  	 * The __remove_mapping() case is easy, again the node is now stale;
-> -	 * but if page is swapcache in migrate_page_move_mapping(), it might
-> -	 * still be our page, in which case it's essential to keep the node.
-> +	 * the same is in reuse_ksm_page() case; but if page is swapcache
-> +	 * in migrate_page_move_mapping(), it might still be our page,
-> +	 * in which case it's essential to keep the node.
->  	 */
->  	while (!get_page_unless_zero(page)) {
->  		/*
-> @@ -2666,6 +2667,26 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
->  		goto again;
->  }
->  
-> +bool reuse_ksm_page(struct page *page,
-> +		    struct vm_area_struct *vma,
-> +		    unsigned long address)
-> +{
-> +	VM_BUG_ON_PAGE(is_zero_pfn(page_to_pfn(page)), page);
-> +	VM_BUG_ON_PAGE(!page_mapped(page), page);
-> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> +
-> +	if (PageSwapCache(page) || !page_stable_node(page))
-> +		return false;
-> +	/* Prohibit parallel get_ksm_page() */
-> +	if (!page_ref_freeze(page, 1))
-> +		return false;
-> +
-> +	page_move_anon_rmap(page, vma);
-> +	page->index = linear_page_index(vma, address);
-> +	page_ref_unfreeze(page, 1);
-> +
-> +	return true;
-> +}
->  #ifdef CONFIG_MIGRATION
->  void ksm_migrate_page(struct page *newpage, struct page *oldpage)
->  {
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 532061217e03..5817527f1877 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2509,8 +2509,11 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
->  	 * Take out anonymous pages first, anonymous shared vmas are
->  	 * not dirty accountable.
->  	 */
-> -	if (PageAnon(vmf->page) && !PageKsm(vmf->page)) {
-> +	if (PageAnon(vmf->page)) {
->  		int total_map_swapcount;
-> +		if (PageKsm(vmf->page) && (PageSwapCache(vmf->page) ||
-> +					   page_count(vmf->page) != 1))
-> +			goto copy;
->  		if (!trylock_page(vmf->page)) {
->  			get_page(vmf->page);
->  			pte_unmap_unlock(vmf->pte, vmf->ptl);
-> @@ -2525,6 +2528,15 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
->  			}
->  			put_page(vmf->page);
->  		}
-> +		if (PageKsm(vmf->page)) {
-> +			bool reused = reuse_ksm_page(vmf->page, vmf->vma,
-> +						     vmf->address);
-> +			unlock_page(vmf->page);
-> +			if (!reused)
-> +				goto copy;
-> +			wp_page_reuse(vmf);
-> +			return VM_FAULT_WRITE;
-> +		}
->  		if (reuse_swap_page(vmf->page, &total_map_swapcount)) {
->  			if (total_map_swapcount == 1) {
->  				/*
-> @@ -2545,7 +2557,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
->  					(VM_WRITE|VM_SHARED))) {
->  		return wp_page_shared(vmf);
->  	}
-> -
-> +copy:
->  	/*
->  	 * Ok, we need to copy. Oh, well..
->  	 */
-> 
+T24gMTQuMTIuMjAxOCAyMTowNiwgWWFuZyBTaGkgd3JvdGU6DQo+IA0KPiANCj4gT24gMTIvMTQv
+MTggMToyNiBBTSwgS2lyaWxsIFRraGFpIHdyb3RlOg0KPj4gT24gMTMuMTIuMjAxOCAyMjoxNSwg
+WWFuZyBTaGkgd3JvdGU6DQo+Pj4NCj4+PiBPbiAxMi8xMy8xOCA3OjI5IEFNLCBLaXJpbGwgVGto
+YWkgd3JvdGU6DQo+Pj4+IFRoaXMgcGF0Y2ggYWRkcyBhbiBvcHRpbWl6YXRpb24gZm9yIEtTTSBw
+YWdlcyBhbG1vc3QNCj4+Pj4gaW4gdGhlIHNhbWUgd2F5LCB0aGF0IHdlIGhhdmUgZm9yIG9yZGlu
+YXJ5IGFub255bW91cw0KPj4+PiBwYWdlcy4gSWYgdGhlcmUgaXMgYSB3cml0ZSBmYXVsdCBpbiBh
+IHBhZ2UsIHdoaWNoIGlzDQo+Pj4+IG1hcHBlZCB0byBhbiBvbmx5IHB0ZSwgYW5kIGl0IGlzIG5v
+dCByZWxhdGVkIHRvIHN3YXANCj4+Pj4gY2FjaGU7IHRoZSBwYWdlIG1heSBiZSByZXVzZWQgd2l0
+aG91dCBjb3B5aW5nIGl0cw0KPj4+PiBjb250ZW50Lg0KPj4+Pg0KPj4+PiBbTm90ZSwgdGhhdCB3
+ZSBkbyBub3QgY29uc2lkZXIgUGFnZVN3YXBDYWNoZSgpIHBhZ2VzDQo+Pj4+IMKgwqAgYXQgbGVh
+c3QgZm9yIG5vdywgc2luY2Ugd2UgZG9uJ3Qgd2FudCB0byBjb21wbGljYXRlDQo+Pj4+IMKgwqAg
+X19nZXRfa3NtX3BhZ2UoKSwgd2hpY2ggaGFzIG5pY2Ugb3B0aW1pemF0aW9uIGJhc2VkDQo+Pj4+
+IMKgwqAgb24gdGhpcyAoZm9yIHRoZSBtaWdyYXRpb24gY2FzZSkuIEN1cnJlbmx5IGl0IGlzDQo+
+Pj4+IMKgwqAgc3Bpbm5pbmcgb24gUGFnZVN3YXBDYWNoZSgpIHBhZ2VzLCB3YWl0aW5nIGZvciB3
+aGVuDQo+Pj4+IMKgwqAgdGhleSBoYXZlIHVuZnJlZXplZCBjb3VudGVycyAoaS5lLiwgZm9yIHRo
+ZSBtaWdyYXRpb24NCj4+Pj4gwqDCoCBmaW5pc2gpLiBCdXQgd2UgZG9uJ3Qgd2FudCB0byBtYWtl
+IGl0IGFsc28gc3Bpbm5pbmcNCj4+Pj4gwqDCoCBvbiBzd2FwIGNhY2hlIHBhZ2VzLCB3aGljaCB3
+ZSB0cnkgdG8gcmV1c2UsIHNpbmNlDQo+Pj4+IMKgwqAgdGhlcmUgaXMgbm90IGEgdmVyeSBoaWdo
+IHByb2JhYmlsaXR5IHRvIHJldXNlIHRoZW0uDQo+Pj4+IMKgwqAgU28sIGZvciBub3cgd2UgZG8g
+bm90IGNvbnNpZGVyIFBhZ2VTd2FwQ2FjaGUoKSBwYWdlcw0KPj4+PiDCoMKgIGF0IGFsbC5dDQo+
+Pj4+DQo+Pj4+IFNvLCBpbiByZXVzZV9rc21fcGFnZSgpIHdlIGNoZWNrIGZvciAxKVBhZ2VTd2Fw
+Q2FjaGUoKQ0KPj4+PiBhbmQgMilwYWdlX3N0YWJsZV9ub2RlKCksIHRvIHNraXAgYSBwYWdlLCB3
+aGljaCBLU00NCj4+Pj4gaXMgY3VycmVudGx5IHRyeWluZyB0byBsaW5rIHRvIHN0YWJsZSB0cmVl
+LiBUaGVuIHdlDQo+Pj4+IGRvIHBhZ2VfcmVmX2ZyZWV6ZSgpIHRvIHByb2hpYml0IEtTTSB0byBt
+ZXJnZSBvbmUgbW9yZQ0KPj4+PiBwYWdlIGludG8gdGhlIHBhZ2UsIHdlIGFyZSByZXVzaW5nLiBB
+ZnRlciB0aGF0LCBub2JvZHkNCj4+Pj4gY2FuIHJlZmVyIHRvIHRoZSByZXVzaW5nIHBhZ2U6IEtT
+TSBza2lwcyAhUGFnZVN3YXBDYWNoZSgpDQo+Pj4+IHBhZ2VzIHdpdGggemVybyByZWZjb3VudDsg
+YW5kIHRoZSBwcm90ZWN0aW9uIGFnYWluc3QNCj4+Pj4gb2YgYWxsIG90aGVyIHBhcnRpY2lwYW50
+cyBpcyB0aGUgc2FtZSBhcyBmb3IgcmV1c2VkDQo+Pj4+IG9yZGluYXJ5IGFub24gcGFnZXMgcHRl
+IGxvY2ssIHBhZ2UgbG9jayBhbmQgbW1hcF9zZW0uDQo+Pj4+DQo+Pj4+IFNpZ25lZC1vZmYtYnk6
+IEtpcmlsbCBUa2hhaSA8a3RraGFpQHZpcnR1b3p6by5jb20+DQo+Pj4+IC0tLQ0KPj4+PiDCoMKg
+IGluY2x1ZGUvbGludXgva3NtLmggfMKgwqDCoCA3ICsrKysrKysNCj4+Pj4gwqDCoCBtbS9rc20u
+Y8KgwqDCoMKgwqDCoMKgwqDCoMKgwqAgfMKgwqAgMjUgKysrKysrKysrKysrKysrKysrKysrKyst
+LQ0KPj4+PiDCoMKgIG1tL21lbW9yeS5jwqDCoMKgwqDCoMKgwqDCoCB8wqDCoCAxNiArKysrKysr
+KysrKysrKy0tDQo+Pj4+IMKgwqAgMyBmaWxlcyBjaGFuZ2VkLCA0NCBpbnNlcnRpb25zKCspLCA0
+IGRlbGV0aW9ucygtKQ0KPj4+Pg0KPj4+PiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9rc20u
+aCBiL2luY2x1ZGUvbGludXgva3NtLmgNCj4+Pj4gaW5kZXggMTYxZTgxNjRhYmNmLi5lNDhiMWU0
+NTNmZjUgMTAwNjQ0DQo+Pj4+IC0tLSBhL2luY2x1ZGUvbGludXgva3NtLmgNCj4+Pj4gKysrIGIv
+aW5jbHVkZS9saW51eC9rc20uaA0KPj4+PiBAQCAtNTMsNiArNTMsOCBAQCBzdHJ1Y3QgcGFnZSAq
+a3NtX21pZ2h0X25lZWRfdG9fY29weShzdHJ1Y3QgcGFnZSAqcGFnZSwNCj4+Pj4gwqDCoCDCoCB2
+b2lkIHJtYXBfd2Fsa19rc20oc3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBybWFwX3dhbGtfY29u
+dHJvbCAqcndjKTsNCj4+Pj4gwqDCoCB2b2lkIGtzbV9taWdyYXRlX3BhZ2Uoc3RydWN0IHBhZ2Ug
+Km5ld3BhZ2UsIHN0cnVjdCBwYWdlICpvbGRwYWdlKTsNCj4+Pj4gK2Jvb2wgcmV1c2Vfa3NtX3Bh
+Z2Uoc3RydWN0IHBhZ2UgKnBhZ2UsDQo+Pj4+ICvCoMKgwqDCoMKgwqDCoMKgwqDCoMKgIHN0cnVj
+dCB2bV9hcmVhX3N0cnVjdCAqdm1hLCB1bnNpZ25lZCBsb25nIGFkZHJlc3MpOw0KPj4+PiDCoMKg
+IMKgICNlbHNlwqAgLyogIUNPTkZJR19LU00gKi8NCj4+Pj4gwqDCoCBAQCAtODYsNiArODgsMTEg
+QEAgc3RhdGljIGlubGluZSB2b2lkIHJtYXBfd2Fsa19rc20oc3RydWN0IHBhZ2UgKnBhZ2UsDQo+
+Pj4+IMKgwqAgc3RhdGljIGlubGluZSB2b2lkIGtzbV9taWdyYXRlX3BhZ2Uoc3RydWN0IHBhZ2Ug
+Km5ld3BhZ2UsIHN0cnVjdCBwYWdlICpvbGRwYWdlKQ0KPj4+PiDCoMKgIHsNCj4+Pj4gwqDCoCB9
+DQo+Pj4+ICtzdGF0aWMgaW5saW5lIGJvb2wgcmV1c2Vfa3NtX3BhZ2Uoc3RydWN0IHBhZ2UgKnBh
+Z2UsDQo+Pj4+ICvCoMKgwqDCoMKgwqDCoMKgwqDCoMKgIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAq
+dm1hLCB1bnNpZ25lZCBsb25nIGFkZHJlc3MpDQo+Pj4+ICt7DQo+Pj4+ICvCoMKgwqAgcmV0dXJu
+IGZhbHNlOw0KPj4+PiArfQ0KPj4+PiDCoMKgICNlbmRpZiAvKiBDT05GSUdfTU1VICovDQo+Pj4+
+IMKgwqAgI2VuZGlmIC8qICFDT05GSUdfS1NNICovDQo+Pj4+IMKgwqAgZGlmZiAtLWdpdCBhL21t
+L2tzbS5jIGIvbW0va3NtLmMNCj4+Pj4gaW5kZXggMzgzZjk2MWU1NzdhLi5mYmQxNDI2NGQ3ODQg
+MTAwNjQ0DQo+Pj4+IC0tLSBhL21tL2tzbS5jDQo+Pj4+ICsrKyBiL21tL2tzbS5jDQo+Pj4+IEBA
+IC03MDcsOCArNzA3LDkgQEAgc3RhdGljIHN0cnVjdCBwYWdlICpfX2dldF9rc21fcGFnZShzdHJ1
+Y3Qgc3RhYmxlX25vZGUgKnN0YWJsZV9ub2RlLA0KPj4+PiDCoMKgwqDCoMKgwqDCoCAqIGNhc2Ug
+dGhpcyBub2RlIGlzIG5vIGxvbmdlciByZWZlcmVuY2VkLCBhbmQgc2hvdWxkIGJlIGZyZWVkOw0K
+Pj4+PiDCoMKgwqDCoMKgwqDCoCAqIGhvd2V2ZXIsIGl0IG1pZ2h0IG1lYW4gdGhhdCB0aGUgcGFn
+ZSBpcyB1bmRlciBwYWdlX3JlZl9mcmVlemUoKS4NCj4+Pj4gwqDCoMKgwqDCoMKgwqAgKiBUaGUg
+X19yZW1vdmVfbWFwcGluZygpIGNhc2UgaXMgZWFzeSwgYWdhaW4gdGhlIG5vZGUgaXMgbm93IHN0
+YWxlOw0KPj4+PiAtwqDCoMKgwqAgKiBidXQgaWYgcGFnZSBpcyBzd2FwY2FjaGUgaW4gbWlncmF0
+ZV9wYWdlX21vdmVfbWFwcGluZygpLCBpdCBtaWdodA0KPj4+PiAtwqDCoMKgwqAgKiBzdGlsbCBi
+ZSBvdXIgcGFnZSwgaW4gd2hpY2ggY2FzZSBpdCdzIGVzc2VudGlhbCB0byBrZWVwIHRoZSBub2Rl
+Lg0KPj4+PiArwqDCoMKgwqAgKiB0aGUgc2FtZSBpcyBpbiByZXVzZV9rc21fcGFnZSgpIGNhc2U7
+IGJ1dCBpZiBwYWdlIGlzIHN3YXBjYWNoZQ0KPj4+PiArwqDCoMKgwqAgKiBpbiBtaWdyYXRlX3Bh
+Z2VfbW92ZV9tYXBwaW5nKCksIGl0IG1pZ2h0IHN0aWxsIGJlIG91ciBwYWdlLA0KPj4+PiArwqDC
+oMKgwqAgKiBpbiB3aGljaCBjYXNlIGl0J3MgZXNzZW50aWFsIHRvIGtlZXAgdGhlIG5vZGUuDQo+
+Pj4+IMKgwqDCoMKgwqDCoMKgICovDQo+Pj4+IMKgwqDCoMKgwqDCoCB3aGlsZSAoIWdldF9wYWdl
+X3VubGVzc196ZXJvKHBhZ2UpKSB7DQo+Pj4+IMKgwqDCoMKgwqDCoMKgwqDCoMKgIC8qDQo+Pj4+
+IEBAIC0yNjY2LDYgKzI2NjcsMjYgQEAgdm9pZCBybWFwX3dhbGtfa3NtKHN0cnVjdCBwYWdlICpw
+YWdlLCBzdHJ1Y3Qgcm1hcF93YWxrX2NvbnRyb2wgKnJ3YykNCj4+Pj4gwqDCoMKgwqDCoMKgwqDC
+oMKgwqAgZ290byBhZ2FpbjsNCj4+Pj4gwqDCoCB9DQo+Pj4+IMKgwqAgK2Jvb2wgcmV1c2Vfa3Nt
+X3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsDQo+Pj4+ICvCoMKgwqDCoMKgwqDCoMKgwqDCoMKgIHN0
+cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hLA0KPj4+PiArwqDCoMKgwqDCoMKgwqDCoMKgwqDCoCB1
+bnNpZ25lZCBsb25nIGFkZHJlc3MpDQo+Pj4+ICt7DQo+Pj4+ICvCoMKgwqAgVk1fQlVHX09OX1BB
+R0UoaXNfemVyb19wZm4ocGFnZV90b19wZm4ocGFnZSkpLCBwYWdlKTsNCj4+Pj4gK8KgwqDCoCBW
+TV9CVUdfT05fUEFHRSghcGFnZV9tYXBwZWQocGFnZSksIHBhZ2UpOw0KPj4+PiArwqDCoMKgIFZN
+X0JVR19PTl9QQUdFKCFQYWdlTG9ja2VkKHBhZ2UpLCBwYWdlKTsNCj4+Pj4gKw0KPj4+PiArwqDC
+oMKgIGlmIChQYWdlU3dhcENhY2hlKHBhZ2UpIHx8ICFwYWdlX3N0YWJsZV9ub2RlKHBhZ2UpKQ0K
+Pj4+PiArwqDCoMKgwqDCoMKgwqAgcmV0dXJuIGZhbHNlOw0KPj4+PiArwqDCoMKgIC8qIFByb2hp
+Yml0IHBhcmFsbGVsIGdldF9rc21fcGFnZSgpICovDQo+Pj4+ICvCoMKgwqAgaWYgKCFwYWdlX3Jl
+Zl9mcmVlemUocGFnZSwgMSkpDQo+Pj4+ICvCoMKgwqDCoMKgwqDCoCByZXR1cm4gZmFsc2U7DQo+
+Pj4+ICsNCj4+Pj4gK8KgwqDCoCBwYWdlX21vdmVfYW5vbl9ybWFwKHBhZ2UsIHZtYSk7DQo+Pj4g
+T25jZSB0aGUgbWFwcGluZyBpcyBjaGFuZ2VkLCBpdCBpcyBub3QgS1NNIG1hcHBpbmcgYW55bW9y
+ZS4gSXQgbG9va3MgbGF0ZXIgZ2V0X2tzbV9wYWdlKCkgd291bGQgYWx3YXlzIGZhaWwgb24gdGhp
+cyBwYWdlLiBJcyB0aGlzIGV4cGVjdGVkPw0KPj4gWWVzLCB0aGlzIGlzIHRoZSB0aGluZyB0aGF0
+IHRoZSBwYXRjaCBtYWtlcy4gTGV0J3MgbG9vayBhdCB0aGUgYWN0aW9ucywNCj4+IHdlIGhhdmUg
+d2l0aG91dCB0aGUgcGF0Y2gsIHdoZW4gdGhlcmUgaXMgYSB3cml0aW5nIHRvIGFuIG9ubHktcHRl
+LW1hcHBlZA0KPj4gS1NNIHBhZ2UuDQo+Pg0KPj4gV2UgZW50ZXIgdG8gZG9fd3BfcGFnZSgpIHdp
+dGggcGFnZV9jb3VudCgpID09IDEsIHNpbmNlIEtTTSBwYWdlIGlzIG1hcHBlZA0KPj4gaW4gb25s
+eSBwdGUgKGFuZCB3ZSBkbyBub3QgZ2V0IGV4dHJhIHJlZmVyZW5jZSB0byBhIHBhZ2UsIHdoZW4g
+d2UgYWRkIGl0DQo+PiB0byBLU00gc3RhYmxlIHRyZWUpLiBUaGVuOg0KPj4NCj4+IMKgwqAgZG9f
+d3BfcGFnZSgpDQo+PiDCoMKgwqDCoCBnZXRfcGFnZSh2bWYtPnBhZ2UpIDwtIHBhZ2VfY291bnQo
+KSBpcyAyDQo+PiDCoMKgwqDCoCB3cF9wYWdlX2NvcHkoKQ0KPj4gwqDCoMKgwqDCoMKgIC4uDQo+
+PiDCoMKgwqDCoMKgwqAgY293X3VzZXJfcGFnZSgpIC8qIENvcHkgdXNlciBwYWdlIHRvIGEgbmV3
+IG9uZSAqLw0KPj4gwqDCoMKgwqDCoMKgIC4uDQo+PiDCoMKgwqDCoMKgwqAgcHV0X3BhZ2Uodm1m
+LT5wYWdlKSA8LSBwYWdlX2NvdW50KCkgaXMgMQ0KPj4gwqDCoMKgwqDCoMKgIHB1dF9wYWdlKHZt
+Zi0+cGFnZSkgPC0gcGFnZV9jb3VudCgpIGlzIDANCj4+DQo+PiBTZWNvbmQgcHV0X3BhZ2UoKSBm
+cmVlcyB0aGUgcGFnZSAoYW5kIGFsc28gemVyb2VzIHBhZ2UtPm1hcHBpbmcpLA0KPj4gYW5kIHNp
+bmNlIHRoYXQgaXQncyBub3QgYSBQYWdlS3NtKCkgcGFnZSBhbnltb3JlLiBGdXJ0aGVyDQo+PiBf
+X2dldF9rc21fcGFnZSgpIGNhbGxzIHdpbGwgZmFpbCBvbiB0aGlzIHBhZ2UgKHNpbmNlIHRoZSBt
+YXBwaW5nDQo+PiB3YXMgemVyb2VkKSwgYW5kIGl0cyBub2RlIHdpbGwgYmUgdW5saW5rZWQgZnJv
+bSBrc20gc3RhYmxlIHRyZWU6DQo+Pg0KPj4gX19nZXRfa3NtX3BhZ2UoKQ0KPj4gew0KPj4gwqDC
+oMKgwqAvKiBwYWdlLT5tYXBwaW5nID09IE5VTEwsIGV4cGVjdGVkX21hcHBpbmcgIT0gTlVMTCAq
+Lw0KPj4gwqDCoMKgwqBpZiAoUkVBRF9PTkNFKHBhZ2UtPm1hcHBpbmcpICE9IGV4cGVjdGVkX21h
+cHBpbmcpDQo+PiDCoMKgwqDCoMKgwqDCoCBnb3RvIHN0YWxlOw0KPj4gwqDCoMKgwqAuLi4uLi4u
+DQo+PiBzdGFsZToNCj4+IMKgwqDCoMKgcmVtb3ZlX25vZGVfZnJvbV9zdGFibGVfdHJlZShzdGFi
+bGVfbm9kZSk7DQo+PiB9DQo+Pg0KPj4NCj4+IFRoZSBwYXRjaCBvcHRpbWl6ZXMgZG9fd3BfcGFn
+ZSgpLCBhbmQgbWFrZXMgaXQgdG8gYXZvaWQgdGhlIGNvcHlpbmcNCj4+IChsaWtlIHdlIGhhdmUg
+Zm9yIG9yZGluYXJ5IGFub24gcGFnZXMpLiBTaW5jZSBLU00gcGFnZSBpcyBmcmVlZCBhbnl3YXks
+DQo+PiBhZnRlciB3ZSBkcm9wcGVkIHRoZSBsYXN0IHJlZmVyZW5jZSB0byBpdDsgd2UgcmV1c2Ug
+aXQgaW5zdGVhZCBvZiB0aGlzLg0KPj4gU28sIHRoZSB0aGluZyB3aWxsIG5vdyB3b3JrIGluIHRo
+aXMgd2F5Og0KPj4NCj4+IGRvX3dwX3BhZ2UoKQ0KPj4gwqDCoCBsb2NrX3BhZ2Uodm1mLT5wYWdl
+KQ0KPj4gwqDCoCByZXVzZV9rc21fcGFnZSgpDQo+PiDCoMKgwqDCoCBjaGVjayBQYWdlU3dhcENh
+Y2hlKCkgYW5kIHBhZ2Vfc3RhYmxlX25vZGUoKQ0KPj4gwqDCoMKgwqAgcGFnZV9yZWZfZnJlZXpl
+KHBhZ2UsIDEpIDwtIEZyZWV6ZSB0aGUgcGFnZSB0byBtYWtlIHBhcmFsbGVsDQo+PiDCoMKgwqDC
+oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+IF9fZ2V0X2tzbV9wYWdlKCkgKGlmIGFueSkgd2FpdGluZw0KPj4gwqDCoMKgwqAgcGFnZV9tb3Zl
+X2Fub25fcm1hcCgpwqDCoMKgIDwtIFdyaXRlIG5ldyBtYXBwaW5nLCBzbyBfX2dldF9rc21fcGFn
+ZSgpDQo+PiDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
+oMKgwqDCoMKgwqDCoMKgIHNlZXMgdGhpcyBpcyBub3QgYSBLU00gcGFnZSBhbnltb3JlLA0KPj4g
+wqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
+oMKgwqDCoCBhbmQgaXQgcmVtb3ZlcyBzdGFibGUgbm9kZS4NCj4+DQo+PiBTbywgdGhlIHJlc3Vs
+dCBpcyB0aGUgc2FtZSwgYnV0IGFmdGVyIHRoZSBwYXRjaCB3ZSBhY2hpZXZlIGl0IGZhc3RlciA6
+KQ0KPj4NCj4+IEFsc28sIG5vdGUsIHRoYXQgaW4gdGhlIG1vc3QgcHJvYmFibHkgY2FzZSwgZG9f
+d3BfcGFnZSgpIGRvZXMgbm90IGNyb3NzDQo+PiB3aXRoIF9fZ2V0X2tzbV9wYWdlKCkgKHRoZSBy
+YWNlIHdpbmRvdyBpcyB2ZXJ5IHNtYWxsOyBfX2dldF9rc21fcGFnZSgpDQo+PiBpcyBzcGlubmlu
+Zywgb25seSB3aGVuIHJldXNlX2tzbV9wYWdlKCkgaXMgYmV0d2VlbiBwYWdlX3JlZl9mcmVlemUo
+KQ0KPj4gYW5kIHBhZ2VfbW92ZV9hbm9uX3JtYXAoKSwgd2hpY2ggYXJlIG9uIG5laWdoYm9yaW5n
+IGxpbmVzKS4NCj4+DQo+PiBTbywgdGhpcyBpcyB0aGUgaWRlYS4gUGxlYXNlLCBsZXQgbWUga25v
+dyBpbiBjYXNlIG9mIHNvbWV0aGluZyBpcyB1bmNsZWFyDQo+PiBmb3IgeW91Lg0KPiANCj4gVGhh
+bmtzIGZvciBlbGFib3JhdGluZyB0aGlzLiBJdCBzb3VuZHMgcmVhc29uYWJsZS4gWW91IGNhbiBh
+ZGQgUmV2aWV3ZWQtYnk6IFlhbmcgU2hpIDx5YW5nLnNoaUBsaW51eC5hbGliYWJhLmNvbT4NCg0K
+VGhhbmtzIQ0KDQpLaXJpbGwNCg==
