@@ -1,45 +1,24 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FD978E01D1
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:25:11 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id f22so4228110qkm.11
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:25:11 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z34si2676169qvz.127.2018.12.14.03.25.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 03:25:10 -0800 (PST)
-Subject: Re: [kvm PATCH v8 0/2] shrink vcpu_vmx down to order 2
-References: <20181106225356.119901-1-marcorr@google.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <8e8140fb-4bd5-f6a1-9434-e6d759007d7f@redhat.com>
-Date: Fri, 14 Dec 2018 12:25:01 +0100
+Return-Path: <linux-kernel-owner@vger.kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20181106225356.119901-1-marcorr@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
+References: <1544824384-17668-1-git-send-email-longman@redhat.com>
+In-Reply-To: <1544824384-17668-1-git-send-email-longman@redhat.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sun, 16 Dec 2018 11:37:15 -0800
+Message-ID: <CAHk-=wi-V7LjAAzFuxg+eLQAdp+Ay4WmVJdTNxgPjqKXaj-3Xw@mail.gmail.com>
+Subject: Re: [RESEND PATCH v4 0/3] fs/dcache: Track # of negative dentries
+Content-Type: text/plain; charset="UTF-8"
+Sender: linux-kernel-owner@vger.kernel.org
+To: Waiman Long <longman@redhat.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-doc@vger.kernel.org, mcgrof@kernel.org, Kees Cook <keescook@chromium.org>, Jan Kara <jack@suse.cz>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, mszeredi@redhat.com, Matthew Wilcox <willy@infradead.org>, lwoodman@redhat.com, James Bottomley <James.Bottomley@hansenpartnership.com>, wangkai86@huawei.com, Michal Hocko <mhocko@kernel.org>
 List-ID: <linux-mm.kvack.org>
-To: Marc Orr <marcorr@google.com>, kvm@vger.kernel.org, jmattson@google.com, rientjes@google.com, konrad.wilk@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, rkrcmar@redhat.com, willy@infradead.org, sean.j.christopherson@intel.com, dave.hansen@linux.intel.com, kernellwp@gmail.com
 
-On 06/11/18 23:53, Marc Orr wrote:
-> Compared to the last version, I've:
-> (0) Actually update the patches, as explained below.
-> (1) Added a comment to explain the FPU checks in kvm_arch_init()
-> (2) Changed the kmem_cache_create_usercopy() to kmem_cache_create()
-> 
-> Marc Orr (2):
->   kvm: x86: Use task structs fpu field for user
->   kvm: x86: Dynamically allocate guest_fpu
-> 
->  arch/x86/include/asm/kvm_host.h | 10 +++---
->  arch/x86/kvm/svm.c              | 10 ++++++
->  arch/x86/kvm/vmx.c              | 10 ++++++
->  arch/x86/kvm/x86.c              | 55 ++++++++++++++++++++++++---------
->  4 files changed, 65 insertions(+), 20 deletions(-)
-> 
+On Fri, Dec 14, 2018 at 1:53 PM Waiman Long <longman@redhat.com> wrote:
+>
+> This patchset addresses 2 issues found in the dentry code and adds a
+> new nr_dentry_negative per-cpu counter to track the total number of
+> negative dentries in all the LRU lists.
 
-Queued, thanks.
+The series looks sane to me. I'm assuming I'll get it either though
+-mm or from Al..
 
-Paolo
+            Linus
