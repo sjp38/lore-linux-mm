@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 23C6A8E0001
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 08:29:30 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id f31so5560480edf.17
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 05:29:30 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 394358E0001
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 07:57:52 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id e12so8641151edd.16
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 04:57:52 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a7si1036043edl.383.2018.12.17.05.29.28
+        by mx.google.com with ESMTPS id f27-v6si223956ejh.100.2018.12.17.04.57.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Dec 2018 05:29:28 -0800 (PST)
-Date: Mon, 17 Dec 2018 14:29:26 +0100
+        Mon, 17 Dec 2018 04:57:50 -0800 (PST)
+Date: Mon, 17 Dec 2018 13:57:48 +0100
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm/alloc: fallback to first node if the wanted node
  offline
-Message-ID: <20181217132926.GM30879@dhcp22.suse.cz>
-References: <20181207113044.GB1286@dhcp22.suse.cz>
+Message-ID: <20181217125748.GK30879@dhcp22.suse.cz>
+References: <CAFgQCTsFBUcOE9UKQ2vz=hg2FWp_QurZMQmJZ2wYLBqXkFHKHQ@mail.gmail.com>
+ <20181207113044.GB1286@dhcp22.suse.cz>
  <CAFgQCTuf95pJSWDc1BNQ=gN76aJ_dtxMRbAV9a28X6w8vapdMQ@mail.gmail.com>
  <20181207142240.GC1286@dhcp22.suse.cz>
  <CAFgQCTuu54oZWKq_ppEvZFb4Mz31gVmsa37gTap+e9KbE=T0aQ@mail.gmail.com>
@@ -23,138 +24,80 @@ References: <20181207113044.GB1286@dhcp22.suse.cz>
  <CAFgQCTupPc1rKv2SrmWD+eJ0H6PRaizPBw3+AG67_PuLA2SKFw@mail.gmail.com>
  <20181212115340.GQ1286@dhcp22.suse.cz>
  <CAFgQCTuhW6sPtCNFmnz13p30v3owE3Rty5WJNgtqgz8XaZT-aQ@mail.gmail.com>
- <CAFgQCTtFZ8ku7W_7rcmrbmH4Qvsv7zgOSHKfPSpNSkVjYkPfBg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFgQCTtFZ8ku7W_7rcmrbmH4Qvsv7zgOSHKfPSpNSkVjYkPfBg@mail.gmail.com>
+In-Reply-To: <CAFgQCTuhW6sPtCNFmnz13p30v3owE3Rty5WJNgtqgz8XaZT-aQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pingfan Liu <kernelfans@gmail.com>
 Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
 
-On Thu 13-12-18 17:04:01, Pingfan Liu wrote:
+On Thu 13-12-18 16:37:35, Pingfan Liu wrote:
 [...]
-> > > @@ -592,6 +600,10 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
-> > >                         continue;
-> > >
-> > >                 alloc_node_data(nid);
-> > > +               if (!end)
-> > > +                       init_memory_less_node(nid);
-> 
-> Just have some opinion on this. Here is two issue. First, is this node
-> online?
+> [    0.409667] NUMA: Node 1 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0x7fffffff] -> [mem 0x00000000-0x7fffffff]
+> [    0.419885] NUMA: Node 1 [mem 0x00000000-0x7fffffff] + [mem 0x100000000-0x47fffffff] -> [mem 0x00000000-0x47fffffff]
+> [    0.430386] NODE_DATA(0) allocated [mem 0x87efd4000-0x87effefff]
+> [    0.436352]     NODE_DATA(0) on node 5
+> [    0.440124] Initmem setup node 0 [mem 0x0000000000000000-0x0000000000000000]
+> [    0.447104] NODE_DATA(1) allocated [mem 0x47ffd5000-0x47fffffff]
+> [    0.453110] NODE_DATA(2) allocated [mem 0x87efa9000-0x87efd3fff]
+> [    0.459060]     NODE_DATA(2) on node 5
+> [    0.462855] Initmem setup node 2 [mem 0x0000000000000000-0x0000000000000000]
+> [    0.469809] NODE_DATA(3) allocated [mem 0x87ef7e000-0x87efa8fff]
+> [    0.475788]     NODE_DATA(3) on node 5
+> [    0.479554] Initmem setup node 3 [mem 0x0000000000000000-0x0000000000000000]
+> [    0.486536] NODE_DATA(4) allocated [mem 0x87ef53000-0x87ef7dfff]
+> [    0.492518]     NODE_DATA(4) on node 5
+> [    0.496280] Initmem setup node 4 [mem 0x0000000000000000-0x0000000000000000]
+> [    0.503266] NODE_DATA(5) allocated [mem 0x87ef28000-0x87ef52fff]
+> [    0.509281] NODE_DATA(6) allocated [mem 0x87eefd000-0x87ef27fff]
+> [    0.515224]     NODE_DATA(6) on node 5
+> [    0.518987] Initmem setup node 6 [mem 0x0000000000000000-0x0000000000000000]
+> [    0.525974] NODE_DATA(7) allocated [mem 0x87eed2000-0x87eefcfff]
+> [    0.531953]     NODE_DATA(7) on node 5
+> [    0.535716] Initmem setup node 7 [mem 0x0000000000000000-0x0000000000000000]
 
+OK, so we have allocated node_data for all NUMA nodes. Good!
 
-It shouldn't be as it doesn't have any memory.
+> [    0.542839] Reserving 500MB of memory at 384MB for crashkernel (System RAM: 32314MB)
+> [    0.550465] Zone ranges:
+> [    0.552927]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+> [    0.559081]   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+> [    0.565235]   Normal   [mem 0x0000000100000000-0x000000087effffff]
+> [    0.571388]   Device   empty
+> [    0.574249] Movable zone start for each node
+> [    0.578498] Early memory node ranges
+> [    0.582049]   node   1: [mem 0x0000000000001000-0x000000000008efff]
+> [    0.588291]   node   1: [mem 0x0000000000090000-0x000000000009ffff]
+> [    0.594530]   node   1: [mem 0x0000000000100000-0x000000005c3d6fff]
+> [    0.600772]   node   1: [mem 0x00000000643df000-0x0000000068ff7fff]
+> [    0.607011]   node   1: [mem 0x000000006c528000-0x000000006fffffff]
+> [    0.613251]   node   1: [mem 0x0000000100000000-0x000000047fffffff]
+> [    0.619493]   node   5: [mem 0x0000000480000000-0x000000087effffff]
+> [    0.626479] Zeroed struct page in unavailable ranges: 46490 pages
+> [    0.626480] Initmem setup node 1 [mem 0x0000000000001000-0x000000047fffffff]
+> [    0.655261] Initmem setup node 5 [mem 0x0000000480000000-0x000000087effffff]
+[...]
+> [    1.066324] Built 2 zonelists, mobility grouping off.  Total pages: 0
 
-> I do not see node_set_online() is called in this patch.
+There are 2 zonelists built, but for some reason vm_total_pages is 0 and
+that is clearly wrong.
 
-It is below for nodes with some memory.
+Because the allocation failure (which later leads to NULL ptr) tells
+there is quite a lot of memory.  One reason might be that the zonelist
+for memory less nodes is initialized incorrectly. nr_free_zone_pages
+relies on the local Node zonelist so if the code happened to run on a
+cpu associated with Node2 then we could indeed got vm_total_pages=0.
 
-> Second, if node is online here, then  init_memory_less_node->
-> free_area_init_node is called duplicated when free_area_init_nodes().
-> This should be a critical design issue.
+> [    1.439440] Node 1 DMA: 2*4kB (U) 2*8kB (U) 2*16kB (U) 3*32kB (U) 2*64kB (U) 2*128kB (U) 2*256kB (U) 1*512kB (U) 0*1024kB 1*2048kB (M) 3*4096kB (M) = 15896kB
+> [    1.453482] Node 1 DMA32: 2*4kB (M) 1*8kB (M) 1*16kB (M) 2*32kB (M) 3*64kB (M) 2*128kB (M) 3*256kB (M) 3*512kB (M) 2*1024kB (M) 3*2048kB (M) 255*4096kB (M) = 1055520kB
+> [    1.468388] Node 1 Normal: 1*4kB (U) 1*8kB (U) 1*16kB (U) 1*32kB (U) 1*64kB (U) 1*128kB (U) 1*256kB (U) 1*512kB (U) 1*1024kB (U) 1*2048kB (U) 31*4096kB (M) = 131068kB
+> [    1.483211] Node 5 Normal: 1*4kB (U) 1*8kB (U) 1*16kB (U) 1*32kB (U) 1*64kB (U) 1*128kB (U) 1*256kB (U) 1*512kB (U) 1*1024kB (U) 1*2048kB (U) 31*4096kB (M) = 131068kB
 
-I am still trying to wrap my head around the expected code flow here.
-numa_init does the following for all CPUs within nr_cpu_ids (aka nr_cpus
-aware).
-		if (!node_online(nid))
-			numa_clear_node(i);
-
-I do not really understand why do we do this. But this enforces
-init_cpu_to_node to do init_memory_less_node (with the current upstream
-code) and that will mark the node online again and zonelists are built
-properly. My patch couldn't help in that respect because the node is
-offline (as it should be IMHO).
-
-So let's try another attempt with some larger surgery (on top of the
-previous patch). It will also dump the zonelist after it is built for
-each node. Let's see whether something more is lurking there.
-
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index a5548fe668fb..eb7c905d5d86 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -525,19 +525,6 @@ static void __init numa_clear_kernel_node_hotplug(void)
- 	}
- }
- 
--static void __init init_memory_less_node(int nid)
--{
--	unsigned long zones_size[MAX_NR_ZONES] = {0};
--	unsigned long zholes_size[MAX_NR_ZONES] = {0};
--
--	free_area_init_node(nid, zones_size, 0, zholes_size);
--
--	/*
--	 * All zonelists will be built later in start_kernel() after per cpu
--	 * areas are initialized.
--	 */
--}
--
- static int __init numa_register_memblks(struct numa_meminfo *mi)
- {
- 	unsigned long uninitialized_var(pfn_align);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5411de93a363..99252a0b6551 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2045,6 +2045,8 @@ extern void __init pagecache_init(void);
- extern void free_area_init(unsigned long * zones_size);
- extern void __init free_area_init_node(int nid, unsigned long * zones_size,
- 		unsigned long zone_start_pfn, unsigned long *zholes_size);
-+extern void init_memory_less_node(int nid);
-+
- extern void free_initmem(void);
- 
- /*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc407216..a5c035fd6307 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5234,6 +5234,8 @@ static void build_zonelists(pg_data_t *pgdat)
- 	int node, load, nr_nodes = 0;
- 	nodemask_t used_mask;
- 	int local_node, prev_node;
-+	struct zone *zone;
-+	struct zoneref *z;
- 
- 	/* NUMA-aware ordering of nodes */
- 	local_node = pgdat->node_id;
-@@ -5259,6 +5261,11 @@ static void build_zonelists(pg_data_t *pgdat)
- 
- 	build_zonelists_in_node_order(pgdat, node_order, nr_nodes);
- 	build_thisnode_zonelists(pgdat);
-+
-+	pr_info("node[%d] zonelist: ", pgdat->node_id);
-+	for_each_zone_zonelist(zone, z, &pgdat->node_zonelists[ZONELIST_FALLBACK], MAX_NR_ZONES-1)
-+		pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
-+	pr_cont("\n");
- }
- 
- #ifdef CONFIG_HAVE_MEMORYLESS_NODES
-@@ -5447,6 +5454,20 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
- #endif
- }
- 
-+void __init init_memory_less_node(int nid)
-+{
-+	unsigned long zones_size[MAX_NR_ZONES] = {0};
-+	unsigned long zholes_size[MAX_NR_ZONES] = {0};
-+
-+	free_area_init_node(nid, zones_size, 0, zholes_size);
-+	__build_all_zonelists(NODE_DATA(nid));
-+
-+	/*
-+	 * All zonelists will be built later in start_kernel() after per cpu
-+	 * areas are initialized.
-+	 */
-+}
-+
- /* If zone is ZONE_MOVABLE but memory is mirrored, it is an overlapped init */
- static bool __meminit
- overlap_memmap_init(unsigned long zone, unsigned long *pfn)
+I am investigating what the hell is going on here. Maybe the former hack
+to re-initialize memory-less nodes is working around some ordering
+issues.
 -- 
 Michal Hocko
 SUSE Labs
