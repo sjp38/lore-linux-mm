@@ -1,129 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A6186B61F8
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:16:02 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id v12so7483764plp.16
-        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:16:02 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v191sor12663918pgb.53.2018.12.01.22.16.00
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A1D748E0001
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 09:30:29 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id f31so5729716edf.17
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 06:30:29 -0800 (PST)
+Received: from outbound-smtp26.blacknight.com (outbound-smtp26.blacknight.com. [81.17.249.194])
+        by mx.google.com with ESMTPS id g40si5758160edc.423.2018.12.17.06.30.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 01 Dec 2018 22:16:00 -0800 (PST)
-Date: Sun, 2 Dec 2018 11:49:44 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v2 1/9] mm: Introduce new vm_insert_range API
-Message-ID: <20181202061944.GA3094@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Dec 2018 06:30:28 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp26.blacknight.com (Postfix) with ESMTPS id 1E95AB8B79
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 14:30:28 +0000 (GMT)
+Date: Mon, 17 Dec 2018 14:30:26 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 04/14] mm, compaction: Rename map_pages to split_map_pages
+Message-ID: <20181217143026.GG29005@techsingularity.net>
+References: <20181214230310.572-1-mgorman@techsingularity.net>
+ <20181214230310.572-5-mgorman@techsingularity.net>
+ <b9a6574a-6b0c-11bc-06e5-c650b03e06f3@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <b9a6574a-6b0c-11bc-06e5-c650b03e06f3@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-Previouly drivers have their own way of mapping range of
-kernel pages/memory into user vma and this was done by
-invoking vm_insert_page() within a loop.
+On Mon, Dec 17, 2018 at 03:06:59PM +0100, Vlastimil Babka wrote:
+> On 12/15/18 12:03 AM, Mel Gorman wrote:
+> > It's non-obvious that high-order free pages are split into order-0
+> > pages from the function name. Fix it.
+> 
+> That's fine, but looks like the patch has another change squashed into
+> it that removes zone parameter from several functions and uses cc->zone
+> instead.
+> 
 
-As this pattern is common across different drivers, it can
-be generalized by creating a new function and use it across
-the drivers.
+Bah, it's a rebase mishap. It didn't flag when rereading the patches
+before sending because "yep, I did that on purpose". I'll split it out,
+the changelog will be uninspiring.
 
-vm_insert_range is the new API which will be used to map a
-range of kernel memory/pages to user vma.
-
-This API is tested by Heiko for Rockchip drm driver, on rk3188,
-rk3288, rk3328 and rk3399 with graphics.
-
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Tested-by: Heiko Stuebner <heiko@sntech.de>
----
- include/linux/mm_types.h |  3 +++
- mm/memory.c              | 38 ++++++++++++++++++++++++++++++++++++++
- mm/nommu.c               |  7 +++++++
- 3 files changed, 48 insertions(+)
-
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5ed8f62..15ae24f 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -523,6 +523,9 @@ extern void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
- extern void tlb_finish_mmu(struct mmu_gather *tlb,
- 				unsigned long start, unsigned long end);
- 
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count);
-+
- static inline void init_tlb_flush_pending(struct mm_struct *mm)
- {
- 	atomic_set(&mm->tlb_flush_pending, 0);
-diff --git a/mm/memory.c b/mm/memory.c
-index 15c417e..84ea46c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1478,6 +1478,44 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- 
- /**
-+ * vm_insert_range - insert range of kernel pages into user vma
-+ * @vma: user vma to map to
-+ * @addr: target user address of this page
-+ * @pages: pointer to array of source kernel pages
-+ * @page_count: number of pages need to insert into user vma
-+ *
-+ * This allows drivers to insert range of kernel pages they've allocated
-+ * into a user vma. This is a generic function which drivers can use
-+ * rather than using their own way of mapping range of kernel pages into
-+ * user vma.
-+ *
-+ * If we fail to insert any page into the vma, the function will return
-+ * immediately leaving any previously-inserted pages present.  Callers
-+ * from the mmap handler may immediately return the error as their caller
-+ * will destroy the vma, removing any successfully-inserted pages. Other
-+ * callers should make their own arrangements for calling unmap_region().
-+ *
-+ * Context: Process context. Called by mmap handlers.
-+ * Return: 0 on success and error code otherwise
-+ */
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count)
-+{
-+	unsigned long uaddr = addr;
-+	int ret = 0, i;
-+
-+	for (i = 0; i < page_count; i++) {
-+		ret = vm_insert_page(vma, uaddr, pages[i]);
-+		if (ret < 0)
-+			return ret;
-+		uaddr += PAGE_SIZE;
-+	}
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(vm_insert_range);
-+
-+/**
-  * vm_insert_page - insert single page into user vma
-  * @vma: user vma to map to
-  * @addr: target user address of this page
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 749276b..d6ef5c7 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -473,6 +473,13 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- EXPORT_SYMBOL(vm_insert_page);
- 
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count)
-+{
-+	return -EINVAL;
-+}
-+EXPORT_SYMBOL(vm_insert_range);
-+
- /*
-  *  sys_brk() for the most part doesn't need the global kernel
-  *  lock, except when an application is doing something nasty
 -- 
-1.9.1
+Mel Gorman
+SUSE Labs
