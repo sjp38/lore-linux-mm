@@ -1,107 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C33DC8E0033
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 13:34:50 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 75so12623306pfq.8
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 10:34:50 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g12si11319775pgd.567.2018.12.17.10.34.49
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4928E0033
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 13:28:17 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id w128so7407263oie.20
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 10:28:17 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i14sor8426134oib.127.2018.12.17.10.28.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 17 Dec 2018 10:34:49 -0800 (PST)
-Date: Mon, 17 Dec 2018 10:34:43 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181217183443.GO10600@bombadil.infradead.org>
-References: <7b4733be-13d3-c790-ff1b-ac51b505e9a6@nvidia.com>
- <20181207191620.GD3293@redhat.com>
- <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com>
- <20181208022445.GA7024@redhat.com>
- <20181210102846.GC29289@quack2.suse.cz>
- <20181212150319.GA3432@redhat.com>
- <20181212214641.GB29416@dastard>
- <20181214154321.GF8896@quack2.suse.cz>
- <20181216215819.GC10644@dastard>
- <20181217181148.GA3341@redhat.com>
+        (Google Transport Security);
+        Mon, 17 Dec 2018 10:28:15 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181217181148.GA3341@redhat.com>
+References: <20181208022445.GA7024@redhat.com> <20181210102846.GC29289@quack2.suse.cz>
+ <20181212150319.GA3432@redhat.com> <20181212214641.GB29416@dastard>
+ <20181212215931.GG5037@redhat.com> <20181213005119.GD29416@dastard>
+ <05a68829-6e6d-b766-11b4-99e1ba4bc87b@nvidia.com> <CAPcyv4jyG3YTtghyr04wws_hcSBAmPBpnCm0tFcKgz9VwrV=ow@mail.gmail.com>
+ <01cf4e0c-b2d6-225a-3ee9-ef0f7e53684d@nvidia.com> <CAPcyv4hrbA9H20bi+QMpKNi7r=egstt61MdQSD5Fb293W1btaw@mail.gmail.com>
+ <20181217085653.GB28270@quack2.suse.cz>
+In-Reply-To: <20181217085653.GB28270@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 17 Dec 2018 10:28:03 -0800
+Message-ID: <CAPcyv4jmg46s=7OJbR7iEpc0jxv+JG8vdS==yQeUgvjQm+_f4Q@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: John Hubbard <jhubbard@nvidia.com>, david <david@fromorbit.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Mon, Dec 17, 2018 at 01:11:50PM -0500, Jerome Glisse wrote:
-> On Mon, Dec 17, 2018 at 08:58:19AM +1100, Dave Chinner wrote:
-> > Sure, that's a possibility, but that doesn't close off any race
-> > conditions because there can be DMA into the page in progress while
-> > the page is being bounced, right? AFAICT this ext3+DIF/DIX case is
-> > different in that there is no 3rd-party access to the page while it
-> > is under IO (ext3 arbitrates all access to it's metadata), and so
-> > nothing can actually race for modification of the page between
-> > submission and bouncing at the block layer.
-> > 
-> > In this case, the moment the page is unlocked, anyone else can map
-> > it and start (R)DMA on it, and that can happen before the bio is
-> > bounced by the block layer. So AFAICT, block layer bouncing doesn't
-> > solve the problem of racing writeback and DMA direct to the page we
-> > are doing IO on. Yes, it reduces the race window substantially, but
-> > it doesn't get rid of it.
-> 
-> So the event flow is:
->     - userspace create object that match a range of virtual address
->       against a given kernel sub-system (let's say infiniband) and
->       let's assume that the range is an mmap() of a regular file
->     - device driver do GUP on the range (let's assume it is a write
->       GUP) so if the page is not already map with write permission
->       in the page table than a page fault is trigger and page_mkwrite
->       happens
->     - Once GUP return the page to the device driver and once the
->       device driver as updated the hardware states to allow access
->       to this page then from that point on hardware can write to the
->       page at _any_ time, it is fully disconnected from any fs event
->       like write back, it fully ignore things like page_mkclean
-> 
-> This is how it is to day, we allowed people to push upstream such
-> users of GUP. This is a fact we have to live with, we can not stop
-> hardware access to the page, we can not force the hardware to follow
-> page_mkclean and force a page_mkwrite once write back ends. This is
-> the situation we are inheriting (and i am personnaly not happy with
-> that).
-> 
-> >From my point of view we are left with 2 choices:
->     [C1] break all drivers that do not abide by the page_mkclean and
->          page_mkwrite
->     [C2] mitigate as much as possible the issue
-> 
-> For [C2] the idea is to keep track of GUP per page so we know if we
-> can expect the page to be written to at any time. Here is the event
-> flow:
->     - driver GUP the page and program the hardware, page is mark as
->       GUPed
->     ...
->     - write back kicks in on the dirty page, lock the page and every
->       thing as usual , sees it is GUPed and inform the block layer to
->       use a bounce page
+On Mon, Dec 17, 2018 at 12:57 AM Jan Kara <jack@suse.cz> wrote:
+>
+> On Fri 14-12-18 11:38:59, Dan Williams wrote:
+> > On Thu, Dec 13, 2018 at 10:11 PM John Hubbard <jhubbard@nvidia.com> wrote:
+> > >
+> > > On 12/13/18 9:21 PM, Dan Williams wrote:
+> > > > On Thu, Dec 13, 2018 at 7:53 PM John Hubbard <jhubbard@nvidia.com> wrote:
+> > > >>
+> > > >> On 12/12/18 4:51 PM, Dave Chinner wrote:
+> > > >>> On Wed, Dec 12, 2018 at 04:59:31PM -0500, Jerome Glisse wrote:
+> > > >>>> On Thu, Dec 13, 2018 at 08:46:41AM +1100, Dave Chinner wrote:
+> > > >>>>> On Wed, Dec 12, 2018 at 10:03:20AM -0500, Jerome Glisse wrote:
+> > > >>>>>> On Mon, Dec 10, 2018 at 11:28:46AM +0100, Jan Kara wrote:
+> > > >>>>>>> On Fri 07-12-18 21:24:46, Jerome Glisse wrote:
+> > > >>>>>>> So this approach doesn't look like a win to me over using counter in struct
+> > > >>>>>>> page and I'd rather try looking into squeezing HMM public page usage of
+> > > >>>>>>> struct page so that we can fit that gup counter there as well. I know that
+> > > >>>>>>> it may be easier said than done...
+> > > >>>>>>
+> > > >>
+> > > >> Agreed. After all the discussion this week, I'm thinking that the original idea
+> > > >> of a per-struct-page counter is better. Fortunately, we can do the moral equivalent
+> > > >> of that, unless I'm overlooking something: Jerome had another proposal that he
+> > > >> described, off-list, for doing that counting, and his idea avoids the problem of
+> > > >> finding space in struct page. (And in fact, when I responded yesterday, I initially
+> > > >> thought that's where he was going with this.)
+> > > >>
+> > > >> So how about this hybrid solution:
+> > > >>
+> > > >> 1. Stay with the basic RFC approach of using a per-page counter, but actually
+> > > >> store the counter(s) in the mappings instead of the struct page. We can use
+> > > >> !PageAnon and page_mapping to look up all the mappings, stash the dma_pinned_count
+> > > >> there. So the total pinned count is scattered across mappings. Probably still need
+> > > >> a PageDmaPinned bit.
+> > > >
+> > > > How do you safely look at page->mapping from the get_user_pages_fast()
+> > > > path? You'll be racing invalidation disconnecting the page from the
+> > > > mapping.
+> > > >
+> > >
+> > > I don't have an answer for that, so maybe the page->mapping idea is dead already.
+> > >
+> > > So in that case, there is still one more way to do all of this, which is to
+> > > combine ZONE_DEVICE, HMM, and gup/dma information in a per-page struct, and get
+> > > there via basically page->private, more or less like this:
+> >
+> > If we're going to allocate something new out-of-line then maybe we
+> > should go even further to allow for a page "proxy" object to front a
+> > real struct page. This idea arose from Dave Hansen as I explained to
+> > him the dax-reflink problem, and dovetails with Dave Chinner's
+> > suggestion earlier in this thread for dax-reflink.
+> >
+> > Have get_user_pages() allocate a proxy object that gets passed around
+> > to drivers. Something like a struct page pointer with bit 0 set. This
+> > would add a conditional branch and pointer chase to many page
+> > operations, like page_to_pfn(), I thought something like it would be
+> > unacceptable a few years ago, but then HMM went and added similar
+> > overhead to put_page() and nobody balked.
+> >
+> > This has the additional benefit of catching cases that might be doing
+> > a get_page() on a get_user_pages() result and should instead switch to
+> > a "ref_user_page()" (opposite of put_user_page()) as the API to take
+> > additional references on a get_user_pages() result.
+> >
+> > page->index and page->mapping could be overridden by similar
+> > attributes in the proxy, and allow an N:1 relationship of proxy
+> > instances to actual pages. Filesystems could generate dynamic proxies
+> > as well.
+> >
+> > The auxiliary information (dev_pagemap, hmm_data, etc...) moves to the
+> > proxy and stops polluting the base struct page which remains the
+> > canonical location for dirty-tracking and dma operations.
+> >
+> > The difficulties are reconciling the source of the proxies as both
+> > get_user_pages() and filesystem may want to be the source of the
+> > allocation. In the get_user_pages_fast() path we may not be able to
+> > ask the filesystem for the proxy, at least not without destroying the
+> > performance expectations of get_user_pages_fast().
+>
+> What you describe here sounds almost like page_ext mechanism we already
+> have? Or do you really aim at per-pin allocated structure?
 
-No.  The solution John, Dan & I have been looking at is to take the
-dirty page off the LRU while it is pinned by GUP.  It will never be
-found for writeback.
-
-That's not the end of the story though.  Other parts of the kernel (eg
-msync) also need to be taught to stay away from pages which are pinned
-by GUP.  But the idea is that no page gets written back to storage while
-it's pinned by GUP.  Only when the last GUP ends is the page returned
-to the list of dirty pages.
-
->     - block layer copy the page to a bounce page effectively creating
->       a snapshot of what is the content of the real page. This allows
->       everything in block layer that need stable content to work on
->       the bounce page (raid, stripping, encryption, ...)
->     - once write back is done the page is not marked clean but stays
->       dirty, this effectively disable things like COW for filesystem
->       and other feature that expect page_mkwrite between write back.
->       AFAIK it is believe that it is something acceptable
-
-So none of this is necessary.
+Per-pin or dynamically allocated by the filesystem. The existing
+page_ext seems to suffer from the expectation that a page_ext exists
+for all pfns. The 'struct page' per pfn requirement is already painful
+as memory capacities grow into the terabytes, page_ext seems to just
+make that worse.
