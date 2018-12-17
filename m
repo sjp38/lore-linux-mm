@@ -1,115 +1,83 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AD7158E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 18:10:10 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id b17so10987232pfc.11
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 15:10:10 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t64si10268418pgd.202.2018.12.10.15.10.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 15:10:09 -0800 (PST)
-Date: Mon, 10 Dec 2018 18:10:07 -0500
-From: Sasha Levin <sashal@kernel.org>
-Subject: Re: x86: e820 regression
-Message-ID: <20181210231007.GI97256@sasha-vm>
-References: <20181210082837.hjduflu7ou642e2m@YUKI.localdomain>
- <20181210085421.GA30792@hori1.linux.bs1.fc.nec.co.jp>
- <20181210094909.GA27385@kroah.com>
- <20181210142151.xme3ncueelvi3xfa@YUKI.localdomain>
- <20181210165831.GA97256@sasha-vm>
- <20181210171555.pjbypquyg6bqjovh@YUKI.localdomain>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Tue, 18 Dec 2018 01:49:42 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v4 0/9] Use vm_insert_range
+Message-ID: <20181217201942.GA31335@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181210171555.pjbypquyg6bqjovh@YUKI.localdomain>
-Sender: owner-linux-mm@kvack.org
+Sender: linux-kernel-owner@vger.kernel.org
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
-To: Erick Cafferata <erick@cafferata.me>
-Cc: stable@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Dec 10, 2018 at 12:15:56PM -0500, Erick Cafferata wrote:
->On 12/10 11:58, Sasha Levin wrote:
->> On Mon, Dec 10, 2018 at 09:21:52AM -0500, Erick Cafferata wrote:
->> > On 12/10 10:49, Greg KH wrote:
->> > > On Mon, Dec 10, 2018 at 08:54:21AM +0000, Naoya Horiguchi wrote:
->> > > > Hi Erick,
->> > > >
->> > > > On Mon, Dec 10, 2018 at 03:28:37AM -0500, Erick Cafferata wrote:
->> > > > > The following commit introduced a regression on my system.
->> > > > >
->> > > > > 124049decbb121ec32742c94fb5d9d6bed8f24d8
->> > > > > x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
->> > > > >
->> > > > > and it was backported to stable, stopping the kernel to boot on my system since around 4.17.4.
->> > > > > It was reverted on upstream a couple months ago.
->> > > > > commit 2a5bda5a624d6471d25e953b9adba5182ab1b51f upstream
->> > > >
->> > > > This commit seems not a correct pointer.
->> > > > In mainline, commit 124049decbb was reverted by
->> > > >
->> > > >     commit 9fd61bc95130d4971568b89c9548b5e0a4e18e0e
->> > > >     Author: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
->> > > >     Date:   Fri Oct 26 15:10:24 2018 -0700
->> > > >
->> > > >         Revert "x86/e820: put !E820_TYPE_RAM regions into memblock.reserved"
->> > > >
->> > > > and, the original problem was finally fixed by
->> > > >
->> > > >     commit 907ec5fca3dc38d37737de826f06f25b063aa08e
->> > > >     Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> > > >     Date:   Fri Oct 26 15:10:15 2018 -0700
->> > > >
->> > > >         mm: zero remaining unavailable struct pages
->> > > >
->> > > >         Patch series "mm: Fix for movable_node boot option", v3.
->> > > >
->> > > > so I think both patches should be backported onto v4.17.z.
->> > >
->> > > 4.17.y and 4.18.y are long end-of-life, there's nothing I can do there.
->> > >
->> > > I can apply the above patches to the 4.19.y tree, is that sufficient?
->> > >
->> > > thanks,
->> > >
->> > > greg k-h
->> > If it were possible to backport it to 4.14 as well. It would be better,
->> > but 4.19 is already good.
->> > Also, would you port only the revert commit, or also the correct fix for
->> > the previous issue?
->> >
->> > PD: also, as it was pointed out previously, the correct commit is
->> > 9fd61bc95130d4971568b89c9548b5e0a4e18e0e.
->> > PD2: sorry about removing the context in the previous mail.
->>
->> 9fd61bc95130d4971568b89c9548b5e0a4e18e0e looks like the commit that
->> reverts the patch in question, not an additional fix.
->>
->> --
->> Thanks,
->> Sasha
->That's right, that commit is the revert. The commit I'm most interested
->in getting backported. However, I was referring to the other 3 commits
->affecting arch/x86/kernel/e820.c:
->
->7e1c4e27928e memblock: stop using implicit alignment to SMP_CACHE_BYTES
->57c8a661d95d mm: remove include/linux/bootmem.h
->2a5bda5a624d memblock: replace alloc_bootmem with memblock_alloc
->
->This 3 probably fixed the original issue, for which
->
->124049decbb1 x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
->
->was pushed. I was asking if those 3(or more, if needed) would get
->backported as well.
->regards
+Previouly drivers have their own way of mapping range of
+kernel pages/memory into user vma and this was done by
+invoking vm_insert_page() within a loop.
 
-+ linux-mm@
+As this pattern is common across different drivers, it can
+be generalized by creating a new function and use it across
+the drivers.
 
-These commits touch quite a lot of code, and even though they look
-simple they are quite invasive, so I wouldn't want to take them without
-a proper backport someone tested and acked by the mm folks.
+vm_insert_range is the new API which will be used to map a
+range of kernel memory/pages to user vma.
 
---
-Thanks,
-Sasha
+All the applicable places are converted to use new vm_insert_range
+in this patch series.
+
+v1 -> v2:
+        Address review comment on mm/memory.c. Add EXPORT_SYMBOL
+        for vm_insert_range and corrected the documentation part
+        for this API.
+
+        In drivers/gpu/drm/xen/xen_drm_front_gem.c, replace err
+        with ret as suggested.
+
+        In drivers/iommu/dma-iommu.c, handle the scenario of partial
+        mmap() of large buffer by passing *pages + vma->vm_pgoff* to
+        vm_insert_range().
+
+v2 -> v3:
+        Declaration of vm_insert_range() moved to include/linux/mm.h
+
+v3 -> v4:
+	Address review comments.
+	
+	In mm/memory.c. Added error check.
+
+	In arch/arm/mm/dma-mapping.c, remove part of error check as the
+	similar is checked inside vm_insert_range.
+
+	In rockchip/rockchip_drm_gem.c, vma->vm_pgoff is respected as
+	this might be passed as non zero value considering partial
+	mapping of large buffer.
+
+	In iommu/dma-iommu.c, count is modifed as (count - vma->vm_pgoff)
+	to handle partial mapping scenario in v2.
+
+Souptick Joarder (9):
+  mm: Introduce new vm_insert_range API
+  arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
+  drivers/firewire/core-iso.c: Convert to use vm_insert_range
+  drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
+  drm/xen/xen_drm_front_gem.c: Convert to use vm_insert_range
+  iommu/dma-iommu.c: Convert to use vm_insert_range
+  videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range
+  xen/gntdev.c: Convert to use vm_insert_range
+  xen/privcmd-buf.c: Convert to use vm_insert_range
+
+ arch/arm/mm/dma-mapping.c                         | 21 ++++--------
+ drivers/firewire/core-iso.c                       | 15 ++-------
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c       | 19 ++---------
+ drivers/gpu/drm/xen/xen_drm_front_gem.c           | 20 ++++-------
+ drivers/iommu/dma-iommu.c                         | 13 ++-----
+ drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 ++++---------
+ drivers/xen/gntdev.c                              | 11 +++---
+ drivers/xen/privcmd-buf.c                         |  8 ++---
+ include/linux/mm.h                                |  2 ++
+ mm/memory.c                                       | 41 +++++++++++++++++++++++
+ mm/nommu.c                                        |  7 ++++
+ 11 files changed, 83 insertions(+), 97 deletions(-)
+
+-- 
+1.9.1
