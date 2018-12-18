@@ -1,137 +1,359 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A0AC68E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 17:36:48 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id f69so18845135pff.5
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 14:36:48 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n125si37082895pga.179.2018.12.26.14.36.47
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E57528E0001
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 23:36:27 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id u20so14078793pfa.1
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 20:36:27 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id b3si12388557pgh.496.2018.12.17.20.36.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 14:36:47 -0800 (PST)
-From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 30/97] x86/mm: Fix guard hole handling
-Date: Wed, 26 Dec 2018 17:34:50 -0500
-Message-Id: <20181226223557.149329-30-sashal@kernel.org>
-In-Reply-To: <20181226223557.149329-1-sashal@kernel.org>
-References: <20181226223557.149329-1-sashal@kernel.org>
+        Mon, 17 Dec 2018 20:36:26 -0800 (PST)
+Subject: [PATCH v6 5/6] mm: Move buddy list manipulations into helpers
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 17 Dec 2018 20:23:50 -0800
+Message-ID: <154510703002.1941238.13463167622846312555.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, bhe@redhat.com, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Sasha Levin <sashal@kernel.org>
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, peterz@infradead.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In preparation for runtime randomization of the zone lists, take all
+(well, most of) the list_*() functions in the buddy allocator and put
+them in helper functions. Provide a common control point for injecting
+additional behavior when freeing pages.
 
-[ Upstream commit 16877a5570e0c5f4270d5b17f9bab427bcae9514 ]
-
-There is a guard hole at the beginning of the kernel address space, also
-used by hypervisors. It occupies 16 PGD entries.
-
-This reserved range is not defined explicitely, it is calculated relative
-to other entities: direct mapping and user space ranges.
-
-The calculation got broken by recent changes of the kernel memory layout:
-LDT remap range is now mapped before direct mapping and makes the
-calculation invalid.
-
-The breakage leads to crash on Xen dom0 boot[1].
-
-Define the reserved range explicitely. It's part of kernel ABI (hypervisors
-expect it to be stable) and must not depend on changes in the rest of
-kernel memory layout.
-
-[1] https://lists.xenproject.org/archives/html/xen-devel/2018-11/msg03313.html
-
-Fixes: d52888aa2753 ("x86/mm: Move LDT remap out of KASLR region on 5-level paging")
-Reported-by: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
-Cc: bp@alien8.de
-Cc: hpa@zytor.com
-Cc: dave.hansen@linux.intel.com
-Cc: luto@kernel.org
-Cc: peterz@infradead.org
-Cc: boris.ostrovsky@oracle.com
-Cc: bhe@redhat.com
-Cc: linux-mm@kvack.org
-Cc: xen-devel@lists.xenproject.org
-Link: https://lkml.kernel.org/r/20181130202328.65359-2-kirill.shutemov@linux.intel.com
-Signed-off-by: Sasha Levin <sashal@kernel.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/x86/include/asm/pgtable_64_types.h |  5 +++++
- arch/x86/mm/dump_pagetables.c           |  8 ++++----
- arch/x86/xen/mmu_pv.c                   | 11 ++++++-----
- 3 files changed, 15 insertions(+), 9 deletions(-)
+ include/linux/mm.h       |    3 --
+ include/linux/mm_types.h |    3 ++
+ include/linux/mmzone.h   |   51 ++++++++++++++++++++++++++++++++++
+ mm/compaction.c          |    4 +--
+ mm/page_alloc.c          |   70 ++++++++++++++++++----------------------------
+ 5 files changed, 84 insertions(+), 47 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 84bd9bdc1987..88bca456da99 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -111,6 +111,11 @@ extern unsigned int ptrs_per_p4d;
-  */
- #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5411de93a363..e1d23f80d3ba 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -473,9 +473,6 @@ static inline void vma_set_anonymous(struct vm_area_struct *vma)
+ struct mmu_gather;
+ struct inode;
  
-+#define GUARD_HOLE_PGD_ENTRY	-256UL
-+#define GUARD_HOLE_SIZE		(16UL << PGDIR_SHIFT)
-+#define GUARD_HOLE_BASE_ADDR	(GUARD_HOLE_PGD_ENTRY << PGDIR_SHIFT)
-+#define GUARD_HOLE_END_ADDR	(GUARD_HOLE_BASE_ADDR + GUARD_HOLE_SIZE)
+-#define page_private(page)		((page)->private)
+-#define set_page_private(page, v)	((page)->private = (v))
+-
+ #if !defined(__HAVE_ARCH_PTE_DEVMAP) || !defined(CONFIG_TRANSPARENT_HUGEPAGE)
+ static inline int pmd_devmap(pmd_t pmd)
+ {
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 5ed8f6292a53..72f37ea6dedb 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -209,6 +209,9 @@ struct page {
+ #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
+ #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+ 
++#define page_private(page)		((page)->private)
++#define set_page_private(page, v)	((page)->private = (v))
 +
- #define LDT_PGD_ENTRY		-240UL
- #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
- #define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index a12afff146d1..073755c89126 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -493,11 +493,11 @@ static inline bool is_hypervisor_range(int idx)
- {
- #ifdef CONFIG_X86_64
- 	/*
--	 * ffff800000000000 - ffff87ffffffffff is reserved for
--	 * the hypervisor.
-+	 * A hole in the beginning of kernel address space reserved
-+	 * for a hypervisor.
- 	 */
--	return	(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
--		(idx <  pgd_index(__PAGE_OFFSET));
-+	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
-+		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
- #else
- 	return false;
+ struct page_frag_cache {
+ 	void * va;
+ #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index eafa66d66232..35cc33af87f2 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -18,6 +18,8 @@
+ #include <linux/pageblock-flags.h>
+ #include <linux/page-flags-layout.h>
+ #include <linux/atomic.h>
++#include <linux/mm_types.h>
++#include <linux/page-flags.h>
+ #include <asm/page.h>
+ 
+ /* Free memory management - zoned buddy allocator.  */
+@@ -98,6 +100,55 @@ struct free_area {
+ 	unsigned long		nr_free;
+ };
+ 
++/* Used for pages not on another list */
++static inline void add_to_free_area(struct page *page, struct free_area *area,
++			     int migratetype)
++{
++	list_add(&page->lru, &area->free_list[migratetype]);
++	area->nr_free++;
++}
++
++/* Used for pages not on another list */
++static inline void add_to_free_area_tail(struct page *page, struct free_area *area,
++				  int migratetype)
++{
++	list_add_tail(&page->lru, &area->free_list[migratetype]);
++	area->nr_free++;
++}
++
++/* Used for pages which are on another list */
++static inline void move_to_free_area(struct page *page, struct free_area *area,
++			     int migratetype)
++{
++	list_move(&page->lru, &area->free_list[migratetype]);
++}
++
++static inline struct page *get_page_from_free_area(struct free_area *area,
++					    int migratetype)
++{
++	return list_first_entry_or_null(&area->free_list[migratetype],
++					struct page, lru);
++}
++
++static inline void rmv_page_order(struct page *page)
++{
++	__ClearPageBuddy(page);
++	set_page_private(page, 0);
++}
++
++static inline void del_page_from_free_area(struct page *page,
++		struct free_area *area, int migratetype)
++{
++	list_del(&page->lru);
++	rmv_page_order(page);
++	area->nr_free--;
++}
++
++static inline bool free_area_empty(struct free_area *area, int migratetype)
++{
++	return list_empty(&area->free_list[migratetype]);
++}
++
+ struct pglist_data;
+ 
+ /*
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 7c607479de4a..44adbfa073b3 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1359,13 +1359,13 @@ static enum compact_result __compact_finished(struct zone *zone,
+ 		bool can_steal;
+ 
+ 		/* Job done if page is free of the right migratetype */
+-		if (!list_empty(&area->free_list[migratetype]))
++		if (!free_area_empty(area, migratetype))
+ 			return COMPACT_SUCCESS;
+ 
+ #ifdef CONFIG_CMA
+ 		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
+ 		if (migratetype == MIGRATE_MOVABLE &&
+-			!list_empty(&area->free_list[MIGRATE_CMA]))
++			!free_area_empty(area, MIGRATE_CMA))
+ 			return COMPACT_SUCCESS;
  #endif
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index 2c84c6ad8b50..c8f011e07a15 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -640,19 +640,20 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
- 			  unsigned long limit)
+ 		/*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index eaa9a012d6ae..de8b5eb78d13 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -705,12 +705,6 @@ static inline void set_page_order(struct page *page, unsigned int order)
+ 	__SetPageBuddy(page);
+ }
+ 
+-static inline void rmv_page_order(struct page *page)
+-{
+-	__ClearPageBuddy(page);
+-	set_page_private(page, 0);
+-}
+-
+ /*
+  * This function checks whether a page is free && is the buddy
+  * we can coalesce a page and its buddy if
+@@ -811,13 +805,11 @@ static inline void __free_one_page(struct page *page,
+ 		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+ 		 * merge with it and move up one order.
+ 		 */
+-		if (page_is_guard(buddy)) {
++		if (page_is_guard(buddy))
+ 			clear_page_guard(zone, buddy, order, migratetype);
+-		} else {
+-			list_del(&buddy->lru);
+-			zone->free_area[order].nr_free--;
+-			rmv_page_order(buddy);
+-		}
++		else
++			del_page_from_free_area(buddy, &zone->free_area[order],
++					migratetype);
+ 		combined_pfn = buddy_pfn & pfn;
+ 		page = page + (combined_pfn - pfn);
+ 		pfn = combined_pfn;
+@@ -867,15 +859,13 @@ static inline void __free_one_page(struct page *page,
+ 		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+ 		if (pfn_valid_within(buddy_pfn) &&
+ 		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
+-			list_add_tail(&page->lru,
+-				&zone->free_area[order].free_list[migratetype]);
+-			goto out;
++			add_to_free_area_tail(page, &zone->free_area[order],
++					      migratetype);
++			return;
+ 		}
+ 	}
+ 
+-	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
+-out:
+-	zone->free_area[order].nr_free++;
++	add_to_free_area(page, &zone->free_area[order], migratetype);
+ }
+ 
+ /*
+@@ -1820,7 +1810,7 @@ static inline void expand(struct zone *zone, struct page *page,
+ 		if (set_page_guard(zone, &page[size], high, migratetype))
+ 			continue;
+ 
+-		list_add(&page[size].lru, &area->free_list[migratetype]);
++		add_to_free_area(&page[size], area, migratetype);
+ 		area->nr_free++;
+ 		set_page_order(&page[size], high);
+ 	}
+@@ -1962,13 +1952,10 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 	/* Find a page of the appropriate size in the preferred list */
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+ 		area = &(zone->free_area[current_order]);
+-		page = list_first_entry_or_null(&area->free_list[migratetype],
+-							struct page, lru);
++		page = get_page_from_free_area(area, migratetype);
+ 		if (!page)
+ 			continue;
+-		list_del(&page->lru);
+-		rmv_page_order(page);
+-		area->nr_free--;
++		del_page_from_free_area(page, area, migratetype);
+ 		expand(zone, page, order, current_order, area, migratetype);
+ 		set_pcppage_migratetype(page, migratetype);
+ 		return page;
+@@ -2054,8 +2041,7 @@ static int move_freepages(struct zone *zone,
+ 		}
+ 
+ 		order = page_order(page);
+-		list_move(&page->lru,
+-			  &zone->free_area[order].free_list[migratetype]);
++		move_to_free_area(page, &zone->free_area[order], migratetype);
+ 		page += 1 << order;
+ 		pages_moved += 1 << order;
+ 	}
+@@ -2207,7 +2193,7 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+ 
+ single_page:
+ 	area = &zone->free_area[current_order];
+-	list_move(&page->lru, &area->free_list[start_type]);
++	move_to_free_area(page, area, start_type);
+ }
+ 
+ /*
+@@ -2231,7 +2217,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
+ 		if (fallback_mt == MIGRATE_TYPES)
+ 			break;
+ 
+-		if (list_empty(&area->free_list[fallback_mt]))
++		if (free_area_empty(area, fallback_mt))
+ 			continue;
+ 
+ 		if (can_steal_fallback(order, migratetype))
+@@ -2318,9 +2304,7 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
+ 		for (order = 0; order < MAX_ORDER; order++) {
+ 			struct free_area *area = &(zone->free_area[order]);
+ 
+-			page = list_first_entry_or_null(
+-					&area->free_list[MIGRATE_HIGHATOMIC],
+-					struct page, lru);
++			page = get_page_from_free_area(area, MIGRATE_HIGHATOMIC);
+ 			if (!page)
+ 				continue;
+ 
+@@ -2433,8 +2417,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 	VM_BUG_ON(current_order == MAX_ORDER);
+ 
+ do_steal:
+-	page = list_first_entry(&area->free_list[fallback_mt],
+-							struct page, lru);
++	page = get_page_from_free_area(area, fallback_mt);
+ 
+ 	steal_suitable_fallback(zone, page, start_migratetype, can_steal);
+ 
+@@ -2861,6 +2844,7 @@ EXPORT_SYMBOL_GPL(split_page);
+ 
+ int __isolate_free_page(struct page *page, unsigned int order)
  {
- 	int i, nr, flush = 0;
--	unsigned hole_low, hole_high;
-+	unsigned hole_low = 0, hole_high = 0;
++	struct free_area *area = &page_zone(page)->free_area[order];
+ 	unsigned long watermark;
+ 	struct zone *zone;
+ 	int mt;
+@@ -2885,9 +2869,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 	}
  
- 	/* The limit is the last byte to be touched */
- 	limit--;
- 	BUG_ON(limit >= FIXADDR_TOP);
+ 	/* Remove page from free list */
+-	list_del(&page->lru);
+-	zone->free_area[order].nr_free--;
+-	rmv_page_order(page);
++
++	del_page_from_free_area(page, area, mt);
  
-+#ifdef CONFIG_X86_64
  	/*
- 	 * 64-bit has a great big hole in the middle of the address
--	 * space, which contains the Xen mappings.  On 32-bit these
--	 * will end up making a zero-sized hole and so is a no-op.
-+	 * space, which contains the Xen mappings.
- 	 */
--	hole_low = pgd_index(USER_LIMIT);
--	hole_high = pgd_index(PAGE_OFFSET);
-+	hole_low = pgd_index(GUARD_HOLE_BASE_ADDR);
-+	hole_high = pgd_index(GUARD_HOLE_END_ADDR);
-+#endif
+ 	 * Set the pageblock if the isolated page is at least half of a
+@@ -3181,13 +3164,13 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+ 			continue;
  
- 	nr = pgd_index(limit) + 1;
- 	for (i = 0; i < nr; i++) {
--- 
-2.19.1
+ 		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
+-			if (!list_empty(&area->free_list[mt]))
++			if (!free_area_empty(area, mt))
+ 				return true;
+ 		}
+ 
+ #ifdef CONFIG_CMA
+ 		if ((alloc_flags & ALLOC_CMA) &&
+-		    !list_empty(&area->free_list[MIGRATE_CMA])) {
++		    !free_area_empty(area, MIGRATE_CMA)) {
+ 			return true;
+ 		}
+ #endif
+@@ -5020,7 +5003,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 
+ 			types[order] = 0;
+ 			for (type = 0; type < MIGRATE_TYPES; type++) {
+-				if (!list_empty(&area->free_list[type]))
++				if (!free_area_empty(area, type))
+ 					types[order] |= 1 << type;
+ 			}
+ 		}
+@@ -8145,6 +8128,9 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	pfn = start_pfn;
+ 	while (pfn < end_pfn) {
++		struct free_area *area;
++		int mt;
++
+ 		if (!pfn_valid(pfn)) {
+ 			pfn++;
+ 			continue;
+@@ -8163,13 +8149,13 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		BUG_ON(page_count(page));
+ 		BUG_ON(!PageBuddy(page));
+ 		order = page_order(page);
++		area = &zone->free_area[order];
+ #ifdef CONFIG_DEBUG_VM
+ 		pr_info("remove from free list %lx %d %lx\n",
+ 			pfn, 1 << order, end_pfn);
+ #endif
+-		list_del(&page->lru);
+-		rmv_page_order(page);
+-		zone->free_area[order].nr_free--;
++		mt = get_pageblock_migratetype(page);
++		del_page_from_free_area(page, area, mt);
+ 		for (i = 0; i < (1 << order); i++)
+ 			SetPageReserved((page+i));
+ 		pfn += (1 << order);
