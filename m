@@ -1,119 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 28E446B6D8D
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:37:26 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id p9so13349559pfj.3
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:37:26 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id y6si15330213pgb.516.2018.12.03.23.37.24
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 544BF8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 08:31:50 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id g7so11892970plp.10
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 05:31:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e19sor25566712pfb.55.2018.12.18.05.31.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 23:37:24 -0800 (PST)
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: [RFC v2 05/13] x86/mm: Set KeyIDs in encrypted VMAs
-Date: Mon,  3 Dec 2018 23:39:52 -0800
-Message-Id: <f0ff967e2015a9dffceef22ac52ecd736a1ddb7e.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
+        (Google Transport Security);
+        Tue, 18 Dec 2018 05:31:49 -0800 (PST)
+MIME-Version: 1.0
+References: <cover.1544099024.git.andreyknvl@google.com> <bda78069e3b8422039794050ddcb2d53d053ed41.1544099024.git.andreyknvl@google.com>
+ <2bf7415e-2724-b3c3-9571-20c8b6d43b92@arm.com> <CAAeHK+xc6R_p26-tu--9W1L1PvUAFb70J23ByiEukKz3uVC3EQ@mail.gmail.com>
+ <b99b331d-22ca-b9db-8677-4896c427ef10@arm.com> <CAAeHK+w2jppKbb26bBk6uP9ydZeHrtNc6b2CVv4xbvt6ecVooA@mail.gmail.com>
+ <20181217123847.492b9ae4934bd0d95b0bbbdc@linux-foundation.org>
+In-Reply-To: <20181217123847.492b9ae4934bd0d95b0bbbdc@linux-foundation.org>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 18 Dec 2018 14:31:37 +0100
+Message-ID: <CAAeHK+yiGcu4u7rvugfY7wGUiHug7C1wvSuygXN6L5-wWMHtyw@mail.gmail.com>
+Subject: Re: [PATCH v13 19/25] kasan: add hooks implementation for tag-based mode
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dhowells@redhat.com, tglx@linutronix.de
-Cc: jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vincenzo Frascino <vincenzo.frascino@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Vishwath Mohan <vishwath@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jann Horn <jannh@google.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Mark Brand <markbrand@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgenii Stepanov <eugenis@google.com>
 
-MKTME architecture requires the KeyID to be placed in PTE bits 51:46.
-To create an encrypted VMA, place the KeyID in the upper bits of
-vm_page_prot that matches the position of those PTE bits.
+On Mon, Dec 17, 2018 at 9:38 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> On Mon, 17 Dec 2018 20:33:42 +0100 Andrey Konovalov <andreyknvl@google.com> wrote:
+>
+> > > Curiosity, did you try your patches with SLUB red zoning enabled?
+> > > Since the area used for the Redzone is just after the payload, aligning the
+> > > object_size independently from the allocator could have side effects, at least
+> > > if I understand well how the mechanism works.
+> > >
+> > > Setting ARCH_SLAB_MINALIGN should avoid this as well.
+> > >
+> > > What do you think?
+> >
+> > Sounds good to me.
+> >
+> > Andrew, how should proceed with this? Send another fixup patch or
+> > resend the whole series?
+>
+> It depends on how extensive the changes are.  I prefer a fixup, but at
+> some point it's time to drop it all and start again.
 
-When the VMA is assigned a KeyID it is always considered a KeyID
-change. The VMA is either going from not encrypted to encrypted,
-or from encrypted with any KeyID to encrypted with any other KeyID.
-To make the change safely, remove the user pages held by the VMA
-and unlink the VMA's anonymous chain.
+The fixup in only a few lines, so I just sent it as a separate patch
+named "[PATCH mm] kasan, arm64: use ARCH_SLAB_MINALIGN instead of
+manual aligning".
 
-Change-Id: I676056525c49c8803898315a10b196ef5a5c5415
-Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/include/asm/mktme.h |  4 ++++
- arch/x86/mm/mktme.c          | 26 ++++++++++++++++++++++++++
- include/linux/mm.h           |  6 ++++++
- 3 files changed, 36 insertions(+)
-
-diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index dbb49909d665..de3e529f3ab0 100644
---- a/arch/x86/include/asm/mktme.h
-+++ b/arch/x86/include/asm/mktme.h
-@@ -24,6 +24,10 @@ extern int mktme_map_keyid_from_key(void *key);
- extern void *mktme_map_key_from_keyid(int keyid);
- extern int mktme_map_get_free_keyid(void);
- 
-+/* Set the encryption keyid bits in a VMA */
-+extern void mprotect_set_encrypt(struct vm_area_struct *vma, int newkeyid,
-+				unsigned long start, unsigned long end);
-+
- DECLARE_STATIC_KEY_FALSE(mktme_enabled_key);
- static inline bool mktme_enabled(void)
- {
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index 34224d4e3f45..e3fdf7b48173 100644
---- a/arch/x86/mm/mktme.c
-+++ b/arch/x86/mm/mktme.c
-@@ -1,5 +1,6 @@
- #include <linux/mm.h>
- #include <linux/highmem.h>
-+#include <linux/rmap.h>
- #include <asm/mktme.h>
- #include <asm/set_memory.h>
- 
-@@ -131,6 +132,31 @@ int mktme_map_get_free_keyid(void)
- 	return 0;
- }
- 
-+/* Set the encryption keyid bits in a VMA */
-+void mprotect_set_encrypt(struct vm_area_struct *vma, int newkeyid,
-+			  unsigned long start, unsigned long end)
-+{
-+	int oldkeyid = vma_keyid(vma);
-+	pgprotval_t newprot;
-+
-+	/* Unmap pages with old KeyID if there's any. */
-+	zap_page_range(vma, start, end - start);
-+
-+	if (oldkeyid == newkeyid)
-+		return;
-+
-+	newprot = pgprot_val(vma->vm_page_prot);
-+	newprot &= ~mktme_keyid_mask;
-+	newprot |= (unsigned long)newkeyid << mktme_keyid_shift;
-+	vma->vm_page_prot = __pgprot(newprot);
-+
-+	/*
-+	 * The VMA doesn't have any inherited pages.
-+	 * Start anon VMA tree from scratch.
-+	 */
-+	unlink_anon_vmas(vma);
-+}
-+
- /* Prepare page to be used for encryption. Called from page allocator. */
- void __prep_encrypted_page(struct page *page, int order, int keyid, bool zero)
- {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 1309761bb6d0..e2d87e92ca74 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2806,5 +2806,11 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
- 
-+#ifndef CONFIG_X86_INTEL_MKTME
-+static inline void mprotect_set_encrypt(struct vm_area_struct *vma,
-+					int newkeyid,
-+					unsigned long start,
-+					unsigned long end) {}
-+#endif /* CONFIG_X86_INTEL_MKTME */
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
--- 
-2.14.1
+Thanks!
