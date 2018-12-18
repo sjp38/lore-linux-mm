@@ -1,92 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CDA28E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:15:12 -0500 (EST)
-Received: by mail-lf1-f69.google.com with SMTP id f16so708510lfc.3
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:15:12 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h39-v6sor16663786lji.32.2018.12.21.10.15.09
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EBBB68E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 09:22:43 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id 39so4061852edq.13
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 06:22:43 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l13si714908edw.439.2018.12.18.06.22.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Dec 2018 10:15:09 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 12/12] x86_64: __clear_user as case of __memset_user
-Date: Fri, 21 Dec 2018 20:14:23 +0200
-Message-Id: <20181221181423.20455-13-igor.stoppa@huawei.com>
-In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
-References: <20181221181423.20455-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Dec 2018 06:22:42 -0800 (PST)
+Date: Tue, 18 Dec 2018 15:22:39 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V4 0/3] * mm/kvm/vfio/ppc64: Migrate compound pages out
+ of CMA region
+Message-ID: <20181218142239.GL30879@dhcp22.suse.cz>
+References: <20181121092259.16482-1-aneesh.kumar@linux.ibm.com>
+ <20181207151226.cb00ace433738cf550e66885@linux-foundation.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181207151226.cb00ace433738cf550e66885@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-To avoid code duplication, re-use __memset_user(), when clearing
-user-space memory.
+On Fri 07-12-18 15:12:26, Andrew Morton wrote:
+> On Wed, 21 Nov 2018 14:52:56 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
+> 
+> > Subject: [PATCH V4 0/3] * mm/kvm/vfio/ppc64: Migrate compound pages out of CMA region
+> 
+> Asterisk in title is strange?
+> 
+> > ppc64 use CMA area for the allocation of guest page table (hash page table). We won't
+> > be able to start guest if we fail to allocate hash page table. We have observed
+> > hash table allocation failure because we failed to migrate pages out of CMA region
+> > because they were pinned. This happen when we are using VFIO. VFIO on ppc64 pins
+> > the entire guest RAM. If the guest RAM pages get allocated out of CMA region, we
+> > won't be able to migrate those pages. The pages are also pinned for the lifetime of the
+> > guest.
+> > 
+> > Currently we support migration of non-compound pages. With THP and with the addition of
+> >  hugetlb migration we can end up allocating compound pages from CMA region. This
+> > patch series add support for migrating compound pages. The first path adds the helper
+> > get_user_pages_cma_migrate() which pin the page making sure we migrate them out of
+> > CMA region before incrementing the reference count. 
+> 
+> Very little review activity.  Perhaps Andrey and/or Michal can find the
+> time..
 
-The overhead should be minimal (2 extra register assignments) and
-outside of the writing loop.
-
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
-CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- arch/x86/lib/usercopy_64.c | 29 +----------------------------
- 1 file changed, 1 insertion(+), 28 deletions(-)
-
-diff --git a/arch/x86/lib/usercopy_64.c b/arch/x86/lib/usercopy_64.c
-index 84f8f8a20b30..ab6aabb62055 100644
---- a/arch/x86/lib/usercopy_64.c
-+++ b/arch/x86/lib/usercopy_64.c
-@@ -69,34 +69,7 @@ EXPORT_SYMBOL(memset_user);
- 
- unsigned long __clear_user(void __user *addr, unsigned long size)
- {
--	long __d0;
--	might_fault();
--	/* no memory constraint because it doesn't change any memory gcc knows
--	   about */
--	stac();
--	asm volatile(
--		"	testq  %[size8],%[size8]\n"
--		"	jz     4f\n"
--		"0:	movq $0,(%[dst])\n"
--		"	addq   $8,%[dst]\n"
--		"	decl %%ecx ; jnz   0b\n"
--		"4:	movq  %[size1],%%rcx\n"
--		"	testl %%ecx,%%ecx\n"
--		"	jz     2f\n"
--		"1:	movb   $0,(%[dst])\n"
--		"	incq   %[dst]\n"
--		"	decl %%ecx ; jnz  1b\n"
--		"2:\n"
--		".section .fixup,\"ax\"\n"
--		"3:	lea 0(%[size1],%[size8],8),%[size8]\n"
--		"	jmp 2b\n"
--		".previous\n"
--		_ASM_EXTABLE_UA(0b, 3b)
--		_ASM_EXTABLE_UA(1b, 2b)
--		: [size8] "=&c"(size), [dst] "=&D" (__d0)
--		: [size1] "r"(size & 7), "[size8]" (size / 8), "[dst]"(addr));
--	clac();
--	return size;
-+	return __memset_user(addr, 0, size);
- }
- EXPORT_SYMBOL(__clear_user);
- 
+I will unlikely find some time before the end of the year. Sorry about
+that.
 -- 
-2.19.1
+Michal Hocko
+SUSE Labs
