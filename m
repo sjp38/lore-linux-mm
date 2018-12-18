@@ -1,60 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5610B8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 07:51:17 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id w16so3438654wrk.10
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 04:51:17 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s15sor7612116wmh.13.2018.12.10.04.51.15
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C8A78E0007
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 23:36:33 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id d18so14077333pfe.0
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 20:36:33 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id v14si13414844pfc.76.2018.12.17.20.36.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Dec 2018 04:51:15 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v9 4/8] mm, arm64: untag user addresses in mm/gup.c
-Date: Mon, 10 Dec 2018 13:51:01 +0100
-Message-Id: <f67011f11f676bf7b947bf819273e22b828b9b9b.1544445454.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544445454.git.andreyknvl@google.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Dec 2018 20:36:32 -0800 (PST)
+Subject: [PATCH v6 6/6] mm: Maintain randomization of page free lists
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 17 Dec 2018 20:23:55 -0800
+Message-ID: <154510703541.1941238.6053320635908576300.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Andrey Konovalov <andreyknvl@google.com>
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, peterz@infradead.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
-mm/gup.c provides a kernel interface that accepts user addresses and
-manipulates user pages directly (for example get_user_pages, that is used
-by the futex syscall). Since a user can provided tagged addresses, we need
-to handle such case.
+When freeing a page with an order >= shuffle_page_order randomly select
+the front or back of the list for insertion.
 
-Add untagging to gup.c functions that use user addresses for vma lookup.
+While the mm tries to defragment physical pages into huge pages this can
+tend to make the page allocator more predictable over time. Inject the
+front-back randomness to preserve the initial randomness established by
+shuffle_free_memory() when the kernel was booted.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+The overhead of this manipulation is constrained by only being applied
+for MAX_ORDER sized pages by default.
+
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/gup.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ include/linux/mmzone.h  |   10 ++++++++++
+ include/linux/shuffle.h |   12 ++++++++++++
+ mm/page_alloc.c         |   11 +++++++++--
+ mm/shuffle.c            |   16 ++++++++++++++++
+ 4 files changed, 47 insertions(+), 2 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 8cb68a50dbdf..409aedb1e2d5 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -683,6 +683,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 	if (!nr_pages)
- 		return 0;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 35cc33af87f2..338929647eea 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -98,6 +98,8 @@ extern int page_group_by_mobility_disabled;
+ struct free_area {
+ 	struct list_head	free_list[MIGRATE_TYPES];
+ 	unsigned long		nr_free;
++	u64			rand;
++	u8			rand_bits;
+ };
  
-+	start = untagged_addr(start);
+ /* Used for pages not on another list */
+@@ -116,6 +118,14 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
+ 	area->nr_free++;
+ }
+ 
++#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
++/* Used to preserve page allocation order entropy */
++void add_to_free_area_random(struct page *page, struct free_area *area,
++		int migratetype);
++#else
++#define add_to_free_area_random add_to_free_area
++#endif
 +
- 	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
- 
- 	/*
-@@ -845,6 +847,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
- 	struct vm_area_struct *vma;
- 	vm_fault_t ret, major = 0;
- 
-+	address = untagged_addr(address);
+ /* Used for pages which are on another list */
+ static inline void move_to_free_area(struct page *page, struct free_area *area,
+ 			     int migratetype)
+diff --git a/include/linux/shuffle.h b/include/linux/shuffle.h
+index a8a168919cb5..8b3941a87c2c 100644
+--- a/include/linux/shuffle.h
++++ b/include/linux/shuffle.h
+@@ -29,6 +29,13 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
+ 		return;
+ 	__shuffle_zone(z, start_pfn, end_pfn);
+ }
 +
- 	if (unlocked)
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
++static inline bool is_shuffle_order(int order)
++{
++	if (!static_branch_unlikely(&page_alloc_shuffle_key))
++                return false;
++	return order >= CONFIG_SHUFFLE_PAGE_ORDER;
++}
+ #else
+ static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+ 		unsigned long end_pfn)
+@@ -43,5 +50,10 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
+ static inline void page_alloc_shuffle(void)
+ {
+ }
++
++static inline bool is_shuffle_order(int order)
++{
++	return false;
++}
+ #endif
+ #endif /* _MM_SHUFFLE_H */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index de8b5eb78d13..3a932ba23daf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -42,6 +42,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/memremap.h>
+ #include <linux/stop_machine.h>
++#include <linux/random.h>
+ #include <linux/sort.h>
+ #include <linux/pfn.h>
+ #include <linux/backing-dev.h>
+@@ -851,7 +852,8 @@ static inline void __free_one_page(struct page *page,
+ 	 * so it's less likely to be used soon and more likely to be merged
+ 	 * as a higher order page
+ 	 */
+-	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
++	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
++			&& !is_shuffle_order(order)) {
+ 		struct page *higher_page, *higher_buddy;
+ 		combined_pfn = buddy_pfn & pfn;
+ 		higher_page = page + (combined_pfn - pfn);
+@@ -865,7 +867,12 @@ static inline void __free_one_page(struct page *page,
+ 		}
+ 	}
  
--- 
-2.20.0.rc2.403.gdbc3b29805-goog
+-	add_to_free_area(page, &zone->free_area[order], migratetype);
++	if (is_shuffle_order(order))
++		add_to_free_area_random(page, &zone->free_area[order],
++				migratetype);
++	else
++		add_to_free_area(page, &zone->free_area[order], migratetype);
++
+ }
+ 
+ /*
+diff --git a/mm/shuffle.c b/mm/shuffle.c
+index 07961ff41a03..4cadf51c9b40 100644
+--- a/mm/shuffle.c
++++ b/mm/shuffle.c
+@@ -213,3 +213,19 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+ 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+ 		shuffle_zone(z, start_pfn, end_pfn);
+ }
++
++void add_to_free_area_random(struct page *page, struct free_area *area,
++		int migratetype)
++{
++	if (area->rand_bits == 0) {
++		area->rand_bits = 64;
++		area->rand = get_random_u64();
++	}
++
++	if (area->rand & 1)
++		add_to_free_area(page, area, migratetype);
++	else
++		add_to_free_area_tail(page, area, migratetype);
++	area->rand_bits--;
++	area->rand >>= 1;
++}
