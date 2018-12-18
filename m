@@ -1,65 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 145F06B6AC0
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 14:25:39 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id s27so7439656pgm.4
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 11:25:39 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id g184si15031204pfb.288.2018.12.03.11.25.37
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B4D28E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 14:08:08 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id j13so1778572oii.8
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 11:08:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 101sor11666101otu.130.2018.12.18.11.08.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 11:25:37 -0800 (PST)
-Subject: [PATCH RFC 3/3] kvm: Add additional check to determine if a page is
- refcounted
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Mon, 03 Dec 2018 11:25:36 -0800
-Message-ID: <154386513636.27193.9038916677163713072.stgit@ahduyck-desk1.amr.corp.intel.com>
-In-Reply-To: <154386493754.27193.1300965403157243427.stgit@ahduyck-desk1.amr.corp.intel.com>
-References: <154386493754.27193.1300965403157243427.stgit@ahduyck-desk1.amr.corp.intel.com>
+        (Google Transport Security);
+        Tue, 18 Dec 2018 11:08:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+References: <154483851047.1672629.15001135860756738866.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <154483852617.1672629.2068988045031389440.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20181216124335.GB30212@rapoport-lnx> <CAPcyv4hXPm4GnBheTZ5WN6s5Kiw02MW1aWA-s2qC8BqfthT3Yg@mail.gmail.com>
+ <20181218091121.GA25499@rapoport-lnx>
+In-Reply-To: <20181218091121.GA25499@rapoport-lnx>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 18 Dec 2018 11:07:55 -0800
+Message-ID: <CAPcyv4iDkEo+xG-AJetOfp12RO8qDV0t=AF3rvoq5GKc5VFuzw@mail.gmail.com>
+Subject: Re: [PATCH v5 3/5] mm: Shuffle initial free memory to improve
+ memory-side-cache utilization
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dan.j.williams@intel.com, pbonzini@redhat.com, yi.z.zhang@linux.intel.com, brho@google.com, kvm@vger.kernel.org, linux-nvdimm@lists.01.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.jiang@intel.com, yu.c.zhang@intel.com, pagupta@redhat.com, david@redhat.com, jack@suse.cz, hch@lst.de, rkrcmar@redhat.com, jglisse@redhat.com
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Linux MM <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-The function kvm_is_refcounted_page is used primarily to determine if KVM
-is allowed to take a reference on the page. It was using the PG_reserved
-flag to determine this previously, however in the case of DAX the page has
-the PG_reserved flag set, but supports pinning by taking a reference on
-the page. As such I have updated the check to add a special case for
-ZONE_DEVICE pages that have the new support_refcount_pinning flag set.
+On Tue, Dec 18, 2018 at 1:11 AM Mike Rapoport <rppt@linux.ibm.com> wrote:
+>
+> On Mon, Dec 17, 2018 at 11:56:36AM -0800, Dan Williams wrote:
+> > On Sun, Dec 16, 2018 at 4:43 AM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> > >
+> > > On Fri, Dec 14, 2018 at 05:48:46PM -0800, Dan Williams wrote:
+> > > > Randomization of the page allocator improves the average utilization of
+> > > > a direct-mapped memory-side-cache. Memory side caching is a platform
+> > > > capability that Linux has been previously exposed to in HPC
+> > > > (high-performance computing) environments on specialty platforms. In
+> > > > that instance it was a smaller pool of high-bandwidth-memory relative to
+> > > > higher-capacity / lower-bandwidth DRAM. Now, this capability is going to
+> > > > be found on general purpose server platforms where DRAM is a cache in
+> > > > front of higher latency persistent memory [1].
+> > [..]
+> > > > diff --git a/mm/memblock.c b/mm/memblock.c
+> > > > index 185bfd4e87bb..fd617928ccc1 100644
+> > > > --- a/mm/memblock.c
+> > > > +++ b/mm/memblock.c
+> > > > @@ -834,8 +834,16 @@ int __init_memblock memblock_set_sidecache(phys_addr_t base, phys_addr_t size,
+> > > >               return ret;
+> > > >
+> > > >       for (i = start_rgn; i < end_rgn; i++) {
+> > > > -             type->regions[i].cache_size = cache_size;
+> > > > -             type->regions[i].direct_mapped = direct_mapped;
+> > > > +             struct memblock_region *r = &type->regions[i];
+> > > > +
+> > > > +             r->cache_size = cache_size;
+> > > > +             r->direct_mapped = direct_mapped;
+> > >
+> > > I think this change can be merged into the previous patch
+> >
+> > Ok, will do.
+> >
+> > > > +             /*
+> > > > +              * Enable randomization for amortizing direct-mapped
+> > > > +              * memory-side-cache conflicts.
+> > > > +              */
+> > > > +             if (r->size > r->cache_size && r->direct_mapped)
+> > > > +                     page_alloc_shuffle_enable();
+> > >
+> > > It seems that this is the only use for ->direct_mapped in the memblock
+> > > code. Wouldn't cache_size != 0 suffice? I.e., in the code that sets the
+> > > memblock region attributes, the cache_size can be set to 0 for the non
+> > > direct mapped caches, isn't it?
+> > >
+> >
+> > The HMAT specification allows for other cache-topologies, so it's not
+> > sufficient to just look for non-zero size when a platform implements a
+> > set-associative cache. The expectation is that a set-associative cache
+> > would not need the kernel to perform memory randomization to improve
+> > the cache utilization.
+> >
+> > The check for memory size > cache-size is a sanity check for a
+> > platform BIOS or system configuration that mis-reports or mis-sizes
+> > the cache.
+>
+> Apparently I didn't explain my point well.
+>
+> The acpi_numa_memory_affinity_init() already knows whether the cache is
+> direct mapped or a set-associative. It can just skip calling
+> memblock_set_sidecache() for the set-associative case.
+>
+> Another thing I've noticed only now, is that memory randomization is
+> enabled if there is at least one memory region with a direct mapped side
+> cache attached and once the randomization is on the cache size and the
+> mapping mode do not matter. So, I think it's not necessary to store them in
+> the memory region at all.
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
----
- virt/kvm/kvm_main.c |   16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
-
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 5e666df5666d..2e7e9fbb67bf 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -148,8 +148,20 @@ __weak int kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
- 
- bool kvm_is_refcounted_pfn(kvm_pfn_t pfn)
- {
--	if (pfn_valid(pfn))
--		return !PageReserved(pfn_to_page(pfn));
-+	if (pfn_valid(pfn)) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		/*
-+		 * The reference count for MMIO pages are not updated.
-+		 * Previously this was being tested for with just the
-+		 * PageReserved check, however now ZONE_DEVICE pages may
-+		 * also allow for the refcount to be updated for the sake
-+		 * of pinning the pages so use the additional check provided
-+		 * to determine if the reference count on the page can be
-+		 * used to pin it.
-+		 */
-+		return !PageReserved(page) || is_device_pinnable_page(page);
-+	}
- 
- 	return false;
- }
+Fair enough. I was anticipating the case when non-ACPI systems gain
+this capability, but you're right no need to design that now. The size
+sanity check has some small value, but given there is an override and
+broken platform firmware would need to be fixed I don't think we lose
+much by getting rid of it. Will re-flow without memblock integration.
