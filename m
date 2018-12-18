@@ -1,96 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C6FE56B6881
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 05:09:55 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id j5so12795749qtk.11
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 02:09:55 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s127si2667896qkf.24.2018.12.03.02.09.54
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7948E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 12:21:22 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id h11so15764665pfj.13
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 09:21:22 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id o3si13531811pll.201.2018.12.18.09.21.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 02:09:54 -0800 (PST)
-Subject: Re: [PATCH v3] mm, hotplug: move init_currently_empty_zone() under
- zone_span_lock protection
-References: <20181122101241.7965-1-richard.weiyang@gmail.com>
- <20181130065847.13714-1-richard.weiyang@gmail.com>
- <dd8f1834-769e-d341-58dc-50a81fe0c0ec@redhat.com>
- <20181201002709.ggybtqza6c7hyqrn@master>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <9134dde5-8f8c-b985-b38b-b7697b50bf89@redhat.com>
-Date: Mon, 3 Dec 2018 11:09:52 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 18 Dec 2018 09:21:21 -0800 (PST)
+Date: Tue, 18 Dec 2018 09:21:00 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH V3 3/5] arch/powerpc/mm: Nest MMU workaround for mprotect
+ RW upgrade.
+Message-ID: <20181218172100.GB22729@infradead.org>
+References: <20181205030931.12037-1-aneesh.kumar@linux.ibm.com>
+ <20181205030931.12037-4-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20181201002709.ggybtqza6c7hyqrn@master>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181205030931.12037-4-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: mhocko@suse.com, osalvador@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On 01.12.18 01:27, Wei Yang wrote:
-> On Fri, Nov 30, 2018 at 10:30:22AM +0100, David Hildenbrand wrote:
->> On 30.11.18 07:58, Wei Yang wrote:
->>> During online_pages phase, pgdat->nr_zones will be updated in case this
->>> zone is empty.
->>>
->>> Currently the online_pages phase is protected by the global lock
->>> mem_hotplug_begin(), which ensures there is no contention during the
->>> update of nr_zones. But this global lock introduces scalability issues.
->>>
->>> The patch moves init_currently_empty_zone under both zone_span_writelock
->>> and pgdat_resize_lock because both the pgdat state is changed (nr_zones)
->>> and the zone's start_pfn. Also this patch changes the documentation
->>> of node_size_lock to include the protectioin of nr_zones.
->>
->> s/protectioin/protection/
->>
->>>
->>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->>> Acked-by: Michal Hocko <mhocko@suse.com>
->>> Reviewed-by: Oscar Salvador <osalvador@suse.de>
->>> CC: David Hildenbrand <david@redhat.com>
->>>
->>> ---
->>> David, I may not catch you exact comment on the code or changelog. If I
->>> missed, just let me know.
->>
->> I guess I would have rewritten it to something like the following
->>
->> "
->> Currently the online_pages phase is protected by two global locks
->> (device_device_hotplug_lock and mem_hotplug_lock). Especial the latter
->> can result in scalability issues, as it will slow down code relying on
->> get_online_mems(). Let's prepare code for not having to rely on
->> get_online_mems() but instead some more fine grained locks.
-> 
-> I am not sure why we specify get_online_mems() here. mem_hotplug_lock is
-> grabed in many places besides this one. In my mind, each place introduce
-> scalability issue, not only this one.
+On Wed, Dec 05, 2018 at 08:39:29AM +0530, Aneesh Kumar K.V wrote:
+> +pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
+> +			     pte_t *ptep)
+> +{
+> +	unsigned long pte_val;
+> +
+> +	/*
+> +	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
+> +	 * possible. Also keep the pte_present true so that we don't take
+> +	 * wrong fault.
+> +	 */
+> +	pte_val = pte_update(vma->vm_mm, addr, ptep, _PAGE_PRESENT, _PAGE_INVALID, 0);
+> +
+> +	return __pte(pte_val);
+> +
+> +}
+> +EXPORT_SYMBOL(ptep_modify_prot_start);
 
-mem_hotplug_lock is grabbed in write only when
-adding/removing/onlining/offlining memory and when adding/removing
-device memory. The read locker are the critical part for now.
-
-> 
-> Or you want to say, the mem_hotplug_lock will introduce scalability
-> issue in two place:
-> 
->   * hotplug process itself
->   * slab allocation process
-> 
-> The second one is more critical. And this is what we try to address?
-
-Indeed, especially as the first usually (except device memory) also uses
-the device_hotplug_lock, I only consider the second one critical.
-
-Feel free to change this description to whatever you like.
-As I already stated scalability of adding/removing/onlining/offlining is
-not really an issue as of now (prove me wrong :) ). So I would not care
-about including such information in this patch.
-
--- 
-
-Thanks,
-
-David / dhildenb
+As far as I can tell this is only called from mm/memory.c, mm/mprotect.c
+and fs/proc/task_mmu.c, so there should be no need to export the
+function.
