@@ -1,106 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FA456B687B
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 05:03:22 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c34so3896557edb.8
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 02:03:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l22-v6sor3277405ejr.15.2018.12.03.02.03.20
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3139C8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 17:31:28 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id u32so23314686qte.1
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 14:31:28 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q74sor832466qkq.28.2018.12.18.14.31.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 03 Dec 2018 02:03:20 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] hwpoison, memory_hotplug: allow hwpoisoned pages to be offlined
-Date: Mon,  3 Dec 2018 11:03:09 +0100
-Message-Id: <20181203100309.14784-1-mhocko@kernel.org>
-MIME-Version: 1.0
+        Tue, 18 Dec 2018 14:31:27 -0800 (PST)
+Message-ID: <1545172285.18411.26.camel@lca.pw>
+Subject: kernel panic with page_owner=on
+From: Qian Cai <cai@lca.pw>
+Date: Tue, 18 Dec 2018 17:31:25 -0500
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oscar Salvador <OSalvador@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@gmail.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Stable tree <stable@vger.kernel.org>
+To: pasha.tatashin@oracle.com, mingo@kernel.org, mhocko@suse.com, akpm@linux-foundation.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, hpa@zytor.com, mgorman@techsingularity.net, tglx@linutronix.de
 
-From: Michal Hocko <mhocko@suse.com>
+CONFIG_DEBUG_VM_PGFLAGS=y
+PAGE_OWNER=y
+NODE_NOT_IN_PAGE_FLAGS=n
 
-We have received a bug report that an injected MCE about faulty memory
-prevents memory offline to succeed. The underlying reason is that the
-HWPoison page has an elevated reference count and the migration keeps
-failing. There are two problems with that. First of all it is dubious
-to migrate the poisoned page because we know that accessing that memory
-is possible to fail. Secondly it doesn't make any sense to migrate a
-potentially broken content and preserve the memory corruption over to a
-new location.
+This seems due to f165b378bbd (mm: uninitialized struct page poisoning sanity
+checking) shoots itself in the foot.
 
-Oscar has found out that it is the elevated reference count from
-memory_failure that is confusing the offlining path. HWPoisoned pages
-are isolated from the LRU list but __offline_pages might still try to
-migrate them if there is any preceding migrateable pages in the pfn
-range. Such a migration would fail due to the reference count but
-the migration code would put it back on the LRU list. This is quite
-wrong in itself but it would also make scan_movable_pages stumble over
-it again without any way out.
+[   11.917212] page:ffffea0004200000 is uninitialized and poisoned
+[   11.917220] raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff
+ffffffffffffffff
+[   11.921745] raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff
+ffffffffffffffff
+[   11.924523] page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+[   11.926498] page_owner info is not active (free page?)
+[   11.928234] ------------[ c-----
+[   12.329560] kernel BUG at include/linux/mm.h:990!
+[   12.337632] RIP: 0010:init_page_owner+0x486/0x520
+[   12.345238] RSP: 0000:ffffffff87c07d28 EFLAGS: 00010286
+[   12.346953] RAX: 0000000000000000 RBX: 0000000000108000 RCX: ffffffff85e5984c
+[   12.349253] RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffffffff87c07800
+[   12.351546] RBP: ffffffff87c07df8 R08: fffffbfff0fc0d41 R09: 0000000000000000
+[   12.353911] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000108200
+[   12.356186] R13: ffffea0004200000 R14: 0000000000280000 R15: ffffffffffffffff
+[   12.358532] FS:  0000000000000000(0000) GS:ffff8881eb600000(0000)
+knlGS:0000000000000000
+[   12.361190] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   12.363065] CR2: ffff8882d7401000 CR3: 00000002d4214001 CR4: 00000000000606b0
+[   12.365434] Call Trace:
+[   12.366566]  ? read_page_owner+0x470/0x470
+[   12.367944]  ? kmemleak_not_leak+0x45/0x80
+[   12.369293]  page_ext_init+0x233/0x23f
+[   12.370535]  start_kernel+0x592/0x6b6
+[   12.371735]_cache_init+0xb/0xb
+[   12.773100]  ? init_intel_microcode+0xd7/0xd7
+[   12.774614]  ? cmdline_find_option_bool+0x82/0x1b0
+[   12.776221]  x86_64_start_reserons+0x24/0x26
+[   12.877703]  x86_64_start_kernel+0xf9/0x100
+[   12.879120]  secondary_startup_64+0xb6/0xc0
 
-This means that the hotremove with hwpoisoned pages has never really
-worked (without a luck). HWPoisoning really needs a larger surgery
-but an immediate and backportable fix is to skip over these pages during
-offlining. Even if they are still mapped for some reason then
-try_to_unmap should turn those mappings into hwpoison ptes and cause
-SIGBUS on access. Nobody should be really touching the content of the
-page so it should be safe to ignore them even when there is a pending
-reference count.
+At first,
 
-Debugged-by: Oscar Salvador <osalvador@suse.com>
-Cc: stable
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-I am sending this as an RFC now because I am not fully sure I see all
-the consequences myself yet. This has passed a testing by Oscar but I
-would highly appreciate a review from Naoya about my assumptions about
-hwpoisoning. E.g. it is not entirely clear to me whether there is a
-potential case where the page might be still mapped. I have put
-try_to_unmap just to be sure. It would be really great if I could drop
-that part because then it is not really great which of the TTU flags to
-use to cover all potential cases.
+start_kernel
+  setup_arch
+    pagetable_init
+      paging_init
+        sparse_init
+          sparse_init_nid
+            sparse_buffer_init
+              memblock_virt_alloc_try_nid_raw
 
-I have marked the patch for stable but I have no idea how far back it
-should go. Probably everything that already has hotremove and hwpoison
-code.
+It poisons all the allocated pages there.
 
-Thanks in advance!
+memset(ptr, PAGE_POISON_PATTERN, size)
 
- mm/memory_hotplug.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+Later,
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c6c42a7425e5..08c576d5a633 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -34,6 +34,7 @@
- #include <linux/hugetlb.h>
- #include <linux/memblock.h>
- #include <linux/compaction.h>
-+#include <linux/rmap.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1366,6 +1367,17 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 			pfn = page_to_pfn(compound_head(page))
- 				+ hpage_nr_pages(page) - 1;
- 
-+		/*
-+		 * HWPoison pages have elevated reference counts so the migration would
-+		 * fail on them. It also doesn't make any sense to migrate them in the
-+		 * first place. Still try to unmap such a page in case it is still mapped.
-+		 */
-+		if (PageHWPoison(page)) {
-+			if (page_mapped(page))
-+				try_to_unmap(page, TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS);
-+			continue;
-+		}
-+
- 		if (!get_page_unless_zero(page))
- 			continue;
- 		/*
--- 
-2.19.1
+page_ext_init
+  invoke_init_callbacks
+    init_section_page_ext
+      init_page_owner
+        init_early_allocated_pages
+          init_zones_in_node
+            init_pages_in_zone
+              lookup_page_ext
+                page_to_nid
+                  PF_POISONED_CHECK <--- panic here.
+
+This because all allocated pages are not initialized until later.
+
+init_pages_in_zone
+  __set_page_owner_handle
