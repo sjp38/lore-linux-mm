@@ -1,72 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4CB8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:21:57 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id t18so2992152qtj.3
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:21:57 -0800 (PST)
-Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
-        by mx.google.com with ESMTPS id o5si1091733qkc.148.2018.12.20.11.21.56
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C53E8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 11:31:47 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id s27so14130019pgm.4
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 08:31:47 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 44si13384590plc.110.2018.12.18.08.31.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 11:21:56 -0800 (PST)
-Message-ID: <01000167cd113509-2c85d8a3-8e0e-4cb6-a745-88733e448471-000000@email.amazonses.com>
-Date: Thu, 20 Dec 2018 19:21:56 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 1/7] slub: Replace ctor field with ops field in /sys/slab/*
-References: <20181220192145.023162076@linux.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 18 Dec 2018 08:31:45 -0800 (PST)
+Date: Tue, 18 Dec 2018 08:31:14 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] Fix mm->owner point to a tsk that has been free
+Message-ID: <20181218163114.GV10600@bombadil.infradead.org>
+References: <1545110684-8730-1-git-send-email-gchen.guomin@gmail.com>
+ <20181218095226.GD17870@dhcp22.suse.cz>
+ <CAEEwsfRb-FDCLp-b3-n2+vvgWttv6FQhjkLxpJwA==_+89iY=w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=ctor_to_ops
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAEEwsfRb-FDCLp-b3-n2+vvgWttv6FQhjkLxpJwA==_+89iY=w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: gchen chen <gchen.guomin@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>, gchen <guominchen@tencent.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Create an ops field in /sys/slab/*/ops to contain all the callback
-operations defined for a slab cache. This will be used to display
-the additional callbacks that will be defined soon to enable
-defragmentation.
+On Wed, Dec 19, 2018 at 12:21:27AM +0800, gchen chen wrote:
+> Oh, yes, the patch 39af176 has been skip the kthread
+> on mm_update_next_owner .
 
-Display the existing ctor callback in the ops fields contents.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
----
- mm/slub.c |   16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -4994,13 +4994,18 @@ static ssize_t cpu_partial_store(struct
- }
- SLAB_ATTR(cpu_partial);
- 
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
- {
-+	int x = 0;
-+
- 	if (!s->ctor)
- 		return 0;
--	return sprintf(buf, "%pS\n", s->ctor);
-+
-+	if (s->ctor)
-+		x += sprintf(buf + x, "ctor : %pS\n", s->ctor);
-+	return x;
- }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
- 
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
- {
-@@ -5413,7 +5418,7 @@ static struct attribute *slab_attrs[] =
- 	&objects_partial_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&hwcache_align_attr.attr,
+Actually f87fb599ae4
