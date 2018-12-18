@@ -1,56 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C06848E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 15:48:47 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id o21so13829391edq.4
-        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 12:48:47 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 447998E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 09:44:13 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e12so12752474edd.16
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 06:44:13 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j27-v6sor4325667eja.3.2018.12.18.12.48.46
+        by mx.google.com with SMTPS id l52sor9412385edc.17.2018.12.18.06.44.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 18 Dec 2018 12:48:46 -0800 (PST)
-Date: Tue, 18 Dec 2018 20:48:44 +0000
+        Tue, 18 Dec 2018 06:44:11 -0800 (PST)
+Date: Tue, 18 Dec 2018 14:44:10 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [PATCH] mm, page_isolation: remove drain_all_pages() in
  set_migratetype_isolate()
-Message-ID: <20181218204844.tmlv5jpie6smhnhn@master>
+Message-ID: <20181218144410.mrm45xthqhqvw5zw@master>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20181214023912.77474-1-richard.weiyang@gmail.com>
- <20181213195712.1e7bacce774c403e82fe9fab@linux-foundation.org>
- <20181214151756.kxtxgqb6i5vmrymw@master>
- <20181217122132.GH30879@dhcp22.suse.cz>
+ <20181217122523.GI30879@dhcp22.suse.cz>
+ <20181217150819.zqz7u5kjswkvqoqu@master>
+ <20181217154812.GU30879@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181217122132.GH30879@dhcp22.suse.cz>
+In-Reply-To: <20181217154812.GU30879@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, osalvador@suse.de, david@redhat.com, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, osalvador@suse.de, david@redhat.com
 
-On Mon, Dec 17, 2018 at 01:21:32PM +0100, Michal Hocko wrote:
->On Fri 14-12-18 15:17:56, Wei Yang wrote:
->> On Thu, Dec 13, 2018 at 07:57:12PM -0800, Andrew Morton wrote:
->> >On Fri, 14 Dec 2018 10:39:12 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
->> >
->> >> Below is a brief call flow for __offline_pages()
->> >
->> >Offtopic...
->> >
->> >set_migratetype_isolate() has the comment
->> >
->> >	/*
->> >	 * immobile means "not-on-lru" pages. If immobile is larger than
->> >	 * removable-by-driver pages reported by notifier, we'll fail.
->> >	 */
->> >
->> >what the heck does that mean?  It used to talk about unmovable pages,
->> >but this was mysteriously changed to use the unique term "immobile" by
->> >Minchan's ee6f509c32 ("mm: factor out memory isolate functions"). 
->> >Could someone please take a look?
->> >
->> >
->> >> and
+On Mon, Dec 17, 2018 at 04:48:12PM +0100, Michal Hocko wrote:
+>On Mon 17-12-18 15:08:19, Wei Yang wrote:
+>> On Mon, Dec 17, 2018 at 01:25:23PM +0100, Michal Hocko wrote:
+>> >On Fri 14-12-18 10:39:12, Wei Yang wrote:
+>> >> Below is a brief call flow for __offline_pages() and
 >> >> alloc_contig_range():
 >> >> 
 >> >>   __offline_pages()/alloc_contig_range()
@@ -64,65 +46,117 @@ On Mon, Dec 17, 2018 at 01:21:32PM +0100, Michal Hocko wrote:
 >> >> alloc_contig_range(). And both of them call drain_all_pages() if every
 >> >> check looks good. This means it is not necessary call drain_all_pages()
 >> >> in each iteration of set_migratetype_isolate().
->> >>
+>> >> 
 >> >> By doing so, the logic seems a little bit clearer.
 >> >> set_migratetype_isolate() handles pages in Buddy, while
 >> >> drain_all_pages() takes care of pages in pcp.
 >> >
->> >Well.  drain_all_pages() moves pages from pcp to buddy so I'm not sure
->> >that argument holds water.
+>> >I have to confess I am not sure about the purpose of the draining here.
+>> >I suspect it is to make sure that pages in the pcp lists really get
+>> >isolated and if that is the case then it makes sense.
 >> >
->> >Can we step back a bit and ask ourselves what all these draining
->> >operations are actually for?  What is the intent behind each callsite? 
->> >Figuring that out (and perhaps even documenting it!) would help us
->> >decide the most appropriate places from which to perform the drain.
+>> >In any case I strongly suggest not touching this code without a very
+>> >good explanation on why this is not needed. Callers do XYZ is not a
+>> >proper explanation because assumes that all callers will know that this
+>> >has to be done. So either we really need to drain and then it is better
+>> >to make it here or we don't but that requires some explanation.
+>> >
 >> 
->> With some rethinking we even could take drain_all_pages() out of the
->> repeat loop. Because after isolation, the page in this range will not be
->> put to pcp pageset. So we just need to drain pages once.
+>> Yep, let me try to explain what is trying to do.
 >> 
->> The change may look like this.
+>> Based on my understanding, online_pages do two things
+>> 
+>>     * adjust zone/pgdat status
+>>     * put pages into Buddy
+>> 
+>> Generally, offline_pages do the reverse
+>> 
+>>     * take pages out of Buddy
+>>     * adjust zone/pgdat status
+>> 
+>> While it is not that easy to take pages out of Buddy, since pages are
+>> 
+>>     * pcp list
+>>     * slub
+>>     * other usage
+>> 
+>> This means before taking a page out of Buddy, we need to return it first
+>> to Buddy.
+>> 
+>> Current implementation is interesting by introducing migrate type. By
+>> setting migrate type to MIGRATE_ISOLATE, this range of pages will never
+>> be allocated from Buddy. And every page returned in this range will
+>> never be touched by Buddy.
+>> 
+>> Function start_isolate_page_range() just do this.
+>> 
+>> Then let's focus on the pcp list. This is a little bit different
+>> than other allocated pages. These are actually "partially" allocated
+>> pages. They are not counted in Buddy Free pages, either no real use. So
+>> we have two choice to get back those pages:
+>> 
+>>     * wait until it is allocated to a real user and wait for return
+>>     * or drain them directly
+>> 
+>> Current implementation take 2nd approach.
+>> 
+>> Then we can see there are also two way to drain them:
+>> 
+>>     * drain them range by range
+>>     * drain them in a whole range
+>> 
+>> Both looks good, but not necessary to do them both. Because after we set
+>> a pageblock migrate type to MIGRATE_ISOLATE, pages in this range will
+>> never be allocated nor be put on pcp list. So after we drain one
+>> particular range, it is not necessary to drain this range again.
 >
->No, this is incorrect. Draining pcp lists before scan_movable_pages is
->most likely sub-optimal, because scan_movable_pages will simply ignore
->pages being on the pcp lists. But we definitely want to drain before we
->terminate the offlining phase because we do not want to have isolated
->pages on those lists before we allow the final hotremove.
+>OK, this is an important point and actually the argument that i am
+>wrong. I have missed that free_unref_page_commit skips pcp lists for
+>MIGRATE_ISOLATE (resp. all migrate types above MIGRATE_PCPTYPES).
+>Then you are right that we are OK to drain the zone only once _after_ we
+>have isolated the full range.
 >
->The way how we retry the migration loop until there is no page in use
->just guarantees that drain_all_pages is called. If you put it out of the
->loop then you just break that assumption. Moving drain_all_pages down
->after the migration is done should work well AFAICS but I didn't really
->think through all potential side effects nor have time to do so now.
+>So please send a new patch with this clarification in the changelog and
+>I will ack it.
+> 
+>> The reason why I choose to drain them in a whole range is current
+>> drain_all_pages() just carry zone information. For example, a zone may
+>> have 1G while a pageblock is 128M. The pageblock is 1/8 of this zone.
+>> This means in case there are 8 pages on pcp list, only 1 page drained by
+>> drain_all_pages belongs to this pageblock. But we drain other 7 healthy
+>> pages.
+>> 
+>>  CPU1 pcp list                            CPU2 pcp list
+>> 
+>>  +---------------+                        +---------------+ 
+>>  |A1  B3  C8  F6 |                        |E1  G3  D8  B6 |
+>>  +---------------+                        +---------------+
+>> 
+>> 
+>>    A         B         C         D         E         F         G
+>>   +---------+---------+---------+---------+---------+---------+---------+
+>>   |012345678|         |         |         |         |         |         |
+>>   +---------+---------+---------+---------+---------+---------+---------+
+>>                                 |<-pgblk->|
+>>   |<-                              Zone                               ->|
+>> 
+>> 
+>> This is a chart for illustration. In case we want to isolate pgblk D,
+>> while zone pcp list has 8 pages and only one belongs to this pgblk D.
+>> This means the drain on pgblk base has much side effect. And with one
+>> drain on each pgblk, this may increase the contention on this zone.
+>> 
+>> Well, another approach is to enable drain_all_pages() with exact range
+>> information. But neither approach needs to do them both.
 >
+>Is this actually worth the additional complexity? Have you seen an
+>actual workload that would benefit from that?
 
-After discussion, do you agree with this proposal?
+No, I just mention the possible approach in my mind. While currently
+drain pcp list once is enough.
 
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 6910e0eea074..120e9fdfd055 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1590,6 +1590,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
->>         if (ret)
->>                 goto failed_removal;
->> 
->> +       drain_all_pages(zone);
->>         pfn = start_pfn;
->>  repeat:
->>         /* start memory hot removal */
->> @@ -1599,7 +1600,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
->> 
->>         cond_resched();
->>         lru_add_drain_all();
->> -       drain_all_pages(zone);
->> 
->>         pfn = scan_movable_pages(start_pfn, end_pfn);
->>         if (pfn) { /* We have movable pages */
->> 
->> -- 
->> Wei Yang
->> Help you, Help me
->
+I will prepare v2 with more detailed changelog with migratetype thing.
+
 >-- 
 >Michal Hocko
 >SUSE Labs
