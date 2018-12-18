@@ -1,110 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7DA6B6EA2
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 07:18:43 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id e8-v6so4511513ljg.22
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 04:18:43 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a16sor4252617lfi.3.2018.12.04.04.18.40
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A51B88E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:17 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id v12so11464019plp.16
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:42:17 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id h67si14035461pfb.146.2018.12.18.01.42.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 04:18:40 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [RFC v1 PATCH 0/6] hardening: statically allocated protected memory
-Date: Tue,  4 Dec 2018 14:17:59 +0200
-Message-Id: <20181204121805.4621-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Dec 2018 01:42:15 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBI9eWiv143894
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:15 -0500
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pewf53aed-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:15 -0500
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 18 Dec 2018 09:42:14 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH V4 3/5] arch/powerpc/mm: Nest MMU workaround for mprotect RW upgrade.
+Date: Tue, 18 Dec 2018 15:11:35 +0530
+In-Reply-To: <20181218094137.13732-1-aneesh.kumar@linux.ibm.com>
+References: <20181218094137.13732-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
+Message-Id: <20181218094137.13732-4-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, x86@kernel.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-This patch-set is the first-cut implementation of write-rare memory
-protection, as previously agreed [1]
-Its purpose it to keep data write protected kernel data which is seldom
-modified.
-There is no read overhead, however writing requires special operations that
-are probably unsitable for often-changing data.
-The use is opt-in, by applying the modifier __wr_after_init to a variable
-declaration.
+NestMMU requires us to mark the pte invalid and flush the tlb when we do a
+RW upgrade of pte. We fixed a variant of this in the fault path in commit
+Fixes: bd5050e38aec ("powerpc/mm/radix: Change pte relax sequence to handle nest MMU hang")
 
-As the name implies, the write protection kicks in only after init() is
-completed; before that moment, the data is modifiable in the usual way.
+Do the same for mprotect upgrades.
 
-Current Limitations:
-* supports only data which is allocated statically, at build time.
-* supports only x86_64
-* might not work for very large amount of data, since it relies on the
-  assumption that said data can be entirely remapped, at init.
+Hugetlb is handled in the next patch.
 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/pgtable.h | 18 +++++++++++++
+ arch/powerpc/include/asm/book3s/64/radix.h   |  4 +++
+ arch/powerpc/mm/pgtable-book3s64.c           | 27 ++++++++++++++++++++
+ arch/powerpc/mm/pgtable-radix.c              | 18 +++++++++++++
+ 4 files changed, 67 insertions(+)
 
-Some notes:
-- even if the code is only for x86_64, it is placed in the generic
-  locations, with the intention of extending it also to arm64
-- the current section used for collecting wr-after-init data might need to
-  be moved, to work with arm64 MMU
-- the functionality is in its own c and h files, for now, to ease the
-  introduction (and refactoring) of code dealing with dynamic allocation
-- recently some updated patches were posted for live-patch on arm64 [2],
-  they might help with adding arm64 support here
-- to avoid the risk of weakening __ro_after_init, __wr_after_init data is
-  in a separate set of pages, and any invocation will confirm that the
-  memory affected falls within this range.
-  I have modified rodata_test accordingly, to check als othis case.
-- to avoid replicating the code which does the change of mapping, there is
-  only one function performing multiple, selectable, operations, such as
-  memcpy(), memset(). I have added also rcu_assign_pointer() as further
-  example. But I'm not too fond of this implementation either. I just
-  couldn't think of any that I would like significantly better.
-- I have left out the patchset from Nadav that these patches depend on,
-  but it can be found here [3] (Should have I resubmitted it?)
-- I am not sure what is the correct form for giving proper credit wrt the
-  authoring of the wr_after_init mechanism, guidance would be appreciated
-- In an attempt to spam less people, I have curbed the list of recipients.
-  If I have omitted someone who should have been kept/added, please
-  add them to the thread.
-
-
-[1] https://www.openwall.com/lists/kernel-hardening/2018/11/22/8
-[2] https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1793199.html
-[3] https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1810245.html
-
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
-
-
-
-Igor Stoppa (6):
-	[PATCH 1/6] __wr_after_init: linker section and label
-	[PATCH 2/6] __wr_after_init: write rare for static allocation
-	[PATCH 3/6] rodata_test: refactor tests
-	[PATCH 4/6] rodata_test: add verification for __wr_after_init
-	[PATCH 5/6] __wr_after_init: test write rare functionality
-	[PATCH 6/6] __wr_after_init: lkdtm test
-
-drivers/misc/lkdtm/core.c         |   3 +
-drivers/misc/lkdtm/lkdtm.h        |   3 +
-drivers/misc/lkdtm/perms.c        |  29 ++++++++
-include/asm-generic/vmlinux.lds.h |  20 ++++++
-include/linux/cache.h             |  17 +++++
-include/linux/prmem.h             | 134 +++++++++++++++++++++++++++++++++++++
-init/main.c                       |   2 +
-mm/Kconfig                        |   4 ++
-mm/Kconfig.debug                  |   9 +++
-mm/Makefile                       |   2 +
-mm/prmem.c                        | 124 ++++++++++++++++++++++++++++++++++
-mm/rodata_test.c                  |  63 ++++++++++++------
-mm/test_write_rare.c              | 135 ++++++++++++++++++++++++++++++++++++++
-13 files changed, 525 insertions(+), 20 deletions(-)
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 2e6ada28da64..92eaea164700 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -1314,6 +1314,24 @@ static inline int pud_pfn(pud_t pud)
+ 	BUILD_BUG();
+ 	return 0;
+ }
++#define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
++pte_t ptep_modify_prot_start(struct vm_area_struct *, unsigned long, pte_t *);
++void ptep_modify_prot_commit(struct vm_area_struct *, unsigned long,
++			     pte_t *, pte_t, pte_t);
++
++/*
++ * Returns true for a R -> RW upgrade of pte
++ */
++static inline bool is_pte_rw_upgrade(unsigned long old_val, unsigned long new_val)
++{
++	if (!(old_val & _PAGE_READ))
++		return false;
++
++	if ((!(old_val & _PAGE_WRITE)) && (new_val & _PAGE_WRITE))
++		return true;
++
++	return false;
++}
+ 
+ #endif /* __ASSEMBLY__ */
+ #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */
+diff --git a/arch/powerpc/include/asm/book3s/64/radix.h b/arch/powerpc/include/asm/book3s/64/radix.h
+index 7d1a3d1543fc..5ab134eeed20 100644
+--- a/arch/powerpc/include/asm/book3s/64/radix.h
++++ b/arch/powerpc/include/asm/book3s/64/radix.h
+@@ -127,6 +127,10 @@ extern void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep
+ 					 pte_t entry, unsigned long address,
+ 					 int psize);
+ 
++extern void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
++					   unsigned long addr, pte_t *ptep,
++					   pte_t old_pte, pte_t pte);
++
+ static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
+ 					       unsigned long set)
+ {
+diff --git a/arch/powerpc/mm/pgtable-book3s64.c b/arch/powerpc/mm/pgtable-book3s64.c
+index f3c31f5e1026..d6ff1f99ccfc 100644
+--- a/arch/powerpc/mm/pgtable-book3s64.c
++++ b/arch/powerpc/mm/pgtable-book3s64.c
+@@ -400,3 +400,30 @@ void arch_report_meminfo(struct seq_file *m)
+ 		   atomic_long_read(&direct_pages_count[MMU_PAGE_1G]) << 20);
+ }
+ #endif /* CONFIG_PROC_FS */
++
++pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
++			     pte_t *ptep)
++{
++	unsigned long pte_val;
++
++	/*
++	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
++	 * possible. Also keep the pte_present true so that we don't take
++	 * wrong fault.
++	 */
++	pte_val = pte_update(vma->vm_mm, addr, ptep, _PAGE_PRESENT, _PAGE_INVALID, 0);
++
++	return __pte(pte_val);
++
++}
++EXPORT_SYMBOL(ptep_modify_prot_start);
++
++void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
++			     pte_t *ptep, pte_t old_pte, pte_t pte)
++{
++	if (radix_enabled())
++		return radix__ptep_modify_prot_commit(vma, addr,
++						      ptep, old_pte, pte);
++	set_pte_at(vma->vm_mm, addr, ptep, pte);
++}
++EXPORT_SYMBOL(ptep_modify_prot_commit);
+diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
+index 931156069a81..dced3cd241c2 100644
+--- a/arch/powerpc/mm/pgtable-radix.c
++++ b/arch/powerpc/mm/pgtable-radix.c
+@@ -1063,3 +1063,21 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
+ 	}
+ 	/* See ptesync comment in radix__set_pte_at */
+ }
++
++void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
++				    unsigned long addr, pte_t *ptep,
++				    pte_t old_pte, pte_t pte)
++{
++	struct mm_struct *mm = vma->vm_mm;
++
++	/*
++	 * To avoid NMMU hang while relaxing access we need to flush the tlb before
++	 * we set the new value. We need to do this only for radix, because hash
++	 * translation does flush when updating the linux pte.
++	 */
++	if (is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
++	    (atomic_read(&mm->context.copros) > 0))
++		radix__flush_tlb_page(vma, addr);
++
++	set_pte_at(mm, addr, ptep, pte);
++}
+-- 
+2.19.2
