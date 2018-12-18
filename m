@@ -1,145 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 76CA18E00B5
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:21:51 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id o17so10254965pgi.14
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:21:51 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i4si13505633pfg.218.2018.12.11.09.21.50
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A96D58E0001
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 23:36:10 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 68so14025034pfr.6
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 20:36:10 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id 97si12335161plm.312.2018.12.17.20.36.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 09:21:50 -0800 (PST)
-Received: from relay1.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C0290B017
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 17:21:48 +0000 (UTC)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 3/6] mm: migrate: Move migrate_page_lock_buffers()
-Date: Tue, 11 Dec 2018 18:21:40 +0100
-Message-Id: <20181211172143.7358-4-jack@suse.cz>
-In-Reply-To: <20181211172143.7358-1-jack@suse.cz>
-References: <20181211172143.7358-1-jack@suse.cz>
+        Mon, 17 Dec 2018 20:36:09 -0800 (PST)
+Subject: [PATCH v6 2/6] acpi: Add HMAT to generic parsing tables
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 17 Dec 2018 20:23:33 -0800
+Message-ID: <154510701343.1941238.7745758103869136625.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mhocko@suse.cz, mgorman@suse.de, Jan Kara <jack@suse.cz>
+To: akpm@linux-foundation.org
+Cc: Keith Busch <keith.busch@intel.com>, peterz@infradead.org, dave.hansen@linux.intel.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
-buffer_migrate_page() is the only caller of migrate_page_lock_buffers()
-move it close to it and also drop the now unused stub for !CONFIG_BLOCK.
+From: Keith Busch <keith.busch@intel.com>
 
-Signed-off-by: Jan Kara <jack@suse.cz>
+The HMAT table header has different field lengths than the existing
+parsing uses. Add the HMAT type to the parsing rules so it may be
+generically parsed.
+
+Signed-off-by: Keith Busch <keith.busch@intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/migrate.c | 92 +++++++++++++++++++++++++++---------------------------------
- 1 file changed, 42 insertions(+), 50 deletions(-)
+ drivers/acpi/tables.c |    9 +++++++++
+ include/linux/acpi.h  |    1 +
+ 2 files changed, 10 insertions(+)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index d58a8ecf275e..f8df1ad6e7cf 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -378,56 +378,6 @@ void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd)
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index e9643b4267c7..bc1addf715dc 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -51,6 +51,7 @@ static int acpi_apic_instance __initdata;
+ 
+ enum acpi_subtable_type {
+ 	ACPI_SUBTABLE_COMMON,
++	ACPI_SUBTABLE_HMAT,
+ };
+ 
+ struct acpi_subtable_entry {
+@@ -232,6 +233,8 @@ acpi_get_entry_type(struct acpi_subtable_entry *entry)
+ 	switch (entry->type) {
+ 	case ACPI_SUBTABLE_COMMON:
+ 		return entry->hdr->common.type;
++	case ACPI_SUBTABLE_HMAT:
++		return entry->hdr->hmat.type;
+ 	}
+ 	return 0;
  }
- #endif
- 
--#ifdef CONFIG_BLOCK
--/* Returns true if all buffers are successfully locked */
--static bool buffer_migrate_lock_buffers(struct buffer_head *head,
--							enum migrate_mode mode)
--{
--	struct buffer_head *bh = head;
--
--	/* Simple case, sync compaction */
--	if (mode != MIGRATE_ASYNC) {
--		do {
--			get_bh(bh);
--			lock_buffer(bh);
--			bh = bh->b_this_page;
--
--		} while (bh != head);
--
--		return true;
--	}
--
--	/* async case, we cannot block on lock_buffer so use trylock_buffer */
--	do {
--		get_bh(bh);
--		if (!trylock_buffer(bh)) {
--			/*
--			 * We failed to lock the buffer and cannot stall in
--			 * async migration. Release the taken locks
--			 */
--			struct buffer_head *failed_bh = bh;
--			put_bh(failed_bh);
--			bh = head;
--			while (bh != failed_bh) {
--				unlock_buffer(bh);
--				put_bh(bh);
--				bh = bh->b_this_page;
--			}
--			return false;
--		}
--
--		bh = bh->b_this_page;
--	} while (bh != head);
--	return true;
--}
--#else
--static inline bool buffer_migrate_lock_buffers(struct buffer_head *head,
--							enum migrate_mode mode)
--{
--	return true;
--}
--#endif /* CONFIG_BLOCK */
--
- static int expected_page_refs(struct page *page)
+@@ -242,6 +245,8 @@ acpi_get_entry_length(struct acpi_subtable_entry *entry)
+ 	switch (entry->type) {
+ 	case ACPI_SUBTABLE_COMMON:
+ 		return entry->hdr->common.length;
++	case ACPI_SUBTABLE_HMAT:
++		return entry->hdr->hmat.length;
+ 	}
+ 	return 0;
+ }
+@@ -252,6 +257,8 @@ acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
+ 	switch (entry->type) {
+ 	case ACPI_SUBTABLE_COMMON:
+ 		return sizeof(entry->hdr->common);
++	case ACPI_SUBTABLE_HMAT:
++		return sizeof(entry->hdr->hmat);
+ 	}
+ 	return 0;
+ }
+@@ -259,6 +266,8 @@ acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
+ static enum acpi_subtable_type __init
+ acpi_get_subtable_type(char *id)
  {
- 	int expected_count = 1;
-@@ -755,6 +705,48 @@ int migrate_page(struct address_space *mapping,
- EXPORT_SYMBOL(migrate_page);
++	if (strncmp(id, ACPI_SIG_HMAT, 4) == 0)
++		return ACPI_SUBTABLE_HMAT;
+ 	return ACPI_SUBTABLE_COMMON;
+ }
  
- #ifdef CONFIG_BLOCK
-+/* Returns true if all buffers are successfully locked */
-+static bool buffer_migrate_lock_buffers(struct buffer_head *head,
-+							enum migrate_mode mode)
-+{
-+	struct buffer_head *bh = head;
-+
-+	/* Simple case, sync compaction */
-+	if (mode != MIGRATE_ASYNC) {
-+		do {
-+			get_bh(bh);
-+			lock_buffer(bh);
-+			bh = bh->b_this_page;
-+
-+		} while (bh != head);
-+
-+		return true;
-+	}
-+
-+	/* async case, we cannot block on lock_buffer so use trylock_buffer */
-+	do {
-+		get_bh(bh);
-+		if (!trylock_buffer(bh)) {
-+			/*
-+			 * We failed to lock the buffer and cannot stall in
-+			 * async migration. Release the taken locks
-+			 */
-+			struct buffer_head *failed_bh = bh;
-+			put_bh(failed_bh);
-+			bh = head;
-+			while (bh != failed_bh) {
-+				unlock_buffer(bh);
-+				put_bh(bh);
-+				bh = bh->b_this_page;
-+			}
-+			return false;
-+		}
-+
-+		bh = bh->b_this_page;
-+	} while (bh != head);
-+	return true;
-+}
-+
- /*
-  * Migration function for pages with buffers. This function can only be used
-  * if the underlying filesystem guarantees that no other references to "page"
--- 
-2.16.4
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 18805a967c70..4373f5ba0f95 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -143,6 +143,7 @@ enum acpi_address_range_id {
+ /* Table Handlers */
+ union acpi_subtable_headers {
+ 	struct acpi_subtable_header common;
++	struct acpi_hmat_structure hmat;
+ };
+ 
+ typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
