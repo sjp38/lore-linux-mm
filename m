@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 63CB08E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:12:51 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id y5so12731186ion.16
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 22:12:51 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id j26si7774377jak.26.2018.12.17.22.12.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Dec 2018 22:12:50 -0800 (PST)
-Date: Mon, 17 Dec 2018 22:12:19 -0800
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 34C068E0033
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 20:10:04 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 75so13580525pfq.8
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 17:10:04 -0800 (PST)
+Received: from ipmail01.adl6.internode.on.net (ipmail01.adl6.internode.on.net. [150.101.137.136])
+        by mx.google.com with ESMTP id t16si13810633pfk.139.2018.12.17.17.10.00
+        for <linux-mm@kvack.org>;
+        Mon, 17 Dec 2018 17:10:02 -0800 (PST)
+Date: Tue, 18 Dec 2018 12:09:54 +1100
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181218061219.GC8112@magnolia>
+Message-ID: <20181218010954.GM6311@dastard>
 References: <20181207191620.GD3293@redhat.com>
  <3c4d46c0-aced-f96f-1bf3-725d02f11b60@nvidia.com>
  <20181208022445.GA7024@redhat.com>
@@ -30,7 +29,7 @@ In-Reply-To: <20181217183443.GO10600@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Jerome Glisse <jglisse@redhat.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Cc: Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
 On Mon, Dec 17, 2018 at 10:34:43AM -0800, Matthew Wilcox wrote:
 > On Mon, Dec 17, 2018 at 01:11:50PM -0500, Jerome Glisse wrote:
@@ -89,26 +88,28 @@ On Mon, Dec 17, 2018 at 10:34:43AM -0800, Matthew Wilcox wrote:
 > No.  The solution John, Dan & I have been looking at is to take the
 > dirty page off the LRU while it is pinned by GUP.  It will never be
 > found for writeback.
-> 
+
+Pages are found for writeback by mapping tree lookup, not page LRU
+scans (i.e. write_cache_pages() from background writeback)
+
+Are suggesting that pages pinned by GUP are going to be removed from
+the page cache *and* the mapping tree while they are pinned?
+
 > That's not the end of the story though.  Other parts of the kernel (eg
 > msync) also need to be taught to stay away from pages which are pinned
-> by GUP.  But the idea is that no page gets written back to storage while
-> it's pinned by GUP.  Only when the last GUP ends is the page returned
+> by GUP. But the idea is that no page gets written back to storage while
+> it's pinned by GUP. Only when the last GUP ends is the page returned
 > to the list of dirty pages.
 
-Errr... what does fsync do in the meantime?  Not write the page?
-That would seem to break what fsync() is supposed to do.
+I think playing fast and loose with data integrity like this is
+fundamentally wrong. If this gets implemented, then I'll be sending
+every "I ran sync and then two hours later the system crashed but
+the data was lost when the system came back up" bug report directly
+to you.
 
---D
+Cheers,
 
-> >     - block layer copy the page to a bounce page effectively creating
-> >       a snapshot of what is the content of the real page. This allows
-> >       everything in block layer that need stable content to work on
-> >       the bounce page (raid, stripping, encryption, ...)
-> >     - once write back is done the page is not marked clean but stays
-> >       dirty, this effectively disable things like COW for filesystem
-> >       and other feature that expect page_mkwrite between write back.
-> >       AFAIK it is believe that it is something acceptable
-> 
-> So none of this is necessary.
-> 
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
