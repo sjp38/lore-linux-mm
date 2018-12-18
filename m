@@ -1,82 +1,119 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 09/12] rodata_test: add verification for __wr_after_init
-Date: Wed, 19 Dec 2018 23:33:35 +0200
-Message-Id: <20181219213338.26619-10-igor.stoppa@huawei.com>
-In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
-References: <20181219213338.26619-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE7D8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 03:24:11 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id p131so927610oia.21
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 00:24:11 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p126si859562oih.133.2018.12.18.00.24.09
+        for <linux-mm@kvack.org>;
+        Tue, 18 Dec 2018 00:24:09 -0800 (PST)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: [RESEND PATCH V3 1/5] mm/hugetlb: Distinguish between migratability and movability
+Date: Tue, 18 Dec 2018 13:54:06 +0530
+Message-Id: <1545121450-1663-2-git-send-email-anshuman.khandual@arm.com>
+In-Reply-To: <1545121450-1663-1-git-send-email-anshuman.khandual@arm.com>
+References: <1545121450-1663-1-git-send-email-anshuman.khandual@arm.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Cc: suzuki.poulose@arm.com, will.deacon@arm.com, Steven.Price@arm.com, steve.capper@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-The write protection of the __wr_after_init data can be verified with the
-same methodology used for const data.
+During huge page allocation it's migratability is checked to determine if
+it should be placed under movable zones with GFP_HIGHUSER_MOVABLE. But the
+movability aspect of the huge page could depend on other factors than just
+migratability. Movability in itself is a distinct property which should not
+be tied with migratability alone.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+This differentiates these two and implements an enhanced movability check
+which also considers huge page size to determine if it is feasible to be
+placed under a movable zone. At present it just checks for gigantic pages
+but going forward it can incorporate other enhanced checks.
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
+Reviewed-by: Steve Capper <steve.capper@arm.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 ---
- mm/rodata_test.c | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+ include/linux/hugetlb.h | 30 ++++++++++++++++++++++++++++++
+ mm/hugetlb.c            |  2 +-
+ mm/migrate.c            |  2 +-
+ 3 files changed, 32 insertions(+), 2 deletions(-)
 
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-index e1349520b436..a669cf9f5a61 100644
---- a/mm/rodata_test.c
-+++ b/mm/rodata_test.c
-@@ -16,8 +16,23 @@
- 
- #define INIT_TEST_VAL 0xC3
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 087fd5f4..1b858d7 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -506,6 +506,31 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+ #endif
+ }
  
 +/*
-+ * Note: __ro_after_init data is, for every practical effect, equivalent to
-+ * const data, since they are even write protected at the same time; there
-+ * is no need for separate testing.
-+ * __wr_after_init data, otoh, is altered also after the write protection
-+ * takes place and it cannot be exploitable for altering more permanent
-+ * data.
++ * Movability check is different as compared to migration check.
++ * It determines whether or not a huge page should be placed on
++ * movable zone or not. Movability of any huge page should be
++ * required only if huge page size is supported for migration.
++ * There wont be any reason for the huge page to be movable if
++ * it is not migratable to start with. Also the size of the huge
++ * page should be large enough to be placed under a movable zone
++ * and still feasible enough to be migratable. Just the presence
++ * in movable zone does not make the migration feasible.
++ *
++ * So even though large huge page sizes like the gigantic ones
++ * are migratable they should not be movable because its not
++ * feasible to migrate them from movable zone.
 + */
++static inline bool hugepage_movable_supported(struct hstate *h)
++{
++	if (!hugepage_migration_supported(h))
++		return false;
 +
- static const int rodata_test_data = INIT_TEST_VAL;
- 
-+#ifdef CONFIG_PRMEM
-+static int wr_after_init_test_data __wr_after_init = INIT_TEST_VAL;
-+extern long __start_wr_after_init;
-+extern long __end_wr_after_init;
-+#endif
++	if (hstate_is_gigantic(h))
++		return false;
++	return true;
++}
 +
- static bool test_data(char *data_type, const int *data,
- 		      unsigned long start, unsigned long end)
+ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+ 					   struct mm_struct *mm, pte_t *pte)
  {
-@@ -59,7 +74,13 @@ static bool test_data(char *data_type, const int *data,
- 
- void rodata_test(void)
- {
--	test_data("rodata", &rodata_test_data,
--		  (unsigned long)&__start_rodata,
--		  (unsigned long)&__end_rodata);
-+	if (!test_data("rodata", &rodata_test_data,
-+		       (unsigned long)&__start_rodata,
-+		       (unsigned long)&__end_rodata))
-+		return;
-+#ifdef CONFIG_PRMEM
-+	    test_data("wr after init data", &wr_after_init_test_data,
-+		      (unsigned long)&__start_wr_after_init,
-+		      (unsigned long)&__end_wr_after_init);
-+#endif
+@@ -602,6 +627,11 @@ static inline bool hugepage_migration_supported(struct hstate *h)
+ 	return false;
  }
+ 
++static inline bool hugepage_movable_supported(struct hstate *h)
++{
++	return false;
++}
++
+ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+ 					   struct mm_struct *mm, pte_t *pte)
+ {
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 705a3e9c..795f745 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -919,7 +919,7 @@ static struct page *dequeue_huge_page_nodemask(struct hstate *h, gfp_t gfp_mask,
+ /* Movability of hugepages depends on migration support. */
+ static inline gfp_t htlb_alloc_mask(struct hstate *h)
+ {
+-	if (hugepage_migration_supported(h))
++	if (hugepage_movable_supported(h))
+ 		return GFP_HIGHUSER_MOVABLE;
+ 	else
+ 		return GFP_HIGHUSER;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f7e4bfd..3020a06 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1262,7 +1262,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 	struct anon_vma *anon_vma = NULL;
+ 
+ 	/*
+-	 * Movability of hugepages depends on architectures and hugepage size.
++	 * Migratability of hugepages depends on architectures and their size.
+ 	 * This check is necessary because some callers of hugepage migration
+ 	 * like soft offline and memory hotremove don't walk through page
+ 	 * tables or check whether the hugepage is pmd-based or not before
 -- 
-2.19.1
+2.7.4
