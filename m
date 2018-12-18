@@ -1,68 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 559056B7346
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 03:06:20 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id h11so16184616pfj.13
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 00:06:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z197sor24137758pgz.64.2018.12.05.00.06.19
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D79048E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:23:56 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id y35so11951661edb.5
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:23:56 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g21si5237277edj.72.2018.12.18.01.23.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Dec 2018 00:06:19 -0800 (PST)
-From: Pingfan Liu <kernelfans@gmail.com>
-Subject: [PATCH] mm/pageblock: throw compiling time error if pageblock_bits can not hold MIGRATE_TYPES
-Date: Wed,  5 Dec 2018 16:05:55 +0800
-Message-Id: <1543997155-18344-1-git-send-email-kernelfans@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Dec 2018 01:23:55 -0800 (PST)
+Subject: Re: [PATCH 07/14] mm, compaction: Always finish scanning of a full
+ pageblock
+References: <20181214230310.572-1-mgorman@techsingularity.net>
+ <20181214230310.572-8-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d0b6cb2d-a5cd-b415-e56f-2ad145f86cbc@suse.cz>
+Date: Tue, 18 Dec 2018 10:23:54 +0100
+MIME-Version: 1.0
+In-Reply-To: <20181214230310.572-8-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-Currently, NR_PAGEBLOCK_BITS and MIGRATE_TYPES are not associated by code.
-If someone adds extra migrate type, then he may forget to enlarge the
-NR_PAGEBLOCK_BITS.
-NR_PAGEBLOCK_BITS depends on MIGRATE_TYPES, while these macro
-spread on two different .h file with reverse dependency, it is a little
-hard to refer to MIGRATE_TYPES in pageblock-flag.h. This patch tries to
-remind such relation in compiling-time.
+On 12/15/18 12:03 AM, Mel Gorman wrote:
+> When compaction is finishing, it uses a flag to ensure the pageblock is
+> complete.  However, in general it makes sense to always complete migration
+> of a pageblock. Minimally, skip information is based on a pageblock and
+> partially scanned pageblocks may incur more scanning in the future. The
+> pageblock skip handling also becomes more strict later in the series and
+> the hint is more useful if a complete pageblock was always scanned.
+> 
+> The impact here is potentially on latencies as more scanning is done
+> but it's not a consistent win or loss as the scanning is not always a
+> high percentage of the pageblock and sometimes it is offset by future
+> reductions in scanning. Hence, the results are not presented this time as
+> it's a mix of gains/losses without any clear pattern. However, completing
+> scanning of the pageblock is important for later patches.
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
----
- include/linux/pageblock-flags.h | 5 +++--
- mm/page_alloc.c                 | 2 +-
- 2 files changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
-index 9132c5c..fe0aec4 100644
---- a/include/linux/pageblock-flags.h
-+++ b/include/linux/pageblock-flags.h
-@@ -25,11 +25,12 @@
- 
- #include <linux/types.h>
- 
-+#define PB_migratetype_bits 3
- /* Bit indices that affect a whole block of pages */
- enum pageblock_bits {
- 	PB_migrate,
--	PB_migrate_end = PB_migrate + 3 - 1,
--			/* 3 bits required for migrate types */
-+	PB_migrate_end = PB_migrate + PB_migratetype_bits - 1,
-+			/* n bits required for migrate types */
- 	PB_migrate_skip,/* If set the block is skipped by compaction */
- 
- 	/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc4..537020f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -425,7 +425,7 @@ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
- 	unsigned long bitidx, word_bitidx;
- 	unsigned long old_word, word;
- 
--	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
-+	BUILD_BUG_ON(order_base_2(MIGRATE_TYPES) != PB_migratetype_bits);
- 
- 	bitmap = get_pageblock_bitmap(page, pfn);
- 	bitidx = pfn_to_bitidx(page, pfn);
--- 
-2.7.4
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
