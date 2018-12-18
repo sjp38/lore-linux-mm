@@ -1,76 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 578246B6200
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2018 01:23:09 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id f69so8344946pff.5
-        for <linux-mm@kvack.org>; Sat, 01 Dec 2018 22:23:09 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c128sor14089835pfg.37.2018.12.01.22.23.08
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E25B8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 08:47:47 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id i124so11436367pgc.2
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 05:47:47 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id g1si13241353pgu.149.2018.12.18.05.47.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 01 Dec 2018 22:23:08 -0800 (PST)
-Date: Sun, 2 Dec 2018 11:56:52 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v2 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use
- vm_insert_range
-Message-ID: <20181202062651.GA3225@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 18 Dec 2018 05:47:45 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH V4 1/3] mm: Add get_user_pages_cma_migrate
+In-Reply-To: <20181121092259.16482-2-aneesh.kumar@linux.ibm.com>
+References: <20181121092259.16482-1-aneesh.kumar@linux.ibm.com> <20181121092259.16482-2-aneesh.kumar@linux.ibm.com>
+Date: Wed, 19 Dec 2018 00:47:39 +1100
+Message-ID: <871s6ft090.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, pawel@osciak.com, m.szyprowski@samsung.com, kyungmin.park@samsung.com, mchehab@kernel.org
-Cc: linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-Convert to use vm_insert_range to map range of kernel memory
-to user vma.
+"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++++----------------
- 1 file changed, 7 insertions(+), 16 deletions(-)
+> This helper does a get_user_pages_fast and if it find pages in the CMA area
+> it will try to migrate them before taking page reference. This makes sure that
+> we don't keep non-movable pages (due to page reference count) in the CMA area.
+> Not able to move pages out of CMA area result in CMA allocation failures.
+>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> ---
+>  include/linux/hugetlb.h |   2 +
+>  include/linux/migrate.h |   3 +
+>  mm/hugetlb.c            |   4 +-
+>  mm/migrate.c            | 132 ++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 139 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-index 015e737..898adef 100644
---- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-+++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-@@ -328,28 +328,19 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
- static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
- {
- 	struct vb2_dma_sg_buf *buf = buf_priv;
--	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
--	int i = 0;
-+	unsigned long page_count = vma_pages(vma);
-+	int err;
- 
- 	if (!buf) {
- 		printk(KERN_ERR "No memory to map\n");
- 		return -EINVAL;
- 	}
- 
--	do {
--		int ret;
--
--		ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
--		if (ret) {
--			printk(KERN_ERR "Remapping memory, error: %d\n", ret);
--			return ret;
--		}
--
--		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
--
-+	err = vm_insert_range(vma, vma->vm_start, buf->pages, page_count);
-+	if (err) {
-+		printk(KERN_ERR "Remapping memory, error: %d\n", err);
-+		return err;
-+	}
- 
- 	/*
- 	 * Use common vm_area operations to track buffer refcount.
--- 
-1.9.1
+I'd rather not merge this much mm/ code via the powerpc tree without
+acks.
+
+Anyone?
+
+cheers
+
+
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 087fd5f48c91..1eed0cdaec0e 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -371,6 +371,8 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+>  				nodemask_t *nmask);
+>  struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
+>  				unsigned long address);
+> +struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
+> +				     int nid, nodemask_t *nmask);
+>  int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+>  			pgoff_t idx);
+>  
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index f2b4abbca55e..d82b35afd2eb 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -286,6 +286,9 @@ static inline int migrate_vma(const struct migrate_vma_ops *ops,
+>  }
+>  #endif /* IS_ENABLED(CONFIG_MIGRATE_VMA_HELPER) */
+>  
+> +extern int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
+> +				      struct page **pages);
+> +
+>  #endif /* CONFIG_MIGRATION */
+>  
+>  #endif /* _LINUX_MIGRATE_H */
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 7f2a28ab46d5..faf3102ae45e 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1585,8 +1585,8 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
+>  	return page;
+>  }
+>  
+> -static struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
+> -		int nid, nodemask_t *nmask)
+> +struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
+> +				     int nid, nodemask_t *nmask)
+>  {
+>  	struct page *page;
+>  
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index f7e4bfdc13b7..b0e47e2c5347 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -2946,3 +2946,135 @@ int migrate_vma(const struct migrate_vma_ops *ops,
+>  }
+>  EXPORT_SYMBOL(migrate_vma);
+>  #endif /* defined(MIGRATE_VMA_HELPER) */
+> +
+> +static struct page *new_non_cma_page(struct page *page, unsigned long private)
+> +{
+> +	/*
+> +	 * We want to make sure we allocate the new page from the same node
+> +	 * as the source page.
+> +	 */
+> +	int nid = page_to_nid(page);
+> +	gfp_t gfp_mask = GFP_USER | __GFP_THISNODE;
+> +
+> +	if (PageHighMem(page))
+> +		gfp_mask |= __GFP_HIGHMEM;
+> +
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +	if (PageHuge(page)) {
+> +		struct hstate *h = page_hstate(page);
+> +		/*
+> +		 * We don't want to dequeue from the pool because pool pages will
+> +		 * mostly be from the CMA region.
+> +		 */
+> +		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
+> +	}
+> +#endif
+> +	if (PageTransHuge(page)) {
+> +		struct page *thp;
+> +		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_THISNODE;
+> +
+> +		/*
+> +		 * Remove the movable mask so that we don't allocate from
+> +		 * CMA area again.
+> +		 */
+> +		thp_gfpmask &= ~__GFP_MOVABLE;
+> +		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
+> +		if (!thp)
+> +			return NULL;
+> +		prep_transhuge_page(thp);
+> +		return thp;
+> +	}
+> +
+> +	return __alloc_pages_node(nid, gfp_mask, 0);
+> +}
+> +
+> +/**
+> + * get_user_pages_cma_migrate() - pin user pages in memory by migrating pages in CMA region
+> + * @start:	starting user address
+> + * @nr_pages:	number of pages from start to pin
+> + * @write:	whether pages will be written to
+> + * @pages:	array that receives pointers to the pages pinned.
+> + *		Should be at least nr_pages long.
+> + *
+> + * Attempt to pin user pages in memory without taking mm->mmap_sem.
+> + * If not successful, it will fall back to taking the lock and
+> + * calling get_user_pages().
+> + *
+> + * If the pinned pages are backed by CMA region, we migrate those pages out,
+> + * allocating new pages from non-CMA region. This helps in avoiding keeping
+> + * pages pinned in the CMA region for a long time thereby resulting in
+> + * CMA allocation failures.
+> + *
+> + * Returns number of pages pinned. This may be fewer than the number
+> + * requested. If nr_pages is 0 or negative, returns 0. If no pages
+> + * were pinned, returns -errno.
+> + */
+> +
+> +int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
+> +			       struct page **pages)
+> +{
+> +	int i, ret;
+> +	bool drain_allow = true;
+> +	bool migrate_allow = true;
+> +	LIST_HEAD(cma_page_list);
+> +
+> +get_user_again:
+> +	ret = get_user_pages_fast(start, nr_pages, write, pages);
+> +	if (ret <= 0)
+> +		return ret;
+> +
+> +	for (i = 0; i < ret; ++i) {
+> +		/*
+> +		 * If we get a page from the CMA zone, since we are going to
+> +		 * be pinning these entries, we might as well move them out
+> +		 * of the CMA zone if possible.
+> +		 */
+> +		if (is_migrate_cma_page(pages[i]) && migrate_allow) {
+> +
+> +			struct page *head = compound_head(pages[i]);
+> +
+> +			if (PageHuge(head))
+> +				isolate_huge_page(head, &cma_page_list);
+> +			else {
+> +				if (!PageLRU(head) && drain_allow) {
+> +					lru_add_drain_all();
+> +					drain_allow = false;
+> +				}
+> +
+> +				if (!isolate_lru_page(head)) {
+> +					list_add_tail(&head->lru, &cma_page_list);
+> +					mod_node_page_state(page_pgdat(head),
+> +							    NR_ISOLATED_ANON +
+> +							    page_is_file_cache(head),
+> +							    hpage_nr_pages(head));
+> +				}
+> +			}
+> +		}
+> +	}
+> +	if (!list_empty(&cma_page_list)) {
+> +		/*
+> +		 * drop the above get_user_pages reference.
+> +		 */
+> +		for (i = 0; i < ret; ++i)
+> +			put_page(pages[i]);
+> +
+> +		if (migrate_pages(&cma_page_list, new_non_cma_page,
+> +				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
+> +			/*
+> +			 * some of the pages failed migration. Do get_user_pages
+> +			 * without migration.
+> +			 */
+> +			migrate_allow = false;
+> +
+> +			if (!list_empty(&cma_page_list))
+> +				putback_movable_pages(&cma_page_list);
+> +		}
+> +		/*
+> +		 * We did migrate all the pages, Try to get the page references again
+> +		 * migrating any new CMA pages which we failed to isolate earlier.
+> +		 */
+> +		drain_allow = true;
+> +		goto get_user_again;
+> +	}
+> +	return ret;
+> +}
+> -- 
+> 2.17.2
