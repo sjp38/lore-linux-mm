@@ -1,654 +1,654 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 61BD58E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:30:45 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id o17so12841716pgi.14
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 22:30:45 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id i1si12335652pgs.417.2018.12.17.22.30.42
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E6CE88E0001
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 23:36:22 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id r13so12602933pgb.7
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 20:36:22 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id r14si12554650pfh.229.2018.12.17.20.36.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Dec 2018 22:30:43 -0800 (PST)
-Date: Tue, 18 Dec 2018 14:30:15 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH v6 4/6] mm: Shuffle initial free memory to improve
+        Mon, 17 Dec 2018 20:36:21 -0800 (PST)
+Subject: [PATCH v6 4/6] mm: Shuffle initial free memory to improve
  memory-side-cache utilization
-Message-ID: <201812181410.zF3l3lpN%fengguang.wu@intel.com>
-References: <154510702402.1941238.1616430879354317384.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 17 Dec 2018 20:23:44 -0800
+Message-ID: <154510702402.1941238.1616430879354317384.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <154510700291.1941238.817190985966612531.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="DocE+STaALJfprDB"
-Content-Disposition: inline
-In-Reply-To: <154510702402.1941238.1616430879354317384.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, peterz@infradead.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, peterz@infradead.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
+Randomization of the page allocator improves the average utilization of
+a direct-mapped memory-side-cache. Memory side caching is a platform
+capability that Linux has been previously exposed to in HPC
+(high-performance computing) environments on specialty platforms. In
+that instance it was a smaller pool of high-bandwidth-memory relative to
+higher-capacity / lower-bandwidth DRAM. Now, this capability is going to
+be found on general purpose server platforms where DRAM is a cache in
+front of higher latency persistent memory [1].
 
---DocE+STaALJfprDB
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Robert offered an explanation of the state of the art of Linux
+interactions with memory-side-caches [2], and I copy it here:
 
-Hi Dan,
+    It's been a problem in the HPC space:
+    http://www.nersc.gov/research-and-development/knl-cache-mode-performance-coe/
 
-I love your patch! Yet something to improve:
+    A kernel module called zonesort is available to try to help:
+    https://software.intel.com/en-us/articles/xeon-phi-software
 
-[auto build test ERROR on linus/master]
-[also build test ERROR on v4.20-rc7 next-20181217]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+    and this abandoned patch series proposed that for the kernel:
+    https://lkml.org/lkml/2017/8/23/195
 
-url:    https://github.com/0day-ci/linux/commits/Dan-Williams/mm-Randomize-free-memory/20181218-130230
-config: x86_64-randconfig-x010-201850 (attached as .config)
-compiler: gcc-7 (Debian 7.3.0-1) 7.3.0
-reproduce:
-        # save the attached .config to linux build tree
-        make ARCH=x86_64 
+    Dan's patch series doesn't attempt to ensure buffers won't conflict, but
+    also reduces the chance that the buffers will. This will make performance
+    more consistent, albeit slower than "optimal" (which is near impossible
+    to attain in a general-purpose kernel).  That's better than forcing
+    users to deploy remedies like:
+        "To eliminate this gradual degradation, we have added a Stream
+         measurement to the Node Health Check that follows each job;
+         nodes are rebooted whenever their measured memory bandwidth
+         falls below 300 GB/s."
 
-All errors (new ones prefixed by >>):
+A replacement for zonesort was merged upstream in commit cc9aec03e58f
+"x86/numa_emulation: Introduce uniform split capability". With this
+numa_emulation capability, memory can be split into cache sized
+("near-memory" sized) numa nodes. A bind operation to such a node, and
+disabling workloads on other nodes, enables full cache performance.
+However, once the workload exceeds the cache size then cache conflicts
+are unavoidable. While HPC environments might be able to tolerate
+time-scheduling of cache sized workloads, for general purpose server
+platforms, the oversubscribed cache case will be the common case.
 
-   mm/memblock.c: In function 'memblock_set_sidecache':
->> mm/memblock.c:859:4: error: too many arguments to function 'page_alloc_shuffle'
-       page_alloc_shuffle(SHUFFLE_ENABLE);
-       ^~~~~~~~~~~~~~~~~~
-   In file included from mm/memblock.c:20:0:
-   include/linux/shuffle.h:43:20: note: declared here
-    static inline void page_alloc_shuffle(void)
-                       ^~~~~~~~~~~~~~~~~~
+The worst case scenario is that a server system owner benchmarks a
+workload at boot with an un-contended cache only to see that performance
+degrade over time, even below the average cache performance due to
+excessive conflicts. Randomization clips the peaks and fills in the
+valleys of cache utilization to yield steady average performance.
 
-vim +/page_alloc_shuffle +859 mm/memblock.c
+Here are some performance impact details of the patches:
 
-   825	
-   826	#ifdef CONFIG_HAVE_MEMBLOCK_CACHE_INFO
-   827	/**
-   828	 * memblock_set_sidecache - set the system memory cache info
-   829	 * @base: base address of the region
-   830	 * @size: size of the region
-   831	 * @cache_size: system side cache size in bytes
-   832	 * @direct: true if the cache has direct mapped associativity
-   833	 *
-   834	 * This function isolates region [@base, @base + @size), and saves the cache
-   835	 * information.
-   836	 *
-   837	 * Return: 0 on success, -errno on failure.
-   838	 */
-   839	int __init_memblock memblock_set_sidecache(phys_addr_t base, phys_addr_t size,
-   840				   phys_addr_t cache_size, bool direct_mapped)
-   841	{
-   842		struct memblock_type *type = &memblock.memory;
-   843		int i, ret, start_rgn, end_rgn;
-   844	
-   845		ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
-   846		if (ret)
-   847			return ret;
-   848	
-   849		for (i = start_rgn; i < end_rgn; i++) {
-   850			struct memblock_region *r = &type->regions[i];
-   851	
-   852			r->cache_size = cache_size;
-   853			r->direct_mapped = direct_mapped;
-   854			/*
-   855			 * Enable randomization for amortizing direct-mapped
-   856			 * memory-side-cache conflicts.
-   857			 */
-   858			if (r->size > r->cache_size && r->direct_mapped)
- > 859				page_alloc_shuffle(SHUFFLE_ENABLE);
-   860		}
-   861	
-   862		return 0;
-   863	}
-   864	#endif
-   865	
+1/ An Intel internal synthetic memory bandwidth measurement tool, saw a
+3X speedup in a contrived case that tries to force cache conflicts. The
+contrived cased used the numa_emulation capability to force an instance
+of the benchmark to be run in two of the near-memory sized numa nodes.
+If both instances were placed on the same emulated they would fit and
+cause zero conflicts.  While on separate emulated nodes without
+randomization they underutilized the cache and conflicted unnecessarily
+due to the in-order allocation per node.
 
+2/ A well known Java server application benchmark was run with a heap
+size that exceeded cache size by 3X. The cache conflict rate was 8% for
+the first run and degraded to 21% after page allocator aging. With
+randomization enabled the rate levelled out at 11%.
+
+3/ A MongoDB workload did not observe measurable difference in
+cache-conflict rates, but the overall throughput dropped by 7% with
+randomization in one case.
+
+4/ Mel Gorman ran his suite of performance workloads with randomization
+enabled on platforms without a memory-side-cache and saw a mix of some
+improvements and some losses [3].
+
+While there is potentially significant improvement for applications that
+depend on low latency access across a wide working-set, the performance
+may be negligible to negative for other workloads. For this reason the
+shuffle capability defaults to off unless a direct-mapped
+memory-side-cache is detected. Even then, the page_alloc.shuffle=0
+parameter can be specified to disable the randomization on those
+systems.
+
+Outside of memory-side-cache utilization concerns there is potentially
+security benefit from randomization. Some data exfiltration and
+return-oriented-programming attacks rely on the ability to infer the
+location of sensitive data objects. The kernel page allocator,
+especially early in system boot, has predictable first-in-first out
+behavior for physical pages. Pages are freed in physical address order
+when first onlined.
+
+Quoting Kees:
+    "While we already have a base-address randomization
+     (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
+     memory layouts would certainly be using the predictability of
+     allocation ordering (i.e. for attacks where the base address isn't
+     important: only the relative positions between allocated memory).
+     This is common in lots of heap-style attacks. They try to gain
+     control over ordering by spraying allocations, etc.
+
+     I'd really like to see this because it gives us something similar
+     to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
+
+While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
+caches it leaves vast bulk of memory to be predictably in order
+allocated.  However, it should be noted, the concrete security benefits
+are hard to quantify, and no known CVE is mitigated by this
+randomization.
+
+Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
+perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
+when they are initially populated with free memory at boot and at
+hotplug time.
+
+The shuffling is done in terms of CONFIG_SHUFFLE_PAGE_ORDER sized free
+pages where the default CONFIG_SHUFFLE_PAGE_ORDER is MAX_ORDER-1 i.e.
+10, 4MB this trades off randomization granularity for time spent
+shuffling.  MAX_ORDER-1 was chosen to be minimally invasive to the page
+allocator while still showing memory-side cache behavior improvements,
+and the expectation that the security implications of finer granularity
+randomization is mitigated by CONFIG_SLAB_FREELIST_RANDOM.
+
+The performance impact of the shuffling appears to be in the noise
+compared to other memory initialization work. Also the bulk of the work
+is done in the background as a part of deferred_init_memmap().
+
+This initial randomization can be undone over time so a follow-on patch
+is introduced to inject entropy on page free decisions. It is reasonable
+to ask if the page free entropy is sufficient, but it is not enough due
+to the in-order initial freeing of pages. At the start of that process
+putting page1 in front or behind page0 still keeps them close together,
+page2 is still near page1 and has a high chance of being adjacent. As
+more pages are added ordering diversity improves, but there is still
+high page locality for the low address pages and this leads to no
+significant impact to the cache conflict rate.
+
+[1]: https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
+[2]: https://lkml.org/lkml/2018/9/22/54
+[3]: https://lkml.org/lkml/2018/10/12/309
+
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+ include/linux/list.h    |   17 ++++
+ include/linux/mmzone.h  |    4 +
+ include/linux/shuffle.h |   47 ++++++++++
+ init/Kconfig            |   36 ++++++++
+ mm/Makefile             |    7 +-
+ mm/memblock.c           |   16 +++
+ mm/memory_hotplug.c     |    3 +
+ mm/page_alloc.c         |    3 +
+ mm/shuffle.c            |  215 +++++++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 346 insertions(+), 2 deletions(-)
+ create mode 100644 include/linux/shuffle.h
+ create mode 100644 mm/shuffle.c
 
---DocE+STaALJfprDB
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-ygEA
-
---DocE+STaALJfprDB--
+diff --git a/include/linux/list.h b/include/linux/list.h
+index edb7628e46ed..3dfb8953f241 100644
+--- a/include/linux/list.h
++++ b/include/linux/list.h
+@@ -150,6 +150,23 @@ static inline void list_replace_init(struct list_head *old,
+ 	INIT_LIST_HEAD(old);
+ }
+ 
++/**
++ * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
++ * @entry1: the location to place entry2
++ * @entry2: the location to place entry1
++ */
++static inline void list_swap(struct list_head *entry1,
++			     struct list_head *entry2)
++{
++	struct list_head *pos = entry2->prev;
++
++	list_del(entry2);
++	list_replace(entry1, entry2);
++	if (pos == entry1)
++		pos = entry2;
++	list_add(entry1, pos);
++}
++
+ /**
+  * list_del_init - deletes entry from list and reinitialize it.
+  * @entry: the element to delete from the list.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 847705a6d0ec..eafa66d66232 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1266,6 +1266,10 @@ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
+ #define sparse_index_init(_sec, _nid)  do {} while (0)
++static inline int pfn_present(unsigned long pfn)
++{
++	return 1;
++}
+ #endif /* CONFIG_SPARSEMEM */
+ 
+ /*
+diff --git a/include/linux/shuffle.h b/include/linux/shuffle.h
+new file mode 100644
+index 000000000000..a8a168919cb5
+--- /dev/null
++++ b/include/linux/shuffle.h
+@@ -0,0 +1,47 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright(c) 2018 Intel Corporation. All rights reserved.
++#ifndef _MM_SHUFFLE_H
++#define _MM_SHUFFLE_H
++
++enum mm_shuffle_ctl {
++	SHUFFLE_ENABLE,
++	SHUFFLE_FORCE_DISABLE,
++};
++#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
++DECLARE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
++extern void page_alloc_shuffle(enum mm_shuffle_ctl);
++extern void __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
++		unsigned long end_pfn);
++static inline void shuffle_free_memory(pg_data_t *pgdat,
++		unsigned long start_pfn, unsigned long end_pfn)
++{
++	if (!static_branch_unlikely(&page_alloc_shuffle_key))
++		return;
++	__shuffle_free_memory(pgdat, start_pfn, end_pfn);
++}
++
++extern void __shuffle_zone(struct zone *z, unsigned long start_pfn,
++		unsigned long end_pfn);
++static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
++		unsigned long end_pfn)
++{
++	if (!static_branch_unlikely(&page_alloc_shuffle_key))
++		return;
++	__shuffle_zone(z, start_pfn, end_pfn);
++}
++#else
++static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
++		unsigned long end_pfn)
++{
++}
++
++static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
++		unsigned long end_pfn)
++{
++}
++
++static inline void page_alloc_shuffle(void)
++{
++}
++#endif
++#endif /* _MM_SHUFFLE_H */
+diff --git a/init/Kconfig b/init/Kconfig
+index cf5b5a0dcbc2..fa6812d995ec 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1720,6 +1720,42 @@ config SLAB_FREELIST_HARDENED
+ 	  sacrifies to harden the kernel slab allocator against common
+ 	  freelist exploit methods.
+ 
++config SHUFFLE_PAGE_ALLOCATOR
++	bool "Page allocator randomization"
++	depends on HAVE_MEMBLOCK_CACHE_INFO
++	default SLAB_FREELIST_RANDOM
++	help
++	  Randomization of the page allocator improves the average
++	  utilization of a direct-mapped memory-side-cache. See section
++	  5.2.27 Heterogeneous Memory Attribute Table (HMAT) in the ACPI
++	  6.2a specification for an example of how a platform advertises
++	  the presence of a memory-side-cache. There are also incidental
++	  security benefits as it reduces the predictability of page
++	  allocations to compliment SLAB_FREELIST_RANDOM, but the
++	  default granularity of shuffling on 4MB (MAX_ORDER) pages is
++	  selected based on cache utilization benefits.
++
++	  While the randomization improves cache utilization it may
++	  negatively impact workloads on platforms without a cache. For
++	  this reason, by default, the randomization is enabled only
++	  after runtime detection of a direct-mapped memory-side-cache.
++	  Otherwise, the randomization may be force enabled with the
++	  'page_alloc.shuffle' kernel command line parameter.
++
++	  Say Y if unsure.
++
++config SHUFFLE_PAGE_ORDER
++	depends on SHUFFLE_PAGE_ALLOCATOR
++	int "Page allocator shuffle order"
++	range 0 10
++	default 10
++	help
++	  Specify the granularity at which shuffling (randomization) is
++	  performed. By default this is set to MAX_ORDER-1 to minimize
++	  runtime impact of randomization and with the expectation that
++	  SLAB_FREELIST_RANDOM mitigates heap attacks on smaller
++	  object granularities.
++
+ config SLUB_CPU_PARTIAL
+ 	default y
+ 	depends on SLUB && SMP
+diff --git a/mm/Makefile b/mm/Makefile
+index d210cc9d6f80..ac5e5ba78874 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -33,7 +33,7 @@ mmu-$(CONFIG_MMU)	+= process_vm_access.o
+ endif
+ 
+ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+-			   maccess.o page_alloc.o page-writeback.o \
++			   maccess.o page-writeback.o \
+ 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+ 			   util.o mmzone.o vmstat.o backing-dev.o \
+ 			   mm_init.o mmu_context.o percpu.o slab_common.o \
+@@ -41,6 +41,11 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   interval_tree.o list_lru.o workingset.o \
+ 			   debug.o $(mmu-y)
+ 
++# Give 'page_alloc' its own module-parameter namespace
++page-alloc-y := page_alloc.o
++page-alloc-$(CONFIG_SHUFFLE_PAGE_ALLOCATOR) += shuffle.o
++
++obj-y += page-alloc.o
+ obj-y += init-mm.o
+ obj-y += memblock.o
+ 
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 8ebbc77f20c5..e51ecd6c1308 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -17,6 +17,7 @@
+ #include <linux/poison.h>
+ #include <linux/pfn.h>
+ #include <linux/debugfs.h>
++#include <linux/shuffle.h>
+ #include <linux/kmemleak.h>
+ #include <linux/seq_file.h>
+ #include <linux/memblock.h>
+@@ -850,6 +851,12 @@ int __init_memblock memblock_set_sidecache(phys_addr_t base, phys_addr_t size,
+ 
+ 		r->cache_size = cache_size;
+ 		r->direct_mapped = direct_mapped;
++		/*
++		 * Enable randomization for amortizing direct-mapped
++		 * memory-side-cache conflicts.
++		 */
++		if (r->size > r->cache_size && r->direct_mapped)
++			page_alloc_shuffle(SHUFFLE_ENABLE);
+ 	}
+ 
+ 	return 0;
+@@ -1971,9 +1978,16 @@ static unsigned long __init free_low_memory_core_early(void)
+ 	 *  low ram will be on Node1
+ 	 */
+ 	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+-				NULL)
++				NULL) {
++		pg_data_t *pgdat;
++
+ 		count += __free_memory_core(start, end);
+ 
++		for_each_online_pgdat(pgdat)
++			shuffle_free_memory(pgdat, PHYS_PFN(start),
++					PHYS_PFN(end));
++	}
++
+ 	return count;
+ }
+ 
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 2b2b3ccbbfb5..697669ffce32 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -23,6 +23,7 @@
+ #include <linux/highmem.h>
+ #include <linux/vmalloc.h>
+ #include <linux/ioport.h>
++#include <linux/shuffle.h>
+ #include <linux/delay.h>
+ #include <linux/migrate.h>
+ #include <linux/page-isolation.h>
+@@ -895,6 +896,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	zone->zone_pgdat->node_present_pages += onlined_pages;
+ 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+ 
++	shuffle_zone(zone, pfn, zone_end_pfn(zone));
++
+ 	if (onlined_pages) {
+ 		node_states_set_node(nid, &arg);
+ 		if (need_zonelists_rebuild)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2ec9cc407216..eaa9a012d6ae 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -60,6 +60,7 @@
+ #include <linux/sched/rt.h>
+ #include <linux/sched/mm.h>
+ #include <linux/page_owner.h>
++#include <linux/shuffle.h>
+ #include <linux/kthread.h>
+ #include <linux/memcontrol.h>
+ #include <linux/ftrace.h>
+@@ -1595,6 +1596,8 @@ static int __init deferred_init_memmap(void *data)
+ 	}
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 
++	shuffle_zone(zone, first_init_pfn, zone_end_pfn(zone));
++
+ 	/* Sanity check that the next zone really is unpopulated */
+ 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
+ 
+diff --git a/mm/shuffle.c b/mm/shuffle.c
+new file mode 100644
+index 000000000000..07961ff41a03
+--- /dev/null
++++ b/mm/shuffle.c
+@@ -0,0 +1,215 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright(c) 2018 Intel Corporation. All rights reserved.
++
++#include <linux/mm.h>
++#include <linux/init.h>
++#include <linux/mmzone.h>
++#include <linux/random.h>
++#include <linux/shuffle.h>
++#include <linux/moduleparam.h>
++#include "internal.h"
++
++DEFINE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
++static unsigned long shuffle_state;
++
++/*
++ * Depending on the architecture, module parameter parsing may run
++ * before, or after the cache detection. SHUFFLE_FORCE_DISABLE prevents,
++ * or reverts the enabling of the shuffle implementation. SHUFFLE_ENABLE
++ * attempts to turn on the implementation, but aborts if it finds
++ * SHUFFLE_FORCE_DISABLE already set.
++ */
++void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
++{
++	if (ctl == SHUFFLE_FORCE_DISABLE)
++		set_bit(SHUFFLE_FORCE_DISABLE, &shuffle_state);
++
++	if (test_bit(SHUFFLE_FORCE_DISABLE, &shuffle_state)) {
++		if (test_and_clear_bit(SHUFFLE_ENABLE, &shuffle_state))
++			static_branch_disable(&page_alloc_shuffle_key);
++	} else if (ctl == SHUFFLE_ENABLE
++			&& !test_and_set_bit(SHUFFLE_ENABLE, &shuffle_state))
++		static_branch_enable(&page_alloc_shuffle_key);
++}
++
++static bool shuffle_param;
++extern int shuffle_show(char *buffer, const struct kernel_param *kp)
++{
++	return sprintf(buffer, "%c\n", test_bit(SHUFFLE_ENABLE, &shuffle_state)
++			? 'Y' : 'N');
++}
++static int shuffle_store(const char *val, const struct kernel_param *kp)
++{
++	int rc = param_set_bool(val, kp);
++
++	if (rc < 0)
++		return rc;
++	if (shuffle_param)
++		page_alloc_shuffle(SHUFFLE_ENABLE);
++	else
++		page_alloc_shuffle(SHUFFLE_FORCE_DISABLE);
++	return 0;
++}
++module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
++
++/*
++ * For two pages to be swapped in the shuffle, they must be free (on a
++ * 'free_area' lru), have the same order, and have the same migratetype.
++ */
++static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
++{
++	struct page *page;
++
++	/*
++	 * Given we're dealing with randomly selected pfns in a zone we
++	 * need to ask questions like...
++	 */
++
++	/* ...is the pfn even in the memmap? */
++	if (!pfn_valid_within(pfn))
++		return NULL;
++
++	/* ...is the pfn in a present section or a hole? */
++	if (!pfn_present(pfn))
++		return NULL;
++
++	/* ...is the page free and currently on a free_area list? */
++	page = pfn_to_page(pfn);
++	if (!PageBuddy(page))
++		return NULL;
++
++	/*
++	 * ...is the page on the same list as the page we will
++	 * shuffle it with?
++	 */
++	if (page_order(page) != order)
++		return NULL;
++
++	return page;
++}
++
++/*
++ * Fisher-Yates shuffle the freelist which prescribes iterating through
++ * an array, pfns in this case, and randomly swapping each entry with
++ * another in the span, end_pfn - start_pfn.
++ *
++ * To keep the implementation simple it does not attempt to correct for
++ * sources of bias in the distribution, like modulo bias or
++ * pseudo-random number generator bias. I.e. the expectation is that
++ * this shuffling raises the bar for attacks that exploit the
++ * predictability of page allocations, but need not be a perfect
++ * shuffle.
++ *
++ * Note that we don't use @z->zone_start_pfn and zone_end_pfn(@z)
++ * directly since the caller may be aware of holes in the zone and can
++ * improve the accuracy of the random pfn selection.
++ */
++#define SHUFFLE_RETRY 10
++static void __meminit shuffle_zone_order(struct zone *z, unsigned long start_pfn,
++		unsigned long end_pfn, const int order)
++{
++	unsigned long i, flags;
++	const int order_pages = 1 << order;
++
++	if (start_pfn < z->zone_start_pfn)
++		start_pfn = z->zone_start_pfn;
++	if (end_pfn > zone_end_pfn(z))
++		end_pfn = zone_end_pfn(z);
++
++	/* probably means that start/end were outside the zone */
++	if (end_pfn <= start_pfn)
++		return;
++	spin_lock_irqsave(&z->lock, flags);
++	start_pfn = ALIGN(start_pfn, order_pages);
++	for (i = start_pfn; i < end_pfn; i += order_pages) {
++		unsigned long j;
++		int migratetype, retry;
++		struct page *page_i, *page_j;
++
++		/*
++		 * We expect page_i, in the sub-range of a zone being
++		 * added (@start_pfn to @end_pfn), to more likely be
++		 * valid compared to page_j randomly selected in the
++		 * span @zone_start_pfn to @spanned_pages.
++		 */
++		page_i = shuffle_valid_page(i, order);
++		if (!page_i)
++			continue;
++
++		for (retry = 0; retry < SHUFFLE_RETRY; retry++) {
++			/*
++			 * Pick a random order aligned page from the
++			 * start of the zone. Use the *whole* zone here
++			 * so that if it is freed in tiny pieces that we
++			 * randomize in the whole zone, not just within
++			 * those fragments.
++			 *
++			 * Since page_j comes from a potentially sparse
++			 * address range we want to try a bit harder to
++			 * find a shuffle point for page_i.
++			 */
++			j = z->zone_start_pfn +
++				ALIGN_DOWN(get_random_long() % z->spanned_pages,
++						order_pages);
++			page_j = shuffle_valid_page(j, order);
++			if (page_j && page_j != page_i)
++				break;
++		}
++		if (retry >= SHUFFLE_RETRY) {
++			pr_debug("%s: failed to swap %#lx\n", __func__, i);
++			continue;
++		}
++
++		/*
++		 * Each migratetype corresponds to its own list, make
++		 * sure the types match otherwise we're moving pages to
++		 * lists where they do not belong.
++		 */
++		migratetype = get_pageblock_migratetype(page_i);
++		if (get_pageblock_migratetype(page_j) != migratetype) {
++			pr_debug("%s: migratetype mismatch %#lx\n", __func__, i);
++			continue;
++		}
++
++		list_swap(&page_i->lru, &page_j->lru);
++
++		pr_debug("%s: swap: %#lx -> %#lx\n", __func__, i, j);
++
++		/* take it easy on the zone lock */
++		if ((i % (100 * order_pages)) == 0) {
++			spin_unlock_irqrestore(&z->lock, flags);
++			cond_resched();
++			spin_lock_irqsave(&z->lock, flags);
++		}
++	}
++	spin_unlock_irqrestore(&z->lock, flags);
++}
++
++void __meminit __shuffle_zone(struct zone *z, unsigned long start_pfn,
++               unsigned long end_pfn)
++{
++       int i;
++
++       /* shuffle all the orders at the specified order and higher */
++       for (i = CONFIG_SHUFFLE_PAGE_ORDER; i < MAX_ORDER; i++)
++               shuffle_zone_order(z, start_pfn, end_pfn, i);
++}
++
++/**
++ * shuffle_free_memory - reduce the predictability of the page allocator
++ * @pgdat: node page data
++ * @start_pfn: Limit the shuffle to the greater of this value or zone start
++ * @end_pfn: Limit the shuffle to the less of this value or zone end
++ *
++ * While shuffle_zone() attempts to avoid holes with pfn_valid() and
++ * pfn_present() they can not report sub-section sized holes. @start_pfn
++ * and @end_pfn limit the shuffle to the exact memory pages being freed.
++ */
++void __meminit __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
++		unsigned long end_pfn)
++{
++	struct zone *z;
++
++	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
++		shuffle_zone(z, start_pfn, end_pfn);
++}
