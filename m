@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 642216B6854
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 04:22:27 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id t1so2510951wmt.5
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 01:22:27 -0800 (PST)
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id w8si10319886wrp.196.2018.12.03.01.22.25
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 994F48E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 03:38:27 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c53so11894817edc.9
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 00:38:27 -0800 (PST)
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id 89si2191361edr.235.2018.12.18.00.38.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 01:22:25 -0800 (PST)
-Subject: Re: [PATCH 0/9] Allow persistent memory to be used like normal RAM
-References: <20181022201317.8558C1D8@viggo.jf.intel.com>
-From: Brice Goglin <brice.goglin@gmail.com>
-Message-ID: <ffeb6225-6d5c-099e-3158-4711c879ec23@gmail.com>
-Date: Mon, 3 Dec 2018 10:22:24 +0100
+        Tue, 18 Dec 2018 00:38:26 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id C816C1C18EB
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 08:38:25 +0000 (GMT)
+Date: Tue, 18 Dec 2018 08:38:24 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 05/14] mm, compaction: Skip pageblocks with reserved pages
+Message-ID: <20181218083823.GI29005@techsingularity.net>
+References: <20181214230310.572-1-mgorman@techsingularity.net>
+ <20181214230310.572-6-mgorman@techsingularity.net>
+ <b1d38179-4ccf-f34a-dffa-26c7957b8aed@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20181022201317.8558C1D8@viggo.jf.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <b1d38179-4ccf-f34a-dffa-26c7957b8aed@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-Le 22/10/2018 à 22:13, Dave Hansen a écrit :
-> Persistent memory is cool.  But, currently, you have to rewrite
-> your applications to use it.  Wouldn't it be cool if you could
-> just have it show up in your system like normal RAM and get to
-> it like a slow blob of memory?  Well... have I got the patch
-> series for you!
->
-> This series adds a new "driver" to which pmem devices can be
-> attached.  Once attached, the memory "owned" by the device is
-> hot-added to the kernel and managed like any other memory.  On
-> systems with an HMAT (a new ACPI table), each socket (roughly)
-> will have a separate NUMA node for its persistent memory so
-> this newly-added memory can be selected by its unique NUMA
-> node.
+On Tue, Dec 18, 2018 at 09:08:02AM +0100, Vlastimil Babka wrote:
+> On 12/15/18 12:03 AM, Mel Gorman wrote:
+> > Reserved pages are set at boot time, tend to be clustered and almost
+> > never become unreserved. When isolating pages for migrating, skip
+> > the entire pageblock is one PageReserved page is encountered on the
+> > grounds that it is highly probable the entire pageblock is reserved.
+> 
+> Agreed, but maybe since it's highly probable and not certain, this
+> skipping should not be done on the highest compaction priority?
+> 
 
+I don't think that's necessary at this time. For the most part, you are
+talking about one partial pageblock at best given how the early memory
+allocator works so it would only ever be useful for a high-order kernel
+allocation. Second, one of compactions primary problems is inefficient
+scanning where viable pageblocks are easily skipped over or only partially
+scanned which is something I'm still looking at. Lastly, maximum priority
+compaction is rarely hit in practice as far as I can tell.
 
-Hello Dave
-
-What happens on systems without an HMAT? Does this new memory get merged
-into existing NUMA nodes?
-
-Also, do you plan to have a way for applications to find out which NUMA
-nodes are "real DRAM" while others are "pmem-backed"? (something like a
-new attribute in /sys/devices/system/node/nodeX/) Or should we use HMAT
-performance attributes for this?
-
-Brice
+-- 
+Mel Gorman
+SUSE Labs
