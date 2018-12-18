@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E06E08E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 08:40:00 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id m13so11912319pls.15
-        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 05:40:00 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0945E8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 07:45:59 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id b24so11775575pls.11
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:45:59 -0800 (PST)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id t12si12793143plr.311.2018.12.18.05.39.59
+        by mx.google.com with ESMTPS id w22si12594507plp.301.2018.12.18.04.45.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Dec 2018 05:39:59 -0800 (PST)
-Date: Tue, 18 Dec 2018 21:39:49 +0800
+        Tue, 18 Dec 2018 04:45:57 -0800 (PST)
+Date: Tue, 18 Dec 2018 20:45:37 +0800
 From: kbuild test robot <lkp@intel.com>
 Subject: Re: [PATCH v6 1/6] acpi: Create subtable parsing infrastructure
-Message-ID: <201812182126.tR18M3fq%fengguang.wu@intel.com>
+Message-ID: <201812182005.IEhsMA1s%fengguang.wu@intel.com>
 References: <154510700824.1941238.14650493839997144294.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="M9NhX3UHpAaciwkO"
+Content-Type: multipart/mixed; boundary="6TrnltStXW4iwmi0"
 Content-Disposition: inline
 In-Reply-To: <154510700824.1941238.14650493839997144294.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,7 +24,7 @@ To: Dan Williams <dan.j.williams@intel.com>
 Cc: kbuild-all@01.org, akpm@linux-foundation.org, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Keith Busch <keith.busch@intel.com>, peterz@infradead.org, dave.hansen@linux.intel.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
 
---M9NhX3UHpAaciwkO
+--6TrnltStXW4iwmi0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -47,75 +47,46 @@ reproduce:
 
 All errors (new ones prefixed by >>):
 
-   arch/arm64/kernel/smp.c: In function 'acpi_parse_and_init_cpus':
->> arch/arm64/kernel/smp.c:577:11: error: passing argument 2 of 'acpi_table_parse_madt' from incompatible pointer type [-Werror=incompatible-pointer-types]
-              acpi_parse_gic_cpu_interface, 0);
-              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   In file included from arch/arm64/kernel/smp.c:20:0:
+   drivers//irqchip/irq-gic-v3.c: In function 'gic_acpi_collect_virt_info':
+>> drivers//irqchip/irq-gic-v3.c:1542:11: error: passing argument 2 of 'acpi_table_parse_madt' from incompatible pointer type [-Werror=incompatible-pointer-types]
+              gic_acpi_parse_virt_madt_gicc, 0);
+              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   In file included from drivers//irqchip/irq-gic-v3.c:20:0:
    include/linux/acpi.h:249:5: note: expected 'acpi_tbl_entry_handler {aka int (*)(union acpi_subtable_headers *, const long unsigned int)}' but argument is of type 'int (*)(struct acpi_subtable_header *, const long unsigned int)'
     int acpi_table_parse_madt(enum acpi_madt_type id,
         ^~~~~~~~~~~~~~~~~~~~~
    cc1: some warnings being treated as errors
---
-   arch/arm64/kernel/acpi_numa.c: In function 'acpi_map_cpus_to_nodes':
->> arch/arm64/kernel/acpi_numa.c:88:10: error: passing argument 4 of 'acpi_table_parse_entries' from incompatible pointer type [-Werror=incompatible-pointer-types]
-             acpi_parse_gicc_pxm, 0);
-             ^~~~~~~~~~~~~~~~~~~
-   In file included from arch/arm64/kernel/acpi_numa.c:19:0:
-   include/linux/acpi.h:242:12: note: expected 'acpi_tbl_entry_handler {aka int (*)(union acpi_subtable_headers *, const long unsigned int)}' but argument is of type 'int (*)(struct acpi_subtable_header *, const long unsigned int)'
-    int __init acpi_table_parse_entries(char *id, unsigned long table_size,
-               ^~~~~~~~~~~~~~~~~~~~~~~~
-   cc1: some warnings being treated as errors
 
-vim +/acpi_table_parse_madt +577 arch/arm64/kernel/smp.c
+vim +/acpi_table_parse_madt +1542 drivers//irqchip/irq-gic-v3.c
 
-e1896249 Lorenzo Pieralisi 2018-06-25  566  
-e1896249 Lorenzo Pieralisi 2018-06-25  567  static void __init acpi_parse_and_init_cpus(void)
-e1896249 Lorenzo Pieralisi 2018-06-25  568  {
-e1896249 Lorenzo Pieralisi 2018-06-25  569  	int i;
-e1896249 Lorenzo Pieralisi 2018-06-25  570  
-e1896249 Lorenzo Pieralisi 2018-06-25  571  	/*
-e1896249 Lorenzo Pieralisi 2018-06-25  572  	 * do a walk of MADT to determine how many CPUs
-e1896249 Lorenzo Pieralisi 2018-06-25  573  	 * we have including disabled CPUs, and get information
-e1896249 Lorenzo Pieralisi 2018-06-25  574  	 * we need for SMP init.
-e1896249 Lorenzo Pieralisi 2018-06-25  575  	 */
-e1896249 Lorenzo Pieralisi 2018-06-25  576  	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
-e1896249 Lorenzo Pieralisi 2018-06-25 @577  				      acpi_parse_gic_cpu_interface, 0);
-e1896249 Lorenzo Pieralisi 2018-06-25  578  
-e1896249 Lorenzo Pieralisi 2018-06-25  579  	/*
-e1896249 Lorenzo Pieralisi 2018-06-25  580  	 * In ACPI, SMP and CPU NUMA information is provided in separate
-e1896249 Lorenzo Pieralisi 2018-06-25  581  	 * static tables, namely the MADT and the SRAT.
-e1896249 Lorenzo Pieralisi 2018-06-25  582  	 *
-e1896249 Lorenzo Pieralisi 2018-06-25  583  	 * Thus, it is simpler to first create the cpu logical map through
-e1896249 Lorenzo Pieralisi 2018-06-25  584  	 * an MADT walk and then map the logical cpus to their node ids
-e1896249 Lorenzo Pieralisi 2018-06-25  585  	 * as separate steps.
-e1896249 Lorenzo Pieralisi 2018-06-25  586  	 */
-e1896249 Lorenzo Pieralisi 2018-06-25  587  	acpi_map_cpus_to_nodes();
-e1896249 Lorenzo Pieralisi 2018-06-25  588  
-e1896249 Lorenzo Pieralisi 2018-06-25  589  	for (i = 0; i < nr_cpu_ids; i++)
-e1896249 Lorenzo Pieralisi 2018-06-25  590  		early_map_cpu_to_node(i, acpi_numa_get_nid(i));
-e1896249 Lorenzo Pieralisi 2018-06-25  591  }
-0f078336 Lorenzo Pieralisi 2015-05-13  592  #else
-e1896249 Lorenzo Pieralisi 2018-06-25  593  #define acpi_parse_and_init_cpus(...)	do { } while (0)
-0f078336 Lorenzo Pieralisi 2015-05-13  594  #endif
-0f078336 Lorenzo Pieralisi 2015-05-13  595  
+1839e576 Julien Grall 2016-04-11  1536  
+1839e576 Julien Grall 2016-04-11  1537  static bool __init gic_acpi_collect_virt_info(void)
+1839e576 Julien Grall 2016-04-11  1538  {
+1839e576 Julien Grall 2016-04-11  1539  	int count;
+1839e576 Julien Grall 2016-04-11  1540  
+1839e576 Julien Grall 2016-04-11  1541  	count = acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
+1839e576 Julien Grall 2016-04-11 @1542  				      gic_acpi_parse_virt_madt_gicc, 0);
+1839e576 Julien Grall 2016-04-11  1543  
+1839e576 Julien Grall 2016-04-11  1544  	return (count > 0);
+1839e576 Julien Grall 2016-04-11  1545  }
+1839e576 Julien Grall 2016-04-11  1546  
 
-:::::: The code at line 577 was first introduced by commit
-:::::: e189624916961c735c18e3c75acc478661403830 arm64: numa: rework ACPI NUMA initialization
+:::::: The code at line 1542 was first introduced by commit
+:::::: 1839e576968f34b9a31da9f0033f8de12a1c9de6 irqchip/gic-v3: Parse and export virtual GIC information
 
-:::::: TO: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
-:::::: CC: Will Deacon <will.deacon@arm.com>
+:::::: TO: Julien Grall <julien.grall@arm.com>
+:::::: CC: Christoffer Dall <christoffer.dall@linaro.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---M9NhX3UHpAaciwkO
+--6TrnltStXW4iwmi0
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICGL2GFwAAy5jb25maWcAjDxbc9u20u/9FZr0pZ0zyZFkxXa+b/wAgqCEijcDoGTnhaPa
+H4sICOLoGFwAAy5jb25maWcAjDxbc9u20u/9FZr0pZ0zyZFkxXa+b/wAgqCEijcDoGTnhaPa
 SuqpLaey3Db//uwCvAAg6LaTScPdxW2xWOwN+vGHHyfk9fT8tDs93O0eH79Pvu4P++PutL+f
 fHl43P//JC4meaEmLObqAxCnD4fXv/+7Oz6dLyaLD/Pph+n7493FZL0/HvaPE/p8+PLw9RXa
 PzwffvjxB/jzIwCfvkFXx/+b7HbHu9/OF+8fsZP3Xw+v77/e3U1+ive/PuwOk4sPc+htNvvZ
@@ -874,4 +845,4 @@ pfnITIJOEglYUCGNV6YIsbe9UeIaUgmBGWEiBY7rlgJfdB5RZRaxY47Dv8cUmXoGWosJS6Qu
 JUok9q+JOq6+UdwzVZKwtpEWEzYPB1qEXSmF5rdoYR6hU2AQRYW737BU5hVkoVA9oOMPTkzF
 mBhNdUbEwn4itsnn81KOSTWbML9opc9ELbJWmR/7poTTnOeFGGOkxDxBNvX/I0J85+C5AgA=
 
---M9NhX3UHpAaciwkO--
+--6TrnltStXW4iwmi0--
