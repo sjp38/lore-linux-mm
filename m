@@ -1,214 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 621308E006F
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 20:05:57 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id t10so5102313plo.13
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 17:05:57 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id i1si11402278pfj.276.2018.12.10.17.05.55
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EAC028E0008
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 17:50:20 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id l12-v6so5897769ljb.11
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 14:50:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e11-v6sor12267462ljg.24.2018.12.19.14.50.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 17:05:55 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv2 12/12] doc/mm: New documentation for memory performance
-Date: Mon, 10 Dec 2018 18:03:10 -0700
-Message-Id: <20181211010310.8551-13-keith.busch@intel.com>
-In-Reply-To: <20181211010310.8551-1-keith.busch@intel.com>
-References: <20181211010310.8551-1-keith.busch@intel.com>
+        (Google Transport Security);
+        Wed, 19 Dec 2018 14:50:18 -0800 (PST)
+Subject: Re: [PATCH 2/6] __wr_after_init: write rare for static allocation
+References: <20181204121805.4621-1-igor.stoppa@huawei.com>
+ <20181204121805.4621-3-igor.stoppa@huawei.com>
+ <CALCETrVvoui0vksdt0Y9rdGL5ipEn_FtSXVVUFdH03ZC93cy_A@mail.gmail.com>
+ <20181212104900.0af52c34@mschwideX1>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Message-ID: <cff2bb8d-bd61-c4a0-4e63-4de2133a7b38@gmail.com>
+Date: Thu, 20 Dec 2018 00:50:12 +0200
+MIME-Version: 1.0
+In-Reply-To: <20181212104900.0af52c34@mschwideX1>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>, Andy Lutomirski <luto@kernel.org>
+Cc: linux-arch <linux-arch@vger.kernel.org>, linux-s390 <linux-s390@vger.kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>, Igor Stoppa <igor.stoppa@huawei.com>, Nadav Amit <nadav.amit@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-integrity <linux-integrity@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Platforms may provide system memory where some physical address ranges
-perform differently than others, or is side cached by the system.
 
-Add documentation describing a high level overview of such systems and the
-performance and caching attributes the kernel provides for applications
-wishing to query this information.
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
----
- Documentation/admin-guide/mm/numaperf.rst | 171 ++++++++++++++++++++++++++++++
- 1 file changed, 171 insertions(+)
- create mode 100644 Documentation/admin-guide/mm/numaperf.rst
+On 12/12/2018 11:49, Martin Schwidefsky wrote:
+> On Wed, 5 Dec 2018 15:13:56 -0800
+> Andy Lutomirski <luto@kernel.org> wrote:
 
-diff --git a/Documentation/admin-guide/mm/numaperf.rst b/Documentation/admin-guide/mm/numaperf.rst
-new file mode 100644
-index 000000000000..846b3f991e7f
---- /dev/null
-+++ b/Documentation/admin-guide/mm/numaperf.rst
-@@ -0,0 +1,171 @@
-+.. _numaperf:
-+
-+=============
-+NUMA Locality
-+=============
-+
-+Some platforms may have multiple types of memory attached to a single
-+CPU. These disparate memory ranges share some characteristics, such as
-+CPU cache coherence, but may have different performance. For example,
-+different media types and buses affect bandwidth and latency.
-+
-+A system supporting such heterogeneous memory by grouping each memory
-+type under different "nodes" based on similar CPU locality and performance
-+characteristics.  Some memory may share the same node as a CPU, and others
-+are provided as memory only nodes. While memory only nodes do not provide
-+CPUs, they may still be directly accessible, or local, to one or more
-+compute nodes. The following diagram shows one such example of two compute
-+noes with local memory and a memory only node for each of compute node:
-+
-+ +------------------+     +------------------+
-+ | Compute Node 0   +-----+ Compute Node 1   |
-+ | Local Node0 Mem  |     | Local Node1 Mem  |
-+ +--------+---------+     +--------+---------+
-+          |                        |
-+ +--------+---------+     +--------+---------+
-+ | Slower Node2 Mem |     | Slower Node3 Mem |
-+ +------------------+     +--------+---------+
-+
-+A "memory initiator" is a node containing one or more devices such as
-+CPUs or separate memory I/O devices that can initiate memory requests. A
-+"memory target" is a node containing one or more accessible physical
-+address ranges from one or more memory initiators.
-+
-+When multiple memory initiators exist, they may not all have the same
-+performance when accessing a given memory target. The highest performing
-+initiator to a given target is considered to be one of that target's
-+local initiators. Any given target may have one or more local initiators,
-+and any given initiator may have multiple local memory targets.
-+
-+To aid applications matching memory targets with their initiators,
-+the kernel provide symlinks to each other like the following example::
-+
-+	# ls -l /sys/devices/system/node/nodeX/local_target*
-+	/sys/devices/system/node/nodeX/local_targetY -> ../nodeY
-+
-+	# ls -l /sys/devices/system/node/nodeY/local_initiator*
-+	/sys/devices/system/node/nodeY/local_initiatorX -> ../nodeX
-+
-+The linked nodes will also have their node number set in the local_mem
-+and local_cpu node list and maps.
-+
-+An example showing how this may be used to run a particular task on CPUs
-+and memory that are both local to a particular PCI device can be done
-+using existing 'numactl' as follows::
-+
-+  # NODE=$(cat /sys/devices/pci:0000:00/.../numa_node)
-+  # numactl --membind=$(cat /sys/devices/node/node${NODE}/local_mem_nodelist) \
-+      --cpunodebind=$(cat /sys/devices/node/node${NODE}/local_cpu_nodelist) \
-+      -- <some-program-to-execute>
-+
-+================
-+NUMA Performance
-+================
-+
-+Applications may wish to consider which node they want their memory to
-+be allocated from based on the node's performance characteristics. If the
-+system provides these attributes, the kernel exports them under the node
-+sysfs hierarchy by appending the local_initiator_access directory under
-+the memory node as follows::
-+
-+	/sys/devices/system/node/nodeY/local_initiator_access/
-+
-+The kernel does not provide performance attributes for non-local memory
-+initiators. These attributes apply only to the memory initiator nodes that
-+have a local_initiatorX link, or are set in the local_cpu_nodelist. A
-+memory initiator node is considered local to itself if it also is
-+a memory target and will be set it its node list and map, but won't
-+contain a symlink to itself.
-+
-+The performance characteristics the kernel provides for the local initiators
-+are exported are as follows::
-+
-+	# tree /sys/devices/system/node/nodeY/local_initiator_access
-+	/sys/devices/system/node/nodeY/local_initiator_access
-+	|-- read_bandwidth
-+	|-- read_latency
-+	|-- write_bandwidth
-+	`-- write_latency
-+
-+The bandwidth attributes are provided in MiB/second.
-+
-+The latency attributes are provided in nanoseconds.
-+
-+==========
-+NUMA Cache
-+==========
-+
-+System memory may be constructed in a hierarchy of elements with various
-+performance characteristics in order to provide large address space
-+of slower performing memory side-cached by a smaller higher performing
-+memory. The system physical addresses that initiators are aware of is
-+provided by the last memory level in the hierarchy, while the system uses
-+higher performing memory to transparently cache access to progressively
-+slower levels.
-+
-+The term "far memory" is used to denote the last level memory in the
-+hierarchy. Each increasing cache level provides higher performing
-+initiator access, and the term "near memory" represents the fastest
-+cache provided by the system.
-+
-+This numbering is different than CPU caches where the cache level (ex:
-+L1, L2, L3) uses a CPU centric view with each increased level is lower
-+performing. In contrast, the memory cache level is centric to the last
-+level memory, so the higher numbered cache level denotes memory nearer
-+to the CPU, and further from far memory.
-+
-+The memory side caches are not directly addressable by software. When
-+software accesses a system address, the system will return it from the
-+near memory cache if it is present. If it is not present, the system
-+accesses the next level of memory until there is either a hit in that
-+cache level, or it reaches far memory.
-+
-+An application does not need to know about caching attributes in order
-+to use the system, software may optionally query the memory cache
-+attributes in order to maximize the performance out of such a setup.
-+If the system provides a way for the kernel to discover this information,
-+for example with ACPI HMAT (Heterogeneous Memory Attribute Table),
-+the kernel will append these attributes to the NUMA node memory target.
-+
-+When the kernel first registers a memory cache with a node, the kernel
-+will create the following directory::
-+
-+	/sys/devices/system/node/nodeX/side_cache/
-+
-+If that directory is not present, the system either does not not provide
-+a memory side cache, or that information is not accessible to the kernel.
-+
-+The attributes for each level of cache is provided under its cache
-+level index::
-+
-+	/sys/devices/system/node/nodeX/side_cache/indexA/
-+	/sys/devices/system/node/nodeX/side_cache/indexB/
-+	/sys/devices/system/node/nodeX/side_cache/indexC/
-+
-+Each cache level's directory provides its attributes. For example,
-+the following is a single cache level and the attributes available for
-+software to query::
-+
-+	# tree sys/devices/system/node/node0/side_cache/
-+	/sys/devices/system/node/node0/side_cache/
-+	|-- index1
-+	|   |-- associativity
-+	|   |-- level
-+	|   |-- line_size
-+	|   |-- size
-+	|   `-- write_policy
-+
-+The "associativity" will be 0 if it is a direct-mapped cache, and non-zero
-+for any other indexed based, multi-way associativity.
-+
-+The "level" is the distance from the far memory, and matches the number
-+appended to its "index" directory.
-+
-+The "line_size" is the number of bytes accessed on a cache miss.
-+
-+The "size" is the number of bytes provided by this cache level.
-+
-+The "write_policy" will be 0 for write-back, and non-zero for
-+write-through caching.
-+
-+See also: https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
--- 
-2.14.4
+>> Hi s390 and powerpc people: it would be nice if this generic
+>> implementation *worked* on your architectures and that it will allow
+>> you to add some straightforward way to add a better arch-specific
+>> implementation if you think that would be better.
+> 
+> As the code is right now I can guarantee that it will not work on s390.
+
+OK, I have thrown the towel wrt developing at the same time for multiple 
+architectures.
+
+ATM I'm oriented toward getting support for one (x86_64), leaving the 
+actual mechanism as architecture specific.
+
+Then I can add another one or two and see what makes sense to refactor.
+This approach should minimize the churning, overall.
+
+
+--
+igor
