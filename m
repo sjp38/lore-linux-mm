@@ -1,45 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C08C68E0001
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 12:36:38 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t72so18997787pfi.21
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 09:36:38 -0800 (PST)
-Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id d189si17530719pfa.70.2018.12.19.09.36.36
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 764D98E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 12:04:13 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id q63so18923802pfi.19
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 09:04:13 -0800 (PST)
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id o6si16349406plh.23.2018.12.19.09.04.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Dec 2018 09:36:37 -0800 (PST)
-From: Vineet Gupta <vineet.gupta1@synopsys.com>
+        Wed, 19 Dec 2018 09:04:11 -0800 (PST)
+From: Eugeniy Paltsev <eugeniy.paltsev@synopsys.com>
 Subject: Re: [PATCH 1/2] ARC: show_regs: avoid page allocator
-Date: Wed, 19 Dec 2018 17:36:35 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA23075014642226B@US01WEMBX2.internal.synopsys.com>
+Date: Wed, 19 Dec 2018 17:04:09 +0000
+Message-ID: <1545239047.14089.13.camel@synopsys.com>
 References: <1545159239-30628-1-git-send-email-vgupta@synopsys.com>
- <1545159239-30628-2-git-send-email-vgupta@synopsys.com>
- <1545239047.14089.13.camel@synopsys.com>
+	 <1545159239-30628-2-git-send-email-vgupta@synopsys.com>
+In-Reply-To: <1545159239-30628-2-git-send-email-vgupta@synopsys.com>
 Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <33B02DA585641B4EB2CBE3B47E62EC35@internal.synopsys.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eugeniy Paltsev <eugeniy.paltsev@synopsys.com>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>
+To: "vineet.gupta1@synopsys.com" <vineet.gupta1@synopsys.com>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>
 Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 12/19/18 9:04 AM, Eugeniy Paltsev wrote:=0A=
-> Just curious: isn't that enough to use GFP_NOWAIT instead=0A=
-> of GFP_KERNEL when we allocate page in show_regs()?=0A=
->=0A=
-> As I can see x86 use print_vma_addr() in their show_signal_msg()=0A=
-> function which allocate page with __get_free_page(GFP_NOWAIT);=0A=
-=0A=
-I'm not sure if lockdep will be happy with it still.=0A=
-=0A=
-At any rate, as explained in changelog, this still has merit, since the buf=
-fer is=0A=
-only needed for nested d_path calls, which are better served with a smaller=
-=0A=
-on-stack buffer. For cases such as kernel crash, we want lesser code/traces=
- in=0A=
-fault path to sift thru !=0A=
-=0A=
--Vineet=0A=
+SGkgVmluZWV0LA0KDQpKdXN0IGN1cmlvdXM6IGlzbid0IHRoYXQgZW5vdWdoIHRvIHVzZSBHRlBf
+Tk9XQUlUIGluc3RlYWQNCm9mIEdGUF9LRVJORUwgd2hlbiB3ZSBhbGxvY2F0ZSBwYWdlIGluIHNo
+b3dfcmVncygpPw0KDQpBcyBJIGNhbiBzZWUgeDg2IHVzZSBwcmludF92bWFfYWRkcigpIGluIHRo
+ZWlyIHNob3dfc2lnbmFsX21zZygpDQpmdW5jdGlvbiB3aGljaCBhbGxvY2F0ZSBwYWdlIHdpdGgg
+X19nZXRfZnJlZV9wYWdlKEdGUF9OT1dBSVQpOw0KDQpPbiBUdWUsIDIwMTgtMTItMTggYXQgMTA6
+NTMgLTA4MDAsIFZpbmVldCBHdXB0YSB3cm90ZToNCj4gVXNlIG9uLXN0YWNrIHNtYWxsZXIgYnVm
+ZmVycyBpbnN0ZWFkIG9mIGR5bmFtaWMgcGFnZXMuDQo+IA0KPiBUaGUgbW90aXZhdGlvbiBmb3Ig
+dGhpcyBjaGFuZ2Ugd2FzIHRvIGFkZHJlc3MgbG9ja2RlcCBzcGxhdCB3aGVuDQo+IHNpZ25hbCBo
+YW5kbGluZyBjb2RlIGNhbGxzIHNob3dfcmVncyAod2l0aCBwcmVlbXB0aW9uIGRpc2FibGVkKSBh
+bmQNCj4gQVJDIHNob3dfcmVncyBjYWxscyBpbnRvIHNsZWVwYWJsZSBwYWdlIGFsbG9jYXRvci4N
+Cj4gDQo+ID4gcG90ZW50aWFsbHkgdW5leHBlY3RlZCBmYXRhbCBzaWduYWwgMTEuDQo+ID4gQlVH
+OiBzbGVlcGluZyBmdW5jdGlvbiBjYWxsZWQgZnJvbSBpbnZhbGlkIGNvbnRleHQgYXQgLi4vbW0v
+cGFnZV9hbGxvYy5jOjQzMTcNCj4gPiBpbl9hdG9taWMoKTogMSwgaXJxc19kaXNhYmxlZCgpOiAw
+LCBwaWQ6IDU3LCBuYW1lOiBzZWd2DQo+ID4gbm8gbG9ja3MgaGVsZCBieSBzZWd2LzU3Lg0KPiA+
+IFByZWVtcHRpb24gZGlzYWJsZWQgYXQ6DQo+ID4gWzw4MTgyZjE3ZT5dIGdldF9zaWduYWwrMHg0
+YTYvMHg3YzQNCj4gPiBDUFU6IDAgUElEOiA1NyBDb21tOiBzZWd2IE5vdCB0YWludGVkIDQuMTcu
+MCsgIzIzDQo+ID4gDQo+ID4gU3RhY2sgVHJhY2U6DQo+ID4gIGFyY191bndpbmRfY29yZS5jb25z
+dHByb3AuMSsweGQwLzB4ZjQNCj4gPiAgX19taWdodF9zbGVlcCsweDFmNi8weDIzNA0KPiA+ICBf
+X2dldF9mcmVlX3BhZ2VzKzB4MTc0LzB4Y2EwDQo+ID4gIHNob3dfcmVncysweDIyLzB4MzMwDQo+
+ID4gIGdldF9zaWduYWwrMHg0YWMvMHg3YzQgICAgICMgcHJpbnRfZmF0YWxfc2lnbmFscygpIC0+
+IHByZWVtcHRfZGlzYWJsZSgpDQo+ID4gIGRvX3NpZ25hbCsweDMwLzB4MjI0DQo+ID4gIHJlc3Vt
+ZV91c2VyX21vZGVfYmVnaW4rMHg5MC8weGQ4DQo+IA0KPiBEZXNwaXRlIHRoaXMsIGxvY2tkZXAg
+c3RpbGwgYmFyZnMgKHNlZSBuZXh0IGNoYW5nZSksIGJ1dCB0aGlzIHBhdGNoDQo+IHN0aWxsIGhh
+cyBtZXJpdCBhcyBpbiB3ZSB1c2Ugc21hbGxlci9sb2NhbGl6ZWQgYnVmZmVycyBub3cgYW5kIHRo
+ZXJlJ3MNCj4gbGVzcyBpbnN0cnVjdG9oIHRyYWNlIHRvIHNpZnQgdGhydSB3aGVuIGRlYnVnZ2lu
+ZyBwZXNreSBpc3N1ZXMuDQo+IA0KPiBTaWduZWQtb2ZmLWJ5OiBWaW5lZXQgR3VwdGEgPHZndXB0
+YUBzeW5vcHN5cy5jb20+DQo+IC0tLQ0KPiAgYXJjaC9hcmMva2VybmVsL3Ryb3VibGVzaG9vdC5j
+IHwgMjIgKysrKysrKysrLS0tLS0tLS0tLS0tLQ0KPiAgMSBmaWxlIGNoYW5nZWQsIDkgaW5zZXJ0
+aW9ucygrKSwgMTMgZGVsZXRpb25zKC0pDQo+IA0KPiBkaWZmIC0tZ2l0IGEvYXJjaC9hcmMva2Vy
+bmVsL3Ryb3VibGVzaG9vdC5jIGIvYXJjaC9hcmMva2VybmVsL3Ryb3VibGVzaG9vdC5jDQo+IGlu
+ZGV4IGU4ZDlmYjQ1MjM0Ni4uMjg4NWJlYzcxZmI4IDEwMDY0NA0KPiAtLS0gYS9hcmNoL2FyYy9r
+ZXJuZWwvdHJvdWJsZXNob290LmMNCj4gKysrIGIvYXJjaC9hcmMva2VybmVsL3Ryb3VibGVzaG9v
+dC5jDQo+IEBAIC01OCwxMSArNTgsMTIgQEAgc3RhdGljIHZvaWQgc2hvd19jYWxsZWVfcmVncyhz
+dHJ1Y3QgY2FsbGVlX3JlZ3MgKmNyZWdzKQ0KPiAgCXByaW50X3JlZ19maWxlKCYoY3JlZ3MtPnIx
+MyksIDEzKTsNCj4gIH0NCj4gIA0KPiAtc3RhdGljIHZvaWQgcHJpbnRfdGFza19wYXRoX25fbm0o
+c3RydWN0IHRhc2tfc3RydWN0ICp0c2ssIGNoYXIgKmJ1ZikNCj4gK3N0YXRpYyB2b2lkIHByaW50
+X3Rhc2tfcGF0aF9uX25tKHN0cnVjdCB0YXNrX3N0cnVjdCAqdHNrKQ0KPiAgew0KPiAgCWNoYXIg
+KnBhdGhfbm0gPSBOVUxMOw0KPiAgCXN0cnVjdCBtbV9zdHJ1Y3QgKm1tOw0KPiAgCXN0cnVjdCBm
+aWxlICpleGVfZmlsZTsNCj4gKwljaGFyIGJ1ZlsyNTZdOw0KPiAgDQo+ICAJbW0gPSBnZXRfdGFz
+a19tbSh0c2spOw0KPiAgCWlmICghbW0pDQo+IEBAIC04MCwxMCArODEsOSBAQCBzdGF0aWMgdm9p
+ZCBwcmludF90YXNrX3BhdGhfbl9ubShzdHJ1Y3QgdGFza19zdHJ1Y3QgKnRzaywgY2hhciAqYnVm
+KQ0KPiAgCXByX2luZm8oIlBhdGg6ICVzXG4iLCAhSVNfRVJSKHBhdGhfbm0pID8gcGF0aF9ubSA6
+ICI/Iik7DQo+ICB9DQo+ICANCj4gLXN0YXRpYyB2b2lkIHNob3dfZmF1bHRpbmdfdm1hKHVuc2ln
+bmVkIGxvbmcgYWRkcmVzcywgY2hhciAqYnVmKQ0KPiArc3RhdGljIHZvaWQgc2hvd19mYXVsdGlu
+Z192bWEodW5zaWduZWQgbG9uZyBhZGRyZXNzKQ0KPiAgew0KPiAgCXN0cnVjdCB2bV9hcmVhX3N0
+cnVjdCAqdm1hOw0KPiAtCWNoYXIgKm5tID0gYnVmOw0KPiAgCXN0cnVjdCBtbV9zdHJ1Y3QgKmFj
+dGl2ZV9tbSA9IGN1cnJlbnQtPmFjdGl2ZV9tbTsNCj4gIA0KPiAgCS8qIGNhbid0IHVzZSBwcmlu
+dF92bWFfYWRkcigpIHlldCBhcyBpdCBkb2Vzbid0IGNoZWNrIGZvcg0KPiBAQCAtOTYsOCArOTYs
+MTEgQEAgc3RhdGljIHZvaWQgc2hvd19mYXVsdGluZ192bWEodW5zaWduZWQgbG9uZyBhZGRyZXNz
+LCBjaGFyICpidWYpDQo+ICAJICogaWYgdGhlIGNvbnRhaW5lciBWTUEgaXMgbm90IGZvdW5kDQo+
+ICAJICovDQo+ICAJaWYgKHZtYSAmJiAodm1hLT52bV9zdGFydCA8PSBhZGRyZXNzKSkgew0KPiAr
+CQljaGFyIGJ1ZlsyNTZdOw0KPiArCQljaGFyICpubSA9ICI/IjsNCj4gKw0KPiAgCQlpZiAodm1h
+LT52bV9maWxlKSB7DQo+IC0JCQlubSA9IGZpbGVfcGF0aCh2bWEtPnZtX2ZpbGUsIGJ1ZiwgUEFH
+RV9TSVpFIC0gMSk7DQo+ICsJCQlubSA9IGZpbGVfcGF0aCh2bWEtPnZtX2ZpbGUsIGJ1ZiwgMjU2
+LTEpOw0KPiAgCQkJaWYgKElTX0VSUihubSkpDQo+ICAJCQkJbm0gPSAiPyI7DQo+ICAJCX0NCj4g
+QEAgLTE3MywxMyArMTc2LDggQEAgdm9pZCBzaG93X3JlZ3Moc3RydWN0IHB0X3JlZ3MgKnJlZ3Mp
+DQo+ICB7DQo+ICAJc3RydWN0IHRhc2tfc3RydWN0ICp0c2sgPSBjdXJyZW50Ow0KPiAgCXN0cnVj
+dCBjYWxsZWVfcmVncyAqY3JlZ3M7DQo+IC0JY2hhciAqYnVmOw0KPiAtDQo+IC0JYnVmID0gKGNo
+YXIgKilfX2dldF9mcmVlX3BhZ2UoR0ZQX0tFUk5FTCk7DQo+IC0JaWYgKCFidWYpDQo+IC0JCXJl
+dHVybjsNCj4gIA0KPiAtCXByaW50X3Rhc2tfcGF0aF9uX25tKHRzaywgYnVmKTsNCj4gKwlwcmlu
+dF90YXNrX3BhdGhfbl9ubSh0c2spOw0KPiAgCXNob3dfcmVnc19wcmludF9pbmZvKEtFUk5fSU5G
+Tyk7DQo+ICANCj4gIAlzaG93X2Vjcl92ZXJib3NlKHJlZ3MpOw0KPiBAQCAtMTg5LDcgKzE4Nyw3
+IEBAIHZvaWQgc2hvd19yZWdzKHN0cnVjdCBwdF9yZWdzICpyZWdzKQ0KPiAgCQkodm9pZCAqKXJl
+Z3MtPmJsaW5rLCAodm9pZCAqKXJlZ3MtPnJldCk7DQo+ICANCj4gIAlpZiAodXNlcl9tb2RlKHJl
+Z3MpKQ0KPiAtCQlzaG93X2ZhdWx0aW5nX3ZtYShyZWdzLT5yZXQsIGJ1Zik7IC8qIGZhdWx0aW5n
+IGNvZGUsIG5vdCBkYXRhICovDQo+ICsJCXNob3dfZmF1bHRpbmdfdm1hKHJlZ3MtPnJldCk7IC8q
+IGZhdWx0aW5nIGNvZGUsIG5vdCBkYXRhICovDQo+ICANCj4gIAlwcl9pbmZvKCJbU1RBVDMyXTog
+MHglMDhseCIsIHJlZ3MtPnN0YXR1czMyKTsNCj4gIA0KPiBAQCAtMjIxLDggKzIxOSw2IEBAIHZv
+aWQgc2hvd19yZWdzKHN0cnVjdCBwdF9yZWdzICpyZWdzKQ0KPiAgCWNyZWdzID0gKHN0cnVjdCBj
+YWxsZWVfcmVncyAqKWN1cnJlbnQtPnRocmVhZC5jYWxsZWVfcmVnOw0KPiAgCWlmIChjcmVncykN
+Cj4gIAkJc2hvd19jYWxsZWVfcmVncyhjcmVncyk7DQo+IC0NCj4gLQlmcmVlX3BhZ2UoKHVuc2ln
+bmVkIGxvbmcpYnVmKTsNCj4gIH0NCj4gIA0KPiAgdm9pZCBzaG93X2tlcm5lbF9mYXVsdF9kaWFn
+KGNvbnN0IGNoYXIgKnN0ciwgc3RydWN0IHB0X3JlZ3MgKnJlZ3MsDQotLSANCiBFdWdlbml5IFBh
+bHRzZXY=
