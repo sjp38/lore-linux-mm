@@ -1,39 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 668328E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 17:48:52 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id ay11so2460187plb.20
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:48:52 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e188si20404908pfa.16.2018.12.20.14.48.51
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 281B08E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 04:39:42 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id b3so15763203edi.0
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 01:39:42 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e8si1348029edr.27.2018.12.19.01.39.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 14:48:51 -0800 (PST)
-Date: Thu, 20 Dec 2018 14:48:49 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH] mm, memory_hotplug: do not clear numa_node
- association after hot_remove
-Message-Id: <20181220144849.375f554ed6d1f968807aa6db@linux-foundation.org>
-In-Reply-To: <f9dd3dd0-3b20-446f-a131-70180fb733bf@arm.com>
-References: <20181108100413.966-1-mhocko@kernel.org>
-	<20181108102917.GV27423@dhcp22.suse.cz>
-	<048c04ae-7394-d03f-813e-42acdc965dd2@arm.com>
-	<20181109075914.GD18390@dhcp22.suse.cz>
-	<f9dd3dd0-3b20-446f-a131-70180fb733bf@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 19 Dec 2018 01:39:40 -0800 (PST)
+Date: Wed, 19 Dec 2018 10:39:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v15 2/2] Add oom victim's memcg to the oom context
+ information
+Message-ID: <20181219093938.GA5758@dhcp22.suse.cz>
+References: <20181122133954.GI18011@dhcp22.suse.cz>
+ <CAHCio2gdCX3p-7=N0cA22cWTaUmUXRq8WbiMAA2sM2wLVX4GjQ@mail.gmail.com>
+ <201812190723.wBJ7NdkN032628@www262.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201812190723.wBJ7NdkN032628@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Oscar Salvador <OSalvador@suse.com>, LKML <linux-kernel@vger.kernel.org>, Miroslav Benes <mbenes@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On Fri, 9 Nov 2018 16:34:29 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
-
-> > 
-> > Do you see any problems with the patch as is?
+On Wed 19-12-18 16:23:39, Tetsuo Handa wrote:
+> Andrew, will you fold below diff into "mm, oom: add oom victim's memcg to the oom context information" ?
 > 
-> No, this patch does remove an erroneous node-cpu map update which help solve
-> a real crash.
+> >From add1e8daddbfc5186417dbc58e9e11e7614868f8 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Wed, 19 Dec 2018 16:09:31 +0900
+> Subject: [PATCH] mm, oom: Use pr_cont() in mem_cgroup_print_oom_context().
+> 
+> One line summary of the OOM killer context is not one line due to
+> not using KERN_CONT.
+> 
+> [   23.346650] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0
+> [   23.346691] ,global_oom,task_memcg=/,task=firewalld,pid=5096,uid=0
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-I think I'll take that as an ack.
+Sorry, I have missed that during review. Thanks for catching this up!
+
+> ---
+>  mm/memcontrol.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b860dd4f7..4afd597 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1306,10 +1306,10 @@ void mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *
+>  	rcu_read_lock();
+>  
+>  	if (memcg) {
+> -		pr_info(",oom_memcg=");
+> +		pr_cont(",oom_memcg=");
+>  		pr_cont_cgroup_path(memcg->css.cgroup);
+>  	} else
+> -		pr_info(",global_oom");
+> +		pr_cont(",global_oom");
+>  	if (p) {
+>  		pr_cont(",task_memcg=");
+>  		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+> -- 
+> 1.8.3.1
+
+-- 
+Michal Hocko
+SUSE Labs
