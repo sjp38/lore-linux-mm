@@ -1,84 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 655468E0002
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 06:18:01 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id l22so1393737pfb.2
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 03:18:01 -0800 (PST)
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730072.outbound.protection.outlook.com. [40.107.73.72])
-        by mx.google.com with ESMTPS id o3si18675794pgq.139.2018.12.20.03.17.59
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E038A8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 16:15:09 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id i11so125247iog.2
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 13:15:09 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 5sor11843362itu.14.2018.12.19.13.15.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 03:17:59 -0800 (PST)
-From: "StDenis, Tom" <Tom.StDenis@amd.com>
-Subject: Re: After Vega 56/64 GPU hang I unable reboot system
-Date: Thu, 20 Dec 2018 11:17:56 +0000
-Message-ID: <b3aba7f4-b131-64fe-88eb-c1e14e133c51@amd.com>
-References: 
- <CABXGCsPu3g8WZXV1RpggLFuL3bgofmXMs1SiPyYnPyEOW7t3Dg@mail.gmail.com>
- <24702c72-cc06-1b54-0ab9-6d2409362c27@amd.com>
- <CABXGCsMPjKnCb7hpuenL5q3_HJgoGW=VB9FRrBpJsZMtA7LxpA@mail.gmail.com>
- <3ffe451b-1f17-23a5-985b-28d26fbaf7da@amd.com>
- <09781f6e-5ea3-ccfd-1aa2-79941b089863@amd.com>
- <CABXGCsPE36vkeycDQFhhsSQ0KhVxX4W=6Q5vt=hVzhZo3dZGWA@mail.gmail.com>
- <d40c59b2-fa8f-2687-e650-01a0c63b90a5@amd.com>
- <C97D2E5E-24AB-4B28-B7D3-BF561E4FF3D6@amd.com>
- <CABXGCsP9O8p1_hC31faCYkUOnHZp_i=mWuP5_F9v-KPxeOMsdQ@mail.gmail.com>
- <CABXGCsMygWFqnkaZbpLEBd9aBkk9=-fRnDMNOnkRfPZaeheoCg@mail.gmail.com>
- <9b87556e-ed4d-6ec0-2f98-a08469b7f35e@amd.com>
- <CABXGCsMbP8W28NTx_y3viiN=3deiEVkLw0_HBFZa1Qt_8MUVjg@mail.gmail.com>
-In-Reply-To: 
- <CABXGCsMbP8W28NTx_y3viiN=3deiEVkLw0_HBFZa1Qt_8MUVjg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <63C2D45E6C455B4880A735D056DCDD6D@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Wed, 19 Dec 2018 13:15:08 -0800 (PST)
 MIME-Version: 1.0
+References: <CABXGCsPu3g8WZXV1RpggLFuL3bgofmXMs1SiPyYnPyEOW7t3Dg@mail.gmail.com>
+ <24702c72-cc06-1b54-0ab9-6d2409362c27@amd.com> <CABXGCsMPjKnCb7hpuenL5q3_HJgoGW=VB9FRrBpJsZMtA7LxpA@mail.gmail.com>
+ <3ffe451b-1f17-23a5-985b-28d26fbaf7da@amd.com> <09781f6e-5ea3-ccfd-1aa2-79941b089863@amd.com>
+ <CABXGCsPE36vkeycDQFhhsSQ0KhVxX4W=6Q5vt=hVzhZo3dZGWA@mail.gmail.com>
+ <d40c59b2-fa8f-2687-e650-01a0c63b90a5@amd.com> <C97D2E5E-24AB-4B28-B7D3-BF561E4FF3D6@amd.com>
+In-Reply-To: <C97D2E5E-24AB-4B28-B7D3-BF561E4FF3D6@amd.com>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Thu, 20 Dec 2018 02:14:57 +0500
+Message-ID: <CABXGCsP9O8p1_hC31faCYkUOnHZp_i=mWuP5_F9v-KPxeOMsdQ@mail.gmail.com>
+Subject: Re: After Vega 56/64 GPU hang I unable reboot system
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+To: "StDenis, Tom" <Tom.StDenis@amd.com>
 Cc: "Grodzovsky, Andrey" <Andrey.Grodzovsky@amd.com>, "Wentland, Harry" <Harry.Wentland@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Koenig, Christian" <Christian.Koenig@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
 
-T24gMjAxOC0xMi0xOSAxMDoyOSBwLm0uLCBNaWtoYWlsIEdhdnJpbG92IHdyb3RlOg0KPiBPbiBU
-aHUsIDIwIERlYyAyMDE4IGF0IDAzOjQxLCBTdERlbmlzLCBUb20gPFRvbS5TdERlbmlzQGFtZC5j
-b20+IHdyb3RlOg0KPiANCj4+IHN1ZG8gc3RyYWNlIHVtciAtUiBnZnhbLl0gMj4mMSB8IHRlZSBz
-dHJhY2UubG9nDQo+Pg0KPj4gd2lsbCBjYXB0dXJlIGV2ZXJ5dGhpbmcuDQo+Pg0KPj4gSW4gdGhl
-IG1lYW4gdGltZSBJIGNhbiBmaXggYXQgbGVhc3QgdGhlIHNlZ2ZhdWx0Lg0KPj4NCj4+IFRoZSBp
-c3N1ZSBpcyB3aHkgY2FuJ3QgaXQgb3BlbiAiYW1kZ3B1X3JpbmdfZ2Z4Ii4NCj4+DQo+PiBUb20N
-Cj4+DQo+IA0KPiBzdHJhY2UgZmlsZSBpcyBhdHRhY2hlZCBoZXJlLg0KDQpXZWxsIHl1cCB0aGUg
-a2VybmVsIGlzIG5vdCBsZXR0aW5nIHlvdSBvcGVuIHRoZSBmaWxlczoNCg0Kb3BlbmF0KEFUX0ZE
-Q1dELCAiL3N5cy9rZXJuZWwvZGVidWcvZHJpLzAvYW1kZ3B1X2djYV9jb25maWciLCBPX1JET05M
-WSkgDQo9IC0xIEVQRVJNIChPcGVyYXRpb24gbm90IHBlcm1pdHRlZCkNCm9wZW5hdChBVF9GRENX
-RCwgIi9zeXMva2VybmVsL2RlYnVnL2RyaS8wL2FtZGdwdV9yZWdzIiwgT19SRFdSKSA9IC0xIA0K
-RVBFUk0gKE9wZXJhdGlvbiBub3QgcGVybWl0dGVkKQ0Kb3BlbmF0KEFUX0ZEQ1dELCAiL3N5cy9r
-ZXJuZWwvZGVidWcvZHJpLzAvYW1kZ3B1X3JlZ3NfZGlkdCIsIE9fUkRXUikgPSANCi0xIEVQRVJN
-IChPcGVyYXRpb24gbm90IHBlcm1pdHRlZCkNCm9wZW5hdChBVF9GRENXRCwgIi9zeXMva2VybmVs
-L2RlYnVnL2RyaS8wL2FtZGdwdV9yZWdzX3BjaWUiLCBPX1JEV1IpID0gDQotMSBFUEVSTSAoT3Bl
-cmF0aW9uIG5vdCBwZXJtaXR0ZWQpDQpvcGVuYXQoQVRfRkRDV0QsICIvc3lzL2tlcm5lbC9kZWJ1
-Zy9kcmkvMC9hbWRncHVfcmVnc19zbWMiLCBPX1JEV1IpID0gLTEgDQpFUEVSTSAoT3BlcmF0aW9u
-IG5vdCBwZXJtaXR0ZWQpDQpvcGVuYXQoQVRfRkRDV0QsICIvc3lzL2tlcm5lbC9kZWJ1Zy9kcmkv
-MC9hbWRncHVfc2Vuc29ycyIsIE9fUkRXUikgPSAtMSANCkVQRVJNIChPcGVyYXRpb24gbm90IHBl
-cm1pdHRlZCkNCm9wZW5hdChBVF9GRENXRCwgIi9zeXMva2VybmVsL2RlYnVnL2RyaS8wL2FtZGdw
-dV93YXZlIiwgT19SRFdSKSA9IC0xIA0KRVBFUk0gKE9wZXJhdGlvbiBub3QgcGVybWl0dGVkKQ0K
-b3BlbmF0KEFUX0ZEQ1dELCAiL3N5cy9rZXJuZWwvZGVidWcvZHJpLzAvYW1kZ3B1X3ZyYW0iLCBP
-X1JEV1IpID0gLTEgDQpFUEVSTSAoT3BlcmF0aW9uIG5vdCBwZXJtaXR0ZWQpDQpvcGVuYXQoQVRf
-RkRDV0QsICIvc3lzL2tlcm5lbC9kZWJ1Zy9kcmkvMC9hbWRncHVfZ3ByIiwgT19SRFdSKSA9IC0x
-IA0KRVBFUk0gKE9wZXJhdGlvbiBub3QgcGVybWl0dGVkKQ0Kb3BlbmF0KEFUX0ZEQ1dELCAiL3N5
-cy9rZXJuZWwvZGVidWcvZHJpLzAvYW1kZ3B1X2lvdmEiLCBPX1JEV1IpID0gLTEgDQpFTk9FTlQg
-KE5vIHN1Y2ggZmlsZSBvciBkaXJlY3RvcnkpDQpvcGVuYXQoQVRfRkRDV0QsICIvc3lzL2tlcm5l
-bC9kZWJ1Zy9kcmkvMC9hbWRncHVfaW9tZW0iLCBPX1JEV1IpID0gLTEgDQpFUEVSTSAoT3BlcmF0
-aW9uIG5vdCBwZXJtaXR0ZWQpDQpvcGVuYXQoQVRfRkRDV0QsICIvc3lzL2J1cy9wY2kvZGV2aWNl
-cy8wMDAwOjBiOjAwLjAvdmJpb3NfdmVyc2lvbiIsIA0KT19SRE9OTFkpID0gMw0KZnN0YXQoMywg
-e3N0X21vZGU9U19JRlJFR3wwNDQ0LCBzdF9zaXplPTQwOTYsIC4uLn0pID0gMA0KcmVhZCgzLCAi
-eHh4LXh4eC14eHhcbiIsIDQwOTYpICAgICAgICAgID0gMTINCmNsb3NlKDMpICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICA9IDANCm9wZW5hdChBVF9GRENXRCwgIi9zeXMva2VybmVsL2Rl
-YnVnL2RyaS8wL2FtZGdwdV9maXJtd2FyZV9pbmZvIiwgDQpPX1JET05MWSkgPSAzDQpmc3RhdCgz
-LCB7c3RfbW9kZT1TX0lGUkVHfDA0NDQsIHN0X3NpemU9MCwgLi4ufSkgPSAwDQpyZWFkKDMsICJW
-Q0UgZmVhdHVyZSB2ZXJzaW9uOiAwLCBmaXJtd2FyZSIuLi4sIDQwOTYpID0gMTA1OQ0KcmVhZCgz
-LCAiIiwgNDA5NikgICAgICAgICAgICAgICAgICAgICAgID0gMA0KY2xvc2UoMykgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgID0gMA0Kb3BlbmF0KEFUX0ZEQ1dELCAiL3N5cy9rZXJuZWwv
-ZGVidWcvZHJpLzAvYW1kZ3B1X2djYV9jb25maWciLCBPX1JET05MWSkgDQo9IC0xIEVQRVJNIChP
-cGVyYXRpb24gbm90IHBlcm1pdHRlZCkNCm9wZW5hdChBVF9GRENXRCwgIi9zeXMva2VybmVsL2Rl
-YnVnL2RyaS8wL2FtZGdwdV9yaW5nX2dmeCIsIE9fUkRXUikgPSAtMSANCkVQRVJNIChPcGVyYXRp
-b24gbm90IHBlcm1pdHRlZCkNCg0KQXMgc3Vkby9yb290IHlvdSBzaG91bGQgYmUgYWJsZSB0byBv
-cGVuIHRoZXNlIGZpbGVzIHdpdGggdW1yLiAgV2hhdCANCmhhcHBlbnMgaWYgeW91IGp1c3Qgb3Bl
-biBhIHNoZWxsIGFzIHJvb3QgYW5kIHJ1biBpdD8NCg0KDQoNClRvbQ0K
+On Thu, 20 Dec 2018 at 01:56, StDenis, Tom <tom.stdenis@amd.com> wrote:
+>
+> Sorry missed the gfx ring in the reply.
+>
+> Um what kernel version?
+4.20.0-0.rc6
+
+> Is this the latest umr?
+yes, master branch, commit 546c30a71f7b87f97f2a96eab184c3973b014711
+
+> Maybe capture a trace of umr to see what is happening.
+
+Cannot seek to MMIO address: Bad file descriptor
+[ERROR]: Could not open ring debugfs file
+Program received signal SIGSEGV, Segmentation fault.
+umr_pm4_decode_ring (asic=3Dasic@entry=3D0x1c08a50, ringname=3D<optimized
+out=3D"">, no_halt=3Dno_halt@entry=3D1) at
+/home/mikhail/packaging-work/umr/src/lib/umr_read_pm4_stream.c:333
+333 ringdata[0] %=3D ringsize;
+(gdb) thread apply all bt full
+
+Thread 1 (Thread 0x7ffff7a22740 (LWP 7844)):
+#0  umr_pm4_decode_ring (asic=3Dasic@entry=3D0x1c08a50,
+ringname=3D<optimized out=3D"">, no_halt=3Dno_halt@entry=3D1) at
+/home/mikhail/packaging-work/umr/src/lib/umr_read_pm4_stream.c:333
+        ps =3D <optimized out=3D"">
+        ringdata =3D 0x0
+        ringsize =3D 8191
+#1  0x00000000004b4ac6 in umr_print_waves (asic=3Dasic@entry=3D0x1c08a50)
+at /home/mikhail/packaging-work/umr/src/app/print_waves.c:52
+        x =3D <optimized out=3D"">
+        y =3D <optimized out=3D"">
+        shift =3D <optimized out=3D"">
+        thread =3D <optimized out=3D"">
+        pgm_addr =3D <optimized out=3D"">
+        shader_addr =3D <optimized out=3D"">
+        wd =3D <optimized out=3D"">
+        owd =3D <optimized out=3D"">
+        first =3D 1
+        col =3D 0
+        shader =3D 0x0
+        stream =3D <optimized out=3D"">
+#2  0x0000000000496952 in main (argc=3D<optimized out=3D"">,
+argv=3D<optimized out=3D"">) at
+/home/mikhail/packaging-work/umr/src/app/main.c:285
+        i =3D 3
+        j =3D <optimized out=3D"">
+        k =3D <optimized out=3D"">
+        l =3D <optimized out=3D"">
+        asic =3D 0x1c08a50
+        blockname =3D <optimized out=3D"">
+        str =3D <optimized out=3D"">
+        str2 =3D <optimized out=3D"">
+        asicname =3D "\000\000\000\000\004", '\000' <repeats 19=3D""
+times=3D"">, "F;\226\000\000\000\000\000\000\000\000\000\004", '\000'
+<repeats 19=3D"" times=3D"">, "\a", '\000' <repeats 11=3D"" times=3D"">,
+"\004", '\000' <repeats 19=3D"" times=3D"">,
+"\027\362\321\000\000\000\000\000\000\000\000\000\004", '\000'
+<repeats 31=3D"" times=3D"">, "\004", '\000' <repeats 31=3D"" times=3D"">,
+"\004", '\000' <repeats 31=3D"" times=3D"">, "\004", '\000' <repeats 31=3D"=
+"
+times=3D"">...
+        ipname =3D '\000' <repeats 24=3D"" times=3D"">, "F;\226", '\000'
+<repeats 29=3D"" times=3D"">, "l-option", '\000' <repeats 24=3D"" times=3D"=
+">,
+"\006\000\000\000\000\000\000\200", '\000' <repeats 56=3D"" times=3D"">,
+"\027\362\321", '\000' <repeats 29=3D"" times=3D"">, "\037", '\000'
+<repeats 31=3D"" times=3D"">...
+        regname =3D "\000\000\000\000\000 ", '\000' <repeats 18=3D""
+times=3D"">, "\017\004", '\000' <repeats 11=3D"" times=3D"">, " ", '\000'
+<repeats 18=3D"" times=3D"">, "\220\377\377\377\377\377\377\377", '\000'
+<repeats 16=3D"" times=3D"">, "\031", '\000' <repeats 15=3D"" times=3D"">,
+"\a\000\000\000\000\000\000\000\037\000\000\000\000\000\000\000\003\000\000=
+\000\000\000\000\000\030\220\275\001\000\000\000\000P\000\000\000\000\000\0=
+00\000\220\377\377\377\377\377\377\377\000\000\000\000\000\000\000\000\003\=
+000\000\000w\000\000\000[\000\000\000\060",
+'\000' <repeats 27=3D"" times=3D"">, "n\000\000\000|", '\000' <repeats
+19=3D"" times=3D"">...
+        req =3D {tv_sec =3D 0, tv_nsec =3D 7310868735956184161}
+(gdb)
+
+> It works just fine on my raven1.
+>
+
+$ inxi -bM
+System:    Host: localhost.localdomain Kernel:
+4.20.0-0.rc6.git2.3.fc30.x86_64 x86_64 bits: 64 Desktop: Gnome 3.31.2
+           Distro: Fedora release 30 (Rawhide)
+Machine:   Type: Desktop Mobo: ASUSTeK model: ROG STRIX X470-I GAMING
+v: Rev 1.xx serial: <root required=3D"">
+           UEFI: American Megatrends v: 1103 date: 11/16/2018
+CPU:       8-Core: AMD Ryzen 7 2700X type: MT MCP speed: 2086 MHz
+min/max: 2200/3700 MHz
+Graphics:  Device-1: Advanced Micro Devices [AMD/ATI] Vega 10 XL/XT
+[Radeon RX Vega 56/64] driver: amdgpu v: kernel
+           Display: wayland server: Fedora Project X.org 1.20.3
+driver: amdgpu resolution: 3840x2160~60Hz
+           OpenGL: renderer: Radeon RX Vega (VEGA10 DRM 3.27.0
+4.20.0-0.rc6.git2.3.fc30.x86_64 LLVM 7.0.0) v: 4.5 Mesa 18.3.0
+Network:   Device-1: Intel I211 Gigabit Network driver: igb
+           Device-2: Realtek RTL8822BE 802.11a/b/g/n/ac WiFi adapter
+driver: r8822be
+Drives:    Local Storage: total: 11.35 TiB used: 7.54 TiB (66.4%)
+Info:      Processes: 435 Uptime: 22m Memory: 31.35 GiB used: 19.69
+GiB (62.8%) Shell: bash inxi: 3.0.29
+
+
+--
+Best Regards,
+Mike Gavrilov.
