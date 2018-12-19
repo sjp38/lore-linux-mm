@@ -1,84 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 727488E0004
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 20:15:46 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id 202so93003pgb.6
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 17:15:46 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id g5si16283086plo.108.2018.12.19.17.15.45
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E92DA8E0007
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 19:00:00 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id s140so2046770oih.4
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 16:00:00 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l9sor4882217otj.49.2018.12.19.15.59.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Dec 2018 17:15:45 -0800 (PST)
-From: "Schmauss, Erik" <erik.schmauss@intel.com>
-Subject: RE: [PATCHv2 01/12] acpi: Create subtable parsing infrastructure
-Date: Thu, 20 Dec 2018 01:15:43 +0000
-Message-ID: <CF6A88132359CE47947DB4C6E1709ED53C557DAB@ORSMSX122.amr.corp.intel.com>
-References: <20181211010310.8551-1-keith.busch@intel.com>
- <20181211010310.8551-2-keith.busch@intel.com>
- <CAJZ5v0iqC2CwR2nM7eF6pDcJe2Me-_fFekX=s16-1TGZ6f6gcA@mail.gmail.com>
- <CF6A88132359CE47947DB4C6E1709ED53C557D62@ORSMSX122.amr.corp.intel.com>
- <CAPcyv4jmGH0FS8iBP9=A-nicNfgHAmU+nBHsGgxyS3RNZ9tV5Q@mail.gmail.com>
-In-Reply-To: <CAPcyv4jmGH0FS8iBP9=A-nicNfgHAmU+nBHsGgxyS3RNZ9tV5Q@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Wed, 19 Dec 2018 15:59:59 -0800 (PST)
 MIME-Version: 1.0
+References: <20181211010310.8551-1-keith.busch@intel.com> <20181211010310.8551-2-keith.busch@intel.com>
+ <CAJZ5v0iqC2CwR2nM7eF6pDcJe2Me-_fFekX=s16-1TGZ6f6gcA@mail.gmail.com> <CF6A88132359CE47947DB4C6E1709ED53C557D62@ORSMSX122.amr.corp.intel.com>
+In-Reply-To: <CF6A88132359CE47947DB4C6E1709ED53C557D62@ORSMSX122.amr.corp.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 19 Dec 2018 15:59:48 -0800
+Message-ID: <CAPcyv4jmGH0FS8iBP9=A-nicNfgHAmU+nBHsGgxyS3RNZ9tV5Q@mail.gmail.com>
+Subject: Re: [PATCHv2 01/12] acpi: Create subtable parsing infrastructure
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Williams, Dan J" <dan.j.williams@intel.com>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, "Busch, Keith" <keith.busch@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Linux Kernel Mailing List  <linux-kernel@vger.kernel.org>, ACPI Devel Maling List" <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Hansen, Dave" <dave.hansen@intel.com>
+To: "Schmauss, Erik" <erik.schmauss@intel.com>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>, "Busch, Keith" <keith.busch@intel.com>, "Moore, Robert" <robert.moore@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Hansen, Dave" <dave.hansen@intel.com>
 
-DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogbGludXgtYWNwaS1vd25l
-ckB2Z2VyLmtlcm5lbC5vcmcgW21haWx0bzpsaW51eC1hY3BpLQ0KPiBvd25lckB2Z2VyLmtlcm5l
-bC5vcmddIE9uIEJlaGFsZiBPZiBEYW4gV2lsbGlhbXMNCj4gU2VudDogV2VkbmVzZGF5LCBEZWNl
-bWJlciAxOSwgMjAxOCA0OjAwIFBNDQo+IFRvOiBTY2htYXVzcywgRXJpayA8ZXJpay5zY2htYXVz
-c0BpbnRlbC5jb20+DQo+IENjOiBSYWZhZWwgSi4gV3lzb2NraSA8cmFmYWVsQGtlcm5lbC5vcmc+
-OyBCdXNjaCwgS2VpdGgNCj4gPGtlaXRoLmJ1c2NoQGludGVsLmNvbT47IE1vb3JlLCBSb2JlcnQg
-PHJvYmVydC5tb29yZUBpbnRlbC5jb20+Ow0KPiBMaW51eCBLZXJuZWwgTWFpbGluZyBMaXN0IDxs
-aW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnPjsgQUNQSSBEZXZlbA0KPiBNYWxpbmcgTGlzdCA8
-bGludXgtYWNwaUB2Z2VyLmtlcm5lbC5vcmc+OyBMaW51eCBNZW1vcnkgTWFuYWdlbWVudA0KPiBM
-aXN0IDxsaW51eC1tbUBrdmFjay5vcmc+OyBHcmVnIEtyb2FoLUhhcnRtYW4NCj4gPGdyZWdraEBs
-aW51eGZvdW5kYXRpb24ub3JnPjsgSGFuc2VuLCBEYXZlDQo+IDxkYXZlLmhhbnNlbkBpbnRlbC5j
-b20+DQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0h2MiAwMS8xMl0gYWNwaTogQ3JlYXRlIHN1YnRhYmxl
-IHBhcnNpbmcNCj4gaW5mcmFzdHJ1Y3R1cmUNCj4gDQo+IE9uIFdlZCwgRGVjIDE5LCAyMDE4IGF0
-IDM6MTkgUE0gU2NobWF1c3MsIEVyaWsNCj4gPGVyaWsuc2NobWF1c3NAaW50ZWwuY29tPiB3cm90
-ZToNCj4gPg0KPiA+DQo+ID4NCj4gPiA+IC0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+ID4g
-PiBGcm9tOiBsaW51eC1hY3BpLW93bmVyQHZnZXIua2VybmVsLm9yZyBbbWFpbHRvOmxpbnV4LWFj
-cGktDQo+ID4gPiBvd25lckB2Z2VyLmtlcm5lbC5vcmddIE9uIEJlaGFsZiBPZiBSYWZhZWwgSi4g
-V3lzb2NraQ0KPiA+ID4gU2VudDogVHVlc2RheSwgRGVjZW1iZXIgMTEsIDIwMTggMTo0NSBBTQ0K
-PiA+ID4gVG86IEJ1c2NoLCBLZWl0aCA8a2VpdGguYnVzY2hAaW50ZWwuY29tPg0KPiA+ID4gQ2M6
-IExpbnV4IEtlcm5lbCBNYWlsaW5nIExpc3QgPGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc+
-OyBBQ1BJDQo+ID4gPiBEZXZlbCBNYWxpbmcgTGlzdCA8bGludXgtYWNwaUB2Z2VyLmtlcm5lbC5v
-cmc+OyBMaW51eCBNZW1vcnkNCj4gPiA+IE1hbmFnZW1lbnQgTGlzdCA8bGludXgtbW1Aa3ZhY2su
-b3JnPjsgR3JlZyBLcm9haC1IYXJ0bWFuDQo+ID4gPiA8Z3JlZ2toQGxpbnV4Zm91bmRhdGlvbi5v
-cmc+OyBSYWZhZWwgSi4gV3lzb2NraQ0KPiA8cmFmYWVsQGtlcm5lbC5vcmc+Ow0KPiA+ID4gSGFu
-c2VuLCBEYXZlIDxkYXZlLmhhbnNlbkBpbnRlbC5jb20+OyBXaWxsaWFtcywgRGFuIEoNCj4gPiA+
-IDxkYW4uai53aWxsaWFtc0BpbnRlbC5jb20+DQo+ID4gPiBTdWJqZWN0OiBSZTogW1BBVENIdjIg
-MDEvMTJdIGFjcGk6IENyZWF0ZSBzdWJ0YWJsZSBwYXJzaW5nDQo+ID4gPiBpbmZyYXN0cnVjdHVy
-ZQ0KPiA+ID4NCj4gPiA+IE9uIFR1ZSwgRGVjIDExLCAyMDE4IGF0IDI6MDUgQU0gS2VpdGggQnVz
-Y2gNCj4gPGtlaXRoLmJ1c2NoQGludGVsLmNvbT4NCj4gPiA+IHdyb3RlOg0KPiA+ID4gPg0KPiA+
-DQo+ID4gSGkgUmFmYWVsIGFuZCBCb2IsDQo+ID4NCj4gPiA+ID4gUGFyc2luZyBlbnRyaWVzIGlu
-IGFuIEFDUEkgdGFibGUgaGFkIGFzc3VtZWQgYSBnZW5lcmljIGhlYWRlcg0KPiA+ID4gPiBzdHJ1
-Y3R1cmUgdGhhdCBpcyBtb3N0IGNvbW1vbi4gVGhlcmUgaXMgbm8gc3RhbmRhcmQgQUNQSQ0KPiBo
-ZWFkZXIsDQo+ID4gPiA+IHRob3VnaCwgc28gbGVzcyBjb21tb24gdHlwZXMgd291bGQgbmVlZCBj
-dXN0b20gcGFyc2VycyBpZiB0aGV5DQo+ID4gPiA+IHdhbnQgZ28gdGhyb3VnaCB0aGVpciBzdWIt
-dGFibGUgZW50cnkgbGlzdC4NCj4gPiA+DQo+ID4gPiBJdCBsb29rcyBsaWtlIHRoZSBwcm9ibGVt
-IGF0IGhhbmQgaXMgdGhhdCBhY3BpX2htYXRfc3RydWN0dXJlIGlzDQo+ID4gPiBpbmNvbXBhdGli
-bGUgd2l0aCBhY3BpX3N1YnRhYmxlX2hlYWRlciBiZWNhdXNlIG9mIHRoZSBkaWZmZXJlbnQNCj4g
-bGF5b3V0IGFuZCBmaWVsZCBzaXplcy4NCj4gPg0KPiA+IEp1c3Qgb3V0IG9mIGN1cmlvc2l0eSwg
-d2h5IGRvbid0IHdlIHVzZSBBQ1BJQ0EgY29kZSB0byBwYXJzZSBzdGF0aWMNCj4gPiBBQ1BJIHRh
-YmxlcyBpbiBMaW51eD8NCj4gPg0KPiA+IFdlIGhhdmUgYSBkaXNhc3NlbWJsZXIgZm9yIHN0YXRp
-YyB0YWJsZXMgdGhhdCBwYXJzZXMgYWxsIHN1cHBvcnRlZA0KPiA+IHRhYmxlcy4gVGhpcyBzZWVt
-cyBsaWtlIGEgZHVwbGljYXRpb24gb2YgY29kZS9lZmZvcnQuLi4NCj4gDQpIaSBEYW4sDQoNCj4g
-T2gsIEkgdGhvdWdodCBhY3BpX3RhYmxlX3BhcnNlX2VudHJpZXMoKSB3YXMgdGhlIGNvbW1vbiBj
-b2RlLg0KPiBXaGF0J3MgdGhlIEFDUElDQSBkdXBsaWNhdGU/DQoNCkkgd2FzIHRoaW5raW5nIEFj
-cGlEbUR1bXBUYWJsZSgpLiBBZnRlciBsb29raW5nIGF0IHRoaXMgQUNQSUNBIGNvZGUsDQpJIHJl
-YWxpemVkIHRoYXQgdGhlIHRoaXMgQUNQSUNBIGRvZXNuJ3QgYWN0dWFsbHkgYnVpbGQgYSBwYXJz
-ZSB0cmVlIG9yIGRhdGEgc3RydWN0dXJlLg0KSXQgbG9vcHMgb3ZlciB0aGUgZGF0YSBzdHJ1Y3R1
-cmUgdG8gZm9ybWF0IHRoZSBpbnB1dCBBQ1BJIHRhYmxlIHRvIGEgZmlsZS4NCg0KVG8gbWUsIGl0
-IHNlZW1zIGxpa2UgYSBnb29kIGlkZWEgZm9yIExpbnV4IGFuZCBBQ1BJQ0EgdG8gc2hhcmUgdGhl
-IHNhbWUgY29kZSB3aGVuDQpwYXJzaW5nIGFuZCBhbmFseXppbmcgdGhlc2Ugc3RydWN0dXJlcy4g
-SSBrbm93IHRoYXQgTGludXggbWF5IGVtaXQgd2FybmluZ3MNCnRoYXQgYXJlIHNwZWNpZmljIHRv
-IExpbnV4IGJ1dCB0aGVyZSBhcmUgc3RydWN0dXJhbCBhbmFseXNlcyB0aGF0IHNob3VsZCBiZSB0
-aGUgc2FtZSAoc3VjaCBhcw0KY2hlY2tpbmcgbGVuZ3RocyBvZiB0YWJsZXMgYW5kIHN1YnRhYmxl
-cyBzbyB0aGF0IHdlIGRvbid0IGhhdmUgb3V0IG9mIGJvdW5kcyBhY2Nlc3MpLg0KDQpFcmlrDQo=
+On Wed, Dec 19, 2018 at 3:19 PM Schmauss, Erik <erik.schmauss@intel.com> wrote:
+>
+>
+>
+> > -----Original Message-----
+> > From: linux-acpi-owner@vger.kernel.org [mailto:linux-acpi-
+> > owner@vger.kernel.org] On Behalf Of Rafael J. Wysocki
+> > Sent: Tuesday, December 11, 2018 1:45 AM
+> > To: Busch, Keith <keith.busch@intel.com>
+> > Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>; ACPI Devel
+> > Maling List <linux-acpi@vger.kernel.org>; Linux Memory Management List
+> > <linux-mm@kvack.org>; Greg Kroah-Hartman
+> > <gregkh@linuxfoundation.org>; Rafael J. Wysocki <rafael@kernel.org>;
+> > Hansen, Dave <dave.hansen@intel.com>; Williams, Dan J
+> > <dan.j.williams@intel.com>
+> > Subject: Re: [PATCHv2 01/12] acpi: Create subtable parsing infrastructure
+> >
+> > On Tue, Dec 11, 2018 at 2:05 AM Keith Busch <keith.busch@intel.com>
+> > wrote:
+> > >
+>
+> Hi Rafael and Bob,
+>
+> > > Parsing entries in an ACPI table had assumed a generic header
+> > > structure that is most common. There is no standard ACPI header,
+> > > though, so less common types would need custom parsers if they want go
+> > > through their sub-table entry list.
+> >
+> > It looks like the problem at hand is that acpi_hmat_structure is incompatible
+> > with acpi_subtable_header because of the different layout and field sizes.
+>
+> Just out of curiosity, why don't we use ACPICA code to parse static ACPI tables
+> in Linux?
+>
+> We have a disassembler for static tables that parses all supported tables. This
+> seems like a duplication of code/effort...
+
+Oh, I thought acpi_table_parse_entries() was the common code. What's
+the ACPICA duplicate?
