@@ -1,54 +1,80 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C715B6B7B61
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:42:00 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id i3so1027217pfj.4
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:42:00 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y17sor1811434pll.68.2018.12.06.10.41.59
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 10:41:59 -0800 (PST)
-Date: Fri, 7 Dec 2018 00:15:45 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v3 9/9] xen/privcmd-buf.c: Convert to use vm_insert_range
-Message-ID: <20181206184545.GA847@jordon-HP-15-Notebook-PC>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 12/12] x86_64: __clear_user as case of __memset_user
+Date: Wed, 19 Dec 2018 23:33:38 +0200
+Message-Id: <20181219213338.26619-13-igor.stoppa@huawei.com>
+In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
+References: <20181219213338.26619-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
+Content-Transfer-Encoding: 8bit
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, boris.ostrovsky@oracle.com, jgross@suse.com
-Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+To avoid code duplication, re-use __memset_user(), when clearing
+user-space memory.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+The overhead should be minimal (2 extra register assignments) and
+outside of the writing loop.
+
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- drivers/xen/privcmd-buf.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ arch/x86/lib/usercopy_64.c | 29 +----------------------------
+ 1 file changed, 1 insertion(+), 28 deletions(-)
 
-diff --git a/drivers/xen/privcmd-buf.c b/drivers/xen/privcmd-buf.c
-index df1ed37..8d8255b 100644
---- a/drivers/xen/privcmd-buf.c
-+++ b/drivers/xen/privcmd-buf.c
-@@ -180,12 +180,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
- 	if (vma_priv->n_pages != count)
- 		ret = -ENOMEM;
- 	else
--		for (i = 0; i < vma_priv->n_pages; i++) {
--			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
--					     vma_priv->pages[i]);
--			if (ret)
--				break;
--		}
-+		ret = vm_insert_range(vma, vma->vm_start, vma_priv->pages,
-+				vma_priv->n_pages);
+diff --git a/arch/x86/lib/usercopy_64.c b/arch/x86/lib/usercopy_64.c
+index 84f8f8a20b30..ab6aabb62055 100644
+--- a/arch/x86/lib/usercopy_64.c
++++ b/arch/x86/lib/usercopy_64.c
+@@ -69,34 +69,7 @@ EXPORT_SYMBOL(memset_user);
  
- 	if (ret)
- 		privcmd_buf_vmapriv_free(vma_priv);
+ unsigned long __clear_user(void __user *addr, unsigned long size)
+ {
+-	long __d0;
+-	might_fault();
+-	/* no memory constraint because it doesn't change any memory gcc knows
+-	   about */
+-	stac();
+-	asm volatile(
+-		"	testq  %[size8],%[size8]\n"
+-		"	jz     4f\n"
+-		"0:	movq $0,(%[dst])\n"
+-		"	addq   $8,%[dst]\n"
+-		"	decl %%ecx ; jnz   0b\n"
+-		"4:	movq  %[size1],%%rcx\n"
+-		"	testl %%ecx,%%ecx\n"
+-		"	jz     2f\n"
+-		"1:	movb   $0,(%[dst])\n"
+-		"	incq   %[dst]\n"
+-		"	decl %%ecx ; jnz  1b\n"
+-		"2:\n"
+-		".section .fixup,\"ax\"\n"
+-		"3:	lea 0(%[size1],%[size8],8),%[size8]\n"
+-		"	jmp 2b\n"
+-		".previous\n"
+-		_ASM_EXTABLE_UA(0b, 3b)
+-		_ASM_EXTABLE_UA(1b, 2b)
+-		: [size8] "=&c"(size), [dst] "=&D" (__d0)
+-		: [size1] "r"(size & 7), "[size8]" (size / 8), "[dst]"(addr));
+-	clac();
+-	return size;
++	return __memset_user(addr, 0, size);
+ }
+ EXPORT_SYMBOL(__clear_user);
+ 
 -- 
-1.9.1
+2.19.1
