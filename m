@@ -1,140 +1,74 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4969A8E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 13:07:50 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id l9so4097299plt.7
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 10:07:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u6sor9136357pgu.43.2018.12.14.10.07.49
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 14 Dec 2018 10:07:49 -0800 (PST)
-From: Roman Gushchin <guroan@gmail.com>
-Subject: [RFC 1/4] mm: refactor __vunmap() to avoid duplicated call to find_vm_area()
-Date: Fri, 14 Dec 2018 10:07:17 -0800
-Message-Id: <20181214180720.32040-2-guro@fb.com>
-In-Reply-To: <20181214180720.32040-1-guro@fb.com>
-References: <20181214180720.32040-1-guro@fb.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 05/12] __wr_after_init: x86_64: debug writes
+Date: Wed, 19 Dec 2018 23:33:31 +0200
+Message-Id: <20181219213338.26619-6-igor.stoppa@huawei.com>
+In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
+References: <20181219213338.26619-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Alexey Dobriyan <adobriyan@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Roman Gushchin <guro@fb.com>
 
-__vunmap() calls find_vm_area() twice without an obvious reason:
-first directly to get the area pointer, second indirectly by calling
-remove_vm_area(), which is again searching for the area.
+After each write operation, confirm that it was successful, otherwise
+generate a warning.
 
-To remove this redundancy, let's split remove_vm_area() into
-__remove_vm_area(struct vmap_area *), which performs the actual area
-removal, and remove_vm_area(const void *addr) wrapper, which can
-be used everywhere, where it has been used before.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-On my test setup, I've got up to 12% speed up on vfree()'ing 1000000
-of 4-pages vmalloc blocks.
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- mm/vmalloc.c | 47 +++++++++++++++++++++++++++--------------------
- 1 file changed, 27 insertions(+), 20 deletions(-)
+ arch/x86/mm/prmem.c | 9 ++++++++-
+ mm/Kconfig.debug    | 8 ++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 97d4b25d0373..24a84d584609 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1462,6 +1462,24 @@ struct vm_struct *find_vm_area(const void *addr)
- 	return NULL;
- }
- 
-+static struct vm_struct *__remove_vm_area(struct vmap_area *va)
-+{
-+	struct vm_struct *vm = va->vm;
-+
-+	might_sleep();
-+
-+	spin_lock(&vmap_area_lock);
-+	va->vm = NULL;
-+	va->flags &= ~VM_VM_AREA;
-+	va->flags |= VM_LAZY_FREE;
-+	spin_unlock(&vmap_area_lock);
-+
-+	kasan_free_shadow(vm);
-+	free_unmap_vmap_area(va);
-+
-+	return vm;
-+}
-+
- /**
-  *	remove_vm_area  -  find and remove a continuous kernel virtual area
-  *	@addr:		base address
-@@ -1472,31 +1490,20 @@ struct vm_struct *find_vm_area(const void *addr)
-  */
- struct vm_struct *remove_vm_area(const void *addr)
- {
-+	struct vm_struct *vm = NULL;
- 	struct vmap_area *va;
- 
--	might_sleep();
+diff --git a/arch/x86/mm/prmem.c b/arch/x86/mm/prmem.c
+index fc367551e736..9d98525c687a 100644
+--- a/arch/x86/mm/prmem.c
++++ b/arch/x86/mm/prmem.c
+@@ -60,7 +60,14 @@ void *__wr_op(unsigned long dst, unsigned long src, __kernel_size_t len,
+ 		copy_to_user((void __user *)wr_poking_addr, (void *)src, len);
+ 	else if (op == WR_MEMSET)
+ 		memset_user((void __user *)wr_poking_addr, (u8)src, len);
 -
- 	va = find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA) {
--		struct vm_struct *vm = va->vm;
--
--		spin_lock(&vmap_area_lock);
--		va->vm = NULL;
--		va->flags &= ~VM_VM_AREA;
--		va->flags |= VM_LAZY_FREE;
--		spin_unlock(&vmap_area_lock);
--
--		kasan_free_shadow(vm);
--		free_unmap_vmap_area(va);
-+	if (va && va->flags & VM_VM_AREA)
-+		vm = __remove_vm_area(va);
- 
--		return vm;
--	}
--	return NULL;
-+	return vm;
- }
- 
- static void __vunmap(const void *addr, int deallocate_pages)
- {
- 	struct vm_struct *area;
-+	struct vmap_area *va;
- 
- 	if (!addr)
- 		return;
-@@ -1505,17 +1512,18 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 			addr))
- 		return;
- 
--	area = find_vmap_area((unsigned long)addr)->vm;
--	if (unlikely(!area)) {
-+	va = find_vmap_area((unsigned long)addr);
-+	if (unlikely(!va || !va->vm)) {
- 		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
- 				addr);
- 		return;
- 	}
- 
-+	area = va->vm;
- 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
- 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
- 
--	remove_vm_area(addr);
-+	__remove_vm_area(va);
- 	if (deallocate_pages) {
- 		int i;
- 
-@@ -1530,7 +1538,6 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 	}
- 
- 	kfree(area);
--	return;
- }
- 
- static inline void __vfree_deferred(const void *addr)
++#ifdef CONFIG_DEBUG_PRMEM
++	if (op == WR_MEMCPY)
++		VM_WARN_ONCE(memcmp((void *)dst, (void *)src, len),
++			     "Failed wr_memcpy()");
++	else if (op == WR_MEMSET)
++		VM_WARN_ONCE(memtst((void *)dst, (u8)src, len),
++			     "Failed wr_memset()");
++#endif
+ 	unuse_temporary_mm(prev);
+ 	local_irq_enable();
+ 	return (void *)dst;
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index 9a7b8b049d04..b10305cfac3c 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -94,3 +94,11 @@ config DEBUG_RODATA_TEST
+     depends on STRICT_KERNEL_RWX
+     ---help---
+       This option enables a testcase for the setting rodata read-only.
++
++config DEBUG_PRMEM
++    bool "Verify each write rare operation."
++    depends on PRMEM
++    default n
++    help
++      After any write rare operation, compares the data written with the
++      value provided by the caller.
 -- 
-2.19.2
+2.19.1
