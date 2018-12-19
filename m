@@ -1,75 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D0BE38E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:23:06 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e29so2844216ede.19
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:23:06 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y3si1408368edu.364.2018.12.20.08.23.05
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EB688E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 08:53:10 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id d41so16193196eda.12
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 05:53:10 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b9sor10684428eda.20.2018.12.19.05.53.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 08:23:05 -0800 (PST)
-Date: Thu, 20 Dec 2018 17:23:02 +0100
-From: Michal Hocko <mhocko@suse.com>
+        (Google Transport Security);
+        Wed, 19 Dec 2018 05:53:09 -0800 (PST)
+Date: Wed, 19 Dec 2018 13:53:07 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [PATCH v2] mm, page_isolation: remove drain_all_pages() in
  set_migratetype_isolate()
-Message-ID: <20181220162302.GA8131@dhcp22.suse.cz>
+Message-ID: <20181219135307.bjd6rckseczpfeae@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20181214023912.77474-1-richard.weiyang@gmail.com>
  <20181218204656.4297-1-richard.weiyang@gmail.com>
  <20181219095110.GB5758@dhcp22.suse.cz>
  <20181219095715.73x6hvmndyku2rec@d104.suse.de>
- <20181219135307.bjd6rckseczpfeae@master>
- <20181219141343.GN5758@dhcp22.suse.cz>
- <20181219143327.wdsufbn2oh6ygnne@master>
- <20181219143927.GO5758@dhcp22.suse.cz>
- <20181220155803.m4ebl6euq2yq4ezu@master>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181220155803.m4ebl6euq2yq4ezu@master>
+In-Reply-To: <20181219095715.73x6hvmndyku2rec@d104.suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, david@redhat.com
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, david@redhat.com
 
-On Thu 20-12-18 15:58:03, Wei Yang wrote:
-> On Wed, Dec 19, 2018 at 03:39:27PM +0100, Michal Hocko wrote:
-> >On Wed 19-12-18 14:33:27, Wei Yang wrote:
-> >[...]
-> >> Then I am confused about the objection to this patch. Finally, we drain
-> >> all the pages in pcp list and the range is isolated.
-> >
-> >Please read my emails more carefully. As I've said, the only reason to
-> >do care about draining is to remove it from where it doesn't belong.
-> 
-> I go through the thread again and classify two main opinions from you
-> and Oscar.
-> 
-> 1) We can still allocate pages in a specific range from pcp list even we
->    have already isolate this range.
-> 2) We shouldn't rely on caller to drain pages and
->    set_migratetype_isolate() may handle a range cross zones.
-> 
-> I understand the second one and agree it is not proper to rely on caller
-> and make the assumption on range for set_migratetype_isolate().
-> 
-> My confusion comes from the first one. As you and Oscar both mentioned
-> this and Oscar said "I had the same fear", this makes me think current
-> implementation is buggy. But your following reply said this is not. This
-> means current approach works fine.
-> 
-> If the above understanding is correct, and combining with previous
-> discussion, the improvement we can do is to remove the drain_all_pages()
-> in __offline_pages()/alloc_contig_range(). By doing so, the pcp list
-> drain doesn't rely on caller and the isolation/drain on each pageblock
-> ensures pcp list will not contain any page in this range now and future.
-> This imply the drain_all_pages() in
-> __offline_pages()/alloc_contig_range() is not necessary.
-> 
-> Is my understanding correct?
+On Wed, Dec 19, 2018 at 10:57:19AM +0100, Oscar Salvador wrote:
+>On Wed, Dec 19, 2018 at 10:51:10AM +0100, Michal Hocko wrote:
+>> On Wed 19-12-18 04:46:56, Wei Yang wrote:
+>> > Below is a brief call flow for __offline_pages() and
+>> > alloc_contig_range():
+>> > 
+>> >   __offline_pages()/alloc_contig_range()
+>> >       start_isolate_page_range()
+>> >           set_migratetype_isolate()
+>> >               drain_all_pages()
+>> >       drain_all_pages()
+>> > 
+>> > Current logic is: isolate and drain pcp list for each pageblock and
+>> > drain pcp list again. This is not necessary and we could just drain pcp
+>> > list once after isolate this whole range.
+>> > 
+>> > The reason is start_isolate_page_range() will set the migrate type of
+>> > a range to MIGRATE_ISOLATE. After doing so, this range will never be
+>> > allocated from Buddy, neither to a real user nor to pcp list.
+>> 
+>> But it is important to note that those pages still can be allocated from
+>> the pcp lists until we do drain_all_pages().
+>
+>I had the same fear, but then I saw that move_freepages_block()->move_freepages() moves
+>the pages to a new list:
+>
+><--
+>list_move(&page->lru,
+>			  &zone->free_area[order].free_list[migratetype]);
+>-->
+>
+>
+>But looking at it again, I see that this is only for BuddyPages, so I guess
+>that pcp-pages do not really get unlinked, so we could still allocate them.
 
-Yes
+Well, I think you are right. But with this in mind, current code looks
+buggy.
+
+Between has_unmovable_pages() and drain_all_pages(), others still could
+allocate pages on pcp list, right? This means we thought we have
+isolated the range, but not.
+
+So even we do drain_all_pages(), we still missed some pages in this
+range.
+
+>
+>Uhmf, I missed that.
+>
+>-- 
+>Oscar Salvador
+>SUSE L3
 
 -- 
-Michal Hocko
-SUSE Labs
+Wei Yang
+Help you, Help me
