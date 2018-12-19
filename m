@@ -1,165 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 62BBD8E021D
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 21:01:34 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 68so5863606pfr.6
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:01:34 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id m75si5322563pga.432.2018.12.14.18.01.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 18:01:33 -0800 (PST)
-Subject: [PATCH v5 5/5] mm: Maintain randomization of page free lists
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 14 Dec 2018 17:48:57 -0800
-Message-ID: <154483853710.1672629.8156030383787599207.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <154483851047.1672629.15001135860756738866.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <154483851047.1672629.15001135860756738866.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EBE198E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 07:53:01 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id h4so3168129otg.17
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 04:53:01 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f193si764099oic.59.2018.12.19.04.53.00
+        for <linux-mm@kvack.org>;
+        Wed, 19 Dec 2018 04:53:00 -0800 (PST)
+Date: Wed, 19 Dec 2018 12:52:52 +0000
+From: Dave Martin <Dave.Martin@arm.com>
+Subject: Re: [RFC][PATCH 0/3] arm64 relaxed ABI
+Message-ID: <20181219125249.GB22067@e103592.cambridge.arm.com>
+References: <cover.1544445454.git.andreyknvl@google.com>
+ <20181210143044.12714-1-vincenzo.frascino@arm.com>
+ <CAAeHK+xPZ-Z9YUAq=3+hbjj4uyJk32qVaxZkhcSAHYC4mHAkvQ@mail.gmail.com>
+ <20181212150230.GH65138@arrakis.emea.arm.com>
+ <CAAeHK+zxYJDJ7DJuDAOuOMgGvckFwMAoVUTDJzb6MX3WsXhRTQ@mail.gmail.com>
+ <20181218175938.GD20197@arrakis.emea.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181218175938.GD20197@arrakis.emea.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, peterz@infradead.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, Kostya Serebryany <kcc@google.com>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Chintan Pandya <cpandya@codeaurora.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Evgenii Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Lee Smith <Lee.Smith@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-When freeing a page with an order >= shuffle_page_order randomly select
-the front or back of the list for insertion.
+On Tue, Dec 18, 2018 at 05:59:38PM +0000, Catalin Marinas wrote:
+> On Tue, Dec 18, 2018 at 04:03:38PM +0100, Andrey Konovalov wrote:
+> > On Wed, Dec 12, 2018 at 4:02 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > > The summary of our internal discussions (mostly between kernel
+> > > developers) is that we can't properly describe a user ABI that covers
+> > > future syscalls or syscall extensions while not all syscalls accept
+> > > tagged pointers. So we tweaked the requirements slightly to only allow
+> > > tagged pointers back into the kernel *if* the originating address is
+> > > from an anonymous mmap() or below sbrk(0). This should cover some of the
+> > > ioctls or getsockopt(TCP_ZEROCOPY_RECEIVE) where the user passes a
+> > > pointer to a buffer obtained via mmap() on the device operations.
+> > >
+> > > (sorry for not being clear on what Vincenzo's proposal implies)
+> > 
+> > OK, I see. So I need to make the following changes to my patchset AFAIU.
+> > 
+> > 1. Make sure that we only allow tagged user addresses that originate
+> > from an anonymous mmap() or below sbrk(0). How exactly should this
+> > check be performed?
+> 
+> I don't think we should perform such checks. That's rather stating that
+> the kernel only guarantees that the tagged pointers work if they
+> originated from these memory ranges.
 
-While the mm tries to defragment physical pages into huge pages this can
-tend to make the page allocator more predictable over time. Inject the
-front-back randomness to preserve the initial randomness established by
-shuffle_free_memory() when the kernel was booted.
+I concur.
 
-The overhead of this manipulation is constrained by only being applied
-for MAX_ORDER sized pages by default.
+Really, the kernel should do the expected thing with all "non-weird"
+memory.
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/mm.h     |   12 ++++++++++++
- include/linux/mmzone.h |   10 ++++++++++
- mm/page_alloc.c        |   11 +++++++++--
- mm/shuffle.c           |   16 ++++++++++++++++
- 4 files changed, 47 insertions(+), 2 deletions(-)
+In lieu of a proper definition of "non-weird", I think we should have
+some lists of things that are explicitly included, and also excluded:
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 43e5a449caaf..8299267c028a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2088,6 +2088,13 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
- 		return;
- 	__shuffle_zone(z, start_pfn, end_pfn);
- }
-+
-+static inline bool is_shuffle_order(int order)
-+{
-+	if (!static_branch_unlikely(&page_alloc_shuffle_key))
-+                return false;
-+	return order >= CONFIG_SHUFFLE_PAGE_ORDER;
-+}
- #else
- static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
- 		unsigned long end_pfn)
-@@ -2102,6 +2109,11 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
- static inline void page_alloc_shuffle_enable(void)
- {
- }
-+
-+static inline bool is_shuffle_order(int order)
-+{
-+	return false;
-+}
- #endif
- 
- /* Free the reserved page into the buddy system, so it gets managed. */
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 35cc33af87f2..338929647eea 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -98,6 +98,8 @@ extern int page_group_by_mobility_disabled;
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
- 	unsigned long		nr_free;
-+	u64			rand;
-+	u8			rand_bits;
- };
- 
- /* Used for pages not on another list */
-@@ -116,6 +118,14 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
- 	area->nr_free++;
- }
- 
-+#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
-+/* Used to preserve page allocation order entropy */
-+void add_to_free_area_random(struct page *page, struct free_area *area,
-+		int migratetype);
-+#else
-+#define add_to_free_area_random add_to_free_area
-+#endif
-+
- /* Used for pages which are on another list */
- static inline void move_to_free_area(struct page *page, struct free_area *area,
- 			     int migratetype)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d2f7b050bc13..62a40ad07593 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -42,6 +42,7 @@
- #include <linux/mempolicy.h>
- #include <linux/memremap.h>
- #include <linux/stop_machine.h>
-+#include <linux/random.h>
- #include <linux/sort.h>
- #include <linux/pfn.h>
- #include <linux/backing-dev.h>
-@@ -850,7 +851,8 @@ static inline void __free_one_page(struct page *page,
- 	 * so it's less likely to be used soon and more likely to be merged
- 	 * as a higher order page
- 	 */
--	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
-+	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
-+			&& !is_shuffle_order(order)) {
- 		struct page *higher_page, *higher_buddy;
- 		combined_pfn = buddy_pfn & pfn;
- 		higher_page = page + (combined_pfn - pfn);
-@@ -864,7 +866,12 @@ static inline void __free_one_page(struct page *page,
- 		}
- 	}
- 
--	add_to_free_area(page, &zone->free_area[order], migratetype);
-+	if (is_shuffle_order(order))
-+		add_to_free_area_random(page, &zone->free_area[order],
-+				migratetype);
-+	else
-+		add_to_free_area(page, &zone->free_area[order], migratetype);
-+
- }
- 
- /*
-diff --git a/mm/shuffle.c b/mm/shuffle.c
-index 621fde268d01..5850a0761d10 100644
---- a/mm/shuffle.c
-+++ b/mm/shuffle.c
-@@ -204,3 +204,19 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
- 		shuffle_zone(z, start_pfn, end_pfn);
- }
-+
-+void add_to_free_area_random(struct page *page, struct free_area *area,
-+		int migratetype)
-+{
-+	if (area->rand_bits == 0) {
-+		area->rand_bits = 64;
-+		area->rand = get_random_u64();
-+	}
-+
-+	if (area->rand & 1)
-+		add_to_free_area(page, area, migratetype);
-+	else
-+		add_to_free_area_tail(page, area, migratetype);
-+	area->rand_bits--;
-+	area->rand >>= 1;
-+}
+OK:
+	kernel-allocated process stack
+	brk area
+	MAP_ANONYMOUS | MAP_PRIVATE
+	MAP_PRIVATE mappings of /dev/zero
+
+Not OK:
+	MAP_SHARED
+	mmaps of non-memory-like devices
+	mmaps of anything that is not a regular file
+	the VDSO
+	...
+
+In general, userspace can tag memory that it "owns", and we do not assume
+a transfer of ownership except in the "OK" list above.  Otherwise, it's
+the kernel's memory, or the owner is simply not well defined.
+
+
+I would also like to see advice for userspace developers, particularly
+things like (strawman, please challenge!):
+
+ * Userspace should set tags at the point of allocation only.
+
+ * If you don't know how an object was allocated, you cannot modify the
+   tag, period.
+
+ * A single C object should be accessed using a single, fixed pointer tag
+   throughout its entire lifetime.
+
+ * Tags can be changed only when there are no outstanding pointers to
+   the affected object or region that may be used to access the object
+   or region (i.e., if the object were allocated from the C heap and
+   is it safe to realloc() it, then it is safe to change the tag; for
+   other types of allocation, analogous arguments can be applied).
+
+ * When the kernel dereferences a pointer on userspace's behalf, it
+   shall behave equivalently to userspace dereferencing the same pointer,
+   including use of the same tag (where passed by userspace).
+
+ * Where the pointer tag affects pointer dereference behaviour (i.e.,
+   with hardware memory colouring) the kernel makes no guarantee to
+   honour pointer tags correctly for every location a buffer based on a
+   pointer passed by userspace to the kernel.
+
+   (This means for example that for a read(fd, buf, size), we can check
+   the tag for a single arbitrary location in *(char (*)[size])buf
+   before passing the buffer to get_user_pages().  Hopefully this could
+   be done in get_user_pages() itself rather than hunting call sites.
+   For userspace, it means that you're on your own if you ask the
+   kernel to operate on a buffer than spans multiple, independently-
+   allocated objects, or a deliberately striped single object.)
+
+ * The kernel shall not extend the lifetime of user pointers in ways
+   that are not clear from the specification of the syscall or
+   interface to which the pointer is passed (and in any case shall not
+   extend pointer lifetimes without good reason).
+
+   So no clever transparent caching between syscalls, unless it _really_
+   is transparent in the presence of tags.
+
+ * For purposes other than dereference, the kernel shall accept any
+   legitimately tagged pointer (according to the above rules) as
+   identifying the associated memory location.
+
+   So, mprotect(some_page_aligned_object, ...); is valid irrespective
+   of where page_aligned_object() came from.  There is no implicit
+   derefence by the kernel here, hence no tag check.
+
+   The kernel does not guarantee to work correctly if the wrong tag
+   is used, but there is not always a well-defined "right" tag, so
+   we can't really guarantee to check it.  So a pointer derived by
+   any reasonable means by userspace has to be treated as equally
+   valid.
+  
+
+We would need to get some cross-arch buy-in for this, otherwise core
+maintainers might just refuse to maintain the necessary guarantees.
+
+
+> > 2. Allow tagged addressed passed to memory syscalls (as long as (1) is
+> > satisfied). Do I understand correctly that this means that I need to
+> > locate all find_vma() callers outside of mm/ and fix them up as well?
+> 
+> Yes (unless anyone as a better idea or objections to this approach).
+
+Also, watch out for code that pokes about inside struct vma directly.
+
+I'm wondering, could we define an explicit type, say,
+
+	struct user_vaddr {
+		unsigned long addr;
+	};
+
+to replace the unsigned longs in struct vma the mm API?  This would
+turn ad-hoc (unsigned long) casts into build breaks.  We could have
+an explicit conversion functions, say,
+
+	struct user_vaddr __user_vaddr_unsafe(void __user *);
+	void __user *__user_ptr_unsafe(struct user_vaddr);
+
+that we robotically insert in all the relevant places to mark
+unaudited code.
+
+This allows us to keep the kernel buildable, while flagging things
+that will need review.  We would also need to warn the mm folks to
+reject any new code using these unsafe conversions.
+
+Of course, it would be a non-trivial effort...
+
+> 
+> BTW, I'll be off until the new year, so won't be able to follow up.
+
+Cheers
+---Dave
