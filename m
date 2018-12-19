@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B84B8E0001
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 04:57:22 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id l45so15875142edb.1
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 01:57:22 -0800 (PST)
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id r17si1450088edq.40.2018.12.19.01.57.21
-        for <linux-mm@kvack.org>;
-        Wed, 19 Dec 2018 01:57:21 -0800 (PST)
-Date: Wed, 19 Dec 2018 10:57:19 +0100
-From: Oscar Salvador <osalvador@suse.de>
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CF55A8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 04:51:14 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id t26so16192296pgu.18
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 01:51:14 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u5si15035172plj.129.2018.12.19.01.51.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Dec 2018 01:51:13 -0800 (PST)
+Date: Wed, 19 Dec 2018 10:51:10 +0100
+From: Michal Hocko <mhocko@suse.com>
 Subject: Re: [PATCH v2] mm, page_isolation: remove drain_all_pages() in
  set_migratetype_isolate()
-Message-ID: <20181219095715.73x6hvmndyku2rec@d104.suse.de>
+Message-ID: <20181219095110.GB5758@dhcp22.suse.cz>
 References: <20181214023912.77474-1-richard.weiyang@gmail.com>
  <20181218204656.4297-1-richard.weiyang@gmail.com>
- <20181219095110.GB5758@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181219095110.GB5758@dhcp22.suse.cz>
+In-Reply-To: <20181218204656.4297-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, david@redhat.com
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, osalvador@suse.de, david@redhat.com
 
-On Wed, Dec 19, 2018 at 10:51:10AM +0100, Michal Hocko wrote:
-> On Wed 19-12-18 04:46:56, Wei Yang wrote:
-> > Below is a brief call flow for __offline_pages() and
-> > alloc_contig_range():
-> > 
-> >   __offline_pages()/alloc_contig_range()
-> >       start_isolate_page_range()
-> >           set_migratetype_isolate()
-> >               drain_all_pages()
-> >       drain_all_pages()
-> > 
-> > Current logic is: isolate and drain pcp list for each pageblock and
-> > drain pcp list again. This is not necessary and we could just drain pcp
-> > list once after isolate this whole range.
-> > 
-> > The reason is start_isolate_page_range() will set the migrate type of
-> > a range to MIGRATE_ISOLATE. After doing so, this range will never be
-> > allocated from Buddy, neither to a real user nor to pcp list.
+On Wed 19-12-18 04:46:56, Wei Yang wrote:
+> Below is a brief call flow for __offline_pages() and
+> alloc_contig_range():
 > 
-> But it is important to note that those pages still can be allocated from
-> the pcp lists until we do drain_all_pages().
+>   __offline_pages()/alloc_contig_range()
+>       start_isolate_page_range()
+>           set_migratetype_isolate()
+>               drain_all_pages()
+>       drain_all_pages()
+> 
+> Current logic is: isolate and drain pcp list for each pageblock and
+> drain pcp list again. This is not necessary and we could just drain pcp
+> list once after isolate this whole range.
+> 
+> The reason is start_isolate_page_range() will set the migrate type of
+> a range to MIGRATE_ISOLATE. After doing so, this range will never be
+> allocated from Buddy, neither to a real user nor to pcp list.
 
-I had the same fear, but then I saw that move_freepages_block()->move_freepages() moves
-the pages to a new list:
+But it is important to note that those pages still can be allocated from
+the pcp lists until we do drain_all_pages().
 
-<--
-list_move(&page->lru,
-			  &zone->free_area[order].free_list[migratetype]);
--->
+One thing that I really do not like about this patch (and I believe I
+have mentioned that previously) that you rely on callers to do the right
+thing. The proper fix would be to do the draining in
+start_isolate_page_range and remove them from callers. Also what does
+prevent start_isolate_page_range to work on multiple zones? At least
+contiguous allocator can do that in principle.
 
-
-But looking at it again, I see that this is only for BuddyPages, so I guess
-that pcp-pages do not really get unlinked, so we could still allocate them.
-
-Uhmf, I missed that.
-
+So no I do not like this patch, it is not an improvement.
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
