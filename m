@@ -1,51 +1,47 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Mon, 24 Dec 2018 18:52:27 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v5 3/9] drivers/firewire/core-iso.c: Convert to use
- vm_insert_range
-Message-ID: <20181224132227.GA22096@jordon-HP-15-Notebook-PC>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DDB78E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 12:39:01 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id s22so17190233pgv.8
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 09:39:01 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id h5si17341188pfg.233.2018.12.19.09.39.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Dec 2018 09:39:00 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBJHTuRd050076
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 12:38:59 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pfte30e52-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 12:38:59 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Wed, 19 Dec 2018 17:38:57 -0000
+Date: Wed, 19 Dec 2018 18:38:52 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH] s390: remove the ptep_modify_prot_{start,commit} exports
+References: <20181219150750.4798-1-hch@lst.de>
 MIME-Version: 1.0
+In-Reply-To: <20181219150750.4798-1-hch@lst.de>
+Message-Id: <20181219173852.GA3789@osiris>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, stefanr@s5r6.in-berlin.de, linux@armlinux.org.uk, robin.murphy@arm.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: schwidefsky@de.ibm.com, linux-s390@vger.kernel.org, linux-mm@kvack.org
 
-Convert to use vm_insert_range to map range of kernel memory
-to user vma.
+On Wed, Dec 19, 2018 at 04:07:50PM +0100, Christoph Hellwig wrote:
+> These two functions are only used by core MM code, so no need to export
+> them.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  arch/s390/mm/pgtable.c | 2 --
+>  1 file changed, 2 deletions(-)
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
----
- drivers/firewire/core-iso.c | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
-
-diff --git a/drivers/firewire/core-iso.c b/drivers/firewire/core-iso.c
-index 35e784c..7bf28bb 100644
---- a/drivers/firewire/core-iso.c
-+++ b/drivers/firewire/core-iso.c
-@@ -107,19 +107,8 @@ int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
- int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
- 			  struct vm_area_struct *vma)
- {
--	unsigned long uaddr;
--	int i, err;
--
--	uaddr = vma->vm_start;
--	for (i = 0; i < buffer->page_count; i++) {
--		err = vm_insert_page(vma, uaddr, buffer->pages[i]);
--		if (err)
--			return err;
--
--		uaddr += PAGE_SIZE;
--	}
--
--	return 0;
-+	return vm_insert_range(vma, vma->vm_start, buffer->pages,
-+				buffer->page_count);
- }
- 
- void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
--- 
-1.9.1
+Applied, thanks.
