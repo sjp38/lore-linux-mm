@@ -1,121 +1,126 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BDCE68E00C9
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 13:48:55 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id u63so8142464oie.17
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 10:48:55 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s205si5921129oie.38.2018.12.11.10.48.54
-        for <linux-mm@kvack.org>;
-        Tue, 11 Dec 2018 10:48:54 -0800 (PST)
-From: Robin Murphy <robin.murphy@arm.com>
-Subject: [PATCH v2] arm64: Add memory hotplug support
-Date: Tue, 11 Dec 2018 18:48:48 +0000
-Message-Id: <331db1485b4c8c3466217e16a1e1f05618e9bae8.1544553902.git.robin.murphy@arm.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 07/12] __wr_after_init: lkdtm test
+Date: Wed, 19 Dec 2018 23:33:33 +0200
+Message-Id: <20181219213338.26619-8-igor.stoppa@huawei.com>
+In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
+References: <20181219213338.26619-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
-To: will.deacon@arm.com, catalin.marinas@arm.com
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, jonathan.cameron@huawei.com, cyrilc@xilinx.com, james.morse@arm.com, anshuman.khandual@arm.com, linux-mm@kvack.org
 
-Wire up the basic support for hot-adding memory. Since memory hotplug
-is fairly tightly coupled to sparsemem, we tweak pfn_valid() to also
-cross-check the presence of a section in the manner of the generic
-implementation, before falling back to memblock to check for no-map
-regions within a present section as before. By having arch_add_memory(()
-create the linear mapping first, this then makes everything work in the
-way that __add_section() expects.
+Verify that trying to modify a variable with the __wr_after_init
+attribute will cause a crash.
 
-We expect hotplug to be ACPI-driven, so the swapper_pg_dir updates
-should be safe from races by virtue of the global device hotplug lock.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
+ drivers/misc/lkdtm/core.c  |  3 +++
+ drivers/misc/lkdtm/lkdtm.h |  3 +++
+ drivers/misc/lkdtm/perms.c | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+)
 
-v2: Handle page-mappings-only cases appropriately
-
- arch/arm64/Kconfig   |  3 +++
- arch/arm64/mm/init.c |  8 ++++++++
- arch/arm64/mm/mmu.c  | 17 +++++++++++++++++
- arch/arm64/mm/numa.c | 10 ++++++++++
- 4 files changed, 38 insertions(+)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 4dbef530cf58..be423fda5cec 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -261,6 +261,9 @@ config ZONE_DMA32
- config HAVE_GENERIC_GUP
- 	def_bool y
- 
-+config ARCH_ENABLE_MEMORY_HOTPLUG
-+	def_bool y
-+
- config SMP
- 	def_bool y
- 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 6cde00554e9b..4bfe0fc9edac 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -291,6 +291,14 @@ int pfn_valid(unsigned long pfn)
- 
- 	if ((addr >> PAGE_SHIFT) != pfn)
- 		return 0;
-+
-+#ifdef CONFIG_SPARSEMEM
-+	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-+		return 0;
-+
-+	if (!valid_section(__nr_to_section(pfn_to_section_nr(pfn))))
-+		return 0;
+diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
+index 2837dc77478e..73c34b17c433 100644
+--- a/drivers/misc/lkdtm/core.c
++++ b/drivers/misc/lkdtm/core.c
+@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
+ 	CRASHTYPE(ACCESS_USERSPACE),
+ 	CRASHTYPE(WRITE_RO),
+ 	CRASHTYPE(WRITE_RO_AFTER_INIT),
++#ifdef CONFIG_PRMEM
++	CRASHTYPE(WRITE_WR_AFTER_INIT),
 +#endif
- 	return memblock_is_map_memory(addr);
- }
- EXPORT_SYMBOL(pfn_valid);
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 674c409a8ce4..da513a1facf4 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -1046,3 +1046,20 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
- 	pmd_free(NULL, table);
- 	return 1;
- }
-+
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
-+		    bool want_memblock)
-+{
-+	int flags = 0;
-+
-+	if (rodata_full || debug_pagealloc_enabled())
-+		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-+
-+	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
-+			     size, PAGE_KERNEL, pgd_pgtable_alloc, flags);
-+
-+	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
-+			   altmap, want_memblock);
-+}
+ 	CRASHTYPE(WRITE_KERN),
+ 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
+ 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
+diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
+index 3c6fd327e166..abba2f52ffa6 100644
+--- a/drivers/misc/lkdtm/lkdtm.h
++++ b/drivers/misc/lkdtm/lkdtm.h
+@@ -38,6 +38,9 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
+ void __init lkdtm_perms_init(void);
+ void lkdtm_WRITE_RO(void);
+ void lkdtm_WRITE_RO_AFTER_INIT(void);
++#ifdef CONFIG_PRMEM
++void lkdtm_WRITE_WR_AFTER_INIT(void);
 +#endif
-diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
-index 27a31efd9e8e..ae34e3a1cef1 100644
---- a/arch/arm64/mm/numa.c
-+++ b/arch/arm64/mm/numa.c
-@@ -466,3 +466,13 @@ void __init arm64_numa_init(void)
+ void lkdtm_WRITE_KERN(void);
+ void lkdtm_EXEC_DATA(void);
+ void lkdtm_EXEC_STACK(void);
+diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
+index 53b85c9d16b8..f681730aa652 100644
+--- a/drivers/misc/lkdtm/perms.c
++++ b/drivers/misc/lkdtm/perms.c
+@@ -9,6 +9,7 @@
+ #include <linux/vmalloc.h>
+ #include <linux/mman.h>
+ #include <linux/uaccess.h>
++#include <linux/prmem.h>
+ #include <asm/cacheflush.h>
  
- 	numa_init(dummy_numa_init);
- }
+ /* Whether or not to fill the target memory area with do_nothing(). */
+@@ -27,6 +28,10 @@ static const unsigned long rodata = 0xAA55AA55;
+ /* This is marked __ro_after_init, so it should ultimately be .rodata. */
+ static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
+ 
++/* This is marked __wr_after_init, so it should be in .rodata. */
++static
++unsigned long wr_after_init __wr_after_init = 0x55AA5500;
 +
-+/*
-+ * We hope that we will be hotplugging memory on nodes we already know about,
-+ * such that acpi_get_node() succeeds and we never fall back to this...
-+ */
-+int memory_add_physaddr_to_nid(u64 addr)
+ /*
+  * This just returns to the caller. It is designed to be copied into
+  * non-executable memory regions.
+@@ -104,6 +109,28 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
+ 	*ptr ^= 0xabcd1234;
+ }
+ 
++#ifdef CONFIG_PRMEM
++
++void lkdtm_WRITE_WR_AFTER_INIT(void)
 +{
-+	pr_warn("Unknown node for memory at 0x%llx, assuming node 0\n", addr);
-+	return 0;
++	unsigned long *ptr = &wr_after_init;
++
++	/*
++	 * Verify we were written to during init. Since an Oops
++	 * is considered a "success", a failure is to just skip the
++	 * real test.
++	 */
++	if ((*ptr & 0xAA) != 0xAA) {
++		pr_info("%p was NOT written during init!?\n", ptr);
++		return;
++	}
++
++	pr_info("attempting bad wr_after_init write at %p\n", ptr);
++	*ptr ^= 0xabcd1234;
 +}
++
++#endif
++
+ void lkdtm_WRITE_KERN(void)
+ {
+ 	size_t size;
+@@ -200,4 +227,6 @@ void __init lkdtm_perms_init(void)
+ 	/* Make sure we can write to __ro_after_init values during __init */
+ 	ro_after_init |= 0xAA;
+ 
++	/* Make sure we can write to __wr_after_init during __init */
++	wr_after_init |= 0xAA;
+ }
 -- 
-2.19.1.dirty
+2.19.1
