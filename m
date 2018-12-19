@@ -1,225 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1975E8E01DC
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 16:53:30 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id i37so6311971qkh.21
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 13:53:30 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q7si3238745qvc.195.2018.12.14.13.53.28
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 20B098E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 08:23:38 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o9so16661080pgv.19
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 05:23:38 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z11sor27758816pln.25.2018.12.19.05.23.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 13:53:28 -0800 (PST)
-From: Waiman Long <longman@redhat.com>
-Subject: [RESEND PATCH v4 3/3] fs/dcache: Track & report number of negative dentries
-Date: Fri, 14 Dec 2018 16:53:04 -0500
-Message-Id: <1544824384-17668-4-git-send-email-longman@redhat.com>
-In-Reply-To: <1544824384-17668-1-git-send-email-longman@redhat.com>
-References: <1544824384-17668-1-git-send-email-longman@redhat.com>
+        (Google Transport Security);
+        Wed, 19 Dec 2018 05:23:36 -0800 (PST)
+Subject: Re: KMSAN: kernel-infoleak in copy_page_to_iter (2)
+References: <00000000000016eb330575bd2fab@google.com>
+ <CAG_fn=WwdgnCQ2fOw_LEXwv7Fdbmshxo57XJXNbfbawDndJZ_Q@mail.gmail.com>
+ <CAG_fn=UjeL9BmAq+FDK01n4mH7ieQXpxkRRxAbDPd5UcC7eZPw@mail.gmail.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <06a3b403-7fe3-24fd-0ce2-9a604f3bbe62@kernel.dk>
+Date: Wed, 19 Dec 2018 06:23:32 -0700
+MIME-Version: 1.0
+In-Reply-To: <CAG_fn=UjeL9BmAq+FDK01n4mH7ieQXpxkRRxAbDPd5UcC7eZPw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>, Larry Woodman <lwoodman@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Wangkai (Kevin C)" <wangkai86@huawei.com>, Michal Hocko <mhocko@kernel.org>, Waiman Long <longman@redhat.com>
+To: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, bart.vanassche@wdc.com, matias.bjorling@wdc.com
+Cc: Andi Kleen <ak@linux.intel.com>, jack@suse.cz, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com
 
-The current dentry number tracking code doesn't distinguish between
-positive & negative dentries. It just reports the total number of
-dentries in the LRU lists.
+On 12/19/18 3:23 AM, Alexander Potapenko wrote:
+> On Thu, Sep 13, 2018 at 11:23 AM Alexander Potapenko <glider@google.com> wrote:
+>>
+>> On Thu, Sep 13, 2018 at 11:18 AM syzbot
+>> <syzbot+2dcfeaf8cb49b05e8f1a@syzkaller.appspotmail.com> wrote:
+>>>
+>>> Hello,
+>>>
+>>> syzbot found the following crash on:
+>>>
+>>> HEAD commit:    123906095e30 kmsan: introduce kmsan_interrupt_enter()/kmsa..
+>>> git tree:       https://github.com/google/kmsan.git/master
+>>> console output: https://syzkaller.appspot.com/x/log.txt?x=1249fcb8400000
+>>> kernel config:  https://syzkaller.appspot.com/x/.config?x=848e40757852af3e
+>>> dashboard link: https://syzkaller.appspot.com/bug?extid=2dcfeaf8cb49b05e8f1a
+>>> compiler:       clang version 7.0.0 (trunk 334104)
+>>> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=116ef050400000
+>>> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=122870ff800000
+>>>
+>>> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+>>> Reported-by: syzbot+2dcfeaf8cb49b05e8f1a@syzkaller.appspotmail.com
+>>>
+>>> random: sshd: uninitialized urandom read (32 bytes read)
+>>> ==================================================================
+>>> BUG: KMSAN: kernel-infoleak in copyout lib/iov_iter.c:140 [inline]
+>>> BUG: KMSAN: kernel-infoleak in copy_page_to_iter_iovec lib/iov_iter.c:212
+>>> [inline]
+>>> BUG: KMSAN: kernel-infoleak in copy_page_to_iter+0x754/0x1b70
+>>> lib/iov_iter.c:716
+>>> CPU: 0 PID: 4516 Comm: blkid Not tainted 4.17.0+ #9
+>>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+>>> Google 01/01/2011
+>>> Call Trace:
+>>>   __dump_stack lib/dump_stack.c:77 [inline]
+>>>   dump_stack+0x185/0x1d0 lib/dump_stack.c:113
+>>>   kmsan_report+0x188/0x2a0 mm/kmsan/kmsan.c:1125
+>>>   kmsan_internal_check_memory+0x17e/0x1f0 mm/kmsan/kmsan.c:1238
+>>>   kmsan_copy_to_user+0x7a/0x160 mm/kmsan/kmsan.c:1261
+>>>   copyout lib/iov_iter.c:140 [inline]
+>>>   copy_page_to_iter_iovec lib/iov_iter.c:212 [inline]
+>>>   copy_page_to_iter+0x754/0x1b70 lib/iov_iter.c:716
+>>>   generic_file_buffered_read mm/filemap.c:2185 [inline]
+>>>   generic_file_read_iter+0x2ef8/0x44d0 mm/filemap.c:2362
+>>>   blkdev_read_iter+0x20d/0x280 fs/block_dev.c:1930
+>>>   call_read_iter include/linux/fs.h:1778 [inline]
+>>>   new_sync_read fs/read_write.c:406 [inline]
+>>>   __vfs_read+0x775/0x9d0 fs/read_write.c:418
+>>>   vfs_read+0x36c/0x6b0 fs/read_write.c:452
+>>>   ksys_read fs/read_write.c:578 [inline]
+>>>   __do_sys_read fs/read_write.c:588 [inline]
+>>>   __se_sys_read fs/read_write.c:586 [inline]
+>>>   __x64_sys_read+0x1bf/0x3e0 fs/read_write.c:586
+>>>   do_syscall_64+0x15b/0x230 arch/x86/entry/common.c:287
+>>>   entry_SYSCALL_64_after_hwframe+0x44/0xa9
+>>> RIP: 0033:0x7fdeff68f310
+>>> RSP: 002b:00007ffe999660b8 EFLAGS: 00000246 ORIG_RAX: 0000000000000000
+>>> RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007fdeff68f310
+>>> RDX: 0000000000000100 RSI: 0000000001e78df8 RDI: 0000000000000003
+>>> RBP: 0000000001e78dd0 R08: 0000000000000028 R09: 0000000001680000
+>>> R10: 0000000000000000 R11: 0000000000000246 R12: 0000000001e78030
+>>> R13: 0000000000000100 R14: 0000000001e78080 R15: 0000000001e78de8
+>>>
+>>> Uninit was created at:
+>>>   kmsan_save_stack_with_flags mm/kmsan/kmsan.c:282 [inline]
+>>>   kmsan_alloc_meta_for_pages+0x161/0x3a0 mm/kmsan/kmsan.c:819
+>>>   kmsan_alloc_page+0x82/0xe0 mm/kmsan/kmsan.c:889
+>>>   __alloc_pages_nodemask+0xf7b/0x5cc0 mm/page_alloc.c:4402
+>>>   alloc_pages_current+0x6b1/0x970 mm/mempolicy.c:2093
+>>>   alloc_pages include/linux/gfp.h:494 [inline]
+>>>   __page_cache_alloc+0x95/0x320 mm/filemap.c:946
+>>>   pagecache_get_page+0x52b/0x1450 mm/filemap.c:1577
+>>>   grab_cache_page_write_begin+0x10d/0x190 mm/filemap.c:3089
+>>>   block_write_begin+0xf9/0x3a0 fs/buffer.c:2068
+>>>   blkdev_write_begin+0xf5/0x110 fs/block_dev.c:584
+>>>   generic_perform_write+0x438/0x9d0 mm/filemap.c:3139
+>>>   __generic_file_write_iter+0x43b/0xa10 mm/filemap.c:3264
+>>>   blkdev_write_iter+0x3a8/0x5f0 fs/block_dev.c:1910
+>>>   do_iter_readv_writev+0x81c/0xa20 include/linux/fs.h:1778
+>>>   do_iter_write+0x30d/0xd50 fs/read_write.c:959
+>>>   vfs_writev fs/read_write.c:1004 [inline]
+>>>   do_writev+0x3be/0x820 fs/read_write.c:1039
+>>>   __do_sys_writev fs/read_write.c:1112 [inline]
+>>>   __se_sys_writev fs/read_write.c:1109 [inline]
+>>>   __x64_sys_writev+0xe1/0x120 fs/read_write.c:1109
+>>>   do_syscall_64+0x15b/0x230 arch/x86/entry/common.c:287
+>>>   entry_SYSCALL_64_after_hwframe+0x44/0xa9
+>>>
+>>> Bytes 4-255 of 256 are uninitialized
+>>> Memory access starts at ffff8801b9903000
+>>> ==================================================================
+>> This particular report was caused by the repro program writing a byte
+>> to /dev/nullb0 and /sbin/blkid reading from that device in the
+>> background.
+>> But it turns out that simply running `cat /dev/nullb0` already prints
+>> uninitialized kernel memory.
+>> Is this the intended behavior of the null block driver?
+> A friendly ping, this bug is still reproducible on syzbot.
 
-As excessive number of negative dentries can have an impact on system
-performance, it will be wise to track the number of positive and
-negative dentries separately.
+Does this fix it?
 
-This patch adds tracking for the total number of negative dentries
-in the system LRU lists and reports it in the 5th field in the
-/proc/sys/fs/dentry-state file. The number, however, does not include
-negative dentries that are in flight but not in the LRU yet as well
-as those in the shrinker lists which are on the way out anyway.
 
-The number of positive dentries in the LRU lists can be roughly found
-by subtracting the number of negative dentries from the unused count.
+diff --git a/drivers/block/null_blk_main.c b/drivers/block/null_blk_main.c
+index 62c9654b9ce8..08808c572692 100644
+--- a/drivers/block/null_blk_main.c
++++ b/drivers/block/null_blk_main.c
+@@ -655,7 +655,7 @@ static struct nullb_page *null_alloc_page(gfp_t gfp_flags)
+ 	if (!t_page)
+ 		goto out;
+ 
+-	t_page->page = alloc_pages(gfp_flags, 0);
++	t_page->page = alloc_pages(gfp_flags | __GFP_ZERO, 0);
+ 	if (!t_page->page)
+ 		goto out_freepage;
+ 
 
-Matthew Wilcox had confirmed that since the introduction of the
-dentry_stat structure in 2.1.60, the dummy array was there, probably for
-future extension. They were not replacements of pre-existing fields. So
-no sane applications that read the value of /proc/sys/fs/dentry-state
-will do dummy thing if the last 2 fields of the sysctl parameter are
-not zero. IOW, it will be safe to use one of the dummy array entry for
-negative dentry count.
-
-Signed-off-by: Waiman Long <longman@redhat.com>
----
- Documentation/sysctl/fs.txt | 26 ++++++++++++++++----------
- fs/dcache.c                 | 32 ++++++++++++++++++++++++++++++++
- include/linux/dcache.h      |  7 ++++---
- 3 files changed, 52 insertions(+), 13 deletions(-)
-
-diff --git a/Documentation/sysctl/fs.txt b/Documentation/sysctl/fs.txt
-index 819caf8..58649bd 100644
---- a/Documentation/sysctl/fs.txt
-+++ b/Documentation/sysctl/fs.txt
-@@ -56,26 +56,32 @@ of any kernel data structures.
- 
- dentry-state:
- 
--From linux/fs/dentry.c:
-+From linux/include/linux/dcache.h:
- --------------------------------------------------------------
--struct {
-+struct dentry_stat_t dentry_stat {
-         int nr_dentry;
-         int nr_unused;
-         int age_limit;         /* age in seconds */
-         int want_pages;        /* pages requested by system */
--        int dummy[2];
--} dentry_stat = {0, 0, 45, 0,};
---------------------------------------------------------------- 
--
--Dentries are dynamically allocated and deallocated, and
--nr_dentry seems to be 0 all the time. Hence it's safe to
--assume that only nr_unused, age_limit and want_pages are
--used. Nr_unused seems to be exactly what its name says.
-+        int nr_negative;       /* # of unused negative dentries */
-+        int dummy;             /* Reserved for future use */
-+};
-+--------------------------------------------------------------
-+
-+Dentries are dynamically allocated and deallocated.
-+
-+nr_dentry shows the total number of dentries allocated (active
-++ unused). nr_unused shows the number of dentries that are not
-+actively used, but are saved in the LRU list for future reuse.
-+
- Age_limit is the age in seconds after which dcache entries
- can be reclaimed when memory is short and want_pages is
- nonzero when shrink_dcache_pages() has been called and the
- dcache isn't pruned yet.
- 
-+nr_negative shows the number of unused dentries that are also
-+negative dentries which do not mapped to actual files.
-+
- ==============================================================
- 
- dquot-max & dquot-nr:
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 44e5652..aac41ad 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -119,6 +119,7 @@ struct dentry_stat_t dentry_stat = {
- 
- static DEFINE_PER_CPU(long, nr_dentry);
- static DEFINE_PER_CPU(long, nr_dentry_unused);
-+static DEFINE_PER_CPU(long, nr_dentry_negative);
- 
- #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
- 
-@@ -152,11 +153,22 @@ static long get_nr_dentry_unused(void)
- 	return sum < 0 ? 0 : sum;
- }
- 
-+static long get_nr_dentry_negative(void)
-+{
-+	int i;
-+	long sum = 0;
-+
-+	for_each_possible_cpu(i)
-+		sum += per_cpu(nr_dentry_negative, i);
-+	return sum < 0 ? 0 : sum;
-+}
-+
- int proc_nr_dentry(struct ctl_table *table, int write, void __user *buffer,
- 		   size_t *lenp, loff_t *ppos)
- {
- 	dentry_stat.nr_dentry = get_nr_dentry();
- 	dentry_stat.nr_unused = get_nr_dentry_unused();
-+	dentry_stat.nr_negative = get_nr_dentry_negative();
- 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- }
- #endif
-@@ -317,6 +329,8 @@ static inline void __d_clear_type_and_inode(struct dentry *dentry)
- 	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
- 	WRITE_ONCE(dentry->d_flags, flags);
- 	dentry->d_inode = NULL;
-+	if (dentry->d_flags & DCACHE_LRU_LIST)
-+		this_cpu_inc(nr_dentry_negative);
- }
- 
- static void dentry_free(struct dentry *dentry)
-@@ -371,6 +385,11 @@ static void dentry_unlink_inode(struct dentry * dentry)
-  * The per-cpu "nr_dentry_unused" counters are updated with
-  * the DCACHE_LRU_LIST bit.
-  *
-+ * The per-cpu "nr_dentry_negative" counters are only updated
-+ * when deleted from or added to the per-superblock LRU list, not
-+ * from/to the shrink list. That is to avoid an unneeded dec/inc
-+ * pair when moving from LRU to shrink list in select_collect().
-+ *
-  * These helper functions make sure we always follow the
-  * rules. d_lock must be held by the caller.
-  */
-@@ -380,6 +399,8 @@ static void d_lru_add(struct dentry *dentry)
- 	D_FLAG_VERIFY(dentry, 0);
- 	dentry->d_flags |= DCACHE_LRU_LIST;
- 	this_cpu_inc(nr_dentry_unused);
-+	if (d_is_negative(dentry))
-+		this_cpu_inc(nr_dentry_negative);
- 	WARN_ON_ONCE(!list_lru_add(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
- }
- 
-@@ -388,6 +409,8 @@ static void d_lru_del(struct dentry *dentry)
- 	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
- 	dentry->d_flags &= ~DCACHE_LRU_LIST;
- 	this_cpu_dec(nr_dentry_unused);
-+	if (d_is_negative(dentry))
-+		this_cpu_dec(nr_dentry_negative);
- 	WARN_ON_ONCE(!list_lru_del(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
- }
- 
-@@ -418,6 +441,8 @@ static void d_lru_isolate(struct list_lru_one *lru, struct dentry *dentry)
- 	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
- 	dentry->d_flags &= ~DCACHE_LRU_LIST;
- 	this_cpu_dec(nr_dentry_unused);
-+	if (d_is_negative(dentry))
-+		this_cpu_dec(nr_dentry_negative);
- 	list_lru_isolate(lru, &dentry->d_lru);
- }
- 
-@@ -426,6 +451,8 @@ static void d_lru_shrink_move(struct list_lru_one *lru, struct dentry *dentry,
- {
- 	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
- 	dentry->d_flags |= DCACHE_SHRINK_LIST;
-+	if (d_is_negative(dentry))
-+		this_cpu_dec(nr_dentry_negative);
- 	list_lru_isolate_move(lru, &dentry->d_lru, list);
- }
- 
-@@ -1816,6 +1843,11 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
- 	WARN_ON(d_in_lookup(dentry));
- 
- 	spin_lock(&dentry->d_lock);
-+	/*
-+	 * Decrement negative dentry count if it was in the LRU list.
-+	 */
-+	if (dentry->d_flags & DCACHE_LRU_LIST)
-+		this_cpu_dec(nr_dentry_negative);
- 	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
- 	raw_write_seqcount_begin(&dentry->d_seq);
- 	__d_set_inode_and_type(dentry, inode, add_flags);
-diff --git a/include/linux/dcache.h b/include/linux/dcache.h
-index ef4b70f..60996e6 100644
---- a/include/linux/dcache.h
-+++ b/include/linux/dcache.h
-@@ -62,9 +62,10 @@ struct qstr {
- struct dentry_stat_t {
- 	long nr_dentry;
- 	long nr_unused;
--	long age_limit;          /* age in seconds */
--	long want_pages;         /* pages requested by system */
--	long dummy[2];
-+	long age_limit;		/* age in seconds */
-+	long want_pages;	/* pages requested by system */
-+	long nr_negative;	/* # of unused negative dentries */
-+	long dummy;		/* Reserved for future use */
- };
- extern struct dentry_stat_t dentry_stat;
- 
 -- 
-1.8.3.1
+Jens Axboe
