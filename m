@@ -1,122 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B97248E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 05:05:36 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id v2so3667815plg.6
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 02:05:36 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f68sor40321035pfh.22.2018.12.21.02.05.34
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F4CF8E0001
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 20:25:02 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id a10so13354684plp.14
+        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 17:25:02 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q26si12691462pgk.162.2018.12.18.17.25.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Dec 2018 02:05:34 -0800 (PST)
-Date: Fri, 21 Dec 2018 13:05:28 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 1/2] hugetlbfs: use i_mmap_rwsem for more pmd sharing
- synchronization
-Message-ID: <20181221100528.bkvddcqom7qaxwbe@kshutemo-mobl1>
-References: <20181218223557.5202-1-mike.kravetz@oracle.com>
- <20181218223557.5202-2-mike.kravetz@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Dec 2018 17:25:00 -0800 (PST)
+Date: Wed, 19 Dec 2018 01:24:59 +0000
+From: Sasha Levin <sashal@kernel.org>
+Subject: Re: [PATCH v2 1/2] hugetlbfs: use i_mmap_rwsem for more pmd sharing synchronization
 In-Reply-To: <20181218223557.5202-2-mike.kravetz@oracle.com>
+References: <20181218223557.5202-2-mike.kravetz@oracle.com>
+Message-Id: <20181219012500.5291A218AD@mail.kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Sasha Levin <sashal@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, stable@vger.kernel.orgstable@vger.kernel.org
 
-On Tue, Dec 18, 2018 at 02:35:56PM -0800, Mike Kravetz wrote:
-> While looking at BUGs associated with invalid huge page map counts,
-> it was discovered and observed that a huge pte pointer could become
-> 'invalid' and point to another task's page table.  Consider the
-> following:
-> 
-> A task takes a page fault on a shared hugetlbfs file and calls
-> huge_pte_alloc to get a ptep.  Suppose the returned ptep points to a
-> shared pmd.
-> 
-> Now, another task truncates the hugetlbfs file.  As part of truncation,
-> it unmaps everyone who has the file mapped.  If the range being
-> truncated is covered by a shared pmd, huge_pmd_unshare will be called.
-> For all but the last user of the shared pmd, huge_pmd_unshare will
-> clear the pud pointing to the pmd.  If the task in the middle of the
-> page fault is not the last user, the ptep returned by huge_pte_alloc
-> now points to another task's page table or worse.  This leads to bad
-> things such as incorrect page map/reference counts or invalid memory
-> references.
-> 
-> To fix, expand the use of i_mmap_rwsem as follows:
-> - i_mmap_rwsem is held in read mode whenever huge_pmd_share is called.
->   huge_pmd_share is only called via huge_pte_alloc, so callers of
->   huge_pte_alloc take i_mmap_rwsem before calling.  In addition, callers
->   of huge_pte_alloc continue to hold the semaphore until finished with
->   the ptep.
-> - i_mmap_rwsem is held in write mode whenever huge_pmd_unshare is called.
-> 
-> Cc: <stable@vger.kernel.org>
-> Fixes: 39dde65c9940 ("shared page table for hugetlb page")
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Hi,
 
-Other the few questions below. The patch looks reasonable to me.
+[This is an automated email]
 
-> @@ -3252,11 +3253,23 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
->  
->  	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
->  		spinlock_t *src_ptl, *dst_ptl;
-> +
->  		src_pte = huge_pte_offset(src, addr, sz);
->  		if (!src_pte)
->  			continue;
-> +
-> +		/*
-> +		 * i_mmap_rwsem must be held to call huge_pte_alloc.
-> +		 * Continue to hold until finished  with dst_pte, otherwise
-> +		 * it could go away if part of a shared pmd.
-> +		 *
-> +		 * Technically, i_mmap_rwsem is only needed in the non-cow
-> +		 * case as cow mappings are not shared.
-> +		 */
-> +		i_mmap_lock_read(mapping);
+This commit has been processed because it contains a "Fixes:" tag,
+fixing commit: 39dde65c9940 [PATCH] shared page table for hugetlb page.
 
-Any reason you do lock/unlock on each iteration rather than around whole
-loop?
+The bot has tested the following trees: v4.19.10, v4.14.89, v4.9.146, v4.4.168, v3.18.130, 
 
->  		dst_pte = huge_pte_alloc(dst, addr, sz);
->  		if (!dst_pte) {
-> +			i_mmap_unlock_read(mapping);
->  			ret = -ENOMEM;
->  			break;
->  		}
+v4.19.10: Build OK!
+v4.14.89: Failed to apply! Possible dependencies:
+    285b8dcaacfc ("mm, hugetlbfs: pass fault address to no page handler")
 
-...
+v4.9.146: Failed to apply! Possible dependencies:
+    1a1aad8a9b7b ("userfaultfd: hugetlbfs: add userfaultfd hugetlb hook")
+    369cd2121be4 ("userfaultfd: hugetlbfs: userfaultfd_huge_must_wait for hugepmd ranges")
+    7868a2087ec1 ("mm/hugetlb: add size parameter to huge_pte_offset()")
+    82b0f8c39a38 ("mm: join struct fault_env and vm_fault")
+    8fb5debc5fcd ("userfaultfd: hugetlbfs: add hugetlb_mcopy_atomic_pte for userfaultfd support")
+    953c66c2b22a ("mm: THP page cache support for ppc64")
+    ace71a19cec5 ("mm: introduce page_vma_mapped_walk()")
+    fd60775aea80 ("mm, thp: avoid unlikely branches for split_huge_pmd")
 
-> @@ -3772,14 +3789,18 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
->  			};
->  
->  			/*
-> -			 * hugetlb_fault_mutex must be dropped before
-> -			 * handling userfault.  Reacquire after handling
-> -			 * fault to make calling code simpler.
-> +			 * hugetlb_fault_mutex and i_mmap_rwsem must be
-> +			 * dropped before handling userfault.  Reacquire
-> +			 * after handling fault to make calling code simpler.
->  			 */
->  			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
->  							idx, haddr);
->  			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-> +			i_mmap_unlock_read(mapping);
-> +
+v4.4.168: Failed to apply! Possible dependencies:
+    01c8f1c44b83 ("mm, dax, gpu: convert vm_insert_mixed to pfn_t")
+    0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
+    34c0fd540e79 ("mm, dax, pmem: introduce pfn_t")
+    369cd2121be4 ("userfaultfd: hugetlbfs: userfaultfd_huge_must_wait for hugepmd ranges")
+    52db400fcd50 ("pmem, dax: clean up clear_pmem()")
+    66b3923a1a0f ("arm64: hugetlb: add support for PTE contiguous bit")
+    7868a2087ec1 ("mm/hugetlb: add size parameter to huge_pte_offset()")
+    82b0f8c39a38 ("mm: join struct fault_env and vm_fault")
+    9973c98ecfda ("dax: add support for fsync/sync")
+    ac401cc78242 ("dax: New fault locking")
+    b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
+    bae473a423f6 ("mm: introduce fault_env")
+    bc2466e42573 ("dax: Use radix tree entry lock to protect cow faults")
+    e4b274915863 ("DAX: move RADIX_DAX_ definitions to dax.c")
+    f9fe48bece3a ("dax: support dirty DAX entries in radix tree")
 
-Do we have order of hugetlb_fault_mutex vs. i_mmap_lock documented?
-I *looks* correct to me, but it's better to write it down somewhere.
-Mayby add to the header of mm/rmap.c?
+v3.18.130: Failed to apply! Possible dependencies:
+    1038628d80e9 ("userfaultfd: uAPI")
+    15b726ef048b ("userfaultfd: optimize read() and poll() to be O(1)")
+    25edd8bffd0f ("userfaultfd: linux/Documentation/vm/userfaultfd.txt")
+    2f4b829c625e ("arm64: Add support for hardware updates of the access and dirty pte bits")
+    369cd2121be4 ("userfaultfd: hugetlbfs: userfaultfd_huge_must_wait for hugepmd ranges")
+    3f602d2724b1 ("userfaultfd: Rename uffd_api.bits into .features")
+    66b3923a1a0f ("arm64: hugetlb: add support for PTE contiguous bit")
+    6910fa16dbe1 ("arm64: enable PTE type bit in the mask for pte_modify")
+    736d2169338a ("parisc: Add Huge Page and HUGETLBFS support")
+    7868a2087ec1 ("mm/hugetlb: add size parameter to huge_pte_offset()")
+    82b0f8c39a38 ("mm: join struct fault_env and vm_fault")
+    83cde9e8ba95 ("mm: use new helper functions around the i_mmap_mutex")
+    86039bd3b4e6 ("userfaultfd: add new syscall to provide memory externalization")
+    874bfcaf79e3 ("mm/xip: share the i_mmap_rwsem")
+    8d2afd96c203 ("userfaultfd: solve the race between UFFDIO_COPY|ZEROPAGE and read")
+    93ef666a094f ("arm64: Macros to check/set/unset the contiguous bit")
+    a9b85f9415fd ("userfaultfd: change the read API to return a uffd_msg")
+    ac401cc78242 ("dax: New fault locking")
+    ba85c702e4b2 ("userfaultfd: wake pending userfaults")
+    bae473a423f6 ("mm: introduce fault_env")
+    bc2466e42573 ("dax: Use radix tree entry lock to protect cow faults")
+    d475c6346a38 ("dax,ext2: replace XIP read and write with DAX I/O")
+    de1414a654e6 ("fs: export inode_to_bdi and use it in favor of mapping->backing_dev_info")
+    dfa37dc3fc1f ("userfaultfd: allow signals to interrupt a userfault")
+    e4b274915863 ("DAX: move RADIX_DAX_ definitions to dax.c")
+    ecf35a237a85 ("arm64: PTE/PMD contiguous bit definition")
+    f24ffde43237 ("parisc: expose number of page table levels on Kconfig level")
 
->  			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
-> +
-> +			i_mmap_lock_read(mapping);
->  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
->  			goto out;
->  		}
 
--- 
- Kirill A. Shutemov
+How should we proceed with this patch?
+
+--
+Thanks,
+Sasha
