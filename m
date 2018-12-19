@@ -1,76 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5117A6B7B66
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 13:40:53 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id v2so829992plg.6
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 10:40:53 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A03D8E0001
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2018 07:46:52 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id f22so22826316qkm.11
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 04:46:52 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v62sor1957614pgd.23.2018.12.06.10.40.52
+        by mx.google.com with SMTPS id k21sor3198548qvh.10.2018.12.19.04.46.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Dec 2018 10:40:52 -0800 (PST)
-Date: Fri, 7 Dec 2018 00:14:38 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v3 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use
- vm_insert_range
-Message-ID: <20181206184438.GA31370@jordon-HP-15-Notebook-PC>
+        Wed, 19 Dec 2018 04:46:51 -0800 (PST)
+Subject: Re: [PATCH] mm: skip checking poison pattern for page_to_nid()
+References: <1545172285.18411.26.camel@lca.pw>
+ <20181219015732.26179-1-cai@lca.pw> <20181219102010.GF5758@dhcp22.suse.cz>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <cbfacb4b-dbfd-f68f-3d1e-05e137feca18@lca.pw>
+Date: Wed, 19 Dec 2018 07:46:49 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20181219102010.GF5758@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, pawel@osciak.com, m.szyprowski@samsung.com, kyungmin.park@samsung.com, mchehab@kernel.org
-Cc: linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, mingo@kernel.org, hpa@zytor.com, mgorman@techsingularity.net, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Convert to use vm_insert_range to map range of kernel memory
-to user vma.
+On 12/19/18 5:20 AM, Michal Hocko wrote:
+> On Tue 18-12-18 20:57:32, Qian Cai wrote:
+> [...]
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 5411de93a363..f083f366ea90 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -985,9 +985,7 @@ extern int page_to_nid(const struct page *page);
+>>  #else
+>>  static inline int page_to_nid(const struct page *page)
+>>  {
+>> -	struct page *p = (struct page *)page;
+>> -
+>> -	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
+>> +	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+>>  }
+>>  #endif
+> 
+> I didn't get to think about a proper fix but this is clearly worng. If
+> the page is still poisoned then flags are clearly bogus and the node you
+> get is a garbage as well. Have you actually tested this patch?
+> 
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++++----------------
- 1 file changed, 7 insertions(+), 16 deletions(-)
+Yes, I did notice that after running for a while triggering some UBSAN
+out-of-bounds access warnings. I am still trying to figure out how those
+uninitialized page flags survived though after
 
-diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-index 015e737..898adef 100644
---- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-+++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-@@ -328,28 +328,19 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
- static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
- {
- 	struct vb2_dma_sg_buf *buf = buf_priv;
--	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
--	int i = 0;
-+	unsigned long page_count = vma_pages(vma);
-+	int err;
- 
- 	if (!buf) {
- 		printk(KERN_ERR "No memory to map\n");
- 		return -EINVAL;
- 	}
- 
--	do {
--		int ret;
--
--		ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
--		if (ret) {
--			printk(KERN_ERR "Remapping memory, error: %d\n", ret);
--			return ret;
--		}
--
--		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
--
-+	err = vm_insert_range(vma, vma->vm_start, buf->pages, page_count);
-+	if (err) {
-+		printk(KERN_ERR "Remapping memory, error: %d\n", err);
-+		return err;
-+	}
- 
- 	/*
- 	 * Use common vm_area operations to track buffer refcount.
--- 
-1.9.1
+mm_init
+  mem_init
+    memblock_free_all
+      init_single_page()
