@@ -1,83 +1,121 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E37D56B71FD
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 21:35:26 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id q64so15589282pfa.18
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 18:35:26 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 24sor23920910pgq.13.2018.12.04.18.35.25
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Dec 2018 18:35:25 -0800 (PST)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 1/2] admin-guide/memory-hotplug.rst: remove locking internal part from admin-guide
-Date: Wed,  5 Dec 2018 10:34:25 +0800
-Message-Id: <20181205023426.24029-1-richard.weiyang@gmail.com>
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 01/12] x86_64: memset_user()
+Date: Wed, 19 Dec 2018 23:33:27 +0200
+Message-Id: <20181219213338.26619-2-igor.stoppa@huawei.com>
+In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
+References: <20181219213338.26619-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
-To: david@redhat.com, mhocko@suse.com, osalvador@suse.de
-Cc: akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-Locking Internal section exists in core-api documentation, which is more
-suitable for this.
+Create x86_64 specific version of memset for user space, based on
+clear_user().
+This will be used for implementing wr_memset() in the __wr_after_init
+scenario, where write-rare variables have an alternate mapping for
+writing.
 
-This patch removes the duplication part here.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- Documentation/admin-guide/mm/memory-hotplug.rst | 40 -------------------------
- 1 file changed, 40 deletions(-)
+ arch/x86/include/asm/uaccess_64.h |  6 ++++
+ arch/x86/lib/usercopy_64.c        | 54 +++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+)
 
-diff --git a/Documentation/admin-guide/mm/memory-hotplug.rst b/Documentation/admin-guide/mm/memory-hotplug.rst
-index 5c4432c96c4b..241f4ce1e387 100644
---- a/Documentation/admin-guide/mm/memory-hotplug.rst
-+++ b/Documentation/admin-guide/mm/memory-hotplug.rst
-@@ -392,46 +392,6 @@ Need more implementation yet....
-  - Notification completion of remove works by OS to firmware.
-  - Guard from remove if not yet.
+diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
+index a9d637bc301d..f194bfce4866 100644
+--- a/arch/x86/include/asm/uaccess_64.h
++++ b/arch/x86/include/asm/uaccess_64.h
+@@ -213,4 +213,10 @@ copy_user_handle_tail(char *to, char *from, unsigned len);
+ unsigned long
+ mcsafe_handle_tail(char *to, char *from, unsigned len);
  
--
--Locking Internals
--=================
--
--When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
--the device_hotplug_lock should be held to:
--
--- synchronize against online/offline requests (e.g. via sysfs). This way, memory
--  block devices can only be accessed (.online/.state attributes) by user
--  space once memory has been fully added. And when removing memory, we
--  know nobody is in critical sections.
--- synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
--
--Especially, there is a possible lock inversion that is avoided using
--device_hotplug_lock when adding memory and user space tries to online that
--memory faster than expected:
--
--- device_online() will first take the device_lock(), followed by
--  mem_hotplug_lock
--- add_memory_resource() will first take the mem_hotplug_lock, followed by
--  the device_lock() (while creating the devices, during bus_add_device()).
--
--As the device is visible to user space before taking the device_lock(), this
--can result in a lock inversion.
--
--onlining/offlining of memory should be done via device_online()/
--device_offline() - to make sure it is properly synchronized to actions
--via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
--
--When adding/removing/onlining/offlining memory or adding/removing
--heterogeneous/device memory, we should always hold the mem_hotplug_lock in
--write mode to serialise memory hotplug (e.g. access to global/zone
--variables).
--
--In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
--mode allows for a quite efficient get_online_mems/put_online_mems
--implementation, so code accessing memory can protect from that memory
--vanishing.
--
--
- Future Work
- ===========
++unsigned long __must_check
++memset_user(void __user *mem, int c, unsigned long len);
++
++unsigned long __must_check
++__memset_user(void __user *mem, int c, unsigned long len);
++
+ #endif /* _ASM_X86_UACCESS_64_H */
+diff --git a/arch/x86/lib/usercopy_64.c b/arch/x86/lib/usercopy_64.c
+index 1bd837cdc4b1..84f8f8a20b30 100644
+--- a/arch/x86/lib/usercopy_64.c
++++ b/arch/x86/lib/usercopy_64.c
+@@ -9,6 +9,60 @@
+ #include <linux/uaccess.h>
+ #include <linux/highmem.h>
  
++/*
++ * Memset Userspace
++ */
++
++unsigned long __memset_user(void __user *addr, int c, unsigned long size)
++{
++	long __d0;
++	unsigned long  pattern = 0;
++	int i;
++
++	for (i = 0; i < 8; i++)
++		pattern = (pattern << 8) | (0xFF & c);
++	might_fault();
++	/* no memory constraint: gcc doesn't know about this memory */
++	stac();
++	asm volatile(
++		"       movq %[val], %%rdx\n"
++		"	testq  %[size8],%[size8]\n"
++		"	jz     4f\n"
++		"0:	mov %%rdx,(%[dst])\n"
++		"	addq   $8,%[dst]\n"
++		"	decl %%ecx ; jnz   0b\n"
++		"4:	movq  %[size1],%%rcx\n"
++		"	testl %%ecx,%%ecx\n"
++		"	jz     2f\n"
++		"1:	movb   %%dl,(%[dst])\n"
++		"	incq   %[dst]\n"
++		"	decl %%ecx ; jnz  1b\n"
++		"2:\n"
++		".section .fixup,\"ax\"\n"
++		"3:	lea 0(%[size1],%[size8],8),%[size8]\n"
++		"	jmp 2b\n"
++		".previous\n"
++		_ASM_EXTABLE_UA(0b, 3b)
++		_ASM_EXTABLE_UA(1b, 2b)
++		: [size8] "=&c"(size), [dst] "=&D" (__d0)
++		: [size1] "r"(size & 7), "[size8]" (size / 8), "[dst]"(addr),
++		  [val] "ri"(pattern)
++		: "rdx");
++
++	clac();
++	return size;
++}
++EXPORT_SYMBOL(__memset_user);
++
++unsigned long memset_user(void __user *to, int c, unsigned long n)
++{
++	if (access_ok(VERIFY_WRITE, to, n))
++		return __memset_user(to, c, n);
++	return n;
++}
++EXPORT_SYMBOL(memset_user);
++
++
+ /*
+  * Zero Userspace
+  */
 -- 
-2.15.1
+2.19.1
