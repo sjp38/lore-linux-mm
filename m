@@ -2,180 +2,155 @@ Return-Path: <SRS0=PcJq=O5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA7A3C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 19:45:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88559C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 21:04:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6344E218D3
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 19:45:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3B916218FE
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 21:04:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ljt+A0id"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6344E218D3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="RGXr9WLh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B916218FE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01F9F8E0009; Thu, 20 Dec 2018 14:45:12 -0500 (EST)
+	id BA5D88E000C; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEA198E0001; Thu, 20 Dec 2018 14:45:11 -0500 (EST)
+	id B53208E0001; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB3BD8E0009; Thu, 20 Dec 2018 14:45:11 -0500 (EST)
+	id A1D468E000C; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ABE128E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:45:11 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id k90so3052184qte.0
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:45:11 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7547D8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id b185so3262813qkc.3
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 13:04:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=HKmYRYZ8i9OtQjopx4/zRiXjDlfBrbzkMJTi5+z4kig=;
-        b=LH4TJiWVt12KqZCkMq6XzgDxP7yTrgJuOG7cnsCUFe3oEFNGlrX3+cY2kGsKWUgkLH
-         ifBHcrAnVqPGtYUejR24Vv4X4QrPrbEq5UI/4QrpETYrhgUB7zM9715oReSa4YxKyXiy
-         6rM5vw3ecJAniMRfk2SoRIKAexzepaZi9uUvObSnEgQaDvYdHCCM1QSI/AJzol1EReen
-         vGiUAgNy3y1CsXsMAbGRsp05wYuXlitWBPKQjKD4HGJr54edjticwo5XxnO9Ldo1UdaO
-         GYpU6qVrcY07F3eSg57PM4z71thbjtLj+YJRsON4FzVHe88VnNir1exPWZnHFaNRPKgs
-         QyEg==
-X-Gm-Message-State: AA+aEWYFDWTq/f0Yl8fNCC+pM9enPrDlI/zsDaWl3OaNz0qzVBqs1I0J
-	y3xmGFF5s1ur9nTTqXqYYSQf0MP88KnBUW2LHdgePksR/fCHGuVfQvjpOY12MBvBY9cE/Xg7Gp1
-	fsHLNGpajg34mrOBloS1/sRda/DTdS5pTmd9NqsTVQQ4hcLQyuM07jAmqQ4Ze7NBoFQ86NO/fvL
-	4eC/LgnRPgB4+JExbRgAC42Doe2bcN9Arww0rcWBemPoCoOK0X+UDoF3ccwyfRWyf3Xmpn2UCgm
-	hqJN8dEY1qUPyK38PAdDG6OFsv1Gn35QqjHd4Tie1Xo/6ntnGsEFfYU4/92D4AUI6PX+InssuZE
-	WWSSxzHS/kLHzluam1SLkZLRUIMWNJgmSpnPmP63+l2aE36QCShW9W/KI4WHOpI2HxZmglvlNRP
-	U
-X-Received: by 2002:ac8:668c:: with SMTP id d12mr26530769qtp.242.1545335111407;
-        Thu, 20 Dec 2018 11:45:11 -0800 (PST)
-X-Received: by 2002:ac8:668c:: with SMTP id d12mr26530728qtp.242.1545335110464;
-        Thu, 20 Dec 2018 11:45:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545335110; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=40o5Oy7hDwmt2u6+dlhmoS7n7OKNWc5BjZgibEpQDOg=;
+        b=JKzuPTYTGbPrSgLFkuK5hBiv8D4sLROvCT/V3H4PChr9P/vig0MDVuKbdaIo/F+QOs
+         Pz3lEoWllGDiy/tHvCbkScSzwYQ1yrxC1k3ltAsUhXxvB6RgDcWvXGpMfuJBQU+E03ef
+         ZVaveA0Ss+mUQITQLi3aL8GZiHDCM1ZyqOExClpldt/4VvT7ePMZBgUbeytWC5F7uFES
+         14lzNg+MhxtgKL2y1HAbK7fnvaqOVypPHOXy017gmai4HBz4Umkuf9sQ1oI+EOzBzfZK
+         vB2vyyKj2Mxwst5HMLkt0hHGzG01y/VmowAFgK8ECdE5J7u20vbqwey3n1U+Z3DQ8dg1
+         wICg==
+X-Gm-Message-State: AA+aEWZe2GlygSLgI11QqlMRfGZ8MGgorEMF1HmaekBUHqSmY3GoSly0
+	62ehBSZzjD3QnS9wZ/L6SsyhI58D1joufe4J9XQuFc+RyuHUD1GZZyzW1nsIxKg+mK0qHSKBx0V
+	02j15BRSp1hcb1wl81oCGQYObpB0QbPZOKmFTOk3w/Fr0aWWywawi+1Y/a62ZG3xlKJx5v3GeFY
+	uYnqHcnKxMEJPDBcafLIL+lQ7aOsd7dWmHShZlHyPMvNqtELxc2mW1tN+miNk3ak52mCMFGsZ3k
+	vwML6B5fxMSbZ5dHaRJakXWHKz9oSb/3CfqUYSVvZ24ZNzzBtEb2+ITA9IiI1hq3m1oYSEQP9GK
+	3EGXmyKSe4Ze/o273P+wWBBDVqUKnyxt0oKe9OC1bAaWd8geBjTshwvgBjpw1Q22DoY7um1e7Gk
+	4
+X-Received: by 2002:aed:31a3:: with SMTP id 32mr28357556qth.234.1545339889174;
+        Thu, 20 Dec 2018 13:04:49 -0800 (PST)
+X-Received: by 2002:aed:31a3:: with SMTP id 32mr28357530qth.234.1545339888690;
+        Thu, 20 Dec 2018 13:04:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545339888; cv=none;
         d=google.com; s=arc-20160816;
-        b=rkz1HVz1+zBPyUmQiOEW7F0WhgLUDSIjb3lpjcEOqUd3py2n+EssfC86uI+sNjd2cY
-         qvGpuWDmlUGE2dAiNllUu8WL/D/bJ8Ka67w5KDfawiWMvORNJ3zNJC/g/fQ4rKDvDeyK
-         9ISSRoNPnIuZz8YtjWFL64iRYOLk+SBGQJXFm9ACMeCxDBiqwSdqBWsVbwDkF2fMvi7c
-         YIBiCmlmGmy6GchAsSKzJ6jS8ssFHU/to8lUYk+9n65jQTsuiuTEZzYQp/Z1lE+gmKce
-         VTjcCT5R5o18jxaUmLSvd1SSd7B0RUFIvwKDNfHD2UFIp22D3FeL2uU0A6q2uM75iVT5
-         35jA==
+        b=gJn5AqyGfhar6eUL5/nU6bjHBOrb+QgC3WAiMLRycq3xmK0SP+0ZuVeAxVCNtNEL5x
+         M9ZIGh9QR4ly35LkVc9/BDJ3uPsTZawKeaTt2OGQHxhavvyUbt5ImbNqPa/AkPR3+MNa
+         eWvvPYbFyVCEPKcUYnilTVFzNcsuB+QFnIPYWmBMuoSxX9GgvyWvdiKy8eK1kW4lQH8w
+         e8pG5L6N6HsI6GrblqUb4ol6Po3ZfcoMAKidxfxu3/047jDIIacMDkBDWHrntu+qKcKv
+         Rv7SYNdPWjf4XHcgRliexcQ6FbqLdWjTDIi4KgBhhx8mMz4gZOTpTwiSdrBtCT238NQv
+         1HXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=HKmYRYZ8i9OtQjopx4/zRiXjDlfBrbzkMJTi5+z4kig=;
-        b=yKFPc8k6YhFm1eu1xP6E1znHMD+j7QcC+FR1qNpjMsKuPVrSR61YHQXFWWbZBt2RcG
-         8szERfTC2ZdLihUxpk/5qLfR/5RQKHn8s10bvwqtNMzHVG7hZ2GtBxrKEFGy/G95SBP0
-         5ZxMqiwt06qkxNUd4q4t6KM6ZYF5UMhvYwvCI6R8aiZfyFNpw8itj4FGDNkdrn+i9loN
-         N13A6c6SZTAZ67TgugeVOwevr1DA6jJ1YKjmGcPrvZG3EoKsprFK9Zj3mF94ML7XmI+Y
-         thmQm+Qg3AH2tZKGMifpVf/8F6/wba/YYtxzS07TfZJG28P6o/q2evpZMn9kUurgLUZj
-         ld0w==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=40o5Oy7hDwmt2u6+dlhmoS7n7OKNWc5BjZgibEpQDOg=;
+        b=IM48pYpW9eoSTVTgzFj5DZ8lXXKMyD0uGvB08DRPQJKkXdUNMZG5mao4rdzzQEGwOB
+         BYFCPeLURP2DTKxSaGnXiDvZWN+qDttnjBmQ4HhGQkA6PalwxQ96Tl5CMRTmjJ6vfCJW
+         Zbw11FrQYILzrZgrGuNsEUYxoiidqrIqMvFNtSK/rBavr7kQhRVSzOb+aSBIeWkvxy+K
+         23ktRBdCk0xqHd4g9dzOaT6M5irVEF67jBJ0trftpPS+mYh/aiDMAzS4IzybqH2oOSNx
+         HpJl6i0Yeg5VXqB2NHLc0BJ+y1srDgUJlcxqz8Ahe7gMTv29KYVj2rOBhKzQ79QmBOGB
+         2ZSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ljt+A0id;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=RGXr9WLh;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r93sor4290647qkr.27.2018.12.20.11.45.10
+        by mx.google.com with SMTPS id k34sor7986133qvf.44.2018.12.20.13.04.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 20 Dec 2018 11:45:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 20 Dec 2018 13:04:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ljt+A0id;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=RGXr9WLh;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=HKmYRYZ8i9OtQjopx4/zRiXjDlfBrbzkMJTi5+z4kig=;
-        b=Ljt+A0idXUEnF5LAnsQXnAhP2HjkaChKUTxbo/ITBVf0Jccx9GjxWhOyo3Oax+61Mr
-         gDkiiHqNDoWVakbxfq1VL6G8+xFb/bGUk/5rmfrK8hebHu9k25Sa7BJ4nASHnAnVsGv9
-         jvIo/5a+WqNhYcdSIozXUg8h3w+Gx4M4iV5tb66MnVNGerWOE63a3NCELEElZqvsJpyz
-         JdjLLiXgjxVsV3r2PwKro5VErhPpvsEZcceRkjH4/JiOrRMK4Yqn3EAl4ZtjAUa1J1Fd
-         4LMgDchFZrhvWxro7Dx0XWvrrhrOr3u+1pYTIHuELQHdIelUUVD/Zq5exBEN5leeaxFE
-         NFUw==
-X-Google-Smtp-Source: AFSGD/VBds3C89sGV9++238eDor5qCfEClTVWWva7YtSZqasPDTwvaUnyPK8WL4gMlDVdArK7KM2kSzVi99e2b0vDcU=
-X-Received: by 2002:a37:97c1:: with SMTP id z184mr25956590qkd.39.1545335109937;
- Thu, 20 Dec 2018 11:45:09 -0800 (PST)
-MIME-Version: 1.0
-References: <20181214230310.572-1-mgorman@techsingularity.net> <20181214230310.572-7-mgorman@techsingularity.net>
-In-Reply-To: <20181214230310.572-7-mgorman@techsingularity.net>
-From: Yang Shi <shy828301@gmail.com>
-Date: Thu, 20 Dec 2018 11:44:57 -0800
-Message-ID:
- <CAHbLzko6jXSikw-4LQXi6KfNR9=U4XJnB_OaaZ4XcNHUj4NLUQ@mail.gmail.com>
-Subject: Re: [PATCH 06/14] mm, migrate: Immediately fail migration of a page
- with no migration handler
-To: mgorman@techsingularity.net
-Cc: Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, 
-	Andrea Arcangeli <aarcange@redhat.com>, torvalds@linux-foundation.org, 
-	Michal Hocko <mhocko@kernel.org>, Huang Ying <ying.huang@intel.com>, 
-	"Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=40o5Oy7hDwmt2u6+dlhmoS7n7OKNWc5BjZgibEpQDOg=;
+        b=RGXr9WLhK1buTTXJHJajtUgPlrUEOxrKtuQ4PrjbZMZmsvAN8c3rqfUUTgCy13uC/A
+         WqfJItJU2+zXE2v2VFo1LxPRLhvY5uBDLhqFRCdeV23GQ3tW29tAfSIhY48FoUd9GlzE
+         f2xGY0NBoFyKW5guhkvhjclikYP95/4ke2sov0QXpIuCWSgcn1rF4SbhlNNjAuV0YRjo
+         ETlbCISSIgit7VjFS8ziKrNUe0Ep4+IzoxCj38tOtDt3o5BQb0Tl5w7Pf2AOkxAM7EXE
+         9/kE2Biwtqjne10I1ST9Y9H8gtX3UTIe/LaxlNZKU0kg37eI0JIypd+fyAtn3Uht4IHv
+         JysQ==
+X-Google-Smtp-Source: AFSGD/XbSTAr4I1DC+05jTpum05aDzoBFdNVh04bS9bxA1o3YaoP3QrygbYxrtJc8MyOKkPxD8jymQ==
+X-Received: by 2002:a0c:9531:: with SMTP id l46mr27092597qvl.175.1545339888399;
+        Thu, 20 Dec 2018 13:04:48 -0800 (PST)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id x5sm4557736qtc.43.2018.12.20.13.04.47
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Dec 2018 13:04:47 -0800 (PST)
+Message-ID: <1545339886.18411.31.camel@lca.pw>
+Subject: Re: [PATCH v3] mm/page_owner: fix for deferred struct page init
+From: Qian Cai <cai@lca.pw>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com,
+ Pavel.Tatashin@microsoft.com,  mingo@kernel.org, hpa@zytor.com,
+ mgorman@techsingularity.net,  iamjoonsoo.kim@lge.com, tglx@linutronix.de,
+ linux-mm@kvack.org,  linux-kernel@vger.kernel.org
+Date: Thu, 20 Dec 2018 16:04:46 -0500
+In-Reply-To: <E084FF0A-88CD-4E61-88F2-7D542D67DDF1@oracle.com>
+References: <20181220185031.43146-1-cai@lca.pw>
+	 <20181220203156.43441-1-cai@lca.pw>
+	 <E084FF0A-88CD-4E61-88F2-7D542D67DDF1@oracle.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000003, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181220194457.fGAo2vL272DchFzFxUg00hHnyWshY9vagDxf0MIouFA@z>
+Message-ID: <20181220210446.DCiiL77Y8bk8K8De4gaLbswXtLOLUeqkFzDv4r7DLG8@z>
 
-On Fri, Dec 14, 2018 at 3:03 PM Mel Gorman <mgorman@techsingularity.net> wrote:
->
-> Pages with no migration handler use a fallback hander which sometimes
-> works and sometimes persistently fails such as blockdev pages. Migration
+On Thu, 2018-12-20 at 14:00 -0700, William Kucharski wrote:
+> > On Dec 20, 2018, at 1:31 PM, Qian Cai <cai@lca.pw> wrote:
+> > 
+> > diff --git a/mm/page_ext.c b/mm/page_ext.c
+> > index ae44f7adbe07..d76fd51e312a 100644
+> > --- a/mm/page_ext.c
+> > +++ b/mm/page_ext.c
+> > @@ -399,9 +399,8 @@ void __init page_ext_init(void)
+> > 			 * -------------pfn-------------->
+> > 			 * N0 | N1 | N2 | N0 | N1 | N2|....
+> > 			 *
+> > -			 * Take into account DEFERRED_STRUCT_PAGE_INIT.
+> > 			 */
+> > -			if (early_pfn_to_nid(pfn) != nid)
+> > +			if (pfn_to_nid(pfn) != nid)
+> > 				continue;
+> > 			if (init_section_page_ext(pfn, nid))
+> > 				goto oom;
+> > -- 
+> > 2.17.2 (Apple Git-113)
+> > 
+> 
+> Is there any danger in the fact that in the CONFIG_NUMA case in mmzone.h
+> (around line 1261), pfn_to_nid() calls page_to_nid(), possibly causing the
+> same issue seen in v2?
+> 
 
-A minor correction. The above statement sounds not accurate anymore
-since Jan Kara had patch series (blkdev: avoid migration stalls for
-blkdev pages) have blockdev use its own migration handler.
-
-Thanks,
-Yang
-
-> will retry a number of times on these persistent pages which is wasteful
-> during compaction. This patch will fail migration immediately unless the
-> caller is in MIGRATE_SYNC mode which indicates the caller is willing to
-> wait while being persistent.
->
-> This is not expected to help THP allocation success rates but it does
-> reduce latencies slightly.
->
-> 1-socket thpfioscale
->                                     4.20.0-rc6             4.20.0-rc6
->                                noreserved-v1r4          failfast-v1r4
-> Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-> Amean     fault-both-3      2276.15 (   0.00%)     3867.54 * -69.92%*
-> Amean     fault-both-5      4992.20 (   0.00%)     5313.20 (  -6.43%)
-> Amean     fault-both-7      7373.30 (   0.00%)     7039.11 (   4.53%)
-> Amean     fault-both-12    11911.52 (   0.00%)    11328.29 (   4.90%)
-> Amean     fault-both-18    17209.42 (   0.00%)    16455.34 (   4.38%)
-> Amean     fault-both-24    20943.71 (   0.00%)    20448.94 (   2.36%)
-> Amean     fault-both-30    22703.00 (   0.00%)    21655.07 (   4.62%)
-> Amean     fault-both-32    22461.41 (   0.00%)    21415.35 (   4.66%)
->
-> The 2-socket results are not materially different. Scan rates are
-> similar as expected.
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
->  mm/migrate.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index df17a710e2c7..0e27a10429e2 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -885,7 +885,7 @@ static int fallback_migrate_page(struct address_space *mapping,
->          */
->         if (page_has_private(page) &&
->             !try_to_release_page(page, GFP_KERNEL))
-> -               return -EAGAIN;
-> +               return mode == MIGRATE_SYNC ? -EAGAIN : -EBUSY;
->
->         return migrate_page(mapping, newpage, page, mode);
->  }
-> --
-> 2.16.4
->
+No. If CONFIG_DEFERRED_STRUCT_PAGE_INIT=y, page_ext_init() is called after
+page_alloc_init_late() where all the memory has already been initialized,
+so page_to_nid() will work then.
 
