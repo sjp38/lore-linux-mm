@@ -1,99 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AC8998E004D
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:30:09 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id w15so7010261edl.21
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:30:09 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k21-v6si805323ejp.31.2018.12.11.06.30.08
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BD8268E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:21:58 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id d196so2914695qkb.6
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:21:58 -0800 (PST)
+Received: from a9-35.smtp-out.amazonses.com (a9-35.smtp-out.amazonses.com. [54.240.9.35])
+        by mx.google.com with ESMTPS id u13si2533036qvp.212.2018.12.20.11.21.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 06:30:08 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 1/3] mm, thp: restore __GFP_NORETRY for madvised thp fault allocations
-Date: Tue, 11 Dec 2018 15:29:39 +0100
-Message-Id: <20181211142941.20500-2-vbabka@suse.cz>
-In-Reply-To: <20181211142941.20500-1-vbabka@suse.cz>
-References: <20181211142941.20500-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 20 Dec 2018 11:21:58 -0800 (PST)
+Message-ID: <01000167cd113a49-ada7b71e-0fa9-4897-b324-b7a2e1bd0f1c-000000@email.amazonses.com>
+Date: Thu, 20 Dec 2018 19:21:57 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: [RFC 2/7] slub: Add defrag_ratio field and sysfs support
+References: <20181220192145.023162076@linux.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=defrag_ratio
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Commit 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and
-madvised allocations") intended to make THP faults in MADV_HUGEPAGE areas more
-successful for processes that indicate that they are willing to pay a higher
-initial setup cost for long-term THP benefits. In the current page allocator
-implementation this means that the allocations will try to use reclaim and the
-more costly sync compaction mode, in case the initial direct async compaction
-fails.
+"defrag_ratio" is used to set the threshold at which defragmentation
+should be attempted on a slab page.
 
-However, THP faults also include __GFP_THISNODE, which, combined with direct
-reclaim, can result in a node-reclaim-like local node thrashing behavior, as
-reported by Andrea [1].
+"defrag_ratio" is percentage in the range of 1 - 100. If more than
+that percentage of slots in a slab page are unused the the slab page
+will become subject to defragmentation.
 
-While this patch is not a full fix, the first step is to restore __GFP_NORETRY
-for madvised THP faults. The expected downside are potentially worse THP
-fault success rates for the madvised areas, which will have to then rely more
-on khugepaged. For khugepaged, __GFP_NORETRY is not restored, as its activity
-should be limited enough by sleeping to cause noticeable thrashing.
+Add a defrag ratio field and set it to 30% by default. A limit of 30% specifies
+that less than 3 out of 10 available slots for objects need to be leftover
+before slab defragmentation will be attempted on the remaining objects.
 
-Note that alloc_new_node_page() and new_page() is probably another candidate as
-they handle the migrate_pages(2), resp. mbind(2) syscall, which can thus allow
-unprivileged node-reclaim-like behavior.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-The patch also updates the comments in alloc_hugepage_direct_gfpmask() because
-elsewhere compaction during page fault is called direct compaction, and
-'synchronous' refers to the migration mode, which is not used for THP faults.
-
-[1] https://lkml.kernel.org/m/20180820032204.9591-1-aarcange@redhat.com
-
-Reported-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>
 ---
- mm/huge_memory.c | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+ Documentation/ABI/testing/sysfs-kernel-slab |   13 +++++++++++++
+ include/linux/slub_def.h                    |    6 ++++++
+ mm/slub.c                                   |   23 +++++++++++++++++++++++
+ 3 files changed, 42 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5da55b38b1b7..c442b12b060c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -633,24 +633,23 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- {
- 	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c
++++ linux/mm/slub.c
+@@ -3628,6 +3628,7 @@ static int kmem_cache_open(struct kmem_c
  
--	/* Always do synchronous compaction */
-+	/* Always try direct compaction */
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
--		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
-+		return GFP_TRANSHUGE | __GFP_NORETRY;
+ 	set_cpu_partial(s);
  
- 	/* Kick kcompactd and fail quickly */
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
- 		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
- 
--	/* Synchronous compaction if madvised, otherwise kick kcompactd */
-+	/* Direct compaction if madvised, otherwise kick kcompactd */
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
- 		return GFP_TRANSHUGE_LIGHT |
--			(vma_madvised ? __GFP_DIRECT_RECLAIM :
-+			(vma_madvised ? (__GFP_DIRECT_RECLAIM | __GFP_NORETRY):
- 					__GFP_KSWAPD_RECLAIM);
- 
--	/* Only do synchronous compaction if madvised */
-+	/* Only do direct compaction if madvised */
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
--		return GFP_TRANSHUGE_LIGHT |
--		       (vma_madvised ? __GFP_DIRECT_RECLAIM : 0);
-+		return vma_madvised ? (GFP_TRANSHUGE | __GFP_NORETRY) : GFP_TRANSHUGE_LIGHT;
- 
- 	return GFP_TRANSHUGE_LIGHT;
++	s->defrag_ratio = 30;
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 1000;
+ #endif
+@@ -5113,6 +5114,27 @@ static ssize_t destroy_by_rcu_show(struc
  }
--- 
-2.19.2
+ SLAB_ATTR_RO(destroy_by_rcu);
+ 
++static ssize_t defrag_ratio_show(struct kmem_cache *s, char *buf)
++{
++	return sprintf(buf, "%d\n", s->defrag_ratio);
++}
++
++static ssize_t defrag_ratio_store(struct kmem_cache *s,
++				const char *buf, size_t length)
++{
++	unsigned long ratio;
++	int err;
++
++	err = kstrtoul(buf, 10, &ratio);
++	if (err)
++		return err;
++
++	if (ratio < 100)
++		s->defrag_ratio = ratio;
++	return length;
++}
++SLAB_ATTR(defrag_ratio);
++
+ #ifdef CONFIG_SLUB_DEBUG
+ static ssize_t slabs_show(struct kmem_cache *s, char *buf)
+ {
+@@ -5437,6 +5459,7 @@ static struct attribute *slab_attrs[] =
+ 	&validate_attr.attr,
+ 	&alloc_calls_attr.attr,
+ 	&free_calls_attr.attr,
++	&defrag_ratio_attr.attr,
+ #endif
+ #ifdef CONFIG_ZONE_DMA
+ 	&cache_dma_attr.attr,
+Index: linux/Documentation/ABI/testing/sysfs-kernel-slab
+===================================================================
+--- linux.orig/Documentation/ABI/testing/sysfs-kernel-slab
++++ linux/Documentation/ABI/testing/sysfs-kernel-slab
+@@ -180,6 +180,19 @@ Description:
+ 		list.  It can be written to clear the current count.
+ 		Available when CONFIG_SLUB_STATS is enabled.
+ 
++What:		/sys/kernel/slab/cache/defrag_ratio
++Date:		December 2018
++KernelVersion:	4.18
++Contact:	Christoph Lameter <cl@linux-foundation.org>
++		Pekka Enberg <penberg@cs.helsinki.fi>,
++Description:
++		The defrag_ratio files allows the control of how agressive
++		slab fragmentation reduction works at reclaiming objects from
++		sparsely populated slabs. This is a percentage. If a slab
++		has more than this percentage of available object then reclaim
++		will attempt to reclaim objects so that the whole slab
++		page can be freed. The default is 30%.
++
+ What:		/sys/kernel/slab/cache/deactivate_to_tail
+ Date:		February 2008
+ KernelVersion:	2.6.25
+Index: linux/include/linux/slub_def.h
+===================================================================
+--- linux.orig/include/linux/slub_def.h
++++ linux/include/linux/slub_def.h
+@@ -104,6 +104,12 @@ struct kmem_cache {
+ 	unsigned int red_left_pad;	/* Left redzone padding size */
+ 	const char *name;	/* Name (only for display!) */
+ 	struct list_head list;	/* List of slab caches */
++	int defrag_ratio;	/*
++				 * Ratio used to check the percentage of
++				 * objects allocate in a slab page.
++				 * If less than this ratio is allocated
++				 * then reclaim attempts are made.
++				 */
+ #ifdef CONFIG_SYSFS
+ 	struct kobject kobj;	/* For sysfs */
+ 	struct work_struct kobj_remove_work;
