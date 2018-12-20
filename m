@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 66B7E8E0002
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 09:08:41 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id r9so1754617pfb.13
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 06:08:41 -0800 (PST)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-eopbgr790080.outbound.protection.outlook.com. [40.107.79.80])
-        by mx.google.com with ESMTPS id j1si18514056pff.42.2018.12.20.06.08.40
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E65168E0002
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 09:06:55 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id x2so1165054ioa.23
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 06:06:55 -0800 (PST)
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680073.outbound.protection.outlook.com. [40.107.68.73])
+        by mx.google.com with ESMTPS id u4si4324181itj.4.2018.12.20.06.06.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 06:08:40 -0800 (PST)
+        Thu, 20 Dec 2018 06:06:54 -0800 (PST)
 From: "StDenis, Tom" <Tom.StDenis@amd.com>
 Subject: Re: After Vega 56/64 GPU hang I unable reboot system
-Date: Thu, 20 Dec 2018 14:08:38 +0000
-Message-ID: <fbdd541c-ce31-9fe0-f1ac-bb9c51bb6526@amd.com>
+Date: Thu, 20 Dec 2018 14:06:47 +0000
+Message-ID: <4a3060aa-2bc7-9845-0135-ddf27e90740e@amd.com>
 References: 
  <CABXGCsPu3g8WZXV1RpggLFuL3bgofmXMs1SiPyYnPyEOW7t3Dg@mail.gmail.com>
  <24702c72-cc06-1b54-0ab9-6d2409362c27@amd.com>
@@ -28,11 +28,11 @@ References:
  <CABXGCsMbP8W28NTx_y3viiN=3deiEVkLw0_HBFZa1Qt_8MUVjg@mail.gmail.com>
  <b3aba7f4-b131-64fe-88eb-c1e14e133c51@amd.com>
  <CABXGCsMJs6X+bK7NS+wPn94H3skcR5a-U9710rSByvn26vg7Gg@mail.gmail.com>
- <4a3060aa-2bc7-9845-0135-ddf27e90740e@amd.com>
-In-Reply-To: <4a3060aa-2bc7-9845-0135-ddf27e90740e@amd.com>
+In-Reply-To: 
+ <CABXGCsMJs6X+bK7NS+wPn94H3skcR5a-U9710rSByvn26vg7Gg@mail.gmail.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <4407B5F62A517547AFEE756E18EF52C9@namprd12.prod.outlook.com>
+Content-ID: <D68B6D7D4D4FEF42A4DB827C07800425@namprd12.prod.outlook.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
@@ -40,33 +40,29 @@ List-ID: <linux-mm.kvack.org>
 To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
 Cc: "Grodzovsky, Andrey" <Andrey.Grodzovsky@amd.com>, "Wentland, Harry" <Harry.Wentland@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Koenig, Christian" <Christian.Koenig@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
 
-T24gMjAxOC0xMi0yMCA5OjA2IGEubS4sIFRvbSBTdCBEZW5pcyB3cm90ZToNCj4gT24gMjAxOC0x
-Mi0yMCA2OjQ1IGEubS4sIE1pa2hhaWwgR2F2cmlsb3Ygd3JvdGU6DQo+PiBPbiBUaHUsIDIwIERl
-YyAyMDE4IGF0IDE2OjE3LCBTdERlbmlzLCBUb20gPFRvbS5TdERlbmlzQGFtZC5jb20+IHdyb3Rl
-Og0KPj4+DQo+Pj4gV2VsbCB5dXAgdGhlIGtlcm5lbCBpcyBub3QgbGV0dGluZyB5b3Ugb3BlbiB0
-aGUgZmlsZXM6DQo+Pj4NCj4+Pg0KPj4+IEFzIHN1ZG8vcm9vdCB5b3Ugc2hvdWxkIGJlIGFibGUg
-dG8gb3BlbiB0aGVzZSBmaWxlcyB3aXRoIHVtci7CoCBXaGF0DQo+Pj4gaGFwcGVucyBpZiB5b3Ug
-anVzdCBvcGVuIGEgc2hlbGwgYXMgcm9vdCBhbmQgcnVuIGl0Pw0KPj4+DQo+Pg0KPj4gW3Jvb3RA
-bG9jYWxob3N0IH5dIyB0b3VjaCAvc3lzL2tlcm5lbC9kZWJ1Zy9kcmkvMC9hbWRncHVfcmluZ19n
-ZngNCj4+IFtyb290QGxvY2FsaG9zdCB+XSMgY2F0IC9zeXMva2VybmVsL2RlYnVnL2RyaS8wL2Ft
-ZGdwdV9yaW5nX2dmeA0KPj4gY2F0OiAvc3lzL2tlcm5lbC9kZWJ1Zy9kcmkvMC9hbWRncHVfcmlu
-Z19nZng6IE9wZXJhdGlvbiBub3QgcGVybWl0dGVkDQo+PiBbcm9vdEBsb2NhbGhvc3Qgfl0jIGxz
-IC1sYVogL3N5cy9rZXJuZWwvZGVidWcvZHJpLzAvYW1kZ3B1X3JpbmdfZ2Z4DQo+PiAtci0tci0t
-ci0tLiAxIHJvb3Qgcm9vdCBzeXN0ZW1fdTpvYmplY3RfcjpkZWJ1Z2ZzX3Q6czAgODIwNCBEZWMg
-MjANCj4+IDE2OjMxIC9zeXMva2VybmVsL2RlYnVnL2RyaS8wL2FtZGdwdV9yaW5nX2dmeA0KPj4g
-W3Jvb3RAbG9jYWxob3N0IH5dIyBnZXRlbmZvcmNlDQo+PiBQZXJtaXNzaXZlDQo+PiBbcm9vdEBs
-b2NhbGhvc3Qgfl0jIC9ob21lL21pa2hhaWwvcGFja2FnaW5nLXdvcmsvdW1yL2J1aWxkL3NyYy9h
-cHAvdW1yDQo+PiAtTyB2ZXJib3NlLGhhbHRfd2F2ZXMgLXdhDQo+PiBDYW5ub3Qgc2VlayB0byBN
-TUlPIGFkZHJlc3M6IEJhZCBmaWxlIGRlc2NyaXB0b3INCj4+IFtFUlJPUl06IENvdWxkIG5vdCBv
-cGVuIHJpbmcgZGVidWdmcyBmaWxlU2VnbWVudGF0aW9uIGZhdWx0IChjb3JlIGR1bXBlZCkNCj4+
-DQo+PiBJIGFtIGFscmVhZHkgdHJpZWQgbGF1bmNoIGB1bXJgIHVuZGVyIHJvb3QgdXNlciwgYnV0
-IGtlcm5lbCBkb24ndCBsZXQNCj4+IG9wZW4gYGFtZGdwdV9yaW5nX2dmeGAgYWdhaW4uDQo+Pg0K
-Pj4gV2hhdCBlbHNlIGtlcm5lbCBvcHRpb25zIEkgc2hvdWxkIHRvIGNoZWNrPw0KPj4NCj4+IEkg
-YW0gYWxzbyBhdHRhY2hlZCBjdXJyZW50IGtlcm5lbCBjb25maWcgdG8gdGhpcyBtZXNzYWdlLg0K
-PiANCj4gSSBjYW4gcmVwbGljYXRlIHRoaXMgYnkgZG9pbmcNCj4gDQo+IGNobW9kIHUrcyB1bXIN
-Cj4gc3VkbyAuL3VtciAtUiBnZnhbLl0NCj4gDQo+IFlvdSBuZWVkIHRvIHJlbW92ZSB0aGUgdStz
-IGJpdCB5b3UgYXJlIGxpdGVyYWxseSBub3QgcnVubmluZyB1bXIgYXMgcm9vdCENCg0KQWN0dWFs
-bHkgZGlzcmVnYXJkIHRoYXQuICBJJ20gY29uZnVzZWQgYXQgdGhpcyBwb2ludC4NCg0KSSBydW4g
-dW1yIDEwMHMgb2YgdGltZXMgYSBkYXkgb24gbXkgZGV2ZWwgYm94IGp1c3QgZmluZSBhcyByb290
-Lg0KDQpMZXQgbWUgZmlkZGxlIGFuZCBzZWUgaWYgSSBjYW4gc29ydCB0aGlzIG91dC4NCg0KVG9t
-DQo=
+T24gMjAxOC0xMi0yMCA2OjQ1IGEubS4sIE1pa2hhaWwgR2F2cmlsb3Ygd3JvdGU6DQo+IE9uIFRo
+dSwgMjAgRGVjIDIwMTggYXQgMTY6MTcsIFN0RGVuaXMsIFRvbSA8VG9tLlN0RGVuaXNAYW1kLmNv
+bT4gd3JvdGU6DQo+Pg0KPj4gV2VsbCB5dXAgdGhlIGtlcm5lbCBpcyBub3QgbGV0dGluZyB5b3Ug
+b3BlbiB0aGUgZmlsZXM6DQo+Pg0KPj4NCj4+IEFzIHN1ZG8vcm9vdCB5b3Ugc2hvdWxkIGJlIGFi
+bGUgdG8gb3BlbiB0aGVzZSBmaWxlcyB3aXRoIHVtci4gIFdoYXQNCj4+IGhhcHBlbnMgaWYgeW91
+IGp1c3Qgb3BlbiBhIHNoZWxsIGFzIHJvb3QgYW5kIHJ1biBpdD8NCj4+DQo+IA0KPiBbcm9vdEBs
+b2NhbGhvc3Qgfl0jIHRvdWNoIC9zeXMva2VybmVsL2RlYnVnL2RyaS8wL2FtZGdwdV9yaW5nX2dm
+eA0KPiBbcm9vdEBsb2NhbGhvc3Qgfl0jIGNhdCAvc3lzL2tlcm5lbC9kZWJ1Zy9kcmkvMC9hbWRn
+cHVfcmluZ19nZngNCj4gY2F0OiAvc3lzL2tlcm5lbC9kZWJ1Zy9kcmkvMC9hbWRncHVfcmluZ19n
+Zng6IE9wZXJhdGlvbiBub3QgcGVybWl0dGVkDQo+IFtyb290QGxvY2FsaG9zdCB+XSMgbHMgLWxh
+WiAvc3lzL2tlcm5lbC9kZWJ1Zy9kcmkvMC9hbWRncHVfcmluZ19nZngNCj4gLXItLXItLXItLS4g
+MSByb290IHJvb3Qgc3lzdGVtX3U6b2JqZWN0X3I6ZGVidWdmc190OnMwIDgyMDQgRGVjIDIwDQo+
+IDE2OjMxIC9zeXMva2VybmVsL2RlYnVnL2RyaS8wL2FtZGdwdV9yaW5nX2dmeA0KPiBbcm9vdEBs
+b2NhbGhvc3Qgfl0jIGdldGVuZm9yY2UNCj4gUGVybWlzc2l2ZQ0KPiBbcm9vdEBsb2NhbGhvc3Qg
+fl0jIC9ob21lL21pa2hhaWwvcGFja2FnaW5nLXdvcmsvdW1yL2J1aWxkL3NyYy9hcHAvdW1yDQo+
+IC1PIHZlcmJvc2UsaGFsdF93YXZlcyAtd2ENCj4gQ2Fubm90IHNlZWsgdG8gTU1JTyBhZGRyZXNz
+OiBCYWQgZmlsZSBkZXNjcmlwdG9yDQo+IFtFUlJPUl06IENvdWxkIG5vdCBvcGVuIHJpbmcgZGVi
+dWdmcyBmaWxlU2VnbWVudGF0aW9uIGZhdWx0IChjb3JlIGR1bXBlZCkNCj4gDQo+IEkgYW0gYWxy
+ZWFkeSB0cmllZCBsYXVuY2ggYHVtcmAgdW5kZXIgcm9vdCB1c2VyLCBidXQga2VybmVsIGRvbid0
+IGxldA0KPiBvcGVuIGBhbWRncHVfcmluZ19nZnhgIGFnYWluLg0KPiANCj4gV2hhdCBlbHNlIGtl
+cm5lbCBvcHRpb25zIEkgc2hvdWxkIHRvIGNoZWNrPw0KPiANCj4gSSBhbSBhbHNvIGF0dGFjaGVk
+IGN1cnJlbnQga2VybmVsIGNvbmZpZyB0byB0aGlzIG1lc3NhZ2UuDQoNCkkgY2FuIHJlcGxpY2F0
+ZSB0aGlzIGJ5IGRvaW5nDQoNCmNobW9kIHUrcyB1bXINCnN1ZG8gLi91bXIgLVIgZ2Z4Wy5dDQoN
+CllvdSBuZWVkIHRvIHJlbW92ZSB0aGUgdStzIGJpdCB5b3UgYXJlIGxpdGVyYWxseSBub3QgcnVu
+bmluZyB1bXIgYXMgcm9vdCENCg0KOi0pDQoNClRvbQ0KDQoNCj4gDQo+IC0tDQo+IEJlc3QgUmVn
+YXJkcywNCj4gTWlrZSBHYXZyaWxvdi4NCj4gDQoNCg==
