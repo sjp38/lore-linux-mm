@@ -1,231 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E25B8E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 08:47:47 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id i124so11436367pgc.2
-        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 05:47:47 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id g1si13241353pgu.149.2018.12.18.05.47.44
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AB4A8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 16:59:17 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id p4so2114422otl.10
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 13:59:17 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u186sor3027400oie.83.2018.12.20.13.59.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 18 Dec 2018 05:47:45 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH V4 1/3] mm: Add get_user_pages_cma_migrate
-In-Reply-To: <20181121092259.16482-2-aneesh.kumar@linux.ibm.com>
-References: <20181121092259.16482-1-aneesh.kumar@linux.ibm.com> <20181121092259.16482-2-aneesh.kumar@linux.ibm.com>
-Date: Wed, 19 Dec 2018 00:47:39 +1100
-Message-ID: <871s6ft090.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Thu, 20 Dec 2018 13:59:15 -0800 (PST)
+Subject: Re: Ipmi modules and linux-4.19.1
+References: <CAJM9R-JWO1P_qJzw2JboMH2dgPX7K1tF49nO5ojvf=iwGddXRQ@mail.gmail.com>
+ <20181220154217.GB2509588@devbig004.ftw2.facebook.com>
+ <20181220160313.GB4170@linux.ibm.com> <20181220160408.GA23426@linux.ibm.com>
+ <20181220160514.GD2509588@devbig004.ftw2.facebook.com>
+ <20181220162225.GC4170@linux.ibm.com>
+From: Corey Minyard <cminyard@mvista.com>
+Message-ID: <76ae72b7-4dea-68c0-7d54-62055eec3ceb@mvista.com>
+Date: Thu, 20 Dec 2018 15:59:14 -0600
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20181220162225.GC4170@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-GB
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: paulmck@linux.ibm.com, Tejun Heo <tj@kernel.org>
+Cc: Angel Shtilianov <angel.shtilianov@siteground.com>, linux-mm@kvack.org, dennis@kernel.org, cl@linux.com, jeyu@kernel.org
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
+On 12/20/18 10:22 AM, Paul E. McKenney wrote:
+> On Thu, Dec 20, 2018 at 08:05:14AM -0800, Tejun Heo wrote:
+>> Hello,
+>>
+>> On Thu, Dec 20, 2018 at 08:04:08AM -0800, Paul E. McKenney wrote:
+>>>> Yes, it is possible.  Just do something like this:
+>>>>
+>>>> 	struct srcu_struct my_srcu_struct;
+>>>>
+>>>> And before the first use of my_srcu_struct, do this:
+>>>>
+>>>> 	init_srcu_struct(&my_srcu_struct);
+>>>>
+>>>> This will result in alloc_percpu() being invoked to allocate the
+>>>> needed per-CPU space.
+>>>>
+>>>> If my_srcu_struct is used in a module or some such, then to avoid memory
+>>>> leaks, after the last use of my_srcu_struct, do this:
+>>>>
+>>>> 	cleanup_srcu_struct(&my_srcu_struct);
+>>>>
+>>>> There are several places in the kernel that take this approach.
+>> Oops, my bad.  Somehow I thought the dynamic init didn't exist (I
+>> checked the header but somehow completely skipped over them).  Thanks
+>> for the explanation!
+> No problem, especially given that if things go as they usually do, I
+> will provide you ample opportunity to return the favor.  ;-)
 
-> This helper does a get_user_pages_fast and if it find pages in the CMA area
-> it will try to migrate them before taking page reference. This makes sure that
-> we don't keep non-movable pages (due to page reference count) in the CMA area.
-> Not able to move pages out of CMA area result in CMA allocation failures.
->
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> ---
->  include/linux/hugetlb.h |   2 +
->  include/linux/migrate.h |   3 +
->  mm/hugetlb.c            |   4 +-
->  mm/migrate.c            | 132 ++++++++++++++++++++++++++++++++++++++++
->  4 files changed, 139 insertions(+), 2 deletions(-)
+Ok, I didn't realize that SRCU took up so much space.  It's true that 
+this isn't
+something that requires performance, but SRCU was awfully convenient to
+use for this.
 
-I'd rather not merge this much mm/ code via the powerpc tree without
-acks.
+Unfortunately, it's not just a matter of adding the init_srcu_struct() 
+to the
+__init function.  I'm going to have to hunt down all the initial startup 
+points
+and add it there, and rework some of the other initialization code..  
+But that's
+something I can do.
 
-Anyone?
+Unless someone else would rather do it :-).
 
-cheers
-
-
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 087fd5f48c91..1eed0cdaec0e 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -371,6 +371,8 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
->  				nodemask_t *nmask);
->  struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
->  				unsigned long address);
-> +struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-> +				     int nid, nodemask_t *nmask);
->  int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
->  			pgoff_t idx);
->  
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index f2b4abbca55e..d82b35afd2eb 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -286,6 +286,9 @@ static inline int migrate_vma(const struct migrate_vma_ops *ops,
->  }
->  #endif /* IS_ENABLED(CONFIG_MIGRATE_VMA_HELPER) */
->  
-> +extern int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
-> +				      struct page **pages);
-> +
->  #endif /* CONFIG_MIGRATION */
->  
->  #endif /* _LINUX_MIGRATE_H */
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 7f2a28ab46d5..faf3102ae45e 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1585,8 +1585,8 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
->  	return page;
->  }
->  
-> -static struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-> -		int nid, nodemask_t *nmask)
-> +struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-> +				     int nid, nodemask_t *nmask)
->  {
->  	struct page *page;
->  
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index f7e4bfdc13b7..b0e47e2c5347 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -2946,3 +2946,135 @@ int migrate_vma(const struct migrate_vma_ops *ops,
->  }
->  EXPORT_SYMBOL(migrate_vma);
->  #endif /* defined(MIGRATE_VMA_HELPER) */
-> +
-> +static struct page *new_non_cma_page(struct page *page, unsigned long private)
-> +{
-> +	/*
-> +	 * We want to make sure we allocate the new page from the same node
-> +	 * as the source page.
-> +	 */
-> +	int nid = page_to_nid(page);
-> +	gfp_t gfp_mask = GFP_USER | __GFP_THISNODE;
-> +
-> +	if (PageHighMem(page))
-> +		gfp_mask |= __GFP_HIGHMEM;
-> +
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +	if (PageHuge(page)) {
-> +		struct hstate *h = page_hstate(page);
-> +		/*
-> +		 * We don't want to dequeue from the pool because pool pages will
-> +		 * mostly be from the CMA region.
-> +		 */
-> +		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
-> +	}
-> +#endif
-> +	if (PageTransHuge(page)) {
-> +		struct page *thp;
-> +		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_THISNODE;
-> +
-> +		/*
-> +		 * Remove the movable mask so that we don't allocate from
-> +		 * CMA area again.
-> +		 */
-> +		thp_gfpmask &= ~__GFP_MOVABLE;
-> +		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
-> +		if (!thp)
-> +			return NULL;
-> +		prep_transhuge_page(thp);
-> +		return thp;
-> +	}
-> +
-> +	return __alloc_pages_node(nid, gfp_mask, 0);
-> +}
-> +
-> +/**
-> + * get_user_pages_cma_migrate() - pin user pages in memory by migrating pages in CMA region
-> + * @start:	starting user address
-> + * @nr_pages:	number of pages from start to pin
-> + * @write:	whether pages will be written to
-> + * @pages:	array that receives pointers to the pages pinned.
-> + *		Should be at least nr_pages long.
-> + *
-> + * Attempt to pin user pages in memory without taking mm->mmap_sem.
-> + * If not successful, it will fall back to taking the lock and
-> + * calling get_user_pages().
-> + *
-> + * If the pinned pages are backed by CMA region, we migrate those pages out,
-> + * allocating new pages from non-CMA region. This helps in avoiding keeping
-> + * pages pinned in the CMA region for a long time thereby resulting in
-> + * CMA allocation failures.
-> + *
-> + * Returns number of pages pinned. This may be fewer than the number
-> + * requested. If nr_pages is 0 or negative, returns 0. If no pages
-> + * were pinned, returns -errno.
-> + */
-> +
-> +int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
-> +			       struct page **pages)
-> +{
-> +	int i, ret;
-> +	bool drain_allow = true;
-> +	bool migrate_allow = true;
-> +	LIST_HEAD(cma_page_list);
-> +
-> +get_user_again:
-> +	ret = get_user_pages_fast(start, nr_pages, write, pages);
-> +	if (ret <= 0)
-> +		return ret;
-> +
-> +	for (i = 0; i < ret; ++i) {
-> +		/*
-> +		 * If we get a page from the CMA zone, since we are going to
-> +		 * be pinning these entries, we might as well move them out
-> +		 * of the CMA zone if possible.
-> +		 */
-> +		if (is_migrate_cma_page(pages[i]) && migrate_allow) {
-> +
-> +			struct page *head = compound_head(pages[i]);
-> +
-> +			if (PageHuge(head))
-> +				isolate_huge_page(head, &cma_page_list);
-> +			else {
-> +				if (!PageLRU(head) && drain_allow) {
-> +					lru_add_drain_all();
-> +					drain_allow = false;
-> +				}
-> +
-> +				if (!isolate_lru_page(head)) {
-> +					list_add_tail(&head->lru, &cma_page_list);
-> +					mod_node_page_state(page_pgdat(head),
-> +							    NR_ISOLATED_ANON +
-> +							    page_is_file_cache(head),
-> +							    hpage_nr_pages(head));
-> +				}
-> +			}
-> +		}
-> +	}
-> +	if (!list_empty(&cma_page_list)) {
-> +		/*
-> +		 * drop the above get_user_pages reference.
-> +		 */
-> +		for (i = 0; i < ret; ++i)
-> +			put_page(pages[i]);
-> +
-> +		if (migrate_pages(&cma_page_list, new_non_cma_page,
-> +				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
-> +			/*
-> +			 * some of the pages failed migration. Do get_user_pages
-> +			 * without migration.
-> +			 */
-> +			migrate_allow = false;
-> +
-> +			if (!list_empty(&cma_page_list))
-> +				putback_movable_pages(&cma_page_list);
-> +		}
-> +		/*
-> +		 * We did migrate all the pages, Try to get the page references again
-> +		 * migrating any new CMA pages which we failed to isolate earlier.
-> +		 */
-> +		drain_allow = true;
-> +		goto get_user_again;
-> +	}
-> +	return ret;
-> +}
-> -- 
-> 2.17.2
+-corey
