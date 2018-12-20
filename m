@@ -1,92 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D99E68E0095
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:30:09 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id o21so7040297edq.4
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:30:09 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q19-v6si1846770ejt.57.2018.12.11.06.30.08
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7547D8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id b185so3262813qkc.3
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 13:04:49 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k34sor7986133qvf.44.2018.12.20.13.04.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 06:30:08 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 2/3] mm, page_alloc: reclaim for __GFP_NORETRY costly requests only when compaction was skipped
-Date: Tue, 11 Dec 2018 15:29:40 +0100
-Message-Id: <20181211142941.20500-3-vbabka@suse.cz>
-In-Reply-To: <20181211142941.20500-1-vbabka@suse.cz>
-References: <20181211142941.20500-1-vbabka@suse.cz>
-MIME-Version: 1.0
+        (Google Transport Security);
+        Thu, 20 Dec 2018 13:04:48 -0800 (PST)
+Message-ID: <1545339886.18411.31.camel@lca.pw>
+Subject: Re: [PATCH v3] mm/page_owner: fix for deferred struct page init
+From: Qian Cai <cai@lca.pw>
+Date: Thu, 20 Dec 2018 16:04:46 -0500
+In-Reply-To: <E084FF0A-88CD-4E61-88F2-7D542D67DDF1@oracle.com>
+References: <20181220185031.43146-1-cai@lca.pw>
+	 <20181220203156.43441-1-cai@lca.pw>
+	 <E084FF0A-88CD-4E61-88F2-7D542D67DDF1@oracle.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, Pavel.Tatashin@microsoft.com, mingo@kernel.org, hpa@zytor.com, mgorman@techsingularity.net, iamjoonsoo.kim@lge.com, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-For costly __GFP_NORETRY allocations (including THP's) we first do an initial
-compaction attempt and if that fails, we proceed with reclaim and another
-round of compaction, unless compaction was deferred due to earlier multiple
-failures. Andrea proposed [1] that we count all compaction failures as the
-defered case in try_to_compact_pages(), but I don't think that's a good idea
-in general. Instead, change the __GFP_NORETRY specific condition so that it
-only proceeds with further reclaim/compaction when the initial compaction
-attempt was skipped due to lack of free base pages.
+On Thu, 2018-12-20 at 14:00 -0700, William Kucharski wrote:
+> > On Dec 20, 2018, at 1:31 PM, Qian Cai <cai@lca.pw> wrote:
+> > 
+> > diff --git a/mm/page_ext.c b/mm/page_ext.c
+> > index ae44f7adbe07..d76fd51e312a 100644
+> > --- a/mm/page_ext.c
+> > +++ b/mm/page_ext.c
+> > @@ -399,9 +399,8 @@ void __init page_ext_init(void)
+> > 			 * -------------pfn-------------->
+> > 			 * N0 | N1 | N2 | N0 | N1 | N2|....
+> > 			 *
+> > -			 * Take into account DEFERRED_STRUCT_PAGE_INIT.
+> > 			 */
+> > -			if (early_pfn_to_nid(pfn) != nid)
+> > +			if (pfn_to_nid(pfn) != nid)
+> > 				continue;
+> > 			if (init_section_page_ext(pfn, nid))
+> > 				goto oom;
+> > -- 
+> > 2.17.2 (Apple Git-113)
+> > 
+> 
+> Is there any danger in the fact that in the CONFIG_NUMA case in mmzone.h
+> (around line 1261), pfn_to_nid() calls page_to_nid(), possibly causing the
+> same issue seen in v2?
+> 
 
-Note that the original condition probably never worked properly for THP's,
-because compaction can only become deferred after a sync compaction failure,
-and THP's only perform async compaction, except khugepaged, which is
-infrequent, or madvised faults (until the previous patch restored __GFP_NORETRY
-for those) which are not the default case. Deferring due to async compaction
-failures should be however also beneficial and thus introduced in the next
-patch.
-
-Also note that due to how try_to_compact_pages() constructs its return value
-from compaction attempts across the whole zonelist, returning COMPACT_SKIPPED
-means that compaction was skipped for *all* attempted zones/nodes, which means
-all zones/nodes are low on memory at the same moment. This is probably rare,
-which would mean that the resulting 'goto nopage' would be very common, just
-because e.g. a single zone had enough memory and compaction failed there, while
-the rest of nodes could succeed after reclaim.  However, since THP faults use
-__GFP_THISNODE, compaction is also attempted only for a single node, so in
-practice there should be no significant loss of information when constructing
-the return value, nor bias towards 'goto nopage' for THP faults.
-
-[1] https://lkml.kernel.org/r/20181206005425.GB21159@redhat.com
-
-Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>
----
- mm/page_alloc.c | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc407216..3d83a6093ada 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4129,14 +4129,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		 */
- 		if (costly_order && (gfp_mask & __GFP_NORETRY)) {
- 			/*
--			 * If compaction is deferred for high-order allocations,
--			 * it is because sync compaction recently failed. If
--			 * this is the case and the caller requested a THP
--			 * allocation, we do not want to heavily disrupt the
--			 * system, so we fail the allocation instead of entering
--			 * direct reclaim.
-+			 * If compaction was skipped because of insufficient
-+			 * free pages, proceed with reclaim and another
-+			 * compaction attempt. If it failed for other reasons or
-+			 * was deferred, do not reclaim and retry, as we do not
-+			 * want to heavily disrupt the system for a costly
-+			 * __GFP_NORETRY allocation such as THP.
- 			 */
--			if (compact_result == COMPACT_DEFERRED)
-+			if (compact_result != COMPACT_SKIPPED)
- 				goto nopage;
- 
- 			/*
--- 
-2.19.2
+No. If CONFIG_DEFERRED_STRUCT_PAGE_INIT=y, page_ext_init() is called after
+page_alloc_init_late() where all the memory has already been initialized,
+so page_to_nid() will work then.
