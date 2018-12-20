@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 63C848E0002
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 07:49:32 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id s27so1424425pgm.4
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 04:49:32 -0800 (PST)
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id h67si19690207pfb.146.2018.12.20.04.49.30
-        for <linux-mm@kvack.org>;
-        Thu, 20 Dec 2018 04:49:30 -0800 (PST)
-Date: Thu, 20 Dec 2018 13:49:28 +0100
-From: Oscar Salvador <osalvador@suse.de>
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FB198E0003
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 04:12:30 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id d41so1648765eda.12
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 01:12:30 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n3si8851775edo.15.2018.12.20.01.12.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Dec 2018 01:12:28 -0800 (PST)
+Date: Thu, 20 Dec 2018 10:12:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH v2] mm, page_alloc: Fix has_unmovable_pages for HugePages
-Message-ID: <20181220124925.itwuuacgztpgsk7s@d104.suse.de>
+Message-ID: <20181220091228.GB14234@dhcp22.suse.cz>
 References: <20181217225113.17864-1-osalvador@suse.de>
  <20181219142528.yx6ravdyzcqp5wtd@master>
  <20181219233914.2fxe26pih26ifvmt@d104.suse.de>
- <20181220091228.GB14234@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181220091228.GB14234@dhcp22.suse.cz>
+In-Reply-To: <20181219233914.2fxe26pih26ifvmt@d104.suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Oscar Salvador <osalvador@suse.de>
 Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, vbabka@suse.cz, pavel.tatashin@microsoft.com, rppt@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 20, 2018 at 10:12:28AM +0100, Michal Hocko wrote:
-> > <--
-> > skip_pages = (1 << compound_order(head)) - (page - head);
-> > iter = skip_pages - 1;
-> > --
+On Thu 20-12-18 00:39:18, Oscar Salvador wrote:
+> On Wed, Dec 19, 2018 at 02:25:28PM +0000, Wei Yang wrote:
+> > >-			iter = round_up(iter + 1, 1<<compound_order(page)) - 1;
+> > >+			skip_pages = (1 << compound_order(head)) - (page - head);
+> > >+			iter = round_up(iter + 1, skip_pages) - 1;
 > > 
-> > which looks more simple IMHO.
+> > The comment of round_up says round up to next specified power of 2.  And
+> > second parameter must be a power of 2.
+> > 
+> > Look skip_pages not satisfy this.
+
+Yes this is true but the resulting numbers should be correct even for
+skips that are not power of 2 AFAIC. Or do you have any counter example?
+
 > 
-> Agreed!
+> At least alloc_gigantic_page() looks for 1GB range, aligned to that.
+> But I see that in alloc_contig_range(), the boundaries can differ.
+> 
+> Anyway, unless I am missing something, I think that we could just
+> get rid of the round_up() and do something like:
+> 
+> <--
+> skip_pages = (1 << compound_order(head)) - (page - head);
+> iter = skip_pages - 1;
+> --
+> 
+> which looks more simple IMHO.
 
-Andrew, can you please apply the next diff chunk on top of the patch:
+Agreed!
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4812287e56a0..978576d93783 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -8094,7 +8094,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 				goto unmovable;
- 
- 			skip_pages = (1 << compound_order(head)) - (page - head);
--			iter = round_up(iter + 1, skip_pages) - 1;
-+			iter = skip_pages - 1;
- 			continue;
- 		}
-
-Thanks!
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
