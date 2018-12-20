@@ -1,188 +1,257 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CE868E00E5
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2018 18:05:40 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 4so91830plc.5
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2018 15:05:40 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id y20si67169plp.415.2018.12.12.15.05.38
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 634B58E0003
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 00:16:43 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id v11so502975ply.4
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 21:16:43 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a33sor26664706pla.29.2018.12.19.21.16.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Dec 2018 15:05:38 -0800 (PST)
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Subject: Re: [PATCH v9 RESEND 0/4] KASLR feature to randomize each loadable
- module
-Date: Wed, 12 Dec 2018 23:05:35 +0000
-Message-ID: <0975aa62d9649df56832b8e745c78d0fb83a3610.camel@intel.com>
-References: <20181120232312.30037-1-rick.p.edgecombe@intel.com>
-	 <20181126153611.GA17169@linux-8ccs>
-	 <54dafdec825859afc85a3bd651f9e850e57a59dc.camel@intel.com>
-	 <76b6ffbc-8c44-75ab-382b-ad281c20c2bf@iogearbox.net>
-	 <8d2ba1f5c90ffb937e97741d68683de622f55843.camel@intel.com>
-In-Reply-To: <8d2ba1f5c90ffb937e97741d68683de622f55843.camel@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <13671C4A1F1336419D10FB8F44ED6B2D@intel.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Wed, 19 Dec 2018 21:16:41 -0800 (PST)
+Subject: Re: [PATCH V5 2/3] powerpc/mm/iommu: Allow migration of cma allocated
+ pages during mm_iommu_get
+References: <20181219034047.16305-1-aneesh.kumar@linux.ibm.com>
+ <20181219034047.16305-3-aneesh.kumar@linux.ibm.com>
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+Message-ID: <a766bcac-272d-c028-ad58-8d31dddddbd1@ozlabs.ru>
+Date: Thu, 20 Dec 2018 16:16:33 +1100
 MIME-Version: 1.0
+In-Reply-To: <20181219034047.16305-3-aneesh.kumar@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "daniel@iogearbox.net" <daniel@iogearbox.net>, "jeyu@kernel.org" <jeyu@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jannh@google.com" <jannh@google.com>, "arjan@linux.intel.com" <arjan@linux.intel.com>, "keescook@chromium.org" <keescook@chromium.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "willy@infradead.org" <willy@infradead.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "mingo@redhat.com" <mingo@redhat.com>, "alexei.starovoitov@gmail.com" <alexei.starovoitov@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "Hansen, Dave" <dave.hansen@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, mpe@ellerman.id.au, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-T24gV2VkLCAyMDE4LTExLTI4IGF0IDAxOjQwICswMDAwLCBFZGdlY29tYmUsIFJpY2sgUCB3cm90
-ZToNCj4gT24gVHVlLCAyMDE4LTExLTI3IGF0IDExOjIxICswMTAwLCBEYW5pZWwgQm9ya21hbm4g
-d3JvdGU6DQo+ID4gT24gMTEvMjcvMjAxOCAwMToxOSBBTSwgRWRnZWNvbWJlLCBSaWNrIFAgd3Jv
-dGU6DQo+ID4gPiBPbiBNb24sIDIwMTgtMTEtMjYgYXQgMTY6MzYgKzAxMDAsIEplc3NpY2EgWXUg
-d3JvdGU6DQo+ID4gPiA+ICsrKyBSaWNrIEVkZ2Vjb21iZSBbMjAvMTEvMTggMTU6MjMgLTA4MDBd
-Og0KPiA+ID4gDQo+ID4gPiBbc25pcF0NCj4gPiA+ID4gSGkgUmljayENCj4gPiA+ID4gDQo+ID4g
-PiA+IFNvcnJ5IGZvciB0aGUgZGVsYXkuIEknZCBsaWtlIHRvIHRha2UgYSBzdGVwIGJhY2sgYW5k
-IGFzayBzb21lIGJyb2FkZXINCj4gPiA+ID4gcXVlc3Rpb25zIC0NCj4gPiA+ID4gDQo+ID4gPiA+
-IC0gSXMgdGhlIGVuZCBnb2FsIG9mIHRoaXMgcGF0Y2hzZXQgdG8gcmFuZG9taXplIGxvYWRpbmcg
-a2VybmVsIG1vZHVsZXMsDQo+ID4gPiA+IG9yDQo+ID4gPiA+IG1vc3QvYWxsDQo+ID4gPiA+ICAg
-IGV4ZWN1dGFibGUga2VybmVsIG1lbW9yeSBhbGxvY2F0aW9ucywgaW5jbHVkaW5nIGJwZiwga3By
-b2JlcywgZXRjPw0KPiA+ID4gDQo+ID4gPiBUaGFua3MgZm9yIHRha2luZyBhIGxvb2shDQo+ID4g
-PiANCj4gPiA+IEl0IHN0YXJ0ZWQgd2l0aCB0aGUgZ29hbCBvZiBqdXN0IHJhbmRvbWl6aW5nIG1v
-ZHVsZXMgKGhlbmNlIHRoZSBuYW1lKSwgYnV0DQo+ID4gPiBJDQo+ID4gPiB0aGluayB0aGVyZSBp
-cyBtYXliZSB2YWx1ZSBpbiByYW5kb21pemluZyB0aGUgcGxhY2VtZW50IG9mIGFsbCBydW50aW1l
-DQo+ID4gPiBhZGRlZA0KPiA+ID4gZXhlY3V0YWJsZSBjb2RlLiBCZXlvbmQganVzdCB0cnlpbmcg
-dG8gbWFrZSBleGVjdXRhYmxlIGNvZGUgcGxhY2VtZW50IGxlc3MNCj4gPiA+IGRldGVybWluaXN0
-aWMgaW4gZ2VuZXJhbCwgdG9kYXkgYWxsIG9mIHRoZSB1c2FnZXMgaGF2ZSB0aGUgcHJvcGVydHkg
-b2YNCj4gPiA+IHN0YXJ0aW5nDQo+ID4gPiB3aXRoIFJXIHBlcm1pc3Npb25zIGFuZCB0aGVuIGJl
-Y29taW5nIFJPIGV4ZWN1dGFibGUsIHNvIHRoZXJlIGlzIHRoZQ0KPiA+ID4gYmVuZWZpdA0KPiA+
-ID4gb2YNCj4gPiA+IG5hcnJvd2luZyB0aGUgY2hhbmNlcyBhIGJ1ZyBjb3VsZCBzdWNjZXNzZnVs
-bHkgd3JpdGUgdG8gaXQgZHVyaW5nIHRoZSBSVw0KPiA+ID4gd2luZG93Lg0KPiA+ID4gDQo+ID4g
-PiA+IC0gSXQgc2VlbXMgdGhhdCBhIGxvdCBvZiBjb21wbGV4aXR5IGFuZCBoZXVyaXN0aWNzIGFy
-ZSBpbnRyb2R1Y2VkIGp1c3QNCj4gPiA+ID4gdG8NCj4gPiA+ID4gICAgYWNjb21tb2RhdGUgdGhl
-IHBvdGVudGlhbCBmcmFnbWVudGF0aW9uIHRoYXQgY2FuIGhhcHBlbiB3aGVuIHRoZQ0KPiA+ID4g
-PiBtb2R1bGUNCj4gPiA+ID4gdm1hbGxvYw0KPiA+ID4gPiAgICBzcGFjZSBzdGFydHMgdG8gZ2V0
-IGZyYWdtZW50ZWQgd2l0aCBicGYgZmlsdGVycy4gSSdtIHBhcnRpYWwgdG8gdGhlDQo+ID4gPiA+
-IGlkZWEgb2YNCj4gPiA+ID4gICAgc3BsaXR0aW5nIG9yIGhhdmluZyBicGYgb3duIGl0cyBvd24g
-dm1hbGxvYyBzcGFjZSwgc2ltaWxhciB0byB3aGF0DQo+ID4gPiA+IEFyZA0KPiA+ID4gPiBpcw0K
-PiA+ID4gPiBhbHJlYWR5DQo+ID4gPiA+ICAgIGltcGxlbWVudGluZyBmb3IgYXJtNjQuDQo+ID4g
-PiA+IA0KPiA+ID4gPiAgICBTbyBhIHF1ZXN0aW9uIGZvciB0aGUgYnBmIGFuZCB4ODYgZm9sa3Ms
-IGlzIGhhdmluZyBhIGRlZGljYXRlZA0KPiA+ID4gPiB2bWFsbG9jDQo+ID4gPiA+IHJlZ2lvbg0K
-PiA+ID4gPiAgICAoYXMgd2VsbCBhcyBhIHNlcGVyYXRlIGJwZl9hbGxvYyBhcGkpIGZvciBicGYg
-ZmVhc2libGUgb3IgZGVzaXJhYmxlDQo+ID4gPiA+IG9uDQo+ID4gPiA+IHg4Nl82ND8NCj4gPiA+
-IA0KPiA+ID4gSSBhY3R1YWxseSBkaWQgc29tZSBwcm90b3R5cGluZyBhbmQgdGVzdGluZyBvbiB0
-aGlzLiBJdCBzZWVtcyB0aGVyZSB3b3VsZA0KPiA+ID4gYmUNCj4gPiA+IHNvbWUgc2xvd2Rvd24g
-ZnJvbSB0aGUgcmVxdWlyZWQgY2hhbmdlcyB0byB0aGUgSklUZWQgY29kZSB0byBzdXBwb3J0DQo+
-ID4gPiBjYWxsaW5nDQo+ID4gPiBiYWNrIGZyb20gdGhlIHZtYWxsb2MgcmVnaW9uIGludG8gdGhl
-IGtlcm5lbCwgYW5kIHNvIG1vZHVsZSBzcGFjZSB3b3VsZA0KPiA+ID4gc3RpbGwgYmUNCj4gPiA+
-IHRoZSBwcmVmZXJyZWQgcmVnaW9uLg0KPiA+IA0KPiA+IFllcywgYW55IHJ1bnRpbWUgc2xvdy1k
-b3duIHdvdWxkIGJlIG5vLWdvIGFzIEJQRiBzaXRzIGluIHRoZSBtaWRkbGUgb2YNCj4gPiBjcml0
-aWNhbA0KPiA+IG5ldHdvcmtpbmcgZmFzdC1wYXRoIGFuZCBlLmcuIG9uIFhEUCBvciB0YyBsYXll
-ciBhbmQgaXMgdXNlZCBpbiBsb2FkLQ0KPiA+IGJhbGFuY2luZywNCj4gPiBmaXJld2FsbGluZywg
-RERvUyBwcm90ZWN0aW9uIHNjZW5hcmlvcywgc29tZSByZWNlbnQgZXhhbXBsZXMgaW4gWzAtM10u
-DQo+ID4gDQo+ID4gICBbMF0gaHR0cDovL3ZnZXIua2VybmVsLm9yZy9scGMtbmV0d29ya2luZzIw
-MTguaHRtbCNzZXNzaW9uLTEwDQo+ID4gICBbMV0gaHR0cDovL3ZnZXIua2VybmVsLm9yZy9scGMt
-bmV0d29ya2luZzIwMTguaHRtbCNzZXNzaW9uLTE1DQo+ID4gICBbMl0gaHR0cHM6Ly9ibG9nLmNs
-b3VkZmxhcmUuY29tL2hvdy10by1kcm9wLTEwLW1pbGxpb24tcGFja2V0cy8NCj4gPiAgIFszXSBo
-dHRwOi8vdmdlci5rZXJuZWwub3JnL2xwYy1icGYyMDE4Lmh0bWwjc2Vzc2lvbi0xDQo+ID4gDQo+
-ID4gPiA+ICAgIElmIGJwZiBmaWx0ZXJzIG5lZWQgdG8gYmUgd2l0aGluIDIgR0Igb2YgdGhlIGNv
-cmUga2VybmVsLCB3b3VsZCBpdA0KPiA+ID4gPiBtYWtlDQo+ID4gPiA+IHNlbnNlDQo+ID4gPiA+
-ICAgIHRvIGNhcnZlIG91dCBhIHBvcnRpb24gb2YgdGhlIGN1cnJlbnQgbW9kdWxlIHJlZ2lvbiBm
-b3IgYnBmDQo+ID4gPiA+IGZpbHRlcnM/ICBBY2NvcmRpbmcNCj4gPiA+ID4gICAgdG8gRG9jdW1l
-bnRhdGlvbi94ODYveDg2XzY0L21tLnR4dCwgdGhlIG1vZHVsZSByZWdpb24gaXMgfjEuNSBHQi4g
-SQ0KPiA+ID4gPiBhbQ0KPiA+ID4gPiBkb3VidGZ1bA0KPiA+ID4gPiAgICB0aGF0IGFueSByZWFs
-IHN5c3RlbSB3aWxsIGFjdHVhbGx5IGhhdmUgMS41IEdCIHdvcnRoIG9mIGtlcm5lbA0KPiA+ID4g
-PiBtb2R1bGVzDQo+ID4gPiA+IGxvYWRlZC4NCj4gPiA+ID4gICAgSXMgdGhlcmUgYSBzcGVjaWZp
-YyByZWFzb24gd2h5IHRoYXQgbXVjaCBzcGFjZSBpcyBkZWRpY2F0ZWQgdG8ga2VybmVsDQo+ID4g
-PiA+IG1vZHVsZXMsDQo+ID4gPiA+ICAgIGFuZCB3b3VsZCBpdCBiZSBmZWFzaWJsZSB0byBzcGxp
-dCB0aGF0IHJlZ2lvbiBjbGVhbmx5IHdpdGggYnBmPw0KPiA+ID4gDQo+ID4gPiBIb3BlZnVsbHkg
-c29tZW9uZSBmcm9tIEJQRiBzaWRlIG9mIHRoaW5ncyB3aWxsIGNoaW1lIGluLCBidXQgbXkNCj4g
-PiA+IHVuZGVyc3RhbmRpbmcNCj4gPiA+IHdhcyB0aGF0IHRoZXkgd291bGQgbGlrZSBldmVuIG1v
-cmUgc3BhY2UgdGhhbiB0b2RheSBpZiBwb3NzaWJsZSBhbmQgc28NCj4gPiA+IHRoZXkNCj4gPiA+
-IG1heQ0KPiA+ID4gbm90IGxpa2UgdGhlIHJlZHVjZWQgc3BhY2UuDQo+ID4gDQo+ID4gSSB3b3Vs
-ZG4ndCBtaW5kIG9mIHRoZSByZWdpb24gaXMgc3BsaXQgYXMgSmVzc2ljYSBzdWdnZXN0cyBidXQg
-aW4gYSB3YXkNCj4gPiB3aGVyZQ0KPiA+IHRoZXJlIHdvdWxkIGJlIF9ub18gcnVudGltZSByZWdy
-ZXNzaW9ucyBmb3IgQlBGLiBUaGlzIG1pZ2h0IGFsc28gYWxsb3cgdG8NCj4gPiBoYXZlDQo+ID4g
-bW9yZSBmbGV4aWJpbGl0eSBpbiBzaXppbmcgdGhlIGFyZWEgZGVkaWNhdGVkIGZvciBCUEYgaW4g
-ZnV0dXJlLCBhbmQgY291bGQNCj4gPiBwb3RlbnRpYWxseSBiZSBkb25lIGluIHNpbWlsYXIgd2F5
-IGFzIEFyZCB3YXMgcHJvcG9zaW5nIHJlY2VudGx5IFs0XS4NCj4gPiANCj4gPiAgIFs0XSBodHRw
-czovL3BhdGNod29yay5vemxhYnMub3JnL3Byb2plY3QvbmV0ZGV2L2xpc3QvP3Nlcmllcz03Nzc3
-OQ0KPiANCj4gQ0NpbmcgQXJkLg0KPiANCj4gVGhlIGJlbmVmaXQgb2Ygc2hhcmluZyB0aGUgc3Bh
-Y2UsIGZvciByYW5kb21pemF0aW9uIGF0IGxlYXN0LCBpcyB0aGF0IHlvdSBjYW4NCj4gc3ByZWFk
-IHRoZSBhbGxvY2F0aW9ucyBvdmVyIGEgbGFyZ2VyIGFyZWEuDQo+IA0KPiBJIHRoaW5rIHRoZXJl
-IGFyZSBhbHNvIG90aGVyIGJlbmVmaXRzIHRvIHVuaWZ5aW5nIGhvdyB0aGlzIG1lbW9yeSBpcyBt
-YW5hZ2VkDQo+IHRob3VnaCwgcmF0aGVyIHRoYW4gc3ByZWFkaW5nIGl0IGZ1cnRoZXIuIFRvZGF5
-IHRoZXJlIGFyZSB2YXJpb3VzIHBhdHRlcm5zIGFuZA0KPiB0ZWNobmlxdWVzIHVzZWQgbGlrZSBj
-YWxsaW5nIGRpZmZlcmVudCBjb21iaW5hdGlvbnMgb2Ygc2V0X21lbW9yeV8qIGJlZm9yZQ0KPiBm
-cmVlaW5nLCB6ZXJvaW5nIGluIG1vZHVsZXMgb3Igc2V0dGluZyBpbnZhbGlkIGluc3RydWN0aW9u
-cyBsaWtlIEJQRiBkb2VzLA0KPiBldGMuDQo+IFRoZXJlIGlzIGFsc28gc3BlY2lhbCBjYXJlIHRv
-IGJlIHRha2VuIG9uIHZmcmVlLWluZyBleGVjdXRhYmxlIG1lbW9yeS4gU28gdGhpcw0KPiB3YXkg
-dGhpbmdzIG9ubHkgaGF2ZSB0byBiZSBkb25lIHJpZ2h0IG9uY2UgYW5kIHRoZXJlIGlzIGxlc3Mg
-ZHVwbGljYXRpb24uDQo+IA0KPiBOb3Qgc2F5aW5nIHRoZXJlIHNob3VsZG4ndCBiZSBfX3dlYWsg
-YWxsb2MgYW5kIGZyZWUgbWV0aG9kIGluIEJQRiBmb3IgYXJjaA0KPiBzcGVjaWZpYyBiZWhhdmlv
-ciwganVzdCB0aGF0IHRoZXJlIGlzIHF1aXRlIGEgZmV3IG90aGVyIGNvbmNlcm5zIHRoYXQgY291
-bGQgYmUNCj4gZ29vZCB0byBjZW50cmFsaXplIGV2ZW4gbW9yZSB0aGFuIHRvZGF5Lg0KPiANCj4g
-V2hhdCBpZiB0aGVyZSB3YXMgYSB1bmlmaWVkIGV4ZWN1dGFibGUgYWxsb2MgQVBJIHdpdGggc3Vw
-cG9ydCBmb3IgdGhpbmdzIGxpa2U6DQo+ICAtIENvbmNlcHRzIG9mIHR3byByZWdpb25zIGZvciBB
-cmQncyB1c2FnZSwgbmVhcihtb2R1bGVzKSBhbmQgZmFyKHZtYWxsb2MpDQo+IGZyb20NCj4gICAg
-a2VybmVsIHRleHQuIFdvbid0IGFwcGx5IGZvciBldmVyeSBhcmNoLCBidXQgbWF5YmUgZW5vdWdo
-IHRoYXQgc29tZSBsb2dpYw0KPiAgICBjb3VsZCBiZSB1bmlmaWVkDQo+ICAtIExpbWl0cyBmb3Ig
-ZWFjaCBvZiB0aGUgdXNhZ2VzIChtb2R1bGVzLCBicGYsIGtwcm9iZXMsIGZ0cmFjZSkNCj4gIC0g
-Q2VudHJhbGl6ZWQgbG9naWMgZm9yIG1vdmluZyBiZXR3ZWVuIFJXIGFuZCBSTytYDQo+ICAtIE9w
-dGlvbnMgZm9yIGV4Y2x1c2l2ZSByZWdpb25zIG9yIGFsbCBzaGFyZWQNCj4gIC0gUmFuZG9taXpp
-bmcgYmFzZSwgcmFuZG9taXppbmcgaW5kZXBlbmRlbnRseSBvciBub25lDQo+ICAtIFNvbWUgY2dy
-b3VwcyBob29rcz8NCj4gDQo+IFdvdWxkIHRoZXJlIGJlIGFueSBpbnRlcmVzdCBpbiB0aGF0IGZv
-ciB0aGUgZnV0dXJlPw0KPiANCj4gQXMgYSBuZXh0IHN0ZXAsIGlmIEJQRiBkb2Vzbid0IHdhbnQg
-dG8gdXNlIHRoaXMgYnkgZGVmYXVsdCwgY291bGQgQlBGIGp1c3QNCj4gY2FsbA0KPiB2bWFsbG9j
-X25vZGVfcmFuZ2UgZGlyZWN0bHkgZnJvbSBBcmQncyBuZXcgX193ZWFrIGZ1bmN0aW9ucyBvbiB4
-ODY/IFRoZW4NCj4gbW9kdWxlcw0KPiBjYW4gcmFuZG9taXplIGFjcm9zcyB0aGUgd2hvbGUgc3Bh
-Y2UgYW5kIEJQRiBjYW4gZmlsbCB0aGUgZ2FwcyBsaW5lYXJseSBmcm9tDQo+IHRoZQ0KPiBiZWdp
-bm5pbmcuIElzIHRoYXQgYWNjZXB0YWJsZT8gVGhlbiB0aGUgdm1hbGxvYyBvcHRpbWl6YXRpb25z
-IGNvdWxkIGJlIGRyb3BwZWQNCj4gZm9yIHRoZSB0aW1lIGJlaW5nIHNpbmNlIHRoZSBCUEZzIHdv
-dWxkIG5vdCBiZSBmcmFnbWVudGVkLCBidXQgdGhlIHNlcGFyYXRlDQo+IHJlZ2lvbnMgY291bGQg
-Y29tZSBhcyBwYXJ0IG9mIGZ1dHVyZSB3b3JrLg0KSmVzc2ljYSwgRGFuaWVsLA0KDQpBbnkgYWR2
-aWNlIGZvciBtZSBvbiBob3cgd2UgY291bGQgbW92ZSB0aGlzIGZvcndhcmQ/DQoNClRoYW5rcywN
-ClJpY2sNCg0KDQoNCj4gVGhhbmtzLA0KPiANCj4gUmljaw0KPiANCj4gPiA+IEFsc28gd2l0aCBL
-QVNMUiBvbiB4ODYgaXRzIGFjdHVhbGx5IG9ubHkgMUdCLCBzbyBpdCB3b3VsZCBvbmx5IGJlIDUw
-ME1CDQo+ID4gPiBwZXINCj4gPiA+IHNlY3Rpb24gKGFzc3VtaW5nIGtwcm9iZXMsIGV0YyB3b3Vs
-ZCBzaGFyZSB0aGUgbm9uLW1vZHVsZSByZWdpb24sIHNvIGp1c3QNCj4gPiA+IHR3bw0KPiA+ID4g
-c2VjdGlvbnMpLg0KPiA+ID4gDQo+ID4gPiA+IC0gSWYgYnBmIGdldHMgaXRzIG93biBkZWRpY2F0
-ZWQgdm1hbGxvYyBzcGFjZSwgYW5kIHdlIHN0aWNrIHRvIHRoZQ0KPiA+ID4gPiBzaW5nbGUNCj4g
-PiA+ID4gdGFzaw0KPiA+ID4gPiAgICBvZiByYW5kb21pemluZyAqanVzdCoga2VybmVsIG1vZHVs
-ZXMsIGNvdWxkIHRoZSB2bWFsbG9jIG9wdGltaXphdGlvbnMNCj4gPiA+ID4gYW5kDQo+ID4gPiA+
-IHRoZQ0KPiA+ID4gPiAgICAiYmFja3VwIiBhcmVhIGJlIGRyb3BwZWQ/IFRoZSBiZW5lZml0cyBv
-ZiB0aGUgdm1hbGxvYyBvcHRpbWl6YXRpb25zDQo+ID4gPiA+IHNlZW0gdG8NCj4gPiA+ID4gICAg
-b25seSBiZSBub3RpY2VhYmxlIHdoZW4gd2UgZ2V0IHRvIHRob3VzYW5kcyBvZiBtb2R1bGVfYWxs
-b2MNCj4gPiA+ID4gYWxsb2NhdGlvbnMNCj4gPiA+ID4gLQ0KPiA+ID4gPiAgICBhZ2FpbiwgYSBj
-b25jZXJuIGNhdXNlZCBieSBicGYgZmlsdGVycyBzaGFyaW5nIHRoZSBzYW1lIHNwYWNlIHdpdGgN
-Cj4gPiA+ID4ga2VybmVsDQo+ID4gPiA+ICAgIG1vZHVsZXMuDQo+ID4gPiANCj4gPiA+IEkgdGhp
-bmsgdGhlIGJhY2t1cCBhcmVhIG1heSBzdGlsbCBiZSBuZWVkZWQsIGZvciBleGFtcGxlIGlmIHlv
-dSBoYXZlIDIwMA0KPiA+ID4gbW9kdWxlcw0KPiA+ID4gZXZlbmx5IHNwYWNlZCBpbnNpZGUgNTAw
-TUIgdGhlcmUgaXMgb25seSBhdmVyYWdlIH4yLjVNQiBnYXAgYmV0d2VlbiB0aGVtLg0KPiA+ID4g
-U28NCj4gPiA+IGENCj4gPiA+IGxhdGUgYWRkZWQgbGFyZ2UgbW9kdWxlIGNvdWxkIHN0aWxsIGdl
-dCBibG9ja2VkLg0KPiA+ID4gDQo+ID4gPiA+ICAgIFNvIHRsZHIsIGl0IHNlZW1zIHRvIG1lIHRo
-YXQgdGhlIGNvbmNlcm4gb2YgZnJhZ21lbnRhdGlvbiwgdGhlDQo+ID4gPiA+IHZtYWxsb2MNCj4g
-PiA+ID4gICAgb3B0aW1pemF0aW9ucywgYW5kIHRoZSBtYWluIHB1cnBvc2Ugb2YgdGhlIGJhY2t1
-cCBhcmVhIC0gYmFzaWNhbGx5LA0KPiA+ID4gPiB0aGUNCj4gPiA+ID4gbW9yZQ0KPiA+ID4gPiAg
-ICBjb21wbGV4IHBhcnRzIG9mIHRoaXMgcGF0Y2hzZXQgLSBzdGVtcyBzcXVhcmVseSBmcm9tIHRo
-ZSBmYWN0IHRoYXQNCj4gPiA+ID4gYnBmDQo+ID4gPiA+IGZpbHRlcnMNCj4gPiA+ID4gICAgc2hh
-cmUgdGhlIHNhbWUgc3BhY2UgYXMgbW9kdWxlcyBvbiB4ODYuIElmIHdlIHdlcmUgdG8gZm9jdXMg
-b24NCj4gPiA+ID4gcmFuZG9taXppbmcNCj4gPiA+ID4gICAgKmp1c3QqIGtlcm5lbCBtb2R1bGVz
-LCBhbmQgaWYgYnBmIGFuZCBtb2R1bGVzIGhhZCB0aGVpciBvd24gZGVkaWNhdGVkDQo+ID4gPiA+
-IHJlZ2lvbnMsDQo+ID4gPiA+ICAgIHRoZW4gSSAqdGhpbmsqIHRoZSBjb25jcmV0ZSB1c2UgY2Fz
-ZXMgZm9yIHRoZSBiYWNrdXAgYXJlYSBhbmQgdGhlDQo+ID4gPiA+IHZtYWxsb2MNCj4gPiA+ID4g
-ICAgb3B0aW1pemF0aW9ucyAoaWYgd2UncmUgc3RyaWN0bHkgY29uc2lkZXJpbmcganVzdCBrZXJu
-ZWwgbW9kdWxlcykNCj4gPiA+ID4gd291bGQNCj4gPiA+ID4gICAgbW9zdGx5IGRpc2FwcGVhciAo
-cGxlYXNlIGNvcnJlY3QgbWUgaWYgSSdtIGluIHRoZSB3cm9uZyBoZXJlKS4gVGhlbg0KPiA+ID4g
-PiB0YWNrbGluZyB0aGUNCj4gPiA+ID4gICAgcmFuZG9taXphdGlvbiBvZiBicGYgYWxsb2NhdGlv
-bnMgY291bGQgcG90ZW50aWFsbHkgYmUgYSBzZXBhcmF0ZSB0YXNrDQo+ID4gPiA+IG9uDQo+ID4g
-PiA+IGl0cyBvd24uDQo+ID4gPiANCj4gPiA+IFllcyBpdCBzZWVtcyB0aGVuIHRoZSB2bWFsbG9j
-IG9wdGltaXphdGlvbnMgY291bGQgYmUgZHJvcHBlZCB0aGVuLCBidXQgSQ0KPiA+ID4gZG9uJ3QN
-Cj4gPiA+IHRoaW5rIHRoZSBiYWNrdXAgYXJlYSBjb3VsZCBiZS4gQWxzbyB0aGUgZW50cm9weSB3
-b3VsZCBnbyBkb3duIHNpbmNlIHRoZXJlDQo+ID4gPiB3b3VsZA0KPiA+ID4gYmUgbGVzcyBwb3Nz
-aWJsZSBwb3NpdGlvbnMgYW5kIHdlIHdvdWxkIHJlZHVjZSB0aGUgc3BhY2UgYXZhaWxhYmxlIHRv
-IEJQRi4NCj4gPiA+IFNvDQo+ID4gPiB0aGVyZSBhcmUgc29tZSBkb3duc2lkZXMganVzdCB0byBy
-ZW1vdmUgdGhlIHZtYWxsb2MgcGllY2UuDQo+ID4gPiANCj4gPiA+IElzIHlvdXIgY29uY2VybiB0
-aGF0IHZtYWxsb2Mgb3B0aW1pemF0aW9ucyBtaWdodCByZWdyZXNzIHNvbWV0aGluZyBlbHNlPw0K
-PiA+ID4gVGhlcmUNCj4gPiA+IGlzIGEgbWlkZGxlIGdyb3VuZCB2bWFsbG9jIG9wdGltaXphdGlv
-biB3aGVyZSBvbmx5IHRoZSB0cnlfcHVyZ2UgZmxhZyBpcw0KPiA+ID4gcGx1bWJlZA0KPiA+ID4g
-dGhyb3VnaC4gVGhlIGZsYWcgd2FzIG1vc3Qgb2YgdGhlIHBlcmZvcm1hbmNlIGdhaW5lZCBhbmQg
-d2l0aCBqdXN0IHRoYXQNCj4gPiA+IHBpZWNlIGl0DQo+ID4gPiBzaG91bGQgbm90IGNoYW5nZSBh
-bnkgYmVoYXZpb3IgZm9yIHRoZSBub24tbW9kdWxlcyBmbG93cy4gV291bGQgdGhhdCBiZQ0KPiA+
-ID4gbW9yZQ0KPiA+ID4gYWNjZXB0YWJsZT8NCj4gPiA+IA0KPiA+ID4gPiBUaGFua3MhDQo+ID4g
-PiA+IA0KPiA+ID4gPiBKZXNzaWNhDQo+ID4gPiA+IA0KPiA+ID4gDQo+ID4gPiBbc25pcF0NCj4g
-PiA+IA0KPiA+IA0KPiA+IA0K
+
+
+On 19/12/2018 14:40, Aneesh Kumar K.V wrote:
+> Current code doesn't do page migration if the page allocated is a compound page.
+> With HugeTLB migration support, we can end up allocating hugetlb pages from
+> CMA region. Also THP pages can be allocated from CMA region. This patch updates
+> the code to handle compound pages correctly.
+> 
+> This use the new helper get_user_pages_cma_migrate. It does one get_user_pages
+> with right count, instead of doing one get_user_pages per page. That avoids
+> reading page table multiple times.
+> 
+> The patch also convert the hpas member of mm_iommu_table_group_mem_t to a union.
+> We use the same storage location to store pointers to struct page. We cannot
+> update alll the code path use struct page *, because we access hpas in real mode
+
+s/alll/all/
+
+
+> and we can't do that struct page * to pfn conversion in real mode.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> ---
+>  arch/powerpc/mm/mmu_context_iommu.c | 120 ++++++++--------------------
+>  1 file changed, 35 insertions(+), 85 deletions(-)
+> 
+> diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
+> index 56c2234cc6ae..1d5161f93ce6 100644
+> --- a/arch/powerpc/mm/mmu_context_iommu.c
+> +++ b/arch/powerpc/mm/mmu_context_iommu.c
+> @@ -21,6 +21,7 @@
+>  #include <linux/sizes.h>
+>  #include <asm/mmu_context.h>
+>  #include <asm/pte-walk.h>
+> +#include <linux/mm_inline.h>
+>  
+>  static DEFINE_MUTEX(mem_list_mutex);
+>  
+> @@ -34,8 +35,18 @@ struct mm_iommu_table_group_mem_t {
+>  	atomic64_t mapped;
+>  	unsigned int pageshift;
+>  	u64 ua;			/* userspace address */
+> -	u64 entries;		/* number of entries in hpas[] */
+
+Still a valid comment imho, or you could s'hpas'hpas/hpages' but
+replacing hpas with hpages seems strange.
+
+
+> -	u64 *hpas;		/* vmalloc'ed */
+> +	u64 entries;		/* number of entries in hpages[] */
+> +	/*
+> +	 * in mm_iommu_get we temporarily use this to store
+> +	 * struct page address.
+> +	 *
+> +	 * We need to convert ua to hpa in real mode. Make it
+> +	 * simpler by storing physicall address.
+
+s/physicall/physical/
+
+
+> +	 */
+> +	union {
+> +		struct page **hpages;	/* vmalloc'ed */
+> +		phys_addr_t *hpas;
+> +	};
+>  };
+>  
+>  static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
+> @@ -78,63 +89,14 @@ bool mm_iommu_preregistered(struct mm_struct *mm)
+>  }
+>  EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
+>  
+> -/*
+> - * Taken from alloc_migrate_target with changes to remove CMA allocations
+> - */
+> -struct page *new_iommu_non_cma_page(struct page *page, unsigned long private)
+> -{
+> -	gfp_t gfp_mask = GFP_USER;
+> -	struct page *new_page;
+> -
+> -	if (PageCompound(page))
+> -		return NULL;
+> -
+> -	if (PageHighMem(page))
+> -		gfp_mask |= __GFP_HIGHMEM;
+> -
+> -	/*
+> -	 * We don't want the allocation to force an OOM if possibe
+> -	 */
+> -	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
+> -	return new_page;
+> -}
+> -
+> -static int mm_iommu_move_page_from_cma(struct page *page)
+> -{
+> -	int ret = 0;
+> -	LIST_HEAD(cma_migrate_pages);
+> -
+> -	/* Ignore huge pages for now */
+> -	if (PageCompound(page))
+> -		return -EBUSY;
+> -
+> -	lru_add_drain();
+> -	ret = isolate_lru_page(page);
+> -	if (ret)
+> -		return ret;
+> -
+> -	list_add(&page->lru, &cma_migrate_pages);
+> -	put_page(page); /* Drop the gup reference */
+> -
+> -	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
+> -				NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE);
+> -	if (ret) {
+> -		if (!list_empty(&cma_migrate_pages))
+> -			putback_movable_pages(&cma_migrate_pages);
+> -	}
+> -
+> -	return 0;
+> -}
+> -
+>  long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
+>  		struct mm_iommu_table_group_mem_t **pmem)
+>  {
+>  	struct mm_iommu_table_group_mem_t *mem;
+> -	long i, j, ret = 0, locked_entries = 0;
+> +	long i, ret = 0, locked_entries = 0;
+>  	unsigned int pageshift;
+>  	unsigned long flags;
+>  	unsigned long cur_ua;
+> -	struct page *page = NULL;
+>  
+>  	mutex_lock(&mem_list_mutex);
+>  
+> @@ -181,41 +143,24 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
+>  		goto unlock_exit;
+>  	}
+>  
+> +	ret = get_user_pages_cma_migrate(ua, entries, 1, mem->hpages);
+
+btw get_user_pages_cma_migrate() name suggests me (yeah, not a native
+speaker and an ignorant person in general :) ) that it migrates and pins
+pages while it can actually pin pages without migrating them (if it
+could not).
+
+
+> +	if (ret != entries) {
+> +		/* free the reference taken */
+> +		for (i = 0; i < ret; i++)
+> +			put_page(mem->hpages[i]);
+> +
+> +		vfree(mem->hpas);
+> +		kfree(mem);
+> +		ret = -EFAULT;
+> +		goto unlock_exit;
+> +	} else
+
+Missing curly braces.
+
+> +		ret = 0;
+> +
+> +	pageshift = PAGE_SHIFT;
+>  	for (i = 0; i < entries; ++i) {
+> +		struct page *page = mem->hpages[i];
+
+An empty line here.
+
+>  		cur_ua = ua + (i << PAGE_SHIFT);
+> -		if (1 != get_user_pages_fast(cur_ua,
+> -					1/* pages */, 1/* iswrite */, &page)) {
+> -			ret = -EFAULT;
+> -			for (j = 0; j < i; ++j)
+> -				put_page(pfn_to_page(mem->hpas[j] >>
+> -						PAGE_SHIFT));
+> -			vfree(mem->hpas);
+> -			kfree(mem);
+> -			goto unlock_exit;
+> -		}
+> -		/*
+> -		 * If we get a page from the CMA zone, since we are going to
+> -		 * be pinning these entries, we might as well move them out
+> -		 * of the CMA zone if possible. NOTE: faulting in + migration
+> -		 * can be expensive. Batching can be considered later
+> -		 */
+> -		if (is_migrate_cma_page(page)) {
+> -			if (mm_iommu_move_page_from_cma(page))
+> -				goto populate;
+> -			if (1 != get_user_pages_fast(cur_ua,
+> -						1/* pages */, 1/* iswrite */,
+> -						&page)) {
+> -				ret = -EFAULT;
+> -				for (j = 0; j < i; ++j)
+> -					put_page(pfn_to_page(mem->hpas[j] >>
+> -								PAGE_SHIFT));
+> -				vfree(mem->hpas);
+> -				kfree(mem);
+> -				goto unlock_exit;
+> -			}
+> -		}
+> -populate:
+> -		pageshift = PAGE_SHIFT;
+> +
+>  		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
+>  			pte_t *pte;
+>  			struct page *head = compound_head(page);
+> @@ -233,7 +178,12 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
+>  			local_irq_restore(flags);
+>  		}
+>  		mem->pageshift = min(mem->pageshift, pageshift);
+> +		/*
+> +		 * We don't need struct page reference any more, switch
+> +		 * physicall address.
+
+s/physicall/physical/
+
+
+> +		 */
+>  		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
+> +
+
+Unnecessary empty line.
+
+
+>  	}
+>  
+>  	atomic64_set(&mem->mapped, 1);
+> 
+
+-- 
+Alexey
