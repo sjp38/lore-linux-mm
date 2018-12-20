@@ -1,69 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F1F38E021D
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 18:06:04 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id c18so3352390edt.23
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 15:06:04 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id l22si1221132edj.93.2018.12.14.15.06.03
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E58B8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 15:31:31 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id e29so3552854ede.19
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 12:31:31 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id t3-v6si2031911ejx.136.2018.12.20.12.31.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 15:06:03 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id D19B71C1DFE
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 23:06:02 +0000 (GMT)
-Date: Fri, 14 Dec 2018 23:06:01 +0000
+        Thu, 20 Dec 2018 12:31:30 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 6C7461C2CFE
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 20:31:29 +0000 (GMT)
+Date: Thu, 20 Dec 2018 20:31:27 +0000
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 14/14] mm, compaction: Do not direct compact remote memory
-Message-ID: <20181214230601.GE29005@techsingularity.net>
+Subject: Re: [PATCH 06/14] mm, migrate: Immediately fail migration of a page
+ with no migration handler
+Message-ID: <20181220203127.GB31517@techsingularity.net>
 References: <20181214230310.572-1-mgorman@techsingularity.net>
+ <20181214230310.572-7-mgorman@techsingularity.net>
+ <CAHbLzko6jXSikw-4LQXi6KfNR9=U4XJnB_OaaZ4XcNHUj4NLUQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20181214230310.572-1-mgorman@techsingularity.net>
+In-Reply-To: <CAHbLzko6jXSikw-4LQXi6KfNR9=U4XJnB_OaaZ4XcNHUj4NLUQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Yang Shi <shy828301@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, torvalds@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Remote compaction is expensive and possibly counter-productive. Locality
-is expected to often have better performance characteristics than remote
-high-order pages. For small allocations, it's expected that locality is
-generally required or fallbacks are possible. For larger allocations such
-as THP, they are forbidden at the time of writing but if __GFP_THISNODE
-is ever removed, then it would still be preferable to fallback to small
-local base pages over remote THP in the general case. kcompactd is still
-woken via kswapd so compaction happens eventually.
+On Thu, Dec 20, 2018 at 11:44:57AM -0800, Yang Shi wrote:
+> On Fri, Dec 14, 2018 at 3:03 PM Mel Gorman <mgorman@techsingularity.net> wrote:
+> >
+> > Pages with no migration handler use a fallback hander which sometimes
+> > works and sometimes persistently fails such as blockdev pages. Migration
+> 
+> A minor correction. The above statement sounds not accurate anymore
+> since Jan Kara had patch series (blkdev: avoid migration stalls for
+> blkdev pages) have blockdev use its own migration handler.
+> 
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/compaction.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 39d33b6d1172..05fecd7227e4 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -2208,6 +2208,16 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 			continue;
- 		}
- 
-+		/*
-+		 * Do not compact remote memory. It's expensive and high-order
-+		 * small allocations are expected to prefer or require local
-+		 * memory. Similarly, larger requests such as THP can fallback
-+		 * to base pages in preference to remote huge pages if
-+		 * __GFP_THISNODE is not specified
-+		 */
-+		if (zone_to_nid(zone) != zone_to_nid(ac->preferred_zoneref->zone))
-+			continue;
-+
- 		status = compact_zone_order(zone, order, gfp_mask, prio,
- 				alloc_flags, ac_classzone_idx(ac), capture);
- 		rc = max(status, rc);
--- 
-2.16.4
-
+I'm aware given that I reviewed that series. The statement was correct
+at the time of writing. I'll alter the example when rebased on top of
+Jan's work.
 
 -- 
 Mel Gorman
