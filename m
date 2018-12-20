@@ -2,213 +2,180 @@ Return-Path: <SRS0=PcJq=O5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E621FC43387
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 19:22:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA7A3C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 19:45:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6EB520811
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 19:22:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6344E218D3
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 19:45:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="SCvVL+ju"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6EB520811
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ljt+A0id"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6344E218D3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A7998E0015; Thu, 20 Dec 2018 14:22:05 -0500 (EST)
+	id 01F9F8E0009; Thu, 20 Dec 2018 14:45:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 208938E0001; Thu, 20 Dec 2018 14:22:05 -0500 (EST)
+	id EEA198E0001; Thu, 20 Dec 2018 14:45:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A6BE8E0015; Thu, 20 Dec 2018 14:22:04 -0500 (EST)
+	id DB3BD8E0009; Thu, 20 Dec 2018 14:45:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CFACB8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:22:04 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id k90so2981832qte.0
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:22:04 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id ABE128E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 14:45:11 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id k90so3052184qte.0
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:45:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:user-agent:date:from
-         :to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject:references:mime-version
-         :content-disposition:feedback-id;
-        bh=w1fmM/A7/dLGujgt4qj/eIcE2IM8trq03+WjkP6rwKM=;
-        b=T33Wz0r5W+e2s7P/AgDFB1dXKWpfRPqWvdZqnz6+sMy+j4quY3PR2uqb7SUNjbDUMK
-         3nkC9VmVMYy8CKk+br5wz3kF2QiTdPMxXpFCOfqghacXOqu8IVOxHXSUIeTQgNYW/ozA
-         inVTOgB2GLDe7Q4JVr1/yvBL/5HwCQQZK/3LcPALvYF954AdhcTz0LOAQF0a6aIbe0id
-         2Jli6kqok47u5iKCVeLjNVp7LdHOYlBo03VfnQukWjZm1RbVTdj6xBsxsfqrmPu39Ulp
-         GxKq28Nv7+KrN8jeCejlDyUysXJSgQv51VGik/sPJmq8oNSFaSoCfsTg2DZk2SPesaXD
-         73DA==
-X-Gm-Message-State: AA+aEWaW7/1XZR7IpYNVaK3pEMBsxGFc1lJz9lQwwZ8qvGgaLYXt2uRU
-	GMKiRBl0897D7JxoOSHJGorx0a5ARd338SFanzKAFZH0nYOvIsanbfxr/a5sx6ANrHqJBMySmqQ
-	zS78LXM1OPsKkEQO/Lu3y+UfzsFUgdyn+DoJdoHqREDG4R3IzP3v3xJhbSen004Y=
-X-Received: by 2002:ac8:518d:: with SMTP id c13mr26615120qtn.254.1545333724613;
-        Thu, 20 Dec 2018 11:22:04 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/VelJAVgYE52SpK3mSrDBa59Ay/Yl3QeC++v5OJ6ioEeEBN0h6sEsDeYKte3Hl80l/ZCX+c
-X-Received: by 2002:ac8:518d:: with SMTP id c13mr26615105qtn.254.1545333724269;
-        Thu, 20 Dec 2018 11:22:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545333724; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=HKmYRYZ8i9OtQjopx4/zRiXjDlfBrbzkMJTi5+z4kig=;
+        b=LH4TJiWVt12KqZCkMq6XzgDxP7yTrgJuOG7cnsCUFe3oEFNGlrX3+cY2kGsKWUgkLH
+         ifBHcrAnVqPGtYUejR24Vv4X4QrPrbEq5UI/4QrpETYrhgUB7zM9715oReSa4YxKyXiy
+         6rM5vw3ecJAniMRfk2SoRIKAexzepaZi9uUvObSnEgQaDvYdHCCM1QSI/AJzol1EReen
+         vGiUAgNy3y1CsXsMAbGRsp05wYuXlitWBPKQjKD4HGJr54edjticwo5XxnO9Ldo1UdaO
+         GYpU6qVrcY07F3eSg57PM4z71thbjtLj+YJRsON4FzVHe88VnNir1exPWZnHFaNRPKgs
+         QyEg==
+X-Gm-Message-State: AA+aEWYFDWTq/f0Yl8fNCC+pM9enPrDlI/zsDaWl3OaNz0qzVBqs1I0J
+	y3xmGFF5s1ur9nTTqXqYYSQf0MP88KnBUW2LHdgePksR/fCHGuVfQvjpOY12MBvBY9cE/Xg7Gp1
+	fsHLNGpajg34mrOBloS1/sRda/DTdS5pTmd9NqsTVQQ4hcLQyuM07jAmqQ4Ze7NBoFQ86NO/fvL
+	4eC/LgnRPgB4+JExbRgAC42Doe2bcN9Arww0rcWBemPoCoOK0X+UDoF3ccwyfRWyf3Xmpn2UCgm
+	hqJN8dEY1qUPyK38PAdDG6OFsv1Gn35QqjHd4Tie1Xo/6ntnGsEFfYU4/92D4AUI6PX+InssuZE
+	WWSSxzHS/kLHzluam1SLkZLRUIMWNJgmSpnPmP63+l2aE36QCShW9W/KI4WHOpI2HxZmglvlNRP
+	U
+X-Received: by 2002:ac8:668c:: with SMTP id d12mr26530769qtp.242.1545335111407;
+        Thu, 20 Dec 2018 11:45:11 -0800 (PST)
+X-Received: by 2002:ac8:668c:: with SMTP id d12mr26530728qtp.242.1545335110464;
+        Thu, 20 Dec 2018 11:45:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545335110; cv=none;
         d=google.com; s=arc-20160816;
-        b=YdfSJZ7QRTpUZYyA8pzb4TqP/K86QiLe2mVtzbL7yNwlf9qEH/KBhhzivBEedTURTA
-         JFPzdr1+yJn678svy8Cur4hytWrb1RGe2r5RZpCt9G0hTgaWwEVjthuw8+ZBDyrXgB12
-         wDtqve67y59tlJm662yAcEEmBX9XxMGYxGiPpaU2gbjMQfdwnpAEqgDYmtqdkWPC51jC
-         8ylWeYwt8wd1NBDGZQz8A8icpQOwYc8AMC2Bw4ogDWE+p2/hNJ0h4tdb4qe7zmaPAUZ4
-         ahQCxcIgq/7hDqQQak+gESavn92JIwir/da6Zm+5W0RRGykwy0QkEXXRUsD/vGWni0Y7
-         6S+g==
+        b=rkz1HVz1+zBPyUmQiOEW7F0WhgLUDSIjb3lpjcEOqUd3py2n+EssfC86uI+sNjd2cY
+         qvGpuWDmlUGE2dAiNllUu8WL/D/bJ8Ka67w5KDfawiWMvORNJ3zNJC/g/fQ4rKDvDeyK
+         9ISSRoNPnIuZz8YtjWFL64iRYOLk+SBGQJXFm9ACMeCxDBiqwSdqBWsVbwDkF2fMvi7c
+         YIBiCmlmGmy6GchAsSKzJ6jS8ssFHU/to8lUYk+9n65jQTsuiuTEZzYQp/Z1lE+gmKce
+         VTjcCT5R5o18jxaUmLSvd1SSd7B0RUFIvwKDNfHD2UFIp22D3FeL2uU0A6q2uM75iVT5
+         35jA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:content-disposition:mime-version:references:subject:cc
-         :cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:to:from:date:user-agent:message-id
-         :dkim-signature;
-        bh=w1fmM/A7/dLGujgt4qj/eIcE2IM8trq03+WjkP6rwKM=;
-        b=K5QYwOpz7FOYaP6HqB+VsXIGzADkSln0uixUBGJy+A+MjstFJe7gU65mNxJrnns88R
-         ocedsguk2D4j6Y8sPayXzclvqQQWK0gOwNe2fyNCK/vVbXyxlDMVi6QnY5hMc7ecRn+X
-         f/Q/jz+JAyKvNfGG0cnfUumcUWptbiQgagyz51evn6th8J5MwuWSZd6RgQHaJWUcy1wq
-         DPfjtPp+ENFwBcq1Bx38Pcs38NheW/RNZRjtkrR7/lKc/uxtIJVYR5qn0CyZbpK2lJkE
-         cta+0KOm7MJx43LxOFJaI8CNUXXheKnYwpoiG88nWfTlejPaH6huYtnSmrn41G/0JOjq
-         ++QA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=HKmYRYZ8i9OtQjopx4/zRiXjDlfBrbzkMJTi5+z4kig=;
+        b=yKFPc8k6YhFm1eu1xP6E1znHMD+j7QcC+FR1qNpjMsKuPVrSR61YHQXFWWbZBt2RcG
+         8szERfTC2ZdLihUxpk/5qLfR/5RQKHn8s10bvwqtNMzHVG7hZ2GtBxrKEFGy/G95SBP0
+         5ZxMqiwt06qkxNUd4q4t6KM6ZYF5UMhvYwvCI6R8aiZfyFNpw8itj4FGDNkdrn+i9loN
+         N13A6c6SZTAZ67TgugeVOwevr1DA6jJ1YKjmGcPrvZG3EoKsprFK9Zj3mF94ML7XmI+Y
+         thmQm+Qg3AH2tZKGMifpVf/8F6/wba/YYtxzS07TfZJG28P6o/q2evpZMn9kUurgLUZj
+         ld0w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=fail header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=SCvVL+ju;
-       spf=pass (google.com: domain of 01000167cd11517f-f122b002-1a61-46c9-af1a-5c7cf01a397d-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000167cd11517f-f122b002-1a61-46c9-af1a-5c7cf01a397d-000000@amazonses.com
-Received: from a9-36.smtp-out.amazonses.com (a9-36.smtp-out.amazonses.com. [54.240.9.36])
-        by mx.google.com with ESMTPS id l2si4247657qtj.22.2018.12.20.11.22.04
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ljt+A0id;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r93sor4290647qkr.27.2018.12.20.11.45.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 11:22:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000167cd11517f-f122b002-1a61-46c9-af1a-5c7cf01a397d-000000@amazonses.com designates 54.240.9.36 as permitted sender) client-ip=54.240.9.36;
+        (Google Transport Security);
+        Thu, 20 Dec 2018 11:45:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=fail header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=SCvVL+ju;
-       spf=pass (google.com: domain of 01000167cd11517f-f122b002-1a61-46c9-af1a-5c7cf01a397d-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000167cd11517f-f122b002-1a61-46c9-af1a-5c7cf01a397d-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1545333723;
-	h=Message-Id:Date:From:To:Cc:Cc:Cc:CC:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Subject:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=qNdEXLooQmyJC8nAB/4MyBKqNpzM7jv1JHGkgte2EEs=;
-	b=SCvVL+juPo8Ksu9+O0sk/r8AiUR8JGnyzXhP7mYdvc3cEQ0ulPEhnt+VLcPLe1mc
-	smDDyDaYkQ6dcwgZE1Tk0m8tUHdSf90cH0en+w2zBJBvdu+bFjmIMne/tJlZiqGphRG
-	85bQcTIpVPEKivVme9DnvBzP1GZjcA05QzDioYdE=
-Message-ID:
- <01000167cd11517f-f122b002-1a61-46c9-af1a-5c7cf01a397d-000000@email.amazonses.com>
-User-Agent: quilt/0.65
-Date: Thu, 20 Dec 2018 19:22:03 +0000
-From: Christoph Lameter <cl@linux.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: akpm@linux-foundation.org
-Cc: Mel Gorman <mel@skynet.ie>
-Cc: andi@firstfloor.org
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC 7/7] xarray: Implement migration function for objects
-References: <20181220192145.023162076@linux.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ljt+A0id;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=HKmYRYZ8i9OtQjopx4/zRiXjDlfBrbzkMJTi5+z4kig=;
+        b=Ljt+A0idXUEnF5LAnsQXnAhP2HjkaChKUTxbo/ITBVf0Jccx9GjxWhOyo3Oax+61Mr
+         gDkiiHqNDoWVakbxfq1VL6G8+xFb/bGUk/5rmfrK8hebHu9k25Sa7BJ4nASHnAnVsGv9
+         jvIo/5a+WqNhYcdSIozXUg8h3w+Gx4M4iV5tb66MnVNGerWOE63a3NCELEElZqvsJpyz
+         JdjLLiXgjxVsV3r2PwKro5VErhPpvsEZcceRkjH4/JiOrRMK4Yqn3EAl4ZtjAUa1J1Fd
+         4LMgDchFZrhvWxro7Dx0XWvrrhrOr3u+1pYTIHuELQHdIelUUVD/Zq5exBEN5leeaxFE
+         NFUw==
+X-Google-Smtp-Source: AFSGD/VBds3C89sGV9++238eDor5qCfEClTVWWva7YtSZqasPDTwvaUnyPK8WL4gMlDVdArK7KM2kSzVi99e2b0vDcU=
+X-Received: by 2002:a37:97c1:: with SMTP id z184mr25956590qkd.39.1545335109937;
+ Thu, 20 Dec 2018 11:45:09 -0800 (PST)
 MIME-Version: 1.0
+References: <20181214230310.572-1-mgorman@techsingularity.net> <20181214230310.572-7-mgorman@techsingularity.net>
+In-Reply-To: <20181214230310.572-7-mgorman@techsingularity.net>
+From: Yang Shi <shy828301@gmail.com>
+Date: Thu, 20 Dec 2018 11:44:57 -0800
+Message-ID:
+ <CAHbLzko6jXSikw-4LQXi6KfNR9=U4XJnB_OaaZ4XcNHUj4NLUQ@mail.gmail.com>
+Subject: Re: [PATCH 06/14] mm, migrate: Immediately fail migration of a page
+ with no migration handler
+To: mgorman@techsingularity.net
+Cc: Linux MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, 
+	Andrea Arcangeli <aarcange@redhat.com>, torvalds@linux-foundation.org, 
+	Michal Hocko <mhocko@kernel.org>, Huang Ying <ying.huang@intel.com>, 
+	"Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline; filename=xarray
-X-SES-Outgoing: 2018.12.20-54.240.9.36
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181220192203.70Crds-2UrzpNa29pthTDucfoL-kSCMDEPUTyKzB1p4@z>
+Message-ID: <20181220194457.fGAo2vL272DchFzFxUg00hHnyWshY9vagDxf0MIouFA@z>
 
-Implement functions to migrate objects. This is based on
-initial code by Matthew Wilcox and was modified to work with
-slab object migration.
+On Fri, Dec 14, 2018 at 3:03 PM Mel Gorman <mgorman@techsingularity.net> wrote:
+>
+> Pages with no migration handler use a fallback hander which sometimes
+> works and sometimes persistently fails such as blockdev pages. Migration
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+A minor correction. The above statement sounds not accurate anymore
+since Jan Kara had patch series (blkdev: avoid migration stalls for
+blkdev pages) have blockdev use its own migration handler.
 
-Index: linux/lib/radix-tree.c
-===================================================================
---- linux.orig/lib/radix-tree.c
-+++ linux/lib/radix-tree.c
-@@ -1613,6 +1613,18 @@ static int radix_tree_cpu_dead(unsigned
- 	return 0;
- }
- 
-+
-+extern void xa_object_migrate(void *tree_node, int numa_node);
-+
-+static void radix_tree_migrate(struct kmem_cache *s, void **objects, int nr,
-+		int node, void *private)
-+{
-+	int i;
-+
-+	for (i=0; i<nr; i++)
-+		xa_object_migrate(objects[i], node);
-+}
-+
- void __init radix_tree_init(void)
- {
- 	int ret;
-@@ -1627,4 +1639,7 @@ void __init radix_tree_init(void)
- 	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
- 					NULL, radix_tree_cpu_dead);
- 	WARN_ON(ret < 0);
-+	kmem_cache_setup_mobility(radix_tree_node_cachep,
-+					NULL,
-+					radix_tree_migrate);
- }
-Index: linux/lib/xarray.c
-===================================================================
---- linux.orig/lib/xarray.c
-+++ linux/lib/xarray.c
-@@ -1934,6 +1934,51 @@ void xa_destroy(struct xarray *xa)
- }
- EXPORT_SYMBOL(xa_destroy);
- 
-+void xa_object_migrate(struct xa_node *node, int numa_node)
-+{
-+	struct xarray *xa = READ_ONCE(node->array);
-+	void __rcu **slot;
-+	struct xa_node *new_node;
-+	int i;
-+
-+	/* Freed or not yet in tree then skip */
-+	if (!xa || xa == XA_FREE_MARK)
-+		return;
-+
-+	new_node = kmem_cache_alloc_node(radix_tree_node_cachep, GFP_KERNEL, numa_node);
-+
-+	xa_lock_irq(xa);
-+
-+	/* Check again..... */
-+	if (xa != node->array || !list_empty(&node->private_list)) {
-+		node = new_node;
-+		goto unlock;
-+	}
-+
-+	memcpy(new_node, node, sizeof(struct xa_node));
-+
-+	/* Move pointers to new node */
-+	INIT_LIST_HEAD(&new_node->private_list);
-+	for (i = 0; i < XA_CHUNK_SIZE; i++) {
-+		void *x = xa_entry_locked(xa, new_node, i);
-+
-+		if (xa_is_node(x))
-+			rcu_assign_pointer(xa_to_node(x)->parent, new_node);
-+	}
-+	if (!new_node->parent)
-+		slot = &xa->xa_head;
-+	else
-+		slot = &xa_parent_locked(xa, new_node)->slots[new_node->offset];
-+	rcu_assign_pointer(*slot, xa_mk_node(new_node));
-+
-+unlock:
-+	xa_unlock_irq(xa);
-+	xa_node_free(node);
-+	rcu_barrier();
-+	return;
-+
-+}
-+
- #ifdef XA_DEBUG
- void xa_dump_node(const struct xa_node *node)
- {
+Thanks,
+Yang
+
+> will retry a number of times on these persistent pages which is wasteful
+> during compaction. This patch will fail migration immediately unless the
+> caller is in MIGRATE_SYNC mode which indicates the caller is willing to
+> wait while being persistent.
+>
+> This is not expected to help THP allocation success rates but it does
+> reduce latencies slightly.
+>
+> 1-socket thpfioscale
+>                                     4.20.0-rc6             4.20.0-rc6
+>                                noreserved-v1r4          failfast-v1r4
+> Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
+> Amean     fault-both-3      2276.15 (   0.00%)     3867.54 * -69.92%*
+> Amean     fault-both-5      4992.20 (   0.00%)     5313.20 (  -6.43%)
+> Amean     fault-both-7      7373.30 (   0.00%)     7039.11 (   4.53%)
+> Amean     fault-both-12    11911.52 (   0.00%)    11328.29 (   4.90%)
+> Amean     fault-both-18    17209.42 (   0.00%)    16455.34 (   4.38%)
+> Amean     fault-both-24    20943.71 (   0.00%)    20448.94 (   2.36%)
+> Amean     fault-both-30    22703.00 (   0.00%)    21655.07 (   4.62%)
+> Amean     fault-both-32    22461.41 (   0.00%)    21415.35 (   4.66%)
+>
+> The 2-socket results are not materially different. Scan rates are
+> similar as expected.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  mm/migrate.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index df17a710e2c7..0e27a10429e2 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -885,7 +885,7 @@ static int fallback_migrate_page(struct address_space *mapping,
+>          */
+>         if (page_has_private(page) &&
+>             !try_to_release_page(page, GFP_KERNEL))
+> -               return -EAGAIN;
+> +               return mode == MIGRATE_SYNC ? -EAGAIN : -EBUSY;
+>
+>         return migrate_page(mapping, newpage, page, mode);
+>  }
+> --
+> 2.16.4
+>
 
