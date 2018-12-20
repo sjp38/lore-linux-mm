@@ -1,59 +1,46 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 18 Dec 2018 01:53:34 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v4 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
- vm_insert_range
-Message-ID: <20181217202334.GA11758@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 244618E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 16:06:47 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id s27so2569041pgm.4
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 13:06:47 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 1si19558256plb.103.2018.12.20.13.06.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Dec 2018 13:06:45 -0800 (PST)
+Date: Thu, 20 Dec 2018 13:06:42 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 0/2] hugetlbfs: use i_mmap_rwsem for better
+ synchronization
+Message-Id: <20181220130642.e43bee30cf572c5a9a3a8557@linux-foundation.org>
+In-Reply-To: <20181218223557.5202-1-mike.kravetz@oracle.com>
+References: <20181218223557.5202-1-mike.kravetz@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+On Tue, 18 Dec 2018 14:35:55 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Tested-by: Heiko Stuebner <heiko@sntech.de>
-Acked-by: Heiko Stuebner <heiko@sntech.de>
----
- drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 19 ++-----------------
- 1 file changed, 2 insertions(+), 17 deletions(-)
+> There are two primary issues addressed here:
+> 1) For shared pmds, huge PTE pointers returned by huge_pte_alloc can become
+>    invalid via a call to huge_pmd_unshare by another thread.
+> 2) hugetlbfs page faults can race with truncation causing invalid global
+>    reserve counts and state.
+> Both issues are addressed by expanding the use of i_mmap_rwsem.
+> 
+> These issues have existed for a long time.  They can be recreated with a
+> test program that causes page fault/truncation races.  For simple mappings,
+> this results in a negative HugePages_Rsvd count.  If racing with mappings
+> that contain shared pmds, we can hit "BUG at fs/hugetlbfs/inode.c:444!" or
+> Oops! as the result of an invalid memory reference.
 
-diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-index a8db758..8279084 100644
---- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-+++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-@@ -221,26 +221,11 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
- 					      struct vm_area_struct *vma)
- {
- 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
--	unsigned int i, count = obj->size >> PAGE_SHIFT;
- 	unsigned long user_count = vma_pages(vma);
--	unsigned long uaddr = vma->vm_start;
- 	unsigned long offset = vma->vm_pgoff;
--	unsigned long end = user_count + offset;
--	int ret;
--
--	if (user_count == 0)
--		return -ENXIO;
--	if (end > count)
--		return -ENXIO;
- 
--	for (i = offset; i < end; i++) {
--		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
--		if (ret)
--			return ret;
--		uaddr += PAGE_SIZE;
--	}
--
--	return 0;
-+	return vm_insert_range(vma, vma->vm_start, rk_obj->pages + offset,
-+				user_count - offset);
- }
- 
- static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
--- 
-1.9.1
+Still no reviewers or ackers :(
+
+I'll queue these for 4.21-rc1.  The Fixes: commits are over a decade
+old so I assume things aren't super-urgent and the cc:stable will do
+its work.
