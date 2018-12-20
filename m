@@ -1,158 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CE9606B7FAD
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 19:40:57 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id q62so3695183pgq.9
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 16:40:57 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D3B78E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:57:34 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id n196so1730487oig.15
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:57:34 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z197sor7578691pgz.64.2018.12.07.16.40.55
+        by mx.google.com with SMTPS id h38sor14116683oth.102.2018.12.20.08.57.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Dec 2018 16:40:56 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
-Subject: Should this_cpu_read() be volatile?
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <C29C792A-3F47-482D-B0D8-99EABEDF8882@gmail.com>
-Date: Fri, 7 Dec 2018 16:40:52 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <C064896E-268A-4462-8D51-E43C1CF10104@gmail.com>
-References: <20181128140136.GG10377@bombadil.infradead.org>
- <3264149f-e01e-faa2-3bc8-8aa1c255e075@suse.cz>
- <20181203161352.GP10377@bombadil.infradead.org>
- <4F09425C-C9AB-452F-899C-3CF3D4B737E1@gmail.com>
- <20181203224920.GQ10377@bombadil.infradead.org>
- <C377D9EF-A0F4-4142-8145-6942DC29A353@gmail.com>
- <EB579DAE-B25F-4869-8529-8586DF4AECFF@gmail.com>
- <20181206102559.GG13538@hirez.programming.kicks-ass.net>
- <55B665E1-3F64-4D87-B779-D1B4AFE719A9@gmail.com>
- <20181207084550.GA2237@hirez.programming.kicks-ass.net>
- <C29C792A-3F47-482D-B0D8-99EABEDF8882@gmail.com>
+        Thu, 20 Dec 2018 08:57:33 -0800 (PST)
+MIME-Version: 1.0
+References: <20181212214641.GB29416@dastard> <20181214154321.GF8896@quack2.suse.cz>
+ <20181216215819.GC10644@dastard> <20181217181148.GA3341@redhat.com>
+ <20181217183443.GO10600@bombadil.infradead.org> <20181218093017.GB18032@quack2.suse.cz>
+ <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com> <20181219020723.GD4347@redhat.com>
+ <20181219110856.GA18345@quack2.suse.cz> <8e98d553-7675-8fa1-3a60-4211fc836ed9@nvidia.com>
+ <20181220165030.GC3963@redhat.com>
+In-Reply-To: <20181220165030.GC3963@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 20 Dec 2018 08:57:22 -0800
+Message-ID: <CAPcyv4iDdOGh6wCug9sZsrPdby1Sv1jG5aRUA5PjL0dDW7eNNA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-[Resend, changing title & adding lkml and some others ]
+On Thu, Dec 20, 2018 at 8:50 AM Jerome Glisse <jglisse@redhat.com> wrote:
+>
+> On Thu, Dec 20, 2018 at 02:54:49AM -0800, John Hubbard wrote:
+> > On 12/19/18 3:08 AM, Jan Kara wrote:
+> > > On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
+> > >> On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
+> > >>> OK, so let's take another look at Jerome's _mapcount idea all by itself (using
+> > >>> *only* the tracking pinned pages aspect), given that it is the lightest weight
+> > >>> solution for that.
+> > >>>
+> > >>> So as I understand it, this would use page->_mapcount to store both the real
+> > >>> mapcount, and the dma pinned count (simply added together), but only do so for
+> > >>> file-backed (non-anonymous) pages:
+> > >>>
+> > >>>
+> > >>> __get_user_pages()
+> > >>> {
+> > >>>   ...
+> > >>>   get_page(page);
+> > >>>
+> > >>>   if (!PageAnon)
+> > >>>           atomic_inc(page->_mapcount);
+> > >>>   ...
+> > >>> }
+> > >>>
+> > >>> put_user_page(struct page *page)
+> > >>> {
+> > >>>   ...
+> > >>>   if (!PageAnon)
+> > >>>           atomic_dec(&page->_mapcount);
+> > >>>
+> > >>>   put_page(page);
+> > >>>   ...
+> > >>> }
+> > >>>
+> > >>> ...and then in the various consumers of the DMA pinned count, we use page_mapped(page)
+> > >>> to see if any mapcount remains, and if so, we treat it as DMA pinned. Is that what you
+> > >>> had in mind?
+> > >>
+> > >> Mostly, with the extra two observations:
+> > >>     [1] We only need to know the pin count when a write back kicks in
+> > >>     [2] We need to protect GUP code with wait_for_write_back() in case
+> > >>         GUP is racing with a write back that might not the see the
+> > >>         elevated mapcount in time.
+> > >>
+> > >> So for [2]
+> > >>
+> > >> __get_user_pages()
+> > >> {
+> > >>     get_page(page);
+> > >>
+> > >>     if (!PageAnon) {
+> > >>         atomic_inc(page->_mapcount);
+> > >> +       if (PageWriteback(page)) {
+> > >> +           // Assume we are racing and curent write back will not see
+> > >> +           // the elevated mapcount so wait for current write back and
+> > >> +           // force page fault
+> > >> +           wait_on_page_writeback(page);
+> > >> +           // force slow path that will fault again
+> > >> +       }
+> > >>     }
+> > >> }
+> > >
+> > > This is not needed AFAICT. __get_user_pages() gets page reference (and it
+> > > should also increment page->_mapcount) under PTE lock. So at that point we
+> > > are sure we have writeable PTE nobody can change. So page_mkclean() has to
+> > > block on PTE lock to make PTE read-only and only after going through all
+> > > PTEs like this, it can check page->_mapcount. So the PTE lock provides
+> > > enough synchronization.
+> > >
+> > >> For [1] only needing pin count during write back turns page_mkclean into
+> > >> the perfect spot to check for that so:
+> > >>
+> > >> int page_mkclean(struct page *page)
+> > >> {
+> > >>     int cleaned = 0;
+> > >> +   int real_mapcount = 0;
+> > >>     struct address_space *mapping;
+> > >>     struct rmap_walk_control rwc = {
+> > >>         .arg = (void *)&cleaned,
+> > >>         .rmap_one = page_mkclean_one,
+> > >>         .invalid_vma = invalid_mkclean_vma,
+> > >> +       .mapcount = &real_mapcount,
+> > >>     };
+> > >>
+> > >>     BUG_ON(!PageLocked(page));
+> > >>
+> > >>     if (!page_mapped(page))
+> > >>         return 0;
+> > >>
+> > >>     mapping = page_mapping(page);
+> > >>     if (!mapping)
+> > >>         return 0;
+> > >>
+> > >>     // rmap_walk need to change to count mapping and return value
+> > >>     // in .mapcount easy one
+> > >>     rmap_walk(page, &rwc);
+> > >>
+> > >>     // Big fat comment to explain what is going on
+> > >> +   if ((page_mapcount(page) - real_mapcount) > 0) {
+> > >> +       SetPageDMAPined(page);
+> > >> +   } else {
+> > >> +       ClearPageDMAPined(page);
+> > >> +   }
+> > >
+> > > This is the detail I'm not sure about: Why cannot rmap_walk_file() race
+> > > with e.g. zap_pte_range() which decrements page->_mapcount and thus the
+> > > check we do in page_mkclean() is wrong?
+> >
+> > Right. This looks like a dead end, after all. We can't lock a whole chunk
+> > of "all these are mapped, hold still while we count you" pages. It's not
+> > designed to allow that at all.
+> >
+> > IMHO, we are now back to something like dynamic_page, which provides an
+> > independent dma pinned count.
+>
+> I will keep looking because allocating a structure for every GUP is
+> insane to me they are user out there that are GUPin GigaBytes of data
 
-On Dec 7, 2018, at 3:12 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
+This is not the common case.
 
-[ We can start a new thread, since I have the tendency to hijack =
-threads. ]
+> and it gonna waste tons of memory just to fix crappy hardware.
 
-> On Dec 7, 2018, at 12:45 AM, Peter Zijlstra <peterz@infradead.org> =
-wrote:
->=20
-> On Thu, Dec 06, 2018 at 09:26:24AM -0800, Nadav Amit wrote:
->>> On Dec 6, 2018, at 2:25 AM, Peter Zijlstra <peterz@infradead.org> =
-wrote:
->>>=20
->>> On Thu, Dec 06, 2018 at 12:28:26AM -0800, Nadav Amit wrote:
->>>> [ +Peter ]
->>>>=20
+This is the common case.
 
-[snip]
-
->>>>=20
->>>> *But* there is one thing that may require some attention - patch
->>>> b59167ac7bafd ("x86/percpu: Fix this_cpu_read()=E2=80=9D) set =
-ordering constraints
->>>> on the VM_ARGS() evaluation. And this patch also imposes, it =
-appears,
->>>> (unnecessary) constraints on other pieces of code.
->>>>=20
->>>> These constraints are due to the addition of the volatile keyword =
-for
->>>> this_cpu_read() by the patch. This affects at least 68 functions in =
-my
->>>> kernel build, some of which are hot (I think), e.g., =
-finish_task_switch(),
->>>> smp_x86_platform_ipi() and select_idle_sibling().
->>>>=20
->>>> Peter, perhaps the solution was too big of a hammer? Is it possible =
-instead
->>>> to create a separate "this_cpu_read_once()=E2=80=9D with the =
-volatile keyword? Such
->>>> a function can be used for native_sched_clock() and other seqlocks, =
-etc.
->>>=20
->>> No. like the commit writes this_cpu_read() _must_ imply READ_ONCE(). =
-If
->>> you want something else, use something else, there's plenty other
->>> options available.
->>>=20
->>> There's this_cpu_op_stable(), but also __this_cpu_read() and
->>> raw_this_cpu_read() (which currently don't differ from =
-this_cpu_read()
->>> but could).
->>=20
->> Would setting the inline assembly memory operand both as input and =
-output be
->> better than using the =E2=80=9Cvolatile=E2=80=9D?
->=20
-> I don't know.. I'm forever befuddled by the exact semantics of gcc
-> inline asm.
->=20
->> I think that If you do that, the compiler would should the =
-this_cpu_read()
->> as something that changes the per-cpu-variable, which would make it =
-invalid
->> to re-read the value. At the same time, it would not prevent =
-reordering the
->> read with other stuff.
->=20
-> So the thing is; as I wrote, the generic version of this_cpu_*() is:
->=20
-> 	local_irq_save();
-> 	__this_cpu_*();
-> 	local_irq_restore();
->=20
-> And per local_irq_{save,restore}() including compiler barriers that
-> cannot be reordered around either.
->=20
-> And per the principle of least surprise, I think our primitives should
-> have similar semantics.
-
-I guess so, but as you=E2=80=99ll see below, the end result is ugly.
-
-> I'm actually having difficulty finding the this_cpu_read() in any of =
-the
-> functions you mention, so I cannot make any concrete suggestions other
-> than pointing at the alternative functions available.
-
-
-So I got deeper into the code to understand a couple of differences. In =
-the
-case of select_idle_sibling(), the patch (Peter=E2=80=99s) increase the =
-function
-code size by 123 bytes (over the baseline of 986). The per-cpu variable =
-is
-called through the following call chain:
-
-	select_idle_sibling()
-	=3D> select_idle_cpu()
-	=3D> local_clock()
-	=3D> raw_smp_processor_id()
-
-And results in 2 more calls to sched_clock_cpu(), as the compiler =
-assumes
-the processor id changes in between (which obviously wouldn=E2=80=99t =
-happen). There
-may be more changes around, which I didn=E2=80=99t fully analyze. But =
-the very least
-reading the processor id should not get =E2=80=9Cvolatile=E2=80=9D.
-
-As for finish_task_switch(), the impact is only few bytes, but still
-unnecessary. It appears that with your patch preempt_count() causes =
-multiple
-reads of __preempt_count in this code:
-
-       if (WARN_ONCE(preempt_count() !=3D 2*PREEMPT_DISABLE_OFFSET,
-                     "corrupted preempt_count: %s/%d/0x%x\n",
-                     current->comm, current->pid, preempt_count()))
-               preempt_count_set(FORK_PREEMPT_COUNT);
-
-Again, this is unwarranted, as the preemption count should not be =
-changed in
-any interrupt.
+Please refrain from the hyperbolic assessments.
