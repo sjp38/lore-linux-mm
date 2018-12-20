@@ -1,78 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 22AED6B6FE7
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 12:41:11 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id v7so6825791wme.9
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 09:41:11 -0800 (PST)
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80083.outbound.protection.outlook.com. [40.107.8.83])
-        by mx.google.com with ESMTPS id b14si13156328wrn.438.2018.12.04.09.41.09
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B9018E0003
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 04:51:05 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 4so968505plc.5
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 01:51:05 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a72sor33589712pge.21.2018.12.20.01.51.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 04 Dec 2018 09:41:09 -0800 (PST)
-From: Steve Capper <Steve.Capper@arm.com>
-Subject: Re: [PATCH V3 4/5] arm64: mm: introduce 52-bit userspace support
-Date: Tue, 4 Dec 2018 17:41:07 +0000
-Message-ID: <20181204174057.GA10602@capper-debian.cambridge.arm.com>
-References: <20181114133920.7134-1-steve.capper@arm.com>
- <20181114133920.7134-5-steve.capper@arm.com>
- <20181130175956.GJ43329@arrakis.emea.arm.com>
-In-Reply-To: <20181130175956.GJ43329@arrakis.emea.arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <D9E07313ADA61E488D3D4DCAB80FB5F3@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (Google Transport Security);
+        Thu, 20 Dec 2018 01:51:03 -0800 (PST)
+From: Pingfan Liu <kernelfans@gmail.com>
+Subject: [PATCHv2 0/3] mm: bugfix for NULL reference in mm on all archs
+Date: Thu, 20 Dec 2018 17:50:36 +0800
+Message-Id: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <Catalin.Marinas@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Will Deacon <Will.Deacon@arm.com>, "jcm@redhat.com" <jcm@redhat.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, nd <nd@arm.com>
+To: linux-mm@kvack.org
+Cc: Pingfan Liu <kernelfans@gmail.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Fri, Nov 30, 2018 at 05:59:59PM +0000, Catalin Marinas wrote:
-> On Wed, Nov 14, 2018 at 01:39:19PM +0000, Steve Capper wrote:
-> > diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/=
-pgtable.h
-> > index 50b1ef8584c0..19736520b724 100644
-> > --- a/arch/arm64/include/asm/pgtable.h
-> > +++ b/arch/arm64/include/asm/pgtable.h
-> > @@ -616,11 +616,21 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pg=
-d)
-> >  #define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
-> > =20
-> >  /* to find an entry in a page-table-directory */
-> > -#define pgd_index(addr)		(((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1)=
-)
-> > +#define pgd_index(addr, ptrs)		(((addr) >> PGDIR_SHIFT) & ((ptrs) - 1)=
-)
-> > +#define _pgd_offset_raw(pgd, addr, ptrs) ((pgd) + pgd_index(addr, ptrs=
-))
-> > +#define pgd_offset_raw(pgd, addr)	(_pgd_offset_raw(pgd, addr, PTRS_PER=
-_PGD))
-> > =20
-> > -#define pgd_offset_raw(pgd, addr)	((pgd) + pgd_index(addr))
-> > +static inline pgd_t *pgd_offset(const struct mm_struct *mm, unsigned l=
-ong addr)
-> > +{
-> > +	pgd_t *ret;
-> > +
-> > +	if (IS_ENABLED(CONFIG_ARM64_52BIT_VA) && (mm !=3D &init_mm))
-> > +		ret =3D _pgd_offset_raw(mm->pgd, addr, 1ULL << (vabits_user - PGDIR_=
-SHIFT));
->=20
-> I think we can make this a constant since the additional 4 bits of the
-> user address should be 0 on a 48-bit VA. Once we get the 52-bit kernel
-> VA supported, we can probably revert back to a single macro.
+This bug is original reported at https://lore.kernel.org/patchwork/patch/1020838/
+In a short word, this bug should affect all archs, where a machine with a
+numa-node having no memory, if nr_cpus prevents the instance of nodeA, and the
+device on nodeA tries to allocate memory with device->numa_node info.
+And node_zonelist(preferred_nid, gfp_mask) will panic due to uninstanced nodeA.
 
-Yeah, I see what you mean.
+And there are two alternative methods to fix it.
+-1st. Fix it in mm system
+-2nd. Fix it in all archs independently, by online all possible nodes.
 
->=20
-> Another option is to change  PTRS_PER_PGD etc. to cover the whole
-> 52-bit, including the swapper_pg_dir, but with offsetting the TTBR1_EL1
-> setting to keep the 48-bit kernel VA (for the time being).
->=20
+Originaly, I tries to fix it by the 1st method, while Michal suggests the 2nd one.
+This series [1-2/3] tries to resolve some defect in v1, pointed out by Michal.
+For discussion purpose, I send [3/3] in this thread, which tries to show e.g of
+the 2nd method on powerpc platform.
+For x86, I still help Michal to verify his patch on my test machine, please see:
+https://lore.kernel.org/patchwork/comment/1208479/
+https://lore.kernel.org/patchwork/comment/1210452/
 
-I've got a 52-bit PTRS_PER_PGD working now. I will clean things up, run
-more tests and then post.
+It has already cost a little long time to find a solution, cc x86 and ppc mailing list
+and hope their maintainers to give some suggestion to speed up the final solution.
 
-Cheers,
---=20
-Steve
+Pingfan Liu (3):
+  mm/numa: change the topo of build_zonelist_xx()
+  mm/numa: build zonelist when alloc for device on offline node
+  powerpc/numa: make all possible node be instanced against NULL
+    reference in node_zonelist()
+
+ arch/powerpc/mm/numa.c | 13 ++++++--
+ include/linux/gfp.h    | 10 +++++-
+ mm/page_alloc.c        | 85 ++++++++++++++++++++++++++++++++++++--------------
+ 3 files changed, 81 insertions(+), 27 deletions(-)
+
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+-- 
+2.7.4
