@@ -1,39 +1,48 @@
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] mm, memory_hotplug: fix uninitialized pages
- fallouts.
-Date: Mon, 28 Jan 2019 09:50:54 -0800
-Message-ID: <20190128095054.4103093dec81f1c904df7929@linux-foundation.org>
-References: <20190128144506.15603-1-mhocko@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20190128144506.15603-1-mhocko@kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-List-Id: linux-mm.kvack.org
+Return-Path: <SRS0=oX5c=O5=kvack.org=owner-majordomo@kernel.org>
+X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
+	aws-us-west-2-korg-lkml-1.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=0.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C7E6C43612
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 14:50:09 +0000 (UTC)
+Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
+	by mail.kernel.org (Postfix) with ESMTP id D0F9F218D9
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 14:50:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D0F9F218D9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kvack.org
+Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-majordomo@kvack.org
+Received: by kanga.kvack.org (Postfix, from userid 40)
+	id DB94D8E000B; Thu, 20 Dec 2018 09:22:27 -0500 (EST)
+To: linux-mm@archiver.kernel.org
+From: confirm@kvack.org
+Subject: Confirm subscribe linux-mm (644523C-72D9A6F)
+Reply-To: confirm@kvack.org
+Message-Id: <20181220142227.DB94D8E000B@kanga.kvack.org>
+Date: Thu, 20 Dec 2018 09:22:27 -0500 (EST)
+List-Id: <linux-mm.kvack.org>
 
-On Mon, 28 Jan 2019 15:45:04 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+--
 
-> Mikhail has posted fixes for the two bugs quite some time ago [1]. I
-> have pushed back on those fixes because I believed that it is much
-> better to plug the problem at the initialization time rather than play
-> whack-a-mole all over the hotplug code and find all the places which
-> expect the full memory section to be initialized. We have ended up with
-> 2830bf6f05fb ("mm, memory_hotplug: initialize struct pages for the full
-> memory section") merged and cause a regression [2][3]. The reason is
-> that there might be memory layouts when two NUMA nodes share the same
-> memory section so the merged fix is simply incorrect.
-> 
-> In order to plug this hole we really have to be zone range aware in
-> those handlers. I have split up the original patch into two. One is
-> unchanged (patch 2) and I took a different approach for `removable'
-> crash. It would be great if Mikhail could test it still works for his
-> memory layout.
-> 
-> [1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
-> [2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
-> [3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
+Someone (Konstantin Ryabitsev <konstantin@linuxfoundation.org>) has requested
+that your email address be subscribed to the mailing list
+"linux-mm@kvack.org".
 
-Any thoughts on which kernel version(s) need these patches?
+If you really want this action to be taken, send a reply to this
+message to confirm@kvack.org including the following confirmation key
+anywhere in the subject or the body:
+
+  KEY: 644523C-72D9A6F
+
+You must reply in two weeks or this request will expire.
+
+If you do not want this action to be taken, simply ignore this message
+and the request will be disregarded.
+
+If you have any questions about the policy of the list owner, please
+contact "linux-mm-approval@kvack.org".
+
+Thanks!
+
+Majordomo
