@@ -2,229 +2,257 @@ Return-Path: <SRS0=PcJq=O5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BE91C43612
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 16:54:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 894B0C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 16:57:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E82D0218C3
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 16:54:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E82D0218C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3330020815
+	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 16:57:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="BF+jxDWa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3330020815
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9C6AF8E0003; Thu, 20 Dec 2018 11:54:39 -0500 (EST)
+	id B25F08E0003; Thu, 20 Dec 2018 11:57:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9771B8E0001; Thu, 20 Dec 2018 11:54:39 -0500 (EST)
+	id AD44D8E0001; Thu, 20 Dec 2018 11:57:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 83E578E0003; Thu, 20 Dec 2018 11:54:39 -0500 (EST)
+	id 9C37F8E0003; Thu, 20 Dec 2018 11:57:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 536E08E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:54:39 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id p24so2499386qtl.2
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:54:39 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D3B78E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:57:34 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id n196so1730487oig.15
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:57:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=cna/gLZl2qw+KgHdi13OSNyF5RUMDhiX5TUU4T5oeE4=;
-        b=PJKHu2sfJO7lV2ZG0RE4mE9CZNs9I1nCDxLm9peDSTwMFaBOqmZGKxsx6GkzrjCH+H
-         aFxrMGsaDk6s3umRjtbz1/aWYUtmDYo0MdJx1egXPQfl3Ae/2KvzznTlSrJVdxUl75pA
-         0yluLTpSAEb0WFLmqOtChp+8jnOWz0Szn4alBUeih/zGRD+C0kMsDKj2JFs+lsQR2NwN
-         uFhbNNOvZVohyJQSAdUsIRZFclFnCSkQSqU1K1pQnACodfe07+mLyeULO23yjjgzk6UM
-         9shJcRjqsFaEbknLT5u5gzi3qLaLZaXeeaeV2+KArVnBRhPE4yafoCKodhdBNnnTbgYT
-         tKmQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AA+aEWZq0da5vaeOpx4o87+hh8HOlSwncvrjufzhGXYvEYkObFuqDTZw
-	4OSr62WYLv0z8mzvha4y//CYxYXDfgawAkbOfY56DeMr/2+jRcAlG3GUVBlA1nd3Yt4lB/yDZDQ
-	q7Z9QCuBxonz5gVSGx6c2n3lwCpsm3NRd2ilMsMAGjiqcyVsz6JRUxCba1x7YitAbvw==
-X-Received: by 2002:a37:2d82:: with SMTP id t124mr11660998qkh.189.1545324879090;
-        Thu, 20 Dec 2018 08:54:39 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/WTTIiJQAMaVsgYTtGbZNFHfHa7bs6N5mwRU6n0q3FYzSpZ5TyaSydN19aoaVEMGE+I/mW3
-X-Received: by 2002:a37:2d82:: with SMTP id t124mr11660958qkh.189.1545324878362;
-        Thu, 20 Dec 2018 08:54:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545324878; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=DYRCP9UN9luBBsvCXHDTrjPXPPJREpwyogy2A14Q3wo=;
+        b=b7JddZx4dFjRgoLFeAVJe1eJvchDbU7PUUTnqVKfW/eLxyksd/SIiyTVccxiorzeuH
+         Z1zKt/RsfTg5diMNH6FKJbALKaUTyfTSHLFx6AwgbmDVrdJLlnBd7fadWDiTrpuZu9bD
+         foo8g+Aos+TVAAKuvCZhddjRYkQXXJ/QK3IYlmA3V0Nu2APY2Smi+vxkaiGAx098rzl8
+         Pmho015hazWrTSnaxGu84AV2QE5Aa+BrAKtAda7sB40agTW6GXXZkJGYkAPNS3Noh3ik
+         XgbFRT43bqHoR1TjlopEL0u2cZIS68qKXGGPTDppHphevjiDLdNoNTVLywiemJcj2dBB
+         i5TA==
+X-Gm-Message-State: AA+aEWZqh6O+L4qtjNx5X23GR4WCyDXJHpPzevJ0TF79sMaVSc4/C6xf
+	o/xRWA/Hi6jji1rqcWZKTK6/mEFqgDbIN3qzsiuq69vII2r30MFfI2uoIVG00sB/u9rT5rrNvLI
+	xv9+aNy1xAhcq77xsQKCdyHEq6e9KnsPSjiTDn9nibZOS/tzOCa2msSN5CWoQtUmi+XE91YvZ9Z
+	CjWBSC6Fy+pBJXTvsegRkR96biszF0sEKvOFM8hXuivY9Jgb+x7vW/k99wa4azjbPlzC0lW0unY
+	1ossyjOViTPmzGrUMD5CUFFpmY+4s9TANY1ZSpVbsYuJl5bmeBbzG4wiYkyhFwWO6OGUqthQEe+
+	aRXgGKJMdIr3td1ymxoCOmuR6f0jTkWbVMI4YjaknSxinBWpflThlPwYeq49P+Ye1zDmhIv7Y8w
+	k
+X-Received: by 2002:aca:2807:: with SMTP id 7mr2937562oix.7.1545325054128;
+        Thu, 20 Dec 2018 08:57:34 -0800 (PST)
+X-Received: by 2002:aca:2807:: with SMTP id 7mr2937532oix.7.1545325053427;
+        Thu, 20 Dec 2018 08:57:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545325053; cv=none;
         d=google.com; s=arc-20160816;
-        b=MzIP3AIwmBziDq3PAvdf7wtdM2iVKG4V1JpHW31k57v865ZK+J9pRlo7bra2ZfwISf
-         ncsVJ0a3GMyRnbwVw7gnaPgxY8a+Q1/ap87afCyW9GuS5E0qBIQadQC+jT9yexp/UQwZ
-         G/El4RVMZebWvbj/nhJ5cu064a+usb6O1UOMoq/iO/MhHeg9Y1ot2D+zBBVBO07TxN8D
-         9AluFl57/q+K1NktDuNlwKKLDbJBfFFBez0EVTAbkxVp39ELEcdHn+g8FVoPzO7LwI3Y
-         BXhLK8cQR7JXdRXlFzIuKui9JUlj6x5C5POSMjE2xXI9/ZhU2deqdCdwaCLhptYziChj
-         tx0A==
+        b=nR4wQWif+70hwW1gmZbueICOQZ6H6GQz7yNzilJkXRmcNNteQz/4aRGp+Y8Q44+Cww
+         vt00sTLNFc7UwAznQf3WiC0bliNL5KdahpCH+buRej1RZ24ssPeQMg8X6Ois+WKUD1Z5
+         GHktXtO3aueTkaJb8GVP0jXB/wtoWiFMNBg5bNms9shFXK0nMNwU+7wsO8OStq4masHG
+         WhrAJYtS0DZDniQDjQjA4Z+2r4KWaFt+MgSt2rQ8wExXPdMAqDPlZGjLOHDLVEfug2Iq
+         yqmIGo/Cyms8BbtjZioB5KbzYg2EjaiM9KESa8rXyV1cKdgqqJzdqfb+NpoZdFVXm5UF
+         Y8lg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=cna/gLZl2qw+KgHdi13OSNyF5RUMDhiX5TUU4T5oeE4=;
-        b=Bli0qdYjUPTUFi/G1OxzrJ0VGnSVOpQsOSOlLZXnW0oAqnY1xOpYbqltRc/9RkD0b5
-         amqHwXRaLVSZNXRFGvSpXEyVELBh9Q56OkzcFnou0NognJ1EFf0MPTAAutxUIFk0/g7G
-         F0cumdYn9akZPeJr6NpQYozXkeNUffGzmVGOXGoYHz6Eym7LfXmFdd1KKqZ7Ud0srRcG
-         rjdBxwl+XpQixAHho8ljNLxtXnxpId01e9+/fOLsfza8qbE8PtdAk6PgzS5VAiLZSDwR
-         MUykncr6M29CoESw+ChWZjUwOhq4DuzIArYY8Q2SZ7yptPeoffcHlUrjo+tHw4hIbKC9
-         bboA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=DYRCP9UN9luBBsvCXHDTrjPXPPJREpwyogy2A14Q3wo=;
+        b=VvzyxuQVuvtHWzKb/HRclGxDKM1KQ+q9xbZN2I9yzFTWB0NJuzBxLmUjJkKCCv8ZCY
+         ypNKk/Tw4ohu2pXibtv7HgioSGB7cQY8ywAS59rQGepwqKrzr6M7rKnV+ABEWltHwci5
+         VzHOTJGmRGgphCS+t7VogJ4L5JO8tlC2W50yBQ8D3Xm4lxH+NP9xTj11oM2FNKdjWEcT
+         3JbLbviy/lmK3ovS/XHn6bS+uEo9gCAd/ECIy04FO8ri+1pPMPR6tEsvzlitRT0KjccA
+         XQYtro869h+i2+6QP3ca40SzxvtNs0kgtsZYwjTwCR48ALPYYLXphIKXajjCyQpi2GeG
+         mpQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n189si2334496qkc.170.2018.12.20.08.54.38
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=BF+jxDWa;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h38sor14116683oth.102.2018.12.20.08.57.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 08:54:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 20 Dec 2018 08:57:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 296A4C0A1984;
-	Thu, 20 Dec 2018 16:54:37 +0000 (UTC)
-Received: from redhat.com (ovpn-123-95.rdu2.redhat.com [10.10.123.95])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C67D226FDC;
-	Thu, 20 Dec 2018 16:54:34 +0000 (UTC)
-Date: Thu, 20 Dec 2018 11:54:32 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	John Hubbard <john.hubbard@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>, tom@talpey.com,
-	Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	"Dalessandro, Dennis" <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com,
-	rcampbell@nvidia.com,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181220165432.GD3963@redhat.com>
-References: <20181212150319.GA3432@redhat.com>
- <20181212214641.GB29416@dastard>
- <20181214154321.GF8896@quack2.suse.cz>
- <20181216215819.GC10644@dastard>
- <20181218103306.GC18032@quack2.suse.cz>
- <20181218234254.GC31274@dastard>
- <20181219030329.GI21992@ziepe.ca>
- <20181219102825.GN6311@dastard>
- <20181219113540.GC18345@quack2.suse.cz>
- <20181219223312.GP6311@dastard>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=BF+jxDWa;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=DYRCP9UN9luBBsvCXHDTrjPXPPJREpwyogy2A14Q3wo=;
+        b=BF+jxDWaMphjdbIE5m6BbKM9lClqGRJRTGaKWB+fCVLJe/SZocmVMCJD9ohNMiKav/
+         fKjZMPDcyFwY4po1ZMBzgMblTjmN+TPwnUxY2SdRGpvulfuWnU1i+PCPMtABqCWwoJDM
+         hywlsMQbC3hdF49+lKUceJFYCBs5t4l9jhhNJGv2IsCgfEQjTPskI0P3ilo/dLoijyEV
+         d7vLnDReV2sow+LkSc1wsys6szTsQO/mDObZaf33ul6um9Y1CG/XbO4WSQ/KJat2nrfX
+         6GLtiSiO75c0SNylDl/mgdoprBeTZ6XoSMOxeBzmQuQLqzlhwGobIar+ZH3uHOPSC5W3
+         +qIA==
+X-Google-Smtp-Source: AFSGD/WCi156/s0upT+G+UTmXWfUxt4iIsjfeMe4jWUZi3yb6/MuVgIfvwzU8+4eUgIMppvOx9oFlGJzJjhJevVoKeQ=
+X-Received: by 2002:a9d:6a50:: with SMTP id h16mr17529610otn.95.1545325053044;
+ Thu, 20 Dec 2018 08:57:33 -0800 (PST)
 MIME-Version: 1.0
+References: <20181212214641.GB29416@dastard> <20181214154321.GF8896@quack2.suse.cz>
+ <20181216215819.GC10644@dastard> <20181217181148.GA3341@redhat.com>
+ <20181217183443.GO10600@bombadil.infradead.org> <20181218093017.GB18032@quack2.suse.cz>
+ <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com> <20181219020723.GD4347@redhat.com>
+ <20181219110856.GA18345@quack2.suse.cz> <8e98d553-7675-8fa1-3a60-4211fc836ed9@nvidia.com>
+ <20181220165030.GC3963@redhat.com>
+In-Reply-To: <20181220165030.GC3963@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 20 Dec 2018 08:57:22 -0800
+Message-ID:
+ <CAPcyv4iDdOGh6wCug9sZsrPdby1Sv1jG5aRUA5PjL0dDW7eNNA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>, 
+	Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, 
+	John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, 
+	benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, 
+	"Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, 
+	Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, 
+	Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181219223312.GP6311@dastard>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 20 Dec 2018 16:54:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181220165432.hKItALefxH_pi-N9xtvcsI9wnF2hwn1TxJ8GvHwBxw4@z>
+Message-ID: <20181220165722.R7s1ZEHkRgtHm4tYzpnt9VY1h5NMG3h_b0g817THktk@z>
 
-On Thu, Dec 20, 2018 at 09:33:12AM +1100, Dave Chinner wrote:
-> On Wed, Dec 19, 2018 at 12:35:40PM +0100, Jan Kara wrote:
-> > On Wed 19-12-18 21:28:25, Dave Chinner wrote:
-> > > On Tue, Dec 18, 2018 at 08:03:29PM -0700, Jason Gunthorpe wrote:
-> > > > On Wed, Dec 19, 2018 at 10:42:54AM +1100, Dave Chinner wrote:
-> > > > 
-> > > > > Essentially, what we are talking about is how to handle broken
-> > > > > hardware. I say we should just brun it with napalm and thermite
-> > > > > (i.e. taint the kernel with "unsupportable hardware") and force
-> > > > > wait_for_stable_page() to trigger when there are GUP mappings if
-> > > > > the underlying storage doesn't already require it.
-> > > > 
-> > > > If you want to ban O_DIRECT/etc from writing to file backed pages,
-> > > > then just do it.
-> > > 
-> > > O_DIRECT IO *isn't the problem*.
-> > 
-> > That is not true. O_DIRECT IO is a problem. In some aspects it is easier
-> > than the problem with RDMA but currently O_DIRECT IO can crash your machine
-> > or corrupt data the same way RDMA can.
-> 
-> It's not O_DIRECT - it's a ""transient page pin". Yes, there are
-> problems with that right now, but as we've discussed the issues can
-> be avoided by:
-> 
-> 	a) stable pages always blocking in ->page_mkwrite;
-> 	b) blocking in write_cache_pages() on an elevated map count
-> 	when WB_SYNC_ALL is set; and
-> 	c) blocking in truncate_pagecache() on an elevated map
-> 	count.
-> 
-> That prevents:
-> 	a) gup pinning a page that is currently under writeback and
-> 	modifying it while IO is in flight;
-> 	b) a dirty page being written back while it is pinned by
-> 	GUP, thereby turning it clean before the gup reference calls
-> 	set_page_dirty() on DMA completion; and
-> 	c) truncate/hole punch for pulling the page out from under
-> 	the gup operation that is ongoing.
-> 
-> This is an adequate solution for a short term transient pins. It
-> doesn't break fsync(), it doesn't change how truncate works and it
-> fixes the problem where a mapped file is the buffer for an O_DIRECT
-> IO rather than the open fd and that buffer file gets truncated.
-> IOWs, transient pins (and hence O_DIRECT) is not really the problem
-> here.
-> 
-> The problem with this is that blocking on elevated map count does
-> not work for long term pins (i.e. gup_longterm()) which are defined
-> as:
-> 
->  * "longterm" == userspace controlled elevated page count lifetime.
->  * Contrast this to iov_iter_get_pages() usages which are transient.
-> 
-> It's the "userspace controlled" part of the long term gup pin that
-> is the problem we need to solve. If we treat them the same as a
-> transient pin, then this leads to fsync() and truncate either
-> blocking for a long time waiting for userspace to drop it's gup
-> reference, or having to be failed with something like EBUSY or
-> EAGAIN.
-> 
-> This is the problem revokable file layout leases solve. The NFS
-> server is already using this for revoking delegations from remote
-> clients. Userspace holding long term GUP references is essentially
-> the same thing - it's a delegation of file ownership to userspace
-> that the filesystem must be able to revoke when it needs to run
-> internal and/or 3rd-party requested operations on that delegated
-> file.
-> 
-> If the hardware supports page faults, then we can further optimise
-> the long term pin case to relax stable page requirements and allow
-> page cleaning to occur while there are long term pins. In this case,
-> the hardware will write-fault the clean pages appropriately before
-> DMA is initiated, and hence avoid the need for data integrity
-> operations like fsync() to trigger lease revocation. However,
-> truncate/hole punch still requires lease revocation to work sanely,
-> especially when we consider DAX *must* ensure there are no remaining
-> references to the physical pmem page after the space has been freed.
+On Thu, Dec 20, 2018 at 8:50 AM Jerome Glisse <jglisse@redhat.com> wrote:
+>
+> On Thu, Dec 20, 2018 at 02:54:49AM -0800, John Hubbard wrote:
+> > On 12/19/18 3:08 AM, Jan Kara wrote:
+> > > On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
+> > >> On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
+> > >>> OK, so let's take another look at Jerome's _mapcount idea all by itself (using
+> > >>> *only* the tracking pinned pages aspect), given that it is the lightest weight
+> > >>> solution for that.
+> > >>>
+> > >>> So as I understand it, this would use page->_mapcount to store both the real
+> > >>> mapcount, and the dma pinned count (simply added together), but only do so for
+> > >>> file-backed (non-anonymous) pages:
+> > >>>
+> > >>>
+> > >>> __get_user_pages()
+> > >>> {
+> > >>>   ...
+> > >>>   get_page(page);
+> > >>>
+> > >>>   if (!PageAnon)
+> > >>>           atomic_inc(page->_mapcount);
+> > >>>   ...
+> > >>> }
+> > >>>
+> > >>> put_user_page(struct page *page)
+> > >>> {
+> > >>>   ...
+> > >>>   if (!PageAnon)
+> > >>>           atomic_dec(&page->_mapcount);
+> > >>>
+> > >>>   put_page(page);
+> > >>>   ...
+> > >>> }
+> > >>>
+> > >>> ...and then in the various consumers of the DMA pinned count, we use page_mapped(page)
+> > >>> to see if any mapcount remains, and if so, we treat it as DMA pinned. Is that what you
+> > >>> had in mind?
+> > >>
+> > >> Mostly, with the extra two observations:
+> > >>     [1] We only need to know the pin count when a write back kicks in
+> > >>     [2] We need to protect GUP code with wait_for_write_back() in case
+> > >>         GUP is racing with a write back that might not the see the
+> > >>         elevated mapcount in time.
+> > >>
+> > >> So for [2]
+> > >>
+> > >> __get_user_pages()
+> > >> {
+> > >>     get_page(page);
+> > >>
+> > >>     if (!PageAnon) {
+> > >>         atomic_inc(page->_mapcount);
+> > >> +       if (PageWriteback(page)) {
+> > >> +           // Assume we are racing and curent write back will not see
+> > >> +           // the elevated mapcount so wait for current write back and
+> > >> +           // force page fault
+> > >> +           wait_on_page_writeback(page);
+> > >> +           // force slow path that will fault again
+> > >> +       }
+> > >>     }
+> > >> }
+> > >
+> > > This is not needed AFAICT. __get_user_pages() gets page reference (and it
+> > > should also increment page->_mapcount) under PTE lock. So at that point we
+> > > are sure we have writeable PTE nobody can change. So page_mkclean() has to
+> > > block on PTE lock to make PTE read-only and only after going through all
+> > > PTEs like this, it can check page->_mapcount. So the PTE lock provides
+> > > enough synchronization.
+> > >
+> > >> For [1] only needing pin count during write back turns page_mkclean into
+> > >> the perfect spot to check for that so:
+> > >>
+> > >> int page_mkclean(struct page *page)
+> > >> {
+> > >>     int cleaned = 0;
+> > >> +   int real_mapcount = 0;
+> > >>     struct address_space *mapping;
+> > >>     struct rmap_walk_control rwc = {
+> > >>         .arg = (void *)&cleaned,
+> > >>         .rmap_one = page_mkclean_one,
+> > >>         .invalid_vma = invalid_mkclean_vma,
+> > >> +       .mapcount = &real_mapcount,
+> > >>     };
+> > >>
+> > >>     BUG_ON(!PageLocked(page));
+> > >>
+> > >>     if (!page_mapped(page))
+> > >>         return 0;
+> > >>
+> > >>     mapping = page_mapping(page);
+> > >>     if (!mapping)
+> > >>         return 0;
+> > >>
+> > >>     // rmap_walk need to change to count mapping and return value
+> > >>     // in .mapcount easy one
+> > >>     rmap_walk(page, &rwc);
+> > >>
+> > >>     // Big fat comment to explain what is going on
+> > >> +   if ((page_mapcount(page) - real_mapcount) > 0) {
+> > >> +       SetPageDMAPined(page);
+> > >> +   } else {
+> > >> +       ClearPageDMAPined(page);
+> > >> +   }
+> > >
+> > > This is the detail I'm not sure about: Why cannot rmap_walk_file() race
+> > > with e.g. zap_pte_range() which decrements page->_mapcount and thus the
+> > > check we do in page_mkclean() is wrong?
+> >
+> > Right. This looks like a dead end, after all. We can't lock a whole chunk
+> > of "all these are mapped, hold still while we count you" pages. It's not
+> > designed to allow that at all.
+> >
+> > IMHO, we are now back to something like dynamic_page, which provides an
+> > independent dma pinned count.
+>
+> I will keep looking because allocating a structure for every GUP is
+> insane to me they are user out there that are GUPin GigaBytes of data
 
-truncate does not requires lease recovations for faulting hardware,
-truncate will trigger a mmu notifier callback which will invalidate
-the hardware page table. On next access the hardware will fault and
-this will turn into a regular page fault from kernel point of view.
+This is not the common case.
 
-So truncate/reflink and all fs expectation for faulting hardware do
-hold. It is exactly as the CPU page table. So if CPU page table is
-properly updated then so will be the hardware one.
+> and it gonna waste tons of memory just to fix crappy hardware.
 
-Note that such hardware also abive by munmap() so hardware mapping
-does not outlive vma.
+This is the common case.
 
-
-Cheers,
-Jérôme
+Please refrain from the hyperbolic assessments.
 
