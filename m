@@ -1,129 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 536E08E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:54:39 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id p24so2499386qtl.2
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:54:39 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A52F38E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:50:38 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id s70so2441789qks.4
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:50:38 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n189si2334496qkc.170.2018.12.20.08.54.38
+        by mx.google.com with ESMTPS id 29si4784778qkp.91.2018.12.20.08.50.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 08:54:38 -0800 (PST)
-Date: Thu, 20 Dec 2018 11:54:32 -0500
+        Thu, 20 Dec 2018 08:50:37 -0800 (PST)
+Date: Thu, 20 Dec 2018 11:50:31 -0500
 From: Jerome Glisse <jglisse@redhat.com>
 Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20181220165432.GD3963@redhat.com>
-References: <20181212150319.GA3432@redhat.com>
- <20181212214641.GB29416@dastard>
+Message-ID: <20181220165030.GC3963@redhat.com>
+References: <20181212214641.GB29416@dastard>
  <20181214154321.GF8896@quack2.suse.cz>
  <20181216215819.GC10644@dastard>
- <20181218103306.GC18032@quack2.suse.cz>
- <20181218234254.GC31274@dastard>
- <20181219030329.GI21992@ziepe.ca>
- <20181219102825.GN6311@dastard>
- <20181219113540.GC18345@quack2.suse.cz>
- <20181219223312.GP6311@dastard>
+ <20181217181148.GA3341@redhat.com>
+ <20181217183443.GO10600@bombadil.infradead.org>
+ <20181218093017.GB18032@quack2.suse.cz>
+ <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
+ <20181219020723.GD4347@redhat.com>
+ <20181219110856.GA18345@quack2.suse.cz>
+ <8e98d553-7675-8fa1-3a60-4211fc836ed9@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181219223312.GP6311@dastard>
+In-Reply-To: <8e98d553-7675-8fa1-3a60-4211fc836ed9@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Thu, Dec 20, 2018 at 09:33:12AM +1100, Dave Chinner wrote:
-> On Wed, Dec 19, 2018 at 12:35:40PM +0100, Jan Kara wrote:
-> > On Wed 19-12-18 21:28:25, Dave Chinner wrote:
-> > > On Tue, Dec 18, 2018 at 08:03:29PM -0700, Jason Gunthorpe wrote:
-> > > > On Wed, Dec 19, 2018 at 10:42:54AM +1100, Dave Chinner wrote:
-> > > > 
-> > > > > Essentially, what we are talking about is how to handle broken
-> > > > > hardware. I say we should just brun it with napalm and thermite
-> > > > > (i.e. taint the kernel with "unsupportable hardware") and force
-> > > > > wait_for_stable_page() to trigger when there are GUP mappings if
-> > > > > the underlying storage doesn't already require it.
-> > > > 
-> > > > If you want to ban O_DIRECT/etc from writing to file backed pages,
-> > > > then just do it.
-> > > 
-> > > O_DIRECT IO *isn't the problem*.
+On Thu, Dec 20, 2018 at 02:54:49AM -0800, John Hubbard wrote:
+> On 12/19/18 3:08 AM, Jan Kara wrote:
+> > On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
+> >> On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
+> >>> OK, so let's take another look at Jerome's _mapcount idea all by itself (using
+> >>> *only* the tracking pinned pages aspect), given that it is the lightest weight
+> >>> solution for that.  
+> >>>
+> >>> So as I understand it, this would use page->_mapcount to store both the real
+> >>> mapcount, and the dma pinned count (simply added together), but only do so for
+> >>> file-backed (non-anonymous) pages:
+> >>>
+> >>>
+> >>> __get_user_pages()
+> >>> {
+> >>> 	...
+> >>> 	get_page(page);
+> >>>
+> >>> 	if (!PageAnon)
+> >>> 		atomic_inc(page->_mapcount);
+> >>> 	...
+> >>> }
+> >>>
+> >>> put_user_page(struct page *page)
+> >>> {
+> >>> 	...
+> >>> 	if (!PageAnon)
+> >>> 		atomic_dec(&page->_mapcount);
+> >>>
+> >>> 	put_page(page);
+> >>> 	...
+> >>> }
+> >>>
+> >>> ...and then in the various consumers of the DMA pinned count, we use page_mapped(page)
+> >>> to see if any mapcount remains, and if so, we treat it as DMA pinned. Is that what you 
+> >>> had in mind?
+> >>
+> >> Mostly, with the extra two observations:
+> >>     [1] We only need to know the pin count when a write back kicks in
+> >>     [2] We need to protect GUP code with wait_for_write_back() in case
+> >>         GUP is racing with a write back that might not the see the
+> >>         elevated mapcount in time.
+> >>
+> >> So for [2]
+> >>
+> >> __get_user_pages()
+> >> {
+> >>     get_page(page);
+> >>
+> >>     if (!PageAnon) {
+> >>         atomic_inc(page->_mapcount);
+> >> +       if (PageWriteback(page)) {
+> >> +           // Assume we are racing and curent write back will not see
+> >> +           // the elevated mapcount so wait for current write back and
+> >> +           // force page fault
+> >> +           wait_on_page_writeback(page);
+> >> +           // force slow path that will fault again
+> >> +       }
+> >>     }
+> >> }
 > > 
-> > That is not true. O_DIRECT IO is a problem. In some aspects it is easier
-> > than the problem with RDMA but currently O_DIRECT IO can crash your machine
-> > or corrupt data the same way RDMA can.
+> > This is not needed AFAICT. __get_user_pages() gets page reference (and it
+> > should also increment page->_mapcount) under PTE lock. So at that point we
+> > are sure we have writeable PTE nobody can change. So page_mkclean() has to
+> > block on PTE lock to make PTE read-only and only after going through all
+> > PTEs like this, it can check page->_mapcount. So the PTE lock provides
+> > enough synchronization.
+> > 
+> >> For [1] only needing pin count during write back turns page_mkclean into
+> >> the perfect spot to check for that so:
+> >>
+> >> int page_mkclean(struct page *page)
+> >> {
+> >>     int cleaned = 0;
+> >> +   int real_mapcount = 0;
+> >>     struct address_space *mapping;
+> >>     struct rmap_walk_control rwc = {
+> >>         .arg = (void *)&cleaned,
+> >>         .rmap_one = page_mkclean_one,
+> >>         .invalid_vma = invalid_mkclean_vma,
+> >> +       .mapcount = &real_mapcount,
+> >>     };
+> >>
+> >>     BUG_ON(!PageLocked(page));
+> >>
+> >>     if (!page_mapped(page))
+> >>         return 0;
+> >>
+> >>     mapping = page_mapping(page);
+> >>     if (!mapping)
+> >>         return 0;
+> >>
+> >>     // rmap_walk need to change to count mapping and return value
+> >>     // in .mapcount easy one
+> >>     rmap_walk(page, &rwc);
+> >>
+> >>     // Big fat comment to explain what is going on
+> >> +   if ((page_mapcount(page) - real_mapcount) > 0) {
+> >> +       SetPageDMAPined(page);
+> >> +   } else {
+> >> +       ClearPageDMAPined(page);
+> >> +   }
+> > 
+> > This is the detail I'm not sure about: Why cannot rmap_walk_file() race
+> > with e.g. zap_pte_range() which decrements page->_mapcount and thus the
+> > check we do in page_mkclean() is wrong?
 > 
-> It's not O_DIRECT - it's a ""transient page pin". Yes, there are
-> problems with that right now, but as we've discussed the issues can
-> be avoided by:
+> Right. This looks like a dead end, after all. We can't lock a whole chunk 
+> of "all these are mapped, hold still while we count you" pages. It's not
+> designed to allow that at all.
 > 
-> 	a) stable pages always blocking in ->page_mkwrite;
-> 	b) blocking in write_cache_pages() on an elevated map count
-> 	when WB_SYNC_ALL is set; and
-> 	c) blocking in truncate_pagecache() on an elevated map
-> 	count.
-> 
-> That prevents:
-> 	a) gup pinning a page that is currently under writeback and
-> 	modifying it while IO is in flight;
-> 	b) a dirty page being written back while it is pinned by
-> 	GUP, thereby turning it clean before the gup reference calls
-> 	set_page_dirty() on DMA completion; and
-> 	c) truncate/hole punch for pulling the page out from under
-> 	the gup operation that is ongoing.
-> 
-> This is an adequate solution for a short term transient pins. It
-> doesn't break fsync(), it doesn't change how truncate works and it
-> fixes the problem where a mapped file is the buffer for an O_DIRECT
-> IO rather than the open fd and that buffer file gets truncated.
-> IOWs, transient pins (and hence O_DIRECT) is not really the problem
-> here.
-> 
-> The problem with this is that blocking on elevated map count does
-> not work for long term pins (i.e. gup_longterm()) which are defined
-> as:
-> 
->  * "longterm" == userspace controlled elevated page count lifetime.
->  * Contrast this to iov_iter_get_pages() usages which are transient.
-> 
-> It's the "userspace controlled" part of the long term gup pin that
-> is the problem we need to solve. If we treat them the same as a
-> transient pin, then this leads to fsync() and truncate either
-> blocking for a long time waiting for userspace to drop it's gup
-> reference, or having to be failed with something like EBUSY or
-> EAGAIN.
-> 
-> This is the problem revokable file layout leases solve. The NFS
-> server is already using this for revoking delegations from remote
-> clients. Userspace holding long term GUP references is essentially
-> the same thing - it's a delegation of file ownership to userspace
-> that the filesystem must be able to revoke when it needs to run
-> internal and/or 3rd-party requested operations on that delegated
-> file.
-> 
-> If the hardware supports page faults, then we can further optimise
-> the long term pin case to relax stable page requirements and allow
-> page cleaning to occur while there are long term pins. In this case,
-> the hardware will write-fault the clean pages appropriately before
-> DMA is initiated, and hence avoid the need for data integrity
-> operations like fsync() to trigger lease revocation. However,
-> truncate/hole punch still requires lease revocation to work sanely,
-> especially when we consider DAX *must* ensure there are no remaining
-> references to the physical pmem page after the space has been freed.
+> IMHO, we are now back to something like dynamic_page, which provides an
+> independent dma pinned count. 
 
-truncate does not requires lease recovations for faulting hardware,
-truncate will trigger a mmu notifier callback which will invalidate
-the hardware page table. On next access the hardware will fault and
-this will turn into a regular page fault from kernel point of view.
-
-So truncate/reflink and all fs expectation for faulting hardware do
-hold. It is exactly as the CPU page table. So if CPU page table is
-properly updated then so will be the hardware one.
-
-Note that such hardware also abive by munmap() so hardware mapping
-does not outlive vma.
-
+I will keep looking because allocating a structure for every GUP is
+insane to me they are user out there that are GUPin GigaBytes of data
+and it gonna waste tons of memory just to fix crappy hardware.
 
 Cheers,
 J�r�me
