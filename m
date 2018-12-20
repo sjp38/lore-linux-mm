@@ -1,90 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 167C08E0095
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:36:52 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id l45so7059087edb.1
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 06:36:52 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w9-v6sor4046946ejb.36.2018.12.11.06.36.50
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C27AF8E0003
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 01:26:42 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id c14so580232pls.21
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2018 22:26:42 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n19si18250861pgd.271.2018.12.19.22.26.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Dec 2018 06:36:50 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/3] mm, proc: be more verbose about unstable VMA flags in /proc/<pid>/smaps
-Date: Tue, 11 Dec 2018 15:36:39 +0100
-Message-Id: <20181211143641.3503-2-mhocko@kernel.org>
-In-Reply-To: <20181211143641.3503-1-mhocko@kernel.org>
-References: <20181211143641.3503-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Dec 2018 22:26:41 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBK6ORd2050001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 01:26:41 -0500
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pg1g0tmgr-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 01:26:40 -0500
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 20 Dec 2018 06:26:39 -0000
+Subject: Re: [PATCH V5 1/3] mm: Add get_user_pages_cma_migrate
+References: <20181219034047.16305-1-aneesh.kumar@linux.ibm.com>
+ <20181219034047.16305-2-aneesh.kumar@linux.ibm.com>
+ <e9c9b68a-a31b-ab59-902a-73401a89f72a@ozlabs.ru>
+ <b316eb1c-36dc-49e0-f46f-e610f29b6058@linux.ibm.com>
+ <23cae5a6-4370-224c-523c-ab6ee940cf87@ozlabs.ru>
+ <ba05bde5-5ef9-6e96-b15c-cebb9631a84b@linux.ibm.com>
+ <406cbd85-c64e-428f-772d-7afb23eb92ec@ozlabs.ru>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Thu, 20 Dec 2018 11:56:31 +0530
 MIME-Version: 1.0
+In-Reply-To: <406cbd85-c64e-428f-772d-7afb23eb92ec@ozlabs.ru>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
+Message-Id: <ba73bd95-4372-e527-9159-1de95b05d08c@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-api@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Jan Kara <jack@suse.cz>, Mike Rapoport <rppt@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Alexey Kardashevskiy <aik@ozlabs.ru>, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, mpe@ellerman.id.au, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-From: Michal Hocko <mhocko@suse.com>
+On 12/20/18 11:50 AM, Alexey Kardashevskiy wrote:
+> 
+> 
+> On 20/12/2018 16:52, Aneesh Kumar K.V wrote:
+>> On 12/20/18 11:18 AM, Alexey Kardashevskiy wrote:
+>>>
+>>>
+>>> On 20/12/2018 16:22, Aneesh Kumar K.V wrote:
+>>>> On 12/20/18 9:49 AM, Alexey Kardashevskiy wrote:
+>>>>>
+>>>>>
+>>>>> On 19/12/2018 14:40, Aneesh Kumar K.V wrote:
+>>>>>> This helper does a get_user_pages_fast and if it find pages in the
+>>>>>> CMA area
+>>>>>> it will try to migrate them before taking page reference. This makes
+>>>>>> sure that
+>>>>>> we don't keep non-movable pages (due to page reference count) in the
+>>>>>> CMA area.
+>>>>>> Not able to move pages out of CMA area result in CMA allocation
+>>>>>> failures.
+>>>>>>
+>>>>>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+>>>>>
+>>>>
+>>>> .....
+>>>>>> +         * We did migrate all the pages, Try to get the page
+>>>>>> references again
+>>>>>> +         * migrating any new CMA pages which we failed to isolate
+>>>>>> earlier.
+>>>>>> +         */
+>>>>>> +        drain_allow = true;
+>>>>>> +        goto get_user_again;
+>>>>>
+>>>>>
+>>>>> So it is possible to have pages pinned, then successfully migrated
+>>>>> (migrate_pages() returned 0), then pinned again, then some pages may
+>>>>> end
+>>>>> up in CMA again and migrate again and nothing seems to prevent this
+>>>>> loop
+>>>>> from being endless. What do I miss?
+>>>>>
+>>>>
+>>>> pages used as target page for migration won't be allocated from CMA
+>>>> region.
+>>>
+>>>
+>>> Then migrate_allow should be set to "false" regardless what
+>>> migrate_pages() returned and then I am totally missing the point of this
+>>> goto and going through the loop again even when we know for sure it
+>>> won't do literally anything but checking is_migrate_cma_page() even
+>>> though we know pages won't be allocated from CMA.
+>>>
+>>
+>> Because we might have failed to isolate all the pages in the first attempt.
+> 
+> isolate==migrate?
 
-Even though vma flags exported via /proc/<pid>/smaps are explicitly
-documented to be not guaranteed for future compatibility the warning
-doesn't go far enough because it doesn't mention semantic changes to
-those flags. And they are important as well because these flags are
-a deep implementation internal to the MM code and the semantic might
-change at any time.
+no
 
-Let's consider two recent examples:
-http://lkml.kernel.org/r/20181002100531.GC4135@quack2.suse.cz
-: commit e1fb4a086495 "dax: remove VM_MIXEDMAP for fsdax and device dax" has
-: removed VM_MIXEDMAP flag from DAX VMAs. Now our testing shows that in the
-: mean time certain customer of ours started poking into /proc/<pid>/smaps
-: and looks at VMA flags there and if VM_MIXEDMAP is missing among the VMA
-: flags, the application just fails to start complaining that DAX support is
-: missing in the kernel.
+The call to isolate_lru_page and isolate_huge_page. We can fail because 
+the percpu pagevec is not fully drained
 
-http://lkml.kernel.org/r/alpine.DEB.2.21.1809241054050.224429@chino.kir.corp.google.com
-: Commit 1860033237d4 ("mm: make PR_SET_THP_DISABLE immediately active")
-: introduced a regression in that userspace cannot always determine the set
-: of vmas where thp is ineligible.
-: Userspace relies on the "nh" flag being emitted as part of /proc/pid/smaps
-: to determine if a vma is eligible to be backed by hugepages.
-: Previous to this commit, prctl(PR_SET_THP_DISABLE, 1) would cause thp to
-: be disabled and emit "nh" as a flag for the corresponding vmas as part of
-: /proc/pid/smaps.  After the commit, thp is disabled by means of an mm
-: flag and "nh" is not emitted.
-: This causes smaps parsing libraries to assume a vma is eligible for thp
-: and ends up puzzling the user on why its memory is not backed by thp.
 
-In both cases userspace was relying on a semantic of a specific VMA
-flag. The primary reason why that happened is a lack of a proper
-internface. While this has been worked on and it will be fixed properly,
-it seems that our wording could see some refinement and be more vocal
-about semantic aspect of these flags as well.
-
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: David Rientjes <rientjes@google.com>
-Acked-by: Jan Kara <jack@suse.cz>
-Acked-by: Dan Williams <dan.j.williams@intel.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Acked-by: Mike Rapoport <rppt@linux.ibm.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- Documentation/filesystems/proc.txt | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 12a5e6e693b6..2a4e63f5122c 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -496,7 +496,9 @@ flags associated with the particular virtual memory area in two letter encoded
- 
- Note that there is no guarantee that every flag and associated mnemonic will
- be present in all further kernel releases. Things get changed, the flags may
--be vanished or the reverse -- new added.
-+be vanished or the reverse -- new added. Interpretation of their meaning
-+might change in future as well. So each consumer of these flags has to
-+follow each specific kernel version for the exact semantic.
- 
- This file is only present if the CONFIG_MMU kernel configuration option is
- enabled.
--- 
-2.19.2
+-aneesh
