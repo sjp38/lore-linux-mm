@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E9298E0002
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 10:52:54 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id t10so1631123plo.13
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 07:52:54 -0800 (PST)
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id x8si17803631pll.187.2018.12.20.07.52.52
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 771DB8E0002
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 10:37:37 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t2so2675562edb.22
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 07:37:37 -0800 (PST)
+Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
+        by mx.google.com with ESMTP id u12si2465223edq.37.2018.12.20.07.37.36
         for <linux-mm@kvack.org>;
-        Thu, 20 Dec 2018 07:52:52 -0800 (PST)
-Date: Thu, 20 Dec 2018 16:52:51 +0100
+        Thu, 20 Dec 2018 07:37:36 -0800 (PST)
+Date: Thu, 20 Dec 2018 16:37:34 +0100
 From: Oscar Salvador <osalvador@suse.de>
 Subject: Re: [PATCH v2] mm, page_alloc: Fix has_unmovable_pages for HugePages
-Message-ID: <20181220155247.qbyptzk35xr7ey72@d104.suse.de>
+Message-ID: <20181220153731.mpc757cyf2zyr6fm@d104.suse.de>
 References: <20181217225113.17864-1-osalvador@suse.de>
  <20181219142528.yx6ravdyzcqp5wtd@master>
  <20181219233914.2fxe26pih26ifvmt@d104.suse.de>
@@ -20,43 +20,28 @@ References: <20181217225113.17864-1-osalvador@suse.de>
  <20181220130606.GG9104@dhcp22.suse.cz>
  <20181220134132.6ynretwlndmyupml@d104.suse.de>
  <20181220142124.r34fnuv6b33luj5a@d104.suse.de>
- <20181220153237.bhepsqw27mjmc4g5@master>
+ <20181220143939.GA6210@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181220153237.bhepsqw27mjmc4g5@master>
+In-Reply-To: <20181220143939.GA6210@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, vbabka@suse.cz, pavel.tatashin@microsoft.com, rppt@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, vbabka@suse.cz, pavel.tatashin@microsoft.com, rppt@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 20, 2018 at 03:32:37PM +0000, Wei Yang wrote:
-> Now let's go back to see how to calculate new_iter. From the chart
-> above, we can see this formula stands for all three cases:
-> 
->     new_iter = round_up(iter + 1, page_size(HugePage))
-> 
-> So it looks the first version is correct.
+On Thu, Dec 20, 2018 at 03:39:39PM +0100, Michal Hocko wrote:
+> Yes, you are missing that this code should be as sane as possible ;) You
+> are right that we are only processing one pageorder worth of pfns and
+> that the page order is bound to HUGETLB_PAGE_ORDER _right_now_. But
+> there is absolutely zero reason to hardcode that assumption into a
+> simple loop, right?
 
-Let us assume:
+Of course, it makes sense to keep the code as sane as possible.
+This is why I said I was not against the change, but I wanted to
+see if I was missing something else besides the assumption.
 
-* iter = 0 (page first of the pageblock)
-* page is a tail
-* hugepage is 2mb
-
-So we have the following:
-
-iter = round_up(iter + 1, 1<<compound_order(head)) - 1;
-
-which translates to:
-
-iter = round_up(1, 512) - 1 = 511;
-
-Then iter will be incremented to 512, and we break the loop.
-
-The outcome of this is that ouf ot 512 pages, we only scanned 1,
-and we skipped all the other 511 pages by mistake.
-
+Thanks
 -- 
 Oscar Salvador
 SUSE L3
