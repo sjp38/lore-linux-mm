@@ -1,40 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 436728E0002
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:03:17 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e29so2785293ede.19
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:03:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z7-v6si1600399eji.249.2018.12.20.08.03.15
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 473078E0002
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:00:54 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id 41so2237730qto.17
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:00:54 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m34sor7659260qtc.65.2018.12.20.08.00.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 08:03:15 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBKG06vV004853
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:03:14 -0500
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2pgdqf1npk-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 11:03:14 -0500
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 20 Dec 2018 16:03:13 -0000
-Date: Thu, 20 Dec 2018 08:03:13 -0800
-From: "Paul E. McKenney" <paulmck@linux.ibm.com>
+        (Google Transport Security);
+        Thu, 20 Dec 2018 08:00:52 -0800 (PST)
+Date: Thu, 20 Dec 2018 08:00:50 -0800
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: Ipmi modules and linux-4.19.1
-Reply-To: paulmck@linux.ibm.com
+Message-ID: <20181220160050.GC2509588@devbig004.ftw2.facebook.com>
 References: <CAJM9R-JWO1P_qJzw2JboMH2dgPX7K1tF49nO5ojvf=iwGddXRQ@mail.gmail.com>
  <20181220154217.GB2509588@devbig004.ftw2.facebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20181220154217.GB2509588@devbig004.ftw2.facebook.com>
-Message-Id: <20181220160313.GB4170@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Angel Shtilianov <angel.shtilianov@siteground.com>, linux-mm@kvack.org, dennis@kernel.org, cl@linux.com, jeyu@kernel.org
+To: Angel Shtilianov <angel.shtilianov@siteground.com>
+Cc: linux-mm@kvack.org, dennis@kernel.org, cl@linux.com, jeyu@kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Corey Minyard <cminyard@mvista.com>
+
+(cc'ing Corey and quoting whole body)
 
 On Thu, Dec 20, 2018 at 07:42:17AM -0800, Tejun Heo wrote:
 > Hello, Angel.
@@ -80,22 +70,13 @@ On Thu, Dec 20, 2018 at 07:42:17AM -0800, Tejun Heo wrote:
 > side-stepped and it only occupies percpu memory which tends to be
 > pretty expensive unless ipmi is actually initialized.
 
-Yes, it is possible.  Just do something like this:
+So, the transition to SRCU was fairly recent and seems kinda overkill.
+This code path isn't expected to be high frequency && concurrency.  Is
+the SRCU usage justified here?  Looks like it could have trivially
+used a little bit finer grained locking and/or straight-forward
+reference count.
 
-	struct srcu_struct my_srcu_struct;
+Thanks.
 
-And before the first use of my_srcu_struct, do this:
-
-	init_srcu_struct(&my_srcu_struct);
-
-This will result in alloc_percpu() being invoked to allocate the
-needed per-CPU space.
-
-If my_srcu_struct is used in a module or some such, then to avoid memory
-leaks, after the last use of my_srcu_struct, do this:
-
-	cleanup_srcu_struct(&my_srcu_struct);
-
-There are several places in the kernel that take this approach.
-
-							Thanx, Paul
+-- 
+tejun
