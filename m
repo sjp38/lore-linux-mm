@@ -1,61 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 50F268E005A
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2018 10:00:48 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id s71so7720619pfi.22
-        for <linux-mm@kvack.org>; Sun, 09 Dec 2018 07:00:48 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f16si7565311pgb.140.2018.12.09.07.00.46
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ACA6B8E0002
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 08:02:58 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id u17so1419992pgn.17
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 05:02:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x8sor31994840plo.55.2018.12.20.05.02.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Dec 2018 07:00:47 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB9ExIqn055499
-	for <linux-mm@kvack.org>; Sun, 9 Dec 2018 10:00:46 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2p8vg6e5qk-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 09 Dec 2018 10:00:46 -0500
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 9 Dec 2018 15:00:43 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v3 2/6] microblaze: prefer memblock API returning virtual address
-Date: Sun,  9 Dec 2018 17:00:20 +0200
-In-Reply-To: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
-References: <1544367624-15376-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1544367624-15376-3-git-send-email-rppt@linux.ibm.com>
+        (Google Transport Security);
+        Thu, 20 Dec 2018 05:02:57 -0800 (PST)
+MIME-Version: 1.0
+References: <706da77adfceb0c324e824d03b52d58a752577ea.1545139710.git.andreyknvl@google.com>
+ <20181218125453.4c5e6c056d31ccaa3a73d4a5@linux-foundation.org>
+In-Reply-To: <20181218125453.4c5e6c056d31ccaa3a73d4a5@linux-foundation.org>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 20 Dec 2018 14:02:45 +0100
+Message-ID: <CAAeHK+yggnKfkycdUdTHG4MvWBMq_XK70m0rQuH873DZU+RnGQ@mail.gmail.com>
+Subject: Re: [PATCH mm] kasan, arm64: use ARCH_SLAB_MINALIGN instead of manual aligning
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Jonas Bonn <jonas@southpole.se>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
 
-Rather than use the memblock_alloc_base that returns a physical address and
-then convert this address to the virtual one, use appropriate memblock
-function that returns a virtual address.
+On Tue, Dec 18, 2018 at 9:55 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> On Tue, 18 Dec 2018 14:30:33 +0100 Andrey Konovalov <andreyknvl@google.com> wrote:
+>
+> > Instead of changing cache->align to be aligned to KASAN_SHADOW_SCALE_SIZE
+> > in kasan_cache_create() we can reuse the ARCH_SLAB_MINALIGN macro.
+> >
+> > ...
+> >
+> > --- a/arch/arm64/include/asm/kasan.h
+> > +++ b/arch/arm64/include/asm/kasan.h
+> > @@ -36,6 +36,10 @@
+> >  #define KASAN_SHADOW_OFFSET     (KASAN_SHADOW_END - (1ULL << \
+> >                                       (64 - KASAN_SHADOW_SCALE_SHIFT)))
+> >
+> > +#ifdef CONFIG_KASAN_SW_TAGS
+> > +#define ARCH_SLAB_MINALIGN   (1ULL << KASAN_SHADOW_SCALE_SHIFT)
+> > +#endif
+> > +
+> >  void kasan_init(void);
+> >  void kasan_copy_shadow(pgd_t *pgdir);
+> >  asmlinkage void kasan_early_init(void);
+>
+> This looks unreliable.  include/linux/slab.h has
+>
+> /*
+>  * Setting ARCH_SLAB_MINALIGN in arch headers allows a different alignment.
+>  * Intended for arches that get misalignment faults even for 64 bit integer
+>  * aligned buffers.
+>  */
+> #ifndef ARCH_SLAB_MINALIGN
+> #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
+> #endif
+>
+> so if a .c file includes arch/arm64/include/asm/kasan.h after
+> include/linux/slab.h, it can get a macro-redefined warning.  If the .c
+> file includes those headers in the other order, ARCH_SLAB_MINALIGN will
+> get a different value compared to other .c files.
+>
+> Or something like that.
+>
+> Different architectures define ARCH_SLAB_MINALIGN in different place:
+>
+> ./arch/microblaze/include/asm/page.h:#define ARCH_SLAB_MINALIGN L1_CACHE_BYTES
+> ./arch/arm/include/asm/cache.h:#define ARCH_SLAB_MINALIGN 8
+> ./arch/sh/include/asm/page.h:#define ARCH_SLAB_MINALIGN 8
+> ./arch/c6x/include/asm/cache.h:#define ARCH_SLAB_MINALIGN       L1_CACHE_BYTES
+> ./arch/sparc/include/asm/cache.h:#define ARCH_SLAB_MINALIGN     __alignof__(unsigned long long)
+> ./arch/xtensa/include/asm/processor.h:#define ARCH_SLAB_MINALIGN STACK_ALIGN
+>
+> which is rather bad of us.
+>
+> But still.  I think your definition should occur in an arch header file
+> which is reliably included from slab.h.  And kasan code should get its
+> definition of ARCH_SLAB_MINALIGN by including slab.h.
+>
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Tested-by: Michal Simek <michal.simek@xilinx.com>
----
- arch/microblaze/mm/init.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+KASAN code doesn't use this macro directly, so I don't think it needs
+to get it's definition.
 
-diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
-index b17fd8a..44f4b89 100644
---- a/arch/microblaze/mm/init.c
-+++ b/arch/microblaze/mm/init.c
-@@ -363,8 +363,9 @@ void __init *early_get_page(void)
- 	 * Mem start + kernel_tlb -> here is limit
- 	 * because of mem mapping from head.S
- 	 */
--	return __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
--				memory_start + kernel_tlb));
-+	return memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
-+				MEMBLOCK_LOW_LIMIT, memory_start + kernel_tlb,
-+				NUMA_NO_NODE);
- }
- 
- #endif /* CONFIG_MMU */
--- 
-2.7.4
+What do you think about adding #include <linux/kasan.h> into
+linux/slab.h? Perhaps with a comment that this is needed to get
+definition of ARCH_SLAB_MINALIGN?
