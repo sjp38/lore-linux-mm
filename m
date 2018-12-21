@@ -2,253 +2,210 @@ Return-Path: <SRS0=s2+Z=O6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10DA1C43444
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:05:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BA8FC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:18:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93CA021907
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:05:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 403B5217D9
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:18:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="d/S+qQm4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93CA021907
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="COdD2YH8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 403B5217D9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 185F18E0005; Fri, 21 Dec 2018 01:05:04 -0500 (EST)
+	id BDAB98E000B; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10C4A8E0001; Fri, 21 Dec 2018 01:05:04 -0500 (EST)
+	id B88B18E0001; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F15338E0005; Fri, 21 Dec 2018 01:05:03 -0500 (EST)
+	id A50938E000B; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C4DF38E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 01:05:03 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id s12so2657362otc.12
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:05:03 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B1678E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e12so4910086edd.16
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:18:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=SKCcAeW5H4+bwp7AQJhecAcvEZDXW19JmTrsciJug4w=;
-        b=EPXTC/xfx4moO6r/1P/ESr2cMh1lUcwNqpl2rQrhHgNm0lvjhA1ABrWV2wTtZVG+MU
-         C95HenHFut5guSlUh3xGkCgiol77s4KMPK5GVnm1Ni/Crlg9i27LeWkH63PIiPcxSQss
-         0VijNfodqwfZioCVPFUxrn7O8x/MZ9ih1YbKxZHQdtuWO8nYfHqX+k9ZdYzSg6zwYsrH
-         HdYXGcYCH8Wz+Q9cGW54K2sGus3KabL3SQivj6kbfNn8pANbKgerf29TqbOGixplrxBK
-         JH+FAKqX6fEK67jCBHlS+dQX+ZQXAE9tDBA6Ob1F+U2ew/dITpaDJRwb2OK8TWhCGA9w
-         CrIA==
-X-Gm-Message-State: AJcUukccLwgVfjXFo+DpPMGHtEIgN65odrycE2st3DacA0bt7tVogGhR
-	FRQ0+bRmNxS3Eb4rnCDy5tJhdeUhuyt0Ie3qcvilY8KvnfwcEO7mbBF5YYQxEtmH7StTPq5kIjm
-	gmhtfWyJTVpCdYof0xMMjTo/96Os0fvVSECWQ6I+wnfXV7AMwZSH/+66BnGKxAro9rGOx6EowfF
-	IK7qCJEDXhze6PaNFDoFz2GC0SVP4vRgMnE/2Wr91chwt4oKmE7UneMI5TBG5TecCoi8n7czbTg
-	eU6kar2Lq1XIbhMCpxNxHnd5PuJfBeIb4cmdpOYe+jOshNvITfvC45ZTVNxeIoiQlCu6XI08qye
-	iETZ/oKB3oPbCtQJuLt4H0yiP8tLlnaeYWd9mMPc80ostyqfJ3GjH91os1miTvh3Qq4VWN30pmH
-	K
-X-Received: by 2002:a05:6830:13c2:: with SMTP id e2mr705716otq.15.1545372303486;
-        Thu, 20 Dec 2018 22:05:03 -0800 (PST)
-X-Received: by 2002:a05:6830:13c2:: with SMTP id e2mr705683otq.15.1545372302430;
-        Thu, 20 Dec 2018 22:05:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545372302; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Z2FHmaBlflrf9QUQop5IgR5jIVNSrnKow3guJqFNBp8=;
+        b=CeTCe+D+IFlNxa1u55BR3+nc4p6IkhOflgOyj8qdG+TcO1vlBPRnLeNKGZFQOsBN66
+         HGIiN98Pe7+qlTjchcV8/4+H4+iSh0ap/2K/VtTz63GMskFv9iH5BaVWmu/6GLRWgeBF
+         lOnNU+nTaeSMrS1adFoPxAKLxcPYUHGi9jqFjppTOMWb1yK5wL3UvR9q1aCxeYo81+Uf
+         N1V6EXWEsSiegq9EScCz6uRdtfrj6XiBycSXoquGxTMj6ZJkCzcluKCMkhTX7l0BIncl
+         HygTzRXXEbJNF6VRgDEK2AZw0P6ZoWbGI4DfOgC8N1Vez0WVfSUeOwlKyQGST5KtIljY
+         XCaA==
+X-Gm-Message-State: AA+aEWZoHpcyQT3WA8nmctV6RWxQwhp1X2oLQHzw9M9L2TczDvFokB63
+	bwlwmwJN0PFwzZjnEDTCSsDj14u/SuVtgChEaem9S0SI9gMrhO2tOcurdY2id0iXaRs3ftkL5jf
+	FOK9//cgBSGMQ+qBfF/V8N1HFUfccqG/hOmjgv+EFkODgkh8o7F/K8VbK3+O6K+8V+2HSpyyM8I
+	uBI+EupTvCrdPNBDfDGiQLA08JlSY2cGoe3KGc+ghuHbgyj1afBbTryRHvXfOCTzrpguCLtH5JJ
+	82flhFJy7895EPBCHIPe6tddS/Y7jkSNcRjueY+2cWSAPnkXOlRZ8sZ44ioYvtetP7nPbCFYFcD
+	4kloSJUrX+fvfLry1uXLC6KAUoPmOAkOCOCu7wn9AUiyBmUlJ1XKXuFQgWOT3UrXwDo8TDmjLu3
+	a
+X-Received: by 2002:a50:b5a5:: with SMTP id a34mr1342976ede.52.1545373087659;
+        Thu, 20 Dec 2018 22:18:07 -0800 (PST)
+X-Received: by 2002:a50:b5a5:: with SMTP id a34mr1342942ede.52.1545373086772;
+        Thu, 20 Dec 2018 22:18:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545373086; cv=none;
         d=google.com; s=arc-20160816;
-        b=YbJ1I2c1ejQb0B9Ei3scNDnHAFhIKXg8h/PieRMFEVRPZnQhM26BzeTGcXXsaO28VZ
-         q35HN6vai/4QR5/R3uMOxgiVzqZvn/n5+6QtBNCWejGFKGU65SGOblSLFfhXQX6RiVIJ
-         humsRJ3zUcNA9+Z/Z3rY0fyei2zLZQnE03UxFyBqAx3zT8vuIYlP50s+Rq4Dzofaibgn
-         wYhKikbo0+7tC9bw5Vdv5UuXnhqlDGD8VMhbzCs2bU22+L0i23xrd/6nnuACb7QtEJgT
-         teQL6/bKv+j2RSIIQK5XDrFNFnLKHGSfAcN6CRTVuqsCMS8mRX2k8IfghDf3cz0bzfE8
-         zCjw==
+        b=vETvh6uqBt0EBkkmLOtFg3pVzdtgAOShjQ+qPwS2rtmoU7zhVQSimWCIoKo4AedExF
+         gi9BuQKQAiHz6reAuwcP148FyOlJbE/ZHHU/9KiZW2FVaNwjKzW1vD2oC50eWDSAGjhz
+         wBXnoAIAkxexsO+Bs5MlSSQAouhYfd7Ysur4lrcxAHPo5nLaGN2TgpFvoZlmMt/nRB8m
+         SWwsWsdYHr/BSRgHOxDRv0Vj3dcf7D1o4igFzYUQ3QhEw79rOc83YzfnqJBXwjqkJ5te
+         LQgxI9iU8dFXPpAlxdw/FgWU9xv1d/iE4H+IL/I8ujKtllec0zlGXJNAekBhEttuGskV
+         sszQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=SKCcAeW5H4+bwp7AQJhecAcvEZDXW19JmTrsciJug4w=;
-        b=OWT9kxOcWwxmwG0UJDcjpNS5qob7EcGNxk4J08f2VpOYE2L4f/AFm3TYpNH6IR9PJP
-         v/3Qp5CL9kaJYr1BN8SUDG2zgNKnfuUPrDkxcjgYdqRD0pYO9b7INI4QeFnjOpIy7jSF
-         nSvtYygQRUV9KUwuX5+Sdrz2Cp/KfCs7OfwplMGoUS1cKzbZTcZlQTPkpQw/9VUKiQKN
-         QLemngd3SFmQ7VeRCr1eJi/aue2AICzkj1jvyTLA9lSwgM5FMpXcUIH7/7zFqZZ1dx7L
-         44YJHxrNjLNLHkbvQM0pE8PsHhakleUrbri4u04v6naaJOrO2a2aFlq8YNMLJ/fcQQwI
-         2ALg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Z2FHmaBlflrf9QUQop5IgR5jIVNSrnKow3guJqFNBp8=;
+        b=tjmuAPnn7gTK/zKGQP8tUAUSolojgYpjpLTKgOOccE5xug69sp4VRVEezyYHmBESiA
+         AMjh5CdaTY+M33F7hlZZS/jA9EL/hscLoG+R3x8WcPsdGFMSIci7u0dcmorWqNrXqh5W
+         MMXLfSXjBSDGBRHHskTZyUPY9o39WXSAsfhK7m3pBTQh4FloALjiBaVi1w+SxxJYHW7K
+         7Jf+YCrumdPyAq1gWDIewVN9miif/cEGV0UHd4nMVMdYQTkdUAEf1/B0E+D+LZQyAM4R
+         VtAkTyodBTwqLHKS0TvpatgZWu0VkvTFwSUs7M6PDXO/uI4iVNEyfcMK1SviX9biDfXz
+         eSlA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="d/S+qQm4";
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=COdD2YH8;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c8sor3903754oia.31.2018.12.20.22.05.02
+        by mx.google.com with SMTPS id p50sor10173595eda.9.2018.12.20.22.18.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 20 Dec 2018 22:05:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 20 Dec 2018 22:18:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="d/S+qQm4";
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=COdD2YH8;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=SKCcAeW5H4+bwp7AQJhecAcvEZDXW19JmTrsciJug4w=;
-        b=d/S+qQm4oJbHT5p9lTGC2fWkz8K5Bk9hacHLmCj3635B3waQQqrx5BsYm1eXsQ0ofN
-         k7bHpO7LzV+uO2KMi4hYje8NjWgipT41BtnXfFpl7apqtWkonhyvTS418Ot0F+mo7a3y
-         84Jnd3CTPdbUOKlyHDZ3bUenjdcTDasJv6gL6xzs4V8LYgdoEnQ9BTxAWFN+0mB2VCKZ
-         QtlWaUUDtzHcNfPv99vv2HBzd4hsLqY3fMdfvpu22rgvr8iyW+19ZqoNxEvAxn6uzPBw
-         QODcLkazq5Inuis7qhWPuMSl8PeqFYZqoe58/JfDg3UdPdHtyPKY2GFiY4vKkUlKIkia
-         egKw==
-X-Google-Smtp-Source: AFSGD/U3pqvjZE1z6kg3DO6N6JzfpwRIKFjQC/hqO5a3hIEZgtZ2zfpAN7HSr0idXBNAyfz++GeSvg==
-X-Received: by 2002:a05:6808:155:: with SMTP id h21mr594679oie.34.1545372301828;
-        Thu, 20 Dec 2018 22:05:01 -0800 (PST)
-Received: from eggly.attlocal.net (172-10-233-147.lightspeed.sntcca.sbcglobal.net. [172.10.233.147])
-        by smtp.gmail.com with ESMTPSA id s186sm11712006oie.13.2018.12.20.22.04.58
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 22:05:00 -0800 (PST)
-Date: Thu, 20 Dec 2018 22:04:51 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-X-X-Sender: hugh@eggly.anvils
-To: Andrew Morton <akpm@linux-foundation.org>
-cc: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org, vbabka@suse.cz, 
-    hannes@cmpxchg.org, hughd@google.com, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>, 
-    Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm: vmscan: skip KSM page in direct reclaim if
- priority is low
-In-Reply-To: <20181220144513.bf099a67c1140865f496011f@linux-foundation.org>
-Message-ID: <alpine.LSU.2.11.1812202143340.2191@eggly.anvils>
-References: <1541618201-120667-1-git-send-email-yang.shi@linux.alibaba.com> <20181220144513.bf099a67c1140865f496011f@linux-foundation.org>
-User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Z2FHmaBlflrf9QUQop5IgR5jIVNSrnKow3guJqFNBp8=;
+        b=COdD2YH8/h3nimEm7utrbsKg4Ml7JYcY9DfP8E4scwbaGpuJsKCz3axXxnQG7d69l1
+         iL3X8SQvyHRMbjCOZCMIocN9XR15PQllEuE4eo8XEU65Zx9bLCMJKjzSxLewFESRJFx4
+         T77p1L0xMiGDxr4ZnpW7k7s0TP2FX5yXCwa0jiz5n5LHM5gJQkz1NqibcdKz0oqX8YwO
+         ofRZu1KW+GwS7VkjKjsFHKByVkwclMRes1Q9IlluMx95VQuNcR0LkO9Qd7RYZ2Wt4yiZ
+         B1gso9GMg0VbAatszoGRHbQz6WeXiLzFYztoLdNARRl8GpqZTbNeUeH7brzySblK7yna
+         50nA==
+X-Google-Smtp-Source: AFSGD/W295SA9uQLpCCc6OGp9eUjomqYd0htfZ7bydooizYHZi08nl66rQowi+RjD57V5T1tJ+ZpnXngOinhdNwztpM=
+X-Received: by 2002:a50:9feb:: with SMTP id c98mr1312405edf.253.1545373086325;
+ Thu, 20 Dec 2018 22:18:06 -0800 (PST)
 MIME-Version: 1.0
+References: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
+ <1545299439-31370-3-git-send-email-kernelfans@gmail.com> <20181220113547.GC9104@dhcp22.suse.cz>
+ <CAFgQCTvxNGTKD+DP_LxF86WoVnCHnPkWoSqdGeXQxXNVYD_orw@mail.gmail.com> <20181220124419.GD9104@dhcp22.suse.cz>
+In-Reply-To: <20181220124419.GD9104@dhcp22.suse.cz>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Fri, 21 Dec 2018 14:17:54 +0800
+Message-ID:
+ <CAFgQCTsTTQLyEr6NG4QvpYuuovathge6t+1ej_1edkGCai-jXw@mail.gmail.com>
+Subject: Re: [PATCHv2 2/3] mm/numa: build zonelist when alloc for device on
+ offline node
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, 
+	linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, 
+	Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>, 
+	David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+	Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
+	Michael Ellerman <mpe@ellerman.id.au>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181221060451.jbcWC3U38LV2oTk0GV9kO1zpHa90znlgfg4pLUkXsIA@z>
+Message-ID: <20181221061754.A9brWZ40gnryL4e4lZCl5uMMVW28JQoePSMonCOOHfw@z>
 
-On Thu, 20 Dec 2018, Andrew Morton wrote:
-> 
-> Is anyone interested in reviewing this?  Seems somewhat serious. 
-> Thanks.
+On Thu, Dec 20, 2018 at 8:44 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Thu 20-12-18 20:26:28, Pingfan Liu wrote:
+> > On Thu, Dec 20, 2018 at 7:35 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Thu 20-12-18 17:50:38, Pingfan Liu wrote:
+> > > [...]
+> > > > @@ -453,7 +456,12 @@ static inline int gfp_zonelist(gfp_t flags)
+> > > >   */
+> > > >  static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
+> > > >  {
+> > > > -     return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
+> > > > +     if (unlikely(!possible_zonelists[nid])) {
+> > > > +             WARN_ONCE(1, "alloc from offline node: %d\n", nid);
+> > > > +             if (unlikely(build_fallback_zonelists(nid)))
+> > > > +                     nid = first_online_node;
+> > > > +     }
+> > > > +     return possible_zonelists[nid] + gfp_zonelist(flags);
+> > > >  }
+> > >
+> > > No, please don't do this. We do not want to make things work magically
+> >
+> > For magically, if you mean directly replies on zonelist instead of on
+> > pgdat struct, then it is easy to change
+>
+> No, I mean that we _know_ which nodes are possible. Platform is supposed
+> to tell us. We should just do the intialization properly. What we do now
+> instead is a pile of hacks that fit magically together. And that should
+> be changed.
+>
+Not agree. Here is the typical lazy to do, and at this point there is
+also possible node info for us to check and build pgdat instance.
 
-Somewhat serious, but no need to rush.
+> > > and we definitely do not want to put something like that into the hot
+> >
+> > But  the cose of "unlikely" can be ignored, why can it not be placed
+> > in the path?
+>
+> unlikely will simply put the code outside of the hot path. The condition
+> is still there. There are people desperately fighting to get every
+> single cycle out of the page allocator. Now you want them to pay a
+> branch which is relevant only for few obscure HW setups.
+>
+Data is more convincing.
+I test with the following program  built with -O2 on x86. No
+observable performance difference between adding an extra unlikely
+condition. And it is apparent that the frequency of checking on
+unlikely is much higher than my patch.
+#include <stdio.h>
+#define unlikely_notrace(x)     __builtin_expect(!!(x), 0)
+#define unlikely(x) unlikely_notrace(x)
+#define TEST_UNLIKELY 1
+int main(int argc, char *argv[])
+{
+        unsigned long i,j;
+        unsigned long end = (unsigned long)1 << 36;
+        unsigned long x = 9;
+        for (i = 1; i < end; i++) {
+#ifdef TEST_UNLIKELY
+                if (unlikely(i == end - 1))
+                        x *= 8;
+#endif
+                x *= i;
+                x = x%100000 + 1;
+        }
+        return 0;
+}
 
-> 
-> From: Yang Shi <yang.shi@linux.alibaba.com>
-> Subject: mm: vmscan: skip KSM page in direct reclaim if priority is low
-> 
-> When running a stress test, we occasionally run into the below hang issue:
+> > > path. We definitely need zonelists to be build transparently for all
+> > > possible nodes during the init time.
+> >
+> > That is the point, whether the all nodes should be instanced at boot
+> > time, or not be instanced until there is requirement.
+>
+> And that should be done at init time. We have all the information
+> necessary at that time.
+> --
 
-Artificial load presumably.
+Will see other guys' comment.
 
-> 
-> INFO: task ksmd:205 blocked for more than 360 seconds.
->       Tainted: G            E 4.9.128-001.ali3000_nightly_20180925_264.alios7.x86_64 #1
-
-4.9-stable does not contain Andrea's 4.13 commit 2c653d0ee2ae
-("ksm: introduce ksm_max_page_sharing per page deduplication limit").
-
-The patch below is more economical than Andrea's, but I don't think
-a second workaround should be added, unless Andrea's is shown to be
-insufficient, even with its ksm_max_page_sharing tuned down to suit.
-
-Yang, please try to reproduce on upstream, or backport Andrea's to
-4.9-stable - thanks.
-
-Hugh
-
-> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> ksmd            D    0   205      2 0x00000000
->  ffff882fa00418c0 0000000000000000 ffff882fa4b10000 ffff882fbf059d00
->  ffff882fa5bc1800 ffffc900190c7c28 ffffffff81725e58 ffffffff810777c0
->  00ffc900190c7c88 ffff882fbf059d00 ffffffff8138cc09 ffff882fa4b10000
-> Call Trace:
->  [<ffffffff81725e58>] ? __schedule+0x258/0x720
->  [<ffffffff810777c0>] ? do_flush_tlb_all+0x30/0x30
->  [<ffffffff8138cc09>] ? free_cpumask_var+0x9/0x10
->  [<ffffffff81726356>] schedule+0x36/0x80
->  [<ffffffff81729916>] schedule_timeout+0x206/0x4b0
->  [<ffffffff81077d0f>] ? native_flush_tlb_others+0x11f/0x180
->  [<ffffffff8110ca40>] ? ktime_get+0x40/0xb0
->  [<ffffffff81725b6a>] io_schedule_timeout+0xda/0x170
->  [<ffffffff81726c50>] ? bit_wait+0x60/0x60
->  [<ffffffff81726c6b>] bit_wait_io+0x1b/0x60
->  [<ffffffff81726759>] __wait_on_bit_lock+0x59/0xc0
->  [<ffffffff811aff76>] __lock_page+0x86/0xa0
->  [<ffffffff810d53e0>] ? wake_atomic_t_function+0x60/0x60
->  [<ffffffff8121a269>] ksm_scan_thread+0xeb9/0x1430
->  [<ffffffff810d5340>] ? prepare_to_wait_event+0x100/0x100
->  [<ffffffff812193b0>] ? try_to_merge_with_ksm_page+0x850/0x850
->  [<ffffffff810ac226>] kthread+0xe6/0x100
->  [<ffffffff810ac140>] ? kthread_park+0x60/0x60
->  [<ffffffff8172b196>] ret_from_fork+0x46/0x60
-> 
-> ksmd found a suitable KSM page on the stable tree and is trying to lock
-> it.  But it is locked by the direct reclaim path which is walking the
-> page's rmap to get the number of referenced PTEs.
-> 
-> The KSM page rmap walk needs to iterate all rmap_items of the page and all
-> rmap anon_vmas of each rmap_item.  So it may take (# rmap_item * #
-> children processes) loops.  This number of loops might be very large in
-> the worst case, and may take a long time.
-> 
-> Typically, direct reclaim will not intend to reclaim too many pages, and
-> it is latency sensitive.  So it is not worth doing the long ksm page rmap
-> walk to reclaim just one page.
-> 
-> Skip KSM pages in direct reclaim if the reclaim priority is low, but still
-> try to reclaim KSM pages with high priority.
-> 
-> Link: http://lkml.kernel.org/r/1541618201-120667-1-git-send-email-yang.shi@linux.alibaba.com
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/vmscan.c |   23 +++++++++++++++++++++--
->  1 file changed, 21 insertions(+), 2 deletions(-)
-> 
-> --- a/mm/vmscan.c~mm-vmscan-skip-ksm-page-in-direct-reclaim-if-priority-is-low
-> +++ a/mm/vmscan.c
-> @@ -1260,8 +1260,17 @@ static unsigned long shrink_page_list(st
->  			}
->  		}
->  
-> -		if (!force_reclaim)
-> -			references = page_check_references(page, sc);
-> +		if (!force_reclaim) {
-> +			/*
-> +			 * Don't try to reclaim KSM page in direct reclaim if
-> +			 * the priority is not high enough.
-> +			 */
-> +			if (PageKsm(page) && !current_is_kswapd() &&
-> +			    sc->priority > (DEF_PRIORITY - 2))
-> +				references = PAGEREF_KEEP;
-> +			else
-> +				references = page_check_references(page, sc);
-> +		}
->  
->  		switch (references) {
->  		case PAGEREF_ACTIVATE:
-> @@ -2136,6 +2145,16 @@ static void shrink_active_list(unsigned
->  			}
->  		}
->  
-> +		/*
-> +		 * Skip KSM page in direct reclaim if priority is not
-> +		 * high enough.
-> +		 */
-> +		if (PageKsm(page) && !current_is_kswapd() &&
-> +		    sc->priority > (DEF_PRIORITY - 2)) {
-> +			putback_lru_page(page);
-> +			continue;
-> +		}
-> +
->  		if (page_referenced(page, 0, sc->target_mem_cgroup,
->  				    &vm_flags)) {
->  			nr_rotated += hpage_nr_pages(page);
-> _
+Thanks and regards,
+Pingfan
 
