@@ -2,210 +2,212 @@ Return-Path: <SRS0=s2+Z=O6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BA8FC43387
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:18:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4843CC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:28:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 403B5217D9
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:18:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="COdD2YH8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 403B5217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id F2C4C218FD
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 06:28:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2C4C218FD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BDAB98E000B; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
+	id A27248E0005; Fri, 21 Dec 2018 01:28:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B88B18E0001; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
+	id 9D3B78E0001; Fri, 21 Dec 2018 01:28:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A50938E000B; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
+	id 8C2848E0005; Fri, 21 Dec 2018 01:28:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B1678E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id e12so4910086edd.16
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:18:08 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 342798E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 01:28:23 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c53so4996961edc.9
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:28:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Z2FHmaBlflrf9QUQop5IgR5jIVNSrnKow3guJqFNBp8=;
-        b=CeTCe+D+IFlNxa1u55BR3+nc4p6IkhOflgOyj8qdG+TcO1vlBPRnLeNKGZFQOsBN66
-         HGIiN98Pe7+qlTjchcV8/4+H4+iSh0ap/2K/VtTz63GMskFv9iH5BaVWmu/6GLRWgeBF
-         lOnNU+nTaeSMrS1adFoPxAKLxcPYUHGi9jqFjppTOMWb1yK5wL3UvR9q1aCxeYo81+Uf
-         N1V6EXWEsSiegq9EScCz6uRdtfrj6XiBycSXoquGxTMj6ZJkCzcluKCMkhTX7l0BIncl
-         HygTzRXXEbJNF6VRgDEK2AZw0P6ZoWbGI4DfOgC8N1Vez0WVfSUeOwlKyQGST5KtIljY
-         XCaA==
-X-Gm-Message-State: AA+aEWZoHpcyQT3WA8nmctV6RWxQwhp1X2oLQHzw9M9L2TczDvFokB63
-	bwlwmwJN0PFwzZjnEDTCSsDj14u/SuVtgChEaem9S0SI9gMrhO2tOcurdY2id0iXaRs3ftkL5jf
-	FOK9//cgBSGMQ+qBfF/V8N1HFUfccqG/hOmjgv+EFkODgkh8o7F/K8VbK3+O6K+8V+2HSpyyM8I
-	uBI+EupTvCrdPNBDfDGiQLA08JlSY2cGoe3KGc+ghuHbgyj1afBbTryRHvXfOCTzrpguCLtH5JJ
-	82flhFJy7895EPBCHIPe6tddS/Y7jkSNcRjueY+2cWSAPnkXOlRZ8sZ44ioYvtetP7nPbCFYFcD
-	4kloSJUrX+fvfLry1uXLC6KAUoPmOAkOCOCu7wn9AUiyBmUlJ1XKXuFQgWOT3UrXwDo8TDmjLu3
-	a
-X-Received: by 2002:a50:b5a5:: with SMTP id a34mr1342976ede.52.1545373087659;
-        Thu, 20 Dec 2018 22:18:07 -0800 (PST)
-X-Received: by 2002:a50:b5a5:: with SMTP id a34mr1342942ede.52.1545373086772;
-        Thu, 20 Dec 2018 22:18:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545373086; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=HS4LqYa5zMLrFex9YH/ZvG6EKsMIcwd62UdOqCIKPu8=;
+        b=gt+rrnZaapRhWMHj25IfRzX6soNxyNltwF3qy1U4Y5QfiOitT6B1+E6/dvkA9E3Uzi
+         HBrviU5SQNm0iH6o7i2Tf41b5ipmsemltd7J0KXxSZJp93Vyx0yR7Q63lI7c+hkPPWP9
+         RmFLMrZFmDF7JkjsMkEhQMDp9xQYoI06cLoX7QEfLEFoAD5OgAtrUPoDShmmOk5i33+N
+         MMrUyMkQ3lJdj2Yum66a/uU35uBXexSmcw2h7NoqGF2l2UZjFO4gFQluWWOJsS6yqCAo
+         5ZvwgYyFGg+MsqXDNW3SRuaptnFFM9Yin7kqZiKz0GItPbaQAYtW8vW69HJNeBynxNQa
+         3frQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: AA+aEWbcB+9Hfcu1csgwoiTU19Es6z3VIfSYbR5u51bDhGVbbndfhcV2
+	UBD0gWz8pFDsvxFdp2ar8Vefj+WVm8JSMcpFavqAcAURhk+4SkPZdTeXWBYdLDsVYRi5jN4OJda
+	BHoM4a4rwq/0/eTaIDGfwbScxxkTZ9da28EPIHuKqL8fRribsMP8OwC5ZLbqkM6YuJQ==
+X-Received: by 2002:a50:b837:: with SMTP id j52mr1348007ede.73.1545373702683;
+        Thu, 20 Dec 2018 22:28:22 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/X2T1+2NKX5Rw2tPpi1A0qFb8OO7wo9SyzjBVwRlxlyfKdFbuoCva0pq3QSxq1Arwh6LRus
+X-Received: by 2002:a50:b837:: with SMTP id j52mr1347962ede.73.1545373701333;
+        Thu, 20 Dec 2018 22:28:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545373701; cv=none;
         d=google.com; s=arc-20160816;
-        b=vETvh6uqBt0EBkkmLOtFg3pVzdtgAOShjQ+qPwS2rtmoU7zhVQSimWCIoKo4AedExF
-         gi9BuQKQAiHz6reAuwcP148FyOlJbE/ZHHU/9KiZW2FVaNwjKzW1vD2oC50eWDSAGjhz
-         wBXnoAIAkxexsO+Bs5MlSSQAouhYfd7Ysur4lrcxAHPo5nLaGN2TgpFvoZlmMt/nRB8m
-         SWwsWsdYHr/BSRgHOxDRv0Vj3dcf7D1o4igFzYUQ3QhEw79rOc83YzfnqJBXwjqkJ5te
-         LQgxI9iU8dFXPpAlxdw/FgWU9xv1d/iE4H+IL/I8ujKtllec0zlGXJNAekBhEttuGskV
-         sszQ==
+        b=gz5DN74VHECccbGIg5fmXWuuMMJmoZxMTninuVPZcVUEJa6/HjaIkL5zDMW0S5OYAt
+         cFTn6EAGVf0EgrsW/i6UZFX2JW1qAgI2AzN6UeWW9/JGzTEw7fEaKKIRJnWISnhxC0cd
+         geqNCEYSZAqfUmixhkbk5ocsN+K1hLNnMAunbmcC3lfZe5rJz2ZH9BqFu66aWPJ4TP+j
+         D61OGfTEHQnW9B6GUVxGT4XqK2a7JyKnRneNxAvIOnMq9GBe/T/PlMuty2FSfcQPfD0h
+         ruy0DZ20IdpesF5kxXSC2p7cJCppcJuPLpnf6jL6PFnnLl1QVuz+OkZHod2A3TnByKRa
+         i+0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Z2FHmaBlflrf9QUQop5IgR5jIVNSrnKow3guJqFNBp8=;
-        b=tjmuAPnn7gTK/zKGQP8tUAUSolojgYpjpLTKgOOccE5xug69sp4VRVEezyYHmBESiA
-         AMjh5CdaTY+M33F7hlZZS/jA9EL/hscLoG+R3x8WcPsdGFMSIci7u0dcmorWqNrXqh5W
-         MMXLfSXjBSDGBRHHskTZyUPY9o39WXSAsfhK7m3pBTQh4FloALjiBaVi1w+SxxJYHW7K
-         7Jf+YCrumdPyAq1gWDIewVN9miif/cEGV0UHd4nMVMdYQTkdUAEf1/B0E+D+LZQyAM4R
-         VtAkTyodBTwqLHKS0TvpatgZWu0VkvTFwSUs7M6PDXO/uI4iVNEyfcMK1SviX9biDfXz
-         eSlA==
+        h=message-id:date:subject:cc:to:from;
+        bh=HS4LqYa5zMLrFex9YH/ZvG6EKsMIcwd62UdOqCIKPu8=;
+        b=oB7fGiqG7RPkUtSfp6wK5y7XXrM+sjGHHbJgfS2SaKQ/1nFnB7hfRQF9UPystHcT1d
+         7oPLNwjhUnf4ILTXPP1BqTc5l17YlXdGgIowAAk7A6kv2zdnOhQ/BRxzGXzvz9SCvFyc
+         qvOZWehwdCnrJKit3FfIZ40zjL9Hzj7m6pIAJMXVDzKNoRjtmlwD00hMtgQpxQGn/hwo
+         byy+yqGq3/tHer2W4FB+H0KfAA22gYG8COCULFR3B99k+Yhm98rvmuTWHHscVkLVWzQA
+         mjGuWK3SdK+7kUzwJlbUwdkPsp2TXdI3xhm6iU7MZl3Wbf0z1RnkOY07PnqV9MpeTYn+
+         aLIg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=COdD2YH8;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p50sor10173595eda.9.2018.12.20.22.18.06
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
+        by mx.google.com with ESMTPS id gp17-v6si1240695ejb.103.2018.12.20.22.28.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 20 Dec 2018 22:18:06 -0800 (PST)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Dec 2018 22:28:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) client-ip=195.135.221.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=COdD2YH8;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Z2FHmaBlflrf9QUQop5IgR5jIVNSrnKow3guJqFNBp8=;
-        b=COdD2YH8/h3nimEm7utrbsKg4Ml7JYcY9DfP8E4scwbaGpuJsKCz3axXxnQG7d69l1
-         iL3X8SQvyHRMbjCOZCMIocN9XR15PQllEuE4eo8XEU65Zx9bLCMJKjzSxLewFESRJFx4
-         T77p1L0xMiGDxr4ZnpW7k7s0TP2FX5yXCwa0jiz5n5LHM5gJQkz1NqibcdKz0oqX8YwO
-         ofRZu1KW+GwS7VkjKjsFHKByVkwclMRes1Q9IlluMx95VQuNcR0LkO9Qd7RYZ2Wt4yiZ
-         B1gso9GMg0VbAatszoGRHbQz6WeXiLzFYztoLdNARRl8GpqZTbNeUeH7brzySblK7yna
-         50nA==
-X-Google-Smtp-Source: AFSGD/W295SA9uQLpCCc6OGp9eUjomqYd0htfZ7bydooizYHZi08nl66rQowi+RjD57V5T1tJ+ZpnXngOinhdNwztpM=
-X-Received: by 2002:a50:9feb:: with SMTP id c98mr1312405edf.253.1545373086325;
- Thu, 20 Dec 2018 22:18:06 -0800 (PST)
-MIME-Version: 1.0
-References: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
- <1545299439-31370-3-git-send-email-kernelfans@gmail.com> <20181220113547.GC9104@dhcp22.suse.cz>
- <CAFgQCTvxNGTKD+DP_LxF86WoVnCHnPkWoSqdGeXQxXNVYD_orw@mail.gmail.com> <20181220124419.GD9104@dhcp22.suse.cz>
-In-Reply-To: <20181220124419.GD9104@dhcp22.suse.cz>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Fri, 21 Dec 2018 14:17:54 +0800
-Message-ID:
- <CAFgQCTsTTQLyEr6NG4QvpYuuovathge6t+1ej_1edkGCai-jXw@mail.gmail.com>
-Subject: Re: [PATCHv2 2/3] mm/numa: build zonelist when alloc for device on
- offline node
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, 
-	linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, 
-	Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
-	Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>, 
-	David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
-	Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from emea4-mta.ukb.novell.com ([10.120.13.87])
+	by smtp.nue.novell.com with ESMTP (TLS encrypted); Fri, 21 Dec 2018 07:28:20 +0100
+Received: from d104.suse.de (nwb-a10-snat.microfocus.com [10.120.13.202])
+	by emea4-mta.ukb.novell.com with ESMTP (NOT encrypted); Fri, 21 Dec 2018 06:28:17 +0000
+From: Oscar Salvador <osalvador@suse.de>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com,
+	vbabka@suse.cz,
+	pavel.tatashin@microsoft.com,
+	rppt@linux.vnet.ibm.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Oscar Salvador <osalvador@suse.de>
+Subject: [PATCH v3] mm, page_alloc: Fix has_unmovable_pages for HugePages
+Date: Fri, 21 Dec 2018 07:28:09 +0100
+Message-Id: <20181221062809.31771-1-osalvador@suse.de>
+X-Mailer: git-send-email 2.13.7
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181221061754.A9brWZ40gnryL4e4lZCl5uMMVW28JQoePSMonCOOHfw@z>
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20181221062809.4a6XAfcevBvwifZIWk-kExC8j7-yW5dJccCY247RwUw@z>
 
-On Thu, Dec 20, 2018 at 8:44 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Thu 20-12-18 20:26:28, Pingfan Liu wrote:
-> > On Thu, Dec 20, 2018 at 7:35 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > On Thu 20-12-18 17:50:38, Pingfan Liu wrote:
-> > > [...]
-> > > > @@ -453,7 +456,12 @@ static inline int gfp_zonelist(gfp_t flags)
-> > > >   */
-> > > >  static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
-> > > >  {
-> > > > -     return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
-> > > > +     if (unlikely(!possible_zonelists[nid])) {
-> > > > +             WARN_ONCE(1, "alloc from offline node: %d\n", nid);
-> > > > +             if (unlikely(build_fallback_zonelists(nid)))
-> > > > +                     nid = first_online_node;
-> > > > +     }
-> > > > +     return possible_zonelists[nid] + gfp_zonelist(flags);
-> > > >  }
-> > >
-> > > No, please don't do this. We do not want to make things work magically
-> >
-> > For magically, if you mean directly replies on zonelist instead of on
-> > pgdat struct, then it is easy to change
->
-> No, I mean that we _know_ which nodes are possible. Platform is supposed
-> to tell us. We should just do the intialization properly. What we do now
-> instead is a pile of hacks that fit magically together. And that should
-> be changed.
->
-Not agree. Here is the typical lazy to do, and at this point there is
-also possible node info for us to check and build pgdat instance.
+v3 -> v2: Get rid of the round_up()
+v2 -> v1: Adjust skip pages logic per Michal
 
-> > > and we definitely do not want to put something like that into the hot
-> >
-> > But  the cose of "unlikely" can be ignored, why can it not be placed
-> > in the path?
->
-> unlikely will simply put the code outside of the hot path. The condition
-> is still there. There are people desperately fighting to get every
-> single cycle out of the page allocator. Now you want them to pay a
-> branch which is relevant only for few obscure HW setups.
->
-Data is more convincing.
-I test with the following program  built with -O2 on x86. No
-observable performance difference between adding an extra unlikely
-condition. And it is apparent that the frequency of checking on
-unlikely is much higher than my patch.
-#include <stdio.h>
-#define unlikely_notrace(x)     __builtin_expect(!!(x), 0)
-#define unlikely(x) unlikely_notrace(x)
-#define TEST_UNLIKELY 1
-int main(int argc, char *argv[])
-{
-        unsigned long i,j;
-        unsigned long end = (unsigned long)1 << 36;
-        unsigned long x = 9;
-        for (i = 1; i < end; i++) {
-#ifdef TEST_UNLIKELY
-                if (unlikely(i == end - 1))
-                        x *= 8;
-#endif
-                x *= i;
-                x = x%100000 + 1;
-        }
-        return 0;
-}
+From 8c057ff497a078f28e293af8c0bd089893a57753 Mon Sep 17 00:00:00 2001
+From: Oscar Salvador <osalvador@suse.de>
+Date: Wed, 19 Dec 2018 00:04:18 +0000
+Subject: [PATCH] mm, page_alloc: fix has_unmovable_pages for HugePages
 
-> > > path. We definitely need zonelists to be build transparently for all
-> > > possible nodes during the init time.
-> >
-> > That is the point, whether the all nodes should be instanced at boot
-> > time, or not be instanced until there is requirement.
->
-> And that should be done at init time. We have all the information
-> necessary at that time.
-> --
+While playing with gigantic hugepages and memory_hotplug, I triggered the
+following #PF when "cat memoryX/removable":
 
-Will see other guys' comment.
+<---
+kernel: BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
+kernel: #PF error: [normal kernel read fault]
+kernel: PGD 0 P4D 0
+kernel: Oops: 0000 [#1] SMP PTI
+kernel: CPU: 1 PID: 1481 Comm: cat Tainted: G            E     4.20.0-rc6-mm1-1-default+ #18
+kernel: Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.0.0-prebuilt.qemu-project.org 04/01/2014
+kernel: RIP: 0010:has_unmovable_pages+0x154/0x210
+kernel: Code: 1b ff ff ff eb 32 48 8b 45 00 bf 00 10 00 00 a9 00 00 01 00 74 07 0f b6 4d 51 48 d3 e7 e8 c4 81 05 00 48 85 c0 49 89 c1 75 7e <41> 8b 41 08 83 f8 09 74 41 83 f8 1b 74 3c 4d 2b 64 24 58 49 81 ec
+kernel: RSP: 0018:ffffc90000a1fd30 EFLAGS: 00010246
+kernel: RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000009
+kernel: RDX: ffffffff82aed4f0 RSI: 0000000000001000 RDI: 0000000000001000
+kernel: RBP: ffffea0001800000 R08: 0000000000200000 R09: 0000000000000000
+kernel: R10: 0000000000001000 R11: 0000000000000003 R12: ffff88813ffd45c0
+kernel: R13: 0000000000060000 R14: 0000000000000001 R15: ffffea0000000000
+kernel: FS:  00007fd71d9b3500(0000) GS:ffff88813bb00000(0000) knlGS:0000000000000000
+kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+kernel: CR2: 0000000000000008 CR3: 00000001371c2002 CR4: 00000000003606e0
+kernel: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+kernel: DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+kernel: Call Trace:
+kernel:  is_mem_section_removable+0x7d/0x100
+kernel:  removable_show+0x90/0xb0
+kernel:  dev_attr_show+0x1c/0x50
+kernel:  sysfs_kf_seq_show+0xca/0x1b0
+kernel:  seq_read+0x133/0x380
+kernel:  __vfs_read+0x26/0x180
+kernel:  vfs_read+0x89/0x140
+kernel:  ksys_read+0x42/0x90
+kernel:  do_syscall_64+0x5b/0x180
+kernel:  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+kernel: RIP: 0033:0x7fd71d4c8b41
+kernel: Code: fe ff ff 48 8d 3d 27 9e 09 00 48 83 ec 08 e8 96 02 02 00 66 0f 1f 44 00 00 8b 05 ea fc 2c 00 48 63 ff 85 c0 75 13 31 c0 0f 05 <48> 3d 00 f0 ff ff 77 57 f3 c3 0f 1f 44 00 00 55 53 48 89 d5 48 89
+kernel: RSP: 002b:00007ffeab5f6448 EFLAGS: 00000246 ORIG_RAX: 0000000000000000
+kernel: RAX: ffffffffffffffda RBX: 0000000000020000 RCX: 00007fd71d4c8b41
+kernel: RDX: 0000000000020000 RSI: 00007fd71d809000 RDI: 0000000000000003
+kernel: RBP: 0000000000020000 R08: ffffffffffffffff R09: 0000000000000000
+kernel: R10: 000000000000038b R11: 0000000000000246 R12: 00007fd71d809000
+kernel: R13: 0000000000000003 R14: 00007fd71d80900f R15: 0000000000020000
+kernel: Modules linked in: af_packet(E) xt_tcpudp(E) ipt_REJECT(E) xt_conntrack(E) nf_conntrack(E) nf_defrag_ipv4(E) ip_set(E) nfnetlink(E) ebtable_nat(E) ebtable_broute(E) bridge(E) stp(E) llc(E) iptable_mangle(E) iptable_raw(E) iptable_security(E) ebtable_filter(E) ebtables(E) iptable_filter(E) ip_tables(E) x_tables(E) kvm_intel(E) kvm(E) irqbypass(E) crct10dif_pclmul(E) crc32_pclmul(E) ghash_clmulni_intel(E) bochs_drm(E) ttm(E) drm_kms_helper(E) drm(E) aesni_intel(E) virtio_net(E) syscopyarea(E) net_failover(E) sysfillrect(E) failover(E) aes_x86_64(E) crypto_simd(E) sysimgblt(E) cryptd(E) pcspkr(E) glue_helper(E) parport_pc(E) fb_sys_fops(E) i2c_piix4(E) parport(E) button(E) btrfs(E) libcrc32c(E) xor(E) zstd_decompress(E) zstd_compress(E) raid6_pq(E) sd_mod(E) ata_generic(E) ata_piix(E) ahci(E) libahci(E) serio_raw(E) crc32c_intel(E) virtio_pci(E) virtio_ring(E) virtio(E) libata(E) sg(E) scsi_mod(E) autofs4(E)
+kernel: CR2: 0000000000000008
+kernel: ---[ end trace 49cade81474e40e7 ]---
+kernel: RIP: 0010:has_unmovable_pages+0x154/0x210
+kernel: Code: 1b ff ff ff eb 32 48 8b 45 00 bf 00 10 00 00 a9 00 00 01 00 74 07 0f b6 4d 51 48 d3 e7 e8 c4 81 05 00 48 85 c0 49 89 c1 75 7e <41> 8b 41 08 83 f8 09 74 41 83 f8 1b 74 3c 4d 2b 64 24 58 49 81 ec
+kernel: RSP: 0018:ffffc90000a1fd30 EFLAGS: 00010246
+kernel: RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000009
+kernel: RDX: ffffffff82aed4f0 RSI: 0000000000001000 RDI: 0000000000001000
+kernel: RBP: ffffea0001800000 R08: 0000000000200000 R09: 0000000000000000
+kernel: R10: 0000000000001000 R11: 0000000000000003 R12: ffff88813ffd45c0
+kernel: R13: 0000000000060000 R14: 0000000000000001 R15: ffffea0000000000
+kernel: FS:  00007fd71d9b3500(0000) GS:ffff88813bb00000(0000) knlGS:0000000000000000
+kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+kernel: CR2: 0000000000000008 CR3: 00000001371c2002 CR4: 00000000003606e0
+kernel: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+kernel: DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+--->
 
-Thanks and regards,
-Pingfan
+The reason is we do not pass the Head to page_hstate(), and so, the call
+to compound_order() in page_hstate() returns 0, so we end up checking all
+hstates's size to match PAGE_SIZE.
+
+Obviously, we do not find any hstate matching that size, and we return
+NULL.  Then, we dereference that NULL pointer in
+hugepage_migration_supported() and we got the #PF from above.
+
+Fix that by getting the head page before calling page_hstate().
+
+Also, since gigantic pages span several pageblocks, re-adjust the logic
+for skipping pages.
+While are it, we can also get rid of the round_up().
+
+Signed-off-by: Oscar Salvador <osalvador@suse.de>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/page_alloc.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2ec9cc407216..995d1079f958 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7802,11 +7802,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+ 		 * handle each tail page individually in migration.
+ 		 */
+ 		if (PageHuge(page)) {
++			struct page *head = compound_head(page);
++			unsigned int skip_pages;
+ 
+-			if (!hugepage_migration_supported(page_hstate(page)))
++			if (!hugepage_migration_supported(page_hstate(head)))
+ 				goto unmovable;
+ 
+-			iter = round_up(iter + 1, 1<<compound_order(page)) - 1;
++			skip_pages = (1 << compound_order(head)) - (page - head);
++			iter += skip_pages - 1;
+ 			continue;
+ 		}
+ 
+-- 
+2.13.7
 
