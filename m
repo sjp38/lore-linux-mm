@@ -1,156 +1,150 @@
-Return-Path: <SRS0=PcJq=O5=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=s2+Z=O6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88559C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 21:04:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 943B2C43387
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 01:37:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B916218FE
-	for <linux-mm@archiver.kernel.org>; Thu, 20 Dec 2018 21:04:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1EEB9218E2
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 01:37:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="RGXr9WLh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B916218FE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="EIUy28w0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EEB9218E2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA5D88E000C; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
+	id 7F2238E0003; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B53208E0001; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
+	id 7A0C88E0001; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A1D468E000C; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
+	id 68FD18E0003; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7547D8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 16:04:49 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id b185so3262813qkc.3
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 13:04:49 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F3FE8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id 41so3942321qto.17
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 17:37:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=40o5Oy7hDwmt2u6+dlhmoS7n7OKNWc5BjZgibEpQDOg=;
-        b=JKzuPTYTGbPrSgLFkuK5hBiv8D4sLROvCT/V3H4PChr9P/vig0MDVuKbdaIo/F+QOs
-         Pz3lEoWllGDiy/tHvCbkScSzwYQ1yrxC1k3ltAsUhXxvB6RgDcWvXGpMfuJBQU+E03ef
-         ZVaveA0Ss+mUQITQLi3aL8GZiHDCM1ZyqOExClpldt/4VvT7ePMZBgUbeytWC5F7uFES
-         14lzNg+MhxtgKL2y1HAbK7fnvaqOVypPHOXy017gmai4HBz4Umkuf9sQ1oI+EOzBzfZK
-         vB2vyyKj2Mxwst5HMLkt0hHGzG01y/VmowAFgK8ECdE5J7u20vbqwey3n1U+Z3DQ8dg1
-         wICg==
-X-Gm-Message-State: AA+aEWZe2GlygSLgI11QqlMRfGZ8MGgorEMF1HmaekBUHqSmY3GoSly0
-	62ehBSZzjD3QnS9wZ/L6SsyhI58D1joufe4J9XQuFc+RyuHUD1GZZyzW1nsIxKg+mK0qHSKBx0V
-	02j15BRSp1hcb1wl81oCGQYObpB0QbPZOKmFTOk3w/Fr0aWWywawi+1Y/a62ZG3xlKJx5v3GeFY
-	uYnqHcnKxMEJPDBcafLIL+lQ7aOsd7dWmHShZlHyPMvNqtELxc2mW1tN+miNk3ak52mCMFGsZ3k
-	vwML6B5fxMSbZ5dHaRJakXWHKz9oSb/3CfqUYSVvZ24ZNzzBtEb2+ITA9IiI1hq3m1oYSEQP9GK
-	3EGXmyKSe4Ze/o273P+wWBBDVqUKnyxt0oKe9OC1bAaWd8geBjTshwvgBjpw1Q22DoY7um1e7Gk
-	4
-X-Received: by 2002:aed:31a3:: with SMTP id 32mr28357556qth.234.1545339889174;
-        Thu, 20 Dec 2018 13:04:49 -0800 (PST)
-X-Received: by 2002:aed:31a3:: with SMTP id 32mr28357530qth.234.1545339888690;
-        Thu, 20 Dec 2018 13:04:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545339888; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=HRl5j/Qx65fd3QJepQc0eeywK0XPZ4vo8oAxPUt+UBY=;
+        b=ESEhL2dLC/UkW2blxxbuE7XDR+VoQKxQd/j8mlyxZCbCWYutPn194BvpTMknbl4K53
+         clbx/B7SdFLv9aKo9/yzEfPh0M20QJulrnJ5QkbHBS9XMFv+/p3WlGpSIX7uhyfBIdPx
+         cyqWoUMfK7cr9jS6WGytf/SUrq4dj4aIsmVD8toZAmd0Wl97fNC890nCGBg4wJU677VS
+         muAC6FpAanRt4xrehGf7HVyheic64NO21ZOdQOXJ0Z1Vi2bZwdfxNC7r09bGK/BkzsAy
+         BhQcotlnKHyZTrmbi2NekcXh0ltgcvbPfo271PHC5YL21iPMuf+2fCCBt7tENhSF7Eyy
+         q3cA==
+X-Gm-Message-State: AA+aEWYTV+GWq8WUsSJyCuSgegS7unumF3u8KjQNep1pzisXq7++k8be
+	ltxSXpemkPEaxIqjFirl5JyGmHCHdsovaQ1/uiDtFZEKPddG7RtTGD4VhkBGAWQ2ka01UzJGR5O
+	MoK2oWHyZxfe7o0rBCedh9sAfB1D0C9fHSIXnDgK3azlrJVTKLglBmeCh3DkpUHc=
+X-Received: by 2002:ac8:4258:: with SMTP id r24mr518081qtm.213.1545356259887;
+        Thu, 20 Dec 2018 17:37:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN74v3cpuaQHO7d6M4nfo1s85p6HqbXfbV6GKZRQJBLM8ZXsqf+R6/h/Q0Bk7i+UO6mr2VzZ
+X-Received: by 2002:ac8:4258:: with SMTP id r24mr518052qtm.213.1545356259211;
+        Thu, 20 Dec 2018 17:37:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545356259; cv=none;
         d=google.com; s=arc-20160816;
-        b=gJn5AqyGfhar6eUL5/nU6bjHBOrb+QgC3WAiMLRycq3xmK0SP+0ZuVeAxVCNtNEL5x
-         M9ZIGh9QR4ly35LkVc9/BDJ3uPsTZawKeaTt2OGQHxhavvyUbt5ImbNqPa/AkPR3+MNa
-         eWvvPYbFyVCEPKcUYnilTVFzNcsuB+QFnIPYWmBMuoSxX9GgvyWvdiKy8eK1kW4lQH8w
-         e8pG5L6N6HsI6GrblqUb4ol6Po3ZfcoMAKidxfxu3/047jDIIacMDkBDWHrntu+qKcKv
-         Rv7SYNdPWjf4XHcgRliexcQ6FbqLdWjTDIi4KgBhhx8mMz4gZOTpTwiSdrBtCT238NQv
-         1HXw==
+        b=mXoRqUT0bZK7DXEhmddZO5sZexnFkWTzOUG5qnshfELV/ISI5T1ixuhTEc5zkeaDS8
+         KvQUFW/WQrjzsZYJdrAuHPrtFPA9pkaAxGP4bXeblbVuXkg7qJmUQTE7AN5GupQBILbN
+         +1/haZ7x6Jg1AClCWx8wrWtticfrO6lEKyImoebCl0zhZSkpftWwONBpuXx1zWWDXkRV
+         xF8h4UuVFbi2qGTW2l4z4McE0zvVU/BcuJDRgkY3aiiChX3RklSSvIBVsN78FnPVkBm0
+         OZdP/cUH5Bu2aEEMX2xpxbPaf4G+qLZ1MI7bsn6EG0VYF0tEvgSh/PvvKrHpD8Wh098L
+         j9Yg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=40o5Oy7hDwmt2u6+dlhmoS7n7OKNWc5BjZgibEpQDOg=;
-        b=IM48pYpW9eoSTVTgzFj5DZ8lXXKMyD0uGvB08DRPQJKkXdUNMZG5mao4rdzzQEGwOB
-         BYFCPeLURP2DTKxSaGnXiDvZWN+qDttnjBmQ4HhGQkA6PalwxQ96Tl5CMRTmjJ6vfCJW
-         Zbw11FrQYILzrZgrGuNsEUYxoiidqrIqMvFNtSK/rBavr7kQhRVSzOb+aSBIeWkvxy+K
-         23ktRBdCk0xqHd4g9dzOaT6M5irVEF67jBJ0trftpPS+mYh/aiDMAzS4IzybqH2oOSNx
-         HpJl6i0Yeg5VXqB2NHLc0BJ+y1srDgUJlcxqz8Ahe7gMTv29KYVj2rOBhKzQ79QmBOGB
-         2ZSQ==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=HRl5j/Qx65fd3QJepQc0eeywK0XPZ4vo8oAxPUt+UBY=;
+        b=AyTStUM7qZ6anNWPKeqZ9cZhXpkbKCe2RGHtZv8g6Hsgeu7qEw01NS1S5J5AsmuC+u
+         uSDgh3dKg1OSOnwtjap6fF34xcPkZk+i4xk4FtjaL/uiy4p4uSx5PShLiwuJt7KKZcdC
+         TQwRP22ICEzabdmw6mXxixMRmU5X8wxvhzmTLEjCHSER+dadOhfFsJyjNwK1vpwOxG9+
+         FVM+4l0b6BXgY06ePFGuhIiTA0wosiL4aMpnT9jFbvqJTOL6Q7E35noyoD72l7F2mRQk
+         PvbyumwU2aRqiKMREPv10dPY11FvSE7HUmFYkG6yM18RTrXpn8WROzM/s9PFH6/YD06h
+         /IRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=RGXr9WLh;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k34sor7986133qvf.44.2018.12.20.13.04.48
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=EIUy28w0;
+       spf=pass (google.com: domain of 01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
+        by mx.google.com with ESMTPS id f10si2166720qvm.149.2018.12.20.17.37.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 20 Dec 2018 13:04:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 20 Dec 2018 17:37:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of 01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com designates 54.240.9.46 as permitted sender) client-ip=54.240.9.46;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=RGXr9WLh;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=40o5Oy7hDwmt2u6+dlhmoS7n7OKNWc5BjZgibEpQDOg=;
-        b=RGXr9WLhK1buTTXJHJajtUgPlrUEOxrKtuQ4PrjbZMZmsvAN8c3rqfUUTgCy13uC/A
-         WqfJItJU2+zXE2v2VFo1LxPRLhvY5uBDLhqFRCdeV23GQ3tW29tAfSIhY48FoUd9GlzE
-         f2xGY0NBoFyKW5guhkvhjclikYP95/4ke2sov0QXpIuCWSgcn1rF4SbhlNNjAuV0YRjo
-         ETlbCISSIgit7VjFS8ziKrNUe0Ep4+IzoxCj38tOtDt3o5BQb0Tl5w7Pf2AOkxAM7EXE
-         9/kE2Biwtqjne10I1ST9Y9H8gtX3UTIe/LaxlNZKU0kg37eI0JIypd+fyAtn3Uht4IHv
-         JysQ==
-X-Google-Smtp-Source: AFSGD/XbSTAr4I1DC+05jTpum05aDzoBFdNVh04bS9bxA1o3YaoP3QrygbYxrtJc8MyOKkPxD8jymQ==
-X-Received: by 2002:a0c:9531:: with SMTP id l46mr27092597qvl.175.1545339888399;
-        Thu, 20 Dec 2018 13:04:48 -0800 (PST)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id x5sm4557736qtc.43.2018.12.20.13.04.47
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 13:04:47 -0800 (PST)
-Message-ID: <1545339886.18411.31.camel@lca.pw>
-Subject: Re: [PATCH v3] mm/page_owner: fix for deferred struct page init
-From: Qian Cai <cai@lca.pw>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com,
- Pavel.Tatashin@microsoft.com,  mingo@kernel.org, hpa@zytor.com,
- mgorman@techsingularity.net,  iamjoonsoo.kim@lge.com, tglx@linutronix.de,
- linux-mm@kvack.org,  linux-kernel@vger.kernel.org
-Date: Thu, 20 Dec 2018 16:04:46 -0500
-In-Reply-To: <E084FF0A-88CD-4E61-88F2-7D542D67DDF1@oracle.com>
-References: <20181220185031.43146-1-cai@lca.pw>
-	 <20181220203156.43441-1-cai@lca.pw>
-	 <E084FF0A-88CD-4E61-88F2-7D542D67DDF1@oracle.com>
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=EIUy28w0;
+       spf=pass (google.com: domain of 01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1545356258;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=QvZfLWaTQxDT1rO5haOeoHv4lCWD39UeIZR4Rk2b6kg=;
+	b=EIUy28w0eFpM4fThUKcrBdkumWLAJY1RsMGHoOlvaPd4/LgCXEuJpEyuQroIi8Dn
+	gsJuOZxWDYnIZoqjvSGNMwjZNI5xiNRpSQmhXQfqTgg2BaVl4lXQqQhieSp/NVctxNj
+	cRr8ucKLqStav7XUjRWKfaSE80lEC+EPcCQ1BJWQ=
+Date: Fri, 21 Dec 2018 01:37:38 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Andrew Morton <akpm@linux-foundation.org>
+cc: Wei Yang <richard.weiyang@gmail.com>, penberg@kernel.org, 
+    mhocko@kernel.org, linux-mm@kvack.org, 
+    Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm/slub: improve performance by skipping checked node
+ in get_any_partial()
+In-Reply-To: <20181220144107.9376344c2be687615ea9aa69@linux-foundation.org>
+Message-ID:
+ <01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@email.amazonses.com>
+References: <20181108011204.9491-1-richard.weiyang@gmail.com> <20181120033119.30013-1-richard.weiyang@gmail.com> <20181220144107.9376344c2be687615ea9aa69@linux-foundation.org>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000003, version=1.2.4
+X-SES-Outgoing: 2018.12.21-54.240.9.46
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181220210446.DCiiL77Y8bk8K8De4gaLbswXtLOLUeqkFzDv4r7DLG8@z>
+Message-ID: <20181221013738.MG2hpvQmmXOx-E6A7LTdZloN-tz6-1I8cRHpE-N2l1k@z>
 
-On Thu, 2018-12-20 at 14:00 -0700, William Kucharski wrote:
-> > On Dec 20, 2018, at 1:31 PM, Qian Cai <cai@lca.pw> wrote:
-> > 
-> > diff --git a/mm/page_ext.c b/mm/page_ext.c
-> > index ae44f7adbe07..d76fd51e312a 100644
-> > --- a/mm/page_ext.c
-> > +++ b/mm/page_ext.c
-> > @@ -399,9 +399,8 @@ void __init page_ext_init(void)
-> > 			 * -------------pfn-------------->
-> > 			 * N0 | N1 | N2 | N0 | N1 | N2|....
-> > 			 *
-> > -			 * Take into account DEFERRED_STRUCT_PAGE_INIT.
-> > 			 */
-> > -			if (early_pfn_to_nid(pfn) != nid)
-> > +			if (pfn_to_nid(pfn) != nid)
-> > 				continue;
-> > 			if (init_section_page_ext(pfn, nid))
-> > 				goto oom;
-> > -- 
-> > 2.17.2 (Apple Git-113)
-> > 
-> 
-> Is there any danger in the fact that in the CONFIG_NUMA case in mmzone.h
-> (around line 1261), pfn_to_nid() calls page_to_nid(), possibly causing the
-> same issue seen in v2?
-> 
+On Thu, 20 Dec 2018, Andrew Morton wrote:
 
-No. If CONFIG_DEFERRED_STRUCT_PAGE_INIT=y, page_ext_init() is called after
-page_alloc_init_late() where all the memory has already been initialized,
-so page_to_nid() will work then.
+>   The result of (get_partial_count / get_partial_try_count):
+>
+>    +----------+----------------+------------+-------------+
+>    |          |       Base     |    Patched |  Improvement|
+>    +----------+----------------+------------+-------------+
+>    |One Node  |       1:3      |    1:0     |      - 100% |
+
+If you have one node then you already searched all your slabs. So we could
+completely skip the get_any_partial() functionality in the non NUMA case
+(if nr_node_ids == 1)
+
+
+>    +----------+----------------+------------+-------------+
+>    |Four Nodes|       1:5.8    |    1:2.5   |      -  56% |
+>    +----------+----------------+------------+-------------+
+
+Hmm.... Ok but that is the extreme slowpath.
+
+>    Each version/system configuration combination has four round kernel
+>    build tests. Take the average result of real to compare.
+>
+>    +----------+----------------+------------+-------------+
+>    |          |       Base     |   Patched  |  Improvement|
+>    +----------+----------------+------------+-------------+
+>    |One Node  |      4m41s     |   4m32s    |     - 4.47% |
+>    +----------+----------------+------------+-------------+
+>    |Four Nodes|      4m45s     |   4m39s    |     - 2.92% |
+>    +----------+----------------+------------+-------------+
+
+3% on the four node case? That means that the slowpath is taken
+frequently. Wonder why?
+
+Can we also see the variability? Since this is a NUMA system there is
+bound to be some indeterminism in those numbers.
 
