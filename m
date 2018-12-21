@@ -2,349 +2,184 @@ Return-Path: <SRS0=s2+Z=O6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4345EC43612
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 16:39:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 73D3CC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 17:02:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CB1FD21916
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 16:39:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2EC8C21903
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 17:02:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="NVRBfNmy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CB1FD21916
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ixLvnwMe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EC8C21903
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3789B8E0002; Fri, 21 Dec 2018 11:39:35 -0500 (EST)
+	id 9F7808E0002; Fri, 21 Dec 2018 12:02:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 326438E0001; Fri, 21 Dec 2018 11:39:35 -0500 (EST)
+	id 9A4F78E0001; Fri, 21 Dec 2018 12:02:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EEE08E0002; Fri, 21 Dec 2018 11:39:35 -0500 (EST)
+	id 846D68E0002; Fri, 21 Dec 2018 12:02:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA7E8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 11:39:34 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id g7so5585973itg.7
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 08:39:34 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EE538E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 12:02:40 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 82so5446100pfs.20
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 09:02:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=XraM5WUeK23rXa1xoKBrqeBBCshgPfte+/8YLIj79Q8=;
-        b=BgtSIuYjPtoQM1r0WTCyR2fNcoxl9/awXy6fMp5Cd7FHjYNh1zDdrF+knhaKLk6cso
-         1UPT/FSUFT/U1EQJKH9VcSWUkwq3dh32rKdwoDyuPGft8arj3pdedlTKPNOoVIS2YRnN
-         edgd6C6CkKznwypv02C/WdRwB8XqdwXtAjXCfkHL74OItJBLQa/74iVqFnAUXoCLATac
-         E2WTp8B3Te7DBZHdvxacrHBL5kXenjlqpSKUumGgcjfheSYn6tVhGqX22yyyvDvBGj1d
-         hQzD1qSeAGwBOCUOGU62WBEqO6LW5DAoyRCgsnJQ+sDFXEvolpxd9oKHJDhZmO1wtgWD
-         PDLg==
-X-Gm-Message-State: AA+aEWbMUyrEfwjI3gxtodLt4NgcY5hm1MjT1zTBYi8FJz3nBwl78ElQ
-	bxvPs9IRqhaKhQktWSyGtTSL96SKEU1pZVlox24+OVKpzHGkGdSapHI1jJs3aUJGDDgTuAvTlI8
-	IuEuCbqw+OA8jHuw4oyVT5xjy36jyu6bUEqfCgywiILdx8CmqnxHFFuoiWd9DGUxkfl4GX0Nf07
-	HQ3LTRk4xJgpgpVp3r1U8JEPJFVGNYytxIl4BKk9BgFHNIcjGGCaYfeVU5VqED1KCww1ZyNFeKy
-	xLwu5QvmMajVccyKIWkI7WWgZLvuttCSOdwQDfOhdpf/Aakfh/VtzhLSWOz5ghd6kWzfPRHrKc4
-	QjsHbw+ZIKMXSK6d0je3YvX8qe2QZ1a6wz3ABw98DTDGv3jwQRE6oa9Sz9lzmesojpKOKByO8+s
-	a
-X-Received: by 2002:a24:fa04:: with SMTP id v4mr2118636ith.175.1545410374576;
-        Fri, 21 Dec 2018 08:39:34 -0800 (PST)
-X-Received: by 2002:a24:fa04:: with SMTP id v4mr2118593ith.175.1545410373279;
-        Fri, 21 Dec 2018 08:39:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545410373; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references;
+        bh=mc/kXC3WRRrlQez9w8XSEK+8/bbcJDPSNq4STwLZVy4=;
+        b=OTN4gmwxLJoSX9cqWBNkPYpNkKIfvNeQKtx0bEJGMvIiCi7m/lPx3dy78J9rpED6sA
+         5rUbJVfihDw3Jd/ZyEbkpe3dW35PvHGccy7hjlUVvom284KY0AbWpv/TByJjhjwdT0B2
+         UFuee9NrrTXe1BIefVPKuAHUxNZo2bawamuSVqACqORaoWfqUplWsx0rRdxXS4OPdHxy
+         kz1auAUQYA7g/F4ces453wQOVkCW4FggeyAHXsVbCwHDKBkSRkKIp4BdMKvPa8CUyE+1
+         vUiH5bCkZWj0fIASALHd3CxOGUnkcyYzDARLFmepgEBY5eOxAGX9zRpq8PZLI3uMlREs
+         nQyQ==
+X-Gm-Message-State: AJcUukc35g9TrroEpgm+UIxqYMcNOStLKLwFG7j+lXes4lzYISpTw9RT
+	W0PhfA7iYQN3b4+nS/aF+CtFXVvrdXCIvzmxc2gKBnxRObxzjyH1BDI36DD6HxDIGPCdaHOToS1
+	laxrJzprwlDV9ZyefkncoZOFWCUHyfPfoBReyyDqhMEk/cG3IKcEI3gGb9Nq4BxcIQyUtiZ8lZQ
+	9GPtiH61+aEx6PivXfxxOBVqD/U9CkiYeQv32IX3IFWDuW2DTnuE1vRDfk9T5TrvoZsrBhRa2vM
+	YpMt12R0ZGNGyGOz5NO+rI95sQ7bTfPxwY3bVvRMRXBHkoFCKMDlJ7Z7y4fuZzhBrbEGs6Btue+
+	oo/x6U4wD4NNj3Kz2wU6uY5cxPshwOJAnmrR7emgSadPTzUWd8XFbVK2VuYXx+RJOAEspGwgOqs
+	U
+X-Received: by 2002:a65:62da:: with SMTP id m26mr3179473pgv.278.1545411759864;
+        Fri, 21 Dec 2018 09:02:39 -0800 (PST)
+X-Received: by 2002:a65:62da:: with SMTP id m26mr3179403pgv.278.1545411758946;
+        Fri, 21 Dec 2018 09:02:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545411758; cv=none;
         d=google.com; s=arc-20160816;
-        b=ykm8LxSs7BSQrCxFIXhmT8O3YXw8g0SvVy25I5hV8nh7m2Tztili2xRNj8pUQVLTgO
-         M9KF8XEMd4Tv5gD4/OUovG7MUXBcp7oCB32ZpEliDstWd2lYiayweLBLmvUp1fveGGxj
-         mh3UUSloz6drxA4Dxy1Gczah3/cdvZIDMXcTHRoX13ctrMhASU3Tjq/u3O0NaoRSEIOq
-         QnTS4mxJBi0l60ADSqYtkvgVp7g0U4+OHdBbfe2p7O4CVi+2qPRY0G6iBFEjQC95xw59
-         JU766FxtNIc5inVe5gVUOMEaxULkOfBZ62hpNcq1OuED/zJ69jURVKBCnRI8e93ancOd
-         hwbQ==
+        b=Num/GisnQKpkIT0CRl7A1+xzwxBR4Nn528bzoSpLLaP9mrlqf5NH6aaVs9p18BbjVQ
+         B5OtHcSCUzdcfxW3B8a0RG/G545FU/6uEt/rP0qOrCfltuEGdQP3TjotY+sYg1VSFsiH
+         cZKaaFofAhSbnAmqcTtxA3KgUJu2S/HtPoeo5xZSLf5keTFyi5O+giiMzGYtQN1lIiGT
+         PVmYYB/BFV9xtQOUM9Qgp+2EMpp5aIIOCfi6ZIDU4zflfTCeP/0CUWvKqjZqLS3apXxT
+         yhkMM22lPKOMWi/hc9plMm2/AM8qGEGqpHqlPucI6N9DHbzL2/uE4RBZhqak5CRK8eXh
+         oKmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=XraM5WUeK23rXa1xoKBrqeBBCshgPfte+/8YLIj79Q8=;
-        b=qy7U142LCmMppHgOmrKtxsK36LparcYIYXxv1JF/ThrR6VhE0WP6vdkJ4ye1JsJjZj
-         vjcZZxQiBJM/mLcyDAi+SCmpwsMeZLm5/1O+5QXAD7cr2yoxFlTL3zMi37Xss6C71MPA
-         byf2l9TSvoDMlbwNpR8yBpfHbtO4E3fLb3TL7pTlVJMiE00wlGgyOF9/ROV3J7A+sSJM
-         mlP9xqG7VYMPzcfmALXPLiQMFGAyw0ktXhc3CIx5uWTf8K7mntyG/tcBikbTw8GPZfiT
-         wyBiWYSNzFvqzpAjTem9zItTLMn4XkS25p3pAR6K3typK1wr5ngh60v50EdLI2WUedkV
-         MpGw==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from
+         :dkim-signature;
+        bh=mc/kXC3WRRrlQez9w8XSEK+8/bbcJDPSNq4STwLZVy4=;
+        b=mWtUOOPv5PW30Uod37+4xGUPSR/xKCV0lKBj+q4/cPY+DapOa8/qxHj/wnb+ynV05n
+         Fw4vEm1waJberZtMYeOBQqF/bfJ/lfNTROSTtybzNgn8UZwYAmX6lqF8M538GiX/fd+5
+         CkGcsmmETtnpU3K3MMuqA741jMEb53Jw5z9mF3R83Dfc/Dqux0UoJeywens17KWCcxiw
+         HBPzuJS1/ZLRIIpWzB+FXWb5WmEPKb3nelSgUthTC6pl1zOLwsMmnQwIm72Ed+BunEU0
+         UUdHtF6DbPAWgsABLpJiu5tGtEMJ2mdyHUTlN6vCghlTgALzMf6a5g6Oq4aA+kglzBnn
+         +naw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=NVRBfNmy;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ixLvnwMe;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v20sor17604352ita.10.2018.12.21.08.39.32
+        by mx.google.com with SMTPS id i5sor40224028pgq.34.2018.12.21.09.02.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 21 Dec 2018 08:39:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 21 Dec 2018 09:02:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=NVRBfNmy;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ixLvnwMe;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=XraM5WUeK23rXa1xoKBrqeBBCshgPfte+/8YLIj79Q8=;
-        b=NVRBfNmyDhXKYmvvR0703WQpE7jSm7u+YaJglQSTnrONLa71KfpCTdfA+u/BZXQvK/
-         1T7U7UfWvjrmHP4kNY5Pms+FiIXeIzs7jvhfxi6NnJIDMMZVtrhhi//Ogiw8c5J3rRvm
-         Ow0js5/FEfGlgGl24gR9Nv5cya2EoR9T/q3P8=
-X-Google-Smtp-Source: AFSGD/WMUXG3EqZc6WkBZTmux9jDoCAOaFEZrpMzcSbohWykU7FMgXREfnFsx3F9KIFtLKgmSrTwujMy54mXiY6ybEM=
-X-Received: by 2002:a24:edc4:: with SMTP id r187mr2673475ith.158.1545410372665;
- Fri, 21 Dec 2018 08:39:32 -0800 (PST)
-MIME-Version: 1.0
-References: <20181212000354.31955-1-rick.p.edgecombe@intel.com>
- <20181212000354.31955-2-rick.p.edgecombe@intel.com> <CALCETrVP577NvdeYj8bzpEfTXj3GZD3nFcJxnUq5n1daDBxU=g@mail.gmail.com>
-In-Reply-To: <CALCETrVP577NvdeYj8bzpEfTXj3GZD3nFcJxnUq5n1daDBxU=g@mail.gmail.com>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Fri, 21 Dec 2018 17:39:21 +0100
-Message-ID:
- <CAKv+Gu_kunBqhUAQt6==SN-ei4Xc+z6=Z=pKXHHJYjk4Gdw73g@mail.gmail.com>
-Subject: Re: [PATCH v2 1/4] vmalloc: New flags for safe vfree on special perms
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, 
-	LKML <linux-kernel@vger.kernel.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
-	"Naveen N . Rao" <naveen.n.rao@linux.vnet.ibm.com>, 
-	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>, "David S. Miller" <davem@davemloft.net>, 
-	Masami Hiramatsu <mhiramat@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, 
-	Ingo Molnar <mingo@redhat.com>, Alexei Starovoitov <ast@kernel.org>, 
-	Daniel Borkmann <daniel@iogearbox.net>, Jessica Yu <jeyu@kernel.org>, Nadav Amit <namit@vmware.com>, 
-	Network Development <netdev@vger.kernel.org>, Jann Horn <jannh@google.com>, 
-	Kristen Carlson Accardi <kristen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, 
-	"Dock, Deneen T" <deneen.t.dock@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:in-reply-to:references;
+        bh=mc/kXC3WRRrlQez9w8XSEK+8/bbcJDPSNq4STwLZVy4=;
+        b=ixLvnwMepCoxUzowoeYkTnb/fyKE97LPVkL9QVjRhPppWDeJ2N9PfWpUK1HcnN5Jlr
+         M1o1PjujssYpk6irxtt1/qg73e9AXmupzHaiJaJcXxsojRn+IdkstlYMlvDOKbfPC7Nb
+         SeIgzeQt3Pw9qc1MmSVgcVoqL2pMGOBoFUOIgp+X8YgYs2B9o1Q3EDSyZNNccNBHLiru
+         UKYz+1RKcnPne6XjJ+4xTptkVSfx7vs7T/EtnOM4LGi1xfjS2mXPGMN3lkqM3GGY3nti
+         /JnZjXSXtzvH1NBCHsg8kHhj5GtjW1RKn1motds08HNN9cXSVCYdRLsKoGZdPDmRGVFC
+         t3KA==
+X-Google-Smtp-Source: ALg8bN6d1ebv1+aT4u75oxMoeiFLYhhaEuNGbDuejEDYpt4GMpg2cujsrOwk+Y0jJC3nXLP4/4SU2w==
+X-Received: by 2002:a65:484c:: with SMTP id i12mr3111226pgs.309.1545411758217;
+        Fri, 21 Dec 2018 09:02:38 -0800 (PST)
+Received: from localhost ([185.92.221.13])
+        by smtp.gmail.com with ESMTPSA id i72sm35034995pfe.181.2018.12.21.09.02.36
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Dec 2018 09:02:37 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org,
+	mhocko@suse.com,
+	osalvador@suse.de,
+	david@redhat.com,
+	Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH v3] mm: remove extra drain pages on pcp list
+Date: Sat, 22 Dec 2018 01:02:28 +0800
+Message-Id: <20181221170228.10686-1-richard.weiyang@gmail.com>
+X-Mailer: git-send-email 2.15.1
+In-Reply-To: <20181218204656.4297-1-richard.weiyang@gmail.com>
+References: <20181218204656.4297-1-richard.weiyang@gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181221163921.RYWnK9jUNpGDZbBu4aE6d8mZQJaIC0gkL3gXh9tGHsE@z>
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20181221170228.QJeysUN1ksX1Bl-q0P7FkLSzWgnct93nAZo5j8mcT2g@z>
 
-On Wed, 12 Dec 2018 at 03:20, Andy Lutomirski <luto@kernel.org> wrote:
->
-> On Tue, Dec 11, 2018 at 4:12 PM Rick Edgecombe
-> <rick.p.edgecombe@intel.com> wrote:
-> >
-> > This adds two new flags VM_IMMEDIATE_UNMAP and VM_HAS_SPECIAL_PERMS, for
-> > enabling vfree operations to immediately clear executable TLB entries to freed
-> > pages, and handle freeing memory with special permissions.
-> >
-> > In order to support vfree being called on memory that might be RO, the vfree
-> > deferred list node is moved to a kmalloc allocated struct, from where it is
-> > today, reusing the allocation being freed.
-> >
-> > arch_vunmap is a new __weak function that implements the actual unmapping and
-> > resetting of the direct map permissions. It can be overridden by more efficient
-> > architecture specific implementations.
-> >
-> > For the default implementation, it uses architecture agnostic methods which are
-> > equivalent to what most usages do before calling vfree. So now it is just
-> > centralized here.
-> >
-> > This implementation derives from two sketches from Dave Hansen and Andy
-> > Lutomirski.
-> >
-> > Suggested-by: Dave Hansen <dave.hansen@intel.com>
-> > Suggested-by: Andy Lutomirski <luto@kernel.org>
-> > Suggested-by: Will Deacon <will.deacon@arm.com>
-> > Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
-> > ---
-> >  include/linux/vmalloc.h |  2 ++
-> >  mm/vmalloc.c            | 73 +++++++++++++++++++++++++++++++++++++----
-> >  2 files changed, 69 insertions(+), 6 deletions(-)
-> >
-> > diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-> > index 398e9c95cd61..872bcde17aca 100644
-> > --- a/include/linux/vmalloc.h
-> > +++ b/include/linux/vmalloc.h
-> > @@ -21,6 +21,8 @@ struct notifier_block;                /* in notifier.h */
-> >  #define VM_UNINITIALIZED       0x00000020      /* vm_struct is not fully initialized */
-> >  #define VM_NO_GUARD            0x00000040      /* don't add guard page */
-> >  #define VM_KASAN               0x00000080      /* has allocated kasan shadow memory */
-> > +#define VM_IMMEDIATE_UNMAP     0x00000200      /* flush before releasing pages */
-> > +#define VM_HAS_SPECIAL_PERMS   0x00000400      /* may be freed with special perms */
-> >  /* bits [20..32] reserved for arch specific ioremap internals */
-> >
-> >  /*
-> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> > index 97d4b25d0373..02b284d2245a 100644
-> > --- a/mm/vmalloc.c
-> > +++ b/mm/vmalloc.c
-> > @@ -18,6 +18,7 @@
-> >  #include <linux/interrupt.h>
-> >  #include <linux/proc_fs.h>
-> >  #include <linux/seq_file.h>
-> > +#include <linux/set_memory.h>
-> >  #include <linux/debugobjects.h>
-> >  #include <linux/kallsyms.h>
-> >  #include <linux/list.h>
-> > @@ -38,6 +39,11 @@
-> >
-> >  #include "internal.h"
-> >
-> > +struct vfree_work {
-> > +       struct llist_node node;
-> > +       void *addr;
-> > +};
-> > +
-> >  struct vfree_deferred {
-> >         struct llist_head list;
-> >         struct work_struct wq;
-> > @@ -50,9 +56,13 @@ static void free_work(struct work_struct *w)
-> >  {
-> >         struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
-> >         struct llist_node *t, *llnode;
-> > +       struct vfree_work *cur;
-> >
-> > -       llist_for_each_safe(llnode, t, llist_del_all(&p->list))
-> > -               __vunmap((void *)llnode, 1);
-> > +       llist_for_each_safe(llnode, t, llist_del_all(&p->list)) {
-> > +               cur = container_of(llnode, struct vfree_work, node);
-> > +               __vunmap(cur->addr, 1);
-> > +               kfree(cur);
-> > +       }
-> >  }
-> >
-> >  /*** Page table manipulation functions ***/
-> > @@ -1494,6 +1504,48 @@ struct vm_struct *remove_vm_area(const void *addr)
-> >         return NULL;
-> >  }
-> >
-> > +/*
-> > + * This function handles unmapping and resetting the direct map as efficiently
-> > + * as it can with cross arch functions. The three categories of architectures
-> > + * are:
-> > + *   1. Architectures with no set_memory implementations and no direct map
-> > + *      permissions.
-> > + *   2. Architectures with set_memory implementations but no direct map
-> > + *      permissions
-> > + *   3. Architectures with set_memory implementations and direct map permissions
-> > + */
-> > +void __weak arch_vunmap(struct vm_struct *area, int deallocate_pages)
->
-> My general preference is to avoid __weak functions -- they don't
-> optimize well.  Instead, I prefer either:
->
-> #ifndef arch_vunmap
-> void arch_vunmap(...);
-> #endif
->
-> or
->
-> #ifdef CONFIG_HAVE_ARCH_VUNMAP
-> ...
-> #endif
->
->
-> > +{
-> > +       unsigned long addr = (unsigned long)area->addr;
-> > +       int immediate = area->flags & VM_IMMEDIATE_UNMAP;
-> > +       int special = area->flags & VM_HAS_SPECIAL_PERMS;
-> > +
-> > +       /*
-> > +        * In case of 2 and 3, use this general way of resetting the permissions
-> > +        * on the directmap. Do NX before RW, in case of X, so there is no W^X
-> > +        * violation window.
-> > +        *
-> > +        * For case 1 these will be noops.
-> > +        */
-> > +       if (immediate)
-> > +               set_memory_nx(addr, area->nr_pages);
-> > +       if (deallocate_pages && special)
-> > +               set_memory_rw(addr, area->nr_pages);
->
-> Can you elaborate on the intent here?  VM_IMMEDIATE_UNMAP means "I
-> want that alias gone before any deallocation happens".
-> VM_HAS_SPECIAL_PERMS means "I mucked with the direct map -- fix it for
-> me, please".  deallocate means "this was vfree -- please free the
-> pages".  I'm not convinced that all the various combinations make
-> sense.  Do we really need both flags?
->
-> (VM_IMMEDIATE_UNMAP is a bit of a lie, since, if in_interrupt(), it's
-> not immediate.)
->
-> If we do keep both flags, maybe some restructuring would make sense,
-> like this, perhaps.  Sorry about horrible whitespace damage.
->
-> if (special) {
->   /* VM_HAS_SPECIAL_PERMS makes little sense without deallocate_pages. */
->   WARN_ON_ONCE(!deallocate_pages);
->
->   if (immediate) {
->     /* It's possible that the vmap alias is X and we're about to make
-> the direct map RW.  To avoid a window where executable memory is
-> writable, first mark the vmap alias NX.  This is silly, since we're
-> about to *unmap* it, but this is the best we can do if all we have to
-> work with is the set_memory_abc() APIs.  Architectures should override
-> this whole function to get better behavior. */
+In current implementation, there are two places to isolate a range of
+page: __offline_pages() and alloc_contig_range(). During this procedure,
+it will drain pages on pcp list.
 
-So can't we fix this first? Assuming that architectures that bother to
-implement them will not have executable mappings in the linear region,
-all we'd need is set_linear_range_ro/rw() routines that default to
-doing nothing, and encapsulate the existing code for x86 and arm64.
-That way, we can handle do things in the proper order, i.e., release
-the vmalloc mapping (without caring about the permissions), restore
-the linear alias attributes, and finally release the pages.
+Below is a brief call flow:
 
+  __offline_pages()/alloc_contig_range()
+      start_isolate_page_range()
+          set_migratetype_isolate()
+              drain_all_pages()
+      drain_all_pages()                 <--- A
 
->     set_memory_nx(...);
->   }
->
->   set_memory_rw(addr, area->nr_pages);
-> }
->
->
-> > +
-> > +       /* Always actually remove the area */
-> > +       remove_vm_area(area->addr);
-> > +
-> > +       /*
-> > +        * Need to flush the TLB before freeing pages in the case of this flag.
-> > +        * As long as that's happening, unmap aliases.
-> > +        *
-> > +        * For 2 and 3, this will not be needed because of the set_memory_nx
-> > +        * above, because the stale TLBs will be NX.
->
-> I'm not sure I agree with this comment.  If the caller asked for an
-> immediate unmap, we should give an immediate unmap.  But I'm still not
-> sure I see why VM_IMMEDIATE_UNMAP needs to exist as a separate flag.
->
-> > +        */
-> > +       if (immediate && !IS_ENABLED(ARCH_HAS_SET_MEMORY))
-> > +               vm_unmap_aliases();
-> > +}
-> > +
-> >  static void __vunmap(const void *addr, int deallocate_pages)
-> >  {
-> >         struct vm_struct *area;
-> > @@ -1515,7 +1567,8 @@ static void __vunmap(const void *addr, int deallocate_pages)
-> >         debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
-> >         debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
-> >
-> > -       remove_vm_area(addr);
-> > +       arch_vunmap(area, deallocate_pages);
-> > +
-> >         if (deallocate_pages) {
-> >                 int i;
-> >
-> > @@ -1542,8 +1595,15 @@ static inline void __vfree_deferred(const void *addr)
-> >          * nother cpu's list.  schedule_work() should be fine with this too.
-> >          */
-> >         struct vfree_deferred *p = raw_cpu_ptr(&vfree_deferred);
-> > +       struct vfree_work *w = kmalloc(sizeof(struct vfree_work), GFP_ATOMIC);
-> > +
-> > +       /* If no memory for the deferred list node, give up */
-> > +       if (!w)
-> > +               return;
->
-> That's nasty.  I see what you're trying to do here, but I think you're
-> solving a problem that doesn't need solving quite so urgently.  How
-> about dropping this part and replacing it with a comment like "NB:
-> this writes a word to a potentially executable address.  It would be
-> nice if we could avoid doing this."  And maybe a future patch could
-> more robustly avoid it without risking memory leaks.
+From this snippet we can see current logic is isolate and drain pcp list
+for each pageblock and drain pcp list again for the whole range.
+
+While the drain at A is not necessary. The reason is
+start_isolate_page_range() will set the migrate type of a range to
+MIGRATE_ISOLATE. After doing so, this range will never be allocated from
+Buddy, neither to a real user nor to pcp list. This means the procedure
+to drain pages on pcp list after start_isolate_page_range() will not
+drain any page in the target range.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+
+---
+v3:
+  * it is not proper to rely on caller to drain pages, so keep to drain
+    pages during iteration and remove the one in callers.
+v2: adjust changelog with MIGRATE_ISOLATE effects for the isolated range
+---
+ mm/memory_hotplug.c | 1 -
+ mm/page_alloc.c     | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 6910e0eea074..d2fa6cbbb2db 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1599,7 +1599,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 
+ 	cond_resched();
+ 	lru_add_drain_all();
+-	drain_all_pages(zone);
+ 
+ 	pfn = scan_movable_pages(start_pfn, end_pfn);
+ 	if (pfn) { /* We have movable pages */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f1edd36a1e2b..d9ee4bb3a1a7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8041,7 +8041,6 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	 */
+ 
+ 	lru_add_drain_all();
+-	drain_all_pages(cc.zone);
+ 
+ 	order = 0;
+ 	outer_start = start;
+-- 
+2.15.1
 
