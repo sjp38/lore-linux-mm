@@ -1,78 +1,128 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EE93A8E0001
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 07:51:15 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id q7so3393984wrw.8
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 04:51:15 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b17sor7133162wrt.48.2018.12.10.04.51.14
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Dec 2018 04:51:14 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v9 3/8] arm64: untag user addresses in access_ok and __uaccess_mask_ptr
-Date: Mon, 10 Dec 2018 13:51:00 +0100
-Message-Id: <674252952827b57f4259876cd4ddf802f3539356.1544445454.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544445454.git.andreyknvl@google.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 07/12] __wr_after_init: lkdtm test
+Date: Fri, 21 Dec 2018 20:14:18 +0200
+Message-Id: <20181221181423.20455-8-igor.stoppa@huawei.com>
+In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
+References: <20181221181423.20455-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Andrey Konovalov <andreyknvl@google.com>
 
-copy_from_user (and a few other similar functions) are used to copy data
-from user memory into the kernel memory or vice versa. Since a user can
-provided a tagged pointer to one of the syscalls that use copy_from_user,
-we need to correctly handle such pointers.
+Verify that trying to modify a variable with the __wr_after_init
+attribute will cause a crash.
 
-Do this by untagging user pointers in access_ok and in __uaccess_mask_ptr,
-before performing access validity checks.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
+CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- arch/arm64/include/asm/uaccess.h | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ drivers/misc/lkdtm/core.c  |  3 +++
+ drivers/misc/lkdtm/lkdtm.h |  3 +++
+ drivers/misc/lkdtm/perms.c | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+)
 
-diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-index 3c3864ba3cc1..d28c3b1314ce 100644
---- a/arch/arm64/include/asm/uaccess.h
-+++ b/arch/arm64/include/asm/uaccess.h
-@@ -104,7 +104,8 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
- #define untagged_addr(addr)		\
- 	((__typeof__(addr))sign_extend64((u64)(addr), 55))
+diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
+index 2837dc77478e..73c34b17c433 100644
+--- a/drivers/misc/lkdtm/core.c
++++ b/drivers/misc/lkdtm/core.c
+@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
+ 	CRASHTYPE(ACCESS_USERSPACE),
+ 	CRASHTYPE(WRITE_RO),
+ 	CRASHTYPE(WRITE_RO_AFTER_INIT),
++#ifdef CONFIG_PRMEM
++	CRASHTYPE(WRITE_WR_AFTER_INIT),
++#endif
+ 	CRASHTYPE(WRITE_KERN),
+ 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
+ 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
+diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
+index 3c6fd327e166..abba2f52ffa6 100644
+--- a/drivers/misc/lkdtm/lkdtm.h
++++ b/drivers/misc/lkdtm/lkdtm.h
+@@ -38,6 +38,9 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
+ void __init lkdtm_perms_init(void);
+ void lkdtm_WRITE_RO(void);
+ void lkdtm_WRITE_RO_AFTER_INIT(void);
++#ifdef CONFIG_PRMEM
++void lkdtm_WRITE_WR_AFTER_INIT(void);
++#endif
+ void lkdtm_WRITE_KERN(void);
+ void lkdtm_EXEC_DATA(void);
+ void lkdtm_EXEC_STACK(void);
+diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
+index 53b85c9d16b8..f681730aa652 100644
+--- a/drivers/misc/lkdtm/perms.c
++++ b/drivers/misc/lkdtm/perms.c
+@@ -9,6 +9,7 @@
+ #include <linux/vmalloc.h>
+ #include <linux/mman.h>
+ #include <linux/uaccess.h>
++#include <linux/prmem.h>
+ #include <asm/cacheflush.h>
  
--#define access_ok(type, addr, size)	__range_ok(addr, size)
-+#define access_ok(type, addr, size)	\
-+	__range_ok(untagged_addr(addr), size)
- #define user_addr_max			get_fs
+ /* Whether or not to fill the target memory area with do_nothing(). */
+@@ -27,6 +28,10 @@ static const unsigned long rodata = 0xAA55AA55;
+ /* This is marked __ro_after_init, so it should ultimately be .rodata. */
+ static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
  
- #define _ASM_EXTABLE(from, to)						\
-@@ -236,7 +237,8 @@ static inline void uaccess_enable_not_uao(void)
- 
++/* This is marked __wr_after_init, so it should be in .rodata. */
++static
++unsigned long wr_after_init __wr_after_init = 0x55AA5500;
++
  /*
-  * Sanitise a uaccess pointer such that it becomes NULL if above the
-- * current addr_limit.
-+ * current addr_limit. In case the pointer is tagged (has the top byte set),
-+ * untag the pointer before checking.
-  */
- #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
- static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
-@@ -244,10 +246,11 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
- 	void __user *safe_ptr;
+  * This just returns to the caller. It is designed to be copied into
+  * non-executable memory regions.
+@@ -104,6 +109,28 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
+ 	*ptr ^= 0xabcd1234;
+ }
  
- 	asm volatile(
--	"	bics	xzr, %1, %2\n"
-+	"	bics	xzr, %3, %2\n"
- 	"	csel	%0, %1, xzr, eq\n"
- 	: "=&r" (safe_ptr)
--	: "r" (ptr), "r" (current_thread_info()->addr_limit)
-+	: "r" (ptr), "r" (current_thread_info()->addr_limit),
-+	  "r" (untagged_addr(ptr))
- 	: "cc");
++#ifdef CONFIG_PRMEM
++
++void lkdtm_WRITE_WR_AFTER_INIT(void)
++{
++	unsigned long *ptr = &wr_after_init;
++
++	/*
++	 * Verify we were written to during init. Since an Oops
++	 * is considered a "success", a failure is to just skip the
++	 * real test.
++	 */
++	if ((*ptr & 0xAA) != 0xAA) {
++		pr_info("%p was NOT written during init!?\n", ptr);
++		return;
++	}
++
++	pr_info("attempting bad wr_after_init write at %p\n", ptr);
++	*ptr ^= 0xabcd1234;
++}
++
++#endif
++
+ void lkdtm_WRITE_KERN(void)
+ {
+ 	size_t size;
+@@ -200,4 +227,6 @@ void __init lkdtm_perms_init(void)
+ 	/* Make sure we can write to __ro_after_init values during __init */
+ 	ro_after_init |= 0xAA;
  
- 	csdb();
++	/* Make sure we can write to __wr_after_init during __init */
++	wr_after_init |= 0xAA;
+ }
 -- 
-2.20.0.rc2.403.gdbc3b29805-goog
+2.19.1
