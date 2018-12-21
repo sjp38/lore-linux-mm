@@ -1,57 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D8C758E0001
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 17:03:25 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id v4so15611938edm.18
-        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 14:03:25 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 851E88E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:29:54 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id i55so4566206ede.14
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 19:29:54 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z25-v6sor8357208eja.49.2018.12.24.14.03.23
+        by mx.google.com with SMTPS id k20sor13964674ede.22.2018.12.20.19.29.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Dec 2018 14:03:24 -0800 (PST)
-Date: Mon, 24 Dec 2018 22:03:22 +0000
+        Thu, 20 Dec 2018 19:29:52 -0800 (PST)
+Date: Fri, 21 Dec 2018 03:29:50 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
 Subject: Re: [PATCH v2] mm/slub: improve performance by skipping checked node
  in get_any_partial()
-Message-ID: <20181224220322.5z3oyqzrvptttamp@master>
+Message-ID: <20181221032950.sy6xki5mpvgzttxm@master>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <20181108011204.9491-1-richard.weiyang@gmail.com>
  <20181120033119.30013-1-richard.weiyang@gmail.com>
  <20181220144107.9376344c2be687615ea9aa69@linux-foundation.org>
- <01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@email.amazonses.com>
+ <2f7e61b1150380df0723e2b3fb97917b207ce0cf.camel@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@email.amazonses.com>
+In-Reply-To: <2f7e61b1150380df0723e2b3fb97917b207ce0cf.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wei Yang <richard.weiyang@gmail.com>, penberg@kernel.org, mhocko@kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, cl@linux.com, penberg@kernel.org, mhocko@kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Dec 21, 2018 at 01:37:38AM +0000, Christopher Lameter wrote:
->On Thu, 20 Dec 2018, Andrew Morton wrote:
+On Thu, Dec 20, 2018 at 04:25:55PM -0800, Alexander Duyck wrote:
+>On Thu, 2018-12-20 at 14:41 -0800, Andrew Morton wrote:
+>> Could someone please review this?
+>> 
+>> Thanks.
+>> 
+>> From: Wei Yang <richard.weiyang@gmail.com>
+>> Subject: mm/slub.c: improve performance by skipping checked node in get_any_partial()
+>> 
+>> 1. Background
+>> 
+>>   Current slub has three layers:
+>> 
+>>     * cpu_slab
+>>     * percpu_partial
+>>     * per node partial list
+>> 
+>>   Slub allocator tries to get an object from top to bottom.  When it
+>>   can't get an object from the upper two layers, it will search the per
+>>   node partial list.  The is done in get_partial().
+>> 
+>>   The abstraction of get_partial() look like this:
+>> 
+>>       get_partial()
+>>           get_partial_node()
+>>           get_any_partial()
+>>               for_each_zone_zonelist()
+>> 
+>>   The idea behind this is: first try a local node, then try other nodes
+>>   if caller doesn't specify a node.
+>> 
+>> 2. Room for Improvement
+>> 
+>>   When we look one step deeper in get_any_partial(), it tries to get a
+>>   proper node by for_each_zone_zonelist(), which iterates on the
+>>   node_zonelists.
+>> 
+>>   This behavior would introduce some redundant check on the same node. 
+>>   Because:
+>> 
+>>     * the local node is already checked in get_partial_node()
+>>     * one node may have several zones on node_zonelists
+>> 
 >
+>So it seems like there can be a few different behaviors based on
+>mempolicy_slab_node() being used to construct the zonelist. Do you
+>happen to know what memory policy your test process was running under?
+>Also have you tried using any of the other policies to gather data?
+>
+
+I have little knowledge about the mempolicy so the test is based on a
+"default" configuration.
+
+
+>> 3. Solution Proposed in Patch
+>> 
+>>   We could reduce these redundant check by record the last unsuccessful
+>>   node and then skip it.
+>> 
+>> 4. Tests & Result
+>> 
+>>   After some tests, the result shows this may improve the system a little,
+>>   especially on a machine with only one node.
+>> 
+>> 4.1 Test Description
+>> 
+>>   There are two cases for two system configurations.
+>> 
+>>   Test Cases:
+>> 
+>>     1. counter comparison
+>>     2. kernel build test
+>> 
+>>   System Configuration:
+>> 
+>>     1. One node machine with 4G
+>>     2. Four node machine with 8G
+>> 
+>> 4.2 Result for Test 1
+>> 
+>>   Test 1: counter comparison
+>> 
+>>   This is a test with hacked kernel to record times function
+>>   get_any_partial() is invoked and times the inner loop iterates. By
+>>   comparing the ratio of two counters, we get to know how many inner
+>>   loops we skipped.
+>> 
+>>   Here is a snip of the test patch.
+>> 
+>>   ---
+>>   static void *get_any_partial() {
+>> 
+>> 	get_partial_count++;
+>> 
+>>         do {
+>> 		for_each_zone_zonelist() {
+>> 			get_partial_try_count++;
+>> 		}
+>> 	} while();
+>> 
+>> 	return NULL;
+>>   }
+>>   ---
+>> 
 >>   The result of (get_partial_count / get_partial_try_count):
->>
+>> 
 >>    +----------+----------------+------------+-------------+
 >>    |          |       Base     |    Patched |  Improvement|
 >>    +----------+----------------+------------+-------------+
 >>    |One Node  |       1:3      |    1:0     |      - 100% |
->
->If you have one node then you already searched all your slabs. So we could
->completely skip the get_any_partial() functionality in the non NUMA case
->(if nr_node_ids == 1)
->
->
 >>    +----------+----------------+------------+-------------+
 >>    |Four Nodes|       1:5.8    |    1:2.5   |      -  56% |
 >>    +----------+----------------+------------+-------------+
->
->Hmm.... Ok but that is the extreme slowpath.
->
+>> 
+>> 4.3 Result for Test 2
+>> 
+>>   Test 2: kernel build
+>> 
+>>    Command used:
+>> 
+>>    > time make -j8 bzImage
+>> 
 >>    Each version/system configuration combination has four round kernel
 >>    build tests. Take the average result of real to compare.
->>
+>> 
 >>    +----------+----------------+------------+-------------+
 >>    |          |       Base     |   Patched  |  Improvement|
 >>    +----------+----------------+------------+-------------+
@@ -59,52 +160,88 @@ On Fri, Dec 21, 2018 at 01:37:38AM +0000, Christopher Lameter wrote:
 >>    +----------+----------------+------------+-------------+
 >>    |Four Nodes|      4m45s     |   4m39s    |     - 2.92% |
 >>    +----------+----------------+------------+-------------+
+>> 
+>> [akpm@linux-foundation.org: rename variable, tweak comment]
+>> Link: http://lkml.kernel.org/r/20181120033119.30013-1-richard.weiyang@gmail.com
+>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Pekka Enberg <penberg@kernel.org>
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>> ---
+>> 
+>>  mm/slub.c |   15 +++++++++++++--
+>>  1 file changed, 13 insertions(+), 2 deletions(-)
+>> 
+>> --- a/mm/slub.c~mm-slub-improve-performance-by-skipping-checked-node-in-get_any_partial
+>> +++ a/mm/slub.c
+>> @@ -1877,7 +1877,7 @@ static void *get_partial_node(struct kme
+>>   * Get a page from somewhere. Search in increasing NUMA distances.
+>>   */
+>>  static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+>> -		struct kmem_cache_cpu *c)
+>> +		struct kmem_cache_cpu *c, int exclude_nid)
+>>  {
+>>  #ifdef CONFIG_NUMA
+>>  	struct zonelist *zonelist;
+>> @@ -1915,6 +1915,9 @@ static void *get_any_partial(struct kmem
+>>  		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+>>  			struct kmem_cache_node *n;
+>>  
+>> +			if (exclude_nid == zone_to_nid(zone))
+>> +				continue;
+>> +
+>>  			n = get_node(s, zone_to_nid(zone));
+>>  
+>>  			if (n && cpuset_zone_allowed(zone, flags) &&
+>> @@ -1931,6 +1934,14 @@ static void *get_any_partial(struct kmem
+>>  					return object;
+>>  				}
+>>  			}
+>> +			/*
+>> +			 * Failed to get an object from this node, either
+>> +			 * because
+>> +			 *   1. Failure in the above if check
+>> +			 *   2. NULL return from get_partial_node()
+>> +			 * So skip this node next time.
+>> +			 */
+>> +			exclude_nid = zone_to_nid(zone);
+>>  		}
+>>  	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+>>  #endif
 >
->3% on the four node case? That means that the slowpath is taken
->frequently. Wonder why?
+>So this piece gives me some concerns. You are updating the exclude_nid,
+>but as a result you are no longer excluding your original nid. So it
+>becomes possible that you are going to go back and search your original
+>exlcude_nid on the next pass if the zones are interleaved between nodes
+>aren't you?
+
+After Michal's change, current zonelist just have node order.
+
+This means once we have a exclude_nid, we will skip all zones on this
+node.
+
 >
->Can we also see the variability? Since this is a NUMA system there is
->bound to be some indeterminism in those numbers.
+>Would it perhaps make more sense to instead replace
+>for_each_zone_zonelist with for_each_zone_zonelist_nodemask and then
+>just mask out any of the failing nodes?
 
-Hmm... I rebuilt the kernel and try the experiment again, but found I
-can't reproduce this statistics. The data show it is worse than base
-line and shakes heavily...
+My first version is implemented in this way. While Michal mentioned it
+would be heavy on stack and took much time to copy nodemask_t.
 
-Base                    Patched 
-                        
-real    5m49.652s       real    8m9.515s
-user    19m0.581s       user    17m30.296s
-sys     2m31.906s       sys     2m21.445s
-                        
-real    5m47.145s       real    6m47.437s
-user    19m17.445s      user    18m33.461s
-sys     2m41.931s       sys     2m43.249s
-                        
-real    7m2.043s        real    5m38.539s
-user    18m11.723s      user    19m40.552s
-sys     2m46.443s       sys     2m43.771s
-                        
-real    5m31.797s       real    12m59.936s
-user    19m13.984s      user    15m47.602s
-sys     2m34.727s       sys     2m20.385s
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+>
+>> @@ -1955,7 +1966,7 @@ static void *get_partial(struct kmem_cac
+>>  	if (object || node != NUMA_NO_NODE)
+>>  		return object;
+>>  
+>> -	return get_any_partial(s, flags, c);
+>> +	return get_any_partial(s, flags, c, searchnode);
+>>  }
+>>  
+>>  #ifdef CONFIG_PREEMPT
+>> _
+>> 
 
 -- 
 Wei Yang
