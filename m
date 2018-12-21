@@ -1,137 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1EF6B6A7C
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:09 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id 62so5950180otr.14
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:09 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s205si6182708oig.116.2018.12.03.10.07.07
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:07:08 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 09/25] ACPI / APEI: Generalise the estatus queue's notify code
-Date: Mon,  3 Dec 2018 18:05:57 +0000
-Message-Id: <20181203180613.228133-10-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CEC28E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 14:02:20 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id s70so6683407qks.4
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 11:02:20 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 12sor11916988qtx.51.2018.12.21.11.02.12
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 21 Dec 2018 11:02:12 -0800 (PST)
+Date: Fri, 21 Dec 2018 14:02:10 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: OOM notification for cgroupsv1 broken in 4.19
+Message-ID: <20181221190210.GB5395@cmpxchg.org>
+References: <5ba5ba06-554c-d1ec-0967-b1d3486d0699@fnal.gov>
+ <20181221153302.GB6410@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181221153302.GB6410@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Burt Holzman <burt@fnal.gov>, "vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Refactor the estatus queue's pool notification routine from
-NOTIFY_NMI's handlers. This will allow another notification
-method to use the estatus queue without duplicating this code.
+On Fri, Dec 21, 2018 at 04:33:02PM +0100, Michal Hocko wrote:
+> From 51633f683173013741f4d0ab3e31bae575341c55 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Fri, 21 Dec 2018 16:28:29 +0100
+> Subject: [PATCH] memcg, oom: notify on oom killer invocation from the charge
+>  path
+> 
+> Burt Holzman has noticed that memcg v1 doesn't notify about OOM events
+> via eventfd anymore. The reason is that 29ef680ae7c2 ("memcg, oom: move
+> out_of_memory back to the charge path") has moved the oom handling back
+> to the charge path. While doing so the notification was left behind in
+> mem_cgroup_oom_synchronize.
+> 
+> Fix the issue by replicating the oom hierarchy locking and the
+> notification.
+> 
+> Reported-by: Burt Holzman <burt@fnal.gov>
+> Fixes: 29ef680ae7c2 ("memcg, oom: move out_of_memory back to the charge path")
+> Cc: stable # 4.19+
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-This patch adds rcu_read_lock()/rcu_read_unlock() around the list
-list_for_each_entry_rcu() walker. These aren't strictly necessary as
-the whole nmi_enter/nmi_exit() window is a spooky RCU read-side
-critical section.
+Looks good to me. The async side really does too much other stuff to
+cleanly share code between them, so I don't mind separate code even if
+it means they both have to do the mark, lock, notify dance.
 
-_in_nmi_notify_one() is separate from the rcu-list walker for a later
-caller that doesn't need to walk a list.
-
-Signed-off-by: James Morse <james.morse@arm.com>
-Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
-Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
-
----
-Changes since v6:
- * Removed pool grow/remove code as this is no longer necessary.
-
-Changes since v3:
- * Removed duplicate or redundant paragraphs in commit message.
- * Fixed the style of a zero check.
-Changes since v1:
-   * Tidied up _in_nmi_notify_one().
----
- drivers/acpi/apei/ghes.c | 63 ++++++++++++++++++++++++++--------------
- 1 file changed, 41 insertions(+), 22 deletions(-)
-
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index d06456e60318..366dbdd41ef3 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -907,37 +907,56 @@ static void __process_error(struct ghes *ghes)
- #endif
- }
- 
--static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
-+static int _in_nmi_notify_one(struct ghes *ghes)
- {
- 	u64 buf_paddr;
--	struct ghes *ghes;
--	int sev, ret = NMI_DONE;
-+	int sev;
- 
--	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
--		return ret;
-+	if (ghes_read_estatus(ghes, &buf_paddr)) {
-+		ghes_clear_estatus(ghes, buf_paddr);
-+		return -ENOENT;
-+	}
- 
--	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
--		if (ghes_read_estatus(ghes, &buf_paddr)) {
--			ghes_clear_estatus(ghes, buf_paddr);
--			continue;
--		} else {
--			ret = NMI_HANDLED;
--		}
-+	sev = ghes_severity(ghes->estatus->error_severity);
-+	if (sev >= GHES_SEV_PANIC) {
-+		ghes_print_queued_estatus();
-+		__ghes_panic(ghes);
-+	}
- 
--		sev = ghes_severity(ghes->estatus->error_severity);
--		if (sev >= GHES_SEV_PANIC) {
--			ghes_print_queued_estatus();
--			__ghes_panic(ghes);
--		}
-+	__process_error(ghes);
-+	ghes_clear_estatus(ghes, buf_paddr);
- 
--		__process_error(ghes);
--		ghes_clear_estatus(ghes, buf_paddr);
-+	return 0;
-+}
-+
-+static int ghes_estatus_queue_notified(struct list_head *rcu_list)
-+{
-+	int ret = -ENOENT;
-+	struct ghes *ghes;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(ghes, rcu_list, list) {
-+		if (!_in_nmi_notify_one(ghes))
-+			ret = 0;
- 	}
-+	rcu_read_unlock();
- 
--#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
--	if (ret == NMI_HANDLED)
-+	if (IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG) && !ret)
- 		irq_work_queue(&ghes_proc_irq_work);
--#endif
-+
-+	return ret;
-+}
-+
-+static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
-+{
-+	int ret = NMI_DONE;
-+
-+	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
-+		return ret;
-+
-+	if (!ghes_estatus_queue_notified(&ghes_nmi))
-+		ret = NMI_HANDLED;
-+
- 	atomic_dec(&ghes_in_nmi);
- 	return ret;
- }
--- 
-2.19.2
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
