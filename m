@@ -1,194 +1,472 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D4148E00E4
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 19:12:11 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id y2so11711993plr.8
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 16:12:11 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id u7si14323549pfu.270.2018.12.11.16.12.10
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7C28E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 20:43:22 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id a199so3873541qkb.23
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 17:43:22 -0800 (PST)
+Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
+        by mx.google.com with ESMTPS id g11si186476qvm.35.2018.12.20.17.43.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 16:12:10 -0800 (PST)
-From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v2 4/4] x86/vmalloc: Add TLB efficient x86 arch_vunmap
-Date: Tue, 11 Dec 2018 16:03:54 -0800
-Message-Id: <20181212000354.31955-5-rick.p.edgecombe@intel.com>
-In-Reply-To: <20181212000354.31955-1-rick.p.edgecombe@intel.com>
-References: <20181212000354.31955-1-rick.p.edgecombe@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 20 Dec 2018 17:43:20 -0800 (PST)
+Date: Fri, 21 Dec 2018 01:43:19 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: [RFC 5/7] Slab defrag core
+In-Reply-To: <01000167cd1130c8-c9bebcb9-1f95-4f7c-b24a-90600d56c62f-000000@email.amazonses.com>
+Message-ID: <01000167ce6e615d-6857545b-566a-4cd2-a0a0-c06b848e1f3d-000000@email.amazonses.com>
+References: <01000167cd1130c8-c9bebcb9-1f95-4f7c-b24a-90600d56c62f-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, luto@kernel.org, will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, naveen.n.rao@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, davem@davemloft.net, mhiramat@kernel.org, rostedt@goodmis.org, mingo@redhat.com, ast@kernel.org, daniel@iogearbox.net, jeyu@kernel.org, namit@vmware.com, netdev@vger.kernel.org, ard.biesheuvel@linaro.org, jannh@google.com
-Cc: kristen@linux.intel.com, dave.hansen@intel.com, deneen.t.dock@intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-This adds a more efficient x86 architecture specific implementation of
-arch_vunmap, that can free any type of special permission memory with only 1 TLB
-flush.
+Slab defragmentation may occur:
 
-In order to enable this, _set_pages_p and _set_pages_np are made non-static and
-renamed set_pages_p_noflush and set_pages_np_noflush to better communicate
-their different (non-flushing) behavior from the rest of the set_pages_*
-functions.
+1. Unconditionally when kmem_cache_shrink is called on a slab cache by the
+   kernel calling kmem_cache_shrink.
 
-The method for doing this with only 1 TLB flush was suggested by Andy
-Lutomirski.
+2. Through the use of the slabinfo command.
 
-Suggested-by: Andy Lutomirski <luto@kernel.org>
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+3. Per node defrag conditionally when kmem_cache_defrag(<node>) is called
+   (can be called from reclaim code with a later patch).
+
+   Defragmentation is only performed if the fragmentation of the slab
+   is lower than the specified percentage. Fragmentation ratios are measured
+   by calculating the percentage of objects in use compared to the total
+   number of objects that the slab page can accomodate.
+
+   The scanning of slab caches is optimized because the
+   defragmentable slabs come first on the list. Thus we can terminate scans
+   on the first slab encountered that does not support defragmentation.
+
+   kmem_cache_defrag() takes a node parameter. This can either be -1 if
+   defragmentation should be performed on all nodes, or a node number.
+
+A couple of functions must be setup via a call to kmem_cache_setup_defrag()
+in order for a slabcache to support defragmentation. These are
+
+kmem_defrag_isolate_func (void *isolate(struct kmem_cache *s, void **objects, int nr))
+
+	Must stabilize that the objects and ensure that they will not be freed until
+	the migration function is complete. SLUB guarantees that
+	the objects are still allocated. However, other threads may be blocked
+	in slab_free() attempting to free objects in the slab. These may succeed
+	as soon as isolate() returns to the slab allocator. The function must
+	be able to detect such situations and void the attempts to free such
+	objects (by for example voiding the corresponding entry in the objects
+	array).
+
+	No slab operations may be performed in isolate(). Interrupts
+	are disabled. What can be done is very limited. The slab lock
+	for the page that contains the object is taken. Any attempt to perform
+	a slab operation may lead to a deadlock.
+
+	kmem_defrag_isolate_func returns a private pointer that is passed to
+	kmem_defrag_kick_func(). Should we be unable to obtain all references
+	then that pointer may indicate to the kick() function that it should
+	not attempt any object removal or move but simply undo the measure
+	that were used to stabilize the object.
+
+kmem_defrag_migrate_func (void migrate(struct kmem_cache *, void **objects, int nr,
+			int node, void *get_result))
+
+	After SLUB has stabilzed the objects in a
+	slab it will then drop all locks and use migrate() to move objects out
+	of the slab. The existence of the object is guaranteed by virtue of
+	the earlier obtained references via kmem_defrag_get_func(). The
+	callback may perform any slab operation since no locks are held at
+	the time of call.
+
+	The callback should remove the object from the slab in some way. This
+	may be accomplished by reclaiming the object and then running
+	kmem_cache_free() or reallocating it and then running
+	kmem_cache_free(). Reallocation is advantageous because the partial
+	slabs were just sorted to have the partial slabs with the most objects
+	first. Reallocation is likely to result in filling up a slab in
+	addition to freeing up one slab. A filled up slab can also be removed
+	from the partial list. So there could be a double effect.
+
+	kmem_defrag_migrate_func() does not return a result. SLUB will check
+	the number of remaining objects in the slab. If all objects were
+	removed then the slab is freed and we have reduced the overall
+	fragmentation of the slab cache.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
 ---
- arch/x86/include/asm/set_memory.h |  2 +
- arch/x86/mm/Makefile              |  3 +-
- arch/x86/mm/pageattr.c            | 11 +++--
- arch/x86/mm/vmalloc.c             | 71 +++++++++++++++++++++++++++++++
- 4 files changed, 80 insertions(+), 7 deletions(-)
- create mode 100644 arch/x86/mm/vmalloc.c
+ include/linux/slab.h |    3
+ mm/slub.c            |  265 ++++++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 215 insertions(+), 53 deletions(-)
 
-diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
-index 07a25753e85c..70ee81e8914b 100644
---- a/arch/x86/include/asm/set_memory.h
-+++ b/arch/x86/include/asm/set_memory.h
-@@ -84,6 +84,8 @@ int set_pages_x(struct page *page, int numpages);
- int set_pages_nx(struct page *page, int numpages);
- int set_pages_ro(struct page *page, int numpages);
- int set_pages_rw(struct page *page, int numpages);
-+int set_pages_np_noflush(struct page *page, int numpages);
-+int set_pages_p_noflush(struct page *page, int numpages);
- 
- extern int kernel_set_to_readonly;
- void set_kernel_text_rw(void);
-diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
-index 4b101dd6e52f..189681f863a6 100644
---- a/arch/x86/mm/Makefile
-+++ b/arch/x86/mm/Makefile
-@@ -13,7 +13,8 @@ CFLAGS_REMOVE_mem_encrypt_identity.o	= -pg
- endif
- 
- obj-y	:=  init.o init_$(BITS).o fault.o ioremap.o extable.o pageattr.o mmap.o \
--	    pat.o pgtable.o physaddr.o setup_nx.o tlb.o cpu_entry_area.o
-+	    pat.o pgtable.o physaddr.o setup_nx.o tlb.o cpu_entry_area.o \
-+	    vmalloc.o
- 
- # Make sure __phys_addr has no stackprotector
- nostackp := $(call cc-option, -fno-stack-protector)
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index db7a10082238..db0a4dfb5a7f 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -2248,9 +2248,7 @@ int set_pages_rw(struct page *page, int numpages)
- 	return set_memory_rw(addr, numpages);
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c
++++ linux/mm/slub.c
+@@ -351,6 +351,12 @@ static __always_inline void slab_lock(st
+ 	bit_spin_lock(PG_locked, &page->flags);
  }
- 
--#ifdef CONFIG_DEBUG_PAGEALLOC
+
++static __always_inline int slab_trylock(struct page *page)
++{
++	VM_BUG_ON_PAGE(PageTail(page), page);
++	return bit_spin_trylock(PG_locked, &page->flags);
++}
++
+ static __always_inline void slab_unlock(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+@@ -3946,79 +3952,6 @@ void kfree(const void *x)
+ }
+ EXPORT_SYMBOL(kfree);
+
+-#define SHRINK_PROMOTE_MAX 32
 -
--static int __set_pages_p(struct page *page, int numpages)
-+int set_pages_p_noflush(struct page *page, int numpages)
+-/*
+- * kmem_cache_shrink discards empty slabs and promotes the slabs filled
+- * up most to the head of the partial lists. New allocations will then
+- * fill those up and thus they can be removed from the partial lists.
+- *
+- * The slabs with the least items are placed last. This results in them
+- * being allocated from last increasing the chance that the last objects
+- * are freed in them.
+- */
+-int __kmem_cache_shrink(struct kmem_cache *s)
+-{
+-	int node;
+-	int i;
+-	struct kmem_cache_node *n;
+-	struct page *page;
+-	struct page *t;
+-	struct list_head discard;
+-	struct list_head promote[SHRINK_PROMOTE_MAX];
+-	unsigned long flags;
+-	int ret = 0;
+-
+-	flush_all(s);
+-	for_each_kmem_cache_node(s, node, n) {
+-		INIT_LIST_HEAD(&discard);
+-		for (i = 0; i < SHRINK_PROMOTE_MAX; i++)
+-			INIT_LIST_HEAD(promote + i);
+-
+-		spin_lock_irqsave(&n->list_lock, flags);
+-
+-		/*
+-		 * Build lists of slabs to discard or promote.
+-		 *
+-		 * Note that concurrent frees may occur while we hold the
+-		 * list_lock. page->inuse here is the upper limit.
+-		 */
+-		list_for_each_entry_safe(page, t, &n->partial, lru) {
+-			int free = page->objects - page->inuse;
+-
+-			/* Do not reread page->inuse */
+-			barrier();
+-
+-			/* We do not keep full slabs on the list */
+-			BUG_ON(free <= 0);
+-
+-			if (free == page->objects) {
+-				list_move(&page->lru, &discard);
+-				n->nr_partial--;
+-			} else if (free <= SHRINK_PROMOTE_MAX)
+-				list_move(&page->lru, promote + free - 1);
+-		}
+-
+-		/*
+-		 * Promote the slabs filled up most to the head of the
+-		 * partial list.
+-		 */
+-		for (i = SHRINK_PROMOTE_MAX - 1; i >= 0; i--)
+-			list_splice(promote + i, &n->partial);
+-
+-		spin_unlock_irqrestore(&n->list_lock, flags);
+-
+-		/* Release empty slabs */
+-		list_for_each_entry_safe(page, t, &discard, lru)
+-			discard_slab(s, page);
+-
+-		if (slabs_node(s, node))
+-			ret = 1;
+-	}
+-
+-	return ret;
+-}
+-
+ #ifdef CONFIG_MEMCG
+ static void kmemcg_cache_deact_after_rcu(struct kmem_cache *s)
  {
- 	unsigned long tempaddr = (unsigned long) page_address(page);
- 	struct cpa_data cpa = { .vaddr = &tempaddr,
-@@ -2269,7 +2267,7 @@ static int __set_pages_p(struct page *page, int numpages)
- 	return __change_page_attr_set_clr(&cpa, 0);
+@@ -4325,14 +4258,271 @@ static inline void *alloc_scratch(void)
+ 		GFP_KERNEL);
  }
- 
--static int __set_pages_np(struct page *page, int numpages)
-+int set_pages_np_noflush(struct page *page, int numpages)
- {
- 	unsigned long tempaddr = (unsigned long) page_address(page);
- 	struct cpa_data cpa = { .vaddr = &tempaddr,
-@@ -2288,6 +2286,7 @@ static int __set_pages_np(struct page *page, int numpages)
- 	return __change_page_attr_set_clr(&cpa, 0);
- }
- 
-+#ifdef CONFIG_DEBUG_PAGEALLOC
- void __kernel_map_pages(struct page *page, int numpages, int enable)
- {
- 	if (PageHighMem(page))
-@@ -2303,9 +2302,9 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
- 	 * and hence no memory allocations during large page split.
- 	 */
- 	if (enable)
--		__set_pages_p(page, numpages);
-+		set_pages_p_noflush(page, numpages);
- 	else
--		__set_pages_np(page, numpages);
-+		set_pages_np_noflush(page, numpages);
- 
- 	/*
- 	 * We should perform an IPI and flush all tlbs,
-diff --git a/arch/x86/mm/vmalloc.c b/arch/x86/mm/vmalloc.c
-new file mode 100644
-index 000000000000..be9ea42c3dfe
---- /dev/null
-+++ b/arch/x86/mm/vmalloc.c
-@@ -0,0 +1,71 @@
-+// SPDX-License-Identifier: GPL-2.0
+
 +/*
-+ * vmalloc.c: x86 arch version of vmalloc.c
++ * Move all objects in the given slab.
 + *
-+ * (C) Copyright 2018 Intel Corporation
++ * If the target node is the current node then the object is moved else
++ * where on the same node. Which is an effective way of defragmentation
++ * since the current slab page with its object is exempt from allocation.
 + *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
++ * The scratch area passed to list function is sufficient to hold
++ * struct listhead times objects per slab. We use it to hold void ** times
++ * objects per slab plus a bitmap for each object.
 + */
-+
-+#include <linux/mm.h>
-+#include <linux/set_memory.h>
-+#include <linux/vmalloc.h>
-+
-+static void set_area_direct_np(struct vm_struct *area)
++static void kmem_cache_move(struct page *page, void *scratch, int node)
 +{
-+	int i;
++	void **vector = scratch;
++	void *p;
++	void *addr = page_address(page);
++	struct kmem_cache *s;
++	unsigned long *map;
++	int count;
++	void *private;
++	unsigned long flags;
++	unsigned long objects;
 +
-+	for (i = 0; i < area->nr_pages; i++)
-+		set_pages_np_noflush(area->pages[i], 1);
-+}
++	local_irq_save(flags);
++	slab_lock(page);
 +
-+static void set_area_direct_prw(struct vm_struct *area)
-+{
-+	int i;
++	BUG_ON(!PageSlab(page));	/* Must be s slab page */
++	BUG_ON(!page->frozen);	/* Slab must have been frozen earlier */
 +
-+	for (i = 0; i < area->nr_pages; i++)
-+		set_pages_p_noflush(area->pages[i], 1);
-+}
++	s = page->slab_cache;
++	objects = page->objects;
++	map = scratch + objects * sizeof(void **);
 +
-+void arch_vunmap(struct vm_struct *area, int deallocate_pages)
-+{
-+	int immediate = area->flags & VM_IMMEDIATE_UNMAP;
-+	int special = area->flags & VM_HAS_SPECIAL_PERMS;
++	/* Determine used objects */
++	bitmap_fill(map, objects);
++	for (p = page->freelist; p; p = get_freepointer(s, p))
++		__clear_bit(slab_index(p, s, addr), map);
 +
-+	/* Unmap from vmalloc area */
-+	remove_vm_area(area->addr);
++	/* Build vector of pointers to objects */
++	count = 0;
++	memset(vector, 0, objects * sizeof(void **));
++	for_each_object(p, s, addr, objects)
++		if (test_bit(slab_index(p, s, addr), map))
++			vector[count++] = p;
 +
-+	/* If no need to reset directmap perms, just check if need to flush */
-+	if (!(deallocate_pages || special)) {
-+		if (immediate)
-+			vm_unmap_aliases();
-+		return;
-+	}
-+
-+	/* From here we need to make sure to reset the direct map perms */
++	if (s->isolate)
++		private = s->isolate(s, vector, count);
++	else
++		/*
++		 * Objects do not need to be isolated.
++		 */
++		private = NULL;
 +
 +	/*
-+	 * If the area being freed does not have any extra capabilities, we can
-+	 * just reset the directmap to RW before freeing.
++	 * Pinned the objects. Now we can drop the slab lock. The slab
++	 * is frozen so it cannot vanish from under us nor will
++	 * allocations be performed on the slab. However, unlocking the
++	 * slab will allow concurrent slab_frees to proceed. So
++	 * the subsystem must have a way to tell from the content
++	 * of the object that it was freed.
++	 *
++	 * If neither RCU nor ctor is being used then the object
++	 * may be modified by the allocator after being freed
++	 * which may disrupt the ability of the migrate function
++	 * to tell if the object is free or not.
 +	 */
-+	if (!immediate) {
-+		set_area_direct_prw(area);
-+		vm_unmap_aliases();
-+		return;
-+	}
++	slab_unlock(page);
++	local_irq_restore(flags);
 +
 +	/*
-+	 * If the vm being freed has security sensitive capabilities such as
-+	 * executable we need to make sure there is no W window on the directmap
-+	 * before removing the X in the TLB. So we set not present first so we
-+	 * can flush without any other CPU picking up the mapping. Then we reset
-+	 * RW+P without a flush, since NP prevented it from being cached by
-+	 * other cpus.
++	 * Perform callbacks to move the objects.
 +	 */
-+	set_area_direct_np(area);
-+	vm_unmap_aliases();
-+	set_area_direct_prw(area);
++	s->migrate(s, vector, count, node, private);
 +}
--- 
-2.17.1
++
++/*
++ * Move slab objects on a particular node of the cache.
++ * Release slabs with zero objects and tryg to call the move function for
++ * slabs with less than the configured percentage of objects allocated.
++ *
++ * Returns the number of slabs left on the node after the operation.
++ */
++static unsigned long __move(struct kmem_cache *s, int node,
++		int target_node, int ratio)
++{
++	unsigned long flags;
++	struct page *page, *page2;
++	LIST_HEAD(move_list);
++	struct kmem_cache_node *n = get_node(s, node);
++
++	if (node == target_node && n->nr_partial <= 1)
++		/*
++		 * Trying to reduce fragmentataion on a node but there is
++		 * only a single or no partial slab page. This is already
++		 * the optimal object density that we can reach
++		 */
++		goto out;
++
++	spin_lock_irqsave(&n->list_lock, flags);
++	list_for_each_entry_safe(page, page2, &n->partial, lru) {
++		if (!slab_trylock(page))
++			/* Busy slab. Get out of the way */
++			continue;
++
++		if (page->inuse) {
++			if (page->inuse > ratio * page->objects / 100) {
++				slab_unlock(page);
++				/*
++				 * Skip slab because the object density
++				 * in the slab page is high enough
++				*/
++				continue;
++			}
++
++			list_move(&page->lru, &move_list);
++			if (s->migrate) {
++				/* Remove page from being considered for allocations */
++				n->nr_partial--;
++				page->frozen = 1;
++			}
++			slab_unlock(page);
++		} else {
++			/* Empty slab page */
++			list_del(&page->lru);
++			n->nr_partial--;
++			slab_unlock(page);
++			discard_slab(s, page);
++		}
++	}
++
++	if (!s->migrate)
++		/*
++		 * No defrag method. By simply putting the zaplist at the
++		 * end of the partial list we can let them simmer longer
++		 * and thus increase the chance of all objects being
++		 * reclaimed.
++		 *
++		 * We have effectively sorted the partial list and put
++		 * the slabs with more objects first. As soon as they
++		 * are allocated they are going to be removed from the
++		 * partial list.
++		 */
++		list_splice(&move_list, n->partial.prev);
++
++
++	spin_unlock_irqrestore(&n->list_lock, flags);
++
++	if (s->migrate && !list_empty(&move_list)) {
++		void **scratch = alloc_scratch();
++		struct page *page;
++		struct page *page2;
++
++		if (scratch) {
++			/* Try to remove / move the objects left */
++			list_for_each_entry(page, &move_list, lru) {
++				if (page->inuse)
++					kmem_cache_move(page, scratch, target_node);
++			}
++			kfree(scratch);
++		}
++
++		/* Inspect results and dispose of pages */
++		spin_lock_irqsave(&n->list_lock, flags);
++		list_for_each_entry_safe(page, page2, &move_list, lru) {
++			list_del(&page->lru);
++			slab_lock(page);
++			page->frozen = 0;
++
++			if (page->inuse) {
++				/*
++				 * Objects left in slab page move it to
++				 * the tail of the partial list to
++				 * increase the change that the freeing
++				 * of the remaining objects will
++				 * free the slab page
++				 */
++				n->nr_partial++;
++				list_add_tail(&page->lru, &n->partial);
++				slab_unlock(page);
++
++			} else {
++				slab_unlock(page);
++				discard_slab(s, page);
++			}
++		}
++		spin_unlock_irqrestore(&n->list_lock, flags);
++	}
++out:
++	return atomic_long_read(&n->nr_slabs);
++}
++
++/*
++ * Defrag slabs conditional on the amount of fragmentation in a page.
++ */
++int kmem_cache_defrag(int node)
++{
++	struct kmem_cache *s;
++	unsigned long left = 0;
++
++	/*
++	 * kmem_cache_defrag may be called from the reclaim path which may be
++	 * called for any page allocator alloc. So there is the danger that we
++	 * get called in a situation where slub already acquired the slub_lock
++	 * for other purposes.
++	 */
++	if (!mutex_trylock(&slab_mutex))
++		return 0;
++
++	list_for_each_entry(s, &slab_caches, list) {
++		/*
++		 * Defragmentable caches come first. If the slab cache is not
++		 * defragmentable then we can stop traversing the list.
++		 */
++		if (!s->migrate)
++			break;
++
++		if (node == -1) {
++			int nid;
++
++			for_each_node_state(nid, N_NORMAL_MEMORY)
++				if (s->node[nid]->nr_partial > MAX_PARTIAL)
++					left += __move(s, nid, nid, s->defrag_ratio);
++		} else
++			left  += __move(s, node, node, 100);
++
++	}
++	mutex_unlock(&slab_mutex);
++	return left;
++}
++EXPORT_SYMBOL(kmem_cache_defrag);
++
++/*
++ * kmem_cache_shrink reduces the memory footprint of a slab cache
++ * by as much as possible. This works by removing empty slabs from
++ * the partial list, migrating slab objects to denser slab pages
++ * (if the slab cache supports that) or reorganizing the partial
++ * list so that denser slab pages come first and less dense
++ * allocated slab pages are at the end.
++ */
++int __kmem_cache_shrink(struct kmem_cache *s)
++{
++	int node;
++	int left = 0;
++
++	flush_all(s);
++	for_each_node_state(node, N_NORMAL_MEMORY)
++		left += __move(s, node, node, 100);
++
++	return 0;
++}
++EXPORT_SYMBOL(__kmem_cache_shrink);
++
+ void kmem_cache_setup_mobility(struct kmem_cache *s,
+ 	kmem_isolate_func isolate, kmem_migrate_func migrate)
+ {
+ 	int max_objects = oo_objects(s->max);
+
+ 	/*
+-	 * Defragmentable slabs must have a ctor otherwise objects may be
+-	 * in an undetermined state after they are allocated.
++	 * Mobile objects must have a ctor otherwise the
++	 * object may be in an undefined state on allocation.
++	 *
++	 * Since the object may need to be inspected by the
++	 * migration function at any time after allocation we
++	 * must ensure that the object always has a defined
++	 * state.
+ 	 */
+ 	BUG_ON(!s->ctor);
