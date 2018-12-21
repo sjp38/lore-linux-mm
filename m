@@ -1,53 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 48CF46B7971
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 05:20:10 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id p66so319934itc.0
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 02:20:10 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 194sor403465itx.31.2018.12.06.02.20.08
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 420298E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 11:03:33 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id 42so6156179qtr.7
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 08:03:33 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 16si2664427qvl.219.2018.12.21.08.03.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Dec 2018 02:20:08 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Dec 2018 08:03:32 -0800 (PST)
+Subject: Re: [PATCH] mm: Refactor readahead defines in mm.h
+References: <20181221144053.24318-1-nborisov@suse.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <6153943c-6f47-f6ba-e62b-cb2a6c05c59f@redhat.com>
+Date: Fri, 21 Dec 2018 17:03:28 +0100
 MIME-Version: 1.0
-References: <cover.1543337629.git.andreyknvl@google.com> <996c9b3898bb3c5de977d00215ddc4bf8cf154c1.1543337629.git.andreyknvl@google.com>
- <20181129180134.GA4318@arm.com>
-In-Reply-To: <20181129180134.GA4318@arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 6 Dec 2018 11:19:57 +0100
-Message-ID: <CAAeHK+yN6Jrk6G6OjbkMHwCxkuQHfrz8PXtPTUdrfsHaru_eKA@mail.gmail.com>
-Subject: Re: [PATCH v12 23/25] kasan, arm64: select HAVE_ARCH_KASAN_SW_TAGS
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20181221144053.24318-1-nborisov@suse.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgenii Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Nikolay Borisov <nborisov@suse.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: willy@infradead.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Nov 29, 2018 at 7:01 PM Will Deacon <will.deacon@arm.com> wrote:
->
-> On Tue, Nov 27, 2018 at 05:55:41PM +0100, Andrey Konovalov wrote:
-> > Now, that all the necessary infrastructure code has been introduced,
-> > select HAVE_ARCH_KASAN_SW_TAGS for arm64 to enable software tag-based
-> > KASAN mode.
-> >
-> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > ---
-> >  arch/arm64/Kconfig | 1 +
-> >  1 file changed, 1 insertion(+)
-> >
-> > diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> > index 787d7850e064..8b331dcfb48e 100644
-> > --- a/arch/arm64/Kconfig
-> > +++ b/arch/arm64/Kconfig
-> > @@ -111,6 +111,7 @@ config ARM64
-> >       select HAVE_ARCH_JUMP_LABEL
-> >       select HAVE_ARCH_JUMP_LABEL_RELATIVE
-> >       select HAVE_ARCH_KASAN if !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
-> > +     select HAVE_ARCH_KASAN_SW_TAGS if !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
->
-> Can you do if HAVE_ARCH_KASAN instead?
+On 21.12.18 15:40, Nikolay Borisov wrote:
+> All users of VM_MAX_READAHEAD actually convert it to kbytes and then to
+> pages. Define the macro explicitly as (SZ_128K / PAGE_SIZE). This
+> simplifies the expression in every filesystem. Also rename the macro to
+> VM_READAHEAD_PAGES to properly convey its meaning. Finally remove unused
+> VM_MIN_READAHEAD
+> 
+> Signed-off-by: Nikolay Borisov <nborisov@suse.com>
+> ---
+>  block/blk-core.c   | 3 +--
+>  fs/9p/vfs_super.c  | 2 +-
+>  fs/afs/super.c     | 2 +-
+>  fs/btrfs/disk-io.c | 2 +-
+>  fs/fuse/inode.c    | 2 +-
+>  include/linux/mm.h | 4 ++--
+>  6 files changed, 7 insertions(+), 8 deletions(-)
+> 
+> diff --git a/block/blk-core.c b/block/blk-core.c
+> index deb56932f8c4..d25c8564a117 100644
+> --- a/block/blk-core.c
+> +++ b/block/blk-core.c
+> @@ -1031,8 +1031,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
+>  	if (!q->stats)
+>  		goto fail_stats;
+>  
+> -	q->backing_dev_info->ra_pages =
+> -			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
+> +	q->backing_dev_info->ra_pages = VM_READAHEAD_PAGES;
+>  	q->backing_dev_info->capabilities = BDI_CAP_CGROUP_WRITEBACK;
+>  	q->backing_dev_info->name = "block";
+>  	q->node = node_id;
+> diff --git a/fs/9p/vfs_super.c b/fs/9p/vfs_super.c
+> index 48ce50484e80..10d3bd3f534b 100644
+> --- a/fs/9p/vfs_super.c
+> +++ b/fs/9p/vfs_super.c
+> @@ -92,7 +92,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
+>  		return ret;
+>  
+>  	if (v9ses->cache)
+> -		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_SIZE;
+> +		sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
+>  
+>  	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC;
+>  	if (!v9ses->cache)
+> diff --git a/fs/afs/super.c b/fs/afs/super.c
+> index dcd07fe99871..e684f6769b15 100644
+> --- a/fs/afs/super.c
+> +++ b/fs/afs/super.c
+> @@ -399,7 +399,7 @@ static int afs_fill_super(struct super_block *sb,
+>  	ret = super_setup_bdi(sb);
+>  	if (ret)
+>  		return ret;
+> -	sb->s_bdi->ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
+> +	sb->s_bdi->ra_pages	= VM_READAHEAD_PAGES;
+>  
+>  	/* allocate the root inode and dentry */
+>  	if (as->dyn_root) {
+> diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+> index 6d776717d8b3..ee47d8b5b50c 100644
+> --- a/fs/btrfs/disk-io.c
+> +++ b/fs/btrfs/disk-io.c
+> @@ -2900,7 +2900,7 @@ int open_ctree(struct super_block *sb,
+>  	sb->s_bdi->congested_fn = btrfs_congested_fn;
+>  	sb->s_bdi->congested_data = fs_info;
+>  	sb->s_bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
+> -	sb->s_bdi->ra_pages = VM_MAX_READAHEAD * SZ_1K / PAGE_SIZE;
+> +	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
+>  	sb->s_bdi->ra_pages *= btrfs_super_num_devices(disk_super);
+>  	sb->s_bdi->ra_pages = max(sb->s_bdi->ra_pages, SZ_4M / PAGE_SIZE);
+>  
+> diff --git a/fs/fuse/inode.c b/fs/fuse/inode.c
+> index 568abed20eb2..d3eab53a29b7 100644
+> --- a/fs/fuse/inode.c
+> +++ b/fs/fuse/inode.c
+> @@ -1009,7 +1009,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
+>  	if (err)
+>  		return err;
+>  
+> -	sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
+> +	sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
+>  	/* fuse does it's own writeback accounting */
+>  	sb->s_bdi->capabilities = BDI_CAP_NO_ACCT_WB | BDI_CAP_STRICTLIMIT;
+>  
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 5411de93a363..1579082af177 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -26,6 +26,7 @@
+>  #include <linux/page_ref.h>
+>  #include <linux/memremap.h>
+>  #include <linux/overflow.h>
+> +#include <linux/sizes.h>
+>  
+>  struct mempolicy;
+>  struct anon_vma;
+> @@ -2396,8 +2397,7 @@ int __must_check write_one_page(struct page *page);
+>  void task_dirty_inc(struct task_struct *tsk);
+>  
+>  /* readahead.c */
+> -#define VM_MAX_READAHEAD	128	/* kbytes */
+> -#define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
+> +#define VM_READAHEAD_PAGES	(SZ_128K / PAGE_SIZE)
+>  
+>  int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>  			pgoff_t offset, unsigned long nr_to_read);
+> 
 
-Will do in v13, thanks!
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
->
-> Will
+-- 
+
+Thanks,
+
+David / dhildenb
