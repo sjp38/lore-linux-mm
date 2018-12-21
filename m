@@ -2,149 +2,563 @@ Return-Path: <SRS0=s2+Z=O6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 943B2C43387
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 01:37:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4830AC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 01:43:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EEB9218E2
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 01:37:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CA90A218FE
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 01:43:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="EIUy28w0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EEB9218E2
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="gr8/1vZ5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA90A218FE
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F2238E0003; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
+	id 667E28E0003; Thu, 20 Dec 2018 20:43:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A0C88E0001; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
+	id 5F02A8E0001; Thu, 20 Dec 2018 20:43:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68FD18E0003; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
+	id 490F18E0003; Thu, 20 Dec 2018 20:43:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F3FE8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 20:37:40 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id 41so3942321qto.17
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 17:37:40 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7C28E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 20:43:22 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id a199so3873541qkb.23
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 17:43:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :in-reply-to:message-id:references:user-agent:mime-version
          :feedback-id;
-        bh=HRl5j/Qx65fd3QJepQc0eeywK0XPZ4vo8oAxPUt+UBY=;
-        b=ESEhL2dLC/UkW2blxxbuE7XDR+VoQKxQd/j8mlyxZCbCWYutPn194BvpTMknbl4K53
-         clbx/B7SdFLv9aKo9/yzEfPh0M20QJulrnJ5QkbHBS9XMFv+/p3WlGpSIX7uhyfBIdPx
-         cyqWoUMfK7cr9jS6WGytf/SUrq4dj4aIsmVD8toZAmd0Wl97fNC890nCGBg4wJU677VS
-         muAC6FpAanRt4xrehGf7HVyheic64NO21ZOdQOXJ0Z1Vi2bZwdfxNC7r09bGK/BkzsAy
-         BhQcotlnKHyZTrmbi2NekcXh0ltgcvbPfo271PHC5YL21iPMuf+2fCCBt7tENhSF7Eyy
-         q3cA==
-X-Gm-Message-State: AA+aEWYTV+GWq8WUsSJyCuSgegS7unumF3u8KjQNep1pzisXq7++k8be
-	ltxSXpemkPEaxIqjFirl5JyGmHCHdsovaQ1/uiDtFZEKPddG7RtTGD4VhkBGAWQ2ka01UzJGR5O
-	MoK2oWHyZxfe7o0rBCedh9sAfB1D0C9fHSIXnDgK3azlrJVTKLglBmeCh3DkpUHc=
-X-Received: by 2002:ac8:4258:: with SMTP id r24mr518081qtm.213.1545356259887;
-        Thu, 20 Dec 2018 17:37:39 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN74v3cpuaQHO7d6M4nfo1s85p6HqbXfbV6GKZRQJBLM8ZXsqf+R6/h/Q0Bk7i+UO6mr2VzZ
-X-Received: by 2002:ac8:4258:: with SMTP id r24mr518052qtm.213.1545356259211;
-        Thu, 20 Dec 2018 17:37:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545356259; cv=none;
+        bh=9xsw+LRXhN6pULsUawdWy8PNdT5DJqPqassI+W8RJZA=;
+        b=Dg4AoSahK3QUkukzVpbXB3efEx24UaJ8WRrPjgAfHLrgRwJf8xbDCaU6QIAhuwvkXz
+         9yklT3Ii/4muqQAYo6CcQRqlT93cpvEn/LZzhDgRuV2zf4sVmlqltn+iEmXA6n6GwJIt
+         gsZQzcC6wLRnCThT9Y26VMGWdGF+9NMt23yCEdjAyjiekvS57ig3c/IZLlCVqglWBA6V
+         qVBmb6HVyG19NRcFvHAqQxohMSyme7dB8dDF2HBI5XUNhTBnum+P2cce9YOltGUm/+lG
+         LDENrTY1yykPgvG2Y4SkqVWcbJmMB7edJ4aOCww6ToyOOs5cNjjNzeT1WxP3MPqYb7pG
+         njmA==
+X-Gm-Message-State: AJcUukdkYu6IBCBaLzkweTbeIcBtqG0ojtJ12CYEk0CUM4pu+2BAm9Ci
+	1MJkJ4WmJGp5hUUnszNeSLZoA8ZV2c1ck/nQoPY2aux++3EosF69dPHmfEpV9KCGihfC9r62N9N
+	YGAsyQcOfu6dRX5NxTmo6ekgdCXWf6Bjg09YZVIhfR03f8e8D5olPP433U4zNGno=
+X-Received: by 2002:a37:742:: with SMTP id 63mr524390qkh.356.1545356601694;
+        Thu, 20 Dec 2018 17:43:21 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4Zz/1ouf6H9KxNUnpOVyuDuDFvZ6HmcKa+LkASNQ7YuO2oSM6IUvHdCNK+BY6pWzqBJStL
+X-Received: by 2002:a37:742:: with SMTP id 63mr524344qkh.356.1545356600353;
+        Thu, 20 Dec 2018 17:43:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545356600; cv=none;
         d=google.com; s=arc-20160816;
-        b=mXoRqUT0bZK7DXEhmddZO5sZexnFkWTzOUG5qnshfELV/ISI5T1ixuhTEc5zkeaDS8
-         KvQUFW/WQrjzsZYJdrAuHPrtFPA9pkaAxGP4bXeblbVuXkg7qJmUQTE7AN5GupQBILbN
-         +1/haZ7x6Jg1AClCWx8wrWtticfrO6lEKyImoebCl0zhZSkpftWwONBpuXx1zWWDXkRV
-         xF8h4UuVFbi2qGTW2l4z4McE0zvVU/BcuJDRgkY3aiiChX3RklSSvIBVsN78FnPVkBm0
-         OZdP/cUH5Bu2aEEMX2xpxbPaf4G+qLZ1MI7bsn6EG0VYF0tEvgSh/PvvKrHpD8Wh098L
-         j9Yg==
+        b=jcrgPeKWulTtEqfI9HNvc6I4+7t6lCxURpxYFKvbvXKISx4EUF9DgQnCh1bvaNzUbO
+         4BPO/BXXBRgvuSAAlpjG58YdHHOQKExNTF5RjfbLhkZxRbEpMsK/RyzAGnPP1v1kYmgF
+         Xx7Tx6qLmxGqvFYBUsXyLun/+Ay0JIQZr7RNXlJ+ZqII+4UkkuEV1D8PClqJ4h01jZ4t
+         kn10i4k6t5ZZxoj+sb2f3HX3bD6McTwbi6qGsgP7ORcIdPd5WUG690TKEoJRpycuw0Is
+         zmI20enx497ECR5nQh/gmI5WQ6CUfRARna/n0/M1tvj0kqz3ER3hHkPos4be6cmm+85c
+         nj1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=feedback-id:mime-version:user-agent:references:message-id
          :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=HRl5j/Qx65fd3QJepQc0eeywK0XPZ4vo8oAxPUt+UBY=;
-        b=AyTStUM7qZ6anNWPKeqZ9cZhXpkbKCe2RGHtZv8g6Hsgeu7qEw01NS1S5J5AsmuC+u
-         uSDgh3dKg1OSOnwtjap6fF34xcPkZk+i4xk4FtjaL/uiy4p4uSx5PShLiwuJt7KKZcdC
-         TQwRP22ICEzabdmw6mXxixMRmU5X8wxvhzmTLEjCHSER+dadOhfFsJyjNwK1vpwOxG9+
-         FVM+4l0b6BXgY06ePFGuhIiTA0wosiL4aMpnT9jFbvqJTOL6Q7E35noyoD72l7F2mRQk
-         PvbyumwU2aRqiKMREPv10dPY11FvSE7HUmFYkG6yM18RTrXpn8WROzM/s9PFH6/YD06h
-         /IRQ==
+        bh=9xsw+LRXhN6pULsUawdWy8PNdT5DJqPqassI+W8RJZA=;
+        b=0WLH4KnwTKAc0yHDsBdj2DfzgTBgPE9g02YAmVZx6PYx5QaFyBbgbPV70Z9Lcpa4ev
+         HC1rpv/kfQXCe9IISIyDkKVnJ/SN/KNOAeUHulAatqjGlmXGvP7rKDYJ6FvFcLSM5Y4j
+         njgW6L62h9U291dPBZNHT9aFfuWLAS7mITzMuPmzJim59z14xAIG4QoS2wLI6s3Bpff5
+         C4FPLJcEcW8frA+0BxypVTkRBuuVgJzTQqtlyTMB8WgLpjcYJOpOR3A6KcoHglLuELbc
+         SUU31HAFxVa3Hg5oB7u3iZNnFbOpTwpub5tJbaHnnsZB/lS2D7fQDGNbxzALMyH+EPVS
+         zDoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=EIUy28w0;
-       spf=pass (google.com: domain of 01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTPS id f10si2166720qvm.149.2018.12.20.17.37.39
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="gr8/1vZ5";
+       spf=pass (google.com: domain of 01000167ce6e615d-6857545b-566a-4cd2-a0a0-c06b848e1f3d-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=01000167ce6e615d-6857545b-566a-4cd2-a0a0-c06b848e1f3d-000000@amazonses.com
+Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
+        by mx.google.com with ESMTPS id g11si186476qvm.35.2018.12.20.17.43.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Dec 2018 17:37:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com designates 54.240.9.46 as permitted sender) client-ip=54.240.9.46;
+        Thu, 20 Dec 2018 17:43:20 -0800 (PST)
+Received-SPF: pass (google.com: domain of 01000167ce6e615d-6857545b-566a-4cd2-a0a0-c06b848e1f3d-000000@amazonses.com designates 54.240.9.30 as permitted sender) client-ip=54.240.9.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=EIUy28w0;
-       spf=pass (google.com: domain of 01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@amazonses.com
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="gr8/1vZ5";
+       spf=pass (google.com: domain of 01000167ce6e615d-6857545b-566a-4cd2-a0a0-c06b848e1f3d-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=01000167ce6e615d-6857545b-566a-4cd2-a0a0-c06b848e1f3d-000000@amazonses.com
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1545356258;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1545356600;
 	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=QvZfLWaTQxDT1rO5haOeoHv4lCWD39UeIZR4Rk2b6kg=;
-	b=EIUy28w0eFpM4fThUKcrBdkumWLAJY1RsMGHoOlvaPd4/LgCXEuJpEyuQroIi8Dn
-	gsJuOZxWDYnIZoqjvSGNMwjZNI5xiNRpSQmhXQfqTgg2BaVl4lXQqQhieSp/NVctxNj
-	cRr8ucKLqStav7XUjRWKfaSE80lEC+EPcCQ1BJWQ=
-Date: Fri, 21 Dec 2018 01:37:38 +0000
+	bh=kZ4T+AmWkCR/O0vmYDi/xqU/YwNxj1st5ZKah7mBovc=;
+	b=gr8/1vZ514n55C0rYWApDebl+Ctp3OPK08+DB91nlbj0vFBkd12ogG+Wr2GDjLCr
+	FzPWKr5i3zjehorS0AYqCU17UO3n6AtAxUH/5DzeCcvJCmq/ZDJU26MMTJE0r7M2jiR
+	CfV4cIU0LjdXyGrkAVvY9XnlRQm/0WLXP6LJo2iM=
+Date: Fri, 21 Dec 2018 01:43:19 +0000
 From: Christopher Lameter <cl@linux.com>
 X-X-Sender: cl@nuc-kabylake
-To: Andrew Morton <akpm@linux-foundation.org>
-cc: Wei Yang <richard.weiyang@gmail.com>, penberg@kernel.org, 
-    mhocko@kernel.org, linux-mm@kvack.org, 
-    Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/slub: improve performance by skipping checked node
- in get_any_partial()
-In-Reply-To: <20181220144107.9376344c2be687615ea9aa69@linux-foundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+    Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, 
+    Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, 
+    Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, 
+    Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, 
+    Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC 5/7] Slab defrag core
+In-Reply-To: <01000167cd1130c8-c9bebcb9-1f95-4f7c-b24a-90600d56c62f-000000@email.amazonses.com>
 Message-ID:
- <01000167ce692d0d-ef68fdc8-4c30-40a4-8ca5-afbc3773c075-000000@email.amazonses.com>
-References: <20181108011204.9491-1-richard.weiyang@gmail.com> <20181120033119.30013-1-richard.weiyang@gmail.com> <20181220144107.9376344c2be687615ea9aa69@linux-foundation.org>
+ <01000167ce6e615d-6857545b-566a-4cd2-a0a0-c06b848e1f3d-000000@email.amazonses.com>
+References: <01000167cd1130c8-c9bebcb9-1f95-4f7c-b24a-90600d56c62f-000000@email.amazonses.com>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-X-SES-Outgoing: 2018.12.21-54.240.9.46
+X-SES-Outgoing: 2018.12.21-54.240.9.30
 Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181221013738.MG2hpvQmmXOx-E6A7LTdZloN-tz6-1I8cRHpE-N2l1k@z>
+Message-ID: <20181221014319.e8BhIomsxafc9qucqpYBPMm3vQ-GouEv6d5XrU3SYvI@z>
 
-On Thu, 20 Dec 2018, Andrew Morton wrote:
+Slab defragmentation may occur:
 
->   The result of (get_partial_count / get_partial_try_count):
->
->    +----------+----------------+------------+-------------+
->    |          |       Base     |    Patched |  Improvement|
->    +----------+----------------+------------+-------------+
->    |One Node  |       1:3      |    1:0     |      - 100% |
+1. Unconditionally when kmem_cache_shrink is called on a slab cache by the
+   kernel calling kmem_cache_shrink.
 
-If you have one node then you already searched all your slabs. So we could
-completely skip the get_any_partial() functionality in the non NUMA case
-(if nr_node_ids == 1)
+2. Through the use of the slabinfo command.
 
+3. Per node defrag conditionally when kmem_cache_defrag(<node>) is called
+   (can be called from reclaim code with a later patch).
 
->    +----------+----------------+------------+-------------+
->    |Four Nodes|       1:5.8    |    1:2.5   |      -  56% |
->    +----------+----------------+------------+-------------+
+   Defragmentation is only performed if the fragmentation of the slab
+   is lower than the specified percentage. Fragmentation ratios are measured
+   by calculating the percentage of objects in use compared to the total
+   number of objects that the slab page can accomodate.
 
-Hmm.... Ok but that is the extreme slowpath.
+   The scanning of slab caches is optimized because the
+   defragmentable slabs come first on the list. Thus we can terminate scans
+   on the first slab encountered that does not support defragmentation.
 
->    Each version/system configuration combination has four round kernel
->    build tests. Take the average result of real to compare.
->
->    +----------+----------------+------------+-------------+
->    |          |       Base     |   Patched  |  Improvement|
->    +----------+----------------+------------+-------------+
->    |One Node  |      4m41s     |   4m32s    |     - 4.47% |
->    +----------+----------------+------------+-------------+
->    |Four Nodes|      4m45s     |   4m39s    |     - 2.92% |
->    +----------+----------------+------------+-------------+
+   kmem_cache_defrag() takes a node parameter. This can either be -1 if
+   defragmentation should be performed on all nodes, or a node number.
 
-3% on the four node case? That means that the slowpath is taken
-frequently. Wonder why?
+A couple of functions must be setup via a call to kmem_cache_setup_defrag()
+in order for a slabcache to support defragmentation. These are
 
-Can we also see the variability? Since this is a NUMA system there is
-bound to be some indeterminism in those numbers.
+kmem_defrag_isolate_func (void *isolate(struct kmem_cache *s, void **objects, int nr))
+
+	Must stabilize that the objects and ensure that they will not be freed until
+	the migration function is complete. SLUB guarantees that
+	the objects are still allocated. However, other threads may be blocked
+	in slab_free() attempting to free objects in the slab. These may succeed
+	as soon as isolate() returns to the slab allocator. The function must
+	be able to detect such situations and void the attempts to free such
+	objects (by for example voiding the corresponding entry in the objects
+	array).
+
+	No slab operations may be performed in isolate(). Interrupts
+	are disabled. What can be done is very limited. The slab lock
+	for the page that contains the object is taken. Any attempt to perform
+	a slab operation may lead to a deadlock.
+
+	kmem_defrag_isolate_func returns a private pointer that is passed to
+	kmem_defrag_kick_func(). Should we be unable to obtain all references
+	then that pointer may indicate to the kick() function that it should
+	not attempt any object removal or move but simply undo the measure
+	that were used to stabilize the object.
+
+kmem_defrag_migrate_func (void migrate(struct kmem_cache *, void **objects, int nr,
+			int node, void *get_result))
+
+	After SLUB has stabilzed the objects in a
+	slab it will then drop all locks and use migrate() to move objects out
+	of the slab. The existence of the object is guaranteed by virtue of
+	the earlier obtained references via kmem_defrag_get_func(). The
+	callback may perform any slab operation since no locks are held at
+	the time of call.
+
+	The callback should remove the object from the slab in some way. This
+	may be accomplished by reclaiming the object and then running
+	kmem_cache_free() or reallocating it and then running
+	kmem_cache_free(). Reallocation is advantageous because the partial
+	slabs were just sorted to have the partial slabs with the most objects
+	first. Reallocation is likely to result in filling up a slab in
+	addition to freeing up one slab. A filled up slab can also be removed
+	from the partial list. So there could be a double effect.
+
+	kmem_defrag_migrate_func() does not return a result. SLUB will check
+	the number of remaining objects in the slab. If all objects were
+	removed then the slab is freed and we have reduced the overall
+	fragmentation of the slab cache.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ include/linux/slab.h |    3
+ mm/slub.c            |  265 ++++++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 215 insertions(+), 53 deletions(-)
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c
++++ linux/mm/slub.c
+@@ -351,6 +351,12 @@ static __always_inline void slab_lock(st
+ 	bit_spin_lock(PG_locked, &page->flags);
+ }
+
++static __always_inline int slab_trylock(struct page *page)
++{
++	VM_BUG_ON_PAGE(PageTail(page), page);
++	return bit_spin_trylock(PG_locked, &page->flags);
++}
++
+ static __always_inline void slab_unlock(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+@@ -3946,79 +3952,6 @@ void kfree(const void *x)
+ }
+ EXPORT_SYMBOL(kfree);
+
+-#define SHRINK_PROMOTE_MAX 32
+-
+-/*
+- * kmem_cache_shrink discards empty slabs and promotes the slabs filled
+- * up most to the head of the partial lists. New allocations will then
+- * fill those up and thus they can be removed from the partial lists.
+- *
+- * The slabs with the least items are placed last. This results in them
+- * being allocated from last increasing the chance that the last objects
+- * are freed in them.
+- */
+-int __kmem_cache_shrink(struct kmem_cache *s)
+-{
+-	int node;
+-	int i;
+-	struct kmem_cache_node *n;
+-	struct page *page;
+-	struct page *t;
+-	struct list_head discard;
+-	struct list_head promote[SHRINK_PROMOTE_MAX];
+-	unsigned long flags;
+-	int ret = 0;
+-
+-	flush_all(s);
+-	for_each_kmem_cache_node(s, node, n) {
+-		INIT_LIST_HEAD(&discard);
+-		for (i = 0; i < SHRINK_PROMOTE_MAX; i++)
+-			INIT_LIST_HEAD(promote + i);
+-
+-		spin_lock_irqsave(&n->list_lock, flags);
+-
+-		/*
+-		 * Build lists of slabs to discard or promote.
+-		 *
+-		 * Note that concurrent frees may occur while we hold the
+-		 * list_lock. page->inuse here is the upper limit.
+-		 */
+-		list_for_each_entry_safe(page, t, &n->partial, lru) {
+-			int free = page->objects - page->inuse;
+-
+-			/* Do not reread page->inuse */
+-			barrier();
+-
+-			/* We do not keep full slabs on the list */
+-			BUG_ON(free <= 0);
+-
+-			if (free == page->objects) {
+-				list_move(&page->lru, &discard);
+-				n->nr_partial--;
+-			} else if (free <= SHRINK_PROMOTE_MAX)
+-				list_move(&page->lru, promote + free - 1);
+-		}
+-
+-		/*
+-		 * Promote the slabs filled up most to the head of the
+-		 * partial list.
+-		 */
+-		for (i = SHRINK_PROMOTE_MAX - 1; i >= 0; i--)
+-			list_splice(promote + i, &n->partial);
+-
+-		spin_unlock_irqrestore(&n->list_lock, flags);
+-
+-		/* Release empty slabs */
+-		list_for_each_entry_safe(page, t, &discard, lru)
+-			discard_slab(s, page);
+-
+-		if (slabs_node(s, node))
+-			ret = 1;
+-	}
+-
+-	return ret;
+-}
+-
+ #ifdef CONFIG_MEMCG
+ static void kmemcg_cache_deact_after_rcu(struct kmem_cache *s)
+ {
+@@ -4325,14 +4258,271 @@ static inline void *alloc_scratch(void)
+ 		GFP_KERNEL);
+ }
+
++/*
++ * Move all objects in the given slab.
++ *
++ * If the target node is the current node then the object is moved else
++ * where on the same node. Which is an effective way of defragmentation
++ * since the current slab page with its object is exempt from allocation.
++ *
++ * The scratch area passed to list function is sufficient to hold
++ * struct listhead times objects per slab. We use it to hold void ** times
++ * objects per slab plus a bitmap for each object.
++ */
++static void kmem_cache_move(struct page *page, void *scratch, int node)
++{
++	void **vector = scratch;
++	void *p;
++	void *addr = page_address(page);
++	struct kmem_cache *s;
++	unsigned long *map;
++	int count;
++	void *private;
++	unsigned long flags;
++	unsigned long objects;
++
++	local_irq_save(flags);
++	slab_lock(page);
++
++	BUG_ON(!PageSlab(page));	/* Must be s slab page */
++	BUG_ON(!page->frozen);	/* Slab must have been frozen earlier */
++
++	s = page->slab_cache;
++	objects = page->objects;
++	map = scratch + objects * sizeof(void **);
++
++	/* Determine used objects */
++	bitmap_fill(map, objects);
++	for (p = page->freelist; p; p = get_freepointer(s, p))
++		__clear_bit(slab_index(p, s, addr), map);
++
++	/* Build vector of pointers to objects */
++	count = 0;
++	memset(vector, 0, objects * sizeof(void **));
++	for_each_object(p, s, addr, objects)
++		if (test_bit(slab_index(p, s, addr), map))
++			vector[count++] = p;
++
++	if (s->isolate)
++		private = s->isolate(s, vector, count);
++	else
++		/*
++		 * Objects do not need to be isolated.
++		 */
++		private = NULL;
++
++	/*
++	 * Pinned the objects. Now we can drop the slab lock. The slab
++	 * is frozen so it cannot vanish from under us nor will
++	 * allocations be performed on the slab. However, unlocking the
++	 * slab will allow concurrent slab_frees to proceed. So
++	 * the subsystem must have a way to tell from the content
++	 * of the object that it was freed.
++	 *
++	 * If neither RCU nor ctor is being used then the object
++	 * may be modified by the allocator after being freed
++	 * which may disrupt the ability of the migrate function
++	 * to tell if the object is free or not.
++	 */
++	slab_unlock(page);
++	local_irq_restore(flags);
++
++	/*
++	 * Perform callbacks to move the objects.
++	 */
++	s->migrate(s, vector, count, node, private);
++}
++
++/*
++ * Move slab objects on a particular node of the cache.
++ * Release slabs with zero objects and tryg to call the move function for
++ * slabs with less than the configured percentage of objects allocated.
++ *
++ * Returns the number of slabs left on the node after the operation.
++ */
++static unsigned long __move(struct kmem_cache *s, int node,
++		int target_node, int ratio)
++{
++	unsigned long flags;
++	struct page *page, *page2;
++	LIST_HEAD(move_list);
++	struct kmem_cache_node *n = get_node(s, node);
++
++	if (node == target_node && n->nr_partial <= 1)
++		/*
++		 * Trying to reduce fragmentataion on a node but there is
++		 * only a single or no partial slab page. This is already
++		 * the optimal object density that we can reach
++		 */
++		goto out;
++
++	spin_lock_irqsave(&n->list_lock, flags);
++	list_for_each_entry_safe(page, page2, &n->partial, lru) {
++		if (!slab_trylock(page))
++			/* Busy slab. Get out of the way */
++			continue;
++
++		if (page->inuse) {
++			if (page->inuse > ratio * page->objects / 100) {
++				slab_unlock(page);
++				/*
++				 * Skip slab because the object density
++				 * in the slab page is high enough
++				*/
++				continue;
++			}
++
++			list_move(&page->lru, &move_list);
++			if (s->migrate) {
++				/* Remove page from being considered for allocations */
++				n->nr_partial--;
++				page->frozen = 1;
++			}
++			slab_unlock(page);
++		} else {
++			/* Empty slab page */
++			list_del(&page->lru);
++			n->nr_partial--;
++			slab_unlock(page);
++			discard_slab(s, page);
++		}
++	}
++
++	if (!s->migrate)
++		/*
++		 * No defrag method. By simply putting the zaplist at the
++		 * end of the partial list we can let them simmer longer
++		 * and thus increase the chance of all objects being
++		 * reclaimed.
++		 *
++		 * We have effectively sorted the partial list and put
++		 * the slabs with more objects first. As soon as they
++		 * are allocated they are going to be removed from the
++		 * partial list.
++		 */
++		list_splice(&move_list, n->partial.prev);
++
++
++	spin_unlock_irqrestore(&n->list_lock, flags);
++
++	if (s->migrate && !list_empty(&move_list)) {
++		void **scratch = alloc_scratch();
++		struct page *page;
++		struct page *page2;
++
++		if (scratch) {
++			/* Try to remove / move the objects left */
++			list_for_each_entry(page, &move_list, lru) {
++				if (page->inuse)
++					kmem_cache_move(page, scratch, target_node);
++			}
++			kfree(scratch);
++		}
++
++		/* Inspect results and dispose of pages */
++		spin_lock_irqsave(&n->list_lock, flags);
++		list_for_each_entry_safe(page, page2, &move_list, lru) {
++			list_del(&page->lru);
++			slab_lock(page);
++			page->frozen = 0;
++
++			if (page->inuse) {
++				/*
++				 * Objects left in slab page move it to
++				 * the tail of the partial list to
++				 * increase the change that the freeing
++				 * of the remaining objects will
++				 * free the slab page
++				 */
++				n->nr_partial++;
++				list_add_tail(&page->lru, &n->partial);
++				slab_unlock(page);
++
++			} else {
++				slab_unlock(page);
++				discard_slab(s, page);
++			}
++		}
++		spin_unlock_irqrestore(&n->list_lock, flags);
++	}
++out:
++	return atomic_long_read(&n->nr_slabs);
++}
++
++/*
++ * Defrag slabs conditional on the amount of fragmentation in a page.
++ */
++int kmem_cache_defrag(int node)
++{
++	struct kmem_cache *s;
++	unsigned long left = 0;
++
++	/*
++	 * kmem_cache_defrag may be called from the reclaim path which may be
++	 * called for any page allocator alloc. So there is the danger that we
++	 * get called in a situation where slub already acquired the slub_lock
++	 * for other purposes.
++	 */
++	if (!mutex_trylock(&slab_mutex))
++		return 0;
++
++	list_for_each_entry(s, &slab_caches, list) {
++		/*
++		 * Defragmentable caches come first. If the slab cache is not
++		 * defragmentable then we can stop traversing the list.
++		 */
++		if (!s->migrate)
++			break;
++
++		if (node == -1) {
++			int nid;
++
++			for_each_node_state(nid, N_NORMAL_MEMORY)
++				if (s->node[nid]->nr_partial > MAX_PARTIAL)
++					left += __move(s, nid, nid, s->defrag_ratio);
++		} else
++			left  += __move(s, node, node, 100);
++
++	}
++	mutex_unlock(&slab_mutex);
++	return left;
++}
++EXPORT_SYMBOL(kmem_cache_defrag);
++
++/*
++ * kmem_cache_shrink reduces the memory footprint of a slab cache
++ * by as much as possible. This works by removing empty slabs from
++ * the partial list, migrating slab objects to denser slab pages
++ * (if the slab cache supports that) or reorganizing the partial
++ * list so that denser slab pages come first and less dense
++ * allocated slab pages are at the end.
++ */
++int __kmem_cache_shrink(struct kmem_cache *s)
++{
++	int node;
++	int left = 0;
++
++	flush_all(s);
++	for_each_node_state(node, N_NORMAL_MEMORY)
++		left += __move(s, node, node, 100);
++
++	return 0;
++}
++EXPORT_SYMBOL(__kmem_cache_shrink);
++
+ void kmem_cache_setup_mobility(struct kmem_cache *s,
+ 	kmem_isolate_func isolate, kmem_migrate_func migrate)
+ {
+ 	int max_objects = oo_objects(s->max);
+
+ 	/*
+-	 * Defragmentable slabs must have a ctor otherwise objects may be
+-	 * in an undetermined state after they are allocated.
++	 * Mobile objects must have a ctor otherwise the
++	 * object may be in an undefined state on allocation.
++	 *
++	 * Since the object may need to be inspected by the
++	 * migration function at any time after allocation we
++	 * must ensure that the object always has a defined
++	 * state.
+ 	 */
+ 	BUG_ON(!s->ctor);
 
