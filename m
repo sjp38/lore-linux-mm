@@ -2,296 +2,193 @@ Return-Path: <SRS0=s2+Z=O6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 45C4EC43444
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 07:57:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 076DAC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 15:33:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D554D21908
-	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 07:56:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D554D21908
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9A9C521903
+	for <linux-mm@archiver.kernel.org>; Fri, 21 Dec 2018 15:33:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A9C521903
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2DDDB8E0002; Fri, 21 Dec 2018 02:56:59 -0500 (EST)
+	id 04E358E0002; Fri, 21 Dec 2018 10:33:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28E178E0001; Fri, 21 Dec 2018 02:56:59 -0500 (EST)
+	id F3F378E0001; Fri, 21 Dec 2018 10:33:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A4A78E0002; Fri, 21 Dec 2018 02:56:59 -0500 (EST)
+	id DE1748E0002; Fri, 21 Dec 2018 10:33:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D046C8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 02:56:58 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id i3so4219904pfj.4
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 23:56:58 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 811C88E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:33:06 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c34so6246851edb.8
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 07:33:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=bh7CaBgLUeSjOg1AHjCtBHcmtG66HXxVCM3uuSlyWwU=;
-        b=Su4/5vIGdPWWChw5gbXZJIJSpODmnpLysAcGgvCerXPaY2tfRaiQX0RLTmrhz1xWXk
-         NmrZyCxFcINZYDutFwiAj5n9XTC3qxrZMgyCoZp2C2UQbiRdIc7IRYzv7aMJ0rsyRWGd
-         y+TqcTiYX+qWHUKS0W0qcJ3JbvTOlIuTVF0DKXoCvgHsXQ2yT2RLL0oRnzV/Vqak542n
-         pG6avdhWFnhOCvDhMRoYocHtlXVD+XD9jV07Y+7jOCmygs+OooH98R/051QVWiG2jVbc
-         DvnZnAnV4sRijL19JeVktBvMgXeYS0J9ntTIoNOhntKUzUJ+IwdaRh0LSS3MpPZ0SLZc
-         n7UA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=lkp@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukdmZu8Ns5tqzPAdGgRtm0U6UDR2OogZCk0T/cRYZwqjwb2XPX75
-	US43p6TZNeSfmOwkWSta3l4k1/hCJExtsCFLzvlTtnvZup/P/iJqe5qpoGdGGJZrTPpn0tZZYEr
-	sXjCxBnKnautcjES5xc1/zEAMhjnErq+3y29oamWmUgFSXTkAjV5ICdMCAoNI2Z9huw==
-X-Received: by 2002:a63:9b11:: with SMTP id r17mr1428639pgd.416.1545379018247;
-        Thu, 20 Dec 2018 23:56:58 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4woLOQISz6hACHovH1N+BmUTk/hOshnpk4qjzTDYXA9KGrNRRYcS2xJasatHBMHUR5DkZT
-X-Received: by 2002:a63:9b11:: with SMTP id r17mr1428578pgd.416.1545379017020;
-        Thu, 20 Dec 2018 23:56:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545379016; cv=none;
+        bh=26TJwrvrl0h9TBkI8Xeq9ioVy8IUCN2zSUwch7Ib6fU=;
+        b=D9tDHYmedecwLyKiifvqExHlttiUQyYY0stY2uamqIMsne+sezE5hVcvkQrcqw/PMm
+         2dDR+iXlXarMWOMHpJLY9j3RFOO6tf1tz4QdHYKCecKa30LWJS3wx/+mjLmM5g3N8LoI
+         Ag55bxMIc1XfqqQWFdvqFUyRQqiAxMlMiUNkLmYGl7wzcjyhkIyDkH0I/HaFTGu73C9i
+         AM16/4dNaoyYSz0vG74NbHYRvyMp+b3yeaj4HK8e7y2ySo/lk6qqjJR8qyLj5nce9ewx
+         DjbMTab+Rfqb6aNmGo3bshGzeXBH3d2mYedJmfsZ67iWmlKvYKoOKcunbz7D0GAPRBV5
+         Q08w==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AA+aEWbdJhSYCMUaPBHvnDX3m5QYP2HbU9KxWik3UVWSOTMIcJyrjQig
+	poHGrliohaFN6VauYqJ18ydhkezxnMkIcyXPdouzFD+YPTvsX93dKU5EDWybSFTiV0KYKwN6ohc
+	Zt169wh68tXrJyYzmint6vDAvcwJUAFId6yBnzIHckMmJY5dm+M9qYgqhYdrP9LQ=
+X-Received: by 2002:a50:b32f:: with SMTP id q44mr2783668edd.70.1545406385970;
+        Fri, 21 Dec 2018 07:33:05 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/U8b8tjYQIqb4uyKOaR8yLUWPSTmLvvNteO/GS5mw9dMNk6oFDIxw1Zj3Vhi/cRRUx9Sd5B
+X-Received: by 2002:a50:b32f:: with SMTP id q44mr2783625edd.70.1545406385052;
+        Fri, 21 Dec 2018 07:33:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545406385; cv=none;
         d=google.com; s=arc-20160816;
-        b=qepteUMnNFA53XCv6fs0mEkv/KB+1/IDqMM8mefFQCA6NDD0VJgOVjBImU9dopgb3i
-         LNyhxn0kP7XvxImM5PVw8NOPLjvuxjXIfUnSQH0BRSD8qH+q5ephgXkXdhQGImVktbB5
-         bLaeOkOq2qL4XpDB9xYrpAdk/D7MuoU4LbKf1mrMaot4JjcDQf/SywXO+I1utECrQ5IT
-         vA0cz5qRfw5ZM2jiqRcJPdUDk+9sX+QN+KPXKfYfN03IW+RgRCfLAEFPOls5NOpXtA6Q
-         1nF1jpmShfW4a6JpPkGUw9Xh/iXp7CfY2r/9jawfh4sJBJNLI9KfLwqOr0WfgybtY82p
-         CEWQ==
+        b=qfI9nZrz6/irXxcSaVupLYDILZG+0/P4mgQYWseTnsYOascFqlfRP1kyRKrrxDUJRN
+         h+cySzNiGu36r21D8zN/H6LX7/YFFybFZTKpqDfOrxFiZKvi7mB5SEi/BGQIhC+aFO97
+         GaH1ZD/LLoD5l0231Ryjc7jyHWMsrZN6AmXBqulfI+HL+aBvFzwOyAjab4hzFcOp0J77
+         +9gmfnmCGbsxQe5uCUPxhVUfrCIi8skrJukN71FtBUzxbcuq3MOHWCXKxYUXdzKCJr0u
+         d010O15qDChpWPeoQf1sm3+5Dn471wK+4G0Fc3BHtDcJrYUQ28lBUYfqN26KtohExtBr
+         Bjbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=bh7CaBgLUeSjOg1AHjCtBHcmtG66HXxVCM3uuSlyWwU=;
-        b=CTYciY3pXszf0vaMoI/WA8gTQmoGTHADrU5WcRMk5F1nIvsseziyBaQ8noSRxre90C
-         2mElOEn7Ln6iIqah8LHrtzcscG/bcn/xDJL31Po6HsxDfqlnisem19ud85y3buE6Bbs5
-         8btksKTRvYm3zGWZ+uvzz8PqkCi4C2dXGBPL5sOA6STKeCphx3aeqJvSRKV818qlhNUA
-         QMvGvmSgIkGcl8kLpUP6E4aiAdRCoGT03GRXQANB0JCEPOf5llPWq+/QqGF922SC5Vni
-         rpj8wTJqXpEuDaCC9U0qWz53kY7/QwfzKb6IQ0CNP6ad8/ma/y3SAsehTLM6HjLxu1kZ
-         VjuQ==
+        bh=26TJwrvrl0h9TBkI8Xeq9ioVy8IUCN2zSUwch7Ib6fU=;
+        b=lXEwaw03AjA/8pl3iUw0999yjkaF1BIdf81QuqDSK9ynOIIkie/wrTHBOmDm3msWzU
+         OVmmwgpa67EtJeD91wemW5Qtc0Q14XZi/tidwVceTwpT8pkBuvVwBgV0hbYY7d84PtKs
+         7gJ2CFak+fm0Fcl82coeUGvFu8JAiinrIib7cu10QNRn/E4Gqu9EcpiFRUgCCwwrtUh9
+         VvOWpq/B7P/h0k3rru35WqDOgOos4lYXBufKM48pGHst7btKIMqVx7oYr0JMRIgiGfDP
+         uaH0JUwRKGngxBy2G1t4jyqbM7AHwX6zCiq2VpkqLo/h7lkFIsGF4qn89qjNqP/Vil57
+         IyYw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=lkp@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id q18si20284482pls.30.2018.12.20.23.56.56
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i6-v6si1255180ejo.242.2018.12.21.07.33.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 23:56:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of lkp@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Fri, 21 Dec 2018 07:33:05 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=lkp@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Dec 2018 23:56:56 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,380,1539673200"; 
-   d="gz'50?scan'50,208,50";a="304017551"
-Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
-  by fmsmga006.fm.intel.com with ESMTP; 20 Dec 2018 23:56:52 -0800
-Received: from kbuild by lkp-server01 with local (Exim 4.89)
-	(envelope-from <lkp@intel.com>)
-	id 1gaFfw-000FY6-Dv; Fri, 21 Dec 2018 15:56:52 +0800
-Date: Fri, 21 Dec 2018 15:56:39 +0800
-From: kbuild test robot <lkp@intel.com>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: kbuild-all@01.org, linux-mm@kvack.org,
-	Pingfan Liu <kernelfans@gmail.com>, linuxppc-dev@lists.ozlabs.org,
-	x86@kernel.org, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Bjorn Helgaas <bhelgaas@google.com>,
-	Jonathan Cameron <Jonathan.Cameron@huawei.com>,
-	David Rientjes <rientjes@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCHv2 1/3] mm/numa: change the topo of build_zonelist_xx()
-Message-ID: <201812211505.W391FoVW%fengguang.wu@intel.com>
-References: <1545299439-31370-2-git-send-email-kernelfans@gmail.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 16C92AEA6;
+	Fri, 21 Dec 2018 15:33:04 +0000 (UTC)
+Date: Fri, 21 Dec 2018 16:33:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Burt Holzman <burt@fnal.gov>
+Cc: "hannes@cmpxchg.org" <hannes@cmpxchg.org>,
+	"vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>,
+	"cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: OOM notification for cgroupsv1 broken in 4.19
+Message-ID: <20181221153302.GB6410@dhcp22.suse.cz>
+References: <5ba5ba06-554c-d1ec-0967-b1d3486d0699@fnal.gov>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="huq684BweRXVnRxX"
+Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
-In-Reply-To: <1545299439-31370-2-git-send-email-kernelfans@gmail.com>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <5ba5ba06-554c-d1ec-0967-b1d3486d0699@fnal.gov>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181221075639.V-IC2p14K9Bf2ms0vxvmOOUVdzYzZ3EOpQFopBdv-I0@z>
+Message-ID: <20181221153302.s31ha_vczoV0XT0Fl7zsqV-ZimjvHzKswGv29v6dVXM@z>
 
+On Fri 21-12-18 14:49:38, Burt Holzman wrote:
+> Hi,
+> 
+> This patch: 29ef680ae7c21110af8e6416d84d8a72fc147b14
+> [PATCH] memcg, oom: move out_of_memory back to the charge path
+> 
+> has broken the eventfd notification for cgroups-v1. This is because 
+> mem_cgroup_oom_notify() is called only in mem_cgroup_oom_synchronize and 
+> not with the new, additional call to mem_cgroup_out_of_memory in the 
+> charge path.
 
---huq684BweRXVnRxX
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-Hi Pingfan,
-
-Thank you for the patch! Yet something to improve:
-
-[auto build test ERROR on linus/master]
-[also build test ERROR on v4.20-rc7 next-20181220]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-
-url:    https://github.com/0day-ci/linux/commits/Pingfan-Liu/mm-bugfix-for-NULL-reference-in-mm-on-all-archs/20181221-152625
-config: riscv-tinyconfig (attached as .config)
-compiler: riscv64-linux-gcc (GCC) 8.1.0
-reproduce:
-        wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        # save the attached .config to linux build tree
-        GCC_VERSION=8.1.0 make.cross ARCH=riscv 
-
-All errors (new ones prefixed by >>):
-
-   mm/page_alloc.c: In function 'build_zonelists':
->> mm/page_alloc.c:5288:12: error: 'local_node' redeclared as different kind of symbol
-     int node, local_node;
-               ^~~~~~~~~~
-   mm/page_alloc.c:5286:66: note: previous definition of 'local_node' was here
-    static void build_zonelists(struct zonelist *node_zonelists, int local_node)
-                                                                 ~~~~^~~~~~~~~~
-
-vim +/local_node +5288 mm/page_alloc.c
-
-^1da177e4 Linus Torvalds    2005-04-16  5285  
-e6ee0d8bd Pingfan Liu       2018-12-20  5286  static void build_zonelists(struct zonelist *node_zonelists, int local_node)
-^1da177e4 Linus Torvalds    2005-04-16  5287  {
-19655d348 Christoph Lameter 2006-09-25 @5288  	int node, local_node;
-9d3be21bf Michal Hocko      2017-09-06  5289  	struct zoneref *zonerefs;
-9d3be21bf Michal Hocko      2017-09-06  5290  	int nr_zones;
-^1da177e4 Linus Torvalds    2005-04-16  5291  
-e6ee0d8bd Pingfan Liu       2018-12-20  5292  	zonerefs = node_zonelists[ZONELIST_FALLBACK]._zonerefs;
-e6ee0d8bd Pingfan Liu       2018-12-20  5293  	nr_zones = build_zonerefs_node(local_node, zonerefs);
-9d3be21bf Michal Hocko      2017-09-06  5294  	zonerefs += nr_zones;
-^1da177e4 Linus Torvalds    2005-04-16  5295  
-^1da177e4 Linus Torvalds    2005-04-16  5296  	/*
-^1da177e4 Linus Torvalds    2005-04-16  5297  	 * Now we build the zonelist so that it contains the zones
-^1da177e4 Linus Torvalds    2005-04-16  5298  	 * of all the other nodes.
-^1da177e4 Linus Torvalds    2005-04-16  5299  	 * We don't want to pressure a particular node, so when
-^1da177e4 Linus Torvalds    2005-04-16  5300  	 * building the zones for node N, we make sure that the
-^1da177e4 Linus Torvalds    2005-04-16  5301  	 * zones coming right after the local ones are those from
-^1da177e4 Linus Torvalds    2005-04-16  5302  	 * node N+1 (modulo N)
-^1da177e4 Linus Torvalds    2005-04-16  5303  	 */
-^1da177e4 Linus Torvalds    2005-04-16  5304  	for (node = local_node + 1; node < MAX_NUMNODES; node++) {
-^1da177e4 Linus Torvalds    2005-04-16  5305  		if (!node_online(node))
-^1da177e4 Linus Torvalds    2005-04-16  5306  			continue;
-e6ee0d8bd Pingfan Liu       2018-12-20  5307  		nr_zones = build_zonerefs_node(node, zonerefs);
-9d3be21bf Michal Hocko      2017-09-06  5308  		zonerefs += nr_zones;
-^1da177e4 Linus Torvalds    2005-04-16  5309  	}
-^1da177e4 Linus Torvalds    2005-04-16  5310  	for (node = 0; node < local_node; node++) {
-^1da177e4 Linus Torvalds    2005-04-16  5311  		if (!node_online(node))
-^1da177e4 Linus Torvalds    2005-04-16  5312  			continue;
-e6ee0d8bd Pingfan Liu       2018-12-20  5313  		nr_zones = build_zonerefs_node(node, zonerefs);
-9d3be21bf Michal Hocko      2017-09-06  5314  		zonerefs += nr_zones;
-^1da177e4 Linus Torvalds    2005-04-16  5315  	}
-^1da177e4 Linus Torvalds    2005-04-16  5316  
-9d3be21bf Michal Hocko      2017-09-06  5317  	zonerefs->zone = NULL;
-9d3be21bf Michal Hocko      2017-09-06  5318  	zonerefs->zone_idx = 0;
-^1da177e4 Linus Torvalds    2005-04-16  5319  }
-^1da177e4 Linus Torvalds    2005-04-16  5320  
-
-:::::: The code at line 5288 was first introduced by commit
-:::::: 19655d3487001d7df0e10e9cbfc27c758b77c2b5 [PATCH] linearly index zone->node_zonelists[]
-
-:::::: TO: Christoph Lameter <clameter@sgi.com>
-:::::: CC: Linus Torvalds <torvalds@g5.osdl.org>
-
+Yes, you are right and this is a clear regression. Does the following
+patch fixes the issue for you? I am not super happy about the code
+duplication but I wasn't able to separate this out from
+mem_cgroup_oom_synchronize because that one has to handle the oom_killer
+disabled case which is not the case in the charge path because we simply
+back off and hand over to mem_cgroup_oom_synchronize in that case.
 ---
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+From 51633f683173013741f4d0ab3e31bae575341c55 Mon Sep 17 00:00:00 2001
+From: Michal Hocko <mhocko@suse.com>
+Date: Fri, 21 Dec 2018 16:28:29 +0100
+Subject: [PATCH] memcg, oom: notify on oom killer invocation from the charge
+ path
 
---huq684BweRXVnRxX
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
+Burt Holzman has noticed that memcg v1 doesn't notify about OOM events
+via eventfd anymore. The reason is that 29ef680ae7c2 ("memcg, oom: move
+out_of_memory back to the charge path") has moved the oom handling back
+to the charge path. While doing so the notification was left behind in
+mem_cgroup_oom_synchronize.
 
-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
+Fix the issue by replicating the oom hierarchy locking and the
+notification.
 
---huq684BweRXVnRxX--
+Reported-by: Burt Holzman <burt@fnal.gov>
+Fixes: 29ef680ae7c2 ("memcg, oom: move out_of_memory back to the charge path")
+Cc: stable # 4.19+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/memcontrol.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6e1469b80cb7..7e6bf74ddb1e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1666,6 +1666,9 @@ enum oom_status {
+ 
+ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+ {
++	enum oom_status ret;
++	bool locked;
++
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER)
+ 		return OOM_SKIPPED;
+ 
+@@ -1700,10 +1703,23 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
+ 		return OOM_ASYNC;
+ 	}
+ 
++	mem_cgroup_mark_under_oom(memcg);
++
++	locked = mem_cgroup_oom_trylock(memcg);
++
++	if (locked)
++		mem_cgroup_oom_notify(memcg);
++
++	mem_cgroup_unmark_under_oom(memcg);
+ 	if (mem_cgroup_out_of_memory(memcg, mask, order))
+-		return OOM_SUCCESS;
++		ret = OOM_SUCCESS;
++	else
++		ret = OOM_FAILED;
+ 
+-	return OOM_FAILED;
++	if (locked)
++		mem_cgroup_oom_unlock(memcg);
++
++	return ret;
+ }
+ 
+ /**
+-- 
+2.19.2
+
+-- 
+Michal Hocko
+SUSE Labs
 
