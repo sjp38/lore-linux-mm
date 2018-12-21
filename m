@@ -1,74 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 082F88E005B
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:30:03 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id t72so28736573pfi.21
-        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 01:30:03 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 3si13133758plq.138.2018.12.31.01.30.01
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B645E8E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:15:03 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id v27-v6so1907500ljv.1
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:15:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j2-v6sor16550330ljg.42.2018.12.21.10.15.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Dec 2018 01:30:01 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBV9Shn0016997
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:30:01 -0500
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pqftghdn8-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:30:01 -0500
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 31 Dec 2018 09:29:58 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v4 4/6] openrisc: simplify pte_alloc_one_kernel()
-Date: Mon, 31 Dec 2018 11:29:24 +0200
-In-Reply-To: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
-References: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1546248566-14910-5-git-send-email-rppt@linux.ibm.com>
+        (Google Transport Security);
+        Fri, 21 Dec 2018 10:15:01 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 08/12] rodata_test: refactor tests
+Date: Fri, 21 Dec 2018 20:14:19 +0200
+Message-Id: <20181221181423.20455-9-igor.stoppa@huawei.com>
+In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
+References: <20181221181423.20455-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jonas Bonn <jonas@southpole.se>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The pte_alloc_one_kernel() function allocates a page using
-__get_free_page(GFP_KERNEL) when mm initialization is complete and
-memblock_phys_alloc() on the earlier stages. The physical address of the
-page allocated with memblock_phys_alloc() is converted to the virtual
-address and in the both cases the allocated page is cleared using
-clear_page().
+Refactor the test cases, in preparation for using them also for testing
+__wr_after_init memory, when available.
 
-The code is simplified by replacing __get_free_page() with
-get_zeroed_page() and by replacing memblock_phys_alloc() with
-memblock_alloc().
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Acked-by: Stafford Horne <shorne@gmail.com>
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
+CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- arch/openrisc/mm/ioremap.c | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
+ mm/rodata_test.c | 48 ++++++++++++++++++++++++++++--------------------
+ 1 file changed, 28 insertions(+), 20 deletions(-)
 
-diff --git a/arch/openrisc/mm/ioremap.c b/arch/openrisc/mm/ioremap.c
-index c969752..cfef989 100644
---- a/arch/openrisc/mm/ioremap.c
-+++ b/arch/openrisc/mm/ioremap.c
-@@ -123,13 +123,10 @@ pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm,
+diff --git a/mm/rodata_test.c b/mm/rodata_test.c
+index d908c8769b48..e1349520b436 100644
+--- a/mm/rodata_test.c
++++ b/mm/rodata_test.c
+@@ -14,44 +14,52 @@
+ #include <linux/uaccess.h>
+ #include <asm/sections.h>
+ 
+-static const int rodata_test_data = 0xC3;
++#define INIT_TEST_VAL 0xC3
+ 
+-void rodata_test(void)
++static const int rodata_test_data = INIT_TEST_VAL;
++
++static bool test_data(char *data_type, const int *data,
++		      unsigned long start, unsigned long end)
  {
- 	pte_t *pte;
+-	unsigned long start, end;
+ 	int zero = 0;
  
--	if (likely(mem_init_done)) {
--		pte = (pte_t *) __get_free_page(GFP_KERNEL);
--	} else {
--		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
--	}
-+	if (likely(mem_init_done))
-+		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
-+	else
-+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+ 	/* test 1: read the value */
+ 	/* If this test fails, some previous testrun has clobbered the state */
+-	if (!rodata_test_data) {
+-		pr_err("test 1 fails (start data)\n");
+-		return;
++	if (*data != INIT_TEST_VAL) {
++		pr_err("%s: test 1 fails (init data value)\n", data_type);
++		return false;
+ 	}
  
--	if (pte)
--		clear_page(pte);
- 	return pte;
+ 	/* test 2: write to the variable; this should fault */
+-	if (!probe_kernel_write((void *)&rodata_test_data,
+-				(void *)&zero, sizeof(zero))) {
+-		pr_err("test data was not read only\n");
+-		return;
++	if (!probe_kernel_write((void *)data, (void *)&zero, sizeof(zero))) {
++		pr_err("%s: test data was not read only\n", data_type);
++		return false;
+ 	}
+ 
+ 	/* test 3: check the value hasn't changed */
+-	if (rodata_test_data == zero) {
+-		pr_err("test data was changed\n");
+-		return;
++	if (*data != INIT_TEST_VAL) {
++		pr_err("%s: test data was changed\n", data_type);
++		return false;
+ 	}
+ 
+ 	/* test 4: check if the rodata section is PAGE_SIZE aligned */
+-	start = (unsigned long)__start_rodata;
+-	end = (unsigned long)__end_rodata;
+ 	if (start & (PAGE_SIZE - 1)) {
+-		pr_err("start of .rodata is not page size aligned\n");
+-		return;
++		pr_err("%s: start of data is not page size aligned\n",
++		       data_type);
++		return false;
+ 	}
+ 	if (end & (PAGE_SIZE - 1)) {
+-		pr_err("end of .rodata is not page size aligned\n");
+-		return;
++		pr_err("%s: end of data is not page size aligned\n",
++		       data_type);
++		return false;
+ 	}
++	pr_info("%s tests were successful", data_type);
++	return true;
++}
+ 
+-	pr_info("all tests were successful\n");
++void rodata_test(void)
++{
++	test_data("rodata", &rodata_test_data,
++		  (unsigned long)&__start_rodata,
++		  (unsigned long)&__end_rodata);
  }
 -- 
-2.7.4
+2.19.1
