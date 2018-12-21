@@ -1,77 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A1C486B7A01
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 07:25:04 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id x3so70113wru.22
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 04:25:04 -0800 (PST)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CDA28E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:15:12 -0500 (EST)
+Received: by mail-lf1-f69.google.com with SMTP id f16so708510lfc.3
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:15:12 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l13sor178206wre.39.2018.12.06.04.25.03
+        by mx.google.com with SMTPS id h39-v6sor16663786lji.32.2018.12.21.10.15.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Dec 2018 04:25:03 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v13 09/25] arm64: move untagged_addr macro from uaccess.h to memory.h
-Date: Thu,  6 Dec 2018 13:24:27 +0100
-Message-Id: <2e9ef8d2ed594106eca514b268365b5419113f6a.1544099024.git.andreyknvl@google.com>
-In-Reply-To: <cover.1544099024.git.andreyknvl@google.com>
-References: <cover.1544099024.git.andreyknvl@google.com>
+        Fri, 21 Dec 2018 10:15:09 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 12/12] x86_64: __clear_user as case of __memset_user
+Date: Fri, 21 Dec 2018 20:14:23 +0200
+Message-Id: <20181221181423.20455-13-igor.stoppa@huawei.com>
+In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
+References: <20181221181423.20455-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Move the untagged_addr() macro from arch/arm64/include/asm/uaccess.h
-to arch/arm64/include/asm/memory.h to be later reused by KASAN.
+To avoid code duplication, re-use __memset_user(), when clearing
+user-space memory.
 
-Also make the untagged_addr() macro accept all kinds of address types
-(void *, unsigned long, etc.). This allows not to specify type casts in
-each place where the macro is used. This is done by using __typeof__.
+The overhead should be minimal (2 extra register assignments) and
+outside of the writing loop.
 
-Acked-by: Mark Rutland <mark.rutland@arm.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
+CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
 ---
- arch/arm64/include/asm/memory.h  | 8 ++++++++
- arch/arm64/include/asm/uaccess.h | 7 -------
- 2 files changed, 8 insertions(+), 7 deletions(-)
+ arch/x86/lib/usercopy_64.c | 29 +----------------------------
+ 1 file changed, 1 insertion(+), 28 deletions(-)
 
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index 05fbc7ffcd31..e2c9857157f2 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -211,6 +211,14 @@ static inline unsigned long kaslr_offset(void)
-  */
- #define PHYS_PFN_OFFSET	(PHYS_OFFSET >> PAGE_SHIFT)
+diff --git a/arch/x86/lib/usercopy_64.c b/arch/x86/lib/usercopy_64.c
+index 84f8f8a20b30..ab6aabb62055 100644
+--- a/arch/x86/lib/usercopy_64.c
++++ b/arch/x86/lib/usercopy_64.c
+@@ -69,34 +69,7 @@ EXPORT_SYMBOL(memset_user);
  
-+/*
-+ * When dealing with data aborts, watchpoints, or instruction traps we may end
-+ * up with a tagged userland pointer. Clear the tag to get a sane pointer to
-+ * pass on to access_ok(), for instance.
-+ */
-+#define untagged_addr(addr)	\
-+	((__typeof__(addr))sign_extend64((u64)(addr), 55))
-+
- /*
-  * Physical vs virtual RAM address space conversion.  These are
-  * private definitions which should NOT be used outside memory.h
-diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-index 07c34087bd5e..281a1e47263d 100644
---- a/arch/arm64/include/asm/uaccess.h
-+++ b/arch/arm64/include/asm/uaccess.h
-@@ -96,13 +96,6 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
- 	return ret;
+ unsigned long __clear_user(void __user *addr, unsigned long size)
+ {
+-	long __d0;
+-	might_fault();
+-	/* no memory constraint because it doesn't change any memory gcc knows
+-	   about */
+-	stac();
+-	asm volatile(
+-		"	testq  %[size8],%[size8]\n"
+-		"	jz     4f\n"
+-		"0:	movq $0,(%[dst])\n"
+-		"	addq   $8,%[dst]\n"
+-		"	decl %%ecx ; jnz   0b\n"
+-		"4:	movq  %[size1],%%rcx\n"
+-		"	testl %%ecx,%%ecx\n"
+-		"	jz     2f\n"
+-		"1:	movb   $0,(%[dst])\n"
+-		"	incq   %[dst]\n"
+-		"	decl %%ecx ; jnz  1b\n"
+-		"2:\n"
+-		".section .fixup,\"ax\"\n"
+-		"3:	lea 0(%[size1],%[size8],8),%[size8]\n"
+-		"	jmp 2b\n"
+-		".previous\n"
+-		_ASM_EXTABLE_UA(0b, 3b)
+-		_ASM_EXTABLE_UA(1b, 2b)
+-		: [size8] "=&c"(size), [dst] "=&D" (__d0)
+-		: [size1] "r"(size & 7), "[size8]" (size / 8), "[dst]"(addr));
+-	clac();
+-	return size;
++	return __memset_user(addr, 0, size);
  }
- 
--/*
-- * When dealing with data aborts, watchpoints, or instruction traps we may end
-- * up with a tagged userland pointer. Clear the tag to get a sane pointer to
-- * pass on to access_ok(), for instance.
-- */
--#define untagged_addr(addr)		sign_extend64(addr, 55)
--
- #define access_ok(type, addr, size)	__range_ok(addr, size)
- #define user_addr_max			get_fs
+ EXPORT_SYMBOL(__clear_user);
  
 -- 
-2.20.0.rc1.387.gf8505762e3-goog
+2.19.1
