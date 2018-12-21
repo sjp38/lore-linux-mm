@@ -1,107 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A4E076B797B
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2018 05:31:56 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id w5so24051832iom.3
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 02:31:56 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2219B8E0001
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:37:42 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id c34so4537695edb.8
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 19:37:42 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h11sor11486371iol.91.2018.12.06.02.31.55
+        by mx.google.com with SMTPS id h53sor13999528ede.14.2018.12.20.19.37.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Dec 2018 02:31:55 -0800 (PST)
+        Thu, 20 Dec 2018 19:37:40 -0800 (PST)
+Date: Fri, 21 Dec 2018 03:37:39 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH v2] mm, page_isolation: remove drain_all_pages() in
+ set_migratetype_isolate()
+Message-ID: <20181221033739.oc4nbjsa2zrqpr2z@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20181214023912.77474-1-richard.weiyang@gmail.com>
+ <20181218204656.4297-1-richard.weiyang@gmail.com>
+ <20181219095110.GB5758@dhcp22.suse.cz>
+ <20181219095715.73x6hvmndyku2rec@d104.suse.de>
+ <20181219135307.bjd6rckseczpfeae@master>
+ <20181219141343.GN5758@dhcp22.suse.cz>
+ <20181219143327.wdsufbn2oh6ygnne@master>
+ <20181219143927.GO5758@dhcp22.suse.cz>
+ <20181220155803.m4ebl6euq2yq4ezu@master>
+ <20181220162302.GA8131@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <cover.1543337629.git.andreyknvl@google.com> <e825441eda1dbbbb7f583f826a66c94e6f88316a.1543337629.git.andreyknvl@google.com>
- <20181129180138.GB4318@arm.com>
-In-Reply-To: <20181129180138.GB4318@arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 6 Dec 2018 11:31:43 +0100
-Message-ID: <CAAeHK+zVzWJ7RBsX88SOsebq0a40ypuawYFd4w4woFSHuximOw@mail.gmail.com>
-Subject: Re: [PATCH v12 20/25] kasan, arm64: add brk handler for inline instrumentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181220162302.GA8131@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgenii Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, david@redhat.com
 
-On Thu, Nov 29, 2018 at 7:01 PM Will Deacon <will.deacon@arm.com> wrote:
+On Thu, Dec 20, 2018 at 05:23:02PM +0100, Michal Hocko wrote:
+>On Thu 20-12-18 15:58:03, Wei Yang wrote:
+>> On Wed, Dec 19, 2018 at 03:39:27PM +0100, Michal Hocko wrote:
+>> >On Wed 19-12-18 14:33:27, Wei Yang wrote:
+>> >[...]
+>> >> Then I am confused about the objection to this patch. Finally, we drain
+>> >> all the pages in pcp list and the range is isolated.
+>> >
+>> >Please read my emails more carefully. As I've said, the only reason to
+>> >do care about draining is to remove it from where it doesn't belong.
+>> 
+>> I go through the thread again and classify two main opinions from you
+>> and Oscar.
+>> 
+>> 1) We can still allocate pages in a specific range from pcp list even we
+>>    have already isolate this range.
+>> 2) We shouldn't rely on caller to drain pages and
+>>    set_migratetype_isolate() may handle a range cross zones.
+>> 
+>> I understand the second one and agree it is not proper to rely on caller
+>> and make the assumption on range for set_migratetype_isolate().
+>> 
+>> My confusion comes from the first one. As you and Oscar both mentioned
+>> this and Oscar said "I had the same fear", this makes me think current
+>> implementation is buggy. But your following reply said this is not. This
+>> means current approach works fine.
+>> 
+>> If the above understanding is correct, and combining with previous
+>> discussion, the improvement we can do is to remove the drain_all_pages()
+>> in __offline_pages()/alloc_contig_range(). By doing so, the pcp list
+>> drain doesn't rely on caller and the isolation/drain on each pageblock
+>> ensures pcp list will not contain any page in this range now and future.
+>> This imply the drain_all_pages() in
+>> __offline_pages()/alloc_contig_range() is not necessary.
+>> 
+>> Is my understanding correct?
 >
-> On Tue, Nov 27, 2018 at 05:55:38PM +0100, Andrey Konovalov wrote:
-> > Tag-based KASAN inline instrumentation mode (which embeds checks of shadow
-> > memory into the generated code, instead of inserting a callback) generates
-> > a brk instruction when a tag mismatch is detected.
-> >
-> > This commit adds a tag-based KASAN specific brk handler, that decodes the
-> > immediate value passed to the brk instructions (to extract information
-> > about the memory access that triggered the mismatch), reads the register
-> > values (x0 contains the guilty address) and reports the bug.
-> >
-> > Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> > Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > ---
-> >  arch/arm64/include/asm/brk-imm.h |  2 +
-> >  arch/arm64/kernel/traps.c        | 68 +++++++++++++++++++++++++++++++-
-> >  include/linux/kasan.h            |  3 ++
-> >  3 files changed, 71 insertions(+), 2 deletions(-)
-> >
-> > diff --git a/arch/arm64/include/asm/brk-imm.h b/arch/arm64/include/asm/brk-imm.h
-> > index ed693c5bcec0..2945fe6cd863 100644
-> > --- a/arch/arm64/include/asm/brk-imm.h
-> > +++ b/arch/arm64/include/asm/brk-imm.h
-> > @@ -16,10 +16,12 @@
-> >   * 0x400: for dynamic BRK instruction
-> >   * 0x401: for compile time BRK instruction
-> >   * 0x800: kernel-mode BUG() and WARN() traps
-> > + * 0x9xx: tag-based KASAN trap (allowed values 0x900 - 0x9ff)
-> >   */
-> >  #define FAULT_BRK_IMM                        0x100
-> >  #define KGDB_DYN_DBG_BRK_IMM         0x400
-> >  #define KGDB_COMPILED_DBG_BRK_IMM    0x401
-> >  #define BUG_BRK_IMM                  0x800
-> > +#define KASAN_BRK_IMM                        0x900
-> >
-> >  #endif
-> > diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
-> > index 5f4d9acb32f5..04bdc53716ef 100644
-> > --- a/arch/arm64/kernel/traps.c
-> > +++ b/arch/arm64/kernel/traps.c
-> > @@ -35,6 +35,7 @@
-> >  #include <linux/sizes.h>
-> >  #include <linux/syscalls.h>
-> >  #include <linux/mm_types.h>
-> > +#include <linux/kasan.h>
-> >
-> >  #include <asm/atomic.h>
-> >  #include <asm/bug.h>
-> > @@ -284,10 +285,14 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
-> >       }
-> >  }
-> >
-> > -void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-> > +void __arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-> >  {
-> >       regs->pc += size;
-> > +}
-> >
-> > +void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
-> > +{
-> > +     __arm64_skip_faulting_instruction(regs, size);
-> >       /*
-> >        * If we were single stepping, we want to get the step exception after
-> >        * we return from the trap.
-> > @@ -959,7 +964,7 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
-> >       }
-> >
-> >       /* If thread survives, skip over the BUG instruction and continue: */
-> > -     arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-> > +     __arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+>Yes
+
+Thanks for your clarification:-)
+
+I would come up with a patch to remove this one.
+
 >
-> Why do you want to avoid the single-step logic here? Given that we're
-> skipping over the brk instruction, why wouldn't you want that to trigger
-> a step exception if single-step is enabled?
+>-- 
+>Michal Hocko
+>SUSE Labs
 
-I was asked to do that, see the discussion here:
-
-https://www.spinics.net/lists/linux-mm/msg146575.html
-https://www.spinics.net/lists/linux-mm/msg148215.html
-https://www.spinics.net/lists/linux-mm/msg148367.html
+-- 
+Wei Yang
+Help you, Help me
