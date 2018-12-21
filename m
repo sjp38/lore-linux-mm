@@ -1,46 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 36E936B7FE1
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 04:47:46 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id y88so2869979pfi.9
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 01:47:46 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v7si2571863plz.250.2018.12.07.01.47.44
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B1678E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 01:18:08 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e12so4910086edd.16
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 22:18:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p50sor10173595eda.9.2018.12.20.22.18.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Dec 2018 01:47:45 -0800 (PST)
-Date: Fri, 7 Dec 2018 10:47:39 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 09/17] debugobjects: Make object hash locks nestable
- terminal locks
-Message-ID: <20181207094739.GG2237@hirez.programming.kicks-ass.net>
-References: <1542653726-5655-1-git-send-email-longman@redhat.com>
- <1542653726-5655-10-git-send-email-longman@redhat.com>
+        (Google Transport Security);
+        Thu, 20 Dec 2018 22:18:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1542653726-5655-10-git-send-email-longman@redhat.com>
+References: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
+ <1545299439-31370-3-git-send-email-kernelfans@gmail.com> <20181220113547.GC9104@dhcp22.suse.cz>
+ <CAFgQCTvxNGTKD+DP_LxF86WoVnCHnPkWoSqdGeXQxXNVYD_orw@mail.gmail.com> <20181220124419.GD9104@dhcp22.suse.cz>
+In-Reply-To: <20181220124419.GD9104@dhcp22.suse.cz>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Fri, 21 Dec 2018 14:17:54 +0800
+Message-ID: <CAFgQCTsTTQLyEr6NG4QvpYuuovathge6t+1ej_1edkGCai-jXw@mail.gmail.com>
+Subject: Re: [PATCHv2 2/3] mm/numa: build zonelist when alloc for device on
+ offline node
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Mon, Nov 19, 2018 at 01:55:18PM -0500, Waiman Long wrote:
-> By making the object hash locks nestable terminal locks, we can avoid
-> a bunch of unnecessary lockdep validations as well as saving space
-> in the lockdep tables.
+On Thu, Dec 20, 2018 at 8:44 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Thu 20-12-18 20:26:28, Pingfan Liu wrote:
+> > On Thu, Dec 20, 2018 at 7:35 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Thu 20-12-18 17:50:38, Pingfan Liu wrote:
+> > > [...]
+> > > > @@ -453,7 +456,12 @@ static inline int gfp_zonelist(gfp_t flags)
+> > > >   */
+> > > >  static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
+> > > >  {
+> > > > -     return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
+> > > > +     if (unlikely(!possible_zonelists[nid])) {
+> > > > +             WARN_ONCE(1, "alloc from offline node: %d\n", nid);
+> > > > +             if (unlikely(build_fallback_zonelists(nid)))
+> > > > +                     nid = first_online_node;
+> > > > +     }
+> > > > +     return possible_zonelists[nid] + gfp_zonelist(flags);
+> > > >  }
+> > >
+> > > No, please don't do this. We do not want to make things work magically
+> >
+> > For magically, if you mean directly replies on zonelist instead of on
+> > pgdat struct, then it is easy to change
+>
+> No, I mean that we _know_ which nodes are possible. Platform is supposed
+> to tell us. We should just do the intialization properly. What we do now
+> instead is a pile of hacks that fit magically together. And that should
+> be changed.
+>
+Not agree. Here is the typical lazy to do, and at this point there is
+also possible node info for us to check and build pgdat instance.
 
-So the 'problem'; which you've again not explained; is that debugobjects
-has the following lock order:
+> > > and we definitely do not want to put something like that into the hot
+> >
+> > But  the cose of "unlikely" can be ignored, why can it not be placed
+> > in the path?
+>
+> unlikely will simply put the code outside of the hot path. The condition
+> is still there. There are people desperately fighting to get every
+> single cycle out of the page allocator. Now you want them to pay a
+> branch which is relevant only for few obscure HW setups.
+>
+Data is more convincing.
+I test with the following program  built with -O2 on x86. No
+observable performance difference between adding an extra unlikely
+condition. And it is apparent that the frequency of checking on
+unlikely is much higher than my patch.
+#include <stdio.h>
+#define unlikely_notrace(x)     __builtin_expect(!!(x), 0)
+#define unlikely(x) unlikely_notrace(x)
+#define TEST_UNLIKELY 1
+int main(int argc, char *argv[])
+{
+        unsigned long i,j;
+        unsigned long end = (unsigned long)1 << 36;
+        unsigned long x = 9;
+        for (i = 1; i < end; i++) {
+#ifdef TEST_UNLIKELY
+                if (unlikely(i == end - 1))
+                        x *= 8;
+#endif
+                x *= i;
+                x = x%100000 + 1;
+        }
+        return 0;
+}
 
-	&db->lock
-	  &pool_lock
+> > > path. We definitely need zonelists to be build transparently for all
+> > > possible nodes during the init time.
+> >
+> > That is the point, whether the all nodes should be instanced at boot
+> > time, or not be instanced until there is requirement.
+>
+> And that should be done at init time. We have all the information
+> necessary at that time.
+> --
 
-And you seem to want to tag '&db->lock' as terminal, which is obviuosly
-a big fat lie.
+Will see other guys' comment.
 
-You've also not explained why it is safe to do this (I think it actually
-is, but you really should've spelled it out).
-
-Furthermore; you've not justified any of this 'insanity' with numbers.
-What do we gain with this nestable madness that justifies the crazy?
+Thanks and regards,
+Pingfan
