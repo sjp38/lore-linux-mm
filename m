@@ -1,48 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8913A8E0018
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 16:30:54 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id w16so3961151wrk.10
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 13:30:54 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h6sor98010wmc.2.2018.12.10.13.30.53
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C4438E0001
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:14:50 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id v74-v6so1901138lje.6
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:14:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l20-v6sor16160614lji.21.2018.12.21.10.14.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 10 Dec 2018 13:30:53 -0800 (PST)
+        Fri, 21 Dec 2018 10:14:48 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 02/12] __wr_after_init: linker section and label
+Date: Fri, 21 Dec 2018 20:14:13 +0200
+Message-Id: <20181221181423.20455-3-igor.stoppa@huawei.com>
+In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
+References: <20181221181423.20455-1-igor.stoppa@huawei.com>
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
-References: <76c6e92b-df49-d4b5-27f7-5f2013713727@suse.cz> <CADF2uSrNoODvoX_SdS3_127-aeZ3FwvwnhswoGDN0wNM2cgvbg@mail.gmail.com>
- <8b211f35-0722-cd94-1360-a2dd9fba351e@suse.cz> <CADF2uSoDFrEAb0Z-w19Mfgj=Tskqrjh_h=N6vTNLXcQp7jdTOQ@mail.gmail.com>
- <20180829150136.GA10223@dhcp22.suse.cz> <CADF2uSoViODBbp4OFHTBhXvgjOVL8ft1UeeaCQjYHZM0A=p-dA@mail.gmail.com>
- <20180829152716.GB10223@dhcp22.suse.cz> <CADF2uSoG_RdKF0pNMBaCiPWGq3jn1VrABbm-rSnqabSSStixDw@mail.gmail.com>
- <CADF2uSpiD9t-dF6bp-3-EnqWK9BBEwrfp69=_tcxUOLk_DytUA@mail.gmail.com>
- <6e3a9434-32f2-0388-e0c7-2bd1c2ebc8b1@suse.cz> <20181030152632.GG32673@dhcp22.suse.cz>
- <CADF2uSr2V+6MosROF7dJjs_Pn_hR8u6Z+5bKPqXYUUKx=5knDg@mail.gmail.com>
- <98305976-612f-cf6d-1377-2f9f045710a9@suse.cz> <b9dd0c10-d87b-94a8-0234-7c6c0264d672@suse.cz>
- <CADF2uSorU5P+Jw--oL5huOHN1Oe+Uss+maSXy0V9GLfHWjTBbA@mail.gmail.com>
- <3173eba8-8d7a-b9d7-7d23-38e6008ce2d6@suse.cz> <CADF2uSre7NPvKuEN-Lx5sQ3TzwRuZiupf6kxs0WnFgV5u9z+Jg@mail.gmail.com>
-In-Reply-To: <CADF2uSre7NPvKuEN-Lx5sQ3TzwRuZiupf6kxs0WnFgV5u9z+Jg@mail.gmail.com>
-From: Marinko Catovic <marinko.catovic@gmail.com>
-Date: Mon, 10 Dec 2018 22:30:40 +0100
-Message-ID: <CADF2uSoRoMvq5V-W8p3MX-wYQOeJ-ypXW2oiX0rWEm8v0h4d4A@mail.gmail.com>
-Subject: Re: Caching/buffers become useless after some time
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Christopher Lameter <cl@linux.com>
+To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
+Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> Currently I fail to manage this, since I do not know how to do step 2.
-> echo $PID > tasks writes into it and adds the PID, but how would one
-> remove the wrapper script's PID from there?
+Introduce a section and a label for statically allocated write rare
+data. The label is named "__wr_after_init".
+As the name implies, after the init phase is completed, this section
+will be modifiable only by invoking write rare functions.
+The section must take up a set of full pages.
 
-any ideas on this perhaps?
-The workaround, otherwise working perfectly fine, causes huge problems there
-since I have to exclude certain processes from that tasklist.
+To activate both section and label, the arch must set CONFIG_ARCH_HAS_PRMEM
 
-Basically I'd need to know how to remove a PID from the mountpoint, created by
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
-mount -t cgroup -o memory none $SOME_MOUNTPOINT
-mkdir $SOME_MOUNTPOINT/A
-echo 500M > $SOME_MOUNTPOINT/A/memory.limit_in_bytes
+CC: Andy Lutomirski <luto@amacapital.net>
+CC: Nadav Amit <nadav.amit@gmail.com>
+CC: Matthew Wilcox <willy@infradead.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
+CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
+CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
+CC: linux-integrity@vger.kernel.org
+CC: kernel-hardening@lists.openwall.com
+CC: linux-mm@kvack.org
+CC: linux-kernel@vger.kernel.org
+---
+ arch/Kconfig                      | 15 +++++++++++++++
+ include/asm-generic/vmlinux.lds.h | 25 +++++++++++++++++++++++++
+ include/linux/cache.h             | 21 +++++++++++++++++++++
+ init/main.c                       |  2 ++
+ 4 files changed, 63 insertions(+)
 
-aka remove a specific PID from $SOME_MOUNTPOINT/A/tasks
+diff --git a/arch/Kconfig b/arch/Kconfig
+index e1e540ffa979..8668ffec8098 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -802,6 +802,21 @@ config VMAP_STACK
+ 	  the stack to map directly to the KASAN shadow map using a formula
+ 	  that is incorrect if the stack is in vmalloc space.
+ 
++config ARCH_HAS_PRMEM
++	def_bool n
++	help
++	  architecture specific symbol stating that the architecture provides
++	  a back-end function for the write rare operation.
++
++config PRMEM
++	bool "Write protect critical data that doesn't need high write speed."
++	depends on ARCH_HAS_PRMEM
++	default y
++	help
++	  If the architecture supports it, statically allocated data which
++	  has been selected for hardening becomes (mostly) read-only.
++	  The selection happens by labelling the data "__wr_after_init".
++
+ config ARCH_OPTIONAL_KERNEL_RWX
+ 	def_bool n
+ 
+diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
+index 3d7a6a9c2370..ddb1fd608490 100644
+--- a/include/asm-generic/vmlinux.lds.h
++++ b/include/asm-generic/vmlinux.lds.h
+@@ -311,6 +311,30 @@
+ 	KEEP(*(__jump_table))						\
+ 	__stop___jump_table = .;
+ 
++/*
++ * Allow architectures to handle wr_after_init data on their
++ * own by defining an empty WR_AFTER_INIT_DATA.
++ * However, it's important that pages containing WR_RARE data do not
++ * hold anything else, to avoid both accidentally unprotecting something
++ * that is supposed to stay read-only all the time and also to protect
++ * something else that is supposed to be writeable all the time.
++ */
++#ifndef WR_AFTER_INIT_DATA
++#ifdef CONFIG_PRMEM
++#define WR_AFTER_INIT_DATA(align)					\
++	. = ALIGN(PAGE_SIZE);						\
++	__start_wr_after_init = .;					\
++	. = ALIGN(align);						\
++	*(.data..wr_after_init)						\
++	. = ALIGN(PAGE_SIZE);						\
++	__end_wr_after_init = .;					\
++	. = ALIGN(align);
++#else
++#define WR_AFTER_INIT_DATA(align)					\
++	. = ALIGN(align);
++#endif
++#endif
++
+ /*
+  * Allow architectures to handle ro_after_init data on their
+  * own by defining an empty RO_AFTER_INIT_DATA.
+@@ -332,6 +356,7 @@
+ 		__start_rodata = .;					\
+ 		*(.rodata) *(.rodata.*)					\
+ 		RO_AFTER_INIT_DATA	/* Read only after init */	\
++		WR_AFTER_INIT_DATA(align) /* wr after init */	\
+ 		KEEP(*(__vermagic))	/* Kernel version magic */	\
+ 		. = ALIGN(8);						\
+ 		__start___tracepoints_ptrs = .;				\
+diff --git a/include/linux/cache.h b/include/linux/cache.h
+index 750621e41d1c..09bd0b9284b6 100644
+--- a/include/linux/cache.h
++++ b/include/linux/cache.h
+@@ -31,6 +31,27 @@
+ #define __ro_after_init __attribute__((__section__(".data..ro_after_init")))
+ #endif
+ 
++/*
++ * __wr_after_init is used to mark objects that cannot be modified
++ * directly after init (i.e. after mark_rodata_ro() has been called).
++ * These objects become effectively read-only, from the perspective of
++ * performing a direct write, like a variable assignment.
++ * However, they can be altered through a dedicated function.
++ * It is intended for those objects which are occasionally modified after
++ * init, however they are modified so seldomly, that the extra cost from
++ * the indirect modification is either negligible or worth paying, for the
++ * sake of the protection gained.
++ */
++#ifndef __wr_after_init
++#ifdef CONFIG_PRMEM
++#define __wr_after_init \
++		__attribute__((__section__(".data..wr_after_init")))
++#else
++#define __wr_after_init
++#endif
++#endif
++
++
+ #ifndef ____cacheline_aligned
+ #define ____cacheline_aligned __attribute__((__aligned__(SMP_CACHE_BYTES)))
+ #endif
+diff --git a/init/main.c b/init/main.c
+index a461150adfb1..a36f2e54f937 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -498,6 +498,7 @@ void __init __weak thread_stack_cache_init(void)
+ void __init __weak mem_encrypt_init(void) { }
+ 
+ void __init __weak poking_init(void) { }
++void __init __weak wr_poking_init(void) { }
+ 
+ bool initcall_debug;
+ core_param(initcall_debug, initcall_debug, bool, 0644);
+@@ -734,6 +735,7 @@ asmlinkage __visible void __init start_kernel(void)
+ 	delayacct_init();
+ 
+ 	poking_init();
++	wr_poking_init();
+ 	check_bugs();
+ 
+ 	acpi_subsystem_init();
+-- 
+2.19.1
