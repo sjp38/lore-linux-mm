@@ -2,213 +2,504 @@ Return-Path: <SRS0=oA8h=PB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F7EAC64E79
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 16:11:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EC1B3C64E75
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 17:50:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 029922173C
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 16:11:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7609D2173B
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 17:50:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ieI+2V8f"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 029922173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jCxFSl6g"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7609D2173B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E59A8E0002; Mon, 24 Dec 2018 11:11:46 -0500 (EST)
+	id C20148E0002; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8948E8E0001; Mon, 24 Dec 2018 11:11:46 -0500 (EST)
+	id BA6F58E0001; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 736A58E0002; Mon, 24 Dec 2018 11:11:46 -0500 (EST)
+	id A20BA8E0002; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CD448E0001
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 11:11:46 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id q64so12742019pfa.18
-        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 08:11:46 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A2C08E0001
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id s25so13956434ioc.14
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 09:50:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=SjgmuKwbiqLkWLZ9/CSf03ose+Q5MfHQJIptqdfeUz0=;
-        b=cd1TmZk3fK+A6Ya3hQ2crvLPjfX+ewNVuFHw/9c8ZhWA1R8qkPd1sFE9WEMeKJwKqA
-         /sff7pBRj7h6ZPkakX5MKz4op3/gFSKx+7+XSwsSbRzJgapAYlBoFs7Xv2GE8x7Sa6wn
-         u05TvlMBlOcZpr0Sb9tBKsyHQ7rizzqK/tdfHYSZbswi9k+alEPPPLjCqNd6hgenx3mg
-         boBvHMU4xGhJv1M+LC/U9W7rnp6+7agDnztXDlZtubUfqMcvFtAoYmdZSM8l96sJXZY6
-         /U7/qqKqkjJnQYSSeFHDOgywgArLDGg32DtCI2i2ARUEtijT2PfZ27c7HClqK527RwGG
-         YtVg==
-X-Gm-Message-State: AJcUukfZqybv3QXqd4p97Lc17yEvn29Kt/1BePz8b4nXYRqYxHeeovZe
-	GdGtlfwHpZzRK+IBlSVV58CO4qHztHZ+NLBAMQl4NqOF7EUYDb/HPeq+NNWeRn8oiR0Rnl4pwui
-	LiszVh2VYjbCsXU8y+1modVhIdr34NlxM8fwH30G3X0ou81Ukl+Hi4t6Tv/BJXc84kw==
-X-Received: by 2002:a17:902:3124:: with SMTP id w33mr13536683plb.241.1545667905707;
-        Mon, 24 Dec 2018 08:11:45 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5KJr7GTOCH61MLetfSeKHtQ+E9hUVMEdcBQYz3Tc/5ZiXAuJgmyn3m0diSRdNvKsXWpEB3
-X-Received: by 2002:a17:902:3124:: with SMTP id w33mr13536616plb.241.1545667904755;
-        Mon, 24 Dec 2018 08:11:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545667904; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=mw/pGvmp+w80dZNVS4ioDLRTAAMGouNYOKHv0Y8eb0E=;
+        b=ofQUdvhhqq/xLycdbEd9oSs2mE8Kq3dfkFes0CY/NHLNAQUDOUGQar6cJNhY2c6fTo
+         zsmC0LohYOivGlzqZlf5tJqGCo9+RzQsufTg6GGJSgMhqa2aV1yOXsM3mbEGaujvKi0G
+         yiReML+R4lKBWxZ/6tJmQL4dDpecAA1LpGOHZGBIpv+NYOZOvkU0yGwsprDtZ1wsIr1e
+         hEXZAOd1W/b6uRkC2SOGtFNZ3nCZOKmyHceB1rLYMg6P8rPLBkxuTr13S7FcPEvU8nvs
+         1YKNgCfoLHdianHvfe01xRJ0Kc5j+dnBqpyxTW6UJ23dUkDBIJtHFvKWzdaAaXtLLrwA
+         0qAw==
+X-Gm-Message-State: AA+aEWYSFUTdhEL57AY51C8+WwF2FTkS159kj4quXOjm1OLhqhtIBe5h
+	G9SZLPVAqQTZGffUDziIoWIF+OzxOsxMjSBGHnFJm/ZJD5rxe1s/4G3qS1++/84Ts6j35MUuxjd
+	tX3A1YWngeMefMD3NbgGzgoLRhy0kApiXIZJH4jNUQQ2XZGyRKWNpMf9ZEYgp1vuK2/GMzvNbeZ
+	B8s06M05buTdPWQQ4qlAoPvwmcKiC9qwKMZTpTJjkn1jNpe1e9Vpqmi2R4gtO+ysxgOmyMNSslk
+	fN8rSFZZT68qLrS95jNzH+N0c6J3///xpKW7ck1ysAr7zE60yvIebvK3H19k6+1TG1Qc8W67IA7
+	1OMEfHWLL10eYQ3IFoGatFRPLNa8ha2lYHJcdj045BzK46BbRlsb/r76gQLzMEkEbaeLIITeQ/+
+	V
+X-Received: by 2002:a24:7d93:: with SMTP id b141mr8850543itc.91.1545673816111;
+        Mon, 24 Dec 2018 09:50:16 -0800 (PST)
+X-Received: by 2002:a24:7d93:: with SMTP id b141mr8850497itc.91.1545673814512;
+        Mon, 24 Dec 2018 09:50:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545673814; cv=none;
         d=google.com; s=arc-20160816;
-        b=teGvcFQ357gsLRVijizOpiUYpgPZGI6NgNma1+EpfXlc4Gyhp9IAbmiLACnR1NVCj9
-         3Qmjoqbm0Xvno5Em4rBGJNGW+sSW8vaqZO7SVZca3+cP2RReLye+atsiHdmnvngMbP+k
-         Vl7I7BrZqxNfGIgP5vXP2CftaNbIYtn2rO3C+CwXf1ez7Rg328SKkypqhb+8/MMoP3V3
-         PFU0mYKNzJ0vMpQ2G9fZ3O8+n6ZIz0hWj8pQ2pX5IbB1aqaglN6egeTvmEAbnsFqpTc1
-         gnRGIXr0smcqYfpIZUilhXbh/0Zi5FnUvYrOSXQXEsK4HkBudLxaIz33GjSvqGszgNm8
-         nMKA==
+        b=eOPpKGidF8nqOHY8TR7wIHCQBAeTBq6EG7TDWkADDfSnRTMdUI0n5Bq0DZwagRuD1+
+         DungTEhMlYBg2sdMJzCLGKGvLoGaWrbn84stG08hW1factheDQfyr5v9SYD0V3wUs0Hv
+         b1JHXNdSyi3ksbUqtZ98ioOAvyeckXB61z/X6Fna+OoKAtQdjAYOv9ERJKMqffVVyIEo
+         zjEVyDkw007ZqLprEzr5Y7Ar5H0FqgGOUFS6XF9Q7nCRRTPqH1I2GBqiQEcoKIq2Ha0D
+         lsBAC7UpQYwlqfJSce1PU2h4iZPMRXNFHeFqn2/xOfWvxxwFAq1r9S7xewBceker+B0f
+         1vGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=SjgmuKwbiqLkWLZ9/CSf03ose+Q5MfHQJIptqdfeUz0=;
-        b=TLtSrBGoXUJM8dwSCAWiCbNYrXdi/Jsem1lZ5TqECg/rUeXteKLu5oPgRt1eD5QeCI
-         4mHO+f4X8sb4NgFIwqbB6uFyM4b/0afM6JoTgnFEQSBlXXv8bGnSlI+p2HYUXZspbC4j
-         rsCbAq681Q70xe3DJfi+stSPn1TB+a5ufxSVIoXV83+4syDdGkuk2Jpq7K4IthBbXwCO
-         oOg28I7/xPlDYvYhsm0svJ/m8Ccq39q9UBTUyucGpbshGiyDmxTz2nUIrMIykKJ5aFhp
-         5RtU+KBseiwIXzUUQ6WlFEyLyAIT+aXvzG43+17GaXZZhz4GJavZudcbRsKrDxxE8PdU
-         FI9g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=mw/pGvmp+w80dZNVS4ioDLRTAAMGouNYOKHv0Y8eb0E=;
+        b=g8pYDqMeaFTQ5jvMtgxng97AB1kaF5ZL/F6/7oo0/I9/kfPHhLU5kxDYEMJorE6Y7H
+         J4qE+F0sIeD1nbY3ANvh1nYeN8BsQiHHk/tSY6Kos2loO32PMtSgy+FIAaSRw+3zx1s3
+         /pKB0dAmefHp/Cp3uQGOsM8SSr24O6lofyx7516/PsRA8Fh4YzWrHPtBik9diKKDaDY0
+         x7PLb+jVXxESPz8eBDq8OAmdXJZQ0BN65gxEERFi5PtPGlxcwWAPoBmqxPAIvNAwVub4
+         oQPLQpO/OO0ISoYkfrEjckz2LStWpaRrgxTivPlMPTnYyZyELXWchikNFj/JMuv8Uioi
+         Ktbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ieI+2V8f;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id j10si9844542plg.123.2018.12.24.08.11.44
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jCxFSl6g;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y98sor31118041ita.20.2018.12.24.09.50.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Dec 2018 08:11:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        (Google Transport Security);
+        Mon, 24 Dec 2018 09:50:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ieI+2V8f;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id wBOBXl2c001189;
-	Mon, 24 Dec 2018 11:35:32 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=SjgmuKwbiqLkWLZ9/CSf03ose+Q5MfHQJIptqdfeUz0=;
- b=ieI+2V8fVq642DYxxQS8bs/5e1W5gDSTc81TNQr+OctTmOPloIUQO6+v2GaJ7qBHrOmA
- yKEFxk+ztpjjv95veC1+dVsF6x+BezcqG/kDFircu7S81GtugP7Q3YEfRaiY2CRrYnIj
- qwGBuN66qRPoNZd7JG72DtDkXZXvob7tNc22a8waBa+AC6SwrRN91bEEV6QWiTQVKsIy
- tV6L0C7Bc2UUFdydbrlwIh1hydaz+21G8sI2uJY1b1lkaJLc33aVmI4B5JCfa0Zoejt0
- vQ9Zjs9uOqoXDpEfLPRQKUt/OkutsZPN2ETrSJfrm5xZewJhQTl+BEnmnjGKkXQqMElo iQ== 
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by aserp2130.oracle.com with ESMTP id 2phasdmqnw-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 24 Dec 2018 11:35:32 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id wBOBZUwP030778
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 24 Dec 2018 11:35:31 GMT
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id wBOBZTOT025976;
-	Mon, 24 Dec 2018 11:35:29 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 24 Dec 2018 03:35:29 -0800
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jCxFSl6g;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=mw/pGvmp+w80dZNVS4ioDLRTAAMGouNYOKHv0Y8eb0E=;
+        b=jCxFSl6guTRJb1vZHOBFV4u8mnhdRnd7swlMo20OwjHb9rasRsQipT/ZRMRooS1ZoY
+         pkc2m2UbqIWIiK2nRlsG2I2YkR4ndPtmYzQHz9qvO46B7pWRICwdHa0pGJcs9Y6NIU3I
+         9e5CCkXsr2GBg2CKBPedl9sEHAo/3kF58AP5BbqBwpHtGMIYuQa66El4QRUf3zBDXtp8
+         pSZ0up6hd4N57mpx7/BkgjYWkFRthhOmUOYLZRYj6yOavAe1p35O/hx35vwMdBMtRlZG
+         x9XoAZ/CmeK/GyUcx0lS0ySiaW0D9WuW6CUdDnkkIiPlWqNthUSQIzVCG92bfGInDdel
+         VJVQ==
+X-Google-Smtp-Source: AFSGD/WuuB1zQRdRrU+ZeJESRHAb8RkCvo/PHC0Xjwjbr6EKNIPwC1iPF4ZYJ4/fcLcm/xslB3tJjxeGXS70W+3QI0o=
+X-Received: by 2002:a24:5989:: with SMTP id p131mr9296325itb.6.1545673813832;
+ Mon, 24 Dec 2018 09:50:13 -0800 (PST)
+MIME-Version: 1.0
+References: <20181207100859.8999-1-richard.weiyang@gmail.com>
+ <619af066710334134f78fd5ed0f9e3222a468847.camel@linux.intel.com>
+ <20181221224451.tv4plkhkmuolmclv@master> <fcbf10c73e2b2ce7b8580f0f91c447571a506ea4.camel@linux.intel.com>
+ <20181222002235.imzsqh6p7ryt3cgh@master> <32d061d6-39a2-97f1-6609-d27ad74f8404@linux.intel.com>
+ <20181223065827.ng2xqck7jdllt7b7@master>
+In-Reply-To: <20181223065827.ng2xqck7jdllt7b7@master>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Mon, 24 Dec 2018 09:50:02 -0800
+Message-ID:
+ <CAKgT0UdgzzP=wPovsWk_Twm+hhKJ1YQYAFNB9VBMAKaiUscJDw@mail.gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: calculate first_deferred_pfn directly
+To: richard.weiyang@gmail.com
+Cc: alexander.h.duyck@linux.intel.com, linux-mm <linux-mm@kvack.org>, 
+	pavel.tatashin@microsoft.com, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: Bug with report THP eligibility for each vma
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20181224074916.GB9063@dhcp22.suse.cz>
-Date: Mon, 24 Dec 2018 04:35:28 -0700
-Cc: Paul Oppenheimer <bepvte@gmail.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>,
-        Jan Kara <jack@suse.cz>, Mike Rapoport <rppt@linux.ibm.com>,
-        linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <78624B4A-EA8B-4D51-B3E6-448132BB839B@oracle.com>
-References: <CALouPAi8KEuPw_Ly5W=MkYi8Yw3J6vr8mVezYaxxVyKCxH1x_g@mail.gmail.com>
- <20181224074916.GB9063@dhcp22.suse.cz>
-To: Michal Hocko <mhocko@suse.com>
-X-Mailer: Apple Mail (2.3445.102.3)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9116 signatures=668680
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=908
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1812240104
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181224113528.O38QrbLkx-WhDLJs3Sb923SUm8xIoq0nxn_h2wrmtDQ@z>
+Message-ID: <20181224175002.U49VXzihJmjM-ZCXYDDhrET6sFnGrIhl5RkvAqtHiMw@z>
 
+On Sat, Dec 22, 2018 at 11:50 PM Wei Yang <richard.weiyang@gmail.com> wrote:
+>
+> On Fri, Dec 21, 2018 at 05:41:30PM -0800, Alexander Duyck wrote:
+> >On 12/21/2018 4:22 PM, Wei Yang wrote:
+> >> On Fri, Dec 21, 2018 at 03:45:40PM -0800, Alexander Duyck wrote:
+> >> > On Fri, 2018-12-21 at 22:44 +0000, Wei Yang wrote:
+> >> > > On Thu, Dec 20, 2018 at 03:47:53PM -0800, Alexander Duyck wrote:
+> >> > > > On Fri, 2018-12-07 at 18:08 +0800, Wei Yang wrote:
+> >> > > > > After commit c9e97a1997fb ("mm: initialize pages on demand during
+> >> > > > > boot"), the behavior of DEFERRED_STRUCT_PAGE_INIT is changed to
+> >> > > > > initialize first section for highest zone on each node.
+> >> > > > >
+> >> > > > > Instead of test each pfn during iteration, we could calculate the
+> >> > > > > first_deferred_pfn directly with necessary information.
+> >> > > > >
+> >> > > > > By doing so, we also get some performance benefit during bootup:
+> >> > > > >
+> >> > > > >      +----------+-----------+-----------+--------+
+> >> > > > >      |          |Base       |Patched    |Gain    |
+> >> > > > >      +----------+-----------+-----------+--------+
+> >> > > > >      | 1 Node   |0.011993   |0.011459   |-4.45%  |
+> >> > > > >      +----------+-----------+-----------+--------+
+> >> > > > >      | 4 Nodes  |0.006466   |0.006255   |-3.26%  |
+> >> > > > >      +----------+-----------+-----------+--------+
+> >> > > > >
+> >> > > > > Test result is retrieved from dmesg time stamp by add printk around
+> >> > > > > free_area_init_nodes().
+> >> > > > >
+> >> > > > > Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> >> > >
+> >> > > Hi, Alexander
+> >> > >
+> >> > > Thanks for your comment!
+> >> > >
+> >> > > > I'm pretty sure the fundamental assumption made in this patch is wrong.
+> >> > > >
+> >> > > > It is assuming that the first deferred PFN will just be your start PFN
+> >> > > > + PAGES_PER_SECTION aligned to the nearest PAGES_PER_SECTION, do I have
+> >> > > > that correct?
+> >> > >
+> >> > > You are right.
+> >> > >
+> >> > > >
+> >> > > > If I am not mistaken that can result in scenarios where you actually
+> >> > > > start out with 0 pages allocated if your first section is in a span
+> >> > > > belonging to another node, or is reserved memory for things like MMIO.
+> >> > >
+> >> > > Yeah, sounds it is possible.
+> >> > >
+> >> > > >
+> >> > > > Ideally we don't want to do that as we have to immediately jump into
+> >> > > > growing the zone with the code as it currently stands.
+> >> > >
+> >> > > You are right.
+> >> > >
+> >> > > >
+> >> > > > > ---
+> >> > > > >   mm/page_alloc.c | 57 +++++++++++++++++++++++++++------------------------------
+> >> > > > >   1 file changed, 27 insertions(+), 30 deletions(-)
+> >> > > > >
+> >> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >> > > > > index baf473f80800..5f077bf07f3e 100644
+> >> > > > > --- a/mm/page_alloc.c
+> >> > > > > +++ b/mm/page_alloc.c
+> >> > > > > @@ -306,38 +306,33 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
+> >> > > > >   }
+> >> > > > >   /*
+> >> > > > > - * Returns true when the remaining initialisation should be deferred until
+> >> > > > > - * later in the boot cycle when it can be parallelised.
+> >> > > > > + * Calculate first_deferred_pfn in case:
+> >> > > > > + * - in MEMMAP_EARLY context
+> >> > > > > + * - this is the last zone
+> >> > > > > + *
+> >> > > > > + * If the first aligned section doesn't exceed the end_pfn, set it to
+> >> > > > > + * first_deferred_pfn and return it.
+> >> > > > >    */
+> >> > > > > -static bool __meminit
+> >> > > > > -defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
+> >> > > > > +unsigned long __meminit
+> >> > > > > +defer_pfn(int nid, unsigned long start_pfn, unsigned long end_pfn,
+> >> > > > > +      enum memmap_context context)
+> >> > > > >   {
+> >> > > > > -    static unsigned long prev_end_pfn, nr_initialised;
+> >> > > > > +    struct pglist_data *pgdat = NODE_DATA(nid);
+> >> > > > > +    unsigned long pfn;
+> >> > > > > -    /*
+> >> > > > > -     * prev_end_pfn static that contains the end of previous zone
+> >> > > > > -     * No need to protect because called very early in boot before smp_init.
+> >> > > > > -     */
+> >> > > > > -    if (prev_end_pfn != end_pfn) {
+> >> > > > > -            prev_end_pfn = end_pfn;
+> >> > > > > -            nr_initialised = 0;
+> >> > > > > -    }
+> >> > > > > +    if (context != MEMMAP_EARLY)
+> >> > > > > +            return end_pfn;
+> >> > > > > -    /* Always populate low zones for address-constrained allocations */
+> >> > > > > -    if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
+> >> > > > > -            return false;
+> >> > > > > +    /* Always populate low zones */
+> >> > > > > +    if (end_pfn < pgdat_end_pfn(pgdat))
+> >> > > > > +            return end_pfn;
+> >> > > > > -    /*
+> >> > > > > -     * We start only with one section of pages, more pages are added as
+> >> > > > > -     * needed until the rest of deferred pages are initialized.
+> >> > > > > -     */
+> >> > > > > -    nr_initialised++;
+> >> > > > > -    if ((nr_initialised > PAGES_PER_SECTION) &&
+> >> > > > > -        (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+> >> > > > > -            NODE_DATA(nid)->first_deferred_pfn = pfn;
+> >> > > > > -            return true;
+> >> > > > > +    pfn = roundup(start_pfn + PAGES_PER_SECTION - 1, PAGES_PER_SECTION);
+> >> > > > > +    if (end_pfn > pfn) {
+> >> > > > > +            pgdat->first_deferred_pfn = pfn;
+> >> > > > > +            end_pfn = pfn;
+> >> > > > >      }
+> >> > > > > -    return false;
+> >> > > > > +    return end_pfn;
+> >> > > >
+> >> > > > Okay so I stand corrected. It looks like you are rounding up by
+> >> > > > (PAGES_PER_SECTION - 1) * 2 since if I am not mistaken roundup should
+> >> > > > do the same math you already did in side the function.
+> >> > > >
+> >> > > > >   }
+> >> > > > >   #else
+> >> > > > >   static inline bool early_page_uninitialised(unsigned long pfn)
+> >> > > > > @@ -345,9 +340,11 @@ static inline bool early_page_uninitialised(unsigned long pfn)
+> >> > > > >      return false;
+> >> > > > >   }
+> >> > > > > -static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
+> >> > > > > +unsigned long __meminit
+> >> > > > > +defer_pfn(int nid, unsigned long start_pfn, unsigned long end_pfn,
+> >> > > > > +      enum memmap_context context)
+> >> > > > >   {
+> >> > > > > -    return false;
+> >> > > > > +    return end_pfn;
+> >> > > > >   }
+> >> > > > >   #endif
+> >> > > > > @@ -5514,6 +5511,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+> >> > > > >      }
+> >> > > > >   #endif
+> >> > > > > +    end_pfn = defer_pfn(nid, start_pfn, end_pfn, context);
+> >> > > > > +
+> >> > > >
+> >> > > > A better approach for this might be to look at placing the loop within
+> >> > > > a loop similar to how I handled this for the deferred init. You only
+> >> > > > really need to be performing all of these checks once per section
+> >> > > > aligned point anyway.
+> >> > >
+> >> > > I didn't really get your idea here. Do you have the commit id you handle
+> >> > > deferred init?
+> >> >
+> >> > The deferred_grow_zone function actually had some logic like this
+> >> > before I had rewritten it, you can still find it on lxr:
+> >> > https://elixir.bootlin.com/linux/latest/source/mm/page_alloc.c#L1668
+> >> >
+> >> > >
+> >> > > >
+> >> > > > Basically if you added another loop and limited the loop below so that
+> >> > > > you only fed it one section at a time then you could just pull the
+> >> > > > defer_init check out of this section and place it in the outer loop
+> >> > > > after you have already tried initializing at least one section worth of
+> >> > > > pages.
+> >> > > >
+> >> > > > You could probably also look at pulling in the logic that is currently
+> >> > > > sitting at the end of the current function that is initializing things
+> >> > > > until the end_pfn is aligned with PAGES_PER_SECTION.
+> >> > > >
+> >> > > > >      for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+> >> > > > >              /*
+> >> > > > >               * There can be holes in boot-time mem_map[]s handed to this
+> >> > > > > @@ -5526,8 +5525,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+> >> > > > >                              continue;
+> >> > > > >                      if (overlap_memmap_init(zone, &pfn))
+> >> > > > >                              continue;
+> >> > > > > -                    if (defer_init(nid, pfn, end_pfn))
+> >> > > > > -                            break;
+> >> > > > >              }
+> >> > > >
+> >> > > > So the whole reason for the "defer_init" call being placed here is
+> >> > > > because there are checks to see if the prior PFN is valid, in our NUMA
+> >> > > > node, or is an overlapping region. If your first section or in this
+> >> > > > case 2 sections contain pages that fall into these categories you
+> >> > > > aren't going to initialize any pages.
+> >> > >
+> >> > > Ok, I get your point. Let me do a summary, the approach in this patch
+> >> > > has one flaw: in case all pages in the first section fall into these two
+> >> > > categories, we will end up with no page initialized for this zone.
+> >> > >
+> >> > > So my suggestion is:
+> >> > >
+> >> > >    Find the first valid page and roundup it to PAGES_PER_SECTION. This
+> >> > >    would ensure we won't end up with zero initialized page.
+> >> >
+> >> > Using the first valid PFN will not work either. The problem is you want
+> >> > to ideally have PAGES_PER_SECTION number of pages allocated before we
+> >> > begin deferring allocation. The pages will have a number of regions
+> >> > that are reserved and/or full of holes so you cannot rely on the first
+> >> > PFN to be the start of a contiguous section of pages.
+> >> >
+> >>
+> >> Hmm... my original idea is we don't need to initialize at least
+> >> PAGES_PER_SECTION pages before defer init. In my mind, we just need to
+> >> initialize *some* pages for this zone. The worst case is there is only
+> >> one page initialized at bootup.
+> >>
+> >> So here is the version with a little change to cope with the situation
+> >> when the whole section is not available.
+> >>
+> >>      for (pfn = start_pfn; pfn < enf_pfn; pfn++) {
+> >>              if (!early_pfn_valid(pfn))
+> >>                      continue;
+> >>              if (!early_pfn_in_nid(pfn, nid))
+> >>                      continue;
+> >>              if (overlap_memmap_init(zone, &pfn))
+> >>                      continue;
+> >>
+> >>              break;
+> >>      }
+> >>
+> >>      pfn = round_up(pfn + 1, PAGES_PER_SECTION);
+> >>
+> >>      if (end_pfn > pfn) {
+> >>              pgdat->first_deferred_pfn = pfn;
+> >>              end_pfn = pfn;
+> >>      }
+> >>
+> >
+> >This would have you updating your first_deferred_pfn for every valid pfn. I
+> >don't think that is what you want.
+>
+> It break out at the first valid pfn, so it update first_deferred_pfn
+> once on the first valid pfn. Is my logic in code incorrect?
 
+It is possible we might be discussing too much via pseudocode. The key
+bit is that you aren't supposed to break out on an unaligned section.
+You need to break out aligned with the PAGES_PER_SECTION value.
 
-> On Dec 24, 2018, at 12:49 AM, Michal Hocko <mhocko@suse.com> wrote:
->=20
-> [Cc-ing mailing list and people involved in the original patch]
->=20
-> On Fri 21-12-18 13:42:24, Paul Oppenheimer wrote:
->> Hello! I've never reported a kernel bug before, and since its on the
->> "next" tree I was told to email the author of the relevant commit.
->> Please redirect me to the correct place if I've made a mistake.
->>=20
->> When opening firefox or chrome, and using it for a good 7 seconds, it
->> hangs in "uninterruptible sleep" and I recieve a "BUG" in dmesg. This
->> doesn't occur when reverting this commit:
->> =
-https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/commit=
-/?id=3D48cf516f8c.
->> Ive attached the output of decode_stacktrace.sh and the relevant =
-dmesg
->> log to this email.
->>=20
->> Thanks
->=20
->> BUG: unable to handle kernel NULL pointer dereference at =
-00000000000000e8
->=20
-> Thanks for the bug report! This is offset 232 and that matches
-> file->f_mapping as per pahole
-> pahole -C file ./vmlinux | grep f_mapping
->        struct address_space *     f_mapping;            /*   232     8 =
-*/
->=20
-> I thought that each file really has to have a mapping. But the =
-following
-> should heal the issue and add an extra care.
->=20
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index f64733c23067..fc9d70a9fbd1 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -66,6 +66,8 @@ bool transparent_hugepage_enabled(struct =
-vm_area_struct *vma)
-> {
-> 	if (vma_is_anonymous(vma))
-> 		return __transparent_hugepage_enabled(vma);
-> +	if (!vma->vm_file || !vma->vm_file->f_mapping)
-> +		return false;
-> 	if (shmem_mapping(vma->vm_file->f_mapping) && =
-shmem_huge_enabled(vma))
-> 		return __transparent_hugepage_enabled(vma);
+> >
+> >> And here is the version if we want to count the number of valid pages.
+> >>
+> >>      for (pfn = start_pfn; pfn < enf_pfn; pfn++) {
+> >>              if (!early_pfn_valid(pfn))
+> >>                      continue;
+> >>              if (!early_pfn_in_nid(pfn, nid))
+> >>                      continue;
+> >>              if (overlap_memmap_init(zone, &pfn))
+> >>                      continue;
+> >>
+> >>              if (++valid_pfns == PAGES_PER_SECTION)
+> >>                      break;
+> >>      }
+> >>
+> >
+> >Your break condition here is wrong. You don't want to break out if the number
+> >of valid_pfns is equal to PAGES_PER_SECTION, you want to break out if pfn is
+> >aligned to PAGES_PER_SECTION.
+> >
+> >>      pfn = round_up(pfn + 1, PAGES_PER_SECTION);
+>
+> Hmm... here it align pfn to PAGES_PER_SECTION. The loop above makes sure
+> there are one section pages initialized during bootup.
 
-=46rom what I see in code in mm/mmap.c, it seems if vma->vm_file is =
-non-zero
-vma->vm_file->f_mapping may be assumed to be non-NULL; see =
-unlink_file_vma()
-and __vma_link_file() for two examples, which both use the construct:
+You are aligning the deferred PFN, but the PFN you break out on is
+unaligned. So what are you doing about the pages in between?
 
-	file =3D vma->vm_file;
-	if (file) {
-		struct address_space *mapping =3D file->f_mapping;
+> >>
+> >>      if (end_pfn > pfn) {
+> >>              pgdat->first_deferred_pfn = pfn;
+> >>              end_pfn = pfn;
+> >>      }
+> >>
+> >
+> >This is even more incorrect then the original patch.
+> >
+> >> > > Generally, my purpose in this patch is:
+> >> > >
+> >> > > 1. Don't affect the initialisation for non defer init zones.
+> >> > >     Current code will call defer_init() for each pfn, no matter this pfn
+> >> > >     should be defer_init or not. By taking this out, we try to minimize
+> >> > >     the effect on the initialisation process.
+> >> >
+> >> > So one problem with trying to pull out defer_init is that it contains
+> >> > the increment nr_initialized. At a minimum that logic should probably
+> >> > be pulled out and placed back where it was.
+> >> >
+> >> > > 2. Iterate on less pfn for defer zone
+> >> > >     Current code will count on each pfn in defer zone. By roundup pfn
+> >> > >     directly, less calculation would be necessary. Defer init will handle
+> >> > >     the rest. Or if we really want at least PAGES_PER_SECTION pfn be
+> >> > >     initialized for defer zone, we can do the same math in defer_pfn().
+> >> >
+> >> > So the general idea I was referring to above would be something like:
+> >> > for (pfn = start_pfn; pfn < end_pfn;) {
+> >> >    t = ALIGN_DOWN(pfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
+> >> >    first_deferred_pfn = min(t, end_pfn);
+> >> >    section_initialized = 0;
+> >> >
+> >> >    for (; pfn < first_deferred_pfn; pfn++) {
+> >> >            struct page *page;
+> >> >
+> >> >            /* All or original checks here w/ continue */
+> >> >
+> >> >            /* all of the original page initialization stuff */
+> >> >
+> >> >            section_initialized++;
+> >> >    }
+> >> >
+> >> >    /* Place all the original checks for deferred init here */
+> >> >
+> >> >    nr_initialized += section_initialized;
+> >> >
+> >> >    /* remaining checks for deferred init to see if we exit/break here */
+> >> > }
+> >> >
+> >> > The general idea is the same as what you have stated. However with this
+> >> > approach we should be able to count the number of pages initialized and
+> >> > once per section we will either just drop the results stored in
+> >> > section_initialized, or we will add them to the initialized count and
+> >> > if it exceeds the needed value we could then break out of the loop.
+> >> >
+> >>
+> >> Yep, it looks we share similar idea. While I take the initialization
+> >> part out and just count the pfn ahead. And use this pfn for the loop.
+> >>
+> >> Do you think I understand you correctly?
+> >>
+> >
+> >There are two pieces to this. One is tracking the number of PFNs that you
+> >have initialized in a given section. We need to do that and the overhead
+> >should be pretty light since it is just an increment. It would probably be
+> >only one or two instructions manipulating a local variable, possibly even a
+> >register.
+> >
+>
+> Yes, the effort to count for defer zone is not huge, while the function
+> defer_ini() will be called for each pfn in non-defer zone.
 
-		[ ... ]
+The counting itself should be cheap. You just need to avoid all the
+extra conditional checks on every PFN. That is why I suggested
+breaking it up into two counters. One that is reset per section and
+one that aggregates the counts of those sections that we care about.
 
-		[ code that dereferences "mapping" without further =
-checks ]
-	}
+> >The other bit is to see if we even care about the section/zone and if we
+> >should do something with the count of pages initialized in it. That check
+> >should be done once at the end of every section we initialize. I would say we
+> >should aim for trying to initialize at least a section number worth of pages.
+>
+> If we have to initialize PAGES_PER_SECTION pages, my approach is not
+> better than current one. :)
 
-I see nothing wrong with your second check but a few extra instructions
-performed, but depending upon how often transparent_hugepage_enabled() =
-is called
-there may be at least theoretical performance concerns.
+It could be. The one other thing I am not sure about is if we
+absolutely have to initialize a section worth of pages or if we just
+have to do 1 << MAX_ORDER number of pages. All the comments I have
+read seem to indicate MAX_ORDER is the hard requirement because of the
+fact that free_pages_<whatever> will end up trying to do the creation
+of a max order page as the pages are freed into the buddy allocator.
+So you could try experimenting with code around that if you are still
+wanting to try to allocate less than a section worth of pages.
 
-William Kucharski
-william.kucharski@oracle.com
+> >I admit it is kind of arbitrary, but if we don't do that then the work falls
+> >back to deferred_grow_zone and that is resorting to allocating a section
+> >number worth of pages so one way or another we will end up having to do that
+> >anyway.
+> >
+> >We should be section aligned in order to keep the later freeing of the pages
+> >from blowing up due to accessing an uninitialized page.
+> >
+> >> > >
+> >> > > Glad to talk with you and look forward your comments:-)
+> >> > >
+> >> > > >
+> >> > > > >              page = pfn_to_page(pfn);
+> >> > >
+> >> > >
+> >>
+>
+> --
+> Wei Yang
+> Help you, Help me
+>
 
