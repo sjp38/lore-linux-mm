@@ -1,147 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F2B676B6E63
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 06:15:51 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id w15so8058962edl.21
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 03:15:51 -0800 (PST)
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id u23-v6si4716884ejt.9.2018.12.04.03.15.49
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 581198E0001
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 13:51:11 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id t2so15332169edb.22
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 10:51:11 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b6si1393009edi.277.2018.12.24.10.51.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Dec 2018 03:15:50 -0800 (PST)
-From: Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH] mm, page_alloc: Drop uneeded __meminit and __meminitdata
-Date: Tue,  4 Dec 2018 12:15:07 +0100
-Message-Id: <20181204111507.4808-1-osalvador@suse.de>
+        Mon, 24 Dec 2018 10:51:09 -0800 (PST)
+Date: Mon, 24 Dec 2018 19:51:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Bug with report THP eligibility for each vma
+Message-ID: <20181224185106.GC16738@dhcp22.suse.cz>
+References: <CALouPAi8KEuPw_Ly5W=MkYi8Yw3J6vr8mVezYaxxVyKCxH1x_g@mail.gmail.com>
+ <20181224074916.GB9063@dhcp22.suse.cz>
+ <20181224121250.GA2070@rapoport-lnx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181224121250.GA2070@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, pavel.tatashin@microsoft.com, vbabka@suse.cz, alexander.h.duyck@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oscar Salvador <osalvador@suse.de>
+To: Mike Rapoport <rppt@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Oppenheimer <bepvte@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Since commit 03e85f9d5f1 ("mm/page_alloc: Introduce free_area_init_core_hotplug"),
-some functions changed to only be called during system initialization.
-In concret, free_area_init_node and and the functions that hang from it.
+On Mon 24-12-18 14:12:51, Mike Rapoport wrote:
+> On Mon, Dec 24, 2018 at 08:49:16AM +0100, Michal Hocko wrote:
+> > [Cc-ing mailing list and people involved in the original patch]
+> > 
+> > On Fri 21-12-18 13:42:24, Paul Oppenheimer wrote:
+> > > Hello! I've never reported a kernel bug before, and since its on the
+> > > "next" tree I was told to email the author of the relevant commit.
+> > > Please redirect me to the correct place if I've made a mistake.
+> > > 
+> > > When opening firefox or chrome, and using it for a good 7 seconds, it
+> > > hangs in "uninterruptible sleep" and I recieve a "BUG" in dmesg. This
+> > > doesn't occur when reverting this commit:
+> > > https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/commit/?id=48cf516f8c.
+> > > Ive attached the output of decode_stacktrace.sh and the relevant dmesg
+> > > log to this email.
+> > > 
+> > > Thanks
+> > 
+> > > BUG: unable to handle kernel NULL pointer dereference at 00000000000000e8
+> > 
+> > Thanks for the bug report! This is offset 232 and that matches
+> > file->f_mapping as per pahole
+> > pahole -C file ./vmlinux | grep f_mapping
+> >         struct address_space *     f_mapping;            /*   232     8 */
+> > 
+> > I thought that each file really has to have a mapping. But the following
+> > should heal the issue and add an extra care.
+> > 
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index f64733c23067..fc9d70a9fbd1 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -66,6 +66,8 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma)
+> >  {
+> >  	if (vma_is_anonymous(vma))
+> >  		return __transparent_hugepage_enabled(vma);
+> > +	if (!vma->vm_file || !vma->vm_file->f_mapping)
+> > +		return false;
+> >  	if (shmem_mapping(vma->vm_file->f_mapping) && shmem_huge_enabled(vma))
+> >  		return __transparent_hugepage_enabled(vma);
+> 
+> We have vma_is_shmem(), it can be used to replace shmem_mapping() without
+> adding the check for !vma->vm_file
 
-Also, some variables are no longer used after the system has gone
-through initialization.
-So this could be considered as a late clean-up for that patch.
+Yes, this looks like a much better choice. Thanks! Andrew, could you
+fold this in instead.
 
-This patch changes the functions from __meminit to __init, and
-the variables from __meminitdata to __initdata.
-
-In return, we get some KBs back:
-
-Before:
-Freeing unused kernel image memory: 2472K
-
-After:
-Freeing unused kernel image memory: 2480K
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
----
- mm/page_alloc.c | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fee5e9bad0dd..94e16eba162c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -266,18 +266,18 @@ int watermark_boost_factor __read_mostly = 15000;
- int watermark_scale_factor = 10;
- int fragment_stall_order __read_mostly = (PAGE_ALLOC_COSTLY_ORDER + 1);
- 
--static unsigned long nr_kernel_pages __meminitdata;
--static unsigned long nr_all_pages __meminitdata;
--static unsigned long dma_reserve __meminitdata;
-+static unsigned long nr_kernel_pages __initdata;
-+static unsigned long nr_all_pages __initdata;
-+static unsigned long dma_reserve __initdata;
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
--static unsigned long arch_zone_lowest_possible_pfn[MAX_NR_ZONES] __meminitdata;
--static unsigned long arch_zone_highest_possible_pfn[MAX_NR_ZONES] __meminitdata;
-+static unsigned long arch_zone_lowest_possible_pfn[MAX_NR_ZONES] __initdata;
-+static unsigned long arch_zone_highest_possible_pfn[MAX_NR_ZONES] __initdata;
- static unsigned long required_kernelcore __initdata;
- static unsigned long required_kernelcore_percent __initdata;
- static unsigned long required_movablecore __initdata;
- static unsigned long required_movablecore_percent __initdata;
--static unsigned long zone_movable_pfn[MAX_NUMNODES] __meminitdata;
-+static unsigned long zone_movable_pfn[MAX_NUMNODES] __initdata;
- static bool mirrored_kernelcore __meminitdata;
- 
- /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
-@@ -6211,7 +6211,7 @@ void __init sparse_memory_present_with_active_regions(int nid)
-  * with no available memory, a warning is printed and the start and end
-  * PFNs will be 0.
-  */
--void __meminit get_pfn_range_for_nid(unsigned int nid,
-+void __init get_pfn_range_for_nid(unsigned int nid,
- 			unsigned long *start_pfn, unsigned long *end_pfn)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index f64733c23067..e093cf5e4640 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -66,7 +66,7 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma)
  {
- 	unsigned long this_start_pfn, this_end_pfn;
-@@ -6260,7 +6260,7 @@ static void __init find_usable_zone_for_movable(void)
-  * highest usable zone for ZONE_MOVABLE. This preserves the assumption that
-  * zones within a node are in order of monotonic increases memory addresses
-  */
--static void __meminit adjust_zone_range_for_zone_movable(int nid,
-+static void __init adjust_zone_range_for_zone_movable(int nid,
- 					unsigned long zone_type,
- 					unsigned long node_start_pfn,
- 					unsigned long node_end_pfn,
-@@ -6291,7 +6291,7 @@ static void __meminit adjust_zone_range_for_zone_movable(int nid,
-  * Return the number of pages a zone spans in a node, including holes
-  * present_pages = zone_spanned_pages_in_node() - zone_absent_pages_in_node()
-  */
--static unsigned long __meminit zone_spanned_pages_in_node(int nid,
-+static unsigned long __init zone_spanned_pages_in_node(int nid,
- 					unsigned long zone_type,
- 					unsigned long node_start_pfn,
- 					unsigned long node_end_pfn,
-@@ -6326,7 +6326,7 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
-  * Return the number of holes in a range on a node. If nid is MAX_NUMNODES,
-  * then all holes in the requested range will be accounted for.
-  */
--unsigned long __meminit __absent_pages_in_range(int nid,
-+unsigned long __init __absent_pages_in_range(int nid,
- 				unsigned long range_start_pfn,
- 				unsigned long range_end_pfn)
- {
-@@ -6356,7 +6356,7 @@ unsigned long __init absent_pages_in_range(unsigned long start_pfn,
- }
+ 	if (vma_is_anonymous(vma))
+ 		return __transparent_hugepage_enabled(vma);
+-	if (shmem_mapping(vma->vm_file->f_mapping) && shmem_huge_enabled(vma))
++	if (vma_is_shmem(vma) && shmem_huge_enabled(vma))
+ 		return __transparent_hugepage_enabled(vma);
  
- /* Return the number of page frames in holes in a zone on a node */
--static unsigned long __meminit zone_absent_pages_in_node(int nid,
-+static unsigned long __init zone_absent_pages_in_node(int nid,
- 					unsigned long zone_type,
- 					unsigned long node_start_pfn,
- 					unsigned long node_end_pfn,
-@@ -6408,7 +6408,7 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
- }
- 
- #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
--static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
-+static inline unsigned long __init zone_spanned_pages_in_node(int nid,
- 					unsigned long zone_type,
- 					unsigned long node_start_pfn,
- 					unsigned long node_end_pfn,
-@@ -6427,7 +6427,7 @@ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
- 	return zones_size[zone_type];
- }
- 
--static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
-+static inline unsigned long __init zone_absent_pages_in_node(int nid,
- 						unsigned long zone_type,
- 						unsigned long node_start_pfn,
- 						unsigned long node_end_pfn,
-@@ -6441,7 +6441,7 @@ static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
- 
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
--static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
-+static void __init calculate_node_totalpages(struct pglist_data *pgdat,
- 						unsigned long node_start_pfn,
- 						unsigned long node_end_pfn,
- 						unsigned long *zones_size,
+ 	return false;
 -- 
-2.13.7
+Michal Hocko
+SUSE Labs
