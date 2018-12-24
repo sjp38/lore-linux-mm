@@ -1,102 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CA036B7E96
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 00:41:41 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id m3so2388333pfj.14
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2018 21:41:41 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id cf16si2126256plb.227.2018.12.06.21.41.39
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C438E0001
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 09:29:58 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id v24so3944327wrd.23
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 06:29:58 -0800 (PST)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id t18si12920042wrx.287.2018.12.24.06.29.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Dec 2018 21:41:39 -0800 (PST)
-From: Huang Ying <ying.huang@intel.com>
-Subject: [PATCH -V8 04/21] swap: Support PMD swap mapping in put_swap_page()
-Date: Fri,  7 Dec 2018 13:41:04 +0800
-Message-Id: <20181207054122.27822-5-ying.huang@intel.com>
-In-Reply-To: <20181207054122.27822-1-ying.huang@intel.com>
-References: <20181207054122.27822-1-ying.huang@intel.com>
+        Mon, 24 Dec 2018 06:29:56 -0800 (PST)
+Date: Mon, 24 Dec 2018 14:29:27 +0000
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH v5 6/9] iommu/dma-iommu.c: Convert to use vm_insert_range
+Message-ID: <20181224142927.GZ26090@n2100.armlinux.org.uk>
+References: <20181224132531.GA22150@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181224132531.GA22150@jordon-HP-15-Notebook-PC>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, joro@8bytes.org, robin.murphy@arm.com, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Previously, during swapout, all PMD page mapping will be split and
-replaced with PTE swap mapping.  And when clearing the SWAP_HAS_CACHE
-flag for the huge swap cluster in put_swap_page(), the huge swap
-cluster will be split.  Now, during swapout, the PMD page mappings to
-the THP will be changed to PMD swap mappings to the corresponding swap
-cluster.  So when clearing the SWAP_HAS_CACHE flag, the huge swap
-cluster will only be split if the PMD swap mapping count is 0.
-Otherwise, we will keep it as the huge swap cluster.  So that we can
-swapin a THP in one piece later.
+On Mon, Dec 24, 2018 at 06:55:31PM +0530, Souptick Joarder wrote:
+> Convert to use vm_insert_range() to map range of kernel
+> memory to user vma.
+> 
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> ---
+>  drivers/iommu/dma-iommu.c | 13 +++----------
+>  1 file changed, 3 insertions(+), 10 deletions(-)
+> 
+> diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
+> index d1b0475..de7ffd8 100644
+> --- a/drivers/iommu/dma-iommu.c
+> +++ b/drivers/iommu/dma-iommu.c
+> @@ -622,17 +622,10 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
+>  
+>  int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma)
+>  {
+> -	unsigned long uaddr = vma->vm_start;
+> -	unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+> -	int ret = -ENXIO;
+> +	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+>  
+> -	for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
+> -		ret = vm_insert_page(vma, uaddr, pages[i]);
+> -		if (ret)
+> -			break;
+> -		uaddr += PAGE_SIZE;
+> -	}
+> -	return ret;
+> +	return vm_insert_range(vma, vma->vm_start, pages + vma->vm_pgoff,
+> +				count - vma->vm_pgoff);
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
----
- mm/swapfile.c | 31 ++++++++++++++++++++++++-------
- 1 file changed, 24 insertions(+), 7 deletions(-)
+This introduces a new bug.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 37e20ce4983c..f30eed59c355 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1314,6 +1314,15 @@ void swap_free(swp_entry_t entry)
- 
- /*
-  * Called after dropping swapcache to decrease refcnt to swap entries.
-+ *
-+ * When a THP is added into swap cache, the SWAP_HAS_CACHE flag will
-+ * be set in the swap_map[] of all swap entries in the huge swap
-+ * cluster backing the THP.  This huge swap cluster will not be split
-+ * unless the THP is split even if its PMD swap mapping count dropped
-+ * to 0.  Later, when the THP is removed from swap cache, the
-+ * SWAP_HAS_CACHE flag will be cleared in the swap_map[] of all swap
-+ * entries in the huge swap cluster.  And this huge swap cluster will
-+ * be split if its PMD swap mapping count is 0.
-  */
- void put_swap_page(struct page *page, swp_entry_t entry)
- {
-@@ -1332,15 +1341,23 @@ void put_swap_page(struct page *page, swp_entry_t entry)
- 
- 	ci = lock_cluster_or_swap_info(si, offset);
- 	if (size == SWAPFILE_CLUSTER) {
--		VM_BUG_ON(!cluster_is_huge(ci));
-+		VM_BUG_ON(!IS_ALIGNED(offset, size));
- 		map = si->swap_map + offset;
--		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
--			val = map[i];
--			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
--			if (val == SWAP_HAS_CACHE)
--				free_entries++;
-+		/*
-+		 * No PMD swap mapping, the swap cluster will be freed
-+		 * if all swap entries becoming free, otherwise the
-+		 * huge swap cluster will be split.
-+		 */
-+		if (!cluster_swapcount(ci)) {
-+			for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-+				val = map[i];
-+				VM_BUG_ON(!(val & SWAP_HAS_CACHE));
-+				if (val == SWAP_HAS_CACHE)
-+					free_entries++;
-+			}
-+			if (free_entries != SWAPFILE_CLUSTER)
-+				cluster_clear_huge(ci);
- 		}
--		cluster_clear_huge(ci);
- 		if (free_entries == SWAPFILE_CLUSTER) {
- 			unlock_cluster_or_swap_info(si, ci);
- 			spin_lock(&si->lock);
+I'm not going to continue to point out in minute detail the mistakes
+you are introducing, as I don't think that is helping you to learn.
+
+Look at this closely, and see whether you can spot the mistake.
+Specifically, compare the boundary conditions for the final page
+that is to be inserted and the value returned by the original version
+and by your version for different scenarios.
+
 -- 
-2.18.1
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 12.1Mbps down 622kbps up
+According to speedtest.net: 11.9Mbps down 500kbps up
