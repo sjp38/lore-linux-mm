@@ -1,82 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D6B2D6B6D90
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 02:37:26 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id i3so13366870pfj.4
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 23:37:26 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 28si21308808pfm.50.2018.12.03.23.37.25
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CAB038E0001
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 05:13:54 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id 2-v6so3762039ljs.15
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 02:13:54 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m72sor8610525lfe.8.2018.12.24.02.13.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 23:37:25 -0800 (PST)
-From: Alison Schofield <alison.schofield@intel.com>
-Subject: [RFC v2 08/13] mm: Use reference counting for encrypted VMAs
-Date: Mon,  3 Dec 2018 23:39:55 -0800
-Message-Id: <985ba614d49986fdfc0397434fd1dd9eb5646c6f.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
-In-Reply-To: <cover.1543903910.git.alison.schofield@intel.com>
-References: <cover.1543903910.git.alison.schofield@intel.com>
+        (Google Transport Security);
+        Mon, 24 Dec 2018 02:13:52 -0800 (PST)
+Date: Mon, 24 Dec 2018 13:13:49 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v3 0/2] hugetlbfs: use i_mmap_rwsem for better
+ synchronization
+Message-ID: <20181224101349.jjjmk2hzwah6g64h@kshutemo-mobl1>
+References: <20181222223013.22193-1-mike.kravetz@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181222223013.22193-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dhowells@redhat.com, tglx@linutronix.de
-Cc: jmorris@namei.org, mingo@redhat.com, hpa@zytor.com, bp@alien8.de, luto@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, dave.hansen@intel.com, kai.huang@intel.com, jun.nakajima@intel.com, dan.j.williams@intel.com, jarkko.sakkinen@intel.com, keyrings@vger.kernel.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 
-The MKTME (Multi-Key Total Memory Encryption) Key Service needs
-a reference count on encrypted VMAs. This reference count is used
-to determine when a hardware encryption keyid is in use, which in
-turn, tells the key service what operations can be safely performed
-with this keyid.
+On Sat, Dec 22, 2018 at 02:30:11PM -0800, Mike Kravetz wrote:
+> There are two primary issues addressed here:
+> 1) For shared pmds, huge PTE pointers returned by huge_pte_alloc can become
+>    invalid via a call to huge_pmd_unshare by another thread.
+> 2) hugetlbfs page faults can race with truncation causing invalid global
+>    reserve counts and state.
+> Both issues are addressed by expanding the use of i_mmap_rwsem.
+> 
+> These issues have existed for a long time.  They can be recreated with a
+> test program that causes page fault/truncation races.  For simple mappings,
+> this results in a negative HugePages_Rsvd count.  If racing with mappings
+> that contain shared pmds, we can hit "BUG at fs/hugetlbfs/inode.c:444!" or
+> Oops! as the result of an invalid memory reference.
+> 
+> v2 -> v3
+>   Incorporated suggestions from Kirill.  Code change to hold i_mmap_rwsem
+>   for duration of copy in copy_hugetlb_page_range.  Took i_mmap_rwsem in
+>   hugetlbfs_evict_inode to be consistent with other callers.  Other changes
+>   were to documentation/comments.
+> v1 -> v2
+>   Combined patches 2 and 3 of v1 series as suggested by Aneesh.  No other
+>   changes were made.
+> Patches are a follow up to the RFC,
+>   http://lkml.kernel.org/r/20181024045053.1467-1-mike.kravetz@oracle.com
+>   Comments made by Naoya were addressed.
+> 
+> Mike Kravetz (2):
+>   hugetlbfs: use i_mmap_rwsem for more pmd sharing synchronization
+>   hugetlbfs: Use i_mmap_rwsem to fix page fault/truncate race
 
-The approach is:
-1) Increment/decrement the reference count during encrypt_mprotect()
-system call for initial or updated encryption on a VMA.
+Looks good to me.
 
-2) Piggy back on the new vm_area_dup/free() helpers. If the VMAs being
-duplicated, or freed are encrypted, adjust the reference count.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/mm/mktme.c | 2 ++
- kernel/fork.c       | 2 ++
- 2 files changed, 4 insertions(+)
-
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index facf08f9cb74..55d34beb9b81 100644
---- a/arch/x86/mm/mktme.c
-+++ b/arch/x86/mm/mktme.c
-@@ -145,10 +145,12 @@ void mprotect_set_encrypt(struct vm_area_struct *vma, int newkeyid,
- 	if (oldkeyid == newkeyid)
- 		return;
- 
-+	vma_put_encrypt_ref(vma);
- 	newprot = pgprot_val(vma->vm_page_prot);
- 	newprot &= ~mktme_keyid_mask;
- 	newprot |= (unsigned long)newkeyid << mktme_keyid_shift;
- 	vma->vm_page_prot = __pgprot(newprot);
-+	vma_get_encrypt_ref(vma);
- 
- 	/*
- 	 * The VMA doesn't have any inherited pages.
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 07cddff89c7b..d12d27b50966 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -341,12 +341,14 @@ struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
- 	if (new) {
- 		*new = *orig;
- 		INIT_LIST_HEAD(&new->anon_vma_chain);
-+		vma_get_encrypt_ref(new);
- 	}
- 	return new;
- }
- 
- void vm_area_free(struct vm_area_struct *vma)
- {
-+	vma_put_encrypt_ref(vma);
- 	kmem_cache_free(vm_area_cachep, vma);
- }
- 
 -- 
-2.14.1
+ Kirill A. Shutemov
