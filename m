@@ -1,80 +1,64 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 74B3A8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2018 20:31:58 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id b8so24685811pfe.10
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 17:31:58 -0800 (PST)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id v20sor5331060pgo.22.2018.12.28.17.31.57
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 28 Dec 2018 17:31:57 -0800 (PST)
-Date: Fri, 28 Dec 2018 17:31:47 -0800
-Message-Id: <20181229013147.211079-1-shakeelb@google.com>
-Mime-Version: 1.0
-Subject: [PATCH] percpu: plumb gfp flag to pcpu_get_pages
-From: Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Mon, 24 Dec 2018 18:54:53 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v5 5/9] drm/xen/xen_drm_front_gem.c: Convert to use
+ vm_insert_range
+Message-ID: <20181224132453.GA22132@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, oleksandr_andrushchenko@epam.com, airlied@linux.ie, linux@armlinux.org.uk, robin.murphy@arm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Dennis Zhou <dennis@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-__alloc_percpu_gfp() can be called from atomic context, so, make
-pcpu_get_pages use the gfp provided to the higher layer.
+Convert to use vm_insert_range() to map range of kernel
+memory to user vma.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
+Reviewed-by: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
 ---
- mm/percpu-vm.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ drivers/gpu/drm/xen/xen_drm_front_gem.c | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)
 
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index d8078de912de..4f42c4c5c902 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -21,6 +21,7 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
- 
- /**
-  * pcpu_get_pages - get temp pages array
-+ * @gfp: allocation flags passed to the underlying allocator
-  *
-  * Returns pointer to array of pointers to struct page which can be indexed
-  * with pcpu_page_idx().  Note that there is only one array and accesses
-@@ -29,7 +30,7 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
-  * RETURNS:
-  * Pointer to temp pages array on success.
-  */
--static struct page **pcpu_get_pages(void)
-+static struct page **pcpu_get_pages(gfp_t gfp)
+diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+index 47ff019..c21e5d1 100644
+--- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
++++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+@@ -225,8 +225,7 @@ struct drm_gem_object *
+ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+ 			struct vm_area_struct *vma)
  {
- 	static struct page **pages;
- 	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
-@@ -37,7 +38,7 @@ static struct page **pcpu_get_pages(void)
- 	lockdep_assert_held(&pcpu_alloc_mutex);
+-	unsigned long addr = vma->vm_start;
+-	int i;
++	int ret;
  
- 	if (!pages)
--		pages = pcpu_mem_zalloc(pages_size, GFP_KERNEL);
-+		pages = pcpu_mem_zalloc(pages_size, gfp);
- 	return pages;
+ 	/*
+ 	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
+@@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+ 	 * FIXME: as we insert all the pages now then no .fault handler must
+ 	 * be called, so don't provide one
+ 	 */
+-	for (i = 0; i < xen_obj->num_pages; i++) {
+-		int ret;
+-
+-		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
+-		if (ret < 0) {
+-			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
+-			return ret;
+-		}
+-
+-		addr += PAGE_SIZE;
+-	}
+-	return 0;
++	ret = vm_insert_range(vma, vma->vm_start, xen_obj->pages,
++				xen_obj->num_pages);
++	if (ret < 0)
++		DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
++	return ret;
  }
  
-@@ -278,7 +279,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
- {
- 	struct page **pages;
- 
--	pages = pcpu_get_pages();
-+	pages = pcpu_get_pages(gfp);
- 	if (!pages)
- 		return -ENOMEM;
- 
-@@ -316,7 +317,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
- 	 * successful population attempt so the temp pages array must
- 	 * be available now.
- 	 */
--	pages = pcpu_get_pages();
-+	pages = pcpu_get_pages(GFP_KERNEL);
- 	BUG_ON(!pages);
- 
- 	/* unmap and free */
+ int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 -- 
-2.20.1.415.g653613c723-goog
+1.9.1
