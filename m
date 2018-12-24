@@ -1,101 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C68E18E0001
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2018 22:42:50 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id h11so13927491pfj.13
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2018 19:42:50 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AEC428E0001
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 04:11:20 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id x3so3661640wru.22
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 01:11:20 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a5sor23036310pgk.84.2018.12.17.19.42.48
+        by mx.google.com with SMTPS id h126sor12667283wmf.21.2018.12.24.01.11.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 17 Dec 2018 19:42:49 -0800 (PST)
-From: gchen.guomin@gmail.com
-Subject: [PATCH] Export mm_update_next_owner function for unuse_mm.
-Date: Tue, 18 Dec 2018 11:42:11 +0800
-Message-Id: <1545104531-30658-1-git-send-email-gchen.guomin@gmail.com>
+        Mon, 24 Dec 2018 01:11:18 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] memcg, oom: notify on oom killer invocation from the charge path
+Date: Mon, 24 Dec 2018 10:11:07 +0100
+Message-Id: <20181224091107.18354-1-mhocko@kernel.org>
+In-Reply-To: <5ba5ba06-554c-d1ec-0967-b1d3486d0699@fnal.gov>
+References: <5ba5ba06-554c-d1ec-0967-b1d3486d0699@fnal.gov>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>, guominchen@tencent.com
-Cc: guomin chen <gchen.guomin@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Burt Holzman <burt@fnal.gov>, cgroups mailinglist <cgroups@vger.kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Stable tree <stable@vger.kernel.org>
 
-From: guomin chen <gchen.guomin@gmail.com>
+From: Michal Hocko <mhocko@suse.com>
 
-When mm->owner is modified by exit_mm, if the new owner directly calls
-unuse_mm to exit, it will cause Use-After-Free. Due to the unuse_mm()
-directly sets tsk->mm=NULL.
+Burt Holzman has noticed that memcg v1 doesn't notify about OOM events
+via eventfd anymore. The reason is that 29ef680ae7c2 ("memcg, oom: move
+out_of_memory back to the charge path") has moved the oom handling back
+to the charge path. While doing so the notification was left behind in
+mem_cgroup_oom_synchronize.
 
- Under normal circumstances,When do_exit exits, mm->owner will
- be updated on exit_mm(). but when the kernel process calls
- unuse_mm() and then exits,mm->owner cannot be updated. And it
- will point to a task that has been released.
+Fix the issue by replicating the oom hierarchy locking and the
+notification.
 
-The current issue flow is as follows:
-Process C              Process A         Process B
-qemu-system-x86_64:     kernel:vhost_net  kernel: vhost_net
-open /dev/vhost-net
-  VHOST_SET_OWNER   create kthread vhost-%d  create kthread vhost-%d
-  network init           use_mm()          use_mm()
-   ...                   ...
-   Abnormal exited
-   ...
-  do_exit
-  exit_mm()
-  update mm->owner to A
-  exit_files()
-   close_files()
-   kthread_should_stop() unuse_mm()
-    Stop Process A       tsk->mm=NULL
-                         do_exit()
-                         can't update owner
-                         A exit completed  vhost-%d  rcv first package
-                                           vhost-%d build rcv buffer for vq
-                                           page fault
-                                           access mm & mm->owner
-                                           NOW,mm->owner still pointer A
-                                           kernel UAF
-    stop Process B
-
-Although I am having this issue on vhost_net,But it affects all users of
-unuse_mm.
-
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: Dominik Brodowski <linux@dominikbrodowski.net>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>
-Signed-off-by: guomin chen <gchen.guomin@gmail.com>
+Reported-by: Burt Holzman <burt@fnal.gov>
+Fixes: 29ef680ae7c2 ("memcg, oom: move out_of_memory back to the charge path")
+Cc: stable # 4.19+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- kernel/exit.c    | 1 +
- mm/mmu_context.c | 1 +
- 2 files changed, 2 insertions(+)
+Hi Andrew,
+I forgot to CC you on the patch sent as a reply to the original bug
+report [1] so I am reposting with Ack from Johannes. Burt has confirmed
+this is resolving the regression for him [2]. 4.20 is out but I have
+marked the patch for stable so it should hit both 4.19 and 4.20.
 
-diff --git a/kernel/exit.c b/kernel/exit.c
-index 0e21e6d..9e046dd 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -486,6 +486,7 @@ void mm_update_next_owner(struct mm_struct *mm)
- 	task_unlock(c);
- 	put_task_struct(c);
- }
-+EXPORT_SYMBOL(mm_update_next_owner);
- #endif /* CONFIG_MEMCG */
+[1] http://lkml.kernel.org/r/20181221153302.GB6410@dhcp22.suse.cz
+[2] http://lkml.kernel.org/r/96D4815C-420F-41B7-B1E9-A741E7523596@services.fnal.gov
+
+ mm/memcontrol.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6e1469b80cb7..7e6bf74ddb1e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1666,6 +1666,9 @@ enum oom_status {
  
- /*
-diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-index 3e612ae..9eb81aa 100644
---- a/mm/mmu_context.c
-+++ b/mm/mmu_context.c
-@@ -60,5 +60,6 @@ void unuse_mm(struct mm_struct *mm)
- 	/* active_mm is still 'mm' */
- 	enter_lazy_tlb(mm, tsk);
- 	task_unlock(tsk);
-+	mm_update_next_owner(mm);
+ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+ {
++	enum oom_status ret;
++	bool locked;
++
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER)
+ 		return OOM_SKIPPED;
+ 
+@@ -1700,10 +1703,23 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int
+ 		return OOM_ASYNC;
+ 	}
+ 
++	mem_cgroup_mark_under_oom(memcg);
++
++	locked = mem_cgroup_oom_trylock(memcg);
++
++	if (locked)
++		mem_cgroup_oom_notify(memcg);
++
++	mem_cgroup_unmark_under_oom(memcg);
+ 	if (mem_cgroup_out_of_memory(memcg, mask, order))
+-		return OOM_SUCCESS;
++		ret = OOM_SUCCESS;
++	else
++		ret = OOM_FAILED;
+ 
+-	return OOM_FAILED;
++	if (locked)
++		mem_cgroup_oom_unlock(memcg);
++
++	return ret;
  }
- EXPORT_SYMBOL_GPL(unuse_mm);
+ 
+ /**
 -- 
-1.8.3.1
+2.19.2
