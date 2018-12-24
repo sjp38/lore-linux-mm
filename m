@@ -2,186 +2,245 @@ Return-Path: <SRS0=oA8h=PB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D4FFC43444
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 11:58:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46745C43612
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 13:16:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 19497218A4
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 11:58:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19497218A4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=hofr.at
+	by mail.kernel.org (Postfix) with ESMTP id 007DC21850
+	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 13:16:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qM6wO8wX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 007DC21850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7816C8E0003; Mon, 24 Dec 2018 06:58:29 -0500 (EST)
+	id 859768E0003; Mon, 24 Dec 2018 08:16:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 732888E0001; Mon, 24 Dec 2018 06:58:29 -0500 (EST)
+	id 7EE6F8E0001; Mon, 24 Dec 2018 08:16:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 647868E0003; Mon, 24 Dec 2018 06:58:29 -0500 (EST)
+	id 6CFAA8E0003; Mon, 24 Dec 2018 08:16:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 111B88E0001
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 06:58:29 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id 49so3925097wra.14
-        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 03:58:29 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9E18E0001
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 08:16:37 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 89so9892853ple.19
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 05:16:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Dsa1UZlhXVxjOcRc2wQXLmaY9e4FunxgC8tJ8azhmSQ=;
-        b=bMU4fD3umNtheUzdOoMcOxdjayW/eyrG49nSn/rxf73ZGgQeA8o3g+0HEDo+pDiOk9
-         FLq3DMNYcAA71Y1DpBCCt6xwd5zUwr5vgIT2KEIfenI40aj/v47oSUI9jIE53fF00Qf7
-         FT+R7qqH0K0TrBzRm30cLtoOJZ3/wx03PCIwqHM+11JcDsmdewP1LxKCMJoQtgltu8Oc
-         aDrNnmiPmrmzhF3JbmilLvnW89v8BQFqGV32BrQiWuyBt9mHGQWLzbIT9RpbCv5IbeL5
-         cFzEZSpKmSf+QBGeuYQTXZ7TQGO4yVlAN+7g5Ko4Ee4Pb8GhX/VJSs824A4vbbT/0RaK
-         JRzw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hofrat@osadl.at designates 178.115.242.59 as permitted sender) smtp.mailfrom=hofrat@osadl.at
-X-Gm-Message-State: AA+aEWbbCrq7N7nf3oZCiApR0zWDavEWQs5j/eVVIgOlPbbXRvVX/7/x
-	SaLifvuoTkiHcY5qamQYl+JoqxZcpRjtB4/v/Iq+rEZA6F52HLHrN24+9TnQiPmV1K8J80sT6a1
-	mUvQjGJQSezb4JZbMPrEeQs8OCwuaj4vj8gayBOMAGnsFQ4EHKC/n9ImH60CwDfc=
-X-Received: by 2002:a1c:448a:: with SMTP id r132mr11491025wma.47.1545652708500;
-        Mon, 24 Dec 2018 03:58:28 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/VgrbWwLPBwVH8TXMw0cYKq0e9CIMnc4wDtX6EMRGMtkF2Vf91d8BxvS+c2Ne0WzBqFSRh2
-X-Received: by 2002:a1c:448a:: with SMTP id r132mr11490969wma.47.1545652707132;
-        Mon, 24 Dec 2018 03:58:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545652707; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:user-agent;
+        bh=LP5lsofdni2cSLjgAraOzOMBqzsN96J57RYIndiS9eY=;
+        b=OI7AC1OB4mJtuvTM2odPIGkLM/Rzox1MQFTxVOwIQxzbsJ+8pzjzKOzw38kuqDGS9H
+         Yc1Uazb61alQAOCvVzCJ3jy8aRT+uoRAl0lO/armTCJybgdbCrfeI5ARvtM08oEB8hU2
+         vw9Z+P+z1uW3XyCciU8wNbHXG10ewfyz4DacInY3rHQ8awBLdTfFNGghdRRBrK6zJsk9
+         B6qHMXRl4NxaSX+DicW0ALeZCcXJLhGuW608KBwAajiaKVM/R+r1vGIzoqhsyPilz1lB
+         8oTY5lmdyGwSW7GUOZMbnnnbi+ubQflma/0GJzTv+VmDip/LQZqOSmWj6Jjz3fof2fL/
+         Qpng==
+X-Gm-Message-State: AA+aEWYW0p2a4oTxCKBs83uX7/pT/YY+Pbd6j+vR00PopdLTgy5jcN4C
+	Df4+64Uq6B7NwfxiLTMsJTo0gUWh6uqODsjZkZhswc2TZsA0m/JR6cB8PzvczmVCnVNr1cde/6P
+	M13lTQQEYaIdcaC96Bb/dz9iqrf8A3+ESuwt4d+6kHhOwfcejoOsarOrwM/8las0STSOnjgC6yH
+	3yLt9lgudQ1IQuIFrU2zDj9TLcVuPF30HwMR+NL9OkkUGO1RZGesTZacPIehbmthnpiMsKYxzON
+	5dkMcKpxu2W2rB5oPobLQO3NLSGje05opJdJCqVh5C0mNjx2LvKF++9O3u7TyHqpEWson9GmP8g
+	mtwehLexUO1520Sk9QK2HqMnvsBDUYgJnpd610hYYJGM/5axdv+jqIpdFODMosbm9QGZAF6DyoI
+	u
+X-Received: by 2002:a62:7086:: with SMTP id l128mr13049120pfc.68.1545657396765;
+        Mon, 24 Dec 2018 05:16:36 -0800 (PST)
+X-Received: by 2002:a62:7086:: with SMTP id l128mr13049064pfc.68.1545657395892;
+        Mon, 24 Dec 2018 05:16:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545657395; cv=none;
         d=google.com; s=arc-20160816;
-        b=vTrSp05sajyTlM711ny6+6iJkYCSrHzPA83eoDkN4Z7f4jm4AxR04OtDw+5zVfEqu6
-         AB/uooQg4GYizHQSMrp0dMzoJq+sSkI4QRdCyUU/mZlL2j74ytAuqmyTNKN3B3TWssLx
-         boLGOn4T3qDVvVatHpxLGlLNtRDfyCqHlFn8PaMRHXz9afDKP6w92TCGXAKtxxZuyNQZ
-         eoPudGrLS709N1/kKeFotFj5zG01LTajlLnXxudTtNmlaQxQpvIixjtSCcIU9GaucERC
-         i7aXAwJneO85UqLDloV/mvPaps7ynoFeKAS7Z8pVnrea8WBrBEdeKQz4LLxd/yFMcCpy
-         Yx2Q==
+        b=z/XXZxpPuTEnbzp9ediOWO+KWenjRNGmUpGyzUgYF7kVBVhdUHNsuhCg5zka7xLRZu
+         mvuV0SVzW1OL4JZnT5VLFYtNJmeldE4UwLSV1kLYGcfGghcobkDzxvmsYDBxNqxzuyNd
+         g5TOfR68+EVEr0DIeXb+HXw5RiUPqyCL5UDAtZtOgf/nf3fqCxQ+G1yiee8mTkDpesSw
+         8+1BklUL6em2cQk+M0Z/EZCi6731Nl1AQyEzjw3M+KgxrLEeB83Ca5vTl2UKwml8Wy7G
+         HgFKYp0XrrzkNOzUpywZ68pvAQkfZXLOCU4yutqJFszCcMriwtYkIGriNAay03GYRwfL
+         J9JQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=Dsa1UZlhXVxjOcRc2wQXLmaY9e4FunxgC8tJ8azhmSQ=;
-        b=YUQy513AtDza3cAMQejwS2pUUovk3UBaJwCcuZ3JOLnu/ne64Z8CgCjAZlCfJYQ9Ek
-         miu04h75MT+lCPJl0x4/ohK0C3o99QwrZWapJXohQWeyCQcYtXyDesZ9oGv24ILnM4Tt
-         4XxOuu2szfEa43MnwW3mrrmAYhzd3kVFuuEpIoXCqrxcvLgiZzh6C43qYHZGTsB3ch4o
-         ji8AWfQ3uHn5AP6tGnIi8vFE0y+f0NUxfeAjafKxsFy37G26U0ink0mS5md7ylNT4KQj
-         zHP17nm3Q/6/03TiqjRoahPIGrdXs4OEzncK6mvzQJsSPEj6jmCdkOLeTqvwtB9oGCR2
-         NFRA==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=LP5lsofdni2cSLjgAraOzOMBqzsN96J57RYIndiS9eY=;
+        b=vTkOrxp3m0xQhaJqP8MFtSHFmh7QpsYrcWDCL5jQiIjRc31CGVFhLblwEOAZhdSGTl
+         9QxjOCef05tTfagPnwZz1IqBdRR9K544BCmRy9wVZdHkhGZ+Ch873SiZD0v9LL7Rx5iT
+         PTyFTM9SJKMfajofvHHS6R+9KoRKlZ2Tss7ESAbMaw49PPbAMcekz3KxyXCu+pVWbIbQ
+         9OVEHpTmqYbmoueeVZeNDiSyQzNQafVHJcNNZtKPrJxbVj01kd5FCe7aqFOPQlSrQaSW
+         n81J0EmgL3T0H0Uqx7hrDamktlnuzrWovxoYoZDMLBrQ0Tev9QJiTNYQHZa7b4zqucfR
+         mFgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of hofrat@osadl.at designates 178.115.242.59 as permitted sender) smtp.mailfrom=hofrat@osadl.at
-Received: from mail.osadl.at (178.115.242.59.static.drei.at. [178.115.242.59])
-        by mx.google.com with ESMTP id f1si6553026wri.445.2018.12.24.03.58.26
-        for <linux-mm@kvack.org>;
-        Mon, 24 Dec 2018 03:58:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of hofrat@osadl.at designates 178.115.242.59 as permitted sender) client-ip=178.115.242.59;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qM6wO8wX;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i37sor47053576plb.45.2018.12.24.05.16.35
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 24 Dec 2018 05:16:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of hofrat@osadl.at designates 178.115.242.59 as permitted sender) smtp.mailfrom=hofrat@osadl.at
-Received: by mail.osadl.at (Postfix, from userid 1001)
-	id 85CF45C06EB; Mon, 24 Dec 2018 12:58:18 +0100 (CET)
-Date: Mon, 24 Dec 2018 12:58:18 +0100
-From: Nicholas Mc Guire <der.herr@hofr.at>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>,
-	Nicholas Mc Guire <hofrat@osadl.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Arun KS <arunks@codeaurora.org>, Joe Perches <joe@perches.com>,
-	"Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH RFC] mm: vmalloc: do not allow kzalloc to fail
-Message-ID: <20181224115818.GA3063@osadl.at>
-References: <1545337437-673-1-git-send-email-hofrat@osadl.org>
- <alpine.DEB.2.21.1812211356040.219499@chino.kir.corp.google.com>
- <20181222080421.GB26155@osadl.at>
- <20181224081056.GD9063@dhcp22.suse.cz>
- <20181224093804.GA16933@osadl.at>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qM6wO8wX;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :user-agent;
+        bh=LP5lsofdni2cSLjgAraOzOMBqzsN96J57RYIndiS9eY=;
+        b=qM6wO8wXOsTCCQjmN5W2bh1Yc6f8aW1WDDjGj9PbWNWc2o79ATdhag+oaoZPNPzt6K
+         ma0RAy9eFNdLoLaz9htzWNODQWdvDKW7joEPPAdI4N9ZNw04c82tpSKjho+qWDoRBeIH
+         N1p9vHkj4DPmaFcBQk35HegJ83jO83edL9GgOg2ErX3ZZ+XvYXqoDlEmwPT6wa3imIT0
+         T1nCoqL5yFy5XNreHjeoMzrX+u5MwKvIQ8ttnzIFgFzU52htaKbK9ggMZ02hlyAc4nzQ
+         IqLSm1jXGOTu+uTZeYmteZ8VUjbr6oMUx31ohJHf9UUTLFfcMN9bGnJn5P9wRpIyKK87
+         nFGA==
+X-Google-Smtp-Source: ALg8bN7wOSrZcfXhzYNZV0rUN+/7d8bG9BYL8F6X7CbsAJiBB+mCxvpTDoGJWLYuM5s39NiTv+v4ng==
+X-Received: by 2002:a17:902:4025:: with SMTP id b34mr13074182pld.181.1545657395486;
+        Mon, 24 Dec 2018 05:16:35 -0800 (PST)
+Received: from jordon-HP-15-Notebook-PC ([106.51.18.181])
+        by smtp.gmail.com with ESMTPSA id n22sm59491886pfh.166.2018.12.24.05.16.33
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 24 Dec 2018 05:16:34 -0800 (PST)
+Date: Mon, 24 Dec 2018 18:50:31 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com,
+	kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com,
+	sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org,
+	linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com,
+	treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com,
+	stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de,
+	airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org,
+	pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org,
+	boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org,
+	linux1394-devel@lists.sourceforge.net,
+	dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org,
+	xen-devel@lists.xen.org, iommu@lists.linux-foundation.org,
+	linux-media@vger.kernel.org
+Subject: [PATCH v5 1/9] mm: Introduce new vm_insert_range API
+Message-ID: <20181224132031.GA22051@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181224093804.GA16933@osadl.at>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181224115818.1uWMyHhnQtCmpfujxNaFSISyT9SB9xy00WMbgkBsKTY@z>
+Message-ID: <20181224132031.eqpEu3I1gmPBznTADJeXt9DRAJ-b1Oi_P9KYKO8X0To@z>
 
-On Mon, Dec 24, 2018 at 10:38:04AM +0100, Nicholas Mc Guire wrote:
-> On Mon, Dec 24, 2018 at 09:10:56AM +0100, Michal Hocko wrote:
-> > On Sat 22-12-18 09:04:21, Nicholas Mc Guire wrote:
-> > > On Fri, Dec 21, 2018 at 01:58:39PM -0800, David Rientjes wrote:
-> > > > On Thu, 20 Dec 2018, Nicholas Mc Guire wrote:
-> > > > 
-> > > > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> > > > > index 871e41c..1c118d7 100644
-> > > > > --- a/mm/vmalloc.c
-> > > > > +++ b/mm/vmalloc.c
-> > > > > @@ -1258,7 +1258,7 @@ void __init vmalloc_init(void)
-> > > > >  
-> > > > >  	/* Import existing vmlist entries. */
-> > > > >  	for (tmp = vmlist; tmp; tmp = tmp->next) {
-> > > > > -		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
-> > > > > +		va = kzalloc(sizeof(*va), GFP_NOWAIT | __GFP_NOFAIL);
-> > > > >  		va->flags = VM_VM_AREA;
-> > > > >  		va->va_start = (unsigned long)tmp->addr;
-> > > > >  		va->va_end = va->va_start + tmp->size;
-> > > > 
-> > > > Hi Nicholas,
-> > > > 
-> > > > You're right that this looks wrong because there's no guarantee that va is 
-> > > > actually non-NULL.  __GFP_NOFAIL won't help in init, unfortunately, since 
-> > > > we're not giving the page allocator a chance to reclaim so this would 
-> > > > likely just end up looping forever instead of crashing with a NULL pointer 
-> > > > dereference, which would actually be the better result.
-> > > >
-> > > tried tracing the __GFP_NOFAIL path and had concluded that it would
-> > > end in out_of_memory() -> panic("System is deadlocked on memory\n");
-> > > which also should point cleanly to the cause - but I´m actually not
-> > > that sure if that trace was correct in all cases.
-> > 
-> > No, we do not trigger the memory reclaim path nor the oom killer when
-> > using GFP_NOWAIT. In fact the current implementation even ignores
-> > __GFP_NOFAIL AFAICS (so I was wrong about the endless loop but I suspect
-> > that we used to loop fpr __GFP_NOFAIL at some point in the past). The
-> > patch simply doesn't have any effect. But the primary objection is that
-> > the behavior might change in future and you certainly do not want to get
-> > stuck in the boot process without knowing what is going on. Crashing
-> > will tell you that quite obviously. Although I have hard time imagine
-> > how that could happen in a reasonably configured system.
-> 
-> I think most of the defensive structures are covering rare to almost
-> impossible cases - but those are precisely the hard ones to understand if
-> they do happen.
-> 
-> > 
-> > > > You could do
-> > > > 
-> > > > 	BUG_ON(!va);
-> > > > 
-> > > > to make it obvious why we crashed, however.  It makes it obvious that the 
-> > > > crash is intentional rather than some error in the kernel code.
-> > > 
-> > > makes sense - that atleast makes it imediately clear from the code
-> > > that there is no way out from here.
-> > 
-> > How does it differ from blowing up right there when dereferencing flags?
-> > It would be clear from the oops.
-> 
-> The question is how soon does it blow-up if it were imediate then three is
-> probably no real difference if there is some delay say due to the region
-> affected by the NULL pointer not being imediately in use - it may be very
-> hard to differenciate between an allocation failure and memory corruption
-> so having a directly associated trace should be significantly simpler to
-> understand - and you might actually not want a system to try booting if there
-> are problems at this level.
->
-sorry - you are right - it would blow up imediately - so there is no way this
-could be delayed in this case. So then its just a matter of the code making
-clear that the NULL case was considered - by a comment or by BUG_ON().
+Previouly drivers have their own way of mapping range of
+kernel pages/memory into user vma and this was done by
+invoking vm_insert_page() within a loop.
 
-thx!
-hofrat
+As this pattern is common across different drivers, it can
+be generalized by creating a new function and use it across
+the drivers.
+
+vm_insert_range is the new API which will be used to map a
+range of kernel memory/pages to user vma.
+
+This API is tested by Heiko for Rockchip drm driver, on rk3188,
+rk3288, rk3328 and rk3399 with graphics.
+
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <willy@infradead.org>
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+Reviewed-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Tested-by: Heiko Stuebner <heiko@sntech.de>
+---
+ include/linux/mm.h |  2 ++
+ mm/memory.c        | 41 +++++++++++++++++++++++++++++++++++++++++
+ mm/nommu.c         |  7 +++++++
+ 3 files changed, 50 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index fcf9cc9..2bc399f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2506,6 +2506,8 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ 			unsigned long pfn, unsigned long size, pgprot_t);
+ int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
++int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
++			struct page **pages, unsigned long page_count);
+ vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
+ vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+diff --git a/mm/memory.c b/mm/memory.c
+index 15c417e..d44d4a8 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1478,6 +1478,47 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+ }
+ 
+ /**
++ * vm_insert_range - insert range of kernel pages into user vma
++ * @vma: user vma to map to
++ * @addr: target user address of this page
++ * @pages: pointer to array of source kernel pages
++ * @page_count: number of pages need to insert into user vma
++ *
++ * This allows drivers to insert range of kernel pages they've allocated
++ * into a user vma. This is a generic function which drivers can use
++ * rather than using their own way of mapping range of kernel pages into
++ * user vma.
++ *
++ * If we fail to insert any page into the vma, the function will return
++ * immediately leaving any previously-inserted pages present.  Callers
++ * from the mmap handler may immediately return the error as their caller
++ * will destroy the vma, removing any successfully-inserted pages. Other
++ * callers should make their own arrangements for calling unmap_region().
++ *
++ * Context: Process context. Called by mmap handlers.
++ * Return: 0 on success and error code otherwise
++ */
++int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
++			struct page **pages, unsigned long page_count)
++{
++	unsigned long uaddr = addr;
++	int ret = 0, i;
++
++	if (page_count > vma_pages(vma))
++		return -ENXIO;
++
++	for (i = 0; i < page_count; i++) {
++		ret = vm_insert_page(vma, uaddr, pages[i]);
++		if (ret < 0)
++			return ret;
++		uaddr += PAGE_SIZE;
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL(vm_insert_range);
++
++/**
+  * vm_insert_page - insert single page into user vma
+  * @vma: user vma to map to
+  * @addr: target user address of this page
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 749276b..d6ef5c7 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -473,6 +473,13 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
+ }
+ EXPORT_SYMBOL(vm_insert_page);
+ 
++int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
++			struct page **pages, unsigned long page_count)
++{
++	return -EINVAL;
++}
++EXPORT_SYMBOL(vm_insert_range);
++
+ /*
+  *  sys_brk() for the most part doesn't need the global kernel
+  *  lock, except when an application is doing something nasty
+-- 
+1.9.1
 
