@@ -1,90 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0092F8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:14:54 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id j24-v6so1889550lji.20
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:14:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w77sor6921307lff.36.2018.12.21.10.14.52
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 21 Dec 2018 10:14:52 -0800 (PST)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 04/12] __wr_after_init: debug writes
-Date: Fri, 21 Dec 2018 20:14:15 +0200
-Message-Id: <20181221181423.20455-5-igor.stoppa@huawei.com>
-In-Reply-To: <20181221181423.20455-1-igor.stoppa@huawei.com>
-References: <20181221181423.20455-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 111B88E0001
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 06:58:29 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id 49so3925097wra.14
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 03:58:29 -0800 (PST)
+Received: from mail.osadl.at (178.115.242.59.static.drei.at. [178.115.242.59])
+        by mx.google.com with ESMTP id f1si6553026wri.445.2018.12.24.03.58.26
+        for <linux-mm@kvack.org>;
+        Mon, 24 Dec 2018 03:58:27 -0800 (PST)
+Date: Mon, 24 Dec 2018 12:58:18 +0100
+From: Nicholas Mc Guire <der.herr@hofr.at>
+Subject: Re: [PATCH RFC] mm: vmalloc: do not allow kzalloc to fail
+Message-ID: <20181224115818.GA3063@osadl.at>
+References: <1545337437-673-1-git-send-email-hofrat@osadl.org>
+ <alpine.DEB.2.21.1812211356040.219499@chino.kir.corp.google.com>
+ <20181222080421.GB26155@osadl.at>
+ <20181224081056.GD9063@dhcp22.suse.cz>
+ <20181224093804.GA16933@osadl.at>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181224093804.GA16933@osadl.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Nicholas Mc Guire <hofrat@osadl.org>, Andrew Morton <akpm@linux-foundation.org>, Chintan Pandya <cpandya@codeaurora.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Arun KS <arunks@codeaurora.org>, Joe Perches <joe@perches.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-After each write operation, confirm that it was successful, otherwise
-generate a warning.
+On Mon, Dec 24, 2018 at 10:38:04AM +0100, Nicholas Mc Guire wrote:
+> On Mon, Dec 24, 2018 at 09:10:56AM +0100, Michal Hocko wrote:
+> > On Sat 22-12-18 09:04:21, Nicholas Mc Guire wrote:
+> > > On Fri, Dec 21, 2018 at 01:58:39PM -0800, David Rientjes wrote:
+> > > > On Thu, 20 Dec 2018, Nicholas Mc Guire wrote:
+> > > > 
+> > > > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > > > > index 871e41c..1c118d7 100644
+> > > > > --- a/mm/vmalloc.c
+> > > > > +++ b/mm/vmalloc.c
+> > > > > @@ -1258,7 +1258,7 @@ void __init vmalloc_init(void)
+> > > > >  
+> > > > >  	/* Import existing vmlist entries. */
+> > > > >  	for (tmp = vmlist; tmp; tmp = tmp->next) {
+> > > > > -		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
+> > > > > +		va = kzalloc(sizeof(*va), GFP_NOWAIT | __GFP_NOFAIL);
+> > > > >  		va->flags = VM_VM_AREA;
+> > > > >  		va->va_start = (unsigned long)tmp->addr;
+> > > > >  		va->va_end = va->va_start + tmp->size;
+> > > > 
+> > > > Hi Nicholas,
+> > > > 
+> > > > You're right that this looks wrong because there's no guarantee that va is 
+> > > > actually non-NULL.  __GFP_NOFAIL won't help in init, unfortunately, since 
+> > > > we're not giving the page allocator a chance to reclaim so this would 
+> > > > likely just end up looping forever instead of crashing with a NULL pointer 
+> > > > dereference, which would actually be the better result.
+> > > >
+> > > tried tracing the __GFP_NOFAIL path and had concluded that it would
+> > > end in out_of_memory() -> panic("System is deadlocked on memory\n");
+> > > which also should point cleanly to the cause - but I�m actually not
+> > > that sure if that trace was correct in all cases.
+> > 
+> > No, we do not trigger the memory reclaim path nor the oom killer when
+> > using GFP_NOWAIT. In fact the current implementation even ignores
+> > __GFP_NOFAIL AFAICS (so I was wrong about the endless loop but I suspect
+> > that we used to loop fpr __GFP_NOFAIL at some point in the past). The
+> > patch simply doesn't have any effect. But the primary objection is that
+> > the behavior might change in future and you certainly do not want to get
+> > stuck in the boot process without knowing what is going on. Crashing
+> > will tell you that quite obviously. Although I have hard time imagine
+> > how that could happen in a reasonably configured system.
+> 
+> I think most of the defensive structures are covering rare to almost
+> impossible cases - but those are precisely the hard ones to understand if
+> they do happen.
+> 
+> > 
+> > > > You could do
+> > > > 
+> > > > 	BUG_ON(!va);
+> > > > 
+> > > > to make it obvious why we crashed, however.  It makes it obvious that the 
+> > > > crash is intentional rather than some error in the kernel code.
+> > > 
+> > > makes sense - that atleast makes it imediately clear from the code
+> > > that there is no way out from here.
+> > 
+> > How does it differ from blowing up right there when dereferencing flags?
+> > It would be clear from the oops.
+> 
+> The question is how soon does it blow-up if it were imediate then three is
+> probably no real difference if there is some delay say due to the region
+> affected by the NULL pointer not being imediately in use - it may be very
+> hard to differenciate between an allocation failure and memory corruption
+> so having a directly associated trace should be significantly simpler to
+> understand - and you might actually not want a system to try booting if there
+> are problems at this level.
+>
+sorry - you are right - it would blow up imediately - so there is no way this
+could be delayed in this case. So then its just a matter of the code making
+clear that the NULL case was considered - by a comment or by BUG_ON().
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: Thiago Jung Bauermann <bauerman@linux.ibm.com>
-CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- mm/Kconfig.debug | 8 ++++++++
- mm/prmem.c       | 6 ++++++
- 2 files changed, 14 insertions(+)
-
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 9a7b8b049d04..b10305cfac3c 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -94,3 +94,11 @@ config DEBUG_RODATA_TEST
-     depends on STRICT_KERNEL_RWX
-     ---help---
-       This option enables a testcase for the setting rodata read-only.
-+
-+config DEBUG_PRMEM
-+    bool "Verify each write rare operation."
-+    depends on PRMEM
-+    default n
-+    help
-+      After any write rare operation, compares the data written with the
-+      value provided by the caller.
-diff --git a/mm/prmem.c b/mm/prmem.c
-index e1c1be3a1171..51f6776e2515 100644
---- a/mm/prmem.c
-+++ b/mm/prmem.c
-@@ -61,6 +61,9 @@ void *wr_memcpy(void *p, const void *q, __kernel_size_t size)
- 	__wr_enable(&wr_state);
- 	__wr_memcpy(wr_poking_addr, q, size);
- 	__wr_disable(&wr_state);
-+#ifdef CONFIG_DEBUG_PRMEM
-+	VM_WARN_ONCE(memcmp(p, q, size), "Failed %s()", __func__);
-+#endif
- 	local_irq_enable();
- 	return p;
- }
-@@ -92,6 +95,9 @@ void *wr_memset(void *p, int c, __kernel_size_t len)
- 	__wr_enable(&wr_state);
- 	__wr_memset(wr_poking_addr, c, len);
- 	__wr_disable(&wr_state);
-+#ifdef CONFIG_DEBUG_PRMEM
-+	VM_WARN_ONCE(memtst(p, c, len), "Failed %s()", __func__);
-+#endif
- 	local_irq_enable();
- 	return p;
- }
--- 
-2.19.1
+thx!
+hofrat
