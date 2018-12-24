@@ -1,59 +1,60 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 22AA18E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 14:08:03 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id t13so14707152ioi.3
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 11:08:03 -0800 (PST)
-Received: from mta-p5.oit.umn.edu (mta-p5.oit.umn.edu. [134.84.196.205])
-        by mx.google.com with ESMTPS id 192si375431its.82.2018.12.26.11.08.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 11:08:02 -0800 (PST)
-Received: from localhost (unknown [127.0.0.1])
-	by mta-p5.oit.umn.edu (Postfix) with ESMTP id 956E49CF
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 19:08:01 +0000 (UTC)
-Received: from mta-p5.oit.umn.edu ([127.0.0.1])
-	by localhost (mta-p5.oit.umn.edu [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id JZfqyYiBj4sX for <linux-mm@kvack.org>;
-	Wed, 26 Dec 2018 13:08:01 -0600 (CST)
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mta-p5.oit.umn.edu (Postfix) with ESMTPS id 5E6A5A00
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 13:08:01 -0600 (CST)
-Received: by mail-io1-f70.google.com with SMTP id r65so19857212iod.12
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 11:08:01 -0800 (PST)
-From: Aditya Pakki <pakki001@umn.edu>
-Subject: [PATCH] mm: compaction.c: Propagate return value upstream
-Date: Wed, 26 Dec 2018 13:07:49 -0600
-Message-Id: <20181226190750.9820-1-pakki001@umn.edu>
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Mon, 24 Dec 2018 18:53:40 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v5 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
+ vm_insert_range
+Message-ID: <20181224132340.GA22112@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, linux@armlinux.org.uk, robin.murphy@arm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
-To: pakki001@umn.edu
-Cc: kjlu@umn.edu, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Yang Shi <yang.shi@linux.alibaba.com>, Johannes Weiner <hannes@cmpxchg.org>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In sysctl_extfrag_handler(), proc_dointvec_minmax() can return an
-error. The fix propagates the error upstream in case of failure.
+Convert to use vm_insert_range() to map range of kernel
+memory to user vma.
 
-Signed-off-by: Aditya Pakki <pakki001@umn.edu>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Tested-by: Heiko Stuebner <heiko@sntech.de>
+Acked-by: Heiko Stuebner <heiko@sntech.de>
 ---
- mm/compaction.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7c607479de4a..5703b4051796 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1879,9 +1879,8 @@ int sysctl_compaction_handler(struct ctl_table *table, int write,
- int sysctl_extfrag_handler(struct ctl_table *table, int write,
- 			void __user *buffer, size_t *length, loff_t *ppos)
+diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+index a8db758..28458ae 100644
+--- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
++++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+@@ -221,26 +221,18 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+ 					      struct vm_area_struct *vma)
  {
-+	return
- 	proc_dointvec_minmax(table, write, buffer, length, ppos);
+ 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+-	unsigned int i, count = obj->size >> PAGE_SHIFT;
++	unsigned int count = obj->size >> PAGE_SHIFT;
+ 	unsigned long user_count = vma_pages(vma);
+-	unsigned long uaddr = vma->vm_start;
+ 	unsigned long offset = vma->vm_pgoff;
+ 	unsigned long end = user_count + offset;
+-	int ret;
+ 
+ 	if (user_count == 0)
+ 		return -ENXIO;
+ 	if (end > count)
+ 		return -ENXIO;
+ 
+-	for (i = offset; i < end; i++) {
+-		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
+-		if (ret)
+-			return ret;
+-		uaddr += PAGE_SIZE;
+-	}
 -
 -	return 0;
++	return vm_insert_range(vma, vma->vm_start, rk_obj->pages + offset,
++				user_count);
  }
  
- #if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+ static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
 -- 
-2.17.1
+1.9.1
