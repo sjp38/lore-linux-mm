@@ -1,194 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 66AAA6B7552
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2018 12:07:00 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id m19so10185001edc.6
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2018 09:07:00 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e19-v6si3579564ejj.140.2018.12.05.09.06.57
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C66F38E0001
+	for <linux-mm@kvack.org>; Tue, 25 Dec 2018 16:48:26 -0500 (EST)
+Received: by mail-lf1-f69.google.com with SMTP id m10so1557731lfk.6
+        for <linux-mm@kvack.org>; Tue, 25 Dec 2018 13:48:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a13-v6sor20719897ljj.25.2018.12.25.13.48.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Dec 2018 09:06:58 -0800 (PST)
-Date: Wed, 5 Dec 2018 18:06:56 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC] Ext4: fix deadlock on dirty pages between fault and
- writeback
-Message-ID: <20181205170656.GJ30615@quack2.suse.cz>
-References: <1540858969-75803-1-git-send-email-bo.liu@linux.alibaba.com>
- <20181127114249.GH16301@quack2.suse.cz>
- <20181128201122.r4sec265cnlxgj2x@US-160370MP2.local>
- <20181129085238.GD31087@quack2.suse.cz>
- <20181129120253.GR6311@dastard>
- <20181129130002.GM31087@quack2.suse.cz>
- <20181129204019.GS6311@dastard>
+        (Google Transport Security);
+        Tue, 25 Dec 2018 13:48:24 -0800 (PST)
+Date: Wed, 26 Dec 2018 00:48:21 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Invalid opcode in khugepaged
+Message-ID: <20181225214820.milma7qbohhhbzk2@kshutemo-mobl1>
+References: <2aa66a9c-b8dc-b630-11e6-234dbce68b5b@gmail.com>
+ <1644239b-560b-1c0b-2333-cfb65106949f@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181129204019.GS6311@dastard>
+In-Reply-To: <1644239b-560b-1c0b-2333-cfb65106949f@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Liu Bo <bo.liu@linux.alibaba.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Heiner Kallweit <hkallweit1@gmail.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Jerome Glisse <jglisse@redhat.com>
 
-Added MM people to CC since this starts to be relevant for them.
-
-On Fri 30-11-18 07:40:19, Dave Chinner wrote:
-> On Thu, Nov 29, 2018 at 02:00:02PM +0100, Jan Kara wrote:
-> > On Thu 29-11-18 23:02:53, Dave Chinner wrote:
-> > > On Thu, Nov 29, 2018 at 09:52:38AM +0100, Jan Kara wrote:
-> > > > On Wed 28-11-18 12:11:23, Liu Bo wrote:
-> > > > > On Tue, Nov 27, 2018 at 12:42:49PM +0100, Jan Kara wrote:
-> > > > > > CCed fsdevel since this may be interesting to other filesystem developers
-> > > > > > as well.
-> > > > > > 
-> > > > > > On Tue 30-10-18 08:22:49, Liu Bo wrote:
-> > > > > > > mpage_prepare_extent_to_map() tries to build up a large bio to stuff down
-> > > > > > > the pipe.  But if it needs to wait for a page lock, it needs to make sure
-> > > > > > > and send down any pending writes so we don't deadlock with anyone who has
-> > > > > > > the page lock and is waiting for writeback of things inside the bio.
-> > > > > > 
-> > > > > > Thanks for report! I agree the current code has a deadlock possibility you
-> > > > > > describe. But I think the problem reaches a bit further than what your
-> > > > > > patch fixes.  The problem is with pages that are unlocked but have
-> > > > > > PageWriteback set.  Page reclaim may end up waiting for these pages and
-> > > > > > thus any memory allocation with __GFP_FS set can block on these. So in our
-> > > > > > current setting page writeback must not block on anything that can be held
-> > > > > > while doing memory allocation with __GFP_FS set. Page lock is just one of
-> > > > > > these possibilities, wait_on_page_writeback() in
-> > > > > > mpage_prepare_extent_to_map() is another suspect and there mat be more. Or
-> > > > > > to say it differently, if there's lock A and GFP_KERNEL allocation can
-> > > > > > happen under lock A, then A cannot be taken by the writeback path. This is
-> > > > > > actually pretty subtle deadlock possibility and our current lockdep
-> > > > > > instrumentation isn't going to catch this.
-> > > > > >
-> > > > > 
-> > > > > Thanks for the nice summary, it's true that a lock A held in both
-> > > > > writeback path and memory reclaim can end up with deadlock.
-> > > > > 
-> > > > > Fortunately, by far there're only deadlock reports of page's lock bit
-> > > > > and writeback bit in both ext4 and btrfs[1].  I think
-> > > > > wait_on_page_writeback() would be OK as it's been protected by page
-> > > > > lock.
-> > > > > 
-> > > > > [1]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=01d658f2ca3c85c1ffb20b306e30d16197000ce7
-> > > > 
-> > > > Yes, but that may just mean that the other deadlocks are just harder to
-> > > > hit...
-> > > > 
-> > > > > > So I see two ways how to fix this properly:
-> > > > > > 
-> > > > > > 1) Change ext4 code to always submit the bio once we have a full page
-> > > > > > prepared for writing. This may be relatively simple but has a higher CPU
-> > > > > > overhead for bio allocation & freeing (actual IO won't really differ since
-> > > > > > the plugging code should take care of merging the submitted bios). XFS
-> > > > > > seems to be doing this.
-> > > > > 
-> > > > > Seems that that's the safest way to do it, but as you said there's
-> > > > > some tradeoff.
-> > > > > 
-> > > > > (Just took a look at xfs's writepages, xfs also did the page
-> > > > > collection if there're adjacent pages in xfs_add_to_ioend(), and since
-> > > > > xfs_vm_writepages() is using the generic helper write_cache_pages()
-> > > > > which calls lock_page() as well, it's still possible to run into the
-> > > > > above kind of deadlock.)
-> > > > 
-> > > > Originally I thought XFS doesn't have this problem but now when I look
-> > > > again, you are right that their ioend may accumulate more pages to write
-> > > > and so they are prone to the same deadlock ext4 is. Added XFS list to CC.
-> > > 
-> > > I don't think XFS has a problem here, because the deadlock is
-> > > dependent on holding a lock that writeback might take and then doing
-> > > a GFP_KERNEL allocation. I don't think we do that anywhere in XFS -
-> > > the only lock that is of concern here is the ip->i_ilock, and I
-> > > think we always do GFP_NOFS allocations inside that lock.
-> > > 
-> > > As it is, this sort of lock vs reclaim inversion should be caught by
-> > > lockdep - allocations and reclaim contexts are recorded by lockdep
-> > > we get reports if we do lock A - alloc and then do reclaim - lock A.
-> > > We've always had problems with false positives from lockdep for
-> > > these situations where common XFS code can be called from GFP_KERNEL
-> > > valid contexts as well as reclaim or GFP_NOFS-only contexts, but I
-> > > don't recall ever seeing such a report for the writeback path....
+On Mon, Dec 24, 2018 at 10:30:26AM -0800, Mike Kravetz wrote:
+> Adding people more familiar with this code and changes that went into 4.20.
+> 
+> On 12/24/18 3:02 AM, Heiner Kallweit wrote:
+> > I just got the following error. It's for the first time that I see it.
+> > It happened whilst machine was idle, nothing special running.
 > > 
-> > I think for A == page lock, XFS may have the problem (and lockdep won't
-> > notice because it does not track page locks). There are some parts of
-> > kernel which do GFP_KERNEL allocations under page lock - pte_alloc_one() is
-> > one such function which allocates page tables with GFP_KERNEL and gets
-> > called with the faulted page locked. And I believe there are others.
-> 
-> Where in direct reclaim are we doing writeback to XFS?
-> 
-> It doesn't happen, and I've recently proposed we remove ->writepage
-> support from XFS altogether so that memory reclaim never, ever
-> tries to write pages to XFS filesystems, even from kswapd.
-
-Direct reclaim will never do writeback but it may still wait for writeback
-that has been started by someone else. That is enough for the deadlock to
-happen. But from what you write below you seem to understand that so I just
-write this comment here so that others don't get confused.
-
-> > So direct reclaim from pte_alloc_one() can wait for writeback on page B
-> > while holding lock on page A. And if B is just prepared (added to bio,
-> > under writeback, unlocked) but not submitted in xfs_writepages() and we
-> > block on lock_page(A), we have a deadlock.
-> 
-> Fundamentally, doing GFP_KERNEL allocations with a page lock
-> held violates any ordering rules we might have for multiple page
-> locking order. This is asking for random ABBA reclaim deadlocks to
-> occur, and it's not a filesystem bug - that's a bug in the page
-> table code. e.g if we are doing this in a filesystem/page cache
-> context, it's always in ascending page->index order for pages
-> referenced by the inode's mapping. Memory reclaim provides none of
-> these lock ordering guarantees.
-
-So this is where I'd like MM people to tell their opinion. Reclaim code
-tries to avoid possible deadlocks on page lock by always doing trylock on
-the page. But as this example shows it is not enough once is blocks in
-wait_on_page_writeback().
-
-> Indeed, pte_alloc_one() doing hard coded GFP_KERNEL allocations is a
-> problem we've repeatedly tried to get fixed over the past 15 years
-> because of the need to call vmalloc in GFP_NOFS contexts. What we've
-> got now is just a "blessed hack" of using task based NOFS context
-> via memalloc_nofs_save() to override the hard coded pte allocation
-> context.
-> 
-> But that doesn't work with calls direct from page faults - it has no
-> idea filesystems or page locking orders for multiple page locking.
-> Using GFP_KERNEL while holding a page lock is a bug. Fix the damn
-> bug, not force everyone else who is doing things safely and
-> correctly to change their code.
-
-I'm fine with banning GFP_KERNEL allocations from under page lock. Life
-will be certainly easier for filesystems ... but harder for memory reclaim
-so let's see what other people think about this.
-
-> > Generally deadlocks like these will be invisible to lockdep because it does
-> > not track either PageWriteback or PageLocked as a dependency.
-> 
-> And, because lockdep doesn't report it, it's not a bug that needs
-> fixing, eh?
-
-The bug definitely needs fixing IMO. Real user hit it after all...
-
-> > > If we switch away which holding a partially built bio, the only page
-> > > we have locked is the one we are currently trying to add to the bio.
-> > > Lock ordering prevents deadlocks on that one page, and all other
-> > > pages in the bio being built are marked as under writeback and are
-> > > not locked. Hence anything that wants to modify a page held in the
-> > > bio will block waiting for page writeback to clear, not the page
-> > > lock.
+> > See also second error below. Not sure whether both errors may be related.
 > > 
-> > Yes, and the blocking on writeback of such page in direct reclaim is
-> > exactly one link in the deadlock chain...
-> 
-> So, like preventing explicit writeback in direct reclaim, we either
-> need to prevent direct reclaim from waiting on writeback or use
-> GFP_NOFS allocation context when holding a page lock. The bug is not
-> in the filesystem code here.
+> > [17932.571487] invalid opcode: 0000 [#1] SMP
+> > [17932.571518] CPU: 2 PID: 203 Comm: khugepaged Not tainted 4.20.0-rc7-next-20181221+ #2
+> > [17932.571550] Hardware name: NA ZBOX-CI327NANO-GS-01/ZBOX-CI327NANO-GS-01, BIOS 5.12 04/26/2018
+> > [17932.571614] RIP: 0010:khugepaged+0x2a2/0x2280
+> > [17932.571640] Code: c0 48 8b 4d d0 65 48 33 0c 25 28 00 00 00 0f 85 22 1e 00 00 48 8d 65 d8 5b 41 5c 41 5d 41 5e 41 5f 5d c3 e8 30 43 ec ff e9 1e <fe> ff ff 48 8d 45 a0 48 8b 15 88 cc cc 00 49 c7 c4 90 f5 aa 85 48
+> > [17932.571721] RSP: 0018:ffffab4b801f7dc0 EFLAGS: 00010286
+> > [17932.571751] RAX: 0000000000000000 RBX: 0000000000002710 RCX: 0000000000000000
+> > [17932.571786] RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffff94c23a8c2a80
+> > [17932.571820] RBP: ffffab4b801f7f9a R08: 0000000000000000 R09: 0000000000000000
+> > [17932.571855] R10: 0000000000000000 R11: 0000000000000000 R12: ffffab4b801f7e20
+> > [17932.571890] R13: ffffffff86862720 R14: 0000000000000000 R15: 00000000000000d0
+> > [17932.571928] FS:  0000000000000000(0000) GS:ffff94c23bb00000(0000) knlGS:0000000000000000
+> > [17932.571967] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > [17932.571997] CR2: 00007f20c458f012 CR3: 0000000171213000 CR4: 00000000003406e0
+> > [17932.572034] Call Trace:
+> > [17932.572061]  ? wait_woken+0xa0/0xa0
+> > [17932.572088]  ? kthread+0x126/0x140
+> > [17932.572111]  ? __collapse_huge_page_swapin+0x540/0x540
+> > [17932.572141]  ? kthread_create_on_node+0x60/0x60
+> > [17932.572172]  ? ret_from_fork+0x3a/0x50
+> > [17932.572197] Modules linked in: snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_codec_generic vfat fat x86_pkg_temp_thermal realtek snd_hda_intel i2c_i801 i915 snd_hda_codec r8169 snd_hda_core intel_gtt i2c_algo_bit snd_pcm libphy drm_kms_helper snd_timer syscopyarea sysfillrect sysimgblt fb_sys_fops snd mei_me drm mei usb_storage crypto_user efivarfs ipv6 serio_raw atkbd libps2 xhci_pci xhci_hcd usbcore usb_common i8042 serio ext4 crc32c_intel mbcache jbd2 ahci libahci libata
 
-								Honza
+All code
+========
+   0:	c0 48 8b 4d          	rorb   $0x4d,-0x75(%rax)
+   4:	d0 65 48             	shlb   0x48(%rbp)
+   7:	33 0c 25 28 00 00 00 	xor    0x28,%ecx
+   e:	0f 85 22 1e 00 00    	jne    0x1e36
+  14:	48 8d 65 d8          	lea    -0x28(%rbp),%rsp
+  18:	5b                   	pop    %rbx
+  19:	41 5c                	pop    %r12
+  1b:	41 5d                	pop    %r13
+  1d:	41 5e                	pop    %r14
+  1f:	41 5f                	pop    %r15
+  21:	5d                   	pop    %rbp
+  22:*	c3                   	retq   		<-- trapping instruction
+  23:	e8 30 43 ec ff       	callq  0xffffffffffec4358
+  28:	e9 1e fe ff ff       	jmpq   0xfffffffffffffe4b
+  2d:	48 8d 45 a0          	lea    -0x60(%rbp),%rax
+  31:	48 8b 15 88 cc cc 00 	mov    0xcccc88(%rip),%rdx        # 0xccccc0
+  38:	49 c7 c4 90 f5 aa 85 	mov    $0xffffffff85aaf590,%r12
+  3f:	48                   	rex.W
+
+Code starting with the faulting instruction
+===========================================
+   0:	fe                   	(bad)  
+   1:	ff                   	(bad)  
+   2:	ff 48 8d             	decl   -0x73(%rax)
+   5:	45 a0 48 8b 15 88 cc 	rex.RB movabs 0x4900cccc88158b48,%al
+   c:	cc 00 49 
+   f:	c7 c4 90 f5 aa 85    	mov    $0x85aaf590,%esp
+  15:	48                   	rex.W
+
+
+It looks like somebody jumped into the middle of the instruction. I have no idea
+why and how. Maybe stack corruption?
 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+ Kirill A. Shutemov
