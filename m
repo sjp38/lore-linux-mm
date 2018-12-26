@@ -1,98 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E6C36B6A8C
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:07:49 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id q23so5964608otn.3
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:07:49 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t3si6495635otq.54.2018.12.03.10.07.48
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:07:48 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 20/25] ACPI / APEI: Use separate fixmap pages for arm64 NMI-like notifications
-Date: Mon,  3 Dec 2018 18:06:08 +0000
-Message-Id: <20181203180613.228133-21-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A7AF08E000B
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id f69so17813903pff.5
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:08 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+Message-Id: <20181226133352.189896494@intel.com>
+Date: Wed, 26 Dec 2018 21:15:05 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [RFC][PATCH v2 19/21] mm/migrate.c: add move_pages(MPOL_MF_SW_YOUNG) flag
+References: <20181226131446.330864849@intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=0010-migrate-check-if-the-page-is-software-young-when-mov.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Liu Jingqi <jingqi.liu@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-Now that ghes notification helpers provide the fixmap slots and
-take the lock themselves, multiple NMI-like notifications can
-be used on arm64.
+From: Liu Jingqi <jingqi.liu@intel.com>
 
-These should be named after their notification method as they can't
-all be called 'NMI'. x86's NOTIFY_NMI already is, change the SEA
-fixmap entry to be called FIX_APEI_GHES_SEA.
+Introduce MPOL_MF_SW_YOUNG flag to move_pages(). When on,
+the already-in-DRAM pages will be set PG_referenced.
 
-Future patches can add support for FIX_APEI_GHES_SEI and
-FIX_APEI_GHES_SDEI_{NORMAL,CRITICAL}.
+Background:
+The use space migration daemon will frequently scan page table and
+read-clear accessed bits to detect hot/cold pages. Then migrate hot
+pages from PMEM to DRAM node. When doing so, it btw tells kernel that
+these are the hot page set. This maintains a persistent view of hot/cold
+pages between kernel and user space daemon.
 
-Because all of ghes.c builds on both architectures, provide a
-constant for each fixmap entry that the architecture will never
-use.
+The more concrete steps are
 
-Signed-off-by: James Morse <james.morse@arm.com>
+1) do multiple scan of page table, count accessed bits
+2) highest accessed count => hot pages
+3) call move_pages(hot pages, DRAM nodes, MPOL_MF_SW_YOUNG)
 
+(1) regularly clears PTE young, which makes kernel lose access to
+    PTE young information
+
+(2) for anonymous pages, user space daemon defines which is hot and
+    which is cold
+
+(3) conveys user space view of hot/cold pages to kernel through
+    PG_referenced
+
+In the long run, most hot pages could already be in DRAM.
+move_pages(MPOL_MF_SW_YOUNG) sets PG_referenced for those already in
+DRAM hot pages. But not for newly migrated hot pages. Since they are
+expected to put to the end of LRU, thus has long enough time in LRU to
+gather accessed/PG_referenced bit and prove to kernel they are really hot.
+
+The daemon may only select DRAM/2 pages as hot for 2 purposes:
+- avoid thrashing, eg. some warm pages got promoted then demoted soon
+- make sure enough DRAM LRU pages look "cold" to kernel, so that vmscan
+  won't run into trouble busy scanning LRU lists
+
+Signed-off-by: Liu Jingqi <jingqi.liu@intel.com>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
-Changes since v6:
- * Added #ifdef definitions of each missing fixmap entry.
+ mm/migrate.c |   13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
 
-Changes since v3:
- * idx/lock are now in a separate struct.
- * Add to the comment above ghes_fixmap_lock_irq so that it makes more
-   sense in isolation.
-
-fixup for split fixmap
----
- arch/arm64/include/asm/fixmap.h |  2 +-
- drivers/acpi/apei/ghes.c        | 10 +++++++++-
- 2 files changed, 10 insertions(+), 2 deletions(-)
-
-diff --git a/arch/arm64/include/asm/fixmap.h b/arch/arm64/include/asm/fixmap.h
-index ec1e6d6fa14c..966dd4bb23f2 100644
---- a/arch/arm64/include/asm/fixmap.h
-+++ b/arch/arm64/include/asm/fixmap.h
-@@ -55,7 +55,7 @@ enum fixed_addresses {
- #ifdef CONFIG_ACPI_APEI_GHES
- 	/* Used for GHES mapping from assorted contexts */
- 	FIX_APEI_GHES_IRQ,
--	FIX_APEI_GHES_NMI,
-+	FIX_APEI_GHES_SEA,
- #endif /* CONFIG_ACPI_APEI_GHES */
+--- linux.orig/mm/migrate.c	2018-12-23 20:37:12.604621319 +0800
++++ linux/mm/migrate.c	2018-12-23 20:37:12.604621319 +0800
+@@ -55,6 +55,8 @@
  
- #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index 849da0d43a21..6cbf9471b2a2 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -85,6 +85,14 @@
- 	((struct acpi_hest_generic_status *)				\
- 	 ((struct ghes_estatus_node *)(estatus_node) + 1))
+ #include "internal.h"
  
-+/* NMI-like notifications vary by architecture. Fill in the fixmap gaps */
-+#ifndef CONFIG_HAVE_ACPI_APEI_NMI
-+#define FIX_APEI_GHES_NMI	-1
-+#endif
-+#ifndef CONFIG_ACPI_APEI_SEA
-+#define FIX_APEI_GHES_SEA	-1
-+#endif
++#define MPOL_MF_SW_YOUNG (1<<7)
 +
- static inline bool is_hest_type_generic_v2(struct ghes *ghes)
+ /*
+  * migrate_prep() needs to be called before we start compiling a list of pages
+  * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
+@@ -1484,12 +1486,13 @@ static int do_move_pages_to_node(struct
+  * the target node
+  */
+ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+-		int node, struct list_head *pagelist, bool migrate_all)
++		int node, struct list_head *pagelist, int flags)
  {
- 	return ghes->generic->header.type == ACPI_HEST_TYPE_GENERIC_ERROR_V2;
-@@ -954,7 +962,7 @@ int ghes_notify_sea(void)
- 	int rv;
+ 	struct vm_area_struct *vma;
+ 	struct page *page;
+ 	unsigned int follflags;
+ 	int err;
++	bool migrate_all = flags & MPOL_MF_MOVE_ALL;
  
- 	raw_spin_lock(&ghes_notify_lock_sea);
--	rv = ghes_estatus_queue_notified(&ghes_sea, FIX_APEI_GHES_NMI);
-+	rv = ghes_estatus_queue_notified(&ghes_sea, FIX_APEI_GHES_SEA);
- 	raw_spin_unlock(&ghes_notify_lock_sea);
+ 	down_read(&mm->mmap_sem);
+ 	err = -EFAULT;
+@@ -1519,6 +1522,8 @@ static int add_page_for_migration(struct
  
- 	return rv;
--- 
-2.19.2
+ 	if (PageHuge(page)) {
+ 		if (PageHead(page)) {
++			if (flags & MPOL_MF_SW_YOUNG)
++				SetPageReferenced(page);
+ 			isolate_huge_page(page, pagelist);
+ 			err = 0;
+ 		}
+@@ -1531,6 +1536,8 @@ static int add_page_for_migration(struct
+ 			goto out_putpage;
+ 
+ 		err = 0;
++		if (flags & MPOL_MF_SW_YOUNG)
++			SetPageReferenced(head);
+ 		list_add_tail(&head->lru, pagelist);
+ 		mod_node_page_state(page_pgdat(head),
+ 			NR_ISOLATED_ANON + page_is_file_cache(head),
+@@ -1606,7 +1613,7 @@ static int do_pages_move(struct mm_struc
+ 		 * report them via status
+ 		 */
+ 		err = add_page_for_migration(mm, addr, current_node,
+-				&pagelist, flags & MPOL_MF_MOVE_ALL);
++				&pagelist, flags);
+ 		if (!err)
+ 			continue;
+ 
+@@ -1725,7 +1732,7 @@ static int kernel_move_pages(pid_t pid,
+ 	nodemask_t task_nodes;
+ 
+ 	/* Check flags */
+-	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
++	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL|MPOL_MF_SW_YOUNG))
+ 		return -EINVAL;
+ 
+ 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
