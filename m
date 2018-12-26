@@ -2,692 +2,299 @@ Return-Path: <SRS0=eTfr=PD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=0.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,MIME_HTML_ONLY,
-	SPF_PASS,T_KAM_HTML_FONT_INVALID autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2743C43387
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 12:10:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 579AEC43387
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 12:27:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E4B4521720
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 12:10:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 015CF214AE
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 12:27:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=e.atlantisthepalm.com header.i=noreply@e.atlantisthepalm.com header.b="kTwT6kuc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4B4521720
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=e.atlantisthepalm.com
+	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="LBZWQG2q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 015CF214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 80B088E0002; Wed, 26 Dec 2018 07:10:18 -0500 (EST)
+	id 90D818E0002; Wed, 26 Dec 2018 07:27:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 792408E0003; Wed, 26 Dec 2018 07:10:18 -0500 (EST)
+	id 896968E0001; Wed, 26 Dec 2018 07:27:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60BD78E0002; Wed, 26 Dec 2018 07:10:18 -0500 (EST)
+	id 75D908E0002; Wed, 26 Dec 2018 07:27:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D88908E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 07:10:17 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id w4so6521764wrt.21
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 04:10:17 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C0E98E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 07:27:38 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id 128so19672877itw.8
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 04:27:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:errors-to:message-id
-         :list-unsubscribe:mime-version:from:to:date:subject
-         :content-transfer-encoding;
-        bh=Qt3yBUH93X3EJCigXvYcqdBTV+vTMr+oHznVxprUsUc=;
-        b=Eg8wcUlLvkAIuSODby8O5jMSPnqoscwEcfupsC9wlSmVT2t2RnrDprkmgheijB/9sL
-         NNZOeMdREmaZHFx8jJniWAKt5i64xutFQ/Usjz+EuDY8NB7DptowXnxQcIHvjbNNQnlR
-         +pUEohP5BLHVZxAtF69J09QH1BK7FsF/uhYtjKItwZtDv/F043iHo8/MSgma79H/L8qm
-         BMn7fGiUg6LV25yTgsC0u/AmKab6/7AoQ7CxS5H8LacqSEm3PQ74vNRfOBIjeoPd7Psx
-         bXNikzMi8/mxvs32qdkIsf8DkxiNXNK2WvA8ChuzA6lav+TAOzKmHck3vXhcYuOyeaE6
-         UimQ==
-X-Gm-Message-State: AJcUukc5VsH0PzgJFewKFkgCjiJ+Mw+c94ctt8KTKEbVQJvwQVEEg7Gg
-	X/Rc8XBG79aPWaJnMZjhAvvZpt9DXYWIKjxVL+4fGaIZjmA5ipbEDxIrv7F0knsbE3JdATzrS7M
-	OfxmVcgHLCN5D/F0OVaV24/9+PSg0cia4eUvAZP4HY5DbDJe96URyn/uRON7blUVPBg==
-X-Received: by 2002:adf:e247:: with SMTP id n7mr17410816wri.205.1545826217211;
-        Wed, 26 Dec 2018 04:10:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN40b+BptHeWrxQZ3ABGudZrUWo98EkPxQbLXnBxrr2KkyBHoSHFo/8WS1J85eTsR7W/bECO
-X-Received: by 2002:adf:e247:: with SMTP id n7mr17410769wri.205.1545826216335;
-        Wed, 26 Dec 2018 04:10:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545826216; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=i1s+F6uwQuL4G5Glu6ot8drWi5YkFD+mcPL1UFRmYV0=;
+        b=F3GzuWoKDBQ2+WrPp5JgWxSllcM447fRK4dKdM9eAgURDodqFjEgiKKc+nHj5Gb05X
+         mlq2fZgHQRBAGlGTru4Cj4gmy0WRP8OitA1AZHTSh8N144W4+vlcTAw9orPb5Js3+lmc
+         Rn8Tgrbw9aMUV+WQUyXkOYa4jhZMXUSNWHJG/DvO92bSQZ5bs25lt5gtKkOBVrYMwCLO
+         HTJ6ABIoWWopdFFJs2Zl+WHf1ZdlkrpW4aGbVnjdh8pidKk9L3BRTDIwVbvEhEhZRjrw
+         zqmjRywy9OpFUb+DkV+boXSlG50uBUnSuCXMStl1iY91A3fPrBJ2gDpP6TgVVwwQUzhh
+         o/jQ==
+X-Gm-Message-State: AJcUukd9iAtWfUsURDNUOiSWXtb5C/7zwpQegrYSgwbYJFUw2WcadW/E
+	rTUetFqHExoOAQ5YJJ/cEVNUpRJAVncfT5RrAqwyzpHpUdQqnGrCNu/zFs5agF1jwCYVuCSNdBU
+	T4si925rWV7a6+ttiM8FfAts1OtnsZs6uk77R23xdYPENHoq6j+Ssfm2hYUpMM0Zo8M2abXRsj5
+	lacZZU9Dbb4SjNOTaj1qc5OJsGMgzAQX05sPIIiSiPR9JMjM2Uzco4PzcsjnudowqPeNto0mSWL
+	ewJROkTcxK3TFt5aSouZdnj9KRRmz7byFfdRxpHkOZzuo+EFDhNV85sDNuQ/SimRhhDAjWzu7YY
+	Q3nDsnVEY/koUX0YEU2Utyk3qfb71Lxlj67I72ui7KuyWFxshOASpkIES6ROF7vL9/JBM4G8jVT
+	e
+X-Received: by 2002:a5d:870c:: with SMTP id u12mr13216358iom.168.1545827257957;
+        Wed, 26 Dec 2018 04:27:37 -0800 (PST)
+X-Received: by 2002:a5d:870c:: with SMTP id u12mr13216324iom.168.1545827257006;
+        Wed, 26 Dec 2018 04:27:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545827256; cv=none;
         d=google.com; s=arc-20160816;
-        b=XZ949KzW3ov0oKdNUoRtCXBSGbvSD+p16h6f5TFpGdZnM3zgRYoFXA52AERI4tAgGR
-         VNc6srnMst1XNTIlA/tGImxTf4NIg65EiloB8LnTT+wBN2enU0gwPMOn2x/ExOc6mEwd
-         71sbj5j081DQHCa/AgVLDTg9JeE8Gw1Nac66AtHeQ+bdvMkpm3IVgJ0TCi0LGvf5RVS4
-         4B98oAwgeww8aeYYZ5b+SOvZbQ/L6ydsG0uEZElrj0sfixygkaWIg7HAqOYaKzjC+ZM6
-         BQCUQXcMu1uF/eO7joizPsXxa6KRMg9EjsuCTszCX0o3TWfNoyA9BCVNmRbXT56m0/sc
-         76CA==
+        b=KNJKxJDZQQ/FTCXcDpJ4pasxg4dnh9ve26P9E8iTBn/KkIpxGm9vivOpM0zQPreUDA
+         6jEeyzrMzV8Fke+e4wvbSe+AAdU/t6SSyawrvLoeZiplszbtWPzAzF+lDXBeyU8uWDmM
+         ZM9A/zdXAYo3JDIsWxevsRLwVW5VPU06bxEK4Xq2BfOuhPOGWDHGqIv9+GVeq6T5p7bz
+         O+MECZRknJSVIJ3BKEnvlKU+2MGVsptfvZUmDvmRA7tLlVXvHLh9m5QDfDILAGOhMpx2
+         ostpu9ZW60M7nScVJ/xbNBH3JDFnCV729O08f/cmnSUVC7/KJLQRbHgKZuajHIwI+AaO
+         p0xg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:subject:date:to:from:mime-version
-         :list-unsubscribe:message-id:errors-to:dkim-signature;
-        bh=Qt3yBUH93X3EJCigXvYcqdBTV+vTMr+oHznVxprUsUc=;
-        b=Dklhe9Si3zQnzrg0gvRIjPdkscHpcHySRE984IkvIzMg8/YeRUhYdu68XwK2/yCcNH
-         uLfG9dqgwpZFsBIkoBP0KOkerbPi8/4BGHQMtnTUnWsRdObPBiALsRclRSDutj3cRoAU
-         Xsg+oyFoXuOhP5KEjGb//tCEO/Ht28AfosE4w1RafSE0Nwqm80508bGY1fj5xtc36Ub0
-         q7TiRUYiXhFHMqpzan4wCJMjkcinJmFd3aUk5LmZZGbULNzXDP1VpF9oYAsyRJKjhn9R
-         sAfjS8jURGy4LT3ARZOzBFAwcVzZUNEJyHs21e2oibU5p9Rr066gEnE7cQgAmPlERwcM
-         1atg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=i1s+F6uwQuL4G5Glu6ot8drWi5YkFD+mcPL1UFRmYV0=;
+        b=o0cjYLasHK1JsqOtDuOYouWOBgsbPkQhSE2BwLqfWZDwDonuMhR12qKhYDSneJLbds
+         rmMaAbzgkcH2hggNc5mK4Zh8y+2YhKBgBMU52oojg5Ekw/02yIdHi3eB5imiQw8EZRja
+         k9FROku/zqBH5/c3yKtUQXorJdpSzpn/fp0Mtgxi61fhYr9kLsQEsYgKL/T8ag9tJxsh
+         l+2P8Xy5+7Ge9tvC8RXLT+G8FB6UcztfDJF5o+LHAmurenqdxt7O56yy5nlzBaVhxz62
+         JGAuXJBLw6Le6OCx2ScJJcQ2lEj1OWOY0u/hfbWMHvXgiYuYmdRMw2hYrXHcFlPQPjZT
+         zUNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@e.atlantisthepalm.com header.s=0 header.b=kTwT6kuc;
-       spf=pass (google.com: domain of noreply@e.atlantisthepalm.com designates 62.144.109.110 as permitted sender) smtp.mailfrom=noreply@e.atlantisthepalm.com
-Received: from mta109110.e.atlantisthepalm.com (mta109110.e.atlantisthepalm.com. [62.144.109.110])
-        by mx.google.com with ESMTPS id 195si16357693wmt.105.2018.12.26.04.10.16
+       dkim=pass header.i=@linaro.org header.s=google header.b=LBZWQG2q;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v8sor41374ios.77.2018.12.26.04.27.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 04:10:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of noreply@e.atlantisthepalm.com designates 62.144.109.110 as permitted sender) client-ip=62.144.109.110;
+        (Google Transport Security);
+        Wed, 26 Dec 2018 04:27:36 -0800 (PST)
+Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@e.atlantisthepalm.com header.s=0 header.b=kTwT6kuc;
-       spf=pass (google.com: domain of noreply@e.atlantisthepalm.com designates 62.144.109.110 as permitted sender) smtp.mailfrom=noreply@e.atlantisthepalm.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; s=0; d=e.atlantisthepalm.com;
- h=Message-ID:List-Unsubscribe:MIME-Version:From:To:Date:Subject:Content-Type:
- Content-Transfer-Encoding; i=noreply@e.atlantisthepalm.com;
- bh=Qt3yBUH93X3EJCigXvYcqdBTV+vTMr+oHznVxprUsUc=;
- b=kTwT6kuc9eSX6JDSbvKD8hM5wFN4dEi9aK4fw0lmD/z5eESq3eiQn4B0d1rKD8nZ3+vUSgVQMYfK
-   O9ifBgmd21zbav6I9C+74t98RAMIAR8YBLy4nWujGXRCUPa89yW7Ny61eTW+ggz/X2th3PAHIUER
-   vbUMbRq/5TrKBa+HwSw=
-Received: by mta109110.e.atlantisthepalm.com id h4dnqg2bs1k5 for <linux-mm@kvack.org>; Wed, 26 Dec 2018 12:10:15 +0000 (envelope-from <noreply@e.atlantisthepalm.com>)
-Message-ID: <404.281336408.201812261210151988783.0047002349@e.atlantisthepalm.com>
-List-Unsubscribe: <mailto:unsubscribe-1ffadc4dd0b3e1782745a5f05fb5f36a@e.atlantisthepalm.com?subject=Unsubscribe>
-X-Mailer: XyzMailer
-X-Xyz-cr: 404
-X-Xyz-cn: 12693
-X-Xyz-bcn: 12688
-X-Xyz-md: 100
-X-Xyz-mg: 281336408
-X-Xyz-et: 100
-X-Xyz-pk: 4004113
-X-Xyz-ct: 42140
-X-Xyz-bct: 42130
+       dkim=pass header.i=@linaro.org header.s=google header.b=LBZWQG2q;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linaro.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=i1s+F6uwQuL4G5Glu6ot8drWi5YkFD+mcPL1UFRmYV0=;
+        b=LBZWQG2qH6b2IsirCE6bp42J3mJtzZ80+rs0C+neBoGAE/QGcnT5/CUgzY7yUFh4oe
+         OJcHSDmWult8hh11WEM2d5ICyxL4s5pes6xe0vCg+w/ei+g8b46hME0jc6titEev1Gxm
+         NU0oBfu0JiiThTxGImwywycK1boaayMyJfN0o=
+X-Google-Smtp-Source: ALg8bN4yxn8rLEuYMZtBP2Vp++/Nn325bNxEp+z2DIi4xhqGv6p3+uaHpPebxiOji9nbffCmt7LYshudz85m/YWpGHA=
+X-Received: by 2002:a6b:5d01:: with SMTP id r1mr12702525iob.170.1545827256533;
+ Wed, 26 Dec 2018 04:27:36 -0800 (PST)
 MIME-Version: 1.0
-From: "Atlantis, The Palm" <noreply@e.atlantisthepalm.com>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Date: 26 Dec 2018 12:10:15 +0000
-Subject: Tick off your Bucket List for less!
-Content-Type: text/html; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.259003, version=1.2.4
+References: <1545812449-32455-1-git-send-email-fugang.duan@nxp.com>
+In-Reply-To: <1545812449-32455-1-git-send-email-fugang.duan@nxp.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Wed, 26 Dec 2018 13:27:25 +0100
+Message-ID:
+ <CAKv+Gu-zfTZAZfiQt1iUn9otqeDkJP-y-siuBUrWUR-Kq=BsVQ@mail.gmail.com>
+Subject: Re: [rpmsg PATCH v2 1/1] rpmsg: virtio_rpmsg_bus: fix unexpected huge
+ vmap mappings
+To: Andy Duan <fugang.duan@nxp.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linux-MM <linux-mm@kvack.org>, Christoph Hellwig <hch@infradead.org>, 
+	Robin Murphy <robin.murphy@arm.com>
+Cc: "bjorn.andersson@linaro.org" <bjorn.andersson@linaro.org>, "ohad@wizery.com" <ohad@wizery.com>, 
+	"linux-remoteproc@vger.kernel.org" <linux-remoteproc@vger.kernel.org>, 
+	"anup@brainfault.org" <anup@brainfault.org>, "loic.pallardy@st.com" <loic.pallardy@st.com>, 
+	dl-linux-imx <linux-imx@nxp.com>, Richard Zhu <hongxing.zhu@nxp.com>, 
+	Jason Liu <jason.hui.liu@nxp.com>, Peng Fan <peng.fan@nxp.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
+Message-ID: <20181226122725.-kPi1CO2PhV02tpJXqTIEwz4sBp2aOH4datohGYXqBI@z>
 
-=0A<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Transitional //EN=
-" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html=
- xmlns=3D"http://www.w3.org/1999/xhtml" xmlns:v=3D"urn:schemas-mi=
-crosoft-com:vml" xmlns:o=3D"urn:schemas-microsoft-com:office:offi=
-ce"><head>=0A    <!--[if gte mso 9]><xml>=0A     <o:OfficeDocumen=
-tSettings>=0A      <o:AllowPNG/>=0A      <o:PixelsPerInch>96</o:P=
-ixelsPerInch>=0A     </o:OfficeDocumentSettings>=0A    </xml><![e=
-ndif]-->=0A    <meta http-equiv=3D"Content-Type" content=3D"text/=
-html; charset=3Dutf-8">=0A    <meta name=3D"viewport" content=3D"=
-width=3Ddevice-width">=0A    <!--[if !mso]><!--><meta http-equiv=3D=
-"X-UA-Compatible" content=3D"IE=3Dedge"><!--<![endif]-->=0A    <t=
-itle></title>=0A    =0A    =0A    <style type=3D"text/css" id=3D"=
-media-query">=0A      body {=0A  margin: 0;=0A  padding: 0; }=0A=0A=
-table, tr, td {=0A  vertical-align: top;=0A  border-collapse: col=
-lapse; }=0A=0A.ie-browser table, .mso-container table {=0A  table=
--layout: fixed; }=0A=0A* {=0A  line-height: inherit; }=0A=0Aa[x-a=
-pple-data-detectors=3Dtrue] {=0A  color: inherit !important;=0A  =
-text-decoration: none !important; }=0A=0A[owa] .img-container div=
-, [owa] .img-container button {=0A  display: block !important; }=0A=
-=0A[owa] .fullwidth button {=0A  width: 100% !important; }=0A=0A[=
-owa] .block-grid .col {=0A  display: table-cell;=0A  float: none =
-!important;=0A  vertical-align: top; }=0A=0A.ie-browser .num12, .=
-ie-browser .block-grid, [owa] .num12, [owa] .block-grid {=0A  wid=
-th: 600px !important; }=0A=0A.ExternalClass, .ExternalClass p, .E=
-xternalClass span, .ExternalClass font, .ExternalClass td, .Exter=
-nalClass div {=0A  line-height: 100%; }=0A=0A.ie-browser .mixed-t=
-wo-up .num4, [owa] .mixed-two-up .num4 {=0A  width: 200px !import=
-ant; }=0A=0A.ie-browser .mixed-two-up .num8, [owa] .mixed-two-up =
-.num8 {=0A  width: 400px !important; }=0A=0A.ie-browser .block-gr=
-id.two-up .col, [owa] .block-grid.two-up .col {=0A  width: 300px =
-!important; }=0A=0A.ie-browser .block-grid.three-up .col, [owa] .=
-block-grid.three-up .col {=0A  width: 200px !important; }=0A=0A.i=
-e-browser .block-grid.four-up .col, [owa] .block-grid.four-up .co=
-l {=0A  width: 150px !important; }=0A=0A.ie-browser .block-grid.f=
-ive-up .col, [owa] .block-grid.five-up .col {=0A  width: 120px !i=
-mportant; }=0A=0A.ie-browser .block-grid.six-up .col, [owa] .bloc=
-k-grid.six-up .col {=0A  width: 100px !important; }=0A=0A.ie-brow=
-ser .block-grid.seven-up .col, [owa] .block-grid.seven-up .col {=0A=
-  width: 85px !important; }=0A=0A.ie-browser .block-grid.eight-up=
- .col, [owa] .block-grid.eight-up .col {=0A  width: 75px !importa=
-nt; }=0A=0A.ie-browser .block-grid.nine-up .col, [owa] .block-gri=
-d.nine-up .col {=0A  width: 66px !important; }=0A=0A.ie-browser .=
-block-grid.ten-up .col, [owa] .block-grid.ten-up .col {=0A  width=
-: 60px !important; }=0A=0A.ie-browser .block-grid.eleven-up .col,=
- [owa] .block-grid.eleven-up .col {=0A  width: 54px !important; }=
-=0A=0A.ie-browser .block-grid.twelve-up .col, [owa] .block-grid.t=
-welve-up .col {=0A  width: 50px !important; }=0A=0A@media only sc=
-reen and (min-width: 620px) {=0A  .block-grid {=0A    width: 600p=
-x !important; }=0A  .block-grid .col {=0A    vertical-align: top;=
- }=0A    .block-grid .col.num12 {=0A      width: 600px !important=
-; }=0A  .block-grid.mixed-two-up .col.num4 {=0A    width: 200px !=
-important; }=0A  .block-grid.mixed-two-up .col.num8 {=0A    width=
-: 400px !important; }=0A  .block-grid.two-up .col {=0A    width: =
-300px !important; }=0A  .block-grid.three-up .col {=0A    width: =
-200px !important; }=0A  .block-grid.four-up .col {=0A    width: 1=
-50px !important; }=0A  .block-grid.five-up .col {=0A    width: 12=
-0px !important; }=0A  .block-grid.six-up .col {=0A    width: 100p=
-x !important; }=0A  .block-grid.seven-up .col {=0A    width: 85px=
- !important; }=0A  .block-grid.eight-up .col {=0A    width: 75px =
-!important; }=0A  .block-grid.nine-up .col {=0A    width: 66px !i=
-mportant; }=0A  .block-grid.ten-up .col {=0A    width: 60px !impo=
-rtant; }=0A  .block-grid.eleven-up .col {=0A    width: 54px !impo=
-rtant; }=0A  .block-grid.twelve-up .col {=0A    width: 50px !impo=
-rtant; } }=0A=0A@media (max-width: 620px) {=0A  .block-grid, .col=
- {=0A    min-width: 320px !important;=0A    max-width: 100% !impo=
-rtant;=0A    display: block !important; }=0A  .block-grid {=0A   =
- width: calc(100% - 40px) !important; }=0A  .col {=0A    width: 1=
-00% !important; }=0A    .col > div {=0A      margin: 0 auto; }=0A=
-  img.fullwidth, img.fullwidthOnMobile {=0A    max-width: 100% !i=
-mportant; }=0A  .no-stack .col {=0A    min-width: 0 !important;=0A=
-    display: table-cell !important; }=0A  .no-stack.two-up .col {=
-=0A    width: 50% !important; }=0A  .no-stack.mixed-two-up .col.n=
-um4 {=0A    width: 33% !important; }=0A  .no-stack.mixed-two-up .=
-col.num8 {=0A    width: 66% !important; }=0A  .no-stack.three-up =
-.col.num4 {=0A    width: 33% !important; }=0A  .no-stack.four-up =
-.col.num3 {=0A    width: 25% !important; }=0A  .mobile_hide {=0A =
-   min-height: 0px;=0A    max-height: 0px;=0A    max-width: 0px;=0A=
-    display: none;=0A    overflow: hidden;=0A    font-size: 0px; =
-} }=0A=0A    </style>=0A</head>=0A<body class=3D"clean-body" styl=
-e=3D"margin: 0;padding: 0;-webkit-text-size-adjust: 100%;backgrou=
-nd-color: #FFFFFF"><img src=3D"http://l.e.atlantisthepalm.com/rts=
-/open.aspx?tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn" height=
-=3D"1" width=3D"1" style=3D"display:none">=0A  <style type=3D"tex=
-t/css" id=3D"media-query-bodytag">=0A    @media (max-width: 520px=
-) {=0A      .block-grid {=0A        min-width: 320px!important;=0A=
-        max-width: 100%!important;=0A        width: 100%!importan=
-t;=0A        display: block!important;=0A      }=0A=0A      .col =
-{=0A        min-width: 320px!important;=0A        max-width: 100%=
-!important;=0A        width: 100%!important;=0A        display: b=
-lock!important;=0A      }=0A=0A        .col > div {=0A          m=
-argin: 0 auto;=0A        }=0A=0A      img.fullwidth {=0A        m=
-ax-width: 100%!important;=0A      }=0Aimg.fullwidthOnMobile {=0A =
-       max-width: 100%!important;=0A      }=0A      .no-stack .co=
-l {=0Amin-width: 0!important;=0Adisplay: table-cell!important;=0A=
-}=0A.no-stack.two-up .col {=0Awidth: 50%!important;=0A}=0A.no-sta=
-ck.mixed-two-up .col.num4 {=0Awidth: 33%!important;=0A}=0A.no-sta=
-ck.mixed-two-up .col.num8 {=0Awidth: 66%!important;=0A}=0A.no-sta=
-ck.three-up .col.num4 {=0Awidth: 33%!important;=0A}=0A.no-stack.f=
-our-up .col.num3 {=0Awidth: 25%!important;=0A}=0A      .mobile_hi=
-de {=0A        min-height: 0px!important;=0A        max-height: 0=
-px!important;=0A        max-width: 0px!important;=0A        displ=
-ay: none!important;=0A        overflow: hidden!important;=0A     =
-   font-size: 0px!important;=0A      }=0A    }=0A  </style>=0A  <=
-!--[if IE]><div class=3D"ie-browser"><![endif]-->=0A  <!--[if mso=
-]><div class=3D"mso-container"><![endif]-->=0A  <table class=3D"n=
-l-container" style=3D"border-collapse: collapse;table-layout: fix=
-ed;border-spacing: 0;mso-table-lspace: 0pt;mso-table-rspace: 0pt;=
-vertical-align: top;min-width: 320px;Margin: 0 auto;background-co=
-lor: #FFFFFF;width: 100%" cellpadding=3D"0" cellspacing=3D"0">=0A=
-<tbody>=0A<tr style=3D"vertical-align: top">=0A<td style=3D"word-=
-break: break-word;border-collapse: collapse !important;vertical-a=
-lign: top">=0A    <!--[if (mso)|(IE)]><table width=3D"100%" cellp=
-adding=3D"0" cellspacing=3D"0" border=3D"0"><tr><td align=3D"cent=
-er" style=3D"background-color: #FFFFFF;"><![endif]-->=0A=0A    <d=
-iv style=3D"background-color:#FFFFFF;">=0A      <div style=3D"Mar=
-gin: 0 auto;min-width: 320px;max-width: 600px;overflow-wrap: brea=
-k-word;word-wrap: break-word;word-break: break-word;background-co=
-lor: transparent;" class=3D"block-grid ">=0A        <div style=3D=
-"border-collapse: collapse;display: table;width: 100%;background-=
-color:transparent;">=0A          <!--[if (mso)|(IE)]><table width=
-=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0"><tr><t=
-d style=3D"background-color:#FFFFFF;" align=3D"center"><table cel=
-lpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width: 600=
-px;"><tr class=3D"layout-full-width" style=3D"background-color:tr=
-ansparent;"><![endif]-->=0A=0A              <!--[if (mso)|(IE)]><=
-td align=3D"center" width=3D"600" style=3D" width:600px; padding-=
-right: 0px; padding-left: 0px; padding-top:5px; padding-bottom:5p=
-x; border-top: 0px solid transparent; border-left: 0px solid tran=
-sparent; border-bottom: 0px solid transparent; border-right: 0px =
-solid transparent;" valign=3D"top"><![endif]-->=0A            <di=
-v class=3D"col num12" style=3D"min-width: 320px;max-width: 600px;=
-display: table-cell;vertical-align: top;">=0A              <div s=
-tyle=3D"background-color: transparent; width: 100% !important;">=0A=
-              <!--[if (!mso)&(!IE)]><!--><div style=3D"border-top=
-: 0px solid transparent; border-left: 0px solid transparent; bord=
-er-bottom: 0px solid transparent; border-right: 0px solid transpa=
-rent; padding-top:5px; padding-bottom:5px; padding-right: 0px; pa=
-dding-left: 0px;"><!--<![endif]-->=0A=0A                  =0A    =
-                <div class=3D"">=0A<!--[if mso]><table width=3D"1=
-00%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0"><tr><td sty=
-le=3D"padding-right: 10px; padding-left: 10px; padding-top: 10px;=
- padding-bottom: 10px;"><![endif]-->=0A<div style=3D"line-height:=
-120%;font-family:Verdana, Geneva, sans-serif;color:#555555; paddi=
-ng-right: 10px; padding-left: 10px; padding-top: 10px; padding-bo=
-ttom: 10px;">=0A<div style=3D"font-size:12px;line-height:14px;col=
-or:#555555;font-family:Verdana, Geneva, sans-serif;text-align:lef=
-t;"><p style=3D"margin: 0;font-size: 14px;line-height: 17px;text-=
-align: center"><span style=3D"font-size: 12px; line-height: 14px;=
-">Bucket List Sale - View the <span style=3D"color: rgb(51, 51, 5=
-1); font-size: 12px; line-height: 14px;"><strong><a style=3D"text=
--decoration: none; color: #333333;" href=3D"http://x.e.atlantisth=
-epalm.com/ats/msg.aspx?sg1=3D1ffadc4dd0b3e1782745a5f05fb5f36a" ta=
-rget=3D"_blank" rel=3D"noopener">web version</a></strong></span><=
-/span></p></div>=0A</div>=0A<!--[if mso]></td></tr></table><![end=
-if]-->=0A</div>=0A                  =0A              <!--[if (!ms=
-o)&(!IE)]><!--></div><!--<![endif]-->=0A              </div>=0A  =
-          </div>=0A          <!--[if (mso)|(IE)]></td></tr></tabl=
-e></td></tr></table><![endif]-->=0A        </div>=0A      </div>=0A=
-    </div>=0A    <div style=3D"background-color:transparent;">=0A=
-      <div style=3D"Margin: 0 auto;min-width: 320px;max-width: 60=
-0px;overflow-wrap: break-word;word-wrap: break-word;word-break: b=
-reak-word;background-color: transparent;" class=3D"block-grid ">=0A=
-        <div style=3D"border-collapse: collapse;display: table;wi=
-dth: 100%;background-color:transparent;">=0A          <!--[if (ms=
-o)|(IE)]><table width=3D"100%" cellpadding=3D"0" cellspacing=3D"0=
-" border=3D"0"><tr><td style=3D"background-color:transparent;" al=
-ign=3D"center"><table cellpadding=3D"0" cellspacing=3D"0" border=3D=
-"0" style=3D"width: 600px;"><tr class=3D"layout-full-width" style=
-=3D"background-color:transparent;"><![endif]-->=0A=0A            =
-  <!--[if (mso)|(IE)]><td align=3D"center" width=3D"600" style=3D=
-" width:600px; padding-right: 0px; padding-left: 0px; padding-top=
-:15px; padding-bottom:15px; border-top: 0px solid transparent; bo=
-rder-left: 0px solid transparent; border-bottom: 0px solid transp=
-arent; border-right: 0px solid transparent;" valign=3D"top"><![en=
-dif]-->=0A            <div class=3D"col num12" style=3D"min-width=
-: 320px;max-width: 600px;display: table-cell;vertical-align: top;=
-">=0A              <div style=3D"background-color: transparent; w=
-idth: 100% !important;">=0A              <!--[if (!mso)&(!IE)]><!=
---><div style=3D"border-top: 0px solid transparent; border-left: =
-0px solid transparent; border-bottom: 0px solid transparent; bord=
-er-right: 0px solid transparent; padding-top:15px; padding-bottom=
-:15px; padding-right: 0px; padding-left: 0px;"><!--<![endif]-->=0A=
-=0A                  =0A                    <div align=3D"center"=
- class=3D"img-container center fixedwidth " style=3D"padding-righ=
-t: 0px;  padding-left: 0px;">=0A<!--[if mso]><table width=3D"100%=
-" cellpadding=3D"0" cellspacing=3D"0" border=3D"0"><tr style=3D"l=
-ine-height:0px;line-height:0px;"><td style=3D"padding-right: 0px;=
- padding-left: 0px;" align=3D"center"><![endif]-->=0A  <img class=
-=3D"center fixedwidth" align=3D"center" border=3D"0" src=3D"http:=
-//wpm.ccmp.eu/wpm/404/ContentUploads/images/w_logo2x_.gif" alt=3D=
-"Atlantis the palm" title=3D"Atlantis the palm" style=3D"outline:=
- none;text-decoration: none;-ms-interpolation-mode: bicubic;clear=
-: both;display: block !important;border: 0;height: auto;float: no=
-ne;width: 100%;max-width: 150px" width=3D"150">=0A<!--[if mso]></=
-td></tr></table><![endif]-->=0A</div>=0A=0A                  =0A =
-             <!--[if (!mso)&(!IE)]><!--></div><!--<![endif]-->=0A=
-              </div>=0A            </div>=0A          <!--[if (ms=
-o)|(IE)]></td></tr></table></td></tr></table><![endif]-->=0A     =
-   </div>=0A      </div>=0A    </div>=0A    <div style=3D"backgro=
-und-color:transparent;">=0A      <div style=3D"Margin: 0 auto;min=
--width: 320px;max-width: 600px;overflow-wrap: break-word;word-wra=
-p: break-word;word-break: break-word;background-color: transparen=
-t;" class=3D"block-grid ">=0A        <div style=3D"border-collaps=
-e: collapse;display: table;width: 100%;background-color:transpare=
-nt;">=0A          <!--[if (mso)|(IE)]><table width=3D"100%" cellp=
-adding=3D"0" cellspacing=3D"0" border=3D"0"><tr><td style=3D"back=
-ground-color:transparent;" align=3D"center"><table cellpadding=3D=
-"0" cellspacing=3D"0" border=3D"0" style=3D"width: 600px;"><tr cl=
-ass=3D"layout-full-width" style=3D"background-color:transparent;"=
-><![endif]-->=0A=0A              <!--[if (mso)|(IE)]><td align=3D=
-"center" width=3D"600" style=3D" width:600px; padding-right: 0px;=
- padding-left: 0px; padding-top:0px; padding-bottom:0px; border-t=
-op: 0px solid transparent; border-left: 0px solid transparent; bo=
-rder-bottom: 0px solid transparent; border-right: 0px solid trans=
-parent;" valign=3D"top"><![endif]-->=0A            <div class=3D"=
-col num12" style=3D"min-width: 320px;max-width: 600px;display: ta=
-ble-cell;vertical-align: top;">=0A              <div style=3D"bac=
-kground-color: transparent; width: 100% !important;">=0A         =
-     <!--[if (!mso)&(!IE)]><!--><div style=3D"border-top: 0px sol=
-id transparent; border-left: 0px solid transparent; border-bottom=
-: 0px solid transparent; border-right: 0px solid transparent; pad=
-ding-top:0px; padding-bottom:0px; padding-right: 0px; padding-lef=
-t: 0px;"><!--<![endif]-->=0A=0A                  =0A             =
-       <div align=3D"center" class=3D"img-container center  autow=
-idth  fullwidth " style=3D"padding-right: 0px;  padding-left: 0px=
-;">=0A<!--[if mso]><table width=3D"100%" cellpadding=3D"0" cellsp=
-acing=3D"0" border=3D"0"><tr style=3D"line-height:0px;line-height=
-:0px;"><td style=3D"padding-right: 0px; padding-left: 0px;" align=
-=3D"center"><![endif]-->=0A<a href=3D"http://l.e.atlantisthepalm.=
-com/rts/go2.aspx?h=3D115975&tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0=
-Bss-v8WSn" target=3D"_blank">=0A  <img class=3D"center  autowidth=
-  fullwidth" align=3D"center" border=3D"0" src=3D"http://wpm.ccmp=
-.eu/wpm/404/ContentUploads/images/New_Folder/MTG-1_1226.jpg" alt=3D=
-"Bucket list Sale" title=3D"Bucket list Sale" style=3D"outline: n=
-one;text-decoration: none;-ms-interpolation-mode: bicubic;clear: =
-both;display: block !important;border: 0;height: auto;float: none=
-;width: 100%;max-width: 600px" width=3D"600">=0A<!--[if mso]></td=
-></tr></table><![endif]-->=0A</div>=0A=0A                  =0A   =
-               =0A                    <div align=3D"center" class=
-=3D"img-container center  autowidth  fullwidth " style=3D"padding=
--right: 0px;  padding-left: 0px;">=0A<!--[if mso]><table width=3D=
-"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0"><tr style=
-=3D"line-height:0px;line-height:0px;"><td style=3D"padding-right:=
- 0px; padding-left: 0px;" align=3D"center"><![endif]-->=0A  <a hr=
-ef=3D"http://l.e.atlantisthepalm.com/rts/go2.aspx?h=3D115975&tp=3D=
-i-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn" target=3D"_blank">=0A =
-   <img class=3D"center  autowidth  fullwidth" align=3D"center" b=
-order=3D"0" src=3D"http://wpm.ccmp.eu/wpm/404/ContentUploads/imag=
-es/New_Folder/MTG-2_1226.jpg" alt=3D"Image" title=3D"Image" style=
-=3D"outline: none;text-decoration: none;-ms-interpolation-mode: b=
-icubic;clear: both;display: block !important;border: none;height:=
- auto;float: none;width: 100%;max-width: 600px" width=3D"600">=0A=
-  </a>=0A<!--[if mso]></td></tr></table><![endif]-->=0A</div>=0A=0A=
-                  =0A                  =0A                    <di=
-v align=3D"center" class=3D"img-container center  autowidth  full=
-width " style=3D"padding-right: 0px;  padding-left: 0px;">=0A<!--=
-[if mso]><table width=3D"100%" cellpadding=3D"0" cellspacing=3D"0=
-" border=3D"0"><tr style=3D"line-height:0px;line-height:0px;"><td=
- style=3D"padding-right: 0px; padding-left: 0px;" align=3D"center=
-"><![endif]-->=0A  <a href=3D"http://l.e.atlantisthepalm.com/rts/=
-go2.aspx?h=3D115976&tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WS=
-n" target=3D"_blank">=0A    <img class=3D"center  autowidth  full=
-width" align=3D"center" border=3D"0" src=3D"http://wpm.ccmp.eu/wp=
-m/404/ContentUploads/images/New_Folder/MTG-3.jpg" alt=3D"Aquatrek=
-" title=3D"Aquatrek" style=3D"outline: none;text-decoration: none=
-;-ms-interpolation-mode: bicubic;clear: both;display: block !impo=
-rtant;border: none;height: auto;float: none;width: 100%;max-width=
-: 600px" width=3D"600">=0A  </a>=0A<!--[if mso]></td></tr></table=
-><![endif]-->=0A</div>=0A=0A                  =0A                =
-  =0A                    <div align=3D"center" class=3D"img-conta=
-iner center  autowidth  fullwidth " style=3D"padding-right: 0px; =
- padding-left: 0px;">=0A<!--[if mso]><table width=3D"100%" cellpa=
-dding=3D"0" cellspacing=3D"0" border=3D"0"><tr style=3D"line-heig=
-ht:0px;line-height:0px;"><td style=3D"padding-right: 0px; padding=
--left: 0px;" align=3D"center"><![endif]-->=0A  <a href=3D"http://=
-l.e.atlantisthepalm.com/rts/go2.aspx?h=3D115977&tp=3Di-H43-6W-3Ij=
--J2SS0-1c-GneT-1c-J0Bss-v8WSn" target=3D"_blank">=0A    <img clas=
-s=3D"center  autowidth  fullwidth" align=3D"center" border=3D"0" =
-src=3D"http://wpm.ccmp.eu/wpm/404/ContentUploads/images/New_Folde=
-r/MTG-4.jpg" alt=3D"Wavehouse" title=3D"Wavehouse" style=3D"outli=
-ne: none;text-decoration: none;-ms-interpolation-mode: bicubic;cl=
-ear: both;display: block !important;border: none;height: auto;flo=
-at: none;width: 100%;max-width: 600px" width=3D"600">=0A  </a>=0A=
-<!--[if mso]></td></tr></table><![endif]-->=0A</div>=0A=0A       =
-           =0A                 =20=0A                    <div ali=
-gn=3D"center" class=3D"img-container center  autowidth  fullwidth=
- " style=3D"padding-right: 0px;  padding-left: 0px;">=0A<!--[if m=
-so]><table width=3D"100%" cellpadding=3D"0" cellspacing=3D"0" bor=
-der=3D"0"><tr style=3D"line-height:0px;line-height:0px;"><td styl=
-e=3D"padding-right: 0px; padding-left: 0px;" align=3D"center"><![=
-endif]-->=0A  <a href=3D"http://l.e.atlantisthepalm.com/rts/go2.a=
-spx?h=3D115978&tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn" ta=
-rget=3D"_blank">=0A    <img class=3D"center  autowidth  fullwidth=
-" align=3D"center" border=3D"0" src=3D"http://wpm.ccmp.eu/wpm/404=
-/ContentUploads/images/New_Folder/MTG-5.jpg" alt=3D"Aquaventure W=
-aterpark" title=3D"Aquaventure Waterpark" style=3D"outline: none;=
-text-decoration: none;-ms-interpolation-mode: bicubic;clear: both=
-;display: block !important;border: none;height: auto;float: none;=
-width: 100%;max-width: 600px" width=3D"600">=0A  </a>=0A<!--[if m=
-so]></td></tr></table><![endif]-->=0A</div>=0A=0A                =
-  =0A                  =0A                    <div class=3D"">=0A=
-<!--[if mso]><table width=3D"100%" cellpadding=3D"0" cellspacing=3D=
-"0" border=3D"0"><tr><td style=3D"padding-right: 10px; padding-le=
-ft: 10px; padding-top: 20px; padding-bottom: 10px;"><![endif]-->=0A=
-<div style=3D"line-height:120%;font-family:Verdana, Geneva, sans-=
-serif;color:#0068A5; padding-right: 10px; padding-left: 10px; pad=
-ding-top: 20px; padding-bottom: 10px;">=0A<div style=3D"font-size=
-:12px;line-height:14px;color:#0068A5;font-family:Verdana, Geneva,=
- sans-serif;text-align:left;"><p style=3D"margin: 0;font-size: 14=
-px;line-height: 17px;text-align: center"><span style=3D"font-size=
-: 15px; line-height: 18px;"><strong>A World Away From Your Everyd=
-ay</strong></span></p></div>=0A</div>=0A<!--[if mso]></td></tr></=
-table><![endif]-->=0A</div>=0A                  =0A              =
-<!--[if (!mso)&(!IE)]><!--></div><!--<![endif]-->=0A             =
- </div>=0A            </div>=0A          <!--[if (mso)|(IE)]></td=
-></tr></table></td></tr></table><![endif]-->=0A        </div>=0A =
-     </div>=0A    </div>=0A    <div style=3D"background-color:tra=
-nsparent;">=0A      <div style=3D"Margin: 0 auto;min-width: 320px=
-;max-width: 600px;overflow-wrap: break-word;word-wrap: break-word=
-;word-break: break-word;background-color: transparent;" class=3D"=
-block-grid ">=0A        <div style=3D"border-collapse: collapse;d=
-isplay: table;width: 100%;background-color:transparent;">=0A     =
-     <!--[if (mso)|(IE)]><table width=3D"100%" cellpadding=3D"0" =
-cellspacing=3D"0" border=3D"0"><tr><td style=3D"background-color:=
-transparent;" align=3D"center"><table cellpadding=3D"0" cellspaci=
-ng=3D"0" border=3D"0" style=3D"width: 600px;"><tr class=3D"layout=
--full-width" style=3D"background-color:transparent;"><![endif]-->=
-=0A=0A              <!--[if (mso)|(IE)]><td align=3D"center" widt=
-h=3D"600" style=3D" width:600px; padding-right: 0px; padding-left=
-: 0px; padding-top:15px; padding-bottom:5px; border-top: 0px soli=
-d transparent; border-left: 0px solid transparent; border-bottom:=
- 0px solid transparent; border-right: 0px solid transparent;" val=
-ign=3D"top"><![endif]-->=0A            <div class=3D"col num12" s=
-tyle=3D"min-width: 320px;max-width: 600px;display: table-cell;ver=
-tical-align: top;">=0A              <div style=3D"background-colo=
-r: transparent; width: 100% !important;">=0A              <!--[if=
- (!mso)&(!IE)]><!--><div style=3D"border-top: 0px solid transpare=
-nt; border-left: 0px solid transparent; border-bottom: 0px solid =
-transparent; border-right: 0px solid transparent; padding-top:15p=
-x; padding-bottom:5px; padding-right: 0px; padding-left: 0px;"><!=
---<![endif]-->=0A=0A                  =0A                    <div=
- class=3D"">=0A<!--[if mso]><table width=3D"100%" cellpadding=3D"=
-0" cellspacing=3D"0" border=3D"0"><tr><td style=3D"padding-right:=
- 10px; padding-left: 10px; padding-top: 10px; padding-bottom: 10p=
-x;"><![endif]-->=0A<div style=3D"line-height:120%;font-family:Ver=
-dana, Geneva, sans-serif;color:#555555; padding-right: 10px; padd=
-ing-left: 10px; padding-top: 10px; padding-bottom: 10px;">=0A<div=
- style=3D"font-size:12px;line-height:14px;color:#555555;font-fami=
-ly:Verdana, Geneva, sans-serif;text-align:left;"><p style=3D"marg=
-in: 0;font-size: 12px;line-height: 14px;text-align: center"><span=
- style=3D"font-size: 24px; line-height: 28px; color: rgb(0, 101, =
-162);">Tell my friends</span></p></div>=0A</div>=0A<!--[if mso]><=
-/td></tr></table><![endif]-->=0A</div>=0A                  =0A   =
-               =0A                    <div class=3D"" style=3D"fo=
-nt-size: 16px;font-family:Verdana, Geneva, sans-serif; text-align=
-: center;"><div class=3D"our-class"> =0A<table align=3D"center" b=
-order=3D"0" cellpadding=3D"0" cellspacing=3D"0">=0A<tbody>=0A<tr>=
-=0A<td><a href=3D"http://l.e.atlantisthepalm.com/rts/social.aspx?=
-tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn&amp;sn=3D02&amp;do=
-main=3Dx.e.atlantisthepalm.com" target=3D"_blank"><img alt=3D"fac=
-ebook" border=3D"0" height=3D"30" src=3D"http://wpm.ccmp.eu/wpm/4=
-04/ContentUploads/images/w_facebook2x_.gif" width=3D"30"></a></td=
->=0A<td><img border=3D"0" height=3D"20" src=3D"http://wpm.ccmp.eu=
-/wpm/404/ContentUploads/images/t.gif" style=3D"display:block;" wi=
-dth=3D"10"></td>=0A<td><a href=3D"http://l.e.atlantisthepalm.com/=
-rts/social.aspx?tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn&am=
-p;sn=3D18&amp;domain=3Dx.e.atlantisthepalm.com" target=3D"_blank"=
-><img alt=3D"linkedin" border=3D"0" height=3D"30" src=3D"http://w=
-pm.ccmp.eu/wpm/404/ContentUploads/images/w_linkedin2x_.gif" width=
-=3D"30"></a></td>=0A<td><img border=3D"0" height=3D"20" src=3D"ht=
-tp://wpm.ccmp.eu/wpm/404/ContentUploads/images/t.gif" style=3D"di=
-splay:block;" width=3D"10"></td>=0A<td><a href=3D"http://l.e.atla=
-ntisthepalm.com/rts/social.aspx?tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1=
-c-J0Bss-v8WSn&amp;sn=3D03&amp;domain=3Dx.e.atlantisthepalm.com" t=
-arget=3D"_blank"><img alt=3D"twitter" border=3D"0" height=3D"30" =
-src=3D"http://wpm.ccmp.eu/wpm/404/ContentUploads/images/w_twitter=
-2x_.gif" width=3D"30"></a></td>=0A<td><img border=3D"0" height=3D=
-"20" src=3D"http://wpm.ccmp.eu/wpm/404/ContentUploads/images/t.gi=
-f" style=3D"display:block;" width=3D"10"></td>=0A<td><a href=3D"m=
-ailto:?subject=3DAtlantis%20Spring%20Sale%20is%20now%20on!&amp;bo=
-dy=3D=0A                                                        U=
-p%20to%2030%25%20off%20rooms!%20Book%20now%20at%20atlantisthepalm=
-.com/sale%0A%0Ahttp%3A%2F%2Fx.e.atlantisthepalm.com%2Fats%2Fsocia=
-l.aspx%3Ftp%3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn" target=3D=
-"_blank"><img alt=3D"sms" border=3D"0" src=3D"http://wpm.ccmp.eu/=
-wpm/404/ContentUploads/images/w_mailto2x_.gif" width=3D"30"></a><=
-/td>=0A</tr>=0A</tbody>=0A</table>=0A</div></div>=0A=0A          =
-        =0A              <!--[if (!mso)&(!IE)]><!--></div><!--<![=
-endif]-->=0A              </div>=0A            </div>=0A         =
- <!--[if (mso)|(IE)]></td></tr></table></td></tr></table><![endif=
-]-->=0A        </div>=0A      </div>=0A    </div>=0A    <div styl=
-e=3D"background-color:transparent;">=0A      <div style=3D"Margin=
-: 0 auto;min-width: 320px;max-width: 600px;overflow-wrap: break-w=
-ord;word-wrap: break-word;word-break: break-word;background-color=
-: transparent;" class=3D"block-grid three-up ">=0A        <div st=
-yle=3D"border-collapse: collapse;display: table;width: 100%;backg=
-round-color:transparent;">=0A          <!--[if (mso)|(IE)]><table=
- width=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0">=
-<tr><td style=3D"background-color:transparent;" align=3D"center">=
-<table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"=
-width: 600px;"><tr class=3D"layout-full-width" style=3D"backgroun=
-d-color:transparent;"><![endif]-->=0A=0A              <!--[if (ms=
-o)|(IE)]><td align=3D"center" width=3D"200" style=3D" width:200px=
-; padding-right: 0px; padding-left: 0px; padding-top:10px; paddin=
-g-bottom:5px; border-top: 0px solid transparent; border-left: 0px=
- solid transparent; border-bottom: 0px solid transparent; border-=
-right: 0px solid transparent;" valign=3D"top"><![endif]-->=0A    =
-        <div class=3D"col num4" style=3D"max-width: 320px;min-wid=
-th: 200px;display: table-cell;vertical-align: top;">=0A          =
-    <div style=3D"background-color: transparent; width: 100% !imp=
-ortant;">=0A              <!--[if (!mso)&(!IE)]><!--><div style=3D=
-"border-top: 0px solid transparent; border-left: 0px solid transp=
-arent; border-bottom: 0px solid transparent; border-right: 0px so=
-lid transparent; padding-top:10px; padding-bottom:5px; padding-ri=
-ght: 0px; padding-left: 0px;"><!--<![endif]-->=0A=0A             =
-     =0A                    <div align=3D"center" class=3D"img-co=
-ntainer center fixedwidth " style=3D"padding-right: 0px;  padding=
--left: 0px;">=0A<!--[if mso]><table width=3D"100%" cellpadding=3D=
-"0" cellspacing=3D"0" border=3D"0"><tr style=3D"line-height:0px;l=
-ine-height:0px;"><td style=3D"padding-right: 0px; padding-left: 0=
-px;" align=3D"center"><![endif]-->=0A  <a href=3D"http://l.e.atla=
-ntisthepalm.com/rts/go2.aspx?h=3D115979&tp=3Di-H43-6W-3Ij-J2SS0-1=
-c-GneT-1c-J0Bss-v8WSn" target=3D"_blank">=0A    <img class=3D"cen=
-ter fixedwidth" align=3D"center" border=3D"0" src=3D"http://wpm.c=
-cmp.eu/wpm/404/ContentUploads/images/w_livecam2x_new.gif" alt=3D"=
-Atlantis Live Cam" title=3D"Atlantis Live Cam" style=3D"outline: =
-none;text-decoration: none;-ms-interpolation-mode: bicubic;clear:=
- both;display: block !important;border: none;height: auto;float: =
-none;width: 100%;max-width: 170px" width=3D"170">=0A  </a>=0A<!--=
-[if mso]></td></tr></table><![endif]-->=0A</div>=0A=0A           =
-       =0A              <!--[if (!mso)&(!IE)]><!--></div><!--<![e=
-ndif]-->=0A              </div>=0A            </div>=0A          =
-    <!--[if (mso)|(IE)]></td><td align=3D"center" width=3D"200" s=
-tyle=3D" width:200px; padding-right: 0px; padding-left: 0px; padd=
-ing-top:10px; padding-bottom:5px; border-top: 0px solid transpare=
-nt; border-left: 0px solid transparent; border-bottom: 0px solid =
-transparent; border-right: 0px solid transparent;" valign=3D"top"=
-><![endif]-->=0A            <div class=3D"col num4" style=3D"max-=
-width: 320px;min-width: 200px;display: table-cell;vertical-align:=
- top;">=0A              <div style=3D"background-color: transpare=
-nt; width: 100% !important;">=0A              <!--[if (!mso)&(!IE=
-)]><!--><div style=3D"border-top: 0px solid transparent; border-l=
-eft: 0px solid transparent; border-bottom: 0px solid transparent;=
- border-right: 0px solid transparent; padding-top:10px; padding-b=
-ottom:5px; padding-right: 0px; padding-left: 0px;"><!--<![endif]-=
-->=0A=0A                  =0A                    <div align=3D"ce=
-nter" class=3D"img-container center fixedwidth " style=3D"padding=
--right: 0px;  padding-left: 0px;">=0A<!--[if mso]><table width=3D=
-"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0"><tr style=
-=3D"line-height:0px;line-height:0px;"><td style=3D"padding-right:=
- 0px; padding-left: 0px;" align=3D"center"><![endif]-->=0A  <a hr=
-ef=3D"http://l.e.atlantisthepalm.com/rts/go2.aspx?h=3D115980&tp=3D=
-i-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn" target=3D"_blank">=0A =
-   <img class=3D"center fixedwidth" align=3D"center" border=3D"0"=
- src=3D"http://wpm.ccmp.eu/wpm/404/ContentUploads/images/w_about2=
-x_new.gif" alt=3D"About Atlantis" title=3D"About Atlantis" style=3D=
-"outline: none;text-decoration: none;-ms-interpolation-mode: bicu=
-bic;clear: both;display: block !important;border: none;height: au=
-to;float: none;width: 100%;max-width: 170px" width=3D"170">=0A  <=
-/a>=0A<!--[if mso]></td></tr></table><![endif]-->=0A</div>=0A=0A =
-                 =0A              <!--[if (!mso)&(!IE)]><!--></di=
-v><!--<![endif]-->=0A              </div>=0A            </div>=0A=
-              <!--[if (mso)|(IE)]></td><td align=3D"center" width=
-=3D"200" style=3D" width:200px; padding-right: 0px; padding-left:=
- 0px; padding-top:10px; padding-bottom:5px; border-top: 0px solid=
- transparent; border-left: 0px solid transparent; border-bottom: =
-0px solid transparent; border-right: 0px solid transparent;" vali=
-gn=3D"top"><![endif]-->=0A            <div class=3D"col num4" sty=
-le=3D"max-width: 320px;min-width: 200px;display: table-cell;verti=
-cal-align: top;">=0A              <div style=3D"background-color:=
- transparent; width: 100% !important;">=0A              <!--[if (=
-!mso)&(!IE)]><!--><div style=3D"border-top: 0px solid transparent=
-; border-left: 0px solid transparent; border-bottom: 0px solid tr=
-ansparent; border-right: 0px solid transparent; padding-top:10px;=
- padding-bottom:5px; padding-right: 0px; padding-left: 0px;"><!--=
-<![endif]-->=0A=0A                  =0A                    <div a=
-lign=3D"center" class=3D"img-container center fixedwidth " style=3D=
-"padding-right: 0px;  padding-left: 0px;">=0A<!--[if mso]><table =
-width=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D"0"><=
-tr style=3D"line-height:0px;line-height:0px;"><td style=3D"paddin=
-g-right: 0px; padding-left: 0px;" align=3D"center"><![endif]-->=0A=
-  <a href=3D"http://l.e.atlantisthepalm.com/rts/go2.aspx?h=3D1159=
-81&tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn" target=3D"_bla=
-nk">=0A    <img class=3D"center fixedwidth" align=3D"center" bord=
-er=3D"0" src=3D"http://wpm.ccmp.eu/wpm/404/ContentUploads/images/=
-w_blog2x_new.gif" alt=3D"Atlantis Blog" title=3D"Atlantis Blog" s=
-tyle=3D"outline: none;text-decoration: none;-ms-interpolation-mod=
-e: bicubic;clear: both;display: block !important;border: none;hei=
-ght: auto;float: none;width: 100%;max-width: 170px" width=3D"170"=
->=0A  </a>=0A<!--[if mso]></td></tr></table><![endif]-->=0A</div>=
-=0A=0A                  =0A              <!--[if (!mso)&(!IE)]><!=
---></div><!--<![endif]-->=0A              </div>=0A            </=
-div>=0A          <!--[if (mso)|(IE)]></td></tr></table></td></tr>=
-</table><![endif]-->=0A        </div>=0A      </div>=0A    </div>=
-=0A    <div style=3D"background-color:transparent;">=0A      <div=
- style=3D"Margin: 0 auto;min-width: 320px;max-width: 600px;overfl=
-ow-wrap: break-word;word-wrap: break-word;word-break: break-word;=
-background-color: transparent;" class=3D"block-grid ">=0A        =
-<div style=3D"border-collapse: collapse;display: table;width: 100=
-%;background-color:transparent;">=0A          <!--[if (mso)|(IE)]=
-><table width=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=
-=3D"0"><tr><td style=3D"background-color:transparent;" align=3D"c=
-enter"><table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" st=
-yle=3D"width: 600px;"><tr class=3D"layout-full-width" style=3D"ba=
-ckground-color:transparent;"><![endif]-->=0A=0A              <!--=
-[if (mso)|(IE)]><td align=3D"center" width=3D"600" style=3D" widt=
-h:600px; padding-right: 0px; padding-left: 0px; padding-top:5px; =
-padding-bottom:5px; border-top: 0px solid transparent; border-lef=
-t: 0px solid transparent; border-bottom: 0px solid transparent; b=
-order-right: 0px solid transparent;" valign=3D"top"><![endif]-->=0A=
-            <div class=3D"col num12" style=3D"min-width: 320px;ma=
-x-width: 600px;display: table-cell;vertical-align: top;">=0A     =
-         <div style=3D"background-color: transparent; width: 100%=
- !important;">=0A              <!--[if (!mso)&(!IE)]><!--><div st=
-yle=3D"border-top: 0px solid transparent; border-left: 0px solid =
-transparent; border-bottom: 0px solid transparent; border-right: =
-0px solid transparent; padding-top:5px; padding-bottom:5px; paddi=
-ng-right: 0px; padding-left: 0px;"><!--<![endif]-->=0A=0A        =
-          =0A                    <div class=3D"">=0A<!--[if mso]>=
-<table width=3D"100%" cellpadding=3D"0" cellspacing=3D"0" border=3D=
-"0"><tr><td style=3D"padding-right: 10px; padding-left: 10px; pad=
-ding-top: 20px; padding-bottom: 20px;"><![endif]-->=0A<div style=3D=
-"line-height:120%;font-family:Verdana, Geneva, sans-serif;color:#=
-555555; padding-right: 10px; padding-left: 10px; padding-top: 20p=
-x; padding-bottom: 20px;">=0A<div style=3D"font-size:12px;line-he=
-ight:14px;color:#555555;font-family:Verdana, Geneva, sans-serif;t=
-ext-align:left;"><p style=3D"margin: 0;font-size: 14px;line-heigh=
-t: 17px;text-align: center"><span style=3D"font-size: 12px; line-=
-height: 14px; color: rgb(136, 136, 136);">Terms &amp; Conditions =
-apply. </span><br><br><span style=3D"font-size: 12px; line-height=
-: 14px; color: rgb(136, 136, 136);">Copyright 2018, Atlantis, Ker=
-zner P.O. Box 211222, UAE, Atlantis The Palm. </span><br><br><spa=
-n style=3D"font-size: 12px; line-height: 14px; color: rgb(136, 13=
-6, 136);">To unsubscribe from this Atlantis, The Palm list please=
- click <a style=3D"text-decoration: none; color: #888888;" href=3D=
-"http://l.e.atlantisthepalm.com/rts/go2.aspx?h=3D115982&tp=3Di-H4=
-3-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn&x=3Di-H43-6W-3Ij-J2SS0-1c-G=
-neT-1c-J0Bss-v8WSn" target=3D"_blank" rel=3D"noopener"><span styl=
-e=3D"color: rgb(51, 51, 51); font-size: 12px; line-height: 14px;"=
-><strong>here</strong></span></a>. </span><br><br><span style=3D"=
-font-size: 12px; line-height: 14px; color: rgb(136, 136, 136);">R=
-eview Atlantis, The Palm <span style=3D"color: rgb(51, 51, 51); f=
-ont-size: 12px; line-height: 14px;"><strong><a style=3D"text-deco=
-ration: none; color: #333333;" href=3D"http://l.e.atlantisthepalm=
-.com/rts/go2.aspx?h=3D115983&tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J=
-0Bss-v8WSn" target=3D"_blank" rel=3D"noopener">Privacy Policy</a>=
-</strong></span> and <span style=3D"color: rgb(51, 51, 51); font-=
-size: 12px; line-height: 14px;"><a style=3D"text-decoration: none=
-; color: #333333;" href=3D"http://l.e.atlantisthepalm.com/rts/go2=
-.aspx?h=3D115984&tp=3Di-H43-6W-3Ij-J2SS0-1c-GneT-1c-J0Bss-v8WSn" =
-target=3D"_blank" rel=3D"noopener"><span style=3D"font-size: 12px=
-; line-height: 14px;"><strong>Terms and Conditions</strong></span=
-></a></span>. </span><br><br><span style=3D"font-size: 12px; line=
--height: 14px; color: rgb(136, 136, 136);">Please do not reply to=
- this email.</span></p></div>=0A</div>=0A<!--[if mso]></td></tr><=
-/table><![endif]-->=0A</div>=0A                  =0A             =
-     =0A                    <div align=3D"center" class=3D"img-co=
-ntainer center fixedwidth " style=3D"padding-right: 0px;  padding=
--left: 0px;">=0A<!--[if mso]><table width=3D"100%" cellpadding=3D=
-"0" cellspacing=3D"0" border=3D"0"><tr style=3D"line-height:0px;l=
-ine-height:0px;"><td style=3D"padding-right: 0px; padding-left: 0=
-px;" align=3D"center"><![endif]-->=0A  <a href=3D"www.atlantisthe=
-palm.com/festive?utm_source=3Dcrm&amp;utm_medium=3Demail&amp;utm_=
-campaign=3Dem_F&amp;BFestiveBSK&amp;Seafire_atp_07122018" target=3D=
-"_blank">=0A    <img class=3D"center fixedwidth" align=3D"center"=
- border=3D"0" src=3D"http://wpm.ccmp.eu/wpm/404/ContentUploads/im=
-ages/w_logo2x_.gif" alt=3D"Atlantis the palm" title=3D"Atlantis t=
-he palm" style=3D"outline: none;text-decoration: none;-ms-interpo=
-lation-mode: bicubic;clear: both;display: block !important;border=
-: none;height: auto;float: none;width: 100%;max-width: 180px" wid=
-th=3D"180">=0A  </a>=0A<!--[if mso]></td></tr></table><![endif]--=
->=0A</div>=0A=0A                  =0A              <!--[if (!mso)=
-&(!IE)]><!--></div><!--<![endif]-->=0A              </div>=0A    =
-        </div>=0A          <!--[if (mso)|(IE)]></td></tr></table>=
-</td></tr></table><![endif]-->=0A        </div>=0A      </div>=0A=
-    </div>=0A   <!--[if (mso)|(IE)]></td></tr></table><![endif]--=
->=0A</td>=0A  </tr>=0A  </tbody>=0A  </table>=0A  <!--[if (mso)|(=
-IE)]></div><![endif]-->=0A=0A=0A</body></html>
+On Wed, 26 Dec 2018 at 09:25, Andy Duan <fugang.duan@nxp.com> wrote:
+>
+> From: Fugang Duan <fugang.duan@nxp.com>
+>
+> If RPMSG dma memory allocate from per-device mem pool by calling .dma_alloc_coherent(),
+> the size is bigger than 2M bytes and alignment with 2M (PMD_SIZE), then kernel dump by
+> calling .vmalloc_to_page().
+>
+> Since per-device dma pool do vmap mappings by __ioremap(), __ioremap() might use
+> the hugepage mapping, which in turn will cause the vmalloc_page failed to return
+> the correct page due to the PTE not setup.
+
+If there are legal uses for vmalloc_to_page() even if the region is
+not mapped down to pages [which appears to be the case here], I'd
+prefer to fix vmalloc_to_page() instead of adding this hack. Or
+perhaps we need a sg_xxx helper that translates any virtual address
+(vmalloc or otherwise) into a scatterlist entry?
+
+
+>
+> For exp, when reserve 8M bytes per-device dma mem pool, __ioremap() will use hugepage
+> mapping:
+>  __ioremap
+>         ioremap_page_range
+>                 ioremap_pud_range
+>                         ioremap_pmd_range
+>                                 pmd_set_huge(pmd, phys_addr + addr, prot)
+>
+> Commit:029c54b09599 ("mm/vmalloc.c: huge-vmap: fail gracefully on unexpected huge
+> vmap mapping") ensure that vmalloc_to_page() does not go off into the weeds trying
+> to dereference huge PUDs or PMDs as table entries:
+> rpmsg_sg_init ->
+>         vmalloc_to_page->
+>                 WARN_ON_ONCE(pmd_bad(*pmd));
+>
+> In generally, .dma_alloc_coherent() allocate memory from CMA pool/DMA pool/atomic_pool,
+> or swiotlb slabs pool, the virt address mapping to physical address should be lineal,
+> so for the rpmsg scatterlist initialization can use pfn to find the page to avoid to
+> call .vmalloc_to_page().
+>
+> Kernel dump:
+> [    0.881722] WARNING: CPU: 0 PID: 1 at mm/vmalloc.c:301 vmalloc_to_page+0xbc/0xc8
+> [    0.889094] Modules linked in:
+> [    0.892139] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.14.78-05581-gc61a572 #206
+> [    0.899604] Hardware name: Freescale i.MX8QM MEK (DT)
+> [    0.904643] task: ffff8008f6c98000 task.stack: ffff000008068000
+> [    0.910549] PC is at vmalloc_to_page+0xbc/0xc8
+> [    0.914987] LR is at rpmsg_sg_init+0x70/0xcc
+> [    0.919238] pc : [<ffff0000081c80d4>] lr : [<ffff000008ac471c>] pstate: 40000045
+> [    0.926619] sp : ffff00000806b8b0
+> [    0.929923] x29: ffff00000806b8b0 x28: ffff00000961cdf0
+> [    0.935220] x27: ffff00000961cdf0 x26: 0000000000000000
+> [    0.940519] x25: 0000000000040000 x24: ffff00000961ce40
+> [    0.945819] x23: ffff00000f000000 x22: ffff00000961ce30
+> [    0.951118] x21: 0000000000000000 x20: ffff00000806b950
+> [    0.956417] x19: 0000000000000000 x18: 000000000000000e
+> [    0.961717] x17: 0000000000000001 x16: 0000000000000019
+> [    0.967016] x15: 0000000000000033 x14: 616d64202c303030
+> [    0.972316] x13: 3030306630303030 x12: 3066666666206176
+> [    0.977615] x11: 203a737265666675 x10: 62203334394c203a
+> [    0.982914] x9 : 000000000000009f x8 : ffff00000806b970
+> [    0.988214] x7 : 0000000000000000 x6 : ffff000009690712
+> [    0.993513] x5 : 0000000000000000 x4 : 0000000080000000
+> [    0.998812] x3 : 00e8000090800f0d x2 : ffff8008ffffd3c0
+> [    1.004112] x1 : 0000000000000000 x0 : ffff00000f000000
+> [    1.009416] Call trace:
+> [    1.011849] Exception stack(0xffff00000806b770 to 0xffff00000806b8b0)
+> [    1.018279] b760:                                   ffff00000f000000 0000000000000000
+> [    1.026094] b780: ffff8008ffffd3c0 00e8000090800f0d 0000000080000000 0000000000000000
+> [    1.033915] b7a0: ffff000009690712 0000000000000000 ffff00000806b970 000000000000009f
+> [    1.041731] b7c0: 62203334394c203a 203a737265666675 3066666666206176 3030306630303030
+> [    1.049550] b7e0: 616d64202c303030 0000000000000033 0000000000000019 0000000000000001
+> [    1.057368] b800: 000000000000000e 0000000000000000 ffff00000806b950 0000000000000000
+> [    1.065188] b820: ffff00000961ce30 ffff00000f000000 ffff00000961ce40 0000000000040000
+> [    1.073008] b840: 0000000000000000 ffff00000961cdf0 ffff00000961cdf0 ffff00000806b8b0
+> [    1.080825] b860: ffff000008ac471c ffff00000806b8b0 ffff0000081c80d4 0000000040000045
+> [    1.088646] b880: ffff0000092c8528 ffff00000806b890 ffffffffffffffff ffff000008ac4710
+> [    1.096461] b8a0: ffff00000806b8b0 ffff0000081c80d4
+> [    1.101327] [<ffff0000081c80d4>] vmalloc_to_page+0xbc/0xc8
+> [    1.106800] [<ffff000008ac4968>] rpmsg_probe+0x1f0/0x49c
+> [    1.112107] [<ffff00000859a9a0>] virtio_dev_probe+0x198/0x210
+> [    1.117839] [<ffff0000086a1c70>] driver_probe_device+0x220/0x2d4
+> [    1.123829] [<ffff0000086a1e90>] __device_attach_driver+0x98/0xc8
+> [    1.129913] [<ffff00000869fe7c>] bus_for_each_drv+0x54/0x94
+> [    1.135470] [<ffff0000086a1944>] __device_attach+0xc4/0x12c
+> [    1.141029] [<ffff0000086a1ed0>] device_initial_probe+0x10/0x18
+> [    1.146937] [<ffff0000086a0e48>] bus_probe_device+0x90/0x98
+> [    1.152501] [<ffff00000869ef88>] device_add+0x3f4/0x570
+> [    1.157709] [<ffff00000869f120>] device_register+0x1c/0x28
+> [    1.163182] [<ffff00000859a4f8>] register_virtio_device+0xb8/0x114
+> [    1.169353] [<ffff000008ac5e94>] imx_rpmsg_probe+0x3a0/0x5d0
+> [    1.175003] [<ffff0000086a3768>] platform_drv_probe+0x50/0xbc
+> [    1.180730] [<ffff0000086a1c70>] driver_probe_device+0x220/0x2d4
+> [    1.186725] [<ffff0000086a1dc8>] __driver_attach+0xa4/0xa8
+> [    1.192199] [<ffff00000869fdc4>] bus_for_each_dev+0x58/0x98
+> [    1.197759] [<ffff0000086a1598>] driver_attach+0x20/0x28
+> [    1.203058] [<ffff0000086a1114>] bus_add_driver+0x1c0/0x224
+> [    1.208619] [<ffff0000086a26ec>] driver_register+0x68/0x108
+> [    1.214178] [<ffff0000086a36ac>] __platform_driver_register+0x4c/0x54
+> [    1.220614] [<ffff0000093d14fc>] imx_rpmsg_init+0x1c/0x50
+> [    1.225999] [<ffff000008084144>] do_one_initcall+0x38/0x124
+> [    1.231560] [<ffff000009370d28>] kernel_init_freeable+0x18c/0x228
+> [    1.237640] [<ffff000008d51b60>] kernel_init+0x10/0x100
+> [    1.242849] [<ffff000008085348>] ret_from_fork+0x10/0x18
+> [    1.248154] ---[ end trace bcc95d4e07033434 ]---
+>
+> v2:
+>  - use pfn_to_page(PHYS_PFN(x)) instead of phys_to_page(x) since
+>    .phys_to_page() interface has arch platform limitation.
+>
+> Reviewed-by: Richard Zhu <hongxing.zhu@nxp.com>
+> Suggested-and-reviewed-by: Jason Liu <jason.hui.liu@nxp.com>
+> Signed-off-by: Fugang Duan <fugang.duan@nxp.com>
+> ---
+>  drivers/rpmsg/virtio_rpmsg_bus.c | 25 +++++++++++++------------
+>  1 file changed, 13 insertions(+), 12 deletions(-)
+>
+> diff --git a/drivers/rpmsg/virtio_rpmsg_bus.c b/drivers/rpmsg/virtio_rpmsg_bus.c
+> index 664f957..d548bd0 100644
+> --- a/drivers/rpmsg/virtio_rpmsg_bus.c
+> +++ b/drivers/rpmsg/virtio_rpmsg_bus.c
+> @@ -196,16 +196,17 @@ static int virtio_rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src,
+>   * location (in vmalloc or in kernel).
+>   */
+>  static void
+> -rpmsg_sg_init(struct scatterlist *sg, void *cpu_addr, unsigned int len)
+> +rpmsg_sg_init(struct virtproc_info *vrp, struct scatterlist *sg,
+> +             void *cpu_addr, unsigned int len)
+>  {
+> -       if (is_vmalloc_addr(cpu_addr)) {
+> -               sg_init_table(sg, 1);
+> -               sg_set_page(sg, vmalloc_to_page(cpu_addr), len,
+> -                           offset_in_page(cpu_addr));
+> -       } else {
+> -               WARN_ON(!virt_addr_valid(cpu_addr));
+> -               sg_init_one(sg, cpu_addr, len);
+> -       }
+> +       unsigned int offset;
+> +       dma_addr_t dev_add = vrp->bufs_dma + (cpu_addr - vrp->rbufs);
+> +       struct page *page = pfn_to_page(PHYS_PFN(dma_to_phys(vrp->bufs_dev,
+> +                                       dev_add)));
+> +
+> +       offset = offset_in_page(cpu_addr);
+> +       sg_init_table(sg, 1);
+> +       sg_set_page(sg, page, len, offset);
+>  }
+>
+>  /**
+> @@ -626,7 +627,7 @@ static int rpmsg_send_offchannel_raw(struct rpmsg_device *rpdev,
+>                          msg, sizeof(*msg) + msg->len, true);
+>  #endif
+>
+> -       rpmsg_sg_init(&sg, msg, sizeof(*msg) + len);
+> +       rpmsg_sg_init(vrp, &sg, msg, sizeof(*msg) + len);
+>
+>         mutex_lock(&vrp->tx_lock);
+>
+> @@ -750,7 +751,7 @@ static int rpmsg_recv_single(struct virtproc_info *vrp, struct device *dev,
+>                 dev_warn(dev, "msg received with no recipient\n");
+>
+>         /* publish the real size of the buffer */
+> -       rpmsg_sg_init(&sg, msg, vrp->buf_size);
+> +       rpmsg_sg_init(vrp, &sg, msg, vrp->buf_size);
+>
+>         /* add the buffer back to the remote processor's virtqueue */
+>         err = virtqueue_add_inbuf(vrp->rvq, &sg, 1, msg, GFP_KERNEL);
+> @@ -934,7 +935,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
+>                 struct scatterlist sg;
+>                 void *cpu_addr = vrp->rbufs + i * vrp->buf_size;
+>
+> -               rpmsg_sg_init(&sg, cpu_addr, vrp->buf_size);
+> +               rpmsg_sg_init(vrp, &sg, cpu_addr, vrp->buf_size);
+>
+>                 err = virtqueue_add_inbuf(vrp->rvq, &sg, 1, cpu_addr,
+>                                           GFP_KERNEL);
+> --
+> 1.9.1
+>
 
