@@ -2,244 +2,264 @@ Return-Path: <SRS0=eTfr=PD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32C6BC43387
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3486FC43387
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E66E4218AD
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EzYAlMUO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E66E4218AD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id DCE9A218AD
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCE9A218AD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6906C8E0005; Wed, 26 Dec 2018 08:38:13 -0500 (EST)
+	id 7C5A88E0004; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 616438E0004; Wed, 26 Dec 2018 08:38:13 -0500 (EST)
+	id 7508D8E0001; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 493808E0005; Wed, 26 Dec 2018 08:38:13 -0500 (EST)
+	id 5F1078E0004; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C89388E0004
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:38:12 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id 18-v6so5256190ljn.8
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:38:12 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 16CD88E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id d3so15186482pgv.23
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:38:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=kitNRdDq9qDxhqv/cqY0Zh5BAxoT0axpEmlNVpYcbmE=;
-        b=g+FpFLstVfV1oSCGRS69VD/FBXpC1RDVO/VGyWvh6+SD4+ufKpthgM1mK0LUxpqRRH
-         gf2NR2Ds0Os9L2mwOBir6/v3pzQAjW70eCy5HRcC3xDUeEdeFXa/tfRnzGWL201J/PiH
-         7WquqFVtbRPH/aIXX+n7nnNg//goltUNv/QeZLFGgE5zUz+bKyIT7lj69AHS8SFqv2Wn
-         Jwn7GIzZdpZohdCVB0SvAg9Ch7vou9YUAzVqEMjvFZv58LhsCYwUg8FSPMzuDoDwi52h
-         7G5Vx42AIjp4fwrvo77KMTe+PNHlY7AO1zoPYvNqONCTHjTmcdfViUNdXqEn4VlgAXOk
-         OVYQ==
-X-Gm-Message-State: AA+aEWYMv5G0MIIu8RztH6bfHZUxqhLNSkOMgdZrznkVtyw6i2zm2yaK
-	Iyg3Z8ftdrYnphs72ISVXpXQ0+g6yfMqMJGflTK+2tCeURZfl1t6BEt5o+03gOpJpkUduoZD0cY
-	FmP31eGfVpTrJrcxRRzlhp3/s31YatXPlg/tWshmB83s70B8X1qIgmYVqGK979maBIbxpcX1AP5
-	co9E4bucZyQdeOTRP+LdjhBSbfXO+XXGxLF/xpmPtXuuRTWlKYE3Je1ysyPkY9tiVeeMTOl+g8g
-	djck6a+3xdAhdqIiKZW13MpBK8pm5ebp5QnyWKUqITgbWeglPYiIKy1RsD+VGjrZ9cMv0Rl7BQE
-	QI+CvB6PfABO9gh0efwgCpsAfoSt20VmK+jyoBGgvYpMw8rqLV8ZJlCE7fms/LSG/gb0kT6VTy1
-	V
-X-Received: by 2002:a19:8fce:: with SMTP id s75mr9608188lfk.151.1545831491806;
-        Wed, 26 Dec 2018 05:38:11 -0800 (PST)
-X-Received: by 2002:a19:8fce:: with SMTP id s75mr9608167lfk.151.1545831490809;
-        Wed, 26 Dec 2018 05:38:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545831490; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
+         :references:mime-version:content-disposition;
+        bh=sK2wyaa9OQJCGIyx2U8qb6p7gEuhbJ2Wb9fFN0ccy8A=;
+        b=qUYgFoCeggXdRRSLatYLRkAG7+JkeSw05P4c5nEvXsWrPATEFDdFWKSkbN3ZaSeJr6
+         GoO+Q6tud3abzWaHQbZN5MID4k1Ki6E9ERleb4+aCgP3T0mFgdbVectxurehdjGVeNXD
+         ghEAHvp7YUhpRFWekQd4rantmHWGZs4BSP7au7MHVvaSbA1DamoBfj2af6RuttzuWHBo
+         aRftWcMffcrYBaGbsvrCg4UPYUmEIeSttHbwwj3lbnFmyD65EbzPW5xk0FjdmftZFVTw
+         wJEZwHiYSzz4Gkr3vUzwhyFzdD6Wx4bosjtcNODNXHEB3s+0YEJUwqcQ/juqdxqUHi+P
+         f24A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AA+aEWbXB4SGzwm544XxD2SgMTwdlEMSRQV2TyMFBfktpL/M9SAcCqu7
+	yGrNrQJYf4aLuPOcbfy5sJjrEMCgSi/SexFrloNPEI1yHSNS/gmxmBziOSS1NtEGr5Z+5VXn3vN
+	q91fBvMqh60g0lWnIWFIh/wU5DtrEoO85PuRpmuR1cqIrXIpYdOf/Yhm+J+dLoRGPww==
+X-Received: by 2002:a62:26c7:: with SMTP id m190mr20523555pfm.79.1545831523763;
+        Wed, 26 Dec 2018 05:38:43 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/UBy4hg46vX54Wa0Ux2AL/Xy/Dk8d1cW3RDid+ow1B734ewxKvU0mfa3Es1FltGLmDuNBuE
+X-Received: by 2002:a62:26c7:: with SMTP id m190mr20518694pfm.79.1545831427585;
+        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545831427; cv=none;
         d=google.com; s=arc-20160816;
-        b=i0lJSm9ZAYeQSnCYVkNrOY9ghMaXNH6J6dctmSc8PpLMIuB0g0OU//bJeaAnyFhdw2
-         cmK6vwQOqTp3XMsq5gzIoFi0vSWgXDCVYz6toqyKLdNVRIoozeqBGE1JZ6h/xFOBgvf6
-         hWCiu7+a2GKCnWp5kvcXSMIEYYs9EEF03iJW+nSDk+1ocGUol6xjvB69J7/16XkQ2DHz
-         lKO23cjsj6cIyXi7+XOxOe5OAKjmfYV5zceNPkHSN3guuidj+kt1Czf08ejKt3X+xULR
-         o1fDuPnMUIfzTXU/S/xOuVu+Vyxpb2kaj7O3vBqJYjjQ5Li+hklWAnjZXrTfLo5DrQj1
-         GdDA==
+        b=v4wKV+vnVl+rS9y8N7aXdxqv7LGY19PZdWUAf0T1LEWicn/45kQDa/MNvjNYblkgKM
+         hdnQ1/1NNZs9j3LyLYk/2x1+KFHWIr1PpJPKWq9pgsNeHPXm8tKqeBLwYI0GbPC1kw/s
+         HYQJ4guylESZyjGBSgDi7KZYPjU5cZCkZdShNqwHnOlDsljcEKuvFFnj5AH75+fvLzQr
+         ZgT6nLpIa8lGsL48hqd4ufMBcMslnTMdIwj+NYsOWGiRxbw/lG4BuO2a+khEt8sg/6G2
+         hIQDdsMu35iIOGkR0Z1Fj16yEHaJUvb0pXc881k4ajVkPYB1YW2JzqmnPqZ9E0clCMpX
+         xNjw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=kitNRdDq9qDxhqv/cqY0Zh5BAxoT0axpEmlNVpYcbmE=;
-        b=W6zsJyqw/SYcdtHVvu7JE/Netxotx1+lbZa9lWYLberezKKWP18JwYq5sBy0SRM72q
-         VqKH/TV5o4I8Q6l3tAfsnc/vbM11REh4fgo8stibRmgy/F5ckHXuHVcxv4Svuh1TdgCq
-         e39wzmgFOFnDrExkE1ydXMq3v1r5mya+7izX5c4LeO4IeUtqCUaqL3aqR66UnbSLr5hb
-         nRnsnKhLmsqTtMRKI6FPslDuQHhSqrxsF9VEPsl71XoD077G5dMO8NBz0YHNMKOi8Opm
-         qYndcTLLDrA4aBIWQq3Y0UF0x2PrXnPMvehuJT92PsD8lvVf3huH8+OPQXmTg+jIHKv/
-         xEKg==
+        h=content-disposition:mime-version:references:subject:cc:cc:cc:cc:cc
+         :cc:cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
+        bh=sK2wyaa9OQJCGIyx2U8qb6p7gEuhbJ2Wb9fFN0ccy8A=;
+        b=w1FFsLvU/Xxhqkc/z8/qEpP/0TtBmhzt0QMGgmRD5ckGiP34epraN3xmwNnzUZzclq
+         Dw3QqlD5GkRfsPv4QZkhiIlWgAmXAHUDnb2Cb50F49i20wLdW2VfXStTwYsZ20rT1HUS
+         HF5GbbZ1dZ4d9B2bnCNOyMxs4mMV7zJYbeBCpSTfHzuAQ/w9U1uzSWeI8DpLa3BAdC1R
+         BWrVMvESaMwqTX9ExTOIJOyxuMFw3goWgj6wjChYCZB2VdZRw08eF4OcdS/oEmdiCIkh
+         4S1tM/Dk0ZEBZyzofhqvzL/E1La6aygogGCa4ID1Kj0XHSTzNj4YfAUmxHw2TRSE3jRR
+         uVqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EzYAlMUO;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o4sor9508309lfl.63.2018.12.26.05.38.10
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id p11si31508288plk.191.2018.12.26.05.37.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Dec 2018 05:38:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EzYAlMUO;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=kitNRdDq9qDxhqv/cqY0Zh5BAxoT0axpEmlNVpYcbmE=;
-        b=EzYAlMUOklMugVTu4yYZGxXNl4hINns0BIBJ5Nyh+SiXyQZO3k1/YmOAXpsklfPAO9
-         iDjpstitfhNRBht1mAjbRylNtGX/qD7buZ6ZeNkLPTTkq+7i3RsoxtRKoxTGkPBVjWvU
-         ewhbp9fp+SmSCfmGn6nODKNhk6WX3dvwgudwU6EjHkBWxXVyLzXBNAmnZCB6z35uzkPb
-         Yuu3uQxriVsO8cyk40d27EsqUa+WVfd4Nl0ZtFjBqXyXizvXzewwA2Kx7e7/1/OvhDt6
-         C8HXTXX4cBfndyrt6+ttMQgPjv4dEhaa9oIj2jWENm1ZqGpTtOP7wRhMtO1SGZvml2dn
-         imYA==
-X-Google-Smtp-Source: AFSGD/XEZnUUKwSUwh3xXDYzi3sA4iQ+mQgXPP42OF+kde+qmR73SafRNdS5zRrl3g5eSHL8MfxiCu4AX/ZyOOBLntQ=
-X-Received: by 2002:a19:2906:: with SMTP id p6mr9556966lfp.17.1545831490237;
- Wed, 26 Dec 2018 05:38:10 -0800 (PST)
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,400,1539673200"; 
+   d="scan'208";a="113358947"
+Received: from wangdan1-mobl1.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.210.154])
+  by orsmga003.jf.intel.com with ESMTP; 26 Dec 2018 05:37:02 -0800
+Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
+	(envelope-from <fengguang.wu@intel.com>)
+	id 1gc9Mr-0005PD-Kb; Wed, 26 Dec 2018 21:37:01 +0800
+Message-Id: <20181226133352.076749877@intel.com>
+User-Agent: quilt/0.65
+Date: Wed, 26 Dec 2018 21:15:03 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+cc: Linux Memory Management List <linux-mm@kvack.org>,
+ Huang Ying <ying.huang@intel.com>,
+ Brendan Gregg <bgregg@netflix.com>,
+ Fengguang Wu <fengguang.wu@intel.com>
+cc: kvm@vger.kernel.org
+Cc: LKML <linux-kernel@vger.kernel.org>
+cc: Fan Du <fan.du@intel.com>
+cc: Yao Yuan <yuan.yao@intel.com>
+cc: Peng Dong <dongx.peng@intel.com>
+CC: Liu Jingqi <jingqi.liu@intel.com>
+cc: Dong Eddie <eddie.dong@intel.com>
+cc: Dave Hansen <dave.hansen@intel.com>
+cc: Zhang Yi <yi.z.zhang@linux.intel.com>
+cc: Dan Williams <dan.j.williams@intel.com>
+Subject: [RFC][PATCH v2 17/21] proc: introduce /proc/PID/idle_pages
+References: <20181226131446.330864849@intel.com>
 MIME-Version: 1.0
-References: <20181224131841.GA22017@jordon-HP-15-Notebook-PC> <20181224152059.GA26090@n2100.armlinux.org.uk>
-In-Reply-To: <20181224152059.GA26090@n2100.armlinux.org.uk>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Wed, 26 Dec 2018 19:11:57 +0530
-Message-ID:
- <CAFqt6za-vq4GihKbSJjF1_=_xnWvBbpCQDf8iuhF0e8XJY4JVA@mail.gmail.com>
-Subject: Re: [PATCH v5 0/9] Use vm_insert_range
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, 
-	Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, 
-	Peter Zijlstra <peterz@infradead.org>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, 
-	treding@nvidia.com, Kees Cook <keescook@chromium.org>, 
-	Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, 
-	Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, 
-	joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, 
-	mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
-	Juergen Gross <jgross@suse.com>, linux-rockchip@lists.infradead.org, 
-	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, 
-	xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, 
-	iommu@lists.linux-foundation.org, linux1394-devel@lists.sourceforge.net, 
-	linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
+Content-Disposition: inline; filename=0008-proc-introduce-proc-PID-idle_pages.patch
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181226134157.crByNvUSh5qkktZaehtdWXg4Wi7WBaCLSCewOnWBjrw@z>
+Message-ID: <20181226131503.-TbBlaV8TN-7yG4-tuxEfnT4n-LGSDdZutz8L2cN3WQ@z>
 
-On Mon, Dec 24, 2018 at 8:51 PM Russell King - ARM Linux
-<linux@armlinux.org.uk> wrote:
->
-> Having discussed with Matthew offlist, I think we've come to the
-> following conclusion - there's a number of drivers that buggily
-> ignore vm_pgoff.
->
-> So, what I proposed is:
->
-> static int __vm_insert_range(struct vm_struct *vma, struct page *pages,
->                              size_t num, unsigned long offset)
-> {
->         unsigned long count = vma_pages(vma);
->         unsigned long uaddr = vma->vm_start;
->         int ret;
->
->         /* Fail if the user requested offset is beyond the end of the object */
->         if (offset > num)
->                 return -ENXIO;
->
->         /* Fail if the user requested size exceeds available object size */
->         if (count > num - offset)
->                 return -ENXIO;
->
->         /* Never exceed the number of pages that the user requested */
->         for (i = 0; i < count; i++) {
->                 ret = vm_insert_page(vma, uaddr, pages[offset + i]);
->                 if (ret < 0)
->                         return ret;
->                 uaddr += PAGE_SIZE;
->         }
->
->         return 0;
-> }
->
-> /*
->  * Maps an object consisting of `num' `pages', catering for the user's
->  * requested vm_pgoff
->  */
-> int vm_insert_range(struct vm_struct *vma, struct page *pages, size_t num)
-> {
->         return __vm_insert_range(vma, pages, num, vma->vm_pgoff);
-> }
->
-> /*
->  * Maps a set of pages, always starting at page[0]
->  */
-> int vm_insert_range_buggy(struct vm_struct *vma, struct page *pages, size_t num)
-> {
->         return __vm_insert_range(vma, pages, num, 0);
-> }
->
-> With this, drivers such as iommu/dma-iommu.c can be converted thusly:
->
->  int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma+)
->  {
-> -       unsigned long uaddr = vma->vm_start;
-> -       unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-> -       int ret = -ENXIO;
-> -
-> -       for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
-> -               ret = vm_insert_page(vma, uaddr, pages[i]);
-> -               if (ret)
-> -                       break;
-> -               uaddr += PAGE_SIZE;
-> -       }
-> -       return ret;
-> +       return vm_insert_range(vma, pages, PAGE_ALIGN(size) >> PAGE_SHIFT);
-> }
->
-> and drivers such as firewire/core-iso.c:
->
->  int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
->                           struct vm_area_struct *vma)
->  {
-> -       unsigned long uaddr;
-> -       int i, err;
-> -
-> -       uaddr = vma->vm_start;
-> -       for (i = 0; i < buffer->page_count; i++) {
-> -               err = vm_insert_page(vma, uaddr, buffer->pages[i]);
-> -               if (err)
-> -                       return err;
-> -
-> -               uaddr += PAGE_SIZE;
-> -       }
-> -
-> -       return 0;
-> +       return vm_insert_range_buggy(vma, buffer->pages, buffer->page_count);
-> }
->
-> and this gives us something to grep for to find these buggy drivers.
->
-> Now, this may not look exactly equivalent, but if you look at
-> fw_device_op_mmap(), buffer->page_count is basically vma_pages(vma)
-> at this point, which means this should be equivalent.
->
-> We _could_ then at a later date "fix" these drivers to behave according
-> to the normal vm_pgoff offsetting simply by removing the _buggy suffix
-> on the function name... and if that causes regressions, it gives us an
-> easy way to revert (as long as vm_insert_range_buggy() remains
-> available.)
->
-> In the case of firewire/core-iso.c, it currently ignores the mmap offset
-> entirely, so making the above suggested change would be tantamount to
-> causing it to return -ENXIO for any non-zero mmap offset.
->
-> IMHO, this approach is way simpler, and easier to get it correct at
-> each call site, rather than the current approach which seems to be
-> error-prone.
+This will be similar to /sys/kernel/mm/page_idle/bitmap documented in
+Documentation/admin-guide/mm/idle_page_tracking.rst, however indexed
+by process virtual address.
 
-Thanks Russell.
-I will drop this patch series and rework on it as suggested.
+When using the global PFN indexed idle bitmap, we find 2 kind of
+overheads:
+
+- to track a task's working set, Brendan Gregg end up writing wss-v1
+  for small tasks and wss-v2 for large tasks:
+
+  https://github.com/brendangregg/wss
+
+  That's because VAs may point to random PAs throughout the physical
+  address space. So we either query /proc/pid/pagemap first and access
+  the lots of random PFNs (with lots of syscalls) in the bitmap, or
+  write+read the whole system idle bitmap beforehand.
+
+- page table walking by PFN has much more overheads than to walk a
+  page table in its natural order:
+  - rmap queries
+  - more locking
+  - random memory reads/writes
+
+This interface provides a cheap path for the majority non-shared mapping
+pages. To walk 1TB memory of 4k active pages, it costs 2s vs 15s system
+time to scan the per-task/global idle bitmaps. Which means ~7x speedup.
+The gap will be enlarged if consider
+
+- the extra /proc/pid/pagemap walk
+- natural page table walks can skip the whole 512 PTEs if PMD is idle
+
+OTOH, the per-task idle bitmap is not suitable in some situations:
+
+- not accurate for shared pages
+- don't work with non-mapped file pages
+- don't perform well for sparse page tables (pointed out by Huang Ying)
+
+So it's more about complementing the existing global idle bitmap.
+
+CC: Huang Ying <ying.huang@intel.com>
+CC: Brendan Gregg <bgregg@netflix.com>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ fs/proc/base.c     |    2 +
+ fs/proc/internal.h |    1 
+ fs/proc/task_mmu.c |   54 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+)
+
+--- linux.orig/fs/proc/base.c	2018-12-23 20:08:14.228919325 +0800
++++ linux/fs/proc/base.c	2018-12-23 20:08:14.224919327 +0800
+@@ -2969,6 +2969,7 @@ static const struct pid_entry tgid_base_
+ 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+ 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+ 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
++	REG("idle_pages", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
+ #endif
+ #ifdef CONFIG_SECURITY
+ 	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+@@ -3357,6 +3358,7 @@ static const struct pid_entry tid_base_s
+ 	REG("smaps",     S_IRUGO, proc_pid_smaps_operations),
+ 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+ 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
++	REG("idle_pages", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
+ #endif
+ #ifdef CONFIG_SECURITY
+ 	DIR("attr",      S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+--- linux.orig/fs/proc/internal.h	2018-12-23 20:08:14.228919325 +0800
++++ linux/fs/proc/internal.h	2018-12-23 20:08:14.224919327 +0800
+@@ -298,6 +298,7 @@ extern const struct file_operations proc
+ extern const struct file_operations proc_pid_smaps_rollup_operations;
+ extern const struct file_operations proc_clear_refs_operations;
+ extern const struct file_operations proc_pagemap_operations;
++extern const struct file_operations proc_mm_idle_operations;
+ 
+ extern unsigned long task_vsize(struct mm_struct *);
+ extern unsigned long task_statm(struct mm_struct *,
+--- linux.orig/fs/proc/task_mmu.c	2018-12-23 20:08:14.228919325 +0800
++++ linux/fs/proc/task_mmu.c	2018-12-23 20:08:14.224919327 +0800
+@@ -1559,6 +1559,60 @@ const struct file_operations proc_pagema
+ 	.open		= pagemap_open,
+ 	.release	= pagemap_release,
+ };
++
++/* will be filled when kvm_ept_idle module loads */
++struct file_operations proc_ept_idle_operations = {
++};
++EXPORT_SYMBOL_GPL(proc_ept_idle_operations);
++
++static ssize_t mm_idle_read(struct file *file, char __user *buf,
++			    size_t count, loff_t *ppos)
++{
++	if (proc_ept_idle_operations.read)
++		return proc_ept_idle_operations.read(file, buf, count, ppos);
++
++	return 0;
++}
++
++
++static int mm_idle_open(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm = proc_mem_open(inode, PTRACE_MODE_READ);
++
++	if (IS_ERR(mm))
++		return PTR_ERR(mm);
++
++	file->private_data = mm;
++
++	if (proc_ept_idle_operations.open)
++		return proc_ept_idle_operations.open(inode, file);
++
++	return 0;
++}
++
++static int mm_idle_release(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm = file->private_data;
++
++	if (mm) {
++		if (!mm_kvm(mm))
++			flush_tlb_mm(mm);
++		mmdrop(mm);
++	}
++
++	if (proc_ept_idle_operations.release)
++		return proc_ept_idle_operations.release(inode, file);
++
++	return 0;
++}
++
++const struct file_operations proc_mm_idle_operations = {
++	.llseek		= mem_lseek, /* borrow this */
++	.read		= mm_idle_read,
++	.open		= mm_idle_open,
++	.release	= mm_idle_release,
++};
++
+ #endif /* CONFIG_PROC_PAGE_MONITOR */
+ 
+ #ifdef CONFIG_NUMA
+
 
