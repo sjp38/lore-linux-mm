@@ -1,111 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FDDC8E0001
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 18:02:04 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id p3so2504577plk.9
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 15:02:04 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b18si19703407plz.105.2018.12.20.15.02.02
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F0C08E0006
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id s22so15223477pgv.8
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Dec 2018 15:02:02 -0800 (PST)
-Date: Thu, 20 Dec 2018 15:01:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: check nr_initialised with PAGES_PER_SECTION
- directly in defer_init()
-Message-Id: <20181220150159.9a6f2356dbeb7d877a3fb447@linux-foundation.org>
-In-Reply-To: <20181122094807.6985-1-richard.weiyang@gmail.com>
-References: <20181122094807.6985-1-richard.weiyang@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
+Message-Id: <20181226133351.164047705@intel.com>
+Date: Wed, 26 Dec 2018 21:14:48 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [RFC][PATCH v2 02/21] acpi/numa: memorize NUMA node type from SRAT table
+References: <20181226131446.330864849@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=0002-acpi-Memorize-numa-node-type-from-SRAT-table.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: osalvador@suse.de, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Fan Du <fan.du@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
+From: Fan Du <fan.du@intel.com>
 
-Could someone please review this?
+Mark NUMA node as DRAM or PMEM.
 
+This could happen in boot up state (see the e820 pmem type
+override patch), or on fly when bind devdax device with kmem
+driver.
 
+It depends on BIOS supplying PMEM NUMA proximity in SRAT table,
+that's current production BIOS does.
 
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: mm: check nr_initialised with PAGES_PER_SECTION directly in defer_init()
-
-When DEFERRED_STRUCT_PAGE_INIT is configured, only the first section of
-each node's highest zone is initialized before defer stage.
-
-static_init_pgcnt is used to store the number of pages like this:
-
-    pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
-                                              pgdat->node_spanned_pages);
-
-because we don't want to overflow zone's range.
-
-But this is not necessary, since defer_init() is called like this:
-
-  memmap_init_zone()
-    for pfn in [start_pfn, end_pfn)
-      defer_init(pfn, end_pfn)
-
-In case (pgdat->node_spanned_pages < PAGES_PER_SECTION), the loop would
-stop before calling defer_init().
-
-BTW, comparing PAGES_PER_SECTION with node_spanned_pages is not correct,
-since nr_initialised is zone based instead of node based.  Even
-node_spanned_pages is bigger than PAGES_PER_SECTION, its highest zone
-would have pages less than PAGES_PER_SECTION.
-
-Link: http://lkml.kernel.org/r/20181122094807.6985-1-richard.weiyang@gmail.com
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Fan Du <fan.du@intel.com>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
+ arch/x86/include/asm/numa.h |    2 ++
+ arch/x86/mm/numa.c          |    2 ++
+ drivers/acpi/numa.c         |    5 +++++
+ 3 files changed, 9 insertions(+)
 
- include/linux/mmzone.h |    2 --
- mm/page_alloc.c        |   13 ++++++-------
- 2 files changed, 6 insertions(+), 9 deletions(-)
-
---- a/include/linux/mmzone.h~mm-check-nr_initialised-with-pages_per_section-directly-in-defer_init
-+++ a/include/linux/mmzone.h
-@@ -692,8 +692,6 @@ typedef struct pglist_data {
- 	 * is the first PFN that needs to be initialised.
- 	 */
- 	unsigned long first_deferred_pfn;
--	/* Number of non-deferred pages */
--	unsigned long static_init_pgcnt;
- #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+--- linux.orig/arch/x86/include/asm/numa.h	2018-12-23 19:20:39.890947888 +0800
++++ linux/arch/x86/include/asm/numa.h	2018-12-23 19:20:39.890947888 +0800
+@@ -30,6 +30,8 @@ extern int numa_off;
+  */
+ extern s16 __apicid_to_node[MAX_LOCAL_APIC];
+ extern nodemask_t numa_nodes_parsed __initdata;
++extern nodemask_t numa_nodes_pmem;
++extern nodemask_t numa_nodes_dram;
  
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
---- a/mm/page_alloc.c~mm-check-nr_initialised-with-pages_per_section-directly-in-defer_init
-+++ a/mm/page_alloc.c
-@@ -326,8 +326,13 @@ defer_init(int nid, unsigned long pfn, u
- 	/* Always populate low zones for address-constrained allocations */
- 	if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
- 		return false;
+ extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
+ extern void __init numa_set_distance(int from, int to, int distance);
+--- linux.orig/arch/x86/mm/numa.c	2018-12-23 19:20:39.890947888 +0800
++++ linux/arch/x86/mm/numa.c	2018-12-23 19:20:39.890947888 +0800
+@@ -20,6 +20,8 @@
+ 
+ int numa_off;
+ nodemask_t numa_nodes_parsed __initdata;
++nodemask_t numa_nodes_pmem;
++nodemask_t numa_nodes_dram;
+ 
+ struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
+ EXPORT_SYMBOL(node_data);
+--- linux.orig/drivers/acpi/numa.c	2018-12-23 19:20:39.890947888 +0800
++++ linux/drivers/acpi/numa.c	2018-12-23 19:20:39.890947888 +0800
+@@ -297,6 +297,11 @@ acpi_numa_memory_affinity_init(struct ac
+ 
+ 	node_set(node, numa_nodes_parsed);
+ 
++	if (ma->flags & ACPI_SRAT_MEM_NON_VOLATILE)
++		node_set(node, numa_nodes_pmem);
++	else
++		node_set(node, numa_nodes_dram);
 +
-+	/*
-+	 * We start only with one section of pages, more pages are added as
-+	 * needed until the rest of deferred pages are initialized.
-+	 */
- 	nr_initialised++;
--	if ((nr_initialised > NODE_DATA(nid)->static_init_pgcnt) &&
-+	if ((nr_initialised > PAGES_PER_SECTION) &&
- 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
- 		NODE_DATA(nid)->first_deferred_pfn = pfn;
- 		return true;
-@@ -6585,12 +6590,6 @@ static void __ref alloc_node_mem_map(str
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
- static inline void pgdat_set_deferred_range(pg_data_t *pgdat)
- {
--	/*
--	 * We start only with one section of pages, more pages are added as
--	 * needed until the rest of deferred pages are initialized.
--	 */
--	pgdat->static_init_pgcnt = min_t(unsigned long, PAGES_PER_SECTION,
--						pgdat->node_spanned_pages);
- 	pgdat->first_deferred_pfn = ULONG_MAX;
- }
- #else
-_
+ 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+ 		node, pxm,
+ 		(unsigned long long) start, (unsigned long long) end - 1,
