@@ -1,63 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 217828E0001
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 16:03:44 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id n45so16734450qta.5
-        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 13:03:44 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s28sor20841840qtb.48.2018.12.24.13.03.43
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 33C7F8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 17:22:41 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id a199so21608763qkb.23
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 14:22:41 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r63si12972191qkb.132.2018.12.26.14.22.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 24 Dec 2018 13:03:43 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-Subject: [PATCH -mmotm] arm64: fix build for MAX_USER_VA_BITS
-Date: Mon, 24 Dec 2018 16:03:12 -0500
-Message-Id: <20181224210312.56539-1-cai@lca.pw>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Dec 2018 14:22:40 -0800 (PST)
+Date: Wed, 26 Dec 2018 17:22:36 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] hmm: Warn on devres_release failure
+Message-ID: <20181226222236.GA4931@redhat.com>
+References: <20181226180904.8193-1-pakki001@umn.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181226180904.8193-1-pakki001@umn.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qian Cai <cai@lca.pw>
+To: Aditya Pakki <pakki001@umn.edu>
+Cc: kjlu@umn.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Some code in 9b31cf493ff was lost during merging into the -mmotm tree
-for some reasons,
+On Wed, Dec 26, 2018 at 12:09:04PM -0600, Aditya Pakki wrote:
+> devres_release can return -ENOENT if the device is not freed. The fix
+> throws a warning consistent with other invocations.
+> 
+> Signed-off-by: Aditya Pakki <pakki001@umn.edu>
 
-In file included from ./arch/arm64/include/asm/processor.h:46,
-                 from ./include/linux/rcupdate.h:43,
-                 from ./include/linux/rculist.h:11,
-                 from ./include/linux/pid.h:5,
-                 from ./include/linux/sched.h:14,
-		 from arch/arm64/kernel/asm-offsets.c:22:
-./arch/arm64/include/asm/pgtable-hwdef.h:83:30: error:
-'MAX_USER_VA_BITS' undeclared here (not in a function); did you mean
-'MAX_USER_PRIO'?
- #define PTRS_PER_PGD  (1 << (MAX_USER_VA_BITS - PGDIR_SHIFT))
-                              ^~~~~~~~~~~~~~~~
-./arch/arm64/include/asm/pgtable.h:442:26: note: in expansion of macro
-'PTRS_PER_PGD'
- extern pgd_t init_pg_dir[PTRS_PER_PGD];
-                          ^~~~~~~~~~~~
+Reviewed-by: J�r�me Glisse <jglisse@redhat.com>
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- arch/arm64/include/asm/memory.h | 6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index 1df0bb19117f..e1ec947e7c0c 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -67,6 +67,12 @@
- #define KERNEL_START      _text
- #define KERNEL_END        _end
- 
-+#ifdef CONFIG_ARM64_USER_VA_BITS_52
-+#define MAX_USER_VA_BITS	52
-+#else
-+#define MAX_USER_VA_BITS	VA_BITS
-+#endif
-+
- /*
-  * Generic and tag-based KASAN require 1/8th and 1/16th of the kernel virtual
-  * address space for the shadow region respectively. They can bloat the stack
--- 
-2.17.2 (Apple Git-113)
+> ---
+>  mm/hmm.c | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 90c34f3d1243..b06e3f092fbf 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -1183,8 +1183,12 @@ static int hmm_devmem_match(struct device *dev, void *data, void *match_data)
+>  
+>  static void hmm_devmem_pages_remove(struct hmm_devmem *devmem)
+>  {
+> -	devres_release(devmem->device, &hmm_devmem_release,
+> -		       &hmm_devmem_match, devmem->resource);
+> +	int rc;
+> +
+> +	rc = devres_release(devmem->device, &hmm_devmem_release,
+> +				&hmm_devmem_match, devmem->resource);
+> +	if (rc)
+> +		WARN_ON(rc);
+>  }
+>  
+>  /*
+> -- 
+> 2.17.1
+> 
