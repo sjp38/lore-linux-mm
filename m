@@ -2,156 +2,244 @@ Return-Path: <SRS0=eTfr=PD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC171C43612
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32C6BC43387
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B024218AD
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B024218AD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E66E4218AD
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EzYAlMUO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E66E4218AD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED1528E0015; Wed, 26 Dec 2018 08:37:10 -0500 (EST)
+	id 6906C8E0005; Wed, 26 Dec 2018 08:38:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3D58D8E0008; Wed, 26 Dec 2018 08:37:10 -0500 (EST)
+	id 616438E0004; Wed, 26 Dec 2018 08:38:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C601D8E0008; Wed, 26 Dec 2018 08:37:09 -0500 (EST)
+	id 493808E0005; Wed, 26 Dec 2018 08:38:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E8AE8E0008
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id a2so15212809pgt.11
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:08 -0800 (PST)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C89388E0004
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:38:12 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id 18-v6so5256190ljn.8
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:38:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
-         :references:mime-version:content-disposition;
-        bh=s9jTr6JOKBa1wmrz7jGYMpBIemoQeVl0/cJO8ct8GUo=;
-        b=pjJKUUw/G48Hfh90huDvRV611iVUFYTxuxwYEqbTbfn2miCvDoYIzJK9fD31GNfkTc
-         Lz5Q+p6P1lHYsdujUJ3DSj46Niy/TIZ86Gtwx9BU5Q4Oq8LUIooc4/UbCjtSArd+dwPF
-         9lQfsUKWnmeQWA8xnM4XBFqJ8mVNh3wZnwYctFoMmykK0toffa253BrMU6YQ6PEBPszK
-         YbHBFHxZEwaK6xkNs/U67qv++yQKb4hL8w+9RLnJfR1hK27hjMaAENqYGu8B+7dd3jnB
-         cvsL36yApyw1s2tWOxt6S9QWpaC7K1TVMz5vfXjbeMl5ta/jgD4AUIQ48QBrgdZI45od
-         RiAA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AA+aEWYOUiVYjB0tWqRvt/2mk4H4gB8maP2cmZSp9rPa+VPyDRoumo69
-	WDzBsA5zXvs9eR9aDqwEt4NknV2BW6H66jHmvM1wJRmSQWkxnL1Aw0ZY1JuWbTm4kkLTP3hxpG5
-	XmeNHxP3DfMP4TaI/+Gvil5PMJaiXaG+jo0C/8FrFtvGuHtHItmMTiC62i9LHT0YeBA==
-X-Received: by 2002:a62:6204:: with SMTP id w4mr20407817pfb.5.1545831428157;
-        Wed, 26 Dec 2018 05:37:08 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/UYUcyt9sVyAypMxy/kx8oPS9MGhnC85iACNlH+r2fm8WCCL49jRZDbzZLv0rHtjRg9Xtrn
-X-Received: by 2002:a62:6204:: with SMTP id w4mr20407782pfb.5.1545831427462;
-        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545831427; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=kitNRdDq9qDxhqv/cqY0Zh5BAxoT0axpEmlNVpYcbmE=;
+        b=g+FpFLstVfV1oSCGRS69VD/FBXpC1RDVO/VGyWvh6+SD4+ufKpthgM1mK0LUxpqRRH
+         gf2NR2Ds0Os9L2mwOBir6/v3pzQAjW70eCy5HRcC3xDUeEdeFXa/tfRnzGWL201J/PiH
+         7WquqFVtbRPH/aIXX+n7nnNg//goltUNv/QeZLFGgE5zUz+bKyIT7lj69AHS8SFqv2Wn
+         Jwn7GIzZdpZohdCVB0SvAg9Ch7vou9YUAzVqEMjvFZv58LhsCYwUg8FSPMzuDoDwi52h
+         7G5Vx42AIjp4fwrvo77KMTe+PNHlY7AO1zoPYvNqONCTHjTmcdfViUNdXqEn4VlgAXOk
+         OVYQ==
+X-Gm-Message-State: AA+aEWYMv5G0MIIu8RztH6bfHZUxqhLNSkOMgdZrznkVtyw6i2zm2yaK
+	Iyg3Z8ftdrYnphs72ISVXpXQ0+g6yfMqMJGflTK+2tCeURZfl1t6BEt5o+03gOpJpkUduoZD0cY
+	FmP31eGfVpTrJrcxRRzlhp3/s31YatXPlg/tWshmB83s70B8X1qIgmYVqGK979maBIbxpcX1AP5
+	co9E4bucZyQdeOTRP+LdjhBSbfXO+XXGxLF/xpmPtXuuRTWlKYE3Je1ysyPkY9tiVeeMTOl+g8g
+	djck6a+3xdAhdqIiKZW13MpBK8pm5ebp5QnyWKUqITgbWeglPYiIKy1RsD+VGjrZ9cMv0Rl7BQE
+	QI+CvB6PfABO9gh0efwgCpsAfoSt20VmK+jyoBGgvYpMw8rqLV8ZJlCE7fms/LSG/gb0kT6VTy1
+	V
+X-Received: by 2002:a19:8fce:: with SMTP id s75mr9608188lfk.151.1545831491806;
+        Wed, 26 Dec 2018 05:38:11 -0800 (PST)
+X-Received: by 2002:a19:8fce:: with SMTP id s75mr9608167lfk.151.1545831490809;
+        Wed, 26 Dec 2018 05:38:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545831490; cv=none;
         d=google.com; s=arc-20160816;
-        b=xLYSPzh0ADUP9tJzg9Dn7IA9lGhgDNm3Tu86jOb5+1jOmI039dla8D/zchqd01KOdC
-         1JRbQnHp+l+71wWDxTfML0anGm5gBvYa160eUFx5gCYiSfvNWD+WN+w9BzJDzebBruoR
-         QTnks9PVCVi0iWamp04cJBFjtnoQB+qR2l7WIpr7IdsHYc+fyxuiJ38nD+bMdwLpv4c3
-         XuNRZnAi2OG9EnObaEBKeZjq4VA3+mlP4/gDYVzpBudXDiMIn/VniqFZgPDT8wNdQVDe
-         6/MSRyaUi5J7dkaHy7YO2to59/MjTTwPGKDzVUSYe6VgnfP4VFXEANiXD9tRGFEJBDWn
-         sT5w==
+        b=i0lJSm9ZAYeQSnCYVkNrOY9ghMaXNH6J6dctmSc8PpLMIuB0g0OU//bJeaAnyFhdw2
+         cmK6vwQOqTp3XMsq5gzIoFi0vSWgXDCVYz6toqyKLdNVRIoozeqBGE1JZ6h/xFOBgvf6
+         hWCiu7+a2GKCnWp5kvcXSMIEYYs9EEF03iJW+nSDk+1ocGUol6xjvB69J7/16XkQ2DHz
+         lKO23cjsj6cIyXi7+XOxOe5OAKjmfYV5zceNPkHSN3guuidj+kt1Czf08ejKt3X+xULR
+         o1fDuPnMUIfzTXU/S/xOuVu+Vyxpb2kaj7O3vBqJYjjQ5Li+hklWAnjZXrTfLo5DrQj1
+         GdDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-disposition:mime-version:references:subject:cc:cc:cc:cc:cc
-         :cc:cc:cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
-        bh=s9jTr6JOKBa1wmrz7jGYMpBIemoQeVl0/cJO8ct8GUo=;
-        b=xYeYNBPmwklYjAMW/U/YA3YgTX7gSpDZq6r3GKMRyMoaFcuYJI3urCy5c0Wq2VNJVg
-         agAQz/huHASplmM2XH1djT8rU10xfNcg7D3cJb4SBexEFlBjNdAR7zB9sdoojAKFPgtp
-         hjeuQAjI24h+oPV50DMk/PwOjDqwQCotoQFHW78mcU38pzRSM3P9E4SMH+t07e5laXjQ
-         W94yAthH5NAWPyM9Ew9+JV9iZm/mTqVxNzoNGN9NdicaJcwnoAD4399j6ssR+a79rYE3
-         0WB5tb4arVaTlG9rGpJIL2One5bduNCE68nHcjieAoaZCnaGWXnScFV8XSI2qNiKOBSK
-         sbww==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=kitNRdDq9qDxhqv/cqY0Zh5BAxoT0axpEmlNVpYcbmE=;
+        b=W6zsJyqw/SYcdtHVvu7JE/Netxotx1+lbZa9lWYLberezKKWP18JwYq5sBy0SRM72q
+         VqKH/TV5o4I8Q6l3tAfsnc/vbM11REh4fgo8stibRmgy/F5ckHXuHVcxv4Svuh1TdgCq
+         e39wzmgFOFnDrExkE1ydXMq3v1r5mya+7izX5c4LeO4IeUtqCUaqL3aqR66UnbSLr5hb
+         nRnsnKhLmsqTtMRKI6FPslDuQHhSqrxsF9VEPsl71XoD077G5dMO8NBz0YHNMKOi8Opm
+         qYndcTLLDrA4aBIWQq3Y0UF0x2PrXnPMvehuJT92PsD8lvVf3huH8+OPQXmTg+jIHKv/
+         xEKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.07
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EzYAlMUO;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o4sor9508309lfl.63.2018.12.26.05.38.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        (Google Transport Security);
+        Wed, 26 Dec 2018 05:38:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,400,1539673200"; 
-   d="scan'208";a="113358944"
-Received: from wangdan1-mobl1.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.210.154])
-  by orsmga003.jf.intel.com with ESMTP; 26 Dec 2018 05:37:02 -0800
-Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
-	(envelope-from <fengguang.wu@intel.com>)
-	id 1gc9Mr-0005PX-NY; Wed, 26 Dec 2018 21:37:01 +0800
-Message-Id: <20181226133352.303666865@intel.com>
-User-Agent: quilt/0.65
-Date: Wed, 26 Dec 2018 21:15:07 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-cc: Linux Memory Management List <linux-mm@kvack.org>,
- Fengguang Wu <fengguang.wu@intel.com>
-cc: kvm@vger.kernel.org
-Cc: LKML <linux-kernel@vger.kernel.org>
-cc: Fan Du <fan.du@intel.com>
-cc: Yao Yuan <yuan.yao@intel.com>
-cc: Peng Dong <dongx.peng@intel.com>
-cc: Huang Ying <ying.huang@intel.com>
-CC: Liu Jingqi <jingqi.liu@intel.com>
-cc: Dong Eddie <eddie.dong@intel.com>
-cc: Dave Hansen <dave.hansen@intel.com>
-cc: Zhang Yi <yi.z.zhang@linux.intel.com>
-cc: Dan Williams <dan.j.williams@intel.com>
-Subject: [RFC][PATCH v2 21/21] mm/vmscan.c: shrink anon list if can migrate to PMEM
-References: <20181226131446.330864849@intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EzYAlMUO;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=kitNRdDq9qDxhqv/cqY0Zh5BAxoT0axpEmlNVpYcbmE=;
+        b=EzYAlMUOklMugVTu4yYZGxXNl4hINns0BIBJ5Nyh+SiXyQZO3k1/YmOAXpsklfPAO9
+         iDjpstitfhNRBht1mAjbRylNtGX/qD7buZ6ZeNkLPTTkq+7i3RsoxtRKoxTGkPBVjWvU
+         ewhbp9fp+SmSCfmGn6nODKNhk6WX3dvwgudwU6EjHkBWxXVyLzXBNAmnZCB6z35uzkPb
+         Yuu3uQxriVsO8cyk40d27EsqUa+WVfd4Nl0ZtFjBqXyXizvXzewwA2Kx7e7/1/OvhDt6
+         C8HXTXX4cBfndyrt6+ttMQgPjv4dEhaa9oIj2jWENm1ZqGpTtOP7wRhMtO1SGZvml2dn
+         imYA==
+X-Google-Smtp-Source: AFSGD/XEZnUUKwSUwh3xXDYzi3sA4iQ+mQgXPP42OF+kde+qmR73SafRNdS5zRrl3g5eSHL8MfxiCu4AX/ZyOOBLntQ=
+X-Received: by 2002:a19:2906:: with SMTP id p6mr9556966lfp.17.1545831490237;
+ Wed, 26 Dec 2018 05:38:10 -0800 (PST)
 MIME-Version: 1.0
+References: <20181224131841.GA22017@jordon-HP-15-Notebook-PC> <20181224152059.GA26090@n2100.armlinux.org.uk>
+In-Reply-To: <20181224152059.GA26090@n2100.armlinux.org.uk>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Wed, 26 Dec 2018 19:11:57 +0530
+Message-ID:
+ <CAFqt6za-vq4GihKbSJjF1_=_xnWvBbpCQDf8iuhF0e8XJY4JVA@mail.gmail.com>
+Subject: Re: [PATCH v5 0/9] Use vm_insert_range
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, 
+	Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, 
+	Peter Zijlstra <peterz@infradead.org>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, 
+	treding@nvidia.com, Kees Cook <keescook@chromium.org>, 
+	Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, 
+	Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, 
+	joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, 
+	mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
+	Juergen Gross <jgross@suse.com>, linux-rockchip@lists.infradead.org, 
+	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, 
+	xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, 
+	iommu@lists.linux-foundation.org, linux1394-devel@lists.sourceforge.net, 
+	linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline; filename=0013-vmscan-disable-0-swap-space-optimization.patch
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181226131507.8wiaOSPmQ8sdS6YXVD9nMwnzPozUMUd9HTO0jL0d9HA@z>
+Message-ID: <20181226134157.crByNvUSh5qkktZaehtdWXg4Wi7WBaCLSCewOnWBjrw@z>
 
-Fix OOM by making in-kernel DRAM=>PMEM migration reachable.
+On Mon, Dec 24, 2018 at 8:51 PM Russell King - ARM Linux
+<linux@armlinux.org.uk> wrote:
+>
+> Having discussed with Matthew offlist, I think we've come to the
+> following conclusion - there's a number of drivers that buggily
+> ignore vm_pgoff.
+>
+> So, what I proposed is:
+>
+> static int __vm_insert_range(struct vm_struct *vma, struct page *pages,
+>                              size_t num, unsigned long offset)
+> {
+>         unsigned long count = vma_pages(vma);
+>         unsigned long uaddr = vma->vm_start;
+>         int ret;
+>
+>         /* Fail if the user requested offset is beyond the end of the object */
+>         if (offset > num)
+>                 return -ENXIO;
+>
+>         /* Fail if the user requested size exceeds available object size */
+>         if (count > num - offset)
+>                 return -ENXIO;
+>
+>         /* Never exceed the number of pages that the user requested */
+>         for (i = 0; i < count; i++) {
+>                 ret = vm_insert_page(vma, uaddr, pages[offset + i]);
+>                 if (ret < 0)
+>                         return ret;
+>                 uaddr += PAGE_SIZE;
+>         }
+>
+>         return 0;
+> }
+>
+> /*
+>  * Maps an object consisting of `num' `pages', catering for the user's
+>  * requested vm_pgoff
+>  */
+> int vm_insert_range(struct vm_struct *vma, struct page *pages, size_t num)
+> {
+>         return __vm_insert_range(vma, pages, num, vma->vm_pgoff);
+> }
+>
+> /*
+>  * Maps a set of pages, always starting at page[0]
+>  */
+> int vm_insert_range_buggy(struct vm_struct *vma, struct page *pages, size_t num)
+> {
+>         return __vm_insert_range(vma, pages, num, 0);
+> }
+>
+> With this, drivers such as iommu/dma-iommu.c can be converted thusly:
+>
+>  int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma+)
+>  {
+> -       unsigned long uaddr = vma->vm_start;
+> -       unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+> -       int ret = -ENXIO;
+> -
+> -       for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
+> -               ret = vm_insert_page(vma, uaddr, pages[i]);
+> -               if (ret)
+> -                       break;
+> -               uaddr += PAGE_SIZE;
+> -       }
+> -       return ret;
+> +       return vm_insert_range(vma, pages, PAGE_ALIGN(size) >> PAGE_SHIFT);
+> }
+>
+> and drivers such as firewire/core-iso.c:
+>
+>  int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
+>                           struct vm_area_struct *vma)
+>  {
+> -       unsigned long uaddr;
+> -       int i, err;
+> -
+> -       uaddr = vma->vm_start;
+> -       for (i = 0; i < buffer->page_count; i++) {
+> -               err = vm_insert_page(vma, uaddr, buffer->pages[i]);
+> -               if (err)
+> -                       return err;
+> -
+> -               uaddr += PAGE_SIZE;
+> -       }
+> -
+> -       return 0;
+> +       return vm_insert_range_buggy(vma, buffer->pages, buffer->page_count);
+> }
+>
+> and this gives us something to grep for to find these buggy drivers.
+>
+> Now, this may not look exactly equivalent, but if you look at
+> fw_device_op_mmap(), buffer->page_count is basically vma_pages(vma)
+> at this point, which means this should be equivalent.
+>
+> We _could_ then at a later date "fix" these drivers to behave according
+> to the normal vm_pgoff offsetting simply by removing the _buggy suffix
+> on the function name... and if that causes regressions, it gives us an
+> easy way to revert (as long as vm_insert_range_buggy() remains
+> available.)
+>
+> In the case of firewire/core-iso.c, it currently ignores the mmap offset
+> entirely, so making the above suggested change would be tantamount to
+> causing it to return -ENXIO for any non-zero mmap offset.
+>
+> IMHO, this approach is way simpler, and easier to get it correct at
+> each call site, rather than the current approach which seems to be
+> error-prone.
 
-Here we assume these 2 possible demotion paths:
-- DRAM migrate to PMEM
-- PMEM to swap device
-
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- mm/vmscan.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
---- linux.orig/mm/vmscan.c	2018-12-23 20:38:44.310446223 +0800
-+++ linux/mm/vmscan.c	2018-12-23 20:38:44.306446146 +0800
-@@ -2259,7 +2259,7 @@ static bool inactive_list_is_low(struct
- 	 * If we don't have swap space, anonymous page deactivation
- 	 * is pointless.
- 	 */
--	if (!file && !total_swap_pages)
-+	if (!file && (is_node_pmem(pgdat->node_id) && !total_swap_pages))
- 		return false;
- 
- 	inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
-@@ -2340,7 +2340,8 @@ static void get_scan_count(struct lruvec
- 	enum lru_list lru;
- 
- 	/* If we have no swap space, do not bother scanning anon pages. */
--	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
-+	if (is_node_pmem(pgdat->node_id) &&
-+	    (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0)) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
- 	}
-
+Thanks Russell.
+I will drop this patch series and rework on it as suggested.
 
