@@ -2,158 +2,145 @@ Return-Path: <SRS0=eTfr=PD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 37908C43387
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 15:32:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94D7DC43387
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 22:22:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E9A5D214C6
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 15:32:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="Nm5ZwGWJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9A5D214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	by mail.kernel.org (Postfix) with ESMTP id 2F6AA214AE
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 22:22:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F6AA214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 772EF8E0003; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
+	id 7EC938E0008; Wed, 26 Dec 2018 17:22:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FA5F8E0001; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
+	id 79AE98E0001; Wed, 26 Dec 2018 17:22:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C2148E0003; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
+	id 615468E0008; Wed, 26 Dec 2018 17:22:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9EF8E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id x82so20038980ita.9
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 07:32:12 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 33C7F8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 17:22:41 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id a199so21608763qkb.23
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 14:22:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=VNidTVK9BknK48wMc2d/FhziRGCtZRNJAoalJxL7/b4=;
-        b=DPuiaMEgNUmS9gCtjaPHv6AsxcYbpwuiW6slUIpMZ0BIbffTKT87tgJzbYXaMzLfwD
-         horkXTpX0tSWeyem5MhrvuvTIwJ8+tNeM0SzwQJ6Unede6yOsKNCj5p2FFMgLYnKtxu5
-         eRl+82rI79ci6BF0zaj8em6mAkzhwMxmOWaQWuMSilCH+wbiokWqQK5ZluLIeCFdyv3/
-         liMjOZDCt3Kqc+AfEA7nNxZB1gqdAe3eUZUrFTRLbY6xa8kiRsltH5SlQQLQgHLrwwt0
-         jObT22VK2opNzf3zG6yZr8wKNtdJt3bUR/Lx+x+mLmgaJxrD9Z5A0LFV/mN8JXUYQJlK
-         8feA==
-X-Gm-Message-State: AJcUukf4dSFEcZoKb8VwQ2vHB/jznzjjar+B9U80ITPqmFfSV6yNqdNW
-	25cj5d8uIyWs+uM8zeVgnOS5WMvwgAEe1GtTuH/DWAHLss3Zt3zk3KMUEEsLsOGSFdFX29kNDwi
-	A3aZ0rianioocYGnWejgAI+CRTrTwzmHR6hN/j1idYJEMb//JBgdPxXqgJxRIV1z+wKA4TlVIvN
-	hcCX7UVpiWKVWPJbM6K8fVjethgn6/HPFFz35oTMMFhZlCQAxn1SWRD0IlejLUHxaiHvUJA8vYt
-	OQ4vMP4Pk4D2jv2aNvHxH7TGfo3E2yhwETi/xciqY5Y7uV4rW32KEZGrbcJJEzZ+GWU5Oi6k2RL
-	TimHvewdkN4aruIlTkJ9dQIuOCWatQckxj8oXzLHwcfGLlfykDoinT4evGIvomw9xNdjG4oqjS0
-	H
-X-Received: by 2002:a6b:3a89:: with SMTP id h131mr13074308ioa.109.1545838331947;
-        Wed, 26 Dec 2018 07:32:11 -0800 (PST)
-X-Received: by 2002:a6b:3a89:: with SMTP id h131mr13074260ioa.109.1545838331110;
-        Wed, 26 Dec 2018 07:32:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545838331; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=6cAzG43IZW0KiebFxUSi6Wqm1nJEyZbTnx1VlBSSCk4=;
+        b=t08yLfRij6xyhtso0cCsMPw2kzd2f2qpesQssfOsyIviRpXqq/xDcFlSfX2NnBWc8j
+         9qUKWKxnxYztHfycqgArQ93wWvymnnt2DtUWP0YYdNNJ7WiK64+HKSeesee1WkQDd7US
+         VIrQN7ItBEDoVlNIDovDrb2m8tLEO/N2senDAAqVDz3CouxFMYtHtcohTwBP2pnXHl3a
+         Yg7jrGeSUDdgk0DV2gBgE+ykFeqiqdnBYzQ1Ix8t2zryXZ6w8oXNxTPjmn/ap83JlcKM
+         Z/2gPmY0Es4USDzL6jUQNO9weWFyEWhyz8tJ5aXcMFsb3AbQYJAlwa4O2NuHibzTKTdl
+         0Phw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUuke3N+eJqRv067bh4gM2Ua7+rFTZxZWeiMROoInAZfgHF1LArAaG
+	2J6MdaJp+c6urzfvpqejyThaXDgHSZnNKMVq7wqFzfX3C1hXOSvsD5PdV465RWgiDUTcYvh6f/o
+	yAtqcT4ig8p7/hoi9uCfFzTEjn2Y9z4PGb2ZZck8nBibiaBThxjmOmVWH4xSGpkbeqg==
+X-Received: by 2002:a0c:9292:: with SMTP id b18mr20258324qvb.187.1545862960975;
+        Wed, 26 Dec 2018 14:22:40 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5Yu4LW/LNJkdu/6k21D/6ytsACdpQU8W6vQDWSOz69XnHyJTw3I6jeJ69+yfJdpXBUofxl
+X-Received: by 2002:a0c:9292:: with SMTP id b18mr20258302qvb.187.1545862960349;
+        Wed, 26 Dec 2018 14:22:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545862960; cv=none;
         d=google.com; s=arc-20160816;
-        b=OAa/1TTkNbIZN4TguaU9VFSYX0inWYHa0c7vjP2k4mhGu2LEiHvZE79x2yVLoIEwGl
-         wn851/eOvVXwnjnBfs3dhuFdt00Nu8hGL5mhvSQ1LhLIaat6vS2efJi0du1ffPatxe86
-         KlqcooPs7LgNPpn6iSTuRq2TQ9YCi7trKMM/iuOfoz1tLKPHK4mNAkSCiLK/rfHz2BwQ
-         Ldl6tqbBPHaRGD3fPXkZIKtc3Cei4/8b+sOyUmGlAkLNPEa5zNXZUfai9gcOCFHMVtR9
-         z29jMLii7FIygKUEp90DFTsvOt54p8LCB8Q+iw1zs1ye2HHzbPNSp6sn8Ve/LoP/n4Jg
-         QHxA==
+        b=t2MRi/f/vUlsS1Jo5Jj7mJhOsP30/QRbai+Rj94yhBaIX8Gj/lQ4JnkOwcW2BmwIoI
+         BjTmQ62wzG5pUoxwTOHWa40rop2LY6lrbfVFAWidbCXKTZmZLHAtrYi6iRSi2TCk4q4L
+         R4j+D92QgdyDkjtVPoaeUvmVFyZtCJEiGWy/tcBaHhwlElssVTXIN5D0znbU4/n8ydY1
+         HnZ/5Z5ZSRt+g37f0pd0W5HmTYt12y5co0uvIiRLgLemoRFzFcFrchzA7gMESe5zfY4a
+         eIkUjyL7aZIRNQXQFYyWhZPyNwSHvdRnHTPt6wHNPBGBBLk4axoOwq8aRHBw9FYuNYnn
+         4Faw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=VNidTVK9BknK48wMc2d/FhziRGCtZRNJAoalJxL7/b4=;
-        b=gbFPvM19NIBrwPx/o65t/EiuQlH3jMAZyz/azKLS/V3k4EXCjUGUeHz8o9AL10Fd/m
-         SwDfrU+H7QoDSd4JaRlGpPnYsH9yvQjOq0GvPI44je8CCg1loCV6V3OBjpXFJi+GwI3Q
-         karb+y/3LgrgtMYlFjSguilwHlZNnMmDtAggs1oQKBb1tEfagLrXxlGFlMgx9BuEO0s4
-         0SEtglGmmd/ja+fVUTFj/VpDe19XKC8hHo2b8B/BgHocN+dgfKDCJMnCXsOIYHoyrKkm
-         ocqTyyaKugOyR6M4S6gUP9eNyX31BamgJbugfE7ZCw+bXuTI57Gblbu1l/5w+edUzToM
-         lz3g==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=6cAzG43IZW0KiebFxUSi6Wqm1nJEyZbTnx1VlBSSCk4=;
+        b=AGxWj9TqLf9nKiTXqddI29f+sDLTJK+bLbDh5oNz/rX0q9dc5sAdascGWPUFxM7753
+         gzw6uwR1y2swiN4HIRjRgnFY216bhwgzPanRAdtC7A+ocQqoWEGisBcoIbQkNWFeXhbU
+         /zrclghJYAI7xRgmgo4WxYekDV2BpeZDHN7ezirU5c9pAwYRfUabCuXNVyW4PIo0UmGQ
+         YwyC3vhv2eBNE5kV8yPj71TwfJxzxZNc4CNxMTPAOZkgDOkNOD+yPbUeR5Iqt0r5RCqE
+         paU0f16u34zJbwuUrUTtTdPxLoLyj7G4PVyDxzHvyxsJT0DH2T5zbCSCA9T4ZhRIkeKZ
+         4Z2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=Nm5ZwGWJ;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h68sor15020524iof.5.2018.12.26.07.32.10
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r63si12972191qkb.132.2018.12.26.14.22.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 26 Dec 2018 07:32:11 -0800 (PST)
-Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Dec 2018 14:22:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=Nm5ZwGWJ;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=VNidTVK9BknK48wMc2d/FhziRGCtZRNJAoalJxL7/b4=;
-        b=Nm5ZwGWJMdkqCjEVY+whgnyQ+MTEuI/TPc20xQ+nY6GSGgEmNZusZIG/7FYK4nXKrD
-         6rblYMPJpq13TXO9Fx/2aPiAYB5p5RaJVdbwBoJcQ6O53Q9+9yyHIhzSy2CC9BYQdLJF
-         nn/Uer+CS8PECw2iNj8l4XJ85zY3S4ounApvM=
-X-Google-Smtp-Source: ALg8bN71ryeAV+qhfPw9GFhJo3aKcTrOxuxSO1CaHSSYuptFZmyAyO2hjX80J2gNwnyQQiYLF4gdKSIOIFiZrCgVHME=
-X-Received: by 2002:a6b:5d01:: with SMTP id r1mr13163263iob.170.1545838330629;
- Wed, 26 Dec 2018 07:32:10 -0800 (PST)
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 62F7E155E4;
+	Wed, 26 Dec 2018 22:22:39 +0000 (UTC)
+Received: from redhat.com (ovpn-120-211.rdu2.redhat.com [10.10.120.211])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 92119608E2;
+	Wed, 26 Dec 2018 22:22:38 +0000 (UTC)
+Date: Wed, 26 Dec 2018 17:22:36 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Aditya Pakki <pakki001@umn.edu>
+Cc: kjlu@umn.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] hmm: Warn on devres_release failure
+Message-ID: <20181226222236.GA4931@redhat.com>
+References: <20181226180904.8193-1-pakki001@umn.edu>
 MIME-Version: 1.0
-References: <20181226023534.64048-1-cai@lca.pw> <CAKv+Gu_fiEDffKq_fONBYTOdSk-L7__+LgNEyVaNF3FGzBfAow@mail.gmail.com>
- <403405f1-b702-2feb-4616-35fc3dc3133e@lca.pw>
-In-Reply-To: <403405f1-b702-2feb-4616-35fc3dc3133e@lca.pw>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Wed, 26 Dec 2018 16:31:59 +0100
-Message-ID:
- <CAKv+Gu_e=NkKZ5C+KzBmgg2VMXNKPqXcPON8heRd0F_iW+aaEQ@mail.gmail.com>
-Subject: Re: [PATCH -mmotm] efi: drop kmemleak_ignore() for page allocator
-To: Qian Cai <cai@lca.pw>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Catalin Marinas <catalin.marinas@arm.com>, Linux-MM <linux-mm@kvack.org>, 
-	linux-efi <linux-efi@vger.kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181226180904.8193-1-pakki001@umn.edu>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 26 Dec 2018 22:22:39 +0000 (UTC)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000005, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181226153159.XscFKhWWeaYNTuXG8lhBuibjTm76IZfSZpSNj2I8A4I@z>
+Message-ID: <20181226222236.cCH81BSQO23jiwKiYaI_jjBa4x9C-VUoKfhaTnCol9k@z>
 
-On Wed, 26 Dec 2018 at 16:13, Qian Cai <cai@lca.pw> wrote:
->
-> On 12/26/18 7:02 AM, Ard Biesheuvel wrote:
-> > On Wed, 26 Dec 2018 at 03:35, Qian Cai <cai@lca.pw> wrote:
-> >>
-> >> a0fc5578f1d (efi: Let kmemleak ignore false positives) is no longer
-> >> needed due to efi_mem_reserve_persistent() uses __get_free_page()
-> >> instead where kmemelak is not able to track regardless. Otherwise,
-> >> kernel reported "kmemleak: Trying to color unknown object at
-> >> 0xffff801060ef0000 as Black"
-> >>
-> >> Signed-off-by: Qian Cai <cai@lca.pw>
-> >
-> > Why are you sending this to -mmotm?
-> >
-> > Andrew, please disregard this patch. This is EFI/tip material.
->
-> Well, I'd like to primarily develop on the -mmotm tree as it fits in a
-> sweet-spot where the mainline is too slow and linux-next is too chaotic.
->
-> The bug was reproduced and the patch was tested on -mmotm. If for every bugs
-> people found in -mmtom, they have to check out the corresponding sub-system tree
-> and reproduce/verify the bug over there, that is quite a burden to bear.
->
+On Wed, Dec 26, 2018 at 12:09:04PM -0600, Aditya Pakki wrote:
+> devres_release can return -ENOENT if the device is not freed. The fix
+> throws a warning consistent with other invocations.
+> 
+> Signed-off-by: Aditya Pakki <pakki001@umn.edu>
 
-Yes. But you know what? We all have our burden to bear, and shifting
-this burden to someone else, in this case the subsystem maintainer who
-typically deals with a sizable workload already, is not a very nice
-thing to do.
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-> That's why sub-system maintainers are copied on those patches, so they can
-> decide to fix directly in the sub-system tree instead of -mmotm, and then it
-> will propagate to -mmotm one way or another.
->
-
-Please stop sending EFI patches if you can't be bothered to
-test/reproduce against the EFI tree.
-
-Thanks,
-Ard.
+> ---
+>  mm/hmm.c | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 90c34f3d1243..b06e3f092fbf 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -1183,8 +1183,12 @@ static int hmm_devmem_match(struct device *dev, void *data, void *match_data)
+>  
+>  static void hmm_devmem_pages_remove(struct hmm_devmem *devmem)
+>  {
+> -	devres_release(devmem->device, &hmm_devmem_release,
+> -		       &hmm_devmem_match, devmem->resource);
+> +	int rc;
+> +
+> +	rc = devres_release(devmem->device, &hmm_devmem_release,
+> +				&hmm_devmem_match, devmem->resource);
+> +	if (rc)
+> +		WARN_ON(rc);
+>  }
+>  
+>  /*
+> -- 
+> 2.17.1
+> 
 
