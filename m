@@ -1,263 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2550F8E006F
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2018 20:05:54 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id h11so11241000pfj.13
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2018 17:05:54 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id i1si11402278pfj.276.2018.12.10.17.05.52
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 16CD88E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id d3so15186482pgv.23
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:38:44 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id p11si31508288plk.191.2018.12.26.05.37.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Dec 2018 17:05:52 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv2 09/12] node: Add memory caching attributes
-Date: Mon, 10 Dec 2018 18:03:07 -0700
-Message-Id: <20181211010310.8551-10-keith.busch@intel.com>
-In-Reply-To: <20181211010310.8551-1-keith.busch@intel.com>
-References: <20181211010310.8551-1-keith.busch@intel.com>
+        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+Message-Id: <20181226133352.076749877@intel.com>
+Date: Wed, 26 Dec 2018 21:15:03 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [RFC][PATCH v2 17/21] proc: introduce /proc/PID/idle_pages
+References: <20181226131446.330864849@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=0008-proc-introduce-proc-PID-idle_pages.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Huang Ying <ying.huang@intel.com>, Brendan Gregg <bgregg@netflix.com>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-System memory may have side caches to help improve access speed. While
-the system provided cache is transparent to the software accessing
-these memory ranges, applications can optimize their own access based
-on cache attributes.
+This will be similar to /sys/kernel/mm/page_idle/bitmap documented in
+Documentation/admin-guide/mm/idle_page_tracking.rst, however indexed
+by process virtual address.
 
-Provide a new API for the kernel to register these memory side caches
-under the memory node that provides it.
+When using the global PFN indexed idle bitmap, we find 2 kind of
+overheads:
 
-The kernel's sysfs representation is modeled from the cpu cacheinfo
-attributes, as seen from /sys/devices/system/cpu/cpuX/side_cache/.
-Unlike CPU cacheinfo, though, the node cache level is reported from
-the view of the memory.  A higher number is nearer to the CPU, while
-lower levels are closer to the backing memory. Also unlike CPU cache,
-it is assumed the system will handle flushing any dirty cached memory to
-the last level the memory on a power failure if the range is persistent
-memory.
+- to track a task's working set, Brendan Gregg end up writing wss-v1
+  for small tasks and wss-v2 for large tasks:
 
-The attributes we export are the cache size, the line size, associativity,
-and write back policy.
+  https://github.com/brendangregg/wss
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
+  That's because VAs may point to random PAs throughout the physical
+  address space. So we either query /proc/pid/pagemap first and access
+  the lots of random PFNs (with lots of syscalls) in the bitmap, or
+  write+read the whole system idle bitmap beforehand.
+
+- page table walking by PFN has much more overheads than to walk a
+  page table in its natural order:
+  - rmap queries
+  - more locking
+  - random memory reads/writes
+
+This interface provides a cheap path for the majority non-shared mapping
+pages. To walk 1TB memory of 4k active pages, it costs 2s vs 15s system
+time to scan the per-task/global idle bitmaps. Which means ~7x speedup.
+The gap will be enlarged if consider
+
+- the extra /proc/pid/pagemap walk
+- natural page table walks can skip the whole 512 PTEs if PMD is idle
+
+OTOH, the per-task idle bitmap is not suitable in some situations:
+
+- not accurate for shared pages
+- don't work with non-mapped file pages
+- don't perform well for sparse page tables (pointed out by Huang Ying)
+
+So it's more about complementing the existing global idle bitmap.
+
+CC: Huang Ying <ying.huang@intel.com>
+CC: Brendan Gregg <bgregg@netflix.com>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
- drivers/base/node.c  | 140 +++++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/node.h |  23 +++++++++
- 2 files changed, 163 insertions(+)
+ fs/proc/base.c     |    2 +
+ fs/proc/internal.h |    1 
+ fs/proc/task_mmu.c |   54 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 768612c06c56..54184424ca7f 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -17,6 +17,7 @@
- #include <linux/nodemask.h>
- #include <linux/cpu.h>
- #include <linux/device.h>
-+#include <linux/pm_runtime.h>
- #include <linux/swap.h>
- #include <linux/slab.h>
- 
-@@ -141,6 +142,143 @@ void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs)
- 		pr_info("failed to add performance attribute group to node %d\n",
- 			nid);
- }
-+
-+struct node_cache_info {
-+	struct device dev;
-+	struct list_head node;
-+	struct node_cache_attrs cache_attrs;
-+};
-+#define to_cache_info(device) container_of(device, struct node_cache_info, dev)
-+
-+#define CACHE_ATTR(name, fmt) 							\
-+static ssize_t name##_show(struct device *dev,					\
-+			   struct device_attribute *attr,			\
-+			   char *buf)						\
-+{										\
-+	return sprintf(buf, fmt "\n", to_cache_info(dev)->cache_attrs.name);	\
-+}										\
-+DEVICE_ATTR_RO(name);
-+
-+CACHE_ATTR(size, "%lld")
-+CACHE_ATTR(level, "%d")
-+CACHE_ATTR(line_size, "%d")
-+CACHE_ATTR(associativity, "%d")
-+CACHE_ATTR(write_policy, "%d")
-+
-+static struct attribute *cache_attrs[] = {
-+	&dev_attr_level.attr,
-+	&dev_attr_associativity.attr,
-+	&dev_attr_size.attr,
-+	&dev_attr_line_size.attr,
-+	&dev_attr_write_policy.attr,
-+	NULL,
-+};
-+
-+const struct attribute_group node_cache_attrs_group = {
-+	.attrs = cache_attrs,
-+};
-+
-+const struct attribute_group *node_cache_attrs_groups[] = {
-+	&node_cache_attrs_group,
-+	NULL,
-+};
-+
-+static void node_release(struct device *dev)
-+{
-+	kfree(dev);
-+}
-+
-+static void node_cache_release(struct device *dev)
-+{
-+	struct node_cache_info *info = to_cache_info(dev);
-+	kfree(info);
-+}
-+
-+static void node_init_cache_dev(struct node *node)
-+{
-+	struct device *dev;
-+
-+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-+	if (!dev)
-+		return;
-+
-+	dev->parent = &node->dev;
-+	dev->release = node_release;
-+	dev_set_name(dev, "side_cache");
-+
-+	if (device_register(dev)) {
-+		kfree(dev);
-+		return;
-+	}
-+	pm_runtime_no_callbacks(dev);
-+	node->cache_dev = dev;
-+}
-+
-+void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
-+{
-+	struct node_cache_info *info;
-+	struct device *dev;
-+	struct node *node;
-+
-+	if (!node_online(nid) || !node_devices[nid])
-+		return;
-+
-+	node = node_devices[nid];
-+	list_for_each_entry(info, &node->cache_attrs, node) {
-+		if (info->cache_attrs.level == cache_attrs->level) {
-+			dev_warn(&node->dev,
-+				"attempt to add duplicate cache level:%d\n",
-+				cache_attrs->level);
-+			return;
-+		}
-+	}
-+
-+	if (!node->cache_dev)
-+		node_init_cache_dev(node);
-+	if (!node->cache_dev)
-+		return;
-+
-+	info = kzalloc(sizeof(*info), GFP_KERNEL);
-+	if (!info)
-+		return;
-+
-+	dev = &info->dev;
-+	dev->parent = node->cache_dev;
-+	dev->release = node_cache_release;
-+	dev->groups = node_cache_attrs_groups;
-+	dev_set_name(dev, "index%d", cache_attrs->level);
-+	info->cache_attrs = *cache_attrs;
-+	if (device_register(dev)) {
-+		dev_warn(&node->dev, "failed to add cache level:%d\n",
-+			 cache_attrs->level);
-+		kfree(info);
-+		return;
-+	}
-+	pm_runtime_no_callbacks(dev);
-+	list_add_tail(&info->node, &node->cache_attrs);
-+}
-+
-+static void node_remove_caches(struct node *node)
-+{
-+	struct node_cache_info *info, *next;
-+
-+	if (!node->cache_dev)
-+		return;
-+
-+	list_for_each_entry_safe(info, next, &node->cache_attrs, node) {
-+		list_del(&info->node);
-+		device_unregister(&info->dev);
-+	}
-+	device_unregister(node->cache_dev);
-+}
-+
-+static void node_init_caches(unsigned int nid)
-+{
-+	INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
-+}
-+#else
-+static void node_init_caches(unsigned int nid) { }
-+static void node_remove_caches(struct node *node) { }
+--- linux.orig/fs/proc/base.c	2018-12-23 20:08:14.228919325 +0800
++++ linux/fs/proc/base.c	2018-12-23 20:08:14.224919327 +0800
+@@ -2969,6 +2969,7 @@ static const struct pid_entry tgid_base_
+ 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+ 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+ 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
++	REG("idle_pages", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
  #endif
- 
- #define K(x) ((x) << (PAGE_SHIFT - 10))
-@@ -389,6 +527,7 @@ static void node_device_release(struct device *dev)
- 	 */
- 	flush_work(&node->node_work);
+ #ifdef CONFIG_SECURITY
+ 	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+@@ -3357,6 +3358,7 @@ static const struct pid_entry tid_base_s
+ 	REG("smaps",     S_IRUGO, proc_pid_smaps_operations),
+ 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+ 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
++	REG("idle_pages", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
  #endif
-+	node_remove_caches(node);
- 	kfree(node);
- }
+ #ifdef CONFIG_SECURITY
+ 	DIR("attr",      S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+--- linux.orig/fs/proc/internal.h	2018-12-23 20:08:14.228919325 +0800
++++ linux/fs/proc/internal.h	2018-12-23 20:08:14.224919327 +0800
+@@ -298,6 +298,7 @@ extern const struct file_operations proc
+ extern const struct file_operations proc_pid_smaps_rollup_operations;
+ extern const struct file_operations proc_clear_refs_operations;
+ extern const struct file_operations proc_pagemap_operations;
++extern const struct file_operations proc_mm_idle_operations;
  
-@@ -711,6 +850,7 @@ int __register_one_node(int nid)
- 
- 	/* initialize work queue for memory hot plug */
- 	init_node_hugetlb_work(nid);
-+	node_init_caches(nid);
- 
- 	return error;
- }
-diff --git a/include/linux/node.h b/include/linux/node.h
-index 71abaf0d4f4b..897e04e99e80 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -36,6 +36,27 @@ struct node_hmem_attrs {
- 	unsigned int write_latency;
+ extern unsigned long task_vsize(struct mm_struct *);
+ extern unsigned long task_statm(struct mm_struct *,
+--- linux.orig/fs/proc/task_mmu.c	2018-12-23 20:08:14.228919325 +0800
++++ linux/fs/proc/task_mmu.c	2018-12-23 20:08:14.224919327 +0800
+@@ -1559,6 +1559,60 @@ const struct file_operations proc_pagema
+ 	.open		= pagemap_open,
+ 	.release	= pagemap_release,
  };
- void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs);
 +
-+enum cache_associativity {
-+	NODE_CACHE_DIRECT_MAP,
-+	NODE_CACHE_INDEXED,
-+	NODE_CACHE_OTHER,
++/* will be filled when kvm_ept_idle module loads */
++struct file_operations proc_ept_idle_operations = {
++};
++EXPORT_SYMBOL_GPL(proc_ept_idle_operations);
++
++static ssize_t mm_idle_read(struct file *file, char __user *buf,
++			    size_t count, loff_t *ppos)
++{
++	if (proc_ept_idle_operations.read)
++		return proc_ept_idle_operations.read(file, buf, count, ppos);
++
++	return 0;
++}
++
++
++static int mm_idle_open(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm = proc_mem_open(inode, PTRACE_MODE_READ);
++
++	if (IS_ERR(mm))
++		return PTR_ERR(mm);
++
++	file->private_data = mm;
++
++	if (proc_ept_idle_operations.open)
++		return proc_ept_idle_operations.open(inode, file);
++
++	return 0;
++}
++
++static int mm_idle_release(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm = file->private_data;
++
++	if (mm) {
++		if (!mm_kvm(mm))
++			flush_tlb_mm(mm);
++		mmdrop(mm);
++	}
++
++	if (proc_ept_idle_operations.release)
++		return proc_ept_idle_operations.release(inode, file);
++
++	return 0;
++}
++
++const struct file_operations proc_mm_idle_operations = {
++	.llseek		= mem_lseek, /* borrow this */
++	.read		= mm_idle_read,
++	.open		= mm_idle_open,
++	.release	= mm_idle_release,
 +};
 +
-+enum cache_write_policy {
-+	NODE_CACHE_WRITE_BACK,
-+	NODE_CACHE_WRITE_THROUGH,
-+	NODE_CACHE_WRITE_OTHER,
-+};
-+
-+struct node_cache_attrs {
-+	enum cache_associativity associativity;
-+	enum cache_write_policy write_policy;
-+	u64 size;
-+	u16 line_size;
-+	u8  level;
-+};
-+void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
- #endif
+ #endif /* CONFIG_PROC_PAGE_MONITOR */
  
- struct node {
-@@ -48,6 +69,8 @@ struct node {
- #endif
- #ifdef CONFIG_HMEM_REPORTING
- 	struct node_hmem_attrs hmem_attrs;
-+	struct list_head cache_attrs;
-+	struct device *cache_dev;
- #endif
- };
- 
--- 
-2.14.4
+ #ifdef CONFIG_NUMA
