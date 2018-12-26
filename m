@@ -1,114 +1,109 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EC07C8E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 11:05:21 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c18so22928512edt.23
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 08:05:21 -0800 (PST)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00092.outbound.protection.outlook.com. [40.107.0.92])
-        by mx.google.com with ESMTPS id v2si199799eds.105.2018.12.27.08.05.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Dec 2018 08:05:20 -0800 (PST)
-From: Konstantin Khorenko <khorenko@virtuozzo.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Wed, 26 Dec 2018 12:53:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 1/1] mm/page_alloc: add a warning about high order
  allocations
-Date: Thu, 27 Dec 2018 16:05:18 +0000
-Message-ID: <12c71c7a-7896-df73-7ab4-eab5b6fc1fb0@virtuozzo.com>
+Message-ID: <20181226115355.GJ16738@dhcp22.suse.cz>
 References: <20181225153927.2873-1-khorenko@virtuozzo.com>
  <20181225153927.2873-2-khorenko@virtuozzo.com>
  <20181226084051.GH16738@dhcp22.suse.cz>
-In-Reply-To: <20181226084051.GH16738@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <F5DA047DB146DC41AC1145435191EEC7@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Sender: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181226084051.GH16738@dhcp22.suse.cz>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Konstantin Khorenko <khorenko@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>
 
-T24gMTIvMjYvMjAxOCAxMTo0MCBBTSwgTWljaGFsIEhvY2tvIHdyb3RlOg0KPiBBcHBhcnQgZnJv
-bSBnZW5lcmFsIGNvbW1lbnRzIGFzIGEgcmVwbHkgdG8gdGhlIGNvdmVyIChidHcuIHRoaXMgYWxs
-DQo+IHNob3VsZCBiZSBpbiB0aGUgY2hhbmdlbG9nIGJlY2F1c2UgdGhpcyBpcyB0aGUgX3doeV8g
-cGFydCBvZiB0aGUNCj4ganVzdGlmaWNhdGlvbiB3aGljaCBzaG91bGQgYmUgX2Fsd2F5c18gcGFy
-dCBvZiB0aGUgY2hhbmdlbG9nKS4NCg0KVGhhbmsgeW91LCB3aWxsIGFkZCBpbiB0aGUgbmV4dCB2
-ZXJzaW9uIG9mIHRoZSBwYXRjaCBhbGx0b2dldGhlcg0Kd2l0aCBvdGhlciBjaGFuZ2VzIGlmIGFu
-eS4NCg0KPiBPbiBUdWUgMjUtMTItMTggMTg6Mzk6MjcsIEtvbnN0YW50aW4gS2hvcmVua28gd3Jv
-dGU6DQo+IFsuLi5dDQo+PiArY29uZmlnIFdBUk5fSElHSF9PUkRFUg0KPj4gKwlib29sICJFbmFi
-bGUgY29tcGxhaW5zIGFib3V0IGhpZ2ggb3JkZXIgbWVtb3J5IGFsbG9jYXRpb25zIg0KPj4gKwlk
-ZXBlbmRzIG9uICFMT0NLREVQDQo+DQo+IFdoeT8NCg0KTE9DS0RFUCBtYWtlcyBzdHJ1Y3R1cmVz
-IGJpZywgc28gaWYgd2Ugc2VlIGEgaGlnaCBvcmRlciBhbGxvY2F0aW9uIHdhcm5pbmcNCm9uIGEg
-ZGVidWcga2VybmVsIHdpdGggbG9ja2RlcCwgaXQgZG9lcyBub3QgZ2l2ZSB1cyBhIGxvdCAtIGxv
-Y2tkZXAgZW5hYmxlZA0Ka2VybmVsIHBlcmZvcm1hbmNlIGlzIG5vdCBvdXIgdGFyZ2V0Lg0KaSBj
-YW4gcmVtb3ZlICFMT0NLREVQIGRlcGVuZGVuY2UgaGVyZSwgYnV0IHRoZW4gbmVlZCB0byBhZGp1
-c3QgZGVmYXVsdA0Kd2FybmluZyBsZXZlbCBpIHRoaW5rLCBvciBsb2dzIHdpbGwgYmUgc3BhbW1l
-ZC4NCg0KPj4gKwlkZWZhdWx0IG4NCj4+ICsJaGVscA0KPj4gKwkgIEVuYWJsZXMgd2FybmluZ3Mg
-b24gaGlnaCBvcmRlciBtZW1vcnkgYWxsb2NhdGlvbnMuIFRoaXMgYWxsb3dzIHRvDQo+PiArCSAg
-ZGV0ZXJtaW5lIHVzZXJzIG9mIGxhcmdlIG1lbW9yeSBjaHVua3MgYW5kIHJld29yayB0aGVtIHRv
-IGRlY3JlYXNlDQo+PiArCSAgYWxsb2NhdGlvbiBsYXRlbmN5LiBOb3RlLCBzb21lIGRlYnVnIG9w
-dGlvbnMgbWFrZSBrZXJuZWwgc3RydWN0dXJlcw0KPj4gKwkgIGZhdC4NCj4+ICsNCj4+ICtjb25m
-aWcgV0FSTl9ISUdIX09SREVSX0xFVkVMDQo+PiArCWludCAiRGVmaW5lIHBhZ2Ugb3JkZXIgbGV2
-ZWwgY29uc2lkZXJlZCBhcyB0b28gaGlnaCINCj4+ICsJZGVwZW5kcyBvbiBXQVJOX0hJR0hfT1JE
-RVINCj4+ICsJZGVmYXVsdCAzDQo+PiArCWhlbHANCj4+ICsJICBEZWZpbmVzIHBhZ2Ugb3JkZXIg
-c3RhcnRpbmcgd2hpY2ggdGhlIHN5c3RlbSB0byBjb21wbGFpbiBhYm91dC4NCj4+ICsJICBEZWZh
-dWx0IGlzIGN1cnJlbnQgUEFHRV9BTExPQ19DT1NUTFlfT1JERVIuDQo+PiArDQo+PiAgY29uZmln
-IEhXUE9JU09OX0lOSkVDVA0KPj4gIAl0cmlzdGF0ZSAiSFdQb2lzb24gcGFnZXMgaW5qZWN0b3Ii
-DQo+PiAgCWRlcGVuZHMgb24gTUVNT1JZX0ZBSUxVUkUgJiYgREVCVUdfS0VSTkVMICYmIFBST0Nf
-RlMNCj4+IGRpZmYgLS1naXQgYS9tbS9wYWdlX2FsbG9jLmMgYi9tbS9wYWdlX2FsbG9jLmMNCj4+
-IGluZGV4IGU5NWI1YjdjOWMzZC4uMjU4ODkyYWRiODYxIDEwMDY0NA0KPj4gLS0tIGEvbW0vcGFn
-ZV9hbGxvYy5jDQo+PiArKysgYi9tbS9wYWdlX2FsbG9jLmMNCj4+IEBAIC00MzQxLDYgKzQzNDEs
-MzAgQEAgc3RhdGljIGlubGluZSB2b2lkIGZpbmFsaXNlX2FjKGdmcF90IGdmcF9tYXNrLCBzdHJ1
-Y3QgYWxsb2NfY29udGV4dCAqYWMpDQo+PiAgCQkJCQlhYy0+aGlnaF96b25laWR4LCBhYy0+bm9k
-ZW1hc2spOw0KPj4gIH0NCj4+DQo+PiArI2lmZGVmIENPTkZJR19XQVJOX0hJR0hfT1JERVINCj4+
-ICtpbnQgd2Fybl9vcmRlciA9IENPTkZJR19XQVJOX0hJR0hfT1JERVJfTEVWRUw7DQo+PiArDQo+
-PiArLyoNCj4+ICsgKiBDb21wbGFpbiBpZiB3ZSBhbGxvY2F0ZSBhIGhpZ2ggb3JkZXIgcGFnZSB1
-bmxlc3MgdGhlcmUgaXMgYSBfX0dGUF9OT1dBUk4NCj4+ICsgKiBmbGFnIHByb3ZpZGVkLg0KPj4g
-KyAqDQo+PiArICogU2h1dHMgdXAgYWZ0ZXIgMzIgY29tcGxhaW5zLg0KPj4gKyAqLw0KPj4gK3N0
-YXRpYyBfX2Fsd2F5c19pbmxpbmUgdm9pZCB3YXJuX2hpZ2hfb3JkZXIoaW50IG9yZGVyLCBnZnBf
-dCBnZnBfbWFzaykNCj4+ICt7DQo+PiArCXN0YXRpYyBhdG9taWNfdCB3YXJuX2NvdW50ID0gQVRP
-TUlDX0lOSVQoMzIpOw0KPj4gKw0KPj4gKwlpZiAob3JkZXIgPj0gd2Fybl9vcmRlciAmJiAhKGdm
-cF9tYXNrICYgX19HRlBfTk9XQVJOKSkNCj4+ICsJCVdBUk4oYXRvbWljX2RlY19pZl9wb3NpdGl2
-ZSgmd2Fybl9jb3VudCkgPj0gMCwNCj4+ICsJCSAgICAgIm9yZGVyICVkID49ICVkLCBnZnAgMHgl
-eFxuIiwNCj4+ICsJCSAgICAgb3JkZXIsIHdhcm5fb3JkZXIsIGdmcF9tYXNrKTsNCj4+ICt9DQo+
-DQo+IFdlIGRvIGhhdmUgcmF0ZWxpbWl0IGZ1bmN0aW9uYWxpdHksIHNvIHdoeSBjYW5ub3QgeW91
-IHVzZSBpdD8NCg0KV2VsbCwgbXkgaWRlYSB3YXMgdG8gcmVhbGx5IHNodXQgdXAgdGhlIHdhcm5p
-bmcgYWZ0ZXIgc29tZSBudW1iZXIgb2YgbWVzc2FnZXMNCihpZiBhIG5vZGUgaXMgaW4gcHJvZHVj
-dGlvbiBhbmQgaXRzIHVwdGltZSwgc2F5LCBhIHllYXIsIGkgZG9uJ3Qgd2FudCB0byBzZWUNCm1h
-bnkgd2FybmluZ3MgaW4gbG9ncywgZmlyc3Qgc2V2ZXJhbCBpcyBlbm91Z2ggLSBsZXQncyBmaXgg
-dGhlbSBmaXJzdCkuDQoNCklmIGkgdXNlIHByaW50a19yYXRlbGltaXRlZCgpIGkgY291bGQgZ2V0
-IDI0IGRheXMgZGVsYXkgYXQgbW9zdCBBRkFJSywNCmJ1dCBva2F5LCBpIGNhbiBzd2l0Y2ggdG8g
-cHJpbnRrX3JhdGVsaW1pdGVkKCkgaWYgeW91IHByZWZlci4NCg0Kc3RydWN0IHJhdGVsaW1pdF9z
-dGF0ZSB7DQogICAgICAgICBpbnQgICAgICAgICAgICAgaW50ZXJ2YWw7DQoNCihnZGIpIHAgKCgx
-TEw8PDMxKSAtMSkvMTAwMC82MC82MC8yNA0KJDExID0gMjQNCg0KPj4gKyNlbHNlDQo+PiArc3Rh
-dGljIF9fYWx3YXlzX2lubGluZSB2b2lkIHdhcm5faGlnaF9vcmRlcihpbnQgb3JkZXIsIGdmcF90
-IGdmcF9tYXNrKQ0KPj4gK3sNCj4+ICt9DQo+PiArI2VuZGlmDQo+PiArDQo+PiAgLyoNCj4+ICAg
-KiBUaGlzIGlzIHRoZSAnaGVhcnQnIG9mIHRoZSB6b25lZCBidWRkeSBhbGxvY2F0b3IuDQo+PiAg
-ICovDQo+PiBAQCAtNDM2MSw2ICs0Mzg1LDcgQEAgX19hbGxvY19wYWdlc19ub2RlbWFzayhnZnBf
-dCBnZnBfbWFzaywgdW5zaWduZWQgaW50IG9yZGVyLCBpbnQgcHJlZmVycmVkX25pZCwNCj4+ICAJ
-CVdBUk5fT05fT05DRSghKGdmcF9tYXNrICYgX19HRlBfTk9XQVJOKSk7DQo+PiAgCQlyZXR1cm4g
-TlVMTDsNCj4+ICAJfQ0KPj4gKwl3YXJuX2hpZ2hfb3JkZXIob3JkZXIsIGdmcF9tYXNrKTsNCj4+
-DQo+PiAgCWdmcF9tYXNrICY9IGdmcF9hbGxvd2VkX21hc2s7DQo+PiAgCWFsbG9jX21hc2sgPSBn
-ZnBfbWFzazsNCj4NCj4gV2h5IGRvIHlvdSB3YXJuIGFib3V0IGFsbCBhbGxvY2F0aW9ucyBpbiB0
-aGUgaG90IHBhdGg/IEkgdGhvdWdodCB5b3UNCj4gd2FudCB0byBjYXRjaCBleHBlbnNpdmUgYWxs
-b2NhdGlvbnMgc28gSSB3b3VsZCBhc3N1bWUgdGhhdCB5b3Ugd291bGQNCj4gc3RpY2sgdGhhdCBp
-bnRvIGEgc2xvdyBwYXRoIGFmdGVyIHdlIGFyZSBub3QgYWJsZSB0byBhbGxvY2F0ZSBhbnl0aGlu
-Zw0KPiBhZnRlciB0aGUgZmlyc3Qgcm91bmQgb2YgY29tcGFjdGlvbi4NCg0KVGhlIGlkZWEgaXMg
-dG8gY2F0Y2ggYmlnIGFsbG9jYXRpb25zIHNvb24gYW5kIHByZWZlcmFibHkgZHVyaW5nIHRlc3Rp
-bmcsDQpub3Qgb24gcHJvZHVjdGlvbiBub2RlcyB1bmRlciBoaWdoIGxvYWQsIHRoYXQncyB3aHkg
-aSd2ZSBjaG9zZW4gaG90IHBhdGguDQoNCkFuZCBpZiB3ZSBzd2l0Y2ggdG8gdGhlIHNsb3cgcGF0
-aCwgd2UnbGwgaGF2ZSB0byBydW4gYWxsIHRlc3RzIHVuZGVyDQphZGRpdGlvbmFsIHNlcmlvdXMg
-bG9hZCAtIHRvIGdlbmVyYXRlIG1lbW9yeSBmcmFnbWVudGF0aW9uLg0KTm90IHNvIGNvbnZlbmll
-bnQuDQoNCj4gQWxzbyBkbyB5b3Ugd2FudCB0byB3YXJuIGFib3V0IG9wcG9ydHVuaXN0aWMgR0ZQ
-X05PV0FJVCBhbGxvY2F0aW9ucyB0aGF0DQo+IGhhdmUgYSByZWFzb25hYmxlIGZhbGxiYWNrPw0K
-DQpZZXMsIGkgd291bGQgbGlrZSB0by4gU29tZXRpbWVzIGFsbG9jYXRpb24gZmxhZ3MgY29tZSBm
-cm9tIHVwcGVyIGxldmVsIGFuZA0KaXQncyBub3QgYWx3YXlzIGV2aWRlbnQgaWYgdGhlcmUgaXMg
-R0ZQX05PV0FJVCBmbGFnIG9yIG5vdCwgc28gbGV0J3Mgd2UNCmFyZSBub3RpY2VkIGFib3V0IHN1
-Y2ggYSBjYXNlIGFuZCB2ZXJpZnkgaWYgaXQncyBsZWdhbCBhbmQgbm90IGNhbGxlZCBvZnRlbi4N
-CklmIHllcyAtIHdlJ2xsIGp1c3QgbWFyayBpdCB3aXRoIE5PX1dBUk4uDQoNCg0KID4gQW5kIGZv
-cmdvdCB0byBtZW50aW9uIG90aGVyIG9wcG9ydHVuaXN0aWMgYWxsb2NhdGlvbnMgbGlrZSBUSFAg
-b2YNCiA+IGNvdXJzZS4NCg0KaHVnZXBhZ2VzIGFyZSBhbGxvY2F0ZWQgd2l0aCBOT1dBUk4gYWxy
-ZWFkeSwgQUZBSUsuDQphbGxvY19mcmVzaF9odWdlX3BhZ2Vfbm9kZSgpLCBfX2h1Z2V0bGJfYWxs
-b2NfYnVkZHlfaHVnZV9wYWdlKCkNCg0KDQpUaGFuayB5b3Ugb25jZSBhZ2FpbiwgTWljaGFsLg0K
-DQotLQ0KQmVzdCByZWdhcmRzLA0KDQpLb25zdGFudGluIEtob3JlbmtvLA0KVmlydHVvenpvIExp
-bnV4IEtlcm5lbCBUZWFtDQo=
+On Wed 26-12-18 09:40:51, Michal Hocko wrote:
+> Appart from general comments as a reply to the cover (btw. this all
+> should be in the changelog because this is the _why_ part of the
+> justification which should be _always_ part of the changelog).
+> 
+> On Tue 25-12-18 18:39:27, Konstantin Khorenko wrote:
+> [...]
+> > +config WARN_HIGH_ORDER
+> > +	bool "Enable complains about high order memory allocations"
+> > +	depends on !LOCKDEP
+> 
+> Why?
+> 
+> > +	default n
+> > +	help
+> > +	  Enables warnings on high order memory allocations. This allows to
+> > +	  determine users of large memory chunks and rework them to decrease
+> > +	  allocation latency. Note, some debug options make kernel structures
+> > +	  fat.
+> > +
+> > +config WARN_HIGH_ORDER_LEVEL
+> > +	int "Define page order level considered as too high"
+> > +	depends on WARN_HIGH_ORDER
+> > +	default 3
+> > +	help
+> > +	  Defines page order starting which the system to complain about.
+> > +	  Default is current PAGE_ALLOC_COSTLY_ORDER.
+> > +
+> >  config HWPOISON_INJECT
+> >  	tristate "HWPoison pages injector"
+> >  	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index e95b5b7c9c3d..258892adb861 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -4341,6 +4341,30 @@ static inline void finalise_ac(gfp_t gfp_mask, struct alloc_context *ac)
+> >  					ac->high_zoneidx, ac->nodemask);
+> >  }
+> >  
+> > +#ifdef CONFIG_WARN_HIGH_ORDER
+> > +int warn_order = CONFIG_WARN_HIGH_ORDER_LEVEL;
+> > +
+> > +/*
+> > + * Complain if we allocate a high order page unless there is a __GFP_NOWARN
+> > + * flag provided.
+> > + *
+> > + * Shuts up after 32 complains.
+> > + */
+> > +static __always_inline void warn_high_order(int order, gfp_t gfp_mask)
+> > +{
+> > +	static atomic_t warn_count = ATOMIC_INIT(32);
+> > +
+> > +	if (order >= warn_order && !(gfp_mask & __GFP_NOWARN))
+> > +		WARN(atomic_dec_if_positive(&warn_count) >= 0,
+> > +		     "order %d >= %d, gfp 0x%x\n",
+> > +		     order, warn_order, gfp_mask);
+> > +}
+> 
+> We do have ratelimit functionality, so why cannot you use it?
+> 
+> > +#else
+> > +static __always_inline void warn_high_order(int order, gfp_t gfp_mask)
+> > +{
+> > +}
+> > +#endif
+> > +
+> >  /*
+> >   * This is the 'heart' of the zoned buddy allocator.
+> >   */
+> > @@ -4361,6 +4385,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+> >  		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+> >  		return NULL;
+> >  	}
+> > +	warn_high_order(order, gfp_mask);
+> >  
+> >  	gfp_mask &= gfp_allowed_mask;
+> >  	alloc_mask = gfp_mask;
+> 
+> Why do you warn about all allocations in the hot path? I thought you
+> want to catch expensive allocations so I would assume that you would
+> stick that into a slow path after we are not able to allocate anything
+> after the first round of compaction.
+> 
+> Also do you want to warn about opportunistic GFP_NOWAIT allocations that
+> have a reasonable fallback?
+
+And forgot to mention other opportunistic allocations like THP of
+course.
+-- 
+Michal Hocko
+SUSE Labs
