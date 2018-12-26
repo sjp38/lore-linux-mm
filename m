@@ -2,264 +2,244 @@ Return-Path: <SRS0=eTfr=PD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3486FC43387
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 92169C43387
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:39:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCE9A218AD
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:38:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCE9A218AD
+	by mail.kernel.org (Postfix) with ESMTP id 4A3D4218AD
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:39:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A3D4218AD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7C5A88E0004; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
+	id EA66A8E0008; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7508D8E0001; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
+	id E2E198E0001; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F1078E0004; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
+	id CCF488E0008; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 16CD88E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:38:44 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id d3so15186482pgv.23
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:38:44 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 85EA58E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id x7so13954102pll.23
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:39:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
-         :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
+         :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
          :references:mime-version:content-disposition;
-        bh=sK2wyaa9OQJCGIyx2U8qb6p7gEuhbJ2Wb9fFN0ccy8A=;
-        b=qUYgFoCeggXdRRSLatYLRkAG7+JkeSw05P4c5nEvXsWrPATEFDdFWKSkbN3ZaSeJr6
-         GoO+Q6tud3abzWaHQbZN5MID4k1Ki6E9ERleb4+aCgP3T0mFgdbVectxurehdjGVeNXD
-         ghEAHvp7YUhpRFWekQd4rantmHWGZs4BSP7au7MHVvaSbA1DamoBfj2af6RuttzuWHBo
-         aRftWcMffcrYBaGbsvrCg4UPYUmEIeSttHbwwj3lbnFmyD65EbzPW5xk0FjdmftZFVTw
-         wJEZwHiYSzz4Gkr3vUzwhyFzdD6Wx4bosjtcNODNXHEB3s+0YEJUwqcQ/juqdxqUHi+P
-         f24A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AA+aEWbXB4SGzwm544XxD2SgMTwdlEMSRQV2TyMFBfktpL/M9SAcCqu7
-	yGrNrQJYf4aLuPOcbfy5sJjrEMCgSi/SexFrloNPEI1yHSNS/gmxmBziOSS1NtEGr5Z+5VXn3vN
-	q91fBvMqh60g0lWnIWFIh/wU5DtrEoO85PuRpmuR1cqIrXIpYdOf/Yhm+J+dLoRGPww==
-X-Received: by 2002:a62:26c7:: with SMTP id m190mr20523555pfm.79.1545831523763;
-        Wed, 26 Dec 2018 05:38:43 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/UBy4hg46vX54Wa0Ux2AL/Xy/Dk8d1cW3RDid+ow1B734ewxKvU0mfa3Es1FltGLmDuNBuE
-X-Received: by 2002:a62:26c7:: with SMTP id m190mr20518694pfm.79.1545831427585;
+        bh=tYqj7DG34CtC/nTD0z3u9A6Jj04pHSJsobbAtn39leM=;
+        b=FnTmIa8o8n8wqNnCo7AXuwICmslr1PzBG75NnsFeltY+7sDaMiNsnxlGx/x0e2+oPt
+         /5TP5bIQCYyAjbHcPCv0N/nSdaler4V4DYuZcDnZWSInrYF89xYRjSvgKy7dIk4TCkis
+         DGR5I3UDYR9Hh7SQJCFbM8/LoUhIwKslT0Gj38JZARq+/pddfDUC0GeAxo6Fi3zRFL2O
+         zB2gzBswNz4Yud1JGyXRMh6yLTL4JKG8KoWBCMCE3cMHMkn4F1OuafASG3t/hFcdRzgK
+         SMWQGDyLQ/7bLRUwF2oyXfFTcHKIAsFeIrU4FDIpLl46Qb0KaZs3FBDzWUOm+Fu4yweU
+         yg3A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AA+aEWaXTiCy33zNGQ1obQ1YubCMa9w3EbzEY7amV+Nx/5gkrFRPXLwV
+	gCJQp3vZrbxVzZaHHUEkONQf20X45QTAzhF3PM6hvnD3PIuF5YgbPxWKGToFyOxzA78KllCN9Zy
+	3R6Rh28YDKRBMG5/4aeZ5UIMIWtimxsskrUAp0OwUrDqJ/JJdGWwXB8ohOEF7wQC60w==
+X-Received: by 2002:a62:dbc2:: with SMTP id f185mr20046327pfg.235.1545831543226;
+        Wed, 26 Dec 2018 05:39:03 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/V+2q9ausOlvfFXMvIV9VjxLCl9AKgR/vGCKA3e7e8K3baMNF3MrhGeYh+zo3tpH0/Z2Iyn
+X-Received: by 2002:a62:dbc2:: with SMTP id f185mr20040484pfg.235.1545831427188;
         Wed, 26 Dec 2018 05:37:07 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1545831427; cv=none;
         d=google.com; s=arc-20160816;
-        b=v4wKV+vnVl+rS9y8N7aXdxqv7LGY19PZdWUAf0T1LEWicn/45kQDa/MNvjNYblkgKM
-         hdnQ1/1NNZs9j3LyLYk/2x1+KFHWIr1PpJPKWq9pgsNeHPXm8tKqeBLwYI0GbPC1kw/s
-         HYQJ4guylESZyjGBSgDi7KZYPjU5cZCkZdShNqwHnOlDsljcEKuvFFnj5AH75+fvLzQr
-         ZgT6nLpIa8lGsL48hqd4ufMBcMslnTMdIwj+NYsOWGiRxbw/lG4BuO2a+khEt8sg/6G2
-         hIQDdsMu35iIOGkR0Z1Fj16yEHaJUvb0pXc881k4ajVkPYB1YW2JzqmnPqZ9E0clCMpX
-         xNjw==
+        b=pxqEvYYyt0kxnu7j8l8GmVmmUzhs4zNsI0FyLmsSwIU5/Ym2WGCZoDeiiVnzpIvb+6
+         3xXsWpH7TzWo6ZNiRKwRNdQQKLTeauDiUqVMEg46vXSqzhN27UpwzU4vmZqNBABkR348
+         kn6jJpaekbNqLo7q9iXTiNNggfGjAlV9ThrVynRUrVnL9Fcn1P1XiqaGe3/cpE2UCrpJ
+         nZEE5Q9z2myKRCMNpskrtVbNwCLzAopQfumXDCKIzOfCKg0ARVwjkB94LlJlvmYp5GLi
+         JOOfdpaeIiZAI9j4cRq34j4eQhJGyeLWzdgAI7CflbsO0hxMOxWyGjSNNKYy8OWVcZGi
+         gvmA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-disposition:mime-version:references:subject:cc:cc:cc:cc:cc
-         :cc:cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
-        bh=sK2wyaa9OQJCGIyx2U8qb6p7gEuhbJ2Wb9fFN0ccy8A=;
-        b=w1FFsLvU/Xxhqkc/z8/qEpP/0TtBmhzt0QMGgmRD5ckGiP34epraN3xmwNnzUZzclq
-         Dw3QqlD5GkRfsPv4QZkhiIlWgAmXAHUDnb2Cb50F49i20wLdW2VfXStTwYsZ20rT1HUS
-         HF5GbbZ1dZ4d9B2bnCNOyMxs4mMV7zJYbeBCpSTfHzuAQ/w9U1uzSWeI8DpLa3BAdC1R
-         BWrVMvESaMwqTX9ExTOIJOyxuMFw3goWgj6wjChYCZB2VdZRw08eF4OcdS/oEmdiCIkh
-         4S1tM/Dk0ZEBZyzofhqvzL/E1La6aygogGCa4ID1Kj0XHSTzNj4YfAUmxHw2TRSE3jRR
-         uVqQ==
+         :cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
+        bh=tYqj7DG34CtC/nTD0z3u9A6Jj04pHSJsobbAtn39leM=;
+        b=OAYdvtNwhPMmPyMEOyqMpG/WP10OqEXHmlDeusllYBJ/AUHzp2qxmrjvQGopAL7P9H
+         JRAAEe88DYCd5G7nVgQ3sZ+fr5WK66M87Dxc5/vNmkVI4VuZhkU0Wnd5ooHyIJsySx3c
+         cg6sirlNMcdWz7v/wv0uQleje3LtuQv5/QYCG+MhsMfaOVZw6oQCwcd5/3I6160AkFpn
+         IubL3T0oB0EStw1Z6TBUeep/tG70FbS/4YLWT9qjSsVYHTmdUDQvisT7HV2dddyex87k
+         Md0UEDiGmnjpRPpa4g08r9BOMbtInYblbmZYWscVKK4BpTXUMMPyIUmjzKTUlzb2b3/2
+         nyNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id p11si31508288plk.191.2018.12.26.05.37.07
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: UNKNOWN
 X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.56,400,1539673200"; 
-   d="scan'208";a="113358947"
+   d="scan'208";a="121185471"
 Received: from wangdan1-mobl1.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.210.154])
-  by orsmga003.jf.intel.com with ESMTP; 26 Dec 2018 05:37:02 -0800
+  by FMSMGA003.fm.intel.com with ESMTP; 26 Dec 2018 05:37:02 -0800
 Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
 	(envelope-from <fengguang.wu@intel.com>)
-	id 1gc9Mr-0005PD-Kb; Wed, 26 Dec 2018 21:37:01 +0800
-Message-Id: <20181226133352.076749877@intel.com>
+	id 1gc9Mr-0005PS-Ms; Wed, 26 Dec 2018 21:37:01 +0800
+Message-Id: <20181226133352.246320288@intel.com>
 User-Agent: quilt/0.65
-Date: Wed, 26 Dec 2018 21:15:03 +0800
+Date: Wed, 26 Dec 2018 21:15:06 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 cc: Linux Memory Management List <linux-mm@kvack.org>,
- Huang Ying <ying.huang@intel.com>,
- Brendan Gregg <bgregg@netflix.com>,
+ Fan Du <fan.du@intel.com>,
+ Jingqi Liu <jingqi.liu@intel.com>,
  Fengguang Wu <fengguang.wu@intel.com>
 cc: kvm@vger.kernel.org
 Cc: LKML <linux-kernel@vger.kernel.org>
-cc: Fan Du <fan.du@intel.com>
 cc: Yao Yuan <yuan.yao@intel.com>
 cc: Peng Dong <dongx.peng@intel.com>
-CC: Liu Jingqi <jingqi.liu@intel.com>
+cc: Huang Ying <ying.huang@intel.com>
 cc: Dong Eddie <eddie.dong@intel.com>
 cc: Dave Hansen <dave.hansen@intel.com>
 cc: Zhang Yi <yi.z.zhang@linux.intel.com>
 cc: Dan Williams <dan.j.williams@intel.com>
-Subject: [RFC][PATCH v2 17/21] proc: introduce /proc/PID/idle_pages
+Subject: [RFC][PATCH v2 20/21] mm/vmscan.c: migrate anon DRAM pages to PMEM node
 References: <20181226131446.330864849@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline; filename=0008-proc-introduce-proc-PID-idle_pages.patch
+Content-Disposition: inline; filename=0012-vmscan-migrate-anonymous-pages-to-pmem-node-before-s.patch
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181226131503.-TbBlaV8TN-7yG4-tuxEfnT4n-LGSDdZutz8L2cN3WQ@z>
+Message-ID: <20181226131506.ck_T_IQCTyFyc-dPmKVdypBPEM8IDLPQqtcAqyKopXk@z>
 
-This will be similar to /sys/kernel/mm/page_idle/bitmap documented in
-Documentation/admin-guide/mm/idle_page_tracking.rst, however indexed
-by process virtual address.
+From: Jingqi Liu <jingqi.liu@intel.com>
 
-When using the global PFN indexed idle bitmap, we find 2 kind of
-overheads:
+With PMEM nodes, the demotion path could be
 
-- to track a task's working set, Brendan Gregg end up writing wss-v1
-  for small tasks and wss-v2 for large tasks:
+1) DRAM pages: migrate to PMEM node
+2) PMEM pages: swap out
 
-  https://github.com/brendangregg/wss
+This patch does (1) for anonymous pages only. Since we cannot
+detect hotness of (unmapped) page cache pages for now.
 
-  That's because VAs may point to random PAs throughout the physical
-  address space. So we either query /proc/pid/pagemap first and access
-  the lots of random PFNs (with lots of syscalls) in the bitmap, or
-  write+read the whole system idle bitmap beforehand.
+The user space daemon can do migration in both directions:
+- PMEM=>DRAM hot page migration
+- DRAM=>PMEM cold page migration
+However it's more natural for user space to do hot page migration
+and kernel to do cold page migration. Especially, only kernel can
+guarantee on-demand migration when there is memory pressure.
 
-- page table walking by PFN has much more overheads than to walk a
-  page table in its natural order:
-  - rmap queries
-  - more locking
-  - random memory reads/writes
+So the big picture will look like this: user space daemon does regular
+hot page migration to DRAM, creating memory pressure on DRAM nodes,
+which triggers kernel cold page migration to PMEM nodes.
 
-This interface provides a cheap path for the majority non-shared mapping
-pages. To walk 1TB memory of 4k active pages, it costs 2s vs 15s system
-time to scan the per-task/global idle bitmaps. Which means ~7x speedup.
-The gap will be enlarged if consider
+Du Fan:
+- Support multiple NUMA nodes.
+- Don't migrate clean MADV_FREE pages to PMEM node.
 
-- the extra /proc/pid/pagemap walk
-- natural page table walks can skip the whole 512 PTEs if PMD is idle
+With advise(MADV_FREE) syscall, both vma structure and
+its corresponding page entries still lives, but we got
+MADV_FREE page, anonymous but WITHOUT SwapBacked.
 
-OTOH, the per-task idle bitmap is not suitable in some situations:
+In case of page reclaim, clean MADV_FREE pages will be
+freed and return to buddy system, the dirty ones then
+turn into canonical anonymous page with
+PageSwapBacked(page) set, and put into LRU_INACTIVE_FILE
+list falling into standard aging routine.
 
-- not accurate for shared pages
-- don't work with non-mapped file pages
-- don't perform well for sparse page tables (pointed out by Huang Ying)
+Point is clean MADV_FREE pages should not be migrated,
+it has steal (useless) user data once madvise(MADV_FREE)
+called and guard against thus scenarios.
 
-So it's more about complementing the existing global idle bitmap.
+P.S. MADV_FREE is heavily used by jemalloc engine, and
+workload like redis, refer to [1] for detailed backgroud,
+usecase, and benchmark result.
 
-CC: Huang Ying <ying.huang@intel.com>
-CC: Brendan Gregg <bgregg@netflix.com>
+[1]
+https://lore.kernel.org/patchwork/patch/622179/
+
+Fengguang:
+- detect migrate thp and hugetlb
+- avoid moving pages to a non-existent node
+
+Signed-off-by: Fan Du <fan.du@intel.com>
+Signed-off-by: Jingqi Liu <jingqi.liu@intel.com>
 Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
- fs/proc/base.c     |    2 +
- fs/proc/internal.h |    1 
- fs/proc/task_mmu.c |   54 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 57 insertions(+)
+ mm/vmscan.c |   33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
 
---- linux.orig/fs/proc/base.c	2018-12-23 20:08:14.228919325 +0800
-+++ linux/fs/proc/base.c	2018-12-23 20:08:14.224919327 +0800
-@@ -2969,6 +2969,7 @@ static const struct pid_entry tgid_base_
- 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
- 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
- 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
-+	REG("idle_pages", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
- #endif
- #ifdef CONFIG_SECURITY
- 	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
-@@ -3357,6 +3358,7 @@ static const struct pid_entry tid_base_s
- 	REG("smaps",     S_IRUGO, proc_pid_smaps_operations),
- 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
- 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
-+	REG("idle_pages", S_IRUSR|S_IWUSR, proc_mm_idle_operations),
- #endif
- #ifdef CONFIG_SECURITY
- 	DIR("attr",      S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
---- linux.orig/fs/proc/internal.h	2018-12-23 20:08:14.228919325 +0800
-+++ linux/fs/proc/internal.h	2018-12-23 20:08:14.224919327 +0800
-@@ -298,6 +298,7 @@ extern const struct file_operations proc
- extern const struct file_operations proc_pid_smaps_rollup_operations;
- extern const struct file_operations proc_clear_refs_operations;
- extern const struct file_operations proc_pagemap_operations;
-+extern const struct file_operations proc_mm_idle_operations;
+--- linux.orig/mm/vmscan.c	2018-12-23 20:37:58.305551976 +0800
++++ linux/mm/vmscan.c	2018-12-23 20:37:58.305551976 +0800
+@@ -1112,6 +1112,7 @@ static unsigned long shrink_page_list(st
+ {
+ 	LIST_HEAD(ret_pages);
+ 	LIST_HEAD(free_pages);
++	LIST_HEAD(move_pages);
+ 	int pgactivate = 0;
+ 	unsigned nr_unqueued_dirty = 0;
+ 	unsigned nr_dirty = 0;
+@@ -1121,6 +1122,7 @@ static unsigned long shrink_page_list(st
+ 	unsigned nr_immediate = 0;
+ 	unsigned nr_ref_keep = 0;
+ 	unsigned nr_unmap_fail = 0;
++	int page_on_dram = is_node_dram(pgdat->node_id);
  
- extern unsigned long task_vsize(struct mm_struct *);
- extern unsigned long task_statm(struct mm_struct *,
---- linux.orig/fs/proc/task_mmu.c	2018-12-23 20:08:14.228919325 +0800
-+++ linux/fs/proc/task_mmu.c	2018-12-23 20:08:14.224919327 +0800
-@@ -1559,6 +1559,60 @@ const struct file_operations proc_pagema
- 	.open		= pagemap_open,
- 	.release	= pagemap_release,
- };
+ 	cond_resched();
+ 
+@@ -1275,6 +1277,21 @@ static unsigned long shrink_page_list(st
+ 		}
+ 
+ 		/*
++		 * Check if the page is in DRAM numa node.
++		 * Skip MADV_FREE pages as it might be freed
++		 * immediately to buddy system if it's clean.
++		 */
++		if (node_online(pgdat->peer_node) &&
++			PageAnon(page) && (PageSwapBacked(page) || PageTransHuge(page))) {
++			if (page_on_dram) {
++				/* Add to the page list which will be moved to pmem numa node. */
++				list_add(&page->lru, &move_pages);
++				unlock_page(page);
++				continue;
++			}
++		}
 +
-+/* will be filled when kvm_ept_idle module loads */
-+struct file_operations proc_ept_idle_operations = {
-+};
-+EXPORT_SYMBOL_GPL(proc_ept_idle_operations);
++		/*
+ 		 * Anonymous process memory has backing store?
+ 		 * Try to allocate it some swap space here.
+ 		 * Lazyfree page could be freed directly
+@@ -1496,6 +1513,22 @@ keep:
+ 		VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
+ 	}
+ 
++	/* Move the anonymous pages to PMEM numa node. */
++	if (!list_empty(&move_pages)) {
++		int err;
 +
-+static ssize_t mm_idle_read(struct file *file, char __user *buf,
-+			    size_t count, loff_t *ppos)
-+{
-+	if (proc_ept_idle_operations.read)
-+		return proc_ept_idle_operations.read(file, buf, count, ppos);
++		/* Could not block. */
++		err = migrate_pages(&move_pages, alloc_new_node_page, NULL,
++					pgdat->peer_node,
++					MIGRATE_ASYNC, MR_NUMA_MISPLACED);
++		if (err) {
++			putback_movable_pages(&move_pages);
 +
-+	return 0;
-+}
-+
-+
-+static int mm_idle_open(struct inode *inode, struct file *file)
-+{
-+	struct mm_struct *mm = proc_mem_open(inode, PTRACE_MODE_READ);
-+
-+	if (IS_ERR(mm))
-+		return PTR_ERR(mm);
-+
-+	file->private_data = mm;
-+
-+	if (proc_ept_idle_operations.open)
-+		return proc_ept_idle_operations.open(inode, file);
-+
-+	return 0;
-+}
-+
-+static int mm_idle_release(struct inode *inode, struct file *file)
-+{
-+	struct mm_struct *mm = file->private_data;
-+
-+	if (mm) {
-+		if (!mm_kvm(mm))
-+			flush_tlb_mm(mm);
-+		mmdrop(mm);
++			/* Join the pages which were not migrated.  */
++			list_splice(&ret_pages, &move_pages);
++		}
 +	}
 +
-+	if (proc_ept_idle_operations.release)
-+		return proc_ept_idle_operations.release(inode, file);
-+
-+	return 0;
-+}
-+
-+const struct file_operations proc_mm_idle_operations = {
-+	.llseek		= mem_lseek, /* borrow this */
-+	.read		= mm_idle_read,
-+	.open		= mm_idle_open,
-+	.release	= mm_idle_release,
-+};
-+
- #endif /* CONFIG_PROC_PAGE_MONITOR */
- 
- #ifdef CONFIG_NUMA
+ 	mem_cgroup_uncharge_list(&free_pages);
+ 	try_to_unmap_flush();
+ 	free_unref_page_list(&free_pages);
 
 
