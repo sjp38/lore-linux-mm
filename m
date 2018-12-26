@@ -1,70 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DC65B6B6A77
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:06:40 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id t83so8729032oie.16
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:06:40 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w81si6866609oie.88.2018.12.03.10.06.39
-        for <linux-mm@kvack.org>;
-        Mon, 03 Dec 2018 10:06:39 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH v7 01/25] ACPI / APEI: Don't wait to serialise with oops messages when panic()ing
-Date: Mon,  3 Dec 2018 18:05:49 +0000
-Message-Id: <20181203180613.228133-2-james.morse@arm.com>
-In-Reply-To: <20181203180613.228133-1-james.morse@arm.com>
-References: <20181203180613.228133-1-james.morse@arm.com>
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F50F8E000A
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id q64so17734192pfa.18
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
+Message-Id: <20181226133351.287359389@intel.com>
+Date: Wed, 26 Dec 2018 21:14:50 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [RFC][PATCH v2 04/21] x86/numa_emulation: pass numa node type to fake nodes
+References: <20181226131446.330864849@intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=0021-x86-numa-Fix-fake-numa-in-uniform-case.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, James Morse <james.morse@arm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Fan Du <fan.du@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Fengguang Wu <fengguang.wu@intel.com>
 
-oops_begin() exists to group printk() messages with the oops message
-printed by die(). To reach this caller we know that platform firmware
-took this error first, then notified the OS via NMI with a 'panic'
-severity.
+From: Fan Du <fan.du@intel.com>
 
-Don't wait for another CPU to release the die-lock before panic()ing,
-our only goal is to print this fatal error and panic().
-
-This code is always called in_nmi(), and since commit 42a0bb3f7138
-("printk/nmi: generic solution for safe printk in NMI"), it has been
-safe to call printk() from this context. Messages are batched in a
-per-cpu buffer and printed via irq-work, or a call back from panic().
-
-Link: https://patchwork.kernel.org/patch/10313555/
-Acked-by: Borislav Petkov <bp@suse.de>
-Signed-off-by: James Morse <james.morse@arm.com>
-
+Signed-off-by: Fan Du <fan.du@intel.com>
 ---
-Changes since v6:
- * Capitals in patch subject
- * Tinkered with the commit message.
----
- drivers/acpi/apei/ghes.c | 2 --
- 1 file changed, 2 deletions(-)
+ arch/x86/mm/numa_emulation.c |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index 02c6fd9caff7..ab2dae6fc7e4 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -33,7 +33,6 @@
- #include <linux/interrupt.h>
- #include <linux/timer.h>
- #include <linux/cper.h>
--#include <linux/kdebug.h>
- #include <linux/platform_device.h>
- #include <linux/mutex.h>
- #include <linux/ratelimit.h>
-@@ -947,7 +946,6 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+--- linux.orig/arch/x86/mm/numa_emulation.c	2018-12-23 19:21:11.002206144 +0800
++++ linux/arch/x86/mm/numa_emulation.c	2018-12-23 19:21:10.998206236 +0800
+@@ -12,6 +12,8 @@
  
- 		sev = ghes_severity(ghes->estatus->error_severity);
- 		if (sev >= GHES_SEV_PANIC) {
--			oops_begin();
- 			ghes_print_queued_estatus();
- 			__ghes_panic(ghes);
+ static int emu_nid_to_phys[MAX_NUMNODES];
+ static char *emu_cmdline __initdata;
++static nodemask_t emu_numa_nodes_pmem;
++static nodemask_t emu_numa_nodes_dram;
+ 
+ void __init numa_emu_cmdline(char *str)
+ {
+@@ -311,6 +313,12 @@ static int __init split_nodes_size_inter
+ 					       min(end, limit) - start);
+ 			if (ret < 0)
+ 				return ret;
++
++			/* Update numa node type for fake numa node */
++			if (node_isset(i, emu_numa_nodes_pmem))
++				node_set(nid - 1, numa_nodes_pmem);
++			else
++				node_set(nid - 1, numa_nodes_dram);
  		}
--- 
-2.19.2
+ 	}
+ 	return nid;
+@@ -410,6 +418,12 @@ void __init numa_emulation(struct numa_m
+ 		unsigned long n;
+ 		int nid = 0;
+ 
++		emu_numa_nodes_pmem = numa_nodes_pmem;
++		emu_numa_nodes_dram = numa_nodes_dram;
++
++		nodes_clear(numa_nodes_pmem);
++		nodes_clear(numa_nodes_dram);
++
+ 		n = simple_strtoul(emu_cmdline, &emu_cmdline, 0);
+ 		ret = -1;
+ 		for_each_node_mask(i, physnode_mask) {
