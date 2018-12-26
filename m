@@ -6,102 +6,102 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A535C43444
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18060C43444
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCC18218AD
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCC18218AD
+	by mail.kernel.org (Postfix) with ESMTP id D4431218FC
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4431218FC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86AE98E0013; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
+	id BB92E8E000D; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 75A258E000C; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
+	id AD32E8E0014; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EF4958E0002; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
+	id 3FDC68E000B; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E2F08E0002
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 522698E0008
 	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id m16so15290285pgd.0
+Received: by mail-pf1-f197.google.com with SMTP id q64so17734186pfa.18
         for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
-         :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
+         :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
          :references:mime-version:content-disposition;
-        bh=5Mnwktm5eJFyeiOEO0Th0lml9blQA9FGr4VHQc/KtHc=;
-        b=cL64DXlUU9r1XKmD8BSVu8OtL6AS6NTx5cVaXyH+i/+UnAbK8LknDqJl6S6zPmcg44
-         l9Zhr0RWQJDx4d8lRhRuFCgP3o4bacd+NT37K/eNnLb+9DzgLK5rfcAhmm7G0B0GMhHs
-         09IJ6Qxcxx71e6BJHxLDde4Us0csibB/hNbW20gzLrF4x2LbNoa3J3mGpWjmoJLKlm1z
-         XXg73C9J7m149KXh4s0Vha4UUN0ktubUoGI0LUFCnK+C6FhNDNpMj0aK6KxIOXi1HvIx
-         clqzI6b0Y+8eWBZv9Sc7pzowGVgTeebUYB1pCpXT2Ct1MEnMnD5+A6uT+SHdq7dVNHd7
-         87Yw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukch0HJ05VX8mFf7P4nF2E/cvesm0eEuSfSfS5vWnzoX7boEbL80
-	xkCjxwRfVwPL+nErR87PbUNULQVvpbpMGjJl/z3BXOoxJ4T3nb9v38fyeDZRhLeo6wmySkQMEfx
-	+W4YJtuBNF5R6AVgidM2oie0iGWJYxTaljHq0Eygs15Lbtk8Hon4cGbUiyKN+bvyb3w==
-X-Received: by 2002:a17:902:22f:: with SMTP id 44mr19745075plc.137.1545831427020;
+        bh=65FA41VLdlPtPOOJtgzAErEZDKqpBZV5hcSbMKUAFtQ=;
+        b=TrpG3auKZuNch4U8E/ri4wqD7hkm4PyB2nna2ckpCam+BNKLRiXmynW+z4PFaDZRnS
+         pD+SXwtwDEx71RPDnMOAn1OK0jkshbW6xaajpiBiIb7uFGn9MBJhO4NLoYgRExEb2Gu1
+         wVMvOFksvuc7AV0+1/clTHpq0T9imZ0eOlj7L/QQ/yvBP563Lue1bnIp9xo+i9B25W0g
+         Dhdn4SS9apiu2ltDa4Sw4fzRl0V2NZOs/c9t8X+MJ8hCgwgoRf1vmvbUe+lm9LrfCByj
+         LSuYSFKjgtSsLwLtcEDfHUO2DHlWJm/hqqe6RBFOWrfrjF49fuFkrQBaGa3AFKF7ftxe
+         wt1A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AA+aEWYojHMbwfefx0Ypwlvy4RBaQYmbR3HbNtSrji+T15fn5Ffn7A/j
+	cJufDnMaVoF5Mjzkw6yiCvXLx+CeC2CY5gbGbGrQDHmXSTr7K59zWPu6bobJStZlr7izXdJe9L0
+	mSak0ByGhwmLwW5ulDm2Qj16TjDBaPaetr2uXjJ7p76k7SVHW6456N4b71co0gYNG7w==
+X-Received: by 2002:a62:4886:: with SMTP id q6mr20793806pfi.182.1545831427009;
         Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7L8un+cIsXDE6sJgneWRuY1vE1xzoIlwcTy0m8TduUUWGaQjfmHYIpjYJwMhbMjHxYssvF
-X-Received: by 2002:a17:902:22f:: with SMTP id 44mr19745040plc.137.1545831426397;
+X-Google-Smtp-Source: AFSGD/WTkA0qJgvn02GtHzs8wBULK68frMrCC5uHcP3rqRITO7NnACi28diqlqn8x+6rlhI9uajD
+X-Received: by 2002:a62:4886:: with SMTP id q6mr20793769pfi.182.1545831426376;
         Wed, 26 Dec 2018 05:37:06 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1545831426; cv=none;
         d=google.com; s=arc-20160816;
-        b=lm/XA6XnE4Yutt7o4oofahx8AZB3ISncmkVyI0x3RjRTR2vo98Yh7SHehJnIikcPWZ
-         MpBUXu4qDb0xVYAT9WsVSErzCL0POIAxtn0vifZG4UsNXdCqVB+mcSYs+K0dmbnrqb/z
-         FdvSWa1d0udtnXuV6FM0RknHd4lvsQaZsERisLVo3FF21h2iMA5oPBI3JEJZfiMdlgaD
-         eXDmpcW8EUPVTUl1nqhTKYgObUT0RGNMzDxNFC5ZOaGd8bT2c4wiKk1GmcVLRzP2FRSN
-         8PiK+VlsPiB34LVn/RI1wBgdYflZC9w+pacTJi5kdv05glIl4M/WW8mgsvXBmLGcPi9l
-         KRvA==
+        b=s5aVniss+0Xus8g4eGIJn9JmiDIRUVx9Sk6q9UT9RMdMjiQ7FC3ekmJtvD+5OxSHZu
+         qxb8bEZ9MfxGsLMvTdEL6zmQ1hbyZl8NF3NPFDRe7ObC4iw5s2CYhldeBKy06oO5cC9I
+         yKEukCT3TKcH1gEvmfOahoILvNp7mFpyBMJ5crn0MBz1dhGJtVoa7HGJJAD57M15Jw4w
+         g2hYwaJ98tuWv4490ZnbTSzq36Wq+SMKaTI6zNF/pzYN9aoy2H844QSKaWrZt0JBqhwg
+         g4sT/r+uZHAtdfDuNb0WcsaDVqvYCrD9AA9mjgb5pUylyao6J7fWVsDZxrrL86G+wzTB
+         8vtQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-disposition:mime-version:references:subject:cc:cc:cc:cc:cc
-         :cc:cc:cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
-        bh=5Mnwktm5eJFyeiOEO0Th0lml9blQA9FGr4VHQc/KtHc=;
-        b=0Xhjy9xNRwGgxROXSrlm7YHawzStRoi1uvnw9k2u53I4Y6x6Y3OviSgkRrRwjtQZvW
-         uoZLYOGz+wgaIEfZ1BYn9TCqzkgPvYKwRSFdOikM2Jv1aGrW1Rh6qc9R5SH0TrSveFzT
-         VX8chTJRotiRgz5fts1ejXSSQBJDX7k4RnUG9v58hOBGCPPyfffSsyP3tq6derYw3GXx
-         4aJ/OX+PfSziyz5/9eF1eiTU7jFFDa1wdxzN/GaqPo1sHXSgIUgYMsSRP1i4wbMd6rHx
-         oX8aneFj24cS6XEXeQBo9/tMsSBorgDuLwb1hQFQ/yJ92dmEE19BoOqZU03Thbmm7KrM
-         0kaA==
+         :cc:cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
+        bh=65FA41VLdlPtPOOJtgzAErEZDKqpBZV5hcSbMKUAFtQ=;
+        b=btDeXWesdskot4v4JITCyBcOTGSL7RfTqEYab+fELRxrd2Ukv2T2OwtPqEnbryGvrZ
+         mR775TG18cudRUvn7t84Gp5qus0pcvqWgLVKUboyIBS4ZJ0QQl4styAS2vCDed04cBdn
+         ucBWp36vr/2fFLu/n7kz/1oz8ShUWetmoKwCWKBk8NDWIc9xVCwlH/xRcEITZ1xL5e0z
+         /6jJ2x+4TCaBpPDR3Cxeoh733IrAyobH9BSo+Cqz+7tHhsbTIBhXYummrf69I3/5wnP9
+         WtI+EyhAPeEhRmy8TEd1v7ChSXczg1h35EzWF0rwicajPgLBWCQrQ622+UwBSp7TBw9Q
+         w8ow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.06
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: UNKNOWN
 X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.56,400,1539673200"; 
-   d="scan'208";a="121185464"
+   d="scan'208";a="113358929"
 Received: from wangdan1-mobl1.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.210.154])
-  by FMSMGA003.fm.intel.com with ESMTP; 26 Dec 2018 05:37:02 -0800
+  by orsmga003.jf.intel.com with ESMTP; 26 Dec 2018 05:37:02 -0800
 Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
 	(envelope-from <fengguang.wu@intel.com>)
-	id 1gc9Mr-0005Oo-FY; Wed, 26 Dec 2018 21:37:01 +0800
-Message-Id: <20181226133351.770245668@intel.com>
+	id 1gc9Mr-0005Oj-Em; Wed, 26 Dec 2018 21:37:01 +0800
+Message-Id: <20181226133351.703380444@intel.com>
 User-Agent: quilt/0.65
-Date: Wed, 26 Dec 2018 21:14:58 +0800
+Date: Wed, 26 Dec 2018 21:14:57 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 cc: Linux Memory Management List <linux-mm@kvack.org>,
+ Yao Yuan <yuan.yao@intel.com>,
  Fengguang Wu <fengguang.wu@intel.com>
 cc: kvm@vger.kernel.org
 Cc: LKML <linux-kernel@vger.kernel.org>
 cc: Fan Du <fan.du@intel.com>
-cc: Yao Yuan <yuan.yao@intel.com>
 cc: Peng Dong <dongx.peng@intel.com>
 cc: Huang Ying <ying.huang@intel.com>
 CC: Liu Jingqi <jingqi.liu@intel.com>
@@ -109,123 +109,53 @@ cc: Dong Eddie <eddie.dong@intel.com>
 cc: Dave Hansen <dave.hansen@intel.com>
 cc: Zhang Yi <yi.z.zhang@linux.intel.com>
 cc: Dan Williams <dan.j.williams@intel.com>
-Subject: [RFC][PATCH v2 12/21] x86/pgtable: allocate page table pages from DRAM
+Subject: [RFC][PATCH v2 11/21] kvm: allocate page table pages from DRAM
 References: <20181226131446.330864849@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline; filename=0018-pgtable-force-pgtable-allocation-from-DRAM-node-0.patch
+Content-Disposition: inline; filename=0001-kvm-allocate-page-table-pages-from-DRAM.patch
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181226131458.rhx6tcxqOQHqlB53teyuE4x-gfz3dGs4hj12VOpnHj8@z>
+Message-ID: <20181226131457.bWqd1N4sF4vlHkm0TEevXqhPwU2ikE4UJjD-xZ8e9f8@z>
 
-On rand read/writes on large data, we find near half memory accesses
-caused by TLB misses, hence hit the page table pages. So better keep
-page table pages in faster DRAM nodes.
+From: Yao Yuan <yuan.yao@intel.com>
 
+Signed-off-by: Yao Yuan <yuan.yao@intel.com>
 Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
- arch/x86/include/asm/pgalloc.h |   10 +++++++---
- arch/x86/mm/pgtable.c          |   22 ++++++++++++++++++----
- 2 files changed, 25 insertions(+), 7 deletions(-)
+arch/x86/kvm/mmu.c |   12 +++++++++++-
+1 file changed, 11 insertions(+), 1 deletion(-)
 
---- linux.orig/arch/x86/mm/pgtable.c	2018-12-26 19:41:57.494900885 +0800
-+++ linux/arch/x86/mm/pgtable.c	2018-12-26 19:42:35.531621035 +0800
-@@ -22,17 +22,30 @@ EXPORT_SYMBOL(physical_mask);
- #endif
+--- linux.orig/arch/x86/kvm/mmu.c	2018-12-26 20:54:48.846720344 +0800
++++ linux/arch/x86/kvm/mmu.c	2018-12-26 20:54:48.842719614 +0800
+@@ -950,6 +950,16 @@ static void mmu_free_memory_cache(struct
+ 		kmem_cache_free(cache, mc->objects[--mc->nobjs]);
+ }
  
- gfp_t __userpte_alloc_gfp = PGALLOC_GFP | PGALLOC_USER_GFP;
-+nodemask_t all_node_mask = NODE_MASK_ALL;
-+
-+unsigned long __get_free_pgtable_pages(gfp_t gfp_mask,
-+						     unsigned int order)
++static unsigned long __get_dram_free_pages(gfp_t gfp_mask)
 +{
-+	struct page *page;
++       struct page *page;
 +
-+	page = __alloc_pages_nodemask(gfp_mask, order, numa_node_id(), &all_node_mask);
-+	if (!page)
-+		return 0;
-+	return (unsigned long) page_address(page);
++       page = __alloc_pages(GFP_KERNEL_ACCOUNT, 0, numa_node_id());
++       if (!page)
++	       return 0;
++       return (unsigned long) page_address(page);
 +}
-+EXPORT_SYMBOL(__get_free_pgtable_pages);
- 
- pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
- {
--	return (pte_t *)__get_free_page(PGALLOC_GFP & ~__GFP_ACCOUNT);
-+	return (pte_t *)__get_free_pgtable_pages(PGALLOC_GFP & ~__GFP_ACCOUNT, 0);
- }
- 
- pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
- {
- 	struct page *pte;
- 
--	pte = alloc_pages(__userpte_alloc_gfp, 0);
-+	pte = __alloc_pages_nodemask(__userpte_alloc_gfp, 0, numa_node_id(), &all_node_mask);
- 	if (!pte)
- 		return NULL;
- 	if (!pgtable_page_ctor(pte)) {
-@@ -241,7 +254,7 @@ static int preallocate_pmds(struct mm_st
- 		gfp &= ~__GFP_ACCOUNT;
- 
- 	for (i = 0; i < count; i++) {
--		pmd_t *pmd = (pmd_t *)__get_free_page(gfp);
-+		pmd_t *pmd = (pmd_t *)__get_free_pgtable_pages(gfp, 0);
- 		if (!pmd)
- 			failed = true;
- 		if (pmd && !pgtable_pmd_page_ctor(virt_to_page(pmd))) {
-@@ -422,7 +435,8 @@ static inline void _pgd_free(pgd_t *pgd)
- 
- static inline pgd_t *_pgd_alloc(void)
- {
--	return (pgd_t *)__get_free_pages(PGALLOC_GFP, PGD_ALLOCATION_ORDER);
-+	return (pgd_t *)__get_free_pgtable_pages(PGALLOC_GFP,
-+						 PGD_ALLOCATION_ORDER);
- }
- 
- static inline void _pgd_free(pgd_t *pgd)
---- linux.orig/arch/x86/include/asm/pgalloc.h	2018-12-26 19:40:12.992251270 +0800
-+++ linux/arch/x86/include/asm/pgalloc.h	2018-12-26 19:42:35.531621035 +0800
-@@ -96,10 +96,11 @@ static inline pmd_t *pmd_alloc_one(struc
- {
- 	struct page *page;
- 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO;
-+	nodemask_t all_node_mask = NODE_MASK_ALL;
- 
- 	if (mm == &init_mm)
- 		gfp &= ~__GFP_ACCOUNT;
--	page = alloc_pages(gfp, 0);
-+	page = __alloc_pages_nodemask(gfp, 0, numa_node_id(), &all_node_mask);
- 	if (!page)
- 		return NULL;
- 	if (!pgtable_pmd_page_ctor(page)) {
-@@ -141,13 +142,16 @@ static inline void p4d_populate(struct m
- 	set_p4d(p4d, __p4d(_PAGE_TABLE | __pa(pud)));
- }
- 
-+extern unsigned long __get_free_pgtable_pages(gfp_t gfp_mask,
-+					      unsigned int order);
 +
- static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+ static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
+ 				       int min)
  {
- 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
- 
- 	if (mm == &init_mm)
- 		gfp &= ~__GFP_ACCOUNT;
--	return (pud_t *)get_zeroed_page(gfp);
-+	return (pud_t *)__get_free_pgtable_pages(gfp | __GFP_ZERO, 0);
- }
- 
- static inline void pud_free(struct mm_struct *mm, pud_t *pud)
-@@ -179,7 +183,7 @@ static inline p4d_t *p4d_alloc_one(struc
- 
- 	if (mm == &init_mm)
- 		gfp &= ~__GFP_ACCOUNT;
--	return (p4d_t *)get_zeroed_page(gfp);
-+	return (p4d_t *)__get_free_pgtable_pages(gfp | __GFP_ZERO, 0);
- }
- 
- static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
+@@ -958,7 +968,7 @@ static int mmu_topup_memory_cache_page(s
+ 	if (cache->nobjs >= min)
+ 		return 0;
+ 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
+-		page = (void *)__get_free_page(GFP_KERNEL_ACCOUNT);
++		page = (void *)__get_dram_free_pages(GFP_KERNEL_ACCOUNT);
+ 		if (!page)
+ 			return cache->nobjs >= min ? 0 : -ENOMEM;
+ 		cache->objects[cache->nobjs++] = page;
 
 
