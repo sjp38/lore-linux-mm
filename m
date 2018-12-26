@@ -6,71 +6,71 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C168C43387
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32146C43387
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 134F1218FF
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 134F1218FF
+	by mail.kernel.org (Postfix) with ESMTP id EE3C7218AD
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:37:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE3C7218AD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EF8B48E0009; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
+	id 405CD8E000A; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C5DF48E0003; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
+	id 189248E0008; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A4A338E0009; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
+	id B52CD8E000F; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0C08E0006
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 631098E0003
 	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:07 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id s22so15223477pgv.8
+Received: by mail-pl1-f199.google.com with SMTP id 89so13992674ple.19
         for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
          :references:mime-version:content-disposition;
-        bh=bLqbS/PT6+OZn4Cd5ognINxOjsGpaTLmfW4Gzyha0A4=;
-        b=NM5AqxtgvI0sPCSC7eCYsY2rHc6pXdxWCyARWdzUQirD+yebcLW+wUhQDtOdqfI+1l
-         QRx77MsjU6X/g1cebkC1cioPra6Zr/C11YTHD9Krn/ObbslnJ9reXtzkSNdvPXQnpd//
-         Ddp3forWtX1Rsahl/pdzW7b3FFKpCjPzd9jPCSApWAFTq3ycOY3AySkqh6rjoSnOcn7J
-         4OhczEjTBR3iRDNTJ4lZfSoeqDYO4pD5+LQo4hen2KBR4EHrTa9GfR/Yty2X06nSdUlD
-         VRBNe2vbkn/h70rH5kUozG5h3pVEpMb8yp6As4RJc7VtkLHUxugTFagHzHst2rW3gwB+
-         XwpA==
+        bh=YdkPR857z2QJHU+MTdQBAeYrLi5HPVsYANWKLt6w3ss=;
+        b=G54udu2YyIp5vDKKwGj7Jdn2oeUSXeHf6ldcMBY6pdbGF4m4qH54r4PfhDH6VShhL4
+         RAIvJ8mGaGBefvWl8b8rJZ5PnQfZ+scVQc9M1LJisZKqEH1KLvRctMvCAVe5gnj3zHSW
+         1ksu0JIiD5ps5OV61K9L5XZf/rI8IK6UEo8dYNA4KdZnv38ocaY0QeRdAeC6cOgQZwxf
+         5vhRfzYVL6ME6YbHqT6/+yE5C7KSetSHTg9T4vJYy5IENEz0IQB2g6N+q33SPEuTBvCQ
+         LOt6Ej/BFgB5cpqWDMd7xH685EBS2RSsRoT8zix+Upfw5RyYRH9ykyqB+JSfj9f1Xtbw
+         pEHQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AA+aEWaxmL6qH5T4yaHndwjeIjlGS1Ik7CCdRLykf6ajQuGVFEobFsWz
-	GnIfEf422rqBvTKYDaLc/9lCZd0Ulpm9fzM0qQ/e5AyiNHytjvkNJoEzgwXR1zOGTrF3ztUjcnD
-	rCfpaw6D1r6mV4OYxbLys/CEB8ZQYjZiOqURnmZo26FYo8oHLVx4GwrNI5NMeC485MQ==
-X-Received: by 2002:aa7:8286:: with SMTP id s6mr19849796pfm.63.1545831426820;
-        Wed, 26 Dec 2018 05:37:06 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/WQ4B60GhMAduoRZhcDq54lJ66ohrTTN6e0JuJ1HGfD+xHUlIohYnwBU82oQ1LCgC3W/drH
-X-Received: by 2002:aa7:8286:: with SMTP id s6mr19849757pfm.63.1545831426118;
+X-Gm-Message-State: AJcUukc13LA1IyWvwhnYagEl01D5mAW4p/Nd44hUGD3d+N5O21JcqPVy
+	XXdoJxGgo8OKuX/BblnWF/B35JWKn6P06hlBlBI2kx5gsFCuNyF+tl02+R2LGc8fLZHWoihz2IO
+	le4BEf+XybPIs0s6UOHJx3+gxawo1OJf0OrWl2pjTod98H07V+vXCrHmwql5zFjM3CQ==
+X-Received: by 2002:a63:4101:: with SMTP id o1mr18777694pga.447.1545831427100;
+        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7WMQyJsGwJiGqWnZtHzwEaOER8RGzX96D4MxG23CjFqXoGuSE7aHEaUZ+Gy+VnYTzKo+G3
+X-Received: by 2002:a63:4101:: with SMTP id o1mr18777656pga.447.1545831426513;
         Wed, 26 Dec 2018 05:37:06 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1545831426; cv=none;
         d=google.com; s=arc-20160816;
-        b=YGjs0E7YKjQD8P1I9uTbUB0hD+3JfO4B+tij/eDcVeX+a4dQh448qANYJnrqUUAlka
-         2mnthQw1RTMol3Pd6D8b6hBQlOKNsbBE4ZXkdT9VPuHlg9YI+pf0KxzfCVV4/z/pNgPA
-         0nWOuU1B+EpNfxTnMnhhaOVWZavHtcy67PmYtqb6yrgts51SCsWrY68p0po5lRLGxudj
-         3FvycUcfV45baAMzDRo5RCEEDGV8eull3F+EhZHGPu283iI/7Cimr50i9Eb4/TQ6KTAk
-         Y5pJvDX6usx2yXGhLbNFdLpVuswCp/JvKeEreQDhciUGsySMdYhZ9pdS/j9eBkskRZRO
-         Ekdw==
+        b=j2jauWEOVwWfGoRPtNDwgIo3tgtIIWN+FCM8JH/Vm9X2YXHi0AnHbZvosJ3ihDKT0T
+         uzE0iWellzxIE6giSHC58TUKXob3GEuB5t+gBBF/Dqc/CKb2jJvGM0ZLGTt1rSpHVZDW
+         dO3CqSZ2VqWtE2s3UH57d5vyiQweuwuoZ6SFGEYz1MsSGattV7wiAYIfWkii2+VB8gcD
+         VXiI3NyMWO2E04jwDHWM6z+AR88dBq5NcKcaAV7yiShhkc73jFxKqGgiP10jROF+veKf
+         JOsdlzVw7vSJcQNXhiNrd1CzEos0VvFcyWbrAAJiLNgluK/mDXTBvhOzh+hNUWG/uIja
+         VPTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-disposition:mime-version:references:subject:cc:cc:cc:cc:cc
          :cc:cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
-        bh=bLqbS/PT6+OZn4Cd5ognINxOjsGpaTLmfW4Gzyha0A4=;
-        b=pq8aQYkOMpFj9e10gitZIPllbb11Xfp9oinWxQhL+uMuH9acYiqN0N0gpdLnWy6BlD
-         yTl6mOvlF2nVKl3V2TggL+Z03RNlMYcCulCuum++xjR4L64vuUhEQk4ynskLC8qn41y4
-         sGph6iKVWv3Ai3NU7hP5pegyJ3StEOiWQJYm8wVEo5opV+qLnzK71VNyUfqiNqexggB+
-         7vo3Mhs7CotOg53IQ+BYhmO3293YUMpzfCtcajBWwkVXTtLCCMhiAPLsZBAHp+//60AW
-         SRnT9CXEujLvrsj9Puxk58k3MBS83vJqjN1txc50vPajD3uBFMzsBKPQotz3r8P36nW+
-         O2tw==
+        bh=YdkPR857z2QJHU+MTdQBAeYrLi5HPVsYANWKLt6w3ss=;
+        b=W4WuyoP/5PUGym5RG4MRfTAzG6BrhKAYpkp6MQMY6kBQiBZRKrz81tleEsks4cl1wc
+         ugpKH5HWm5AN+mwyxNEzn/u0y5xgJk8rxfA/3OcZr5Rlp/DzD6KRP7mZqWO/M58ns+bx
+         3+vI+eoZHBczxCkkMkqin447zMzBK0T6Heb4xp4NtySEB2/gZY9xnSXcECDbVD+3GHZ5
+         SHLh85BYB+WVYh8gfStWlHuRJ3j0ad/VW2ZyV00QeFheVbUpOPABVmRJo91POcZtORYo
+         ty9JdTjD9HyLBvT8QbJ5YVk30pUxb/qeXGlKha+6wdxiVHO13KHod5jFrvVI6AjtZX3r
+         ggvA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.05
+        by mx.google.com with ESMTPS id c7si33395890pgg.339.2018.12.26.05.37.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 26 Dec 2018 05:37:06 -0800 (PST)
@@ -85,15 +85,15 @@ Received: from fmsmga003.fm.intel.com ([10.253.24.29])
   by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.56,400,1539673200"; 
-   d="scan'208";a="121185460"
+   d="scan'208";a="121185462"
 Received: from wangdan1-mobl1.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.210.154])
   by FMSMGA003.fm.intel.com with ESMTP; 26 Dec 2018 05:37:01 -0800
 Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
 	(envelope-from <fengguang.wu@intel.com>)
-	id 1gc9Mr-0005Nz-7S; Wed, 26 Dec 2018 21:37:01 +0800
-Message-Id: <20181226133351.164047705@intel.com>
+	id 1gc9Mr-0005OT-CD; Wed, 26 Dec 2018 21:37:01 +0800
+Message-Id: <20181226133351.521151384@intel.com>
 User-Agent: quilt/0.65
-Date: Wed, 26 Dec 2018 21:14:48 +0800
+Date: Wed, 26 Dec 2018 21:14:54 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 cc: Linux Memory Management List <linux-mm@kvack.org>,
@@ -109,72 +109,128 @@ cc: Dong Eddie <eddie.dong@intel.com>
 cc: Dave Hansen <dave.hansen@intel.com>
 cc: Zhang Yi <yi.z.zhang@linux.intel.com>
 cc: Dan Williams <dan.j.williams@intel.com>
-Subject: [RFC][PATCH v2 02/21] acpi/numa: memorize NUMA node type from SRAT table
+Subject: [RFC][PATCH v2 08/21] mm: introduce and export pgdat peer_node
 References: <20181226131446.330864849@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline; filename=0002-acpi-Memorize-numa-node-type-from-SRAT-table.patch
+Content-Disposition: inline; filename=0019-mm-Introduce-and-export-peer_node-for-pgdat.patch
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181226131448.sajHp4IGYRDHkO2dWGiCnqE0EDBU0wGtYhomLWwD_U0@z>
+Message-ID: <20181226131454.NtYzYcEOzXKJRvg0xNHrwnjhw5oNyLscQV7yP_fiWT8@z>
 
 From: Fan Du <fan.du@intel.com>
 
-Mark NUMA node as DRAM or PMEM.
+Each CPU socket can have 1 DRAM and 1 PMEM node, we call them "peer nodes".
+Migration between DRAM and PMEM will by default happen between peer nodes.
 
-This could happen in boot up state (see the e820 pmem type
-override patch), or on fly when bind devdax device with kmem
-driver.
-
-It depends on BIOS supplying PMEM NUMA proximity in SRAT table,
-that's current production BIOS does.
+It's a temp solution. In multiple memory layers, a node can have both
+promotion and demotion targets instead of a single peer node. User space
+may also be able to infer promotion/demotion targets based on future
+HMAT info.
 
 Signed-off-by: Fan Du <fan.du@intel.com>
 Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
- arch/x86/include/asm/numa.h |    2 ++
- arch/x86/mm/numa.c          |    2 ++
- drivers/acpi/numa.c         |    5 +++++
- 3 files changed, 9 insertions(+)
+ drivers/base/node.c    |   11 +++++++++++
+ include/linux/mmzone.h |   12 ++++++++++++
+ mm/page_alloc.c        |   29 +++++++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+)
 
---- linux.orig/arch/x86/include/asm/numa.h	2018-12-23 19:20:39.890947888 +0800
-+++ linux/arch/x86/include/asm/numa.h	2018-12-23 19:20:39.890947888 +0800
-@@ -30,6 +30,8 @@ extern int numa_off;
-  */
- extern s16 __apicid_to_node[MAX_LOCAL_APIC];
- extern nodemask_t numa_nodes_parsed __initdata;
-+extern nodemask_t numa_nodes_pmem;
-+extern nodemask_t numa_nodes_dram;
+--- linux.orig/drivers/base/node.c	2018-12-23 19:39:51.647261099 +0800
++++ linux/drivers/base/node.c	2018-12-23 19:39:51.643261112 +0800
+@@ -242,6 +242,16 @@ static ssize_t type_show(struct device *
+ }
+ static DEVICE_ATTR(type, S_IRUGO, type_show, NULL);
  
- extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
- extern void __init numa_set_distance(int from, int to, int distance);
---- linux.orig/arch/x86/mm/numa.c	2018-12-23 19:20:39.890947888 +0800
-+++ linux/arch/x86/mm/numa.c	2018-12-23 19:20:39.890947888 +0800
-@@ -20,6 +20,8 @@
- 
- int numa_off;
- nodemask_t numa_nodes_parsed __initdata;
-+nodemask_t numa_nodes_pmem;
-+nodemask_t numa_nodes_dram;
- 
- struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
- EXPORT_SYMBOL(node_data);
---- linux.orig/drivers/acpi/numa.c	2018-12-23 19:20:39.890947888 +0800
-+++ linux/drivers/acpi/numa.c	2018-12-23 19:20:39.890947888 +0800
-@@ -297,6 +297,11 @@ acpi_numa_memory_affinity_init(struct ac
- 
- 	node_set(node, numa_nodes_parsed);
- 
-+	if (ma->flags & ACPI_SRAT_MEM_NON_VOLATILE)
-+		node_set(node, numa_nodes_pmem);
-+	else
-+		node_set(node, numa_nodes_dram);
++static ssize_t peer_node_show(struct device *dev,
++			struct device_attribute *attr, char *buf)
++{
++	int nid = dev->id;
++	struct pglist_data *pgdat = NODE_DATA(nid);
 +
- 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
- 		node, pxm,
- 		(unsigned long long) start, (unsigned long long) end - 1,
++	return sprintf(buf, "%d\n", pgdat->peer_node);
++}
++static DEVICE_ATTR(peer_node, S_IRUGO, peer_node_show, NULL);
++
+ static struct attribute *node_dev_attrs[] = {
+ 	&dev_attr_cpumap.attr,
+ 	&dev_attr_cpulist.attr,
+@@ -250,6 +260,7 @@ static struct attribute *node_dev_attrs[
+ 	&dev_attr_distance.attr,
+ 	&dev_attr_vmstat.attr,
+ 	&dev_attr_type.attr,
++	&dev_attr_peer_node.attr,
+ 	NULL
+ };
+ ATTRIBUTE_GROUPS(node_dev);
+--- linux.orig/include/linux/mmzone.h	2018-12-23 19:39:51.647261099 +0800
++++ linux/include/linux/mmzone.h	2018-12-23 19:39:51.643261112 +0800
+@@ -713,6 +713,18 @@ typedef struct pglist_data {
+ 	/* Per-node vmstats */
+ 	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
+ 	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
++
++	/*
++	 * Points to the nearest node in terms of latency
++	 * E.g. peer of node 0 is node 2 per SLIT
++	 * node distances:
++	 * node   0   1   2   3
++	 *   0:  10  21  17  28
++	 *   1:  21  10  28  17
++	 *   2:  17  28  10  28
++	 *   3:  28  17  28  10
++	 */
++	int	peer_node;
+ } pg_data_t;
+ 
+ #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
+--- linux.orig/mm/page_alloc.c	2018-12-23 19:39:51.647261099 +0800
++++ linux/mm/page_alloc.c	2018-12-23 19:39:51.643261112 +0800
+@@ -6926,6 +6926,34 @@ static void check_for_memory(pg_data_t *
+ 	}
+ }
+ 
++/*
++ * Return the nearest peer node in terms of *locality*
++ * E.g. peer of node 0 is node 2 per SLIT
++ * node distances:
++ * node   0   1   2   3
++ *   0:  10  21  17  28
++ *   1:  21  10  28  17
++ *   2:  17  28  10  28
++ *   3:  28  17  28  10
++ */
++static int find_best_peer_node(int nid)
++{
++	int n, val;
++	int min_val = INT_MAX;
++	int peer = NUMA_NO_NODE;
++
++	for_each_online_node(n) {
++		if (n == nid)
++			continue;
++		val = node_distance(nid, n);
++		if (val < min_val) {
++			min_val = val;
++			peer = n;
++		}
++	}
++	return peer;
++}
++
+ /**
+  * free_area_init_nodes - Initialise all pg_data_t and zone data
+  * @max_zone_pfn: an array of max PFNs for each zone
+@@ -7012,6 +7040,7 @@ void __init free_area_init_nodes(unsigne
+ 		if (pgdat->node_present_pages)
+ 			node_set_state(nid, N_MEMORY);
+ 		check_for_memory(pgdat, nid);
++		pgdat->peer_node = find_best_peer_node(nid);
+ 	}
+ }
+ 
 
 
