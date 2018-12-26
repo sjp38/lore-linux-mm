@@ -1,125 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B06FE8E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 10:19:00 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id g12-v6so6242063lji.3
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 07:19:00 -0800 (PST)
-Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70123.outbound.protection.outlook.com. [40.107.7.123])
-        by mx.google.com with ESMTPS id b204si27878059lfg.46.2018.12.27.07.18.58
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D18698E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 03:35:09 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id l22so17218955pfb.2
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 00:35:09 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j191si31161946pgd.31.2018.12.26.00.35.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 27 Dec 2018 07:18:58 -0800 (PST)
-From: Konstantin Khorenko <khorenko@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Dec 2018 00:35:08 -0800 (PST)
+Date: Wed, 26 Dec 2018 09:35:05 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [RFC PATCH 0/1] mm: add a warning about high order allocations
-Date: Thu, 27 Dec 2018 15:18:54 +0000
-Message-ID: <e7660465-2e1e-b641-5730-448dee45b220@virtuozzo.com>
+Message-ID: <20181226083505.GF16738@dhcp22.suse.cz>
 References: <20181225153927.2873-1-khorenko@virtuozzo.com>
- <20181226083505.GF16738@dhcp22.suse.cz>
-In-Reply-To: <20181226083505.GF16738@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <4E1226E736A32D4E8B6126627B7F2003@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181225153927.2873-1-khorenko@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>
+To: Konstantin Khorenko <khorenko@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>
 
-SGkgTWljaGFsLA0KDQp0aGFuayB5b3UgdmVyeSBtdWNoIGZvciB5b3VyIHF1ZXN0aW9ucywgcGxl
-YXNlIHNlZSBteSBub3RlcyBiZWxvdy4NCg0KT24gMTIvMjYvMjAxOCAxMTozNSBBTSwgTWljaGFs
-IEhvY2tvIHdyb3RlOg0KPiBPbiBUdWUgMjUtMTItMTggMTg6Mzk6MjYsIEtvbnN0YW50aW4gS2hv
-cmVua28gd3JvdGU6DQo+PiBROiBXaHkgZG8gd2UgbmVlZCB0byBib3RoZXIgYXQgYWxsPw0KPj4g
-QTogSWYgYSBub2RlIGlzIGhpZ2hseSBsb2FkZWQgYW5kIGl0cyBtZW1vcnkgaXMgc2lnbmlmaWNh
-bnRseSBmcmFnbWVudGVkDQo+PiAodW5mb3J0dW5hdGVseSBhbG1vc3QgYW55IG5vZGUgd2l0aCBz
-ZXJpb3VzIGxvYWQgaGFzIGhpZ2hseSBmcmFnbWVudGVkIG1lbW9yeSkNCj4+IHRoZW4gYW55IGhp
-Z2ggb3JkZXIgbWVtb3J5IGFsbG9jYXRpb24gY2FuIHRyaWdnZXIgbWFzc2l2ZSBtZW1vcnkgc2hy
-aW5rIGFuZA0KPj4gcmVzdWx0IGluIHF1aXRlIGEgYmlnIGFsbG9jYXRpb24gbGF0ZW5jeS4gQW5k
-IHRoZSBub2RlIGJlY29tZXMgbGVzcyByZXNwb25zaXZlDQo+PiBhbmQgdXNlcnMgZG9uJ3QgbGlr
-ZSBpdC4NCj4+IFRoZSB1bHRpbWF0ZSBzb2x1dGlvbiBoZXJlIGlzIHRvIGdldCByaWQgb2YgbGFy
-Z2UgYWxsb2NhdGlvbnMsIGJ1dCB3ZSBuZWVkIGFuDQo+PiBpbnN0cnVtZW50IHRvIGRldGVjdCB0
-aGVtLg0KPg0KPiBDYW4geW91IHBvaW50IHRvIGFuIGV4YW1wbGUgb2YgdGhlIHByb2JsZW0geW91
-IGFyZSByZWZlcnJpbmcgaGVyZT8gQXQNCj4gbGVhc3QgZm9yIGNvc3RseSBvcmRlcnMgd2UgZG8g
-YmFpbCBvdXQgZWFybHkgYW5kIHRyeSB0byBub3QgY2F1c2UNCj4gbWFzc2l2ZSByZWNsYWltLiBT
-byB3aGF0IGlzIHRoZSBvcmRlciB0aGF0IHlvdSBhcmUgY29uY2VybmVkIGFib3V0Pw0KDQpXZWxs
-LCB0aGlzIGlzIHRoZSBtb3N0IGRpZmZpY3VsdCBxdWVzdGlvbiB0byBhbnN3ZXIuDQpVbmZvcnR1
-bmF0ZWx5IGkgZG9uJ3QgaGF2ZSBhIHJlcHJvZHVjZXIgZm9yIHRoYXQsIHVzdWFsbHkgd2UgZ2V0
-IGludG8gc2l0dWF0aW9uDQp3aGVuIHNvbWVvbmUgZXhwZXJpZW5jZXMgc2lnbmlmaWNhbnQgbm9k
-ZSBzbG93ZG93biwgbm9kZXMgbW9zdCBvZnRlbiBoYXZlIGEgbG90IG9mIFJBTSwNCndlIGNoZWNr
-IHdoYXQgaXMgZ29pbmcgb24gdGhlcmUgYW5kIHNlZSB0aGUgbm9kZSBpcyBidXN5IHdpdGggcmVj
-bGFpbS4NCkFuZCBhbG1vc3QgZXZlcnkgdGltZSB0aGUgcmVhc29uIHdhcyAtIGZyYWdtZW50ZWQg
-bWVtb3J5IGFuZCBoaWdoIG9yZGVyIGFsbG9jYXRpb25zLg0KTW9zdGx5IG9mIDJuZCBhbmQgM3Jk
-ICh3aGljaCBpcyBzdGlsbCBjb25zaWRlcmVkIG5vdCBjb3N0bHkpIG9yZGVyLg0KDQpSZWNlbnQg
-cmVsYXRlZCBpc3N1ZXMgd2UgZmFjZWQgd2VyZSBhYm91dCBGVVNFIGRldiBwaXBlOg0KZDZkOTMx
-YWRjZTExICgiZnVzZTogdXNlIGt2bWFsbG9jIHRvIGFsbG9jYXRlIGFycmF5IG9mIHBpcGVfYnVm
-ZmVyIHN0cnVjdHMuIikNCg0KYW5kIGFib3V0IGJueCBkcml2ZXIgKyBtdHUgOTAwMCB3aGljaCBm
-b3IgZWFjaCBwYWNrZXQgcmVxdWlyZWQgcGFnZSBvZiAybmQgb3JkZXINCihhbmQgaXQgZXZlbiBm
-YWlsZWQgc29tZXRpbWVzLCB0aG91Z2ggaXQgd2FzIG5vdCB0aGUgcm9vdCBjYXVzZSk6DQogICAg
-IGtzd2FwZDA6IHBhZ2UgYWxsb2NhdGlvbiBmYWlsdXJlOiBvcmRlcjoyLCBtb2RlOjB4NDAyMA0K
-ICAgICBDYWxsIFRyYWNlOg0KICAgICAgICAgZHVtcF9zdGFjaysweDE5LzB4MWINCiAgICAgICAg
-IHdhcm5fYWxsb2NfZmFpbGVkKzB4MTEwLzB4MTgwDQogICAgICAgICBfX2FsbG9jX3BhZ2VzX25v
-ZGVtYXNrKzB4N2JmLzB4YzYwDQogICAgICAgICBhbGxvY19wYWdlc19jdXJyZW50KzB4OTgvMHgx
-MTANCiAgICAgICAgIGttYWxsb2Nfb3JkZXIrMHgxOC8weDQwDQogICAgICAgICBrbWFsbG9jX29y
-ZGVyX3RyYWNlKzB4MjYvMHhhMA0KICAgICAgICAgX19rbWFsbG9jKzB4Mjc5LzB4MjkwDQogICAg
-ICAgICBibngyeF9mcmFnX2FsbG9jLmlzcmEuNjErMHgyYS8weDQwIFtibngyeF0NCiAgICAgICAg
-IGJueDJ4X3J4X2ludCsweDIyNy8weDE3YzAgW2JueDJ4XQ0KICAgICAgICAgYm54MnhfcG9sbCsw
-eDFkZC8weDI2MCBbYm54MnhdDQogICAgICAgICBuZXRfcnhfYWN0aW9uKzB4MTc5LzB4MzkwDQog
-ICAgICAgICBfX2RvX3NvZnRpcnErMHgxMGYvMHgyYWENCiAgICAgICAgIGNhbGxfc29mdGlycSsw
-eDFjLzB4MzANCiAgICAgICAgIGRvX3NvZnRpcnErMHg2NS8weGEwDQogICAgICAgICBpcnFfZXhp
-dCsweDEwNS8weDExMA0KICAgICAgICAgZG9fSVJRKzB4NTYvMHhlMA0KICAgICAgICAgY29tbW9u
-X2ludGVycnVwdCsweDZkLzB4NmQNCg0KQW5kIGFzIGJvdGggcGxhY2VzIHdlcmUgY2FsbGVkIHZl
-cnkgb2Z0ZW4gLSB0aGUgc3lzdGVtIGxhdGVuY3kgd2FzIGhpZ2guDQoNClRoaXMgd2FybmluZyBj
-YW4gYmUgYWxzbyB1c2VkIHRvIGNhdGNoIGFsbG9jYXRpb24gb2YgNHRoIG9yZGVyIGFuZCBoaWdo
-ZXIgd2hpY2ggbWF5DQplYXNpbHkgZmFpbC4gVGhvc2UgcGxhY2VzIHdoaWNoIGFyZSByZWFkeSB0
-byBnZXQgYWxsb2NhdGlvbiBlcnJvcnMgYW5kIGhhdmUNCmZhbGxiYWNrcyBhcmUgbWFya2VkIHdp
-dGggX19HRlBfTk9XQVJOLg0KDQo+PiBROiBXaHkgd2FybmluZz8gVXNlIHRyYWNlcG9pbnRzIQ0K
-Pj4gQTogV2VsbCwgdGhpcyBpcyBhIG1hdHRlciBvZiBtYWdpYyBkZWZhdWx0cy4NCj4+IFllcywg
-eW91IGNhbiB1c2UgdHJhY2Vwb2ludHMgdG8gY2F0Y2ggbGFyZ2UgYWxsb2NhdGlvbnMsIGJ1dCB5
-b3UgbmVlZCB0byBkbyB0aGlzDQo+PiBvbiBwdXJwb3NlIGFuZCByZWd1bGFybHkgYW5kIHRoaXMg
-aXMgdG8gYmUgZG9uZSBieSBldmVyeSBkZXZlbG9wZXIgd2hpY2ggaXMNCj4+IHF1aXRlIHVucmVh
-bC4NCj4+IE9uIHRoZSBvdGhlciBoYW5kIGlmIHlvdSBkZXZlbG9wIHNvbWV0aGluZyBhbmQgZ2V0
-IGEgd2FybmluZywgeW91J2xsIGhhdmUgdG8NCj4+IHRoaW5rIGFib3V0IHRoZSByZWFzb24gYW5k
-IGVpdGhlciBzdWNjZWVkIHdpdGggcmV3b3JraW5nIHRoZSBjb2RlIHRvIHVzZQ0KPj4gc21hbGxl
-ciBhbGxvY2F0aW9uIHNpemVzIChhbmQgdGh1cyBkZWNyZWFzZSBhbGxvY2F0aW9uIGxhdGVuY3kh
-KSBvciBqdXN0IHVzZQ0KPj4ga3ZtYWxsb2MoKSBpZiB5b3UgZG9uJ3QgcmVhbGx5IG5lZWQgcGh5
-c2ljYWxseSBjb250aW51b3MgY2h1bmsgb3IgY29tZSB0byB0aGUNCj4+IGNvbmNsdXNpb24geW91
-IGRlZmluaXRlbHkgbmVlZCBwaHlzaWNhbGx5IGNvbnRpbnVvcyBtZW1vcnkgYW5kIHNodXQgdXAg
-dGhlDQo+PiB3YXJuaW5nLg0KPg0KPiBXZWxsLCBub3QgcmVhbGx5LiBGb3Igb25lIHRoaW5nLCB0
-aGVyZSBhcmUgc3lzdGVtcyB0byBwYW5pYyBvbiB3YXJuaW5nDQo+IGFuZCB5b3UgcmVhbGx5IGRv
-IG5vdCB3YW50IHRvIGJsb3cgdXAganVzdCBiZWNhdXNlIHNvbWVib2R5IGlzIGRvaW5nIGENCj4g
-bGFyZ2Ugb3JkZXIgYWxsb2NhdGlvbi4NCg0KV2VsbCwgb24gb25lIGhhbmQgLSB5ZXMsIGkgYWdy
-ZWUgd2l0aCB5b3UuIFRoYXQncyB3aHkgaSBkb24ndCBzdWdnZXN0IHRvIGVuYWJsZQ0KdGhlIHdh
-cm5pbmcgYnkgZGVmYXVsdCByaWdodCBub3cgLSB1bnRpbCBhbGwgKG1vc3QpIG9mIGxhcmdlIGFs
-bG9jYXRpb25zIGFyZSBtYXJrZWQNCnByb3Blcmx5Lg0KQnV0IGFmdGVyIGl0J3MgZG9uZSBhbmQg
-dGhlcmUgYXJlIG5vIChhbG1vc3QpIHVubWFya2VkIGhpZ2ggb3JkZXIgYWxsb2NhdGlvbnMgLQ0K
-d2h5IG5vdD8gVGhpcyB3aWxsIHJldmVhbCBuZXcgY2FzZXMgb2YgaGlnaCBvcmRlciBhbGxvY2F0
-aW9ucyBzb29uLg0KaSB0aGluayBwZW9wbGUgd2hvIHJ1biBzeXN0ZW1zIHdpdGggImtlcm5lbC5w
-YW5pY19vbl93YXJuIiBlbmFibGVkIGRvIGNhcmUNCmFib3V0IHJlcG9ydGluZyBpc3N1ZXMuDQoN
-Cj4+IFE6IFdoeSBjb21waWxlIHRpbWUgY29uZmlnIG9wdGlvbj8NCj4+IEE6IEluIG9yZGVyIG5v
-dCB0byBkZWNyZWFzZSB0aGUgcGVyZm9ybWFuY2UgZXZlbiBhIGJpdCBpbiBjYXNlIHNvbWVvbmUg
-ZG9lcyBub3QNCj4+IHdhbnQgdG8gaHVudCBmb3IgbGFyZ2UgYWxsb2NhdGlvbnMuDQo+PiBJbiBh
-biBpZGVhbCBsaWZlIGknZCBwcmVmZXIgdGhpcyBjaGVjay93YXJuaW5nIGlzIGVuYWJsZWQgYnkg
-ZGVmYXVsdCBhbmQgbWF5IGJlDQo+PiBldmVuIHdpdGhvdXQgYSBjb25maWcgb3B0aW9uIHNvIGl0
-IHdvcmtzIG9uIGV2ZXJ5IG5vZGUuIE9uY2Ugd2UgZmluZCBhbmQgcmV3b3JrDQo+PiBvciBtYXJr
-IGFsbCBsYXJnZSBhbGxvY2F0aW9ucyB0aGF0IHdvdWxkIGJlIGdvb2QgYnkgZGVmYXVsdC4gVW50
-aWwgdGhhdCB0aG91Z2gNCj4+IGl0IHdpbGwgYmUgbm9pc3kuDQo+DQo+IFNvIHdobyBpcyBnb2lu
-ZyB0byBlbmFibGUgdGhpcyBvcHRpb24/DQoNCkF0IHRoZSBiZWdpbm5pbmcgLSBwZW9wbGUgd2hv
-IHdhbnQgdG8gZGVidWcga2VybmVsIGFuZCB2ZXJpZnkgdGhlaXIgZmFsbGJhY2tzIG9uDQptZW1v
-cnkgYWxsb2NhdGlvbnMgZmFpbHVyZXMgaW4gdGhlIGNvZGUgb3IganVzdCBzcGVlZCB1cCB0aGVp
-ciBjb2RlIG9uIG5vZGVzDQp3aXRoIGZyYWdtZW50ZWQgbWVtb3J5IC0gZm9yIDJuZCBhbmQgM3Jk
-IG9yZGVycy4NCg0KbW0gcGVyZm9ybWFuY2UgaXNzdWVzIGFyZSB0b3VnaCwgeW91IGtub3csIGFu
-ZCB0aGlzIGlzIGp1c3QgYW5vdGhlciB3YXkgdG8NCmdhaW4gbW9yZSBwZXJmb3JtYW5jZS4gSXQg
-d29uJ3QgYXZvaWQgdGhlIG5lY2Vzc2l0eSBvZiBkaWdnaW5nIG1tIGZvciBzdXJlLA0KYnV0IG1p
-Z2h0IGRlY3JlYXNlIHRoZSBwcmVzc3VyZSBsZXZlbC4NCg0KTGF0ZXIgKGkgaG9wZSkgaSBjb3Vs
-ZCBiZSBlbmFibGVkIGJ5IGRlZmF1bHQgc28gYWxsIGJpZyBuZXcgYWxsb2NhdGlvbnMNCmFyZSB2
-ZXJpZmllZCBzb29uZXIgYW5kIGVpdGhlciByZXdvcmtlZCBvciBtYXJrZWQgd2l0aCBfX0dGUF9O
-T1dBUk4gaWYgdGhlIGNvZGUgaXMNCnJlYWR5Lg0KDQotLQ0KQmVzdCByZWdhcmRzLA0KDQpLb25z
-dGFudGluIEtob3JlbmtvLA0KVmlydHVvenpvIExpbnV4IEtlcm5lbCBUZWFtDQoNCj4+IEFub3Ro
-ZXIgb3B0aW9uIGlzIHRvIHJld29yayB0aGUgcGF0Y2ggdmlhIHN0YXRpYyBrZXlzIChoYXZpbmcg
-dGhlIHdhcm5pbmcNCj4+IGRpc2FibGVkIGJ5IGRlZmF1bHQgc3VyZWx5KS4gVGhhdCBtYWtlcyBp
-dCBwb3NzaWJsZSB0byB0dXJuIG9uIHRoZSBmZWF0dXJlDQo+PiB3aXRob3V0IHJlY29tcGlsaW5n
-IHRoZSBrZXJuZWwgLSBkdXJpbmcgdGVzdGluZyBwZXJpb2QgZm9yIGV4YW1wbGUuDQo+Pg0KPj4g
-SWYgeW91IHByZWZlciB0aGlzIHdheSwgaSB3b3VsZCBiZSBoYXBweSB0byByZXdvcmsgdGhlIHBh
-dGNoIHZpYSBzdGF0aWMga2V5cy4NCj4NCj4gSSB3b3VsZCByYXRoZXIgZ28gYW5kIGNoYXNlIHRo
-ZSB1bmRlcmx5aW5nIGlzc3VlLiBTbyBjYW4gd2UgZ2V0IGFuDQo+IGFjdHVhbCBkYXRhIHBsZWFz
-ZT8NCg==
+On Tue 25-12-18 18:39:26, Konstantin Khorenko wrote:
+> Q: Why do we need to bother at all?
+> A: If a node is highly loaded and its memory is significantly fragmented
+> (unfortunately almost any node with serious load has highly fragmented memory)
+> then any high order memory allocation can trigger massive memory shrink and
+> result in quite a big allocation latency. And the node becomes less responsive
+> and users don't like it.
+> The ultimate solution here is to get rid of large allocations, but we need an
+> instrument to detect them.
+
+Can you point to an example of the problem you are referring here? At
+least for costly orders we do bail out early and try to not cause
+massive reclaim. So what is the order that you are concerned about?
+
+> Q: Why warning? Use tracepoints!
+> A: Well, this is a matter of magic defaults.
+> Yes, you can use tracepoints to catch large allocations, but you need to do this
+> on purpose and regularly and this is to be done by every developer which is
+> quite unreal.
+> On the other hand if you develop something and get a warning, you'll have to
+> think about the reason and either succeed with reworking the code to use
+> smaller allocation sizes (and thus decrease allocation latency!) or just use
+> kvmalloc() if you don't really need physically continuos chunk or come to the
+> conclusion you definitely need physically continuos memory and shut up the
+> warning.
+
+Well, not really. For one thing, there are systems to panic on warning
+and you really do not want to blow up just because somebody is doing a
+large order allocation.
+
+> Q: Why compile time config option?
+> A: In order not to decrease the performance even a bit in case someone does not
+> want to hunt for large allocations.
+> In an ideal life i'd prefer this check/warning is enabled by default and may be
+> even without a config option so it works on every node. Once we find and rework
+> or mark all large allocations that would be good by default. Until that though
+> it will be noisy.
+
+So who is going to enable this option?
+
+> Another option is to rework the patch via static keys (having the warning
+> disabled by default surely). That makes it possible to turn on the feature
+> without recompiling the kernel - during testing period for example.
+> 
+> If you prefer this way, i would be happy to rework the patch via static keys.
+
+I would rather go and chase the underlying issue. So can we get an
+actual data please?
+
+-- 
+Michal Hocko
+SUSE Labs
