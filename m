@@ -1,77 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DAE58E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:39:23 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id q3so6164056qtq.15
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 07:39:23 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id h88si1137907qtd.264.2018.12.21.07.39.22
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E8AE8E0008
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:37:08 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id a2so15212809pgt.11
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:37:08 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id r12si1487152plo.59.2018.12.26.05.37.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Dec 2018 07:39:22 -0800 (PST)
-Date: Fri, 21 Dec 2018 10:39:17 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [RFC PATCH v5 00/20] VM introspection
-Message-ID: <20181221153917.GA8195@char.us.oracle.com>
-References: <20181220182850.4579-1-alazar@bitdefender.com>
+        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
+Message-Id: <20181226133352.303666865@intel.com>
+Date: Wed, 26 Dec 2018 21:15:07 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [RFC][PATCH v2 21/21] mm/vmscan.c: shrink anon list if can migrate to PMEM
+References: <20181226131446.330864849@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20181220182850.4579-1-alazar@bitdefender.com>
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=0013-vmscan-disable-0-swap-space-optimization.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Adalbert =?utf-8?B?TGF6xINy?= <alazar@bitdefender.com>, linux-mm@kvack.org
-Cc: kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Mihai =?utf-8?B?RG9uyJt1?= <mdontu@bitdefender.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Dec 20, 2018 at 08:28:30PM +0200, Adalbert Laz=C4=83r wrote:
-> This patch series proposes a VM introspection subsystem for KVM (KVMi).
->=20
-> The previous RFC can be read here: https://marc.info/?l=3Dkvm&m=3D15136=
-2403331566
->=20
-> This iteration brings, mostly:
->   - an improved remote mapping (moved to the mm/ tree)
->   - single-step support for #PF events and as an workaround to unimplem=
-ented
->     instructions from the x86 emulator that may need to be handled on E=
-PT
->     violations VMEXITS
->   - a new ioctl to allow the introspection tool to remove its hooks fro=
-m
->     guest before it is suspended or live migrated
+Fix OOM by making in-kernel DRAM=>PMEM migration reachable.
 
-.. No mention of the libvmi tool - are you going to provide the functiona=
-lity
-in there as well to use these new ioctls? Would it make sense to CC the l=
-ibvmi
-community as well to get their input?
+Here we assume these 2 possible demotion paths:
+- DRAM migrate to PMEM
+- PMEM to swap device
 
->   - more bugfixes and a lot of stability
->=20
-> Still not implemented yet (even if some are documented) are virtualized
-> exceptions, EPT views and SPP (Sub Page Protection).
->=20
-> We're still looking forward to add kvm unit tests for this VM
-> introspection system now that we've integrated it in our products and
-> in our internal tests framework.
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ mm/vmscan.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-..snip..>=20
-
->  mm/Kconfig                               |    9 +
->  mm/Makefile                              |    1 +
->  mm/gup.c                                 |    1 +
->  mm/huge_memory.c                         |    1 +
->  mm/internal.h                            |    5 -
->  mm/mempolicy.c                           |    1 +
->  mm/mmap.c                                |    1 +
->  mm/mmu_notifier.c                        |    1 +
->  mm/pgtable-generic.c                     |    1 +
->  mm/remote_mapping.c                      | 1438 ++++++++++++++
->  mm/rmap.c                                |   39 +-
->  mm/swapfile.c                            |    1 +
-
-Please make sure to CC linux-mm@kvack.org when posting this.
-
-In the meantime for folks on linux-mm, pls see https://www.spinics.net/li=
-sts/kvm/msg179441.html
+--- linux.orig/mm/vmscan.c	2018-12-23 20:38:44.310446223 +0800
++++ linux/mm/vmscan.c	2018-12-23 20:38:44.306446146 +0800
+@@ -2259,7 +2259,7 @@ static bool inactive_list_is_low(struct
+ 	 * If we don't have swap space, anonymous page deactivation
+ 	 * is pointless.
+ 	 */
+-	if (!file && !total_swap_pages)
++	if (!file && (is_node_pmem(pgdat->node_id) && !total_swap_pages))
+ 		return false;
+ 
+ 	inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
+@@ -2340,7 +2340,8 @@ static void get_scan_count(struct lruvec
+ 	enum lru_list lru;
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+-	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
++	if (is_node_pmem(pgdat->node_id) &&
++	    (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0)) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
