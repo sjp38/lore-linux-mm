@@ -2,244 +2,158 @@ Return-Path: <SRS0=eTfr=PD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92169C43387
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:39:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37908C43387
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 15:32:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A3D4218AD
-	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 13:39:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A3D4218AD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E9A5D214C6
+	for <linux-mm@archiver.kernel.org>; Wed, 26 Dec 2018 15:32:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="Nm5ZwGWJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9A5D214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA66A8E0008; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
+	id 772EF8E0003; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E2E198E0001; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
+	id 6FA5F8E0001; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CCF488E0008; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
+	id 5C2148E0003; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 85EA58E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id x7so13954102pll.23
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:39:03 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9EF8E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 10:32:12 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id x82so20038980ita.9
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 07:32:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :user-agent:date:from:to:cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject
-         :references:mime-version:content-disposition;
-        bh=tYqj7DG34CtC/nTD0z3u9A6Jj04pHSJsobbAtn39leM=;
-        b=FnTmIa8o8n8wqNnCo7AXuwICmslr1PzBG75NnsFeltY+7sDaMiNsnxlGx/x0e2+oPt
-         /5TP5bIQCYyAjbHcPCv0N/nSdaler4V4DYuZcDnZWSInrYF89xYRjSvgKy7dIk4TCkis
-         DGR5I3UDYR9Hh7SQJCFbM8/LoUhIwKslT0Gj38JZARq+/pddfDUC0GeAxo6Fi3zRFL2O
-         zB2gzBswNz4Yud1JGyXRMh6yLTL4JKG8KoWBCMCE3cMHMkn4F1OuafASG3t/hFcdRzgK
-         SMWQGDyLQ/7bLRUwF2oyXfFTcHKIAsFeIrU4FDIpLl46Qb0KaZs3FBDzWUOm+Fu4yweU
-         yg3A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AA+aEWaXTiCy33zNGQ1obQ1YubCMa9w3EbzEY7amV+Nx/5gkrFRPXLwV
-	gCJQp3vZrbxVzZaHHUEkONQf20X45QTAzhF3PM6hvnD3PIuF5YgbPxWKGToFyOxzA78KllCN9Zy
-	3R6Rh28YDKRBMG5/4aeZ5UIMIWtimxsskrUAp0OwUrDqJ/JJdGWwXB8ohOEF7wQC60w==
-X-Received: by 2002:a62:dbc2:: with SMTP id f185mr20046327pfg.235.1545831543226;
-        Wed, 26 Dec 2018 05:39:03 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/V+2q9ausOlvfFXMvIV9VjxLCl9AKgR/vGCKA3e7e8K3baMNF3MrhGeYh+zo3tpH0/Z2Iyn
-X-Received: by 2002:a62:dbc2:: with SMTP id f185mr20040484pfg.235.1545831427188;
-        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545831427; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=VNidTVK9BknK48wMc2d/FhziRGCtZRNJAoalJxL7/b4=;
+        b=DPuiaMEgNUmS9gCtjaPHv6AsxcYbpwuiW6slUIpMZ0BIbffTKT87tgJzbYXaMzLfwD
+         horkXTpX0tSWeyem5MhrvuvTIwJ8+tNeM0SzwQJ6Unede6yOsKNCj5p2FFMgLYnKtxu5
+         eRl+82rI79ci6BF0zaj8em6mAkzhwMxmOWaQWuMSilCH+wbiokWqQK5ZluLIeCFdyv3/
+         liMjOZDCt3Kqc+AfEA7nNxZB1gqdAe3eUZUrFTRLbY6xa8kiRsltH5SlQQLQgHLrwwt0
+         jObT22VK2opNzf3zG6yZr8wKNtdJt3bUR/Lx+x+mLmgaJxrD9Z5A0LFV/mN8JXUYQJlK
+         8feA==
+X-Gm-Message-State: AJcUukf4dSFEcZoKb8VwQ2vHB/jznzjjar+B9U80ITPqmFfSV6yNqdNW
+	25cj5d8uIyWs+uM8zeVgnOS5WMvwgAEe1GtTuH/DWAHLss3Zt3zk3KMUEEsLsOGSFdFX29kNDwi
+	A3aZ0rianioocYGnWejgAI+CRTrTwzmHR6hN/j1idYJEMb//JBgdPxXqgJxRIV1z+wKA4TlVIvN
+	hcCX7UVpiWKVWPJbM6K8fVjethgn6/HPFFz35oTMMFhZlCQAxn1SWRD0IlejLUHxaiHvUJA8vYt
+	OQ4vMP4Pk4D2jv2aNvHxH7TGfo3E2yhwETi/xciqY5Y7uV4rW32KEZGrbcJJEzZ+GWU5Oi6k2RL
+	TimHvewdkN4aruIlTkJ9dQIuOCWatQckxj8oXzLHwcfGLlfykDoinT4evGIvomw9xNdjG4oqjS0
+	H
+X-Received: by 2002:a6b:3a89:: with SMTP id h131mr13074308ioa.109.1545838331947;
+        Wed, 26 Dec 2018 07:32:11 -0800 (PST)
+X-Received: by 2002:a6b:3a89:: with SMTP id h131mr13074260ioa.109.1545838331110;
+        Wed, 26 Dec 2018 07:32:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545838331; cv=none;
         d=google.com; s=arc-20160816;
-        b=pxqEvYYyt0kxnu7j8l8GmVmmUzhs4zNsI0FyLmsSwIU5/Ym2WGCZoDeiiVnzpIvb+6
-         3xXsWpH7TzWo6ZNiRKwRNdQQKLTeauDiUqVMEg46vXSqzhN27UpwzU4vmZqNBABkR348
-         kn6jJpaekbNqLo7q9iXTiNNggfGjAlV9ThrVynRUrVnL9Fcn1P1XiqaGe3/cpE2UCrpJ
-         nZEE5Q9z2myKRCMNpskrtVbNwCLzAopQfumXDCKIzOfCKg0ARVwjkB94LlJlvmYp5GLi
-         JOOfdpaeIiZAI9j4cRq34j4eQhJGyeLWzdgAI7CflbsO0hxMOxWyGjSNNKYy8OWVcZGi
-         gvmA==
+        b=OAa/1TTkNbIZN4TguaU9VFSYX0inWYHa0c7vjP2k4mhGu2LEiHvZE79x2yVLoIEwGl
+         wn851/eOvVXwnjnBfs3dhuFdt00Nu8hGL5mhvSQ1LhLIaat6vS2efJi0du1ffPatxe86
+         KlqcooPs7LgNPpn6iSTuRq2TQ9YCi7trKMM/iuOfoz1tLKPHK4mNAkSCiLK/rfHz2BwQ
+         Ldl6tqbBPHaRGD3fPXkZIKtc3Cei4/8b+sOyUmGlAkLNPEa5zNXZUfai9gcOCFHMVtR9
+         z29jMLii7FIygKUEp90DFTsvOt54p8LCB8Q+iw1zs1ye2HHzbPNSp6sn8Ve/LoP/n4Jg
+         QHxA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-disposition:mime-version:references:subject:cc:cc:cc:cc:cc
-         :cc:cc:cc:cc:cc:to:from:date:user-agent:message-id;
-        bh=tYqj7DG34CtC/nTD0z3u9A6Jj04pHSJsobbAtn39leM=;
-        b=OAYdvtNwhPMmPyMEOyqMpG/WP10OqEXHmlDeusllYBJ/AUHzp2qxmrjvQGopAL7P9H
-         JRAAEe88DYCd5G7nVgQ3sZ+fr5WK66M87Dxc5/vNmkVI4VuZhkU0Wnd5ooHyIJsySx3c
-         cg6sirlNMcdWz7v/wv0uQleje3LtuQv5/QYCG+MhsMfaOVZw6oQCwcd5/3I6160AkFpn
-         IubL3T0oB0EStw1Z6TBUeep/tG70FbS/4YLWT9qjSsVYHTmdUDQvisT7HV2dddyex87k
-         Md0UEDiGmnjpRPpa4g08r9BOMbtInYblbmZYWscVKK4BpTXUMMPyIUmjzKTUlzb2b3/2
-         nyNA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=VNidTVK9BknK48wMc2d/FhziRGCtZRNJAoalJxL7/b4=;
+        b=gbFPvM19NIBrwPx/o65t/EiuQlH3jMAZyz/azKLS/V3k4EXCjUGUeHz8o9AL10Fd/m
+         SwDfrU+H7QoDSd4JaRlGpPnYsH9yvQjOq0GvPI44je8CCg1loCV6V3OBjpXFJi+GwI3Q
+         karb+y/3LgrgtMYlFjSguilwHlZNnMmDtAggs1oQKBb1tEfagLrXxlGFlMgx9BuEO0s4
+         0SEtglGmmd/ja+fVUTFj/VpDe19XKC8hHo2b8B/BgHocN+dgfKDCJMnCXsOIYHoyrKkm
+         ocqTyyaKugOyR6M4S6gUP9eNyX31BamgJbugfE7ZCw+bXuTI57Gblbu1l/5w+edUzToM
+         lz3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.06
+       dkim=pass header.i=@linaro.org header.s=google header.b=Nm5ZwGWJ;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h68sor15020524iof.5.2018.12.26.07.32.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        (Google Transport Security);
+        Wed, 26 Dec 2018 07:32:11 -0800 (PST)
+Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Dec 2018 05:37:05 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,400,1539673200"; 
-   d="scan'208";a="121185471"
-Received: from wangdan1-mobl1.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.210.154])
-  by FMSMGA003.fm.intel.com with ESMTP; 26 Dec 2018 05:37:02 -0800
-Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
-	(envelope-from <fengguang.wu@intel.com>)
-	id 1gc9Mr-0005PS-Ms; Wed, 26 Dec 2018 21:37:01 +0800
-Message-Id: <20181226133352.246320288@intel.com>
-User-Agent: quilt/0.65
-Date: Wed, 26 Dec 2018 21:15:06 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-cc: Linux Memory Management List <linux-mm@kvack.org>,
- Fan Du <fan.du@intel.com>,
- Jingqi Liu <jingqi.liu@intel.com>,
- Fengguang Wu <fengguang.wu@intel.com>
-cc: kvm@vger.kernel.org
-Cc: LKML <linux-kernel@vger.kernel.org>
-cc: Yao Yuan <yuan.yao@intel.com>
-cc: Peng Dong <dongx.peng@intel.com>
-cc: Huang Ying <ying.huang@intel.com>
-cc: Dong Eddie <eddie.dong@intel.com>
-cc: Dave Hansen <dave.hansen@intel.com>
-cc: Zhang Yi <yi.z.zhang@linux.intel.com>
-cc: Dan Williams <dan.j.williams@intel.com>
-Subject: [RFC][PATCH v2 20/21] mm/vmscan.c: migrate anon DRAM pages to PMEM node
-References: <20181226131446.330864849@intel.com>
+       dkim=pass header.i=@linaro.org header.s=google header.b=Nm5ZwGWJ;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linaro.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=VNidTVK9BknK48wMc2d/FhziRGCtZRNJAoalJxL7/b4=;
+        b=Nm5ZwGWJMdkqCjEVY+whgnyQ+MTEuI/TPc20xQ+nY6GSGgEmNZusZIG/7FYK4nXKrD
+         6rblYMPJpq13TXO9Fx/2aPiAYB5p5RaJVdbwBoJcQ6O53Q9+9yyHIhzSy2CC9BYQdLJF
+         nn/Uer+CS8PECw2iNj8l4XJ85zY3S4ounApvM=
+X-Google-Smtp-Source: ALg8bN71ryeAV+qhfPw9GFhJo3aKcTrOxuxSO1CaHSSYuptFZmyAyO2hjX80J2gNwnyQQiYLF4gdKSIOIFiZrCgVHME=
+X-Received: by 2002:a6b:5d01:: with SMTP id r1mr13163263iob.170.1545838330629;
+ Wed, 26 Dec 2018 07:32:10 -0800 (PST)
 MIME-Version: 1.0
+References: <20181226023534.64048-1-cai@lca.pw> <CAKv+Gu_fiEDffKq_fONBYTOdSk-L7__+LgNEyVaNF3FGzBfAow@mail.gmail.com>
+ <403405f1-b702-2feb-4616-35fc3dc3133e@lca.pw>
+In-Reply-To: <403405f1-b702-2feb-4616-35fc3dc3133e@lca.pw>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Wed, 26 Dec 2018 16:31:59 +0100
+Message-ID:
+ <CAKv+Gu_e=NkKZ5C+KzBmgg2VMXNKPqXcPON8heRd0F_iW+aaEQ@mail.gmail.com>
+Subject: Re: [PATCH -mmotm] efi: drop kmemleak_ignore() for page allocator
+To: Qian Cai <cai@lca.pw>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Catalin Marinas <catalin.marinas@arm.com>, Linux-MM <linux-mm@kvack.org>, 
+	linux-efi <linux-efi@vger.kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline; filename=0012-vmscan-migrate-anonymous-pages-to-pmem-node-before-s.patch
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181226131506.ck_T_IQCTyFyc-dPmKVdypBPEM8IDLPQqtcAqyKopXk@z>
+Message-ID: <20181226153159.XscFKhWWeaYNTuXG8lhBuibjTm76IZfSZpSNj2I8A4I@z>
 
-From: Jingqi Liu <jingqi.liu@intel.com>
+On Wed, 26 Dec 2018 at 16:13, Qian Cai <cai@lca.pw> wrote:
+>
+> On 12/26/18 7:02 AM, Ard Biesheuvel wrote:
+> > On Wed, 26 Dec 2018 at 03:35, Qian Cai <cai@lca.pw> wrote:
+> >>
+> >> a0fc5578f1d (efi: Let kmemleak ignore false positives) is no longer
+> >> needed due to efi_mem_reserve_persistent() uses __get_free_page()
+> >> instead where kmemelak is not able to track regardless. Otherwise,
+> >> kernel reported "kmemleak: Trying to color unknown object at
+> >> 0xffff801060ef0000 as Black"
+> >>
+> >> Signed-off-by: Qian Cai <cai@lca.pw>
+> >
+> > Why are you sending this to -mmotm?
+> >
+> > Andrew, please disregard this patch. This is EFI/tip material.
+>
+> Well, I'd like to primarily develop on the -mmotm tree as it fits in a
+> sweet-spot where the mainline is too slow and linux-next is too chaotic.
+>
+> The bug was reproduced and the patch was tested on -mmotm. If for every bugs
+> people found in -mmtom, they have to check out the corresponding sub-system tree
+> and reproduce/verify the bug over there, that is quite a burden to bear.
+>
 
-With PMEM nodes, the demotion path could be
+Yes. But you know what? We all have our burden to bear, and shifting
+this burden to someone else, in this case the subsystem maintainer who
+typically deals with a sizable workload already, is not a very nice
+thing to do.
 
-1) DRAM pages: migrate to PMEM node
-2) PMEM pages: swap out
+> That's why sub-system maintainers are copied on those patches, so they can
+> decide to fix directly in the sub-system tree instead of -mmotm, and then it
+> will propagate to -mmotm one way or another.
+>
 
-This patch does (1) for anonymous pages only. Since we cannot
-detect hotness of (unmapped) page cache pages for now.
+Please stop sending EFI patches if you can't be bothered to
+test/reproduce against the EFI tree.
 
-The user space daemon can do migration in both directions:
-- PMEM=>DRAM hot page migration
-- DRAM=>PMEM cold page migration
-However it's more natural for user space to do hot page migration
-and kernel to do cold page migration. Especially, only kernel can
-guarantee on-demand migration when there is memory pressure.
-
-So the big picture will look like this: user space daemon does regular
-hot page migration to DRAM, creating memory pressure on DRAM nodes,
-which triggers kernel cold page migration to PMEM nodes.
-
-Du Fan:
-- Support multiple NUMA nodes.
-- Don't migrate clean MADV_FREE pages to PMEM node.
-
-With advise(MADV_FREE) syscall, both vma structure and
-its corresponding page entries still lives, but we got
-MADV_FREE page, anonymous but WITHOUT SwapBacked.
-
-In case of page reclaim, clean MADV_FREE pages will be
-freed and return to buddy system, the dirty ones then
-turn into canonical anonymous page with
-PageSwapBacked(page) set, and put into LRU_INACTIVE_FILE
-list falling into standard aging routine.
-
-Point is clean MADV_FREE pages should not be migrated,
-it has steal (useless) user data once madvise(MADV_FREE)
-called and guard against thus scenarios.
-
-P.S. MADV_FREE is heavily used by jemalloc engine, and
-workload like redis, refer to [1] for detailed backgroud,
-usecase, and benchmark result.
-
-[1]
-https://lore.kernel.org/patchwork/patch/622179/
-
-Fengguang:
-- detect migrate thp and hugetlb
-- avoid moving pages to a non-existent node
-
-Signed-off-by: Fan Du <fan.du@intel.com>
-Signed-off-by: Jingqi Liu <jingqi.liu@intel.com>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- mm/vmscan.c |   33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
-
---- linux.orig/mm/vmscan.c	2018-12-23 20:37:58.305551976 +0800
-+++ linux/mm/vmscan.c	2018-12-23 20:37:58.305551976 +0800
-@@ -1112,6 +1112,7 @@ static unsigned long shrink_page_list(st
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
-+	LIST_HEAD(move_pages);
- 	int pgactivate = 0;
- 	unsigned nr_unqueued_dirty = 0;
- 	unsigned nr_dirty = 0;
-@@ -1121,6 +1122,7 @@ static unsigned long shrink_page_list(st
- 	unsigned nr_immediate = 0;
- 	unsigned nr_ref_keep = 0;
- 	unsigned nr_unmap_fail = 0;
-+	int page_on_dram = is_node_dram(pgdat->node_id);
- 
- 	cond_resched();
- 
-@@ -1275,6 +1277,21 @@ static unsigned long shrink_page_list(st
- 		}
- 
- 		/*
-+		 * Check if the page is in DRAM numa node.
-+		 * Skip MADV_FREE pages as it might be freed
-+		 * immediately to buddy system if it's clean.
-+		 */
-+		if (node_online(pgdat->peer_node) &&
-+			PageAnon(page) && (PageSwapBacked(page) || PageTransHuge(page))) {
-+			if (page_on_dram) {
-+				/* Add to the page list which will be moved to pmem numa node. */
-+				list_add(&page->lru, &move_pages);
-+				unlock_page(page);
-+				continue;
-+			}
-+		}
-+
-+		/*
- 		 * Anonymous process memory has backing store?
- 		 * Try to allocate it some swap space here.
- 		 * Lazyfree page could be freed directly
-@@ -1496,6 +1513,22 @@ keep:
- 		VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
- 	}
- 
-+	/* Move the anonymous pages to PMEM numa node. */
-+	if (!list_empty(&move_pages)) {
-+		int err;
-+
-+		/* Could not block. */
-+		err = migrate_pages(&move_pages, alloc_new_node_page, NULL,
-+					pgdat->peer_node,
-+					MIGRATE_ASYNC, MR_NUMA_MISPLACED);
-+		if (err) {
-+			putback_movable_pages(&move_pages);
-+
-+			/* Join the pages which were not migrated.  */
-+			list_splice(&ret_pages, &move_pages);
-+		}
-+	}
-+
- 	mem_cgroup_uncharge_list(&free_pages);
- 	try_to_unmap_flush();
- 	free_unref_page_list(&free_pages);
-
+Thanks,
+Ard.
 
