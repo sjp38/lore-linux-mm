@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D41298E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 17:40:25 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id v12so14840389plp.16
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 14:40:25 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A0AC68E0001
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 17:36:48 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id f69so18845135pff.5
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 14:36:48 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b36si402545pla.354.2018.12.26.14.40.24
+        by mx.google.com with ESMTPS id n125si37082895pga.179.2018.12.26.14.36.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 14:40:24 -0800 (PST)
+        Wed, 26 Dec 2018 14:36:47 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.14 18/59] x86/mm: Fix guard hole handling
-Date: Wed, 26 Dec 2018 17:37:58 -0500
-Message-Id: <20181226223839.150262-18-sashal@kernel.org>
-In-Reply-To: <20181226223839.150262-1-sashal@kernel.org>
-References: <20181226223839.150262-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 30/97] x86/mm: Fix guard hole handling
+Date: Wed, 26 Dec 2018 17:34:50 -0500
+Message-Id: <20181226223557.149329-30-sashal@kernel.org>
+In-Reply-To: <20181226223557.149329-1-sashal@kernel.org>
+References: <20181226223557.149329-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -68,12 +68,12 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  3 files changed, 15 insertions(+), 9 deletions(-)
 
 diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 7764617b8f9c..bf6d2692fc60 100644
+index 84bd9bdc1987..88bca456da99 100644
 --- a/arch/x86/include/asm/pgtable_64_types.h
 +++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -94,6 +94,11 @@ typedef struct { pteval_t pte; } pte_t;
- # define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
- #endif
+@@ -111,6 +111,11 @@ extern unsigned int ptrs_per_p4d;
+  */
+ #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
  
 +#define GUARD_HOLE_PGD_ENTRY	-256UL
 +#define GUARD_HOLE_SIZE		(16UL << PGDIR_SHIFT)
@@ -82,12 +82,12 @@ index 7764617b8f9c..bf6d2692fc60 100644
 +
  #define LDT_PGD_ENTRY		-240UL
  #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
- 
+ #define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
 diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 2a4849e92831..cf403e057f3f 100644
+index a12afff146d1..073755c89126 100644
 --- a/arch/x86/mm/dump_pagetables.c
 +++ b/arch/x86/mm/dump_pagetables.c
-@@ -465,11 +465,11 @@ static inline bool is_hypervisor_range(int idx)
+@@ -493,11 +493,11 @@ static inline bool is_hypervisor_range(int idx)
  {
  #ifdef CONFIG_X86_64
  	/*
@@ -104,10 +104,10 @@ index 2a4849e92831..cf403e057f3f 100644
  	return false;
  #endif
 diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index b33fa127a613..7631e6130d44 100644
+index 2c84c6ad8b50..c8f011e07a15 100644
 --- a/arch/x86/xen/mmu_pv.c
 +++ b/arch/x86/xen/mmu_pv.c
-@@ -614,19 +614,20 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+@@ -640,19 +640,20 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
  			  unsigned long limit)
  {
  	int i, nr, flush = 0;
