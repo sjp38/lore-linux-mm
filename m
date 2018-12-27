@@ -2,191 +2,161 @@ Return-Path: <SRS0=02aR=PE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79C91C43612
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 11:44:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF0F5C43612
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 15:21:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F2AF9214AE
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 11:44:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2AF9214AE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=canonical.com
+	by mail.kernel.org (Postfix) with ESMTP id 7BECC2148D
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 15:21:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="o+lsZIVi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BECC2148D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8540A8E0013; Thu, 27 Dec 2018 06:44:58 -0500 (EST)
+	id 194688E0019; Thu, 27 Dec 2018 10:21:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DA008E0001; Thu, 27 Dec 2018 06:44:58 -0500 (EST)
+	id 1431C8E0001; Thu, 27 Dec 2018 10:21:14 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67A718E0013; Thu, 27 Dec 2018 06:44:58 -0500 (EST)
+	id 031048E0019; Thu, 27 Dec 2018 10:21:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 11EA58E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 06:44:58 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id y74so11352164wmc.0
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 03:44:58 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B5E5B8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 10:21:13 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id v11so16452585ply.4
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 07:21:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc:from
-         :openpgp:autocrypt:subject:message-id:date:user-agent:mime-version
-         :content-language:content-transfer-encoding;
-        bh=OOUUF9LTXZ1bqSIpvAADD2MTckpcTHuL21wm7uIrrFY=;
-        b=TRKT8FiKEoqyBKs3m8bHtJF/Kijq9Lq8VyJKoFt21W0hnsbkEjCqEa3+XIjG0Jn7dv
-         eIkqNqGd1FbZb0jqUc5Q0TufCcsNeUBgKqN4DuXI0ntDLDLTro7i9+1nXDsTmlgP3xDo
-         Cc6CyNxXM0CxS9UUMVJGue3cCak47+2RePJo0T75MFPhr2qdYfSbYbGxPEsxBF0bOSRH
-         UjLMJO0IzNkrCLL7xjfCIGEJXj1l28/gtaAtvXYFI0OyojhG1jf5TP2sAMOFHXWyBAgs
-         MbINLAu7+GkR2WIPNrFeTm1zebtFnGFZoWywNh63ioyIioUNEtB0Wx37x6Ph87mwtvkf
-         Jltw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=colin.king@canonical.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-X-Gm-Message-State: AJcUukc+IqB5rOa+3hLeo0GTYQhImm2MbF1DB2gu9R4ryclF9dMYKfY3
-	caC4MeiIJDKafSbjmbkyxdwmsFJGQxYrn90aI8TBxma/xgqJMOgB9QEgZUv9IuRmP4NPSIAHGKf
-	7FAYr59nPDKBZ2LX53edHaKF1OUnCIh/3pyOHMqsDKsBP8iUoUwALwEtjy8+03c+/YA==
-X-Received: by 2002:a5d:63c3:: with SMTP id c3mr9453428wrw.215.1545911097430;
-        Thu, 27 Dec 2018 03:44:57 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN78zGjWuKPnAC7nRswPkQLoW5d57fXrOgGjhp8xpD0eI1CUHMBotDmIt0UGqN1csQFM0Si6
-X-Received: by 2002:a5d:63c3:: with SMTP id c3mr9453386wrw.215.1545911096249;
-        Thu, 27 Dec 2018 03:44:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545911096; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=h2EGYq8XTKqDNlssItDJr1D7HvVzviICZgcJkBUhouQ=;
+        b=eP3dxYrTAzcz6R6pzI7JMhKWMMybN+c01ovJnfazCMvXYXrCU34VctPpRhDqzrHtpg
+         x+Ozzaisyv9uzSGF5D+Y6qevMnQeaW70LakBHU6lNuqUVfgdpPmcFniYNMEKfEY0bXeD
+         QFDNNqRt29cp0hQ8KaDjjnPHUPAfRxEcCM5hCBpZl6ai5TgYiBVvtAZK8ZMTqpKEiWVG
+         LMgjSmFYH9s9vCYvpQzP01CyXw3wXDOR9EgbO31Kc8KxcUFVWXxoxkmvkHDDC/kMjtpT
+         36ujRBuf6Ch2avaG/zcXTQiaYUr93wfWsdQ+/F/PSrFNT23WYWk9CL6xb1NTFWTWsMpD
+         Nh7A==
+X-Gm-Message-State: AA+aEWYo14FIXHtXGFNlf1aefwb/BJIGuu2B42WfJY8oZXoj/Ij5lgB4
+	F15Zd65mxqVbq8gq9d04T3h93tr7Bd6hmwkjB5oQFCjoamXMr0Lo8dAqukh+eXbWaKL3RAMXYu6
+	81bQtnpG+zWOvE1aQzY//MV/drIf5CRBey91B+zcBj4f4uBjjGeuIPgarmhdqjWdxFcHZlnARt4
+	yxQqRBQ9BE8poXXbVaijhJaw35CS4nM0lypHsADCvp/nsPIhCXOh4cbne/rs3E6MhMFNfi+XZAT
+	KSXIFZyNCQjnk5EEuIZ0/Tx4v//iLs+tdoiH+5YGMpo5/LA21bmCxoKOrxZa2k4g7l5uMFOCSJo
+	7T8FPirmJMqG3W+q4sQePO4Ovbnb5ck4S6ktLjSdlsiHvNQIvbRi6QMBIM2fHSq/2rBEgZ3SDnh
+	j
+X-Received: by 2002:aa7:87ce:: with SMTP id i14mr24468061pfo.20.1545924073289;
+        Thu, 27 Dec 2018 07:21:13 -0800 (PST)
+X-Received: by 2002:aa7:87ce:: with SMTP id i14mr24468007pfo.20.1545924072522;
+        Thu, 27 Dec 2018 07:21:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545924072; cv=none;
         d=google.com; s=arc-20160816;
-        b=YaDijqvJ45x4ddkYoOfxfkVbdReqUzS+sDkCq9l59pJGMcznsWKw8uAe1sMBLhb2tt
-         Iuy90rPVnl+q9arPNjIwBVXVjPHN8pFz2d2WakpqcKsyy9P5YmDX5jyQcY8OqXMoY8Vb
-         dKnn+iHgtD8q2nGE7MFxO4lAZ1eB1uoqUQwESaBfv8HvBPhvQwcU/lJYsLrQDyyyVRc4
-         J7S/rvC/mGQkqvWRN113LZRnsbm+kN/AJNXmm76mZ6zZRMhdIfv6w5p0P71NeKIzwavZ
-         XXn4krrcHCbA1hqIqtaTMFpdxnKZ8Fa4V66E2DC7kbPhgw0d2TrnKqlOJIVKwAx5N9pi
-         iGeQ==
+        b=kIVoJFrC0zoYF+fEzpO6FNmlpv5nH4GaNesK2ieC/oG84GO6vVgRuj5pq5hoPp1KTm
+         qxhIV3P3oFhP/Y38NeUcZLcfcx3cYhneFwpcVrd5yqTbUGR0l2uw73H6JFlMWidEpojR
+         75KSrke1eZOTzQJBiXzIw1c++5+6xcTuRRPG6+OAvxTaN4ytNPcDycf++P7EhjNdXRPk
+         WZ49Rge28HdhCkE2Mcbary4IRmydq6j26jfw9SOOSdSPR7KMTTTLzhdEJjcIpdz+jq1F
+         uYH91XvkU/JpD3+/z0naxsiwYNx3by3Xjp8+qvH5EAmkQF9aChu64Cbbw3D5nGm5J0Ec
+         NUSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:subject:autocrypt:openpgp:from:cc:to;
-        bh=OOUUF9LTXZ1bqSIpvAADD2MTckpcTHuL21wm7uIrrFY=;
-        b=IAUDumJZsSe9CzJwDFhZ3O3+DXNyGKo0bth79F7Ye1mPfF8ERKRueN4eLjcjr0PVXX
-         fhSGSbz0Og2E9XvufUWBd6HvnQrWO4Kgtns99OcmInvf1bHxZ7nYu3xFJab10GgTv2qm
-         gItFoGzEiz0OZICiFMRwzAZc8dcGQsXREFGxKmSKcYiLopI9357Cm1YgR7HlAC5B9L+f
-         TcYeO97KqP1oePxDS8+NsjKvaRR997ey2Kx99iLk+y1zK7n1dKK+yh4SzrVxadw/Uw4v
-         YjTi1FC975CmDPpFf7bstLIML4QfK0szTVZM1esJx0Pv5sk2MWAe8/qA20ZcdpYhN08M
-         mXMA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=h2EGYq8XTKqDNlssItDJr1D7HvVzviICZgcJkBUhouQ=;
+        b=PtFrxQwhgbnkqBLcCGHnzTI11kpcljvCGdCInM0U/g5tmbfjmjNygWYsorXFP4BtxE
+         n/xDhvu6Uhp+DEX2koalNZ6oD86g2acv28dIUaStAEa6549WLibGD0Tqi+9OQW8y20Ly
+         Ts4jCo75M6V5yzMEvKOkQy9WQBSmASgIysskiUaFnrXw7T1mlg8m1CSw1TJJCjHyAvhb
+         5QURapj3tAjOgxEvZ4xX2h4Lm9OzToZ8H9amVgYm5eySMBln1BdaKipKXQ29Nefu9nrH
+         gcQCMIFtDPADLcY4Wn9/nnXJAjZUms6PfRZHK9dlHoevbr27pDqLgPxTmCG/S5IWYKRY
+         PGiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=colin.king@canonical.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id h25si17199614wmb.160.2018.12.27.03.44.56
+       dkim=pass header.i=@google.com header.s=20161025 header.b=o+lsZIVi;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m8sor60345901pgv.85.2018.12.27.07.21.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Dec 2018 03:44:56 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) client-ip=91.189.89.112;
+        (Google Transport Security);
+        Thu, 27 Dec 2018 07:21:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of colin.king@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=colin.king@canonical.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-Received: from 1.general.cking.uk.vpn ([10.172.193.212])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_AES_128_CBC_SHA1:16)
-	(Exim 4.76)
-	(envelope-from <colin.king@canonical.com>)
-	id 1gcU5u-0004Ch-E5; Thu, 27 Dec 2018 11:44:54 +0000
-To: Mike Kravetz <mike.kravetz@oracle.com>,
- Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Stephen Rothwell <sfr@canb.auug.org.au>, stable@vger.kernel.org,
- linux-mm@kvack.org,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-From: Colin Ian King <colin.king@canonical.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=colin.king@canonical.com; prefer-encrypt=mutual; keydata=
- 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
-Subject: bug report: hugetlbfs: use i_mmap_rwsem for more pmd sharing,
- synchronization
-Message-ID: <5c8be807-03cd-991d-c79b-3c10a4d6d67b@canonical.com>
-Date: Thu, 27 Dec 2018 11:44:53 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.2.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=o+lsZIVi;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=h2EGYq8XTKqDNlssItDJr1D7HvVzviICZgcJkBUhouQ=;
+        b=o+lsZIViOhVMBZaQmR9XX3L1dHn4EmbIWJalPCayhnKcnph0w5lZ/IAYbjQtdej+E1
+         1Msmkxd9/iv3OtnGBCncNWYh/1FmvZrfnhmoETbKp1WhdfohCzcj6Tj04MDAxPmDj+Ll
+         nm4steYkwKEhsT8KnAfiTssWcYV81zREG4S99JkH3bpyFNXGtHeEnV/4YpqOuyFj07N+
+         aS1J+Tw6i+243o+B6sN7ixqhFJrRReVe8uIaLrK63g1hAR/dvZEzoesIV68JVtr2/YZl
+         03lMrTpWc/m/O4KkXny6zjXaWjZNirxNs8i2AR5Jtc5Ju3o3moKPoFAgDkxnkqH4eNEI
+         +teQ==
+X-Google-Smtp-Source: ALg8bN6T8NvDJ2PBQQwHgBrKDWlnRFUo+0Y11//Bd7DA4F8zknOWe3sAFZQutsygcML14CuAp8P5ZBXhNq7w9Ap/5mU=
+X-Received: by 2002:a63:9e58:: with SMTP id r24mr23625868pgo.264.1545924071964;
+ Thu, 27 Dec 2018 07:21:11 -0800 (PST)
 MIME-Version: 1.0
+References: <20181226020550.63712-1-cai@lca.pw>
+In-Reply-To: <20181226020550.63712-1-cai@lca.pw>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 27 Dec 2018 16:21:00 +0100
+Message-ID:
+ <CAAeHK+zj0LcjhcQFd4H9CfRbyzz8u+HuhA4-c-pjnDobkDGRJQ@mail.gmail.com>
+Subject: Re: [PATCH -mmotm] arm64: skip kmemleak for KASAN again
+To: Qian Cai <cai@lca.pw>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Will Deacon <will.deacon@arm.com>, Dmitry Vyukov <dvyukov@google.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181227114453.8BKMnVf5yZ2XN6NylRtABHxRebAUWOkKGjSjlamL7Cw@z>
+Message-ID: <20181227152100.okWAW3E_FPXQ-GXd3BrF2tze5Tev9h-cTpnxuC5bhEo@z>
 
-Hi,
+On Wed, Dec 26, 2018 at 3:06 AM Qian Cai <cai@lca.pw> wrote:
+>
+> Due to 871ac3d540f (kasan: initialize shadow to 0xff for tag-based
+> mode), kmemleak is broken again with KASAN. It needs a similar fix
+> from e55058c2983 (mm/memblock.c: skip kmemleak for kasan_init()).
+>
+> Signed-off-by: Qian Cai <cai@lca.pw>
 
-Static analysis with CoverityScan on linux-next detected a potential
-null pointer dereference with the following commit:
+Hi Qian,
 
-From d8a1051ed4ba55679ef24e838a1942c9c40f0a14 Mon Sep 17 00:00:00 2001
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Date: Sat, 22 Dec 2018 10:55:57 +1100
-Subject: [PATCH] hugetlbfs: use i_mmap_rwsem for more pmd sharing
+Sorry, didn't see your first kmemleak fix. I can merge this fix into
+my series if I end up resending it.
 
-The earlier check implies that "mapping" may be a null pointer:
+In any case:
 
-var_compare_op: Comparing mapping to null implies that mapping might be
-null.
+Acked-by: Andrey Konovalov <andreyknvl@google.com>
 
-1008        if (!(flags & MF_MUST_KILL) && !PageDirty(hpage) && mapping &&
-1009            mapping_cap_writeback_dirty(mapping)) {
+Thanks!
 
-..however later "mapper" is dereferenced when it may be potentially null:
-
-1034                /*
-1035                 * For hugetlb pages, try_to_unmap could potentially
-call
-1036                 * huge_pmd_unshare.  Because of this, take semaphore in
-1037                 * write mode here and set TTU_RMAP_LOCKED to
-indicate we
-1038                 * have taken the lock at this higer level.
-1039                 */
-    CID 1476097 (#1 of 1): Dereference after null check (FORWARD_NULL)
-
-var_deref_model: Passing null pointer mapping to
-i_mmap_lock_write, which dereferences it.
-
-1040                i_mmap_lock_write(mapping);
-1041                unmap_success = try_to_unmap(hpage,
-ttu|TTU_RMAP_LOCKED);
-1042                i_mmap_unlock_write(mapping);
-
-
-Colin
+> ---
+>  arch/arm64/mm/kasan_init.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+>
+> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+> index 48d8f2fa0d14..4b55b15707a3 100644
+> --- a/arch/arm64/mm/kasan_init.c
+> +++ b/arch/arm64/mm/kasan_init.c
+> @@ -47,8 +47,7 @@ static phys_addr_t __init kasan_alloc_raw_page(int node)
+>  {
+>         void *p = memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
+>                                                 __pa(MAX_DMA_ADDRESS),
+> -                                               MEMBLOCK_ALLOC_ACCESSIBLE,
+> -                                               node);
+> +                                               MEMBLOCK_ALLOC_KASAN, node);
+>         return __pa(p);
+>  }
+>
+> --
+> 2.17.2 (Apple Git-113)
+>
 
