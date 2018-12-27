@@ -1,123 +1,118 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Mon, 24 Dec 2018 18:50:31 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v5 1/9] mm: Introduce new vm_insert_range API
-Message-ID: <20181224132031.GA22051@jordon-HP-15-Notebook-PC>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A83A8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 14:29:45 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id e17so8462741wrw.13
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 11:29:45 -0800 (PST)
+Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [2a00:1098:0:82:1000:25:2eeb:e3e3])
+        by mx.google.com with ESMTPS id j2si19081780wrv.348.2018.12.27.11.29.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 27 Dec 2018 11:29:43 -0800 (PST)
+Date: Thu, 27 Dec 2018 14:29:40 -0500
+From: =?utf-8?B?R2HDq2w=?= PORTAY <gael.portay@collabora.com>
+Subject: Re: [usb-storage] Re: cma: deadlock using usb-storage and fs
+Message-ID: <20181227192940.77p5gj3garpgahnm@archlinux.localdomain>
+References: <20181216222117.v5bzdfdvtulv2t54@archlinux.localdomain>
+ <Pine.LNX.4.44L0.1812171038300.1630-100000@iolanthe.rowland.org>
+ <20181217182922.bogbrhjm6ubnswqw@archlinux.localdomain>
+ <c3ab7935-8d8d-27a0-99a7-0dab51244a42@redhat.com>
+ <593e3757-6f50-22bc-d5a9-ea5819b9a63d@oracle.com>
+ <da35de2c-b8ad-9b01-b582-8f1f8061e8e1@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <da35de2c-b8ad-9b01-b582-8f1f8061e8e1@redhat.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Alan Stern <stern@rowland.harvard.edu>, linux-mm@kvack.org, usb-storage@lists.one-eyed-alien.net
 
-Previouly drivers have their own way of mapping range of
-kernel pages/memory into user vma and this was done by
-invoking vm_insert_page() within a loop.
+Laura, Mike,
 
-As this pattern is common across different drivers, it can
-be generalized by creating a new function and use it across
-the drivers.
+On Tue, Dec 18, 2018 at 01:14:42PM -0800, Laura Abbott wrote:
+> On 12/18/18 11:42 AM, Mike Kravetz wrote:
+> > On 12/17/18 1:57 PM, Laura Abbott wrote:
+> > > On 12/17/18 10:29 AM, Ga�l PORTAY wrote:
+> > > > Alan,
+> > > > 
+> > > > On Mon, Dec 17, 2018 at 10:45:17AM -0500, Alan Stern wrote:
+> > > > > On Sun, 16 Dec 2018, Ga�l PORTAY wrote:
+> > > > > ...
+> > > > > 
+> > > > > > The second task wants to writeback/flush the pages through USB, which, I
+> > > > > > assume, is due to the page migration. The usb-storage triggers a CMA allocation
+> > > > > > but get locked in cma_alloc since the first task hold the mutex (It is a FAT
+> > > > > > formatted partition, if it helps).
+> > > > > > 
+> > > > > >      usb-storage     D    0   349      2 0x00000000
+> > > > > >      Backtrace:
+> > > > > ...
+> > > > > >      [<bf1c7550>] (usb_sg_wait [usbcore]) from [<bf2bd618>]
+> > > > > > (usb_stor_bulk_transfer_sglist.part.2+0x80/0xdc [usb_storage]) r9:0001e000
+> > > > > > r8:eca594ac r7:0001e000 r6:c0008200 r5:eca59514 r4:eca59488
+> > > > > 
+> > > > > It looks like there is a logical problem in the CMA allocator.  The
+> > > > > call in usb_sg_wait() specifies GFP_NOIO, which is supposed to prevent
+> > > > > allocations from blocking on any I/O operations.  Therefore we
+> > > > > shouldn't be waiting for the CMA mutex.
+> > > > > 
+> > > > 
+> > > > Right.
+> > > > 
+> > > > > Perhaps the CMA allocator needs to drop the mutex while doing
+> > > > > writebacks/flushes, or perhaps it needs to be reorganized some other
+> > > > > way.  I don't know anything about it.
+> > > > > 
+> > > > > Does the CMA code have any maintainers who might need to know about
+> > > > > this, or is it all handled by the MM maintainers?
+> > > > 
+> > > > I did not find maintainers neither for CMA nor MM.
+> > > > 
+> > > > That is why I have sent this mail to mm mailing list but to no one in
+> > > > particular.
+> > > > 
+> > > 
+> > > Last time I looked at this, we needed the cma_mutex for serialization
+> > > so unless we want to rework that, I think we need to not use CMA in the
+> > > writeback case (i.e. GFP_IO).
+> > 
+> > I am wondering if we still need to hold the cma_mutex while calling
+> > alloc_contig_range().  Looking back at the history, it appears that
+> > the reason for holding the mutex was to prevent two threads from operating
+> > on the same pageblock.
+> > 
+> > Commit 2c7452a075d4 ("mm/page_isolation.c: make start_isolate_page_range()
+> > fail if already isolated") will cause alloc_contig_range to return EBUSY
+> > if two callers are attempting to operate on the same pageblock.  This was
+> > added because memory hotplug as well as gigantac page allocation call
+> > alloc_contig_range and could conflict with each other or cma.   cma_alloc
+> > has logic to retry if EBUSY is returned.  Although, IIUC it assumes the
+> > EBUSY is the result of specific pages being busy as opposed to someone
+> > else operating on the pageblock.  Therefore, the retry logic to 'try a
+> > different set of pages' is not what one  would/should attempt in the case
+> > someone else is operating on the pageblock.
+> > 
+> > Would it be possible or make sense to remove the mutex and retry when
+> > EBUSY?  Or, am I missing some other reason for holding the mutex.
+> > 
+> 
+> I had forgotten that start_isolate_page_range had been updated to
+> return -EBUSY. It looks like we would need to update
+> the callback for migrate_pages in __alloc_contig_migrate_range
+> since alloc_migrate_target by default will use __GFP_IO.
+> So I _think_ if we update that to honor GFP_NOIO we could
+> remove the mutex assuming the rest of migrate_pages honors
+> it properly.
+> 
 
-vm_insert_range is the new API which will be used to map a
-range of kernel memory/pages to user vma.
+I would be pleased to help and test things.
 
-This API is tested by Heiko for Rockchip drm driver, on rk3188,
-rk3288, rk3328 and rk3399 with graphics.
+I had a look to the code but I do not know how to hack the callback.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
-Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
-Reviewed-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-Tested-by: Heiko Stuebner <heiko@sntech.de>
----
- include/linux/mm.h |  2 ++
- mm/memory.c        | 41 +++++++++++++++++++++++++++++++++++++++++
- mm/nommu.c         |  7 +++++++
- 3 files changed, 50 insertions(+)
+Laura: Could you tell me more about how to update the callback to take
+the GFP_NOIO flag into consideration properly?
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fcf9cc9..2bc399f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2506,6 +2506,8 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count);
- vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
- vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
-diff --git a/mm/memory.c b/mm/memory.c
-index 15c417e..d44d4a8 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1478,6 +1478,47 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- 
- /**
-+ * vm_insert_range - insert range of kernel pages into user vma
-+ * @vma: user vma to map to
-+ * @addr: target user address of this page
-+ * @pages: pointer to array of source kernel pages
-+ * @page_count: number of pages need to insert into user vma
-+ *
-+ * This allows drivers to insert range of kernel pages they've allocated
-+ * into a user vma. This is a generic function which drivers can use
-+ * rather than using their own way of mapping range of kernel pages into
-+ * user vma.
-+ *
-+ * If we fail to insert any page into the vma, the function will return
-+ * immediately leaving any previously-inserted pages present.  Callers
-+ * from the mmap handler may immediately return the error as their caller
-+ * will destroy the vma, removing any successfully-inserted pages. Other
-+ * callers should make their own arrangements for calling unmap_region().
-+ *
-+ * Context: Process context. Called by mmap handlers.
-+ * Return: 0 on success and error code otherwise
-+ */
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count)
-+{
-+	unsigned long uaddr = addr;
-+	int ret = 0, i;
-+
-+	if (page_count > vma_pages(vma))
-+		return -ENXIO;
-+
-+	for (i = 0; i < page_count; i++) {
-+		ret = vm_insert_page(vma, uaddr, pages[i]);
-+		if (ret < 0)
-+			return ret;
-+		uaddr += PAGE_SIZE;
-+	}
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(vm_insert_range);
-+
-+/**
-  * vm_insert_page - insert single page into user vma
-  * @vma: user vma to map to
-  * @addr: target user address of this page
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 749276b..d6ef5c7 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -473,6 +473,13 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- EXPORT_SYMBOL(vm_insert_page);
- 
-+int vm_insert_range(struct vm_area_struct *vma, unsigned long addr,
-+			struct page **pages, unsigned long page_count)
-+{
-+	return -EINVAL;
-+}
-+EXPORT_SYMBOL(vm_insert_range);
-+
- /*
-  *  sys_brk() for the most part doesn't need the global kernel
-  *  lock, except when an application is doing something nasty
--- 
-1.9.1
+Regards,
+Gael
