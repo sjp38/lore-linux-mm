@@ -1,86 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AB2F8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2018 09:45:08 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id v24so9256038wrd.23
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 06:45:08 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140091.outbound.protection.outlook.com. [40.107.14.91])
-        by mx.google.com with ESMTPS id g17si1969253wrc.111.2018.12.28.06.45.06
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E01B8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 11:50:58 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c53so23381712edc.9
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 08:50:58 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l1si2912548edn.1.2018.12.27.08.50.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 28 Dec 2018 06:45:06 -0800 (PST)
-From: Konstantin Khorenko <khorenko@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Dec 2018 08:50:56 -0800 (PST)
+Date: Thu, 27 Dec 2018 17:50:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 1/1] mm/page_alloc: add a warning about high order
  allocations
-Date: Fri, 28 Dec 2018 14:45:04 +0000
-Message-ID: <5de0f8bb-8c3c-88e6-5f3f-0c59ce9554ce@virtuozzo.com>
+Message-ID: <20181227165055.GN16738@dhcp22.suse.cz>
 References: <20181225153927.2873-1-khorenko@virtuozzo.com>
  <20181225153927.2873-2-khorenko@virtuozzo.com>
  <20181226084051.GH16738@dhcp22.suse.cz>
  <12c71c7a-7896-df73-7ab4-eab5b6fc1fb0@virtuozzo.com>
- <20181227165055.GN16738@dhcp22.suse.cz>
-In-Reply-To: <20181227165055.GN16738@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <F25C7CEAC03CAE4FA3C9B4A6EFEB4E8C@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <12c71c7a-7896-df73-7ab4-eab5b6fc1fb0@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Konstantin Khorenko <khorenko@virtuozzo.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>
 
-T24gMTIvMjcvMjAxOCAwNzo1MCBQTSwgTWljaGFsIEhvY2tvIHdyb3RlOg0KPiBPbiBUaHUgMjct
-MTItMTggMTY6MDU6MTgsIEtvbnN0YW50aW4gS2hvcmVua28gd3JvdGU6DQo+PiBPbiAxMi8yNi8y
-MDE4IDExOjQwIEFNLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+Pj4gQXBwYXJ0IGZyb20gZ2VuZXJh
-bCBjb21tZW50cyBhcyBhIHJlcGx5IHRvIHRoZSBjb3ZlciAoYnR3LiB0aGlzIGFsbA0KPj4+IHNo
-b3VsZCBiZSBpbiB0aGUgY2hhbmdlbG9nIGJlY2F1c2UgdGhpcyBpcyB0aGUgX3doeV8gcGFydCBv
-ZiB0aGUNCj4+PiBqdXN0aWZpY2F0aW9uIHdoaWNoIHNob3VsZCBiZSBfYWx3YXlzXyBwYXJ0IG9m
-IHRoZSBjaGFuZ2Vsb2cpLg0KPj4NCj4+IFRoYW5rIHlvdSwgd2lsbCBhZGQgaW4gdGhlIG5leHQg
-dmVyc2lvbiBvZiB0aGUgcGF0Y2ggYWxsdG9nZXRoZXINCj4+IHdpdGggb3RoZXIgY2hhbmdlcyBp
-ZiBhbnkuDQo+Pg0KPj4+IE9uIFR1ZSAyNS0xMi0xOCAxODozOToyNywgS29uc3RhbnRpbiBLaG9y
-ZW5rbyB3cm90ZToNCj4+PiBbLi4uXQ0KPj4+PiArY29uZmlnIFdBUk5fSElHSF9PUkRFUg0KPj4+
-PiArCWJvb2wgIkVuYWJsZSBjb21wbGFpbnMgYWJvdXQgaGlnaCBvcmRlciBtZW1vcnkgYWxsb2Nh
-dGlvbnMiDQo+Pj4+ICsJZGVwZW5kcyBvbiAhTE9DS0RFUA0KPj4+DQo+Pj4gV2h5Pw0KPj4NCj4+
-IExPQ0tERVAgbWFrZXMgc3RydWN0dXJlcyBiaWcsIHNvIGlmIHdlIHNlZSBhIGhpZ2ggb3JkZXIg
-YWxsb2NhdGlvbiB3YXJuaW5nDQo+PiBvbiBhIGRlYnVnIGtlcm5lbCB3aXRoIGxvY2tkZXAsIGl0
-IGRvZXMgbm90IGdpdmUgdXMgYSBsb3QgLSBsb2NrZGVwIGVuYWJsZWQNCj4+IGtlcm5lbCBwZXJm
-b3JtYW5jZSBpcyBub3Qgb3VyIHRhcmdldC4NCj4+IGkgY2FuIHJlbW92ZSAhTE9DS0RFUCBkZXBl
-bmRlbmNlIGhlcmUsIGJ1dCB0aGVuIG5lZWQgdG8gYWRqdXN0IGRlZmF1bHQNCj4+IHdhcm5pbmcg
-bGV2ZWwgaSB0aGluaywgb3IgbG9ncyB3aWxsIGJlIHNwYW1tZWQuDQo+DQo+IE9LLCBJIHNlZSBi
-dXQgdGhpcyBqdXN0IHBvaW50cyB0byBob3cgdGhpcyBpcyBub3QgcmVhbGx5IGEgc3VpdGFibGUN
-Cj4gc29sdXRpb24gZm9yIHRoZSBwcm9ibGVtIHlvdSBhcmUgbG9va2luZyBmb3IuDQoNCmkgaGF2
-ZSB0byBhZG1pdCwgeWVzLCBpdCBpcyBpbmNvbnZlbmllbnQgdG8gaGF2ZSBzdWNoIGEgZGVwZW5k
-ZW5jeS4NCmkgd291bGQgYmUgcmVhbGx5IGdsYWQgdG8gaGVhciBhbHRlcm5hdGl2ZXMuLi4NCg0K
-SnVzdCB0byBtZW50aW9uOiB0cmFjZXBvaW50cyBhcmUgZm9yIGlzc3VlcyBpbnZlc3RpZ2F0aW9u
-ICh3aGVuIHdlIGFscmVhZHkgaGF2ZSBhbnkpLA0KYW5kIGknbSB0aGlua2luZyBhYm91dCBpc3N1
-ZXMgcHJldmVudGlvbi4gR2F0aGVyaW5nIHBsYWNlcyB3aGljaCBtaWdodA0KbGVhZCB0byBwcm9i
-bGVtIGFuZCByZXdvcmsgdG8gcHJldmVudCBwb3NzaWJsZSBpc3N1ZXMuDQoNCj4+Pj4gK3N0YXRp
-YyBfX2Fsd2F5c19pbmxpbmUgdm9pZCB3YXJuX2hpZ2hfb3JkZXIoaW50IG9yZGVyLCBnZnBfdCBn
-ZnBfbWFzaykNCj4+Pj4gK3sNCj4+Pj4gKwlzdGF0aWMgYXRvbWljX3Qgd2Fybl9jb3VudCA9IEFU
-T01JQ19JTklUKDMyKTsNCj4+Pj4gKw0KPj4+PiArCWlmIChvcmRlciA+PSB3YXJuX29yZGVyICYm
-ICEoZ2ZwX21hc2sgJiBfX0dGUF9OT1dBUk4pKQ0KPj4+PiArCQlXQVJOKGF0b21pY19kZWNfaWZf
-cG9zaXRpdmUoJndhcm5fY291bnQpID49IDAsDQo+Pj4+ICsJCSAgICAgIm9yZGVyICVkID49ICVk
-LCBnZnAgMHgleFxuIiwNCj4+Pj4gKwkJICAgICBvcmRlciwgd2Fybl9vcmRlciwgZ2ZwX21hc2sp
-Ow0KPj4+PiArfQ0KPj4+DQo+Pj4gV2UgZG8gaGF2ZSByYXRlbGltaXQgZnVuY3Rpb25hbGl0eSwg
-c28gd2h5IGNhbm5vdCB5b3UgdXNlIGl0Pw0KPj4NCj4+IFdlbGwsIG15IGlkZWEgd2FzIHRvIHJl
-YWxseSBzaHV0IHVwIHRoZSB3YXJuaW5nIGFmdGVyIHNvbWUgbnVtYmVyIG9mIG1lc3NhZ2VzDQo+
-PiAoaWYgYSBub2RlIGlzIGluIHByb2R1Y3Rpb24gYW5kIGl0cyB1cHRpbWUsIHNheSwgYSB5ZWFy
-LCBpIGRvbid0IHdhbnQgdG8gc2VlDQo+PiBtYW55IHdhcm5pbmdzIGluIGxvZ3MsIGZpcnN0IHNl
-dmVyYWwgaXMgZW5vdWdoIC0gbGV0J3MgZml4IHRoZW0gZmlyc3QpLg0KPg0KPiBPSywgYnV0IGl0
-IGlzIHF1aXRlIGxpa2VseSB0aGF0IHRoZSBzeXN0ZW0gaXMgcGVyZmVjdGx5IGhlYWx0aHkgYW5k
-DQo+IHVuZnJhZ21lbnRlZCBhZnRlciBmcmVzaCBib290IHdoZW4gZG9pbmcgYSBsYXJnZSBvcmRl
-ciBhbGxvY2F0aW9ucyBpcw0KPiBwZXJmZWN0bHkgZmluZS4NCg0KWW91IGFyZSByaWdodCBhZ2Fp
-biwgTWljaGFsLiBUaHVzIGp1c3Qgc3dpdGNoIHRob3NlIGVhcmx5IGFsbG9jYXRpb25zIHRvDQpr
-dm1hbGxvYygpIGFuZCBvbiBib290IG9uIGFuIHVuZnJhZ21lbnRlZCBzeXN0ZW0gc2FtZSBrbWFs
-bG9jKCkgd2lsbCBiZSB1c2VkLg0KQW5kIG5vIG5ldyB3YXJuaW5nIGZvciB0aGF0IHBsYWNlLiBB
-bmQgbm8gYW55IGNoYW5jZSB0aGlzIHBsYWNlIGV2ZXIgdHJpZ2dlcg0KY29tcGFjdGlvbiAoaW4g
-Y2FzZSB3ZSBkaWQgbm90IG5vdGljZSBzb21lIHdheSB0aGlzIGFsbG9jYXRpb24gbWlnaHQgYWxz
-bw0KaGFwcGVuIGxhdGVyLCBub3Qgb24gYSBmcmVzaCBub2RlKS4NCg0KID4gTm90ZSB0aGF0IGl0
-IGlzIHNtYWxsZXIgb3JkZXIgYWxsb2NhdGlvbnMgdGhhdCBnZW5lcmF0ZQ0KID4gZnJhZ21lbnRh
-dGlvbiBpbiBnZW5lcmFsLg0KDQpBbmQgYWdhaW4gLSB5ZXMsIHRoYXQncyB0cnVlLiBTdGlsbCBp
-IGRvbid0IGtub3cgaG93IHRvIGF2b2lkIG1lbW9yeSBmcmFnbWVudGF0aW9uLA0KYnV0IGNhbiBh
-dm9pZCAob2ssIHNpZ25pZmljYW50bHkgZGVjcmVhc2UgdGhlIG51bWJlciBvZikgYmlnIGFsbG9j
-YXRpb25zIHdoaWNoDQptaWdodCB0cmlnZ2VyIGNvbXBhY3Rpb24gYmVjYXVzZSBvZiB0aGF0IGZy
-YWdtZW50YXRpb24uDQoNCg0KLS0NCkJlc3QgcmVnYXJkcywNCg0KS29uc3RhbnRpbiBLaG9yZW5r
-bywNClZpcnR1b3p6byBMaW51eCBLZXJuZWwgVGVhbQ0K
+On Thu 27-12-18 16:05:18, Konstantin Khorenko wrote:
+> On 12/26/2018 11:40 AM, Michal Hocko wrote:
+> > Appart from general comments as a reply to the cover (btw. this all
+> > should be in the changelog because this is the _why_ part of the
+> > justification which should be _always_ part of the changelog).
+> 
+> Thank you, will add in the next version of the patch alltogether
+> with other changes if any.
+> 
+> > On Tue 25-12-18 18:39:27, Konstantin Khorenko wrote:
+> > [...]
+> >> +config WARN_HIGH_ORDER
+> >> +	bool "Enable complains about high order memory allocations"
+> >> +	depends on !LOCKDEP
+> >
+> > Why?
+> 
+> LOCKDEP makes structures big, so if we see a high order allocation warning
+> on a debug kernel with lockdep, it does not give us a lot - lockdep enabled
+> kernel performance is not our target.
+> i can remove !LOCKDEP dependence here, but then need to adjust default
+> warning level i think, or logs will be spammed.
+
+OK, I see but this just points to how this is not really a suitable
+solution for the problem you are looking for.
+
+> >> +static __always_inline void warn_high_order(int order, gfp_t gfp_mask)
+> >> +{
+> >> +	static atomic_t warn_count = ATOMIC_INIT(32);
+> >> +
+> >> +	if (order >= warn_order && !(gfp_mask & __GFP_NOWARN))
+> >> +		WARN(atomic_dec_if_positive(&warn_count) >= 0,
+> >> +		     "order %d >= %d, gfp 0x%x\n",
+> >> +		     order, warn_order, gfp_mask);
+> >> +}
+> >
+> > We do have ratelimit functionality, so why cannot you use it?
+> 
+> Well, my idea was to really shut up the warning after some number of messages
+> (if a node is in production and its uptime, say, a year, i don't want to see
+> many warnings in logs, first several is enough - let's fix them first).
+
+OK, but it is quite likely that the system is perfectly healthy and
+unfragmented after fresh boot when doing a large order allocations is
+perfectly fine. Note that it is smaller order allocations that generate
+fragmentation in general.
+-- 
+Michal Hocko
+SUSE Labs
