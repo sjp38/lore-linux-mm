@@ -1,95 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 213248E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 20:48:26 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id o17so18869022pgi.14
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 17:48:26 -0800 (PST)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40066.outbound.protection.outlook.com. [40.107.4.66])
-        by mx.google.com with ESMTPS id 97si36365812ple.389.2018.12.27.17.48.23
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D446A8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 07:19:36 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id 75so20455595pfq.8
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 04:19:36 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z14si17920729pgj.73.2018.12.27.04.19.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Dec 2018 17:48:24 -0800 (PST)
-From: Andy Duan <fugang.duan@nxp.com>
-Subject: RE: [rpmsg PATCH v2 1/1] rpmsg: virtio_rpmsg_bus: fix unexpected huge
- vmap mappings
-Date: Fri, 28 Dec 2018 01:48:18 +0000
-Message-ID: 
- <VI1PR0402MB3600799A06B6BFE5EBF8837FFFB70@VI1PR0402MB3600.eurprd04.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 27 Dec 2018 04:19:34 -0800 (PST)
+Date: Thu, 27 Dec 2018 13:19:01 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [rpmsg PATCH v2 1/1] rpmsg: virtio_rpmsg_bus: fix unexpected
+ huge vmap mappings
+Message-ID: <20181227121901.GA20892@infradead.org>
 References: <1545812449-32455-1-git-send-email-fugang.duan@nxp.com>
  <CAKv+Gu-zfTZAZfiQt1iUn9otqeDkJP-y-siuBUrWUR-Kq=BsVQ@mail.gmail.com>
  <20181226145048.GA24307@infradead.org>
  <VI1PR0402MB3600AC833D6F29ECC34C8D4CFFB60@VI1PR0402MB3600.eurprd04.prod.outlook.com>
- <20181227121901.GA20892@infradead.org>
-In-Reply-To: <20181227121901.GA20892@infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <VI1PR0402MB3600AC833D6F29ECC34C8D4CFFB60@VI1PR0402MB3600.eurprd04.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Robin Murphy <robin.murphy@arm.com>, "bjorn.andersson@linaro.org" <bjorn.andersson@linaro.org>, "ohad@wizery.com" <ohad@wizery.com>, "linux-remoteproc@vger.kernel.org" <linux-remoteproc@vger.kernel.org>, "anup@brainfault.org" <anup@brainfault.org>, "loic.pallardy@st.com" <loic.pallardy@st.com>, dl-linux-imx <linux-imx@nxp.com>, Richard Zhu <hongxing.zhu@nxp.com>, Jason Liu <jason.hui.liu@nxp.com>, Peng Fan <peng.fan@nxp.com>
+To: Andy Duan <fugang.duan@nxp.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Robin Murphy <robin.murphy@arm.com>, "bjorn.andersson@linaro.org" <bjorn.andersson@linaro.org>, "ohad@wizery.com" <ohad@wizery.com>, "linux-remoteproc@vger.kernel.org" <linux-remoteproc@vger.kernel.org>, "anup@brainfault.org" <anup@brainfault.org>, "loic.pallardy@st.com" <loic.pallardy@st.com>, dl-linux-imx <linux-imx@nxp.com>, Richard Zhu <hongxing.zhu@nxp.com>, Jason Liu <jason.hui.liu@nxp.com>, Peng Fan <peng.fan@nxp.com>
 
-RnJvbTogQ2hyaXN0b3BoIEhlbGx3aWcgPGhjaEBpbmZyYWRlYWQub3JnPiBTZW50OiAyMDE4xOox
-MtTCMjfI1SAyMDoxOQ0KPiBPbiBUaHUsIERlYyAyNywgMjAxOCBhdCAwMjozNjo1M0FNICswMDAw
-LCBBbmR5IER1YW4gd3JvdGU6DQo+ID4gUnBtc2cgaXMgdXNlZCB0byBjb21tdW5pY2F0ZSB3aXRo
-IHJlbW90ZSBjcHUgbGlrZSBNNCwgdGhlIGFsbG9jYXRlZA0KPiA+IG1lbW9yeSBpcyBzaGFyZWQg
-YnkgTGludXggYW5kIE00IHNpZGUuIEluIGdlbmVyYWwsIExpbnV4IHNpZGUgcmVzZXJ2ZWQNCj4g
-PiB0aGUgc3RhdGljIG1lbW9yeSByZWdpb24gbGlrZSBwZXItZGV2aWNlIERNQSBwb29sIGFzIGNv
-aGVyZW50IG1lbW9yeQ0KPiA+IGZvciB0aGUgUlBNU0cgcmVjZWl2ZS90cmFuc21pdCBidWZmZXJz
-LiBGb3IgdGhlIHN0YXRpYyBtZW1vcnkgcmVnaW9uLA0KPiA+IG5vcm1hbCBwYWdlIGFsbG9jYXRv
-ciBjYW5ub3QgbWF0Y2ggdGhlIHJlcXVpcmVtZW50IHVubGVzcyB0aGVyZSBoYXZlDQo+ID4gcHJv
-dG9jb2wgdG8gdGVsbCBNNCB0aGUgZHluYW1pYyBSUE1TRyByZWNlaXZlL3RyYW5zbWl0IGJ1ZmZl
-cnMuDQo+IA0KPiBJbiB0aGF0IGNhc2UgeW91IG5lZWQgYSBPRiByZXNlcnZlZCBtZW1vcnkgbm9k
-ZSwgbGlrZSB3ZSB1c2UgZm9yIHRoZQ0KPiAic2hhcmVkLWRtYS1wb29sIiBjb2hlcmVudCBvciBj
-b250aWd1b3VzIGFsbG9jYXRpb25zLiAgQ3VycmVudGx5IHdlIGhhdmUNCj4gdGhvc2UgdHdvIHZh
-cmlhbnRzIHdpcmVkIHVwIHRoZSB0aGUgRE1BIGFsbG9jYXRvciwgYnV0IHRoZXkgY2FuIGFsc28g
-dXNlZA0KPiBkaXJlY3RseSBieSBkcml2ZXJzLiAgVG8gYmUgaG9uZXN0IEkgZG9uJ3QgcmVhbGx5
-IGxpa2UgbGlrZSBkcml2ZXJzIGdldHRpbmcgdG9vDQo+IGludGltYXRlIHdpdGggdGhlIG1lbW9y
-eSBhbGxvY2F0b3IsIGJ1dCBJIGFsc28gZG9uJ3QgdGhpbmsgdGhhdCBwcm92aWRpbmcgYSBsaXR0
-bGUNCj4gZ2x1ZSBjb2RlIHRvIGluc3RhbmNpYXQgYSBDTUEgcG9vbCBmb3IgYSBtZW1vcnkgdGhh
-dCBjYW4gYmUgdXNlZCBkaXJlY3RseSBieQ0KPiB0aGUgZHJpdmVyIGlzIG11Y2ggb2YgYW4gaXNz
-dWUuICBNb3N0IG9mIGl0IGNvdWxkIGJlIHJldXNlZCBmcm9tIHRoZSBleGlzdGluZw0KPiBjb2Rl
-LCBqdXN0IHdpdGggYSBzbGlnaHRseSBsb3dlciBsZXZlbCBpbnRlcmZhY2VzLg0KPiANCj4gPiBU
-byBzdG9wIHRvIGV4dHJhY3QgcGFnZXMgZnJvbSBkbWFfYWxsb2NfY29oZXJlbnQsIHRoZSBycG1z
-ZyBidXMNCj4gPiBpbXBsZW1lbnRhdGlvbiBiYXNlIG9uIHZpcnRpbyB0aGF0IGFscmVhZHkgdXNl
-IHRoZSBzY2F0dGVybGlzdA0KPiA+IG1lY2hhbmlzbSBmb3IgdnJpbmcgbWVtb3J5LiBTbyBmb3Ig
-dmlydGlvIGRyaXZlciBsaWtlIFJQTVNHIGJ1cywgd2UNCj4gPiBoYXZlIHRvIGV4dHJhY3QgcGFn
-ZXMgZnJvbSBkbWFfYWxsb2NfY29oZXJlbnQuDQo+IA0KPiBUaGlzIHNlbnRlbmNlIGRvZXNuJ3Qg
-cGFyc2UgZm9yIG1lLg0KDQpWaXJ0aW8gc3VwcGx5IHRoZSBBUElzIHRoYXQgcmVxdWlyZSB0aGUg
-c2NhdHRlcmxpc3QgcGFnZXMgZm9yIHZpcnRpbyBpbi9vdXQgYnVmOg0KaW50IHZpcnRxdWV1ZV9h
-ZGRfaW5idWYoc3RydWN0IHZpcnRxdWV1ZSAqdnEsDQogICAgICAgICAgICAgICAgICAgICAgICBz
-dHJ1Y3Qgc2NhdHRlcmxpc3QgKnNnLCB1bnNpZ25lZCBpbnQgbnVtLA0KICAgICAgICAgICAgICAg
-ICAgICAgICAgdm9pZCAqZGF0YSwNCiAgICAgICAgICAgICAgICAgICAgICAgIGdmcF90IGdmcCkN
-CmludCB2aXJ0cXVldWVfYWRkX291dGJ1ZihzdHJ1Y3QgdmlydHF1ZXVlICp2cSwNCiAgICAgICAg
-ICAgICAgICAgICAgICAgICBzdHJ1Y3Qgc2NhdHRlcmxpc3QgKnNnLCB1bnNpZ25lZCBpbnQgbnVt
-LA0KICAgICAgICAgICAgICAgICAgICAgICAgIHZvaWQgKmRhdGEsDQogICAgICAgICAgICAgICAg
-ICAgICAgICAgZ2ZwX3QgZ2ZwKQ0KDQoNCj4gDQo+ID4gSSBkb24ndCB0aGluayB0aGUgcGF0Y2gg
-aXMgb25lIGhhY2ssICBhcyB3ZSBhbHJlYWR5IGtub3cgdGhlIHBoeXNpY2FsDQo+ID4gYWRkcmVz
-cyBmb3IgdGhlIGNvaGVyZW50IG1lbW9yeSwgIGp1c3Qgd2FudCB0byBnZXQgcGFnZXMsIHRoZQ0K
-PiA+IGludGVyZmFjZSAicGZuX3RvX3BhZ2UoUEhZU19QRk4oeCkpIiBpcyB2ZXJ5IHJlYXNvbmFi
-bGUgdG8gdGhlIHJlbGF0ZWQNCj4gPiBwYWdlcy4NCj4gDQo+IHN0cnVjdCBzY2F0dGVybGlzdCBk
-b2Vzbid0IChkaXJlY3RseSkgcmVmZXIgdG8gcGh5c2ljYWwgYWRkcmVzcywgaXQgcmVmZXJzIHRv
-IHBhZ2UNCj4gc3RydWN0dXJlcywgd2hpY2ggZW5jb2RlIGEga2VybmVsIHZpcnR1YWwgYWRkcmVz
-cyBpbiB0aGUga2VybmVsIGRpcmVjdCBtYXBwaW5nLA0KPiBhbmQgd2UgaW50ZW50aW9uYWxseSBk
-byBub3QgZ3VhcmFudGVlIGEgcmV0dXJuIGluIHRoZSBrZXJuZWwgZGlyZWN0IG1hcHBpbmcNCj4g
-Zm9yIHRoZSBETUEgY29oZXJlbnQgYWxsb2NhdG9yLCBhcyBpbiBtYW55IGNhc2VzIHdlIGhhdmUg
-dG8gZWl0aGVyIGFsbG9jYXRlDQo+IGZyb20gYSBzcGVjaWFsIHBvb2wsIGZyb20gYSBzcGVjaWFs
-IGFkZHJlc3Mgd2luZG93IG9yIHJlbWFwIG1lbW9yeSB0byBtYXJrDQo+IGl0IGFzIHVuY2FjaGVk
-LiAgSG93IHRoYXQgaXMgZG9uZSBpcyBhbiBpbXBsZW5lbnRhdGlvbiBkZXRhaWwgdGhhdCBpcyBu
-b3QNCj4gZXhwb3NlZCB0byBkcml2ZXJzIGFuZCBtYXkgY2hhbmdlIGF0IGFueSB0aW1lLg0KPiAN
-Cj4gPiBJZiB5b3Ugc3RpY2sgdG8gdXNlIG5vcm1hbCBwYWdlIGFsbG9jYXRvciBhbmQgc3RyZWFt
-aW5nIERNQSBBUEkgaW4NCj4gPiBSUE1TRywgIHRoZW4gd2UgaGF2ZSB0bzoNCj4gPiAtIGFkZCBu
-ZXcgcXVpcmsgZmVhdHVyZSBmb3IgdmlydGlvIGxpa2UgdGhlIHNhbWUgZnVuY3Rpb24gYXMNCj4g
-PiAiVklSVElPX0ZfSU9NTVVfUExBVEZPUk0iLA0KPiANCj4gWW91IGhhdmUgdG8gZG8gdGhhdCBh
-bnl3YXkuICANCg0KSSBkaXNjdXNzIHdpdGggb3VyIHRlYW0sIHVzZSBwYWdlIGFsbG9jYXRvciBj
-YW5ub3QgbWF0Y2ggb3VyIHJlcXVpcmVtZW50Lg0KaS5NWDhRTS9RWFAgcGxhdGZvcm1zIGhhdmUg
-cGFydGl0aW9uIGZlYXR1cmUgdGhhdCBsaW1pdCBNNCBvbmx5IGFjY2VzcyANCmZpeGVkIGRkciBt
-ZW1vcnkgcmVnaW9uLiBTdXBwb3NlIG90aGVyIHBsYXRmb3JtcyBhbHNvIGhhdmUgc2ltaWxhciBs
-aW1pdGF0aW9uDQpmb3Igc2VjdXJlIGNhc2UuDQoNClNvIGl0IHJlcXVpcmVzIHRvIHVzZSBPRiBy
-ZXNlcnZlZCBtZW1vcnkgZm9yIHRoZSAic2hhcmVkLWRtYS1wb29sIiBjb2hlcmVudCBvciBjb250
-aWd1b3VzIGFsbG9jYXRpb25zLg0KDQo+IFRoZSBjdXJyZW50ICFWSVJUSU9fRl9JT01NVV9QTEFU
-Rk9STSBpcw0KPiBjb21wbGV0ZWx5IGJyb2tlbiBmb3IgYW55IHZpcnRpbyBkZXZpYyB0aGF0IGlz
-IG5vdCBhY3R1YWxseSB2aXJ0dWFsaXplZCBidXQgcmVhbA0KPiBoYXJkd2FyZSwgYW5kIG11c3Qg
-bm90IGJlIHVzZWQgZm9yIHJlYWwgaGFyZHdhcmUgZGV2aWNlcy4NCg0KVGhhbmsgeW91IGZvciB5
-b3VyIGNvbW1lbnRzDQo=
+Hi Andy,
+
+first please do not write lines longer than 72 characters, as they turn your mail
+into an unreadable mess without prior editing..
+
+On Thu, Dec 27, 2018 at 02:36:53AM +0000, Andy Duan wrote:
+> Rpmsg is used to communicate with remote cpu like M4, the allocated
+> memory is shared by Linux and M4 side. In general, Linux side reserved
+> the static memory region like per-device DMA pool as coherent memory
+> for the RPMSG receive/transmit buffers. For the static memory region,
+> normal page allocator cannot match the requirement unless there have
+> protocol to tell M4 the dynamic RPMSG receive/transmit buffers.
+
+In that case you need a OF reserved memory node, like we use for the
+"shared-dma-pool" coherent or contiguous allocations.  Currently we
+have those two variants wired up the the DMA allocator, but they can
+also used directly by drivers.  To be honest I don't really like like
+drivers getting too intimate with the memory allocator, but I also
+don't think that providing a little glue code to instanciat a CMA
+pool for a memory that can be used directly by the driver is much
+of an issue.  Most of it could be reused from the existing code,
+just with a slightly lower level interfaces.
+
+> To stop to extract pages from dma_alloc_coherent, the rpmsg bus
+> implementation base on virtio that already use the scatterlist
+> mechanism for vring memory. So for virtio driver like RPMSG bus,
+> we have to extract pages from dma_alloc_coherent.
+
+This sentence doesn't parse for me.
+
+> I don't think the patch is one hack,  as we already know the physical
+> address for the coherent memory,  just want to get pages, the
+> interface "pfn_to_page(PHYS_PFN(x))" is very reasonable to the
+> related pages.  
+
+struct scatterlist doesn't (directly) refer to physical address,
+it refers to page structures, which encode a kernel virtual
+address in the kernel direct mapping, and we intentionally do not
+guarantee a return in the kernel direct mapping for the DMA
+coherent allocator, as in many cases we have to either allocate
+from a special pool, from a special address window or remap
+memory to mark it as uncached.  How that is done is an
+implenentation detail that is not exposed to drivers and may
+change at any time.
+
+> If you stick to use normal page allocator and streaming DMA
+> API in RPMSG,  then we have to:
+> - add new quirk feature for virtio like the same function as
+> "VIRTIO_F_IOMMU_PLATFORM",
+
+You have to do that anyway.  The current !VIRTIO_F_IOMMU_PLATFORM
+is completely broken for any virtio devic that is not actually
+virtualized but real hardware, and must not be used for real
+hardware devices.
