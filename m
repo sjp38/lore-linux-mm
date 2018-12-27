@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E48348E01C5
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2018 06:10:51 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id z68so4280507qkb.14
-        for <linux-mm@kvack.org>; Fri, 14 Dec 2018 03:10:51 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o5si2807662qkh.112.2018.12.14.03.10.51
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B5E5B8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 10:21:13 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id v11so16452585ply.4
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 07:21:13 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m8sor60345901pgv.85.2018.12.27.07.21.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Dec 2018 03:10:51 -0800 (PST)
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 2/9] s390/vdso: don't clear PG_reserved
-Date: Fri, 14 Dec 2018 12:10:07 +0100
-Message-Id: <20181214111014.15672-3-david@redhat.com>
-In-Reply-To: <20181214111014.15672-1-david@redhat.com>
-References: <20181214111014.15672-1-david@redhat.com>
+        (Google Transport Security);
+        Thu, 27 Dec 2018 07:21:12 -0800 (PST)
+MIME-Version: 1.0
+References: <20181226020550.63712-1-cai@lca.pw>
+In-Reply-To: <20181226020550.63712-1-cai@lca.pw>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 27 Dec 2018 16:21:00 +0100
+Message-ID: <CAAeHK+zj0LcjhcQFd4H9CfRbyzz8u+HuhA4-c-pjnDobkDGRJQ@mail.gmail.com>
+Subject: Re: [PATCH -mmotm] arm64: skip kmemleak for KASAN again
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, David Hildenbrand <david@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Vasily Gorbik <gor@linux.ibm.com>, Kees Cook <keescook@chromium.org>, Souptick Joarder <jrdr.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
+To: Qian Cai <cai@lca.pw>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>
 
-The VDSO is part of the kernel image and therefore the struct pages are
-marked as reserved during boot.
+On Wed, Dec 26, 2018 at 3:06 AM Qian Cai <cai@lca.pw> wrote:
+>
+> Due to 871ac3d540f (kasan: initialize shadow to 0xff for tag-based
+> mode), kmemleak is broken again with KASAN. It needs a similar fix
+> from e55058c2983 (mm/memblock.c: skip kmemleak for kasan_init()).
+>
+> Signed-off-by: Qian Cai <cai@lca.pw>
 
-As we install a special mapping, the actual struct pages will never be
-exposed to MM via the page tables. We can therefore leave the pages
-marked as reserved.
+Hi Qian,
 
-Suggested-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vasily Gorbik <gor@linux.ibm.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- arch/s390/kernel/vdso.c | 2 --
- 1 file changed, 2 deletions(-)
+Sorry, didn't see your first kmemleak fix. I can merge this fix into
+my series if I end up resending it.
 
-diff --git a/arch/s390/kernel/vdso.c b/arch/s390/kernel/vdso.c
-index ebe748a9f472..9e24d23c26c0 100644
---- a/arch/s390/kernel/vdso.c
-+++ b/arch/s390/kernel/vdso.c
-@@ -292,7 +292,6 @@ static int __init vdso_init(void)
- 	BUG_ON(vdso32_pagelist == NULL);
- 	for (i = 0; i < vdso32_pages - 1; i++) {
- 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
--		ClearPageReserved(pg);
- 		get_page(pg);
- 		vdso32_pagelist[i] = pg;
- 	}
-@@ -310,7 +309,6 @@ static int __init vdso_init(void)
- 	BUG_ON(vdso64_pagelist == NULL);
- 	for (i = 0; i < vdso64_pages - 1; i++) {
- 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
--		ClearPageReserved(pg);
- 		get_page(pg);
- 		vdso64_pagelist[i] = pg;
- 	}
--- 
-2.17.2
+In any case:
+
+Acked-by: Andrey Konovalov <andreyknvl@google.com>
+
+Thanks!
+
+> ---
+>  arch/arm64/mm/kasan_init.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+>
+> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+> index 48d8f2fa0d14..4b55b15707a3 100644
+> --- a/arch/arm64/mm/kasan_init.c
+> +++ b/arch/arm64/mm/kasan_init.c
+> @@ -47,8 +47,7 @@ static phys_addr_t __init kasan_alloc_raw_page(int node)
+>  {
+>         void *p = memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
+>                                                 __pa(MAX_DMA_ADDRESS),
+> -                                               MEMBLOCK_ALLOC_ACCESSIBLE,
+> -                                               node);
+> +                                               MEMBLOCK_ALLOC_KASAN, node);
+>         return __pa(p);
+>  }
+>
+> --
+> 2.17.2 (Apple Git-113)
+>
