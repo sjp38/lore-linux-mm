@@ -2,198 +2,170 @@ Return-Path: <SRS0=02aR=PE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81198C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 19:29:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6708C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 19:32:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4675E2148D
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 19:29:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4675E2148D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=collabora.com
+	by mail.kernel.org (Postfix) with ESMTP id A31C12148D
+	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 19:32:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="L+nL6fBG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A31C12148D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C98658E001F; Thu, 27 Dec 2018 14:29:45 -0500 (EST)
+	id 459138E0020; Thu, 27 Dec 2018 14:32:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C4A138E0001; Thu, 27 Dec 2018 14:29:45 -0500 (EST)
+	id 40B438E0001; Thu, 27 Dec 2018 14:32:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B39418E001F; Thu, 27 Dec 2018 14:29:45 -0500 (EST)
+	id 320348E0020; Thu, 27 Dec 2018 14:32:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A83A8E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 14:29:45 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id e17so8462741wrw.13
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 11:29:45 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B2CD8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 14:32:19 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id j5so25133703qtk.11
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 11:32:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Ru1iBfJ/IsXa05U9rzsL/hw7sBo/MMZdPZVV706F2aA=;
-        b=rZT/DKA5eCi5Lkl/CLEqAF6G3jOjVTigsq1SZ3vSIo4kNiUyDy2D5EJ4lf8K1ObWpX
-         oHHO4bqCANwBIyLAsiUd+QgDqU+zB9Eget4l0HP/P9VsZJqoJHbGywOeZc7LfNQXbYSo
-         yqHT2XOJ2Zua4EsFiV+/VUVhVfwXe+rSd2jcgo14I1oWj7P26Cm/b8kehh3alfwh0iv9
-         FwTjM5q6ivnQlN9fAwQWzo/NjBDVPoP3A9wHE7uYG6B7k5shDaBfMjH8NG3tpDCUOKy9
-         3WWjmlhKSXJBEWkelQaZf1i8JFcNAhYhECGrepyajl/ZC15vRCAw5uSj6dh42pEo93oG
-         x0yg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=gael.portay@collabora.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-X-Gm-Message-State: AJcUukfvfWlVwBIqQFyRW9R4/FO5+FZxWHMPZwTrs3/4vM3LNUke8RBN
-	AEahmVQ7RGnvz9yuuaz0TWkFnjyxbkl1GxhjcXWBPuppnVHQDEhvOxJ69/AJbC1T/sjsFp2fi5Y
-	5GXRgwZ6iF2ENb4a//i+gsoDd2g2zDDmJ4yGCVAjTwsVGOWFcZr7MYL5xumxtKobd5w==
-X-Received: by 2002:a5d:47d1:: with SMTP id l17mr22723370wrs.319.1545938984874;
-        Thu, 27 Dec 2018 11:29:44 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6qS9MoQwLFZKHmqaqajO6nYoZ7/kj4nBGT78fyZVIml6q5BtmMf5PnnDYSVLEE30ARfYj0
-X-Received: by 2002:a5d:47d1:: with SMTP id l17mr22723333wrs.319.1545938983780;
-        Thu, 27 Dec 2018 11:29:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545938983; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=zAjCO3GnuR7K5LykI+2+0VuB0+2IVvgrxN27c6QBKuM=;
+        b=BnBB7Ts/+eTMqmDeK8bVfUUo3ZRgsg52XDOi+BH/nBQk3uwgvwJPtdXQffxU7F7N0E
+         h7BP5WDvnenNpdq5xudY9Z/nak/fjJW0l/+lVb9pWKdiGFYVwocjOlHxEHUQBJrVaNYW
+         7DEstkU66eMPfKW6mi0h5offQHtVFWqbZqaViQIvLI1svNhuNIyaaWB9sUPxy6r471PN
+         xnk9Dxt2Y6OHvqOKE289HCqiccTFFHMJjBOj/Dnfg5MQW9NNCnvNovGn9WIBlEbi/Umd
+         NnUZ6LEdsKApLnCnIskIJ//BFgRzkLrCuMAgk0qTYg0BDEIUnnX+s85c645ZJsTm73tk
+         uykA==
+X-Gm-Message-State: AA+aEWa+j1GTmMdSxCxizcvkqscKLUdCXPLq3EI0zk4zlmZFvg7cFnbO
+	sIkZOlgjxoSzgfUTeeaeYd23Pg2N4sSwDcDGhC6M6OdGHJYQuZTmufWUBxLzQiVjc0ngBmzfB4k
+	cFpQ99KcpqeJzNH6pO+5zMA03+aS7/iUqYHzRT7qiS2UUByUY5NX7LwO65iHDzbT06B3KE5f8zU
+	45SNf4WWUuIVqTojXNmcahbUvGQARwcLvlexnQjuETeT5X5N92yQR+D/h/mUsQbGpRmTmiBGNCN
+	BK7NzhnFR4wGoa99jmB1CUzZFuqDGPIQterSFChSDK9+ts2nT36kl/49s1YsX2mNPYG7P/MRXjo
+	1SrNQ1+MJDMNsjs2toYehJQEo7D++9iRDYj6nQS9lLgx1/kcoHi7ic2fvEvBkn92BfnNEayMNNG
+	b
+X-Received: by 2002:ac8:3f2d:: with SMTP id c42mr23476451qtk.33.1545939138676;
+        Thu, 27 Dec 2018 11:32:18 -0800 (PST)
+X-Received: by 2002:ac8:3f2d:: with SMTP id c42mr23476420qtk.33.1545939138125;
+        Thu, 27 Dec 2018 11:32:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545939138; cv=none;
         d=google.com; s=arc-20160816;
-        b=Us8SZ1lO7i0XKPa5ryMflBFkR8sP/Z7mAgEXBlViygwc6F7Ma3PdvjLQ7di2R/cb31
-         a4Oj9Y9hQr/xyRZq8sz1grBWIRLIpU1RtRG4WvLeFCpB7CteFLdKcjyygOYrtYi4UWEB
-         4rfAWiwGaCQiP17bpIGjjCvRIIprr2vZDsCevD4xay4F7ZMWh1vk4oiYWOTwNsSiwqR+
-         Z1lnYdkxPt7IfgWeQy+SeEfpDOPS/mFHgSgBmForn71tcgG3C6Aqw67RA0onCfs+121d
-         jZWK5svRQoh/Zqx7weiuE9Bn/+NsSoCFOP1dLmSRgJDbbF79AXELjKJp6U/MmyhIf/w0
-         1BQw==
+        b=Bhj3pKG4Sg5qPuImJUi/811QYfwV5XTGbnW7AXO/Mutjmranw1u7apKDqJLDPX39XT
+         rA0qlukdGdRezXqtJcHitiHdfPxI8gAwR1hkCtoFQdz2wOFP1MOKJB1yPIaok+hfLHNl
+         m/7wkJjforWEi/8inFQk4dh8iz2cQoCI2b3ZhTDHMOKtcfgIs9fA74dfWzUOfcQFZibj
+         DaQEJ6foXBm+RBFhe7UOdczrrxKoIpw6nOp6AEclEbLDRqQ73H4oac+EpEPJ+p3PJq6r
+         0hrwCZzTQmLkkQ+zeSAbuVkY41jqTLsWSD2JG59Nk/3tsOUQd0VNpoWLP4GotjS8UoCm
+         UExg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=Ru1iBfJ/IsXa05U9rzsL/hw7sBo/MMZdPZVV706F2aA=;
-        b=wqa3w7LSaMvTRvoqc2Wv1BW759fQX+K/R3sgQCjxSil7hgDaC6Lq+TffuXD0MZ7K8f
-         LHOaE95BXKCxgxdacHSXrk+8juSgb/zG7L8y/EPvnAdbxIaGOM8pr/kC718EriivDVsk
-         N+yREo+pxsq6cajJx+FCZBLMTZfeMaRulIL925X7gENu8qg5m6KLGXM2MbW5zSvV3bZ0
-         Vic/Hc84LBhLie7b/5/skQ9fsWz2r72zSD8BSO+P5GOHXWbOtwoSi5bdZlRwxhLHACk/
-         NSZEB8VwQQ4e79o2Oug2At0/iOxyPVRHZDoRcpTkjIaS9u15kNlYAN8z2y2YnsdJMSNx
-         oIRA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=zAjCO3GnuR7K5LykI+2+0VuB0+2IVvgrxN27c6QBKuM=;
+        b=m0fLJuv/qsYeSH4BshDNcKB9hSOSmNQTUl8IhfgiegzYgIilxCUdrTaXHXA31sT4xC
+         w+S1Pknhl5/jHytbLbEpLkF08AF+O6aRtGo7yEAInyz8esHOKE0Qnh5dBZ0qbPLsr/4j
+         x8Scu7dfI7Ams8N1ZenPjS119gBzek3WPMi6T4emGsHe8hWjB+/WALaVFSF1tRFXVWLQ
+         0drv+vgBlAd3EghRdOf6KCEHBhsDyKjgya6HqictAVa+MXlNYWbDNB9xnppCRZ3DSnfw
+         WuK3T4HL3cAWgnC3Y19FnBBkSPW7SthHlW6Gf7CACx8w0L56jaz7Pl/XDVvE2ShbOuiI
+         NH4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=gael.portay@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [2a00:1098:0:82:1000:25:2eeb:e3e3])
-        by mx.google.com with ESMTPS id j2si19081780wrv.348.2018.12.27.11.29.43
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=L+nL6fBG;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k7sor14979599qkc.144.2018.12.27.11.32.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 27 Dec 2018 11:29:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) client-ip=2a00:1098:0:82:1000:25:2eeb:e3e3;
+        (Google Transport Security);
+        Thu, 27 Dec 2018 11:32:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=gael.portay@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from [127.0.0.1] (localhost [127.0.0.1])
-	(Authenticated sender: gportay)
-	with ESMTPSA id C7304260C86
-Date: Thu, 27 Dec 2018 14:29:40 -0500
-From: =?utf-8?B?R2HDq2w=?= PORTAY <gael.portay@collabora.com>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>,
-	Alan Stern <stern@rowland.harvard.edu>, linux-mm@kvack.org,
-	usb-storage@lists.one-eyed-alien.net
-Subject: Re: [usb-storage] Re: cma: deadlock using usb-storage and fs
-Message-ID: <20181227192940.77p5gj3garpgahnm@archlinux.localdomain>
-References: <20181216222117.v5bzdfdvtulv2t54@archlinux.localdomain>
- <Pine.LNX.4.44L0.1812171038300.1630-100000@iolanthe.rowland.org>
- <20181217182922.bogbrhjm6ubnswqw@archlinux.localdomain>
- <c3ab7935-8d8d-27a0-99a7-0dab51244a42@redhat.com>
- <593e3757-6f50-22bc-d5a9-ea5819b9a63d@oracle.com>
- <da35de2c-b8ad-9b01-b582-8f1f8061e8e1@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=L+nL6fBG;
+       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=zAjCO3GnuR7K5LykI+2+0VuB0+2IVvgrxN27c6QBKuM=;
+        b=L+nL6fBGB68bgCmWUTBV8p4elnCb/9wH8Hf0dO7WF3Csk8nhG6AF1w/gPOqIZncq68
+         udkbk9UmTSxHS0HNnPEUEU9WZ6PaB1ZcQKp0+HacB1TMvdOWRjwVw4RwgGnKcw46QSNn
+         Phld/Tv2zx2aAbW4lFVnlQ2w3d2JY4Al+LMzqQZKmUaQQc538rYZ1aGDxRwD2dhZ4/kX
+         FhqiRpLRSURikdn5zXL+pI89VvrcO8z+N1zXnfz22WTRcvokvqHj5c8iPY9DIyFDuZMJ
+         Bx6EfCrhC7pYka5a5C+fb0c1yY283/FP3K9H9ZzPuMAAbJzOJp6lr2Rgae3j0WQJ0tMT
+         39Qw==
+X-Google-Smtp-Source: ALg8bN7cFEH0nAFiavDtrruWYIkUr4bNP4bbMHbm0mHq2lQX9nStpzzZ24Gosp7aYu/35ejoJO5uu3Ki8y5W6l7TT8g=
+X-Received: by 2002:a37:9281:: with SMTP id u123mr23363934qkd.0.1545939137848;
+ Thu, 27 Dec 2018 11:32:17 -0800 (PST)
 MIME-Version: 1.0
+References: <20181226131446.330864849@intel.com> <20181226133351.106676005@intel.com>
+ <20181227034141.GD20878@bombadil.infradead.org> <20181227041132.xxdnwtdajtm7ny4q@wfg-t540p.sh.intel.com>
+ <CAPcyv4hBBvcHiUSU4ER6WV7Po_GEwDjFcJy2aE3VW5Nwiu+Qyw@mail.gmail.com>
+In-Reply-To: <CAPcyv4hBBvcHiUSU4ER6WV7Po_GEwDjFcJy2aE3VW5Nwiu+Qyw@mail.gmail.com>
+From: Yang Shi <shy828301@gmail.com>
+Date: Thu, 27 Dec 2018 11:32:06 -0800
+Message-ID:
+ <CAHbLzkqR2z+wcVXkKRoHysXtjtn12P33emr15h_HB=jMaByV5w@mail.gmail.com>
+Subject: Re: [RFC][PATCH v2 01/21] e820: cheat PMEM as DRAM
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Matthew Wilcox <willy@infradead.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, Fan Du <fan.du@intel.com>, KVM list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Yao Yuan <yuan.yao@intel.com>, 
+	Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, 
+	Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, 
+	Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <da35de2c-b8ad-9b01-b582-8f1f8061e8e1@redhat.com>
-User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181227192940.EhdWTyRRSvjKi-6e_FQOwcdzDL9Xa1qfqyMsHLywcgs@z>
+Message-ID: <20181227193206.eINsnooRU6RM8OlkDkhq4BXx9-rGqhsB6VPSQIxCjPQ@z>
 
-Laura, Mike,
+On Wed, Dec 26, 2018 at 9:13 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Wed, Dec 26, 2018 at 8:11 PM Fengguang Wu <fengguang.wu@intel.com> wrote:
+> >
+> > On Wed, Dec 26, 2018 at 07:41:41PM -0800, Matthew Wilcox wrote:
+> > >On Wed, Dec 26, 2018 at 09:14:47PM +0800, Fengguang Wu wrote:
+> > >> From: Fan Du <fan.du@intel.com>
+> > >>
+> > >> This is a hack to enumerate PMEM as NUMA nodes.
+> > >> It's necessary for current BIOS that don't yet fill ACPI HMAT table.
+> > >>
+> > >> WARNING: take care to backup. It is mutual exclusive with libnvdimm
+> > >> subsystem and can destroy ndctl managed namespaces.
+> > >
+> > >Why depend on firmware to present this "correctly"?  It seems to me like
+> > >less effort all around to have ndctl label some namespaces as being for
+> > >this kind of use.
+> >
+> > Dave Hansen may be more suitable to answer your question. He posted
+> > patches to make PMEM NUMA node coexist with libnvdimm and ndctl:
+> >
+> > [PATCH 0/9] Allow persistent memory to be used like normal RAM
+> > https://lkml.org/lkml/2018/10/23/9
+> >
+> > That depends on future BIOS. So we did this quick hack to test out
+> > PMEM NUMA node for the existing BIOS.
+>
+> No, it does not depend on a future BIOS.
 
-On Tue, Dec 18, 2018 at 01:14:42PM -0800, Laura Abbott wrote:
-> On 12/18/18 11:42 AM, Mike Kravetz wrote:
-> > On 12/17/18 1:57 PM, Laura Abbott wrote:
-> > > On 12/17/18 10:29 AM, Gaël PORTAY wrote:
-> > > > Alan,
-> > > > 
-> > > > On Mon, Dec 17, 2018 at 10:45:17AM -0500, Alan Stern wrote:
-> > > > > On Sun, 16 Dec 2018, Gaël PORTAY wrote:
-> > > > > ...
-> > > > > 
-> > > > > > The second task wants to writeback/flush the pages through USB, which, I
-> > > > > > assume, is due to the page migration. The usb-storage triggers a CMA allocation
-> > > > > > but get locked in cma_alloc since the first task hold the mutex (It is a FAT
-> > > > > > formatted partition, if it helps).
-> > > > > > 
-> > > > > >      usb-storage     D    0   349      2 0x00000000
-> > > > > >      Backtrace:
-> > > > > ...
-> > > > > >      [<bf1c7550>] (usb_sg_wait [usbcore]) from [<bf2bd618>]
-> > > > > > (usb_stor_bulk_transfer_sglist.part.2+0x80/0xdc [usb_storage]) r9:0001e000
-> > > > > > r8:eca594ac r7:0001e000 r6:c0008200 r5:eca59514 r4:eca59488
-> > > > > 
-> > > > > It looks like there is a logical problem in the CMA allocator.  The
-> > > > > call in usb_sg_wait() specifies GFP_NOIO, which is supposed to prevent
-> > > > > allocations from blocking on any I/O operations.  Therefore we
-> > > > > shouldn't be waiting for the CMA mutex.
-> > > > > 
-> > > > 
-> > > > Right.
-> > > > 
-> > > > > Perhaps the CMA allocator needs to drop the mutex while doing
-> > > > > writebacks/flushes, or perhaps it needs to be reorganized some other
-> > > > > way.  I don't know anything about it.
-> > > > > 
-> > > > > Does the CMA code have any maintainers who might need to know about
-> > > > > this, or is it all handled by the MM maintainers?
-> > > > 
-> > > > I did not find maintainers neither for CMA nor MM.
-> > > > 
-> > > > That is why I have sent this mail to mm mailing list but to no one in
-> > > > particular.
-> > > > 
-> > > 
-> > > Last time I looked at this, we needed the cma_mutex for serialization
-> > > so unless we want to rework that, I think we need to not use CMA in the
-> > > writeback case (i.e. GFP_IO).
-> > 
-> > I am wondering if we still need to hold the cma_mutex while calling
-> > alloc_contig_range().  Looking back at the history, it appears that
-> > the reason for holding the mutex was to prevent two threads from operating
-> > on the same pageblock.
-> > 
-> > Commit 2c7452a075d4 ("mm/page_isolation.c: make start_isolate_page_range()
-> > fail if already isolated") will cause alloc_contig_range to return EBUSY
-> > if two callers are attempting to operate on the same pageblock.  This was
-> > added because memory hotplug as well as gigantac page allocation call
-> > alloc_contig_range and could conflict with each other or cma.   cma_alloc
-> > has logic to retry if EBUSY is returned.  Although, IIUC it assumes the
-> > EBUSY is the result of specific pages being busy as opposed to someone
-> > else operating on the pageblock.  Therefore, the retry logic to 'try a
-> > different set of pages' is not what one  would/should attempt in the case
-> > someone else is operating on the pageblock.
-> > 
-> > Would it be possible or make sense to remove the mutex and retry when
-> > EBUSY?  Or, am I missing some other reason for holding the mutex.
-> > 
-> 
-> I had forgotten that start_isolate_page_range had been updated to
-> return -EBUSY. It looks like we would need to update
-> the callback for migrate_pages in __alloc_contig_migrate_range
-> since alloc_migrate_target by default will use __GFP_IO.
-> So I _think_ if we update that to honor GFP_NOIO we could
-> remove the mutex assuming the rest of migrate_pages honors
-> it properly.
-> 
+It is correct. We already have Dave's patches + Dan's patch (added
+target_node field) work on our machine which has SRAT.
 
-I would be pleased to help and test things.
+Thanks,
+Yang
 
-I had a look to the code but I do not know how to hack the callback.
-
-Laura: Could you tell me more about how to update the callback to take
-the GFP_NOIO flag into consideration properly?
-
-Regards,
-Gael
+>
+> Willy, have a look here [1], here [2], and here [3] for the
+> work-in-progress ndctl takeover approach (actually 'daxctl' in this
+> case).
+>
+> [1]: https://lkml.org/lkml/2018/10/23/9
+> [2]: https://lkml.org/lkml/2018/10/31/243
+> [3]: https://lists.01.org/pipermail/linux-nvdimm/2018-November/018677.html
+>
 
