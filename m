@@ -1,98 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 114F18E0001
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:23 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id d71so13269810pgc.1
-        for <linux-mm@kvack.org>; Tue, 18 Dec 2018 01:42:23 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i4si13596402pfg.218.2018.12.18.01.42.21
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CFE68E0001
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2018 05:50:12 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id d196so26433252qkb.6
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 02:50:12 -0800 (PST)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id k3si1612592qvo.122.2018.12.28.02.50.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Dec 2018 01:42:22 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBI9eU2q143775
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:21 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pewf53aha-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2018 04:42:21 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 18 Dec 2018 09:42:20 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V4 4/5] mm/hugetlb: Add prot_modify_start/commit sequence for hugetlb update
-Date: Tue, 18 Dec 2018 15:11:36 +0530
-In-Reply-To: <20181218094137.13732-1-aneesh.kumar@linux.ibm.com>
-References: <20181218094137.13732-1-aneesh.kumar@linux.ibm.com>
+        Fri, 28 Dec 2018 02:50:11 -0800 (PST)
+Date: Fri, 28 Dec 2018 11:50:08 +0100
+From: Greg KH <greg@kroah.com>
+Subject: Re: Will the recent memory leak fixes be backported to longterm
+ kernels?
+Message-ID: <20181228105008.GB15967@kroah.com>
+References: <PU1P153MB0169FE681EF81BCE81B005A1BFCF0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+ <20181102073009.GP23921@dhcp22.suse.cz>
+ <20181102154844.GA17619@tower.DHCP.thefacebook.com>
+ <20181102161314.GF28039@dhcp22.suse.cz>
+ <20181102162237.GB17619@tower.DHCP.thefacebook.com>
+ <20181102165147.GG28039@dhcp22.suse.cz>
+ <20181102172547.GA19042@tower.DHCP.thefacebook.com>
+ <20181102174823.GI28039@dhcp22.suse.cz>
+ <20181102193827.GA18024@castle.DHCP.thefacebook.com>
+ <20181105092053.GC4361@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20181218094137.13732-5-aneesh.kumar@linux.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20181105092053.GC4361@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org, x86@kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Dexuan Cui <decui@microsoft.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@infradead.org>, "Stable@vger.kernel.org" <Stable@vger.kernel.org>
 
-Architectures like ppc64 requires to do a conditional tlb flush based on the old
-and new value of pte. Follow the regular pte change protection sequence for
-hugetlb too. This allow the architectures to override the update sequence.
+On Mon, Nov 05, 2018 at 10:21:23AM +0100, Michal Hocko wrote:
+> On Fri 02-11-18 19:38:35, Roman Gushchin wrote:
+> > On Fri, Nov 02, 2018 at 06:48:23PM +0100, Michal Hocko wrote:
+> > > On Fri 02-11-18 17:25:58, Roman Gushchin wrote:
+> > > > On Fri, Nov 02, 2018 at 05:51:47PM +0100, Michal Hocko wrote:
+> > > > > On Fri 02-11-18 16:22:41, Roman Gushchin wrote:
+> > > [...]
+> > > > > > 2) We do forget to scan the last page in the LRU list. So if we ended up with
+> > > > > > 1-page long LRU, it can stay there basically forever.
+> > > > > 
+> > > > > Why 
+> > > > > 		/*
+> > > > > 		 * If the cgroup's already been deleted, make sure to
+> > > > > 		 * scrape out the remaining cache.
+> > > > > 		 */
+> > > > > 		if (!scan && !mem_cgroup_online(memcg))
+> > > > > 			scan = min(size, SWAP_CLUSTER_MAX);
+> > > > > 
+> > > > > in get_scan_count doesn't work for that case?
+> > > > 
+> > > > No, it doesn't. Let's look at the whole picture:
+> > > > 
+> > > > 		size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+> > > > 		scan = size >> sc->priority;
+> > > > 		/*
+> > > > 		 * If the cgroup's already been deleted, make sure to
+> > > > 		 * scrape out the remaining cache.
+> > > > 		 */
+> > > > 		if (!scan && !mem_cgroup_online(memcg))
+> > > > 			scan = min(size, SWAP_CLUSTER_MAX);
+> > > > 
+> > > > If size == 1, scan == 0 => scan = min(1, 32) == 1.
+> > > > And after proportional adjustment we'll have 0.
+> > > 
+> > > My friday brain hurst when looking at this but if it doesn't work as
+> > > advertized then it should be fixed. I do not see any of your patches to
+> > > touch this logic so how come it would work after them applied?
+> > 
+> > This part works as expected. But the following
+> > 	scan = div64_u64(scan * fraction[file], denominator);
+> > reliable turns 1 page to scan to 0 pages to scan.
+> 
+> OK, 68600f623d69 ("mm: don't miss the last page because of round-off
+> error") sounds like a good and safe stable backport material.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- include/linux/hugetlb.h | 20 ++++++++++++++++++++
- mm/hugetlb.c            |  8 +++++---
- 2 files changed, 25 insertions(+), 3 deletions(-)
+Thanks for this, now queued up.
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 087fd5f48c91..39e78b80375c 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -543,6 +543,26 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
- 	set_huge_pte_at(mm, addr, ptep, pte);
- }
- #endif
-+
-+#ifndef huge_ptep_modify_prot_start
-+#define huge_ptep_modify_prot_start huge_ptep_modify_prot_start
-+static inline pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
-+						unsigned long addr, pte_t *ptep)
-+{
-+	return huge_ptep_get_and_clear(vma->vm_mm, addr, ptep);
-+}
-+#endif
-+
-+#ifndef huge_ptep_modify_prot_commit
-+#define huge_ptep_modify_prot_commit huge_ptep_modify_prot_commit
-+static inline void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
-+						unsigned long addr, pte_t *ptep,
-+						pte_t old_pte, pte_t pte)
-+{
-+	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
-+}
-+#endif
-+
- #else	/* CONFIG_HUGETLB_PAGE */
- struct hstate {};
- #define alloc_huge_page(v, a, r) NULL
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 705a3e9cc910..353bff385595 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4388,10 +4388,12 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 			continue;
- 		}
- 		if (!huge_pte_none(pte)) {
--			pte = huge_ptep_get_and_clear(mm, address, ptep);
--			pte = pte_mkhuge(huge_pte_modify(pte, newprot));
-+			pte_t old_pte;
-+
-+			old_pte = huge_ptep_modify_prot_start(vma, address, ptep);
-+			pte = pte_mkhuge(huge_pte_modify(old_pte, newprot));
- 			pte = arch_make_huge_pte(pte, vma, NULL, 0);
--			set_huge_pte_at(mm, address, ptep, pte);
-+			huge_ptep_modify_prot_commit(vma, address, ptep, old_pte, pte);
- 			pages++;
- 		}
- 		spin_unlock(ptl);
--- 
-2.19.2
+greg k-h
