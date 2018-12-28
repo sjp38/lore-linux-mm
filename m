@@ -1,139 +1,146 @@
-Return-Path: <SRS0=02aR=PE=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=dGUi=PF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50657C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 23:24:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C870CC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Dec 2018 03:06:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3DB521741
-	for <linux-mm@archiver.kernel.org>; Thu, 27 Dec 2018 23:24:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ICXCGPvi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3DB521741
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 8D54B2146F
+	for <linux-mm@archiver.kernel.org>; Fri, 28 Dec 2018 03:06:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D54B2146F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BECAA8E0022; Thu, 27 Dec 2018 18:24:04 -0500 (EST)
+	id 17DC38E002D; Thu, 27 Dec 2018 22:06:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B9B3F8E0001; Thu, 27 Dec 2018 18:24:04 -0500 (EST)
+	id 12E988E0001; Thu, 27 Dec 2018 22:06:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A8AB68E0022; Thu, 27 Dec 2018 18:24:04 -0500 (EST)
+	id 0443E8E002D; Thu, 27 Dec 2018 22:06:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0048E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 18:24:04 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id r145so25222516qke.20
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 15:24:04 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB31C8E0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 22:06:49 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o17so18994554pgi.14
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 19:06:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=/EPudTNTCq6A/FDFSmKHo8KDd0/qXZYQkhOO70XqdFY=;
-        b=Oh/s6B6Pne67oQM4BO4H3E2/gdyEM4vvDaQUZCBydjxmG+Wg6aoQcvM7vq3eqEyOIF
-         QkBJl1OUD9R8VnNQiFdRFdv12mE5xWJ9sJwS86eIFWfKrMLzrxxgh2mfTHdKnBpUE9R6
-         EQFhIYxRdFbmOgv8WztP7e5UJyPxmPGhii52xVZJ8aP+23ousWrImNgmTdHVDR93sYFQ
-         eVdgi1aqFgCJIeknikhAx6Hsf9jESh33iiuJSU08W36Y64YHa97P+tlxIbZMX5K1dBlc
-         vuoLOW0Fy1vMDrPbp5N8S9rLq+UNy0OAZN+NmyeyNYa7uY9I7c2lbZagdLXAr5YvesEz
-         aewA==
-X-Gm-Message-State: AJcUukcPH+kSwU3CSdiTlmvH2L8q/uPMZdDKO3daOQngcOJ9rL1ABD2I
-	lRHraV49WFiPTHEOWne5P+d26UAwc6h04Bp5scwYYUO9M3hh2k+BNOE9ZAKCOlJ0JPyPqYRvOXP
-	VTkiOgg/ejlXyo0bRMCesLnn1QsqcNFUChr8I40Pk7Jx47EdHpncAOJah6fff+q99FfC+hoA5Uv
-	MOQcgvMUlnu9rJ40KAIOv4arsJiEeuaNZYkOOgnz3p0eRZ2kxD/sDM6pB3L2fo9M/1xspv4DPyr
-	kH8RYcQVlCZZS92xZXs3ub5iIEFm/c4rm39ky89PIebuahIgpiv37joSuYN5VGhCGsB0QpcMBWQ
-	Gf+rGTWnq+i/h5R6SGFkwOggjfg9AaFgJhjo0Na0astmNtrUFV4Nhlf6ZcZVgHnDz4zrkYZgeGE
-	H
-X-Received: by 2002:a37:5f82:: with SMTP id t124mr22989760qkb.204.1545953044205;
-        Thu, 27 Dec 2018 15:24:04 -0800 (PST)
-X-Received: by 2002:a37:5f82:: with SMTP id t124mr22989744qkb.204.1545953043649;
-        Thu, 27 Dec 2018 15:24:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545953043; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :date:from:user-agent:mime-version:to:cc:subject:references
+         :in-reply-to:content-transfer-encoding;
+        bh=oNxq/T2HPY4+XIAlCcIntezX6BiAJTCfkswtGCnHNGk=;
+        b=UYJHncsaPy2/dV/iYe/Hrv5pbhY3LWZwzv0ENpENBJKNLUVg5fKfzDY/C3QFyVx83t
+         lHWtu8XPasxLb4MgL7CFrasBk5MfzIgepya97+cFG9cAuOxNDuc0tXOHCEJQ1ceQqtvs
+         QuihddbQvZC1zM9uVfGpTw3RZ2pyExc8YI0t6mc1xczWePBLwzMWiaEq3S41EY3CEGMh
+         cNdWv8hl59PTeF+Ky1GTFjO35f+1iYH8QIlsX/3Fs/oveoSBFWysWNc4uiTiup71dqop
+         Pp1iajUoD69W1XfbqM8/08Cbl/JC0JLjAje0YgCECqwAx6asQawo3Jq2MvDQf+JKzhNG
+         /5Ww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukchAcY6TFFkIcaih1RlniW7dLJCYThp8atLeQa2LlpCiKCFjxn7
+	k2gJpTckYMc17GnvHfnhbczMF2hBxPnzNyOHazZqfdBYgjKvRII1Ea7LSLDQ4rcU2AQ0eeCM576
+	48n7YvdbJ9wpw63fLE1tdjKavmcsnBrlDdVtqswOWUTlOq9AqxjHM71RTmS7IZ5bRCg==
+X-Received: by 2002:a63:790e:: with SMTP id u14mr24887708pgc.452.1545966409430;
+        Thu, 27 Dec 2018 19:06:49 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7TCBqMGrxuyBZGr3Ez4uW5fkNd8N4PmUl0qYRrJxBgkg7js4C1qOkF/YrIv9MP5vnQ4ipE
+X-Received: by 2002:a63:790e:: with SMTP id u14mr24887676pgc.452.1545966408533;
+        Thu, 27 Dec 2018 19:06:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1545966408; cv=none;
         d=google.com; s=arc-20160816;
-        b=lJS0ANaRe/HXVTDWgX3veNYnFssEJhW8sHTGlu+lFLn2zYktfG2P7ldb/+K54z+RDn
-         THqMu4RClKalAi9+M6nAQNXoAjAKJhs2wx7G6Jze1r2jqi4cdwaNIKG74Wdije7kCOOD
-         PdCEJNhrdJMBLGaK1M0w0vADzCviXKCXn64PcH76E9vJeNW4yWsa6wCqyPV+XX5K73UT
-         UsFvOsFhwTHFUNVrDTeR2Tz1xxK7LgxPBsBRSZDyaqAcXxVy3DIqA2uK/hO1+RxbsW+v
-         46TgkHeXJMSkPZRQeYA5GktS8oq+5FE6DnDjO0sbcfNRU8dzmyub5kz9iyHRSOAJTfjx
-         U7CA==
+        b=eozjSnaMMNfCSwSEsI70lmAyGu7WPe9rNRnz2FWCwkNHey8aIGjXhh+vUYR6wyXcl5
+         lpRtbro4zTq6dBD6wfTvLppTfZ65WwJ8+CxenJFO4HAh6ksBK600s71dmXgQ3CfCJvlD
+         dKlcrj5RH4+zkDflnsEi0Y/Sgyi7RZpSTLAAjdFtd+PEDXVdCbPvwG1HjsCccWV+3yyY
+         TelfsrQoZMj8KWfLkB/2oGpRo9WkJu77M4rhpgj5Lb8wMGAwYRhz3U05XjItWLUnX8BD
+         2rgh6sCprKS45cOvVs4SztfDxXSvDkuCJjBLgeuhx2rhqMEvo6kHFhfiF2qQb7E/CtMZ
+         naiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=/EPudTNTCq6A/FDFSmKHo8KDd0/qXZYQkhOO70XqdFY=;
-        b=hNmG13HrJR5YZvAwFAFp8g+lvAxy2VRcR17h7/WrxEQis22SLAjov9Xl0C6e7N3u4D
-         V/zRaJuT0MYVQDaPL+xLGe3Yh5uGLp9ZU1Qj5BXpXRIKdolocIiMZMaeAMvPf9wlfwJM
-         0NMQ2CsrrdwKJTLsNU4udNiqB1QRwv1xWKVPSFUb3WyGybEKHbYsF3gS3bjCbdy53Xwf
-         W+No7gxpJ4KTt/Pl0u/d4rs492EJ5QYqZbjOzh4aBvDonE748m1yfw50nauXp7/jUFFt
-         P/Ddr4a8S3olJ6QIEM7iAjwj0+jn2iJWCSJFmhAvTxI5SCaklbdrJ6NR3phdDiJ1/oSJ
-         tlHA==
+        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
+         :mime-version:user-agent:from:date:message-id;
+        bh=oNxq/T2HPY4+XIAlCcIntezX6BiAJTCfkswtGCnHNGk=;
+        b=wim2zETJTEDfTicDl4JGPcJq7LN2v3e8K22lY0Ss2QeHYoTzu6BLiNQYx67gQSQN0B
+         1v/9F238vUiPmYz779/gP3ze5tTd1KOkgVzGGnX/vhIUY0T1Sirnp1h5AQ6zJ1iuwT8P
+         eO9IpMnnPsBbQSgy+ljrfRsUYR7OISBZxbKoba1JPhZtZsdaiSUS2z9Ne0p0jo0tVLz8
+         ++d9hjJE4ZwK50KvSOBBehtpwuAZHqnySFrOzqMvrxABI/Qt3DuFQU80mbGz7duGd+l3
+         h4jyAAaZZJcJeFqwbg8QzsFdefasGr537hXJQn2ZBpm9zqtUWInnEw2/akrpg6Z3Ch5F
+         nm6Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ICXCGPvi;
-       spf=pass (google.com: domain of 3e18lxagkce40885yu78w44w1u.s421y3ad-220bqs0.47w@flex--ksspiers.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3E18lXAgKCE40885yu78w44w1u.s421y3AD-220Bqs0.47w@flex--ksspiers.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id c16sor29844652qtq.58.2018.12.27.15.24.03
+       spf=pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id p14si35560560plq.25.2018.12.27.19.06.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 27 Dec 2018 15:24:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3e18lxagkce40885yu78w44w1u.s421y3ad-220bqs0.47w@flex--ksspiers.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Dec 2018 19:06:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ICXCGPvi;
-       spf=pass (google.com: domain of 3e18lxagkce40885yu78w44w1u.s421y3ad-220bqs0.47w@flex--ksspiers.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3E18lXAgKCE40885yu78w44w1u.s421y3AD-220Bqs0.47w@flex--ksspiers.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=/EPudTNTCq6A/FDFSmKHo8KDd0/qXZYQkhOO70XqdFY=;
-        b=ICXCGPvizN+YIcmS6sKJFNWk8na/m9i3Rq+r7Bq2yRFPRzfnA5NCZ+jvToLfPu9cBT
-         DxW6HlXi1aPAHETpDgifwyd7gcKgN60HKjPTA0lTy97bcC8lDcuQMgmv2MohL6JDMNE4
-         BHDtsUyC0pFyFQP45HInBC4kd88R94sJc1g4DYK3ypcNY24jjrULXzft7KgIBY6X9jKp
-         UT3NbAjf+5VEa6jTvbvmyEYVd10+CVAue1WM+nb8VPC2L4GUPnfY158yaHg59lrIpEFr
-         XAvXku8YhWYesYFlojgnabaCeKutP1MmWy/9GzA3/IK9UJViZoZ/9Os7ygMN3ImFakFi
-         E6zA==
-X-Google-Smtp-Source: AFSGD/U7619okJT/MmqRvvy/VsDXoCm1OtFCLvuLwoIolPSFkuNW6cmjTJF5K4EdrQZPuAtKtPrhCU7Rrldw5Q==
-X-Received: by 2002:aed:22cb:: with SMTP id q11mr18964903qtc.31.1545953043487;
- Thu, 27 Dec 2018 15:24:03 -0800 (PST)
-Date: Thu, 27 Dec 2018 15:23:54 -0800
-Message-Id: <20181227232354.64562-1-ksspiers@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.20.1.415.g653613c723-goog
-Subject: [PATCH] include/linux/gfp.h: fix typo
-From: Kyle Spiers <ksspiers@google.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Kyle Spiers <ksspiers@google.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.010889, version=1.2.4
+       spf=pass (google.com: domain of wei.w.wang@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=wei.w.wang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Dec 2018 19:06:47 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,407,1539673200"; 
+   d="scan'208";a="307158766"
+Received: from unknown (HELO [10.239.13.114]) ([10.239.13.114])
+  by fmsmga005.fm.intel.com with ESMTP; 27 Dec 2018 19:06:43 -0800
+Message-ID: <5C259485.2030809@intel.com>
+Date: Fri, 28 Dec 2018 11:12:05 +0800
+From: Wei Wang <wei.w.wang@intel.com>
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:31.0) Gecko/20100101 Thunderbird/31.7.0
+MIME-Version: 1.0
+To: Christian Borntraeger <borntraeger@de.ibm.com>, 
+ virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, 
+ virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, 
+ linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, 
+ akpm@linux-foundation.org, dgilbert@redhat.com
+CC: torvalds@linux-foundation.org, pbonzini@redhat.com, 
+ liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, 
+ quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, 
+ peterx@redhat.com, quintela@redhat.com, 
+ Cornelia Huck <cohuck@redhat.com>,
+ Halil Pasic <pasic@linux.ibm.com>
+Subject: Re: [PATCH v37 1/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
+References: <1535333539-32420-1-git-send-email-wei.w.wang@intel.com> <1535333539-32420-2-git-send-email-wei.w.wang@intel.com> <49d706f7-a0ee-e571-7d02-bcadac5ce742@de.ibm.com>
+In-Reply-To: <49d706f7-a0ee-e571-7d02-bcadac5ce742@de.ibm.com>
+Content-Type: text/plain; charset="UTF-8"; format="flowed"
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181227232354.AfNCV_m3KJsWO_NwBCzthtJoCISiLpAR8r0gcbPUjy8@z>
+Message-ID: <20181228031205.jcDEeW2Zdf7_uO18bhl_PxrW3UXM9y-dg7wM-HwcFII@z>
 
-Fix misspelled "satisfied"
+On 12/27/2018 08:03 PM, Christian Borntraeger wrote:
+> On 27.08.2018 03:32, Wei Wang wrote:
+>>   static int init_vqs(struct virtio_balloon *vb)
+>>   {
+>> -	struct virtqueue *vqs[3];
+>> -	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
+>> -	static const char * const names[] = { "inflate", "deflate", "stats" };
+>> -	int err, nvqs;
+>> +	struct virtqueue *vqs[VIRTIO_BALLOON_VQ_MAX];
+>> +	vq_callback_t *callbacks[VIRTIO_BALLOON_VQ_MAX];
+>> +	const char *names[VIRTIO_BALLOON_VQ_MAX];
+>> +	int err;
+>>
+>>   	/*
+>> -	 * We expect two virtqueues: inflate and deflate, and
+>> -	 * optionally stat.
+>> +	 * Inflateq and deflateq are used unconditionally. The names[]
+>> +	 * will be NULL if the related feature is not enabled, which will
+>> +	 * cause no allocation for the corresponding virtqueue in find_vqs.
+>>   	 */
+> This might be true for virtio-pci, but it is not for virtio-ccw.
 
-Signed-off-by: Kyle Spiers <ksspiers@google.com>
----
- include/linux/gfp.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Hi Christian,
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0705164f928c..5f5e25fd6149 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -81,7 +81,7 @@ struct vm_area_struct;
-  *
-  * %__GFP_HARDWALL enforces the cpuset memory allocation policy.
-  *
-- * %__GFP_THISNODE forces the allocation to be satisified from the requested
-+ * %__GFP_THISNODE forces the allocation to be satisfied from the requested
-  * node with no fallbacks or placement policy enforcements.
-  *
-  * %__GFP_ACCOUNT causes the allocation to be accounted to kmemcg.
--- 
-2.20.1.415.g653613c723-goog
 
+Please try the fix patches: https://lkml.org/lkml/2018/12/27/336
+
+Best,
+Wei
 
