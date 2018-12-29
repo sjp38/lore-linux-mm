@@ -1,85 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 876188E005B
-	for <linux-mm@kvack.org>; Sun, 30 Dec 2018 04:48:01 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id t21so141724wmt.3
-        for <linux-mm@kvack.org>; Sun, 30 Dec 2018 01:48:01 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140090.outbound.protection.outlook.com. [40.107.14.90])
-        by mx.google.com with ESMTPS id t15si23320605wrs.208.2018.12.30.01.47.57
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 59AA98E005B
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 16:40:20 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id m16so22226182pgd.0
+        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 13:40:20 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ca6si12733870plb.141.2018.12.29.13.40.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 30 Dec 2018 01:47:59 -0800 (PST)
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 29 Dec 2018 13:40:19 -0800 (PST)
+Date: Sat, 29 Dec 2018 13:40:17 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm: Reuse only-pte-mapped KSM page in do_wp_page()
-Date: Sun, 30 Dec 2018 09:47:51 +0000
-Message-ID: <cfb2180d-8da8-6d99-44b8-ffc052869182@virtuozzo.com>
-References: 
- <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
- <20181229134017.0264b5cab7e3ebb483b49f65@linux-foundation.org>
-In-Reply-To: <20181229134017.0264b5cab7e3ebb483b49f65@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <4DF348614EA5A04184A626689FF5FC19@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Message-Id: <20181229134017.0264b5cab7e3ebb483b49f65@linux-foundation.org>
+In-Reply-To: <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
+References: <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "kirill@shutemov.name" <kirill@shutemov.name>, "hughd@google.com" <hughd@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "imbrenda@linux.vnet.ibm.com" <imbrenda@linux.vnet.ibm.com>, "yang.shi@linux.alibaba.com" <yang.shi@linux.alibaba.com>, "riel@surriel.com" <riel@surriel.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: kirill@shutemov.name, hughd@google.com, aarcange@redhat.com, christian.koenig@amd.com, imbrenda@linux.vnet.ibm.com, yang.shi@linux.alibaba.com, riel@surriel.com, ying.huang@intel.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-T24gMzAuMTIuMjAxOCAwMDo0MCwgQW5kcmV3IE1vcnRvbiB3cm90ZToNCj4gT24gVGh1LCAxMyBE
-ZWMgMjAxOCAxODoyOTowOCArMDMwMCBLaXJpbGwgVGtoYWkgPGt0a2hhaUB2aXJ0dW96em8uY29t
-PiB3cm90ZToNCj4gDQo+PiBUaGlzIHBhdGNoIGFkZHMgYW4gb3B0aW1pemF0aW9uIGZvciBLU00g
-cGFnZXMgYWxtb3N0DQo+PiBpbiB0aGUgc2FtZSB3YXksIHRoYXQgd2UgaGF2ZSBmb3Igb3JkaW5h
-cnkgYW5vbnltb3VzDQo+PiBwYWdlcy4gSWYgdGhlcmUgaXMgYSB3cml0ZSBmYXVsdCBpbiBhIHBh
-Z2UsIHdoaWNoIGlzDQo+PiBtYXBwZWQgdG8gYW4gb25seSBwdGUsIGFuZCBpdCBpcyBub3QgcmVs
-YXRlZCB0byBzd2FwDQo+PiBjYWNoZTsgdGhlIHBhZ2UgbWF5IGJlIHJldXNlZCB3aXRob3V0IGNv
-cHlpbmcgaXRzDQo+PiBjb250ZW50Lg0KPj4NCj4+IFtOb3RlLCB0aGF0IHdlIGRvIG5vdCBjb25z
-aWRlciBQYWdlU3dhcENhY2hlKCkgcGFnZXMNCj4+ICBhdCBsZWFzdCBmb3Igbm93LCBzaW5jZSB3
-ZSBkb24ndCB3YW50IHRvIGNvbXBsaWNhdGUNCj4+ICBfX2dldF9rc21fcGFnZSgpLCB3aGljaCBo
-YXMgbmljZSBvcHRpbWl6YXRpb24gYmFzZWQNCj4+ICBvbiB0aGlzIChmb3IgdGhlIG1pZ3JhdGlv
-biBjYXNlKS4gQ3VycmVubHkgaXQgaXMNCj4+ICBzcGlubmluZyBvbiBQYWdlU3dhcENhY2hlKCkg
-cGFnZXMsIHdhaXRpbmcgZm9yIHdoZW4NCj4+ICB0aGV5IGhhdmUgdW5mcmVlemVkIGNvdW50ZXJz
-IChpLmUuLCBmb3IgdGhlIG1pZ3JhdGlvbg0KPj4gIGZpbmlzaCkuIEJ1dCB3ZSBkb24ndCB3YW50
-IHRvIG1ha2UgaXQgYWxzbyBzcGlubmluZw0KPj4gIG9uIHN3YXAgY2FjaGUgcGFnZXMsIHdoaWNo
-IHdlIHRyeSB0byByZXVzZSwgc2luY2UNCj4+ICB0aGVyZSBpcyBub3QgYSB2ZXJ5IGhpZ2ggcHJv
-YmFiaWxpdHkgdG8gcmV1c2UgdGhlbS4NCj4+ICBTbywgZm9yIG5vdyB3ZSBkbyBub3QgY29uc2lk
-ZXIgUGFnZVN3YXBDYWNoZSgpIHBhZ2VzDQo+PiAgYXQgYWxsLl0NCj4+DQo+PiBTbywgaW4gcmV1
-c2Vfa3NtX3BhZ2UoKSB3ZSBjaGVjayBmb3IgMSlQYWdlU3dhcENhY2hlKCkNCj4+IGFuZCAyKXBh
-Z2Vfc3RhYmxlX25vZGUoKSwgdG8gc2tpcCBhIHBhZ2UsIHdoaWNoIEtTTQ0KPj4gaXMgY3VycmVu
-dGx5IHRyeWluZyB0byBsaW5rIHRvIHN0YWJsZSB0cmVlLiBUaGVuIHdlDQo+PiBkbyBwYWdlX3Jl
-Zl9mcmVlemUoKSB0byBwcm9oaWJpdCBLU00gdG8gbWVyZ2Ugb25lIG1vcmUNCj4+IHBhZ2UgaW50
-byB0aGUgcGFnZSwgd2UgYXJlIHJldXNpbmcuIEFmdGVyIHRoYXQsIG5vYm9keQ0KPj4gY2FuIHJl
-ZmVyIHRvIHRoZSByZXVzaW5nIHBhZ2U6IEtTTSBza2lwcyAhUGFnZVN3YXBDYWNoZSgpDQo+PiBw
-YWdlcyB3aXRoIHplcm8gcmVmY291bnQ7IGFuZCB0aGUgcHJvdGVjdGlvbiBhZ2FpbnN0DQo+PiBv
-ZiBhbGwgb3RoZXIgcGFydGljaXBhbnRzIGlzIHRoZSBzYW1lIGFzIGZvciByZXVzZWQNCj4+IG9y
-ZGluYXJ5IGFub24gcGFnZXMgcHRlIGxvY2ssIHBhZ2UgbG9jayBhbmQgbW1hcF9zZW0uDQo+Pg0K
-Pj4gLi4uDQo+Pg0KPj4gK2Jvb2wgcmV1c2Vfa3NtX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsDQo+
-PiArCQkgICAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsDQo+PiArCQkgICAgdW5zaWduZWQg
-bG9uZyBhZGRyZXNzKQ0KPj4gK3sNCj4+ICsJVk1fQlVHX09OX1BBR0UoaXNfemVyb19wZm4ocGFn
-ZV90b19wZm4ocGFnZSkpLCBwYWdlKTsNCj4+ICsJVk1fQlVHX09OX1BBR0UoIXBhZ2VfbWFwcGVk
-KHBhZ2UpLCBwYWdlKTsNCj4+ICsJVk1fQlVHX09OX1BBR0UoIVBhZ2VMb2NrZWQocGFnZSksIHBh
-Z2UpOw0KPj4gKw0KPj4gKwlpZiAoUGFnZVN3YXBDYWNoZShwYWdlKSB8fCAhcGFnZV9zdGFibGVf
-bm9kZShwYWdlKSkNCj4+ICsJCXJldHVybiBmYWxzZTsNCj4+ICsJLyogUHJvaGliaXQgcGFyYWxs
-ZWwgZ2V0X2tzbV9wYWdlKCkgKi8NCj4+ICsJaWYgKCFwYWdlX3JlZl9mcmVlemUocGFnZSwgMSkp
-DQo+PiArCQlyZXR1cm4gZmFsc2U7DQo+PiArDQo+PiArCXBhZ2VfbW92ZV9hbm9uX3JtYXAocGFn
-ZSwgdm1hKTsNCj4+ICsJcGFnZS0+aW5kZXggPSBsaW5lYXJfcGFnZV9pbmRleCh2bWEsIGFkZHJl
-c3MpOw0KPj4gKwlwYWdlX3JlZl91bmZyZWV6ZShwYWdlLCAxKTsNCj4+ICsNCj4+ICsJcmV0dXJu
-IHRydWU7DQo+PiArfQ0KPiANCj4gQ2FuIHdlIGF2b2lkIHRob3NlIEJVR19PTigpcz8NCj4gDQo+
-IFNvbWV0aGluZyBsaWtlIHRoaXM6DQo+IA0KPiAtLS0gYS9tbS9rc20uY35tbS1yZXVzZS1vbmx5
-LXB0ZS1tYXBwZWQta3NtLXBhZ2UtaW4tZG9fd3BfcGFnZS1maXgNCj4gKysrIGEvbW0va3NtLmMN
-Cj4gQEAgLTI2NDksOSArMjY0OSwxNCBAQCBib29sIHJldXNlX2tzbV9wYWdlKHN0cnVjdCBwYWdl
-ICpwYWdlLA0KPiAgCQkgICAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsDQo+ICAJCSAgICB1
-bnNpZ25lZCBsb25nIGFkZHJlc3MpDQo+ICB7DQo+IC0JVk1fQlVHX09OX1BBR0UoaXNfemVyb19w
-Zm4ocGFnZV90b19wZm4ocGFnZSkpLCBwYWdlKTsNCj4gLQlWTV9CVUdfT05fUEFHRSghcGFnZV9t
-YXBwZWQocGFnZSksIHBhZ2UpOw0KPiAtCVZNX0JVR19PTl9QQUdFKCFQYWdlTG9ja2VkKHBhZ2Up
-LCBwYWdlKTsNCj4gKyNpZmRlZiBDT05GSUdfREVCVUdfVk0NCj4gKwlpZiAoV0FSTl9PTihpc196
-ZXJvX3BmbihwYWdlX3RvX3BmbihwYWdlKSkpIHx8DQo+ICsJCQlXQVJOX09OKCFwYWdlX21hcHBl
-ZChwYWdlKSkgfHwNCj4gKwkJCVdBUk5fT04oIVBhZ2VMb2NrZWQocGFnZSkpKSB7DQo+ICsJCWR1
-bXBfcGFnZShwYWdlLCAicmV1c2Vfa3NtX3BhZ2UiKTsNCj4gKwkJcmV0dXJuIGZhbHNlOw0KPiAr
-CX0NCj4gKyNlbmRpZg0KDQpMb29rcyBnb29kIQ0KICANCj4gIAlpZiAoUGFnZVN3YXBDYWNoZShw
-YWdlKSB8fCAhcGFnZV9zdGFibGVfbm9kZShwYWdlKSkNCj4gIAkJcmV0dXJuIGZhbHNlOw0KPiAN
-Cj4gV2UgZG9uJ3QgaGF2ZSBhIFZNX1dBUk5fT05fUEFHRSgpIGFuZCB3ZSBjYW4ndCBwcm92aWRl
-IG9uZSBiZWNhdXNlIHRoZQ0KPiBWTV9mb28oKSBtYWNyb3MgZG9uJ3QgcmV0dXJuIGEgdmFsdWUu
-ICBJdCdzIGlycml0YXRpbmcgYW5kIEkga2VlcA0KPiBmb3JnZXR0aW5nIHdoeSB3ZSBlbmRlZCB1
-cCBkb2luZyB0aGVtIHRoaXMgd2F5Lg0KVGhhbmtzIQ0K
+On Thu, 13 Dec 2018 18:29:08 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+
+> This patch adds an optimization for KSM pages almost
+> in the same way, that we have for ordinary anonymous
+> pages. If there is a write fault in a page, which is
+> mapped to an only pte, and it is not related to swap
+> cache; the page may be reused without copying its
+> content.
+> 
+> [Note, that we do not consider PageSwapCache() pages
+>  at least for now, since we don't want to complicate
+>  __get_ksm_page(), which has nice optimization based
+>  on this (for the migration case). Currenly it is
+>  spinning on PageSwapCache() pages, waiting for when
+>  they have unfreezed counters (i.e., for the migration
+>  finish). But we don't want to make it also spinning
+>  on swap cache pages, which we try to reuse, since
+>  there is not a very high probability to reuse them.
+>  So, for now we do not consider PageSwapCache() pages
+>  at all.]
+> 
+> So, in reuse_ksm_page() we check for 1)PageSwapCache()
+> and 2)page_stable_node(), to skip a page, which KSM
+> is currently trying to link to stable tree. Then we
+> do page_ref_freeze() to prohibit KSM to merge one more
+> page into the page, we are reusing. After that, nobody
+> can refer to the reusing page: KSM skips !PageSwapCache()
+> pages with zero refcount; and the protection against
+> of all other participants is the same as for reused
+> ordinary anon pages pte lock, page lock and mmap_sem.
+> 
+> ...
+>
+> +bool reuse_ksm_page(struct page *page,
+> +		    struct vm_area_struct *vma,
+> +		    unsigned long address)
+> +{
+> +	VM_BUG_ON_PAGE(is_zero_pfn(page_to_pfn(page)), page);
+> +	VM_BUG_ON_PAGE(!page_mapped(page), page);
+> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> +
+> +	if (PageSwapCache(page) || !page_stable_node(page))
+> +		return false;
+> +	/* Prohibit parallel get_ksm_page() */
+> +	if (!page_ref_freeze(page, 1))
+> +		return false;
+> +
+> +	page_move_anon_rmap(page, vma);
+> +	page->index = linear_page_index(vma, address);
+> +	page_ref_unfreeze(page, 1);
+> +
+> +	return true;
+> +}
+
+Can we avoid those BUG_ON()s?
+
+Something like this:
+
+--- a/mm/ksm.c~mm-reuse-only-pte-mapped-ksm-page-in-do_wp_page-fix
++++ a/mm/ksm.c
+@@ -2649,9 +2649,14 @@ bool reuse_ksm_page(struct page *page,
+ 		    struct vm_area_struct *vma,
+ 		    unsigned long address)
+ {
+-	VM_BUG_ON_PAGE(is_zero_pfn(page_to_pfn(page)), page);
+-	VM_BUG_ON_PAGE(!page_mapped(page), page);
+-	VM_BUG_ON_PAGE(!PageLocked(page), page);
++#ifdef CONFIG_DEBUG_VM
++	if (WARN_ON(is_zero_pfn(page_to_pfn(page))) ||
++			WARN_ON(!page_mapped(page)) ||
++			WARN_ON(!PageLocked(page))) {
++		dump_page(page, "reuse_ksm_page");
++		return false;
++	}
++#endif
+ 
+ 	if (PageSwapCache(page) || !page_stable_node(page))
+ 		return false;
+
+We don't have a VM_WARN_ON_PAGE() and we can't provide one because the
+VM_foo() macros don't return a value.  It's irritating and I keep
+forgetting why we ended up doing them this way.
