@@ -2,199 +2,142 @@ Return-Path: <SRS0=mZRB=PG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 769FBC43387
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 06:38:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45B5EC43612
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 09:18:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2A54720866
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 06:38:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D5DC021902
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 09:18:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="DOZNU3tn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A54720866
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="cikA1iQy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5DC021902
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8659A8E0059; Sat, 29 Dec 2018 01:38:22 -0500 (EST)
+	id 334A08E005C; Sat, 29 Dec 2018 04:18:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EDE08E0001; Sat, 29 Dec 2018 01:38:22 -0500 (EST)
+	id 2E3C88E005B; Sat, 29 Dec 2018 04:18:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68FE08E0059; Sat, 29 Dec 2018 01:38:22 -0500 (EST)
+	id 1FC0D8E005C; Sat, 29 Dec 2018 04:18:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D2128E0001
-	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 01:38:22 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id d20so20699725iom.0
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 22:38:22 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id E9EDD8E005B
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 04:18:11 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id q207so24822554iod.18
+        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 01:18:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=0ZeViuD5AR+Y+bp3iOoy+E0zr6PwSy4elFOzmd/xbXE=;
-        b=Uvnfm9C6Qje8rJSahTT91xCamNP/+YAIyFqJCd7wiQZtWWuuC6TVIGueov4s8Q2QQ7
-         zG94JecDFf1lme/uxUbRPmIk3BsipR61S4buVNUTabFZkOXbjVlA6fEuIYSCT0Gpmjc/
-         BsxcWxN3xLG2U0SKIoXeKm/Df/dFtnUmfV9I4scxSwKk5tOlYzBfg4rTnGBPEFhBlOtX
-         b72YHNp2NvsYfqYqpTceJHtcy8ujiiNiTjVCJaFTRlyCk1SUp5On+hVncJjzFu8ETbUS
-         GvaVKbnqROfKHB+GAGB1Hx2GgkattUzIfMwoiGtamoAJcKtf+71QvCveFVtRTkUNY/tF
-         hM4w==
-X-Gm-Message-State: AA+aEWbHFOkKrPgbrf5YF2L1LcEHKvNirGYX5OvsIoMZOcGvuw/E4HSt
-	K08z2FczzKmwEKqAp9yYK8Vnxh9pkvgfLrTZ+Y5gPavr/S5I+M74IlQXyocJylaVtrQGM5ZCIJi
-	NC96V6BUR4vuhpsJ76dnw/K9c440NyzrIsg+BYwZqg/n+I5Z/5xLWYbsDEoTSKCCtpzQmFi600C
-	0nyypcZ+XMTpXOIm6Qa1uPTb1DeuNf5DFJnVcAqeEPucDEKTvirbdlMoLK4kPnT5okWSOqMegzN
-	3kj4jlUpSJLZinf0aRThWLi1l4Pao/RePk+4/4CS+DnmfGbi8uxJARXmFugGkCVqvTc4A/ZSyCl
-	8O/hA+s1OTHMxfi+ei+KrgasoThF2RNqunT3BCx6ex+XF2B1aYk6UrgEZqnn2zGCqPIQn2T8vx2
-	M
-X-Received: by 2002:a24:3dca:: with SMTP id n193mr20896902itn.48.1546065501967;
-        Fri, 28 Dec 2018 22:38:21 -0800 (PST)
-X-Received: by 2002:a24:3dca:: with SMTP id n193mr20896886itn.48.1546065501187;
-        Fri, 28 Dec 2018 22:38:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546065501; cv=none;
+        bh=XLkqG3nKcd0lTsqiWLlqAWjPHPJTG5QkaExKzZNJIQQ=;
+        b=kLG0Y37EUkgXe6gOkFwL3hAHLqHnHBgYEvjjdNIyMoPuvXz///8BIcRkGALrWacnm4
+         6QKodhkkdhM0z1x+NvZfHW7inE6xhWlQ9MXJ32OkY4xl3sOc1+aUtH0gu5Mj6PEwgnum
+         reCXp0zE1WmQyi0NSTw49vV65Szi3prlvWtGmfUpgCnNhxWaGCoREs7MJCA0Q3vS/XB0
+         PlRje3bJxoL94HpXo6C2+1Q8ARKxkaIi6Q5tNCBmtvCKZgPItdvveo1xwR+7PckIvRvR
+         nl2+z1vax8Dj3/wNUanWoNFpFYTaQPC/OU1jhnJkjAvd/1dvhgzieDPDz6Ebu+zgw2MV
+         jAdA==
+X-Gm-Message-State: AA+aEWaHz/Z9d/Vzljx5z0ZJdf6xioZgYEB2v9u4VycUOD8whzal139W
+	HwgE0nMsc2DwkaJrFcDwUzPRSWmkuu3UcyOjYhWjacVZeZneXcSDQxhXobwtRCohtfnLwyidZj6
+	SG96jXTxF7DYsMB5eZlWtQoxPYLcjj6I78FWq42i9Sdh44v5NUL+UWo7Ut7TObvp8lgQFmX1zZu
+	eqn61hGBdFHKW4bZjGqElF7c5j+03NuBWHeLMYThPZ+YKQZjc7bPPh2Z5EFLpJ/w95FoRCfbM/G
+	C53dLyYKeSRbNUhKKOkXbyP0YZ3pAk3sMjPuMfwu+u+S7eZcr+n7ho4TYZBN7XdcLmm9b4uMAiF
+	wmY9GPENIUEWpPZ78aqcw2m7zP5OzugpT1BPzRaA0d+mHFIPkzfoljmhmEiGKBTOHJwpf3xXiFH
+	O
+X-Received: by 2002:a24:b518:: with SMTP id v24mr21571527ite.159.1546075091699;
+        Sat, 29 Dec 2018 01:18:11 -0800 (PST)
+X-Received: by 2002:a24:b518:: with SMTP id v24mr21571504ite.159.1546075090899;
+        Sat, 29 Dec 2018 01:18:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546075090; cv=none;
         d=google.com; s=arc-20160816;
-        b=c7LihLx/5hjSM2XxlfYTPC+k+p6reg3Xu1WuibOO/Dltph7WdK5qF7tSvs8sZlFx0d
-         /ct3IplsoCTGiAR/ukyJbeib99tBEHhGPrFAjieKjc9M0kqWST6ZTv8ovGmqPtYA1ps4
-         uC/rvSy3QXLAGYXhYL9cam1Hjk3egITvBSaDkwbY9CgOPDseuM0nFX+coZ/jQbZ/S+oX
-         zZCJ8O16F4hRvOpgvDxSNzmoP5E3/urqLOxuBwDBekWF3ANL1LXN6t0gzyf5TpkIW13M
-         URQjOFek0+W6xfWzLOVY21O616gpC2M6TO86zEVBKryGd8p+hZCUvbtXg06aYiQ4iHr3
-         KzGQ==
+        b=wyt4HCM0OkIKiaCHiStVgSwpX8PWV74crDzR067TrphhcXSDeYA/ne1MxUDYiwwMOW
+         B3lEX3Fbi8kBViFHM+vQYs6zUkN52jjbR8I65m7L2KA+73R8ZWHWiIv05/jPyZBw/1ib
+         8tOF/6zRujQs0gqPuE5UqlqcldSZ1B+Oag0PSeaMZ5UNEOfEdF4nGu0t6efiDftiu4QF
+         EbbvCyJ1QG6KlVUyF5aiJAp8SqaUVvo3BvTWEZf5S0Z+jqyGzVjJ6CNs1gbWPFMmlxga
+         LxGCwq4Qi5Dy2yfZG1UJZJTLzrASN4Gc33rlukBHGwlNq8HnocKAq9uQ4XV9v/6QxE1d
+         0nbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=0ZeViuD5AR+Y+bp3iOoy+E0zr6PwSy4elFOzmd/xbXE=;
-        b=O9OX4ouPyhtRpBxSq5DdSULOis9FJSXLAf5lVnwS7xNhfPypQQP2q7daPALEAueHTV
-         dWw7EHZ8oKtGvUrsHToli3qeRKSyMz8QQQ8nz8eeRxE5HeHLlRXeWS5FZgvJKymgtU7e
-         2Ubijjk2JIwlv0HQQicrlB9WWfbIN8zrTsys98MU0SifvhsL4LQp2msHJDtWarSE6r6w
-         sxV8mbqsOLSIWf1lQ4IfHOPWysehCPLBOgVaaxqy0dsF3TKYO2AcO7mqUjhbdBmeroea
-         zjZDiNyd/XAEwog4TFPLviGQAwervfrc/Y2Dfp61Bt5HAk8cK82iIcmVRO+HmEXA6vf5
-         cLwg==
+        bh=XLkqG3nKcd0lTsqiWLlqAWjPHPJTG5QkaExKzZNJIQQ=;
+        b=BdPttSV698MruWWjq8SJL6D80W8G5EVtdtcCmnaCNLDC7KueyBjUW078PEx2kWjjwr
+         zEmtvET4PR53bzu7F/q3/dzjwBAaBrpIIqlksafe1+EwzZolqOcqk7fMEIWOzUqDBsFM
+         AVCxz7X9tks1cz+8UIlUop+i+VLy0XLGTgssHspskR0qx3ivFC/rmqRlHMCkdbTF551N
+         vOhosLHFQDeMVLKeFu+wXGprp9vX9sPL0ghRlL5UQUteo7NcsMfRK8UOqZPpgl9OFRH7
+         ga3P9AjNi6vOInJBb/WkxLK1AUp2whamDOb+XzyqhRGEpHVim8Ov9qT2/dRsXuH108zB
+         PtXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=DOZNU3tn;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p140sor33220668itp.36.2018.12.28.22.38.21
+       dkim=pass header.i=@linaro.org header.s=google header.b=cikA1iQy;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m143sor45223190itm.23.2018.12.29.01.18.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Dec 2018 22:38:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sat, 29 Dec 2018 01:18:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=DOZNU3tn;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@linaro.org header.s=google header.b=cikA1iQy;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=linaro.org; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=0ZeViuD5AR+Y+bp3iOoy+E0zr6PwSy4elFOzmd/xbXE=;
-        b=DOZNU3tnUpe3S5szXlK+1lPigHq7aVQtRCwSeOBr7gaBXGdeui6Lefv2gCbxrvhn4o
-         RbWLUDO8qEUnJkMxq2zEAXSLxJ9/y6o38Quqt8VWYmKWtsDYidlFGwwiEw6t8OMzBTG+
-         S/aU4oCrIqovMK1nGSYaaGRixhV9i89JAAvKbR+1pMFyrbUCovEI8QCrUFE7VdktPkED
-         ys5KH1faWRcfS+JZuLyl7MGHsvHjtmfquZkvtPX1Pq0h1gHNDZzmFl8eUsmeWZPon+kS
-         8J1zfM8LHG7bvwC6Ek8aZ1zpYi7THDHhnCU67rj8XgpCZ9szi7bfYJAQgfOJwLTKZVIm
-         wPZA==
-X-Google-Smtp-Source: AFSGD/VTVfmZo7L+A3EKKs5v5i701C7j+p049SieQz8gnFKGhE1cYMuWcvH8o1w6L7mw6Z5qngDH1UXv/vP88thKM84=
-X-Received: by 2002:a24:b20e:: with SMTP id u14mr19830088ite.12.1546065500564;
- Fri, 28 Dec 2018 22:38:20 -0800 (PST)
+        bh=XLkqG3nKcd0lTsqiWLlqAWjPHPJTG5QkaExKzZNJIQQ=;
+        b=cikA1iQyu/ElwFNIcKp6x3njQ+21za/IdwN9/TWcy4YtWYsw3rtw2UlWHeEnzYIRVl
+         uS03VYntlBat/fOJjfTEBUqYv4x6S/NawTSU99ox32X+4C+4HnlN/N5BOMxdBlimrBpe
+         wgOKVtxnmbE35E90cv597ZE2ldQTfk0CjmxU8=
+X-Google-Smtp-Source: AFSGD/VdgZ6uJMg3u74ZS49D4rnRTJiBWbcr2UDALfLGoZf36WFiM3iMcGvFT0QnGY53/0hlliQ355LRfC/vU3Rb9v4=
+X-Received: by 2002:a24:edc4:: with SMTP id r187mr21614405ith.158.1546075090440;
+ Sat, 29 Dec 2018 01:18:10 -0800 (PST)
 MIME-Version: 1.0
-References: <000000000000b57d19057e1b383d@google.com> <20181228130938.c9e42c213cdcc35a93dd0dac@linux-foundation.org>
- <20181228235106.okk3oastsnpxusxs@kshutemo-mobl1>
-In-Reply-To: <20181228235106.okk3oastsnpxusxs@kshutemo-mobl1>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sat, 29 Dec 2018 07:38:08 +0100
+References: <20181226023534.64048-1-cai@lca.pw> <CAKv+Gu_fiEDffKq_fONBYTOdSk-L7__+LgNEyVaNF3FGzBfAow@mail.gmail.com>
+ <403405f1-b702-2feb-4616-35fc3dc3133e@lca.pw> <CAKv+Gu_e=NkKZ5C+KzBmgg2VMXNKPqXcPON8heRd0F_iW+aaEQ@mail.gmail.com>
+ <20181227190456.0f21d511ef71f1b455403f2a@linux-foundation.org>
+In-Reply-To: <20181227190456.0f21d511ef71f1b455403f2a@linux-foundation.org>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Sat, 29 Dec 2018 10:17:58 +0100
 Message-ID:
- <CACT4Y+Ynm+LPupT0OM=E8AdF0bQDKc-arPy3M=V1D5V0tCmZ=g@mail.gmail.com>
-Subject: Re: KASAN: use-after-free Read in filemap_fault
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	syzbot <syzbot+b437b5a429d680cf2217@syzkaller.appspotmail.com>, 
-	"Darrick J. Wong" <darrick.wong@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, josef@toxicpanda.com, 
-	Souptick Joarder <jrdr.linux@gmail.com>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Matthew Wilcox <willy@infradead.org>
+ <CAKv+Gu98AOB2LfQGMUHNc_B0MBvd3gATvtPypQaV1vgTcf87ww@mail.gmail.com>
+Subject: Re: [PATCH -mmotm] efi: drop kmemleak_ignore() for page allocator
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Qian Cai <cai@lca.pw>, Ingo Molnar <mingo@kernel.org>, 
+	Catalin Marinas <catalin.marinas@arm.com>, Linux-MM <linux-mm@kvack.org>, 
+	linux-efi <linux-efi@vger.kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181229063808.pSdyjRPwDaOwyPSO5Z7Xob0SwoqeBDGO7YW1g4Oc0eg@z>
+Message-ID: <20181229091758.23Q3ZOsVdLy5pH_TIHixJzf8uj0GL62zsKTsp-INzU0@z>
 
-On Sat, Dec 29, 2018 at 12:51 AM Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
+On Fri, 28 Dec 2018 at 04:04, Andrew Morton <akpm@linux-foundation.org> wrote:
 >
-> On Fri, Dec 28, 2018 at 01:09:38PM -0800, Andrew Morton wrote:
-> > On Fri, 28 Dec 2018 12:51:04 -0800 syzbot <syzbot+b437b5a429d680cf2217@syzkaller.appspotmail.com> wrote:
-> >
-> > > Hello,
-> > >
-> > > syzbot found the following crash on:
-> >
-> > uh-oh.  Josef, could you please take a look?
-> >
-> > :     page = find_get_page(mapping, offset);
-> > :     if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
-> > :             /*
-> > :              * We found the page, so try async readahead before
-> > :              * waiting for the lock.
-> > :              */
-> > :             fpin = do_async_mmap_readahead(vmf, page);
-> > :     } else if (!page) {
-> > :             /* No page in the page cache at all */
-> > :             fpin = do_sync_mmap_readahead(vmf);
-> > :             count_vm_event(PGMAJFAULT);
-> > :             count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
-> >
-> > vmf->vma has been freed at this point.
-> >
-> > :             ret = VM_FAULT_MAJOR;
-> > : retry_find:
-> > :             page = pagecache_get_page(mapping, offset,
-> > :                                       FGP_CREAT|FGP_FOR_MMAP,
-> > :                                       vmf->gfp_mask);
-> > :             if (!page) {
-> > :                     if (fpin)
-> > :                             goto out_retry;
-> > :                     return vmf_error(-ENOMEM);
-> > :             }
-> > :     }
-> >
+> On Wed, 26 Dec 2018 16:31:59 +0100 Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
 >
-> Here's a fixup for "filemap: drop the mmap_sem for all blocking operations".
-
-If you are going to squash this, please add:
-
-Tested-by: syzbot+b437b5a429d680cf2217@syzkaller.appspotmail.com
-
-
-> do_sync_mmap_readahead() drops mmap_sem now, so by the time of
-> dereferencing vmf->vma for count_memcg_event_mm() the VMA can be gone.
+> > Please stop sending EFI patches if you can't be bothered to
+> > test/reproduce against the EFI tree.
 >
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 00a9315f45d4..65c85c47bdb1 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2554,10 +2554,10 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
->                 fpin = do_async_mmap_readahead(vmf, page);
->         } else if (!page) {
->                 /* No page in the page cache at all */
-> -               fpin = do_sync_mmap_readahead(vmf);
->                 count_vm_event(PGMAJFAULT);
->                 count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
->                 ret = VM_FAULT_MAJOR;
-> +               fpin = do_sync_mmap_readahead(vmf);
->  retry_find:
->                 page = pagecache_get_page(mapping, offset,
->                                           FGP_CREAT|FGP_FOR_MMAP,
-> --
->  Kirill A. Shutemov
+> um, sorry, but that's a bit strong.  Finding (let alone fixing) a bug
+> in EFI is a great contribution (thanks!) and the EFI maintainers are
+> perfectly capable of reviewing and testing the proposed fix.  Or of
+> fixing the bug by other means.
 >
-> --
-> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/20181228235106.okk3oastsnpxusxs%40kshutemo-mobl1.
-> For more options, visit https://groups.google.com/d/optout.
+
+Qian did spot some issues recently, which was really helpful. But I
+really think that reporting all issues you find against the -mmotm
+tree because that happens to be your preferred tree for development is
+not the correct approach.
+
+> Let's not beat people up for helping us in a less-than-perfect way, no?
+
+Fair enough. But asking people to ensure that an issue they found
+actually exists on the subsystem tree in question is not that much to
+ask, is it?
 
