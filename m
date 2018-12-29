@@ -1,30 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 59AA98E005B
-	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 16:40:20 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id m16so22226182pgd.0
-        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 13:40:20 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ca6si12733870plb.141.2018.12.29.13.40.18
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 441E58E005B
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 04:34:35 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id e12-v6so7305494ljb.18
+        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 01:34:35 -0800 (PST)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id l127si33627377lfg.70.2018.12.29.01.34.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Dec 2018 13:40:19 -0800 (PST)
-Date: Sat, 29 Dec 2018 13:40:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+        Sat, 29 Dec 2018 01:34:33 -0800 (PST)
 Subject: Re: [PATCH] mm: Reuse only-pte-mapped KSM page in do_wp_page()
-Message-Id: <20181229134017.0264b5cab7e3ebb483b49f65@linux-foundation.org>
-In-Reply-To: <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
 References: <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <3ffdbc4d-6344-d209-3062-1f5b6b2146b4@virtuozzo.com>
+Date: Sat, 29 Dec 2018 12:34:23 +0300
+MIME-Version: 1.0
+In-Reply-To: <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
+To: akpm@linux-foundation.org
 Cc: kirill@shutemov.name, hughd@google.com, aarcange@redhat.com, christian.koenig@amd.com, imbrenda@linux.vnet.ibm.com, yang.shi@linux.alibaba.com, riel@surriel.com, ying.huang@intel.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 13 Dec 2018 18:29:08 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+Hi, Andrew!
 
+How do you look at this patch? It had been reviewed.
+
+Thanks,
+Kirill
+
+On 13.12.2018 18:29, Kirill Tkhai wrote:
 > This patch adds an optimization for KSM pages almost
 > in the same way, that we have for ordinary anonymous
 > pages. If there is a write fault in a page, which is
@@ -54,8 +61,58 @@ On Thu, 13 Dec 2018 18:29:08 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 > of all other participants is the same as for reused
 > ordinary anon pages pte lock, page lock and mmap_sem.
 > 
-> ...
->
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> ---
+>  include/linux/ksm.h |    7 +++++++
+>  mm/ksm.c            |   25 +++++++++++++++++++++++--
+>  mm/memory.c         |   16 ++++++++++++++--
+>  3 files changed, 44 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+> index 161e8164abcf..e48b1e453ff5 100644
+> --- a/include/linux/ksm.h
+> +++ b/include/linux/ksm.h
+> @@ -53,6 +53,8 @@ struct page *ksm_might_need_to_copy(struct page *page,
+>  
+>  void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
+>  void ksm_migrate_page(struct page *newpage, struct page *oldpage);
+> +bool reuse_ksm_page(struct page *page,
+> +			struct vm_area_struct *vma, unsigned long address);
+>  
+>  #else  /* !CONFIG_KSM */
+>  
+> @@ -86,6 +88,11 @@ static inline void rmap_walk_ksm(struct page *page,
+>  static inline void ksm_migrate_page(struct page *newpage, struct page *oldpage)
+>  {
+>  }
+> +static inline bool reuse_ksm_page(struct page *page,
+> +			struct vm_area_struct *vma, unsigned long address)
+> +{
+> +	return false;
+> +}
+>  #endif /* CONFIG_MMU */
+>  #endif /* !CONFIG_KSM */
+>  
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 383f961e577a..fbd14264d784 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -707,8 +707,9 @@ static struct page *__get_ksm_page(struct stable_node *stable_node,
+>  	 * case this node is no longer referenced, and should be freed;
+>  	 * however, it might mean that the page is under page_ref_freeze().
+>  	 * The __remove_mapping() case is easy, again the node is now stale;
+> -	 * but if page is swapcache in migrate_page_move_mapping(), it might
+> -	 * still be our page, in which case it's essential to keep the node.
+> +	 * the same is in reuse_ksm_page() case; but if page is swapcache
+> +	 * in migrate_page_move_mapping(), it might still be our page,
+> +	 * in which case it's essential to keep the node.
+>  	 */
+>  	while (!get_page_unless_zero(page)) {
+>  		/*
+> @@ -2666,6 +2667,26 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
+>  		goto again;
+>  }
+>  
 > +bool reuse_ksm_page(struct page *page,
 > +		    struct vm_area_struct *vma,
 > +		    unsigned long address)
@@ -76,32 +133,49 @@ On Thu, 13 Dec 2018 18:29:08 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 > +
 > +	return true;
 > +}
-
-Can we avoid those BUG_ON()s?
-
-Something like this:
-
---- a/mm/ksm.c~mm-reuse-only-pte-mapped-ksm-page-in-do_wp_page-fix
-+++ a/mm/ksm.c
-@@ -2649,9 +2649,14 @@ bool reuse_ksm_page(struct page *page,
- 		    struct vm_area_struct *vma,
- 		    unsigned long address)
- {
--	VM_BUG_ON_PAGE(is_zero_pfn(page_to_pfn(page)), page);
--	VM_BUG_ON_PAGE(!page_mapped(page), page);
--	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+#ifdef CONFIG_DEBUG_VM
-+	if (WARN_ON(is_zero_pfn(page_to_pfn(page))) ||
-+			WARN_ON(!page_mapped(page)) ||
-+			WARN_ON(!PageLocked(page))) {
-+		dump_page(page, "reuse_ksm_page");
-+		return false;
-+	}
-+#endif
- 
- 	if (PageSwapCache(page) || !page_stable_node(page))
- 		return false;
-
-We don't have a VM_WARN_ON_PAGE() and we can't provide one because the
-VM_foo() macros don't return a value.  It's irritating and I keep
-forgetting why we ended up doing them this way.
+>  #ifdef CONFIG_MIGRATION
+>  void ksm_migrate_page(struct page *newpage, struct page *oldpage)
+>  {
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 532061217e03..5817527f1877 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2509,8 +2509,11 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
+>  	 * Take out anonymous pages first, anonymous shared vmas are
+>  	 * not dirty accountable.
+>  	 */
+> -	if (PageAnon(vmf->page) && !PageKsm(vmf->page)) {
+> +	if (PageAnon(vmf->page)) {
+>  		int total_map_swapcount;
+> +		if (PageKsm(vmf->page) && (PageSwapCache(vmf->page) ||
+> +					   page_count(vmf->page) != 1))
+> +			goto copy;
+>  		if (!trylock_page(vmf->page)) {
+>  			get_page(vmf->page);
+>  			pte_unmap_unlock(vmf->pte, vmf->ptl);
+> @@ -2525,6 +2528,15 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
+>  			}
+>  			put_page(vmf->page);
+>  		}
+> +		if (PageKsm(vmf->page)) {
+> +			bool reused = reuse_ksm_page(vmf->page, vmf->vma,
+> +						     vmf->address);
+> +			unlock_page(vmf->page);
+> +			if (!reused)
+> +				goto copy;
+> +			wp_page_reuse(vmf);
+> +			return VM_FAULT_WRITE;
+> +		}
+>  		if (reuse_swap_page(vmf->page, &total_map_swapcount)) {
+>  			if (total_map_swapcount == 1) {
+>  				/*
+> @@ -2545,7 +2557,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
+>  					(VM_WRITE|VM_SHARED))) {
+>  		return wp_page_shared(vmf);
+>  	}
+> -
+> +copy:
+>  	/*
+>  	 * Ok, we need to copy. Oh, well..
+>  	 */
+> 
