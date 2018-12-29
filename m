@@ -1,80 +1,84 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 12/12] x86_64: __clear_user as case of __memset_user
-Date: Wed, 19 Dec 2018 23:33:38 +0200
-Message-Id: <20181219213338.26619-13-igor.stoppa@huawei.com>
-In-Reply-To: <20181219213338.26619-1-igor.stoppa@huawei.com>
-References: <20181219213338.26619-1-igor.stoppa@huawei.com>
-Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D75E8E005B
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 17:48:47 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id p65-v6so7630899ljb.16
+        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 14:48:47 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y24-v6sor26249469ljy.1.2018.12.29.14.48.45
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 29 Dec 2018 14:48:45 -0800 (PST)
+Date: Sun, 30 Dec 2018 01:48:43 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [Bug 202089] New: transparent hugepage not compatable with
+ madvise(MADV_DONTNEED)
+Message-ID: <20181229224843.6vsdj3xomifjocbh@kshutemo-mobl1>
+References: <bug-202089-27@https.bugzilla.kernel.org/>
+ <20181229125316.27f7f1fedacfe4c1a5551a2d@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-Sender: linux-kernel-owner@vger.kernel.org
-To: Andy Lutomirski <luto@amacapital.net>, Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>
-Cc: igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+In-Reply-To: <20181229125316.27f7f1fedacfe4c1a5551a2d@linux-foundation.org>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, jianpanlanyue@163.com
 
-To avoid code duplication, re-use __memset_user(), when clearing
-user-space memory.
+On Sat, Dec 29, 2018 at 12:53:16PM -0800, Andrew Morton wrote:
+> 
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+> 
+> On Sat, 29 Dec 2018 09:00:22 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=202089
+> > 
+> >             Bug ID: 202089
+> >            Summary: transparent hugepage not compatable with
+> >                     madvise(MADV_DONTNEED)
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 4.4.0-117
+> >           Hardware: x86-64
+> >                 OS: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: high
+> >           Priority: P1
+> >          Component: Other
+> >           Assignee: akpm@linux-foundation.org
+> >           Reporter: jianpanlanyue@163.com
+> >         Regression: No
+> > 
+> > environment:  
+> >   1.kernel 4.4.0 on x86_64
+> >   2.echo always > /sys/kernel/mm/transparent_hugepage/enable
+> >     echo always > /sys/kernel/mm/transparent_hugepage/defrag
+> >     echo 2000000 > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
+> > ( faster defrag pages to reproduce problem)
+> > 
+> > problem: 
+> >   1. use mmap() to allocate 4096 bytes for 1024*512 times (4096*1024*512=2G).
+> >   2. use madvise(MADV_DONTNEED) to free most of the above pages, but reserve a
+> > few pages(by if（i%33==0) continue;), then process's physical memory firstly
+> > come down, but after a few seconds, it rise back to 2G again, and can't come
+> > down forever.
+> >   3. if i delete this condition(if（i%33==0) continue;) or disable
+> > transparent_hugepage by setting 'enable' and 'defrag' to never, all go well and
+> > the physical memory can come down expectly.
+> > 
+> >   It seems like transparent_hugepage has problems with non-contiguous
+> > madvise(MADV_DONTEED).
 
-The overhead should be minimal (2 extra register assignments) and
-outside of the writing loop.
+It's expected behaviour.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+MADV_DONTNEED doesn't guarantee that the range will not be repopulated
+(with or without direct action on application behalf). It's just a hint
+for the kernel.
 
-CC: Andy Lutomirski <luto@amacapital.net>
-CC: Nadav Amit <nadav.amit@gmail.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Kees Cook <keescook@chromium.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>
-CC: Mimi Zohar <zohar@linux.vnet.ibm.com>
-CC: linux-integrity@vger.kernel.org
-CC: kernel-hardening@lists.openwall.com
-CC: linux-mm@kvack.org
-CC: linux-kernel@vger.kernel.org
----
- arch/x86/lib/usercopy_64.c | 29 +----------------------------
- 1 file changed, 1 insertion(+), 28 deletions(-)
+For sparse mappings, consider using MADV_NOHUGEPAGE.
 
-diff --git a/arch/x86/lib/usercopy_64.c b/arch/x86/lib/usercopy_64.c
-index 84f8f8a20b30..ab6aabb62055 100644
---- a/arch/x86/lib/usercopy_64.c
-+++ b/arch/x86/lib/usercopy_64.c
-@@ -69,34 +69,7 @@ EXPORT_SYMBOL(memset_user);
- 
- unsigned long __clear_user(void __user *addr, unsigned long size)
- {
--	long __d0;
--	might_fault();
--	/* no memory constraint because it doesn't change any memory gcc knows
--	   about */
--	stac();
--	asm volatile(
--		"	testq  %[size8],%[size8]\n"
--		"	jz     4f\n"
--		"0:	movq $0,(%[dst])\n"
--		"	addq   $8,%[dst]\n"
--		"	decl %%ecx ; jnz   0b\n"
--		"4:	movq  %[size1],%%rcx\n"
--		"	testl %%ecx,%%ecx\n"
--		"	jz     2f\n"
--		"1:	movb   $0,(%[dst])\n"
--		"	incq   %[dst]\n"
--		"	decl %%ecx ; jnz  1b\n"
--		"2:\n"
--		".section .fixup,\"ax\"\n"
--		"3:	lea 0(%[size1],%[size8],8),%[size8]\n"
--		"	jmp 2b\n"
--		".previous\n"
--		_ASM_EXTABLE_UA(0b, 3b)
--		_ASM_EXTABLE_UA(1b, 2b)
--		: [size8] "=&c"(size), [dst] "=&D" (__d0)
--		: [size1] "r"(size & 7), "[size8]" (size / 8), "[dst]"(addr));
--	clac();
--	return size;
-+	return __memset_user(addr, 0, size);
- }
- EXPORT_SYMBOL(__clear_user);
- 
 -- 
-2.19.1
+ Kirill A. Shutemov
