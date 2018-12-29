@@ -7,169 +7,151 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACBE8C43387
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 01:31:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 03F61C43387
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 01:56:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67B6A218FE
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 01:31:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B1ADA2087F
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 01:56:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="oWZw0X59"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67B6A218FE
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="mlJ42Wmk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1ADA2087F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE6808E0055; Fri, 28 Dec 2018 20:31:58 -0500 (EST)
+	id 4A72F8E0057; Fri, 28 Dec 2018 20:56:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D43C18E0001; Fri, 28 Dec 2018 20:31:58 -0500 (EST)
+	id 457418E0001; Fri, 28 Dec 2018 20:56:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C0C6F8E0055; Fri, 28 Dec 2018 20:31:58 -0500 (EST)
+	id 346548E0057; Fri, 28 Dec 2018 20:56:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 74B3A8E0001
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2018 20:31:58 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id b8so24685811pfe.10
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 17:31:58 -0800 (PST)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 08EF98E0001
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2018 20:56:04 -0500 (EST)
+Received: by mail-vs1-f69.google.com with SMTP id g79so12800591vsd.6
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 17:56:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:message-id:mime-version
          :subject:from:to:cc;
-        bh=jCn6C/cpRHtM9VQxY+22Xn56ZeUCdkzguW82dVDfWug=;
-        b=jnR+KrF0852/jztgQNP9zOaHIiqheMNe5dwJMHTVkQadvagcC1ahBwa9LA4TeaT1jE
-         +P/20/dTCxy2eaKPvrojEQqUqfqNYhq7gyLG7MeYFPYJ6QTGzfnW7vzlKKg23/2I+P1g
-         +8+oRtcNX1AvBMCaC06RcMMhoQwvUmos9+fGQY9SzWUVa5PLz5mSgWO9HMFDjLcQnCEe
-         bCXUR76cWJKB+9sEZ8Bb1mMLswrboEkDNv1EUkA9a9g3cgYJleVrlk5vfbD8n6sXIjos
-         OHJohZhvYrGjQ/MTX6nCfjShjK70b7ClHJ3te4rI59tnNRXE0HEZ5rKXFwP24bFykhYD
-         KEHA==
-X-Gm-Message-State: AA+aEWaKT47+aiBHOvIJRTvK40U4JSXLyvitzckfXv53tnM0Dw/funze
-	pLRWxI7AnvZBYdirK4TeB/rxAPFQmkH3z6c5UVinQrH7E3KLn7ukyLT4HbOF4m9PsVQjlg9ZeLq
-	cCMvJO0xKT9iU0Wd4gdgI83uZN0zCtdvXoh37MOtmIeCjv6flEPQmT7/JC/bnwKjG6Wg5F2eHfG
-	DRDunACEhvBRaAfD93k2p/7E1FzAPktcIrwGxHWXKwlahri5R18iUwcvsCCSODTbZ/jyzxsopxr
-	O+0+Uirn5llYbnixUXwoBoBcRbx4gl0aei76UblzLcfzPcUn7BK/wjbp91FdlGkczQE32w1GvtM
-	l2TVzFf8+hSM2OpslVRDwdo/5TS89uhzQJ6UwVtf4I8hKGxdBDpJvB7+uRYh+JojH9ftaPvfy71
-	y
-X-Received: by 2002:a62:c613:: with SMTP id m19mr30387088pfg.207.1546047117956;
-        Fri, 28 Dec 2018 17:31:57 -0800 (PST)
-X-Received: by 2002:a62:c613:: with SMTP id m19mr30387049pfg.207.1546047117150;
-        Fri, 28 Dec 2018 17:31:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546047117; cv=none;
+        bh=8Befy3R1F0eWwTQ9Ik5Xd4dXNM48kHZxmA2Si2BNh00=;
+        b=ZDwjJ6dcCqWBZPp4NpNywtATELqnQ8mIS6aBqadrOmOHUgWvzDjcHcrKCpy8NfrU4M
+         Q5pq8cjaExKVpWRy9/QroIWgktHvvCGJeiMwGS2nZgUqgFwTGp9r1FbpIJMi1we+Gb0x
+         e5KqlphF3ms8646uA8QhnlCMPMFc1oi1EE5y1fiTkORDPxOSPHL/hLf6isXKbGDLUSBR
+         L5PaFbtE5QNQmJPv/I4Zx/1DZn7w83xaJpfPRiIlvLm66WdQ2MmBHi4PVslpHRnbseis
+         gSX187Mh9Kp/RfgYGknNX7T8aaHR3Fry5kYoTvKoFxCjCcwnBHBgHUMQAVr3JPokjrJj
+         zfnQ==
+X-Gm-Message-State: AA+aEWZeWp2U2B5oAki0HoHxfB9TIAaRmop9TaCLNBuVwRq/PflIPcyr
+	mfujnOzhyykfiG15s0NHBK4cOn8DpwSOWkt9V4eL+lPz90q/EhBfJ2Rot3A9crmA5CoyjRiZFOE
+	1N+zIWisOISVuCed6h4ekyW19109rY+axQRtxxmDj3N0sw96lXLBJYxw1+cDZugKSZJX5sT8NnB
+	rcaggNyFzJmc+Ztt2VyMPnMOTTVpJjYy5SZCHe1wGgcArzltEyKqUx4lyhwuQ+0nEDnr+Cxes0U
+	bs2kPOAkGaNrJIQavL2Ola8lJE/kIDKIbkVYc/P90M157Cp7ymxWnFQkZeSvTXdWxrqbTqpPEUe
+	KfvkazJYlQTEhCWV6szorea+K/0M+7w1D5fqShLCyqp1AO0/g5zhif+LiUqRpFnugZOhHO5Rim7
+	m
+X-Received: by 2002:a67:848a:: with SMTP id g132mr11982846vsd.222.1546048563557;
+        Fri, 28 Dec 2018 17:56:03 -0800 (PST)
+X-Received: by 2002:a67:848a:: with SMTP id g132mr11982837vsd.222.1546048562820;
+        Fri, 28 Dec 2018 17:56:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546048562; cv=none;
         d=google.com; s=arc-20160816;
-        b=k+K6BPkS6l7d+3wQHNGL0otJrIzU921u8ilrWgJM8vD+uB+53yxERfnGDhg13RH/tz
-         /Z8Vv/zLearosVqtXH8TRPKmvJ9Oa4Db2tQoPGb49Ka+llEZYXvxDtmLitQQcPkkHkSJ
-         vJwbnhdNK09aifUg+0fYiRgJaIKYJhP7LHm95G0R0rdG+Yu3M3jc/Q6wjayncc/rmdeP
-         RjKrZHYqbU2O5P6S7EIlru7AXdD/AUY+rTtXBZpyO+gPn/EtiKTCBt6cmn3BoCyuPcvN
-         ZEj7SZx1kit8d8T/wbH/vcEBPhh00nHSZgW+XBY/Cc2bAiNIbbCwCq9ImutXc3lUcixl
-         N+yA==
+        b=KNIGd0u9kOEFS+1zcBr2pDyUIPG6Tbg2RQbTM6+hPdTnzEicIs+F/5hvDC+Iujmfel
+         Lcwjgwag6KmQoNOXXJfi/PEsLw4HdpI+uU3M0kmISbtdckpb3tSlDuLsb2S0NmoYVOmP
+         N5XPkDuWkVsFEcnBhfVmx1b4VPX/X+yabs3TZzcbM44TIbaSYAR7tHwmlQO9ILnA9N2W
+         SIwvtwATlw6HevKtwFmsY9ynTyGVInbMl9BMMl1YkfWvhg8dZfPDltcc3iB9uV/x/YpE
+         OqaxT3dnaW66SVAl7FsF8bGoZMuAD95NSDiyj2ItIoNwwldfH7N4Yr3NoDrD1S+eExxH
+         dqZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=jCn6C/cpRHtM9VQxY+22Xn56ZeUCdkzguW82dVDfWug=;
-        b=IAuL1fr3/vslgNqEs/UfD85zgwUKld76bYZx3XWD+aQcAH31R3rwL39YES8Z9AbZVT
-         Ab4LDX5LjYoYqtUyz6VCBKP3uz1m6HeOoFu5mif9aEZk4QjYmTwCiSgxJuMafbbYQXrs
-         gsqcPPVz3Tv5mqR4ggf3KNT0jEh/dop9C9cZKd7NQf/AC2FZJL7IF3kr3R4HXWc2AsuS
-         Q8Z9SJHgWyFfrFVbhSC9glnThTWDo3fINX+dTHRaOwXhxKI1KMuoKo/8sCLsojX6ZjeE
-         y5LW0tcESpRE+AQvKFRvygpxxZK4PtLgVIbg0Kk2fwXRKX2ldE9AftLR0aKMiFJyFQwY
-         sifw==
+        bh=8Befy3R1F0eWwTQ9Ik5Xd4dXNM48kHZxmA2Si2BNh00=;
+        b=trSwQw2TgrgHiWSKaeoXP2/6S+r7nGu1LjFQCL2KA/yWHkepkZTeuHp2YDiU6uehfR
+         nr2Z+wnR4KOcOUUMwEzuAQvZ/hItmjLDKCGPNekQ91a0xuHW7mMVli6Fg9oPqr8q6tOo
+         fH11sQa5jr7PFS6ZZyE3EA0lgknkl8Di4RRnswMvCrnQmXUwAtaJ6BR/A3NwhkR7C2o4
+         wW6THajKdP/C++ZxU3gamzFfb3EfnN5YFCjrjoZPEPMa8CCV5E39/l+bJe6zLDFIxPZ9
+         gar/M5p3nvLIhB8sYZXWb+hXy8oOdxnJZu3Ax4dUoJcz2t7ovYy5/s4+8PdRqAqD1PKj
+         cliw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=oWZw0X59;
-       spf=pass (google.com: domain of 3jm4mxagkcksdslvppwmrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3jM4mXAgKCKsdSLVPPWMRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--shakeelb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mlJ42Wmk;
+       spf=pass (google.com: domain of 3mtqmxagkcf0nc5f99g6bjjbg9.7jhgdips-hhfq57f.jmb@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3MtQmXAgKCF0NC5F99G6BJJBG9.7JHGDIPS-HHFQ57F.JMB@flex--shakeelb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id v20sor5331060pgo.22.2018.12.28.17.31.57
+        by mx.google.com with SMTPS id c13sor25672218vso.80.2018.12.28.17.56.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 28 Dec 2018 17:31:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3jm4mxagkcksdslvppwmrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Fri, 28 Dec 2018 17:56:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3mtqmxagkcf0nc5f99g6bjjbg9.7jhgdips-hhfq57f.jmb@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=oWZw0X59;
-       spf=pass (google.com: domain of 3jm4mxagkcksdslvppwmrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3jM4mXAgKCKsdSLVPPWMRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--shakeelb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mlJ42Wmk;
+       spf=pass (google.com: domain of 3mtqmxagkcf0nc5f99g6bjjbg9.7jhgdips-hhfq57f.jmb@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3MtQmXAgKCF0NC5F99G6BJJBG9.7JHGDIPS-HHFQ57F.JMB@flex--shakeelb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:message-id:mime-version:subject:from:to:cc;
-        bh=jCn6C/cpRHtM9VQxY+22Xn56ZeUCdkzguW82dVDfWug=;
-        b=oWZw0X59mBgdk8cEHTvD73zbKXKCYhLL4ihzdBP1B+abwCrZZrRxPH9mQ77369eLc5
-         i/L6QPcKcCEJuOqRkMvL94x9fmmXFhR8ADtmXqh0Fr1LYndK6ZgQZXW9fzzAkLGjqch0
-         A0a8iunsmq2eiIPriGrm0mAbYCJID1ctyfiz5hgu/fvv9GHGTHaFcnUMlaF8USWx+sdb
-         vYEWgoICKdl6xN4iSB+rEXyZr7VVESWAxSdck3rEdb6/frweUGnaqbMErjJ9w84amCNm
-         ct99MgKNuXyHeRipm/rVz7RfdspV+sOod4b5U4J3lhEAnq4iXygvARafU8dFuDP7Fp77
-         vabw==
-X-Google-Smtp-Source: ALg8bN5AHRIe6jH1ZAHDzOHvD4iJTPGLBhxndrma8kZubs7W9wNjBNoBepBopB0KsdmeyudMuKPsujqEwtslqg==
-X-Received: by 2002:a63:3f41:: with SMTP id m62mr13692380pga.8.1546047116752;
- Fri, 28 Dec 2018 17:31:56 -0800 (PST)
-Date: Fri, 28 Dec 2018 17:31:47 -0800
-Message-Id: <20181229013147.211079-1-shakeelb@google.com>
+        bh=8Befy3R1F0eWwTQ9Ik5Xd4dXNM48kHZxmA2Si2BNh00=;
+        b=mlJ42Wmk0g/Zww+wc3HKcPht3SrNzqwN2DG+h/dsO09sj927qHH3eGiBy5Afo0HNo+
+         bctv4+9wDrgDHLfhKzOle+rQcSOTFC0RASt9EBC/uogrRZFx/sO0wPjCbVOu6ptOVQA1
+         f2V8aAOHMjsUORgJNd2eNlQMHwPFkzur8+Jsa6NWt658Ye45a196pTY9ereEh52XKGpm
+         O8uQ02a5qG23Qsspm3RQ9yfkWrCRbXIknMpk7rXJZDffpoUn7ReZGDuBFkJHz33bzVwA
+         ihk4ppGr4T4pvA8ZIR3hRYGfRMAhkA8qXYEdyV8hNUUe0H0f0jYRaO1Zil0L63knZ6JP
+         a6qg==
+X-Google-Smtp-Source: AFSGD/VUJwpoOtcwDGOTLEovtGTpiu3z/uEmvt2SuY6ZhBZkmc3qpn4Xtk6Krlw43FVtamVlIIGJZy76b0CO6A==
+X-Received: by 2002:a67:6948:: with SMTP id e69mr25271286vsc.25.1546048562499;
+ Fri, 28 Dec 2018 17:56:02 -0800 (PST)
+Date: Fri, 28 Dec 2018 17:55:24 -0800
+Message-Id: <20181229015524.222741-1-shakeelb@google.com>
 Mime-Version: 1.0
 X-Mailer: git-send-email 2.20.1.415.g653613c723-goog
-Subject: [PATCH] percpu: plumb gfp flag to pcpu_get_pages
+Subject: [PATCH] netfilter: account ebt_table_info to kmemcg
 From: Shakeel Butt <shakeelb@google.com>
-To: Tejun Heo <tj@kernel.org>, Dennis Zhou <dennis@kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>
+To: Pablo Neira Ayuso <pablo@netfilter.org>, Florian Westphal <fw@strlen.de>, 
+	Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, 
+	Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, Michal Hocko <mhocko@suse.com>, 
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, netfilter-devel@vger.kernel.org, 
+	coreteam@netfilter.org, bridge@lists.linux-foundation.org, 
+	linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, 
+	syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181229013147.gcGcC-AmuQ0qo15taGsYWMJhkS4jBiQ8S0F68OPAZGQ@z>
+Message-ID: <20181229015524.U5NpnsBE9h3zgv_sL98m5KhA2p6s_D8ugChk_XSuX_M@z>
 
-__alloc_percpu_gfp() can be called from atomic context, so, make
-pcpu_get_pages use the gfp provided to the higher layer.
+The [ip,ip6,arp]_tables use x_tables_info internally and the underlying
+memory is already accounted to kmemcg. Do the same for ebtables. The
+syzbot, by using setsockopt(EBT_SO_SET_ENTRIES), was able to OOM the
+whole system from a restricted memcg, a potential DoS.
 
+Reported-by: syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com
 Signed-off-by: Shakeel Butt <shakeelb@google.com>
 ---
- mm/percpu-vm.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ net/bridge/netfilter/ebtables.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index d8078de912de..4f42c4c5c902 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -21,6 +21,7 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
+diff --git a/net/bridge/netfilter/ebtables.c b/net/bridge/netfilter/ebtables.c
+index 491828713e0b..5e55cef0cec3 100644
+--- a/net/bridge/netfilter/ebtables.c
++++ b/net/bridge/netfilter/ebtables.c
+@@ -1137,14 +1137,16 @@ static int do_replace(struct net *net, const void __user *user,
+ 	tmp.name[sizeof(tmp.name) - 1] = 0;
  
- /**
-  * pcpu_get_pages - get temp pages array
-+ * @gfp: allocation flags passed to the underlying allocator
-  *
-  * Returns pointer to array of pointers to struct page which can be indexed
-  * with pcpu_page_idx().  Note that there is only one array and accesses
-@@ -29,7 +30,7 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
-  * RETURNS:
-  * Pointer to temp pages array on success.
-  */
--static struct page **pcpu_get_pages(void)
-+static struct page **pcpu_get_pages(gfp_t gfp)
- {
- 	static struct page **pages;
- 	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
-@@ -37,7 +38,7 @@ static struct page **pcpu_get_pages(void)
- 	lockdep_assert_held(&pcpu_alloc_mutex);
- 
- 	if (!pages)
--		pages = pcpu_mem_zalloc(pages_size, GFP_KERNEL);
-+		pages = pcpu_mem_zalloc(pages_size, gfp);
- 	return pages;
- }
- 
-@@ -278,7 +279,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
- {
- 	struct page **pages;
- 
--	pages = pcpu_get_pages();
-+	pages = pcpu_get_pages(gfp);
- 	if (!pages)
+ 	countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
+-	newinfo = vmalloc(sizeof(*newinfo) + countersize);
++	newinfo = __vmalloc(sizeof(*newinfo) + countersize, GFP_KERNEL_ACCOUNT,
++			    PAGE_KERNEL);
+ 	if (!newinfo)
  		return -ENOMEM;
  
-@@ -316,7 +317,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
- 	 * successful population attempt so the temp pages array must
- 	 * be available now.
- 	 */
--	pages = pcpu_get_pages();
-+	pages = pcpu_get_pages(GFP_KERNEL);
- 	BUG_ON(!pages);
+ 	if (countersize)
+ 		memset(newinfo->counters, 0, countersize);
  
- 	/* unmap and free */
+-	newinfo->entries = vmalloc(tmp.entries_size);
++	newinfo->entries = __vmalloc(tmp.entries_size, GFP_KERNEL_ACCOUNT,
++				     PAGE_KERNEL);
+ 	if (!newinfo->entries) {
+ 		ret = -ENOMEM;
+ 		goto free_newinfo;
 -- 
 2.20.1.415.g653613c723-goog
 
