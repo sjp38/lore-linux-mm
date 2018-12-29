@@ -4,111 +4,113 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23A3DC43387
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 19:34:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A214C43387
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 19:39:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 667F320873
-	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 19:34:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3634920873
+	for <linux-mm@archiver.kernel.org>; Sat, 29 Dec 2018 19:39:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="bfTXSxz5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 667F320873
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="IeK8dGvy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3634920873
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D28398E0062; Sat, 29 Dec 2018 14:34:42 -0500 (EST)
+	id CAF838E0063; Sat, 29 Dec 2018 14:39:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD8858E005B; Sat, 29 Dec 2018 14:34:42 -0500 (EST)
+	id C5E2F8E005B; Sat, 29 Dec 2018 14:39:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9ED48E0062; Sat, 29 Dec 2018 14:34:42 -0500 (EST)
+	id B74C68E0063; Sat, 29 Dec 2018 14:39:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 873338E005B
-	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 14:34:42 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id d72so17607132ywe.9
-        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 11:34:42 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BF3B8E005B
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 14:39:18 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id r191so16985584ybr.12
+        for <linux-mm@kvack.org>; Sat, 29 Dec 2018 11:39:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Rm4V5mvOJxeB4IxCyXzJR7q46ixdXejdpIGZhtAm/DA=;
-        b=P8LNrejYUJmPQVZbsb0D7rQWbXjWUAh7flgiV+DaGzsO5Scdxh3dI0zdUQho1tkHHc
-         h3aAlBu9XqDF6vjszdh5qHGVnKYrTAJj+n6AnSE8Bj8MuygGNcmKm9sUlvmov2akskFB
-         7ybqddzlJmj6cREdgvlEtSYm0FEC84QQMtS90ptl+GTuvawnBLvSmEBAvxsnm9XAA/g3
-         MprQoecO+8Ww1yh7AKAnMZiVP6HxY2XytcvmeyFeNg9GcX8qYsPSc29AWQ1bvDpjsvLN
-         Va/Uu4N4l4qrHLVokjPpzFdNfqs7rxCT7VvLhljAlR6e+TpULXw5HOwcx9lN1JinSH/x
-         MZhw==
-X-Gm-Message-State: AA+aEWY6kPbNsk3IIx4ScGq1lDxO4YdGsbDpBNV2dbS+1LiLBb56gURd
-	mtzA5tyMPaOd/kxsICdOEXgX/YXUiF0ziYfhBwj+hzNrcomxh2N4kN4xSF6jzRHILwekWsTnvXa
-	2qMx9HIwSQrlwGJsKH5+/TkvOn8HUk8NWG1QdPwFbYl/3BMN4uSb4gM4K8V3RWi7RQwxOdMaDW6
-	DyyTYmQ1nC6DA9lyLmqiYs9FCWL+iCCEaXHCWgCJi6FOdgW5zmKWEdO3BT5jWNIwD8CQReyvIRU
-	Z5YN5+pRpYia8x70GA5cr5LOQeueqW7JLPdaTBonAgiE5UNWlVUML8nqkREYeJYjlVfRYhyR/if
-	8jU4rU49ibwjx3dWNjsTX1pMYAXLeI8Co+/ySU422nqDBYV5+pqlvEAohyrVc71hMyL4JRXmSIh
-	D
-X-Received: by 2002:a25:7c83:: with SMTP id x125-v6mr32054152ybc.152.1546112082102;
-        Sat, 29 Dec 2018 11:34:42 -0800 (PST)
-X-Received: by 2002:a25:7c83:: with SMTP id x125-v6mr32054136ybc.152.1546112081417;
-        Sat, 29 Dec 2018 11:34:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546112081; cv=none;
+        bh=sBBN2mphyXf7II5d9cbYV+3gNH1blN+Ub//bXMWso6o=;
+        b=KeAeCwDHsjd1ssP0fdLZBtmR07R68gf88wgasASnJqfCEG05jvCew9VayRfkDU0SQr
+         SQMGjUJppA817z2a1UpANDVdBBaH0O3SLl4i0L13DnZXq5brpxjmLM2hRbO2G7u+UHIy
+         NPPgVoqhdyYZpZ7yP9Qh1efl/nb8VlpZXHvOGN3Dow0hbzBkhqbOdSR0ydVfvTe8chwr
+         cG2w9QOfYPNGAR6pxpyuglYQjwSFSOJMtmlLmRrrZRPKa7wC8P3tVOjBZXkpf5verBUd
+         kDuZiwsCKL74JbtgyMPBScyaT4gR7VN6WJML0n66jf11HYFqVXLf0tm9rnqCdmQ9XoiR
+         0Ydw==
+X-Gm-Message-State: AA+aEWYdHhjH4dIBc4xunvMqj5fgg9E1a1M4XX+sL8+xUkhZ36wbw0GR
+	oTpRPtaZ9SHFYbsdqu4dRUXEucpjR8nkQB6vc4T14FDbCQD75mQu705mcCEgBQV6utvkqUNO5sM
+	hb6uvtcLPp0qwtNkqWgYZcXGEFr/FaFHAWLEFOokYbHPZllyL6dFtVEY+P2inBceWHXGiwa8fj+
+	Q+w0OGoZ899jv0rdo2OCDgsrOK/NOtXwQLHQDMp+79bVeb+x9/vDiD2jPHlki40T0L8NiKvX4Lr
+	2O7zm0sE7EJnMzspGLuFzG23r3yo6voeXB619aVBskRhgCnhMSlAhlTbJPxk8H479W89wdphxzK
+	7ENjIC/HUW471VVsATUKkDg4TkPjs1fNWGYPwSqf93IQwp14waVwmqVi4hDmSucE1LHmUIwI5vL
+	V
+X-Received: by 2002:a81:5f88:: with SMTP id t130mr32269784ywb.494.1546112358309;
+        Sat, 29 Dec 2018 11:39:18 -0800 (PST)
+X-Received: by 2002:a81:5f88:: with SMTP id t130mr32269768ywb.494.1546112357856;
+        Sat, 29 Dec 2018 11:39:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546112357; cv=none;
         d=google.com; s=arc-20160816;
-        b=BlcIflAtNN4sfzTvjZRmFI/Elb0rFGGTvePWtjC25UdrupN0+aC7e8DfCpjVkaRTDR
-         qz4vgrO5VpsTmez27ltwNz3+X70UGgFa6dKSqqrVq8t8PET7YbmhrjbY7nBxszwOg9wq
-         30hh+ESQQ45B5L8TMZbKGZEdfLPao//prkzkwROMi3XFOUBHYObldmDQA/wP5VkwoUPI
-         mW8cF4T8u4ipRB91lI08jQkHgbjDz0cwTYK0/xKc+SkY8pbYhBLnAHIl05GBRvsbIjpd
-         Kt+fz8Xv+UEDhHAH/DsF0k40ICQR89OSbgqWDVpce8ECM1B4JfAfiRAtzOKfKZZuvrXi
-         83nQ==
+        b=av0gHlX/Q4v0uwVHkO43Fs8pIerFR0XAiCIrfdUNi+BexbQ9sLXc671qkO1adZS+R2
+         JwG7u1QWFrWCX9JqAT3PUA7zWq2EWdSF6LpsoArBduxCyE27bR6WwPybKzlmGtaxPRtR
+         G3kvYHUA06zcDnyUq/D8j4G2uqKNUUV6aLUo++PSVJJEOtEFUA341PG79Ox6XNwf+9FY
+         Mxia/k3UcNwTXugZysAjj8PFyLsy2YLJ8UWT/KgrqtXz4vvBB4IWSfq7ypKvHtNIysCD
+         yoQZUmchY8f0I1n+ggkDNw7W2+4WkZlSuAJRQwtaZ17gF43TbImUOXmlOYZI0jRaoVuD
+         Nkkg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=Rm4V5mvOJxeB4IxCyXzJR7q46ixdXejdpIGZhtAm/DA=;
-        b=WwnzKP6OTvctWo5G/koYHs4JfNLfu7MO06fPBRVAJqalVnFcN7VFJiaMgP3BcX9PiY
-         2BtHJFfAceXqzNrnYKldEOmmdcaydUpbivqRuGPua3cHcbPpIYjcN9Kh7e/xnaCNADZm
-         2Im9Zo9Ic/Zfjktou5OGoVkFoZLV9rm5yV/K76+zLJ6988FnxMo+cGDNzh/EPKRR7+eO
-         qmO0ciNG8ANAbZi3pZpfgcuK3v0UR4pJs/1jvJ+2mljFITmgBut6maqEjx74K1LFMUsY
-         lSzYGqG8RuClYlblzdLyWCA1Efv2LbuMqLkyRVMJjTXU1/d4UOricbpLWTF3HC9eFAz3
-         eQKQ==
+        bh=sBBN2mphyXf7II5d9cbYV+3gNH1blN+Ub//bXMWso6o=;
+        b=AxWcawdzcDxaWpH+g/rYKiTWq7pEH5z0dSlHYfw9EOvXpqo0G88oaRCJJNxy/9P6uF
+         1qVYV42fKDXQpyi2zZ/KMmAYIwDk1vXKuHngbs085Zuc7JXq2MCoufslwsoyGzJcC6SE
+         ZY/7RwtUB55VernYE9gdy9FfdWvZfRcTTZ1nz8E7J6EHUfGy889c6WrVB1Sa+AjD/epJ
+         DgNCbW+rZcRHO3BUVP5IPa/9zHsA5VRGT8tmxjYORhkBUrk5alcmzJWWd7/HlDo7gyFB
+         zCxq0UGI6COIpSnBFnb2sHWbb53GQNz66cHf7kXtKwSdJZt/I0hZ3cbDo54+2Vx9IUSK
+         G4Ig==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=bfTXSxz5;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=IeK8dGvy;
        spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 66-v6sor20426052ybg.113.2018.12.29.11.34.41
+        by mx.google.com with SMTPS id f2sor6088168ywa.0.2018.12.29.11.39.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 29 Dec 2018 11:34:41 -0800 (PST)
+        Sat, 29 Dec 2018 11:39:17 -0800 (PST)
 Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=bfTXSxz5;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=IeK8dGvy;
        spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=Rm4V5mvOJxeB4IxCyXzJR7q46ixdXejdpIGZhtAm/DA=;
-        b=bfTXSxz5Zddw/9ltMyrfT7C5wJ9uM+MADH0R72Ii/MvtJvURondOXyRSWBmm4skOl4
-         leG+tp5URxkh68+/zRBGOdfMRYN6lmMOwTlh5yWll6F1ySNDB7qOQTfCGoeNdsvUScQP
-         r23wHoc8zIpmaE8eqbO1AtXnw0waCNnPCEYzpx9dndS0SxZezVgYC+izxyUjUHAz6isr
-         rXi4UIMFCieB56GJJswjVSAwDCLICjJ51iU5ykcXMXk5IyJ3EpLj0tde7S3feAye/zKV
-         5q2ABxhmpL7IRIC6s0gmGKnOhyk+fr3v6YSEimhQioHHMDqOPxuzxs7fmtW+a9keJIKP
-         wWJQ==
-X-Google-Smtp-Source: ALg8bN5dXmkJ/AmEgrcBLDrOSPMZRpne6/ywolwLjXUlixj8WqVeudQ9ZuX0qxUUbAeMy+YBwwKS9vBHci8vyP5hxGo=
-X-Received: by 2002:a5b:f01:: with SMTP id x1mr27072891ybr.464.1546112080563;
- Sat, 29 Dec 2018 11:34:40 -0800 (PST)
+        bh=sBBN2mphyXf7II5d9cbYV+3gNH1blN+Ub//bXMWso6o=;
+        b=IeK8dGvyQFN1k5SZbplWXk3V0SIzw9j2rmL9koMjC7iv+qPVeovSwAMzOdqgUS3Kcl
+         //2YwH0lVSrhCJlRATLtfOrcdYoOQHC3jCT3jFt2UZJaa/3FlOQ95FC5UUiwBan0RacU
+         LDnWYlyPEXx2bKploZ3oYHeihW3luV6f0+VKJlrn5CUw8gRkUGdGIrzEgrOYTU7byRpv
+         Tu7gL96vgYK3WtV5ssyHpNNKjTtTtWOBOqf10+WcS0fii4X3P4JFJG2+QhEphYoY5Tn2
+         6x4aeFCKX0ZWcD5CaemqpzJCKLptsuukhgC65wMqmM9tsYdi1xliAQyTvqCzmiG9rqoc
+         CRLQ==
+X-Google-Smtp-Source: AFSGD/VNzN0sznBQKNWyIE9lVvYn+Yku7qopyFK6Kzv9Ir+NtzY0f/EA1+sPzg/kT2UVezzNhV3E1sCC9t3lOzFPuBw=
+X-Received: by 2002:a81:ee07:: with SMTP id l7mr32007083ywm.489.1546112357402;
+ Sat, 29 Dec 2018 11:39:17 -0800 (PST)
 MIME-Version: 1.0
 References: <20181229015524.222741-1-shakeelb@google.com> <20181229073325.GZ16738@dhcp22.suse.cz>
- <20181229095215.nbcijqacw5b6aho7@breakpoint.cc> <20181229100615.GB16738@dhcp22.suse.cz>
-In-Reply-To: <20181229100615.GB16738@dhcp22.suse.cz>
+ <7c0fa75f-df2f-668e-ebc2-3d3e9831030f@virtuozzo.com>
+In-Reply-To: <7c0fa75f-df2f-668e-ebc2-3d3e9831030f@virtuozzo.com>
 From: Shakeel Butt <shakeelb@google.com>
-Date: Sat, 29 Dec 2018 11:34:29 -0800
+Date: Sat, 29 Dec 2018 11:39:06 -0800
 Message-ID:
- <CALvZod7v-CC1XipLAerFj1Zp_M=qXZq6MzDL4pubJMTRCsMFNw@mail.gmail.com>
-Subject: Re: [PATCH] netfilter: account ebt_table_info to kmemcg
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Florian Westphal <fw@strlen.de>, Pablo Neira Ayuso <pablo@netfilter.org>, 
-	Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, 
+ <CALvZod5FxsHk9UFvDewoVftWU0AB=1JJCEgd6B-5np1CrXwRvA@mail.gmail.com>
+Subject: Re: Re: [PATCH] netfilter: account ebt_table_info to kmemcg
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Pablo Neira Ayuso <pablo@netfilter.org>, 
+	Florian Westphal <fw@strlen.de>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, 
+	Roopa Prabhu <roopa@cumulusnetworks.com>, 
 	Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, Andrew Morton <akpm@linux-foundation.org>, 
 	Linux MM <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, 
 	coreteam@netfilter.org, bridge@lists.linux-foundation.org, 
@@ -120,44 +122,35 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181229193429.Veu3C69RXoJpAlWXcVmmdU2qwlaXQf54fPSfEjibPH8@z>
+Message-ID: <20181229193906.yO_MRsI9i_ma1CdkIa0QcrbhPeuiL0o79tWugFz6Y4U@z>
 
-On Sat, Dec 29, 2018 at 2:06 AM Michal Hocko <mhocko@kernel.org> wrote:
+Hi Kirill,
+
+On Sat, Dec 29, 2018 at 1:52 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 >
-> On Sat 29-12-18 10:52:15, Florian Westphal wrote:
-> > Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Fri 28-12-18 17:55:24, Shakeel Butt wrote:
-> > > > The [ip,ip6,arp]_tables use x_tables_info internally and the underlying
-> > > > memory is already accounted to kmemcg. Do the same for ebtables. The
-> > > > syzbot, by using setsockopt(EBT_SO_SET_ENTRIES), was able to OOM the
-> > > > whole system from a restricted memcg, a potential DoS.
-> > >
-> > > What is the lifetime of these objects? Are they bound to any process?
+> Hi, Michal!
+>
+> On 29.12.2018 10:33, Michal Hocko wrote:
+> > On Fri 28-12-18 17:55:24, Shakeel Butt wrote:
+> >> The [ip,ip6,arp]_tables use x_tables_info internally and the underlying
+> >> memory is already accounted to kmemcg. Do the same for ebtables. The
+> >> syzbot, by using setsockopt(EBT_SO_SET_ENTRIES), was able to OOM the
+> >> whole system from a restricted memcg, a potential DoS.
 > >
-> > No, they are not.
-> > They are free'd only when userspace requests it or the netns is
-> > destroyed.
+> > What is the lifetime of these objects? Are they bound to any process?
 >
-> Then this is problematic, because the oom killer is not able to
-> guarantee the hard limit and so the excessive memory consumption cannot
-> be really contained. As a result the memcg will be basically useless
-> until somebody tears down the charged objects by other means. The memcg
-> oom killer will surely kill all the existing tasks in the cgroup and
-> this could somehow reduce the problem. Maybe this is sufficient for
-> some usecases but that should be properly analyzed and described in the
-> changelog.
+> These are list of ebtables rules, which may be displayed with $ebtables-save command.
+> In case of we do not account them, a low priority container may eat all the memory
+> and OOM killer in berserk mode will kill all the processes on machine. They are not bound
+> to any process, but they are bound to network namespace.
 >
+> OOM killer does not analyze such the memory cgroup-related allocations, since it
+> is task-aware only. Maybe we should do it namespace-aware too...
 
-Can you explain why you think the memcg hard limit will not be
-enforced? From what I understand, the memcg oom-killer will kill the
-allocating processes as you have mentioned. We do force charging for
-very limited conditions but here the memcg oom-killer will take care
-of
+This is a good idea. I am already brainstorming on a somewhat similar
+idea to make shmem/tmpfs files oom-killable. I will share once I have
+something more concrete and will think on namespace angle too.
 
-Anyways, the kernel is already charging the memory for
-[ip,ip6,arp]_tables and this patch adds the charging for ebtables.
-Without this patch, as Kirill has described and shown by syzbot, a low
-priority memcg can force system OOM.
-
+thanks,
 Shakeel
 
