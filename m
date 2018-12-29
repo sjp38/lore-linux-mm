@@ -1,76 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BB9EC6B721D
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2018 22:09:46 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id v4so8922574edm.18
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2018 19:09:46 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e5si3430169edi.171.2018.12.04.19.09.44
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D2128E0001
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2018 01:38:22 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id d20so20699725iom.0
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2018 22:38:22 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p140sor33220668itp.36.2018.12.28.22.38.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Dec 2018 19:09:44 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wB534nGP040466
-	for <linux-mm@kvack.org>; Tue, 4 Dec 2018 22:09:43 -0500
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2p65p1hxd0-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Dec 2018 22:09:43 -0500
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 5 Dec 2018 03:09:42 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V3 0/5] NestMMU pte upgrade workaround for mprotect
-Date: Wed,  5 Dec 2018 08:39:26 +0530
+        (Google Transport Security);
+        Fri, 28 Dec 2018 22:38:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20181205030931.12037-1-aneesh.kumar@linux.ibm.com>
+References: <000000000000b57d19057e1b383d@google.com> <20181228130938.c9e42c213cdcc35a93dd0dac@linux-foundation.org>
+ <20181228235106.okk3oastsnpxusxs@kshutemo-mobl1>
+In-Reply-To: <20181228235106.okk3oastsnpxusxs@kshutemo-mobl1>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sat, 29 Dec 2018 07:38:08 +0100
+Message-ID: <CACT4Y+Ynm+LPupT0OM=E8AdF0bQDKc-arPy3M=V1D5V0tCmZ=g@mail.gmail.com>
+Subject: Re: KASAN: use-after-free Read in filemap_fault
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, syzbot <syzbot+b437b5a429d680cf2217@syzkaller.appspotmail.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, josef@toxicpanda.com, Souptick Joarder <jrdr.linux@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Matthew Wilcox <willy@infradead.org>
+
+On Sat, Dec 29, 2018 at 12:51 AM Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+>
+> On Fri, Dec 28, 2018 at 01:09:38PM -0800, Andrew Morton wrote:
+> > On Fri, 28 Dec 2018 12:51:04 -0800 syzbot <syzbot+b437b5a429d680cf2217@syzkaller.appspotmail.com> wrote:
+> >
+> > > Hello,
+> > >
+> > > syzbot found the following crash on:
+> >
+> > uh-oh.  Josef, could you please take a look?
+> >
+> > :     page = find_get_page(mapping, offset);
+> > :     if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
+> > :             /*
+> > :              * We found the page, so try async readahead before
+> > :              * waiting for the lock.
+> > :              */
+> > :             fpin = do_async_mmap_readahead(vmf, page);
+> > :     } else if (!page) {
+> > :             /* No page in the page cache at all */
+> > :             fpin = do_sync_mmap_readahead(vmf);
+> > :             count_vm_event(PGMAJFAULT);
+> > :             count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
+> >
+> > vmf->vma has been freed at this point.
+> >
+> > :             ret = VM_FAULT_MAJOR;
+> > : retry_find:
+> > :             page = pagecache_get_page(mapping, offset,
+> > :                                       FGP_CREAT|FGP_FOR_MMAP,
+> > :                                       vmf->gfp_mask);
+> > :             if (!page) {
+> > :                     if (fpin)
+> > :                             goto out_retry;
+> > :                     return vmf_error(-ENOMEM);
+> > :             }
+> > :     }
+> >
+>
+> Here's a fixup for "filemap: drop the mmap_sem for all blocking operations".
+
+If you are going to squash this, please add:
+
+Tested-by: syzbot+b437b5a429d680cf2217@syzkaller.appspotmail.com
 
 
-We can upgrade pte access (R -> RW transition) via mprotect. We need
-to make sure we follow the recommended pte update sequence as outlined in
-commit bd5050e38aec ("powerpc/mm/radix: Change pte relax sequence to handle nest MMU hang")
-for such updates. This patch series do that.
-
-Changes from V2:
-* Update commit message for patch 4
-* use radix tlb flush routines directly.
-
-Changes from V1:
-* Restrict ths only for R->RW upgrade. We don't need to do this for Autonuma
-* Restrict this only for radix translation mode.
-
-
-Aneesh Kumar K.V (5):
-  mm: Update ptep_modify_prot_start/commit to take vm_area_struct as arg
-  mm: update ptep_modify_prot_commit to take old pte value as arg
-  arch/powerpc/mm: Nest MMU workaround for mprotect RW upgrade.
-  mm/hugetlb: Add prot_modify_start/commit sequence for hugetlb update
-  arch/powerpc/mm/hugetlb: NestMMU workaround for hugetlb mprotect RW
-    upgrade
-
- arch/powerpc/include/asm/book3s/64/hugetlb.h | 12 ++++++++
- arch/powerpc/include/asm/book3s/64/pgtable.h | 18 ++++++++++++
- arch/powerpc/include/asm/book3s/64/radix.h   |  4 +++
- arch/powerpc/mm/hugetlbpage-radix.c          | 17 ++++++++++++
- arch/powerpc/mm/hugetlbpage.c                | 29 ++++++++++++++++++++
- arch/powerpc/mm/pgtable-book3s64.c           | 27 ++++++++++++++++++
- arch/powerpc/mm/pgtable-radix.c              | 18 ++++++++++++
- arch/s390/include/asm/pgtable.h              |  5 ++--
- arch/s390/mm/pgtable.c                       |  8 ++++--
- arch/x86/include/asm/paravirt.h              |  9 ++++--
- fs/proc/task_mmu.c                           |  8 ++++--
- include/asm-generic/pgtable.h                | 10 +++----
- include/linux/hugetlb.h                      | 20 ++++++++++++++
- mm/hugetlb.c                                 |  8 ++++--
- mm/memory.c                                  |  8 +++---
- mm/mprotect.c                                |  6 ++--
- 16 files changed, 181 insertions(+), 26 deletions(-)
-
--- 
-2.19.2
+> do_sync_mmap_readahead() drops mmap_sem now, so by the time of
+> dereferencing vmf->vma for count_memcg_event_mm() the VMA can be gone.
+>
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 00a9315f45d4..65c85c47bdb1 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -2554,10 +2554,10 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
+>                 fpin = do_async_mmap_readahead(vmf, page);
+>         } else if (!page) {
+>                 /* No page in the page cache at all */
+> -               fpin = do_sync_mmap_readahead(vmf);
+>                 count_vm_event(PGMAJFAULT);
+>                 count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
+>                 ret = VM_FAULT_MAJOR;
+> +               fpin = do_sync_mmap_readahead(vmf);
+>  retry_find:
+>                 page = pagecache_get_page(mapping, offset,
+>                                           FGP_CREAT|FGP_FOR_MMAP,
+> --
+>  Kirill A. Shutemov
+>
+> --
+> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/20181228235106.okk3oastsnpxusxs%40kshutemo-mobl1.
+> For more options, visit https://groups.google.com/d/optout.
