@@ -1,81 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B1B38E0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 07:05:52 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id 42so23973549qtr.7
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2018 04:05:52 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h39si5554973qth.232.2018.12.27.04.05.51
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 876188E005B
+	for <linux-mm@kvack.org>; Sun, 30 Dec 2018 04:48:01 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id t21so141724wmt.3
+        for <linux-mm@kvack.org>; Sun, 30 Dec 2018 01:48:01 -0800 (PST)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140090.outbound.protection.outlook.com. [40.107.14.90])
+        by mx.google.com with ESMTPS id t15si23320605wrs.208.2018.12.30.01.47.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Dec 2018 04:05:51 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBRC5HtP118612
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 07:05:50 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2pmushdxts-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2018 07:05:45 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 27 Dec 2018 12:03:56 -0000
-Subject: Re: [PATCH v37 1/3] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1535333539-32420-1-git-send-email-wei.w.wang@intel.com>
- <1535333539-32420-2-git-send-email-wei.w.wang@intel.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Thu, 27 Dec 2018 13:03:44 +0100
-MIME-Version: 1.0
-In-Reply-To: <1535333539-32420-2-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 30 Dec 2018 01:47:59 -0800 (PST)
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Subject: Re: [PATCH] mm: Reuse only-pte-mapped KSM page in do_wp_page()
+Date: Sun, 30 Dec 2018 09:47:51 +0000
+Message-ID: <cfb2180d-8da8-6d99-44b8-ffc052869182@virtuozzo.com>
+References: 
+ <154471491016.31352.1168978849911555609.stgit@localhost.localdomain>
+ <20181229134017.0264b5cab7e3ebb483b49f65@linux-foundation.org>
+In-Reply-To: <20181229134017.0264b5cab7e3ebb483b49f65@linux-foundation.org>
 Content-Language: en-US
-Message-Id: <49d706f7-a0ee-e571-7d02-bcadac5ce742@de.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <4DF348614EA5A04184A626689FF5FC19@eurprd08.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, dgilbert@redhat.com
-Cc: torvalds@linux-foundation.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com, quintela@redhat.com, Cornelia Huck <cohuck@redhat.com>, Halil Pasic <pasic@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "kirill@shutemov.name" <kirill@shutemov.name>, "hughd@google.com" <hughd@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "imbrenda@linux.vnet.ibm.com" <imbrenda@linux.vnet.ibm.com>, "yang.shi@linux.alibaba.com" <yang.shi@linux.alibaba.com>, "riel@surriel.com" <riel@surriel.com>, "ying.huang@intel.com" <ying.huang@intel.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 27.08.2018 03:32, Wei Wang wrote:
->  static int init_vqs(struct virtio_balloon *vb)
->  {
-> -	struct virtqueue *vqs[3];
-> -	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
-> -	static const char * const names[] = { "inflate", "deflate", "stats" };
-> -	int err, nvqs;
-> +	struct virtqueue *vqs[VIRTIO_BALLOON_VQ_MAX];
-> +	vq_callback_t *callbacks[VIRTIO_BALLOON_VQ_MAX];
-> +	const char *names[VIRTIO_BALLOON_VQ_MAX];
-> +	int err;
-> 
->  	/*
-> -	 * We expect two virtqueues: inflate and deflate, and
-> -	 * optionally stat.
-> +	 * Inflateq and deflateq are used unconditionally. The names[]
-> +	 * will be NULL if the related feature is not enabled, which will
-> +	 * cause no allocation for the corresponding virtqueue in find_vqs.
->  	 */
-
-This might be true for virtio-pci, but it is not for virtio-ccw.
-
-> -	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
-> -	err = virtio_find_vqs(vb->vdev, nvqs, vqs, callbacks, names, NULL);
-> +	callbacks[VIRTIO_BALLOON_VQ_INFLATE] = balloon_ack;
-> +	names[VIRTIO_BALLOON_VQ_INFLATE] = "inflate";
-> +	callbacks[VIRTIO_BALLOON_VQ_DEFLATE] = balloon_ack;
-> +	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
-> +	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
-> +	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-> +
-> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-> +		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
-> +		callbacks[VIRTIO_BALLOON_VQ_STATS] = stats_request;
-> +	}
-> +
-> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-> +		names[VIRTIO_BALLOON_VQ_FREE_PAGE] = "free_page_vq";
-> +		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-> +	}
-> +
-> +	err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
-[...]
+T24gMzAuMTIuMjAxOCAwMDo0MCwgQW5kcmV3IE1vcnRvbiB3cm90ZToNCj4gT24gVGh1LCAxMyBE
+ZWMgMjAxOCAxODoyOTowOCArMDMwMCBLaXJpbGwgVGtoYWkgPGt0a2hhaUB2aXJ0dW96em8uY29t
+PiB3cm90ZToNCj4gDQo+PiBUaGlzIHBhdGNoIGFkZHMgYW4gb3B0aW1pemF0aW9uIGZvciBLU00g
+cGFnZXMgYWxtb3N0DQo+PiBpbiB0aGUgc2FtZSB3YXksIHRoYXQgd2UgaGF2ZSBmb3Igb3JkaW5h
+cnkgYW5vbnltb3VzDQo+PiBwYWdlcy4gSWYgdGhlcmUgaXMgYSB3cml0ZSBmYXVsdCBpbiBhIHBh
+Z2UsIHdoaWNoIGlzDQo+PiBtYXBwZWQgdG8gYW4gb25seSBwdGUsIGFuZCBpdCBpcyBub3QgcmVs
+YXRlZCB0byBzd2FwDQo+PiBjYWNoZTsgdGhlIHBhZ2UgbWF5IGJlIHJldXNlZCB3aXRob3V0IGNv
+cHlpbmcgaXRzDQo+PiBjb250ZW50Lg0KPj4NCj4+IFtOb3RlLCB0aGF0IHdlIGRvIG5vdCBjb25z
+aWRlciBQYWdlU3dhcENhY2hlKCkgcGFnZXMNCj4+ICBhdCBsZWFzdCBmb3Igbm93LCBzaW5jZSB3
+ZSBkb24ndCB3YW50IHRvIGNvbXBsaWNhdGUNCj4+ICBfX2dldF9rc21fcGFnZSgpLCB3aGljaCBo
+YXMgbmljZSBvcHRpbWl6YXRpb24gYmFzZWQNCj4+ICBvbiB0aGlzIChmb3IgdGhlIG1pZ3JhdGlv
+biBjYXNlKS4gQ3VycmVubHkgaXQgaXMNCj4+ICBzcGlubmluZyBvbiBQYWdlU3dhcENhY2hlKCkg
+cGFnZXMsIHdhaXRpbmcgZm9yIHdoZW4NCj4+ICB0aGV5IGhhdmUgdW5mcmVlemVkIGNvdW50ZXJz
+IChpLmUuLCBmb3IgdGhlIG1pZ3JhdGlvbg0KPj4gIGZpbmlzaCkuIEJ1dCB3ZSBkb24ndCB3YW50
+IHRvIG1ha2UgaXQgYWxzbyBzcGlubmluZw0KPj4gIG9uIHN3YXAgY2FjaGUgcGFnZXMsIHdoaWNo
+IHdlIHRyeSB0byByZXVzZSwgc2luY2UNCj4+ICB0aGVyZSBpcyBub3QgYSB2ZXJ5IGhpZ2ggcHJv
+YmFiaWxpdHkgdG8gcmV1c2UgdGhlbS4NCj4+ICBTbywgZm9yIG5vdyB3ZSBkbyBub3QgY29uc2lk
+ZXIgUGFnZVN3YXBDYWNoZSgpIHBhZ2VzDQo+PiAgYXQgYWxsLl0NCj4+DQo+PiBTbywgaW4gcmV1
+c2Vfa3NtX3BhZ2UoKSB3ZSBjaGVjayBmb3IgMSlQYWdlU3dhcENhY2hlKCkNCj4+IGFuZCAyKXBh
+Z2Vfc3RhYmxlX25vZGUoKSwgdG8gc2tpcCBhIHBhZ2UsIHdoaWNoIEtTTQ0KPj4gaXMgY3VycmVu
+dGx5IHRyeWluZyB0byBsaW5rIHRvIHN0YWJsZSB0cmVlLiBUaGVuIHdlDQo+PiBkbyBwYWdlX3Jl
+Zl9mcmVlemUoKSB0byBwcm9oaWJpdCBLU00gdG8gbWVyZ2Ugb25lIG1vcmUNCj4+IHBhZ2UgaW50
+byB0aGUgcGFnZSwgd2UgYXJlIHJldXNpbmcuIEFmdGVyIHRoYXQsIG5vYm9keQ0KPj4gY2FuIHJl
+ZmVyIHRvIHRoZSByZXVzaW5nIHBhZ2U6IEtTTSBza2lwcyAhUGFnZVN3YXBDYWNoZSgpDQo+PiBw
+YWdlcyB3aXRoIHplcm8gcmVmY291bnQ7IGFuZCB0aGUgcHJvdGVjdGlvbiBhZ2FpbnN0DQo+PiBv
+ZiBhbGwgb3RoZXIgcGFydGljaXBhbnRzIGlzIHRoZSBzYW1lIGFzIGZvciByZXVzZWQNCj4+IG9y
+ZGluYXJ5IGFub24gcGFnZXMgcHRlIGxvY2ssIHBhZ2UgbG9jayBhbmQgbW1hcF9zZW0uDQo+Pg0K
+Pj4gLi4uDQo+Pg0KPj4gK2Jvb2wgcmV1c2Vfa3NtX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsDQo+
+PiArCQkgICAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsDQo+PiArCQkgICAgdW5zaWduZWQg
+bG9uZyBhZGRyZXNzKQ0KPj4gK3sNCj4+ICsJVk1fQlVHX09OX1BBR0UoaXNfemVyb19wZm4ocGFn
+ZV90b19wZm4ocGFnZSkpLCBwYWdlKTsNCj4+ICsJVk1fQlVHX09OX1BBR0UoIXBhZ2VfbWFwcGVk
+KHBhZ2UpLCBwYWdlKTsNCj4+ICsJVk1fQlVHX09OX1BBR0UoIVBhZ2VMb2NrZWQocGFnZSksIHBh
+Z2UpOw0KPj4gKw0KPj4gKwlpZiAoUGFnZVN3YXBDYWNoZShwYWdlKSB8fCAhcGFnZV9zdGFibGVf
+bm9kZShwYWdlKSkNCj4+ICsJCXJldHVybiBmYWxzZTsNCj4+ICsJLyogUHJvaGliaXQgcGFyYWxs
+ZWwgZ2V0X2tzbV9wYWdlKCkgKi8NCj4+ICsJaWYgKCFwYWdlX3JlZl9mcmVlemUocGFnZSwgMSkp
+DQo+PiArCQlyZXR1cm4gZmFsc2U7DQo+PiArDQo+PiArCXBhZ2VfbW92ZV9hbm9uX3JtYXAocGFn
+ZSwgdm1hKTsNCj4+ICsJcGFnZS0+aW5kZXggPSBsaW5lYXJfcGFnZV9pbmRleCh2bWEsIGFkZHJl
+c3MpOw0KPj4gKwlwYWdlX3JlZl91bmZyZWV6ZShwYWdlLCAxKTsNCj4+ICsNCj4+ICsJcmV0dXJu
+IHRydWU7DQo+PiArfQ0KPiANCj4gQ2FuIHdlIGF2b2lkIHRob3NlIEJVR19PTigpcz8NCj4gDQo+
+IFNvbWV0aGluZyBsaWtlIHRoaXM6DQo+IA0KPiAtLS0gYS9tbS9rc20uY35tbS1yZXVzZS1vbmx5
+LXB0ZS1tYXBwZWQta3NtLXBhZ2UtaW4tZG9fd3BfcGFnZS1maXgNCj4gKysrIGEvbW0va3NtLmMN
+Cj4gQEAgLTI2NDksOSArMjY0OSwxNCBAQCBib29sIHJldXNlX2tzbV9wYWdlKHN0cnVjdCBwYWdl
+ICpwYWdlLA0KPiAgCQkgICAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsDQo+ICAJCSAgICB1
+bnNpZ25lZCBsb25nIGFkZHJlc3MpDQo+ICB7DQo+IC0JVk1fQlVHX09OX1BBR0UoaXNfemVyb19w
+Zm4ocGFnZV90b19wZm4ocGFnZSkpLCBwYWdlKTsNCj4gLQlWTV9CVUdfT05fUEFHRSghcGFnZV9t
+YXBwZWQocGFnZSksIHBhZ2UpOw0KPiAtCVZNX0JVR19PTl9QQUdFKCFQYWdlTG9ja2VkKHBhZ2Up
+LCBwYWdlKTsNCj4gKyNpZmRlZiBDT05GSUdfREVCVUdfVk0NCj4gKwlpZiAoV0FSTl9PTihpc196
+ZXJvX3BmbihwYWdlX3RvX3BmbihwYWdlKSkpIHx8DQo+ICsJCQlXQVJOX09OKCFwYWdlX21hcHBl
+ZChwYWdlKSkgfHwNCj4gKwkJCVdBUk5fT04oIVBhZ2VMb2NrZWQocGFnZSkpKSB7DQo+ICsJCWR1
+bXBfcGFnZShwYWdlLCAicmV1c2Vfa3NtX3BhZ2UiKTsNCj4gKwkJcmV0dXJuIGZhbHNlOw0KPiAr
+CX0NCj4gKyNlbmRpZg0KDQpMb29rcyBnb29kIQ0KICANCj4gIAlpZiAoUGFnZVN3YXBDYWNoZShw
+YWdlKSB8fCAhcGFnZV9zdGFibGVfbm9kZShwYWdlKSkNCj4gIAkJcmV0dXJuIGZhbHNlOw0KPiAN
+Cj4gV2UgZG9uJ3QgaGF2ZSBhIFZNX1dBUk5fT05fUEFHRSgpIGFuZCB3ZSBjYW4ndCBwcm92aWRl
+IG9uZSBiZWNhdXNlIHRoZQ0KPiBWTV9mb28oKSBtYWNyb3MgZG9uJ3QgcmV0dXJuIGEgdmFsdWUu
+ICBJdCdzIGlycml0YXRpbmcgYW5kIEkga2VlcA0KPiBmb3JnZXR0aW5nIHdoeSB3ZSBlbmRlZCB1
+cCBkb2luZyB0aGVtIHRoaXMgd2F5Lg0KVGhhbmtzIQ0K
