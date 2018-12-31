@@ -4,110 +4,111 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A811AC43387
-	for <linux-mm@archiver.kernel.org>; Mon, 31 Dec 2018 07:06:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87B08C43387
+	for <linux-mm@archiver.kernel.org>; Mon, 31 Dec 2018 07:15:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 454382133F
-	for <linux-mm@archiver.kernel.org>; Mon, 31 Dec 2018 07:06:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 207C821019
+	for <linux-mm@archiver.kernel.org>; Mon, 31 Dec 2018 07:15:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Mv3P+MWX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 454382133F
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="bAnkSnQF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 207C821019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C18128E007D; Mon, 31 Dec 2018 02:06:20 -0500 (EST)
+	id B50468E007E; Mon, 31 Dec 2018 02:15:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC7E18E005B; Mon, 31 Dec 2018 02:06:20 -0500 (EST)
+	id AFE9E8E005B; Mon, 31 Dec 2018 02:15:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB6EC8E007D; Mon, 31 Dec 2018 02:06:20 -0500 (EST)
+	id 9ED848E007E; Mon, 31 Dec 2018 02:15:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 81B3D8E005B
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 02:06:20 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id p4so30864917iod.17
-        for <linux-mm@kvack.org>; Sun, 30 Dec 2018 23:06:20 -0800 (PST)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 754718E005B
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 02:15:13 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id o22so31701363iob.13
+        for <linux-mm@kvack.org>; Sun, 30 Dec 2018 23:15:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=oAZ84qgDqZP6YlQX0c6kM+lrIjjHwvmjASiMHNI4PNc=;
-        b=hz7gOn1oBSEh2Q8ulq4oc20PtN5r35Q36XBhuJie4k1N/dxrkn0PhMbX8wRTwjjSrO
-         xiJVw7Am6ep7LZjp8m8stHnPg7ikbg+CbA7dI27iLIjJF6UqQ9Vd0LOyF/LB3TzLcmsP
-         giPovjWUbF4+aE4RDfHRotWzODklp6MkMfOqtln4ajeAj89mUbI2YhbHDHJR/ZK09pkt
-         imXRNUCsYPRGH4ZMqw0Q4iM2KCTzxFCZpfna3Yy6eVm8S5IJUbjkuN9+8sTDkDc4hQuj
-         WYJs6HPq2IcCg+3DRd2+kd7cAlCBbhK8m49FxwOsrtkGI8JnDIghkYjB27FHVzqbJlGc
-         J4cg==
-X-Gm-Message-State: AJcUukd/pNv+bPiF2wHHzDcBAGE3cW2Sy8aCDXmiVksqzZlyK8bWAR7+
-	TGXbnsU49KFYUoglX196bGM24PAOolIqeccFxFEWtrQOPCV77PUQJtY0xJAnEKm7VdO0BC/NVv9
-	OhqPVGmaNjw+7JnMTn4uvUW6Sl3Cbp8/i49egSBADGMr1YF320Dan6Bc768UJ9CkD9Mleb/GiOG
-	hmToFD9GVWPmQS0hr2AJjoYJURWS9w0XMyClN7HJ3tuDTwvoQjx641ykX71cZRin2hKHEpeMPgx
-	l4I13ttoS0VwCczAWH6EI+F8JndpCUoIFPYT0UhZBaU8wkkChXfnG40bu6zzd+0gjInGYsH9x8I
-	uGDyiJIbWPsa/ZYNksxIHrR/zdrD89QBoLraq8gelWMZW+aW39qq0G8daV1mdPYR/nbsW/7yjPs
-	2
-X-Received: by 2002:a5d:959a:: with SMTP id a26mr25337201ioo.278.1546239980214;
-        Sun, 30 Dec 2018 23:06:20 -0800 (PST)
-X-Received: by 2002:a5d:959a:: with SMTP id a26mr25337185ioo.278.1546239979403;
-        Sun, 30 Dec 2018 23:06:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546239979; cv=none;
+        bh=FJHOYKeUnx+U9LgSq3AUPAy1LW45QKUMfaRkJ/GP/2Q=;
+        b=asX50l58QOS9rgvZJRDbWPszNvr8IaIzI9C8NamfFOT2Dv8RIOFSxNdTZ+iAlyv+OE
+         Xjbb4+w5trZSLuTRMEUrKGA2sVheBZj5efFJgbF1LkGotqJSbUqvueoNs98nmqw9tzpH
+         c2o5cen7M4FSZbGaCFicFoQzC3iv1vQM6ffwJ5js6s0waDpyml6De3af2mZMsBQyG9uq
+         uLYmjtZZ5Fz77Jk2q0onTBzR5C/gt2yvUEWhMnvVx/uWk+vxeoftqcKq16KUsUSN2PGm
+         qsetIeq+ntmXUZ/Jsk89GhVXPU/MbpQG+qCxCvdmKd1uOWVggWxlg0hC66x7rsH4daRB
+         MdKg==
+X-Gm-Message-State: AA+aEWZ8ob7a6cUw0juDvAzO37IJyTFVmIwbSQOBOJJVUZUtXmbpENmr
+	DHjDXLx4ATlbDAy/HbebklM8c8nP59WedGYB1EwvCuXC9Jjd7XsYkfBs2sspmVpb/gJo9pH+P00
+	DQFo51yxwI5HC2RPetg8s2wJToAW+uSnzndaIIpSYW4AOYhueXtl0BsCRESM7HLxV/aPz06h+4v
+	RXA/hYZL5MyBQ+RljK4MQrlrX6hf3SxiL54CJijoKAUfJjzxl9N2flqiT0wynFRR9ZQqgLyOs88
+	0RheUzYJ1DejC+c775cucWwl2ixvV/9UTHk5JYQS+tMDu9SjfxVwFHwDYScPpZ97qA6YCfGNa7q
+	3bia9O44qbAZ1Ht872xcrUZsanmsXrhouaAWUQmb/XJsAvcVOpq+fkd6NuJZr7MP2bNfxsEZFUq
+	S
+X-Received: by 2002:a02:6915:: with SMTP id e21mr24696980jac.142.1546240513195;
+        Sun, 30 Dec 2018 23:15:13 -0800 (PST)
+X-Received: by 2002:a02:6915:: with SMTP id e21mr24696960jac.142.1546240512426;
+        Sun, 30 Dec 2018 23:15:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546240512; cv=none;
         d=google.com; s=arc-20160816;
-        b=drWRjmE7qAcmtSdLXiPSOI2kSlPfDpdXDw3avdaJjMfOk9VcxhNnpXMxT07TmJGpGk
-         ZS1/Yq02mOrBt2s+8LYu2ySXuMnPA/kE696oc/SYOXNEATgT/XA6s5+T36WHjuRelgO7
-         8nSRDU+Y/DgjqPVGy36WawbzR5YZCQibGzEX6Z62le43fRpW3mT3NNAl5F3iTwt4J6up
-         myUSWmuxR6e/7Q+Fe5/BpD0DLFRYZhdTQgUYwvguucx/a6KsnsgOyfsezecCXSUFAiBE
-         ZqskCiof2w/uEl9SYJup9nNSm/pQv53eusXc1qyy6mk4KbktM/uMztenNKdt+U7uFsq4
-         Q2UA==
+        b=yMKAvlvoCqB6t0MplxjgX4IMnQhjuh5KXtDDI0zNEOY6tUzosc74L/qiKnZCuygKCC
+         YLgIL9Vm2/P2j6kRAPkJwspfKgArIakyCzq7k78pih3018RxtYkH2Xxsj4P8t4sokRSs
+         gJEAzzOd84bR4WJVbtr2t4UNA9ujtBJo+YJ0JdLT4lWkaE9WPuprJAJ6JYAbI3f0kvTJ
+         otksumxEyoPKlGQnqjkdgk6p+AJbC4TX90wRtfYp0iu+n57iC1uNGThCicgdt/BXTvmC
+         w2Em9/CIUmfsDpTgU5HN7GjHVsdOGpx+ySGzObPiXVfvpTTeEcgR/vy4gc2Uw1QQvQCI
+         jRaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=oAZ84qgDqZP6YlQX0c6kM+lrIjjHwvmjASiMHNI4PNc=;
-        b=rLghH6XHyUZnUolBP+fDzRI1FZa4zzf25Ig7ECL5Onr6AoxjKVtqlotNzzDwdsdnAB
-         9THp+7nbqlC+4tC7C6tcWM4uNc7PbThnjfQ8xf64EsL2CLTp4mPNmdjA+3KyO0OY1cts
-         g2CrF1GDPtG/IJP32iIERtju9jl+4/Y+bwbmtHz6ugxl394GRQGh2pC5L/2Sq1hTlhpX
-         T5KOiB1eibNSenV6+ybpMfTNM+OR03PJDOUT087th0y/sF175Gtsp9ToFYXyXUgFutqX
-         9fJHc+Y8xx8GCDrxNCVmhHwZTPj7P9hHiZi9L3tEjY4AJpF7J0lk8ufgpFOcpHy12sKx
-         SIAg==
+        bh=FJHOYKeUnx+U9LgSq3AUPAy1LW45QKUMfaRkJ/GP/2Q=;
+        b=Cir2n2PZ7wXXUXEzoEfYw4iiUluAwnINgk89NtIP2xYo+iK6uQtJlE/MbCHUnqGfhY
+         Do1FqsxUsNW0iILrIzkFeUnUDNqm9fI64Zak/4Z7TcXG4hdqydmeeNcd7pF6WuzeEp2e
+         iK6H4t3bsCorzjQfhFtzSZFCUbdCVoIIrlqygvfFFWfz0FoMbwYD5Bfte+8Vv2XZyN9t
+         Ghu0jcUuWzelZHXqvjDUeW9nqmKFuIyIA4WGQ+sFyIlhDPQ+kqWKr0yfpHJYc3w3sC73
+         P4CaefMs+MkuZFXKmszyAFPWBYuJWNnDmai82azMGAXDelT9HDhcbLf7ZwW0D9zkMKc0
+         K4zg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Mv3P+MWX;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=bAnkSnQF;
        spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g7sor49243569jae.14.2018.12.30.23.06.19
+        by mx.google.com with SMTPS id y78sor28227153itb.5.2018.12.30.23.15.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 30 Dec 2018 23:06:19 -0800 (PST)
+        Sun, 30 Dec 2018 23:15:12 -0800 (PST)
 Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Mv3P+MWX;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=bAnkSnQF;
        spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=oAZ84qgDqZP6YlQX0c6kM+lrIjjHwvmjASiMHNI4PNc=;
-        b=Mv3P+MWXxy6us6a90uGTB3+iMacBzYgb0W8sY5SvVa5SaNpe4Ga1JgXWGQCVwKgkpF
-         zADspdoOuKj+7Rg5WbqulottMWDOpqpilnSqy9SKTmMNJhRO3gaheJiV2AO8GfKiz3Yj
-         sWw9RcleBT4maOMCj0lR3mbNmhW+2D+kJ10kfNciqp0FMdALBGyVqRMT8bnzpbXfwisB
-         biwJWECRXh7zBBv0nDDLnJa1b0gh13Cub9zntRPN7T9zzPFMakyxHJScKPmRQOlxX8zP
-         KJgRWM31xrV1mxpt/ravEfYKprshmDNeXlyasbBokyTCrZoj/CGKCNIybJKrcNZTFHtW
-         IV+A==
-X-Google-Smtp-Source: ALg8bN5/4zawAp3+Sl8Zkhrt5GnFV98sMMjAYQ5lSpW6UB4S0QlJEVPg1zkNflwr/xS3Pybg65JN6tYfNlS/ZtvxkA0=
-X-Received: by 2002:a02:97a2:: with SMTP id s31mr11012595jaj.82.1546239978668;
- Sun, 30 Dec 2018 23:06:18 -0800 (PST)
+        bh=FJHOYKeUnx+U9LgSq3AUPAy1LW45QKUMfaRkJ/GP/2Q=;
+        b=bAnkSnQFNuhUDNjPIvMb7WzQxSRYTXSyO3SR6CTd1lWYv6GEWk90szmWIT4PlHl8uS
+         5B4qCLJZv403fTdcrBvI2FkyzVgSVjZvHysxwrqvgJDyPJ9HTItqoTae6bj+37JoG0zj
+         LPAyamQib+fyXJV5YfpKHw9omALZFFPSzhudcSnz4ZDrW9AhByNqQgJkXs7HZiNQBBtS
+         lXQdKiwoAXxRP6Cvo2jM3dRoo1cQQuEqFxI3OmFBjSekq+4IF4aVrQ9fnHs15mvpPucc
+         U9RUGYG54w1mNLRa1EZNPzpvwgtpwWSxv2/GoDhaiEKLXXjoUMeG+eQKygfLLrhn8zBH
+         WfSA==
+X-Google-Smtp-Source: ALg8bN4D6vHlss8JzrEO0HfchycQO8OOGTOR/N7qL3YNotNKWynTu7DrQqxTbfex5pxKj5m20LEDAdiTw517Ll7j6UA=
+X-Received: by 2002:a24:f14d:: with SMTP id q13mr21630836iti.166.1546240511897;
+ Sun, 30 Dec 2018 23:15:11 -0800 (PST)
 MIME-Version: 1.0
-References: <0000000000004fa95e057ca3b6c3@google.com>
-In-Reply-To: <0000000000004fa95e057ca3b6c3@google.com>
+References: <0000000000006069e7057e4c2833@google.com>
+In-Reply-To: <0000000000006069e7057e4c2833@google.com>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 31 Dec 2018 08:06:07 +0100
+Date: Mon, 31 Dec 2018 08:15:01 +0100
 Message-ID:
- <CACT4Y+ZjZqHUdTHGiphxUjZrmEOQgqJAw0dFxYivFQJkH06hyA@mail.gmail.com>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference in depot_save_stack
-To: syzbot <syzbot+ed56d5a9b979d862fb67@syzkaller.appspotmail.com>
-Cc: "'Dmitry Vyukov' via syzkaller-upstream-moderation" <syzkaller-upstream-moderation@googlegroups.com>, 
+ <CACT4Y+bxyQXWB51QT32+B7XAmsUEOtqebw34SH_65NqA9GA42g@mail.gmail.com>
+Subject: Re: general protection fault in rb_next (2)
+To: syzbot <syzbot+563bb80fa8765090bf16@syzkaller.appspotmail.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Tejun Heo <tj@kernel.org>, 
 	Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -115,115 +116,93 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181231070607.oMGqKvYvMjY9EPQXOHnMJ9fVB-nMaKV8erWezt4E-hk@z>
+Message-ID: <20181231071501.uDvTElzI76LpObOCsb1E7w5yfs4IB-_d6BFq49dZfoU@z>
 
-On Mon, Dec 10, 2018 at 5:51 AM syzbot
-<syzbot+ed56d5a9b979d862fb67@syzkaller.appspotmail.com> wrote:
+On Mon, Dec 31, 2018 at 8:14 AM syzbot
+<syzbot+563bb80fa8765090bf16@syzkaller.appspotmail.com> wrote:
 >
 > Hello,
 >
 > syzbot found the following crash on:
 >
-> HEAD commit:    b72f711a4efa Merge branch 'spectre' of git://git.armlinux...
+> HEAD commit:    edeca3a769ad Merge tag 'sound-4.20-rc4' of git://git.kerne..
 > git tree:       upstream
-> console output: https://syzkaller.appspot.com/x/log.txt?x=11eef243400000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=b9cc5a440391cbfd
-> dashboard link: https://syzkaller.appspot.com/bug?extid=ed56d5a9b979d862fb67
+> console output: https://syzkaller.appspot.com/x/log.txt?x=13316f7b400000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=73e2bc0cb6463446
+> dashboard link: https://syzkaller.appspot.com/bug?extid=563bb80fa8765090bf16
 > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> CC:             [gregkh@linuxfoundation.org linux-kernel@vger.kernel.org
-> tj@kernel.org]
 >
 > Unfortunately, I don't have any reproducer for this crash yet.
 >
 > IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+ed56d5a9b979d862fb67@syzkaller.appspotmail.com
+> Reported-by: syzbot+563bb80fa8765090bf16@syzkaller.appspotmail.com
 
-Since this involves OOMs and looks like memory corruption:
+Since this involves OOMs and looks like a one-off induced memory corruption:
 
 #syz dup: kernel panic: corrupted stack end in wb_workfn
 
-> IPVS: ftp: loaded support on port[0] = 21
-> BUG: unable to handle kernel NULL pointer dereference at 0000000000000009
-> PGD 1b3eee067 P4D 1b3eee067 PUD 1b3eef067 PMD 0
-> Oops: 0000 [#1] PREEMPT SMP KASAN
-> CPU: 0 PID: 20236 Comm: syz-executor1 Not tainted 4.20.0-rc5+ #366
+> bond0 (unregistering): Releasing backup interface bond_slave_0
+> bond0 (unregistering): Released all slaves
+> kasan: CONFIG_KASAN_INLINE enabled
+> kasan: GPF could be caused by NULL-ptr deref or user memory access
+> general protection fault: 0000 [#1] PREEMPT SMP KASAN
+> CPU: 1 PID: 160 Comm: kworker/u4:3 Not tainted 4.20.0-rc3+ #125
 > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
 > Google 01/01/2011
-> RIP: 0010:find_stack lib/stackdepot.c:188 [inline]
-> RIP: 0010:depot_save_stack+0x121/0x470 lib/stackdepot.c:238
-> Code: 0f 00 4e 8b 24 f5 20 0a 2e 8b 4d 85 e4 0f 84 d4 00 00 00 44 8d 47 ff
-> 49 c1 e0 03 eb 0d 4d 8b 24 24 4d 85 e4 0f 84 bd 00 00 00 <41> 39 5c 24 08
-> 75 ec 41 3b 7c 24 0c 75 e5 48 8b 01 49 39 44 24 18
-> RSP: 0018:ffff888180156d08 EFLAGS: 00010202
-> RAX: 0000000047977639 RBX: 00000000fef8ec23 RCX: ffff888180156d68
-> RDX: 000000001e65b1bd RSI: 00000000006080c0 RDI: 0000000000000018
-> RBP: ffff888180156d40 R08: 00000000000000b8 R09: 00000000dc2cc839
-> R10: 00000000fafaa4f6 R11: ffff8881dae2dafb R12: 0000000000000001
-> R13: ffff888180156d50 R14: 000000000008ec23 R15: ffff8881bba6641f
-> FS:  0000000000d33940(0000) GS:ffff8881dae00000(0000) knlGS:0000000000000000
+> Workqueue: netns cleanup_net
+> RIP: 0010:rb_next+0xd7/0x140 lib/rbtree.c:541
+> Code: 49 89 dc 4c 89 eb 48 83 e3 fc 48 89 d8 75 c8 48 83 c4 08 5b 41 5c 41
+> 5d 41 5e 5d c3 48 89 d0 48 8d 78 10 48 89 fa 48 c1 ea 03 <80> 3c 1a 00 75
+> 1a 48 8b 50 10 48 85 d2 75 e3 48 83 c4 08 5b 41 5c
+> RSP: 0018:ffff8881d930ebc8 EFLAGS: 00010203
+> RAX: 5741e5894855dfff RBX: dffffc0000000000 RCX: ffffffff81f8d010
+> RDX: 0ae83cb1290abc01 RSI: ffffffff81f8cee0 RDI: 5741e5894855e00f
+> RBP: ffff8881d930ebf0 R08: ffff8881d92fc480 R09: fffffbfff0fab697
+> R10: fffffbfff0fab697 R11: ffffffff87d5b4bf R12: ffffffff87d5b4f0
+> R13: fc0000000000ba48 R14: dffffc0000000000 R15: 0000000000000004
+> FS:  0000000000000000(0000) GS:ffff8881daf00000(0000) knlGS:0000000000000000
 > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000000000009 CR3: 00000001b3ecd000 CR4: 00000000001406f0
+> CR2: 0000000000402e9d CR3: 000000017cbad000 CR4: 00000000001406e0
 > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
 > Call Trace:
->   save_stack+0xa9/0xd0 mm/kasan/kasan.c:454
->   set_track mm/kasan/kasan.c:460 [inline]
->   kasan_kmalloc+0xc7/0xe0 mm/kasan/kasan.c:553
->   kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:490
->   slab_post_alloc_hook mm/slab.h:444 [inline]
->   slab_alloc mm/slab.c:3392 [inline]
->   kmem_cache_alloc+0x11b/0x730 mm/slab.c:3552
->   kmem_cache_zalloc include/linux/slab.h:731 [inline]
->   __kernfs_new_node+0x127/0x8d0 fs/kernfs/dir.c:634
->   kernfs_new_node+0x95/0x120 fs/kernfs/dir.c:695
->   __kernfs_create_file+0x5a/0x340 fs/kernfs/file.c:992
->   sysfs_add_file_mode_ns+0x222/0x530 fs/sysfs/file.c:306
->   sysfs_create_file_ns+0x1a3/0x270 fs/sysfs/file.c:331
->   sysfs_create_file include/linux/sysfs.h:513 [inline]
->   device_create_file+0xf4/0x1e0 drivers/base/core.c:1381
->   device_add+0x48c/0x18e0 drivers/base/core.c:1889
->   netdev_register_kobject+0x187/0x3f0 net/core/net-sysfs.c:1751
->   register_netdevice+0x99a/0x11d0 net/core/dev.c:8536
->   register_netdev+0x30/0x50 net/core/dev.c:8651
->   loopback_net_init+0x78/0x160 drivers/net/loopback.c:212
->   ops_init+0x101/0x560 net/core/net_namespace.c:129
->   setup_net+0x362/0x8d0 net/core/net_namespace.c:314
->   copy_net_ns+0x2b1/0x4a0 net/core/net_namespace.c:437
->   create_new_namespaces+0x6ad/0x900 kernel/nsproxy.c:107
->   unshare_nsproxy_namespaces+0xc3/0x1f0 kernel/nsproxy.c:206
->   ksys_unshare+0x79c/0x10b0 kernel/fork.c:2539
->   __do_sys_unshare kernel/fork.c:2607 [inline]
->   __se_sys_unshare kernel/fork.c:2605 [inline]
->   __x64_sys_unshare+0x31/0x40 kernel/fork.c:2605
->   do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->   entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x45a057
-> Code: 00 00 00 b8 63 00 00 00 0f 05 48 3d 01 f0 ff ff 0f 83 fd 88 fb ff c3
-> 66 2e 0f 1f 84 00 00 00 00 00 66 90 b8 10 01 00 00 0f 05 <48> 3d 01 f0 ff
-> ff 0f 83 dd 88 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-> RSP: 002b:0000000000a3ff78 EFLAGS: 00000202 ORIG_RAX: 0000000000000110
-> RAX: ffffffffffffffda RBX: 00007f2516b77000 RCX: 000000000045a057
-> RDX: 0000000000000006 RSI: 0000000000a3fa90 RDI: 0000000040000000
-> RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000006
-> R10: 0000000000000064 R11: 0000000000000202 R12: 0000000000000010
-> R13: 0000000000412e50 R14: 0000000000000000 R15: 0000000000000000
+>   kernfs_next_descendant_post+0x89/0x2e0 fs/kernfs/dir.c:1235
+>   __kernfs_remove+0x178/0xaf0 fs/kernfs/dir.c:1295
+>   kernfs_remove+0x23/0x40 fs/kernfs/dir.c:1353
+>   sysfs_remove_dir+0xd6/0x110 fs/sysfs/dir.c:101
+>   kobject_del.part.4+0x3a/0xf0 lib/kobject.c:592
+>   kobject_del lib/kobject.c:588 [inline]
+>   kobject_cleanup lib/kobject.c:656 [inline]
+>   kobject_release lib/kobject.c:691 [inline]
+>   kref_put include/linux/kref.h:70 [inline]
+>   kobject_put.cold.9+0x1f0/0x2e4 lib/kobject.c:708
+>   netdev_queue_update_kobjects+0x312/0x4f0 net/core/net-sysfs.c:1513
+>   remove_queue_kobjects net/core/net-sysfs.c:1563 [inline]
+>   netdev_unregister_kobject+0x1ff/0x2e0 net/core/net-sysfs.c:1713
+>   rollback_registered_many+0x8d4/0x1250 net/core/dev.c:8030
+>   unregister_netdevice_many+0xfa/0x4c0 net/core/dev.c:9111
+>   default_device_exit_batch+0x43a/0x540 net/core/dev.c:9580
+>   ops_exit_list.isra.5+0x105/0x160 net/core/net_namespace.c:156
+>   cleanup_net+0x555/0xb10 net/core/net_namespace.c:551
+>   process_one_work+0xc90/0x1c40 kernel/workqueue.c:2153
+>   worker_thread+0x17f/0x1390 kernel/workqueue.c:2296
+>   kthread+0x35a/0x440 kernel/kthread.c:246
+>   ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:352
 > Modules linked in:
-> CR2: 0000000000000009
-> ---[ end trace 8ed3c6a41fc89e09 ]---
-> RIP: 0010:find_stack lib/stackdepot.c:188 [inline]
-> RIP: 0010:depot_save_stack+0x121/0x470 lib/stackdepot.c:238
-> Code: 0f 00 4e 8b 24 f5 20 0a 2e 8b 4d 85 e4 0f 84 d4 00 00 00 44 8d 47 ff
-> 49 c1 e0 03 eb 0d 4d 8b 24 24 4d 85 e4 0f 84 bd 00 00 00 <41> 39 5c 24 08
-> 75 ec 41 3b 7c 24 0c 75 e5 48 8b 01 49 39 44 24 18
-> RSP: 0018:ffff888180156d08 EFLAGS: 00010202
-> RAX: 0000000047977639 RBX: 00000000fef8ec23 RCX: ffff888180156d68
-> RDX: 000000001e65b1bd RSI: 00000000006080c0 RDI: 0000000000000018
-> RBP: ffff888180156d40 R08: 00000000000000b8 R09: 00000000dc2cc839
-> R10: 00000000fafaa4f6 R11: ffff8881dae2dafb R12: 0000000000000001
-> R13: ffff888180156d50 R14: 000000000008ec23 R15: ffff8881bba6641f
-> FS:  0000000000d33940(0000) GS:ffff8881dae00000(0000) knlGS:0000000000000000
+> ---[ end trace 0076ea0e5672f55d ]---
+> RIP: 0010:rb_next+0xd7/0x140 lib/rbtree.c:541
+> Code: 49 89 dc 4c 89 eb 48 83 e3 fc 48 89 d8 75 c8 48 83 c4 08 5b 41 5c 41
+> 5d 41 5e 5d c3 48 89 d0 48 8d 78 10 48 89 fa 48 c1 ea 03 <80> 3c 1a 00 75
+> 1a 48 8b 50 10 48 85 d2 75 e3 48 83 c4 08 5b 41 5c
+> RSP: 0018:ffff8881d930ebc8 EFLAGS: 00010203
+> RAX: 5741e5894855dfff RBX: dffffc0000000000 RCX: ffffffff81f8d010
+> RDX: 0ae83cb1290abc01 RSI: ffffffff81f8cee0 RDI: 5741e5894855e00f
+> RBP: ffff8881d930ebf0 R08: ffff8881d92fc480 R09: fffffbfff0fab697
+> R10: fffffbfff0fab697 R11: ffffffff87d5b4bf R12: ffffffff87d5b4f0
+> R13: fc0000000000ba48 R14: dffffc0000000000 R15: 0000000000000004
+> FS:  0000000000000000(0000) GS:ffff8881dae00000(0000) knlGS:0000000000000000
 > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000000000009 CR3: 00000001b3ecd000 CR4: 00000000001406f0
+> CR2: ffffffffff600400 CR3: 00000001d2e72000 CR4: 00000000001406f0
 > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
 > DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
 >
@@ -238,8 +217,8 @@ Since this involves OOMs and looks like memory corruption:
 > syzbot.
 >
 > --
-> You received this message because you are subscribed to the Google Groups "syzkaller-upstream-moderation" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-upstream-moderation+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-upstream-moderation/0000000000004fa95e057ca3b6c3%40google.com.
+> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/0000000000006069e7057e4c2833%40google.com.
 > For more options, visit https://groups.google.com/d/optout.
 
