@@ -1,82 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 85E6F8E0001
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2018 13:41:27 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 74so5701900pfk.12
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2018 10:41:27 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v13si4444524pgn.355.2018.12.21.10.41.25
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 115158E005B
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:54 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id f22so32350715qkm.11
+        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 01:29:54 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id e97si835973qtb.180.2018.12.31.01.29.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 21 Dec 2018 10:41:26 -0800 (PST)
-Date: Fri, 21 Dec 2018 10:41:20 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 03/12] __wr_after_init: generic functionality
-Message-ID: <20181221184120.GG10600@bombadil.infradead.org>
-References: <20181221181423.20455-1-igor.stoppa@huawei.com>
- <20181221181423.20455-4-igor.stoppa@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181221181423.20455-4-igor.stoppa@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Dec 2018 01:29:53 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBV9ShPV012482
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:52 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2pqftghfdr-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:52 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 31 Dec 2018 09:29:50 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v4 2/6] microblaze: prefer memblock API returning virtual address
+Date: Mon, 31 Dec 2018 11:29:22 +0200
+In-Reply-To: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
+References: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1546248566-14910-3-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@gmail.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mimi Zohar <zohar@linux.vnet.ibm.com>, Thiago Jung Bauermann <bauerman@linux.ibm.com>, igor.stoppa@huawei.com, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jonas Bonn <jonas@southpole.se>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 
-On Fri, Dec 21, 2018 at 08:14:14PM +0200, Igor Stoppa wrote:
-> +static inline int memtst(void *p, int c, __kernel_size_t len)
+Rather than use the memblock_alloc_base that returns a physical address and
+then convert this address to the virtual one, use appropriate memblock
+function that returns a virtual address.
 
-I don't understand why you're verifying that writes actually happen
-in production code.  Sure, write lib/test_wrmem.c or something, but
-verifying every single rare write seems like a mistake to me.
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+Tested-by: Michal Simek <michal.simek@xilinx.com>
+---
+ arch/microblaze/mm/init.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-> +#ifndef CONFIG_PRMEM
-
-So is this PRMEM or wr_mem?  It's not obvious that CONFIG_PRMEM controls
-wrmem.
-
-> +#define wr_assign(var, val)	((var) = (val))
-
-The hamming distance between 'var' and 'val' is too small.  The convention
-in the line immediately below (p and v) is much more readable.
-
-> +#define wr_rcu_assign_pointer(p, v)	rcu_assign_pointer(p, v)
-> +#define wr_assign(var, val) ({			\
-> +	typeof(var) tmp = (typeof(var))val;	\
-> +						\
-> +	wr_memcpy(&var, &tmp, sizeof(var));	\
-> +	var;					\
-> +})
-
-Doesn't wr_memcpy return 'var' anyway?
-
-> +/**
-> + * wr_memcpy() - copyes size bytes from q to p
-
-typo
-
-> + * @p: beginning of the memory to write to
-> + * @q: beginning of the memory to read from
-> + * @size: amount of bytes to copy
-> + *
-> + * Returns pointer to the destination
-
-> + * The architecture code must provide:
-> + *   void __wr_enable(wr_state_t *state)
-> + *   void *__wr_addr(void *addr)
-> + *   void *__wr_memcpy(void *p, const void *q, __kernel_size_t size)
-> + *   void __wr_disable(wr_state_t *state)
-
-This section shouldn't be in the user documentation of wr_memcpy().
-
-> + */
-> +void *wr_memcpy(void *p, const void *q, __kernel_size_t size)
-> +{
-> +	wr_state_t wr_state;
-> +	void *wr_poking_addr = __wr_addr(p);
-> +
-> +	if (WARN_ONCE(!wr_ready, "No writable mapping available") ||
-
-Surely not.  If somebody's called wr_memcpy() before wr_ready is set,
-that means we can just call memcpy().
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index b17fd8a..44f4b89 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -363,8 +363,9 @@ void __init *early_get_page(void)
+ 	 * Mem start + kernel_tlb -> here is limit
+ 	 * because of mem mapping from head.S
+ 	 */
+-	return __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
+-				memory_start + kernel_tlb));
++	return memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
++				MEMBLOCK_LOW_LIMIT, memory_start + kernel_tlb,
++				NUMA_NO_NODE);
+ }
+ 
+ #endif /* CONFIG_MMU */
+-- 
+2.7.4
