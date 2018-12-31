@@ -1,52 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EAD88E0004
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2018 18:12:30 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id s71so4575091pfi.22
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2018 15:12:30 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y6si3991059pgb.516.2018.12.07.15.12.28
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DE508E005B
+	for <linux-mm@kvack.org>; Sun, 30 Dec 2018 22:03:11 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id b16so33205423qtc.22
+        for <linux-mm@kvack.org>; Sun, 30 Dec 2018 19:03:11 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n30sor35877443qvd.24.2018.12.30.19.03.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Dec 2018 15:12:29 -0800 (PST)
-Date: Fri, 7 Dec 2018 15:12:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V4 0/3] * mm/kvm/vfio/ppc64: Migrate compound pages out
- of CMA region
-Message-Id: <20181207151226.cb00ace433738cf550e66885@linux-foundation.org>
-In-Reply-To: <20181121092259.16482-1-aneesh.kumar@linux.ibm.com>
-References: <20181121092259.16482-1-aneesh.kumar@linux.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Sun, 30 Dec 2018 19:03:10 -0800 (PST)
+From: Qian Cai <cai@lca.pw>
+Subject: [PATCH] usercopy: no check page span for stack objects
+Date: Sun, 30 Dec 2018 22:02:54 -0500
+Message-Id: <20181231030254.99441-1-cai@lca.pw>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, mpe@ellerman.id.au, paulus@samba.org, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: akpm@linux-foundation.org
+Cc: keescook@chromium.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qian Cai <cai@lca.pw>
 
-On Wed, 21 Nov 2018 14:52:56 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
+It is easy to trigger this with CONFIG_HARDENED_USERCOPY_PAGESPAN=y,
 
-> Subject: [PATCH V4 0/3] * mm/kvm/vfio/ppc64: Migrate compound pages out of CMA region
+usercopy: Kernel memory overwrite attempt detected to spans multiple
+pages (offset 0, size 23)!
+kernel BUG at mm/usercopy.c:102!
 
-Asterisk in title is strange?
+For example,
 
-> ppc64 use CMA area for the allocation of guest page table (hash page table). We won't
-> be able to start guest if we fail to allocate hash page table. We have observed
-> hash table allocation failure because we failed to migrate pages out of CMA region
-> because they were pinned. This happen when we are using VFIO. VFIO on ppc64 pins
-> the entire guest RAM. If the guest RAM pages get allocated out of CMA region, we
-> won't be able to migrate those pages. The pages are also pinned for the lifetime of the
-> guest.
-> 
-> Currently we support migration of non-compound pages. With THP and with the addition of
->  hugetlb migration we can end up allocating compound pages from CMA region. This
-> patch series add support for migrating compound pages. The first path adds the helper
-> get_user_pages_cma_migrate() which pin the page making sure we migrate them out of
-> CMA region before incrementing the reference count. 
+print_worker_info
+char name[WQ_NAME_LEN] = { };
+char desc[WORKER_DESC_LEN] = { };
+  probe_kernel_read(name, wq->name, sizeof(name) - 1);
+  probe_kernel_read(desc, worker->desc, sizeof(desc) - 1);
+    __copy_from_user_inatomic
+      check_object_size
+        check_heap_object
+          check_page_span
 
-Very little review activity.  Perhaps Andrey and/or Michal can find the
-time..
+This is because on-stack variables could cross PAGE_SIZE boundary, and
+failed this check,
 
-> mm/migrate.c            | 108 ++++++++++++++++++++++++++++++++++++++++
+if (likely(((unsigned long)ptr & (unsigned long)PAGE_MASK) ==
+	   ((unsigned long)end & (unsigned long)PAGE_MASK)))
 
-can we make this code disappear when CONFIG_CMA=n?
+ptr = FFFF889007D7EFF8
+end = FFFF889007D7F00E
+
+Hence, fix it by checking if it is a stack object first.
+
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/usercopy.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index 852eb4e53f06..a1f58beaa246 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -262,9 +262,6 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+ 	/* Check for invalid addresses. */
+ 	check_bogus_address((const unsigned long)ptr, n, to_user);
+ 
+-	/* Check for bad heap object. */
+-	check_heap_object(ptr, n, to_user);
+-
+ 	/* Check for bad stack object. */
+ 	switch (check_stack_object(ptr, n)) {
+ 	case NOT_STACK:
+@@ -282,6 +279,9 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+ 		usercopy_abort("process stack", NULL, to_user, 0, n);
+ 	}
+ 
++	/* Check for bad heap object. */
++	check_heap_object(ptr, n, to_user);
++
+ 	/* Check for object in kernel to avoid text exposure. */
+ 	check_kernel_text_object((const unsigned long)ptr, n, to_user);
+ }
+-- 
+2.17.2 (Apple Git-113)
