@@ -1,198 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9523E8E0003
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2018 04:51:12 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id x26so1071471pgc.5
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2018 01:51:12 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b5sor34345650pfj.35.2018.12.20.01.51.10
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C9508E005B
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:58 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id r16so24060534pgr.15
+        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 01:29:58 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c30si34817814pgn.52.2018.12.31.01.29.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 20 Dec 2018 01:51:10 -0800 (PST)
-From: Pingfan Liu <kernelfans@gmail.com>
-Subject: [PATCHv2 1/3] mm/numa: change the topo of build_zonelist_xx()
-Date: Thu, 20 Dec 2018 17:50:37 +0800
-Message-Id: <1545299439-31370-2-git-send-email-kernelfans@gmail.com>
-In-Reply-To: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
-References: <1545299439-31370-1-git-send-email-kernelfans@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Dec 2018 01:29:57 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBV9SiF0135364
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:57 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pqd5cxsk8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:56 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 31 Dec 2018 09:29:54 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v4 3/6] sh: prefer memblock APIs returning virtual address
+Date: Mon, 31 Dec 2018 11:29:23 +0200
+In-Reply-To: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
+References: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1546248566-14910-4-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jonas Bonn <jonas@southpole.se>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 
-The current build_zonelist_xx func relies on pgdat instance to build
-zonelist, if a numa node is offline, there will no pgdat instance for it.
-But in some case, there is still requirement for zonelist of offline node,
-especially with nr_cpus option.
-This patch change these funcs topo to ease the building of zonelist for
-offline nodes.
+Rather than use the memblock_alloc_base that returns a physical address and
+then convert this address to the virtual one, use appropriate memblock
+function that returns a virtual address.
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: x86@kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Bjorn Helgaas <bhelgaas@google.com>
-Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
+There is a small functional change in the allocation of then NODE_DATA().
+Instead of panicing if the local allocation failed, the non-local
+allocation attempt will be made.
+
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- mm/page_alloc.c | 44 +++++++++++++++++++++-----------------------
- 1 file changed, 21 insertions(+), 23 deletions(-)
+ arch/sh/mm/init.c | 18 +++++-------------
+ arch/sh/mm/numa.c |  5 ++---
+ 2 files changed, 7 insertions(+), 16 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc4..17dbf6e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5049,7 +5049,7 @@ static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
-  *
-  * Add all populated zones of a node to the zonelist.
-  */
--static int build_zonerefs_node(pg_data_t *pgdat, struct zoneref *zonerefs)
-+static int build_zonerefs_node(int nid, struct zoneref *zonerefs)
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index a8e5c0e..a0fa4de 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -192,24 +192,16 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
+ void __init allocate_pgdat(unsigned int nid)
  {
- 	struct zone *zone;
- 	enum zone_type zone_type = MAX_NR_ZONES;
-@@ -5057,7 +5057,7 @@ static int build_zonerefs_node(pg_data_t *pgdat, struct zoneref *zonerefs)
+ 	unsigned long start_pfn, end_pfn;
+-#ifdef CONFIG_NEED_MULTIPLE_NODES
+-	unsigned long phys;
+-#endif
  
- 	do {
- 		zone_type--;
--		zone = pgdat->node_zones + zone_type;
-+		zone = NODE_DATA(nid)->node_zones + zone_type;
- 		if (managed_zone(zone)) {
- 			zoneref_set_zone(zone, &zonerefs[nr_zones++]);
- 			check_highest_zone(zone_type);
-@@ -5186,20 +5186,20 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
-  * This results in maximum locality--normal zone overflows into local
-  * DMA zone, if any--but risks exhausting DMA zone.
-  */
--static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order,
--		unsigned nr_nodes)
-+static void build_zonelists_in_node_order(struct zonelist *node_zonelists,
-+	int *node_order, unsigned int nr_nodes)
- {
- 	struct zoneref *zonerefs;
- 	int i;
+ 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
  
--	zonerefs = pgdat->node_zonelists[ZONELIST_FALLBACK]._zonerefs;
-+	zonerefs = node_zonelists[ZONELIST_FALLBACK]._zonerefs;
- 
- 	for (i = 0; i < nr_nodes; i++) {
- 		int nr_zones;
- 
- 		pg_data_t *node = NODE_DATA(node_order[i]);
- 
--		nr_zones = build_zonerefs_node(node, zonerefs);
-+		nr_zones = build_zonerefs_node(node->node_id, zonerefs);
- 		zonerefs += nr_zones;
- 	}
- 	zonerefs->zone = NULL;
-@@ -5209,13 +5209,14 @@ static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order,
- /*
-  * Build gfp_thisnode zonelists
-  */
--static void build_thisnode_zonelists(pg_data_t *pgdat)
-+static void build_thisnode_zonelists(struct zonelist *node_zonelists,
-+	int nid)
- {
- 	struct zoneref *zonerefs;
- 	int nr_zones;
- 
--	zonerefs = pgdat->node_zonelists[ZONELIST_NOFALLBACK]._zonerefs;
--	nr_zones = build_zonerefs_node(pgdat, zonerefs);
-+	zonerefs = node_zonelists[ZONELIST_NOFALLBACK]._zonerefs;
-+	nr_zones = build_zonerefs_node(nid, zonerefs);
- 	zonerefs += nr_zones;
- 	zonerefs->zone = NULL;
- 	zonerefs->zone_idx = 0;
-@@ -5228,15 +5229,14 @@ static void build_thisnode_zonelists(pg_data_t *pgdat)
-  * may still exist in local DMA zone.
-  */
- 
--static void build_zonelists(pg_data_t *pgdat)
-+static void build_zonelists(struct zonelist *node_zonelists, int local_node)
- {
- 	static int node_order[MAX_NUMNODES];
- 	int node, load, nr_nodes = 0;
- 	nodemask_t used_mask;
--	int local_node, prev_node;
-+	int prev_node;
- 
- 	/* NUMA-aware ordering of nodes */
--	local_node = pgdat->node_id;
- 	load = nr_online_nodes;
- 	prev_node = local_node;
- 	nodes_clear(used_mask);
-@@ -5257,8 +5257,8 @@ static void build_zonelists(pg_data_t *pgdat)
- 		load--;
- 	}
- 
--	build_zonelists_in_node_order(pgdat, node_order, nr_nodes);
--	build_thisnode_zonelists(pgdat);
-+	build_zonelists_in_node_order(node_zonelists, node_order, nr_nodes);
-+	build_thisnode_zonelists(node_zonelists, local_node);
- }
- 
- #ifdef CONFIG_HAVE_MEMORYLESS_NODES
-@@ -5283,16 +5283,14 @@ static void setup_min_unmapped_ratio(void);
- static void setup_min_slab_ratio(void);
- #else	/* CONFIG_NUMA */
- 
--static void build_zonelists(pg_data_t *pgdat)
-+static void build_zonelists(struct zonelist *node_zonelists, int local_node)
- {
- 	int node, local_node;
- 	struct zoneref *zonerefs;
- 	int nr_zones;
- 
--	local_node = pgdat->node_id;
+ #ifdef CONFIG_NEED_MULTIPLE_NODES
+-	phys = __memblock_alloc_base(sizeof(struct pglist_data),
+-				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
+-	/* Retry with all of system memory */
+-	if (!phys)
+-		phys = __memblock_alloc_base(sizeof(struct pglist_data),
+-					SMP_CACHE_BYTES, memblock_end_of_DRAM());
+-	if (!phys)
++	NODE_DATA(nid) = memblock_alloc_try_nid_nopanic(
++				sizeof(struct pglist_data),
++				SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
++				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
++	if (!NODE_DATA(nid))
+ 		panic("Can't allocate pgdat for node %d\n", nid);
 -
--	zonerefs = pgdat->node_zonelists[ZONELIST_FALLBACK]._zonerefs;
--	nr_zones = build_zonerefs_node(pgdat, zonerefs);
-+	zonerefs = node_zonelists[ZONELIST_FALLBACK]._zonerefs;
-+	nr_zones = build_zonerefs_node(local_node, zonerefs);
- 	zonerefs += nr_zones;
+-	NODE_DATA(nid) = __va(phys);
+-	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+ #endif
  
- 	/*
-@@ -5306,13 +5304,13 @@ static void build_zonelists(pg_data_t *pgdat)
- 	for (node = local_node + 1; node < MAX_NUMNODES; node++) {
- 		if (!node_online(node))
- 			continue;
--		nr_zones = build_zonerefs_node(NODE_DATA(node), zonerefs);
-+		nr_zones = build_zonerefs_node(node, zonerefs);
- 		zonerefs += nr_zones;
- 	}
- 	for (node = 0; node < local_node; node++) {
- 		if (!node_online(node))
- 			continue;
--		nr_zones = build_zonerefs_node(NODE_DATA(node), zonerefs);
-+		nr_zones = build_zonerefs_node(node, zonerefs);
- 		zonerefs += nr_zones;
- 	}
+ 	NODE_DATA(nid)->node_start_pfn = start_pfn;
+diff --git a/arch/sh/mm/numa.c b/arch/sh/mm/numa.c
+index 830e8b3..c4bde61 100644
+--- a/arch/sh/mm/numa.c
++++ b/arch/sh/mm/numa.c
+@@ -41,9 +41,8 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
+ 	__add_active_range(nid, start_pfn, end_pfn);
  
-@@ -5359,12 +5357,12 @@ static void __build_all_zonelists(void *data)
- 	 * building zonelists is fine - no need to touch other nodes.
- 	 */
- 	if (self && !node_online(self->node_id)) {
--		build_zonelists(self);
-+		build_zonelists(self->node_zonelists, self->node_id);
- 	} else {
- 		for_each_online_node(nid) {
- 			pg_data_t *pgdat = NODE_DATA(nid);
+ 	/* Node-local pgdat */
+-	NODE_DATA(nid) = __va(memblock_alloc_base(sizeof(struct pglist_data),
+-					     SMP_CACHE_BYTES, end));
+-	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
++	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
++					     SMP_CACHE_BYTES, nid);
  
--			build_zonelists(pgdat);
-+			build_zonelists(pgdat->node_zonelists, pgdat->node_id);
- 		}
- 
- #ifdef CONFIG_HAVE_MEMORYLESS_NODES
+ 	NODE_DATA(nid)->node_start_pfn = start_pfn;
+ 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
 -- 
 2.7.4
