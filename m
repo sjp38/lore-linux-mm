@@ -1,117 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 019D78E0001
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 10:48:04 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id t133so13498015iof.20
-        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 07:48:04 -0800 (PST)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id d26sor2209115iob.26.2018.12.24.07.48.03
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B94A8E005B
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 01:38:09 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id d63so31315748iog.4
+        for <linux-mm@kvack.org>; Sun, 30 Dec 2018 22:38:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t17sor74888016jad.10.2018.12.30.22.38.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Dec 2018 07:48:03 -0800 (PST)
+        Sun, 30 Dec 2018 22:38:08 -0800 (PST)
 MIME-Version: 1.0
-Date: Mon, 24 Dec 2018 07:48:03 -0800
-Message-ID: <000000000000ae384d057dc685c1@google.com>
-Subject: general protection fault in transparent_hugepage_enabled
-From: syzbot <syzbot+a5fea9200aefd1cf4818@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+References: <0000000000009e1fa9057c5fd1ae@google.com>
+In-Reply-To: <0000000000009e1fa9057c5fd1ae@google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 31 Dec 2018 07:37:56 +0100
+Message-ID: <CACT4Y+anVmfsjt-jo7RvJ3YOgKgkTY=m-5k3Pv4UBcHdnYTpSw@mail.gmail.com>
+Subject: Re: KASAN: stack-out-of-bounds Read in __schedule (2)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, jglisse@redhat.com, khlebnikov@yandex-team.ru, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, rientjes@google.com, sfr@canb.auug.org.au, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, willy@infradead.org
+To: syzbot <syzbot+df28818b7ebe8e7d704e@syzkaller.appspotmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-Hello,
-
-syzbot found the following crash on:
-
-HEAD commit:    6a1d293238c1 Add linux-next specific files for 20181224
-git tree:       linux-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=149a2add400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=c190b602a5d2d731
-dashboard link: https://syzkaller.appspot.com/bug?extid=a5fea9200aefd1cf4818
-compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=1798bfb7400000
-C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17f4dc57400000
-
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+a5fea9200aefd1cf4818@syzkaller.appspotmail.com
-
-sshd (6016) used greatest stack depth: 15720 bytes left
-kasan: CONFIG_KASAN_INLINE enabled
-kasan: GPF could be caused by NULL-ptr deref or user memory access
-general protection fault: 0000 [#1] PREEMPT SMP KASAN
-CPU: 1 PID: 6032 Comm: syz-executor045 Not tainted 4.20.0-rc7-next-20181224  
-#187
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-RIP: 0010:transparent_hugepage_enabled+0x8c/0x5e0 mm/huge_memory.c:69
-Code: 80 3c 02 00 0f 85 ae 04 00 00 4c 8b a3 a0 00 00 00 48 b8 00 00 00 00  
-00 fc ff df 49 8d bc 24 b8 01 00 00 48 89 fa 48 c1 ea 03 <80> 3c 02 00 0f  
-85 91 04 00 00 49 8b bc 24 b8 01 00 00 e8 2d 70 e6
-RSP: 0018:ffff8881c2237138 EFLAGS: 00010202
-RAX: dffffc0000000000 RBX: ffff8881c2bdbc60 RCX: 0000000000000000
-RDX: 0000000000000037 RSI: ffffffff81c8fa1a RDI: 00000000000001b8
-RBP: ffff8881c2237160 R08: ffffed10383b25ed R09: ffffed10383b25ec
-R10: ffffed10383b25ec R11: ffff8881c1d92f63 R12: 0000000000000000
-R13: ffff8881c2bdbd00 R14: dffffc0000000000 R15: 0000000000000f5e
-FS:  0000000001a48880(0000) GS:ffff8881dad00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000020b58000 CR3: 00000001c2210000 CR4: 00000000001406e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
-  show_smap+0x167/0x580 fs/proc/task_mmu.c:805
-  traverse+0x344/0x7b0 fs/seq_file.c:113
-  seq_read+0xc76/0x1150 fs/seq_file.c:188
-  do_loop_readv_writev fs/read_write.c:700 [inline]
-  do_iter_read+0x4bc/0x670 fs/read_write.c:924
-  vfs_readv+0x175/0x1c0 fs/read_write.c:986
-  kernel_readv fs/splice.c:362 [inline]
-  default_file_splice_read+0x539/0xb20 fs/splice.c:417
-  do_splice_to+0x12e/0x190 fs/splice.c:880
-  splice_direct_to_actor+0x31c/0x9d0 fs/splice.c:957
-  do_splice_direct+0x2d4/0x420 fs/splice.c:1066
-  do_sendfile+0x62a/0xe50 fs/read_write.c:1439
-  __do_sys_sendfile64 fs/read_write.c:1494 [inline]
-  __se_sys_sendfile64 fs/read_write.c:1486 [inline]
-  __x64_sys_sendfile64+0x15d/0x250 fs/read_write.c:1486
-  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x440089
-Code: 18 89 d0 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 5b 14 fc ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007fff3d710a18 EFLAGS: 00000213 ORIG_RAX: 0000000000000028
-RAX: ffffffffffffffda RBX: 00007fff3d710a20 RCX: 0000000000440089
-RDX: 0000000020b58000 RSI: 0000000000000003 RDI: 0000000000000003
-RBP: 00000000006ca018 R08: 0000000000000010 R09: 65732f636f72702f
-R10: 000000000000ffff R11: 0000000000000213 R12: 0000000000401970
-R13: 0000000000401a00 R14: 0000000000000000 R15: 0000000000000000
-Modules linked in:
----[ end trace faf026efd8795e93 ]---
-RIP: 0010:transparent_hugepage_enabled+0x8c/0x5e0 mm/huge_memory.c:69
-Code: 80 3c 02 00 0f 85 ae 04 00 00 4c 8b a3 a0 00 00 00 48 b8 00 00 00 00  
-00 fc ff df 49 8d bc 24 b8 01 00 00 48 89 fa 48 c1 ea 03 <80> 3c 02 00 0f  
-85 91 04 00 00 49 8b bc 24 b8 01 00 00 e8 2d 70 e6
-RSP: 0018:ffff8881c2237138 EFLAGS: 00010202
-RAX: dffffc0000000000 RBX: ffff8881c2bdbc60 RCX: 0000000000000000
-RDX: 0000000000000037 RSI: ffffffff81c8fa1a RDI: 00000000000001b8
-RBP: ffff8881c2237160 R08: ffffed10383b25ed R09: ffffed10383b25ec
-R10: ffffed10383b25ec R11: ffff8881c1d92f63 R12: 0000000000000000
-R13: ffff8881c2bdbd00 R14: dffffc0000000000 R15: 0000000000000f5e
-FS:  0000000001a48880(0000) GS:ffff8881dad00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000020b58000 CR3: 00000001c2210000 CR4: 00000000001406e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+On Thu, Dec 6, 2018 at 8:51 PM syzbot
+<syzbot+df28818b7ebe8e7d704e@syzkaller.appspotmail.com> wrote:
+>
+> Hello,
+>
+> syzbot found the following crash on:
+>
+> HEAD commit:    d08970904582 Merge tag 'for-4.20-rc5-tag' of git://git.ker..
+> git tree:       upstream
+> console output: https://syzkaller.appspot.com/x/log.txt?x=106a5dd5400000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=b9cc5a440391cbfd
+> dashboard link: https://syzkaller.appspot.com/bug?extid=df28818b7ebe8e7d704e
+> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> userspace arch: i386
+> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12940cfb400000
+> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=16fb5e25400000
+>
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+df28818b7ebe8e7d704e@syzkaller.appspotmail.com
 
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+Since this involves OOMs:
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
-syzbot can test patches for this bug, for details see:
-https://goo.gl/tpsmEJ#testing-patches
+#syz dup: kernel panic: corrupted stack end in wb_workfn
+
+
+
+> kmem_cache               161KB        165KB
+> Out of memory: Kill process 7764 (syz-executor613) score 0 or sacrifice
+> child
+> Killed process 7770 (syz-executor613) total-vm:18964kB, anon-rss:2124kB,
+> file-rss:4kB, shmem-rss:0kB
+> oom_reaper: reaped process 7770 (syz-executor613), now anon-rss:0kB,
+> file-rss:0kB, shmem-rss:0kB
+> ==================================================================
+> BUG: KASAN: stack-out-of-bounds in schedule_debug kernel/sched/core.c:3284
+> [inline]
+> BUG: KASAN: stack-out-of-bounds in __schedule+0x1c1b/0x21d0
+> kernel/sched/core.c:3394
+> Read of size 8 at addr ffff8881ce710000 by task kworker/u4:4/2620
+>
+> CPU: 1 PID: 2620 Comm: kworker/u4:4 Not tainted 4.20.0-rc5+ #266
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Workqueue: writeback wb_workfn (flush-8:0)
+> Call Trace:
+>
+> The buggy address belongs to the page:
+> page:ffffea000739c400 count:1 mapcount:0 mapping:0000000000000000 index:0x0
+> flags: 0x2fffc0000000000()
+> raw: 02fffc0000000000 dead000000000100 dead000000000200 0000000000000000
+> raw: 0000000000000000 0000000000000000 00000001ffffffff 0000000000000000
+> page dumped because: kasan: bad access detected
+>
+> Memory state around the buggy address:
+>   ffff8881ce70ff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 f1 f1 f1
+>   ffff8881ce70ff80: f1 00 00 f2 f2 f2 f2 f2 f2 00 f2 f2 f2 f2 f2 f2
+> > ffff8881ce710000: f2 00 f2 f2 f2 f2 f2 f2 f2 00 f2 f2 f2 f2 f2 f2
+>                     ^
+>   ffff8881ce710080: f2 00 f2 f2 f2 00 00 00 00 00 00 00 00 00 00 00
+>   ffff8881ce710100: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> ==================================================================
+> Kernel panic - not syncing: panic_on_warn set ...
+> CPU: 1 PID: 2620 Comm: kworker/u4:4 Tainted: G    B             4.20.0-rc5+
+> #266
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Workqueue: writeback wb_workfn (flush-8:0)
+> Call Trace:
+> oom_reaper: reaped process 7789 (syz-executor613), now anon-rss:0kB,
+> file-rss:0kB, shmem-rss:0kB
+> rsyslogd invoked oom-killer: gfp_mask=0x6200ca(GFP_HIGHUSER_MOVABLE),
+> nodemask=(null), order=0, oom_score_adj=0
+> rsyslogd cpuset=/ mems_allowed=0
+> Kernel Offset: disabled
+> Rebooting in 86400 seconds..
+>
+>
+> ---
+> This bug is generated by a bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for more information about syzbot.
+> syzbot engineers can be reached at syzkaller@googlegroups.com.
+>
+> syzbot will keep track of this bug report. See:
+> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
+> syzbot.
+> syzbot can test patches for this bug, for details see:
+> https://goo.gl/tpsmEJ#testing-patches
