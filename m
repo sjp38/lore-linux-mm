@@ -1,141 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AB808E00B8
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 12:21:51 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id b24so6931357pls.11
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2018 09:21:51 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a17si13329103pfn.213.2018.12.11.09.21.50
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 082F88E005B
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:30:03 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id t72so28736573pfi.21
+        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 01:30:03 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 3si13133758plq.138.2018.12.31.01.30.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Dec 2018 09:21:50 -0800 (PST)
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D6DF5B029
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2018 17:21:48 +0000 (UTC)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 4/6] mm: migrate: Provide buffer_migrate_page_norefs()
-Date: Tue, 11 Dec 2018 18:21:41 +0100
-Message-Id: <20181211172143.7358-5-jack@suse.cz>
-In-Reply-To: <20181211172143.7358-1-jack@suse.cz>
-References: <20181211172143.7358-1-jack@suse.cz>
+        Mon, 31 Dec 2018 01:30:01 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBV9Shn0016997
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:30:01 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pqftghdn8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:30:01 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 31 Dec 2018 09:29:58 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v4 4/6] openrisc: simplify pte_alloc_one_kernel()
+Date: Mon, 31 Dec 2018 11:29:24 +0200
+In-Reply-To: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
+References: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1546248566-14910-5-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: mhocko@suse.cz, mgorman@suse.de, Jan Kara <jack@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jonas Bonn <jonas@southpole.se>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 
-Provide a variant of buffer_migrate_page() that also checks whether
-there are no unexpected references to buffer heads. This function will
-then be safe to use for block device pages.
+The pte_alloc_one_kernel() function allocates a page using
+__get_free_page(GFP_KERNEL) when mm initialization is complete and
+memblock_phys_alloc() on the earlier stages. The physical address of the
+page allocated with memblock_phys_alloc() is converted to the virtual
+address and in the both cases the allocated page is cleared using
+clear_page().
 
-Signed-off-by: Jan Kara <jack@suse.cz>
+The code is simplified by replacing __get_free_page() with
+get_zeroed_page() and by replacing memblock_phys_alloc() with
+memblock_alloc().
+
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+Acked-by: Stafford Horne <shorne@gmail.com>
 ---
- include/linux/fs.h |  4 ++++
- mm/migrate.c       | 61 +++++++++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 58 insertions(+), 7 deletions(-)
+ arch/openrisc/mm/ioremap.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index c95c0807471f..4bb1a8b65474 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -3264,8 +3264,12 @@ extern int generic_check_addressable(unsigned, u64);
- extern int buffer_migrate_page(struct address_space *,
- 				struct page *, struct page *,
- 				enum migrate_mode);
-+extern int buffer_migrate_page_norefs(struct address_space *,
-+				struct page *, struct page *,
-+				enum migrate_mode);
- #else
- #define buffer_migrate_page NULL
-+#define buffer_migrate_page_norefs NULL
- #endif
- 
- extern int setattr_prepare(struct dentry *, struct iattr *);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f8df1ad6e7cf..c4075d5ec073 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -747,13 +747,9 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
- 	return true;
- }
- 
--/*
-- * Migration function for pages with buffers. This function can only be used
-- * if the underlying filesystem guarantees that no other references to "page"
-- * exist.
-- */
--int buffer_migrate_page(struct address_space *mapping,
--		struct page *newpage, struct page *page, enum migrate_mode mode)
-+static int __buffer_migrate_page(struct address_space *mapping,
-+		struct page *newpage, struct page *page, enum migrate_mode mode,
-+		bool check_refs)
+diff --git a/arch/openrisc/mm/ioremap.c b/arch/openrisc/mm/ioremap.c
+index c969752..cfef989 100644
+--- a/arch/openrisc/mm/ioremap.c
++++ b/arch/openrisc/mm/ioremap.c
+@@ -123,13 +123,10 @@ pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm,
  {
- 	struct buffer_head *bh, *head;
- 	int rc;
-@@ -771,6 +767,33 @@ int buffer_migrate_page(struct address_space *mapping,
- 	if (!buffer_migrate_lock_buffers(head, mode))
- 		return -EAGAIN;
+ 	pte_t *pte;
  
-+	if (check_refs) {
-+		bool busy;
-+		bool invalidated = false;
-+
-+recheck_buffers:
-+		busy = false;
-+		spin_lock(&mapping->private_lock);
-+		bh = head;
-+		do {
-+			if (atomic_read(&bh->b_count)) {
-+				busy = true;
-+				break;
-+			}
-+			bh = bh->b_this_page;
-+		} while (bh != head);
-+		spin_unlock(&mapping->private_lock);
-+		if (busy) {
-+			if (invalidated) {
-+				rc = -EAGAIN;
-+				goto unlock_buffers;
-+			}
-+			invalidate_bh_lrus();
-+			invalidated = true;
-+			goto recheck_buffers;
-+		}
-+	}
-+
- 	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
- 	if (rc != MIGRATEPAGE_SUCCESS)
- 		goto unlock_buffers;
-@@ -807,7 +830,31 @@ int buffer_migrate_page(struct address_space *mapping,
+-	if (likely(mem_init_done)) {
+-		pte = (pte_t *) __get_free_page(GFP_KERNEL);
+-	} else {
+-		pte = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+-	}
++	if (likely(mem_init_done))
++		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
++	else
++		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
  
- 	return rc;
+-	if (pte)
+-		clear_page(pte);
+ 	return pte;
  }
-+
-+/*
-+ * Migration function for pages with buffers. This function can only be used
-+ * if the underlying filesystem guarantees that no other references to "page"
-+ * exist. For example attached buffer heads are accessed only under page lock.
-+ */
-+int buffer_migrate_page(struct address_space *mapping,
-+		struct page *newpage, struct page *page, enum migrate_mode mode)
-+{
-+	return __buffer_migrate_page(mapping, newpage, page, mode, false);
-+}
- EXPORT_SYMBOL(buffer_migrate_page);
-+
-+/*
-+ * Same as above except that this variant is more careful and checks that there
-+ * are also no buffer head references. This function is the right one for
-+ * mappings where buffer heads are directly looked up and referenced (such as
-+ * block device mappings).
-+ */
-+int buffer_migrate_page_norefs(struct address_space *mapping,
-+		struct page *newpage, struct page *page, enum migrate_mode mode)
-+{
-+	return __buffer_migrate_page(mapping, newpage, page, mode, true);
-+}
-+EXPORT_SYMBOL(buffer_migrate_page_norefs);
- #endif
- 
- /*
 -- 
-2.16.4
+2.7.4
