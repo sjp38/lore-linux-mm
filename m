@@ -1,144 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 85EA58E0001
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2018 08:39:03 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id x7so13954102pll.23
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2018 05:39:03 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e68si15371744pfb.101.2018.12.26.05.37.06
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E2A6A8E005B
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:45 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id x67so2363629pfk.16
+        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 01:29:45 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y22si31947085pfa.6.2018.12.31.01.29.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Dec 2018 05:37:07 -0800 (PST)
-Message-Id: <20181226133352.246320288@intel.com>
-Date: Wed, 26 Dec 2018 21:15:06 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [RFC][PATCH v2 20/21] mm/vmscan.c: migrate anon DRAM pages to PMEM node
-References: <20181226131446.330864849@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=0012-vmscan-migrate-anonymous-pages-to-pmem-node-before-s.patch
+        Mon, 31 Dec 2018 01:29:44 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id wBV9SkFA020900
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:43 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pqdjxnsxf-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 04:29:43 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 31 Dec 2018 09:29:40 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v4 0/6] memblock: simplify several early memory allocation
+Date: Mon, 31 Dec 2018 11:29:20 +0200
+Message-Id: <1546248566-14910-1-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Fan Du <fan.du@intel.com>, Jingqi Liu <jingqi.liu@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@pku.edu.cn>, Greentime Hu <green.hu@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jonas Bonn <jonas@southpole.se>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Michal Simek <monstr@monstr.eu>, Mark Salter <msalter@redhat.com>, Paul Mackerras <paulus@samba.org>, Rich Felker <dalias@libc.org>, Russell King <linux@armlinux.org.uk>, Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>, Stafford Horne <shorne@gmail.com>, Vincent Chen <deanbo422@gmail.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
 
-From: Jingqi Liu <jingqi.liu@intel.com>
+Hi,
 
-With PMEM nodes, the demotion path could be
+These patches simplify some of the early memory allocations by replacing
+usage of older memblock APIs with newer and shinier ones.
 
-1) DRAM pages: migrate to PMEM node
-2) PMEM pages: swap out
+Quite a few places in the arch/ code allocated memory using a memblock API
+that returns a physical address of the allocated area, then converted this
+physical address to a virtual one and then used memset(0) to clear the
+allocated range.
 
-This patch does (1) for anonymous pages only. Since we cannot
-detect hotness of (unmapped) page cache pages for now.
+More recent memblock APIs do all the three steps in one call and their
+usage simplifies the code.
 
-The user space daemon can do migration in both directions:
-- PMEM=>DRAM hot page migration
-- DRAM=>PMEM cold page migration
-However it's more natural for user space to do hot page migration
-and kernel to do cold page migration. Especially, only kernel can
-guarantee on-demand migration when there is memory pressure.
+It's important to note that regardless of API used, the core allocation is
+nearly identical for any set of memblock allocators: first it tries to find
+a free memory with all the constraints specified by the caller and then
+falls back to the allocation with some or all constraints disabled.
 
-So the big picture will look like this: user space daemon does regular
-hot page migration to DRAM, creating memory pressure on DRAM nodes,
-which triggers kernel cold page migration to PMEM nodes.
+The first three patches perform the conversion of call sites that have
+exact requirements for the node and the possible memory range.
 
-Du Fan:
-- Support multiple NUMA nodes.
-- Don't migrate clean MADV_FREE pages to PMEM node.
+The fourth patch is a bit one-off as it simplifies openrisc's
+implementation of pte_alloc_one_kernel(), and not only the memblock usage.
 
-With advise(MADV_FREE) syscall, both vma structure and
-its corresponding page entries still lives, but we got
-MADV_FREE page, anonymous but WITHOUT SwapBacked.
+The fifth patch takes care of simpler cases when the allocation can be
+satisfied with a simple call to memblock_alloc().
 
-In case of page reclaim, clean MADV_FREE pages will be
-freed and return to buddy system, the dirty ones then
-turn into canonical anonymous page with
-PageSwapBacked(page) set, and put into LRU_INACTIVE_FILE
-list falling into standard aging routine.
+The sixth patch removes one-liner wrappers for memblock_alloc on arm and
+unicore32, as suggested by Christoph.
 
-Point is clean MADV_FREE pages should not be migrated,
-it has steal (useless) user data once madvise(MADV_FREE)
-called and guard against thus scenarios.
+v4:
+* rebased on the current upstream
+* added conversion of s390 node data allocation
 
-P.S. MADV_FREE is heavily used by jemalloc engine, and
-workload like redis, refer to [1] for detailed backgroud,
-usecase, and benchmark result.
+v3:
+* added Tested-by from Michal Simek for microblaze changes
+* updated powerpc changes as per Michael Ellerman comments:
+  - use allocations that clear memory in alloc_paca_data() and alloc_stack()
+  - ensure the replacement is equivalent to old API
 
-[1]
-https://lore.kernel.org/patchwork/patch/622179/
+v2:
+* added Ack from Stafford Horne for openrisc changes
+* entirely drop early_alloc wrappers on arm and unicore32, as per Christoph
+Hellwig
 
-Fengguang:
-- detect migrate thp and hugetlb
-- avoid moving pages to a non-existent node
+Mike Rapoport (6):
+  powerpc: prefer memblock APIs returning virtual address
+  microblaze: prefer memblock API returning virtual address
+  sh: prefer memblock APIs returning virtual address
+  openrisc: simplify pte_alloc_one_kernel()
+  arch: simplify several early memory allocations
+  arm, s390, unicore32: remove oneliner wrappers for memblock_alloc()
 
-Signed-off-by: Fan Du <fan.du@intel.com>
-Signed-off-by: Jingqi Liu <jingqi.liu@intel.com>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- mm/vmscan.c |   33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ arch/arm/mm/mmu.c                      | 13 +++----------
+ arch/c6x/mm/dma-coherent.c             |  9 ++-------
+ arch/microblaze/mm/init.c              |  5 +++--
+ arch/nds32/mm/init.c                   | 12 ++++--------
+ arch/openrisc/mm/ioremap.c             | 11 ++++-------
+ arch/powerpc/kernel/paca.c             | 16 ++++++----------
+ arch/powerpc/kernel/setup-common.c     |  4 ++--
+ arch/powerpc/kernel/setup_64.c         | 24 ++++++++++--------------
+ arch/powerpc/mm/hash_utils_64.c        |  6 +++---
+ arch/powerpc/mm/pgtable-book3e.c       |  8 ++------
+ arch/powerpc/mm/pgtable-book3s64.c     |  5 +----
+ arch/powerpc/mm/pgtable-radix.c        | 25 +++++++------------------
+ arch/powerpc/mm/ppc_mmu_32.c           |  3 +--
+ arch/powerpc/platforms/pasemi/iommu.c  |  5 +++--
+ arch/powerpc/platforms/powernv/opal.c  |  3 +--
+ arch/powerpc/platforms/pseries/setup.c | 18 ++++++++++++++----
+ arch/powerpc/sysdev/dart_iommu.c       |  7 +++++--
+ arch/s390/numa/numa.c                  | 14 +-------------
+ arch/sh/mm/init.c                      | 18 +++++-------------
+ arch/sh/mm/numa.c                      |  5 ++---
+ arch/sparc/kernel/prom_64.c            |  7 ++-----
+ arch/sparc/mm/init_64.c                |  9 +++------
+ arch/unicore32/mm/mmu.c                | 14 ++++----------
+ 23 files changed, 88 insertions(+), 153 deletions(-)
 
---- linux.orig/mm/vmscan.c	2018-12-23 20:37:58.305551976 +0800
-+++ linux/mm/vmscan.c	2018-12-23 20:37:58.305551976 +0800
-@@ -1112,6 +1112,7 @@ static unsigned long shrink_page_list(st
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
-+	LIST_HEAD(move_pages);
- 	int pgactivate = 0;
- 	unsigned nr_unqueued_dirty = 0;
- 	unsigned nr_dirty = 0;
-@@ -1121,6 +1122,7 @@ static unsigned long shrink_page_list(st
- 	unsigned nr_immediate = 0;
- 	unsigned nr_ref_keep = 0;
- 	unsigned nr_unmap_fail = 0;
-+	int page_on_dram = is_node_dram(pgdat->node_id);
- 
- 	cond_resched();
- 
-@@ -1275,6 +1277,21 @@ static unsigned long shrink_page_list(st
- 		}
- 
- 		/*
-+		 * Check if the page is in DRAM numa node.
-+		 * Skip MADV_FREE pages as it might be freed
-+		 * immediately to buddy system if it's clean.
-+		 */
-+		if (node_online(pgdat->peer_node) &&
-+			PageAnon(page) && (PageSwapBacked(page) || PageTransHuge(page))) {
-+			if (page_on_dram) {
-+				/* Add to the page list which will be moved to pmem numa node. */
-+				list_add(&page->lru, &move_pages);
-+				unlock_page(page);
-+				continue;
-+			}
-+		}
-+
-+		/*
- 		 * Anonymous process memory has backing store?
- 		 * Try to allocate it some swap space here.
- 		 * Lazyfree page could be freed directly
-@@ -1496,6 +1513,22 @@ keep:
- 		VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
- 	}
- 
-+	/* Move the anonymous pages to PMEM numa node. */
-+	if (!list_empty(&move_pages)) {
-+		int err;
-+
-+		/* Could not block. */
-+		err = migrate_pages(&move_pages, alloc_new_node_page, NULL,
-+					pgdat->peer_node,
-+					MIGRATE_ASYNC, MR_NUMA_MISPLACED);
-+		if (err) {
-+			putback_movable_pages(&move_pages);
-+
-+			/* Join the pages which were not migrated.  */
-+			list_splice(&ret_pages, &move_pages);
-+		}
-+	}
-+
- 	mem_cgroup_uncharge_list(&free_pages);
- 	try_to_unmap_flush();
- 	free_unref_page_list(&free_pages);
+-- 
+2.7.4
