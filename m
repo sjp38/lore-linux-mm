@@ -1,107 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 097486B6AA0
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2018 13:59:15 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id b26so14404401qtq.14
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2018 10:59:15 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l2si8884820qvo.45.2018.12.03.10.59.13
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BCFAA8E005B
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 05:12:03 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id l45so29258260edb.1
+        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 02:12:03 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z6-v6si275337ejx.166.2018.12.31.02.12.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Dec 2018 10:59:14 -0800 (PST)
-Message-ID: <e295bca26fce6408c7265292e81107b04a1a144d.camel@redhat.com>
-Subject: Re: [PATCH V2] mm: Replace all open encodings for NUMA_NO_NODE
-From: Doug Ledford <dledford@redhat.com>
-Date: Mon, 03 Dec 2018 13:59:08 -0500
-In-Reply-To: <1543235202-9075-1-git-send-email-anshuman.khandual@arm.com>
-References: <1543235202-9075-1-git-send-email-anshuman.khandual@arm.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-Jgd362xHNNmppwzCQCK+"
-Mime-Version: 1.0
+        Mon, 31 Dec 2018 02:12:01 -0800 (PST)
+Date: Mon, 31 Dec 2018 11:11:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] netfilter: account ebt_table_info to kmemcg
+Message-ID: <20181231101158.GC22445@dhcp22.suse.cz>
+References: <20181229015524.222741-1-shakeelb@google.com>
+ <20181229073325.GZ16738@dhcp22.suse.cz>
+ <20181229095215.nbcijqacw5b6aho7@breakpoint.cc>
+ <20181229100615.GB16738@dhcp22.suse.cz>
+ <CALvZod7v-CC1XipLAerFj1Zp_M=qXZq6MzDL4pubJMTRCsMFNw@mail.gmail.com>
+ <20181230074513.GA22445@dhcp22.suse.cz>
+ <20181230080028.GB22445@dhcp22.suse.cz>
+ <CALvZod6Ty30uQjJF8KZf=RS5djULaLVggYv_1WFrKJWaYa6EHw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod6Ty30uQjJF8KZf=RS5djULaLVggYv_1WFrKJWaYa6EHw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: ocfs2-devel@oss.oracle.com, linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org, netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-media@vger.kernel.org, iommu@lists.linux-foundation.org, linux-rdma@vger.kernel.org, dmaengine@vger.kernel.org, linux-block@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org, linux-alpha@vger.kernel.org, akpm@linux-foundation.org, jiangqi903@gmail.com, hverkuil@xs4all.nl, vkoul@kernel.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Florian Westphal <fw@strlen.de>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, bridge@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com
 
+On Sun 30-12-18 19:59:53, Shakeel Butt wrote:
+> On Sun, Dec 30, 2018 at 12:00 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Sun 30-12-18 08:45:13, Michal Hocko wrote:
+> > > On Sat 29-12-18 11:34:29, Shakeel Butt wrote:
+> > > > On Sat, Dec 29, 2018 at 2:06 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > >
+> > > > > On Sat 29-12-18 10:52:15, Florian Westphal wrote:
+> > > > > > Michal Hocko <mhocko@kernel.org> wrote:
+> > > > > > > On Fri 28-12-18 17:55:24, Shakeel Butt wrote:
+> > > > > > > > The [ip,ip6,arp]_tables use x_tables_info internally and the underlying
+> > > > > > > > memory is already accounted to kmemcg. Do the same for ebtables. The
+> > > > > > > > syzbot, by using setsockopt(EBT_SO_SET_ENTRIES), was able to OOM the
+> > > > > > > > whole system from a restricted memcg, a potential DoS.
+> > > > > > >
+> > > > > > > What is the lifetime of these objects? Are they bound to any process?
+> > > > > >
+> > > > > > No, they are not.
+> > > > > > They are free'd only when userspace requests it or the netns is
+> > > > > > destroyed.
+> > > > >
+> > > > > Then this is problematic, because the oom killer is not able to
+> > > > > guarantee the hard limit and so the excessive memory consumption cannot
+> > > > > be really contained. As a result the memcg will be basically useless
+> > > > > until somebody tears down the charged objects by other means. The memcg
+> > > > > oom killer will surely kill all the existing tasks in the cgroup and
+> > > > > this could somehow reduce the problem. Maybe this is sufficient for
+> > > > > some usecases but that should be properly analyzed and described in the
+> > > > > changelog.
+> > > > >
+> > > >
+> > > > Can you explain why you think the memcg hard limit will not be
+> > > > enforced? From what I understand, the memcg oom-killer will kill the
+> > > > allocating processes as you have mentioned. We do force charging for
+> > > > very limited conditions but here the memcg oom-killer will take care
+> > > > of
+> > >
+> > > I was talking about the force charge part. Depending on a specific
+> > > allocation and its life time this can gradually get us over hard limit
+> > > without any bound theoretically.
+> >
+> > Forgot to mention. Since b8c8a338f75e ("Revert "vmalloc: back off when
+> > the current task is killed"") there is no way to bail out from the
+> > vmalloc allocation loop so if the request is really large then the memcg
+> > oom will not help. Is that a problem here?
+> >
+> 
+> Yes, I think it will be an issue here.
+> 
+> > Maybe it is time to revisit fatal_signal_pending check.
+> 
+> Yes, we will need something to handle the memcg OOM. I will think more
+> on that front or if you have any ideas, please do propose.
 
---=-Jgd362xHNNmppwzCQCK+
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I can see three options here:
+	- do not force charge on memcg oom or introduce a limited charge
+	  overflow (reserves basically).
+	- revert the revert and reintroduce the fatal_signal_pending
+	  check into vmalloc
+	- be more specific and check tsk_is_oom_victim in vmalloc and
+	  fail
 
-On Mon, 2018-11-26 at 17:56 +0530, Anshuman Khandual wrote:
-> At present there are multiple places where invalid node number is encoded
-> as -1. Even though implicitly understood it is always better to have macr=
-os
-> in there. Replace these open encodings for an invalid node number with th=
-e
-> global macro NUMA_NO_NODE. This helps remove NUMA related assumptions lik=
-e
-> 'invalid node' from various places redirecting them to a common definitio=
-n.
->=20
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
-> Changes in V2:
->=20
-> - Added inclusion of 'numa.h' header at various places per Andrew
-> - Updated 'dev_to_node' to use NUMA_NO_NODE instead per Vinod
->=20
-> Changes in V1: (https://lkml.org/lkml/2018/11/23/485)
->=20
-> - Dropped OCFS2 changes per Joseph
-> - Dropped media/video drivers changes per Hans
->=20
-> RFC - https://patchwork.kernel.org/patch/10678035/
->=20
-> Build tested this with multiple cross compiler options like alpha, sparc,
-> arm64, x86, powerpc, powerpc64le etc with their default config which migh=
-t
-> not have compiled tested all driver related changes. I will appreciate
-> folks giving this a test in their respective build environment.
->=20
-> All these places for replacement were found by running the following grep
-> patterns on the entire kernel code. Please let me know if this might have
-> missed some instances. This might also have replaced some false positives=
-.
-> I will appreciate suggestions, inputs and review.
->=20
-> 1. git grep "nid =3D=3D -1"
-> 2. git grep "node =3D=3D -1"
-> 3. git grep "nid =3D -1"
-> 4. git grep "node =3D -1"
->=20
->  drivers/infiniband/hw/hfi1/affinity.c         |  3 ++-
->  drivers/infiniband/hw/hfi1/init.c             |  3 ++-
-
-For the drivers/infiniband changes,
-
-Acked-by: Doug Ledford <dledford@redhat.com>
-
---=20
-Doug Ledford <dledford@redhat.com>
-    GPG KeyID: B826A3330E572FDD
-    Key fingerprint =3D AE6B 1BDA 122B 23B4 265B  1274 B826 A333 0E57 2FDD
-
---=-Jgd362xHNNmppwzCQCK+
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAABCAAdFiEErmsb2hIrI7QmWxJ0uCajMw5XL90FAlwFfPwACgkQuCajMw5X
-L911nA/+Pq4noh4r/S3RhvajccFUfwzT5+IhZ7V69GHF9EaiPK8E1lka1m7BdNtX
-MlRVfjw6oW1Gs5uQFJfJC2qucbFLzZOm1I25GgzLq/iEq0ItnvUBVC13P2W5bmIa
-OB1zY9MRcBQs3T9W3/rcwFwxzYBIh9YsFNbq+op5uu5iUnKsLYenyPPTnWSVj5qO
-PWFKzPVxp68NmPpc/vPph6SrazSdSChuZFH06PElH0ifHC+Gde6gCuBSiX4dNCm5
-NzODtQz2AqmWPLS7XrgwtN2VGdjN8sPpQBcaYMV9aYOXzXdn5BexsgtoSd5VHdUN
-UZOUZQi/1UwA/i+Ngg86mv7nKWh/sxflS7a+F3u3xR9BoP09Gtt41Yu+zLZ28omr
-NTKrHWhoiv+WFY+iXoCCtPbI8TYjTuqyVhqHOZiMzX9rTxYBZ3wtHMOqmdQl5K69
-nnpJpIJr0uFEehieZvo7Tcvj28D7kDUwYN66HkEJcie71Uu45+lW2HoaIQwURsnY
-ot6h/yf8X2Pu1PY4A9FjXeFbECh4qXjZXevOz6vDaubqVwWtQdpoGl78KPd8WaJ+
-8tCtiT+L99uUE6sZoLaTdYd/EYsABxfbduwcTOdpNWVgxx2bxDXSgWkAd1bk0A0k
-zFoViov/qfs5E2JiGmVcxPeya+X/5gFMM8vJRwIvhMyokGfWRLg=
-=LheN
------END PGP SIGNATURE-----
-
---=-Jgd362xHNNmppwzCQCK+--
+-- 
+Michal Hocko
+SUSE Labs
