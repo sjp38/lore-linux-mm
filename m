@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 422F08E0002
-	for <linux-mm@kvack.org>; Tue,  1 Jan 2019 01:30:35 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id q64so30308406pfa.18
-        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 22:30:35 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m28si46373141pgn.273.2018.12.31.22.30.33
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A81BA8E0002
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 22:28:19 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id r9so30188786pfb.13
+        for <linux-mm@kvack.org>; Mon, 31 Dec 2018 19:28:19 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p4si13626206pli.432.2018.12.31.19.28.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 31 Dec 2018 22:30:33 -0800 (PST)
-Date: Mon, 31 Dec 2018 22:30:31 -0800
-From: Matthew Wilcox <willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Dec 2018 19:28:18 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x013OcVQ123356
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 22:28:17 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pqtnas7vk-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2018 22:28:17 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 1 Jan 2019 03:28:15 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 Subject: Re: [PATCH] mm: Introduce page_size()
-Message-ID: <20190101063031.GD6310@bombadil.infradead.org>
+In-Reply-To: <20181231134223.20765-1-willy@infradead.org>
 References: <20181231134223.20765-1-willy@infradead.org>
- <87y385awg6.fsf@linux.ibm.com>
+Date: Tue, 01 Jan 2019 08:57:53 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87y385awg6.fsf@linux.ibm.com>
+Content-Type: text/plain
+Message-Id: <87y385awg6.fsf@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Tue, Jan 01, 2019 at 08:57:53AM +0530, Aneesh Kumar K.V wrote:
-> Matthew Wilcox <willy@infradead.org> writes:
-> > +/* Returns the number of bytes in this potentially compound page. */
-> > +static inline unsigned long page_size(struct page *page)
-> > +{
-> > +	return (unsigned long)PAGE_SIZE << compound_order(page);
-> > +}
-> > +
-> 
-> How about compound_page_size() to make it clear this is for
-> compound_pages? Should we make it work with Tail pages by doing
-> compound_head(page)?
+Matthew Wilcox <willy@infradead.org> writes:
 
-I think that's a terrible idea.  Actually, I think the whole way we handle
-compound pages is terrible; we should only ever see head pages.  Doing
-page cache lookups should only give us head pages.  Calling pfn_to_page()
-should give us the head page.  We should only put head pages into SG lists.
-Everywhere you see a struct page should only be a head page.
 
-I know we're far from that today, and there's lots of work to be done
-to get there.  But the current state of handling compound pages is awful
-and confusing.
+>  static inline unsigned hstate_index_to_shift(unsigned index)
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 5411de93a363e..e920ef9927539 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -712,6 +712,12 @@ static inline void set_compound_order(struct page *page, unsigned int order)
+>  	page[1].compound_order = order;
+>  }
+>  
+> +/* Returns the number of bytes in this potentially compound page. */
+> +static inline unsigned long page_size(struct page *page)
+> +{
+> +	return (unsigned long)PAGE_SIZE << compound_order(page);
+> +}
+> +
 
-Also, page_size() isn't just for compound pages.  It works for regular
-pages too.  I'd be open to putting a VM_BUG_ON(PageTail(page)) in it
-to catch people who misuse it.
+
+How about compound_page_size() to make it clear this is for
+compound_pages? Should we make it work with Tail pages by doing
+compound_head(page)?
+
+
+-aneesh
