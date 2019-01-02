@@ -1,89 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E7FC8E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:21:28 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id f31so4738509edf.17
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 10:21:28 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q2-v6si732782ejn.56.2019.01.10.10.21.26
-        for <linux-mm@kvack.org>;
-        Thu, 10 Jan 2019 10:21:26 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-Subject: Re: [PATCH v7 09/25] ACPI / APEI: Generalise the estatus queue's
- notify code
-References: <20181203180613.228133-1-james.morse@arm.com>
- <20181203180613.228133-10-james.morse@arm.com>
- <20181211174449.GM27375@zn.tnic>
-Message-ID: <3f0f9005-f383-8a03-c7f9-15b50c099f94@arm.com>
-Date: Thu, 10 Jan 2019 18:21:21 +0000
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 732678E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 15:05:36 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id r131so22525121oia.7
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 12:05:36 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k24sor19133405oik.152.2019.01.02.12.05.35
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 02 Jan 2019 12:05:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20181211174449.GM27375@zn.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+References: <20181203170934.16512-1-vpillai@digitalocean.com>
+ <20181203170934.16512-2-vpillai@digitalocean.com> <alpine.LSU.2.11.1812311635590.4106@eggly.anvils>
+ <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com>
+ <alpine.LSU.2.11.1901012010440.13241@eggly.anvils> <CANaguZC_d2EBmNuXtcJRcEcw8uXK234tYSXx6Uc2o9JH_vfP4A@mail.gmail.com>
+ <alpine.LSU.2.11.1901021039490.13761@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1901021039490.13761@eggly.anvils>
+From: Vineeth Pillai <vpillai@digitalocean.com>
+Date: Wed, 2 Jan 2019 15:05:25 -0500
+Message-ID: <CANaguZDcJa9NxZU4Z3Q7DqvQK5zsDXZKNbhbO8fcppnYrTxMHw@mail.gmail.com>
+Subject: Re: [PATCH v3 2/2] mm: rid swapoff of quadratic complexity
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kelley Nielsen <kelleynnn@gmail.com>, Rik van Riel <riel@surriel.com>
 
-Hi Boris,
+On Wed, Jan 2, 2019 at 2:43 PM Hugh Dickins <hughd@google.com> wrote:
 
-On 11/12/2018 17:44, Borislav Petkov wrote:
-> On Mon, Dec 03, 2018 at 06:05:57PM +0000, James Morse wrote:
->> Refactor the estatus queue's pool notification routine from
->> NOTIFY_NMI's handlers. This will allow another notification
->> method to use the estatus queue without duplicating this code.
->>
->> This patch adds rcu_read_lock()/rcu_read_unlock() around the list
-> 
-> s/This patch adds/Add/
-> 
->> list_for_each_entry_rcu() walker. These aren't strictly necessary as
->> the whole nmi_enter/nmi_exit() window is a spooky RCU read-side
->> critical section.
->>
->> _in_nmi_notify_one() is separate from the rcu-list walker for a later
->> caller that doesn't need to walk a list.
+>
+> Wrong.  Without heavier locking that would add unwelcome overhead to
+> common paths, we shall "always" need the retry logic.  It does not
+> come into play very often, but here are two examples of why it's
+> needed (if I thought longer, I might find more).  And in practice,
+> yes, I sometimes saw 1 retry needed.
+>
+Understood. Sorry, I missed these corner cases.
 
->> +static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
->> +{
->> +	int ret = NMI_DONE;
->> +
->> +	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
->> +		return ret;
->> +
->> +	if (!ghes_estatus_queue_notified(&ghes_nmi))
->> +		ret = NMI_HANDLED;
-> 
-> So this reads kinda the other way around, at least to me:
-> 
-> 	"if the queue was *not* notified, the NMI was handled."
-> 
-> Maybe rename to this:
-> 
-> 	err = process_queue(&ghes_nmi);
-> 	if (!err)
-> 		ret = NMI_HANDLED;
-> 
-> to make it clearer...
+> I don't use frontswap myself, and haven't paid any attention to the
+> frontswap partial swapoff case (though notice now that shmem_unuse()
+> lacks the plumbing needed for it - that needs fixing); but doubt it
+> would be a good idea to refactor it out as a separate case.
+>
+I shall rework the shmem side to take care of the frontswap and retain
+the retry logic in a simplified manner.
 
-(yup, that's clearer).
+Thanks again for all the comments and insights..
 
-But now we've opened pandora's box of naming-things: This thing isn't really
-processing anything, its walking a list of 'maybe it was one of these' and
-copying anything it finds into the estatus-queue to be handled later.
-
-I've evidently overloaded 'notified' to mean this.
-__process_error() doesn't process anything either, it does the add-to-queue.
-
-'spool' is the word that best conveys what's going on here, I should probably
-use that 'in_nmi' prefix more to make it clear this has to be nmi safe.
-
-Something like:
-ghes_notify_nmi() -> in_nmi_spool_from_list(list) -> in_nmi_queue_one_entry(ghes).
-
-
-
-Thanks,
-
-James
+~Vineeth
