@@ -2,244 +2,209 @@ Return-Path: <SRS0=6aBQ=PK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E0A8C43387
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 10:32:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22649C43387
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 10:53:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4610E218A4
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 10:32:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CC3FC2171F
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 10:53:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="aTP0E6Ou"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4610E218A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Qt5z6qJG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC3FC2171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6F208E001B; Wed,  2 Jan 2019 05:32:21 -0500 (EST)
+	id 60D918E001C; Wed,  2 Jan 2019 05:53:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF7118E0002; Wed,  2 Jan 2019 05:32:21 -0500 (EST)
+	id 5BAD68E0002; Wed,  2 Jan 2019 05:53:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC0368E001B; Wed,  2 Jan 2019 05:32:21 -0500 (EST)
+	id 4D2B28E001C; Wed,  2 Jan 2019 05:53:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F98E8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 05:32:21 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id 123so35656540itv.6
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 02:32:21 -0800 (PST)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D37528E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 05:53:29 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id g12-v6so8893116lji.3
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 02:53:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=+D4ccszRSj/KLpoKgCTt9tBlEN0s5ecSJaxVrk2vx6Q=;
-        b=sjgKtXyVkPFMtZYFBDUpmCvZBgqd4mKcbVPkXduYx1rI0dYVTg1d7h9QQymZf9i8CN
-         NfnpC+LspRBINKgD7+5/v7s9NxQMp/EjpCB7QZ2uf5+XWbNp0NY3yBGbj4Lp/zGSVD9H
-         K8Lx6fScOg4x6Js/Y9hIKrULbY/igBA9jHuYuuv6CMPXokYLgSzILS4gKVLbkImucjE5
-         PNUNubjEQJedYrYioFprnVx/9GRrHnMuble+mslYTrBuvLjK0WU3VJgxsh1xB0ITPQls
-         hxJob00HqdPikCkGYG2vQl8n4MltXzEeG2A61ORR8ETAH8m8+o3hNaGYSpB6rVXHimoG
-         gk/w==
-X-Gm-Message-State: AJcUukd/b1o51CMaQH8gjYm8lFM9hI/8jS0UsMS8UpAqvZMVvTjSuFF0
-	X3mvvIxKdDHBfdhk3+ZmtptajRDfZLx1V8pXJSVMWUDNmPsXzm2TLr6YOiLxM87C37Q6XAIc7XU
-	wwUG2LUmgwaYedXQ7UcF90WId4NEya+TCcV/2QQgLzv7A0qQPI6R+BNVoKH9mLnmqOO/joCZztm
-	IpYADyzZrfTli04uHhiA6692TWnqylUMDWGswf8b9v8PsTxXopptMAN+bDNvhkdwalqPtbRFNlO
-	ffrf0w6FBQkfOVbf1FUE1om0caP/4VX8v/AnIswkMW2eigCIgaQnooGiNAup5ZMBqC+Ia3vpnLv
-	FSNjuLfRpAnTRG1wjQ21H95p5InPthkSYVkRH7+WBzr8WNp9VSkCRVAh/THgOJddtGE6D9dzFHJ
-	A
-X-Received: by 2002:a02:ba01:: with SMTP id z1mr24242320jan.100.1546425141344;
-        Wed, 02 Jan 2019 02:32:21 -0800 (PST)
-X-Received: by 2002:a02:ba01:: with SMTP id z1mr24242299jan.100.1546425140507;
-        Wed, 02 Jan 2019 02:32:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546425140; cv=none;
+        bh=SezKeaYuk6nk7occBjh6L8uqtXsHTPs6Hbj337dY8hk=;
+        b=qDaPBIns5kOOX94RlnCYcRfqa4h0vx7SigbZY3JEACyCm8cPd0muS/3aVp78tL+hv4
+         BY6H6o46Fhql9OIRrLAHSvj1fBLVf6Z2ZQqfCrfnlt38s1X1QkTWw2RQKV/L8DbD1PSM
+         w7D5pkCnBda6cCjuiy0+sBYy355/YJoAkEBBIHTs6zPMmJC+uOFCqypTY8fTqR5C0GuT
+         2i09p6seaAE0KA9X1YlsW2nx/VJvs028T0/S//FM79fooWPuXMwAC7Ux+OwdH3GWaQvy
+         YlR8rFmNbyN2X9M9u+Af7bT6C1mzVsbfQJ7pzg0+TqFVqSbRIK0in4Jr66Dado6eAjqR
+         /xpw==
+X-Gm-Message-State: AJcUukd05Wy//fenW1Yxa0tq2b+2pB9r9DXlDHbUWWfAh+wUHRJssuRD
+	BZJGnhFoaXV+eAuw2HVcP0FXi7oNgtiTlDcfrXMFpji02es+88DPiq8vT5zIXNgz2ODvdjhu/Iv
+	4r3UPuyGC335RF/d0BNqqBQ9nI7bu/DUEYNY8n+byDVr5jVClEru/obFjXOI5/SR9QZsTof4Wcz
+	EeQV0rJUFXBAYgwZtCCPR3xWlFlRN3VZfZgxOf+k6JKNhW6Iu5pFxsjp/0d4aOioqzy7Rtbar8f
+	w4gmpAjvXf0/EaDe5vF+a533he/Vj+dHWOc/fp20JxqDRhJ71yrDteyj7BsKcWj9r4QdP1BZkvy
+	7b+AoaMmu2pBpFcHtvT4EAtQwix8CRdYXx5ogfjwwZJDSlNaZav0r61xV4F2j92rtMYMRvYGI62
+	z
+X-Received: by 2002:a2e:8786:: with SMTP id n6-v6mr14692890lji.100.1546426408941;
+        Wed, 02 Jan 2019 02:53:28 -0800 (PST)
+X-Received: by 2002:a2e:8786:: with SMTP id n6-v6mr14692856lji.100.1546426407926;
+        Wed, 02 Jan 2019 02:53:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546426407; cv=none;
         d=google.com; s=arc-20160816;
-        b=VwWiIaOKf0H2LWqrcVsQMPtDm4NpOYtr86v+ACh+NuWz7b/EU6N3bKUDKdj9V4EQgG
-         JX0q2hQ3Iw+0VwMb24h6PaO6u5dad3NCMB0LXoSnMdMsDk6Gk0z7yUtsP583y1hJlPH1
-         gk0FTOSMn0PZcKUX0fa+9k7sQBTinIwevQtF9y81D4mzWR+nOCgrDGQzhSuEUO1DhbLM
-         xEYN4T1ev5qDlfae7aGB513YvBzM12DWRMaDgx0fbf4IDwA4Ib8jHPcz6Vhfggippp1Z
-         +oo3KuarQ/V4TjlbnONnEHQ/g7U6+Q6aihJCPNcZE19UA9jvvNdNE2sJaIXHzB7+ZMb+
-         HYiA==
+        b=p9lQAPjeAMjQPstIFDtiMwuCkB5TCrikWXa9SUztqCeO1ry9mhRR7q7xNrGVRwMJ8j
+         rC0U7LSArlRvn2ZUK2IrMMlvnnMV4TnozvOny8vt95bhXRmDIFh3bJG2/ZK4krQPDwTO
+         7dt3LezcHItKG4O+NvLKBe5H7U9Z4BDPPyTOogj1vUo439/Wwr1ATo994QCYxvhzaevH
+         kT3aYV5tWfHUVhZM0SfotwNxkPAWBf9I1I+E7dPHWkNPRngwZZZUIPOaLaGpG+8lwU2Z
+         EhhkPaYTYrNB68FqEs9yfDrPSyYptK8clH5DM+7eut4cW8FP/fAaBFJL0Mn2TXi9L58Z
+         GcBw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=+D4ccszRSj/KLpoKgCTt9tBlEN0s5ecSJaxVrk2vx6Q=;
-        b=oUy2t+EbHdGb9EqfA3BkVe6GvKy7VT7Up6b3jMBaBYkQkovKvei2m+lrc7fBsErJp4
-         vmzXWU74j43KLxtYIc3H+WYfXoI4JNGa6mnFEQqO/4DzwSFMQDxZfN/Bj103TWantYdy
-         +LavB+IwKFkZicJZT2ONBzV6wWaqxLnI0nzXryaCYdZpYH6ILzs8Q1e+RuAS522HCfiG
-         1hh9kx9inML5EuNgZD64X1SYWe1Gv4gpI64Zrk/hMNHI2re5IH12SLO2uUdmIzXaGl4+
-         0gomg9+lHNK09w5vpUJ7VceXTnTfss1q09Ft5NDgFOMSLdBPFVQZ8MXKQqjKBSdGqAAj
-         8iRg==
+        bh=SezKeaYuk6nk7occBjh6L8uqtXsHTPs6Hbj337dY8hk=;
+        b=GEKxpy0lISQ3IsbyVJtt6SQHJ874paFZijyb+F3DYkbVbqh8Lx3y0+/qBghiGZyxjP
+         PypwBjJgCrXcT6RZ1nCeM8m5yyCiVVy/nNAggzpmcDxzG81HCLvo5GDLw0PLCYxUILCP
+         EifaZk/03P9rlnHMNDWY3M0f2dEe5xw/pPuPvvIaqmyrN6TIW7dGMA9o/plZYdRnhRTs
+         K1CWmVPX55m4cisdnRRbNQ/nBlT5zXQ9CUBcNMiRbU3jtidguKrmQ2uyoMr5rgZB4DWW
+         k187fVhe7Cb24167NZwI/s8ylvNytPT1AenyG6NbXpn6OjJHaPOhFELm/963l3pYMnX0
+         JqcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aTP0E6Ou;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Qt5z6qJG;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v20sor37929013ita.10.2019.01.02.02.32.20
+        by mx.google.com with SMTPS id y24-v6sor29614892ljy.1.2019.01.02.02.53.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 02 Jan 2019 02:32:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 02 Jan 2019 02:53:27 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aTP0E6Ou;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Qt5z6qJG;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=+D4ccszRSj/KLpoKgCTt9tBlEN0s5ecSJaxVrk2vx6Q=;
-        b=aTP0E6OukAwr5mmMYJd+C9ufxSUS9M7mYrRORqRtN/+5Wq0J5LZRUK5RikQ9RpEXWy
-         e7fDvUIBFYR+c43b8YG0XaIiaWFIWaWMsQB5g567hhO722kIVZEKMVShK34xxpixjrdi
-         vxuy2M52qs/o4Xw44wv5WFNtLS3sEmqwKoPT9A39I5ljCXxWVy5vOdZnKCaPLF4PfKtn
-         i00c+Sp4I1ENGPyd/fFNpq1K/z+8UcZcFccAo3odilN6pbMUZnOLBK5xMPARY3Ld79Zx
-         v98b3OuBgdaIV05i3vrHmkM3SGyc1XDWiqdkD5GIk0WJSCvUVlImE2072Wiuax0LyKtm
-         kclg==
-X-Google-Smtp-Source: ALg8bN6C35S6IAj1IVO0roJaJGKpssp9DFrLJsTAnLOVTMVl5OYEtTsduHNW7kRfKodK5+VgOOjmeY4lW6XEVCtmvfs=
-X-Received: by 2002:a24:6511:: with SMTP id u17mr5477679itb.12.1546425139839;
- Wed, 02 Jan 2019 02:32:19 -0800 (PST)
+        bh=SezKeaYuk6nk7occBjh6L8uqtXsHTPs6Hbj337dY8hk=;
+        b=Qt5z6qJGB9o9aGKd2wu1bhsmzEmdcDzaLxP82MQjif7xhWIw1UWk0ZnlJTMC9xvoN6
+         mBIXkib4q11Ofmjr++AElHoRXjW2lvlTw+Gd+RbJFOrrcVyQTOnaIAOGVTj8Ec/D6WEV
+         Xt4ni8bIGny1nGnbEp6gYIBs+xrkOy3fG1ykkyHzdsrAS69uhcl/1+hadweqRUG4sIEy
+         lbPd/8Y4pAHNkKA+zkIbSw3sMt+jw5nMsQ7dTVDtFyciFa43x93Y8BjuWlygWrOOSHaV
+         RTwlWIJXdj05/Jdg/5Z/6y+x7+1pI11xPhnhbSZ3+08BMNSK0e29ewTR43WCAHis0qmm
+         meIg==
+X-Google-Smtp-Source: AFSGD/UwYlr3G2cGWuGxEPCHMUa9rHoeFQ8/rz6abHSV1vjPvvVhGgT7iCng27XKmqtsRwEco9RU++5BMOiXMuziz3c=
+X-Received: by 2002:a2e:630a:: with SMTP id x10-v6mr23330309ljb.11.1546426407321;
+ Wed, 02 Jan 2019 02:53:27 -0800 (PST)
 MIME-Version: 1.0
-References: <000000000000ae384d057dc685c1@google.com> <1186a139-3a46-3311-5f72-bef02d403ee1@suse.cz>
- <CACT4Y+YbM7sVDg7XEpY-E9bW2dF8a6xd_Wp_dWCnCM02DbrbtA@mail.gmail.com>
- <b12b656c-04cb-6f34-e25a-f34d59e91316@suse.cz> <CACT4Y+ZFnpWiBm80YRFUhjYmoTw6_1rH2=5cAj1kqR8p7Am7HQ@mail.gmail.com>
- <a04f4ed2-da5d-99ec-5d8c-b617966a4728@suse.cz>
-In-Reply-To: <a04f4ed2-da5d-99ec-5d8c-b617966a4728@suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 2 Jan 2019 11:32:08 +0100
+References: <20181224132658.GA22166@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20181224132658.GA22166@jordon-HP-15-Notebook-PC>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Wed, 2 Jan 2019 16:23:15 +0530
 Message-ID:
- <CACT4Y+aLQ_wYBvcnevLXGUy9WBgrdpV43vhwTKgwmNrEfRTf6A@mail.gmail.com>
-Subject: Re: general protection fault in transparent_hugepage_enabled
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: syzbot <syzbot+a5fea9200aefd1cf4818@syzkaller.appspotmail.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, 
-	Jerome Glisse <jglisse@redhat.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, 
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, 
-	David Rientjes <rientjes@google.com>, Stephen Rothwell <sfr@canb.auug.org.au>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Matthew Wilcox <willy@infradead.org>
+ <CAFqt6zZU6c3MyVQpCegntu1ZxtFri=HMwZJ3xg+tCxRARo3zMA@mail.gmail.com>
+Subject: Re: [PATCH v5 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, pawel@osciak.com, 
+	Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, 
+	Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com
+Cc: linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, 
+	Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190102103208.O7L7eQJoBngJSkuhfe7wyLf_YG7AfycPU6-gKOfvKc4@z>
+Message-ID: <20190102105315.7OFxKR7TqhbrI7jgCmyUYwTUlJrCzj5dYaD5f0bqbw4@z>
 
-On Wed, Jan 2, 2019 at 11:24 AM Vlastimil Babka <vbabka@suse.cz> wrote:
+On Mon, Dec 24, 2018 at 6:53 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
 >
-> On 1/2/19 11:03 AM, Dmitry Vyukov wrote:
-> > On Wed, Jan 2, 2019 at 10:47 AM Vlastimil Babka <vbabka@suse.cz> wrote:
-> >>
-> >> Actually the fix was folded into the patch that caused the bug, and was
-> >> already sent to and merged by Linus, commit
-> >> 7635d9cbe8327e131a1d3d8517dc186c2796ce2e
-> >
-> >
-> > But the email thread you referenced says that we need:
-> >
-> > @@ -66,6 +66,8 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma)
-> >  {
-> >   if (vma_is_anonymous(vma))
-> >   return __transparent_hugepage_enabled(vma);
-> > + if (!vma->vm_file || !vma->vm_file->f_mapping)
-> > + return false;
-> >   if (shmem_mapping(vma->vm_file->f_mapping) && shmem_huge_enabled(vma))
-> >   return __transparent_hugepage_enabled(vma);
-> >
-> > and 7635d9cbe8327e131a1d3d8517dc186c2796ce2e contains:
-> >
-> > +bool transparent_hugepage_enabled(struct vm_area_struct *vma)
-> > +{
-> > +       if (vma_is_anonymous(vma))
-> > +               return __transparent_hugepage_enabled(vma);
-> > +       if (vma_is_shmem(vma) && shmem_huge_enabled(vma))
-> > +               return __transparent_hugepage_enabled(vma);
-> > +
-> > +       return false;
-> > +}
-> >
-> > What am I missing?
+> Convert to use vm_insert_range to map range of kernel memory
+> to user vma.
 >
-> Ah, the solution with vma_is_shmem() appeared later in the thread:
-> https://marc.info/?l=linux-mm&m=154567747315893&w=2
-
-Ah, thanks, just wanted to make sure I understand what happens here.
-Then let's record this in trackable way:
-
-#syz fix: mm, thp, proc: report THP eligibility for each vma
-
-> >>>>> Code: 80 3c 02 00 0f 85 ae 04 00 00 4c 8b a3 a0 00 00 00 48 b8 00 00 00 00
-> >>>>> 00 fc ff df 49 8d bc 24 b8 01 00 00 48 89 fa 48 c1 ea 03 <80> 3c 02 00 0f
-> >>>>> 85 91 04 00 00 49 8b bc 24 b8 01 00 00 e8 2d 70 e6
-> >>>>> RSP: 0018:ffff8881c2237138 EFLAGS: 00010202
-> >>>>> RAX: dffffc0000000000 RBX: ffff8881c2bdbc60 RCX: 0000000000000000
-> >>>>> RDX: 0000000000000037 RSI: ffffffff81c8fa1a RDI: 00000000000001b8
-> >>>>> RBP: ffff8881c2237160 R08: ffffed10383b25ed R09: ffffed10383b25ec
-> >>>>> R10: ffffed10383b25ec R11: ffff8881c1d92f63 R12: 0000000000000000
-> >>>>> R13: ffff8881c2bdbd00 R14: dffffc0000000000 R15: 0000000000000f5e
-> >>>>> FS:  0000000001a48880(0000) GS:ffff8881dad00000(0000) knlGS:0000000000000000
-> >>>>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> >>>>> CR2: 0000000020b58000 CR3: 00000001c2210000 CR4: 00000000001406e0
-> >>>>> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> >>>>> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> >>>>> Call Trace:
-> >>>>>   show_smap+0x167/0x580 fs/proc/task_mmu.c:805
-> >>>>>   traverse+0x344/0x7b0 fs/seq_file.c:113
-> >>>>>   seq_read+0xc76/0x1150 fs/seq_file.c:188
-> >>>>>   do_loop_readv_writev fs/read_write.c:700 [inline]
-> >>>>>   do_iter_read+0x4bc/0x670 fs/read_write.c:924
-> >>>>>   vfs_readv+0x175/0x1c0 fs/read_write.c:986
-> >>>>>   kernel_readv fs/splice.c:362 [inline]
-> >>>>>   default_file_splice_read+0x539/0xb20 fs/splice.c:417
-> >>>>>   do_splice_to+0x12e/0x190 fs/splice.c:880
-> >>>>>   splice_direct_to_actor+0x31c/0x9d0 fs/splice.c:957
-> >>>>>   do_splice_direct+0x2d4/0x420 fs/splice.c:1066
-> >>>>>   do_sendfile+0x62a/0xe50 fs/read_write.c:1439
-> >>>>>   __do_sys_sendfile64 fs/read_write.c:1494 [inline]
-> >>>>>   __se_sys_sendfile64 fs/read_write.c:1486 [inline]
-> >>>>>   __x64_sys_sendfile64+0x15d/0x250 fs/read_write.c:1486
-> >>>>>   do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
-> >>>>>   entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> >>>>> RIP: 0033:0x440089
-> >>>>> Code: 18 89 d0 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 00 48 89 f8 48 89 f7
-> >>>>> 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff
-> >>>>> ff 0f 83 5b 14 fc ff c3 66 2e 0f 1f 84 00 00 00 00
-> >>>>> RSP: 002b:00007fff3d710a18 EFLAGS: 00000213 ORIG_RAX: 0000000000000028
-> >>>>> RAX: ffffffffffffffda RBX: 00007fff3d710a20 RCX: 0000000000440089
-> >>>>> RDX: 0000000020b58000 RSI: 0000000000000003 RDI: 0000000000000003
-> >>>>> RBP: 00000000006ca018 R08: 0000000000000010 R09: 65732f636f72702f
-> >>>>> R10: 000000000000ffff R11: 0000000000000213 R12: 0000000000401970
-> >>>>> R13: 0000000000401a00 R14: 0000000000000000 R15: 0000000000000000
-> >>>>> Modules linked in:
-> >>>>> ---[ end trace faf026efd8795e93 ]---
-> >>>>> RIP: 0010:transparent_hugepage_enabled+0x8c/0x5e0 mm/huge_memory.c:69
-> >>>>> Code: 80 3c 02 00 0f 85 ae 04 00 00 4c 8b a3 a0 00 00 00 48 b8 00 00 00 00
-> >>>>> 00 fc ff df 49 8d bc 24 b8 01 00 00 48 89 fa 48 c1 ea 03 <80> 3c 02 00 0f
-> >>>>> 85 91 04 00 00 49 8b bc 24 b8 01 00 00 e8 2d 70 e6
-> >>>>> RSP: 0018:ffff8881c2237138 EFLAGS: 00010202
-> >>>>> RAX: dffffc0000000000 RBX: ffff8881c2bdbc60 RCX: 0000000000000000
-> >>>>> RDX: 0000000000000037 RSI: ffffffff81c8fa1a RDI: 00000000000001b8
-> >>>>> RBP: ffff8881c2237160 R08: ffffed10383b25ed R09: ffffed10383b25ec
-> >>>>> R10: ffffed10383b25ec R11: ffff8881c1d92f63 R12: 0000000000000000
-> >>>>> R13: ffff8881c2bdbd00 R14: dffffc0000000000 R15: 0000000000000f5e
-> >>>>> FS:  0000000001a48880(0000) GS:ffff8881dad00000(0000) knlGS:0000000000000000
-> >>>>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> >>>>> CR2: 0000000020b58000 CR3: 00000001c2210000 CR4: 00000000001406e0
-> >>>>> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> >>>>> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> >>>>>
-> >>>>>
-> >>>>> ---
-> >>>>> This bug is generated by a bot. It may contain errors.
-> >>>>> See https://goo.gl/tpsmEJ for more information about syzbot.
-> >>>>> syzbot engineers can be reached at syzkaller@googlegroups.com.
-> >>>>>
-> >>>>> syzbot will keep track of this bug report. See:
-> >>>>> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
-> >>>>> syzbot.
-> >>>>> syzbot can test patches for this bug, for details see:
-> >>>>> https://goo.gl/tpsmEJ#testing-patches
-> >>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Acked-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+> ---
+>  drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++++----------------
+>  1 file changed, 7 insertions(+), 16 deletions(-)
 >
+> diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> index 015e737..898adef 100644
+> --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> @@ -328,28 +328,19 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
+>  static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
+>  {
+>         struct vb2_dma_sg_buf *buf = buf_priv;
+> -       unsigned long uaddr = vma->vm_start;
+> -       unsigned long usize = vma->vm_end - vma->vm_start;
+> -       int i = 0;
+> +       unsigned long page_count = vma_pages(vma);
+> +       int err;
+>
+>         if (!buf) {
+>                 printk(KERN_ERR "No memory to map\n");
+>                 return -EINVAL;
+>         }
+>
+> -       do {
+> -               int ret;
+> -
+> -               ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
+> -               if (ret) {
+> -                       printk(KERN_ERR "Remapping memory, error: %d\n", ret);
+> -                       return ret;
+> -               }
+> -
+> -               uaddr += PAGE_SIZE;
+> -               usize -= PAGE_SIZE;
+> -       } while (usize > 0);
+> -
+> +       err = vm_insert_range(vma, vma->vm_start, buf->pages, page_count);
+> +       if (err) {
+> +               printk(KERN_ERR "Remapping memory, error: %d\n", err);
+> +               return err;
+> +       }
+>
+
+Looking into the original code -
+drivers/media/common/videobuf2/videobuf2-dma-sg.c
+
+Inside vb2_dma_sg_alloc(),
+           ...
+           buf->num_pages = size >> PAGE_SHIFT;
+           buf->dma_sgt = &buf->sg_table;
+
+           buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
+                                                       GFP_KERNEL | __GFP_ZERO);
+           ...
+
+buf->pages has index upto  *buf->num_pages*.
+
+now inside vb2_dma_sg_mmap(),
+
+           unsigned long usize = vma->vm_end - vma->vm_start;
+           int i = 0;
+           ...
+           do {
+                 int ret;
+
+                 ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
+                 if (ret) {
+                           printk(KERN_ERR "Remapping memory, error:
+%d\n", ret);
+                           return ret;
+                 }
+
+                uaddr += PAGE_SIZE;
+                usize -= PAGE_SIZE;
+           } while (usize > 0);
+           ...
+is it possible for any value of  *i  > (buf->num_pages)*,
+buf->pages[i] is going to overrun the page boundary ?
 
