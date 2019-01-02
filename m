@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CF0098E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:09:27 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id a9so8423540pla.2
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 07:09:27 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v15sor3927947pfa.0.2019.01.11.07.09.26
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E82A58E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 07:24:53 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t7so31689763edr.21
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 04:24:53 -0800 (PST)
+Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
+        by mx.google.com with ESMTPS id a7si513504edl.383.2019.01.02.04.24.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 Jan 2019 07:09:26 -0800 (PST)
-Date: Fri, 11 Jan 2019 20:43:26 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 9/9] xen/privcmd-buf.c: Convert to use vm_insert_range_buggy
-Message-ID: <20190111151326.GA2853@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Jan 2019 04:24:52 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 66B90B89DA
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 12:24:52 +0000 (GMT)
+Date: Wed, 2 Jan 2019 12:24:50 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: compaction.c: Propagate return value upstream
+Message-ID: <20190102122450.GD31517@techsingularity.net>
+References: <20181226194257.11038-1-pakki001@umn.edu>
+ <20181227035029.GE20878@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <20181227035029.GE20878@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, boris.ostrovsky@oracle.com, jgross@suse.com, linux@armlinux.org.uk, robin.murphy@arm.com
-Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Aditya Pakki <pakki001@umn.edu>, kjlu@umn.edu, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Yang Shi <yang.shi@linux.alibaba.com>, Johannes Weiner <hannes@cmpxchg.org>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Randy Dunlap <rdunlap@infradead.org>
 
-Convert to use vm_insert_range_buggy() to map range of kernel
-memory to user vma.
+On Wed, Dec 26, 2018 at 07:50:29PM -0800, Matthew Wilcox wrote:
+> On Wed, Dec 26, 2018 at 01:42:56PM -0600, Aditya Pakki wrote:
+> > In sysctl_extfrag_handler(), proc_dointvec_minmax() can return an
+> > error. The fix propagates the error upstream in case of failure.
+> 
+> Why not just ...
+> 
+> Mel, Randy?  You seem to have been the prime instigators on this.
+> 
 
-This driver has ignored vm_pgoff. We could later "fix" these drivers
-to behave according to the normal vm_pgoff offsetting simply by
-removing the _buggy suffix on the function name and if that causes
-regressions, it gives us an easy way to revert.
+Patch seems fine.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- drivers/xen/privcmd-buf.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-diff --git a/drivers/xen/privcmd-buf.c b/drivers/xen/privcmd-buf.c
-index de01a6d..a9d7e97 100644
---- a/drivers/xen/privcmd-buf.c
-+++ b/drivers/xen/privcmd-buf.c
-@@ -166,12 +166,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
- 	if (vma_priv->n_pages != count)
- 		ret = -ENOMEM;
- 	else
--		for (i = 0; i < vma_priv->n_pages; i++) {
--			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
--					     vma_priv->pages[i]);
--			if (ret)
--				break;
--		}
-+		ret = vm_insert_range_buggy(vma, vma_priv->pages,
-+						vma_priv->n_pages);
- 
- 	if (ret)
- 		privcmd_buf_vmapriv_free(vma_priv);
 -- 
-1.9.1
+Mel Gorman
+SUSE Labs
