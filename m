@@ -2,146 +2,149 @@ Return-Path: <SRS0=6aBQ=PK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 31A54C43387
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 17:47:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97B1EC43444
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 18:02:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E133C218FC
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 17:47:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 40964218D3
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 18:02:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=digitalocean.com header.i=@digitalocean.com header.b="TDyu69lZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E133C218FC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=digitalocean.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="qwipEX4w"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40964218D3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7BC278E0035; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
+	id A47D18E0036; Wed,  2 Jan 2019 13:02:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 76A458E0002; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
+	id 9F70E8E0002; Wed,  2 Jan 2019 13:02:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 658448E0035; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
+	id 8C0558E0036; Wed,  2 Jan 2019 13:02:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F2D08E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id c33so14860221otb.18
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 09:47:54 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 47F038E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 13:02:20 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id a10so24305178plp.14
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 10:02:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=0hBUk8Mse5SprcZveZ649K7+7VQzzipNWH9bsLfG1zs=;
-        b=BHr5vEFS5x7wS67UWypiWD2AX2Yc9U3usK/W5bfsbIdx9F4hHTcdjCdHHp/lllh8kY
-         JCRP7Kqljvv/biYUB5EYys7j9xhKSushABOFpPjgV77C0ABfv6bpushiRMNtNBV/GnsL
-         ELpUUZXOlIf/j37R6zJ8nr15ZL/k8O6/oQItkpliUyPX+JzLN1nR7LHWgL9O4bIK3y3B
-         iVIoftYs/WBDSOv9qNvcxvYxdHO/t5oQr0nA/mTFKEzkmWkya3gpG/cEGO7opCnfB6bK
-         EyEYUNu1VwQjttndPlJ3YldZn/2ZWTCecjHstegUnoSGyhz1WvsDs4XtHseOVDqcFrRx
-         fP6g==
-X-Gm-Message-State: AJcUukep4/4Pergc8wrcRnkaB+EntLiVCS0e+fxZeTEVsl9ijgwt1HDX
-	2O7+fsnKMa2ox3VbCSVS372bNskHiZGP3xNlhw2fv642dRrRSD1jE6ko2ieHODk6b7K+BfqiQo8
-	v/rmu4LDg1qq/MQYLQswlSa7vmkQrYSwbqeiP3mSL8qgcdBKfw4clFsaYay12s+XkjhNyS2KeeX
-	ycHgbG7vSiL7R0khRsW7fceVz/NZwPV4JnBj9TQaypxJ8cFyJc4kmpBTAen7NkUgkpf/wsPxLf/
-	yptfAsnZ93YgTJMfqFTPUEM8M4hJLlnLJy0OZmlDtzRHnc0ppLw6u2xunCygssPlUIykhK6V0tJ
-	/6UaOM8RvHL+l/wJ98jnzC27N+28tVr8R7vlgUAhB9RnAvUigu7717mJLY5jACX7JDa83TfEGKH
-	Y
-X-Received: by 2002:a9d:19a8:: with SMTP id k37mr32592766otk.283.1546451273998;
-        Wed, 02 Jan 2019 09:47:53 -0800 (PST)
-X-Received: by 2002:a9d:19a8:: with SMTP id k37mr32592745otk.283.1546451273334;
-        Wed, 02 Jan 2019 09:47:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546451273; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=5dUXWnMYVxK4GhlE9mU3i7S+YQhp/yuwfcvNZh6pQ54=;
+        b=PUdKL1jNHIgND34wb9eGbxJ/SGku0rSg7dNXE4lyl//Zx4OmscQC1xElK6tt9+c5vo
+         BxKdtP4GzApUZ0CRnt6hOIRQlOfdy8zRzbF5rKJYuWCAI/BJvoG7WJY60CwXmh2ha/Vw
+         AM6SXbGl3naC7JE77bfqn/DuZo6yKXIpAo9lLFfNudfBuZl7/6kUPN0fTL7QMwpX2RzT
+         v3kkoFpauAovhZiFXsdSJZ5FtZCYLrJ2L4ugl9c+d2yb1pbocuKajmfva6INbLZE0iNE
+         9ijQv07RFiI8xGqfNawvR5/+cJJY39qc+oMqGu8O30MrMuILZzeus4/H9X9t/6xevY3t
+         UxLQ==
+X-Gm-Message-State: AA+aEWaq/9ZQLqkCw+nLzwy5lnoE4M1lZ0t+VCBzCSHpiXy9pLIbqi5w
+	cWiyPbhNbXX92dvr57eNKEqz/c9riOzBH55ZRHnkyL3TBrL44zOuWMsghdao4Pw0HtwCxaUNLeR
+	3S8x8JAsddDhQzxH8BRBNRGlkMLsWJk0FJgbPqrCZLuXSNYGnKNbIaGpkuxGuyCPBemqayRT1oO
+	ASkGN3RKbgd85KHCqikFlPMISEjP4WxRYppphy3VaKUOlSfuS8IJxZKJepuvOuArSndnhZ6fsgu
+	bCX4FCKOWuRt0tSPYRUM6KGYarbwQaM19CI4AcVe4fo9ho44xVrjiUO3MOTmcwMnx2JAMAYO64W
+	f34i5Fo9GXAa+FPWY5N+sFTavvAVwLAmYgvonfY7c1kpwu2T42pa8xGfLYkH17KbgJA38/cSDUL
+	V
+X-Received: by 2002:a62:34c6:: with SMTP id b189mr46434854pfa.229.1546452139842;
+        Wed, 02 Jan 2019 10:02:19 -0800 (PST)
+X-Received: by 2002:a62:34c6:: with SMTP id b189mr46434788pfa.229.1546452138997;
+        Wed, 02 Jan 2019 10:02:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546452138; cv=none;
         d=google.com; s=arc-20160816;
-        b=gcZyI/PDk09Rr9bqUOAOMUQUEWavIvcwdIZ4h3xT3Zb+9tTfQjnOgyzvXvh9TMgGrz
-         Fng2fDHk5SeQJVsrc/pC/MKtx7iCVNao+80BWRH965wWBYVvsw3/zUV5RiM0JFSfJKOZ
-         M/2YP7p6OiaAQTSUdeUHvSKbmGRN5fm8B0y5Hb1DPj5mz6hMTqjMT0RDi838fKTbi7Ry
-         LN2RWfYI9dv4xfyf2NTSncrJ8q7SrgK++Rr4Sfo6b7io34zixWkUTCSt6YK+u6L1Z20P
-         19yXclBKR03k7YMKkdRqkBMhlicXj16R6I1z1u63DxrDjP2u0luVoR9mWCZxiDKQknNt
-         ujKw==
+        b=VTILBRqdzk6aPMsLQ6KfdgkPXvA4p2U7WZBxgDlb0dGwCg+RxVeeKvP0rSzQ8auAF1
+         bGFtv7IdDGFjl6mIu8qkaMp2hbfOBbV/qhOzI1SLHZW/etcKHK6XRLt4YITsWX6iztM1
+         l4ukXv0owivgsUMCWk6QCDRMI+S6EwdhD9rdCEetYIJZ7qOIIQkNDv3Fg0s7uhLklu6K
+         uNz7fYE9gXwwJ5CdCY2IIpMtbJ+djpC1A/Vmkodek7LFZTIGF0fMszWMGsOFmMvSFXtc
+         q6Hrq3fzpoYjF0i8A5C9JW6vOO7xunznbZoyH/IuGnSJ3fAxHcfyTh+ReGGGT8BqInJl
+         KvAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=0hBUk8Mse5SprcZveZ649K7+7VQzzipNWH9bsLfG1zs=;
-        b=F8CHiHhZn9FU/LMQEX4/A6TmC14L+YO83IlmPGSi7xQC0jhSfChfB+oniX+o7nxbTC
-         oKcizfC/957/swEYuDK8NeipP82vdURCdhDznNnJsoK6cVflgk78Pw7Or+w+YKEeZ/H9
-         DfETzmpd8TastsALi3X0vnw974w8VM9DDTc3zlVMwLgThDLINYegVmet2gBfImL75y+X
-         WL9t+t6gzm1HmD+T5cFaX6KXniKeJJqCnfPz7hFgbxGwYoUWFDLDjTeE90SfOelEWf79
-         uB9ruLTfpMJK+0sMePalEbtwQHtJE5v8z/F0RPW5JRGryLr6is6bYcwiftlBQgo352F8
-         ko1Q==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=5dUXWnMYVxK4GhlE9mU3i7S+YQhp/yuwfcvNZh6pQ54=;
+        b=w7drvNgOAhoIkm5Cm3t+OKD72DrRbW76e2fv+/dIy5dUSNlkWRtOsHWVRX6982WFYK
+         eHVfsnIMi2rCwpvOTKTxA/4yd4g4yCbeTxCwbZeTTgXQGYltUUEAYb6KxJlbkRYhz85d
+         FenWymTO2IBHYWaycuxyO9BA6e16Fy67Kttxk5SLeos89AgSNv1XpWcMc4KxEfdTVmk3
+         Xbb4UM3y2dRxxzqhF67fE/2W4hIIYhpkDM5oYTsoEFpVEi0rj/3TquMqltwnLw6XeXg8
+         JjyAUXzN33xCQO4O4i7CXmZ3nGYFKJCRMSNuGIqge2CDL7Ro4qhk7CGYwfUeiNaoF5zO
+         suWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@digitalocean.com header.s=google header.b=TDyu69lZ;
-       spf=pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vpillai@digitalocean.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=digitalocean.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z89sor138199otb.62.2019.01.02.09.47.53
+       dkim=pass header.i=@google.com header.s=20161025 header.b=qwipEX4w;
+       spf=pass (google.com: domain of 3qvwsxagkcd8tiblffmchpphmf.dpnmjovy-nnlwbdl.psh@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3qvwsXAgKCD8tiblffmchpphmf.dpnmjovy-nnlwbdl.psh@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id t18sor21692527pfi.23.2019.01.02.10.02.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 02 Jan 2019 09:47:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 02 Jan 2019 10:02:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3qvwsxagkcd8tiblffmchpphmf.dpnmjovy-nnlwbdl.psh@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@digitalocean.com header.s=google header.b=TDyu69lZ;
-       spf=pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vpillai@digitalocean.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=digitalocean.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=qwipEX4w;
+       spf=pass (google.com: domain of 3qvwsxagkcd8tiblffmchpphmf.dpnmjovy-nnlwbdl.psh@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3qvwsXAgKCD8tiblffmchpphmf.dpnmjovy-nnlwbdl.psh@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=digitalocean.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=0hBUk8Mse5SprcZveZ649K7+7VQzzipNWH9bsLfG1zs=;
-        b=TDyu69lZSUHU/VU7Ss2yo6UJzSknmMCUOHHR1EQDCiw2yNvY97ekNE8jOmsUl0EmTY
-         61ge1HunQ8fGibGB88QKzLie1fF/v7IE7xxdbwWDImQUcORxvHSY/k4s7ZmPIVy37XLr
-         xJKiRqVlBW+w2PFwTuoGxZyRC2kaI4Z6SwgLk=
-X-Google-Smtp-Source: ALg8bN5Q0vtZNj9c9C6J/ihvx9BkDJAA+ekzmZVGE31cgguG5Qo9I8KwhxlPZUvc9TmgT+bkTPAEpmgOe2kAPhrbP5A=
-X-Received: by 2002:a9d:1f3:: with SMTP id e106mr29318143ote.369.1546451272726;
- Wed, 02 Jan 2019 09:47:52 -0800 (PST)
-MIME-Version: 1.0
-References: <20181203170934.16512-1-vpillai@digitalocean.com>
- <20181203170934.16512-2-vpillai@digitalocean.com> <alpine.LSU.2.11.1812311635590.4106@eggly.anvils>
- <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com> <alpine.LSU.2.11.1901012010440.13241@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1901012010440.13241@eggly.anvils>
-From: Vineeth Pillai <vpillai@digitalocean.com>
-Date: Wed, 2 Jan 2019 12:47:43 -0500
-Message-ID:
- <CANaguZC_d2EBmNuXtcJRcEcw8uXK234tYSXx6Uc2o9JH_vfP4A@mail.gmail.com>
-Subject: Re: [PATCH v3 2/2] mm: rid swapoff of quadratic complexity
-To: Hugh Dickins <hughd@google.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Kelley Nielsen <kelleynnn@gmail.com>, Rik van Riel <riel@surriel.com>
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=5dUXWnMYVxK4GhlE9mU3i7S+YQhp/yuwfcvNZh6pQ54=;
+        b=qwipEX4wIkJkoVONyw3px8ydt+BiUWSb5U5RBPSsg7mhqCD+4qDp9Uj7JYhb/A9Wor
+         HGqBh8MUbe7wxfjpQpqc+O8AenWmE4OjT/7XjR4dKHO72AkllbS6mYl+xwh2rAwMGRVy
+         BeEtch55uq4z+z+HihCDU/thB4jlyVfn7Ax0WKYyWHtP4mvf1pkAT/gw9M1obguZFDwz
+         VXYecv1XxqTFYnefuQotftd9giuHUU/3eX7wCghZm0IGTbQDkI4F3ArxMZGS8pKURKGH
+         GWEb7bvAiTowOkeKfzxgaSbx7UHm1gD5UZrvAN4lhg6X5eSgig7+6g51ewHZVobYp4u5
+         SpAg==
+X-Google-Smtp-Source: AFSGD/WvKYzExjx3kanWeTXSxjcrXDOcA3b9GU3ybkrL1kzUW/cmA5LtiGb7NwqgZ+pIcpg3kHSdFAwvMzIcAw==
+X-Received: by 2002:aa7:8714:: with SMTP id b20mr20428221pfo.85.1546452138509;
+ Wed, 02 Jan 2019 10:02:18 -0800 (PST)
+Date: Wed,  2 Jan 2019 10:01:45 -0800
+Message-Id: <20190102180145.57406-1-shakeelb@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.20.1.415.g653613c723-goog
+Subject: [PATCH] fork, memcg: fix cached_stacks case
+From: Shakeel Butt <shakeelb@google.com>
+To: Rik van Riel <riel@surriel.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, 
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
+	Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, 
+	stable@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190102174743.HztUB3h3XpLHG2eCzqaIegm-y1RB6lKvKiFRQXgyCF0@z>
+Message-ID: <20190102180145.VNeKHZEebGkxt8djU6rItN-ugxeovPosmkp3sztT2QU@z>
 
-On Tue, Jan 1, 2019 at 11:16 PM Hugh Dickins <hughd@google.com> wrote:
-> One more fix on top of what I sent yesterday: once I delved into
-> the retries, I found that the major cause of exceeding MAX_RETRIES
-> was the way the retry code neatly avoided retrying the last part of
-> its work.  With this fix in, I have not yet seen retries go above 1:
-> no doubt it could, but at present I have no actual evidence that
-> the MAX_RETRIES-or-livelock issue needs to be dealt with urgently.
-> Fix sent for completeness, but it reinforces the point that the
-> structure of try_to_unuse() should be reworked, and oldi gone.
->
+Commit 5eed6f1dff87 ("fork,memcg: fix crash in free_thread_stack on
+memcg charge fail") fixes a crash caused due to failed memcg charge of
+the kernel stack. However the fix misses the cached_stacks case which
+this patch fixes. So, the same crash can happen if the memcg charge of
+a cached stack is failed.
 
-Thanks for the fix and suggestions Hugh!
+Fixes: 5eed6f1dff87 ("fork,memcg: fix crash in free_thread_stack on memcg charge fail")
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Cc: Rik van Riel <riel@surriel.com>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: <stable@vger.kernel.org>
+---
+ kernel/fork.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-After reading the code again, I feel like we can make the retry logic
-simpler and avoid the use of oldi. If my understanding is correct,
-except for frontswap case, we reach try_to_unuse() only after we
-disable the swap device. So I think, we would not be seeing any more
-swap usage on the disabled swap device, after we loop through all the
-process and swapin the pages on that device. In that case, we would
-not need the retry logic right?
-For frontswap case, the patch was missing a check for pages_to_unuse.
-We would still need the retry logic, but as you mentioned, I can
-easily remove the oldi logic and make it simpler. Or probably,
-refactor the frontswap code out as a special case if pages_to_unuse is
-still not zero after the initial loop.
-
-Thanks,
-Vineeth
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e4a51124661a..593cd1577dff 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -216,6 +216,7 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
+ 		memset(s->addr, 0, THREAD_SIZE);
+ 
+ 		tsk->stack_vm_area = s;
++		tsk->stack = s->addr;
+ 		return s->addr;
+ 	}
+ 
+-- 
+2.20.1.415.g653613c723-goog
 
