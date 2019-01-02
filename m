@@ -2,172 +2,208 @@ Return-Path: <SRS0=6aBQ=PK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E4B9C43612
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 04:16:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A270C43612
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 05:51:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF9122080A
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 04:16:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CB51A218AE
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 05:51:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="TlDyqnPH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF9122080A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="m1NoC2Hq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CB51A218AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DEBEA8E000B; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
+	id 280E28E000C; Wed,  2 Jan 2019 00:51:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D9AEE8E0002; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
+	id 22F198E0002; Wed,  2 Jan 2019 00:51:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB0518E000B; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
+	id 147D88E000C; Wed,  2 Jan 2019 00:51:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A50008E0002
-	for <linux-mm@kvack.org>; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id d7so21773134oif.5
-        for <linux-mm@kvack.org>; Tue, 01 Jan 2019 20:16:39 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DFC868E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 00:51:57 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id m37so38106243qte.10
+        for <linux-mm@kvack.org>; Tue, 01 Jan 2019 21:51:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=sGf8qo2Wdx2LK1OhcJgrgfHsKFZtTfQlC5pl8JudtzE=;
-        b=kuMLnRlmK2YqnJ0yBtNIEg+ZiMmNA9kwQGLMCX6yj4UeIPJ9zEHn8je3lBAUF7LLZZ
-         H4PFxrk+UxuSUgYLtme0svM526eFTyWS3X8YH5ck76WwwvVrXklnajHHyaw32pl+h7fS
-         mI4AEdjn/ZWdpHu9xTGM8ilfws8secyJD2I713hQGjLX5ruOWxE3dbZdoORCtv3TWSxe
-         yoY4hZEGa9A57RQA+nM1RRWFo1aupYLYxHr+z0fUUm8BusQFf2El6MG7Hj6+PiViXxz4
-         JHuzRHr8QmI46y+TOf4lltjtuegzbF3ayMXBVUlBRpJXT/XTCO/lI0GpiMj8LIoG25Ct
-         eJxA==
-X-Gm-Message-State: AJcUukcdwy9Wf2h0Fxr6FVgr53CYdgQMKAYJCCGhbbHJ/9Ymy8w83eUJ
-	p9LA+jKpu83XqNKfKmJy7zjHTdXlsxPokYs0RQkSI5+nODbg15VB7x+Z08tGJaVNmfUO2qr/nr7
-	Htwx43aOOur4cAEzVEz2N+D6ICWiQIiyLVLKq00xKvo1VzLarBwtqpe/yU/gMMUdRNlHCINujLm
-	HgWACaZ4VUI+mWkLxClLY0ZmYEUhEXzHG+WGyjnh2cpFXWgrsArIgU9AN/zgz/ltY8rLzLEUaNR
-	TkBxkxvlWNyiB6Mk18a/KIIyUTzmvePdGt5O4ny4A3Nw/WeyEr3CZL5qx2PFbihwhyUqvYq3VMO
-	r0bJvQ2iAB388EUWjWZyhkNK7yZCSWr4k4brjCQRQ+2gVa6JkcqT51JRYYu2ERdz9YVGGpGaAiS
-	8
-X-Received: by 2002:a05:6830:16c2:: with SMTP id l2mr30505684otr.20.1546402599281;
-        Tue, 01 Jan 2019 20:16:39 -0800 (PST)
-X-Received: by 2002:a05:6830:16c2:: with SMTP id l2mr30505668otr.20.1546402598520;
-        Tue, 01 Jan 2019 20:16:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546402598; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=/RT2abgqnBKCQ74QwzoyIyU7Rv/U52C3iy99nR44H5o=;
+        b=E/0CT5bO36xfpwVbOPPU65sfkWF5taPkP0tAllNtuS3dl4wNNDgrVGZlGHERmkIyos
+         raH7ym7S74kbI/mbLMOSGtGKU6vfTTh+w49jhlK8QDIX4YaEvSavY4ICKK2lVBlYgmgc
+         RXcV7LzvowRqGjbQ8+sEYPNg8eq7gWvv4hHwXuzuNS44jFe+T+4TXSrMWzKGHcJ86hnh
+         XtW1LPkwkwKlLkHqQ/S6maCf1IwCamoDr3wczSmPeS++tdvNdZXB/RQPRD62J5qz5vmE
+         V38bZwkFzmaw0bkc9G9/++9VtK1YorSRqA2fJTrZWNL0gc8vPCMyFwEtoW0ZJsro81en
+         z7nw==
+X-Gm-Message-State: AJcUukfgpLFjBvDBMCz3axhKzfe+jXbmF4nOX9VejqQEPqrrhcTFPuRP
+	J8A7F9eZ7/HnXTl4z1ZJRMWpV2rvk7g1YMc4xs7pOXzQAK0U4prdl8z70X1Mbk+hYtIGsDMd977
+	aMeZAJC8eTmIyxw6cvt/gT7ruWruVQiQ0MV0Mh9Zja21pVgfAM1bkV8uxoR8i3vO4QzGIMowO9y
+	rxfxn1BNFAlNQtDZCW3l24J8YmvruY1iuiZ2dhB4wo4Rw8ox6O+5BECenWMQ195OGJ8cd2BOROt
+	yzlK/iLW6w4NHwqfQL6oPl0WY3ll9Tj1dzGXwUOnkb6pVQ+JNynkYvWYdvCu3QBX+MRfVQ6+7sJ
+	8BAd3vu8NsQVlctup4+Vrfvx7TwRDz5d6xrsL0lAPV3SHjeQc0G5uUCsfEbsxtJKtcOzCzngUyR
+	U
+X-Received: by 2002:ac8:6784:: with SMTP id b4mr41998017qtp.103.1546408317633;
+        Tue, 01 Jan 2019 21:51:57 -0800 (PST)
+X-Received: by 2002:ac8:6784:: with SMTP id b4mr41997988qtp.103.1546408316838;
+        Tue, 01 Jan 2019 21:51:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546408316; cv=none;
         d=google.com; s=arc-20160816;
-        b=qBZpCysdvPRqez4IY7Cob00WrLyjWODeyesjuWYQ5q2JpaKK7FKyVn/Wxz/pb+Tlaj
-         EM1Mt/rNQFRsj/d/xoOKnwH+kmcTF7ezWfEj3kyt0eKW6LqbOtwiUOK6Cc+mXAkQr7Zy
-         9eTJTr/4IJPY9m2ij+veJ9CR813+HnUqBFaLkBE0In+iePQVRZuvaL69DUSst4GGES67
-         V1/v69UB+P07A3HS1jSqtl3crRlOwQ5ZwDvgtU66mpYFwrreKNVxT1aIq9f4Ab1QiHo7
-         2qyQFYbHPA2mPtjdu3mLoN1JcFJaMKwWOYYxe7qW2FFTKrv+9J7EDbiOdR9PaN9PBo+W
-         wTtw==
+        b=FLmgiH7N6T0PcjuGFIzoJRzRmcA/UDcWqatvjii6wXQmkYFNwvlj7FYX5XxObj4S4h
+         t/LjAr/ZUAaJsYRXkLcU/g9erBrfIdB5wi5+o1Ydqg7wzVOQhnmFpKZVCFWOPfcJ7JQB
+         zhfXdahmhzMD7Yk3pQyF/eUf+kBHvwSY5LuFxAu32n2AR4nj++34EtxpndDTIbWdLvAn
+         8EBbtsQsroNnWdcPPq1RBy+/tYBe/aKVhyTRYdUPvd9YmKpzPeaaF+fhPiVa7trOB7Cg
+         C23QGgZCueR1Na+eAOa3rOiVnSPO3CH+kUQx904uEL3SQCg3S9Z8raFS7ri7/rYJtC5y
+         y+Jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=sGf8qo2Wdx2LK1OhcJgrgfHsKFZtTfQlC5pl8JudtzE=;
-        b=BOEFZIVt8JcHsxkNzbniCbcQB9dPfPSX9FMw3iz8h1k8IfwDgqVzCjOBm4OYcI1uWg
-         RmzULytLTeQHmc9zudLQU9LALqMK5PdepoSheHodpxpHFXf0ngKJyMw4x6KpVCG8GZRB
-         SG3CTm3yIzvwVsaddhObKQdYPKSiGL0g/g2hiVZ+aaKrTBJt26L32iH16fmG4Uy0zbQj
-         FvWhWbw+zYiVcUMYeQPBr8MO42Jm2SmdHnIPSF0GZx0thM4p/A/vBUMYETonYt3z806I
-         L+uvIo/28FEcRQvG+AKTwK6eMm2IApQMbXfC8OUr2TAybK+OhV+tAsu5ox69mzWr3w3w
-         8qZw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=/RT2abgqnBKCQ74QwzoyIyU7Rv/U52C3iy99nR44H5o=;
+        b=YVBzIjGkXz629g68lZos8aMd1GHVifj90VeuF7Yk8cutyNJiuS7qrTzF/pko4bcD8J
+         W7LQ55U4K7JMGKiRPsvLemtMaAb9l2ur+Dr7/A0S36iwREccyFta2803zHJZnmo52LNr
+         q9wjn09XVoWfUBMbUKbUK79nmIQTXe3fIU49dLc9siGTeWAE4FdeNt8R6wK2LCHXPYt2
+         m3w/wXv8GiEQvn8hxwh3l56bLsA4bvN0jrV60D7CGOOXLppl//ziyPzUb4Y0rriHSUqv
+         2Jt+85X4/Opddk/kn2mdyrLRdWXzOE4ukXWnttbqj/C+7nXy9y/qE7uVZiXYOFunYaJB
+         ylow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=TlDyqnPH;
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@chromium.org header.s=google header.b=m1NoC2Hq;
+       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x2sor26440580ota.72.2019.01.01.20.16.38
+        by mx.google.com with SMTPS id l11sor44208235qtk.1.2019.01.01.21.51.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 01 Jan 2019 20:16:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 01 Jan 2019 21:51:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=TlDyqnPH;
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@chromium.org header.s=google header.b=m1NoC2Hq;
+       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=sGf8qo2Wdx2LK1OhcJgrgfHsKFZtTfQlC5pl8JudtzE=;
-        b=TlDyqnPHZSSgvwoclhmoj5ys8xDZm6AlFzh05iWq49a0NRex24EjU20DyAzpNHTUT9
-         uRytyqszNnfGIMXVM/NFBwcNXsFtkxYspclXZAz3c2+g15YObn+SUogf8XaTA8DIeE2K
-         ocCl0fV6dGBnOPKUF3b97m7ySSCWjVhPDwUhr2YyuSNUkfxZqr+XiZTD+K/u9s10C9Zf
-         Le5E3McHGCXl1ohRSkIOtmOyLYHTVM7ChSDXX3bf6Ps5+9Ln/adFK1P4iSr6jK6ZYm76
-         fR3gRj5Y1C1QVCMJi4sqEETFCjfuEZMOZApxYz1eqmVGlwetjzwxPK+81yhXcQPCYQoy
-         14IQ==
-X-Google-Smtp-Source: ALg8bN45dgSFZYcm+zGi65miW7qopuu4TeQu4nqCYJSidDyIUBobIzzQRL8h0VOde/VcbbUE/YeMUw==
-X-Received: by 2002:a9d:1421:: with SMTP id h30mr28318662oth.321.1546402597919;
-        Tue, 01 Jan 2019 20:16:37 -0800 (PST)
-Received: from eggly.attlocal.net (172-10-233-147.lightspeed.sntcca.sbcglobal.net. [172.10.233.147])
-        by smtp.gmail.com with ESMTPSA id 21sm29760692oie.24.2019.01.01.20.16.36
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 01 Jan 2019 20:16:37 -0800 (PST)
-Date: Tue, 1 Jan 2019 20:16:28 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-X-X-Sender: hugh@eggly.anvils
-To: Vineeth Pillai <vpillai@digitalocean.com>
-cc: Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, 
-    Andrew Morton <akpm@linux-foundation.org>, 
-    Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, Kelley Nielsen <kelleynnn@gmail.com>, 
-    Rik van Riel <riel@surriel.com>
-Subject: Re: [PATCH v3 2/2] mm: rid swapoff of quadratic complexity
-In-Reply-To: <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1901012010440.13241@eggly.anvils>
-References: <20181203170934.16512-1-vpillai@digitalocean.com> <20181203170934.16512-2-vpillai@digitalocean.com> <alpine.LSU.2.11.1812311635590.4106@eggly.anvils> <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com>
-User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=/RT2abgqnBKCQ74QwzoyIyU7Rv/U52C3iy99nR44H5o=;
+        b=m1NoC2HqsQfyDG3eQXWCxZiWnU2XjiZIpTQPa+5vsHI3mqNz1EftTooPlMZQlxFfZ8
+         JZ2zSWtwWl2/Z84PqKsLn35wscF4HMwRIE5ZiM/gSS87W9A2VP3RnRkgCRuFUxzuEw39
+         3U+ycyEya+PCJmp8aBL4QQPSPNy+QlQHisk2M=
+X-Google-Smtp-Source: AFSGD/U/cTetaNn2yuxykYMMgcxPM+HG9ZU6Nw6VmD3O2sHrZWwUWUUgYwwduvJqxV6VLHsvs9V8vcPOQLpfP2Pcta8=
+X-Received: by 2002:ac8:6b50:: with SMTP id x16mr42135783qts.368.1546408316297;
+ Tue, 01 Jan 2019 21:51:56 -0800 (PST)
 MIME-Version: 1.0
+References: <20181210011504.122604-1-drinkcat@chromium.org>
+In-Reply-To: <20181210011504.122604-1-drinkcat@chromium.org>
+From: Nicolas Boichat <drinkcat@chromium.org>
+Date: Wed, 2 Jan 2019 13:51:45 +0800
+Message-ID:
+ <CANMq1KAmFKpcxi49wJyfP4N01A80B2d-2RGY2Wrwg0BvaFxAxg@mail.gmail.com>
+Subject: Re: [PATCH v6 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
+To: Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, 
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, 
+	Mel Gorman <mgorman@techsingularity.net>, 
+	Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, 
+	lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
+	Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
+	Tomasz Figa <tfiga@google.com>, Yingjoe Chen <yingjoe.chen@mediatek.com>, hch@infradead.org, 
+	Matthew Wilcox <willy@infradead.org>, Hsin-Yi Wang <hsinyi@chromium.org>, stable@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190102041628.U5SOdxDQiSbe2HRHmu9cCnDFimEb3HfuegI0TwPrqkg@z>
+Message-ID: <20190102055145.2RPqYLkGUC88ZHTm0cKlmcjuIkJnMv7U5XEMsurfimk@z>
 
-On Tue, 1 Jan 2019, Vineeth Pillai wrote:
+Hi all,
 
-> Thanks a lot for the fixes and detailed explanation Hugh! I shall fold all
-> the changes from you and Huang in the next iteration.
-> 
-> Thanks for all the suggestions and comments as well. I am looking into all
-> those and will include all the changes in the next version. Will discuss
-> over mail in case of any clarifications.
+On Mon, Dec 10, 2018 at 9:15 AM Nicolas Boichat <drinkcat@chromium.org> wrote:
+>
+> This is a follow-up to the discussion in [1], [2].
+>
+> IOMMUs using ARMv7 short-descriptor format require page tables
+> (level 1 and 2) to be allocated within the first 4GB of RAM, even
+> on 64-bit systems.
+>
+> For L1 tables that are bigger than a page, we can just use __get_free_pages
+> with GFP_DMA32 (on arm64 systems only, arm would still use GFP_DMA).
+>
+> For L2 tables that only take 1KB, it would be a waste to allocate a full
+> page, so we considered 3 approaches:
+>  1. This series, adding support for GFP_DMA32 slab caches.
+>  2. genalloc, which requires pre-allocating the maximum number of L2 page
+>     tables (4096, so 4MB of memory).
+>  3. page_frag, which is not very memory-efficient as it is unable to reuse
+>     freed fragments until the whole page is freed. [3]
+>
+> This series is the most memory-efficient approach.
 
-One more fix on top of what I sent yesterday: once I delved into
-the retries, I found that the major cause of exceeding MAX_RETRIES
-was the way the retry code neatly avoided retrying the last part of
-its work.  With this fix in, I have not yet seen retries go above 1:
-no doubt it could, but at present I have no actual evidence that
-the MAX_RETRIES-or-livelock issue needs to be dealt with urgently.
-Fix sent for completeness, but it reinforces the point that the
-structure of try_to_unuse() should be reworked, and oldi gone.
+Does anyone have any further comment on this series? If not, which
+maintainer is going to pick this up? I assume Andrew Morton?
 
-Hugh
+Thanks,
 
----
-
- mm/swapfile.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
---- mmotm/mm/swapfile.c	2018-12-31 12:30:55.822407154 -0800
-+++ linux/mm/swapfile.c	2019-01-01 19:50:34.377277830 -0800
-@@ -2107,8 +2107,8 @@ int try_to_unuse(unsigned int type, bool
- 	struct swap_info_struct *si = swap_info[type];
- 	struct page *page;
- 	swp_entry_t entry;
--	unsigned int i = 0;
--	unsigned int oldi = 0;
-+	unsigned int i;
-+	unsigned int oldi;
- 	int retries = 0;
- 
- 	if (!frontswap)
-@@ -2154,6 +2154,7 @@ retry:
- 		goto out;
- 	}
- 
-+	i = oldi = 0;
- 	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
- 		/*
- 		 * Under global memory pressure, swap entries
+> stable@ note:
+>   We confirmed that this is a regression, and IOMMU errors happen on 4.19
+>   and linux-next/master on MT8173 (elm, Acer Chromebook R13). The issue
+>   most likely starts from commit ad67f5a6545f ("arm64: replace ZONE_DMA
+>   with ZONE_DMA32"), i.e. 4.15, and presumably breaks a number of Mediatek
+>   platforms (and maybe others?).
+>
+> [1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
+> [2] https://lists.linuxfoundation.org/pipermail/iommu/2018-December/031696.html
+> [3] https://patchwork.codeaurora.org/patch/671639/
+>
+> Changes since v1:
+>  - Add support for SLAB_CACHE_DMA32 in slab and slub (patches 1/2)
+>  - iommu/io-pgtable-arm-v7s (patch 3):
+>    - Changed approach to use SLAB_CACHE_DMA32 added by the previous
+>      commit.
+>    - Use DMA or DMA32 depending on the architecture (DMA for arm,
+>      DMA32 for arm64).
+>
+> Changes since v2:
+>  - Reworded and expanded commit messages
+>  - Added cache_dma32 documentation in PATCH 2/3.
+>
+> v3 used the page_frag approach, see [3].
+>
+> Changes since v4:
+>  - Dropped change that removed GFP_DMA32 from GFP_SLAB_BUG_MASK:
+>    instead we can just call kmem_cache_*alloc without GFP_DMA32
+>    parameter. This also means that we can drop PATCH v4 1/3, as we
+>    do not make any changes in GFP flag verification.
+>  - Dropped hunks that added cache_dma32 sysfs file, and moved
+>    the hunks to PATCH v5 3/3, so that maintainer can decide whether
+>    to pick the change independently.
+>
+> Changes since v5:
+>  - Rename ARM_V7S_TABLE_SLAB_CACHE to ARM_V7S_TABLE_SLAB_FLAGS.
+>  - Add stable@ to cc.
+>
+> Nicolas Boichat (3):
+>   mm: Add support for kmem caches in DMA32 zone
+>   iommu/io-pgtable-arm-v7s: Request DMA32 memory, and improve debugging
+>   mm: Add /sys/kernel/slab/cache/cache_dma32
+>
+>  Documentation/ABI/testing/sysfs-kernel-slab |  9 +++++++++
+>  drivers/iommu/io-pgtable-arm-v7s.c          | 19 +++++++++++++++----
+>  include/linux/slab.h                        |  2 ++
+>  mm/slab.c                                   |  2 ++
+>  mm/slab.h                                   |  3 ++-
+>  mm/slab_common.c                            |  2 +-
+>  mm/slub.c                                   | 16 ++++++++++++++++
+>  tools/vm/slabinfo.c                         |  7 ++++++-
+>  8 files changed, 53 insertions(+), 7 deletions(-)
+>
+> --
+> 2.20.0.rc2.403.gdbc3b29805-goog
+>
 
