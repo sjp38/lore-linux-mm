@@ -1,125 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 228EB8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 15:30:08 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id s70so38387484qks.4
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 12:30:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y5si2056113qvk.5.2019.01.02.12.30.06
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E7B98E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 10:48:47 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id f5-v6so8850925ljj.17
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 07:48:47 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z22-v6sor31090951ljb.22.2019.01.02.07.48.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 12:30:06 -0800 (PST)
-Date: Wed, 2 Jan 2019 15:30:04 -0500 (EST)
-From: Jan Stancek <jstancek@redhat.com>
-Message-ID: <1323128903.93005102.1546461004635.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1038135449.92986364.1546459244292.JavaMail.zimbra@redhat.com>
-Subject: [bug] problems with migration of huge pages with
- v4.20-10214-ge1ef035d272e
+        (Google Transport Security);
+        Wed, 02 Jan 2019 07:48:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+References: <20181224132658.GA22166@jordon-HP-15-Notebook-PC>
+ <CAFqt6zZU6c3MyVQpCegntu1ZxtFri=HMwZJ3xg+tCxRARo3zMA@mail.gmail.com> <20190102111553.GG26090@n2100.armlinux.org.uk>
+In-Reply-To: <20190102111553.GG26090@n2100.armlinux.org.uk>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Wed, 2 Jan 2019 21:22:34 +0530
+Message-ID: <CAFqt6zadJ-4xh256BqzALnGY31nDAU=5XwUaSaz5OcJuOc7Bfg@mail.gmail.com>
+Subject: Re: [PATCH v5 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com
-Cc: "ltp@lists.linux.it" <ltp@lists.linux.it>, mhocko@kernel.org, Rachel Sibley <rasibley@redhat.com>, hughd@google.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, dave@stgolabs.net, prakash.sangappa@oracle.com, colin.king@canonical.com
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, pawel@osciak.com, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, robin.murphy@arm.com, linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-Hi,
+On Wed, Jan 2, 2019 at 4:46 PM Russell King - ARM Linux
+<linux@armlinux.org.uk> wrote:
+>
+> On Wed, Jan 02, 2019 at 04:23:15PM +0530, Souptick Joarder wrote:
+> > On Mon, Dec 24, 2018 at 6:53 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+> > >
+> > > Convert to use vm_insert_range to map range of kernel memory
+> > > to user vma.
+> > >
+> > > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> > > Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> > > Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > > Acked-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+> > > ---
+> > >  drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++++----------------
+> > >  1 file changed, 7 insertions(+), 16 deletions(-)
+> > >
+> > > diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> > > index 015e737..898adef 100644
+> > > --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> > > +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> > > @@ -328,28 +328,19 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
+> > >  static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
+> > >  {
+> > >         struct vb2_dma_sg_buf *buf = buf_priv;
+> > > -       unsigned long uaddr = vma->vm_start;
+> > > -       unsigned long usize = vma->vm_end - vma->vm_start;
+> > > -       int i = 0;
+> > > +       unsigned long page_count = vma_pages(vma);
+> > > +       int err;
+> > >
+> > >         if (!buf) {
+> > >                 printk(KERN_ERR "No memory to map\n");
+> > >                 return -EINVAL;
+> > >         }
+> > >
+> > > -       do {
+> > > -               int ret;
+> > > -
+> > > -               ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
+> > > -               if (ret) {
+> > > -                       printk(KERN_ERR "Remapping memory, error: %d\n", ret);
+> > > -                       return ret;
+> > > -               }
+> > > -
+> > > -               uaddr += PAGE_SIZE;
+> > > -               usize -= PAGE_SIZE;
+> > > -       } while (usize > 0);
+> > > -
+> > > +       err = vm_insert_range(vma, vma->vm_start, buf->pages, page_count);
+> > > +       if (err) {
+> > > +               printk(KERN_ERR "Remapping memory, error: %d\n", err);
+> > > +               return err;
+> > > +       }
+> > >
+> >
+> > Looking into the original code -
+> > drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> >
+> > Inside vb2_dma_sg_alloc(),
+> >            ...
+> >            buf->num_pages = size >> PAGE_SHIFT;
+> >            buf->dma_sgt = &buf->sg_table;
+> >
+> >            buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
+> >                                                        GFP_KERNEL | __GFP_ZERO);
+> >            ...
+> >
+> > buf->pages has index upto  *buf->num_pages*.
+> >
+> > now inside vb2_dma_sg_mmap(),
+> >
+> >            unsigned long usize = vma->vm_end - vma->vm_start;
+> >            int i = 0;
+> >            ...
+> >            do {
+> >                  int ret;
+> >
+> >                  ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
+> >                  if (ret) {
+> >                            printk(KERN_ERR "Remapping memory, error:
+> > %d\n", ret);
+> >                            return ret;
+> >                  }
+> >
+> >                 uaddr += PAGE_SIZE;
+> >                 usize -= PAGE_SIZE;
+> >            } while (usize > 0);
+> >            ...
+> > is it possible for any value of  *i  > (buf->num_pages)*,
+> > buf->pages[i] is going to overrun the page boundary ?
+>
+> Yes it is, and you've found an array-overrun condition that is
+> triggerable from userspace - potentially non-root userspace too.
+> Depending on what it can cause to be mapped without oopsing the
+> kernel, it could be very serious.  At best, it'll oops the kernel.
+> At worst, it could expose pages of memory that userspace should
+> not have access to.
+>
+> This is why I've been saying that we need a helper that takes the
+> _object_ and the user request, and does all the checking internally,
+> so these kinds of checks do not get overlooked.
 
-LTP move_pages12 [1] started failing recently.
+ok, while replacing this code with the suggested vm_insert_range_buggy(),
+we could fixed this issue.
 
-The test maps/unmaps some anonymous private huge pages
-and migrates them between 2 nodes. This now reliably
-hits NULL ptr deref:
 
-[  194.819357] BUG: unable to handle kernel NULL pointer dereference at 0000000000000030
-[  194.864410] #PF error: [WRITE]
-[  194.881502] PGD 22c758067 P4D 22c758067 PUD 235177067 PMD 0
-[  194.913833] Oops: 0002 [#1] SMP NOPTI
-[  194.935062] CPU: 0 PID: 865 Comm: move_pages12 Not tainted 4.20.0+ #1
-[  194.972993] Hardware name: HP ProLiant SL335s G7/, BIOS A24 12/08/2012
-[  195.005359] RIP: 0010:down_write+0x1b/0x40
-[  195.028257] Code: 00 5c 01 00 48 83 c8 03 48 89 43 20 5b c3 90 0f 1f 44 00 00 53 48 89 fb e8 d2 d7 ff ff 48 89 d8 48 ba 01 00 00 00 ff ff
-ff ff <f0> 48 0f c1 10 85 d2 74 05 e8 07 26 ff ff 65 48 8b 04 25 00 5c 01
-[  195.121836] RSP: 0018:ffffb87e4224fd00 EFLAGS: 00010246
-[  195.147097] RAX: 0000000000000030 RBX: 0000000000000030 RCX: 0000000000000000
-[  195.185096] RDX: ffffffff00000001 RSI: ffffffffa69d30f0 RDI: 0000000000000030
-[  195.219251] RBP: 0000000000000030 R08: ffffe7d4889d8008 R09: 0000000000000003
-[  195.258291] R10: 000000000000000f R11: ffffe7d4889d8008 R12: ffffe7d4889d0008
-[  195.294547] R13: ffffe7d490b78000 R14: ffffe7d4889d0000 R15: ffff8be9b2ba4580
-[  195.332532] FS:  00007f1670112b80(0000) GS:ffff8be9b7a00000(0000) knlGS:0000000000000000
-[  195.373888] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  195.405938] CR2: 0000000000000030 CR3: 000000023477e000 CR4: 00000000000006f0
-[  195.443579] Call Trace:
-[  195.456876]  migrate_pages+0x833/0xcb0
-[  195.478070]  ? __ia32_compat_sys_migrate_pages+0x20/0x20
-[  195.506027]  do_move_pages_to_node.isra.63.part.64+0x2a/0x50
-[  195.536963]  kernel_move_pages+0x667/0x8c0
-[  195.559616]  ? __handle_mm_fault+0xb95/0x1370
-[  195.588765]  __x64_sys_move_pages+0x24/0x30
-[  195.611439]  do_syscall_64+0x5b/0x160
-[  195.631901]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[  195.657790] RIP: 0033:0x7f166f5ff959
-[  195.676365] Code: 00 c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08
-0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 17 45 2c 00 f7 d8 64 89 01 48
-[  195.772938] RSP: 002b:00007ffd8d77bb48 EFLAGS: 00000246 ORIG_RAX: 0000000000000117
-[  195.810207] RAX: ffffffffffffffda RBX: 0000000000000400 RCX: 00007f166f5ff959
-[  195.847522] RDX: 0000000002303400 RSI: 0000000000000400 RDI: 0000000000000360
-[  195.882327] RBP: 0000000000000400 R08: 0000000002306420 R09: 0000000000000004
-[  195.920017] R10: 0000000002305410 R11: 0000000000000246 R12: 0000000002303400
-[  195.958053] R13: 0000000002305410 R14: 0000000002306420 R15: 0000000000000003
-[  195.997028] Modules linked in: sunrpc amd64_edac_mod ipmi_ssif edac_mce_amd kvm_amd ipmi_si igb ipmi_devintf k10temp kvm pcspkr ipmi_msgha
-ndler joydev irqbypass sp5100_tco dca hpwdt hpilo i2c_piix4 xfs libcrc32c radeon i2c_algo_bit drm_kms_helper ttm ata_generic pata_acpi drm se
-rio_raw pata_atiixp
-[  196.134162] CR2: 0000000000000030
-[  196.152788] ---[ end trace 4420ea5061342d3e ]---
-
-Suspected commit is:
-  b43a99900559 ("hugetlbfs: use i_mmap_rwsem for more pmd sharing synchronization")
-which adds to unmap_and_move_huge_page():
-+               struct address_space *mapping = page_mapping(hpage);
-+
-+               /*
-+                * try_to_unmap could potentially call huge_pmd_unshare.
-+                * Because of this, take semaphore in write mode here and
-+                * set TTU_RMAP_LOCKED to let lower levels know we have
-+                * taken the lock.
-+                */
-+               i_mmap_lock_write(mapping);
-
-If I'm reading this right, 'mapping' will be NULL for anon mappings.
-
-Running same test with s/MAP_PRIVATE/MAP_SHARED/ leads to user-space
-hanging at:
-
-# cat /proc/23654/stack
-[<0>] io_schedule+0x12/0x40
-[<0>] __lock_page+0x13c/0x200
-[<0>] remove_inode_hugepages+0x275/0x300
-[<0>] hugetlbfs_evict_inode+0x2e/0x60
-[<0>] evict+0xcb/0x190
-[<0>] __dentry_kill+0xce/0x160
-[<0>] dentry_kill+0x47/0x170
-[<0>] dput.part.33+0xc6/0x100
-[<0>] __fput+0x105/0x230
-[<0>] task_work_run+0x84/0xa0
-[<0>] exit_to_usermode_loop+0xd3/0xe0
-[<0>] do_syscall_64+0x14d/0x160
-[<0>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[<0>] 0xffffffffffffffff
-
-# cat /proc/23655/stack
-[<0>] call_rwsem_down_read_failed+0x14/0x30
-[<0>] rmap_walk_file+0x1c1/0x2f0
-[<0>] remove_migration_ptes+0x6d/0x80
-[<0>] migrate_pages+0x86a/0xcb0
-[<0>] do_move_pages_to_node.isra.63.part.64+0x2a/0x50
-[<0>] kernel_move_pages+0x667/0x8c0
-[<0>] __x64_sys_move_pages+0x24/0x30
-[<0>] do_syscall_64+0x5b/0x160
-[<0>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[<0>] 0xffffffffffffffff
-
-Regards,
-Jan
-
-[1] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/move_pages/move_pages12.c
+>
+> A good API is one that helpers authors avoid bugs.
+>
+> --
+> RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+> FTTC broadband for 0.8mile line in suburbia: sync at 12.1Mbps down 622kbps up
+> According to speedtest.net: 11.9Mbps down 500kbps up
