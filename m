@@ -2,204 +2,237 @@ Return-Path: <SRS0=6aBQ=PK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64AFEC43387
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 14:46:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4F50C43387
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 15:48:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11F12218CD
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 14:46:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4FA7E2171F
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 15:48:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Hu8c64FW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11F12218CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="umkUwBVI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FA7E2171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A1A988E0025; Wed,  2 Jan 2019 09:46:45 -0500 (EST)
+	id A85BD8E0026; Wed,  2 Jan 2019 10:48:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A02B8E0002; Wed,  2 Jan 2019 09:46:45 -0500 (EST)
+	id A35B68E0002; Wed,  2 Jan 2019 10:48:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 869558E0025; Wed,  2 Jan 2019 09:46:45 -0500 (EST)
+	id 8D65D8E0026; Wed,  2 Jan 2019 10:48:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F5798E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 09:46:45 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id b14so11549849itd.1
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 06:46:45 -0800 (PST)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E7B98E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 10:48:47 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id f5-v6so8850925ljj.17
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 07:48:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ssOylOFcF/4KrKPUHFHedcc63NWFBF7CN1ijXigKLks=;
-        b=rXKae6ivzOxnMIXkEJS4ZU4Sf3z7Nvc2Hvan8WLFrTwNLAtrfQK25zi4Sgi++t+10/
-         QyFbfjWjcLHheN2cWYHRiUHI0ITIZXAnwb+OSw+UbJwATyh9DT1sW/AyUqXe6PDZAUTD
-         F8FAyNQzDZCe6eyADfZ+6eUpho4l1nMx7+hlIUM+vqlOCwbw5BhhKeVD7QpsvNVdxZxE
-         r+OeQOjL3tllNtj8dRFN9r6xZ7BX7UV3U0eSxjkVEf1RydFaIVRuBNdpQKvk7jJjVD/r
-         q4jJja/KvPSN8YrpyFIMjydYtstIhGgSLerSuELgpC3N6/LlV3kflq9wQAh3KFecSAPY
-         JTWQ==
-X-Gm-Message-State: AJcUukeyBc/LSOV4qbmUT2dm9BCIeqPtXFJ73CekzPV6Cr8wwDT088ih
-	6LyVonJ043TPOxl13f30z4HJDb7N8quipUC/EZ2ycyl6Y6xD/C0glegfKo+ZgyBwJ9oYHAd/0F2
-	DVTFVc44arXGsBqHyzviKQPkV0ulzYM91GzCJS8TrkdvVI6kwEN+kovoKJMXbiOS8y7f0BEv+bW
-	/uaOOEWuK41H9SrFxaqENkkvCfYcxoUfi+I+HTR9JV5pWaTRWf+xvespyZTnZ5fbDH9BcLN+wa1
-	R6ujZBR91iXpedoPpjl2MwNfcFDOr0n4oZMGpyOdLaukCb/JahXkawh/7/+ZRj/dlnb/W82zZib
-	BMJAq4J2t7Osx+WELvE9wFjgESpIh/jwpnnYlk4uj4ANFqTy/VihpJlJ+whbrmB+Ln4KTcjyzIQ
-	n
-X-Received: by 2002:a24:9d1:: with SMTP id 200mr30883528itm.53.1546440405118;
-        Wed, 02 Jan 2019 06:46:45 -0800 (PST)
-X-Received: by 2002:a24:9d1:: with SMTP id 200mr30883503itm.53.1546440404374;
-        Wed, 02 Jan 2019 06:46:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546440404; cv=none;
+        bh=IJHL/z8fAJRE9Iyf8aCknufDky6L83+nNxnmSNmWUL0=;
+        b=uQptKgoYEJKJOnvrDqWC/nyWmOV16AkMNTQMi1/OSi1U7PQjL9zRouYpYvo6/UIgES
+         1qPshaRy+d4LN7AVbEGG4edlquy7jA08Ocx240B1AGfJojfDq3Aerz5ektWKK2XGeTrV
+         zVukaBIr5DDe3NPXrGOXDEVRmmDaNTUnhOdAnEnVrhYWJ4jUa5JyXnfces4y5SWnP4BY
+         gFYkSwMXDQWTtWx3UCWQMNkTzA7JqCH/IAX0eO99F0ala1V9wibLbIZ15LA3GY3SCNVJ
+         jRJdZbq0MB7xeKN5Vjprbakx7iiTm1k49GkW10G1NsbZYVEN8292oX5DCND2lW2Zmgg9
+         PJdg==
+X-Gm-Message-State: AJcUukdHMXaWD88bDj2u4rBY94DS75hoavcGiji60uG/E4e51M0yIiRD
+	B/cnlHx4BXS22yNy7CTw2Sp0KFLQE4opNHD7oN6DDOttmDYuyglMa8egHY7jc0MR3S42mC7dkWN
+	L+lVf1fUFPSCCuyBQwUPf7qngI2Y7VuYpEIt3Avkyp6O3e2nTPnZE4VfxlvWy9uPcjR5fkPrwzX
+	jVF6dgkOtN20ECgHWOh6MiFZHS3zWO/dZeY2T80DJmTgvSiJhqXc0mhCEanyKmpxaegCKQOdpqk
+	//s2F0tbDGzEFa7MUt4LPVmGD3N3TuywMQXbWbC0tnz8zt8U6XI29KdEWqJn3nyfOSD7wz06WUN
+	ius+VSBtEHBy30IR8xMbsOFuFu5yqXa5CWUHxtHIJI07mRqhqOUDDunD4pWob3433/rUSfc0UaH
+	M
+X-Received: by 2002:a2e:3308:: with SMTP id d8-v6mr20703713ljc.38.1546444126154;
+        Wed, 02 Jan 2019 07:48:46 -0800 (PST)
+X-Received: by 2002:a2e:3308:: with SMTP id d8-v6mr20703691ljc.38.1546444124943;
+        Wed, 02 Jan 2019 07:48:44 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546444124; cv=none;
         d=google.com; s=arc-20160816;
-        b=sAq0p+7vew2R2NYccKfpxd8U/LOfvYBpESUAWhgktXUHghxtnRqv5NLwsQHJmuaOU/
-         uKMnwl9flUlQgA9Tz+9Wg3UFQv2ilWdEYzMcMGXNU39AimL3hQnY92qyL+koq6A/Hr8k
-         H23m/3E+GAYtbHgNPitXt8Yg3D35GhfK/hqavgdiS4UQXbU/sEXx81EyBcLpCQa/IfAP
-         kog4j5tX3zJK6F4SuiiTViHSFRAivvsItxEeLouOAFrJEZQilrMetuhle4bpJlBmwqPU
-         t9QSMk6Dm7SY1b756FaPYoAKef8Q4TunA8ZNdyjMQQT24l6PqxCrKdj/GvWfw8DlT+3B
-         K+ew==
+        b=C3ZBQHz+K4rKSi0pHHoITwPQOhw93MdU6d9nvGsIgrBhIL7IN5OMg8Pu0/XYDcpc3P
+         ODUe8wPSTqJDrWSQW4C3EaipzG8zsQtgTWHja7CyJVOXu8A0+2pWdzP1OWL1wn90J8bf
+         Fp/xmHwi96cpu6+KfaV8C3r5IcMbgrrMghUMVHhi1xg4G5V+bz83E7M7AUwkg0yTS49+
+         yZftDkbqEmtKPe1p9vQcpItd+chxRXyYY1JaDOmU9Y7AzEzcxkgcUNZ+YD5I3CUU2zOB
+         IAuVgotUcRk/a+N/qqO0CbLCSCUZKXyM9ASHesTNR37TGcGJ26quUS3AgR7mBtkaBwb1
+         wpjw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=ssOylOFcF/4KrKPUHFHedcc63NWFBF7CN1ijXigKLks=;
-        b=Wghi8GOl4b2qVjE7VumVYx6EgzINOkkf99ELwCMzN9aLVUDqZRWcQdlOT8gzt1T+yP
-         KsN/QNwnyggTCL/WuC+a4jMpDowBTAdlYt9qqdVlfkcz7jLGlp2jDoHjN+u/M2rGu6zl
-         2MjXw/ioq//C+uzIGkblo/J9n5jpQz/EJynNd8rby2G0ELnDZXoNCZQnrOoq4GziX8IO
-         5kLJkIAqKBb5xCbcqw8Nmokhxw3tjdeMTgjUfcQtqHVloFJm7W1NNT0qYn9E+3/uvbc7
-         wzjwQN1q9TsKZmjbVOqHIB3PivrMUTAgquljmwV2J29rMNq+UCiy/6u8dwOE9zA6hLgi
-         z4Gg==
+        bh=IJHL/z8fAJRE9Iyf8aCknufDky6L83+nNxnmSNmWUL0=;
+        b=WTOqIy8iMvHi5s+BB5iRQgKMPDKH/RhwWCPaEYPr3f+GagShJIB2aVaOzBcdnUizek
+         RhYun+XHCnjNrLI42yiAb0YFGliIfQjs21/oi3dgb/Xce+OUqGkB7nKNp/p6B9YWA0/B
+         lPId81nfdxP/M2IbbPOxPXgPNF4hBKVAPu55O1vwgp38nL7yClqJOOokQlamle71GGIV
+         lwtyhkeU0+Ubjl9/uWLU4FC4eXbHHkvzm1g0dIEq0wUvitNT+FGhalVFUQSCQ1MIM+gQ
+         vYcnOab2aQVPNVnelTp4jO7wSufHOA+A2PwMiv4JaGCG/kbp57Za9ByNcKXw/eV0m1EI
+         894A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Hu8c64FW;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=umkUwBVI;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s21sor6094503iol.146.2019.01.02.06.46.44
+        by mx.google.com with SMTPS id z22-v6sor31090951ljb.22.2019.01.02.07.48.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 02 Jan 2019 06:46:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 02 Jan 2019 07:48:44 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Hu8c64FW;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=umkUwBVI;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=ssOylOFcF/4KrKPUHFHedcc63NWFBF7CN1ijXigKLks=;
-        b=Hu8c64FWXWCWtwxZ0SDsWoQ6Ffc0Wnxg4h0SXXIHS06rNFT+ggjOOqeIs18GADdMwX
-         0VL9Wo7GjDUaivVN/6hvwbzXFVUuZm5jvU+jcihGQ7StX5k+4ienaF53vPT+/J5dIWJh
-         /ubQ1KPC7yauZNyptLJDVXmwutvoPVdIK4M4jhMR3geQ/Dib1apPGJsyQ7axzzgLoVNg
-         OKZxYhwyI/Fs8Io7oYqL20j/1HfVAlbd5wxijs4mR/ydarQGM7cc9IH/TyLbs0MS13Ai
-         jjyYEq5Wt0JwgT3je9CnWZ1HY64y/u/JSakpOCftKt9vltL9XUg6p3RB5xL92Jdr6Lfn
-         iVZw==
-X-Google-Smtp-Source: ALg8bN6xvELljIEO7Hs5tNmXuelgU8TmJW4Oq6YeAmF6anfy2jeNK9LnsxyJsKk3jrRTIKBkjsopXw8a7FHZa8xRH7g=
-X-Received: by 2002:a5d:9456:: with SMTP id x22mr5006917ior.282.1546440403796;
- Wed, 02 Jan 2019 06:46:43 -0800 (PST)
+        bh=IJHL/z8fAJRE9Iyf8aCknufDky6L83+nNxnmSNmWUL0=;
+        b=umkUwBVIN/yYk5VwfS+MFZuorx2FzrD4Ze8CM4JeoYDHkxfZVPYebJlrJjnTp31bzJ
+         AHyYuoq0NXSLLnJ4Re5PjaIZin8goaV7udqBZlTV1dFLZjHnDPcocwxp89M9MBSmKiU4
+         4EFxApWVdmqBEDoxVHxbdHxO+6zwE6Az5P4Rq6Tl+48rQPsUn/xFZVOSSCbcbbbO1XNi
+         RZ69pUN3T8cFQelu1sY+YuZokaNt/BIufx9VkrqbfrDKtJ3fjqWHOY8NJORHNkjryw/4
+         swnyr/5PaEMVABHNSCWzKb+7OQJq0uN7GaBYc9b41jzAsNZ2exlajrGZheN08nXSq0SX
+         M3xQ==
+X-Google-Smtp-Source: ALg8bN6ZMhgMMSVTgm4KwPh+JHX95y+LJ/UlD3B0Q2we2PeXB5w2/dx1ar5vX/RQEzZ8FO+3P2kJNezF7K/5a/X45JI=
+X-Received: by 2002:a2e:9c52:: with SMTP id t18-v6mr20634319ljj.149.1546444124257;
+ Wed, 02 Jan 2019 07:48:44 -0800 (PST)
 MIME-Version: 1.0
-References: <0000000000009ce88d05714242a8@google.com> <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
- <9b9fcdda-c347-53ee-fdbb-8a7d11cf430e@I-love.SAKURA.ne.jp>
- <20180720130602.f3d6dc4c943558875a36cb52@linux-foundation.org>
- <a2df1f24-f649-f5d8-0b2d-66d45b6cb61f@i-love.sakura.ne.jp>
- <20180806100928.x7anab3c3y5q4ssa@quack2.suse.cz> <e8a23623-feaf-7730-5492-b329cb0daa21@i-love.sakura.ne.jp>
- <20190102144015.GA23089@quack2.suse.cz>
-In-Reply-To: <20190102144015.GA23089@quack2.suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 2 Jan 2019 15:46:32 +0100
+References: <20181224132658.GA22166@jordon-HP-15-Notebook-PC>
+ <CAFqt6zZU6c3MyVQpCegntu1ZxtFri=HMwZJ3xg+tCxRARo3zMA@mail.gmail.com> <20190102111553.GG26090@n2100.armlinux.org.uk>
+In-Reply-To: <20190102111553.GG26090@n2100.armlinux.org.uk>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Wed, 2 Jan 2019 21:22:34 +0530
 Message-ID:
- <CACT4Y+ZoVGsG=nDHffEMi-89AT6_0dzJB-zgT8xXTaMQ4JHgTQ@mail.gmail.com>
-Subject: Re: INFO: task hung in generic_file_write_iter
-To: Jan Kara <jack@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
-	Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, 
-	syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, 
-	Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, 
-	Michal Hocko <mhocko@kernel.org>, Andi Kleen <ak@linux.intel.com>, jlayton@redhat.com, 
-	LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, tim.c.chen@linux.intel.com, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
+ <CAFqt6zadJ-4xh256BqzALnGY31nDAU=5XwUaSaz5OcJuOc7Bfg@mail.gmail.com>
+Subject: Re: [PATCH v5 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, pawel@osciak.com, 
+	Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, 
+	robin.murphy@arm.com, linux-media@vger.kernel.org, 
+	linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190102144632.Bw6V3jSqDCFop4s8G0XM9_hokRlgGkq7jBMZGE4faKA@z>
+Message-ID: <20190102155234.tFOr1Pa4nr113DVy-rVOsL37oMRTys6whiEq73isDCQ@z>
 
-On Wed, Jan 2, 2019 at 3:40 PM Jan Kara <jack@suse.cz> wrote:
+On Wed, Jan 2, 2019 at 4:46 PM Russell King - ARM Linux
+<linux@armlinux.org.uk> wrote:
 >
-> On Fri 28-12-18 22:34:13, Tetsuo Handa wrote:
-> > On 2018/08/06 19:09, Jan Kara wrote:
-> > > On Tue 31-07-18 00:07:22, Tetsuo Handa wrote:
-> > >> On 2018/07/21 5:06, Andrew Morton wrote:
-> > >>> On Fri, 20 Jul 2018 19:36:23 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> > >>>
-> > >>>>>
-> > >>>>> This report is stalling after mount() completed and process used remap_file_pages().
-> > >>>>> I think that we might need to use debug printk(). But I don't know what to examine.
-> > >>>>>
-> > >>>>
-> > >>>> Andrew, can you pick up this debug printk() patch?
-> > >>>> I guess we can get the result within one week.
-> > >>>
-> > >>> Sure, let's toss it in -next for a while.
-> > >>>
-> > >>>> >From 8f55e00b21fefffbc6abd9085ac503c52a302464 Mon Sep 17 00:00:00 2001
-> > >>>> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > >>>> Date: Fri, 20 Jul 2018 19:29:06 +0900
-> > >>>> Subject: [PATCH] fs/buffer.c: add debug print for __getblk_gfp() stall problem
-> > >>>>
-> > >>>> Among syzbot's unresolved hung task reports, 18 out of 65 reports contain
-> > >>>> __getblk_gfp() line in the backtrace. Since there is a comment block that
-> > >>>> says that __getblk_gfp() will lock up the machine if try_to_free_buffers()
-> > >>>> attempt from grow_dev_page() is failing, let's start from checking whether
-> > >>>> syzbot is hitting that case. This change will be removed after the bug is
-> > >>>> fixed.
-> > >>>
-> > >>> I'm not sure that grow_dev_page() is hanging.  It has often been
-> > >>> suspected, but always is proven innocent.  Lets see.
-> > >>
-> > >> syzbot reproduced this problem ( https://syzkaller.appspot.com/text?tag=CrashLog&x=11f2fc44400000 ) .
-> > >> It says that grow_dev_page() is returning 1 but __find_get_block() is failing forever. Any idea?
+> On Wed, Jan 02, 2019 at 04:23:15PM +0530, Souptick Joarder wrote:
+> > On Mon, Dec 24, 2018 at 6:53 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
 > > >
-> > > Looks like some kind of a race where device block size gets changed while
-> > > getblk() runs (and creates buffers for underlying page). I don't have time
-> > > to nail it down at this moment can have a look into it later unless someone
-> > > beats me to it.
+> > > Convert to use vm_insert_range to map range of kernel memory
+> > > to user vma.
+> > >
+> > > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> > > Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> > > Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > > Acked-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+> > > ---
+> > >  drivers/media/common/videobuf2/videobuf2-dma-sg.c | 23 +++++++----------------
+> > >  1 file changed, 7 insertions(+), 16 deletions(-)
+> > >
+> > > diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> > > index 015e737..898adef 100644
+> > > --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> > > +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+> > > @@ -328,28 +328,19 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
+> > >  static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
+> > >  {
+> > >         struct vb2_dma_sg_buf *buf = buf_priv;
+> > > -       unsigned long uaddr = vma->vm_start;
+> > > -       unsigned long usize = vma->vm_end - vma->vm_start;
+> > > -       int i = 0;
+> > > +       unsigned long page_count = vma_pages(vma);
+> > > +       int err;
+> > >
+> > >         if (!buf) {
+> > >                 printk(KERN_ERR "No memory to map\n");
+> > >                 return -EINVAL;
+> > >         }
+> > >
+> > > -       do {
+> > > -               int ret;
+> > > -
+> > > -               ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
+> > > -               if (ret) {
+> > > -                       printk(KERN_ERR "Remapping memory, error: %d\n", ret);
+> > > -                       return ret;
+> > > -               }
+> > > -
+> > > -               uaddr += PAGE_SIZE;
+> > > -               usize -= PAGE_SIZE;
+> > > -       } while (usize > 0);
+> > > -
+> > > +       err = vm_insert_range(vma, vma->vm_start, buf->pages, page_count);
+> > > +       if (err) {
+> > > +               printk(KERN_ERR "Remapping memory, error: %d\n", err);
+> > > +               return err;
+> > > +       }
+> > >
 > >
-> > I feel that the frequency of hitting this problem was decreased
-> > by merging loop module's ioctl() serialization patches. But this
-> > problem is still there, and syzbot got a new line in
-> > https://syzkaller.appspot.com/text?tag=CrashLog&x=177f889f400000 .
+> > Looking into the original code -
+> > drivers/media/common/videobuf2/videobuf2-dma-sg.c
 > >
-> >   [  615.881781] __loop_clr_fd: partition scan of loop5 failed (rc=-22)
-> >   [  619.059920] syz-executor4(2193): getblk(): executed=cd bh_count=0 bh_state=29
-> >   [  622.069808] syz-executor4(2193): getblk(): executed=9 bh_count=0 bh_state=0
-> >   [  625.080013] syz-executor4(2193): getblk(): executed=9 bh_count=0 bh_state=0
-> >   [  628.089900] syz-executor4(2193): getblk(): executed=9 bh_count=0 bh_state=0
+> > Inside vb2_dma_sg_alloc(),
+> >            ...
+> >            buf->num_pages = size >> PAGE_SHIFT;
+> >            buf->dma_sgt = &buf->sg_table;
 > >
-> > I guess that loop module is somehow related to this problem.
+> >            buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
+> >                                                        GFP_KERNEL | __GFP_ZERO);
+> >            ...
+> >
+> > buf->pages has index upto  *buf->num_pages*.
+> >
+> > now inside vb2_dma_sg_mmap(),
+> >
+> >            unsigned long usize = vma->vm_end - vma->vm_start;
+> >            int i = 0;
+> >            ...
+> >            do {
+> >                  int ret;
+> >
+> >                  ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
+> >                  if (ret) {
+> >                            printk(KERN_ERR "Remapping memory, error:
+> > %d\n", ret);
+> >                            return ret;
+> >                  }
+> >
+> >                 uaddr += PAGE_SIZE;
+> >                 usize -= PAGE_SIZE;
+> >            } while (usize > 0);
+> >            ...
+> > is it possible for any value of  *i  > (buf->num_pages)*,
+> > buf->pages[i] is going to overrun the page boundary ?
 >
-> I had a look into this and the only good explanation for this I have is
-> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
-> If that would happen, we'd get exactly the behavior syzkaller observes
-> because grow_buffers() would populate different page than
-> __find_get_block() then looks up.
+> Yes it is, and you've found an array-overrun condition that is
+> triggerable from userspace - potentially non-root userspace too.
+> Depending on what it can cause to be mapped without oopsing the
+> kernel, it could be very serious.  At best, it'll oops the kernel.
+> At worst, it could expose pages of memory that userspace should
+> not have access to.
 >
-> However I don't see how that's possible since the filesystem has the block
-> device open exclusively and blkdev_bszset() makes sure we also have
-> exclusive access to the block device before changing the block device size.
-> So changing block device block size after filesystem gets access to the
-> device should be impossible.
+> This is why I've been saying that we need a helper that takes the
+> _object_ and the user request, and does all the checking internally,
+> so these kinds of checks do not get overlooked.
 
-If this is that critical and impossible to fire, maybe it makes sense
-to add a corresponding debug check to some code paths?
-syzkaller will immediately catch any violations if they happen.
+ok, while replacing this code with the suggested vm_insert_range_buggy(),
+we could fixed this issue.
 
 
-> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
-> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
-> whether my theory is right or not. Thanks!
+>
+> A good API is one that helpers authors avoid bugs.
+>
+> --
+> RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+> FTTC broadband for 0.8mile line in suburbia: sync at 12.1Mbps down 622kbps up
+> According to speedtest.net: 11.9Mbps down 500kbps up
 
