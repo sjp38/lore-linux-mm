@@ -2,185 +2,146 @@ Return-Path: <SRS0=6aBQ=PK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC904C43387
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 16:07:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 31A54C43387
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 17:47:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9C511218A4
-	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 16:07:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C511218A4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id E133C218FC
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 17:47:54 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=digitalocean.com header.i=@digitalocean.com header.b="TDyu69lZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E133C218FC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=digitalocean.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 34AFD8E0029; Wed,  2 Jan 2019 11:07:52 -0500 (EST)
+	id 7BC278E0035; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FB0A8E0002; Wed,  2 Jan 2019 11:07:52 -0500 (EST)
+	id 76A458E0002; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C2D68E0029; Wed,  2 Jan 2019 11:07:52 -0500 (EST)
+	id 658448E0035; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E37698E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 11:07:51 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id x21so2702582oto.12
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 08:07:51 -0800 (PST)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F2D08E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 12:47:54 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id c33so14860221otb.18
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 09:47:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=1zU9bfKdo+xsW77l1L0dovKzOgCkMAPqn71V7vCgMTw=;
-        b=g2s8YnGKVDMSGvh0Tgqf1OO7UK871ny2J+Z2YGWOXNmh0OIxLB7YwI6QEW0awp2kMJ
-         pnAI7MBJiBj/aXrr0xPc6s/Qifr84/njhu14yjJNLCvtPVP9mo1DX9/gXfBAlN4ScPpx
-         0Y3nw5jUGSoHClZhIHvua9ECewIQRy4uv3xT1txapn/eIrG2jR+5ilmhppW7yTbJNMvt
-         tXamSfyKmd+13i/vay+1g705/QxHHxCJlqu+NOW6q929IpmuScTppjTSC+xizDmqrlXY
-         VEgr22uT8CZ9fKjAMzVM5PFiD1rhh4W1dd+Ca2fnHTFOnxK3l/yyjn/bqosFQdk6Noz1
-         1huA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AJcUukcnj0W4HlJbjyZXsbAvPTfuHMY+1y0hLlyB39N2/6j7x5nEj9IB
-	z156kY6C+6gIvvZcvYeb8B+7KHr8ErwhUTznrgbo3E6anbT2RiI8qKOhJ9blLIGDJzMINJpRB7l
-	kbk4DBvea+N2KLmBA789+NjmUXC4loNtsXx7nDfI3fI2mTW2wHtluTlPWTkr2z9KseA==
-X-Received: by 2002:a9d:2d81:: with SMTP id g1mr28984661otb.111.1546445271629;
-        Wed, 02 Jan 2019 08:07:51 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7SajIASxX2F4WU01ECR3U1QhT1X96fotpy7Qt3hZMG4rT5MMmjArjtoJObCi3iK7alMg9U
-X-Received: by 2002:a9d:2d81:: with SMTP id g1mr28984638otb.111.1546445270969;
-        Wed, 02 Jan 2019 08:07:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546445270; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=0hBUk8Mse5SprcZveZ649K7+7VQzzipNWH9bsLfG1zs=;
+        b=BHr5vEFS5x7wS67UWypiWD2AX2Yc9U3usK/W5bfsbIdx9F4hHTcdjCdHHp/lllh8kY
+         JCRP7Kqljvv/biYUB5EYys7j9xhKSushABOFpPjgV77C0ABfv6bpushiRMNtNBV/GnsL
+         ELpUUZXOlIf/j37R6zJ8nr15ZL/k8O6/oQItkpliUyPX+JzLN1nR7LHWgL9O4bIK3y3B
+         iVIoftYs/WBDSOv9qNvcxvYxdHO/t5oQr0nA/mTFKEzkmWkya3gpG/cEGO7opCnfB6bK
+         EyEYUNu1VwQjttndPlJ3YldZn/2ZWTCecjHstegUnoSGyhz1WvsDs4XtHseOVDqcFrRx
+         fP6g==
+X-Gm-Message-State: AJcUukep4/4Pergc8wrcRnkaB+EntLiVCS0e+fxZeTEVsl9ijgwt1HDX
+	2O7+fsnKMa2ox3VbCSVS372bNskHiZGP3xNlhw2fv642dRrRSD1jE6ko2ieHODk6b7K+BfqiQo8
+	v/rmu4LDg1qq/MQYLQswlSa7vmkQrYSwbqeiP3mSL8qgcdBKfw4clFsaYay12s+XkjhNyS2KeeX
+	ycHgbG7vSiL7R0khRsW7fceVz/NZwPV4JnBj9TQaypxJ8cFyJc4kmpBTAen7NkUgkpf/wsPxLf/
+	yptfAsnZ93YgTJMfqFTPUEM8M4hJLlnLJy0OZmlDtzRHnc0ppLw6u2xunCygssPlUIykhK6V0tJ
+	/6UaOM8RvHL+l/wJ98jnzC27N+28tVr8R7vlgUAhB9RnAvUigu7717mJLY5jACX7JDa83TfEGKH
+	Y
+X-Received: by 2002:a9d:19a8:: with SMTP id k37mr32592766otk.283.1546451273998;
+        Wed, 02 Jan 2019 09:47:53 -0800 (PST)
+X-Received: by 2002:a9d:19a8:: with SMTP id k37mr32592745otk.283.1546451273334;
+        Wed, 02 Jan 2019 09:47:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546451273; cv=none;
         d=google.com; s=arc-20160816;
-        b=xa8JFrRAyrkEsvtjd/zLmgSWysaWXSoiKKpSU4grNAeSp0TTYxig2WcQg9Z0KC6vk8
-         2aMPgw7DPjSt0+gGyCkD3v9+C2bqa9RnAZioq0WdIoAYQLqYm5pR2h3LAg8/YPhaR70I
-         wGHFF7ADhabF9I8MQteBeMamEyHgHduumu/jr41frxZY43XhffpKF9BIE0ejcqHk1Znf
-         bAoGetlRW7gimvjqrAuI1gzjfw5O2V+kGQ2sIJgDY3FfmhJF/ZzkvlMnv79yHaHz41G9
-         dWc/Ly30A55DoP40XdLbmS7GzXXdOy4yen0s0hvAKBqypQm9kcWf4OQ2sKRsdNZ+fz9Z
-         3OgA==
+        b=gcZyI/PDk09Rr9bqUOAOMUQUEWavIvcwdIZ4h3xT3Zb+9tTfQjnOgyzvXvh9TMgGrz
+         Fng2fDHk5SeQJVsrc/pC/MKtx7iCVNao+80BWRH965wWBYVvsw3/zUV5RiM0JFSfJKOZ
+         M/2YP7p6OiaAQTSUdeUHvSKbmGRN5fm8B0y5Hb1DPj5mz6hMTqjMT0RDi838fKTbi7Ry
+         LN2RWfYI9dv4xfyf2NTSncrJ8q7SrgK++Rr4Sfo6b7io34zixWkUTCSt6YK+u6L1Z20P
+         19yXclBKR03k7YMKkdRqkBMhlicXj16R6I1z1u63DxrDjP2u0luVoR9mWCZxiDKQknNt
+         ujKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=1zU9bfKdo+xsW77l1L0dovKzOgCkMAPqn71V7vCgMTw=;
-        b=bfmgzurnOUJFxx2NDhpuYkMSTt1q1yEo1PWjCBNUMu5ZVUd1slOjPE5aBZizrlzbM8
-         MgA484bPwE2X5F3IS/Kgh6FR4ypPEj3Ek/dAP3qXazTh5maUidLu+ZzVMrHxvl0WObww
-         J9Cg9hxXXsm/f3/H8FLalgsbYiNZKrHX85jt24TOAejGHV7UDjZ4W+ujg3sAo0P4pSwS
-         oh+JDeBet+gNt1vBAW3YBZ+LWcrgLsBxwCO78758PHwW4RVTjK9HMOC+VRJclAoTVC1V
-         n5I2tAi6J2DAYxzGLiYYGOqkmKYc8sOHAGQyyD7QLMoAgoHfRJTg9DGy6qFRSYrTd6WP
-         xBHQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=0hBUk8Mse5SprcZveZ649K7+7VQzzipNWH9bsLfG1zs=;
+        b=F8CHiHhZn9FU/LMQEX4/A6TmC14L+YO83IlmPGSi7xQC0jhSfChfB+oniX+o7nxbTC
+         oKcizfC/957/swEYuDK8NeipP82vdURCdhDznNnJsoK6cVflgk78Pw7Or+w+YKEeZ/H9
+         DfETzmpd8TastsALi3X0vnw974w8VM9DDTc3zlVMwLgThDLINYegVmet2gBfImL75y+X
+         WL9t+t6gzm1HmD+T5cFaX6KXniKeJJqCnfPz7hFgbxGwYoUWFDLDjTeE90SfOelEWf79
+         uB9ruLTfpMJK+0sMePalEbtwQHtJE5v8z/F0RPW5JRGryLr6is6bYcwiftlBQgo352F8
+         ko1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id v126si17373006oig.266.2019.01.02.08.07.50
+       dkim=pass header.i=@digitalocean.com header.s=google header.b=TDyu69lZ;
+       spf=pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vpillai@digitalocean.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=digitalocean.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z89sor138199otb.62.2019.01.02.09.47.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 08:07:50 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        (Google Transport Security);
+        Wed, 02 Jan 2019 09:47:53 -0800 (PST)
+Received-SPF: pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav401.sakura.ne.jp (fsav401.sakura.ne.jp [133.242.250.100])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x02G7RLg093476;
-	Thu, 3 Jan 2019 01:07:27 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav401.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav401.sakura.ne.jp);
- Thu, 03 Jan 2019 01:07:27 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav401.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x02G7P2k093463
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Thu, 3 Jan 2019 01:07:26 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: INFO: task hung in generic_file_write_iter
-To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
-        syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>,
-        linux-mm@kvack.org, mgorman@techsingularity.net,
-        Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com,
-        jlayton@redhat.com, linux-kernel@vger.kernel.org,
-        mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com,
-        tim.c.chen@linux.intel.com,
-        linux-fsdevel <linux-fsdevel@vger.kernel.org>
-References: <0000000000009ce88d05714242a8@google.com>
- <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
- <9b9fcdda-c347-53ee-fdbb-8a7d11cf430e@I-love.SAKURA.ne.jp>
- <20180720130602.f3d6dc4c943558875a36cb52@linux-foundation.org>
- <a2df1f24-f649-f5d8-0b2d-66d45b6cb61f@i-love.sakura.ne.jp>
- <20180806100928.x7anab3c3y5q4ssa@quack2.suse.cz>
- <e8a23623-feaf-7730-5492-b329cb0daa21@i-love.sakura.ne.jp>
- <20190102144015.GA23089@quack2.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
-Date: Thu, 3 Jan 2019 01:07:25 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@digitalocean.com header.s=google header.b=TDyu69lZ;
+       spf=pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vpillai@digitalocean.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=digitalocean.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=digitalocean.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=0hBUk8Mse5SprcZveZ649K7+7VQzzipNWH9bsLfG1zs=;
+        b=TDyu69lZSUHU/VU7Ss2yo6UJzSknmMCUOHHR1EQDCiw2yNvY97ekNE8jOmsUl0EmTY
+         61ge1HunQ8fGibGB88QKzLie1fF/v7IE7xxdbwWDImQUcORxvHSY/k4s7ZmPIVy37XLr
+         xJKiRqVlBW+w2PFwTuoGxZyRC2kaI4Z6SwgLk=
+X-Google-Smtp-Source: ALg8bN5Q0vtZNj9c9C6J/ihvx9BkDJAA+ekzmZVGE31cgguG5Qo9I8KwhxlPZUvc9TmgT+bkTPAEpmgOe2kAPhrbP5A=
+X-Received: by 2002:a9d:1f3:: with SMTP id e106mr29318143ote.369.1546451272726;
+ Wed, 02 Jan 2019 09:47:52 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190102144015.GA23089@quack2.suse.cz>
+References: <20181203170934.16512-1-vpillai@digitalocean.com>
+ <20181203170934.16512-2-vpillai@digitalocean.com> <alpine.LSU.2.11.1812311635590.4106@eggly.anvils>
+ <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com> <alpine.LSU.2.11.1901012010440.13241@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1901012010440.13241@eggly.anvils>
+From: Vineeth Pillai <vpillai@digitalocean.com>
+Date: Wed, 2 Jan 2019 12:47:43 -0500
+Message-ID:
+ <CANaguZC_d2EBmNuXtcJRcEcw8uXK234tYSXx6Uc2o9JH_vfP4A@mail.gmail.com>
+Subject: Re: [PATCH v3 2/2] mm: rid swapoff of quadratic complexity
+To: Hugh Dickins <hughd@google.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	Kelley Nielsen <kelleynnn@gmail.com>, Rik van Riel <riel@surriel.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190102160725.agELLrj9QH6lVY09nR6F8PKiC2-91pcdULJ4H0zRy1M@z>
+Message-ID: <20190102174743.HztUB3h3XpLHG2eCzqaIegm-y1RB6lKvKiFRQXgyCF0@z>
 
-On 2019/01/02 23:40, Jan Kara wrote:
-> I had a look into this and the only good explanation for this I have is
-> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
-> If that would happen, we'd get exactly the behavior syzkaller observes
-> because grow_buffers() would populate different page than
-> __find_get_block() then looks up.
-> 
-> However I don't see how that's possible since the filesystem has the block
-> device open exclusively and blkdev_bszset() makes sure we also have
-> exclusive access to the block device before changing the block device size.
-> So changing block device block size after filesystem gets access to the
-> device should be impossible. 
-> 
-> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
-> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
-> whether my theory is right or not. Thanks!
-> 
+On Tue, Jan 1, 2019 at 11:16 PM Hugh Dickins <hughd@google.com> wrote:
+> One more fix on top of what I sent yesterday: once I delved into
+> the retries, I found that the major cause of exceeding MAX_RETRIES
+> was the way the retry code neatly avoided retrying the last part of
+> its work.  With this fix in, I have not yet seen retries go above 1:
+> no doubt it could, but at present I have no actual evidence that
+> the MAX_RETRIES-or-livelock issue needs to be dealt with urgently.
+> Fix sent for completeness, but it reinforces the point that the
+> structure of try_to_unuse() should be reworked, and oldi gone.
+>
 
-OK. Andrew, will you add (or fold into) this change?
+Thanks for the fix and suggestions Hugh!
 
-From e6f334380ad2c87457bfc2a4058316c47f75824a Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Thu, 3 Jan 2019 01:03:35 +0900
-Subject: [PATCH] fs/buffer.c: dump more info for __getblk_gfp() stall problem
+After reading the code again, I feel like we can make the retry logic
+simpler and avoid the use of oldi. If my understanding is correct,
+except for frontswap case, we reach try_to_unuse() only after we
+disable the swap device. So I think, we would not be seeing any more
+swap usage on the disabled swap device, after we loop through all the
+process and swapin the pages on that device. In that case, we would
+not need the retry logic right?
+For frontswap case, the patch was missing a check for pages_to_unuse.
+We would still need the retry logic, but as you mentioned, I can
+easily remove the oldi logic and make it simpler. Or probably,
+refactor the frontswap code out as a special case if pages_to_unuse is
+still not zero after the initial loop.
 
-We need to dump more variables on top of
-"fs/buffer.c: add debug print for __getblk_gfp() stall problem".
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Jan Kara <jack@suse.cz>
----
- fs/buffer.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 580fda0..a50acac 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -1066,9 +1066,14 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
- #ifdef CONFIG_DEBUG_AID_FOR_SYZBOT
- 		if (!time_after(jiffies, current->getblk_stamp + 3 * HZ))
- 			continue;
--		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx\n",
-+		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx "
-+		       "bdev_super_blocksize=%lu size=%u "
-+		       "bdev_super_blocksize_bits=%u bdev_inode_blkbits=%u\n",
- 		       current->comm, current->pid, current->getblk_executed,
--		       current->getblk_bh_count, current->getblk_bh_state);
-+		       current->getblk_bh_count, current->getblk_bh_state,
-+		       bdev->bd_super->s_blocksize, size,
-+		       bdev->bd_super->s_blocksize_bits,
-+		       bdev->bd_inode->i_blkbits);
- 		current->getblk_executed = 0;
- 		current->getblk_bh_count = 0;
- 		current->getblk_bh_state = 0;
--- 
-1.8.3.1
-
+Thanks,
+Vineeth
 
