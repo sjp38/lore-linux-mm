@@ -1,600 +1,173 @@
-Return-Path: <SRS0=ID2a=PJ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=6aBQ=PK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23229C43387
-	for <linux-mm@archiver.kernel.org>; Tue,  1 Jan 2019 18:24:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E4B9C43612
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 04:16:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80D3D2070D
-	for <linux-mm@archiver.kernel.org>; Tue,  1 Jan 2019 18:24:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AF9122080A
+	for <linux-mm@archiver.kernel.org>; Wed,  2 Jan 2019 04:16:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=digitalocean.com header.i=@digitalocean.com header.b="XLSahxC5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80D3D2070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=digitalocean.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="TlDyqnPH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF9122080A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFA668E0003; Tue,  1 Jan 2019 13:24:28 -0500 (EST)
+	id DEBEA8E000B; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D84928E0002; Tue,  1 Jan 2019 13:24:28 -0500 (EST)
+	id D9AEE8E0002; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4C5E8E0003; Tue,  1 Jan 2019 13:24:28 -0500 (EST)
+	id CB0518E000B; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DC1B8E0002
-	for <linux-mm@kvack.org>; Tue,  1 Jan 2019 13:24:28 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id p131so21148768oia.21
-        for <linux-mm@kvack.org>; Tue, 01 Jan 2019 10:24:28 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A50008E0002
+	for <linux-mm@kvack.org>; Tue,  1 Jan 2019 23:16:39 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id d7so21773134oif.5
+        for <linux-mm@kvack.org>; Tue, 01 Jan 2019 20:16:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=pJYt0RxgXOCe/ybJeMdXwQsKsfjKjnJOY2sU7SvUMcU=;
-        b=LcEc8Cnh0AjekZY4g+sByGtdPfp2+R7/3UeS+jyutVdUyYKgxV/7PRjAwYucF7BgSi
-         4+ALrjbgxadaWWFDjEyZl1GCUDTGTTOd6IeCGBPy789jFaVJ1BWrHOjvmUBqqcRt5EwG
-         EJEGFcy5P30GcNS2tVS7wYrUmM1AbNrnTf1O2YKlK99HXxkGuwMML8I3lLlydytCGEXr
-         8xY2xvW6JyH3eeCJLH7z0yoTClckP66amSabtKo40C+a0lBqPB9hHIYuL/0c1ecO45cx
-         mdtz+d7RmZ3ugM7dqN2/ZzJtky81lbo3tSMYyRVXal2EyKyv0mt0elIsYQ1cQ3hC6qJr
-         tVoQ==
-X-Gm-Message-State: AA+aEWbSlIO/rm1mOjsQ6DfeaAPbLFB0YITrnRbRgdHmyIyRDKgFcxAz
-	W6Ws1TDhkQu/qwwNgEzEpqKeequXkyVCZQZ1h+1+V4JBg9Ruw1hWDjWFQkbHpRFDeag1CCV5R19
-	w8d0Digb7opkPX8xekAQL8yTQGlqhWMqWjbmjn9JCATkBCKM/REF4G3QhYvn1ZkillcdR6FQsS+
-	ybcdnJQJ96Pu3J3wUdZOrUpyzAmHFS8EAcW/ShqnM4V91XhtcHYziQez01OwtnhMfGEL2Pm7igX
-	Fosz9Iwt2OWJltLZOzZYUTAiV4QS+G20JOV2J9f1FCsUwP183mCVdYFHCT/bAkXoP7MA+MNql0E
-	u1rVMAx8y76AqpAuRoxHuo1lbf+UfI+K/QuIL0WX6o6JbBInb1q4OLExtP71bh2eBekvpCO6YVe
-	u
-X-Received: by 2002:aca:6952:: with SMTP id e79mr28860788oic.117.1546367068112;
-        Tue, 01 Jan 2019 10:24:28 -0800 (PST)
-X-Received: by 2002:aca:6952:: with SMTP id e79mr28860758oic.117.1546367067112;
-        Tue, 01 Jan 2019 10:24:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546367067; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=sGf8qo2Wdx2LK1OhcJgrgfHsKFZtTfQlC5pl8JudtzE=;
+        b=kuMLnRlmK2YqnJ0yBtNIEg+ZiMmNA9kwQGLMCX6yj4UeIPJ9zEHn8je3lBAUF7LLZZ
+         H4PFxrk+UxuSUgYLtme0svM526eFTyWS3X8YH5ck76WwwvVrXklnajHHyaw32pl+h7fS
+         mI4AEdjn/ZWdpHu9xTGM8ilfws8secyJD2I713hQGjLX5ruOWxE3dbZdoORCtv3TWSxe
+         yoY4hZEGa9A57RQA+nM1RRWFo1aupYLYxHr+z0fUUm8BusQFf2El6MG7Hj6+PiViXxz4
+         JHuzRHr8QmI46y+TOf4lltjtuegzbF3ayMXBVUlBRpJXT/XTCO/lI0GpiMj8LIoG25Ct
+         eJxA==
+X-Gm-Message-State: AJcUukcdwy9Wf2h0Fxr6FVgr53CYdgQMKAYJCCGhbbHJ/9Ymy8w83eUJ
+	p9LA+jKpu83XqNKfKmJy7zjHTdXlsxPokYs0RQkSI5+nODbg15VB7x+Z08tGJaVNmfUO2qr/nr7
+	Htwx43aOOur4cAEzVEz2N+D6ICWiQIiyLVLKq00xKvo1VzLarBwtqpe/yU/gMMUdRNlHCINujLm
+	HgWACaZ4VUI+mWkLxClLY0ZmYEUhEXzHG+WGyjnh2cpFXWgrsArIgU9AN/zgz/ltY8rLzLEUaNR
+	TkBxkxvlWNyiB6Mk18a/KIIyUTzmvePdGt5O4ny4A3Nw/WeyEr3CZL5qx2PFbihwhyUqvYq3VMO
+	r0bJvQ2iAB388EUWjWZyhkNK7yZCSWr4k4brjCQRQ+2gVa6JkcqT51JRYYu2ERdz9YVGGpGaAiS
+	8
+X-Received: by 2002:a05:6830:16c2:: with SMTP id l2mr30505684otr.20.1546402599281;
+        Tue, 01 Jan 2019 20:16:39 -0800 (PST)
+X-Received: by 2002:a05:6830:16c2:: with SMTP id l2mr30505668otr.20.1546402598520;
+        Tue, 01 Jan 2019 20:16:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546402598; cv=none;
         d=google.com; s=arc-20160816;
-        b=iyvZcvtDocrzZBLpoPruvd9n/ud3ilS5kKQdhOtABt2qO4jylZ1kSt9BjtGnc1igTm
-         uY42l+tAsmGnmNPSVdTvtdZJ8fTdPahn3zBkmrQC1D9KVIXc9qMpY69fIpNLYIF5KlCF
-         yf1xVtCybpq4wuFeCUl+TdnBvOnEVwzszNnY8i6D10Bdm/SfyHlUyApMrzi+5rrqqM6f
-         Bl4sL8RuIapBcL1ICLmO1jrZb6h0Lh5X1L30yuuVgf97TkBEmMCDtq8RzQ59xHsrURRL
-         uB4Lv/XBweLn0vYGajjfYrQ0Aw310Jdjkny01OhRf+BmR0/09Q02++Firjy5ZahZp7NM
-         U8KA==
+        b=qBZpCysdvPRqez4IY7Cob00WrLyjWODeyesjuWYQ5q2JpaKK7FKyVn/Wxz/pb+Tlaj
+         EM1Mt/rNQFRsj/d/xoOKnwH+kmcTF7ezWfEj3kyt0eKW6LqbOtwiUOK6Cc+mXAkQr7Zy
+         9eTJTr/4IJPY9m2ij+veJ9CR813+HnUqBFaLkBE0In+iePQVRZuvaL69DUSst4GGES67
+         V1/v69UB+P07A3HS1jSqtl3crRlOwQ5ZwDvgtU66mpYFwrreKNVxT1aIq9f4Ab1QiHo7
+         2qyQFYbHPA2mPtjdu3mLoN1JcFJaMKwWOYYxe7qW2FFTKrv+9J7EDbiOdR9PaN9PBo+W
+         wTtw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=pJYt0RxgXOCe/ybJeMdXwQsKsfjKjnJOY2sU7SvUMcU=;
-        b=BlAvFuVmRfgdEu0ivFyJilAxpSRXOzXXspW8lpQ/S+Huwny4JxypPymKHNtkqEDMfh
-         YexMWhEHTfgrlcngvM7MfqZrNizK/s54FFDoSHfpUNa4FEn79cdyuvLNEg0UWjVl7prG
-         HdH4K6XsZo08PkoTkFgqCeQWxCij0YFLXfWh3qfae0av18XDrY1yAEzYh0kP9iIfHHYg
-         PT7HeK9Kx6wumlwj3ok6nha/m7VakvEUuloZVYwAz0BGiaF4daZ+UKgsRvaZdGVorWDu
-         qjddbLEyJFrK0WJxJ9tIVAI26UXcn58BOyE9AHAhT4LK+SF67hF/bnwkQXvMU0U3or0E
-         S/FQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=sGf8qo2Wdx2LK1OhcJgrgfHsKFZtTfQlC5pl8JudtzE=;
+        b=BOEFZIVt8JcHsxkNzbniCbcQB9dPfPSX9FMw3iz8h1k8IfwDgqVzCjOBm4OYcI1uWg
+         RmzULytLTeQHmc9zudLQU9LALqMK5PdepoSheHodpxpHFXf0ngKJyMw4x6KpVCG8GZRB
+         SG3CTm3yIzvwVsaddhObKQdYPKSiGL0g/g2hiVZ+aaKrTBJt26L32iH16fmG4Uy0zbQj
+         FvWhWbw+zYiVcUMYeQPBr8MO42Jm2SmdHnIPSF0GZx0thM4p/A/vBUMYETonYt3z806I
+         L+uvIo/28FEcRQvG+AKTwK6eMm2IApQMbXfC8OUr2TAybK+OhV+tAsu5ox69mzWr3w3w
+         8qZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@digitalocean.com header.s=google header.b=XLSahxC5;
-       spf=pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vpillai@digitalocean.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=digitalocean.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=TlDyqnPH;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f14sor22436682oib.5.2019.01.01.10.24.27
+        by mx.google.com with SMTPS id x2sor26440580ota.72.2019.01.01.20.16.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 01 Jan 2019 10:24:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 01 Jan 2019 20:16:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@digitalocean.com header.s=google header.b=XLSahxC5;
-       spf=pass (google.com: domain of vpillai@digitalocean.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vpillai@digitalocean.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=digitalocean.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=TlDyqnPH;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=digitalocean.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=pJYt0RxgXOCe/ybJeMdXwQsKsfjKjnJOY2sU7SvUMcU=;
-        b=XLSahxC5ux6tWPDhJWLRtdbI8kSHCUhR9bwd+gQKYXf6A0ay0W/zcgd26FGo7rNt+2
-         69oY9Y6lfKeRkicyOp9SOYZ39RtXFTRIHg35idYLRaUbFc1bZ95vbz/OYeP/LAsGMVUX
-         32P20lQ1gFt6OLt5C/zsL7lHul1neXo7F068E=
-X-Google-Smtp-Source: AFSGD/W3N4wWt0Y3VTVBAGmVLavO85QxJpUH0nS7so8TrHx3Vg3up9RAemc7KgWCWslPL9P/cDJasedXYyrQgRanz14=
-X-Received: by 2002:aca:195:: with SMTP id 143mr26099574oib.322.1546367066532;
- Tue, 01 Jan 2019 10:24:26 -0800 (PST)
-MIME-Version: 1.0
-References: <20181203170934.16512-1-vpillai@digitalocean.com>
- <20181203170934.16512-2-vpillai@digitalocean.com> <alpine.LSU.2.11.1812311635590.4106@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1812311635590.4106@eggly.anvils>
-From: Vineeth Pillai <vpillai@digitalocean.com>
-Date: Tue, 1 Jan 2019 13:24:15 -0500
-Message-ID:
- <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com>
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=sGf8qo2Wdx2LK1OhcJgrgfHsKFZtTfQlC5pl8JudtzE=;
+        b=TlDyqnPHZSSgvwoclhmoj5ys8xDZm6AlFzh05iWq49a0NRex24EjU20DyAzpNHTUT9
+         uRytyqszNnfGIMXVM/NFBwcNXsFtkxYspclXZAz3c2+g15YObn+SUogf8XaTA8DIeE2K
+         ocCl0fV6dGBnOPKUF3b97m7ySSCWjVhPDwUhr2YyuSNUkfxZqr+XiZTD+K/u9s10C9Zf
+         Le5E3McHGCXl1ohRSkIOtmOyLYHTVM7ChSDXX3bf6Ps5+9Ln/adFK1P4iSr6jK6ZYm76
+         fR3gRj5Y1C1QVCMJi4sqEETFCjfuEZMOZApxYz1eqmVGlwetjzwxPK+81yhXcQPCYQoy
+         14IQ==
+X-Google-Smtp-Source: ALg8bN45dgSFZYcm+zGi65miW7qopuu4TeQu4nqCYJSidDyIUBobIzzQRL8h0VOde/VcbbUE/YeMUw==
+X-Received: by 2002:a9d:1421:: with SMTP id h30mr28318662oth.321.1546402597919;
+        Tue, 01 Jan 2019 20:16:37 -0800 (PST)
+Received: from eggly.attlocal.net (172-10-233-147.lightspeed.sntcca.sbcglobal.net. [172.10.233.147])
+        by smtp.gmail.com with ESMTPSA id 21sm29760692oie.24.2019.01.01.20.16.36
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 01 Jan 2019 20:16:37 -0800 (PST)
+Date: Tue, 1 Jan 2019 20:16:28 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: Vineeth Pillai <vpillai@digitalocean.com>
+cc: Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, 
+    linux-kernel@vger.kernel.org, Kelley Nielsen <kelleynnn@gmail.com>, 
+    Rik van Riel <riel@surriel.com>
 Subject: Re: [PATCH v3 2/2] mm: rid swapoff of quadratic complexity
-To: Hugh Dickins <hughd@google.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Kelley Nielsen <kelleynnn@gmail.com>, Rik van Riel <riel@surriel.com>
-Content-Type: multipart/alternative; boundary="000000000000b1832f057e69a39c"
+In-Reply-To: <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1901012010440.13241@eggly.anvils>
+References: <20181203170934.16512-1-vpillai@digitalocean.com> <20181203170934.16512-2-vpillai@digitalocean.com> <alpine.LSU.2.11.1812311635590.4106@eggly.anvils> <CANaguZAStuiXpk2S0rYwdn3Zzsoakavaps4RzSRVqMs3wZ49qg@mail.gmail.com>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190101182415.INqIqDEnAl3qMMQsGzeXRf-R16-hfKy3WbXY35uBwc0@z>
+Message-ID: <20190102041628.U5SOdxDQiSbe2HRHmu9cCnDFimEb3HfuegI0TwPrqkg@z>
 
---000000000000b1832f057e69a39c
-Content-Type: text/plain; charset="UTF-8"
+On Tue, 1 Jan 2019, Vineeth Pillai wrote:
 
-Thanks a lot for the fixes and detailed explanation Hugh! I shall fold all
-the changes from you and Huang in the next iteration.
+> Thanks a lot for the fixes and detailed explanation Hugh! I shall fold all
+> the changes from you and Huang in the next iteration.
+> 
+> Thanks for all the suggestions and comments as well. I am looking into all
+> those and will include all the changes in the next version. Will discuss
+> over mail in case of any clarifications.
 
-Thanks for all the suggestions and comments as well. I am looking into all
-those and will include all the changes in the next version. Will discuss
-over mail in case of any clarifications.
+One more fix on top of what I sent yesterday: once I delved into
+the retries, I found that the major cause of exceeding MAX_RETRIES
+was the way the retry code neatly avoided retrying the last part of
+its work.  With this fix in, I have not yet seen retries go above 1:
+no doubt it could, but at present I have no actual evidence that
+the MAX_RETRIES-or-livelock issue needs to be dealt with urgently.
+Fix sent for completeness, but it reinforces the point that the
+structure of try_to_unuse() should be reworked, and oldi gone.
 
-Thanks again!
-~Vineeth
+Hugh
 
-On Mon, Dec 31, 2018 at 7:44 PM Hugh Dickins <hughd@google.com> wrote:
+---
 
-> On Mon, 3 Dec 2018, Vineeth Remanan Pillai wrote:
->
-> > This patch was initially posted by Kelley(kelleynnn@gmail.com).
-> > Reposting the patch with all review comments addressed and with minor
-> > modifications and optimizations. Tests were rerun and commit message
-> > updated with new results.
-> >
-> > The function try_to_unuse() is of quadratic complexity, with a lot of
-> > wasted effort. It unuses swap entries one by one, potentially iterating
-> > over all the page tables for all the processes in the system for each
-> > one.
-> >
-> > This new proposed implementation of try_to_unuse simplifies its
-> > complexity to linear. It iterates over the system's mms once, unusing
-> > all the affected entries as it walks each set of page tables. It also
-> > makes similar changes to shmem_unuse.
->
-> Hi Vineeth, please fold in fixes below before reposting your
-> "mm,swap: rid swapoff of quadratic complexity" patch -
-> or ask for more detail if unclear.  I could split it up,
-> of course, but since they should all (except perhaps one)
-> just be merged into the base patch before going any further,
-> it'll save me time to keep them together here and just explain:-
->
-> shmem_unuse_swap_entries():
-> If a user fault races with swapoff, it's very normal for
-> shmem_swapin_page() to return -EEXIST, and the old code was
-> careful not to pass back any error but -ENOMEM; whereas on mmotm,
-> /usr/sbin/swapoff often failed silently because it got that EEXIST.
->
-> shmem_unuse():
-> A couple of crashing bugs there: a list_del_init without holding the
-> mutex, and too much faith in the "safe" in list_for_each_entry_safe():
-> it does assume that the mutex has been held throughout, you (very
-> nicely!) drop it, but that does require "next" to be re-evaluated.
->
-> shmem_writepage():
-> Not a bug fix, this is the "except perhaps one": minor optimization,
-> could be left out, but if shmem_unuse() is going through the list
-> in the forward direction, and may completely unswap a file and del
-> it from the list, then pages from that file can be swapped out to
-> *other* swap areas after that, and it be reinserted in the list:
-> better to reinsert it behind shmem_unuse()'s cursor than in front
-> of it, which would entail a second pointless pass over that file.
->
-> try_to_unuse():
-> Moved up the assignment of "oldi = i" (and changed the test to
-> "oldi <= i"), so as not to get trapped in that find_next_to_unuse()
-> loop when find_get_page() does not find it.
->
-> try_to_unuse():
-> But the main problem was passing entry.val to find_get_page() there:
-> that used to be correct, but since f6ab1f7f6b2d we need to pass just
-> the offset - as it stood, it could only find the pages when swapping
-> off area 0 (a similar issue was fixed in shmem_replace_page() recently).
-> That (together with the late oldi assignment) was why my swapoffs were
-> hanging on SWAP_HAS_CACHE swap_map entries.
->
-> With those changes, it all seems to work rather well, and is a nice
-> simplification of the source, in addition to removing the quadratic
-> complexity. To my great surprise, the KSM pages are already handled
-> fairly well - the ksm_might_need_to_copy() that has long been in
-> unuse_pte() turns out to do (almost) a good enough job already,
-> so most users of KSM and swapoff would never see any problem.
-> And I'd been afraid of swapin readahead causing spurious -ENOMEMs,
-> but have seen nothing of that in practice (though something else
-> in mmotm does appear to use up more memory than before).
->
-> My remaining criticisms would be:
->
-> As Huang Ying pointed out in other mail, there is a danger of
-> livelock (or rather, hitting the MAX_RETRIES limit) when a multiply
-> mapped page (most especially a KSM page, whose mappings are not
-> likely to be nearby in the mmlist) is swapped out then partially
-> swapped off then some ptes swapped back out.  As indeed the
-> "Under global memory pressure" comment admits.
->
-> I have hit the MAX_RETRIES 3 limit several times in load testing,
-> not investigated but I presume due to such a multiply mapped page,
-> so at present we do have a regression there.  A very simple answer
-> would be to remove the retries limiting - perhaps you just added
-> that to get around the find_get_page() failure before it was
-> understood?  That does then tend towards the livelock alternative,
-> but you've kept the signal_pending() check, so there's still the
-> same way out as the old technique had (but greater likelihood of
-> needing it with the new technique).  The right fix will be to do
-> an rmap walk to unuse all the swap entries of a single anon_vma
-> while holding page lock (with KSM needing that page force-deleted
-> from swap cache before moving on); but none of us have written
-> that code yet, maybe just removing the retries limit good enough.
->
-> Two dislikes on the code structure, probably one solution: the
-> "goto retry", up two levels from inside the lower loop, is easy to
-> misunderstand; and the oldi business is ugly - find_next_to_unuse()
-> was written to wrap around continuously to suit the old loop, but
-> now it's left with its "++i >= max" code to achieve that, then your
-> "i <= oldi" code to detect when it did, to undo that again: please
-> delete code from both ends to make that all simpler.
->
-> I'd expect to see checks on inuse_pages in some places, to terminate
-> the scans as soon as possible (swapoff of an unused swapfile should
-> be very quick, shouldn't it? not requiring any scans at all); but it
-> looks like the old code did not have those either - was inuse_pages
-> unreliable once upon a time? is it unreliable now?
->
-> Hugh
->
-> ---
->
->  mm/shmem.c    |   12 ++++++++----
->  mm/swapfile.c |    8 ++++----
->  2 files changed, 12 insertions(+), 8 deletions(-)
->
-> --- mmotm/mm/shmem.c    2018-12-22 13:32:51.339584848 -0800
-> +++ linux/mm/shmem.c    2018-12-31 12:30:55.822407154 -0800
-> @@ -1149,6 +1149,7 @@ static int shmem_unuse_swap_entries(stru
->                 }
->                 if (error == -ENOMEM)
->                         break;
-> +               error = 0;
->         }
->         return error;
->  }
-> @@ -1216,12 +1217,15 @@ int shmem_unuse(unsigned int type)
->                 mutex_unlock(&shmem_swaplist_mutex);
->                 if (prev_inode)
->                         iput(prev_inode);
-> +               prev_inode = inode;
-> +
->                 error = shmem_unuse_inode(inode, type);
-> -               if (!info->swapped)
-> -                       list_del_init(&info->swaplist);
->                 cond_resched();
-> -               prev_inode = inode;
-> +
->                 mutex_lock(&shmem_swaplist_mutex);
-> +               next = list_next_entry(info, swaplist);
-> +               if (!info->swapped)
-> +                       list_del_init(&info->swaplist);
->                 if (error)
->                         break;
->         }
-> @@ -1313,7 +1317,7 @@ static int shmem_writepage(struct page *
->          */
->         mutex_lock(&shmem_swaplist_mutex);
->         if (list_empty(&info->swaplist))
-> -               list_add_tail(&info->swaplist, &shmem_swaplist);
-> +               list_add(&info->swaplist, &shmem_swaplist);
->
->         if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
->                 spin_lock_irq(&info->lock);
-> diff -purN mmotm/mm/swapfile.c linux/mm/swapfile.c
-> --- mmotm/mm/swapfile.c 2018-12-22 13:32:51.347584880 -0800
-> +++ linux/mm/swapfile.c 2018-12-31 12:30:55.822407154 -0800
-> @@ -2156,7 +2156,7 @@ retry:
->
->         while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
->                 /*
-> -                * under global memory pressure, swap entries
-> +                * Under global memory pressure, swap entries
->                  * can be reinserted back into process space
->                  * after the mmlist loop above passes over them.
->                  * This loop will then repeat fruitlessly,
-> @@ -2164,7 +2164,7 @@ retry:
->                  * but doing nothing to actually free up the swap.
->                  * In this case, go over the mmlist loop again.
->                  */
-> -               if (i < oldi) {
-> +               if (i <= oldi) {
->                         retries++;
->                         if (retries > MAX_RETRIES) {
->                                 retval = -EBUSY;
-> @@ -2172,8 +2172,9 @@ retry:
->                         }
->                         goto retry;
->                 }
-> +               oldi = i;
->                 entry = swp_entry(type, i);
-> -               page = find_get_page(swap_address_space(entry), entry.val);
-> +               page = find_get_page(swap_address_space(entry), i);
->                 if (!page)
->                         continue;
->
-> @@ -2188,7 +2189,6 @@ retry:
->                 try_to_free_swap(page);
->                 unlock_page(page);
->                 put_page(page);
-> -               oldi = i;
->         }
->  out:
->         return retval;
->
+ mm/swapfile.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
---000000000000b1832f057e69a39c
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-family:verdana,=
-sans-serif;font-size:small">Thanks a lot for the fixes and detailed=C2=A0ex=
-planation Hugh! I shall fold all the changes from you and Huang in the next=
- iteration.</div><div class=3D"gmail_default" style=3D"font-family:verdana,=
-sans-serif;font-size:small"><br></div><div class=3D"gmail_default" style=3D=
-"font-family:verdana,sans-serif;font-size:small">Thanks for all the suggest=
-ions and comments as well. I am looking into all those and will include all=
- the changes in the next=C2=A0version. Will discuss over mail in case of an=
-y clarifications.</div><div class=3D"gmail_default" style=3D"font-family:ve=
-rdana,sans-serif;font-size:small"><br></div><div class=3D"gmail_default" st=
-yle=3D"font-family:verdana,sans-serif;font-size:small">Thanks again!</div><=
-div class=3D"gmail_default" style=3D"font-family:verdana,sans-serif;font-si=
-ze:small">~Vineeth</div></div><br><div class=3D"gmail_quote"><div dir=3D"lt=
-r">On Mon, Dec 31, 2018 at 7:44 PM Hugh Dickins &lt;<a href=3D"mailto:hughd=
-@google.com">hughd@google.com</a>&gt; wrote:<br></div><blockquote class=3D"=
-gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(20=
-4,204,204);padding-left:1ex">On Mon, 3 Dec 2018, Vineeth Remanan Pillai wro=
-te:<br>
-<br>
-&gt; This patch was initially posted by Kelley(<a href=3D"mailto:kelleynnn@=
-gmail.com" target=3D"_blank">kelleynnn@gmail.com</a>).<br>
-&gt; Reposting the patch with all review comments addressed and with minor<=
-br>
-&gt; modifications and optimizations. Tests were rerun and commit message<b=
-r>
-&gt; updated with new results.<br>
-&gt; <br>
-&gt; The function try_to_unuse() is of quadratic complexity, with a lot of<=
-br>
-&gt; wasted effort. It unuses swap entries one by one, potentially iteratin=
-g<br>
-&gt; over all the page tables for all the processes in the system for each<=
-br>
-&gt; one.<br>
-&gt; <br>
-&gt; This new proposed implementation of try_to_unuse simplifies its<br>
-&gt; complexity to linear. It iterates over the system&#39;s mms once, unus=
-ing<br>
-&gt; all the affected entries as it walks each set of page tables. It also<=
-br>
-&gt; makes similar changes to shmem_unuse.<br>
-<br>
-Hi Vineeth, please fold in fixes below before reposting your<br>
-&quot;mm,swap: rid swapoff of quadratic complexity&quot; patch -<br>
-or ask for more detail if unclear.=C2=A0 I could split it up,<br>
-of course, but since they should all (except perhaps one)<br>
-just be merged into the base patch before going any further,<br>
-it&#39;ll save me time to keep them together here and just explain:-<br>
-<br>
-shmem_unuse_swap_entries():<br>
-If a user fault races with swapoff, it&#39;s very normal for<br>
-shmem_swapin_page() to return -EEXIST, and the old code was<br>
-careful not to pass back any error but -ENOMEM; whereas on mmotm,<br>
-/usr/sbin/swapoff often failed silently because it got that EEXIST.<br>
-<br>
-shmem_unuse():<br>
-A couple of crashing bugs there: a list_del_init without holding the<br>
-mutex, and too much faith in the &quot;safe&quot; in list_for_each_entry_sa=
-fe():<br>
-it does assume that the mutex has been held throughout, you (very<br>
-nicely!) drop it, but that does require &quot;next&quot; to be re-evaluated=
-.<br>
-<br>
-shmem_writepage():<br>
-Not a bug fix, this is the &quot;except perhaps one&quot;: minor optimizati=
-on,<br>
-could be left out, but if shmem_unuse() is going through the list<br>
-in the forward direction, and may completely unswap a file and del<br>
-it from the list, then pages from that file can be swapped out to<br>
-*other* swap areas after that, and it be reinserted in the list:<br>
-better to reinsert it behind shmem_unuse()&#39;s cursor than in front<br>
-of it, which would entail a second pointless pass over that file.<br>
-<br>
-try_to_unuse():<br>
-Moved up the assignment of &quot;oldi =3D i&quot; (and changed the test to<=
-br>
-&quot;oldi &lt;=3D i&quot;), so as not to get trapped in that find_next_to_=
-unuse()<br>
-loop when find_get_page() does not find it.<br>
-<br>
-try_to_unuse():<br>
-But the main problem was passing entry.val to find_get_page() there:<br>
-that used to be correct, but since f6ab1f7f6b2d we need to pass just<br>
-the offset - as it stood, it could only find the pages when swapping<br>
-off area 0 (a similar issue was fixed in shmem_replace_page() recently).<br=
->
-That (together with the late oldi assignment) was why my swapoffs were<br>
-hanging on SWAP_HAS_CACHE swap_map entries.<br>
-<br>
-With those changes, it all seems to work rather well, and is a nice<br>
-simplification of the source, in addition to removing the quadratic<br>
-complexity. To my great surprise, the KSM pages are already handled<br>
-fairly well - the ksm_might_need_to_copy() that has long been in<br>
-unuse_pte() turns out to do (almost) a good enough job already,<br>
-so most users of KSM and swapoff would never see any problem.<br>
-And I&#39;d been afraid of swapin readahead causing spurious -ENOMEMs,<br>
-but have seen nothing of that in practice (though something else<br>
-in mmotm does appear to use up more memory than before).<br>
-<br>
-My remaining criticisms would be:<br>
-<br>
-As Huang Ying pointed out in other mail, there is a danger of<br>
-livelock (or rather, hitting the MAX_RETRIES limit) when a multiply<br>
-mapped page (most especially a KSM page, whose mappings are not<br>
-likely to be nearby in the mmlist) is swapped out then partially<br>
-swapped off then some ptes swapped back out.=C2=A0 As indeed the<br>
-&quot;Under global memory pressure&quot; comment admits.<br>
-<br>
-I have hit the MAX_RETRIES 3 limit several times in load testing,<br>
-not investigated but I presume due to such a multiply mapped page,<br>
-so at present we do have a regression there.=C2=A0 A very simple answer<br>
-would be to remove the retries limiting - perhaps you just added<br>
-that to get around the find_get_page() failure before it was<br>
-understood?=C2=A0 That does then tend towards the livelock alternative,<br>
-but you&#39;ve kept the signal_pending() check, so there&#39;s still the<br=
->
-same way out as the old technique had (but greater likelihood of<br>
-needing it with the new technique).=C2=A0 The right fix will be to do<br>
-an rmap walk to unuse all the swap entries of a single anon_vma<br>
-while holding page lock (with KSM needing that page force-deleted<br>
-from swap cache before moving on); but none of us have written<br>
-that code yet, maybe just removing the retries limit good enough.<br>
-<br>
-Two dislikes on the code structure, probably one solution: the<br>
-&quot;goto retry&quot;, up two levels from inside the lower loop, is easy t=
-o<br>
-misunderstand; and the oldi business is ugly - find_next_to_unuse()<br>
-was written to wrap around continuously to suit the old loop, but<br>
-now it&#39;s left with its &quot;++i &gt;=3D max&quot; code to achieve that=
-, then your<br>
-&quot;i &lt;=3D oldi&quot; code to detect when it did, to undo that again: =
-please<br>
-delete code from both ends to make that all simpler.<br>
-<br>
-I&#39;d expect to see checks on inuse_pages in some places, to terminate<br=
->
-the scans as soon as possible (swapoff of an unused swapfile should<br>
-be very quick, shouldn&#39;t it? not requiring any scans at all); but it<br=
->
-looks like the old code did not have those either - was inuse_pages<br>
-unreliable once upon a time? is it unreliable now?<br>
-<br>
-Hugh<br>
-<br>
----<br>
-<br>
-=C2=A0mm/shmem.c=C2=A0 =C2=A0 |=C2=A0 =C2=A012 ++++++++----<br>
-=C2=A0mm/swapfile.c |=C2=A0 =C2=A0 8 ++++----<br>
-=C2=A02 files changed, 12 insertions(+), 8 deletions(-)<br>
-<br>
---- mmotm/mm/shmem.c=C2=A0 =C2=A0 2018-12-22 13:32:51.339584848 -0800<br>
-+++ linux/mm/shmem.c=C2=A0 =C2=A0 2018-12-31 12:30:55.822407154 -0800<br>
-@@ -1149,6 +1149,7 @@ static int shmem_unuse_swap_entries(stru<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (error =3D=3D -E=
-NOMEM)<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 break;<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0error =3D 0;<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 return error;<br>
-=C2=A0}<br>
-@@ -1216,12 +1217,15 @@ int shmem_unuse(unsigned int type)<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mutex_unlock(&amp;s=
-hmem_swaplist_mutex);<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (prev_inode)<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 iput(prev_inode);<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0prev_inode =3D inod=
-e;<br>
-+<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 error =3D shmem_unu=
-se_inode(inode, type);<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!info-&gt;swapp=
-ed)<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0list_del_init(&amp;info-&gt;swaplist);<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 cond_resched();<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0prev_inode =3D inod=
-e;<br>
-+<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mutex_lock(&amp;shm=
-em_swaplist_mutex);<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0next =3D list_next_=
-entry(info, swaplist);<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!info-&gt;swapp=
-ed)<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0list_del_init(&amp;info-&gt;swaplist);<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (error)<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 break;<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-@@ -1313,7 +1317,7 @@ static int shmem_writepage(struct page *<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 mutex_lock(&amp;shmem_swaplist_mutex);<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (list_empty(&amp;info-&gt;swaplist))<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_add_tail(&amp;=
-info-&gt;swaplist, &amp;shmem_swaplist);<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_add(&amp;info-=
-&gt;swaplist, &amp;shmem_swaplist);<br>
-<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (add_to_swap_cache(page, swap, GFP_ATOMIC) =
-=3D=3D 0) {<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_lock_irq(&amp;=
-info-&gt;lock);<br>
-diff -purN mmotm/mm/swapfile.c linux/mm/swapfile.c<br>
---- mmotm/mm/swapfile.c 2018-12-22 13:32:51.347584880 -0800<br>
-+++ linux/mm/swapfile.c 2018-12-31 12:30:55.822407154 -0800<br>
-@@ -2156,7 +2156,7 @@ retry:<br>
-<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 while ((i =3D find_next_to_unuse(si, i, frontsw=
-ap)) !=3D 0) {<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * under global mem=
-ory pressure, swap entries<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Under global mem=
-ory pressure, swap entries<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* can be rein=
-serted back into process space<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* after the m=
-mlist loop above passes over them.<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* This loop w=
-ill then repeat fruitlessly,<br>
-@@ -2164,7 +2164,7 @@ retry:<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* but doing n=
-othing to actually free up the swap.<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* In this cas=
-e, go over the mmlist loop again.<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (i &lt; oldi) {<=
-br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (i &lt;=3D oldi)=
- {<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 retries++;<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 if (retries &gt; MAX_RETRIES) {<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 retval =3D -EBUSY;<br>
-@@ -2172,8 +2172,9 @@ retry:<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 }<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 goto retry;<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0oldi =3D i;<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 entry =3D swp_entry=
-(type, i);<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D find_get_p=
-age(swap_address_space(entry), entry.val);<br>
-+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D find_get_p=
-age(swap_address_space(entry), i);<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!page)<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 continue;<br>
-<br>
-@@ -2188,7 +2189,6 @@ retry:<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 try_to_free_swap(pa=
-ge);<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unlock_page(page);<=
-br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 put_page(page);<br>
--=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0oldi =3D i;<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
-=C2=A0out:<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 return retval;<br>
-</blockquote></div>
-
---000000000000b1832f057e69a39c--
+--- mmotm/mm/swapfile.c	2018-12-31 12:30:55.822407154 -0800
++++ linux/mm/swapfile.c	2019-01-01 19:50:34.377277830 -0800
+@@ -2107,8 +2107,8 @@ int try_to_unuse(unsigned int type, bool
+ 	struct swap_info_struct *si = swap_info[type];
+ 	struct page *page;
+ 	swp_entry_t entry;
+-	unsigned int i = 0;
+-	unsigned int oldi = 0;
++	unsigned int i;
++	unsigned int oldi;
+ 	int retries = 0;
+ 
+ 	if (!frontswap)
+@@ -2154,6 +2154,7 @@ retry:
+ 		goto out;
+ 	}
+ 
++	i = oldi = 0;
+ 	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
+ 		/*
+ 		 * Under global memory pressure, swap entries
 
