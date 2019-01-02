@@ -1,118 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B33CD8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:13:33 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id d18so9505115pfe.0
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:13:33 -0800 (PST)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 42E668E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 03:59:47 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id f5-v6so8672678ljj.17
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 00:59:47 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c8sor1650019plr.70.2019.01.10.21.13.32
+        by mx.google.com with SMTPS id u19sor12773625lfc.20.2019.01.02.00.59.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 10 Jan 2019 21:13:32 -0800 (PST)
-From: Pingfan Liu <kernelfans@gmail.com>
-Subject: [PATCHv2 2/7] acpi: change the topo of acpi_table_upgrade()
-Date: Fri, 11 Jan 2019 13:12:52 +0800
-Message-Id: <1547183577-20309-3-git-send-email-kernelfans@gmail.com>
-In-Reply-To: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
-References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+        Wed, 02 Jan 2019 00:59:45 -0800 (PST)
+From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Subject: [RFC v3 3/3] selftests/vm: add script helper for CONFIG_TEST_VMALLOC_MODULE
+Date: Wed,  2 Jan 2019 09:59:24 +0100
+Message-Id: <20190102085924.14145-4-urezki@gmail.com>
+In-Reply-To: <20190102085924.14145-1-urezki@gmail.com>
+References: <20190102085924.14145-1-urezki@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Pingfan Liu <kernelfans@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 
-The current acpi_table_upgrade() relies on initrd_start, but this var is
-only valid after relocate_initrd(). There is requirement to extract the
-acpi info from initrd before memblock-allocator can work(see [2/4]), hence
-acpi_table_upgrade() need to accept the input param directly.
+Add the test script for the kernel test driver to analyse vmalloc
+allocator for benchmarking and stressing purposes. It is just a kernel
+module loader. You can specify and pass different parameters in order
+to investigate allocations behaviour. See "usage" output for more
+details.
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Acked-by: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
-Cc: Baoquan He <bhe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: x86@kernel.org
-Cc: linux-acpi@vger.kernel.org
-Cc: linux-mm@kvack.org
+Also add basic vmalloc smoke test to the "run_vmtests" suite.
+
+Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 ---
- arch/arm64/kernel/setup.c | 2 +-
- arch/x86/kernel/setup.c   | 2 +-
- drivers/acpi/tables.c     | 4 +---
- include/linux/acpi.h      | 4 ++--
- 4 files changed, 5 insertions(+), 7 deletions(-)
+ tools/testing/selftests/vm/run_vmtests     |  16 +++
+ tools/testing/selftests/vm/test_vmalloc.sh | 176 +++++++++++++++++++++++++++++
+ 2 files changed, 192 insertions(+)
+ create mode 100755 tools/testing/selftests/vm/test_vmalloc.sh
 
-diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-index f4fc1e0..bc4b47d 100644
---- a/arch/arm64/kernel/setup.c
-+++ b/arch/arm64/kernel/setup.c
-@@ -315,7 +315,7 @@ void __init setup_arch(char **cmdline_p)
- 	paging_init();
- 	efi_apply_persistent_mem_reservations();
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
+index 88cbe5575f0c..48ac0f757e9c 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -200,4 +200,20 @@ else
+     echo "[PASS]"
+ fi
  
--	acpi_table_upgrade();
-+	acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
- 
- 	/* Parse the ACPI tables for possible boot-time configuration */
- 	acpi_boot_table_init();
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index ac432ae..dc8fc5d 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1172,8 +1172,8 @@ void __init setup_arch(char **cmdline_p)
- 
- 	reserve_initrd();
- 
--	acpi_table_upgrade();
- 
-+	acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
- 	vsmp_init();
- 
- 	io_delay_init();
-diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
-index 61203ee..84e0a79 100644
---- a/drivers/acpi/tables.c
-+++ b/drivers/acpi/tables.c
-@@ -471,10 +471,8 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
- 
- #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
- 
--void __init acpi_table_upgrade(void)
-+void __init acpi_table_upgrade(void *data, size_t size)
- {
--	void *data = (void *)initrd_start;
--	size_t size = initrd_end - initrd_start;
- 	int sig, no, table_nr = 0, total_offset = 0;
- 	long offset = 0;
- 	struct acpi_table_header *table;
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index ed80f14..0b6e0b6 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -1254,9 +1254,9 @@ acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
- #endif
- 
- #ifdef CONFIG_ACPI_TABLE_UPGRADE
--void acpi_table_upgrade(void);
-+void acpi_table_upgrade(void *data, size_t size);
- #else
--static inline void acpi_table_upgrade(void) { }
-+static inline void acpi_table_upgrade(void *data, size_t size) { }
- #endif
- 
- #if defined(CONFIG_ACPI) && defined(CONFIG_ACPI_WATCHDOG)
++echo "------------------------------------"
++echo "running vmalloc stability smoke test"
++echo "------------------------------------"
++./test_vmalloc.sh smoke
++ret_val=$?
++
++if [ $ret_val -eq 0 ]; then
++	echo "[PASS]"
++elif [ $ret_val -eq $ksft_skip ]; then
++	 echo "[SKIP]"
++	 exitcode=$ksft_skip
++else
++	echo "[FAIL]"
++	exitcode=1
++fi
++
+ exit $exitcode
+diff --git a/tools/testing/selftests/vm/test_vmalloc.sh b/tools/testing/selftests/vm/test_vmalloc.sh
+new file mode 100755
+index 000000000000..06d2bb109f06
+--- /dev/null
++++ b/tools/testing/selftests/vm/test_vmalloc.sh
+@@ -0,0 +1,176 @@
++#!/bin/bash
++# SPDX-License-Identifier: GPL-2.0
++#
++# Copyright (C) 2018 Uladzislau Rezki (Sony) <urezki@gmail.com>
++#
++# This is a test script for the kernel test driver to analyse vmalloc
++# allocator. Therefore it is just a kernel module loader. You can specify
++# and pass different parameters in order to:
++#     a) analyse performance of vmalloc allocations;
++#     b) stressing and stability check of vmalloc subsystem.
++
++TEST_NAME="vmalloc"
++DRIVER="test_${TEST_NAME}"
++
++# 1 if fails
++exitcode=1
++
++# Kselftest framework requirement - SKIP code is 4.
++ksft_skip=4
++
++#
++# Static templates for performance, stressing and smoke tests.
++# Also it is possible to pass any supported parameters manualy.
++#
++PERF_PARAM="single_cpu_test=1 sequential_test_order=1 test_repeat_count=3"
++SMOKE_PARAM="single_cpu_test=1 test_loop_count=10000 test_repeat_count=10"
++STRESS_PARAM="test_repeat_count=20"
++
++check_test_requirements()
++{
++	uid=$(id -u)
++	if [ $uid -ne 0 ]; then
++		echo "$0: Must be run as root"
++		exit $ksft_skip
++	fi
++
++	if ! which modprobe > /dev/null 2>&1; then
++		echo "$0: You need modprobe installed"
++		exit $ksft_skip
++	fi
++
++	if ! modinfo $DRIVER > /dev/null 2>&1; then
++		echo "$0: You must have the following enabled in your kernel:"
++		echo "CONFIG_TEST_VMALLOC=m"
++		exit $ksft_skip
++	fi
++}
++
++run_perfformance_check()
++{
++	echo "Run performance tests to evaluate how fast vmalloc allocation is."
++	echo "It runs all test cases on one single CPU with sequential order."
++
++	modprobe $DRIVER $PERF_PARAM > /dev/null 2>&1
++	echo "Done."
++	echo "Ccheck the kernel message buffer to see the summary."
++}
++
++run_stability_check()
++{
++	echo "Run stability tests. In order to stress vmalloc subsystem we run"
++	echo "all available test cases on all available CPUs simultaneously."
++	echo "It will take time, so be patient."
++
++	modprobe $DRIVER $STRESS_PARAM > /dev/null 2>&1
++	echo "Done."
++	echo "Check the kernel ring buffer to see the summary."
++}
++
++run_smoke_check()
++{
++	echo "Run smoke test. Note, this test provides basic coverage."
++	echo "Please check $0 output how it can be used"
++	echo "for deep performance analysis as well as stress testing."
++
++	modprobe $DRIVER $SMOKE_PARAM > /dev/null 2>&1
++	echo "Done."
++	echo "Check the kernel ring buffer to see the summary."
++}
++
++usage()
++{
++	echo -n "Usage: $0 [ performance ] | [ stress ] | | [ smoke ] | "
++	echo "manual parameters"
++	echo
++	echo "Valid tests and parameters:"
++	echo
++	modinfo $DRIVER
++	echo
++	echo "Example usage:"
++	echo
++	echo "# Shows help message"
++	echo "./${DRIVER}.sh"
++	echo
++	echo "# Runs 1 test(id_1), repeats it 5 times on all online CPUs"
++	echo "./${DRIVER}.sh run_test_mask=1 test_repeat_count=5"
++	echo
++	echo -n "# Runs 4 tests(id_1|id_2|id_4|id_16) on one CPU with "
++	echo "sequential order"
++	echo -n "./${DRIVER}.sh single_cpu_test=1 sequential_test_order=1 "
++	echo "run_test_mask=23"
++	echo
++	echo -n "# Runs all tests on all online CPUs, shuffled order, repeats "
++	echo "20 times"
++	echo "./${DRIVER}.sh test_repeat_count=20"
++	echo
++	echo "# Performance analysis"
++	echo "./${DRIVER}.sh performance"
++	echo
++	echo "# Stress testing"
++	echo "./${DRIVER}.sh stress"
++	echo
++	exit 0
++}
++
++function validate_passed_args()
++{
++	VALID_ARGS=`modinfo $DRIVER | awk '/parm:/ {print $2}' | sed 's/:.*//'`
++
++	#
++	# Something has been passed, check it.
++	#
++	for passed_arg in $@; do
++		key=${passed_arg//=*/}
++		val="${passed_arg:$((${#key}+1))}"
++		valid=0
++
++		for valid_arg in $VALID_ARGS; do
++			if [[ $key = $valid_arg ]] && [[ $val -gt 0 ]]; then
++				valid=1
++				break
++			fi
++		done
++
++		if [[ $valid -ne 1 ]]; then
++			echo "Error: key or value is not correct: ${key} $val"
++			exit $exitcode
++		fi
++	done
++}
++
++function run_manual_check()
++{
++	#
++	# Validate passed parameters. If there is wrong one,
++	# the script exists and does not execute further.
++	#
++	validate_passed_args $@
++
++	echo "Run the test with following parameters: $@"
++	modprobe $DRIVER $@ > /dev/null 2>&1
++	echo "Done."
++	echo "Check the kernel ring buffer to see the summary."
++}
++
++function run_test()
++{
++	if [ $# -eq 0 ]; then
++		usage
++	else
++		if [[ "$1" = "performance" ]]; then
++			run_perfformance_check
++		elif [[ "$1" = "stress" ]]; then
++			run_stability_check
++		elif [[ "$1" = "smoke" ]]; then
++			run_smoke_check
++		else
++			run_manual_check $@
++		fi
++	fi
++}
++
++check_test_requirements
++run_test $@
++
++exit 0
 -- 
-2.7.4
+2.11.0
