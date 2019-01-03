@@ -1,104 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 748B98E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 10:23:51 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id l45so33984949edb.1
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 07:23:51 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m22si1157980edj.434.2019.01.03.07.23.50
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 141288E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 05:47:18 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id p21so35310429itb.8
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 02:47:18 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id y2si30972828iol.35.2019.01.03.02.47.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jan 2019 07:23:50 -0800 (PST)
-Date: Thu, 3 Jan 2019 16:23:48 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/3] mm/vmalloc: pass VM_USERMAP flags directly to
- __vmalloc_node_range()
-Message-ID: <20190103152348.GS31793@dhcp22.suse.cz>
-References: <20190103145954.16942-1-rpenyaev@suse.de>
- <20190103145954.16942-4-rpenyaev@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190103145954.16942-4-rpenyaev@suse.de>
+        Thu, 03 Jan 2019 02:47:17 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [PATCH] mm: Introduce page_size()
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190102130932.GH6310@bombadil.infradead.org>
+Date: Thu, 3 Jan 2019 03:47:02 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <DFC451D4-9262-4538-A14E-4B05932C2D6C@oracle.com>
+References: <20181231134223.20765-1-willy@infradead.org>
+ <87y385awg6.fsf@linux.ibm.com> <20190101063031.GD6310@bombadil.infradead.org>
+ <87lg447knf.fsf@linux.ibm.com> <20190102031414.GG6310@bombadil.infradead.org>
+ <0952D432-F520-4830-A1DE-479DFAD283E7@oracle.com>
+ <20190102130932.GH6310@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Penyaev <rpenyaev@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Joe Perches <joe@perches.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu 03-01-19 15:59:54, Roman Penyaev wrote:
-> vmalloc_user*() calls differ from normal vmalloc() only in that they
-> set VM_USERMAP flags for the area.  During the whole history of
-> vmalloc.c changes now it is possible simply to pass VM_USERMAP flags
-> directly to __vmalloc_node_range() call instead of finding the area
-> (which obviously takes time) after the allocation.
 
-Yes, this looks correct and a nice cleanup
 
-> Signed-off-by: Roman Penyaev <rpenyaev@suse.de>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Joe Perches <joe@perches.com>
-> Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
+> On Jan 2, 2019, at 6:09 AM, Matthew Wilcox <willy@infradead.org> =
+wrote:
+>=20
+> I'm not sure I agree with that.  It's going to depend on exactly what =
+this
+> code is doing; I can definitely see there being places in the VM where =
+we
+> care about how this page is currently mapped, but I think those places
+> are probably using the wrong interface (get_user_pages()) and should
+> really be using an interface which doesn't exist yet (get_user_sg()).
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/vmalloc.c | 30 ++++++++----------------------
->  1 file changed, 8 insertions(+), 22 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index dc6a62bca503..83fa4c642f5e 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1865,18 +1865,10 @@ EXPORT_SYMBOL(vzalloc);
->   */
->  void *vmalloc_user(unsigned long size)
->  {
-> -	struct vm_struct *area;
-> -	void *ret;
-> -
-> -	ret = __vmalloc_node(size, SHMLBA,
-> -			     GFP_KERNEL | __GFP_ZERO,
-> -			     PAGE_KERNEL, NUMA_NO_NODE,
-> -			     __builtin_return_address(0));
-> -	if (ret) {
-> -		area = find_vm_area(ret);
-> -		area->flags |= VM_USERMAP;
-> -	}
-> -	return ret;
-> +	return __vmalloc_node_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
-> +				    GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL,
-> +				    VM_USERMAP, NUMA_NO_NODE,
-> +				    __builtin_return_address(0));
->  }
->  EXPORT_SYMBOL(vmalloc_user);
->  
-> @@ -1970,16 +1962,10 @@ EXPORT_SYMBOL(vmalloc_32);
->   */
->  void *vmalloc_32_user(unsigned long size)
->  {
-> -	struct vm_struct *area;
-> -	void *ret;
-> -
-> -	ret = __vmalloc_node(size, 1, GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL,
-> -			     NUMA_NO_NODE, __builtin_return_address(0));
-> -	if (ret) {
-> -		area = find_vm_area(ret);
-> -		area->flags |= VM_USERMAP;
-> -	}
-> -	return ret;
-> +	return __vmalloc_node_range(size, 1,  VMALLOC_START, VMALLOC_END,
-> +				    GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL,
-> +				    VM_USERMAP, NUMA_NO_NODE,
-> +				    __builtin_return_address(0));
->  }
->  EXPORT_SYMBOL(vmalloc_32_user);
->  
-> -- 
-> 2.19.1
-
--- 
-Michal Hocko
-SUSE Labs
+Fair enough; I also agree the VM_BUG_ON for tail pages might be a good =
+safety
+measure, at least to see if anyone ends up calling page_size() that way =
+at present.
