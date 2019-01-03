@@ -2,228 +2,338 @@ Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5870C43387
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 00:46:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC4B0C43612
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:55:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66E8820815
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 00:46:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66E8820815
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 73DDB2073F
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:55:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73DDB2073F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0193A8E0051; Wed,  2 Jan 2019 19:46:33 -0500 (EST)
+	id 11C3E8E0054; Wed,  2 Jan 2019 20:55:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F0A7F8E0002; Wed,  2 Jan 2019 19:46:32 -0500 (EST)
+	id 0CC578E0002; Wed,  2 Jan 2019 20:55:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E21BD8E0051; Wed,  2 Jan 2019 19:46:32 -0500 (EST)
+	id EFD148E0054; Wed,  2 Jan 2019 20:55:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B4CCC8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 19:46:32 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id e185so22835900oih.18
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 16:46:32 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C27238E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 20:55:42 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id y83so38293301qka.7
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 17:55:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=0VshrFVarjlglp1rVCtZLxzDXPmPtj/9tZyOAK9iQIA=;
-        b=FE05G7+pzA6dvh3YCec6UYD9hMT0Kz8+VDNpePcl40H96aMVeQ+Okj4VRU1wzawj45
-         sc8mtvu/2JF4hUw42Bj5/+5tcCbrrRKErBDA/JT5U19FAid8EhKiAzM2gfBEwLAQ3/b4
-         /Fk0eY6M3veVU9YkZUP09rCsJpX5x+Au93QbQF0mbnvtPMPIcP8jUVhki3gLoBDrFA31
-         egHqPNdOTfQYkkfbhz3KfXG4AIXSFtzZ6uk/oliDpYCH3G/NcYFr0kh2nh0kpq9QyxJp
-         2SJqysYmGya7lpi/tV1yK34NUMNMePgtc/qJaVDE9lKz2bE+szR5Mq7y65Smoh6ak/m2
-         g2Jg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AJcUuke4cSFKpjfUcbm3ji5Rs3qAb5p7kn9+oaMo301h4utu1etofzH9
-	FbXgIN6n8Ch7+g8xpfJu8JNP/2ucr+NWwiFl+G4zJHxTTqUwLS5tj65b2vO4gWM8EXVUEVXtftj
-	7VbjAY0U0nr7aoudTKkmS6id9PXluMUs0RKGmWlnSDN6n/qQdeiRfOuqkhTT2JLTVsg==
-X-Received: by 2002:a9d:1e86:: with SMTP id n6mr34201265otn.9.1546476392439;
-        Wed, 02 Jan 2019 16:46:32 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6+e2CKjC2JhsT4ujYMV2v79bEf+LiahcaqsxsS2hqiilN/ryu7VfkexUaXfKRNPmpv8Oxh
-X-Received: by 2002:a9d:1e86:: with SMTP id n6mr34201250otn.9.1546476391668;
-        Wed, 02 Jan 2019 16:46:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546476391; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=cQJXKKW1cwl5y9scV6x9SwXrJt7HhkHji7cmHswF870=;
+        b=Qo4mGNuDlMlxAgvJgBr15JctuWxp/cI/aCCdN0x2kW2U6a+ptF0HJqgr665ye3I7CK
+         NO+pT/AITOvoona5n/4NM/AKDcrkrSdjirxItVUN9817qnTHkuEsX8+Clo9rsljmZjET
+         Wb4JnJBYPR7F+Rc7ozTf/KLlO95EEgyhR4Ruy5m/FyxKGYcG+CKkq2KvZ+0g4Q2xE1ac
+         7iLYSU8Ja0lLA9esLY5+6EtCogPIEvy79IKlpDpvCwUCtx0WLSo9ey1N0kCQ+lCD4YoW
+         U/wl8GFb0dyTr36ZrFQ9486iDFOUUUMd3sBNlXTo7/Dp6Z52CiWXkriLXqzs/CwGesCF
+         M1jQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukdE2ehNM18tDdmPTBgbRa6Im/M+NppbhTowO2tUukz2LLJYoSoD
+	mSkXJp4Qt9rkShGIKBuFGuDEYo3l+z1XBZKQNOW1WCy/CmhygsL7zjkmLPK+ravHoXMsYpyeaJ0
+	JkZgPn+ouXG73N/V9FiZVWO/XVuV3KBOJXAU0Va0W1md8Gp49tf6LLOag5ogSN5qYtA==
+X-Received: by 2002:a37:3388:: with SMTP id z130mr40513578qkz.51.1546480542502;
+        Wed, 02 Jan 2019 17:55:42 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7zEj7OU0un1TlESrF0T+Hc3Xw55ugBjhtauvAp1NlDbpBjnxjxJcbsl6eHtpY7fJEtpG0a
+X-Received: by 2002:a37:3388:: with SMTP id z130mr40513549qkz.51.1546480541465;
+        Wed, 02 Jan 2019 17:55:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546480541; cv=none;
         d=google.com; s=arc-20160816;
-        b=FUd8AiX7r24cFUnx1IzdUKCxOA/FPY4mMJG7RXRieSxKv8zGpe1aCCJvzROhzq7Pea
-         xEBHZEW7ACeMwYhxQtvfBc5QwcjlTHOX76vxX8MivMMnXkGVNPGpXvfnWncpJWiSsOoV
-         MUtvjs1wyuOA5GMdBDMHAmnVjR7mA74BaM1aCMEDzXxEy4pgFHmCL3klS3n16/BEWLCZ
-         gdGOuawWHMXkiqaDErqUPKdH9HJgH4NNSGk+eDU8A0y4EDa4sMnKjZn5B86G/Y7xGUIR
-         CyGqrMuMUAwvR4MosPdEfSSSnlia8m/f1RoH3UyKTUIAefJTLQc3DvDV7byb2eHM7N7E
-         bK0w==
+        b=Jq2w18MsvfIpMTQ+b6lI2GUOUtkHxXZAiysDIqMyLhSnnm0XeY33mVWsbwZ67w24Qy
+         5EnD3Aaj3e2ELS3eEAvvnrl/EMC54Pe4q/t4D4v/qaim9n6DiSmJ4fEPG48EwEYfDXGu
+         N6xyB0K8jUoxms6llQNH44E8jPGp52OjQojt4k2P/M7RrXdHVvO10qmyyqe9yMeJemPg
+         Z9sp6Z/alRVAwXNab6ZAWooHPJydrRO8fkCBoNQBpU9l/MYf8N0UbEKi7+f1licbJ6+Z
+         KjmJ2rwpD/kDO7+nzk18BEixKrE12eDap/nXz58FBkPLipmzgcthcaZXWk7if4d6KtZK
+         Srcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=0VshrFVarjlglp1rVCtZLxzDXPmPtj/9tZyOAK9iQIA=;
-        b=d+d5DB63+qH9Bm2Dci6KpCTL6NoywDSi20G/rVuqOCFICyZVjTnf1ARhH0TBnXoJSh
-         T1EDzDco4apO/JvByxpL3fLuarRITU/P+mApaGWzQHhxK47cGQKt+mUQoxVeta//DMTh
-         5f8XcIusqfMQ+ljtbOqYDjTgT32ubnwMAYmUrQNoDMcfP9wJWiajBQPuUGCvon9OVPJv
-         B5VrvqPkSueGyzAbx2IU4AREEbGJ4+CWNenHB7+A1mhGt37vWTBFIOLJdhtTr3xsW/q/
-         qAXNQ4USxlpmLWmjMHbcfdwNU1j53Lry2VALgP06XMoX06HwTvuvW4ZIeXWn+QIcgUkV
-         12qg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=cQJXKKW1cwl5y9scV6x9SwXrJt7HhkHji7cmHswF870=;
+        b=ML+Lo6hJHwN9n0ZQncrvaPpW1HOIsm0Ot/SbfiRElt9Sc+/6USD+nHPbvjWlDdoo6l
+         uFbWz8xmdK7S/yJ28U2brx9OkVDHywBsEIRc4+0TZH4vJooFOYHScOYl5z3VZiLfTqst
+         ETGjYF/JDBucSzk1d0rP2F43oATCtYrNnLfafFu85I5C4Zs+3489C8HJNZVebkrZLoKw
+         p4B7G3T1f6wUUQFepNciIGCbRDOJpEW9w5OKcoMWML1SCochy/OLq+DHzvfPSiuV+tnQ
+         IKe+lAcGnzUbl3Odsn4GdmBWQETgzwM/VgU35UW0lleC8oQW/wHWVjJuVrAF6PMIv8hD
+         vTZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id k11si14259168otl.288.2019.01.02.16.46.30
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c18si1122632qvb.181.2019.01.02.17.55.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 16:46:31 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        Wed, 02 Jan 2019 17:55:41 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav405.sakura.ne.jp (fsav405.sakura.ne.jp [133.242.250.104])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x030kBcl009804;
-	Thu, 3 Jan 2019 09:46:11 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav405.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav405.sakura.ne.jp);
- Thu, 03 Jan 2019 09:46:11 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav405.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x030k6KR009661
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Thu, 3 Jan 2019 09:46:11 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: INFO: task hung in generic_file_write_iter
-To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
-        syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>,
-        linux-mm@kvack.org, mgorman@techsingularity.net,
-        Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com,
-        jlayton@redhat.com, linux-kernel@vger.kernel.org,
-        mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com,
-        tim.c.chen@linux.intel.com,
-        linux-fsdevel <linux-fsdevel@vger.kernel.org>
-References: <0000000000009ce88d05714242a8@google.com>
- <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
- <9b9fcdda-c347-53ee-fdbb-8a7d11cf430e@I-love.SAKURA.ne.jp>
- <20180720130602.f3d6dc4c943558875a36cb52@linux-foundation.org>
- <a2df1f24-f649-f5d8-0b2d-66d45b6cb61f@i-love.sakura.ne.jp>
- <20180806100928.x7anab3c3y5q4ssa@quack2.suse.cz>
- <e8a23623-feaf-7730-5492-b329cb0daa21@i-love.sakura.ne.jp>
- <20190102144015.GA23089@quack2.suse.cz>
- <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
- <20190102172636.GA29127@quack2.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <12239545-7d8a-820f-48ba-952e2e98a05c@i-love.sakura.ne.jp>
-Date: Thu, 3 Jan 2019 09:46:07 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id EBAAE2DACC3;
+	Thu,  3 Jan 2019 01:55:39 +0000 (UTC)
+Received: from redhat.com (ovpn-123-62.rdu2.redhat.com [10.10.123.62])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 24A825D9C9;
+	Thu,  3 Jan 2019 01:55:35 +0000 (UTC)
+Date: Wed, 2 Jan 2019 20:55:33 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jan Kara <jack@suse.cz>
+Cc: John Hubbard <jhubbard@nvidia.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	John Hubbard <john.hubbard@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>, tom@talpey.com,
+	Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	"Dalessandro, Dennis" <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com,
+	rcampbell@nvidia.com,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Message-ID: <20190103015533.GA15619@redhat.com>
+References: <20181212150319.GA3432@redhat.com>
+ <20181212214641.GB29416@dastard>
+ <20181214154321.GF8896@quack2.suse.cz>
+ <20181216215819.GC10644@dastard>
+ <20181217181148.GA3341@redhat.com>
+ <20181217183443.GO10600@bombadil.infradead.org>
+ <20181218093017.GB18032@quack2.suse.cz>
+ <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
+ <20181219020723.GD4347@redhat.com>
+ <20181219110856.GA18345@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190102172636.GA29127@quack2.suse.cz>
 Content-Type: text/plain; charset="UTF-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20181219110856.GA18345@quack2.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 03 Jan 2019 01:55:40 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103004607.7p_PwoWtcsIO7XExTx8y-QjhY5QLnAq9ZNwHQkmGDfY@z>
+Message-ID: <20190103015533.2CnmyaaxAtnV4bPXg9YmNTlmuSYtiid4FpDVzutvRNw@z>
 
-On 2019/01/03 2:26, Jan Kara wrote:
-> On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
->> On 2019/01/02 23:40, Jan Kara wrote:
->>> I had a look into this and the only good explanation for this I have is
->>> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
->>> If that would happen, we'd get exactly the behavior syzkaller observes
->>> because grow_buffers() would populate different page than
->>> __find_get_block() then looks up.
->>>
->>> However I don't see how that's possible since the filesystem has the block
->>> device open exclusively and blkdev_bszset() makes sure we also have
->>> exclusive access to the block device before changing the block device size.
->>> So changing block device block size after filesystem gets access to the
->>> device should be impossible. 
->>>
->>> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
->>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
->>> whether my theory is right or not. Thanks!
->>>
->>
->> OK. Andrew, will you add (or fold into) this change?
->>
->> From e6f334380ad2c87457bfc2a4058316c47f75824a Mon Sep 17 00:00:00 2001
->> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
->> Date: Thu, 3 Jan 2019 01:03:35 +0900
->> Subject: [PATCH] fs/buffer.c: dump more info for __getblk_gfp() stall problem
->>
->> We need to dump more variables on top of
->> "fs/buffer.c: add debug print for __getblk_gfp() stall problem".
->>
->> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
->> Cc: Jan Kara <jack@suse.cz>
->> ---
->>  fs/buffer.c | 9 +++++++--
->>  1 file changed, 7 insertions(+), 2 deletions(-)
->>
->> diff --git a/fs/buffer.c b/fs/buffer.c
->> index 580fda0..a50acac 100644
->> --- a/fs/buffer.c
->> +++ b/fs/buffer.c
->> @@ -1066,9 +1066,14 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
->>  #ifdef CONFIG_DEBUG_AID_FOR_SYZBOT
->>  		if (!time_after(jiffies, current->getblk_stamp + 3 * HZ))
->>  			continue;
->> -		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx\n",
->> +		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx "
->> +		       "bdev_super_blocksize=%lu size=%u "
->> +		       "bdev_super_blocksize_bits=%u bdev_inode_blkbits=%u\n",
->>  		       current->comm, current->pid, current->getblk_executed,
->> -		       current->getblk_bh_count, current->getblk_bh_state);
->> +		       current->getblk_bh_count, current->getblk_bh_state,
->> +		       bdev->bd_super->s_blocksize, size,
->> +		       bdev->bd_super->s_blocksize_bits,
->> +		       bdev->bd_inode->i_blkbits);
+On Wed, Dec 19, 2018 at 12:08:56PM +0100, Jan Kara wrote:
+> On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
+> > On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
+> > > OK, so let's take another look at Jerome's _mapcount idea all by itself (using
+> > > *only* the tracking pinned pages aspect), given that it is the lightest weight
+> > > solution for that.  
+> > > 
+> > > So as I understand it, this would use page->_mapcount to store both the real
+> > > mapcount, and the dma pinned count (simply added together), but only do so for
+> > > file-backed (non-anonymous) pages:
+> > > 
+> > > 
+> > > __get_user_pages()
+> > > {
+> > > 	...
+> > > 	get_page(page);
+> > > 
+> > > 	if (!PageAnon)
+> > > 		atomic_inc(page->_mapcount);
+> > > 	...
+> > > }
+> > > 
+> > > put_user_page(struct page *page)
+> > > {
+> > > 	...
+> > > 	if (!PageAnon)
+> > > 		atomic_dec(&page->_mapcount);
+> > > 
+> > > 	put_page(page);
+> > > 	...
+> > > }
+> > > 
+> > > ...and then in the various consumers of the DMA pinned count, we use page_mapped(page)
+> > > to see if any mapcount remains, and if so, we treat it as DMA pinned. Is that what you 
+> > > had in mind?
+> > 
+> > Mostly, with the extra two observations:
+> >     [1] We only need to know the pin count when a write back kicks in
+> >     [2] We need to protect GUP code with wait_for_write_back() in case
+> >         GUP is racing with a write back that might not the see the
+> >         elevated mapcount in time.
+> > 
+> > So for [2]
+> > 
+> > __get_user_pages()
+> > {
+> >     get_page(page);
+> > 
+> >     if (!PageAnon) {
+> >         atomic_inc(page->_mapcount);
+> > +       if (PageWriteback(page)) {
+> > +           // Assume we are racing and curent write back will not see
+> > +           // the elevated mapcount so wait for current write back and
+> > +           // force page fault
+> > +           wait_on_page_writeback(page);
+> > +           // force slow path that will fault again
+> > +       }
+> >     }
+> > }
 > 
-> Well, bd_super may be NULL if there's no filesystem mounted so it would be
-> safer to check for this rather than blindly dereferencing it... Otherwise
-> the change looks good to me.
+> This is not needed AFAICT. __get_user_pages() gets page reference (and it
+> should also increment page->_mapcount) under PTE lock. So at that point we
+> are sure we have writeable PTE nobody can change. So page_mkclean() has to
+> block on PTE lock to make PTE read-only and only after going through all
+> PTEs like this, it can check page->_mapcount. So the PTE lock provides
+> enough synchronization.
+> 
+> > For [1] only needing pin count during write back turns page_mkclean into
+> > the perfect spot to check for that so:
+> > 
+> > int page_mkclean(struct page *page)
+> > {
+> >     int cleaned = 0;
+> > +   int real_mapcount = 0;
+> >     struct address_space *mapping;
+> >     struct rmap_walk_control rwc = {
+> >         .arg = (void *)&cleaned,
+> >         .rmap_one = page_mkclean_one,
+> >         .invalid_vma = invalid_mkclean_vma,
+> > +       .mapcount = &real_mapcount,
+> >     };
+> > 
+> >     BUG_ON(!PageLocked(page));
+> > 
+> >     if (!page_mapped(page))
+> >         return 0;
+> > 
+> >     mapping = page_mapping(page);
+> >     if (!mapping)
+> >         return 0;
+> > 
+> >     // rmap_walk need to change to count mapping and return value
+> >     // in .mapcount easy one
+> >     rmap_walk(page, &rwc);
+> > 
+> >     // Big fat comment to explain what is going on
+> > +   if ((page_mapcount(page) - real_mapcount) > 0) {
+> > +       SetPageDMAPined(page);
+> > +   } else {
+> > +       ClearPageDMAPined(page);
+> > +   }
+> 
+> This is the detail I'm not sure about: Why cannot rmap_walk_file() race
+> with e.g. zap_pte_range() which decrements page->_mapcount and thus the
+> check we do in page_mkclean() is wrong?
+> 
 
-I see. Let's be cautious here.
+Ok so i found a solution for that. First GUP must wait for racing
+write back. If GUP see a valid write-able PTE and the page has
+write back flag set then it must back of as if the PTE was not
+valid to force fault. It is just a race with page_mkclean and we
+want ordering between the two. Note this is not strictly needed
+so we can relax that but i believe this ordering is better to do
+in GUP rather then having each single user of GUP test for this
+to avoid the race.
 
-From 317a0d0002b3d2cadae606055ad50f2926ca62d2 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Thu, 3 Jan 2019 09:42:02 +0900
-Subject: [PATCH v2] fs/buffer.c: dump more info for __getblk_gfp() stall problem
+GUP increase mapcount only after checking that it is not racing
+with writeback it also set a page flag (SetPageDMAPined(page)).
 
-We need to dump more variables on top of
-"fs/buffer.c: add debug print for __getblk_gfp() stall problem".
+When clearing a write-able pte we set a special entry inside the
+page table (might need a new special swap type for this) and change
+page_mkclean_one() to clear to 0 those special entry.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Jan Kara <jack@suse.cz>
----
- fs/buffer.c | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 580fda0..784de3d 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -1066,9 +1066,15 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
- #ifdef CONFIG_DEBUG_AID_FOR_SYZBOT
- 		if (!time_after(jiffies, current->getblk_stamp + 3 * HZ))
- 			continue;
--		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx\n",
-+		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx bdev_super_blocksize=%ld size=%u bdev_super_blocksize_bits=%d bdev_inode_blkbits=%d\n",
- 		       current->comm, current->pid, current->getblk_executed,
--		       current->getblk_bh_count, current->getblk_bh_state);
-+		       current->getblk_bh_count, current->getblk_bh_state,
-+		       IS_ERR_OR_NULL(bdev->bd_super) ? -1L :
-+		       bdev->bd_super->s_blocksize, size,
-+		       IS_ERR_OR_NULL(bdev->bd_super) ? -1 :
-+		       bdev->bd_super->s_blocksize_bits,
-+		       IS_ERR_OR_NULL(bdev->bd_inode) ? -1 :
-+		       bdev->bd_inode->i_blkbits);
- 		current->getblk_executed = 0;
- 		current->getblk_bh_count = 0;
- 		current->getblk_bh_state = 0;
--- 
-1.8.3.1
+Now page_mkclean:
+
+int page_mkclean(struct page *page)
+{
+    int cleaned = 0;
++   int real_mapcount = 0;
+    struct address_space *mapping;
+    struct rmap_walk_control rwc = {
+        .arg = (void *)&cleaned,
+        .rmap_one = page_mkclean_one,
+        .invalid_vma = invalid_mkclean_vma,
++       .mapcount = &real_mapcount,
+    };
++   int mapcount1, mapcount2;
+
+    BUG_ON(!PageLocked(page));
+
+    if (!page_mapped(page))
+        return 0;
+
+    mapping = page_mapping(page);
+    if (!mapping)
+        return 0;
+
++   mapcount1 = page_mapcount(page);
+
+    // rmap_walk need to change to count mapping and return value
+    // in .mapcount easy one
+    rmap_walk(page, &rwc);
+
++   if (PageDMAPined(page)) {
++       int rc2;
++
++       if (mapcount1 == real_count) {
++           /* Page is no longer pin, no zap pte race */
++           ClearPageDMAPined(page);
++           goto out;
++       }
++       /* No new mapping of the page so mp1 < rc is illegal. */
++       VM_BUG_ON(mapcount1 < real_count);
++       /* Page might be pin. */
++       mapcount2 = page_mapcount(page);
++       if (mapcount2 > real_count) {
++           /* Page is pin for sure. */
++           goto out;
++       }
++       /* We had a race with zap pte we need to rewalk again. */
++       rc2 = real_mapcount;
++       real_mapcount = 0;
++       rwc.rmap_one = page_pin_one;
++       rmap_walk(page, &rwc);
++       if (mapcount2 <= (real_count + rc2)) {
++           /* Page is no longer pin */
++           ClearPageDMAPined(page);
++       }
++       /* At this point the page pin flag reflect pin status of the page */
++   }
++
++out:
+    ...
+}
+
+The page_pin_one() function count the number of special PTE entry so
+which match the count of pte that have been zapped since the first
+reverse map walk.
+
+So worst case a page that was pin by a GUP would need 2 reverse map
+walk during page_mkclean(). Moreover this is only needed if we race
+with something that clear pte. I believe this is an acceptable worst
+case. I will work on some RFC patchset next week (once i am down with
+email catch up).
+
+
+I do not think i made mistake here, i have been torturing my mind
+trying to think of any race scenario and i believe it holds to any
+racing zap and page_mkclean()
+
+Cheers,
+Jérôme
 
