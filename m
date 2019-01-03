@@ -1,78 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 810098E0001
-	for <linux-mm@kvack.org>; Sun,  6 Jan 2019 06:00:33 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 12so29852736plb.18
-        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 03:00:33 -0800 (PST)
-Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60116.outbound.protection.outlook.com. [40.107.6.116])
-        by mx.google.com with ESMTPS id i6si56846855pgq.207.2019.01.06.03.00.30
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D0D58E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 11:18:22 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id e68so20766396ybb.4
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 08:18:22 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a9sor9675709ybq.187.2019.01.03.08.18.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 06 Jan 2019 03:00:31 -0800 (PST)
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Subject: Re: [PATCH v2] netfilter: account ebt_table_info to kmemcg
-Date: Sun, 6 Jan 2019 11:00:24 +0000
-Message-ID: <5cc8efad-9d3d-3136-3ddc-1f8a640cb1f8@virtuozzo.com>
-References: <20190103031431.247970-1-shakeelb@google.com>
-In-Reply-To: <20190103031431.247970-1-shakeelb@google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <44C40DD317502844B1969825E000CB76@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Thu, 03 Jan 2019 08:18:20 -0800 (PST)
 MIME-Version: 1.0
+References: <20190103031431.247970-1-shakeelb@google.com> <313C6566-289D-4973-BB15-857EED858DA3@oracle.com>
+In-Reply-To: <313C6566-289D-4973-BB15-857EED858DA3@oracle.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 3 Jan 2019 08:18:09 -0800
+Message-ID: <CALvZod5YSKZvWq13ptbfignECxLVH5H_1YbdvoghrmicuDwuSA@mail.gmail.com>
+Subject: Re: [PATCH v2] netfilter: account ebt_table_info to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Florian Westphal <fw@strlen.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com" <syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, "netfilter-devel@vger.kernel.org" <netfilter-devel@vger.kernel.org>, "coreteam@netfilter.org" <coreteam@netfilter.org>, "bridge@lists.linux-foundation.org" <bridge@lists.linux-foundation.org>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Florian Westphal <fw@strlen.de>, Kirill Tkhai <ktkhai@virtuozzo.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, bridge@lists.linux-foundation.org
 
-T24gMDMuMDEuMjAxOSAwNjoxNCwgU2hha2VlbCBCdXR0IHdyb3RlOg0KPiBUaGUgW2lwLGlwNixh
-cnBdX3RhYmxlcyB1c2UgeF90YWJsZXNfaW5mbyBpbnRlcm5hbGx5IGFuZCB0aGUgdW5kZXJseWlu
-Zw0KPiBtZW1vcnkgaXMgYWxyZWFkeSBhY2NvdW50ZWQgdG8ga21lbWNnLiBEbyB0aGUgc2FtZSBm
-b3IgZWJ0YWJsZXMuIFRoZQ0KPiBzeXpib3QsIGJ5IHVzaW5nIHNldHNvY2tvcHQoRUJUX1NPX1NF
-VF9FTlRSSUVTKSwgd2FzIGFibGUgdG8gT09NIHRoZQ0KPiB3aG9sZSBzeXN0ZW0gZnJvbSBhIHJl
-c3RyaWN0ZWQgbWVtY2csIGEgcG90ZW50aWFsIERvUy4NCj4gDQo+IEJ5IGFjY291bnRpbmcgdGhl
-IGVidF90YWJsZV9pbmZvLCB0aGUgbWVtb3J5IHVzZWQgZm9yIGVidF90YWJsZV9pbmZvIGNhbg0K
-PiBiZSBjb250YWluZWQgd2l0aGluIHRoZSBtZW1jZyBvZiB0aGUgYWxsb2NhdGluZyBwcm9jZXNz
-LiBIb3dldmVyIHRoZQ0KPiBsaWZldGltZSBvZiBlYnRfdGFibGVfaW5mbyBpcyBpbmRlcGVuZGVu
-dCBvZiB0aGUgYWxsb2NhdGluZyBwcm9jZXNzIGFuZA0KPiBpcyB0aWVkIHRvIHRoZSBuZXR3b3Jr
-IG5hbWVzcGFjZS4gU28sIHRoZSBvb20ta2lsbGVyIHdpbGwgbm90IGJlIGFibGUgdG8NCj4gcmVs
-aWV2ZSB0aGUgbWVtb3J5IHByZXNzdXJlIGR1ZSB0byBlYnRfdGFibGVfaW5mbyBtZW1vcnkuIFRo
-ZSBtZW1vcnkgZm9yDQo+IGVidF90YWJsZV9pbmZvIGlzIGFsbG9jYXRlZCB0aHJvdWdoIHZtYWxs
-b2MuIEN1cnJlbnRseSB2bWFsbG9jIGRvZXMgbm90DQo+IGhhbmRsZSB0aGUgb29tLWtpbGxlZCBh
-bGxvY2F0aW5nIHByb2Nlc3MgY29ycmVjdGx5IGFuZCBvbmUgbGFyZ2UNCj4gYWxsb2NhdGlvbiBj
-YW4gYnlwYXNzIG1lbWNnIGxpbWl0IGVuZm9yY2VtZW50LiBTbywgd2l0aCB0aGlzIHBhdGNoLA0K
-PiBhdCBsZWFzdCB0aGUgc21hbGwgYWxsb2NhdGlvbnMgd2lsbCBiZSBjb250YWluZWQuIEZvciBs
-YXJnZSBhbGxvY2F0aW9ucywNCj4gd2UgbmVlZCB0byBmaXggdm1hbGxvYy4NCj4gDQo+IFJlcG9y
-dGVkLWJ5OiBzeXpib3QrNzcxM2YzYWE2N2JlNzZiMTU1MmNAc3l6a2FsbGVyLmFwcHNwb3RtYWls
-LmNvbQ0KPiBTaWduZWQtb2ZmLWJ5OiBTaGFrZWVsIEJ1dHQgPHNoYWtlZWxiQGdvb2dsZS5jb20+
-DQo+IENjOiBGbG9yaWFuIFdlc3RwaGFsIDxmd0BzdHJsZW4uZGU+DQo+IENjOiBNaWNoYWwgSG9j
-a28gPG1ob2Nrb0BrZXJuZWwub3JnPg0KPiBDYzogS2lyaWxsIFRraGFpIDxrdGtoYWlAdmlydHVv
-enpvLmNvbT4NCj4gQ2M6IFBhYmxvIE5laXJhIEF5dXNvIDxwYWJsb0BuZXRmaWx0ZXIub3JnPg0K
-PiBDYzogSm96c2VmIEthZGxlY3NpayA8a2FkbGVjQGJsYWNraG9sZS5rZmtpLmh1Pg0KPiBDYzog
-Um9vcGEgUHJhYmh1IDxyb29wYUBjdW11bHVzbmV0d29ya3MuY29tPg0KPiBDYzogTmlrb2xheSBB
-bGVrc2FuZHJvdiA8bmlrb2xheUBjdW11bHVzbmV0d29ya3MuY29tPg0KPiBDYzogQW5kcmV3IE1v
-cnRvbiA8YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz4NCj4gQ2M6IExpbnV4IE1NIDxsaW51eC1t
-bUBrdmFjay5vcmc+DQo+IENjOiBuZXRmaWx0ZXItZGV2ZWxAdmdlci5rZXJuZWwub3JnDQo+IENj
-OiBjb3JldGVhbUBuZXRmaWx0ZXIub3JnDQo+IENjOiBicmlkZ2VAbGlzdHMubGludXgtZm91bmRh
-dGlvbi5vcmcNCj4gQ2M6IExLTUwgPGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc+DQo+IC0t
-LQ0KPiBDaGFuZ2Vsb2cgc2luY2UgdjE6DQo+IC0gTW9yZSBkZXNjcmlwdGl2ZSBjb21taXQgbWVz
-c2FnZS4NCg0KUmV2aWV3ZWQtYnk6IEtpcmlsbCBUa2hhaSA8a3RraGFpQHZpcnR1b3p6by5jb20+
-DQoNCj4gDQo+ICBuZXQvYnJpZGdlL25ldGZpbHRlci9lYnRhYmxlcy5jIHwgNiArKysrLS0NCj4g
-IDEgZmlsZSBjaGFuZ2VkLCA0IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pDQo+IA0KPiBk
-aWZmIC0tZ2l0IGEvbmV0L2JyaWRnZS9uZXRmaWx0ZXIvZWJ0YWJsZXMuYyBiL25ldC9icmlkZ2Uv
-bmV0ZmlsdGVyL2VidGFibGVzLmMNCj4gaW5kZXggNDkxODI4NzEzZTBiLi41ZTU1Y2VmMGNlYzMg
-MTAwNjQ0DQo+IC0tLSBhL25ldC9icmlkZ2UvbmV0ZmlsdGVyL2VidGFibGVzLmMNCj4gKysrIGIv
-bmV0L2JyaWRnZS9uZXRmaWx0ZXIvZWJ0YWJsZXMuYw0KPiBAQCAtMTEzNywxNCArMTEzNywxNiBA
-QCBzdGF0aWMgaW50IGRvX3JlcGxhY2Uoc3RydWN0IG5ldCAqbmV0LCBjb25zdCB2b2lkIF9fdXNl
-ciAqdXNlciwNCj4gIAl0bXAubmFtZVtzaXplb2YodG1wLm5hbWUpIC0gMV0gPSAwOw0KPiAgDQo+
-ICAJY291bnRlcnNpemUgPSBDT1VOVEVSX09GRlNFVCh0bXAubmVudHJpZXMpICogbnJfY3B1X2lk
-czsNCj4gLQluZXdpbmZvID0gdm1hbGxvYyhzaXplb2YoKm5ld2luZm8pICsgY291bnRlcnNpemUp
-Ow0KPiArCW5ld2luZm8gPSBfX3ZtYWxsb2Moc2l6ZW9mKCpuZXdpbmZvKSArIGNvdW50ZXJzaXpl
-LCBHRlBfS0VSTkVMX0FDQ09VTlQsDQo+ICsJCQkgICAgUEFHRV9LRVJORUwpOw0KPiAgCWlmICgh
-bmV3aW5mbykNCj4gIAkJcmV0dXJuIC1FTk9NRU07DQo+ICANCj4gIAlpZiAoY291bnRlcnNpemUp
-DQo+ICAJCW1lbXNldChuZXdpbmZvLT5jb3VudGVycywgMCwgY291bnRlcnNpemUpOw0KPiAgDQo+
-IC0JbmV3aW5mby0+ZW50cmllcyA9IHZtYWxsb2ModG1wLmVudHJpZXNfc2l6ZSk7DQo+ICsJbmV3
-aW5mby0+ZW50cmllcyA9IF9fdm1hbGxvYyh0bXAuZW50cmllc19zaXplLCBHRlBfS0VSTkVMX0FD
-Q09VTlQsDQo+ICsJCQkJICAgICBQQUdFX0tFUk5FTCk7DQo+ICAJaWYgKCFuZXdpbmZvLT5lbnRy
-aWVzKSB7DQo+ICAJCXJldCA9IC1FTk9NRU07DQo+ICAJCWdvdG8gZnJlZV9uZXdpbmZvOw0KPiAN
-Cg0K
+On Thu, Jan 3, 2019 at 2:15 AM William Kucharski
+<william.kucharski@oracle.com> wrote:
+>
+>
+>
+> > On Jan 2, 2019, at 8:14 PM, Shakeel Butt <shakeelb@google.com> wrote:
+> >
+> >       countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
+> > -     newinfo = vmalloc(sizeof(*newinfo) + countersize);
+> > +     newinfo = __vmalloc(sizeof(*newinfo) + countersize, GFP_KERNEL_ACCOUNT,
+> > +                         PAGE_KERNEL);
+> >       if (!newinfo)
+> >               return -ENOMEM;
+> >
+> >       if (countersize)
+> >               memset(newinfo->counters, 0, countersize);
+> >
+> > -     newinfo->entries = vmalloc(tmp.entries_size);
+> > +     newinfo->entries = __vmalloc(tmp.entries_size, GFP_KERNEL_ACCOUNT,
+> > +                                  PAGE_KERNEL);
+> >       if (!newinfo->entries) {
+> >               ret = -ENOMEM;
+> >               goto free_newinfo;
+> > --
+>
+> Just out of curiosity, what are the actual sizes of these areas in typical use
+> given __vmalloc() will be allocating by the page?
+>
+
+We don't really use this in production, so, I don't have a good idea
+of the size in the typical case. The size depends on the workload. The
+motivation behind this patch was the system OOM triggered by a syzbot
+running in a restricted memcg.
+
+Shakeel
