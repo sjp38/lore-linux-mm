@@ -2,168 +2,338 @@ Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8597C43387
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 14:39:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2D7BC43444
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 14:44:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 91BF5217D9
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 14:39:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="QeyuFHan"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91BF5217D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id A857E2070D
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 14:44:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A857E2070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D8A98E0078; Thu,  3 Jan 2019 09:39:12 -0500 (EST)
+	id 4A9698E007B; Thu,  3 Jan 2019 09:44:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 287B98E0002; Thu,  3 Jan 2019 09:39:12 -0500 (EST)
+	id 47E438E0002; Thu,  3 Jan 2019 09:44:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 12A608E0078; Thu,  3 Jan 2019 09:39:12 -0500 (EST)
+	id 3954D8E007B; Thu,  3 Jan 2019 09:44:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C22A98E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 09:39:11 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id r13so28819175pgb.7
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 06:39:11 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 102408E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 09:44:18 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id d35so42320941qtd.20
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 06:44:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=cpyYqlHvB58KkTNoC4Cjl0Icxb9x69XoxiEczy+KqYM=;
-        b=kBvhaV1bg0wZ4xzn0c9BAVIsGmBxJmPTiDtbnE2f5BJuBg80NOq8Jm565dpV8AYY7o
-         QMe4FpgVeDcGavWbF1mAOwi1hcTz+z+HZNPoySen4fMdNqK5HUbpKgntndNX6RSMimwc
-         6CAw5zYXyHVq+MULLi9PNCWW7CmRKuhWdORLBPsbILDucNeOiFTCjEOnL1hXDR94444v
-         1RMgPeXcVwKt+jD779d+32PU6kRmDgujc7gyeWgJNeqm+14g4VNCLA9KCFhD74zZ5YSX
-         020n/SXHxrpbTcs3X/r0aywU97VS+HfErg9dSfibQ+yYW/DNQzNg0SP0lMWO5gT4Ue8T
-         VL9A==
-X-Gm-Message-State: AJcUukfYJuGVk7vL/V9xC7ezMVouCtbHUNvwEgV71V33FEbZLPHCpeYK
-	s628COKcXYFmxzPiaNi1bzzf57OkbdDa1UUY3beDwUevIPNfgfsJEOc6kCOa6ya9gU/pRlbqlAf
-	fv4cpwIzjzqPpynkwLJ6MMJEINw4ePIwa9WVNctv9xw7jtPISFs8ylOUZH522DW6VQQ==
-X-Received: by 2002:a17:902:8a91:: with SMTP id p17mr47244386plo.316.1546526351448;
-        Thu, 03 Jan 2019 06:39:11 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5FsRvIKodYl+5CZUndjoNZJTO/9j2uSH1Mx+mdLEUDeA8C80DcbKsAKCZ7y4lW9flYMPF6
-X-Received: by 2002:a17:902:8a91:: with SMTP id p17mr47244333plo.316.1546526350444;
-        Thu, 03 Jan 2019 06:39:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546526350; cv=none;
+        bh=50ZMCetk8W2Dglwex2UjeQk48cgouFH0EPRHABgNlgY=;
+        b=KJdK4tQjpEd+JDOZxmbkqi4zJ2NkYzISiqanNaBeWgK4VX3Dpl9bfCVr5s1vApR0HI
+         u8O0TZDU3/p95FaWsIRIL+OOL0WkVgOJLz1p3n/aAAzro/BQMQnFvq2Q3LPCzS8R8mTy
+         YKd1vg0X6cE4fIXU8P8s9QMAJ9hYqBWLojPoZhD6o0FA/LOyyqX7RFg6WXTkjL2lGXfB
+         cN55VjYQQJNtXw2ICB7MQcocuaUeVN5N3RVaZSPU6voV5u2w8NWyQE51dWutRmrdTsb5
+         hhLuvmrIG7KcHkJPidieUsnZRJqOagIRVoKXm4VYNDy7z00nMollQSiAEsYJbpTXKftu
+         7AXg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukcaGCtxZvlsHGFvK0z4MBYK3FL2zYM30ha80/LETg8GJ0T7zKCd
+	op6OsUIsMaZ8QKJlWcPjgZ0B5XHoLgBsT5skpfjiR0zPPK7BM1iRSwVUzrACQ1RPkOqnCkvWC7B
+	Yy31VlHE8hiBi1DgcDRsyrp9q64jGAAY7ESUJckWJseBIGPnOGULnaSM3z+uUafFo/A==
+X-Received: by 2002:a0c:e84f:: with SMTP id l15mr46155680qvo.124.1546526657815;
+        Thu, 03 Jan 2019 06:44:17 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6IrzQOSYZ2BhUG5VSZK/R3GQAiMbAIfPaQTVp6D5mGebhr2iY+S4V15AsaKTnUOYRg100l
+X-Received: by 2002:a0c:e84f:: with SMTP id l15mr46155634qvo.124.1546526656992;
+        Thu, 03 Jan 2019 06:44:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546526656; cv=none;
         d=google.com; s=arc-20160816;
-        b=UBX4SxgqPHZ/aTNqrGYriER6lH8CdB6L4Qrj9M0ABLJg+kcz+Tx8rWTMxhK4JLJnhs
-         F+9OcXfxSqyZk0H3BS/s7gsVDJ5Ob4cLAbdRgE/5PLEug2ozxDK9HHcl8bfeY1HcjLXN
-         Ho39eynr9nzTR9YUWAU3aDZzy5vFFy+hQG7xIFIrcKXZuVaVBhS/V3+TIur0CrI5oX/n
-         D/B1Vaj6TB/xFpLbhd9/b2hKq8njUMIroFXGvwJSOSEQoez+ubDHXFar0n3b+2M57yhN
-         QSIsKNgUFFCABngPnUdK6l5Sty8P8XeV5KS73uAf/GVSk9EHJF5LLBW46oVIDg8WUFfP
-         8k5A==
+        b=xpXf6lbwsgtNRACmQCeCHmhP9prxohH2LeVxlASS/vB04HBbZBJhHxLz2ABo5YWEzI
+         /I5+SPYTV3y9Q2jQ+fJEK86lTGixZK5kTiQ137pOmPK8xmKaw9WpN2VvXGgHt59D0vGJ
+         xSWmZWu2sKAHSbLceXq4me3aW6dQv0j/YGg8aX8dFQkFhMPJTvIO0sicfL7fsHwqmGgT
+         B61dlgYc3gOshLUmxZHhOYpiw5nnLA3Pt/KMiuAM0X1bt3TSKQpOt/LPKAA/mlLLFuXk
+         wrqBybB4kEZtxoxxeWz5/SLyhkFk3h9WcEQZ4CVojxlfpScm/JEerE5FgazcJ7kOUvLZ
+         gHjw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=cpyYqlHvB58KkTNoC4Cjl0Icxb9x69XoxiEczy+KqYM=;
-        b=doTakp4E4plxcUGD2fk2+v77Umzt60E0YPBPxaI5d1ysGwtV5YMAzw2YWEqZN3Ls0S
-         bEIl+HXRYnLf9FMkSwQZSjuDRr/uxE4HA44ij/HiymgeenD+0wucm9YTt9uPzx5AIFyd
-         kDGtwMTHkjmCetasLfT0J2CyFNKHjwrpdnNPMjS7/VUoNgyGd9xlkO79AHDObeFI6Qyw
-         EjMM/RAsUTxo4i+V7MaJn5jpZjhU08k02zWAw6jLHRohYw0iblucN1zZCEgqshe/jkTc
-         gaY4HOkueZ1k8JThgYf23J/uYrBFQQXvDp9XhlLt4kqefvtfsHkru/COpyiXO3PLMFdc
-         fg4g==
+         :to:from:date;
+        bh=50ZMCetk8W2Dglwex2UjeQk48cgouFH0EPRHABgNlgY=;
+        b=FcIvQjLAe4l7U9gkSsAikTVJ+R2hpV36/lRpVt8jDSw79VLZzk1YcNUlKd73QJGZRy
+         s0jI4UEhkXwyh994+zqZuAT1c0ASzISnfoYcNryHJSoHo7Gcvbg5TFixtJ3stRkzJOVo
+         YBN4gmxAsMUPrT4LP/KoPV39OdHLZH+MRCNUYwLZWktaG9Odt0RA60lyRqffD9zmzj6C
+         HhAgjGPyrGH4SrxAIAYdku1XWAEW4pAQJf/A+UfUMZG64YU9p2uxyrhyy3mNNJu0ykXq
+         h0LpQhhoezmkpxF+NGSi1bsdGNVmabDOx2g2YoTFUQzOTL3eVh4OoMulxyBEy4AyIvm9
+         m1vA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QeyuFHan;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t23si46574147pgi.181.2019.01.03.06.39.10
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b54si629236qvb.176.2019.01.03.06.44.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 03 Jan 2019 06:39:10 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jan 2019 06:44:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QeyuFHan;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
-	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=cpyYqlHvB58KkTNoC4Cjl0Icxb9x69XoxiEczy+KqYM=; b=QeyuFHanBW2Kzy081ggKqX4ggH
-	/m7IpUxJmN7r/ckut+rupPEL+CmUISmVKcKsPzF3rdjPXdAlhLPhaDIHkPTfy3K+I0xG7M2fZoNzQ
-	nKbMiMdqRF7I1Bc2ixOTX49RjW5PBwWON5MRRPTgSsY9rxCvV7jjBIEgZY41tsSPCrcX4TU6j5aVy
-	vjzj3wd0oac0bB/muKz4HmcuzXGqMtsOh/z/uctUETDNmJ/y7kDoCVbYs+Rr6R+WPfHRNi7H9Fwuy
-	i13FAUsfiP6y8irSP5MruWSXGbn1nRz29KptoYAHfJhcMd9UnSldtYSQiBBlU+7tkSQnCZxSYfeCr
-	ytgjmakA==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gf49N-0001F0-0s; Thu, 03 Jan 2019 14:39:09 +0000
-Date: Thu, 3 Jan 2019 06:39:08 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Jerome Glisse <jglisse@redhat.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id A997085363;
+	Thu,  3 Jan 2019 14:44:15 +0000 (UTC)
+Received: from redhat.com (ovpn-123-124.rdu2.redhat.com [10.10.123.124])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4B0285D75C;
+	Thu,  3 Jan 2019 14:44:08 +0000 (UTC)
+Date: Thu, 3 Jan 2019 09:44:06 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jan Kara <jack@suse.cz>
 Cc: John Hubbard <jhubbard@nvidia.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-xfs@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] Initialise mmu_notifier_range correctly
-Message-ID: <20190103143908.GQ6310@bombadil.infradead.org>
-References: <20190103002126.GM6310@bombadil.infradead.org>
- <20190103015654.GB15619@redhat.com>
- <785af237-eb67-c304-595d-9080a2f48102@nvidia.com>
- <20190103041833.GN6310@bombadil.infradead.org>
- <20190103142959.GA3395@redhat.com>
+	Matthew Wilcox <willy@infradead.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	John Hubbard <john.hubbard@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>, tom@talpey.com,
+	Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	"Dalessandro, Dennis" <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com,
+	rcampbell@nvidia.com,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Message-ID: <20190103144405.GC3395@redhat.com>
+References: <20181214154321.GF8896@quack2.suse.cz>
+ <20181216215819.GC10644@dastard>
+ <20181217181148.GA3341@redhat.com>
+ <20181217183443.GO10600@bombadil.infradead.org>
+ <20181218093017.GB18032@quack2.suse.cz>
+ <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
+ <20181219020723.GD4347@redhat.com>
+ <20181219110856.GA18345@quack2.suse.cz>
+ <20190103015533.GA15619@redhat.com>
+ <20190103092654.GA31370@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190103142959.GA3395@redhat.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190103092654.GA31370@quack2.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 03 Jan 2019 14:44:16 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103143908.7mrCVUg8zHZtKQkrW_6ZOx4v3nGPMVaJ7UKN88o_Nzw@z>
+Message-ID: <20190103144406.YYwxiJsLH6fUtme_6CupD8fymh0PQKgTqqVugi_HdhI@z>
 
-On Thu, Jan 03, 2019 at 09:29:59AM -0500, Jerome Glisse wrote:
-> On Wed, Jan 02, 2019 at 08:18:33PM -0800, Matthew Wilcox wrote:
-> > On Wed, Jan 02, 2019 at 07:32:08PM -0800, John Hubbard wrote:
-> > > Having the range struct declared in separate places from the mmu_notifier_range_init()
-> > > calls is not great. But I'm not sure I see a way to make it significantly cleaner, given
-> > > that __follow_pte_pmd uses the range pointer as a way to decide to issue the mmn calls.
+On Thu, Jan 03, 2019 at 10:26:54AM +0100, Jan Kara wrote:
+> On Wed 02-01-19 20:55:33, Jerome Glisse wrote:
+> > On Wed, Dec 19, 2018 at 12:08:56PM +0100, Jan Kara wrote:
+> > > On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
+> > > > On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
+> > > > > OK, so let's take another look at Jerome's _mapcount idea all by itself (using
+> > > > > *only* the tracking pinned pages aspect), given that it is the lightest weight
+> > > > > solution for that.  
+> > > > > 
+> > > > > So as I understand it, this would use page->_mapcount to store both the real
+> > > > > mapcount, and the dma pinned count (simply added together), but only do so for
+> > > > > file-backed (non-anonymous) pages:
+> > > > > 
+> > > > > 
+> > > > > __get_user_pages()
+> > > > > {
+> > > > > 	...
+> > > > > 	get_page(page);
+> > > > > 
+> > > > > 	if (!PageAnon)
+> > > > > 		atomic_inc(page->_mapcount);
+> > > > > 	...
+> > > > > }
+> > > > > 
+> > > > > put_user_page(struct page *page)
+> > > > > {
+> > > > > 	...
+> > > > > 	if (!PageAnon)
+> > > > > 		atomic_dec(&page->_mapcount);
+> > > > > 
+> > > > > 	put_page(page);
+> > > > > 	...
+> > > > > }
+> > > > > 
+> > > > > ...and then in the various consumers of the DMA pinned count, we use page_mapped(page)
+> > > > > to see if any mapcount remains, and if so, we treat it as DMA pinned. Is that what you 
+> > > > > had in mind?
+> > > > 
+> > > > Mostly, with the extra two observations:
+> > > >     [1] We only need to know the pin count when a write back kicks in
+> > > >     [2] We need to protect GUP code with wait_for_write_back() in case
+> > > >         GUP is racing with a write back that might not the see the
+> > > >         elevated mapcount in time.
+> > > > 
+> > > > So for [2]
+> > > > 
+> > > > __get_user_pages()
+> > > > {
+> > > >     get_page(page);
+> > > > 
+> > > >     if (!PageAnon) {
+> > > >         atomic_inc(page->_mapcount);
+> > > > +       if (PageWriteback(page)) {
+> > > > +           // Assume we are racing and curent write back will not see
+> > > > +           // the elevated mapcount so wait for current write back and
+> > > > +           // force page fault
+> > > > +           wait_on_page_writeback(page);
+> > > > +           // force slow path that will fault again
+> > > > +       }
+> > > >     }
+> > > > }
+> > > 
+> > > This is not needed AFAICT. __get_user_pages() gets page reference (and it
+> > > should also increment page->_mapcount) under PTE lock. So at that point we
+> > > are sure we have writeable PTE nobody can change. So page_mkclean() has to
+> > > block on PTE lock to make PTE read-only and only after going through all
+> > > PTEs like this, it can check page->_mapcount. So the PTE lock provides
+> > > enough synchronization.
+> > > 
+> > > > For [1] only needing pin count during write back turns page_mkclean into
+> > > > the perfect spot to check for that so:
+> > > > 
+> > > > int page_mkclean(struct page *page)
+> > > > {
+> > > >     int cleaned = 0;
+> > > > +   int real_mapcount = 0;
+> > > >     struct address_space *mapping;
+> > > >     struct rmap_walk_control rwc = {
+> > > >         .arg = (void *)&cleaned,
+> > > >         .rmap_one = page_mkclean_one,
+> > > >         .invalid_vma = invalid_mkclean_vma,
+> > > > +       .mapcount = &real_mapcount,
+> > > >     };
+> > > > 
+> > > >     BUG_ON(!PageLocked(page));
+> > > > 
+> > > >     if (!page_mapped(page))
+> > > >         return 0;
+> > > > 
+> > > >     mapping = page_mapping(page);
+> > > >     if (!mapping)
+> > > >         return 0;
+> > > > 
+> > > >     // rmap_walk need to change to count mapping and return value
+> > > >     // in .mapcount easy one
+> > > >     rmap_walk(page, &rwc);
+> > > > 
+> > > >     // Big fat comment to explain what is going on
+> > > > +   if ((page_mapcount(page) - real_mapcount) > 0) {
+> > > > +       SetPageDMAPined(page);
+> > > > +   } else {
+> > > > +       ClearPageDMAPined(page);
+> > > > +   }
+> > > 
+> > > This is the detail I'm not sure about: Why cannot rmap_walk_file() race
+> > > with e.g. zap_pte_range() which decrements page->_mapcount and thus the
+> > > check we do in page_mkclean() is wrong?
+> > > 
 > > 
-> > Yeah, I don't think there's anything we can do.  But I started reviewing
-> > the comments, and they don't make sense together:
+> > Ok so i found a solution for that. First GUP must wait for racing
+> > write back. If GUP see a valid write-able PTE and the page has
+> > write back flag set then it must back of as if the PTE was not
+> > valid to force fault. It is just a race with page_mkclean and we
+> > want ordering between the two. Note this is not strictly needed
+> > so we can relax that but i believe this ordering is better to do
+> > in GUP rather then having each single user of GUP test for this
+> > to avoid the race.
 > > 
-> >                 /*
-> >                  * Note because we provide range to follow_pte_pmd it will
-> >                  * call mmu_notifier_invalidate_range_start() on our behalf
-> >                  * before taking any lock.
-> >                  */
-> >                 if (follow_pte_pmd(vma->vm_mm, address, &range,
-> >                                    &ptep, &pmdp, &ptl))
-> >                         continue;
+> > GUP increase mapcount only after checking that it is not racing
+> > with writeback it also set a page flag (SetPageDMAPined(page)).
 > > 
-> >                 /*
-> >                  * No need to call mmu_notifier_invalidate_range() as we are
-> >                  * downgrading page table protection not changing it to point
-> >                  * to a new page.
-> >                  *
-> >                  * See Documentation/vm/mmu_notifier.rst
-> >                  */
+> > When clearing a write-able pte we set a special entry inside the
+> > page table (might need a new special swap type for this) and change
+> > page_mkclean_one() to clear to 0 those special entry.
 > > 
-> > So if we don't call mmu_notifier_invalidate_range, why are we calling
-> > mmu_notifier_invalidate_range_start and mmu_notifier_invalidate_range_end?
-> > ie, why not this ...
+> > 
+> > Now page_mkclean:
+> > 
+> > int page_mkclean(struct page *page)
+> > {
+> >     int cleaned = 0;
+> > +   int real_mapcount = 0;
+> >     struct address_space *mapping;
+> >     struct rmap_walk_control rwc = {
+> >         .arg = (void *)&cleaned,
+> >         .rmap_one = page_mkclean_one,
+> >         .invalid_vma = invalid_mkclean_vma,
+> > +       .mapcount = &real_mapcount,
+> >     };
+> > +   int mapcount1, mapcount2;
+> > 
+> >     BUG_ON(!PageLocked(page));
+> > 
+> >     if (!page_mapped(page))
+> >         return 0;
+> > 
+> >     mapping = page_mapping(page);
+> >     if (!mapping)
+> >         return 0;
+> > 
+> > +   mapcount1 = page_mapcount(page);
+> >     // rmap_walk need to change to count mapping and return value
+> >     // in .mapcount easy one
+> >     rmap_walk(page, &rwc);
 > 
-> Thus comments looks wrong to me ... we need to call
-> mmu_notifier_invalidate_range() those are use by
-> IOMMU. I might be to blame for those comments thought.
+> So what prevents GUP_fast() to grab reference here and the test below would
+> think the page is not pinned? Or do you assume that every page_mkclean()
+> call will be protected by PageWriteback (currently it is not) so that
+> GUP_fast() blocks / bails out?
 
-Yes, you're to blame for both of them.
+So GUP_fast() becomes:
 
-a4d1a88525138 (Jérôme Glisse     2017-08-31 17:17:26 -0400  791)                 * Note because we provide start/end to follow_pte_pmd it will
-a4d1a88525138 (Jérôme Glisse     2017-08-31 17:17:26 -0400  792)                 * call mmu_notifier_invalidate_range_start() on our behalf
-a4d1a88525138 (Jérôme Glisse     2017-08-31 17:17:26 -0400  793)                 * before taking any lock.
+GUP_fast_existing() { ... }
+GUP_fast()
+{
+    GUP_fast_existing();
 
-0f10851ea475e (Jérôme Glisse     2017-11-15 17:34:07 -0800  794)                 * No need to call mmu_notifier_invalidate_range() as we are
-0f10851ea475e (Jérôme Glisse     2017-11-15 17:34:07 -0800  795)                 * downgrading page table protection not changing it to point
-0f10851ea475e (Jérôme Glisse     2017-11-15 17:34:07 -0800  796)                 * to a new page.
+    for (i = 0; i < npages; ++i) {
+        if (PageWriteback(pages[i])) {
+            // need to force slow path for this page
+        } else {
+            SetPageDmaPinned(pages[i]);
+            atomic_inc(pages[i]->mapcount);
+        }
+    }
+}
+
+This is a minor slow down for GUP fast and it takes care of a
+write back race on behalf of caller. This means that page_mkclean
+can not see a mapcount value that increase. This simplify thing
+we can relax that. Note that what this is doing is making sure
+that GUP_fast never get lucky :) ie never GUP a page that is in
+the process of being write back but has not yet had its pte
+updated to reflect that.
+
+
+> But I think that detecting pinned pages with small false positive rate is
+> OK. The extra page bouncing will cost some performance but if it is rare,
+> then we are OK. So I think we can go for the simple version of detecting
+> pinned pages as you mentioned in some earlier email. We just have to be
+> sure there are no false negatives.
+
+What worry me is that a page might stays with the DMA pinned flag forever
+if it keeps getting unlucky ie some process keeps mapping it after last
+write back and keeps zapping that mapping while racing with page_mkclean.
+This should be unlikely but nothing would prevent it. I am fine with
+living with this but page might become a zombie GUP :)
+
+Maybe we can start with the simple version and add big fat comment and see
+if anyone complains about a zombie GUP ...
+
+Cheers,
+Jérôme
 
