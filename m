@@ -2,306 +2,228 @@ Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05E5BC43612
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 00:31:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5870C43387
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 00:46:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A83BC2073F
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 00:31:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="HuGgvOMl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A83BC2073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 66E8820815
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 00:46:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66E8820815
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1FAC78E0050; Wed,  2 Jan 2019 19:31:37 -0500 (EST)
+	id 0193A8E0051; Wed,  2 Jan 2019 19:46:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1A8268E0002; Wed,  2 Jan 2019 19:31:37 -0500 (EST)
+	id F0A7F8E0002; Wed,  2 Jan 2019 19:46:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0709D8E0050; Wed,  2 Jan 2019 19:31:37 -0500 (EST)
+	id E21BD8E0051; Wed,  2 Jan 2019 19:46:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CF2B38E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 19:31:36 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id x3so34427580itb.6
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 16:31:36 -0800 (PST)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4CCC8E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 19:46:32 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id e185so22835900oih.18
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 16:46:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=HDV6bRTeM31dJ5NVRvjDVymoFmv0ZgrAy5+J+74imwM=;
-        b=moFbhiNhH5wA7KCEFgzHOY1HATFMdeRqZkpbQkwG7q1q+YAy0rzrHhKTrk18m8pLYL
-         W5svkONE2qG3MiUU+JKxdyZTvvfQ/REwai/F3PB9eq+LPMb+AKSpJNOT3/fdeK5eLvbp
-         sB6f4+cDVEldi//mK0D//nxV5SZwENW7RRXR+Oh6Q5te/C/RvFjQGiST3FZ+0kJawozH
-         2PfJcEk/4lG+XQoDmZwIipg1CPHhLm6WtOlcfXS7XFt67OjkXKeD+H8MMog6eFPQQEIH
-         O4Hy4Y587wCl76IBOxgRCaWzKQeUco7COiuJsbzaKAhH2sHldZEdAFKaozbC4M+eYRdo
-         uabw==
-X-Gm-Message-State: AJcUukc/PXJb383FkLQObclf49nhehjWA01dupZOblPc0mxmxF3ufwVa
-	pc1Cz4A81dbYekSHBkyzAHL3AS3hhrDXARUetfONfRu2AtFEZqPk1aF8m48bYHQwEwN3TF9V4ER
-	Ae6FXeLnKx7hPxYdwN8U7aMZ2+jkIfd0hgRFC5miN/ABE/OxOwUqf7U6ZS5CAj12jZKXXNgTzKI
-	C4/hbu9IaPIYLP2T5MObQnGPxx5FCoEpLKhgQ1UpX7c6bFAS4FAjJb4j5FtWAUmljXXB41ht/Uo
-	uprfJghpjATSJV0P+Am8OcdloGkj6lnmq8g7+rde+NymVjVnJPp0gAu8IJNptwdttkpBbn8L+bg
-	qiAba+B46ljBg+wAFkwro/xUkUf11fg2QL2bgLu18EsxgtnPvNJxNebNyAm4cFMQfhGUWN6btop
-	1
-X-Received: by 2002:a6b:c544:: with SMTP id v65mr32459562iof.118.1546475496594;
-        Wed, 02 Jan 2019 16:31:36 -0800 (PST)
-X-Received: by 2002:a6b:c544:: with SMTP id v65mr32459533iof.118.1546475495735;
-        Wed, 02 Jan 2019 16:31:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546475495; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=0VshrFVarjlglp1rVCtZLxzDXPmPtj/9tZyOAK9iQIA=;
+        b=FE05G7+pzA6dvh3YCec6UYD9hMT0Kz8+VDNpePcl40H96aMVeQ+Okj4VRU1wzawj45
+         sc8mtvu/2JF4hUw42Bj5/+5tcCbrrRKErBDA/JT5U19FAid8EhKiAzM2gfBEwLAQ3/b4
+         /Fk0eY6M3veVU9YkZUP09rCsJpX5x+Au93QbQF0mbnvtPMPIcP8jUVhki3gLoBDrFA31
+         egHqPNdOTfQYkkfbhz3KfXG4AIXSFtzZ6uk/oliDpYCH3G/NcYFr0kh2nh0kpq9QyxJp
+         2SJqysYmGya7lpi/tV1yK34NUMNMePgtc/qJaVDE9lKz2bE+szR5Mq7y65Smoh6ak/m2
+         g2Jg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: AJcUuke4cSFKpjfUcbm3ji5Rs3qAb5p7kn9+oaMo301h4utu1etofzH9
+	FbXgIN6n8Ch7+g8xpfJu8JNP/2ucr+NWwiFl+G4zJHxTTqUwLS5tj65b2vO4gWM8EXVUEVXtftj
+	7VbjAY0U0nr7aoudTKkmS6id9PXluMUs0RKGmWlnSDN6n/qQdeiRfOuqkhTT2JLTVsg==
+X-Received: by 2002:a9d:1e86:: with SMTP id n6mr34201265otn.9.1546476392439;
+        Wed, 02 Jan 2019 16:46:32 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6+e2CKjC2JhsT4ujYMV2v79bEf+LiahcaqsxsS2hqiilN/ryu7VfkexUaXfKRNPmpv8Oxh
+X-Received: by 2002:a9d:1e86:: with SMTP id n6mr34201250otn.9.1546476391668;
+        Wed, 02 Jan 2019 16:46:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546476391; cv=none;
         d=google.com; s=arc-20160816;
-        b=n8HcoYejtSO7640N7i3v1QsuJWU4r9exnuqx8S4bDe8WqaR1vKNx5opLsshBB9UYgj
-         aceA9NLjQBDrqDb503FuygGnfnZkptqKHfpxKBYQ9vE/5OCC8wCXn0pq8QFOw8Y1lYMW
-         l3fk5KzHb0mWd3MMAyZFZOCDwFrYseNd90jM5YAhmJIEcFmqNkRc9MDblkLeublisA01
-         mUpxgd3lydQN7w+jj85tIx3B9xYULMmJQWncE3/7NPd5iB/WQVnE8v5pYbF0UODN3664
-         HJ0Wf0+UPvwYAFOci1me3FjQ5S5vR2661YSIkDOJuhdTGrhVtNTkCI0+rhKF6C5cLMlZ
-         aPxQ==
+        b=FUd8AiX7r24cFUnx1IzdUKCxOA/FPY4mMJG7RXRieSxKv8zGpe1aCCJvzROhzq7Pea
+         xEBHZEW7ACeMwYhxQtvfBc5QwcjlTHOX76vxX8MivMMnXkGVNPGpXvfnWncpJWiSsOoV
+         MUtvjs1wyuOA5GMdBDMHAmnVjR7mA74BaM1aCMEDzXxEy4pgFHmCL3klS3n16/BEWLCZ
+         gdGOuawWHMXkiqaDErqUPKdH9HJgH4NNSGk+eDU8A0y4EDa4sMnKjZn5B86G/Y7xGUIR
+         CyGqrMuMUAwvR4MosPdEfSSSnlia8m/f1RoH3UyKTUIAefJTLQc3DvDV7byb2eHM7N7E
+         bK0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=HDV6bRTeM31dJ5NVRvjDVymoFmv0ZgrAy5+J+74imwM=;
-        b=YqvQPYnDE6EgOhPl+ZRcneGmAQ/X4+bcaBWzIqyy47Ha9BLSYJLJcAmjmuBN9KOIqw
-         Kd/u0LNJ8d/FR0MCfegHmRM5jYEcQdaeUSaj1qDE8EFE9+6ogthkWtVaG972LofSvBba
-         NMqn9N1cHWAcpxeGcF9F8j2Y27gfaouw4pCqhD22ZUfedrDhP5Of7809R5/eD5QQVzd/
-         j8eW96tvJ1j8u2JkhGytc8Y5LYP9pyaZcogCo5rA9PnywlwQ7WI0UtmTXYq93Gsz4QGC
-         uBqP+duSGLF4m1n+jSc+yE/z0UCxZQjyYGv6MMiKEP/epAZKUR26u0h/w/n/vgizEag6
-         N7mA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=0VshrFVarjlglp1rVCtZLxzDXPmPtj/9tZyOAK9iQIA=;
+        b=d+d5DB63+qH9Bm2Dci6KpCTL6NoywDSi20G/rVuqOCFICyZVjTnf1ARhH0TBnXoJSh
+         T1EDzDco4apO/JvByxpL3fLuarRITU/P+mApaGWzQHhxK47cGQKt+mUQoxVeta//DMTh
+         5f8XcIusqfMQ+ljtbOqYDjTgT32ubnwMAYmUrQNoDMcfP9wJWiajBQPuUGCvon9OVPJv
+         B5VrvqPkSueGyzAbx2IU4AREEbGJ4+CWNenHB7+A1mhGt37vWTBFIOLJdhtTr3xsW/q/
+         qAXNQ4USxlpmLWmjMHbcfdwNU1j53Lry2VALgP06XMoX06HwTvuvW4ZIeXWn+QIcgUkV
+         12qg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HuGgvOMl;
-       spf=pass (google.com: domain of 35lctxagkcdmhwpzttaqvddvat.rdbaxcjm-bbzkprz.dgv@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35lctXAgKCDMhWPZTTaQVddVaT.RdbaXcjm-bbZkPRZ.dgV@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id e201sor35891092ite.28.2019.01.02.16.31.35
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id k11si14259168otl.288.2019.01.02.16.46.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 16:31:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of 35lctxagkcdmhwpzttaqvddvat.rdbaxcjm-bbzkprz.dgv@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Jan 2019 16:46:31 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HuGgvOMl;
-       spf=pass (google.com: domain of 35lctxagkcdmhwpzttaqvddvat.rdbaxcjm-bbzkprz.dgv@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35lctXAgKCDMhWPZTTaQVddVaT.RdbaXcjm-bbZkPRZ.dgV@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=HDV6bRTeM31dJ5NVRvjDVymoFmv0ZgrAy5+J+74imwM=;
-        b=HuGgvOMlODWlVV0hrvHa+zm6Vizkv1wtWe4Ggo8yFywSfFUaJe/zU5eWo0Nb0dtMln
-         AIp1FuGObkjtff9BqiEwR1w9lW4vRNOA6Ld4H2iRKQ5M+BfnYJ4c6YM4ZAqgOSSybdDm
-         rcmJpDz3MGrLCa6yL1+kWJDGDqsoa8+P+YZ9PGnS1U8JxV4hfjNIJSKK4fnUXcfFJJDt
-         Sx5uvFDZSLvqfJgrigsNmh13wWy3ZhNDeTJnyMg7PXPQR1b6A8Ccv5syH9SIf9MEcQqO
-         t9U93PBWacBIU2FhwWDgstJRZp/E4qURmnkZG1ee6nUwuEOdz6RgnLYe43jbYAvMFgGw
-         scsw==
-X-Google-Smtp-Source: ALg8bN7XI9bnxlLzeYGzBZXtvEXxqzIVleQYnv2+DSRbbDoZHqMErTolDUd55Ia2sKYasXTSbUE2csuYcJpw5w==
-X-Received: by 2002:a24:a94:: with SMTP id 142mr33111676itw.15.1546475494416;
- Wed, 02 Jan 2019 16:31:34 -0800 (PST)
-Date: Wed,  2 Jan 2019 16:31:29 -0800
-Message-Id: <20190103003129.186555-1-shakeelb@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.20.1.415.g653613c723-goog
-Subject: [PATCH] memcg: localize memcg_kmem_enabled() check
-From: Shakeel Butt <shakeelb@google.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, 
-	Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, 
-	Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav405.sakura.ne.jp (fsav405.sakura.ne.jp [133.242.250.104])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x030kBcl009804;
+	Thu, 3 Jan 2019 09:46:11 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav405.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav405.sakura.ne.jp);
+ Thu, 03 Jan 2019 09:46:11 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav405.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x030k6KR009661
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Thu, 3 Jan 2019 09:46:11 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: INFO: task hung in generic_file_write_iter
+To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
+        syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>,
+        linux-mm@kvack.org, mgorman@techsingularity.net,
+        Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com,
+        jlayton@redhat.com, linux-kernel@vger.kernel.org,
+        mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com,
+        tim.c.chen@linux.intel.com,
+        linux-fsdevel <linux-fsdevel@vger.kernel.org>
+References: <0000000000009ce88d05714242a8@google.com>
+ <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
+ <9b9fcdda-c347-53ee-fdbb-8a7d11cf430e@I-love.SAKURA.ne.jp>
+ <20180720130602.f3d6dc4c943558875a36cb52@linux-foundation.org>
+ <a2df1f24-f649-f5d8-0b2d-66d45b6cb61f@i-love.sakura.ne.jp>
+ <20180806100928.x7anab3c3y5q4ssa@quack2.suse.cz>
+ <e8a23623-feaf-7730-5492-b329cb0daa21@i-love.sakura.ne.jp>
+ <20190102144015.GA23089@quack2.suse.cz>
+ <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
+ <20190102172636.GA29127@quack2.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <12239545-7d8a-820f-48ba-952e2e98a05c@i-love.sakura.ne.jp>
+Date: Thu, 3 Jan 2019 09:46:07 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20190102172636.GA29127@quack2.suse.cz>
 Content-Type: text/plain; charset="UTF-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103003129.UtsBEloX3eOl2NfQpdOqZPs5WQQeyc68bLnXseBug_o@z>
+Message-ID: <20190103004607.7p_PwoWtcsIO7XExTx8y-QjhY5QLnAq9ZNwHQkmGDfY@z>
 
-Move the memcg_kmem_enabled() checks into memcg kmem charge/uncharge
-functions, so, the users don't have to explicitly check that condition.
-This is purely code cleanup patch without any functional change. Only
-the order of checks in memcg_charge_slab() can potentially be changed
-but the functionally it will be same. This should not matter as
-memcg_charge_slab() is not in the hot path.
+On 2019/01/03 2:26, Jan Kara wrote:
+> On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
+>> On 2019/01/02 23:40, Jan Kara wrote:
+>>> I had a look into this and the only good explanation for this I have is
+>>> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
+>>> If that would happen, we'd get exactly the behavior syzkaller observes
+>>> because grow_buffers() would populate different page than
+>>> __find_get_block() then looks up.
+>>>
+>>> However I don't see how that's possible since the filesystem has the block
+>>> device open exclusively and blkdev_bszset() makes sure we also have
+>>> exclusive access to the block device before changing the block device size.
+>>> So changing block device block size after filesystem gets access to the
+>>> device should be impossible. 
+>>>
+>>> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
+>>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
+>>> whether my theory is right or not. Thanks!
+>>>
+>>
+>> OK. Andrew, will you add (or fold into) this change?
+>>
+>> From e6f334380ad2c87457bfc2a4058316c47f75824a Mon Sep 17 00:00:00 2001
+>> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Date: Thu, 3 Jan 2019 01:03:35 +0900
+>> Subject: [PATCH] fs/buffer.c: dump more info for __getblk_gfp() stall problem
+>>
+>> We need to dump more variables on top of
+>> "fs/buffer.c: add debug print for __getblk_gfp() stall problem".
+>>
+>> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Cc: Jan Kara <jack@suse.cz>
+>> ---
+>>  fs/buffer.c | 9 +++++++--
+>>  1 file changed, 7 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/fs/buffer.c b/fs/buffer.c
+>> index 580fda0..a50acac 100644
+>> --- a/fs/buffer.c
+>> +++ b/fs/buffer.c
+>> @@ -1066,9 +1066,14 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
+>>  #ifdef CONFIG_DEBUG_AID_FOR_SYZBOT
+>>  		if (!time_after(jiffies, current->getblk_stamp + 3 * HZ))
+>>  			continue;
+>> -		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx\n",
+>> +		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx "
+>> +		       "bdev_super_blocksize=%lu size=%u "
+>> +		       "bdev_super_blocksize_bits=%u bdev_inode_blkbits=%u\n",
+>>  		       current->comm, current->pid, current->getblk_executed,
+>> -		       current->getblk_bh_count, current->getblk_bh_state);
+>> +		       current->getblk_bh_count, current->getblk_bh_state,
+>> +		       bdev->bd_super->s_blocksize, size,
+>> +		       bdev->bd_super->s_blocksize_bits,
+>> +		       bdev->bd_inode->i_blkbits);
+> 
+> Well, bd_super may be NULL if there's no filesystem mounted so it would be
+> safer to check for this rather than blindly dereferencing it... Otherwise
+> the change looks good to me.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
+I see. Let's be cautious here.
+
+From 317a0d0002b3d2cadae606055ad50f2926ca62d2 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Thu, 3 Jan 2019 09:42:02 +0900
+Subject: [PATCH v2] fs/buffer.c: dump more info for __getblk_gfp() stall problem
+
+We need to dump more variables on top of
+"fs/buffer.c: add debug print for __getblk_gfp() stall problem".
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Jan Kara <jack@suse.cz>
 ---
- fs/pipe.c                  |  3 +--
- include/linux/memcontrol.h | 28 ++++++++++++++++++++++++----
- mm/memcontrol.c            | 16 ++++++++--------
- mm/page_alloc.c            |  4 ++--
- mm/slab.h                  |  4 ----
- 5 files changed, 35 insertions(+), 20 deletions(-)
+ fs/buffer.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/fs/pipe.c b/fs/pipe.c
-index bdc5d3c0977d..51d5fd8840ab 100644
---- a/fs/pipe.c
-+++ b/fs/pipe.c
-@@ -140,8 +140,7 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
- 	struct page *page = buf->page;
- 
- 	if (page_count(page) == 1) {
--		if (memcg_kmem_enabled())
--			memcg_kmem_uncharge(page, 0);
-+		memcg_kmem_uncharge(page, 0);
- 		__SetPageLocked(page);
- 		return 0;
- 	}
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 83ae11cbd12c..e264d5c28781 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1273,12 +1273,12 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
- 
- struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep);
- void memcg_kmem_put_cache(struct kmem_cache *cachep);
--int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
--			    struct mem_cgroup *memcg);
- 
- #ifdef CONFIG_MEMCG_KMEM
--int memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
--void memcg_kmem_uncharge(struct page *page, int order);
-+int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
-+void __memcg_kmem_uncharge(struct page *page, int order);
-+int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
-+			      struct mem_cgroup *memcg);
- 
- extern struct static_key_false memcg_kmem_enabled_key;
- extern struct workqueue_struct *memcg_kmem_cache_wq;
-@@ -1300,6 +1300,26 @@ static inline bool memcg_kmem_enabled(void)
- 	return static_branch_unlikely(&memcg_kmem_enabled_key);
- }
- 
-+static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
-+{
-+	if (memcg_kmem_enabled())
-+		return __memcg_kmem_charge(page, gfp, order);
-+	return 0;
-+}
-+
-+static inline void memcg_kmem_uncharge(struct page *page, int order)
-+{
-+	if (memcg_kmem_enabled())
-+		__memcg_kmem_uncharge(page, order);
-+}
-+
-+static inline int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp,
-+					  int order, struct mem_cgroup *memcg)
-+{
-+	if (memcg_kmem_enabled())
-+		return __memcg_kmem_charge_memcg(page, gfp, order, memcg);
-+	return 0;
-+}
- /*
-  * helper for accessing a memcg's index. It will be used as an index in the
-  * child cache array in kmem_cache, and also to derive its name. This function
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4afd5971f2d4..e8ca09920d71 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2557,7 +2557,7 @@ void memcg_kmem_put_cache(struct kmem_cache *cachep)
- }
- 
- /**
-- * memcg_kmem_charge_memcg: charge a kmem page
-+ * __memcg_kmem_charge_memcg: charge a kmem page
-  * @page: page to charge
-  * @gfp: reclaim mode
-  * @order: allocation order
-@@ -2565,7 +2565,7 @@ void memcg_kmem_put_cache(struct kmem_cache *cachep)
-  *
-  * Returns 0 on success, an error code on failure.
-  */
--int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
-+int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
- 			    struct mem_cgroup *memcg)
- {
- 	unsigned int nr_pages = 1 << order;
-@@ -2588,24 +2588,24 @@ int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
- }
- 
- /**
-- * memcg_kmem_charge: charge a kmem page to the current memory cgroup
-+ * __memcg_kmem_charge: charge a kmem page to the current memory cgroup
-  * @page: page to charge
-  * @gfp: reclaim mode
-  * @order: allocation order
-  *
-  * Returns 0 on success, an error code on failure.
-  */
--int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
-+int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
- {
- 	struct mem_cgroup *memcg;
- 	int ret = 0;
- 
--	if (mem_cgroup_disabled() || memcg_kmem_bypass())
-+	if (memcg_kmem_bypass())
- 		return 0;
- 
- 	memcg = get_mem_cgroup_from_current();
- 	if (!mem_cgroup_is_root(memcg)) {
--		ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
-+		ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
- 		if (!ret)
- 			__SetPageKmemcg(page);
- 	}
-@@ -2613,11 +2613,11 @@ int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
- 	return ret;
- }
- /**
-- * memcg_kmem_uncharge: uncharge a kmem page
-+ * __memcg_kmem_uncharge: uncharge a kmem page
-  * @page: page to uncharge
-  * @order: allocation order
-  */
--void memcg_kmem_uncharge(struct page *page, int order)
-+void __memcg_kmem_uncharge(struct page *page, int order)
- {
- 	struct mem_cgroup *memcg = page->mem_cgroup;
- 	unsigned int nr_pages = 1 << order;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0634fbdef078..d65c337d2257 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1053,7 +1053,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
- 	if (PageMappingFlags(page))
- 		page->mapping = NULL;
- 	if (memcg_kmem_enabled() && PageKmemcg(page))
--		memcg_kmem_uncharge(page, order);
-+		__memcg_kmem_uncharge(page, order);
- 	if (check_free)
- 		bad += free_pages_check(page);
- 	if (bad)
-@@ -4667,7 +4667,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
- 
- out:
- 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
--	    unlikely(memcg_kmem_charge(page, gfp_mask, order) != 0)) {
-+	    unlikely(__memcg_kmem_charge(page, gfp_mask, order) != 0)) {
- 		__free_pages(page, order);
- 		page = NULL;
- 	}
-diff --git a/mm/slab.h b/mm/slab.h
-index 4190c24ef0e9..cde51d7f631f 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -276,8 +276,6 @@ static __always_inline int memcg_charge_slab(struct page *page,
- 					     gfp_t gfp, int order,
- 					     struct kmem_cache *s)
- {
--	if (!memcg_kmem_enabled())
--		return 0;
- 	if (is_root_cache(s))
- 		return 0;
- 	return memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
-@@ -286,8 +284,6 @@ static __always_inline int memcg_charge_slab(struct page *page,
- static __always_inline void memcg_uncharge_slab(struct page *page, int order,
- 						struct kmem_cache *s)
- {
--	if (!memcg_kmem_enabled())
--		return;
- 	memcg_kmem_uncharge(page, order);
- }
- 
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 580fda0..784de3d 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1066,9 +1066,15 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
+ #ifdef CONFIG_DEBUG_AID_FOR_SYZBOT
+ 		if (!time_after(jiffies, current->getblk_stamp + 3 * HZ))
+ 			continue;
+-		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx\n",
++		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx bdev_super_blocksize=%ld size=%u bdev_super_blocksize_bits=%d bdev_inode_blkbits=%d\n",
+ 		       current->comm, current->pid, current->getblk_executed,
+-		       current->getblk_bh_count, current->getblk_bh_state);
++		       current->getblk_bh_count, current->getblk_bh_state,
++		       IS_ERR_OR_NULL(bdev->bd_super) ? -1L :
++		       bdev->bd_super->s_blocksize, size,
++		       IS_ERR_OR_NULL(bdev->bd_super) ? -1 :
++		       bdev->bd_super->s_blocksize_bits,
++		       IS_ERR_OR_NULL(bdev->bd_inode) ? -1 :
++		       bdev->bd_inode->i_blkbits);
+ 		current->getblk_executed = 0;
+ 		current->getblk_bh_count = 0;
+ 		current->getblk_bh_state = 0;
 -- 
-2.20.1.415.g653613c723-goog
+1.8.3.1
 
