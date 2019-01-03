@@ -1,44 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 272AF8E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 13:45:27 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id y7so15816407wrr.12
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 10:45:27 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a13sor26035505wmg.13.2019.01.03.10.45.25
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 269D48E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 12:15:58 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id t13so34279459ioi.3
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 09:15:58 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id k143si295931itb.43.2019.01.03.09.15.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 Jan 2019 10:45:25 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 0/3] kasan: tag-based mode fixes
-Date: Thu,  3 Jan 2019 19:45:18 +0100
-Message-Id: <cover.1546540962.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jan 2019 09:15:57 -0800 (PST)
+Date: Thu, 3 Jan 2019 09:16:02 -0800
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [v4 PATCH 1/2] mm: swap: check if swap backing device is
+ congested or not
+Message-ID: <20190103171602.frjmcagwwqtzwqka@ca-dmjordan1.us.oracle.com>
+References: <1546145375-793-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190102230054.m5ire5gdhm5fzecq@ca-dmjordan1.us.oracle.com>
+ <76d8727a-77b4-d476-af89-9ae1904ec8cd@linux.alibaba.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <76d8727a-77b4-d476-af89-9ae1904ec8cd@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, ying.huang@intel.com, tim.c.chen@intel.com, minchan@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Changes in v3:
-- Fixed krealloc tag assigning without changing kasan_kmalloc hook and
-  added more comments to the assign_tag function while at it.
-- Moved ARCH_SLAB_MINALIGN definition to arch/arm64/include/asm/cache.h.
+On Thu, Jan 03, 2019 at 09:10:13AM -0800, Yang Shi wrote:
+> How about the below description:
+> 
+> The test with page_fault1 of will-it-scale (sometimes tracing may just show
+> runtest.py that is the wrapper script of page_fault1), which basically
+> launches NR_CPU threads to generate 128MB anonymous pages for each thread,�
+> on my virtual machine with congested HDD shows long tail latency is reduced
+> significantly.
+> 
+> Without the patch
+> �page_fault1_thr-1490� [023]�� 129.311706: funcgraph_entry: #57377.796 us |�
+> do_swap_page();
+> �page_fault1_thr-1490� [023]�� 129.369103: funcgraph_entry: 5.642us�� |�
+> do_swap_page();
+> �page_fault1_thr-1490� [023]�� 129.369119: funcgraph_entry: #1289.592 us |�
+> do_swap_page();
+> �page_fault1_thr-1490� [023]�� 129.370411: funcgraph_entry: 4.957us�� |�
+> do_swap_page();
+> �page_fault1_thr-1490� [023]�� 129.370419: funcgraph_entry: 1.940us�� |�
+> do_swap_page();
+> �page_fault1_thr-1490� [023]�� 129.378847: funcgraph_entry: #1411.385 us |�
+> do_swap_page();
+> �page_fault1_thr-1490� [023]�� 129.380262: funcgraph_entry: 3.916us�� |�
+> do_swap_page();
+> �page_fault1_thr-1490� [023]�� 129.380275: funcgraph_entry: #4287.751 us |�
+> do_swap_page();
+> 
+> With the patch
+> ����� runtest.py-1417� [020]�� 301.925911: funcgraph_entry: #9870.146 us |�
+> do_swap_page();
+> ����� runtest.py-1417� [020]�� 301.935785: funcgraph_entry: 9.802us�� |�
+> do_swap_page();
+> ����� runtest.py-1417� [020]�� 301.935799: funcgraph_entry: 3.551us�� |�
+> do_swap_page();
+> ����� runtest.py-1417� [020]�� 301.935806: funcgraph_entry: 2.142us�� |�
+> do_swap_page();
+> ����� runtest.py-1417� [020]�� 301.935853: funcgraph_entry: 6.938us�� |�
+> do_swap_page();
+> ����� runtest.py-1417� [020]�� 301.935864: funcgraph_entry: 3.765us�� |�
+> do_swap_page();
+> ����� runtest.py-1417� [020]�� 301.935871: funcgraph_entry: 3.600us�� |�
+> do_swap_page();
+> ����� runtest.py-1417� [020]�� 301.935878: funcgraph_entry: 7.202us�� |�
+> do_swap_page();
 
-Changes in v2:
-- Added "kasan: make tag based mode work with CONFIG_HARDENED_USERCOPY"
-  patch.
-- Added "kasan: fix krealloc handling for tag-based mode" patch.
-
-Andrey Konovalov (3):
-  kasan, arm64: use ARCH_SLAB_MINALIGN instead of manual aligning
-  kasan: make tag based mode work with CONFIG_HARDENED_USERCOPY
-  kasan: fix krealloc handling for tag-based mode
-
- arch/arm64/include/asm/cache.h |  6 ++++
- mm/kasan/common.c              | 65 ++++++++++++++++++++++------------
- mm/slub.c                      |  2 ++
- 3 files changed, 51 insertions(+), 22 deletions(-)
-
--- 
-2.20.1.415.g653613c723-goog
+That's better, thanks!
