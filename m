@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0088B8E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 05:04:47 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id a62so1493694oii.23
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 02:04:46 -0800 (PST)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4CCC8E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 19:46:32 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id e185so22835900oih.18
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 16:46:32 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id g5si380445otn.228.2019.01.08.02.04.44
+        by mx.google.com with ESMTPS id k11si14259168otl.288.2019.01.02.16.46.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 02:04:45 -0800 (PST)
+        Wed, 02 Jan 2019 16:46:31 -0800 (PST)
 Subject: Re: INFO: task hung in generic_file_write_iter
 References: <0000000000009ce88d05714242a8@google.com>
  <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
@@ -21,8 +21,8 @@ References: <0000000000009ce88d05714242a8@google.com>
  <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
  <20190102172636.GA29127@quack2.suse.cz>
 From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <bf209c90-3624-68cd-c0db-86a91210f873@i-love.sakura.ne.jp>
-Date: Tue, 8 Jan 2019 19:04:06 +0900
+Message-ID: <12239545-7d8a-820f-48ba-952e2e98a05c@i-love.sakura.ne.jp>
+Date: Thu, 3 Jan 2019 09:46:07 +0900
 MIME-Version: 1.0
 In-Reply-To: <20190102172636.GA29127@quack2.suse.cz>
 Content-Type: text/plain; charset=utf-8
@@ -30,8 +30,8 @@ Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, linux-mm@kvack.org, mgorman@techsingularity.net, Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, linux-mm@kvack.org, mgorman@techsingularity.net, Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
 On 2019/01/03 2:26, Jan Kara wrote:
 > On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
@@ -52,23 +52,6 @@ On 2019/01/03 2:26, Jan Kara wrote:
 >>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
 >>> whether my theory is right or not. Thanks!
 >>>
-
-Got two reports. 'size' is 512 while bdev->bd_inode->i_blkbits is 12.
-
-https://syzkaller.appspot.com/text?tag=CrashLog&x=1237c3ab400000
-
-[  385.723941][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-(...snipped...)
-[  568.159544][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-
-https://syzkaller.appspot.com/text?tag=CrashLog&x=143383d7400000
-
-[ 1355.681513][ T6893] syz-executor0(6893): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-[ 1358.274585][T15649] kworker/u4:17(15649): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-(...snipped...)
-[ 1455.341572][ T6893] syz-executor0(6893): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-[ 1455.541457][T15649] kworker/u4:17(15649): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-
 >>
 >> OK. Andrew, will you add (or fold into) this change?
 >>
@@ -108,6 +91,44 @@ https://syzkaller.appspot.com/text?tag=CrashLog&x=143383d7400000
 > Well, bd_super may be NULL if there's no filesystem mounted so it would be
 > safer to check for this rather than blindly dereferencing it... Otherwise
 > the change looks good to me.
-> 
-> 								Honza
-> 
+
+I see. Let's be cautious here.
+
+>From 317a0d0002b3d2cadae606055ad50f2926ca62d2 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Thu, 3 Jan 2019 09:42:02 +0900
+Subject: [PATCH v2] fs/buffer.c: dump more info for __getblk_gfp() stall problem
+
+We need to dump more variables on top of
+"fs/buffer.c: add debug print for __getblk_gfp() stall problem".
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Jan Kara <jack@suse.cz>
+---
+ fs/buffer.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 580fda0..784de3d 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1066,9 +1066,15 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
+ #ifdef CONFIG_DEBUG_AID_FOR_SYZBOT
+ 		if (!time_after(jiffies, current->getblk_stamp + 3 * HZ))
+ 			continue;
+-		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx\n",
++		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx bdev_super_blocksize=%ld size=%u bdev_super_blocksize_bits=%d bdev_inode_blkbits=%d\n",
+ 		       current->comm, current->pid, current->getblk_executed,
+-		       current->getblk_bh_count, current->getblk_bh_state);
++		       current->getblk_bh_count, current->getblk_bh_state,
++		       IS_ERR_OR_NULL(bdev->bd_super) ? -1L :
++		       bdev->bd_super->s_blocksize, size,
++		       IS_ERR_OR_NULL(bdev->bd_super) ? -1 :
++		       bdev->bd_super->s_blocksize_bits,
++		       IS_ERR_OR_NULL(bdev->bd_inode) ? -1 :
++		       bdev->bd_inode->i_blkbits);
+ 		current->getblk_executed = 0;
+ 		current->getblk_bh_count = 0;
+ 		current->getblk_bh_state = 0;
+-- 
+1.8.3.1
