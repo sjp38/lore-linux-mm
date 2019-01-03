@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D8AC38E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 09:53:07 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id f22-v6so9429511lja.7
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 06:53:07 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q23-v6sor31108171lji.14.2019.01.03.06.53.05
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BE0D8E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 09:41:10 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id x15so33954241edd.2
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 06:41:10 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r24si2476912edp.187.2019.01.03.06.41.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 Jan 2019 06:53:05 -0800 (PST)
-Date: Thu, 3 Jan 2019 17:53:03 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jan 2019 06:41:08 -0800 (PST)
+Date: Thu, 3 Jan 2019 15:41:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [Bug 202089] New: transparent hugepage not compatable with
  madvise(MADV_DONTNEED)
-Message-ID: <20190103145303.2zf2nosnumzq326t@kshutemo-mobl1>
+Message-ID: <20190103144107.GQ31793@dhcp22.suse.cz>
 References: <bug-202089-27@https.bugzilla.kernel.org/>
  <20181229125316.27f7f1fedacfe4c1a5551a2d@linux-foundation.org>
  <20181229224843.6vsdj3xomifjocbh@kshutemo-mobl1>
@@ -27,9 +27,9 @@ In-Reply-To: <20190103143502.GO6310@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, jianpanlanyue@163.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, jianpanlanyue@163.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Thu, Jan 03, 2019 at 06:35:02AM -0800, Matthew Wilcox wrote:
+On Thu 03-01-19 06:35:02, Matthew Wilcox wrote:
 > On Thu, Jan 03, 2019 at 10:44:22AM +0100, Michal Hocko wrote:
 > > On Sun 30-12-18 01:48:43, Kirill A. Shutemov wrote:
 > > > On Sat, Dec 29, 2018 at 12:53:16PM -0800, Andrew Morton wrote:
@@ -62,9 +62,11 @@ On Thu, Jan 03, 2019 at 06:35:02AM -0800, Matthew Wilcox wrote:
 > coalescing elsewhere in the VMA, so that might negatively affect other
 > programs.
 
-MADV_NOHUGEPAGE often creates a new VMA (or two) and it has performance
-implications. And creating a new VMA would require down_write(mmap_sem)
-which is no-go for MADV_DONTNEED.
+I really do not think this is a good idea. MADV_DONTEED doesn't really
+imply anything to future rss. It only wipes out the current content.
+In other words do we want to stop fault around/readahead or any other
+optimistic faulting on MADV_DONTEED?
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
