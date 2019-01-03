@@ -2,196 +2,173 @@ Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF7DCC43387
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 18:46:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F1C7EC43444
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 19:30:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A5DB217F5
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 18:46:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GoUxsewU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A5DB217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id B5D30217F5
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 19:30:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5D30217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 306DF8E0099; Thu,  3 Jan 2019 13:46:33 -0500 (EST)
+	id 555E48E00A5; Thu,  3 Jan 2019 14:30:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2B6E68E0002; Thu,  3 Jan 2019 13:46:33 -0500 (EST)
+	id 505798E0002; Thu,  3 Jan 2019 14:30:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A64E8E0099; Thu,  3 Jan 2019 13:46:33 -0500 (EST)
+	id 41C9B8E00A5; Thu,  3 Jan 2019 14:30:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D09A68E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 13:46:32 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 82so35385583pfs.20
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 10:46:32 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 135778E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 14:30:16 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id w1so42249724qta.12
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 11:30:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=MgzV5dTndps76ADDi/niLj9jnEoksetg/kN5EQSE/zM=;
-        b=BtGOKu1LU7S4gZIQCBNCLXrnFOEp7yyjy3VWd73O5v2ASeRX1QbVMASXlZhEQZMZwQ
-         HNYncexAYYS6Bqism5BSZ2cOov7TJZor4TRwD7z51OqZucxEicL+60oiR6q6caNDsOE2
-         UE+6rDasPhRL+gvoZAhlLvx1Wc+ju0tSQdse7a9+KU8h4ilGvj2T0w02wXTGxPW03a42
-         mYhtacB/j09MEN2qoDNPkTYdwdg8QwlFhyboxBhYYBcOVBK3wetBD8V/f4cNUc8jCTLg
-         JXI/o8/FtXbit0pCj2U1xJHZbvWQORM7YcVbHEwmv14fIkKSIn5jxkXTpFe8X/PC3Ut2
-         mOvQ==
-X-Gm-Message-State: AA+aEWbUHhutZ214PIZfzLs+gDFhKcWdr6IB2vN7jZtAkPaKweMIYfDC
-	DwlpVUIdRzm6xO8OOSWAA+uBvWiwkzI/RS2lOL3n3dQqL0kwSWq8StqG8Vh+ujRKHQz4qYhjC6g
-	BIUcAmrJaQEHF4jyQWAt1/rDoXNsG2KU9L98dEjOQz+dRF3pwIZi61ibGpGp+m/oBgwBihYhmWm
-	FHie+ozNh7wWgvqDzEg8tRdRJV5vYSP0TfEgajt5i+rOWrjX9rdiojeUQtv5aiDE4tIgIt2p6tD
-	dcqbbWFUW0ePVT//c0bc4/Y/6sNWlszwrKrmDuYd/I8xy2S4Z1678AZf84aEpz7v72NSnbknGD7
-	kxflamjnGaDKqWbA/QUbUQ1jnYx0eQPYaoYGUWKG3yGhspt/5x1q7qa3PEfSATOLkovX1I2IUNV
-	K
-X-Received: by 2002:a62:d0c1:: with SMTP id p184mr48934821pfg.245.1546541192507;
-        Thu, 03 Jan 2019 10:46:32 -0800 (PST)
-X-Received: by 2002:a62:d0c1:: with SMTP id p184mr48934786pfg.245.1546541191874;
-        Thu, 03 Jan 2019 10:46:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546541191; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=Gyf/2ED2WcX+j9ToB4jaF+aqjdKrwOnc6XfEisUggWg=;
+        b=Yxx5i+yDcc5PljslpalK4i0CbUXLt2k5tVt6+IXVsL5LxlHppfyCii+6lT6wJtt/UP
+         7RcfAj9IGyDrx3y6FXhmaZ57hJdJBLyXlpS5Sa7uIDQcFg165Mhy3tMgLI1TVTQaDh0m
+         0PDvHtUrhXNlbniBRPY0UTimXTzUQbLcldZl6EoEGBk2YXeK/5+KNL4nyaYpq0tXsl6o
+         EhPwA1i5sZezxonTSwQWYZ9RBy7YnpHMGOoB2PS2WbiFVUw0/LdIezY17r4lT2QMZIQ5
+         oeGElt94hp2Cd9PJl9ik1+DTWIYR6KxkMzGghc8yGUz1qf9hWfCJQ4jAd5KtW10Jwnkm
+         v/CA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukeLgA7F7swKULvyFZvLCzEZRxmKDDIwoYAWp+9ZiPWcqyzIPMX8
+	ZG5XGD2CaLt5KbuBh/aFZrikO5WOg1fdzdYM0GYY92raapSIdm8bu1JjNRIlYmttiuSqGYOfT1Y
+	SB0ftnaLGFRMttcwbuPkgS8hkl6OyanAdpnvrc4kwxMONqfCZmYD2b6czKKXCzB2o2A==
+X-Received: by 2002:a0c:87dd:: with SMTP id 29mr48770807qvk.212.1546543815853;
+        Thu, 03 Jan 2019 11:30:15 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6wozneCAsylwmeaRUDfADC+E4dxKo/LKw2YbLfOuY5TDp7ZuMPD4OlZsCAQ6gfYdhC05hR
+X-Received: by 2002:a0c:87dd:: with SMTP id 29mr48770777qvk.212.1546543815282;
+        Thu, 03 Jan 2019 11:30:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546543815; cv=none;
         d=google.com; s=arc-20160816;
-        b=TaPTMX285UXZLjilLEHcD9L5pJ3jBwUFJ7BYx53bq9OjtNAjAPTDviKM9ZMf9qApGr
-         8PFdxhA/yS+L4njMlA2phmBy7rYWPY2Rm2rHo1ECBsJ9Kx9/gHpkV+X3J2ybkAnaVt8r
-         ZntFcQW8KOl0D8+hJNj3+m26TptH7HymfbFbsjW9RAkaT3PCbjgvJcPYs0YgRdGttCYr
-         DEdeHSvM3EJWez2ohbh/B6fovydlYlpjObFWYQnRJRKQGz5PxeA31TeXlb7MU3jdsNy/
-         l6ETT3+ej6DHivF+qgqGKyQP9LXLpjPr91bD8IVAgu1PHOSjp7/cfxw7lClaamyvEl2b
-         Oeaw==
+        b=Raq7oz2iFAIr75PZxxhVnH0PTbguue2X51dv6a0ZbiMn5XM4Vmn2aGipydgXEVWCUC
+         r3QaOXybMq0jDa/tv7HT2P39BnwjYpqHOXsORJIPdi1pGlBymO5Zh8kOsuFjwVDmI1Sm
+         ZMq6W7BFme9q8hN3JDMU7twXJKdkPNLPBX8wH8r/fYt7fTumxuwqEx7L3D7Hc5FnU1Do
+         mXFD6GobR7L0ZUgncZPja4VUbAguRI8WV+BxF374huH0c94vWTPmr832fSA02SEaM9Bz
+         sn/9nFQOlf8I2t3B24NCUMisUpw8aDTiplSfXIp99GI+JCh2gKXOHhg3JGACPKZrPttx
+         ryTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=MgzV5dTndps76ADDi/niLj9jnEoksetg/kN5EQSE/zM=;
-        b=Tn41UAJ4jORH0LsBWBUIKmd8W1g1pzSNhK9Woq1kzRkMPpXrXoxXpcVtufahnWuWb4
-         CYRahDONttdOssRctKO7eu9OGjp+Yn9xYBnf1b6KKhRnOe4Yw68MS1Oume3GqUeSV9sI
-         /TJ8c5G82ftsKA1k3qiKFDIGATM9qu2wpmkpXBwa3pRKv/8XqJt+n9GPjCCaLDFw84YJ
-         s55znG3NIKD/+93r5MMwVBm6XsAjBXFF1umqNlLg+rAmRDR8JFkbfHUDffsXDksLFBNX
-         6I6q643fCYHCdvZ2ohopMyG6nYuIuM9T61jbKCIXG4sSsyBtmibU39ncGtSjKQeaNl4b
-         gDJw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=Gyf/2ED2WcX+j9ToB4jaF+aqjdKrwOnc6XfEisUggWg=;
+        b=Kox2+qOw7K+l6lMs8XK2Lgsd4UgRz4h1TTV5GE2o3DX3w1ZUVE27mipn6ZXKTHhJb7
+         Dk/005ZvC8rLqyzuoyceGYa80yWiJpVWqnw2WgZ4N8QxkbzoZ9r1xRLcoGSgfDtGRsfP
+         mqUEVGcaZpi7RtW4On1luPUq5n5syBcfEj0x9BfvaBcMmXi36PbtCZXlV5gxJ3FAeacL
+         wOpD9KWAUOtO7WUL1xOuWfXtk3pU2P+hdkwlEGqJDxkC3nwwHp3w1cxM2cR6tGAqxQzm
+         m+9CLsA/QP/Gc8Zfh6XuVRAYlpyhLkiKFW0JypFG6rZXg8D5ER/1Izl8C+rARZVOr8Or
+         UAGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=GoUxsewU;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i5sor24372923pgq.34.2019.01.03.10.46.31
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v17si8339498qvi.56.2019.01.03.11.30.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 Jan 2019 10:46:31 -0800 (PST)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jan 2019 11:30:15 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=GoUxsewU;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=MgzV5dTndps76ADDi/niLj9jnEoksetg/kN5EQSE/zM=;
-        b=GoUxsewUnTYsCM77AWfGlQfTgMINGlA35HpX38hrx1dskXw4mI65zWLT8zB5BYj6e8
-         dWsAYaoSKabJNGNo9wQ7kiRDOy+0ey1nWiWJLIWcYQN0z+K9h3DYz2J59oKlX+nzSTTa
-         aT57NflI4m5PdSfbXZIhK5emMEoGtqL0F3zjVt4kHv7srAa90A8KpUyo/X4pRSfnHe45
-         mAT04CkeOtEEc/W2zJ2MdjjmkeoXPYwO94z4+bpJzerWLi7x1dNRRviz0FSvXA89Biog
-         sYyO53jbmfC2HT0on1mg+NJMYZHuZQNJAPTRUv2ZWXjRpBcxKkAu8FFYEp88Z0s/Fqyd
-         5EJA==
-X-Google-Smtp-Source: ALg8bN5SinAEs0gYR2nS6mwrBbNs6CaZLdp3j4CHwOgZ9jildDr4wOzb2uxGWuD9JrGMv17tlykPD+ZozUjLDh+fs1c=
-X-Received: by 2002:a65:560e:: with SMTP id l14mr18036989pgs.168.1546541191326;
- Thu, 03 Jan 2019 10:46:31 -0800 (PST)
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0D4212D6E41;
+	Thu,  3 Jan 2019 19:30:14 +0000 (UTC)
+Received: from redhat.com (ovpn-123-124.rdu2.redhat.com [10.10.123.124])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 98EB95D6A6;
+	Thu,  3 Jan 2019 19:30:12 +0000 (UTC)
+Date: Thu, 3 Jan 2019 14:30:10 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-xfs <linux-xfs@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUG, TOT] xfs w/ dax failure in __follow_pte_pmd()
+Message-ID: <20190103193009.GG3395@redhat.com>
+References: <20190102211332.GL4205@dastard>
+ <20190102212531.GK6310@bombadil.infradead.org>
+ <20190102225005.GL6310@bombadil.infradead.org>
+ <20190103000354.GM4205@dastard>
+ <CAPcyv4jTWyYLEn+NcmVObscB9hArdsfxNL0YSMrHi_QDCOEkfQ@mail.gmail.com>
 MIME-Version: 1.0
-References: <cover.1546450432.git.andreyknvl@google.com> <b16c90197bb2c06c780e6e981c40345e03fda465.1546450432.git.andreyknvl@google.com>
- <20190102121436.5c2b72d1b0ec49affadc9692@linux-foundation.org>
-In-Reply-To: <20190102121436.5c2b72d1b0ec49affadc9692@linux-foundation.org>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 3 Jan 2019 19:46:20 +0100
-Message-ID:
- <CAAeHK+yE38g0dSbL7LiVPSgECgdcJ5w7+kwaiBaRYr5YkHtbjQ@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] kasan, arm64: use ARCH_SLAB_MINALIGN instead of
- manual aligning
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Mark Rutland <mark.rutland@arm.com>, 
-	Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, 
-	Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
-	"Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, 
-	Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, 
-	Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, 
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
-	kasan-dev <kasan-dev@googlegroups.com>, 
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, 
-	Linux Memory Management List <linux-mm@kvack.org>, 
-	Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, 
-	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, 
-	Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, 
-	Vishwath Mohan <vishwath@google.com>
 Content-Type: text/plain; charset="UTF-8"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4jTWyYLEn+NcmVObscB9hArdsfxNL0YSMrHi_QDCOEkfQ@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 03 Jan 2019 19:30:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103184620.JE8NtY-euYR2_2H14DZmdd2EbvWE9m8KtiTWO7USG-A@z>
+Message-ID: <20190103193010.tGzwqIYYs2f5OnBZRMRQRapeaivHtz2OKAgwfdtNxbk@z>
 
-On Wed, Jan 2, 2019 at 9:14 PM Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Wed,  2 Jan 2019 18:36:06 +0100 Andrey Konovalov <andreyknvl@google.com> wrote:
->
-> > Instead of changing cache->align to be aligned to KASAN_SHADOW_SCALE_SIZE
-> > in kasan_cache_create() we can reuse the ARCH_SLAB_MINALIGN macro.
+On Thu, Jan 03, 2019 at 11:11:49AM -0800, Dan Williams wrote:
+> On Wed, Jan 2, 2019 at 4:04 PM Dave Chinner <david@fromorbit.com> wrote:
 > >
-> > ...
+> > On Wed, Jan 02, 2019 at 02:50:05PM -0800, Matthew Wilcox wrote:
+> > > On Wed, Jan 02, 2019 at 01:25:31PM -0800, Matthew Wilcox wrote:
+> > > > On Thu, Jan 03, 2019 at 08:13:32AM +1100, Dave Chinner wrote:
+> > > > > Hi folks,
+> > > > >
+> > > > > An overnight test run on a current TOT kernel failed generic/413
+> > > > > with the following dmesg output:
+> > > > >
+> > > > > [ 9487.276402] RIP: 0010:__follow_pte_pmd+0x22d/0x340
+> > > > > [ 9487.305065] Call Trace:
+> > > > > [ 9487.307310]  dax_entry_mkclean+0xbb/0x1f0
+> > > >
+> > > > We've only got one commit touching dax_entry_mkclean and it's Jerome's.
+> > > > Looking through ac46d4f3c43241ffa23d5bf36153a0830c0e02cc, I'd say
+> > > > it's missing a call to mmu_notifier_range_init().
+> > >
+> > > Could I persuade you to give this a try?
 > >
-> > --- a/arch/arm64/include/asm/kasan.h
-> > +++ b/arch/arm64/include/asm/kasan.h
-> > @@ -36,6 +36,10 @@
-> >  #define KASAN_SHADOW_OFFSET     (KASAN_SHADOW_END - (1ULL << \
-> >                                       (64 - KASAN_SHADOW_SCALE_SHIFT)))
+> > Yup, that fixes it.
 > >
-> > +#ifdef CONFIG_KASAN_SW_TAGS
-> > +#define ARCH_SLAB_MINALIGN   (1ULL << KASAN_SHADOW_SCALE_SHIFT)
-> > +#endif
-> > +
-> >  void kasan_init(void);
-> >  void kasan_copy_shadow(pgd_t *pgdir);
-> >  asmlinkage void kasan_early_init(void);
-> > diff --git a/include/linux/slab.h b/include/linux/slab.h
-> > index 11b45f7ae405..d87f913ab4e8 100644
-> > --- a/include/linux/slab.h
-> > +++ b/include/linux/slab.h
-> > @@ -16,6 +16,7 @@
-> >  #include <linux/overflow.h>
-> >  #include <linux/types.h>
-> >  #include <linux/workqueue.h>
-> > +#include <linux/kasan.h>
+> > And looking at the code, the dax mmu notifier code clearly wasn't
+> > tested. i.e. dax_entry_mkclean() is the *only* code that exercises
+> > the conditional range parameter code paths inside
+> > __follow_pte_pmd().  This means it wasn't tested before it was
+> > proposed for inclusion and since inclusion no-one using -akpm,
+> > linux-next or the current mainline TOT has done any filesystem DAX
+> > testing until I tripped over it.
 > >
->
-> This still seems unadvisable.  Like other architectures, arm defines
-> ARCH_SLAB_MINALIGN in arch/arm/include/asm/cache.h.
-> arch/arm/include/asm64/cache.h doesn't define ARCH_SLAB_MINALIGN
-> afaict.
->
-> If arch/arm/include/asm64/cache.h later gets a definition of
-> ARCH_SLAB_MINALIGN then we again face the risk that different .c files
-> will see different values of ARCH_SLAB_MINALIGN depending on which
-> headers they include.
->
-> So what to say about this?  The architecture's ARCH_SLAB_MINALIGN
-> should be defined in the architecture's cache.h, end of story.  Not in
-> slab.h, not in kasan.h.
+> > IOws, this is the second "this was never tested before it was merged
+> > into mainline" XFS regression that I've found in the last 3 weeks.
+> > Both commits have been merged through the -akpm tree, and that
+> > implies we currently have no significant filesystem QA coverage on
+> > changes being merged through this route. This seems like an area
+> > that needs significant improvement to me....
+> 
+> Yes, this is also part of a series I explicitly NAK'd [1] because
+> there are no upstream users for it. I didn't bother to test it because
+> I thought the NAK was sufficient.
+> 
+> Andrew, any reason to not revert the set? They provide no upstream
+> value and actively break DAX.
+> 
+> [1]: https://www.spinics.net/lists/linux-fsdevel/msg137309.html
 
-Done in v3, thanks!
+I tested it but with the patch that was not included and that
+extra patch did properly initialize the range struct. So the
+patchset had a broken step.
 
->
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/20190102121436.5c2b72d1b0ec49affadc9692%40linux-foundation.org.
-> For more options, visit https://groups.google.com/d/optout.
+Cheers,
+Jérôme
 
