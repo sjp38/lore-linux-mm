@@ -2,338 +2,167 @@ Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC4B0C43612
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:55:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CAC2BC43387
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:56:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 73DDB2073F
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:55:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73DDB2073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 78FA82073F
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:56:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="O+as1x8B"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78FA82073F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 11C3E8E0054; Wed,  2 Jan 2019 20:55:43 -0500 (EST)
+	id 2558F8E0055; Wed,  2 Jan 2019 20:56:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CC578E0002; Wed,  2 Jan 2019 20:55:43 -0500 (EST)
+	id 2034D8E0002; Wed,  2 Jan 2019 20:56:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EFD148E0054; Wed,  2 Jan 2019 20:55:42 -0500 (EST)
+	id 0F3E88E0055; Wed,  2 Jan 2019 20:56:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C27238E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 20:55:42 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id y83so38293301qka.7
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 17:55:42 -0800 (PST)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DBC868E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 20:56:52 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id j13so22912884oii.8
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 17:56:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=cQJXKKW1cwl5y9scV6x9SwXrJt7HhkHji7cmHswF870=;
-        b=Qo4mGNuDlMlxAgvJgBr15JctuWxp/cI/aCCdN0x2kW2U6a+ptF0HJqgr665ye3I7CK
-         NO+pT/AITOvoona5n/4NM/AKDcrkrSdjirxItVUN9817qnTHkuEsX8+Clo9rsljmZjET
-         Wb4JnJBYPR7F+Rc7ozTf/KLlO95EEgyhR4Ruy5m/FyxKGYcG+CKkq2KvZ+0g4Q2xE1ac
-         7iLYSU8Ja0lLA9esLY5+6EtCogPIEvy79IKlpDpvCwUCtx0WLSo9ey1N0kCQ+lCD4YoW
-         U/wl8GFb0dyTr36ZrFQ9486iDFOUUUMd3sBNlXTo7/Dp6Z52CiWXkriLXqzs/CwGesCF
-         M1jQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukdE2ehNM18tDdmPTBgbRa6Im/M+NppbhTowO2tUukz2LLJYoSoD
-	mSkXJp4Qt9rkShGIKBuFGuDEYo3l+z1XBZKQNOW1WCy/CmhygsL7zjkmLPK+ravHoXMsYpyeaJ0
-	JkZgPn+ouXG73N/V9FiZVWO/XVuV3KBOJXAU0Va0W1md8Gp49tf6LLOag5ogSN5qYtA==
-X-Received: by 2002:a37:3388:: with SMTP id z130mr40513578qkz.51.1546480542502;
-        Wed, 02 Jan 2019 17:55:42 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7zEj7OU0un1TlESrF0T+Hc3Xw55ugBjhtauvAp1NlDbpBjnxjxJcbsl6eHtpY7fJEtpG0a
-X-Received: by 2002:a37:3388:: with SMTP id z130mr40513549qkz.51.1546480541465;
-        Wed, 02 Jan 2019 17:55:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546480541; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=1IEdvSxiiyqFy6UrKVLcrWtjX6CPPhzM2L/LFrcQXhk=;
+        b=tuGx9bmb85npZ4wsq4ey30FvoExOwHwGeRDN83jg7XbA/IhIQ158KAiRNmO10qeIYn
+         SC5sxWEiC06HHZwzSddkOVvKy4uJr5EaXl87P9li/CRPBVeNJ4L3+3IDjH25jo9vO8fw
+         /15pglCvDmES7qGkr9fJ9G4USemcQqa2T9SKkwZ1G6x99/MnmP7h6FHYoN3SyBb/zpgp
+         5kmW3gAd8lZDLPVm0xMxHNlh37hr4KaCRgKgNXCE5KEtMg+9Hnma9DZaNx01wg47k6sD
+         c2GWQHOU1FdMMODDNFd42oYpBJ53vCfrPISEkauweOqA5HSjEsz1BhDkWLnrhxgyEcFk
+         P8uQ==
+X-Gm-Message-State: AA+aEWa6Eqd74HK2YJXlVSmYdRFBXJP+LeycTp7OPHlBXC4ogFGC3Vkz
+	etvGTpW4b9xiDulnFkF5mj16Qm8ZzrYsdqm0mVrfExUcKm7MYEEeeMlbzJ9XQpjr+ZsbRYF1buE
+	9uudWHiRg2uBgPWN44TVHbrdQPMDjNC7RfAL5/Y5B6ZgDw1Oloid57prttBRwBlPKfMwZ2K7gdT
+	5VLphNbCFpI+nc3uakuBGe0HPy6Wz/yF1MdEZSDM3hdoHdOiXXrfbSYjQbD1082JmXgvf5nEX9z
+	BIknFvsicYUtFQrqmpUdDZsBjZXSq/LNSTmDuovE0qXfsIAyEvgOG9aiNsZfPktOP1Rg93OFeVu
+	fNoGC/ZoWgY4Gg3ihNSH5XAYMgNRu1snpuBm9z5kN4dDBsmQIjvRocSxTNhxNlb5DlimbFtTR12
+	/
+X-Received: by 2002:aca:ef0b:: with SMTP id n11mr29932949oih.116.1546480612620;
+        Wed, 02 Jan 2019 17:56:52 -0800 (PST)
+X-Received: by 2002:aca:ef0b:: with SMTP id n11mr29932934oih.116.1546480611945;
+        Wed, 02 Jan 2019 17:56:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546480611; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jq2w18MsvfIpMTQ+b6lI2GUOUtkHxXZAiysDIqMyLhSnnm0XeY33mVWsbwZ67w24Qy
-         5EnD3Aaj3e2ELS3eEAvvnrl/EMC54Pe4q/t4D4v/qaim9n6DiSmJ4fEPG48EwEYfDXGu
-         N6xyB0K8jUoxms6llQNH44E8jPGp52OjQojt4k2P/M7RrXdHVvO10qmyyqe9yMeJemPg
-         Z9sp6Z/alRVAwXNab6ZAWooHPJydrRO8fkCBoNQBpU9l/MYf8N0UbEKi7+f1licbJ6+Z
-         KjmJ2rwpD/kDO7+nzk18BEixKrE12eDap/nXz58FBkPLipmzgcthcaZXWk7if4d6KtZK
-         Srcg==
+        b=EWLjcfl/1J+XCT8WTHlICzP5KH7mKe06hL9jKPJBHpDCZODmHbVsdpJ9XEtVrTQaKt
+         AFsMrBIO7EjHY7NIjc/62mntO8KzSOEBqfjv29zRqyA6jpC4K0j7kdFw59FetncKefWn
+         bQi5FkyW5fUR4OuxDIWpSZgFf8IgrnqBGl1it+ucJl31pv9FCLtaUS1KYEqQ1uQBB600
+         OBUk6QTp6JD1dFiEk56z1gQVD/Smt+cAYjMnoaxv52rGrKXLaOYfrxmR3KBDW/cpW4aZ
+         xcckyc0nwdKpjhvn3w/QASb3n4P/K1yvsn8gmsvkMG7jknTRYjiFet3rfDn2kndbrq8q
+         boLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=cQJXKKW1cwl5y9scV6x9SwXrJt7HhkHji7cmHswF870=;
-        b=ML+Lo6hJHwN9n0ZQncrvaPpW1HOIsm0Ot/SbfiRElt9Sc+/6USD+nHPbvjWlDdoo6l
-         uFbWz8xmdK7S/yJ28U2brx9OkVDHywBsEIRc4+0TZH4vJooFOYHScOYl5z3VZiLfTqst
-         ETGjYF/JDBucSzk1d0rP2F43oATCtYrNnLfafFu85I5C4Zs+3489C8HJNZVebkrZLoKw
-         p4B7G3T1f6wUUQFepNciIGCbRDOJpEW9w5OKcoMWML1SCochy/OLq+DHzvfPSiuV+tnQ
-         IKe+lAcGnzUbl3Odsn4GdmBWQETgzwM/VgU35UW0lleC8oQW/wHWVjJuVrAF6PMIv8hD
-         vTZg==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=1IEdvSxiiyqFy6UrKVLcrWtjX6CPPhzM2L/LFrcQXhk=;
+        b=uYz8zapamWvrUznmpKzpGrOjR7fhO8EzpPnciYaU0qZKP771czDDNC4WLHvKiEK7Vm
+         J7YR8TJ23lD6TVp2mh2izdgBTqmdaKJqGNqKNag/ut0OnnPmqiJZEl41HfeWQGvsX0j/
+         PbLi8HzPw7mIs1HfVsmKDizl7oz+4va9IBk7rF/YcY3xXfrTi7tLSQ8j7+IR33lApU9L
+         5jOpb2BkJdoTCuHNE/YHvnpsnlsn4/AFLEzx5xUE/8w1DCYWP4IFZDn9YfrUqUVWMi6Z
+         kWDiMtVSxa7M/+05s7kLsH74IU7PR9oGqPJ6V7/YBo9tzqgD1G8c3gCS10DQMt+eO0u+
+         bZDw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c18si1122632qvb.181.2019.01.02.17.55.41
+       dkim=pass header.i=@google.com header.s=20161025 header.b=O+as1x8B;
+       spf=pass (google.com: domain of 342stxagkcfgi70a44b16ee6b4.2ecb8dkn-ccal02a.eh6@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=342stXAgKCFgI70A44B16EE6B4.2ECB8DKN-CCAL02A.EH6@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id x2sor28012424ota.72.2019.01.02.17.56.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 17:55:41 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 02 Jan 2019 17:56:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of 342stxagkcfgi70a44b16ee6b4.2ecb8dkn-ccal02a.eh6@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id EBAAE2DACC3;
-	Thu,  3 Jan 2019 01:55:39 +0000 (UTC)
-Received: from redhat.com (ovpn-123-62.rdu2.redhat.com [10.10.123.62])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 24A825D9C9;
-	Thu,  3 Jan 2019 01:55:35 +0000 (UTC)
-Date: Wed, 2 Jan 2019 20:55:33 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Jan Kara <jack@suse.cz>
-Cc: John Hubbard <jhubbard@nvidia.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Dave Chinner <david@fromorbit.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	John Hubbard <john.hubbard@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>, tom@talpey.com,
-	Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	"Dalessandro, Dennis" <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com,
-	rcampbell@nvidia.com,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190103015533.GA15619@redhat.com>
-References: <20181212150319.GA3432@redhat.com>
- <20181212214641.GB29416@dastard>
- <20181214154321.GF8896@quack2.suse.cz>
- <20181216215819.GC10644@dastard>
- <20181217181148.GA3341@redhat.com>
- <20181217183443.GO10600@bombadil.infradead.org>
- <20181218093017.GB18032@quack2.suse.cz>
- <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
- <20181219020723.GD4347@redhat.com>
- <20181219110856.GA18345@quack2.suse.cz>
-MIME-Version: 1.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=O+as1x8B;
+       spf=pass (google.com: domain of 342stxagkcfgi70a44b16ee6b4.2ecb8dkn-ccal02a.eh6@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=342stXAgKCFgI70A44B16EE6B4.2ECB8DKN-CCAL02A.EH6@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=1IEdvSxiiyqFy6UrKVLcrWtjX6CPPhzM2L/LFrcQXhk=;
+        b=O+as1x8BbL64S+CFz8r+7ZJq91aRp0KbfX1lcq5FkGxOGbsxhQ/zxsFmi1Vy0Kb5a/
+         pJTBwBiURN4IGInYblKKXGfNVjIv4kEhu+kWwCP2Jg244NAdsqt60xBSklLEp9SYFr4R
+         XdCHOT9vtQWN03lKDw0YI5Fz8Rf10w7b2rmdLTc9IMOaMxtwMZW9ckjBFAo5TAU8wt+X
+         4rysTKaL+ue20yJQZUSBvY1yRsWOLVyzNwde48PuQT/YG/Dhf4F0Sid4n+Pa7c5kYf1j
+         qqthVXOSIztPgmDX3ULfduwZkMJxp1KYbknVGEBC315bSoc+XPy4dsrTeU7FDQe82/P3
+         hW0A==
+X-Google-Smtp-Source: ALg8bN7jWozz13OWzQ+A70JtrRj6cJutBJTH/Gxv95lL+kAkhPL0oDZrRFq/MSfDf+Hs9Q3mRcp4KIw+BwcCqg==
+X-Received: by 2002:a9d:ba8:: with SMTP id 37mr34172518oth.31.1546480611663;
+ Wed, 02 Jan 2019 17:56:51 -0800 (PST)
+Date: Wed,  2 Jan 2019 17:56:38 -0800
+Message-Id: <20190103015638.205424-1-shakeelb@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.20.1.415.g653613c723-goog
+Subject: [PATCH] memcg: schedule high reclaim for remote memcgs on high_work
+From: Shakeel Butt <shakeelb@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
+	Shakeel Butt <shakeelb@google.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181219110856.GA18345@quack2.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 03 Jan 2019 01:55:40 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103015533.2CnmyaaxAtnV4bPXg9YmNTlmuSYtiid4FpDVzutvRNw@z>
+Message-ID: <20190103015638.AR95q1u-KY5dviJXWX-7u5pu-ud09t7SXDXOFaChI0A@z>
 
-On Wed, Dec 19, 2018 at 12:08:56PM +0100, Jan Kara wrote:
-> On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
-> > On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
-> > > OK, so let's take another look at Jerome's _mapcount idea all by itself (using
-> > > *only* the tracking pinned pages aspect), given that it is the lightest weight
-> > > solution for that.  
-> > > 
-> > > So as I understand it, this would use page->_mapcount to store both the real
-> > > mapcount, and the dma pinned count (simply added together), but only do so for
-> > > file-backed (non-anonymous) pages:
-> > > 
-> > > 
-> > > __get_user_pages()
-> > > {
-> > > 	...
-> > > 	get_page(page);
-> > > 
-> > > 	if (!PageAnon)
-> > > 		atomic_inc(page->_mapcount);
-> > > 	...
-> > > }
-> > > 
-> > > put_user_page(struct page *page)
-> > > {
-> > > 	...
-> > > 	if (!PageAnon)
-> > > 		atomic_dec(&page->_mapcount);
-> > > 
-> > > 	put_page(page);
-> > > 	...
-> > > }
-> > > 
-> > > ...and then in the various consumers of the DMA pinned count, we use page_mapped(page)
-> > > to see if any mapcount remains, and if so, we treat it as DMA pinned. Is that what you 
-> > > had in mind?
-> > 
-> > Mostly, with the extra two observations:
-> >     [1] We only need to know the pin count when a write back kicks in
-> >     [2] We need to protect GUP code with wait_for_write_back() in case
-> >         GUP is racing with a write back that might not the see the
-> >         elevated mapcount in time.
-> > 
-> > So for [2]
-> > 
-> > __get_user_pages()
-> > {
-> >     get_page(page);
-> > 
-> >     if (!PageAnon) {
-> >         atomic_inc(page->_mapcount);
-> > +       if (PageWriteback(page)) {
-> > +           // Assume we are racing and curent write back will not see
-> > +           // the elevated mapcount so wait for current write back and
-> > +           // force page fault
-> > +           wait_on_page_writeback(page);
-> > +           // force slow path that will fault again
-> > +       }
-> >     }
-> > }
-> 
-> This is not needed AFAICT. __get_user_pages() gets page reference (and it
-> should also increment page->_mapcount) under PTE lock. So at that point we
-> are sure we have writeable PTE nobody can change. So page_mkclean() has to
-> block on PTE lock to make PTE read-only and only after going through all
-> PTEs like this, it can check page->_mapcount. So the PTE lock provides
-> enough synchronization.
-> 
-> > For [1] only needing pin count during write back turns page_mkclean into
-> > the perfect spot to check for that so:
-> > 
-> > int page_mkclean(struct page *page)
-> > {
-> >     int cleaned = 0;
-> > +   int real_mapcount = 0;
-> >     struct address_space *mapping;
-> >     struct rmap_walk_control rwc = {
-> >         .arg = (void *)&cleaned,
-> >         .rmap_one = page_mkclean_one,
-> >         .invalid_vma = invalid_mkclean_vma,
-> > +       .mapcount = &real_mapcount,
-> >     };
-> > 
-> >     BUG_ON(!PageLocked(page));
-> > 
-> >     if (!page_mapped(page))
-> >         return 0;
-> > 
-> >     mapping = page_mapping(page);
-> >     if (!mapping)
-> >         return 0;
-> > 
-> >     // rmap_walk need to change to count mapping and return value
-> >     // in .mapcount easy one
-> >     rmap_walk(page, &rwc);
-> > 
-> >     // Big fat comment to explain what is going on
-> > +   if ((page_mapcount(page) - real_mapcount) > 0) {
-> > +       SetPageDMAPined(page);
-> > +   } else {
-> > +       ClearPageDMAPined(page);
-> > +   }
-> 
-> This is the detail I'm not sure about: Why cannot rmap_walk_file() race
-> with e.g. zap_pte_range() which decrements page->_mapcount and thus the
-> check we do in page_mkclean() is wrong?
-> 
+If a memcg is over high limit, memory reclaim is scheduled to run on
+return-to-userland. However it is assumed that the memcg is the current
+process's memcg. With remote memcg charging for kmem or swapping in a
+page charged to remote memcg, current process can trigger reclaim on
+remote memcg. So, schduling reclaim on return-to-userland for remote
+memcgs will ignore the high reclaim altogether. So, punt the high
+reclaim of remote memcgs to high_work.
 
-Ok so i found a solution for that. First GUP must wait for racing
-write back. If GUP see a valid write-able PTE and the page has
-write back flag set then it must back of as if the PTE was not
-valid to force fault. It is just a race with page_mkclean and we
-want ordering between the two. Note this is not strictly needed
-so we can relax that but i believe this ordering is better to do
-in GUP rather then having each single user of GUP test for this
-to avoid the race.
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+ mm/memcontrol.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
 
-GUP increase mapcount only after checking that it is not racing
-with writeback it also set a page flag (SetPageDMAPined(page)).
-
-When clearing a write-able pte we set a special entry inside the
-page table (might need a new special swap type for this) and change
-page_mkclean_one() to clear to 0 those special entry.
-
-
-Now page_mkclean:
-
-int page_mkclean(struct page *page)
-{
-    int cleaned = 0;
-+   int real_mapcount = 0;
-    struct address_space *mapping;
-    struct rmap_walk_control rwc = {
-        .arg = (void *)&cleaned,
-        .rmap_one = page_mkclean_one,
-        .invalid_vma = invalid_mkclean_vma,
-+       .mapcount = &real_mapcount,
-    };
-+   int mapcount1, mapcount2;
-
-    BUG_ON(!PageLocked(page));
-
-    if (!page_mapped(page))
-        return 0;
-
-    mapping = page_mapping(page);
-    if (!mapping)
-        return 0;
-
-+   mapcount1 = page_mapcount(page);
-
-    // rmap_walk need to change to count mapping and return value
-    // in .mapcount easy one
-    rmap_walk(page, &rwc);
-
-+   if (PageDMAPined(page)) {
-+       int rc2;
-+
-+       if (mapcount1 == real_count) {
-+           /* Page is no longer pin, no zap pte race */
-+           ClearPageDMAPined(page);
-+           goto out;
-+       }
-+       /* No new mapping of the page so mp1 < rc is illegal. */
-+       VM_BUG_ON(mapcount1 < real_count);
-+       /* Page might be pin. */
-+       mapcount2 = page_mapcount(page);
-+       if (mapcount2 > real_count) {
-+           /* Page is pin for sure. */
-+           goto out;
-+       }
-+       /* We had a race with zap pte we need to rewalk again. */
-+       rc2 = real_mapcount;
-+       real_mapcount = 0;
-+       rwc.rmap_one = page_pin_one;
-+       rmap_walk(page, &rwc);
-+       if (mapcount2 <= (real_count + rc2)) {
-+           /* Page is no longer pin */
-+           ClearPageDMAPined(page);
-+       }
-+       /* At this point the page pin flag reflect pin status of the page */
-+   }
-+
-+out:
-    ...
-}
-
-The page_pin_one() function count the number of special PTE entry so
-which match the count of pte that have been zapped since the first
-reverse map walk.
-
-So worst case a page that was pin by a GUP would need 2 reverse map
-walk during page_mkclean(). Moreover this is only needed if we race
-with something that clear pte. I believe this is an acceptable worst
-case. I will work on some RFC patchset next week (once i am down with
-email catch up).
-
-
-I do not think i made mistake here, i have been torturing my mind
-trying to think of any race scenario and i believe it holds to any
-racing zap and page_mkclean()
-
-Cheers,
-Jérôme
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e9db1160ccbc..47439c84667a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2302,19 +2302,23 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * reclaim on returning to userland.  We can perform reclaim here
+ 	 * if __GFP_RECLAIM but let's always punt for simplicity and so that
+ 	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
+-	 * not recorded as it most likely matches current's and won't
+-	 * change in the meantime.  As high limit is checked again before
+-	 * reclaim, the cost of mismatch is negligible.
++	 * not recorded as the return-to-userland high reclaim will only reclaim
++	 * from current's memcg (or its ancestor). For other memcgs we punt them
++	 * to work queue.
+ 	 */
+ 	do {
+ 		if (page_counter_read(&memcg->memory) > memcg->high) {
+-			/* Don't bother a random interrupted task */
+-			if (in_interrupt()) {
++			/*
++			 * Don't bother a random interrupted task or if the
++			 * memcg is not current's memcg's ancestor.
++			 */
++			if (in_interrupt() ||
++			    !mm_match_cgroup(current->mm, memcg)) {
+ 				schedule_work(&memcg->high_work);
+-				break;
++			} else {
++				current->memcg_nr_pages_over_high += batch;
++				set_notify_resume(current);
+ 			}
+-			current->memcg_nr_pages_over_high += batch;
+-			set_notify_resume(current);
+ 			break;
+ 		}
+ 	} while ((memcg = parent_mem_cgroup(memcg)));
+-- 
+2.20.1.415.g653613c723-goog
 
