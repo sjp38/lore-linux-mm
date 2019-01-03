@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ED80A8E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 13:45:28 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id x3so15825536wru.22
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 10:45:28 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i4sor28976946wrx.38.2019.01.03.10.45.27
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 39D138E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 05:13:04 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id o21so33668949edq.4
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 02:13:04 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j9si8761048edr.185.2019.01.03.02.13.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 Jan 2019 10:45:27 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 1/3] kasan, arm64: use ARCH_SLAB_MINALIGN instead of manual aligning
-Date: Thu,  3 Jan 2019 19:45:19 +0100
-Message-Id: <52ddd881916bcc153a9924c154daacde78522227.1546540962.git.andreyknvl@google.com>
-In-Reply-To: <cover.1546540962.git.andreyknvl@google.com>
-References: <cover.1546540962.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jan 2019 02:13:02 -0800 (PST)
+Date: Thu, 3 Jan 2019 11:13:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] doc: memcontrol: fix the obsolete content about
+ force empty
+Message-ID: <20190103101302.GI31793@dhcp22.suse.cz>
+References: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1546459533-36247-2-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1546459533-36247-2-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Instead of changing cache->align to be aligned to KASAN_SHADOW_SCALE_SIZE
-in kasan_cache_create() we can reuse the ARCH_SLAB_MINALIGN macro.
+On Thu 03-01-19 04:05:31, Yang Shi wrote:
+> We don't do page cache reparent anymore when offlining memcg, so update
+> force empty related content accordingly.
+> 
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 
-Suggested-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- arch/arm64/include/asm/cache.h | 6 ++++++
- mm/kasan/common.c              | 2 --
- 2 files changed, 6 insertions(+), 2 deletions(-)
+Thanks for the clean up.
 
-diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
-index 13dd42c3ad4e..eb43e09c1980 100644
---- a/arch/arm64/include/asm/cache.h
-+++ b/arch/arm64/include/asm/cache.h
-@@ -58,6 +58,12 @@
-  */
- #define ARCH_DMA_MINALIGN	(128)
- 
-+#ifdef CONFIG_KASAN_SW_TAGS
-+#define ARCH_SLAB_MINALIGN	(1ULL << KASAN_SHADOW_SCALE_SHIFT)
-+#else
-+#define ARCH_SLAB_MINALIGN	__alignof__(unsigned long long)
-+#endif
-+
- #ifndef __ASSEMBLY__
- 
- #include <linux/bitops.h>
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 03d5d1374ca7..44390392d4c9 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -298,8 +298,6 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
- 		return;
- 	}
- 
--	cache->align = round_up(cache->align, KASAN_SHADOW_SCALE_SIZE);
--
- 	*flags |= SLAB_KASAN;
- }
- 
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  Documentation/cgroup-v1/memory.txt | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
+> index 3682e99..8e2cb1d 100644
+> --- a/Documentation/cgroup-v1/memory.txt
+> +++ b/Documentation/cgroup-v1/memory.txt
+> @@ -70,7 +70,7 @@ Brief summary of control files.
+>   memory.soft_limit_in_bytes	 # set/show soft limit of memory usage
+>   memory.stat			 # show various statistics
+>   memory.use_hierarchy		 # set/show hierarchical account enabled
+> - memory.force_empty		 # trigger forced move charge to parent
+> + memory.force_empty		 # trigger forced page reclaim
+>   memory.pressure_level		 # set memory pressure notifications
+>   memory.swappiness		 # set/show swappiness parameter of vmscan
+>  				 (See sysctl's vm.swappiness)
+> @@ -459,8 +459,9 @@ About use_hierarchy, see Section 6.
+>    the cgroup will be reclaimed and as many pages reclaimed as possible.
+>  
+>    The typical use case for this interface is before calling rmdir().
+> -  Because rmdir() moves all pages to parent, some out-of-use page caches can be
+> -  moved to the parent. If you want to avoid that, force_empty will be useful.
+> +  Though rmdir() offlines memcg, but the memcg may still stay there due to
+> +  charged file caches. Some out-of-use page caches may keep charged until
+> +  memory pressure happens. If you want to avoid that, force_empty will be useful.
+>  
+>    Also, note that when memory.kmem.limit_in_bytes is set the charges due to
+>    kernel pages will still be seen. This is not considered a failure and the
+> -- 
+> 1.8.3.1
+> 
+
 -- 
-2.20.1.415.g653613c723-goog
+Michal Hocko
+SUSE Labs
