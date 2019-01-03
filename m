@@ -2,183 +2,371 @@ Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 93281C43444
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 03:14:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DE461C43387
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 03:27:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 31C4A2073F
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 03:14:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8BEEF2073F
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 03:27:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iTqiOAwE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31C4A2073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="j0O+6fuT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BEEF2073F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E67B8E0057; Wed,  2 Jan 2019 22:14:41 -0500 (EST)
+	id 175C28E0058; Wed,  2 Jan 2019 22:27:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7957C8E0002; Wed,  2 Jan 2019 22:14:41 -0500 (EST)
+	id 0FD878E0002; Wed,  2 Jan 2019 22:27:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AA9B8E0057; Wed,  2 Jan 2019 22:14:41 -0500 (EST)
+	id EB7228E0058; Wed,  2 Jan 2019 22:27:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 41D758E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 22:14:41 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id t18so41051353qtj.3
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 19:14:41 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B88CA8E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 22:27:20 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id v6so9009333ybm.11
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 19:27:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=LBYMDCbBA3NW41N7ApDqhkDWIbRHpdiaiS5pDRmTU0c=;
-        b=So0sbSjgSP2maw6JUvTdJdDRvLCcYlpjaqupOC5DI+WZzZ4u5VviPku5cxGqHTA79N
-         iUlxH3pa8BkAhbkrTQ60Yr2RCVfKH8MnWBbkwg6yipKQ8+HJC527eBjpkFsydMH9TGsQ
-         QUxki3Ku1c0h10HizvOvuA3ksCSaOgfi4c+3QZFek6lnwprRTwyf0Fz9+oudbcu1e266
-         j+zKa9baVa9dkic9wuPbwjwp9X6gZ9fCV572h7jRb6QdbQlvSPt3O+YyWpwSZdmGB5hA
-         mC66vzLXrUm5h/Xa++bBegOXoWe0gCMfvQSxiTv423NwemThz0VdNtwgAQ2X3YXg8/kT
-         WjHw==
-X-Gm-Message-State: AJcUukcxfRXhLPgOuaBFfXZ1jJjGYAp18C8EP89Vs8w2vvl9An5EbDSi
-	FYwac6RuxPqOX9V7FegwmAGM5awMshoN0Fac9cQTG/X5Xk4aH9+Qwl+kMvwJhQ2vQTEGfIXNCgk
-	SheMZuN6gxs6QsvkHWzxEecydmxYEBWrwaQqaqAk0zFYLoxVtRr8oOXzgyWKkJcZZnsLNF66O1Q
-	Lvb7fkLSmjD/fnPj0pmrL+wggmz09W1ZA8XIvmK7oqU9S4sLDCiK0Lb1we/ao9brFB5us15eQEE
-	BFjkXfPKfLtFWrQKBrcCe1moKClCdcM125LQTwGtQNY6eBLaYl5WS74H0tc+y44oKBpNu/rrjM+
-	iToR50RwYE9SmkG/Y99DaDA5jyYuacv/1a7WyTdnmmV6qHdzumZL6WLGp/R0cuNr7l1PUk+yjKr
-	t
-X-Received: by 2002:a37:9841:: with SMTP id a62mr42455966qke.348.1546485280937;
-        Wed, 02 Jan 2019 19:14:40 -0800 (PST)
-X-Received: by 2002:a37:9841:: with SMTP id a62mr42455941qke.348.1546485280044;
-        Wed, 02 Jan 2019 19:14:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546485280; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=eqE4Z26zsNcQAJgC7bD2Jo1r09N+BCQVCnR1yuSDr4M=;
+        b=Fb4xuxSrwWeN21k/bV0uWKj7yTnKPTjSPsnMmgiw6HHWVGW6JOH2S1YaHULjmse4kO
+         xEMSczhhpDeq8g7jPF23fGHWogM5ummXVlUgPMkX1KdjaaNLKaTf+p0WwbaWxSC2URIT
+         1xOIWVKeOugMOVwO0ozfHi1qTBhLCTf8r9azMI442F3RLPPB5uhck2yboDoauqxBb0M8
+         4emKeSJTnGVmYd6WXENA74F2c7xXx5UVWe/vdDfHlFl67pY8kW2eaNYruFGd7LcT1pde
+         RWIUpAswCyVXRoRtChJH+bGyLGqfNYtHlobOKZz7O2u1WfHWj1QOKHOf9FKcpBs8yibv
+         wtPw==
+X-Gm-Message-State: AJcUukcHE2qGUECc2PEWWb2YVKot3RrRSGcOuHQs2dG+bYtqFXMjeSqp
+	Y9M6bZ6NNasvQamWTdnHhZlzFA2LWGF98vS6wqOjyDxs98ZggS0KgfGvzlkLny4vVmfXLgswdGd
+	UFdTvlbpkCQ7DS8xyqxNhtQNXiHcYI4QfRa90Z9SudnctQAgM7YgIiMQWF99q99CifQ==
+X-Received: by 2002:a25:7797:: with SMTP id s145mr43382370ybc.477.1546486040460;
+        Wed, 02 Jan 2019 19:27:20 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7cczJFgTYhk5vvdE+3gjF9gVUr4ddcelJozER74HR/8Z61EC3vXmp4S7HpDadhp2HVetX0
+X-Received: by 2002:a25:7797:: with SMTP id s145mr43382337ybc.477.1546486039497;
+        Wed, 02 Jan 2019 19:27:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546486039; cv=none;
         d=google.com; s=arc-20160816;
-        b=r6ACl7Exj/OFyFI6RHxG5LnOcjfdUEnXeSVYPYBGg5+IR4sANp17ljO8JNKHfbeFsf
-         VWOtNHa4seauoYUlS4n1sk9sCefFxkk9vYA2CMVl3iHPR9E/0b4AGoq0QrCoRUwyb9/J
-         BZkYncLkBZweVab9RdbL45J0HRnLcW+HlHJmg/BaEMD2ysIDvERvMo97iqCAzYKSH6LY
-         u2OHpbH/v99Jy6r6bL8BX+za2sAJZxqrIE6Fl6tkCPJqaT3vtdOKkkgjE4oOt65dZeVQ
-         EAmhg6Dte63KIiM05ym95POg1GMkjAPY9uDfhNlbLNbL1A3UvbZzUTX8v+S19B/SmP+8
-         mGFA==
+        b=KTcYT2iEpDpcvxrCQHlklPolIkpIaw/sW1M0u/9DydRhWum8pTS1lwvTlGUdk87PZs
+         G9wQazgPlCwoxkEhqmS2H1xS4wmci70/kfcBLW384gZI95pUVhWi4Dl2FiKMNcMrkU2S
+         5vieQYvZFeF8HKXc1HBng2uJdOFJNMRM7dZcZL7EeecDujceJOJsOexMcx/QYj7LjNYj
+         BVSkMSDGuyj4DJGQfbg28ek5nj1qXx823idoq3GmGMm3ql0ITXBhuwG13fTw3MYFVmXx
+         rE2f/rycKSh2jCtxXaKxgAf3RrsAEtM5YlU3Z5ma2Zq0dDidET7fpQ2CqsuA5PUYBm0+
+         gK5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=LBYMDCbBA3NW41N7ApDqhkDWIbRHpdiaiS5pDRmTU0c=;
-        b=Ta/uNre2fFn0uQ8uJku6aZyPA/L//IXEOdQrrPhqHSJSr/P0Qriybmy7ipLuk69ybO
-         q64EQNdqDoqZd2bcL3ykURq0/F1ymgTb4AFfy9G8spcVFqEEFZtYLwhyNPm1G+Dr/UC1
-         rSdDQbj8Dm5CobWxFzkhMHF8ooQVrWU/Fn6r3M9jKTcGQCZLJOxznqXlvVsUqFUvEaz1
-         ijsiWnQwfwYMoAZSjmBJLa6pSwYcB7hiAKTglgQJFJF01qXKJuEW47Q6TS4oBOook6wT
-         P5wdBIpvr4ZJTGVDXfgDWm3mM7iS8wtKz4VT5XRQy+k7emzKjqpKT5OSU6o36TZ+nc73
-         mqDg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=eqE4Z26zsNcQAJgC7bD2Jo1r09N+BCQVCnR1yuSDr4M=;
+        b=aN3tMzQTjRkOQTiRY/+HQHU0rVrqIaXGFiaoO4y69ViMBQ3uXy7slBta1gTEi7wz3a
+         j1Hi4HyW67VKWmGAb7A3j+A40RuzbqHjuQSODrG5V4LiXNpl/nx6PH+aUn0mUmC8mtrC
+         HX1mw1BHpit1DjOSMjjqLJoiG+oa02j/dqFWfY2hITKocm6bT3sdhOTzXuyG+PKmb489
+         biVvtp7naqmAnn1HDSe+26mLGnW6bRvsHeUFk2nirT+cIVkgBeq9hBO1/MOVw494+Fa9
+         qCODEfI728zuQbQXZ5ASGYx7jZdAU3tYNHlU8ubWdVmwdra2U8ODXNaktR3/Wk34x7ef
+         pSaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=iTqiOAwE;
-       spf=pass (google.com: domain of 3h34txagkclgqfyiccjzemmejc.amkjglsv-kkityai.mpe@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3H34tXAgKCLgqfYiccjZemmejc.amkjglsv-kkitYai.mpe@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id v5sor47191439qtc.33.2019.01.02.19.14.39
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=j0O+6fuT;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id x126si14659096ybx.360.2019.01.02.19.27.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 19:14:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3h34txagkclgqfyiccjzemmejc.amkjglsv-kkityai.mpe@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Jan 2019 19:27:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=iTqiOAwE;
-       spf=pass (google.com: domain of 3h34txagkclgqfyiccjzemmejc.amkjglsv-kkityai.mpe@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3H34tXAgKCLgqfYiccjZemmejc.amkjglsv-kkitYai.mpe@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=LBYMDCbBA3NW41N7ApDqhkDWIbRHpdiaiS5pDRmTU0c=;
-        b=iTqiOAwEtmzx3502zPCqdPgvcXLNwz4HTbRKYhwJsFyOnPRo/g6n0AILOfliy/qjuL
-         3tVx78BpK4nsjlTIuxF54IsHOSC2grti05o7bDgSCF6IsjYm5La1e5Aa/vf4/YLGbQN7
-         O9OJsYhIQk2iLMgpyW/GKEOMLdNyOs0lRpjAwNQ1yLwDOtCyRyMk3XMLPjWg6zPu1rdE
-         RzlLyI1Vh+bwuVKcEwKMNvQ5XuPQ6t18pzC5zTcH2NEAbR/voOiAIYcB/Kd/VYsMd919
-         5I98cCRTXQivucvkT9l7n6EHg8j8iB2+S2Cx3BQOV7xk5ACuqsp9je0gJP0jNNiPWdMc
-         X4mA==
-X-Google-Smtp-Source: AFSGD/XhD8Zqj94uhrG5IFVMBnwqV8DDYNGWMdHHtQ1uf5iT/YLIKYUBEXhwMnpfIvWyUT6S3kAKUGkH0SeKKQ==
-X-Received: by 2002:aed:22cb:: with SMTP id q11mr34452744qtc.31.1546485279505;
- Wed, 02 Jan 2019 19:14:39 -0800 (PST)
-Date: Wed,  2 Jan 2019 19:14:31 -0800
-Message-Id: <20190103031431.247970-1-shakeelb@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.20.1.415.g653613c723-goog
-Subject: [PATCH v2] netfilter: account ebt_table_info to kmemcg
-From: Shakeel Butt <shakeelb@google.com>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Florian Westphal <fw@strlen.de>, Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>, syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com, 
-	Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, 
-	Roopa Prabhu <roopa@cumulusnetworks.com>, 
-	Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, netfilter-devel@vger.kernel.org, 
-	coreteam@netfilter.org, bridge@lists.linux-foundation.org
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=j0O+6fuT;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c2d81080000>; Wed, 02 Jan 2019 19:27:04 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 02 Jan 2019 19:27:18 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Wed, 02 Jan 2019 19:27:18 -0800
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Thu, 3 Jan
+ 2019 03:27:18 +0000
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+To: Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>
+CC: Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>,
+	Dan Williams <dan.j.williams@intel.com>, John Hubbard
+	<john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM
+	<linux-mm@kvack.org>, <tom@talpey.com>, Al Viro <viro@zeniv.linux.org.uk>,
+	<benve@cisco.com>, Christoph Hellwig <hch@infradead.org>, Christopher Lameter
+	<cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug
+ Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko
+	<mhocko@kernel.org>, <mike.marciniszyn@intel.com>, <rcampbell@nvidia.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel
+	<linux-fsdevel@vger.kernel.org>
+References: <20181212150319.GA3432@redhat.com>
+ <20181212214641.GB29416@dastard> <20181214154321.GF8896@quack2.suse.cz>
+ <20181216215819.GC10644@dastard> <20181217181148.GA3341@redhat.com>
+ <20181217183443.GO10600@bombadil.infradead.org>
+ <20181218093017.GB18032@quack2.suse.cz>
+ <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
+ <20181219020723.GD4347@redhat.com> <20181219110856.GA18345@quack2.suse.cz>
+ <20190103015533.GA15619@redhat.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <8ea4ebe9-bb4f-67e2-c7cb-7404598b7c7e@nvidia.com>
+Date: Wed, 2 Jan 2019 19:27:17 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.3
+MIME-Version: 1.0
+In-Reply-To: <20190103015533.GA15619@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL101.nvidia.com (172.20.187.10)
 Content-Type: text/plain; charset="UTF-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1546486025; bh=eqE4Z26zsNcQAJgC7bD2Jo1r09N+BCQVCnR1yuSDr4M=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=j0O+6fuTPoDzwrxY0DZeiwLr1x/T/S8vi6gCBA/gvq7Qhs5wk6hsXzaJw2Vz4DGmP
+	 jJVhpmBtiPWpJovLDMc+OBWmrauRSZfb9X8FqYIM8NYVHaNTr9GfukcugOjz3bO7+z
+	 sMGVpjAGj3nfhXQSADF+fnLOGwo7TMp4T23GTCCMv8T/qKqMsvq4DqzlCvm1UGztt4
+	 Ni0xH7bY89+5O/o7X8y3TSUiNj8ryuiEaSNVlXfPYxBGb6sD10yTlzr2GxOV1iUHBA
+	 Ttwt1Pwv8p2/VGl58AA3ssVvRPxUTtntntmBKptG+maTIo49oTogfniplNSwrK3gPh
+	 glGaQxOqpYOoQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103031431.jCv19dok0XRnV06uAX0M27V-pordMrDIDEmwVdpxwPQ@z>
+Message-ID: <20190103032717.9KXZcLORhQ97qwEYcoQpqcCCz0XCZ-U1kRquk-vn34A@z>
 
-The [ip,ip6,arp]_tables use x_tables_info internally and the underlying
-memory is already accounted to kmemcg. Do the same for ebtables. The
-syzbot, by using setsockopt(EBT_SO_SET_ENTRIES), was able to OOM the
-whole system from a restricted memcg, a potential DoS.
+On 1/2/19 5:55 PM, Jerome Glisse wrote:
+> On Wed, Dec 19, 2018 at 12:08:56PM +0100, Jan Kara wrote:
+>> On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
+>>> On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
+>>>> OK, so let's take another look at Jerome's _mapcount idea all by itsel=
+f (using
+>>>> *only* the tracking pinned pages aspect), given that it is the lightes=
+t weight
+>>>> solution for that. =20
+>>>>
+>>>> So as I understand it, this would use page->_mapcount to store both th=
+e real
+>>>> mapcount, and the dma pinned count (simply added together), but only d=
+o so for
+>>>> file-backed (non-anonymous) pages:
+>>>>
+>>>>
+>>>> __get_user_pages()
+>>>> {
+>>>> 	...
+>>>> 	get_page(page);
+>>>>
+>>>> 	if (!PageAnon)
+>>>> 		atomic_inc(page->_mapcount);
+>>>> 	...
+>>>> }
+>>>>
+>>>> put_user_page(struct page *page)
+>>>> {
+>>>> 	...
+>>>> 	if (!PageAnon)
+>>>> 		atomic_dec(&page->_mapcount);
+>>>>
+>>>> 	put_page(page);
+>>>> 	...
+>>>> }
+>>>>
+>>>> ...and then in the various consumers of the DMA pinned count, we use p=
+age_mapped(page)
+>>>> to see if any mapcount remains, and if so, we treat it as DMA pinned. =
+Is that what you=20
+>>>> had in mind?
+>>>
+>>> Mostly, with the extra two observations:
+>>>     [1] We only need to know the pin count when a write back kicks in
+>>>     [2] We need to protect GUP code with wait_for_write_back() in case
+>>>         GUP is racing with a write back that might not the see the
+>>>         elevated mapcount in time.
+>>>
+>>> So for [2]
+>>>
+>>> __get_user_pages()
+>>> {
+>>>     get_page(page);
+>>>
+>>>     if (!PageAnon) {
+>>>         atomic_inc(page->_mapcount);
+>>> +       if (PageWriteback(page)) {
+>>> +           // Assume we are racing and curent write back will not see
+>>> +           // the elevated mapcount so wait for current write back and
+>>> +           // force page fault
+>>> +           wait_on_page_writeback(page);
+>>> +           // force slow path that will fault again
+>>> +       }
+>>>     }
+>>> }
+>>
+>> This is not needed AFAICT. __get_user_pages() gets page reference (and i=
+t
+>> should also increment page->_mapcount) under PTE lock. So at that point =
+we
+>> are sure we have writeable PTE nobody can change. So page_mkclean() has =
+to
+>> block on PTE lock to make PTE read-only and only after going through all
+>> PTEs like this, it can check page->_mapcount. So the PTE lock provides
+>> enough synchronization.
+>>
+>>> For [1] only needing pin count during write back turns page_mkclean int=
+o
+>>> the perfect spot to check for that so:
+>>>
+>>> int page_mkclean(struct page *page)
+>>> {
+>>>     int cleaned =3D 0;
+>>> +   int real_mapcount =3D 0;
+>>>     struct address_space *mapping;
+>>>     struct rmap_walk_control rwc =3D {
+>>>         .arg =3D (void *)&cleaned,
+>>>         .rmap_one =3D page_mkclean_one,
+>>>         .invalid_vma =3D invalid_mkclean_vma,
+>>> +       .mapcount =3D &real_mapcount,
+>>>     };
+>>>
+>>>     BUG_ON(!PageLocked(page));
+>>>
+>>>     if (!page_mapped(page))
+>>>         return 0;
+>>>
+>>>     mapping =3D page_mapping(page);
+>>>     if (!mapping)
+>>>         return 0;
+>>>
+>>>     // rmap_walk need to change to count mapping and return value
+>>>     // in .mapcount easy one
+>>>     rmap_walk(page, &rwc);
+>>>
+>>>     // Big fat comment to explain what is going on
+>>> +   if ((page_mapcount(page) - real_mapcount) > 0) {
+>>> +       SetPageDMAPined(page);
+>>> +   } else {
+>>> +       ClearPageDMAPined(page);
+>>> +   }
+>>
+>> This is the detail I'm not sure about: Why cannot rmap_walk_file() race
+>> with e.g. zap_pte_range() which decrements page->_mapcount and thus the
+>> check we do in page_mkclean() is wrong?
+>>
+>=20
+> Ok so i found a solution for that. First GUP must wait for racing
+> write back. If GUP see a valid write-able PTE and the page has
+> write back flag set then it must back of as if the PTE was not
+> valid to force fault. It is just a race with page_mkclean and we
+> want ordering between the two. Note this is not strictly needed
+> so we can relax that but i believe this ordering is better to do
+> in GUP rather then having each single user of GUP test for this
+> to avoid the race.
+>=20
+> GUP increase mapcount only after checking that it is not racing
+> with writeback it also set a page flag (SetPageDMAPined(page)).
+>=20
+> When clearing a write-able pte we set a special entry inside the
+> page table (might need a new special swap type for this) and change
+> page_mkclean_one() to clear to 0 those special entry.
+>=20
+>=20
+> Now page_mkclean:
+>=20
+> int page_mkclean(struct page *page)
+> {
+>     int cleaned =3D 0;
+> +   int real_mapcount =3D 0;
+>     struct address_space *mapping;
+>     struct rmap_walk_control rwc =3D {
+>         .arg =3D (void *)&cleaned,
+>         .rmap_one =3D page_mkclean_one,
+>         .invalid_vma =3D invalid_mkclean_vma,
+> +       .mapcount =3D &real_mapcount,
+>     };
+> +   int mapcount1, mapcount2;
+>=20
+>     BUG_ON(!PageLocked(page));
+>=20
+>     if (!page_mapped(page))
+>         return 0;
+>=20
+>     mapping =3D page_mapping(page);
+>     if (!mapping)
+>         return 0;
+>=20
+> +   mapcount1 =3D page_mapcount(page);
+>=20
+>     // rmap_walk need to change to count mapping and return value
+>     // in .mapcount easy one
+>     rmap_walk(page, &rwc);
+>=20
+> +   if (PageDMAPined(page)) {
+> +       int rc2;
+> +
+> +       if (mapcount1 =3D=3D real_count) {
+> +           /* Page is no longer pin, no zap pte race */
+> +           ClearPageDMAPined(page);
+> +           goto out;
+> +       }
+> +       /* No new mapping of the page so mp1 < rc is illegal. */
+> +       VM_BUG_ON(mapcount1 < real_count);
+> +       /* Page might be pin. */
+> +       mapcount2 =3D page_mapcount(page);
+> +       if (mapcount2 > real_count) {
+> +           /* Page is pin for sure. */
+> +           goto out;
+> +       }
+> +       /* We had a race with zap pte we need to rewalk again. */
+> +       rc2 =3D real_mapcount;
+> +       real_mapcount =3D 0;
+> +       rwc.rmap_one =3D page_pin_one;
+> +       rmap_walk(page, &rwc);
+> +       if (mapcount2 <=3D (real_count + rc2)) {
+> +           /* Page is no longer pin */
+> +           ClearPageDMAPined(page);
+> +       }
+> +       /* At this point the page pin flag reflect pin status of the page=
+ */
 
-By accounting the ebt_table_info, the memory used for ebt_table_info can
-be contained within the memcg of the allocating process. However the
-lifetime of ebt_table_info is independent of the allocating process and
-is tied to the network namespace. So, the oom-killer will not be able to
-relieve the memory pressure due to ebt_table_info memory. The memory for
-ebt_table_info is allocated through vmalloc. Currently vmalloc does not
-handle the oom-killed allocating process correctly and one large
-allocation can bypass memcg limit enforcement. So, with this patch,
-at least the small allocations will be contained. For large allocations,
-we need to fix vmalloc.
+Until...what? In other words, what is providing synchronization here?
 
-Reported-by: syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
-Cc: Florian Westphal <fw@strlen.de>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Pablo Neira Ayuso <pablo@netfilter.org>
-Cc: Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
-Cc: Roopa Prabhu <roopa@cumulusnetworks.com>
-Cc: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>
-Cc: netfilter-devel@vger.kernel.org
-Cc: coreteam@netfilter.org
-Cc: bridge@lists.linux-foundation.org
-Cc: LKML <linux-kernel@vger.kernel.org>
----
-Changelog since v1:
-- More descriptive commit message.
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
- net/bridge/netfilter/ebtables.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/net/bridge/netfilter/ebtables.c b/net/bridge/netfilter/ebtables.c
-index 491828713e0b..5e55cef0cec3 100644
---- a/net/bridge/netfilter/ebtables.c
-+++ b/net/bridge/netfilter/ebtables.c
-@@ -1137,14 +1137,16 @@ static int do_replace(struct net *net, const void __user *user,
- 	tmp.name[sizeof(tmp.name) - 1] = 0;
- 
- 	countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
--	newinfo = vmalloc(sizeof(*newinfo) + countersize);
-+	newinfo = __vmalloc(sizeof(*newinfo) + countersize, GFP_KERNEL_ACCOUNT,
-+			    PAGE_KERNEL);
- 	if (!newinfo)
- 		return -ENOMEM;
- 
- 	if (countersize)
- 		memset(newinfo->counters, 0, countersize);
- 
--	newinfo->entries = vmalloc(tmp.entries_size);
-+	newinfo->entries = __vmalloc(tmp.entries_size, GFP_KERNEL_ACCOUNT,
-+				     PAGE_KERNEL);
- 	if (!newinfo->entries) {
- 		ret = -ENOMEM;
- 		goto free_newinfo;
--- 
-2.20.1.415.g653613c723-goog
+> +   }
+> +
+> +out:
+>     ...
+> }
+>=20
+> The page_pin_one() function count the number of special PTE entry so
+> which match the count of pte that have been zapped since the first
+> reverse map walk.
+>=20
+> So worst case a page that was pin by a GUP would need 2 reverse map
+> walk during page_mkclean(). Moreover this is only needed if we race
+> with something that clear pte. I believe this is an acceptable worst
+> case. I will work on some RFC patchset next week (once i am down with
+> email catch up).
+>=20
+>=20
+> I do not think i made mistake here, i have been torturing my mind
+> trying to think of any race scenario and i believe it holds to any
+> racing zap and page_mkclean()
+>=20
+> Cheers,
+> J=C3=A9r=C3=B4me
+>=20
 
