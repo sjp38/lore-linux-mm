@@ -1,90 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4540D8E0038
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 23:51:43 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id z126so2194209qka.10
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 20:51:43 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id n137si1179713qkn.1.2019.01.07.20.51.42
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9CC98E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 10:05:26 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id w1so41584049qta.12
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 07:05:26 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x1si3466347qkc.167.2019.01.03.07.05.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 20:51:42 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x084mr4R049098
-	for <linux-mm@kvack.org>; Mon, 7 Jan 2019 23:51:42 -0500
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pvk82n5qj-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 07 Jan 2019 23:51:41 -0500
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 8 Jan 2019 04:51:41 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V6 4/4] powerpc/mm/iommu: Allow large IOMMU page size only for hugetlb backing
-Date: Tue,  8 Jan 2019 10:21:10 +0530
-In-Reply-To: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
-References: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
+        Thu, 03 Jan 2019 07:05:25 -0800 (PST)
+Date: Thu, 3 Jan 2019 10:05:21 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] Initialise mmu_notifier_range correctly
+Message-ID: <20190103150521.GF3395@redhat.com>
+References: <20190103002126.GM6310@bombadil.infradead.org>
+ <20190103143116.GB3395@redhat.com>
+ <20190103144313.GR6310@bombadil.infradead.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-Message-Id: <20190108045110.28597-5-aneesh.kumar@linux.ibm.com>
+In-Reply-To: <20190103144313.GR6310@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-kernel@vger.kernel.org, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Jan Kara <jack@suse.cz>
 
-THP pages can get split during different code paths. An incremented reference
-count do imply we will not split the compound page. But the pmd entry can be
-converted to level 4 pte entries. Keep the code simpler by allowing large
-IOMMU page size only if the guest ram is backed by hugetlb pages.
+On Thu, Jan 03, 2019 at 06:43:13AM -0800, Matthew Wilcox wrote:
+> On Thu, Jan 03, 2019 at 09:31:16AM -0500, Jerome Glisse wrote:
+> > On Wed, Jan 02, 2019 at 04:21:26PM -0800, Matthew Wilcox wrote:
+> > > 
+> > > One of the paths in follow_pte_pmd() initialised the mmu_notifier_range
+> > > incorrectly.
+> > > 
+> > > Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> > > Fixes: ac46d4f3c432 ("mm/mmu_notifier: use structure for invalidate_range_start/end calls v2")
+> > > Tested-by: Dave Chinner <dchinner@redhat.com>
+> > 
+> > Actually now that i have read the code again this is not ok to
+> > do so. The caller of follow_pte_pmd() will call range_init and
+> > follow pmd will only update the range address. So existing code
+> > is ok.
+> 
+> I think you need to re-read your own patch.
+> 
+> `git show ac46d4f3c43241ffa23d5bf36153a0830c0e02cc`
+> 
+> @@ -4058,10 +4059,10 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
+>                 if (!pmdpp)
+>                         goto out;
+>  
+> -               if (start && end) {
+> -                       *start = address & PMD_MASK;
+> -                       *end = *start + PMD_SIZE;
+> -                       mmu_notifier_invalidate_range_start(mm, *start, *end);
+> +               if (range) {
+> +                       mmu_notifier_range_init(range, mm, address & PMD_MASK,
+> +                                            (address & PMD_MASK) + PMD_SIZE);
+> +                       mmu_notifier_invalidate_range_start(range);
+> 
+> ... so it's fine to call range_init() *here*.
+> 
+> @@ -4069,17 +4070,17 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsign
+> ed long address,
+> [...]
+>         if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+>                 goto out;
+>  
+> -       if (start && end) {
+> -               *start = address & PAGE_MASK;
+> -               *end = *start + PAGE_SIZE;
+> -               mmu_notifier_invalidate_range_start(mm, *start, *end);
+> +       if (range) {
+> +               range->start = address & PAGE_MASK;
+> +               range->end = range->start + PAGE_SIZE;
+> +               mmu_notifier_invalidate_range_start(range);
+> 
+> ... but then *not* here later in the same function?  You're not making
+> any sense.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- arch/powerpc/mm/mmu_context_iommu.c | 24 +++++++-----------------
- 1 file changed, 7 insertions(+), 17 deletions(-)
+Ok i see that the patch that add the reason why mmu notifier is
+call have been drop. So yes using range_init in follow_pte_pmd
+is fine. With that other patch the reasons is set by the caller
+of follow_pte_pmd and using range_init would have overwritten
+it.
 
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index 52ccab294b47..62c7590378d4 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -98,8 +98,6 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 	struct mm_iommu_table_group_mem_t *mem;
- 	long i, ret = 0, locked_entries = 0;
- 	unsigned int pageshift;
--	unsigned long flags;
--	unsigned long cur_ua;
- 
- 	mutex_lock(&mem_list_mutex);
- 
-@@ -167,22 +165,14 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 	for (i = 0; i < entries; ++i) {
- 		struct page *page = mem->hpages[i];
- 
--		cur_ua = ua + (i << PAGE_SHIFT);
--		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
--			pte_t *pte;
-+		/*
-+		 * Allow to use larger than 64k IOMMU pages. Only do that
-+		 * if we are backed by hugetlb.
-+		 */
-+		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page)) {
- 			struct page *head = compound_head(page);
--			unsigned int compshift = compound_order(head);
--			unsigned int pteshift;
--
--			local_irq_save(flags); /* disables as well */
--			pte = find_linux_pte(mm->pgd, cur_ua, NULL, &pteshift);
--
--			/* Double check it is still the same pinned page */
--			if (pte && pte_page(*pte) == head &&
--			    pteshift == compshift + PAGE_SHIFT)
--				pageshift = max_t(unsigned int, pteshift,
--						PAGE_SHIFT);
--			local_irq_restore(flags);
-+
-+			pageshift = compound_order(head) + PAGE_SHIFT;
- 		}
- 		mem->pageshift = min(mem->pageshift, pageshift);
- 		/*
--- 
-2.20.1
+So this patch is fine for current tree. Sorry i was thinking with
+the other patch included in mind.
+
+Cheers,
+J�r�me
