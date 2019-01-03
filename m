@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 814C78E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 12:07:08 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 74so32984395pfk.12
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 09:07:08 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id o195si13494927pfg.106.2019.01.02.09.07.06
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B785D8E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 13:45:30 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id 49so16328397wra.14
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 10:45:30 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k3sor28929112wre.42.2019.01.03.10.45.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 09:07:07 -0800 (PST)
-Subject: Re: INFO: rcu detected stall in ndisc_alloc_skb
-References: <0000000000007beca9057e4c8c14@google.com>
- <CACT4Y+Yx4BJw=F_PMx9a8AjPKzEwhzLnzt9K-dgkBoNkKQj2+g@mail.gmail.com>
- <ef2508c9-d069-2143-09a6-a90b9ef12568@I-love.SAKURA.ne.jp>
- <CACT4Y+YYwYDnqFmMwfSg6UNXnrbh46bo0jp7ijbej8nkDDmBXQ@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <eeb95c52-5bf8-d3ce-d32b-269aa86bcd93@i-love.sakura.ne.jp>
-Date: Thu, 3 Jan 2019 02:06:58 +0900
+        (Google Transport Security);
+        Thu, 03 Jan 2019 10:45:29 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v3 2/3] kasan: make tag based mode work with CONFIG_HARDENED_USERCOPY
+Date: Thu,  3 Jan 2019 19:45:20 +0100
+Message-Id: <7e756a298d514c4482f52aea6151db34818d395d.1546540962.git.andreyknvl@google.com>
+In-Reply-To: <cover.1546540962.git.andreyknvl@google.com>
+References: <cover.1546540962.git.andreyknvl@google.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+YYwYDnqFmMwfSg6UNXnrbh46bo0jp7ijbej8nkDDmBXQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: syzbot <syzbot+ea7d9cb314b4ab49a18a@syzkaller.appspotmail.com>, David Miller <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, LKML <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-On 2018/12/31 17:24, Dmitry Vyukov wrote:
->>> Since this involves OOMs and looks like a one-off induced memory corruption:
->>>
->>> #syz dup: kernel panic: corrupted stack end in wb_workfn
->>>
->>
->> Why?
->>
->> RCU stall in this case is likely to be latency caused by flooding of printk().
-> 
-> Just a hypothesis. OOMs lead to arbitrary memory corruptions, so can
-> cause stalls as well. But can be what you said too. I just thought
-> that cleaner dashboard is more useful than a large assorted pile of
-> crashes. If you think it's actionable in some way, feel free to undup.
-> 
+With CONFIG_HARDENED_USERCOPY enabled __check_heap_object() compares and
+then subtracts a potentially tagged pointer with a non-tagged address of
+the page that this pointer belongs to, which leads to unexpected behavior.
 
-We don't know why bpf tree is hitting this problem.
-Let's continue monitoring this problem.
+Untag the pointer in __check_heap_object() before doing any of these
+operations.
 
-#syz undup
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ mm/slub.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 36c0befeebd8..1e3d0ec4e200 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3846,6 +3846,8 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
+ 	unsigned int offset;
+ 	size_t object_size;
+ 
++	ptr = kasan_reset_tag(ptr);
++
+ 	/* Find object and usable object size. */
+ 	s = page->slab_cache;
+ 
+-- 
+2.20.1.415.g653613c723-goog
