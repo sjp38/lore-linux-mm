@@ -1,110 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 610F78E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 14:53:50 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id f2so43098331qtg.14
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 11:53:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k21sor46237762qvh.10.2019.01.03.11.53.49
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 988358E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 14:07:20 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id y35so34236525edb.5
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 11:07:20 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c20si455595edj.234.2019.01.03.11.07.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 Jan 2019 11:53:49 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jan 2019 11:07:19 -0800 (PST)
+Date: Thu, 3 Jan 2019 20:07:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH v3] mm/page_owner: fix for deferred struct page init
+Message-ID: <20190103190715.GZ31793@dhcp22.suse.cz>
 References: <20181220185031.43146-1-cai@lca.pw>
- <20181220203156.43441-1-cai@lca.pw> <20190103115114.GL31793@dhcp22.suse.cz>
+ <20181220203156.43441-1-cai@lca.pw>
+ <20190103115114.GL31793@dhcp22.suse.cz>
  <e3ff1455-06cc-063e-24f0-3b525c345b84@lca.pw>
  <20190103165927.GU31793@dhcp22.suse.cz>
  <5d8f3a98-a954-c8ab-83d9-2f94c614f268@lca.pw>
- <20190103190715.GZ31793@dhcp22.suse.cz>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <62e96e34-7ea9-491a-b5b6-4828da980d48@lca.pw>
-Date: Thu, 3 Jan 2019 14:53:47 -0500
 MIME-Version: 1.0
-In-Reply-To: <20190103190715.GZ31793@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5d8f3a98-a954-c8ab-83d9-2f94c614f268@lca.pw>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, Pavel.Tatashin@microsoft.com, mingo@kernel.org, mgorman@techsingularity.net, iamjoonsoo.kim@lge.com, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, Pavel.Tatashin@microsoft.com, mingo@kernel.org, hpa@zytor.com, mgorman@techsingularity.net, iamjoonsoo.kim@lge.com, yang.shi@linaro.org, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 1/3/19 2:07 PM, Michal Hocko wrote> So can we make the revert with an
-explanation that the patch was wrong?
-> If we want to make hacks to catch more objects to be tracked then it
-> would be great to have some numbers in hands.
+On Thu 03-01-19 12:38:59, Qian Cai wrote:
+> On 1/3/19 11:59 AM, Michal Hocko wrote:
+> >> As mentioned above, "If deselected DEFERRED_STRUCT_PAGE_INIT, it is still better
+> >> to call page_ext_init() earlier, so page owner could catch more early page
+> >> allocation call sites."
+> > 
+> > Do you have any numbers to show how many allocation are we losing that
+> > way? In other words, do we care enough to create an ugly code?
+> 
+> Well, I don't have any numbers, but I read that Joonsoo did not really like to
+> defer page_ext_init() unconditionally.
+> 
+> "because deferring page_ext_init() would make page owner which uses page_ext
+> miss some early page allocation callsites. Although it already miss some early
+> page allocation callsites, we don't need to miss more."
 
-Well, those numbers are subject to change depends on future start_kernel()
-order. Right now, there are many functions could be caught earlier by page owner.
+This is quite unspecific.
 
-	kmemleak_init();
-	debug_objects_mem_init();
-	setup_per_cpu_pageset();
-	numa_policy_init();
-	acpi_early_init();
-	if (late_time_init)
-		late_time_init();
-	sched_clock_init();
-	calibrate_delay();
-	pid_idr_init();
-	anon_vma_init();
-#ifdef CONFIG_X86
-	if (efi_enabled(EFI_RUNTIME_SERVICES))
-		efi_enter_virtual_mode();
-#endif
-	thread_stack_cache_init();
-	cred_init();
-	fork_init();
-	proc_caches_init();
-	uts_ns_init();
-	buffer_init();
-	key_init();
-	security_init();
-	dbg_late_init();
-	vfs_caches_init();
-	pagecache_init();
-	signals_init();
-	seq_file_init();
-	proc_root_init();
-	nsfs_init();
-	cpuset_init();
-	cgroup_init();
-	taskstats_init_early();
-	delayacct_init();
+> https://lore.kernel.org/lkml/20160524053714.GB32186@js1304-P5Q-DELUXE/
+> 
+> >>>> diff --git a/mm/page_ext.c b/mm/page_ext.c
+> >>>> index ae44f7adbe07..d76fd51e312a 100644
+> >>>> --- a/mm/page_ext.c
+> >>>> +++ b/mm/page_ext.c
+> >>>> @@ -399,9 +399,8 @@ void __init page_ext_init(void)
+> >>>>  			 * -------------pfn-------------->
+> >>>>  			 * N0 | N1 | N2 | N0 | N1 | N2|....
+> >>>>  			 *
+> >>>> -			 * Take into account DEFERRED_STRUCT_PAGE_INIT.
+> >>>>  			 */
+> >>>> -			if (early_pfn_to_nid(pfn) != nid)
+> >>>> +			if (pfn_to_nid(pfn) != nid)
+> >>>>  				continue;
+> >>>>  			if (init_section_page_ext(pfn, nid))
+> >>>>  				goto oom;
+> >>>
+> >>> Also this doesn't seem to be related, right?
+> >>
+> >> No, it is related. Because of this patch, page_ext_init() is called after all
+> >> the memory has already been initialized,
+> >> so no longer necessary to call early_pfn_to_nid().
+> > 
+> > Yes, but it looks like a follow up cleanup/optimization to me.
+> 
+> That early_pfn_to_nid() was introduced in fe53ca54270 (mm: use early_pfn_to_nid
+> in page_ext_init) which also messed up the order of page_ext_init() in
+> start_kernel(), so this patch basically revert that commit.
 
-	check_bugs();
-
-	acpi_subsystem_init();
-	arch_post_acpi_subsys_init();
-	sfi_init_late();
-
-	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
-		efi_free_boot_services();
-
-	rcu_scheduler_starting();
-	/*
-	 * Wait until kthreadd is all set-up.
-	 */
-	wait_for_completion(&kthreadd_done);
-
-	/* Now the scheduler is fully set up and can do blocking allocations */
-	gfp_allowed_mask = __GFP_BITS_MASK;
-
-	/*
-	 * init can allocate pages on any node
-	 */
-	set_mems_allowed(node_states[N_MEMORY]);
-
-	cad_pid = task_pid(current);
-
-	smp_prepare_cpus(setup_max_cpus);
-
-	workqueue_init();
-
-	init_mm_internals();
-
-	do_pre_smp_initcalls();
-	lockup_detector_init();
-
-	smp_init();
-	sched_init_smp();
+So can we make the revert with an explanation that the patch was wrong?
+If we want to make hacks to catch more objects to be tracked then it
+would be great to have some numbers in hands.
+-- 
+Michal Hocko
+SUSE Labs
