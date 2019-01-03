@@ -2,167 +2,141 @@ Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CAC2BC43387
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:56:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0C5BC43612
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:57:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 78FA82073F
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:56:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="O+as1x8B"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78FA82073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 8956C20856
+	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 01:57:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8956C20856
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2558F8E0055; Wed,  2 Jan 2019 20:56:53 -0500 (EST)
+	id 38DB08E0056; Wed,  2 Jan 2019 20:57:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2034D8E0002; Wed,  2 Jan 2019 20:56:53 -0500 (EST)
+	id 33B8C8E0002; Wed,  2 Jan 2019 20:57:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F3E88E0055; Wed,  2 Jan 2019 20:56:53 -0500 (EST)
+	id 22C958E0056; Wed,  2 Jan 2019 20:57:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DBC868E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 20:56:52 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id j13so22912884oii.8
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 17:56:52 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EE21F8E0002
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 20:56:59 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id a199so38230094qkb.23
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 17:56:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=1IEdvSxiiyqFy6UrKVLcrWtjX6CPPhzM2L/LFrcQXhk=;
-        b=tuGx9bmb85npZ4wsq4ey30FvoExOwHwGeRDN83jg7XbA/IhIQ158KAiRNmO10qeIYn
-         SC5sxWEiC06HHZwzSddkOVvKy4uJr5EaXl87P9li/CRPBVeNJ4L3+3IDjH25jo9vO8fw
-         /15pglCvDmES7qGkr9fJ9G4USemcQqa2T9SKkwZ1G6x99/MnmP7h6FHYoN3SyBb/zpgp
-         5kmW3gAd8lZDLPVm0xMxHNlh37hr4KaCRgKgNXCE5KEtMg+9Hnma9DZaNx01wg47k6sD
-         c2GWQHOU1FdMMODDNFd42oYpBJ53vCfrPISEkauweOqA5HSjEsz1BhDkWLnrhxgyEcFk
-         P8uQ==
-X-Gm-Message-State: AA+aEWa6Eqd74HK2YJXlVSmYdRFBXJP+LeycTp7OPHlBXC4ogFGC3Vkz
-	etvGTpW4b9xiDulnFkF5mj16Qm8ZzrYsdqm0mVrfExUcKm7MYEEeeMlbzJ9XQpjr+ZsbRYF1buE
-	9uudWHiRg2uBgPWN44TVHbrdQPMDjNC7RfAL5/Y5B6ZgDw1Oloid57prttBRwBlPKfMwZ2K7gdT
-	5VLphNbCFpI+nc3uakuBGe0HPy6Wz/yF1MdEZSDM3hdoHdOiXXrfbSYjQbD1082JmXgvf5nEX9z
-	BIknFvsicYUtFQrqmpUdDZsBjZXSq/LNSTmDuovE0qXfsIAyEvgOG9aiNsZfPktOP1Rg93OFeVu
-	fNoGC/ZoWgY4Gg3ihNSH5XAYMgNRu1snpuBm9z5kN4dDBsmQIjvRocSxTNhxNlb5DlimbFtTR12
-	/
-X-Received: by 2002:aca:ef0b:: with SMTP id n11mr29932949oih.116.1546480612620;
-        Wed, 02 Jan 2019 17:56:52 -0800 (PST)
-X-Received: by 2002:aca:ef0b:: with SMTP id n11mr29932934oih.116.1546480611945;
-        Wed, 02 Jan 2019 17:56:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546480611; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=auLAF9ATH++WQpXqvP5fuSf93rvZcX7YLus5DiU7jqc=;
+        b=iiQkVNSEFA1VwLU6RjAdUx49pUv7O0hXGqlh6F/rpSCTevBaCaAZG4s+d4L4BBn3oM
+         TAgWeTtPHjsFzgSWn4dtL0+femZBhbCHuPWksAmbeZdowVRNZswKR4rrNP9t+Azch2J5
+         Kv1IHD9nKHDyUq5fqdyeKmRpz/9y14YTnPpQpZz8iYBimhbY4Or7pQW6mi3arpFXDurf
+         0Mby3tgXjfQhyGBYJRyBTju1uGxUKRJWDxE9nJSvx/f5UjCJJyOCLrbGb0PpX+JC1dpT
+         bGfloMVscf6Vnjghun3z3v45mTz5I0WAY32ZxDjcKAbFTG0lSXtspaVplIaAMpOH62zG
+         FFmQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukf8w+Hb66ZwTf/rkgC4YpnEaGkDAWphozzL2eE1VW7Bmi3YGR2W
+	SKnEOkjWYMG6ixlp32++2Gt/4+Txr8hqyhdgP43joizVj7FxDz5Y9SvcrBREoE3EniWwOG43Wgs
+	nFpdMBqZYOsk87JY7EhlyDxTNKNN3wGBzpHICJZ/WFsUvufINpDmb62ssOYpdqb1teA==
+X-Received: by 2002:a0c:96b5:: with SMTP id a50mr44696401qvd.33.1546480619776;
+        Wed, 02 Jan 2019 17:56:59 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6NyGj6VAaviVgaSFGFKYrHJoOagT70BiQiSMyYn0Z2i7atZNlDyZzY3fuODNn+wolg56cL
+X-Received: by 2002:a0c:96b5:: with SMTP id a50mr44696383qvd.33.1546480619343;
+        Wed, 02 Jan 2019 17:56:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546480619; cv=none;
         d=google.com; s=arc-20160816;
-        b=EWLjcfl/1J+XCT8WTHlICzP5KH7mKe06hL9jKPJBHpDCZODmHbVsdpJ9XEtVrTQaKt
-         AFsMrBIO7EjHY7NIjc/62mntO8KzSOEBqfjv29zRqyA6jpC4K0j7kdFw59FetncKefWn
-         bQi5FkyW5fUR4OuxDIWpSZgFf8IgrnqBGl1it+ucJl31pv9FCLtaUS1KYEqQ1uQBB600
-         OBUk6QTp6JD1dFiEk56z1gQVD/Smt+cAYjMnoaxv52rGrKXLaOYfrxmR3KBDW/cpW4aZ
-         xcckyc0nwdKpjhvn3w/QASb3n4P/K1yvsn8gmsvkMG7jknTRYjiFet3rfDn2kndbrq8q
-         boLQ==
+        b=hfVYpefh9uzbqHYG4jIbLUFKSjmukQcNUWUjYA7fTV3qPY12EKY9o12P3gsFKtTtLs
+         u4QQeQ7yZmkVlf7p+oed0unTi07/nRcfw95XiVdYuqpOxFZOOxUdLMdFJKMrOS84tE/E
+         T7qHhw/hVmaZHrfxJ5UU3f5afe9HK674yOcdspZYdzHKeiOR9qrZkT+b6a09lp3oXikM
+         t8XK+qfg/16eKhNbbxG+dvEcUCiyNpLxLyjNCz0hNFOb7M+zIq/R1C7ZmORS0AEYJL//
+         qS1E09Vftov0Q9ObfdKoJYzKxGx5IvSN258U4J0e7YgxwEUdDQWXJxXSaTE2KBNRRZYC
+         /caA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=1IEdvSxiiyqFy6UrKVLcrWtjX6CPPhzM2L/LFrcQXhk=;
-        b=uYz8zapamWvrUznmpKzpGrOjR7fhO8EzpPnciYaU0qZKP771czDDNC4WLHvKiEK7Vm
-         J7YR8TJ23lD6TVp2mh2izdgBTqmdaKJqGNqKNag/ut0OnnPmqiJZEl41HfeWQGvsX0j/
-         PbLi8HzPw7mIs1HfVsmKDizl7oz+4va9IBk7rF/YcY3xXfrTi7tLSQ8j7+IR33lApU9L
-         5jOpb2BkJdoTCuHNE/YHvnpsnlsn4/AFLEzx5xUE/8w1DCYWP4IFZDn9YfrUqUVWMi6Z
-         kWDiMtVSxa7M/+05s7kLsH74IU7PR9oGqPJ6V7/YBo9tzqgD1G8c3gCS10DQMt+eO0u+
-         bZDw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=auLAF9ATH++WQpXqvP5fuSf93rvZcX7YLus5DiU7jqc=;
+        b=mc6J7T9clEgj8aFU33xohi21OAJtjDhA2NgHGI7wAfpV0pw6eusefspfnrvJqfwrfv
+         +C3gz9TXDYi9pZUekZV4myKXLr9VcqkN378T4QLIUmdqT54JUlSp2kw9As9x5+5t3j8B
+         uiJRMw8owXx1DaqcitQHm8WfxxY4G4rPQKJF1N/I4qp06JIWQimHCTCOeuMjDE5BGUmz
+         ya+rZdWmxviHZvByz1EcOvVdNVgvYrxXIjHqQGmje1LI9qp+UaUuzxpGPpPTKy329k9X
+         InuBPQNDpKzCtihHBn0SzB2SZTpNam23Y+aJKoHPGyDA0dgs7d5UTpJ/9i1KW71G6EUv
+         qwnA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=O+as1x8B;
-       spf=pass (google.com: domain of 342stxagkcfgi70a44b16ee6b4.2ecb8dkn-ccal02a.eh6@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=342stXAgKCFgI70A44B16EE6B4.2ECB8DKN-CCAL02A.EH6@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id x2sor28012424ota.72.2019.01.02.17.56.51
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s12si4626114qtn.255.2019.01.02.17.56.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 17:56:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of 342stxagkcfgi70a44b16ee6b4.2ecb8dkn-ccal02a.eh6@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Jan 2019 17:56:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=O+as1x8B;
-       spf=pass (google.com: domain of 342stxagkcfgi70a44b16ee6b4.2ecb8dkn-ccal02a.eh6@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=342stXAgKCFgI70A44B16EE6B4.2ECB8DKN-CCAL02A.EH6@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=1IEdvSxiiyqFy6UrKVLcrWtjX6CPPhzM2L/LFrcQXhk=;
-        b=O+as1x8BbL64S+CFz8r+7ZJq91aRp0KbfX1lcq5FkGxOGbsxhQ/zxsFmi1Vy0Kb5a/
-         pJTBwBiURN4IGInYblKKXGfNVjIv4kEhu+kWwCP2Jg244NAdsqt60xBSklLEp9SYFr4R
-         XdCHOT9vtQWN03lKDw0YI5Fz8Rf10w7b2rmdLTc9IMOaMxtwMZW9ckjBFAo5TAU8wt+X
-         4rysTKaL+ue20yJQZUSBvY1yRsWOLVyzNwde48PuQT/YG/Dhf4F0Sid4n+Pa7c5kYf1j
-         qqthVXOSIztPgmDX3ULfduwZkMJxp1KYbknVGEBC315bSoc+XPy4dsrTeU7FDQe82/P3
-         hW0A==
-X-Google-Smtp-Source: ALg8bN7jWozz13OWzQ+A70JtrRj6cJutBJTH/Gxv95lL+kAkhPL0oDZrRFq/MSfDf+Hs9Q3mRcp4KIw+BwcCqg==
-X-Received: by 2002:a9d:ba8:: with SMTP id 37mr34172518oth.31.1546480611663;
- Wed, 02 Jan 2019 17:56:51 -0800 (PST)
-Date: Wed,  2 Jan 2019 17:56:38 -0800
-Message-Id: <20190103015638.205424-1-shakeelb@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.20.1.415.g653613c723-goog
-Subject: [PATCH] memcg: schedule high reclaim for remote memcgs on high_work
-From: Shakeel Butt <shakeelb@google.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8E29DC0669B0;
+	Thu,  3 Jan 2019 01:56:58 +0000 (UTC)
+Received: from redhat.com (ovpn-123-62.rdu2.redhat.com [10.10.123.62])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 3C1595D9C9;
+	Thu,  3 Jan 2019 01:56:57 +0000 (UTC)
+Date: Wed, 2 Jan 2019 20:56:55 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-xfs@vger.kernel.org, linux-kernel@vger.kernel.org,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] Initialise mmu_notifier_range correctly
+Message-ID: <20190103015654.GB15619@redhat.com>
+References: <20190103002126.GM6310@bombadil.infradead.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190103002126.GM6310@bombadil.infradead.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 03 Jan 2019 01:56:58 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103015638.AR95q1u-KY5dviJXWX-7u5pu-ud09t7SXDXOFaChI0A@z>
+Message-ID: <20190103015655.k3qZ9AdWacsU6OBnxPA3Spqn8t9BSMdJX_c8sUwyg10@z>
 
-If a memcg is over high limit, memory reclaim is scheduled to run on
-return-to-userland. However it is assumed that the memcg is the current
-process's memcg. With remote memcg charging for kmem or swapping in a
-page charged to remote memcg, current process can trigger reclaim on
-remote memcg. So, schduling reclaim on return-to-userland for remote
-memcgs will ignore the high reclaim altogether. So, punt the high
-reclaim of remote memcgs to high_work.
+On Wed, Jan 02, 2019 at 04:21:26PM -0800, Matthew Wilcox wrote:
+> 
+> One of the paths in follow_pte_pmd() initialised the mmu_notifier_range
+> incorrectly.
+> 
+> Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> Fixes: ac46d4f3c432 ("mm/mmu_notifier: use structure for invalidate_range_start/end calls v2")
+> Tested-by: Dave Chinner <dchinner@redhat.com>
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- mm/memcontrol.c | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e9db1160ccbc..47439c84667a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2302,19 +2302,23 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * reclaim on returning to userland.  We can perform reclaim here
- 	 * if __GFP_RECLAIM but let's always punt for simplicity and so that
- 	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
--	 * not recorded as it most likely matches current's and won't
--	 * change in the meantime.  As high limit is checked again before
--	 * reclaim, the cost of mismatch is negligible.
-+	 * not recorded as the return-to-userland high reclaim will only reclaim
-+	 * from current's memcg (or its ancestor). For other memcgs we punt them
-+	 * to work queue.
- 	 */
- 	do {
- 		if (page_counter_read(&memcg->memory) > memcg->high) {
--			/* Don't bother a random interrupted task */
--			if (in_interrupt()) {
-+			/*
-+			 * Don't bother a random interrupted task or if the
-+			 * memcg is not current's memcg's ancestor.
-+			 */
-+			if (in_interrupt() ||
-+			    !mm_match_cgroup(current->mm, memcg)) {
- 				schedule_work(&memcg->high_work);
--				break;
-+			} else {
-+				current->memcg_nr_pages_over_high += batch;
-+				set_notify_resume(current);
- 			}
--			current->memcg_nr_pages_over_high += batch;
--			set_notify_resume(current);
- 			break;
- 		}
- 	} while ((memcg = parent_mem_cgroup(memcg)));
--- 
-2.20.1.415.g653613c723-goog
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 2dd2f9ab57f4..21a650368be0 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -4078,8 +4078,8 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
+>  		goto out;
+>  
+>  	if (range) {
+> -		range->start = address & PAGE_MASK;
+> -		range->end = range->start + PAGE_SIZE;
+> +		mmu_notifier_range_init(range, mm, address & PAGE_MASK,
+> +				     (address & PAGE_MASK) + PAGE_SIZE);
+>  		mmu_notifier_invalidate_range_start(range);
+>  	}
+>  	ptep = pte_offset_map_lock(mm, pmd, address, ptlp);
 
