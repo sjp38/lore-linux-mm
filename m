@@ -1,34 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 135778E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 14:30:16 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id w1so42249724qta.12
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 11:30:16 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v17si8339498qvi.56.2019.01.03.11.30.15
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 62F168E0002
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 14:19:29 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id r9so35434481pfb.13
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 11:19:29 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u131si53071928pgc.287.2019.01.03.11.19.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jan 2019 11:30:15 -0800 (PST)
-Date: Thu, 3 Jan 2019 14:30:10 -0500
-From: Jerome Glisse <jglisse@redhat.com>
+        Thu, 03 Jan 2019 11:19:28 -0800 (PST)
+Date: Thu, 3 Jan 2019 11:19:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [BUG, TOT] xfs w/ dax failure in __follow_pte_pmd()
-Message-ID: <20190103193009.GG3395@redhat.com>
-References: <20190102211332.GL4205@dastard>
- <20190102212531.GK6310@bombadil.infradead.org>
- <20190102225005.GL6310@bombadil.infradead.org>
- <20190103000354.GM4205@dastard>
- <CAPcyv4jTWyYLEn+NcmVObscB9hArdsfxNL0YSMrHi_QDCOEkfQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+Message-Id: <20190103111926.c752fe5a273b7c31b9088f1b@linux-foundation.org>
 In-Reply-To: <CAPcyv4jTWyYLEn+NcmVObscB9hArdsfxNL0YSMrHi_QDCOEkfQ@mail.gmail.com>
+References: <20190102211332.GL4205@dastard>
+	<20190102212531.GK6310@bombadil.infradead.org>
+	<20190102225005.GL6310@bombadil.infradead.org>
+	<20190103000354.GM4205@dastard>
+	<CAPcyv4jTWyYLEn+NcmVObscB9hArdsfxNL0YSMrHi_QDCOEkfQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Christian =?ISO-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Jan Kara <jack@suse.cz>
 
-On Thu, Jan 03, 2019 at 11:11:49AM -0800, Dan Williams wrote:
+On Thu, 3 Jan 2019 11:11:49 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+
 > On Wed, Jan 2, 2019 at 4:04 PM Dave Chinner <david@fromorbit.com> wrote:
 > >
 > > On Wed, Jan 02, 2019 at 02:50:05PM -0800, Matthew Wilcox wrote:
@@ -75,9 +75,10 @@ On Thu, Jan 03, 2019 at 11:11:49AM -0800, Dan Williams wrote:
 > 
 > [1]: https://www.spinics.net/lists/linux-fsdevel/msg137309.html
 
-I tested it but with the patch that was not included and that
-extra patch did properly initialize the range struct. So the
-patchset had a broken step.
+You objected to "mm/mmu_notifier: contextual information for event
+triggering invalidation" and, agreeing, I have held that back pending
+further examination.
 
-Cheers,
-J�r�me
+The culprit here appears to be ac46d4f3c ("mm/mmu_notifier: use
+structure for invalidate_range_start/end calls") which seems to have a
+bug, which appears to now have a fix?
