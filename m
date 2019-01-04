@@ -1,90 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F2E418E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 12:03:06 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id w15so11636708ita.1
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 09:03:06 -0800 (PST)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id 68sor29915072itu.24.2019.01.10.09.03.05
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C198E00F9
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 18:06:45 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id t10so28023137plo.13
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 15:06:45 -0800 (PST)
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id g8si9201452pgb.128.2019.01.04.15.06.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 10 Jan 2019 09:03:05 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jan 2019 15:06:44 -0800 (PST)
+Subject: Re: [RFC PATCH 0/3] mm: memcontrol: delayed force empty
+From: Yang Shi <yang.shi@linux.alibaba.com>
+References: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190103101215.GH31793@dhcp22.suse.cz>
+ <b3ad06ed-f620-7aa0-5697-a1bbe2d7bfe1@linux.alibaba.com>
+ <20190103181329.GW31793@dhcp22.suse.cz>
+ <6f43e926-3bb5-20d1-2e39-1d30bf7ad375@linux.alibaba.com>
+ <20190103185333.GX31793@dhcp22.suse.cz>
+ <d610c665-890f-3bf0-1e2a-437150b6ddfb@linux.alibaba.com>
+ <20190103192339.GA31793@dhcp22.suse.cz>
+ <88b4d986-0b3c-cbf0-65ad-95f3e8ccd870@linux.alibaba.com>
+ <xr93y380xk9k.fsf@gthelen.svl.corp.google.com>
+ <5d9579aa-cfdc-8254-bfd9-63c4e1bfa4c5@linux.alibaba.com>
+Message-ID: <d70b1132-519d-1e51-698a-3937ccdb6a0b@linux.alibaba.com>
+Date: Fri, 4 Jan 2019 15:04:16 -0800
 MIME-Version: 1.0
-Date: Thu, 10 Jan 2019 09:03:04 -0800
-Message-ID: <000000000000491844057f1d8d2f@google.com>
-Subject: KASAN: null-ptr-deref Read in reclaim_high
-From: syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <5d9579aa-cfdc-8254-bfd9-63c4e1bfa4c5@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
-
-Hello,
-
-syzbot found the following crash on:
-
-HEAD commit:    6cab33afc3dd Add linux-next specific files for 20190110
-git tree:       linux-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=178b287b400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=611f89e5b6868db
-dashboard link: https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14259017400000
-C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=141630a0c00000
-
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com
-
-==================================================================
-BUG: KASAN: null-ptr-deref in atomic64_read  
-include/generated/atomic-instrumented.h:836 [inline]
-BUG: KASAN: null-ptr-deref in atomic_long_read  
-include/generated/atomic-long.h:28 [inline]
-BUG: KASAN: null-ptr-deref in page_counter_read  
-include/linux/page_counter.h:47 [inline]
-BUG: KASAN: null-ptr-deref in reclaim_high.constprop.0+0xa6/0x1e0  
-mm/memcontrol.c:2149
-Read of size 8 at addr 0000000000000138 by task syz-executor037/7964
-
-CPU: 1 PID: 7964 Comm: syz-executor037 Not tainted 5.0.0-rc1-next-20190110  
-#9
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1db/0x2d0 lib/dump_stack.c:113
-  kasan_report.cold+0x5/0x40 mm/kasan/report.c:321
-  check_memory_region_inline mm/kasan/generic.c:185 [inline]
-  check_memory_region+0x123/0x190 mm/kasan/generic.c:191
-  kasan_check_read+0x11/0x20 mm/kasan/common.c:100
-  atomic64_read include/generated/atomic-instrumented.h:836 [inline]
-  atomic_long_read include/generated/atomic-long.h:28 [inline]
-  page_counter_read include/linux/page_counter.h:47 [inline]
-  reclaim_high.constprop.0+0xa6/0x1e0 mm/memcontrol.c:2149
-  mem_cgroup_handle_over_high+0xc1/0x180 mm/memcontrol.c:2178
-  tracehook_notify_resume include/linux/tracehook.h:190 [inline]
-  exit_to_usermode_loop+0x299/0x3b0 arch/x86/entry/common.c:166
-  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
-  syscall_return_slowpath+0x519/0x5f0 arch/x86/entry/common.c:268
-  ret_from_fork+0x15/0x50 arch/x86/entry/entry_64.S:344
-RIP: 0033:0x44034a
-Code: Bad RIP value.
-RSP: 002b:00007ffc31cd3040 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-RAX: 0000000000000000 RBX: 0000000000000000 RCX: 000000000044034a
-RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000001200011
-RBP: 00007ffc31cd3060 R08: 0000000000000001 R09: 0000000002027880
-R10: 0000000002027b50 R11: 0000000000000246 R12: 0000000000000001
-R13: 000000000000cc59 R14: 0000000000000000 R15: 0000000000000000
-==================================================================
+To: Greg Thelen <gthelen@google.com>, Michal Hocko <mhocko@kernel.org>
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
-syzbot can test patches for this bug, for details see:
-https://goo.gl/tpsmEJ#testing-patches
+On 1/4/19 2:57 PM, Yang Shi wrote:
+>
+>
+> On 1/4/19 12:03 PM, Greg Thelen wrote:
+>> Yang Shi <yang.shi@linux.alibaba.com> wrote:
+>>
+>>> On 1/3/19 11:23 AM, Michal Hocko wrote:
+>>>> On Thu 03-01-19 11:10:00, Yang Shi wrote:
+>>>>> On 1/3/19 10:53 AM, Michal Hocko wrote:
+>>>>>> On Thu 03-01-19 10:40:54, Yang Shi wrote:
+>>>>>>> On 1/3/19 10:13 AM, Michal Hocko wrote:
+>>>> [...]
+>>>>>>>> Is there any reason for your scripts to be strictly sequential 
+>>>>>>>> here? In
+>>>>>>>> other words why cannot you offload those expensive operations to a
+>>>>>>>> detached context in _userspace_?
+>>>>>>> I would say it has not to be strictly sequential. The above 
+>>>>>>> script is just
+>>>>>>> an example to illustrate the pattern. But, sometimes it may hit 
+>>>>>>> such pattern
+>>>>>>> due to the complicated cluster scheduling and container 
+>>>>>>> scheduling in the
+>>>>>>> production environment, for example the creation process might 
+>>>>>>> be scheduled
+>>>>>>> to the same CPU which is doing force_empty. I have to say I 
+>>>>>>> don't know too
+>>>>>>> much about the internals of the container scheduling.
+>>>>>> In that case I do not see a strong reason to implement the offloding
+>>>>>> into the kernel. It is an additional code and semantic to maintain.
+>>>>> Yes, it does introduce some additional code and semantic, but 
+>>>>> IMHO, it is
+>>>>> quite simple and very straight forward, isn't it? Just utilize the 
+>>>>> existing
+>>>>> css offline worker. And, that a couple of lines of code do improve 
+>>>>> some
+>>>>> throughput issues for some real usecases.
+>>>> I do not really care it is few LOC. It is more important that it is
+>>>> conflating force_empty into offlining logic. There was a good 
+>>>> reason to
+>>>> remove reparenting/emptying the memcg during the offline. Considering
+>>>> that you can offload force_empty from userspace trivially then I do 
+>>>> not
+>>>> see any reason to implement it in the kernel.
+>>> Er, I may not articulate in the earlier email, force_empty can not be
+>>> offloaded from userspace *trivially*. IOWs the container scheduler may
+>>> unexpectedly overcommit something due to the stall of synchronous force
+>>> empty, which can't be figured out by userspace before it actually
+>>> happens. The scheduler doesn't know how long force_empty would take. If
+>>> the force_empty could be offloaded by kernel, it would make scheduler's
+>>> life much easier. This is not something userspace could do.
+>> If kernel workqueues are doing more work (i.e. force_empty processing),
+>> then it seem like the time to offline could grow.  I'm not sure if
+>> that's important.
+>
+> One thing I can think of is this may slow down the recycling of memcg 
+> id. This may cause memcg id exhausted for some extreme workload. But, 
+> I don't see this as a problem in our workload.
+
+Actually, sync force_empty should have the same side effect.
+
+Yang
+
+>
+> Thanks,
+> Yang
+>
+>>
+>> I assume that if we make force_empty an async side effect of rmdir then
+>> user space scheduler would not be unable to immediately assume the
+>> rmdir'd container memory is available without subjecting a new container
+>> to direct reclaim.  So it seems like user space would use a mechanism to
+>> wait for reclaim: either the existing sync force_empty or polling
+>> meminfo/etc waiting for free memory to appear.
+>>
+>>>>>> I think it is more important to discuss whether we want to introduce
+>>>>>> force_empty in cgroup v2.
+>>>>> We would prefer have it in v2 as well.
+>>>> Then bring this up in a separate email thread please.
+>>> Sure. Will prepare the patches later.
+>>>
+>>> Thanks,
+>>> Yang
+>
