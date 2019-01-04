@@ -1,103 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D2D9D8E00A2
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:40:42 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id c34so3114657edb.8
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:40:42 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d8-v6si1445005ejm.81.2019.01.09.08.40.37
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7428E00FA
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:49:52 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id f125so30907066pgc.20
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 09:49:52 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id o32si17404229pld.407.2019.01.04.09.49.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 08:40:37 -0800 (PST)
-From: Roman Penyaev <rpenyaev@suse.de>
-Subject: [RFC PATCH 01/15] mm/vmalloc: add new 'alignment' field for vm_struct structure
-Date: Wed,  9 Jan 2019 17:40:11 +0100
-Message-Id: <20190109164025.24554-2-rpenyaev@suse.de>
-In-Reply-To: <20190109164025.24554-1-rpenyaev@suse.de>
-References: <20190109164025.24554-1-rpenyaev@suse.de>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Fri, 04 Jan 2019 09:49:51 -0800 (PST)
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Subject: [PATCH 1/5] x86/mpx: remove MPX APIs
+Date: Fri,  4 Jan 2019 09:49:39 -0800
+Message-Id: <1546624183-26543-2-git-send-email-dave.hansen@linux.intel.com>
+In-Reply-To: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
+References: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Roman Penyaev <rpenyaev@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Joe Perches <joe@perches.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: dave.hansen@intel.com
+Cc: x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-I need a new alignment field for vm area in order to reallocate
-previously allocated area with the same alignment.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Patch for a new vrealloc() call will follow and this new call
-I want to keep as simple as possible, thus not to provide dozens
-of variants, like vrealloc_user(), which cares about alignment.
+MPX is being removed from the kernel due to a lack of support
+in the toolchain going forward (gcc).
 
-Current changes are just preparations.
+The first thing we need to do is remove the userspace-visible
+ABIs so that applications will stop using it.  The most visible
+one are the enable/disable prctl()s.  Remove them first.
 
-Worth to mention, that on archs were unsigned long is 64 bit
-this new field does not bloat vm_struct, because originally
-there was a padding between nr_pages and phys_addr.
+This is the most minimal and least invasive patch needed to
+start removing MPX.
 
-Signed-off-by: Roman Penyaev <rpenyaev@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Joe Perches <joe@perches.com>
-Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- include/linux/vmalloc.h |  1 +
- mm/vmalloc.c            | 10 ++++++----
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ include/uapi/linux/prctl.h |  2 +-
+ kernel/sys.c               | 16 ++--------------
+ 2 files changed, 3 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 398e9c95cd61..78210aa0bb43 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -38,6 +38,7 @@ struct vm_struct {
- 	unsigned long		flags;
- 	struct page		**pages;
- 	unsigned int		nr_pages;
-+	unsigned int		alignment;
- 	phys_addr_t		phys_addr;
- 	const void		*caller;
- };
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index e83961767dc1..4851b4a67f55 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1347,12 +1347,14 @@ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page **pages)
- EXPORT_SYMBOL_GPL(map_vm_area);
+diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
+index b4875a9..78fcee3 100644
+--- a/include/uapi/linux/prctl.h
++++ b/include/uapi/linux/prctl.h
+@@ -181,7 +181,7 @@ struct prctl_mm_map {
+ #define PR_GET_THP_DISABLE	42
  
- static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
--			      unsigned long flags, const void *caller)
-+			     unsigned int align, unsigned long flags,
-+			     const void *caller)
- {
- 	spin_lock(&vmap_area_lock);
- 	vm->flags = flags;
- 	vm->addr = (void *)va->va_start;
- 	vm->size = va->va_end - va->va_start;
-+	vm->alignment = align;
- 	vm->caller = caller;
- 	va->vm = vm;
- 	va->flags |= VM_VM_AREA;
-@@ -1399,7 +1401,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
- 		return NULL;
- 	}
- 
--	setup_vmalloc_vm(area, va, flags, caller);
-+	setup_vmalloc_vm(area, va, align, flags, caller);
- 
- 	return area;
- }
-@@ -2601,8 +2603,8 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 
- 	/* insert all vm's */
- 	for (area = 0; area < nr_vms; area++)
--		setup_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
--				 pcpu_get_vm_areas);
-+		setup_vmalloc_vm(vms[area], vas[area], align,
-+				 VM_ALLOC, pcpu_get_vm_areas);
- 
- 	kfree(vas);
- 	return vms;
+ /*
+- * Tell the kernel to start/stop helping userspace manage bounds tables.
++ * No longer implemented, but left here to ensure the numbers stay reserved:
+  */
+ #define PR_MPX_ENABLE_MANAGEMENT  43
+ #define PR_MPX_DISABLE_MANAGEMENT 44
+diff --git a/kernel/sys.c b/kernel/sys.c
+index a48cbf1..5fd7991 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -103,12 +103,6 @@
+ #ifndef SET_TSC_CTL
+ # define SET_TSC_CTL(a)		(-EINVAL)
+ #endif
+-#ifndef MPX_ENABLE_MANAGEMENT
+-# define MPX_ENABLE_MANAGEMENT()	(-EINVAL)
+-#endif
+-#ifndef MPX_DISABLE_MANAGEMENT
+-# define MPX_DISABLE_MANAGEMENT()	(-EINVAL)
+-#endif
+ #ifndef GET_FP_MODE
+ # define GET_FP_MODE(a)		(-EINVAL)
+ #endif
+@@ -2448,15 +2442,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 		up_write(&me->mm->mmap_sem);
+ 		break;
+ 	case PR_MPX_ENABLE_MANAGEMENT:
+-		if (arg2 || arg3 || arg4 || arg5)
+-			return -EINVAL;
+-		error = MPX_ENABLE_MANAGEMENT();
+-		break;
+ 	case PR_MPX_DISABLE_MANAGEMENT:
+-		if (arg2 || arg3 || arg4 || arg5)
+-			return -EINVAL;
+-		error = MPX_DISABLE_MANAGEMENT();
+-		break;
++		/* No longer implemented: */
++		return -EINVAL;
+ 	case PR_SET_FP_MODE:
+ 		error = SET_FP_MODE(me, arg2);
+ 		break;
 -- 
-2.19.1
+2.7.4
