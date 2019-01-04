@@ -1,126 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A97778E00F9
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 14:36:40 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id z6so45516105qtj.21
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 11:36:40 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2448E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 05:35:43 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id d18so36874335pfe.0
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 02:35:43 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b184sor26958788qke.10.2019.01.04.11.36.39
+        by mx.google.com with SMTPS id h66sor26059132plb.46.2019.01.04.02.35.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 04 Jan 2019 11:36:39 -0800 (PST)
-MIME-Version: 1.0
-References: <15614FDC-198E-449B-BFAF-B00D6EF61155@bytedance.com>
- <97A4C2CA-97BA-46DB-964A-E44410BB1730@bytedance.com> <CAHbLzkouWtCQ3OVEK1FaJoG5ZbSkzsqmcAqmsb-TbuaO2myccQ@mail.gmail.com>
- <ADF3C74C-BE96-495F-911F-77DDF3368912@bytedance.com>
-In-Reply-To: <ADF3C74C-BE96-495F-911F-77DDF3368912@bytedance.com>
-From: Yang Shi <shy828301@gmail.com>
-Date: Fri, 4 Jan 2019 11:36:27 -0800
-Message-ID: <CAHbLzkpbVjtx+uxb1sq-wjBAAv_My6kq4c4bwqRKAmOTZ9dR8g@mail.gmail.com>
+        Fri, 04 Jan 2019 02:35:42 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
 Subject: Re: memory cgroup pagecache and inode problem
-Content-Type: text/plain; charset="UTF-8"
+From: Fam Zheng <zhengfeiran@bytedance.com>
+In-Reply-To: <20190104101216.GM31793@dhcp22.suse.cz>
+Date: Fri, 4 Jan 2019 18:35:35 +0800
 Content-Transfer-Encoding: quoted-printable
+Message-Id: <6EBEAC88-6309-4D8F-97CA-78DC1C9AF3AC@bytedance.com>
+References: <15614FDC-198E-449B-BFAF-B00D6EF61155@bytedance.com>
+ <20190104090441.GI31793@dhcp22.suse.cz>
+ <E699E11E-32B9-4061-93BD-54FE52F972BA@bytedance.com>
+ <20190104101216.GM31793@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fam Zheng <zhengfeiran@bytedance.com>
-Cc: cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>, tj@kernel.org, Johannes Weiner <hannes@cmpxchg.org>, lizefan@huawei.com, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, duanxiongchun@bytedance.com, =?UTF-8?B?5byg5rC46IKD?= <zhangyongsu@bytedance.com>, liuxiaozhou@bytedance.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Fam Zheng <zhengfeiran@bytedance.com>, cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>, tj@kernel.org, Johannes Weiner <hannes@cmpxchg.org>, lizefan@huawei.com, Vladimir Davydov <vdavydov.dev@gmail.com>, duanxiongchun@bytedance.com, =?utf-8?B?5byg5rC46IKD?= <zhangyongsu@bytedance.com>
 
-On Thu, Jan 3, 2019 at 9:12 PM Fam Zheng <zhengfeiran@bytedance.com> wrote:
->
->
->
-> On Jan 4, 2019, at 13:00, Yang Shi <shy828301@gmail.com> wrote:
->
-> On Thu, Jan 3, 2019 at 8:45 PM Fam Zheng <zhengfeiran@bytedance.com> wrot=
-e:
->
->
-> Fixing the mm list address. Sorry for the noise.
->
-> Fam
->
->
-> On Jan 4, 2019, at 12:43, Fam Zheng <zhengfeiran@bytedance.com> wrote:
->
-> Hi,
->
-> In our server which frequently spawns containers, we find that if a proce=
-ss used pagecache in memory cgroup, after the process exits and memory cgro=
-up is offlined, because the pagecache is still charged in this memory cgrou=
-p, this memory cgroup will not be destroyed until the pagecaches are droppe=
-d. This brings huge memory stress over time. We find that over one hundred =
-thounsand such offlined memory cgroup in system hold too much memory (~100G=
-). This memory can not be released immediately even after all associated pa=
-gecahes are released, because those memory cgroups are destroy asynchronous=
-ly by a kworker. In some cases this can cause oom, since the synchronous me=
-mory allocation failed.
->
->
-> Does force_empty help out your usecase? You can write to
-> memory.force_empty to reclaim as much as possible memory before
-> rmdir'ing memcg. This would prevent from page cache accumulating.
->
->
-> Hmm, this might be an option. FWIW we have been using drop_caches to work=
-around.
 
-drop_caches would drop all page caches globally. You may not want to
-drop the page caches used by other memcgs.
 
->
->
-> BTW, this is cgroup v1 only, I'm working on a patch to bring this back
-> into v2 as discussed in https://lkml.org/lkml/2019/1/3/484.
->
-> We think a fix is to create a kworker that scans all pagecaches and dentr=
-y caches etc. in the background, if a referenced memory cgroup is offline, =
-try to drop the cache or move it to the parent cgroup. This kworker can wak=
-e up periodically, or upon memory cgroup offline event (or both).
->
->
-> Reparenting has been deprecated for a long time. I don't think we want
-> to bring it back. Actually, css offline is handled by kworker now. I
-> proposed a patch to do force_empty in kworker, please see
-> https://lkml.org/lkml/2019/1/2/377.
->
->
-> Could you elaborate a bit about why reparenting is not a good idea?
+> On Jan 4, 2019, at 18:12, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+> On Fri 04-01-19 18:02:19, Fam Zheng wrote:
+>>=20
+>>=20
+>>> On Jan 4, 2019, at 17:04, Michal Hocko <mhocko@kernel.org> wrote:
+>>>=20
+>>> This is a natural side effect of shared memory, I am afraid. =
+Isolated
+>>> memory cgroups should limit any shared resources to bare minimum. =
+You
+>>> will get "who touches first gets charged" behavior otherwise and =
+that is
+>>> not really deterministic.
+>>=20
+>> I don=E2=80=99t quite understand your comment. I think the current =
+behavior
+>> for the ext4_inode_cachep slab family is just =E2=80=9Cwho touches =
+first
+>> gets charged=E2=80=9D, and later users of the same file from a =
+different mem
+>> cgroup can benefit from the cache, keep it from being released, but
+>> doesn=E2=80=99t get charged.
+>=20
+> Yes, this is exactly what I've said. And that leads to =
+non-deterministic
+> behavior because users from other memcgs are keeping charges alive and
+> the isolation really doesn't work properly. Think of it as using =
+memory
+> on behalf of other party that is supposed to be isolated from you.
+>=20
+> Sure this can work reasonably well if the sharing is not really
+> predominated.
 
-AFAIK, reparenting may cause some tricky race condition. Since we can
-iterate offline memcgs now, so the memory charged to offline memcg
-could get reclaimed when memory pressure happens.
+OK, I see what you mean. The reality is that the applications want to =
+share files (e.g. docker run -v ...) , and IMO charging accuracy is not =
+the trouble here. The problem is that there are memory usages which are =
+not strictly necessary once a mem cgroup is deleted, such as the biggish =
+struct mem_cgroup and the shadow slabs from which we no longer alloc new =
+objects.
 
-Johannes and Michal would know more about the background than me.
+Fam
 
-Yang
-
->
->
->
-> There is a similar problem in inode. After digging in ext4 code, we find =
-that when creating inode cache, SLAB_ACCOUNT is used. In this case, inode w=
-ill alloc in slab which belongs to the current memory cgroup. After this me=
-mory cgroup goes offline, this inode may be held by a dentry cache. If anot=
-her process uses the same file. this inode will be held by that process, pr=
-eventing the previous memory cgroup from being destroyed until this other p=
-rocess closes the file and drops the dentry cache.
->
->
-> I'm not sure if you really need kmem charge. If not, you may try
-> cgroup.memory=3Dnokmem.
->
->
-> A very good hint, we=E2=80=99ll investigate, thanks!
->
-> Fam
->
->
-> Regards,
-> Yang
->
->
-> We still don't have a reasonable way to fix this.
->
-> Ideas?
->
->
+> --=20
+> Michal Hocko
+> SUSE Labs
