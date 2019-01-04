@@ -1,90 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DC7428E00FA
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:49:52 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id f125so30907066pgc.20
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 09:49:52 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id o32si17404229pld.407.2019.01.04.09.49.51
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C1748E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 08:22:03 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t2so34887865edb.22
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 05:22:03 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gx11-v6si3499821ejb.297.2019.01.04.05.22.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 09:49:51 -0800 (PST)
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Subject: [PATCH 1/5] x86/mpx: remove MPX APIs
-Date: Fri,  4 Jan 2019 09:49:39 -0800
-Message-Id: <1546624183-26543-2-git-send-email-dave.hansen@linux.intel.com>
-In-Reply-To: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
-References: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
+        Fri, 04 Jan 2019 05:22:01 -0800 (PST)
+Date: Fri, 4 Jan 2019 14:21:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] netfilter: account ebt_table_info to kmemcg
+Message-ID: <20190104132158.GP31793@dhcp22.suse.cz>
+References: <20181229015524.222741-1-shakeelb@google.com>
+ <20181229073325.GZ16738@dhcp22.suse.cz>
+ <20181229095215.nbcijqacw5b6aho7@breakpoint.cc>
+ <20181229100615.GB16738@dhcp22.suse.cz>
+ <CALvZod7v-CC1XipLAerFj1Zp_M=qXZq6MzDL4pubJMTRCsMFNw@mail.gmail.com>
+ <20181230074513.GA22445@dhcp22.suse.cz>
+ <20181230080028.GB22445@dhcp22.suse.cz>
+ <CALvZod6Ty30uQjJF8KZf=RS5djULaLVggYv_1WFrKJWaYa6EHw@mail.gmail.com>
+ <20181231101158.GC22445@dhcp22.suse.cz>
+ <CALvZod4sQ7ZEwfEefoNUeso2Va255x0jNgwOVZSU-b7+CevQuQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod4sQ7ZEwfEefoNUeso2Va255x0jNgwOVZSU-b7+CevQuQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave.hansen@intel.com
-Cc: x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Florian Westphal <fw@strlen.de>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, bridge@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+On Thu 03-01-19 12:52:54, Shakeel Butt wrote:
+> On Mon, Dec 31, 2018 at 2:12 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Sun 30-12-18 19:59:53, Shakeel Butt wrote:
+> > > On Sun, Dec 30, 2018 at 12:00 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > On Sun 30-12-18 08:45:13, Michal Hocko wrote:
+> > > > > On Sat 29-12-18 11:34:29, Shakeel Butt wrote:
+> > > > > > On Sat, Dec 29, 2018 at 2:06 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > > > >
+> > > > > > > On Sat 29-12-18 10:52:15, Florian Westphal wrote:
+> > > > > > > > Michal Hocko <mhocko@kernel.org> wrote:
+> > > > > > > > > On Fri 28-12-18 17:55:24, Shakeel Butt wrote:
+> > > > > > > > > > The [ip,ip6,arp]_tables use x_tables_info internally and the underlying
+> > > > > > > > > > memory is already accounted to kmemcg. Do the same for ebtables. The
+> > > > > > > > > > syzbot, by using setsockopt(EBT_SO_SET_ENTRIES), was able to OOM the
+> > > > > > > > > > whole system from a restricted memcg, a potential DoS.
+> > > > > > > > >
+> > > > > > > > > What is the lifetime of these objects? Are they bound to any process?
+> > > > > > > >
+> > > > > > > > No, they are not.
+> > > > > > > > They are free'd only when userspace requests it or the netns is
+> > > > > > > > destroyed.
+> > > > > > >
+> > > > > > > Then this is problematic, because the oom killer is not able to
+> > > > > > > guarantee the hard limit and so the excessive memory consumption cannot
+> > > > > > > be really contained. As a result the memcg will be basically useless
+> > > > > > > until somebody tears down the charged objects by other means. The memcg
+> > > > > > > oom killer will surely kill all the existing tasks in the cgroup and
+> > > > > > > this could somehow reduce the problem. Maybe this is sufficient for
+> > > > > > > some usecases but that should be properly analyzed and described in the
+> > > > > > > changelog.
+> > > > > > >
+> > > > > >
+> > > > > > Can you explain why you think the memcg hard limit will not be
+> > > > > > enforced? From what I understand, the memcg oom-killer will kill the
+> > > > > > allocating processes as you have mentioned. We do force charging for
+> > > > > > very limited conditions but here the memcg oom-killer will take care
+> > > > > > of
+> > > > >
+> > > > > I was talking about the force charge part. Depending on a specific
+> > > > > allocation and its life time this can gradually get us over hard limit
+> > > > > without any bound theoretically.
+> > > >
+> > > > Forgot to mention. Since b8c8a338f75e ("Revert "vmalloc: back off when
+> > > > the current task is killed"") there is no way to bail out from the
+> > > > vmalloc allocation loop so if the request is really large then the memcg
+> > > > oom will not help. Is that a problem here?
+> > > >
+> > >
+> > > Yes, I think it will be an issue here.
+> > >
+> > > > Maybe it is time to revisit fatal_signal_pending check.
+> > >
+> > > Yes, we will need something to handle the memcg OOM. I will think more
+> > > on that front or if you have any ideas, please do propose.
+> >
+> > I can see three options here:
+> >         - do not force charge on memcg oom or introduce a limited charge
+> >           overflow (reserves basically).
+> >         - revert the revert and reintroduce the fatal_signal_pending
+> >           check into vmalloc
+> >         - be more specific and check tsk_is_oom_victim in vmalloc and
+> >           fail
+> >
+> 
+> I think for the long term solution we might need something similar to
+> memcg oom reserves (1) but for quick fix I think we can do the
+> combination of (2) and (3).
 
-MPX is being removed from the kernel due to a lack of support
-in the toolchain going forward (gcc).
+Johannes argued that fatal_signal_pending is too general check for
+vmalloc. I would argue that we already break out of some operations on
+fatal signals. tsk_is_oom_victim is more subtle but much more targeted
+on the other hand.
 
-The first thing we need to do is remove the userspace-visible
-ABIs so that applications will stop using it.  The most visible
-one are the enable/disable prctl()s.  Remove them first.
-
-This is the most minimal and least invasive patch needed to
-start removing MPX.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
- include/uapi/linux/prctl.h |  2 +-
- kernel/sys.c               | 16 ++--------------
- 2 files changed, 3 insertions(+), 15 deletions(-)
-
-diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
-index b4875a9..78fcee3 100644
---- a/include/uapi/linux/prctl.h
-+++ b/include/uapi/linux/prctl.h
-@@ -181,7 +181,7 @@ struct prctl_mm_map {
- #define PR_GET_THP_DISABLE	42
- 
- /*
-- * Tell the kernel to start/stop helping userspace manage bounds tables.
-+ * No longer implemented, but left here to ensure the numbers stay reserved:
-  */
- #define PR_MPX_ENABLE_MANAGEMENT  43
- #define PR_MPX_DISABLE_MANAGEMENT 44
-diff --git a/kernel/sys.c b/kernel/sys.c
-index a48cbf1..5fd7991 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -103,12 +103,6 @@
- #ifndef SET_TSC_CTL
- # define SET_TSC_CTL(a)		(-EINVAL)
- #endif
--#ifndef MPX_ENABLE_MANAGEMENT
--# define MPX_ENABLE_MANAGEMENT()	(-EINVAL)
--#endif
--#ifndef MPX_DISABLE_MANAGEMENT
--# define MPX_DISABLE_MANAGEMENT()	(-EINVAL)
--#endif
- #ifndef GET_FP_MODE
- # define GET_FP_MODE(a)		(-EINVAL)
- #endif
-@@ -2448,15 +2442,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 		up_write(&me->mm->mmap_sem);
- 		break;
- 	case PR_MPX_ENABLE_MANAGEMENT:
--		if (arg2 || arg3 || arg4 || arg5)
--			return -EINVAL;
--		error = MPX_ENABLE_MANAGEMENT();
--		break;
- 	case PR_MPX_DISABLE_MANAGEMENT:
--		if (arg2 || arg3 || arg4 || arg5)
--			return -EINVAL;
--		error = MPX_DISABLE_MANAGEMENT();
--		break;
-+		/* No longer implemented: */
-+		return -EINVAL;
- 	case PR_SET_FP_MODE:
- 		error = SET_FP_MODE(me, arg2);
- 		break;
+I do not have any strong preference to be honest but I agree that some
+limited reserves would be the best solution long term. I just do not
+have any idea how to scale those reserves to be meaningful.
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
