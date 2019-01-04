@@ -2,249 +2,180 @@ Return-Path: <SRS0=B01V=PM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E5E2C43387
-	for <linux-mm@archiver.kernel.org>; Fri,  4 Jan 2019 18:31:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 433B3C43612
+	for <linux-mm@archiver.kernel.org>; Fri,  4 Jan 2019 20:03:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1A20C218D8
-	for <linux-mm@archiver.kernel.org>; Fri,  4 Jan 2019 18:31:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A20C218D8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E9D5C21872
+	for <linux-mm@archiver.kernel.org>; Fri,  4 Jan 2019 20:03:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GpspPied"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9D5C21872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A24898E0101; Fri,  4 Jan 2019 13:31:04 -0500 (EST)
+	id 65D828E0106; Fri,  4 Jan 2019 15:03:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D4078E00F9; Fri,  4 Jan 2019 13:31:04 -0500 (EST)
+	id 60E3B8E00F9; Fri,  4 Jan 2019 15:03:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C32F8E0101; Fri,  4 Jan 2019 13:31:04 -0500 (EST)
+	id 525558E0106; Fri,  4 Jan 2019 15:03:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 46D208E00F9
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 13:31:04 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id a9so27720340pla.2
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 10:31:04 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 0E3A28E00F9
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 15:03:56 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id o23so27829164pll.0
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 12:03:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Nf9rcsLs/aF3xHh/i39+wgHUJXpK9uGa2ubbFYPuvpA=;
-        b=nhcQEMslasWKda1rJPuinzRC7Uk0JfID/fsJhK5E8u+syCtA3wm94JELCJiIG4bZlb
-         Nx/sIDtFrmiqQCJBxL54QJ3cxhr8S4PNP4/d0k2eK4fIjFspOXwgGxFbyc5i6ysW/eNI
-         n/364c90v4CDrr8xCaJvaYcz5IHXjWOYG/mERUvDNGXFvgyjkiXXAK9UZqhrBxyfZKZb
-         YQabW9tid+GvTKUP7pvsyyWv2g6J0e+a7l/Vs0Wph5mADCOca0jzEDXcynDUQc+8Kxci
-         BHfEdkcMhEa9XD/0qHyvXr1dea5oXDa0tYLIGR2Z4nrNUNflAYY/VzGWk2YVX4Hv6NYI
-         Yb7w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lkp@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=lkp@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUuke1o758eH/4p79g/0UaCtAwdDbz8PVAD8mQTvdHSOTU7TUHyhrL
-	wg7M+QrT4/yMzpd6nrfD0DMHEcP+liwZUU3VqnkjCiXhpA1ucjvFfWKU/B1gCOhQwFCcPyTxjfM
-	LcoCwqEyrHgfl+6j4QogqKEFIKhr78AgDCjW5+xlO/pdAIRX2FV+F8kQGYP4/LY9fpw==
-X-Received: by 2002:a63:d301:: with SMTP id b1mr21741477pgg.61.1546626663674;
-        Fri, 04 Jan 2019 10:31:03 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6idP6+Z8xXJVx2l7bNt2vGSZrsxGh9YXFX4awxlFdiUJ++mwpBqpWcFNihOR7s5CwjHKoi
-X-Received: by 2002:a63:d301:: with SMTP id b1mr21741441pgg.61.1546626662876;
-        Fri, 04 Jan 2019 10:31:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546626662; cv=none;
+        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
+         :mime-version:references:subject:from:to:cc;
+        bh=uKI/AHKX0JyUjvz9YhN2UpQb0lqvTA+uLkQzBS73lt8=;
+        b=N/ebnXmEI6TUtHNADttpg6XVUQyAF/ePESk/Mmz7C4bW1S1UJRZEz2JjXuNNzyuIRu
+         RxQ81RPjoQEnxiu4V7aSGMqlCLFrxgtmU5U4GoQEnbkEM+7XG41ocANSYP+G8qvwDGV7
+         R+8YSpWgKtyXPBt1YCXZhAW18EyEB4Dmr+xjZq8bARr2myktY9iGv/CzwyE5tDRhGMnh
+         3H4UHJ2rSaiWfhIZ02UhyujwMfBMrglsWeBcS38eZg+dulebQdKiQ1cRffSzbVYh3Eyw
+         M9lbrGIMDixWbg/VJwwuEI3siGKnOfm7hna401JvPD4pqvbql4rlF9LLKRlIXrsfKVMb
+         m7kA==
+X-Gm-Message-State: AJcUukfDDCI4VdrZX+aLQ7Xz0cDn7Czt6Se1dwrA1nzVdJgGHW28pwcP
+	ti9pR/k8GwKvRWdV6HC14S+xGhNgEnpI08BwKC37L9JxL+L+vpYVfbqCMISqcdDP46bI8AqmzL9
+	hpZtCRTHYEX60FZ/F/nHu3ugsDk2vIqr/A8imNPSiJ4NXi/oRTuPMamO6E8zKyF+opEm4N4ZH2A
+	rQ8m5oLwvDooVcVZ744btTlu0ahhHMH+ZfKER7pqa8tkYuJ/MJkTCzzO9btOg7NMpY0QsskBiF2
+	i4l/zlHqNoN+0Y0oK4k/fDjMoPiMGtBaiB4CoK48rHc3vqA/xBbw6k3QAajRtmMuy1XisjCzfr9
+	u/BvMTjcS/148oOG7q4xeKwbFN/23/Xqs15NZaH6Qmxzb52nV/luaaNChw2iKmeYmOAm8Qnrf8W
+	D
+X-Received: by 2002:a63:295:: with SMTP id 143mr2697089pgc.362.1546632235600;
+        Fri, 04 Jan 2019 12:03:55 -0800 (PST)
+X-Received: by 2002:a63:295:: with SMTP id 143mr2697049pgc.362.1546632234702;
+        Fri, 04 Jan 2019 12:03:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546632234; cv=none;
         d=google.com; s=arc-20160816;
-        b=GYE9I96m0vtuo7wQJKyIrbHDGsSprn0fcrzl7h5bbCMbxqnLswRNDwv3tu9mfAcmbS
-         oNrv9YEFd+wFGhPc8pV9vSBYIXbTXfvOkpxyoiVSq1+ZzC8B67Z76D1cyr26BD02A3en
-         59tpqymt/cXmORHG1lbzqQkpOrGpixemjf4ixtaPGrJcAsxleHCrCpTtr32wvV+Mn0bE
-         0kNYMMGntV71en4IHjoI2TZMOJO2urdiG9uzdP78phfRvHaSxaCznFmkZor5S+0b6pNC
-         hTCpVMaQlW0ZUKNPyHa/H4dFRWwadfS6X6Ejhc3pLBV5vAInZpg2IUXfAs+NrXfgpCsa
-         hLgA==
+        b=YnFZixiFxwVPHw00CClCZNTPKlcnmszhKzjv1lxrRJYBeayC3lXy2a6b0WW3wl6/Du
+         mlHr/RkIxyW0i8DPIZwqqPcddiUEtKds+spyJG76nGiBoaBhrgXCnlp83tRWVV5NMAcZ
+         3ERF+atE4knMscCLY4PFZ4+E8qx6rRr6zMHF12oqCW32XzOOcq7AyTgruna4olHX6kcG
+         3rSarqEOpYYc0vPlqRS7UPb2xui+BKdvYloETNQXCmJ0C1/TJC6LhaaHLkOuCBgjyWqy
+         AZiRhkDWV1xfuRcigSSi3nweRBRHLAtBiT3V8/C/gVgu6hjZ5evJtigFaxubm8QuwUlT
+         JA1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Nf9rcsLs/aF3xHh/i39+wgHUJXpK9uGa2ubbFYPuvpA=;
-        b=HevXg0u5ajvsS2LL/P6YdBs/tBw72W6ENTv52rows8C9qB6ej+JfWn5PFFrB0oIRXe
-         Kk09CuP5ld2C0a+WfpUu5PCGPQPn9URIEkF456bh40JiUIpnRjHk6IP9F14ueFq3naQG
-         BZIGmkHk9i9MXTQ5Xo+rTcHy9EsIgyqCvLL6tUQCe+NmTiQNu9ukPBWO8THuM9JcnA2r
-         rQiHA5PNpVJZkiBy8NurYYb9mOp4aNEfpl3O7BVhaNmo9CwVs1OpOO6A9q+EGOVN4Z09
-         EM9AbSjNIe0vwh6DIgIvCqdgdJDCQaFUlPpK5f42WuJgc9Ugg0IeEFSjBguxAeJChsl3
-         Y2MQ==
+        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
+         :date:dkim-signature;
+        bh=uKI/AHKX0JyUjvz9YhN2UpQb0lqvTA+uLkQzBS73lt8=;
+        b=fX4ytxEsoD/+Z0y6T8cZKoz2poNZlwFOmAkkP2W5EoYW4O80VyhCIXl2z6RrdH6Eke
+         breKEawXvc9PmkXUUucMP8FN44L+Rgoyip9lbolRUBLVD4DDSMQr5MFicZnyw33/qsRA
+         dltXYQCpGbvHAObXClRy6nqbEkvXtFbxCTjBhyqyQ18CLPq0W/2QerHeIdRB/icyMTK2
+         y6XbUhvvCZtJ/foTj0vOlCCTTtp08XfTTwkjChPz9hXmd5KwjfjzFMzisltUYJlz8s/q
+         6SRsqoto146ABmURebbcuIlyRcjFo7ELG1+v8B0UA++sdMBV3i/bPyXQ5UpT9qpi9Z2S
+         UbyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of lkp@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=lkp@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id k7si344246pgm.462.2019.01.04.10.31.02
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GpspPied;
+       spf=pass (google.com: domain of 3krwvxackcekr4spwpyrzzrwp.nzxwty58-xxv6lnv.z2r@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3KrwvXAcKCEkr4spwpyrzzrwp.nzxwty58-xxv6lnv.z2r@flex--gthelen.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id r2sor27938285pgv.24.2019.01.04.12.03.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 10:31:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of lkp@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (Google Transport Security);
+        Fri, 04 Jan 2019 12:03:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3krwvxackcekr4spwpyrzzrwp.nzxwty58-xxv6lnv.z2r@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of lkp@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=lkp@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Jan 2019 10:31:02 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,439,1539673200"; 
-   d="gz'50?scan'50,208,50";a="103970245"
-Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
-  by orsmga007.jf.intel.com with ESMTP; 04 Jan 2019 10:31:00 -0800
-Received: from kbuild by lkp-server01 with local (Exim 4.89)
-	(envelope-from <lkp@intel.com>)
-	id 1gfUFH-000763-NE; Sat, 05 Jan 2019 02:30:59 +0800
-Date: Sat, 5 Jan 2019 02:30:29 +0800
-From: kbuild test robot <lkp@intel.com>
-To: Ashish Mhetre <amhetre@nvidia.com>
-Cc: kbuild-all@01.org, vdumpa@nvidia.com, mcgrof@kernel.org,
-	keescook@chromium.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org,
-	Snikam@nvidia.com, Ashish Mhetre <amhetre@nvidia.com>
-Subject: Re: [PATCH] mm: Expose lazy vfree pages to control via sysctl
-Message-ID: <201901050213.U33v3175%fengguang.wu@intel.com>
-References: <1546616141-486-1-git-send-email-amhetre@nvidia.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="azLHFNyN32YCQGCU"
-Content-Disposition: inline
-In-Reply-To: <1546616141-486-1-git-send-email-amhetre@nvidia.com>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GpspPied;
+       spf=pass (google.com: domain of 3krwvxackcekr4spwpyrzzrwp.nzxwty58-xxv6lnv.z2r@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3KrwvXAcKCEkr4spwpyrzzrwp.nzxwty58-xxv6lnv.z2r@flex--gthelen.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+         :cc;
+        bh=uKI/AHKX0JyUjvz9YhN2UpQb0lqvTA+uLkQzBS73lt8=;
+        b=GpspPiedLWy4By+huorr5Fo7uBig5NplAKWE+cvBIVWxJ5Y0Vcs7GYP03xTHDMU9LF
+         CyOIgfzNkTLpxcLSeSowo52Uyprd2+7+2cElrxuq6mprcQpGOxPpyrCPFGpVC9KNhbaP
+         Ce2IwlbbAf7pZi7axtwxGnRHWsNACdNMWC8w6CWna6aLPKgvSQbcVvZNc0il+eO9zyam
+         0DC8ACa4H9sr+KEzu5AP8GAZ308Pvb9MCNg18zfk0fkDbjckU8X1HPy/vrmwfVk6F22e
+         BFPEZZp+9U98DNUOiBXjzkBtjRlZTqqWIssEO5bWQLVFMwULesgnmkI0Ry42nVtQ2XyZ
+         nopg==
+X-Google-Smtp-Source: ALg8bN7l3/kviGQ3pulE0Gggr8LyfhyGpGug8yffoz6JoUs00SygGzht6Y4ARXT5rDzsyiwSlGdARZsk7p+c
+X-Received: by 2002:a63:e504:: with SMTP id r4mr23689714pgh.107.1546632234102;
+ Fri, 04 Jan 2019 12:03:54 -0800 (PST)
+Date: Fri, 04 Jan 2019 12:03:51 -0800
+In-Reply-To: <88b4d986-0b3c-cbf0-65ad-95f3e8ccd870@linux.alibaba.com>
+Message-Id: <xr93y380xk9k.fsf@gthelen.svl.corp.google.com>
+Mime-Version: 1.0
+References: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190103101215.GH31793@dhcp22.suse.cz> <b3ad06ed-f620-7aa0-5697-a1bbe2d7bfe1@linux.alibaba.com>
+ <20190103181329.GW31793@dhcp22.suse.cz> <6f43e926-3bb5-20d1-2e39-1d30bf7ad375@linux.alibaba.com>
+ <20190103185333.GX31793@dhcp22.suse.cz> <d610c665-890f-3bf0-1e2a-437150b6ddfb@linux.alibaba.com>
+ <20190103192339.GA31793@dhcp22.suse.cz> <88b4d986-0b3c-cbf0-65ad-95f3e8ccd870@linux.alibaba.com>
+Subject: Re: [RFC PATCH 0/3] mm: memcontrol: delayed force empty
+From: Greg Thelen <gthelen@google.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190104183029.T1Wms8FNiuL5z5BYWksb1Sl9uUmVcabSW-jMA81eZGU@z>
+Message-ID: <20190104200351.i4HyFey-1ADtfnewpwFMYFMFtX5IMG15y3dVYY7FIKE@z>
 
+Yang Shi <yang.shi@linux.alibaba.com> wrote:
 
---azLHFNyN32YCQGCU
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> On 1/3/19 11:23 AM, Michal Hocko wrote:
+>> On Thu 03-01-19 11:10:00, Yang Shi wrote:
+>>>
+>>> On 1/3/19 10:53 AM, Michal Hocko wrote:
+>>>> On Thu 03-01-19 10:40:54, Yang Shi wrote:
+>>>>> On 1/3/19 10:13 AM, Michal Hocko wrote:
+>> [...]
+>>>>>> Is there any reason for your scripts to be strictly sequential here? In
+>>>>>> other words why cannot you offload those expensive operations to a
+>>>>>> detached context in _userspace_?
+>>>>> I would say it has not to be strictly sequential. The above script is just
+>>>>> an example to illustrate the pattern. But, sometimes it may hit such pattern
+>>>>> due to the complicated cluster scheduling and container scheduling in the
+>>>>> production environment, for example the creation process might be scheduled
+>>>>> to the same CPU which is doing force_empty. I have to say I don't know too
+>>>>> much about the internals of the container scheduling.
+>>>> In that case I do not see a strong reason to implement the offloding
+>>>> into the kernel. It is an additional code and semantic to maintain.
+>>> Yes, it does introduce some additional code and semantic, but IMHO, it is
+>>> quite simple and very straight forward, isn't it? Just utilize the existing
+>>> css offline worker. And, that a couple of lines of code do improve some
+>>> throughput issues for some real usecases.
+>> I do not really care it is few LOC. It is more important that it is
+>> conflating force_empty into offlining logic. There was a good reason to
+>> remove reparenting/emptying the memcg during the offline. Considering
+>> that you can offload force_empty from userspace trivially then I do not
+>> see any reason to implement it in the kernel.
+>
+> Er, I may not articulate in the earlier email, force_empty can not be 
+> offloaded from userspace *trivially*. IOWs the container scheduler may 
+> unexpectedly overcommit something due to the stall of synchronous force 
+> empty, which can't be figured out by userspace before it actually 
+> happens. The scheduler doesn't know how long force_empty would take. If 
+> the force_empty could be offloaded by kernel, it would make scheduler's 
+> life much easier. This is not something userspace could do.
 
-Hi Hiroshi,
+If kernel workqueues are doing more work (i.e. force_empty processing),
+then it seem like the time to offline could grow.  I'm not sure if
+that's important.
 
-Thank you for the patch! Yet something to improve:
+I assume that if we make force_empty an async side effect of rmdir then
+user space scheduler would not be unable to immediately assume the
+rmdir'd container memory is available without subjecting a new container
+to direct reclaim.  So it seems like user space would use a mechanism to
+wait for reclaim: either the existing sync force_empty or polling
+meminfo/etc waiting for free memory to appear.
 
-[auto build test ERROR on linus/master]
-[also build test ERROR on v4.20 next-20190103]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-
-url:    https://github.com/0day-ci/linux/commits/Ashish-Mhetre/mm-Expose-lazy-vfree-pages-to-control-via-sysctl/20190105-003852
-config: c6x-evmc6678_defconfig (attached as .config)
-compiler: c6x-elf-gcc (GCC) 8.1.0
-reproduce:
-        wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        # save the attached .config to linux build tree
-        GCC_VERSION=8.1.0 make.cross ARCH=c6x 
-
-All errors (new ones prefixed by >>):
-
->> kernel/sysctl.o:(.fardata+0x2d4): undefined reference to `sysctl_lazy_vfree_pages'
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---azLHFNyN32YCQGCU
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-hNr5ttVeqR/x+v8DQRMqIG5GAAA=
-
---azLHFNyN32YCQGCU--
+>>>> I think it is more important to discuss whether we want to introduce
+>>>> force_empty in cgroup v2.
+>>> We would prefer have it in v2 as well.
+>> Then bring this up in a separate email thread please.
+>
+> Sure. Will prepare the patches later.
+>
+> Thanks,
+> Yang
 
