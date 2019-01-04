@@ -1,172 +1,296 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C0B68E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:19 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id b17so8629662pfc.11
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:19 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id a3si21122429pld.252.2019.01.10.13.10.17
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 814868E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:52:57 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id f31so34824976edf.17
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:52:57 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id r18-v6si2062593ejf.218.2019.01.04.04.52.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:10:17 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [RFC PATCH v7 00/16] Add support for eXclusive Page Frame Ownership
-Date: Thu, 10 Jan 2019 14:09:32 -0700
-Message-Id: <cover.1547153058.git.khalid.aziz@oracle.com>
+        Fri, 04 Jan 2019 04:52:55 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 221F01C1C4F
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:52:55 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 15/25] mm, compaction: Finish pageblock scanning on contention
+Date: Fri,  4 Jan 2019 12:50:01 +0000
+Message-Id: <20190104125011.16071-16-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-I am continuing to build on the work Juerg, Tycho and Julian have done
-on XPFO. After the last round of updates, we were seeing very
-significant performance penalties when stale TLB entries were flushed
-actively after an XPFO TLB update. Benchmark for measuring performance
-is kernel build using parallel make. To get full protection from
-ret2dir attackes, we must flush stale TLB entries. Performance
-penalty from flushing stale TLB entries goes up as the number of
-cores goes up. On a desktop class machine with only 4 cores,
-enabling TLB flush for stale entries causes system time for "make
--j4" to go up by a factor of 2.614x but on a larger machine with 96
-cores, system time with "make -j60" goes up by a factor of 26.366x!
-I have been working on reducing this performance penalty.
+Async migration aborts on spinlock contention but contention can be high
+when there are multiple compaction attempts and kswapd is active. The
+consequence is that the migration scanners move forward uselessly while
+still contending on locks for longer while leaving suitable migration
+sources behind.
 
-I implemented a solution to reduce performance penalty and
-that has had large impact. When XPFO code flushes stale TLB entries,
-it does so for all CPUs on the system which may include CPUs that
-may not have any matching TLB entries or may never be scheduled to
-run the userspace task causing TLB flush. Problem is made worse by
-the fact that if number of entries being flushed exceeds
-tlb_single_page_flush_ceiling, it results in a full TLB flush on
-every CPU. A rogue process can launch a ret2dir attack only from a
-CPU that has dual mapping for its pages in physmap in its TLB. We
-can hence defer TLB flush on a CPU until a process that would have
-caused a TLB flush is scheduled on that CPU. I have added a cpumask
-to task_struct which is then used to post pending TLB flush on CPUs
-other than the one a process is running on. This cpumask is checked
-when a process migrates to a new CPU and TLB is flushed at that
-time. I measured system time for parallel make with unmodified 4.20
-kernel, 4.20 with XPFO patches before this optimization and then
-again after applying this optimization. Here are the results:
+This patch will acquire the lock but track when contention occurs. When
+it does, the current pageblock will finish as compaction may succeed for
+that block and then abort. This will have a variable impact on latency as
+in some cases useless scanning is avoided (reduces latency) but a lock
+will be contended (increase latency) or a single contended pageblock is
+scanned that would otherwise have been skipped (increase latency).
 
-Hardware: 96-core Intel Xeon Platinum 8160 CPU @ 2.10GHz, 768 GB RAM
-make -j60 all
+                                        4.20.0                 4.20.0
+                                norescan-v2r15    finishcontend-v2r15
+Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
+Amean     fault-both-3      2872.13 (   0.00%)     2973.08 (  -3.51%)
+Amean     fault-both-5      4330.56 (   0.00%)     3870.19 (  10.63%)
+Amean     fault-both-7      6496.63 (   0.00%)     6580.50 (  -1.29%)
+Amean     fault-both-12    10280.59 (   0.00%)     9527.40 (   7.33%)
+Amean     fault-both-18    11079.19 (   0.00%)    13395.86 * -20.91%*
+Amean     fault-both-24    17207.80 (   0.00%)    14936.94 *  13.20%*
+Amean     fault-both-30    17736.13 (   0.00%)    16748.46 (   5.57%)
+Amean     fault-both-32    18509.41 (   0.00%)    18521.30 (  -0.06%)
 
-4.20				915.183s
-4.20+XPFO			24129.354s	26.366x
-4.20+XPFO+Deferred flush	1216.987s	 1.330xx
+                                   4.20.0                 4.20.0
+                           norescan-v2r15    finishcontend-v2r15
+Percentage huge-1         0.00 (   0.00%)        0.00 (   0.00%)
+Percentage huge-3        96.87 (   0.00%)       97.57 (   0.72%)
+Percentage huge-5        94.63 (   0.00%)       96.88 (   2.39%)
+Percentage huge-7        93.83 (   0.00%)       95.47 (   1.74%)
+Percentage huge-12       92.65 (   0.00%)       98.64 (   6.47%)
+Percentage huge-18       93.66 (   0.00%)       98.33 (   4.98%)
+Percentage huge-24       93.15 (   0.00%)       98.88 (   6.15%)
+Percentage huge-30       93.16 (   0.00%)       97.09 (   4.21%)
+Percentage huge-32       92.58 (   0.00%)       96.20 (   3.92%)
 
+As expected, a variable impact on latency while allocation success
+rates are slightly higher. System CPU usage is reduced by about 10%
+but scan rate impact is mixed
 
-Hardware: 4-core Intel Core i5-3550 CPU @ 3.30GHz, 8G RAM
-make -j4 all
+Compaction migrate scanned    31772603    19980216
+Compaction free scanned       63267928   120381828
 
-4.20				607.671s
-4.20+XPFO			1588.646s	2.614x
-4.20+XPFO+Deferred flush	794.473s	1.307xx
+Migration scan rates are reduced 37% which is expected as a pageblock
+is used by the async scanner instead of skipped but the free scanning is
+increased. This can be partially accounted for by the increased success
+rate but also by the fact that the scanners do not meet for longer when
+pageblocks are actually used. Overall this is justified and completing
+a pageblock scan is very important for later patches.
 
-30+% overhead is still very high and there is room for improvement.
-Dave Hansen had suggested batch updating TLB entries and Tycho had
-created an initial implementation but I have not been able to get
-that to work correctly. I am still working on it and I suspect we
-will see a noticeable improvement in performance with that. In the
-code I added, I post a pending full TLB flush to all other CPUs even
-when number of TLB entries being flushed on current CPU does not
-exceed tlb_single_page_flush_ceiling. There has to be a better way
-to do this. I just haven't found an efficient way to implemented
-delayed limited TLB flush on other CPUs.
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/compaction.c | 95 +++++++++++++++++++++++----------------------------------
+ 1 file changed, 39 insertions(+), 56 deletions(-)
 
-I am not entirely sure if switch_mm_irqs_off() is indeed the right
-place to perform the pending TLB flush for a CPU. Any feedback on
-that will be very helpful. Delaying full TLB flushes on other CPUs
-seems to help tremendously, so if there is a better way to implement
-the same thing than what I have done in patch 16, I am open to
-ideas.
-
-Performance with this patch set is good enough to use these as
-starting point for further refinement before we merge it into main
-kernel, hence RFC.
-
-Since not flushing stale TLB entries creates a false sense of
-security, I would recommend making TLB flush mandatory and eliminate
-the "xpfotlbflush" kernel parameter (patch "mm, x86: omit TLB
-flushing by default for XPFO page table modifications").
-
-What remains to be done beyond this patch series:
-
-1. Performance improvements
-2. Remove xpfotlbflush parameter
-3. Re-evaluate the patch "arm64/mm: Add support for XPFO to swiotlb"
-   from Juerg. I dropped it for now since swiotlb code for ARM has
-   changed a lot in 4.20.
-4. Extend the patch "xpfo, mm: Defer TLB flushes for non-current
-   CPUs" to other architectures besides x86.
-
-
----------------------------------------------------------
-
-Juerg Haefliger (5):
-  mm, x86: Add support for eXclusive Page Frame Ownership (XPFO)
-  swiotlb: Map the buffer if it was unmapped by XPFO
-  arm64/mm: Add support for XPFO
-  arm64/mm, xpfo: temporarily map dcache regions
-  lkdtm: Add test for XPFO
-
-Julian Stecklina (4):
-  mm, x86: omit TLB flushing by default for XPFO page table
-    modifications
-  xpfo, mm: remove dependency on CONFIG_PAGE_EXTENSION
-  xpfo, mm: optimize spinlock usage in xpfo_kunmap
-  EXPERIMENTAL: xpfo, mm: optimize spin lock usage in xpfo_kmap
-
-Khalid Aziz (2):
-  xpfo, mm: Fix hang when booting with "xpfotlbflush"
-  xpfo, mm: Defer TLB flushes for non-current CPUs (x86 only)
-
-Tycho Andersen (5):
-  mm: add MAP_HUGETLB support to vm_mmap
-  x86: always set IF before oopsing from page fault
-  xpfo: add primitives for mapping underlying memory
-  arm64/mm: disable section/contiguous mappings if XPFO is enabled
-  mm: add a user_virt_to_phys symbol
-
- .../admin-guide/kernel-parameters.txt         |   2 +
- arch/arm64/Kconfig                            |   1 +
- arch/arm64/mm/Makefile                        |   2 +
- arch/arm64/mm/flush.c                         |   7 +
- arch/arm64/mm/mmu.c                           |   2 +-
- arch/arm64/mm/xpfo.c                          |  58 ++++
- arch/x86/Kconfig                              |   1 +
- arch/x86/include/asm/pgtable.h                |  26 ++
- arch/x86/include/asm/tlbflush.h               |   1 +
- arch/x86/mm/Makefile                          |   2 +
- arch/x86/mm/fault.c                           |  10 +
- arch/x86/mm/pageattr.c                        |  23 +-
- arch/x86/mm/tlb.c                             |  27 ++
- arch/x86/mm/xpfo.c                            | 171 ++++++++++++
- drivers/misc/lkdtm/Makefile                   |   1 +
- drivers/misc/lkdtm/core.c                     |   3 +
- drivers/misc/lkdtm/lkdtm.h                    |   5 +
- drivers/misc/lkdtm/xpfo.c                     | 194 ++++++++++++++
- include/linux/highmem.h                       |  15 +-
- include/linux/mm.h                            |   2 +
- include/linux/mm_types.h                      |   8 +
- include/linux/page-flags.h                    |  13 +
- include/linux/sched.h                         |   9 +
- include/linux/xpfo.h                          |  90 +++++++
- include/trace/events/mmflags.h                |  10 +-
- kernel/dma/swiotlb.c                          |   3 +-
- mm/Makefile                                   |   1 +
- mm/mmap.c                                     |  19 +-
- mm/page_alloc.c                               |   3 +
- mm/util.c                                     |  32 +++
- mm/xpfo.c                                     | 247 ++++++++++++++++++
- security/Kconfig                              |  29 ++
- 32 files changed, 974 insertions(+), 43 deletions(-)
- create mode 100644 arch/arm64/mm/xpfo.c
- create mode 100644 arch/x86/mm/xpfo.c
- create mode 100644 drivers/misc/lkdtm/xpfo.c
- create mode 100644 include/linux/xpfo.h
- create mode 100644 mm/xpfo.c
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9c2cc7955446..608d274f9880 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -376,24 +376,25 @@ static bool test_and_set_skip(struct compact_control *cc, struct page *page,
+ 
+ /*
+  * Compaction requires the taking of some coarse locks that are potentially
+- * very heavily contended. For async compaction, back out if the lock cannot
+- * be taken immediately. For sync compaction, spin on the lock if needed.
++ * very heavily contended. For async compaction, trylock and record if the
++ * lock is contended. The lock will still be acquired but compaction will
++ * abort when the current block is finished regardless of success rate.
++ * Sync compaction acquires the lock.
+  *
+- * Returns true if the lock is held
+- * Returns false if the lock is not held and compaction should abort
++ * Always returns true which makes it easier to track lock state in callers.
+  */
+-static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
++static bool compact_lock_irqsave(spinlock_t *lock, unsigned long *flags,
+ 						struct compact_control *cc)
+ {
+-	if (cc->mode == MIGRATE_ASYNC) {
+-		if (!spin_trylock_irqsave(lock, *flags)) {
+-			cc->contended = true;
+-			return false;
+-		}
+-	} else {
+-		spin_lock_irqsave(lock, *flags);
++	/* Track if the lock is contended in async mode */
++	if (cc->mode == MIGRATE_ASYNC && !cc->contended) {
++		if (spin_trylock_irqsave(lock, *flags))
++			return true;
++
++		cc->contended = true;
+ 	}
+ 
++	spin_lock_irqsave(lock, *flags);
+ 	return true;
+ }
+ 
+@@ -426,10 +427,8 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
+ 	}
+ 
+ 	if (need_resched()) {
+-		if (cc->mode == MIGRATE_ASYNC) {
++		if (cc->mode == MIGRATE_ASYNC)
+ 			cc->contended = true;
+-			return true;
+-		}
+ 		cond_resched();
+ 	}
+ 
+@@ -449,10 +448,8 @@ static inline bool compact_should_abort(struct compact_control *cc)
+ {
+ 	/* async compaction aborts if contended */
+ 	if (need_resched()) {
+-		if (cc->mode == MIGRATE_ASYNC) {
++		if (cc->mode == MIGRATE_ASYNC)
+ 			cc->contended = true;
+-			return true;
+-		}
+ 
+ 		cond_resched();
+ 	}
+@@ -538,18 +535,8 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 		 * recheck as well.
+ 		 */
+ 		if (!locked) {
+-			/*
+-			 * The zone lock must be held to isolate freepages.
+-			 * Unfortunately this is a very coarse lock and can be
+-			 * heavily contended if there are parallel allocations
+-			 * or parallel compactions. For async compaction do not
+-			 * spin on the lock and we acquire the lock as late as
+-			 * possible.
+-			 */
+-			locked = compact_trylock_irqsave(&cc->zone->lock,
++			locked = compact_lock_irqsave(&cc->zone->lock,
+ 								&flags, cc);
+-			if (!locked)
+-				break;
+ 
+ 			/* Recheck this is a buddy page under lock */
+ 			if (!PageBuddy(page))
+@@ -910,15 +897,9 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/* If we already hold the lock, we can skip some rechecking */
+ 		if (!locked) {
+-			locked = compact_trylock_irqsave(zone_lru_lock(zone),
++			locked = compact_lock_irqsave(zone_lru_lock(zone),
+ 								&flags, cc);
+ 
+-			/* Allow future scanning if the lock is contended */
+-			if (!locked) {
+-				clear_pageblock_skip(page);
+-				break;
+-			}
+-
+ 			/* Try get exclusive access under lock */
+ 			if (!skip_updated) {
+ 				skip_updated = true;
+@@ -961,9 +942,12 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/*
+ 		 * Avoid isolating too much unless this block is being
+-		 * rescanned (e.g. dirty/writeback pages, parallel allocation).
++		 * rescanned (e.g. dirty/writeback pages, parallel allocation)
++		 * or a lock is contended. For contention, isolate quickly to
++		 * potentially remove one source of contention.
+ 		 */
+-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX && !cc->rescan) {
++		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX &&
++		    !cc->rescan && !cc->contended) {
+ 			++low_pfn;
+ 			break;
+ 		}
+@@ -1411,12 +1395,8 @@ static void isolate_freepages(struct compact_control *cc)
+ 		isolate_freepages_block(cc, &isolate_start_pfn, block_end_pfn,
+ 					freelist, false);
+ 
+-		/*
+-		 * If we isolated enough freepages, or aborted due to lock
+-		 * contention, terminate.
+-		 */
+-		if ((cc->nr_freepages >= cc->nr_migratepages)
+-							|| cc->contended) {
++		/* Are enough freepages isolated? */
++		if (cc->nr_freepages >= cc->nr_migratepages) {
+ 			if (isolate_start_pfn >= block_end_pfn) {
+ 				/*
+ 				 * Restart at previous pageblock if more
+@@ -1458,13 +1438,8 @@ static struct page *compaction_alloc(struct page *migratepage,
+ 	struct compact_control *cc = (struct compact_control *)data;
+ 	struct page *freepage;
+ 
+-	/*
+-	 * Isolate free pages if necessary, and if we are not aborting due to
+-	 * contention.
+-	 */
+ 	if (list_empty(&cc->freepages)) {
+-		if (!cc->contended)
+-			isolate_freepages(cc);
++		isolate_freepages(cc);
+ 
+ 		if (list_empty(&cc->freepages))
+ 			return NULL;
+@@ -1729,7 +1704,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 		low_pfn = isolate_migratepages_block(cc, low_pfn,
+ 						block_end_pfn, isolate_mode);
+ 
+-		if (!low_pfn || cc->contended)
++		if (!low_pfn)
+ 			return ISOLATE_ABORT;
+ 
+ 		/*
+@@ -1759,9 +1734,7 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ {
+ 	unsigned int order;
+ 	const int migratetype = cc->migratetype;
+-
+-	if (cc->contended || fatal_signal_pending(current))
+-		return COMPACT_CONTENDED;
++	int ret;
+ 
+ 	/* Compaction run completes if the migrate and free scanner meet */
+ 	if (compact_scanners_met(cc)) {
+@@ -1796,6 +1769,7 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ 		return COMPACT_CONTINUE;
+ 
+ 	/* Direct compactor: Is a suitable page free? */
++	ret = COMPACT_NO_SUITABLE_PAGE;
+ 	for (order = cc->order; order < MAX_ORDER; order++) {
+ 		struct free_area *area = &cc->zone->free_area[order];
+ 		bool can_steal;
+@@ -1835,11 +1809,15 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ 				return COMPACT_SUCCESS;
+ 			}
+ 
+-			return COMPACT_CONTINUE;
++			ret = COMPACT_CONTINUE;
++			break;
+ 		}
+ 	}
+ 
+-	return COMPACT_NO_SUITABLE_PAGE;
++	if (cc->contended || fatal_signal_pending(current))
++		ret = COMPACT_CONTENDED;
++
++	return ret;
+ }
+ 
+ static enum compact_result compact_finished(struct compact_control *cc)
+@@ -1981,6 +1959,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
+ 	unsigned long end_pfn = zone_end_pfn(cc->zone);
+ 	unsigned long last_migrated_pfn;
+ 	const bool sync = cc->mode != MIGRATE_ASYNC;
++	unsigned long a, b, c;
+ 
+ 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+ 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
+@@ -2026,6 +2005,10 @@ static enum compact_result compact_zone(struct compact_control *cc)
+ 			cc->whole_zone = true;
+ 	}
+ 
++	a = cc->migrate_pfn;
++	b = cc->free_pfn;
++	c = (cc->free_pfn - cc->migrate_pfn) / pageblock_nr_pages;
++
+ 	last_migrated_pfn = 0;
+ 
+ 	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
 -- 
-2.17.1
+2.16.4
