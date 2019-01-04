@@ -1,105 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 22BC58E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 11:09:11 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id c84so37671857qkb.13
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 08:09:11 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y17sor27399959qvl.33.2019.01.02.08.09.10
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B0078E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:53:58 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c3so35320440eda.3
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:53:58 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id l16-v6si1298091ejq.174.2019.01.04.04.53.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 08:09:10 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-Subject: [PATCH] kmemleak: survive in a low-memory situation
-Date: Wed,  2 Jan 2019 11:08:49 -0500
-Message-Id: <20190102160849.11480-1-cai@lca.pw>
-In-Reply-To: <0b2ecfe8-b98b-755c-5b5d-00a09a0d9e57@lca.pw>
-References: <0b2ecfe8-b98b-755c-5b5d-00a09a0d9e57@lca.pw>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jan 2019 04:53:56 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 499061C1BE5
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:53:56 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 21/25] mm, compaction: Round-robin the order while searching the free lists for a target
+Date: Fri,  4 Jan 2019 12:50:07 +0000
+Message-Id: <20190104125011.16071-22-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qian Cai <cai@lca.pw>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Kmemleak could quickly fail to allocate an object structure and then
-disable itself in a low-memory situation. For example, running a mmap()
-workload triggering swapping and OOM [1].
+As compaction proceeds and creates high-order blocks, the free list
+search gets less efficient as the larger blocks are used as compaction
+targets. Eventually, the larger blocks will be behind the migration
+scanner for partially migrated pageblocks and the search fails. This
+patch round-robins what orders are searched so that larger blocks can be
+ignored and find smaller blocks that can be used as migration targets.
 
-First, it unnecessarily attempt to allocate even though the tracking
-object is NULL in kmem_cache_alloc(). For example,
+The overall impact was small on 1-socket but it avoids corner cases where
+the migration/free scanners meet prematurely or situations where many of
+the pageblocks encountered by the free scanner are almost full instead of
+being properly packed. Previous testing had indicated that without this
+patch there were occasional large spikes in the free scanner without this
+patch. By co-incidence, the 2-socket results showed a 54% reduction in
+the free scanner but will not be universally true.
 
-alloc_io
-  bio_alloc_bioset
-    mempool_alloc
-      mempool_alloc_slab
-        kmem_cache_alloc
-          slab_alloc_node
-            __slab_alloc <-- could return NULL
-            slab_post_alloc_hook
-              kmemleak_alloc_recursive
-
-Second, kmemleak allocation could fail even though the trackig object is
-succeeded. Hence, it could still try to start a direct reclaim if it is
-not executed in an atomic context (spinlock, irq-handler etc), or a
-high-priority allocation in an atomic context as a last-ditch effort.
-
-[1]
-https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/mem/oom/oom01.c
-
-Signed-off-by: Qian Cai <cai@lca.pw>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/kmemleak.c | 10 ++++++++++
- mm/slab.h     | 17 +++++++++--------
- 2 files changed, 19 insertions(+), 8 deletions(-)
+ mm/compaction.c | 33 ++++++++++++++++++++++++++++++---
+ mm/internal.h   |  3 ++-
+ 2 files changed, 32 insertions(+), 4 deletions(-)
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index f9d9dc250428..9e1aa3b7df75 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -576,6 +576,16 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 	struct rb_node **link, *rb_parent;
- 
- 	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
-+#ifdef CONFIG_PREEMPT_COUNT
-+	if (!object) {
-+		/* last-ditch effort in a low-memory situation */
-+		if (irqs_disabled() || is_idle_task(current) || in_atomic())
-+			gfp = GFP_ATOMIC;
-+		else
-+			gfp = gfp_kmemleak_mask(gfp) | __GFP_DIRECT_RECLAIM;
-+		object = kmem_cache_alloc(object_cache, gfp);
-+	}
-+#endif
- 	if (!object) {
- 		pr_warn("Cannot allocate a kmemleak_object structure\n");
- 		kmemleak_disable();
-diff --git a/mm/slab.h b/mm/slab.h
-index 4190c24ef0e9..51a9a942cc56 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -435,15 +435,16 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
- {
- 	size_t i;
- 
--	flags &= gfp_allowed_mask;
--	for (i = 0; i < size; i++) {
--		void *object = p[i];
--
--		kmemleak_alloc_recursive(object, s->object_size, 1,
--					 s->flags, flags);
--		p[i] = kasan_slab_alloc(s, object, flags);
-+	if (*p) {
-+		flags &= gfp_allowed_mask;
-+		for (i = 0; i < size; i++) {
-+			void *object = p[i];
-+
-+			kmemleak_alloc_recursive(object, s->object_size, 1,
-+						 s->flags, flags);
-+			p[i] = kasan_slab_alloc(s, object, flags);
-+		}
- 	}
--
- 	if (memcg_kmem_enabled())
- 		memcg_kmem_put_cache(s);
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 6c5552c6d8f9..652e249168b1 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1154,6 +1154,24 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long
+ 		set_pageblock_skip(page);
  }
+ 
++/* Search orders in round-robin fashion */
++static int next_search_order(struct compact_control *cc, int order)
++{
++	order--;
++	if (order < 0)
++		order = cc->order - 1;
++
++	/* Search wrapped around? */
++	if (order == cc->search_order) {
++		cc->search_order--;
++		if (cc->search_order < 0)
++			cc->search_order = cc->order - 1;
++		return -1;
++	}
++
++	return order;
++}
++
+ static unsigned long
+ fast_isolate_freepages(struct compact_control *cc)
+ {
+@@ -1186,9 +1204,15 @@ fast_isolate_freepages(struct compact_control *cc)
+ 	if (WARN_ON_ONCE(min_pfn > low_pfn))
+ 		low_pfn = min_pfn;
+ 
+-	for (order = cc->order - 1;
+-	     order >= 0 && !page;
+-	     order--) {
++	/*
++	 * Search starts from the last successful isolation order or the next
++	 * order to search after a previous failure
++	 */
++	cc->search_order = min_t(unsigned int, cc->order - 1, cc->search_order);
++
++	for (order = cc->search_order;
++	     !page && order >= 0;
++	     order = next_search_order(cc, order)) {
+ 		struct free_area *area = &cc->zone->free_area[order];
+ 		struct list_head *freelist;
+ 		struct page *freepage;
+@@ -1211,6 +1235,7 @@ fast_isolate_freepages(struct compact_control *cc)
+ 
+ 			if (pfn >= low_pfn) {
+ 				cc->fast_search_fail = 0;
++				cc->search_order = order;
+ 				page = freepage;
+ 				break;
+ 			}
+@@ -2146,6 +2171,7 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+ 		.total_migrate_scanned = 0,
+ 		.total_free_scanned = 0,
+ 		.order = order,
++		.search_order = order,
+ 		.gfp_mask = gfp_mask,
+ 		.zone = zone,
+ 		.mode = (prio == COMPACT_PRIO_ASYNC) ?
+@@ -2385,6 +2411,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 	struct zone *zone;
+ 	struct compact_control cc = {
+ 		.order = pgdat->kcompactd_max_order,
++		.search_order = pgdat->kcompactd_max_order,
+ 		.total_migrate_scanned = 0,
+ 		.total_free_scanned = 0,
+ 		.classzone_idx = pgdat->kcompactd_classzone_idx,
+diff --git a/mm/internal.h b/mm/internal.h
+index e5ca2a10b8ad..d028abd8a8f3 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -191,7 +191,8 @@ struct compact_control {
+ 	struct zone *zone;
+ 	unsigned long total_migrate_scanned;
+ 	unsigned long total_free_scanned;
+-	unsigned int fast_search_fail;	/* failures to use free list searches */
++	unsigned short fast_search_fail;/* failures to use free list searches */
++	unsigned short search_order;	/* order to start a fast search at */
+ 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+ 	int order;			/* order a direct compactor needs */
+ 	int migratetype;		/* migratetype of direct compactor */
 -- 
-2.17.2 (Apple Git-113)
+2.16.4
