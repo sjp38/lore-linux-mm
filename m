@@ -1,42 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 398838E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 05:03:50 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id l22so36829268pfb.2
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 02:03:50 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 27sor28533075pft.32.2019.01.04.02.03.48
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DE928E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 04:04:57 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id f31so34616176edf.17
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 01:04:57 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i5si1716542eds.261.2019.01.04.01.04.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 04 Jan 2019 02:03:49 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jan 2019 01:04:56 -0800 (PST)
+Date: Fri, 4 Jan 2019 10:04:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: memory cgroup pagecache and inode problem
-From: Fam Zheng <zhengfeiran@bytedance.com>
-In-Reply-To: <20190104090441.GI31793@dhcp22.suse.cz>
-Date: Fri, 4 Jan 2019 18:02:19 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <E699E11E-32B9-4061-93BD-54FE52F972BA@bytedance.com>
+Message-ID: <20190104090441.GI31793@dhcp22.suse.cz>
 References: <15614FDC-198E-449B-BFAF-B00D6EF61155@bytedance.com>
- <20190104090441.GI31793@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <15614FDC-198E-449B-BFAF-B00D6EF61155@bytedance.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Fam Zheng <zhengfeiran@bytedance.com>, cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>, tj@kernel.org, Johannes Weiner <hannes@cmpxchg.org>, lizefan@huawei.com, Vladimir Davydov <vdavydov.dev@gmail.com>, duanxiongchun@bytedance.com, =?utf-8?B?5byg5rC46IKD?= <zhangyongsu@bytedance.com>
+To: Fam Zheng <zhengfeiran@bytedance.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, hannes@cmpxchg.org, lizefan@huawei.com, vdavydov.dev@gmail.com, duanxiongchun@bytedance.com, =?utf-8?B?5byg5rC46IKD?= <zhangyongsu@bytedance.com>
 
+On Fri 04-01-19 12:43:40, Fam Zheng wrote:
+> Hi,
+> 
+> In our server which frequently spawns containers, we find that if a
+> process used pagecache in memory cgroup, after the process exits and
+> memory cgroup is offlined, because the pagecache is still charged in
+> this memory cgroup, this memory cgroup will not be destroyed until the
+> pagecaches are dropped. This brings huge memory stress over time. We
+> find that over one hundred thounsand such offlined memory cgroup in
+> system hold too much memory (~100G). This memory can not be released
+> immediately even after all associated pagecahes are released, because
+> those memory cgroups are destroy asynchronously by a kworker. In some
+> cases this can cause oom, since the synchronous memory allocation
+> failed.
 
+You are right that an offline memcg keeps memory behind and expects
+kswapd or the direct reclaim to prune that memory on demand. Do you have
+any examples when this would cause extreme memory stress though? For
+example a high direct reclaim activity that would be result of these
+offline memcgs? You are mentioning OOM which is even more unexpected.
+I haven't seen such a disruptive behavior.
 
-> On Jan 4, 2019, at 17:04, Michal Hocko <mhocko@kernel.org> wrote:
->=20
-> This is a natural side effect of shared memory, I am afraid. Isolated
-> memory cgroups should limit any shared resources to bare minimum. You
-> will get "who touches first gets charged" behavior otherwise and that =
-is
-> not really deterministic.
+> We think a fix is to create a kworker that scans all pagecaches and
+> dentry caches etc. in the background, if a referenced memory cgroup is
+> offline, try to drop the cache or move it to the parent cgroup. This
+> kworker can wake up periodically, or upon memory cgroup offline event
+> (or both).
 
-I don=E2=80=99t quite understand your comment. I think the current =
-behavior for the ext4_inode_cachep slab family is just =E2=80=9Cwho =
-touches first gets charged=E2=80=9D, and later users of the same file =
-from a different mem cgroup can benefit from the cache, keep it from =
-being released, but doesn=E2=80=99t get charged.=
+We do that from the kswapd context already. I do not think we need
+another kworker.
+
+Another option might be to enforce the reclaim on the offline path.
+We are discussing a similar issue with Yang Shi
+http://lkml.kernel.org/r/1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com
+
+> There is a similar problem in inode. After digging in ext4 code, we
+> find that when creating inode cache, SLAB_ACCOUNT is used. In this
+> case, inode will alloc in slab which belongs to the current memory
+> cgroup. After this memory cgroup goes offline, this inode may be held
+> by a dentry cache. If another process uses the same file. this inode
+> will be held by that process, preventing the previous memory cgroup
+> from being destroyed until this other process closes the file and
+> drops the dentry cache.
+
+This is a natural side effect of shared memory, I am afraid. Isolated
+memory cgroups should limit any shared resources to bare minimum. You
+will get "who touches first gets charged" behavior otherwise and that is
+not really deterministic.
+-- 
+Michal Hocko
+SUSE Labs
