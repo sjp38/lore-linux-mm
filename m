@@ -1,108 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC868E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 00:51:57 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id m37so38106243qte.10
-        for <linux-mm@kvack.org>; Tue, 01 Jan 2019 21:51:57 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l11sor44208235qtk.1.2019.01.01.21.51.56
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 752B58E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:51:35 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c3so35318604eda.3
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:51:35 -0800 (PST)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id r24si203929edp.187.2019.01.04.04.51.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 01 Jan 2019 21:51:56 -0800 (PST)
-MIME-Version: 1.0
-References: <20181210011504.122604-1-drinkcat@chromium.org>
-In-Reply-To: <20181210011504.122604-1-drinkcat@chromium.org>
-From: Nicolas Boichat <drinkcat@chromium.org>
-Date: Wed, 2 Jan 2019 13:51:45 +0800
-Message-ID: <CANMq1KAmFKpcxi49wJyfP4N01A80B2d-2RGY2Wrwg0BvaFxAxg@mail.gmail.com>
-Subject: Re: [PATCH v6 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jan 2019 04:51:33 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 94DED98837
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:51:33 +0000 (UTC)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 07/25] mm, migrate: Immediately fail migration of a page with no migration handler
+Date: Fri,  4 Jan 2019 12:49:53 +0000
+Message-Id: <20190104125011.16071-8-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <joro@8bytes.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>, Yingjoe Chen <yingjoe.chen@mediatek.com>, hch@infradead.org, Matthew Wilcox <willy@infradead.org>, Hsin-Yi Wang <hsinyi@chromium.org>, stable@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Hi all,
+Pages with no migration handler use a fallback handler which sometimes
+works and sometimes persistently retries. A historical example was blockdev
+pages but there are others such as odd refcounting when page->private
+is used.  These are retried multiple times which is wasteful during
+compaction so this patch will fail migration faster unless the caller
+specifies MIGRATE_SYNC.
 
-On Mon, Dec 10, 2018 at 9:15 AM Nicolas Boichat <drinkcat@chromium.org> wrote:
->
-> This is a follow-up to the discussion in [1], [2].
->
-> IOMMUs using ARMv7 short-descriptor format require page tables
-> (level 1 and 2) to be allocated within the first 4GB of RAM, even
-> on 64-bit systems.
->
-> For L1 tables that are bigger than a page, we can just use __get_free_pages
-> with GFP_DMA32 (on arm64 systems only, arm would still use GFP_DMA).
->
-> For L2 tables that only take 1KB, it would be a waste to allocate a full
-> page, so we considered 3 approaches:
->  1. This series, adding support for GFP_DMA32 slab caches.
->  2. genalloc, which requires pre-allocating the maximum number of L2 page
->     tables (4096, so 4MB of memory).
->  3. page_frag, which is not very memory-efficient as it is unable to reuse
->     freed fragments until the whole page is freed. [3]
->
-> This series is the most memory-efficient approach.
+This is not expected to help THP allocation success rates but it did
+reduce latencies very slightly in some cases.
 
-Does anyone have any further comment on this series? If not, which
-maintainer is going to pick this up? I assume Andrew Morton?
+1-socket thpfioscale
+                                        4.20.0                 4.20.0
+                              noreserved-v2r15         failfast-v2r15
+Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
+Amean     fault-both-3      3839.67 (   0.00%)     3833.72 (   0.15%)
+Amean     fault-both-5      5177.47 (   0.00%)     4967.15 (   4.06%)
+Amean     fault-both-7      7245.03 (   0.00%)     7139.19 (   1.46%)
+Amean     fault-both-12    11534.89 (   0.00%)    11326.30 (   1.81%)
+Amean     fault-both-18    16241.10 (   0.00%)    16270.70 (  -0.18%)
+Amean     fault-both-24    19075.91 (   0.00%)    19839.65 (  -4.00%)
+Amean     fault-both-30    22712.11 (   0.00%)    21707.05 (   4.43%)
+Amean     fault-both-32    21692.92 (   0.00%)    21968.16 (  -1.27%)
 
-Thanks,
+The 2-socket results are not materially different. Scan rates are similar
+as expected.
 
-> stable@ note:
->   We confirmed that this is a regression, and IOMMU errors happen on 4.19
->   and linux-next/master on MT8173 (elm, Acer Chromebook R13). The issue
->   most likely starts from commit ad67f5a6545f ("arm64: replace ZONE_DMA
->   with ZONE_DMA32"), i.e. 4.15, and presumably breaks a number of Mediatek
->   platforms (and maybe others?).
->
-> [1] https://lists.linuxfoundation.org/pipermail/iommu/2018-November/030876.html
-> [2] https://lists.linuxfoundation.org/pipermail/iommu/2018-December/031696.html
-> [3] https://patchwork.codeaurora.org/patch/671639/
->
-> Changes since v1:
->  - Add support for SLAB_CACHE_DMA32 in slab and slub (patches 1/2)
->  - iommu/io-pgtable-arm-v7s (patch 3):
->    - Changed approach to use SLAB_CACHE_DMA32 added by the previous
->      commit.
->    - Use DMA or DMA32 depending on the architecture (DMA for arm,
->      DMA32 for arm64).
->
-> Changes since v2:
->  - Reworded and expanded commit messages
->  - Added cache_dma32 documentation in PATCH 2/3.
->
-> v3 used the page_frag approach, see [3].
->
-> Changes since v4:
->  - Dropped change that removed GFP_DMA32 from GFP_SLAB_BUG_MASK:
->    instead we can just call kmem_cache_*alloc without GFP_DMA32
->    parameter. This also means that we can drop PATCH v4 1/3, as we
->    do not make any changes in GFP flag verification.
->  - Dropped hunks that added cache_dma32 sysfs file, and moved
->    the hunks to PATCH v5 3/3, so that maintainer can decide whether
->    to pick the change independently.
->
-> Changes since v5:
->  - Rename ARM_V7S_TABLE_SLAB_CACHE to ARM_V7S_TABLE_SLAB_FLAGS.
->  - Add stable@ to cc.
->
-> Nicolas Boichat (3):
->   mm: Add support for kmem caches in DMA32 zone
->   iommu/io-pgtable-arm-v7s: Request DMA32 memory, and improve debugging
->   mm: Add /sys/kernel/slab/cache/cache_dma32
->
->  Documentation/ABI/testing/sysfs-kernel-slab |  9 +++++++++
->  drivers/iommu/io-pgtable-arm-v7s.c          | 19 +++++++++++++++----
->  include/linux/slab.h                        |  2 ++
->  mm/slab.c                                   |  2 ++
->  mm/slab.h                                   |  3 ++-
->  mm/slab_common.c                            |  2 +-
->  mm/slub.c                                   | 16 ++++++++++++++++
->  tools/vm/slabinfo.c                         |  7 ++++++-
->  8 files changed, 53 insertions(+), 7 deletions(-)
->
-> --
-> 2.20.0.rc2.403.gdbc3b29805-goog
->
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/migrate.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 5d1839a9148d..547cc1f3f3bb 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -916,7 +916,7 @@ static int fallback_migrate_page(struct address_space *mapping,
+ 	 */
+ 	if (page_has_private(page) &&
+ 	    !try_to_release_page(page, GFP_KERNEL))
+-		return -EAGAIN;
++		return mode == MIGRATE_SYNC ? -EAGAIN : -EBUSY;
+ 
+ 	return migrate_page(mapping, newpage, page, mode);
+ }
+-- 
+2.16.4
