@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2CB8E00F9
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 18:00:29 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id h85so26465571oib.9
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 15:00:29 -0800 (PST)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id p81si10241515oia.75.2019.01.04.15.00.25
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A558E00F9
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 16:45:07 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id g12so27832298pll.22
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 13:45:07 -0800 (PST)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id g26si1733570pfi.184.2019.01.04.13.45.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 15:00:28 -0800 (PST)
+        Fri, 04 Jan 2019 13:45:05 -0800 (PST)
 Subject: Re: [RFC PATCH 0/3] mm: memcontrol: delayed force empty
 References: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
  <20190103101215.GH31793@dhcp22.suse.cz>
@@ -21,8 +21,8 @@ References: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
  <88b4d986-0b3c-cbf0-65ad-95f3e8ccd870@linux.alibaba.com>
  <xr93y380xk9k.fsf@gthelen.svl.corp.google.com>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <5d9579aa-cfdc-8254-bfd9-63c4e1bfa4c5@linux.alibaba.com>
-Date: Fri, 4 Jan 2019 14:57:33 -0800
+Message-ID: <344793c0-f987-85a1-2a75-bc27083f52f4@linux.alibaba.com>
+Date: Fri, 4 Jan 2019 13:41:50 -0800
 MIME-Version: 1.0
 In-Reply-To: <xr93y380xk9k.fsf@gthelen.svl.corp.google.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
@@ -75,12 +75,10 @@ On 1/4/19 12:03 PM, Greg Thelen wrote:
 > then it seem like the time to offline could grow.  I'm not sure if
 > that's important.
 
-One thing I can think of is this may slow down the recycling of memcg 
-id. This may cause memcg id exhausted for some extreme workload. But, I 
-don't see this as a problem in our workload.
+Yes, it would grow. I'm not sure, but it seems fine with our workloads.
 
-Thanks,
-Yang
+The reclaim can be placed at the last step of offline, and it can be 
+interrupted by some signals, i.e. fatal signal in current code.
 
 >
 > I assume that if we make force_empty an async side effect of rmdir then
@@ -89,6 +87,17 @@ Yang
 > to direct reclaim.  So it seems like user space would use a mechanism to
 > wait for reclaim: either the existing sync force_empty or polling
 > meminfo/etc waiting for free memory to appear.
+
+Yes, it is expected side effect, the memory reclaim would happen in a 
+short while. In this series I keep sync reclaim behavior of force_empty 
+by checking the written value. Michal suggested a new knob do the 
+offline reclaim, and keep force_empty intact.
+
+I think using which knob is user's discretion.
+
+Thanks,
+Yang
+
 >
 >>>>> I think it is more important to discuss whether we want to introduce
 >>>>> force_empty in cgroup v2.
