@@ -1,134 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F0F8E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id w19so47907513qto.13
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:27:52 -0800 (PST)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id l45si704895qtc.21.2019.01.05.07.27.51
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7705F8E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:51:26 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c18so34708199edt.23
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:51:26 -0800 (PST)
+Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
+        by mx.google.com with ESMTPS id gp17-v6si1475918ejb.103.2019.01.04.04.51.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 07:27:51 -0800 (PST)
-Subject: FAILED: patch "[PATCH] x86/speculation/l1tf: Drop the swap storage limit restriction" failed to apply to 4.9-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Sat, 05 Jan 2019 16:27:47 +0100
-Message-ID: <154670206723833@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+        Fri, 04 Jan 2019 04:51:25 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 69C32B87AA
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:51:23 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 06/25] mm, compaction: Skip pageblocks with reserved pages
+Date: Fri,  4 Jan 2019 12:49:52 +0000
+Message-Id: <20190104125011.16071-7-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, ak@linux.intel.com, bp@suse.de, dave.hansen@intel.com, jkosina@suse.cz, linux-mm@kvack.org, pasha.tatashin@soleen.com, tglx@linutronix.de, torvalds@linux-foundation.org
-Cc: stable@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
+Reserved pages are set at boot time, tend to be clustered and almost never
+become unreserved. When isolating pages for either migration sources or
+target, skip the entire pageblock is one PageReserved page is encountered
+on the grounds that it is highly probable the entire pageblock is reserved.
 
-The patch below does not apply to the 4.9-stable tree.
-If someone wants it applied there, or to any other stable or longterm
-tree, then please email the backport, including the original git commit
-id to <stable@vger.kernel.org>.
+The performance impact is relative to the number of reserved pages in
+the system and their location so it'll be variable but intuitively it
+should make sense. If the memblock allocator was ever changed to spread
+reserved pages throughout the address space then this patch would be
+impaired but it would also be considered a bug given that such a change
+would ruin fragmentation.
 
-thanks,
+On both 1-socket and 2-socket machines, scan rates are reduced slightly
+on workloads that intensively allocate THP while the system is fragmented.
 
-greg k-h
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/compaction.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
------------------- original commit in Linus's tree ------------------
-
->From 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 Mon Sep 17 00:00:00 2001
-From: Michal Hocko <mhocko@suse.com>
-Date: Tue, 13 Nov 2018 19:49:10 +0100
-Subject: [PATCH] x86/speculation/l1tf: Drop the swap storage limit restriction
- when l1tf=off
-
-Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
-the system is deemed affected by L1TF vulnerability. Even though the limit
-is quite high for most deployments it seems to be too restrictive for
-deployments which are willing to live with the mitigation disabled.
-
-We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
-clearly out of the limit.
-
-Drop the swap restriction when l1tf=off is specified. It also doesn't make
-much sense to warn about too much memory for the l1tf mitigation when it is
-forcefully disabled by the administrator.
-
-[ tglx: Folded the documentation delta change ]
-
-Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Jiri Kosina <jkosina@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: <linux-mm@kvack.org>
-Cc: stable@vger.kernel.org
-Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
-
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 05a252e5178d..835e422572eb 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2095,6 +2095,9 @@
- 			off
- 				Disables hypervisor mitigations and doesn't
- 				emit any warnings.
-+				It also drops the swap size and available
-+				RAM limit restriction on both hypervisor and
-+				bare metal.
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 3afa4e9188b6..94d1e5b062ea 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -484,6 +484,15 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 			goto isolate_fail;
+ 		}
  
- 			Default is 'flush'.
- 
-diff --git a/Documentation/admin-guide/l1tf.rst b/Documentation/admin-guide/l1tf.rst
-index b85dd80510b0..9af977384168 100644
---- a/Documentation/admin-guide/l1tf.rst
-+++ b/Documentation/admin-guide/l1tf.rst
-@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid arguments for this option are:
- 
-   off		Disables hypervisor mitigations and doesn't emit any
- 		warnings.
-+		It also drops the swap size and available RAM limit restrictions
-+		on both hypervisor and bare metal.
++		/*
++		 * A reserved page is never freed and tend to be clustered in
++		 * the same pageblock. Skip the block.
++		 */
++		if (PageReserved(page)) {
++			blockpfn = end_pfn;
++			break;
++		}
 +
-   ============  =============================================================
+ 		if (!PageBuddy(page))
+ 			goto isolate_fail;
  
- The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
-@@ -576,7 +579,8 @@ Default mitigations
-   The kernel default mitigations for vulnerable processors are:
+@@ -827,6 +836,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 					goto isolate_success;
+ 			}
  
-   - PTE inversion to protect against malicious user space. This is done
--    unconditionally and cannot be controlled.
-+    unconditionally and cannot be controlled. The swap storage is limited
-+    to ~16TB.
++			/*
++			 * A reserved page is never freed and tend to be
++			 * clustered in the same pageblocks. Skip the block.
++			 */
++			if (PageReserved(page))
++				low_pfn = end_pfn;
++
+ 			goto isolate_fail;
+ 		}
  
-   - L1D conditional flushing on VMENTER when EPT is enabled for
-     a guest.
-diff --git a/arch/x86/kernel/cpu/bugs.c b/arch/x86/kernel/cpu/bugs.c
-index a68b32cb845a..58689ac64440 100644
---- a/arch/x86/kernel/cpu/bugs.c
-+++ b/arch/x86/kernel/cpu/bugs.c
-@@ -1002,7 +1002,8 @@ static void __init l1tf_select_mitigation(void)
- #endif
- 
- 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
--	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
-+	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
-+			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
- 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
- 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
- 				half_pa);
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index ef99f3892e1f..427a955a2cf2 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
- 
- 	pages = generic_max_swapfile_size();
- 
--	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
-+	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
- 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
- 		unsigned long long l1tf_limit = l1tf_pfn_limit();
- 		/*
+-- 
+2.16.4
