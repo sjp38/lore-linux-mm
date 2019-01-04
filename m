@@ -1,50 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CE7A8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:04:21 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id q3so16261481qtq.15
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:04:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l28si1244811qtb.119.2019.01.11.03.04.20
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B0CA48E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:49:52 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id f125so30907065pgc.20
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 09:49:52 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id u69si17338498pfj.219.2019.01.04.09.49.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:04:20 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V13 10/19] fs/buffer.c: use bvec iterator to truncate the bio
-Date: Fri, 11 Jan 2019 19:01:18 +0800
-Message-Id: <20190111110127.21664-11-ming.lei@redhat.com>
-In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
-References: <20190111110127.21664-1-ming.lei@redhat.com>
+        Fri, 04 Jan 2019 09:49:51 -0800 (PST)
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Subject: [PATCH 2/5] x86/mpx: remove bounds exception code
+Date: Fri,  4 Jan 2019 09:49:40 -0800
+Message-Id: <1546624183-26543-3-git-send-email-dave.hansen@linux.intel.com>
+In-Reply-To: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
+References: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: dave.hansen@intel.com
+Cc: x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Once multi-page bvec is enabled, the last bvec may include more than one
-page, this patch use bvec_last_segment() to truncate the bio.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
+MPX is being removed from the kernel due to a lack of support
+in the toolchain going forward (gcc).
+
+Remove the other user-visible ABI: signal handling.  This code
+should basically have been inactive after the prctl()s were
+removed, but there may be some small ABI remnants from this code.
+Remove it.
+
+This, along with the prctl() removal is probably what we should
+apply first.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- fs/buffer.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ arch/x86/kernel/traps.c | 74 -------------------------------------------------
+ 1 file changed, 74 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 52d024bfdbc1..fb72ac21f2b1 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3032,7 +3032,10 @@ void guard_bio_eod(int op, struct bio *bio)
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 9b7c4ca..85cccad 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -57,8 +57,6 @@
+ #include <asm/mach_traps.h>
+ #include <asm/alternative.h>
+ #include <asm/fpu/xstate.h>
+-#include <asm/trace/mpx.h>
+-#include <asm/mpx.h>
+ #include <asm/vm86.h>
+ #include <asm/umip.h>
  
- 	/* ..and clear the end of the buffer for reads */
- 	if (op == REQ_OP_READ) {
--		zero_user(bvec->bv_page, bvec->bv_offset + bvec->bv_len,
-+		struct bio_vec bv;
-+
-+		bvec_last_segment(bvec, &bv);
-+		zero_user(bv.bv_page, bv.bv_offset + bv.bv_len,
- 				truncated_bytes);
- 	}
+@@ -433,8 +431,6 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
+ 
+ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+ {
+-	const struct mpx_bndcsr *bndcsr;
+-
+ 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+ 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
+ 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
+@@ -444,76 +440,6 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+ 	if (!user_mode(regs))
+ 		die("bounds", regs, error_code);
+ 
+-	if (!cpu_feature_enabled(X86_FEATURE_MPX)) {
+-		/* The exception is not from Intel MPX */
+-		goto exit_trap;
+-	}
+-
+-	/*
+-	 * We need to look at BNDSTATUS to resolve this exception.
+-	 * A NULL here might mean that it is in its 'init state',
+-	 * which is all zeros which indicates MPX was not
+-	 * responsible for the exception.
+-	 */
+-	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
+-	if (!bndcsr)
+-		goto exit_trap;
+-
+-	trace_bounds_exception_mpx(bndcsr);
+-	/*
+-	 * The error code field of the BNDSTATUS register communicates status
+-	 * information of a bound range exception #BR or operation involving
+-	 * bound directory.
+-	 */
+-	switch (bndcsr->bndstatus & MPX_BNDSTA_ERROR_CODE) {
+-	case 2:	/* Bound directory has invalid entry. */
+-		if (mpx_handle_bd_fault())
+-			goto exit_trap;
+-		break; /* Success, it was handled */
+-	case 1: /* Bound violation. */
+-	{
+-		struct task_struct *tsk = current;
+-		struct mpx_fault_info mpx;
+-
+-		if (mpx_fault_info(&mpx, regs)) {
+-			/*
+-			 * We failed to decode the MPX instruction.  Act as if
+-			 * the exception was not caused by MPX.
+-			 */
+-			goto exit_trap;
+-		}
+-		/*
+-		 * Success, we decoded the instruction and retrieved
+-		 * an 'mpx' containing the address being accessed
+-		 * which caused the exception.  This information
+-		 * allows and application to possibly handle the
+-		 * #BR exception itself.
+-		 */
+-		if (!do_trap_no_signal(tsk, X86_TRAP_BR, "bounds", regs,
+-				       error_code))
+-			break;
+-
+-		show_signal(tsk, SIGSEGV, "trap ", "bounds", regs, error_code);
+-
+-		force_sig_bnderr(mpx.addr, mpx.lower, mpx.upper);
+-		break;
+-	}
+-	case 0: /* No exception caused by Intel MPX operations. */
+-		goto exit_trap;
+-	default:
+-		die("bounds", regs, error_code);
+-	}
+-
+-	return;
+-
+-exit_trap:
+-	/*
+-	 * This path out is for all the cases where we could not
+-	 * handle the exception in some way (like allocating a
+-	 * table or telling userspace about it.  We will also end
+-	 * up here if the kernel has MPX turned off at compile
+-	 * time..
+-	 */
+ 	do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, 0, NULL);
  }
+ 
 -- 
-2.9.5
+2.7.4
