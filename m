@@ -1,137 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B98F8E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 14:29:46 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id r13so2600781pgb.7
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 11:29:46 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p64si4814585pfg.79.2019.01.08.11.29.45
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7BC8E00F9
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 16:56:42 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id j5so45435008qtk.11
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 13:56:42 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b20si2838649qvd.185.2019.01.04.13.56.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 11:29:45 -0800 (PST)
-From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.20 117/117] mm/memblock.c: skip kmemleak for kasan_init()
-Date: Tue,  8 Jan 2019 14:26:25 -0500
-Message-Id: <20190108192628.121270-117-sashal@kernel.org>
-In-Reply-To: <20190108192628.121270-1-sashal@kernel.org>
-References: <20190108192628.121270-1-sashal@kernel.org>
+        Fri, 04 Jan 2019 13:56:42 -0800 (PST)
+Date: Fri, 4 Jan 2019 16:56:36 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v2] mm: page_mapped: don't assume compound page is huge
+ or THP
+Message-ID: <20190104215636.GM19981@redhat.com>
+References: <eabca57aa14f4df723173b24891f4a2d9c501f21.1543526537.git.jstancek@redhat.com>
+ <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: Qian Cai <cai@gmx.us>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, kasan-dev@googlegroups.com, linux-mm@kvack.org
+To: Jan Stancek <jstancek@redhat.com>
+Cc: linux-mm@kvack.org, lersek@redhat.com, alex.williamson@redhat.com, rientjes@google.com, kirill@shutemov.name, mgorman@techsingularity.net, mhocko@suse.com, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-From: Qian Cai <cai@gmx.us>
+[ CC'ed Andrew for potential inclusion in -mm ]
 
-[ Upstream commit fed84c78527009d4f799a3ed9a566502fa026d82 ]
+On Fri, Nov 30, 2018 at 01:06:57PM +0100, Jan Stancek wrote:
+> LTP proc01 testcase has been observed to rarely trigger crashes
+> on arm64:
+>     page_mapped+0x78/0xb4
+>     stable_page_flags+0x27c/0x338
+>     kpageflags_read+0xfc/0x164
+>     proc_reg_read+0x7c/0xb8
+>     __vfs_read+0x58/0x178
+>     vfs_read+0x90/0x14c
+>     SyS_read+0x60/0xc0
+> 
+> Issue is that page_mapped() assumes that if compound page is not
+> huge, then it must be THP. But if this is 'normal' compound page
+> (COMPOUND_PAGE_DTOR), then following loop can keep running
+> (for HPAGE_PMD_NR iterations) until it tries to read from memory
+> that isn't mapped and triggers a panic:
+>         for (i = 0; i < hpage_nr_pages(page); i++) {
+>                 if (atomic_read(&page[i]._mapcount) >= 0)
+>                         return true;
+> 	}
+> 
+> I could replicate this on x86 (v4.20-rc4-98-g60b548237fed) only
+> with a custom kernel module [1] which:
+> - allocates compound page (PAGEC) of order 1
+> - allocates 2 normal pages (COPY), which are initialized to 0xff
+>   (to satisfy _mapcount >= 0)
+> - 2 PAGEC page structs are copied to address of first COPY page
+> - second page of COPY is marked as not present
+> - call to page_mapped(COPY) now triggers fault on access to 2nd
+>   COPY page at offset 0x30 (_mapcount)
+> 
+> [1] https://github.com/jstancek/reproducers/blob/master/kernel/page_mapped_crash/repro.c
+> 
+> Fix the loop to iterate for "1 << compound_order" pages.
+> 
+> Debugged-by: Laszlo Ersek <lersek@redhat.com>
+> Suggested-by: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Signed-off-by: Jan Stancek <jstancek@redhat.com>
+> ---
+>  mm/util.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Changes in v2:
+> - change the loop instead so we check also mapcount of subpages
 
-Kmemleak does not play well with KASAN (tested on both HPE Apollo 70 and
-Huawei TaiShan 2280 aarch64 servers).
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
-After calling start_kernel()->setup_arch()->kasan_init(), kmemleak early
-log buffer went from something like 280 to 260000 which caused kmemleak
-disabled and crash dump memory reservation failed.  The multitude of
-kmemleak_alloc() calls is from nested loops while KASAN is setting up full
-memory mappings, so let early kmemleak allocations skip those
-memblock_alloc_internal() calls came from kasan_init() given that those
-early KASAN memory mappings should not reference to other memory.  Hence,
-no kmemleak false positives.
-
-kasan_init
-  kasan_map_populate [1]
-    kasan_pgd_populate [2]
-      kasan_pud_populate [3]
-        kasan_pmd_populate [4]
-          kasan_pte_populate [5]
-            kasan_alloc_zeroed_page
-              memblock_alloc_try_nid
-                memblock_alloc_internal
-                  kmemleak_alloc
-
-[1] for_each_memblock(memory, reg)
-[2] while (pgdp++, addr = next, addr != end)
-[3] while (pudp++, addr = next, addr != end && pud_none(READ_ONCE(*pudp)))
-[4] while (pmdp++, addr = next, addr != end && pmd_none(READ_ONCE(*pmdp)))
-[5] while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)))
-
-Link: http://lkml.kernel.org/r/1543442925-17794-1-git-send-email-cai@gmx.us
-Signed-off-by: Qian Cai <cai@gmx.us>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Alexander Potapenko <glider@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- arch/arm64/mm/kasan_init.c |  2 +-
- include/linux/memblock.h   |  1 +
- mm/memblock.c              | 19 +++++++++++--------
- 3 files changed, 13 insertions(+), 9 deletions(-)
-
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 63527e585aac..fcb2ca30b6f1 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -39,7 +39,7 @@ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
- {
- 	void *p = memblock_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
- 					      __pa(MAX_DMA_ADDRESS),
--					      MEMBLOCK_ALLOC_ACCESSIBLE, node);
-+					      MEMBLOCK_ALLOC_KASAN, node);
- 	return __pa(p);
- }
- 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index aee299a6aa76..3ef3086ed52f 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -320,6 +320,7 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
- /* Flags for memblock allocation APIs */
- #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)
- #define MEMBLOCK_ALLOC_ACCESSIBLE	0
-+#define MEMBLOCK_ALLOC_KASAN		1
- 
- /* We are using top down, so it is safe to use 0 here */
- #define MEMBLOCK_LOW_LIMIT 0
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 81ae63ca78d0..f45a049532fe 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -262,7 +262,8 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
- 	phys_addr_t kernel_end, ret;
- 
- 	/* pump up @end */
--	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-+	if (end == MEMBLOCK_ALLOC_ACCESSIBLE ||
-+	    end == MEMBLOCK_ALLOC_KASAN)
- 		end = memblock.current_limit;
- 
- 	/* avoid allocating the first page */
-@@ -1412,13 +1413,15 @@ static void * __init memblock_alloc_internal(
- done:
- 	ptr = phys_to_virt(alloc);
- 
--	/*
--	 * The min_count is set to 0 so that bootmem allocated blocks
--	 * are never reported as leaks. This is because many of these blocks
--	 * are only referred via the physical address which is not
--	 * looked up by kmemleak.
--	 */
--	kmemleak_alloc(ptr, size, 0, 0);
-+	/* Skip kmemleak for kasan_init() due to high volume. */
-+	if (max_addr != MEMBLOCK_ALLOC_KASAN)
-+		/*
-+		 * The min_count is set to 0 so that bootmem allocated
-+		 * blocks are never reported as leaks. This is because many
-+		 * of these blocks are only referred via the physical
-+		 * address which is not looked up by kmemleak.
-+		 */
-+		kmemleak_alloc(ptr, size, 0, 0);
- 
- 	return ptr;
- }
--- 
-2.19.1
+Thanks,
+Andrea
