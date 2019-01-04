@@ -1,94 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CE5548E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:04:51 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id d31so16264293qtc.4
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:04:51 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l23si1010038qkg.227.2019.01.11.03.04.50
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BA91E8E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:54:38 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t2so34862056edb.22
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:54:38 -0800 (PST)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id l1si937018edc.252.2019.01.04.04.54.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:04:51 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V13 12/19] block: loop: pass multi-page bvec to iov_iter
-Date: Fri, 11 Jan 2019 19:01:20 +0800
-Message-Id: <20190111110127.21664-13-ming.lei@redhat.com>
-In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
-References: <20190111110127.21664-1-ming.lei@redhat.com>
+        Fri, 04 Jan 2019 04:54:37 -0800 (PST)
+Received: from mail.blacknight.com (unknown [81.17.254.16])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 0A7B71C1C22
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:54:37 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 25/25] mm, compaction: Do not direct compact remote memory
+Date: Fri,  4 Jan 2019 12:50:11 +0000
+Message-Id: <20190104125011.16071-26-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-iov_iter is implemented on bvec itererator helpers, so it is safe to pass
-multi-page bvec to it, and this way is much more efficient than passing one
-page in each bvec.
+Remote compaction is expensive and possibly counter-productive. Locality
+is expected to often have better performance characteristics than remote
+high-order pages. For small allocations, it's expected that locality is
+generally required or fallbacks are possible. For larger allocations such
+as THP, they are forbidden at the time of writing but if __GFP_THISNODE
+is ever removed, then it would still be preferable to fallback to small
+local base pages over remote THP in the general case. kcompactd is still
+woken via kswapd so compaction happens eventually.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
+While this patch potentially has both positive and negative effects,
+it is best to avoid the possibility of remote compaction given the cost
+relative to any potential benefit.
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- drivers/block/loop.c | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ mm/compaction.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index b8a0720d3653..28dd22c6f83f 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -511,21 +511,22 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
- 		     loff_t pos, bool rw)
- {
- 	struct iov_iter iter;
-+	struct req_iterator rq_iter;
- 	struct bio_vec *bvec;
- 	struct request *rq = blk_mq_rq_from_pdu(cmd);
- 	struct bio *bio = rq->bio;
- 	struct file *file = lo->lo_backing_file;
-+	struct bio_vec tmp;
- 	unsigned int offset;
--	int segments = 0;
-+	int nr_bvec = 0;
- 	int ret;
- 
-+	rq_for_each_bvec(tmp, rq, rq_iter)
-+		nr_bvec++;
-+
- 	if (rq->bio != rq->biotail) {
--		struct req_iterator iter;
--		struct bio_vec tmp;
- 
--		__rq_for_each_bio(bio, rq)
--			segments += bio_segments(bio);
--		bvec = kmalloc_array(segments, sizeof(struct bio_vec),
-+		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
- 				     GFP_NOIO);
- 		if (!bvec)
- 			return -EIO;
-@@ -534,10 +535,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
- 		/*
- 		 * The bios of the request may be started from the middle of
- 		 * the 'bvec' because of bio splitting, so we can't directly
--		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_segment
-+		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_bvec
- 		 * API will take care of all details for us.
- 		 */
--		rq_for_each_segment(tmp, rq, iter) {
-+		rq_for_each_bvec(tmp, rq, rq_iter) {
- 			*bvec = tmp;
- 			bvec++;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index ae70be023b21..cc17f0c01811 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -2348,6 +2348,16 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 			continue;
  		}
-@@ -551,11 +552,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
- 		 */
- 		offset = bio->bi_iter.bi_bvec_done;
- 		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
--		segments = bio_segments(bio);
- 	}
- 	atomic_set(&cmd->ref, 2);
  
--	iov_iter_bvec(&iter, rw, bvec, segments, blk_rq_bytes(rq));
-+	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
- 	iter.iov_offset = offset;
- 
- 	cmd->iocb.ki_pos = pos;
++		/*
++		 * Do not compact remote memory. It's expensive and high-order
++		 * small allocations are expected to prefer or require local
++		 * memory. Similarly, larger requests such as THP can fallback
++		 * to base pages in preference to remote huge pages if
++		 * __GFP_THISNODE is not specified
++		 */
++		if (zone_to_nid(zone) != zone_to_nid(ac->preferred_zoneref->zone))
++			continue;
++
+ 		status = compact_zone_order(zone, order, gfp_mask, prio,
+ 				alloc_flags, ac_classzone_idx(ac), capture);
+ 		rc = max(status, rc);
 -- 
-2.9.5
+2.16.4
