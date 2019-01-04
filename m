@@ -1,270 +1,310 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E09A8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 12:36:20 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id g3so8467093wmf.1
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 09:36:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 123sor4978218wml.1.2019.01.02.09.36.18
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C88368E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:52:26 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id i55so35179058ede.14
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:52:26 -0800 (PST)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id e16-v6si384789ejk.23.2019.01.04.04.52.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 09:36:18 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 3/3] kasan: fix krealloc handling for tag-based mode
-Date: Wed,  2 Jan 2019 18:36:08 +0100
-Message-Id: <bc983dc45be2af41701ac3a88f154b5dd1459a26.1546450432.git.andreyknvl@google.com>
-In-Reply-To: <cover.1546450432.git.andreyknvl@google.com>
-References: <cover.1546450432.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jan 2019 04:52:24 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 935591C213D
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:52:24 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 12/25] mm, compaction: Keep migration source private to a single compaction instance
+Date: Fri,  4 Jan 2019 12:49:58 +0000
+Message-Id: <20190104125011.16071-13-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Right now tag-based KASAN can retag the memory that is reallocated via
-krealloc and return a differently tagged pointer even if the same slab
-object gets used and no reallocated technically happens.
+Due to either a fast search of the free list or a linear scan, it is
+possible for multiple compaction instances to pick the same pageblock
+for migration.  This is lucky for one scanner and increased scanning for
+all the others. It also allows a race between requests on which first
+allocates the resulting free block.
 
-There are a few issues with this approach. One is that krealloc callers
-can't rely on comparing the return value with the passed argument to
-check whether reallocation happened. Another is that if a caller knows
-that no reallocation happened, that it can access object memory through
-the old pointer, which leads to false positives. Look at nf_ct_ext_add()
-to see an example.
+This patch tests and updates the pageblock skip for the migration scanner
+carefully. When isolating a block, it will check and skip if the block is
+already in use. Once the zone lock is acquired, it will be rechecked so
+that only one scanner can set the pageblock skip for exclusive use. Any
+scanner contending will continue with a linear scan. The skip bit is
+still set if no pages can be isolated in a range. While this may result
+in redundant scanning, it avoids unnecessarily acquiring the zone lock
+when there are no suitable migration sources.
 
-Fix this by keeping the same tag if the memory don't actually gets
-reallocated during krealloc.
+1-socket thpscale
+                                        4.20.0                 4.20.0
+                                 findmig-v2r15          isolmig-v2r15
+Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
+Amean     fault-both-3      3505.69 (   0.00%)     3066.68 *  12.52%*
+Amean     fault-both-5      5794.13 (   0.00%)     4298.49 *  25.81%*
+Amean     fault-both-7      7663.09 (   0.00%)     5986.99 *  21.87%*
+Amean     fault-both-12    10983.36 (   0.00%)     9324.85 (  15.10%)
+Amean     fault-both-18    13602.71 (   0.00%)    13350.05 (   1.86%)
+Amean     fault-both-24    16145.77 (   0.00%)    13491.77 *  16.44%*
+Amean     fault-both-30    19753.82 (   0.00%)    15630.86 *  20.87%*
+Amean     fault-both-32    20616.16 (   0.00%)    17428.50 *  15.46%*
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+This is the first patch that shows a significant reduction in latency as
+multiple compaction scanners do not operate on the same blocks. There is
+a small increase in the success rate
+
+                               4.20.0-rc6             4.20.0-rc6
+                             findmig-v1r4           isolmig-v1r4
+Percentage huge-3        90.58 (   0.00%)       95.84 (   5.81%)
+Percentage huge-5        91.34 (   0.00%)       94.19 (   3.12%)
+Percentage huge-7        92.21 (   0.00%)       93.78 (   1.71%)
+Percentage huge-12       92.48 (   0.00%)       94.33 (   2.00%)
+Percentage huge-18       91.65 (   0.00%)       94.15 (   2.72%)
+Percentage huge-24       90.23 (   0.00%)       94.23 (   4.43%)
+Percentage huge-30       90.17 (   0.00%)       95.17 (   5.54%)
+Percentage huge-32       89.72 (   0.00%)       93.59 (   4.32%)
+
+Compaction migrate scanned    54168306    25516488
+Compaction free scanned      800530954    87603321
+
+Migration scan rates are reduced by 52%.
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/kasan.h | 14 +++++---------
- include/linux/slab.h  |  4 ++--
- mm/kasan/common.c     | 20 ++++++++++++--------
- mm/slab.c             |  8 ++++----
- mm/slab_common.c      |  2 +-
- mm/slub.c             | 10 +++++-----
- 6 files changed, 29 insertions(+), 29 deletions(-)
+ mm/compaction.c | 126 ++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 99 insertions(+), 27 deletions(-)
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index b40ea104dd36..7576fff90923 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -57,9 +57,8 @@ void * __must_check kasan_kmalloc_large(const void *ptr, size_t size,
- void kasan_kfree_large(void *ptr, unsigned long ip);
- void kasan_poison_kfree(void *ptr, unsigned long ip);
- void * __must_check kasan_kmalloc(struct kmem_cache *s, const void *object,
--					size_t size, gfp_t flags);
--void * __must_check kasan_krealloc(const void *object, size_t new_size,
--					gfp_t flags);
-+				size_t size, gfp_t flags, bool krealloc);
-+void kasan_krealloc(const void *object, size_t new_size, gfp_t flags);
- 
- void * __must_check kasan_slab_alloc(struct kmem_cache *s, void *object,
- 					gfp_t flags);
-@@ -118,15 +117,12 @@ static inline void *kasan_kmalloc_large(void *ptr, size_t size, gfp_t flags)
- static inline void kasan_kfree_large(void *ptr, unsigned long ip) {}
- static inline void kasan_poison_kfree(void *ptr, unsigned long ip) {}
- static inline void *kasan_kmalloc(struct kmem_cache *s, const void *object,
--				size_t size, gfp_t flags)
--{
--	return (void *)object;
--}
--static inline void *kasan_krealloc(const void *object, size_t new_size,
--				 gfp_t flags)
-+				size_t size, gfp_t flags, bool krealloc)
- {
- 	return (void *)object;
- }
-+static inline void kasan_krealloc(const void *object, size_t new_size,
-+				 gfp_t flags) {}
- 
- static inline void *kasan_slab_alloc(struct kmem_cache *s, void *object,
- 				   gfp_t flags)
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index d87f913ab4e8..1cd168758c05 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -445,7 +445,7 @@ static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
- {
- 	void *ret = kmem_cache_alloc(s, flags);
- 
--	ret = kasan_kmalloc(s, ret, size, flags);
-+	ret = kasan_kmalloc(s, ret, size, flags, false);
- 	return ret;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 137e32e8a2f5..24e3a9db4b70 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -279,13 +279,52 @@ void reset_isolation_suitable(pg_data_t *pgdat)
+ 	}
  }
  
-@@ -456,7 +456,7 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
++/*
++ * Sets the pageblock skip bit if it was clear. Note that this is a hint as
++ * locks are not required for read/writers. Returns true if it was already set.
++ */
++static bool test_and_set_skip(struct compact_control *cc, struct page *page,
++							unsigned long pfn)
++{
++	bool skip;
++
++	/* Do no update if skip hint is being ignored */
++	if (cc->ignore_skip_hint)
++		return false;
++
++	if (!IS_ALIGNED(pfn, pageblock_nr_pages))
++		return false;
++
++	skip = get_pageblock_skip(page);
++	if (!skip && !cc->no_set_skip_hint)
++		set_pageblock_skip(page);
++
++	return skip;
++}
++
++static void update_cached_migrate(struct compact_control *cc, unsigned long pfn)
++{
++	struct zone *zone = cc->zone;
++
++	pfn = pageblock_end_pfn(pfn);
++
++	/* Set for isolation rather than compaction */
++	if (cc->no_set_skip_hint)
++		return;
++
++	if (pfn > zone->compact_cached_migrate_pfn[0])
++		zone->compact_cached_migrate_pfn[0] = pfn;
++	if (cc->mode != MIGRATE_ASYNC &&
++	    pfn > zone->compact_cached_migrate_pfn[1])
++		zone->compact_cached_migrate_pfn[1] = pfn;
++}
++
+ /*
+  * If no pages were isolated then mark this pageblock to be skipped in the
+  * future. The information is later cleared by __reset_isolation_suitable().
+  */
+ static void update_pageblock_skip(struct compact_control *cc,
+-			struct page *page, unsigned long nr_isolated,
+-			bool migrate_scanner)
++			struct page *page, unsigned long nr_isolated)
  {
- 	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
+ 	struct zone *zone = cc->zone;
+ 	unsigned long pfn;
+@@ -304,16 +343,8 @@ static void update_pageblock_skip(struct compact_control *cc,
+ 	pfn = page_to_pfn(page);
  
--	ret = kasan_kmalloc(s, ret, size, gfpflags);
-+	ret = kasan_kmalloc(s, ret, size, gfpflags, false);
- 	return ret;
+ 	/* Update where async and sync compaction should restart */
+-	if (migrate_scanner) {
+-		if (pfn > zone->compact_cached_migrate_pfn[0])
+-			zone->compact_cached_migrate_pfn[0] = pfn;
+-		if (cc->mode != MIGRATE_ASYNC &&
+-		    pfn > zone->compact_cached_migrate_pfn[1])
+-			zone->compact_cached_migrate_pfn[1] = pfn;
+-	} else {
+-		if (pfn < zone->compact_cached_free_pfn)
+-			zone->compact_cached_free_pfn = pfn;
+-	}
++	if (pfn < zone->compact_cached_free_pfn)
++		zone->compact_cached_free_pfn = pfn;
  }
- #endif /* CONFIG_TRACING */
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 44390392d4c9..b6633ab86160 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -392,7 +392,7 @@ void * __must_check kasan_init_slab_obj(struct kmem_cache *cache,
- void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
- 					gfp_t flags)
+ #else
+ static inline bool isolation_suitable(struct compact_control *cc,
+@@ -328,10 +359,19 @@ static inline bool pageblock_skip_persistent(struct page *page)
+ }
+ 
+ static inline void update_pageblock_skip(struct compact_control *cc,
+-			struct page *page, unsigned long nr_isolated,
+-			bool migrate_scanner)
++			struct page *page, unsigned long nr_isolated)
++{
++}
++
++static void update_cached_migrate(struct compact_control *cc, unsigned long pfn)
  {
--	return kasan_kmalloc(cache, object, cache->object_size, flags);
-+	return kasan_kmalloc(cache, object, cache->object_size, flags, false);
  }
++
++static bool test_and_set_skip(struct compact_control *cc, struct page *page,
++							unsigned long pfn)
++{
++	return false;
++}
+ #endif /* CONFIG_COMPACTION */
  
- static inline bool shadow_invalid(u8 tag, s8 shadow_byte)
-@@ -451,7 +451,7 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
- }
+ /*
+@@ -570,7 +610,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
  
- void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
--					size_t size, gfp_t flags)
-+				size_t size, gfp_t flags, bool krealloc)
- {
- 	unsigned long redzone_start;
- 	unsigned long redzone_end;
-@@ -468,8 +468,12 @@ void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
- 	redzone_end = round_up((unsigned long)object + cache->object_size,
- 				KASAN_SHADOW_SCALE_SIZE);
+ 	/* Update the pageblock-skip if the whole pageblock was scanned */
+ 	if (blockpfn == end_pfn)
+-		update_pageblock_skip(cc, valid_page, total_isolated, false);
++		update_pageblock_skip(cc, valid_page, total_isolated);
  
--	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
--		tag = assign_tag(cache, object, false);
-+	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS)) {
-+		if (krealloc)
-+			tag = get_tag(object);
-+		else
-+			tag = assign_tag(cache, object, false);
+ 	cc->total_free_scanned += nr_scanned;
+ 	if (total_isolated)
+@@ -705,6 +745,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 	unsigned long start_pfn = low_pfn;
+ 	bool skip_on_failure = false;
+ 	unsigned long next_skip_pfn = 0;
++	bool skip_updated = false;
+ 
+ 	/*
+ 	 * Ensure that there are not too many pages isolated from the LRU
+@@ -771,8 +812,19 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		page = pfn_to_page(low_pfn);
+ 
+-		if (!valid_page)
++		/*
++		 * Check if the pageblock has already been marked skipped.
++		 * Only the aligned PFN is checked as the caller isolates
++		 * COMPACT_CLUSTER_MAX at a time so the second call must
++		 * not falsely conclude that the block should be skipped.
++		 */
++		if (!valid_page && IS_ALIGNED(low_pfn, pageblock_nr_pages)) {
++			if (!cc->ignore_skip_hint && get_pageblock_skip(page)) {
++				low_pfn = end_pfn;
++				goto isolate_abort;
++			}
+ 			valid_page = page;
++		}
+ 
+ 		/*
+ 		 * Skip if free. We read page order here without zone lock
+@@ -860,8 +912,19 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		if (!locked) {
+ 			locked = compact_trylock_irqsave(zone_lru_lock(zone),
+ 								&flags, cc);
+-			if (!locked)
++
++			/* Allow future scanning if the lock is contended */
++			if (!locked) {
++				clear_pageblock_skip(page);
+ 				break;
++			}
++
++			/* Try get exclusive access under lock */
++			if (!skip_updated) {
++				skip_updated = true;
++				if (test_and_set_skip(cc, page, low_pfn))
++					goto isolate_abort;
++			}
+ 
+ 			/* Recheck PageLRU and PageCompound under lock */
+ 			if (!PageLRU(page))
+@@ -939,15 +1002,20 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 	if (unlikely(low_pfn > end_pfn))
+ 		low_pfn = end_pfn;
+ 
++isolate_abort:
+ 	if (locked)
+ 		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+ 
+ 	/*
+-	 * Update the pageblock-skip information and cached scanner pfn,
+-	 * if the whole pageblock was scanned without isolating any page.
++	 * Updated the cached scanner pfn if the pageblock was scanned
++	 * without isolating a page. The pageblock may not be marked
++	 * skipped already if there were no LRU pages in the block.
+ 	 */
+-	if (low_pfn == end_pfn)
+-		update_pageblock_skip(cc, valid_page, nr_isolated, true);
++	if (low_pfn == end_pfn && !nr_isolated) {
++		if (valid_page && !skip_updated)
++			set_pageblock_skip(valid_page);
++		update_cached_migrate(cc, low_pfn);
 +	}
  
- 	/* Tag is ignored in set_tag without CONFIG_KASAN_SW_TAGS */
- 	kasan_unpoison_shadow(set_tag(object, tag), size);
-@@ -508,19 +512,19 @@ void * __must_check kasan_kmalloc_large(const void *ptr, size_t size,
- 	return (void *)ptr;
- }
+ 	trace_mm_compaction_isolate_migratepages(start_pfn, low_pfn,
+ 						nr_scanned, nr_isolated);
+@@ -1332,8 +1400,6 @@ static unsigned long fast_find_migrateblock(struct compact_control *cc)
+ 			nr_scanned++;
+ 			free_pfn = page_to_pfn(freepage);
+ 			if (free_pfn < high_pfn) {
+-				update_fast_start_pfn(cc, free_pfn);
+-
+ 				/*
+ 				 * Avoid if skipped recently. Move to the tail
+ 				 * of the list so it will not be found again
+@@ -1355,9 +1421,9 @@ static unsigned long fast_find_migrateblock(struct compact_control *cc)
+ 				/* Reorder to so a future search skips recent pages */
+ 				move_freelist_tail(freelist, freepage);
  
--void * __must_check kasan_krealloc(const void *object, size_t size, gfp_t flags)
-+void kasan_krealloc(const void *object, size_t size, gfp_t flags)
- {
- 	struct page *page;
++				update_fast_start_pfn(cc, free_pfn);
+ 				pfn = pageblock_start_pfn(free_pfn);
+ 				cc->fast_search_fail = 0;
+-				set_pageblock_skip(freepage);
+ 				break;
+ 			}
  
- 	if (unlikely(object == ZERO_SIZE_PTR))
--		return (void *)object;
-+		return;
+@@ -1427,7 +1493,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 			low_pfn = block_end_pfn,
+ 			block_start_pfn = block_end_pfn,
+ 			block_end_pfn += pageblock_nr_pages) {
+-
+ 		/*
+ 		 * This can potentially iterate a massively long zone with
+ 		 * many pageblocks unsuitable, so periodically check if we
+@@ -1442,8 +1507,15 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 		if (!page)
+ 			continue;
  
- 	page = virt_to_head_page(object);
+-		/* If isolation recently failed, do not retry */
+-		if (!isolation_suitable(cc, page))
++		/*
++		 * If isolation recently failed, do not retry. Only check the
++		 * pageblock once. COMPACT_CLUSTER_MAX causes a pageblock
++		 * to be visited multiple times. Assume skip was checked
++		 * before making it "skip" so other compaction instances do
++		 * not scan the same block.
++		 */
++		if (IS_ALIGNED(low_pfn, pageblock_nr_pages) &&
++		    !isolation_suitable(cc, page))
+ 			continue;
  
- 	if (unlikely(!PageSlab(page)))
--		return kasan_kmalloc_large(object, size, flags);
-+		kasan_kmalloc_large(object, size, flags);
- 	else
--		return kasan_kmalloc(page->slab_cache, object, size, flags);
-+		kasan_kmalloc(page->slab_cache, object, size, flags, true);
- }
- 
- void kasan_poison_kfree(void *ptr, unsigned long ip)
-diff --git a/mm/slab.c b/mm/slab.c
-index 73fe23e649c9..09b54386cf67 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3604,7 +3604,7 @@ kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
- 
- 	ret = slab_alloc(cachep, flags, _RET_IP_);
- 
--	ret = kasan_kmalloc(cachep, ret, size, flags);
-+	ret = kasan_kmalloc(cachep, ret, size, flags, false);
- 	trace_kmalloc(_RET_IP_, ret,
- 		      size, cachep->size, flags);
- 	return ret;
-@@ -3647,7 +3647,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
- 
- 	ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
- 
--	ret = kasan_kmalloc(cachep, ret, size, flags);
-+	ret = kasan_kmalloc(cachep, ret, size, flags, false);
- 	trace_kmalloc_node(_RET_IP_, ret,
- 			   size, cachep->size,
- 			   flags, nodeid);
-@@ -3668,7 +3668,7 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
- 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
- 		return cachep;
- 	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
--	ret = kasan_kmalloc(cachep, ret, size, flags);
-+	ret = kasan_kmalloc(cachep, ret, size, flags, false);
- 
- 	return ret;
- }
-@@ -3706,7 +3706,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
- 		return cachep;
- 	ret = slab_alloc(cachep, flags, caller);
- 
--	ret = kasan_kmalloc(cachep, ret, size, flags);
-+	ret = kasan_kmalloc(cachep, ret, size, flags, false);
- 	trace_kmalloc(caller, ret,
- 		      size, cachep->size, flags);
- 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 81732d05e74a..b55c58178f83 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1507,7 +1507,7 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
- 		ks = ksize(p);
- 
- 	if (ks >= new_size) {
--		p = kasan_krealloc((void *)p, new_size, flags);
-+		kasan_krealloc((void *)p, new_size, flags);
- 		return (void *)p;
- 	}
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index 1e3d0ec4e200..20aa0547acbf 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2763,7 +2763,7 @@ void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
- {
- 	void *ret = slab_alloc(s, gfpflags, _RET_IP_);
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
--	ret = kasan_kmalloc(s, ret, size, gfpflags);
-+	ret = kasan_kmalloc(s, ret, size, gfpflags, false);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_trace);
-@@ -2791,7 +2791,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 	trace_kmalloc_node(_RET_IP_, ret,
- 			   size, s->size, gfpflags, node);
- 
--	ret = kasan_kmalloc(s, ret, size, gfpflags);
-+	ret = kasan_kmalloc(s, ret, size, gfpflags, false);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
-@@ -3364,7 +3364,7 @@ static void early_kmem_cache_node_alloc(int node)
- 	init_tracking(kmem_cache_node, n);
- #endif
- 	n = kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node),
--		      GFP_KERNEL);
-+		      GFP_KERNEL, false);
- 	page->freelist = get_freepointer(kmem_cache_node, n);
- 	page->inuse = 1;
- 	page->frozen = 0;
-@@ -3779,7 +3779,7 @@ void *__kmalloc(size_t size, gfp_t flags)
- 
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
- 
--	ret = kasan_kmalloc(s, ret, size, flags);
-+	ret = kasan_kmalloc(s, ret, size, flags, false);
- 
- 	return ret;
- }
-@@ -3823,7 +3823,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 
- 	trace_kmalloc_node(_RET_IP_, ret, size, s->size, flags, node);
- 
--	ret = kasan_kmalloc(s, ret, size, flags);
-+	ret = kasan_kmalloc(s, ret, size, flags, false);
- 
- 	return ret;
- }
+ 		/*
 -- 
-2.20.1.415.g653613c723-goog
+2.16.4
