@@ -1,141 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B0CA48E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:49:52 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id f125so30907065pgc.20
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 09:49:52 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u69si17338498pfj.219.2019.01.04.09.49.51
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 185978E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:52:06 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id c34so34718737edb.8
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:52:06 -0800 (PST)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
+        by mx.google.com with ESMTPS id a30-v6si360894ejl.130.2019.01.04.04.52.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 09:49:51 -0800 (PST)
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Subject: [PATCH 2/5] x86/mpx: remove bounds exception code
-Date: Fri,  4 Jan 2019 09:49:40 -0800
-Message-Id: <1546624183-26543-3-git-send-email-dave.hansen@linux.intel.com>
-In-Reply-To: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
-References: <1546624183-26543-1-git-send-email-dave.hansen@linux.intel.com>
+        Fri, 04 Jan 2019 04:52:04 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 33A8A1C1B9A
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:52:04 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 10/25] mm, compaction: Ignore the fragmentation avoidance boost for isolation and compaction
+Date: Fri,  4 Jan 2019 12:49:56 +0000
+Message-Id: <20190104125011.16071-11-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave.hansen@intel.com
-Cc: x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+When pageblocks get fragmented, watermarks are artifically boosted to
+reclaim pages to avoid further fragmentation events. However, compaction
+is often either fragmentation-neutral or moving movable pages away from
+unmovable/reclaimable pages. As the true watermarks are preserved, allow
+compaction to ignore the boost factor.
 
-MPX is being removed from the kernel due to a lack of support
-in the toolchain going forward (gcc).
+The expected impact is very slight as the main benefit is that compaction
+is slightly more likely to succeed when the system has been fragmented
+very recently. On both 1-socket and 2-socket machines for THP-intensive
+allocation during fragmentation the success rate was increased by less
+than 1% which is marginal. However, detailed tracing indicated that
+failure of migration due to a premature ENOMEM triggered by watermark
+checks were eliminated.
 
-Remove the other user-visible ABI: signal handling.  This code
-should basically have been inactive after the prctl()s were
-removed, but there may be some small ABI remnants from this code.
-Remove it.
-
-This, along with the prctl() removal is probably what we should
-apply first.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- arch/x86/kernel/traps.c | 74 -------------------------------------------------
- 1 file changed, 74 deletions(-)
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index 9b7c4ca..85cccad 100644
---- a/arch/x86/kernel/traps.c
-+++ b/arch/x86/kernel/traps.c
-@@ -57,8 +57,6 @@
- #include <asm/mach_traps.h>
- #include <asm/alternative.h>
- #include <asm/fpu/xstate.h>
--#include <asm/trace/mpx.h>
--#include <asm/mpx.h>
- #include <asm/vm86.h>
- #include <asm/umip.h>
- 
-@@ -433,8 +431,6 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
- 
- dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
- {
--	const struct mpx_bndcsr *bndcsr;
--
- 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
- 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
- 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
-@@ -444,76 +440,6 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
- 	if (!user_mode(regs))
- 		die("bounds", regs, error_code);
- 
--	if (!cpu_feature_enabled(X86_FEATURE_MPX)) {
--		/* The exception is not from Intel MPX */
--		goto exit_trap;
--	}
--
--	/*
--	 * We need to look at BNDSTATUS to resolve this exception.
--	 * A NULL here might mean that it is in its 'init state',
--	 * which is all zeros which indicates MPX was not
--	 * responsible for the exception.
--	 */
--	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
--	if (!bndcsr)
--		goto exit_trap;
--
--	trace_bounds_exception_mpx(bndcsr);
--	/*
--	 * The error code field of the BNDSTATUS register communicates status
--	 * information of a bound range exception #BR or operation involving
--	 * bound directory.
--	 */
--	switch (bndcsr->bndstatus & MPX_BNDSTA_ERROR_CODE) {
--	case 2:	/* Bound directory has invalid entry. */
--		if (mpx_handle_bd_fault())
--			goto exit_trap;
--		break; /* Success, it was handled */
--	case 1: /* Bound violation. */
--	{
--		struct task_struct *tsk = current;
--		struct mpx_fault_info mpx;
--
--		if (mpx_fault_info(&mpx, regs)) {
--			/*
--			 * We failed to decode the MPX instruction.  Act as if
--			 * the exception was not caused by MPX.
--			 */
--			goto exit_trap;
--		}
--		/*
--		 * Success, we decoded the instruction and retrieved
--		 * an 'mpx' containing the address being accessed
--		 * which caused the exception.  This information
--		 * allows and application to possibly handle the
--		 * #BR exception itself.
--		 */
--		if (!do_trap_no_signal(tsk, X86_TRAP_BR, "bounds", regs,
--				       error_code))
--			break;
--
--		show_signal(tsk, SIGSEGV, "trap ", "bounds", regs, error_code);
--
--		force_sig_bnderr(mpx.addr, mpx.lower, mpx.upper);
--		break;
--	}
--	case 0: /* No exception caused by Intel MPX operations. */
--		goto exit_trap;
--	default:
--		die("bounds", regs, error_code);
--	}
--
--	return;
--
--exit_trap:
--	/*
--	 * This path out is for all the cases where we could not
--	 * handle the exception in some way (like allocating a
--	 * table or telling userspace about it.  We will also end
--	 * up here if the kernel has MPX turned off at compile
--	 * time..
--	 */
- 	do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, 0, NULL);
- }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 57ba9d1da519..05c9a81d54ed 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2958,7 +2958,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 		 * watermark, because we already know our high-order page
+ 		 * exists.
+ 		 */
+-		watermark = min_wmark_pages(zone) + (1UL << order);
++		watermark = zone->_watermark[WMARK_MIN] + (1UL << order);
+ 		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
+ 			return 0;
  
 -- 
-2.7.4
+2.16.4
