@@ -1,201 +1,166 @@
-Return-Path: <SRS0=O33Z=PL=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=B01V=PM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0190BC43387
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 22:57:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA57DC43612
+	for <linux-mm@archiver.kernel.org>; Fri,  4 Jan 2019 02:25:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA0522070D
-	for <linux-mm@archiver.kernel.org>; Thu,  3 Jan 2019 22:57:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA0522070D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 7857B2184B
+	for <linux-mm@archiver.kernel.org>; Fri,  4 Jan 2019 02:25:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7857B2184B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 690D48E00B7; Thu,  3 Jan 2019 17:57:16 -0500 (EST)
+	id D02B28E00BA; Thu,  3 Jan 2019 21:25:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 640968E00AE; Thu,  3 Jan 2019 17:57:16 -0500 (EST)
+	id CB1A58E00AE; Thu,  3 Jan 2019 21:25:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5098F8E00B7; Thu,  3 Jan 2019 17:57:16 -0500 (EST)
+	id B52EC8E00BA; Thu,  3 Jan 2019 21:25:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DDF8E00AE
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 17:57:15 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id x15so34467353edd.2
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 14:57:15 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 716A58E00AE
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 21:25:19 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id g188so29752463pgc.22
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 18:25:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition:user-agent;
-        bh=HceLtEysvFgt7zivn0Lm6/7/xb+OF/PSJJcOZlMMatQ=;
-        b=RzT2K0iYNpVdniMGPt/u0FJKHwfaSuh8REgJ8afgIWthkAlYLvJqDkFiIuhN8R4NxZ
-         D5yEcbSLzK1tpJc1fblXJNCmkG99gYCiFWEpBQ3o+pKi/py4TkT4DgFDjgkj7liitymw
-         PVcDCKtkd2mJUyr7unPLm97h/IEnJoBm6AaYR215wAQfI9XY1pebMlZg5JarppQV9GMS
-         BRdByta8Tvq50IJjPZRdbxMQu9Tk8+kU4glKHFKq5R73WuI/vZOTULPyVBoMV+TGYxq4
-         md9yvw8En55QvFEUKLPKodm5qlkEu5+zMHOHB6n/jzHWWEJR2Qw6ehQHOqVB5FixZ9S3
-         xQJw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: AJcUukc7zC8qcPuLj8AQsGeBXFRg09guW2JM53Ltf8UywNvybcMNHe1a
-	JdiJeVzRi1grUoigSXeD/viZcvNxfjVOY5JpfdUiTS8jUfWLGGsB5xAPDKWIz14lfir/Mez7D24
-	rqux1D0P9+mOxBy+/hjQ0CbgtyjR6986YNMa4UKrIipQ/Jxr7GJ5n89bR1rRv0s0iug==
-X-Received: by 2002:a17:906:f108:: with SMTP id gv8-v6mr19581011ejb.173.1546556235320;
-        Thu, 03 Jan 2019 14:57:15 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7HI0ScAp1ZkEj6crVWwxgy/gGuwZFCeUIZ4s4lSi4FME0sSF9ABWdXx+atx3gNKI0X5yZW
-X-Received: by 2002:a17:906:f108:: with SMTP id gv8-v6mr19580982ejb.173.1546556234302;
-        Thu, 03 Jan 2019 14:57:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546556234; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=iXqEfgiy0lcxvKFkB+e4+vrC8OARd2EmrSyw1ABQUuI=;
+        b=iHdtMLyh0mHTna4OvSFZQ1egSo4lXGM96xWldsT9krh3wSvDLP1Mnp3m187aqqRomK
+         RelVmh5jmXLUwoGzcEZiFsyb8eKaQcxx9a7fS04W3HmsUJ5sNMFzzXEse7PtelAF5Ed7
+         m+Tc42itn8WGzljDmZtlc7tbFvC6dxfT2LhkWWVsiNbnGso/YJQQulttjuF8lNXAXA8i
+         v2mQrYbJBPKmRR+OPPI1ED9k3lfyONwz9irhrtO1xfWPmcLaDw4e7cpdyIInNvdhDlkL
+         PewS8NJlQKGWl3Wa16yGAzOp+iwNfdAAGV2ZhiQG46D9ijqesweO+F3lGMuE1U03r/Yn
+         /s8A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukcLZVB/WEM88knrYCjSiSw2mGu0l9hSSNNUcFK7SvSsl3/67mRh
+	KVPmcRqf4lJ4xhcxuX308FCxp/lmdhCRKij22UA09P+ZaPyIR0ojcaU90zmLmxr0nL81zPUq94X
+	4A0tQjrTgpDQNpGhjj2Uu9L7omNLUjoRP2WhNYC4mGclBUz20G9hbY4DW6THfcDFxzg==
+X-Received: by 2002:aa7:8542:: with SMTP id y2mr51376186pfn.83.1546568719043;
+        Thu, 03 Jan 2019 18:25:19 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/XHXJsQgzrLy/uGXefKQmxpj8FtOnFKfqwR/E+s8iXapnLrFS+u1QTqN46wnu8ZLzRrl0eo
+X-Received: by 2002:aa7:8542:: with SMTP id y2mr51376159pfn.83.1546568718127;
+        Thu, 03 Jan 2019 18:25:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546568718; cv=none;
         d=google.com; s=arc-20160816;
-        b=OhYQXWQ6D+HlQUmxwNd8yupQtZkQQCG526zeA1m0+YpncAmajCRIqSvwdABsDmudJT
-         gd+OCZtCZMgBUFrSh+/s/3gDR9+zHdTPuvST3BQf+aOYjrdviRPKAhdP6KsKa5/2DcHy
-         RVQLzj4CgAMWIa2zvCdnyz7pKQMJg+s5rmPFCaDHivaNp/7t2c+aaMvfV8XnYQX2+Aua
-         dP/5DFhJHMUCTL8NK+fSk3Sbfv5Zu32qblxCDcH6TSp3oEnXazfv1NKyc1/ChF1Fxuz3
-         7zrJlDJSZptWJNR3yv8Ba0FS5+UnCXZaUMqet+6sQ0hTPzKOdAXtb7nZMdfZo5CAbse1
-         oelg==
+        b=GzCzcuXar2E1mSZ0tVSXl6h7rxUZk+e49/YDfb+TnRYKcMSZNc0BovKYZQHv3yM7H7
+         VKgS81Q2r++WXxDZ10KKqkee1/YYp9CvnFi62kij51QV+OIexdvO/k4+YNsYsITf1Fql
+         iwTR2MjUNXB0yqFNSjkr1kySZwexTbC1CyOVGY7Y7K/GeblGOCkU2sYh/SOuYmz1Sp2Q
+         ai9dSbQnMQC9TRCdm56zm9FDGQ7doWeoLIjUP7v969yTuj2ywBfQOIHBra9EXT6aDqAy
+         TFx1L+GpNPhaUDYJUzabivkphiaYtxDZO5YksPbv3PnZCwLLSDs/Eap06C3KwQ1PdNXg
+         AyaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date;
-        bh=HceLtEysvFgt7zivn0Lm6/7/xb+OF/PSJJcOZlMMatQ=;
-        b=zHXzhUnpZ/4P9mBOYBRiPKoqMwZDoWko7r7CJAt+mUfkuk9FFdwsv2K+nXQcMu5pd5
-         tb0yigMcM5EN9UhPVIcbXhkekXxYCUTsupTMJOgZ13u1nre6PzQ8ZDB2TfdEIrt51K42
-         vEiQaoUdaoc97BOi4A9swiXkt0uNx2a3YlZbNXp8ibeBR7NB5rUl115Jz0HIBpp9QV7S
-         9zVzOtNS2+7u6BLHpD9r7idI9XVY2hPQpiJgsuVnx9w1dFhngacCpcCJgRWKQYMzdZa9
-         eRAvX4JIaPA554noNIurAYERYUY/PvsgsxmT+Jzcda1XxyP57T45r44z58MHOHj2i8Ng
-         1ODw==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=iXqEfgiy0lcxvKFkB+e4+vrC8OARd2EmrSyw1ABQUuI=;
+        b=P/pplvXtFDvaMsDXHVbEWJaPdohxJNDfdPb0ToxC/wIWcRhCEIa4Lu8nm5aMa9RZoP
+         3n+llgu89X5ig4BO90bDFBQljRwtCrtASOhef7FUuWApo6UmXuW28bo5pLD23g3mXiP4
+         /Nbyy/wUUNR2GGuBskJYJfoOhvUMOHVvJWLPNGZ9HjBg7MmIKcGjSoTfgHMEvIVK3fim
+         QZ3487RjTQrURBH6hyDUVJCggJRygN8nsBK8tz/OyiVSmji5/zkHBDv6As+D3uDYuu64
+         NkIg2F2RbEGQtrQ4w5WhpWqOTpnTXyepxuFRMqoj6T5XseqaKM66v4wY5QauBiiWGY/N
+         4QuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id d8si139059edo.400.2019.01.03.14.57.14
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v6si11846640pfb.178.2019.01.03.18.25.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jan 2019 14:57:14 -0800 (PST)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) client-ip=81.17.249.8;
+        Thu, 03 Jan 2019 18:25:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id EC22798A4E
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 22:57:13 +0000 (UTC)
-Received: (qmail 14609 invoked from network); 3 Jan 2019 22:57:13 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.229.96])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 3 Jan 2019 22:57:13 -0000
-Date: Thu, 3 Jan 2019 22:57:12 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Qian Cai <cai@lca.pw>, Dmitry Vyukov <dvyukov@google.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	syzbot <syzbot+93d94a001cfbce9e60e1@syzkaller.appspotmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	linux@dominikbrodowski.net, Michal Hocko <mhocko@suse.com>,
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>
-Subject: [PATCH] mm, page_alloc: Do not wake kswapd with zone lock held
-Message-ID: <20190103225712.GJ31517@techsingularity.net>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 03 Jan 2019 18:25:17 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,437,1539673200"; 
+   d="scan'208";a="135191315"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.13.10])
+  by fmsmga001.fm.intel.com with ESMTP; 03 Jan 2019 18:25:15 -0800
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: <tim.c.chen@intel.com>,  <minchan@kernel.org>,  <daniel.m.jordan@oracle.com>,  <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>
+Subject: Re: [v5 PATCH 2/2] mm: swap: add comment for swap_vma_readahead
+References: <1546543673-108536-1-git-send-email-yang.shi@linux.alibaba.com>
+	<1546543673-108536-2-git-send-email-yang.shi@linux.alibaba.com>
+Date: Fri, 04 Jan 2019 10:25:15 +0800
+In-Reply-To: <1546543673-108536-2-git-send-email-yang.shi@linux.alibaba.com>
+	(Yang Shi's message of "Fri, 4 Jan 2019 03:27:53 +0800")
+Message-ID: <87imz5tb04.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/25.2 (gnu/linux)
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190103225712.YwEKwdiu2JaCns58ov_SUN-GVR2d3FobXUY5ulwHue8@z>
+Message-ID: <20190104022515.9-IiDvz0YJFoaZdFYPKPzEoZzqFy_8gbDsiUngBY9kM@z>
 
-syzbot reported the following regression in the latest merge window
-and it was confirmed by Qian Cai that a similar bug was visible from a
-different context.
+Yang Shi <yang.shi@linux.alibaba.com> writes:
 
-======================================================
-WARNING: possible circular locking dependency detected
-4.20.0+ #297 Not tainted
-------------------------------------------------------
-syz-executor0/8529 is trying to acquire lock:
-000000005e7fb829 (&pgdat->kswapd_wait){....}, at:
-__wake_up_common_lock+0x19e/0x330 kernel/sched/wait.c:120
+> swap_vma_readahead()'s comment is missed, just add it.
+>
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Tim Chen <tim.c.chen@intel.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 
-but task is already holding lock:
-000000009bb7bae0 (&(&zone->lock)->rlock){-.-.}, at: spin_lock
-include/linux/spinlock.h:329 [inline]
-000000009bb7bae0 (&(&zone->lock)->rlock){-.-.}, at: rmqueue_bulk
-mm/page_alloc.c:2548 [inline]
-000000009bb7bae0 (&(&zone->lock)->rlock){-.-.}, at: __rmqueue_pcplist
-mm/page_alloc.c:3021 [inline]
-000000009bb7bae0 (&(&zone->lock)->rlock){-.-.}, at: rmqueue_pcplist
-mm/page_alloc.c:3050 [inline]
-000000009bb7bae0 (&(&zone->lock)->rlock){-.-.}, at: rmqueue
-mm/page_alloc.c:3072 [inline]
-000000009bb7bae0 (&(&zone->lock)->rlock){-.-.}, at:
-get_page_from_freelist+0x1bae/0x52a0 mm/page_alloc.c:3491
+Thank!
 
-It appears to be a false positive in that the only way the lock
-ordering should be inverted is if kswapd is waking itself and the
-wakeup allocates debugging objects which should already be allocated
-if it's kswapd doing the waking. Nevertheless, the possibility exists
-and so it's best to avoid the problem.
+Reviewed-by: "Huang, Ying" <ying.huang@intel.com>
 
-This patch flags a zone as needing a kswapd using the, surprisingly,
-unused zone flag field. The flag is read without the lock held to
-do the wakeup. It's possible that the flag setting context is not
-the same as the flag clearing context or for small races to occur.
-However, each race possibility is harmless and there is no visible
-degredation in fragmentation treatment.
+Best Regards,
+Huang, Ying
 
-While zone->flag could have continued to be unused, there is potential
-for moving some existing fields into the flags field instead. Particularly
-read-mostly ones like zone->initialized and zone->contiguous.
-
-Reported-by: syzbot+93d94a001cfbce9e60e1@syzkaller.appspotmail.com
-Tested-by: Qian Cai <cai@lca.pw>
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/mmzone.h | 6 ++++++
- mm/page_alloc.c        | 8 +++++++-
- 2 files changed, 13 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index cc4a507d7ca4..842f9189537b 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -520,6 +520,12 @@ enum pgdat_flags {
- 	PGDAT_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
- };
- 
-+enum zone_flags {
-+	ZONE_BOOSTED_WATERMARK,		/* zone recently boosted watermarks.
-+					 * Cleared when kswapd is woken.
-+					 */
-+};
-+
- static inline unsigned long zone_managed_pages(struct zone *zone)
- {
- 	return (unsigned long)atomic_long_read(&zone->managed_pages);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cde5dac6229a..d295c9bc01a8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2214,7 +2214,7 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
- 	 */
- 	boost_watermark(zone);
- 	if (alloc_flags & ALLOC_KSWAPD)
--		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
-+		set_bit(ZONE_BOOSTED_WATERMARK, &zone->flags);
- 
- 	/* We are not allowed to try stealing from the whole block */
- 	if (!whole_block)
-@@ -3102,6 +3102,12 @@ struct page *rmqueue(struct zone *preferred_zone,
- 	local_irq_restore(flags);
- 
- out:
-+	/* Separate test+clear to avoid unnecessary atomics */
-+	if (test_bit(ZONE_BOOSTED_WATERMARK, &zone->flags)) {
-+		clear_bit(ZONE_BOOSTED_WATERMARK, &zone->flags);
-+		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
-+	}
-+
- 	VM_BUG_ON_PAGE(page && bad_range(zone, page), page);
- 	return page;
- 
+> ---
+> v5: Fixed the comments per Ying Huang
+>
+>  mm/swap_state.c | 16 +++++++++++++++-
+>  1 file changed, 15 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 78d500e..c8730d7 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -523,7 +523,7 @@ static unsigned long swapin_nr_pages(unsigned long offset)
+>   * This has been extended to use the NUMA policies from the mm triggering
+>   * the readahead.
+>   *
+> - * Caller must hold down_read on the vma->vm_mm if vmf->vma is not NULL.
+> + * Caller must hold read mmap_sem if vmf->vma is not NULL.
+>   */
+>  struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
+>  				struct vm_fault *vmf)
+> @@ -698,6 +698,20 @@ static void swap_ra_info(struct vm_fault *vmf,
+>  	pte_unmap(orig_pte);
+>  }
+>  
+> +/**
+> + * swap_vma_readahead - swap in pages in hope we need them soon
+> + * @entry: swap entry of this memory
+> + * @gfp_mask: memory allocation flags
+> + * @vmf: fault information
+> + *
+> + * Returns the struct page for entry and addr, after queueing swapin.
+> + *
+> + * Primitive swap readahead code. We simply read in a few pages whoes
+> + * virtual addresses are around the fault address in the same vma.
+> + *
+> + * Caller must hold read mmap_sem if vmf->vma is not NULL.
+> + *
+> + */
+>  static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+>  				       struct vm_fault *vmf)
+>  {
 
