@@ -1,227 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AE3348E00A9
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:48:04 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id i3so5754847pfj.4
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:48:04 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.48.03
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CEA848E00F9
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 15:14:49 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id u20so45635009qtk.6
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 12:14:49 -0800 (PST)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id a31si954905qvh.91.2019.01.04.12.14.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 09:48:03 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv3 13/13] doc/mm: New documentation for memory performance
-Date: Wed,  9 Jan 2019 10:43:41 -0700
-Message-Id: <20190109174341.19818-14-keith.busch@intel.com>
-In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
-References: <20190109174341.19818-1-keith.busch@intel.com>
+        Fri, 04 Jan 2019 12:14:48 -0800 (PST)
+Message-ID: <a8e412e9e0983b380983099af9a90b9760f0edae.camel@surriel.com>
+Subject: Re: [PATCH] fork, memcg: fix cached_stacks case
+From: Rik van Riel <riel@surriel.com>
+Date: Fri, 04 Jan 2019 15:14:45 -0500
+In-Reply-To: <20190102180145.57406-1-shakeelb@google.com>
+References: <20190102180145.57406-1-shakeelb@google.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-12qNsl9snEwifMAZ7N/9"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: Shakeel Butt <shakeelb@google.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, stable@vger.kernel.org
 
-Platforms may provide system memory where some physical address ranges
-perform differently than others, or is side cached by the system.
 
-Add documentation describing a high level overview of such systems and the
-perforamnce and caching attributes the kernel provides for applications
-wishing to query this information.
+--=-12qNsl9snEwifMAZ7N/9
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
----
- Documentation/admin-guide/mm/numaperf.rst | 184 ++++++++++++++++++++++++++++++
- 1 file changed, 184 insertions(+)
- create mode 100644 Documentation/admin-guide/mm/numaperf.rst
+On Wed, 2019-01-02 at 10:01 -0800, Shakeel Butt wrote:
+> Commit 5eed6f1dff87 ("fork,memcg: fix crash in free_thread_stack on
+> memcg charge fail") fixes a crash caused due to failed memcg charge
+> of
+> the kernel stack. However the fix misses the cached_stacks case which
+> this patch fixes. So, the same crash can happen if the memcg charge
+> of
+> a cached stack is failed.
+>=20
+> Fixes: 5eed6f1dff87 ("fork,memcg: fix crash in free_thread_stack on
+> memcg charge fail")
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> Cc: Rik van Riel <riel@surriel.com>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: <stable@vger.kernel.org>
 
-diff --git a/Documentation/admin-guide/mm/numaperf.rst b/Documentation/admin-guide/mm/numaperf.rst
-new file mode 100644
-index 000000000000..b6d99d7e0f57
---- /dev/null
-+++ b/Documentation/admin-guide/mm/numaperf.rst
-@@ -0,0 +1,184 @@
-+.. _numaperf:
-+
-+=============
-+NUMA Locality
-+=============
-+
-+Some platforms may have multiple types of memory attached to a single
-+CPU. These disparate memory ranges share some characteristics, such as
-+CPU cache coherence, but may have different performance. For example,
-+different media types and buses affect bandwidth and latency.
-+
-+A system supporting such heterogeneous memory by grouping each memory
-+type under different "nodes" based on similar CPU locality and performance
-+characteristics.  Some memory may share the same node as a CPU, and others
-+are provided as memory only nodes. While memory only nodes do not provide
-+CPUs, they may still be directly accessible, or local, to one or more
-+compute nodes. The following diagram shows one such example of two compute
-+noes with local memory and a memory only node for each of compute node:
-+
-+ +------------------+     +------------------+
-+ | Compute Node 0   +-----+ Compute Node 1   |
-+ | Local Node0 Mem  |     | Local Node1 Mem  |
-+ +--------+---------+     +--------+---------+
-+          |                        |
-+ +--------+---------+     +--------+---------+
-+ | Slower Node2 Mem |     | Slower Node3 Mem |
-+ +------------------+     +--------+---------+
-+
-+A "memory initiator" is a node containing one or more devices such as
-+CPUs or separate memory I/O devices that can initiate memory requests. A
-+"memory target" is a node containing one or more accessible physical
-+address ranges from one or more memory initiators.
-+
-+When multiple memory initiators exist, they may not all have the same
-+performance when accessing a given memory target. Each initiator-target
-+pair may be organized into different ranked access classes to represent
-+this relationship. The highest performing initiator to a given target
-+is considered to be one of that target's local initiators, and given
-+the highest access class, 0. Any given target may have one or more
-+local initiators, and any given initiator may have multiple local
-+memory targets.
-+
-+To aid applications matching memory targets with their initiators, the
-+kernel provide symlinks to each other. The following example lists the
-+relationship for the class "0" memory intiators and targets, which is
-+are the class of nodes with the highest performing access relationship::
-+
-+	# symlinks -v /sys/devices/system/node/nodeX/class0/
-+	relative: /sys/devices/system/node/nodeX/class0/targetY -> ../../nodeY
-+
-+	# symlinks -v /sys/devices/system/node/nodeY/class0/
-+	relative: /sys/devices/system/node/nodeY/class0/initiatorX -> ../../nodeX
-+
-+The linked nodes will also have their node numbers set in the class's
-+mem_target and mem_initiator nodelist and nodemap entries. Following
-+the same example as above may look like the following::
-+
-+	# cat /sys/devices/system/node/nodeX/class0/target_nodelist
-+	Y
-+
-+	# cat /sys/devices/system/node/nodeY/class0/initiator_nodelist
-+	X
-+
-+An example showing how this may be used to run a particular task on CPUs
-+and memory using best class nodes for a particular PCI device can be done
-+using existing 'numactl' as follows::
-+
-+  # NODE=$(cat /sys/devices/pci:0000:00/.../numa_node)
-+  # numactl --membind=$(cat /sys/devices/node/node${NODE}/class0/target_nodelist) \
-+      --cpunodebind=$(cat /sys/devices/node/node${NODE}/class0/initiator_nodelist) \
-+      -- <some-program-to-execute>
-+
-+================
-+NUMA Performance
-+================
-+
-+Applications may wish to consider which node they want their memory to
-+be allocated from based on the node's performance characteristics. If
-+the system provides these attributes, the kernel exports them under the
-+node sysfs hierarchy by appending the attributes directory under the
-+memory node's class 0 initiators as follows::
-+
-+	/sys/devices/system/node/nodeY/class0/
-+
-+These attributes apply only to the memory initiator nodes that have the
-+same class access and are symlink under the class, and are set in the
-+initiators' nodelist.
-+
-+The performance characteristics the kernel provides for the local initiators
-+are exported are as follows::
-+
-+	# tree -P "read*|write*" /sys/devices/system/node/nodeY/class0/
-+	/sys/devices/system/node/nodeY/class0/
-+	|-- read_bandwidth
-+	|-- read_latency
-+	|-- write_bandwidth
-+	`-- write_latency
-+
-+The bandwidth attributes are provided in MiB/second.
-+
-+The latency attributes are provided in nanoseconds.
-+
-+==========
-+NUMA Cache
-+==========
-+
-+System memory may be constructed in a hierarchy of elements with various
-+performance characteristics in order to provide large address space of
-+slower performing memory side-cached by a smaller higher performing
-+memory. The system physical addresses that initiators are aware of
-+is provided by the last memory level in the hierarchy. The system
-+meanwhile uses higher performing memory to transparently cache access
-+to progressively slower levels.
-+
-+The term "far memory" is used to denote the last level memory in the
-+hierarchy. Each increasing cache level provides higher performing
-+initiator access, and the term "near memory" represents the fastest
-+cache provided by the system.
-+
-+This numbering is different than CPU caches where the cache level (ex:
-+L1, L2, L3) uses a CPU centric view with each increased level is lower
-+performing. In contrast, the memory cache level is centric to the last
-+level memory, so the higher numbered cache level denotes memory nearer
-+to the CPU, and further from far memory.
-+
-+The memory side caches are not directly addressable by software. When
-+software accesses a system address, the system will return it from the
-+near memory cache if it is present. If it is not present, the system
-+accesses the next level of memory until there is either a hit in that
-+cache level, or it reaches far memory.
-+
-+An application does not need to know about caching attributes in order
-+to use the system. Software may optionally query the memory cache
-+attributes in order to maximize the performance out of such a setup.
-+If the system provides a way for the kernel to discover this information,
-+for example with ACPI HMAT (Heterogeneous Memory Attribute Table),
-+the kernel will append these attributes to the NUMA node memory target.
-+
-+When the kernel first registers a memory cache with a node, the kernel
-+will create the following directory::
-+
-+	/sys/devices/system/node/nodeX/side_cache/
-+
-+If that directory is not present, the system either does not not provide
-+a memory side cache, or that information is not accessible to the kernel.
-+
-+The attributes for each level of cache is provided under its cache
-+level index::
-+
-+	/sys/devices/system/node/nodeX/side_cache/indexA/
-+	/sys/devices/system/node/nodeX/side_cache/indexB/
-+	/sys/devices/system/node/nodeX/side_cache/indexC/
-+
-+Each cache level's directory provides its attributes. For example, the
-+following shows a single cache level and the attributes available for
-+software to query::
-+
-+	# tree sys/devices/system/node/node0/side_cache/
-+	/sys/devices/system/node/node0/side_cache/
-+	|-- index1
-+	|   |-- associativity
-+	|   |-- level
-+	|   |-- line_size
-+	|   |-- size
-+	|   `-- write_policy
-+
-+The "associativity" will be 0 if it is a direct-mapped cache, and non-zero
-+for any other indexed based, multi-way associativity.
-+
-+The "level" is the distance from the far memory, and matches the number
-+appended to its "index" directory.
-+
-+The "line_size" is the number of bytes accessed on a cache miss.
-+
-+The "size" is the number of bytes provided by this cache level.
-+
-+The "write_policy" will be 0 for write-back, and non-zero for
-+write-through caching.
-+
-+========
-+See Also
-+========
-+.. [1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
-+       Section 5.2.27
--- 
-2.14.4
+Good catch. Thank you.
+
+Acked-by: Rik van Riel <riel@surriel.com>
+
+--=20
+All Rights Reversed.
+
+--=-12qNsl9snEwifMAZ7N/9
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlwvvrUACgkQznnekoTE
+3oNgnAgAq6FDLf8JFXdxaI5a/OrCOHkZMEgApfIj4niwaw4iM9qXvM5krVAQ2X+r
+vPFrxY7h0mcDljuUAuKxMoBbKnBVHZM72iLk/iD8T2mXT43aEtLsDYM/Nn/B6ric
+uOcG+ScFutfcfOoF0B62pPFIQ/WjA9EY5Oc5yx19lRe1/tZpatwHZnOmCbQa7xvp
+EGNr3C7dkz4xmgAOEv9k2+yPqgM1AstekA85rQBiQWY/8pNx+vAxOy97UKrfJa2Z
+C3Ar/TgmuN2xUwCtPWNAIt4tt3tND5rtdgoczUu5duORPLPpCqlgPwQcizLq85bI
+p+DF4agefINLKG1AnjiNta1jjpiACQ==
+=tR4H
+-----END PGP SIGNATURE-----
+
+--=-12qNsl9snEwifMAZ7N/9--
