@@ -1,71 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A32BB8E0008
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:42 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 82so8655909pfs.20
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:42 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id e6si70558327pgk.201.2019.01.10.13.10.41
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A02A8E00AE
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:53:17 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t7so34967632edr.21
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:53:17 -0800 (PST)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id h13si2217209edf.24.2019.01.04.04.53.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:10:41 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [RFC PATCH v7 07/16] arm64/mm, xpfo: temporarily map dcache regions
-Date: Thu, 10 Jan 2019 14:09:39 -0700
-Message-Id: <eba179acbfdea5a646c5548cb82138c1c3b74aa2.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
+        Fri, 04 Jan 2019 04:53:15 -0800 (PST)
+Received: from mail.blacknight.com (unknown [81.17.254.16])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 8096A1C1788
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:53:15 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 17/25] mm, compaction: Keep cached migration PFNs synced for unusable pageblocks
+Date: Fri,  4 Jan 2019 12:50:03 +0000
+Message-Id: <20190104125011.16071-18-mgorman@techsingularity.net>
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: Juerg Haefliger <juerg.haefliger@canonical.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Tycho Andersen <tycho@docker.com>, Khalid Aziz <khalid.aziz@oracle.com>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-From: Juerg Haefliger <juerg.haefliger@canonical.com>
+Migrate has separate cached PFNs for ASYNC and SYNC* migration on the
+basis that some migrations will fail in ASYNC mode. However, if the cached
+PFNs match at the start of scanning and pageblocks are skipped due to
+having no isolation candidates, then the sync state does not matter.
+This patch keeps matching cached PFNs in sync until a pageblock with
+isolation candidates is found.
 
-If the page is unmapped by XPFO, a data cache flush results in a fatal
-page fault, so let's temporarily map the region, flush the cache, and then
-unmap it.
+The actual benefit is marginal given that the sync scanner following the
+async scanner will often skip a number of pageblocks but it's useless
+work. Any benefit depends heavily on whether the scanners restarted
+recently so overall the reduction in scan rates is a mere 2.8% which
+is borderline noise.
 
-v6: actually flush in the face of xpfo, and temporarily map the underlying
-    memory so it can be flushed correctly
-
-CC: linux-arm-kernel@lists.infradead.org
-Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
-Signed-off-by: Tycho Andersen <tycho@docker.com>
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- arch/arm64/mm/flush.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ mm/compaction.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
 
-diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
-index 30695a868107..f12f26b60319 100644
---- a/arch/arm64/mm/flush.c
-+++ b/arch/arm64/mm/flush.c
-@@ -20,6 +20,7 @@
- #include <linux/export.h>
- #include <linux/mm.h>
- #include <linux/pagemap.h>
-+#include <linux/xpfo.h>
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 921720f7a416..be27e4fa1b40 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1967,6 +1967,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
+ 	unsigned long end_pfn = zone_end_pfn(cc->zone);
+ 	unsigned long last_migrated_pfn;
+ 	const bool sync = cc->mode != MIGRATE_ASYNC;
++	bool update_cached;
+ 	unsigned long a, b, c;
  
- #include <asm/cacheflush.h>
- #include <asm/cache.h>
-@@ -28,9 +29,15 @@
- void sync_icache_aliases(void *kaddr, unsigned long len)
- {
- 	unsigned long addr = (unsigned long)kaddr;
-+	unsigned long num_pages = XPFO_NUM_PAGES(addr, len);
-+	void *mapping[num_pages];
+ 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+@@ -2019,6 +2020,17 @@ static enum compact_result compact_zone(struct compact_control *cc)
  
- 	if (icache_is_aliasing()) {
-+		xpfo_temp_map(kaddr, len, mapping,
-+			      sizeof(mapping[0]) * num_pages);
- 		__clean_dcache_area_pou(kaddr, len);
-+		xpfo_temp_unmap(kaddr, len, mapping,
-+			        sizeof(mapping[0]) * num_pages);
- 		__flush_icache_all();
- 	} else {
- 		flush_icache_range(addr, addr + len);
+ 	last_migrated_pfn = 0;
+ 
++	/*
++	 * Migrate has separate cached PFNs for ASYNC and SYNC* migration on
++	 * the basis that some migrations will fail in ASYNC mode. However,
++	 * if the cached PFNs match and pageblocks are skipped due to having
++	 * no isolation candidates, then the sync state does not matter.
++	 * Until a pageblock with isolation candidates is found, keep the
++	 * cached PFNs in sync to avoid revisiting the same blocks.
++	 */
++	update_cached = !sync &&
++		cc->zone->compact_cached_migrate_pfn[0] == cc->zone->compact_cached_migrate_pfn[1];
++
+ 	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
+ 				cc->free_pfn, end_pfn, sync);
+ 
+@@ -2050,6 +2062,11 @@ static enum compact_result compact_zone(struct compact_control *cc)
+ 			last_migrated_pfn = 0;
+ 			goto out;
+ 		case ISOLATE_NONE:
++			if (update_cached) {
++				cc->zone->compact_cached_migrate_pfn[1] =
++					cc->zone->compact_cached_migrate_pfn[0];
++			}
++
+ 			/*
+ 			 * We haven't isolated and migrated anything, but
+ 			 * there might still be unflushed migrations from
+@@ -2057,6 +2074,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
+ 			 */
+ 			goto check_drain;
+ 		case ISOLATE_SUCCESS:
++			update_cached = false;
+ 			last_migrated_pfn = start_pfn;
+ 			;
+ 		}
 -- 
-2.17.1
+2.16.4
