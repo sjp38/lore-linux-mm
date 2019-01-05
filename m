@@ -1,187 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 96B6D8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:03:14 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id b17so10480332pfc.11
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 07:03:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n87sor3794675pfh.64.2019.01.11.07.03.13
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A9608E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:35:03 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id a18so31881619pga.16
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:35:03 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 1si57025810plb.103.2019.01.05.07.35.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 Jan 2019 07:03:13 -0800 (PST)
-Date: Fri, 11 Jan 2019 20:37:12 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 1/9] mm: Introduce new vm_insert_range and
- vm_insert_range_buggy API
-Message-ID: <20190111150712.GA2696@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 05 Jan 2019 07:35:02 -0800 (PST)
+Subject: Patch "x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off" has been added to the 4.19-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Sat, 05 Jan 2019 16:31:44 +0100
+Message-ID: <154670230458199@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: ak@linux.intel.com, bp@suse.de, dave.hansen@intel.com, gregkh@linuxfoundation.org, jkosina@suse.cz, linux-mm@kvack.org, mhocko@suse.com, pasha.tatashin@soleen.com, tglx@linutronix.de, torvalds@linux-foundation.org
+Cc: stable-commits@vger.kernel.org
 
-Previouly drivers have their own way of mapping range of
-kernel pages/memory into user vma and this was done by
-invoking vm_insert_page() within a loop.
 
-As this pattern is common across different drivers, it can
-be generalized by creating new functions and use it across
-the drivers.
+This is a note to let you know that I've just added the patch titled
 
-vm_insert_range() is the API which could be used to mapped
-kernel memory/pages in drivers which has considered vm_pgoff
+    x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
 
-vm_insert_range_buggy() is the API which could be used to map
-range of kernel memory/pages in drivers which has not considered
-vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
+to the 4.19-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
-We _could_ then at a later "fix" these drivers which are using
-vm_insert_range_buggy() to behave according to the normal vm_pgoff
-offsetting simply by removing the _buggy suffix on the function
-name and if that causes regressions, it gives us an easy way to revert.
+The filename of the patch is:
+     x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
+and it can be found in the queue-4.19 subdirectory.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Suggested-by: Russell King <linux@armlinux.org.uk>
-Suggested-by: Matthew Wilcox <willy@infradead.org>
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
+
+
+>From 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 Mon Sep 17 00:00:00 2001
+From: Michal Hocko <mhocko@suse.com>
+Date: Tue, 13 Nov 2018 19:49:10 +0100
+Subject: x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
+
+From: Michal Hocko <mhocko@suse.com>
+
+commit 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 upstream.
+
+Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
+the system is deemed affected by L1TF vulnerability. Even though the limit
+is quite high for most deployments it seems to be too restrictive for
+deployments which are willing to live with the mitigation disabled.
+
+We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
+clearly out of the limit.
+
+Drop the swap restriction when l1tf=off is specified. It also doesn't make
+much sense to warn about too much memory for the l1tf mitigation when it is
+forcefully disabled by the administrator.
+
+[ tglx: Folded the documentation delta change ]
+
+Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: Jiri Kosina <jkosina@suse.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: <linux-mm@kvack.org>
+Cc: stable@vger.kernel.org
+Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
 ---
- include/linux/mm.h |  4 +++
- mm/memory.c        | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/nommu.c         | 14 ++++++++++
- 3 files changed, 99 insertions(+)
+ Documentation/admin-guide/kernel-parameters.txt |    3 +++
+ Documentation/admin-guide/l1tf.rst              |    6 +++++-
+ arch/x86/kernel/cpu/bugs.c                      |    3 ++-
+ arch/x86/mm/init.c                              |    2 +-
+ 4 files changed, 11 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5411de9..9d1dff6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2514,6 +2514,10 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
-+int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num);
-+int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num);
- vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
- vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
-diff --git a/mm/memory.c b/mm/memory.c
-index 4ad2d29..00e66df 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1520,6 +1520,87 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- EXPORT_SYMBOL(vm_insert_page);
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -2073,6 +2073,9 @@
+ 			off
+ 				Disables hypervisor mitigations and doesn't
+ 				emit any warnings.
++				It also drops the swap size and available
++				RAM limit restriction on both hypervisor and
++				bare metal.
  
-+/**
-+ * __vm_insert_range - insert range of kernel pages into user vma
-+ * @vma: user vma to map to
-+ * @pages: pointer to array of source kernel pages
-+ * @num: number of pages in page array
-+ * @offset: user's requested vm_pgoff
-+ *
-+ * This allows drivers to insert range of kernel pages they've allocated
-+ * into a user vma.
-+ *
-+ * If we fail to insert any page into the vma, the function will return
-+ * immediately leaving any previously inserted pages present.  Callers
-+ * from the mmap handler may immediately return the error as their caller
-+ * will destroy the vma, removing any successfully inserted pages. Other
-+ * callers should make their own arrangements for calling unmap_region().
-+ *
-+ * Context: Process context.
-+ * Return: 0 on success and error code otherwise.
-+ */
-+static int __vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num, unsigned long offset)
-+{
-+	unsigned long count = vma_pages(vma);
-+	unsigned long uaddr = vma->vm_start;
-+	int ret, i;
-+
-+	/* Fail if the user requested offset is beyond the end of the object */
-+	if (offset > num)
-+		return -ENXIO;
-+
-+	/* Fail if the user requested size exceeds available object size */
-+	if (count > num - offset)
-+		return -ENXIO;
-+
-+	for (i = 0; i < count; i++) {
-+		ret = vm_insert_page(vma, uaddr, pages[offset + i]);
-+		if (ret < 0)
-+			return ret;
-+		uaddr += PAGE_SIZE;
-+	}
-+
-+	return 0;
-+}
-+
-+/**
-+ * vm_insert_range - insert range of kernel pages starts with non zero offset
-+ * @vma: user vma to map to
-+ * @pages: pointer to array of source kernel pages
-+ * @num: number of pages in page array
-+ *
-+ * Maps an object consisting of `num' `pages', catering for the user's
-+ * requested vm_pgoff
-+ *
-+ * Context: Process context. Called by mmap handlers.
-+ * Return: 0 on success and error code otherwise.
-+ */
-+int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num)
-+{
-+	return __vm_insert_range(vma, pages, num, vma->vm_pgoff);
-+}
-+EXPORT_SYMBOL(vm_insert_range);
-+
-+/**
-+ * vm_insert_range_buggy - insert range of kernel pages starts with zero offset
-+ * @vma: user vma to map to
-+ * @pages: pointer to array of source kernel pages
-+ * @num: number of pages in page array
-+ *
-+ * Maps a set of pages, always starting at page[0]
-+ *
-+ * Context: Process context. Called by mmap handlers.
-+ * Return: 0 on success and error code otherwise.
-+ */
-+int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num)
-+{
-+	return __vm_insert_range(vma, pages, num, 0);
-+}
-+EXPORT_SYMBOL(vm_insert_range_buggy);
-+
- static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			pfn_t pfn, pgprot_t prot, bool mkwrite)
- {
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 749276b..21d101e 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -473,6 +473,20 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- EXPORT_SYMBOL(vm_insert_page);
+ 			Default is 'flush'.
  
-+int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-+			unsigned long num)
-+{
-+	return -EINVAL;
-+}
-+EXPORT_SYMBOL(vm_insert_range);
+--- a/Documentation/admin-guide/l1tf.rst
++++ b/Documentation/admin-guide/l1tf.rst
+@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid
+ 
+   off		Disables hypervisor mitigations and doesn't emit any
+ 		warnings.
++		It also drops the swap size and available RAM limit restrictions
++		on both hypervisor and bare metal.
 +
-+int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num)
-+{
-+	return -EINVAL;
-+}
-+EXPORT_SYMBOL(vm_insert_range_buggy);
-+
- /*
-  *  sys_brk() for the most part doesn't need the global kernel
-  *  lock, except when an application is doing something nasty
--- 
-1.9.1
+   ============  =============================================================
+ 
+ The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
+@@ -576,7 +579,8 @@ Default mitigations
+   The kernel default mitigations for vulnerable processors are:
+ 
+   - PTE inversion to protect against malicious user space. This is done
+-    unconditionally and cannot be controlled.
++    unconditionally and cannot be controlled. The swap storage is limited
++    to ~16TB.
+ 
+   - L1D conditional flushing on VMENTER when EPT is enabled for
+     a guest.
+--- a/arch/x86/kernel/cpu/bugs.c
++++ b/arch/x86/kernel/cpu/bugs.c
+@@ -1000,7 +1000,8 @@ static void __init l1tf_select_mitigatio
+ #endif
+ 
+ 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
+-	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
++	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
++			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
+ 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
+ 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
+ 				half_pa);
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -932,7 +932,7 @@ unsigned long max_swapfile_size(void)
+ 
+ 	pages = generic_max_swapfile_size();
+ 
+-	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
++	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
+ 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
+ 		unsigned long long l1tf_limit = l1tf_pfn_limit();
+ 		/*
+
+
+Patches currently in stable-queue which might be from mhocko@suse.com are
+
+queue-4.19/x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
