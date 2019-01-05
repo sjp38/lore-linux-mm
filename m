@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8801E8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 12:36:18 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id s193so4094491wmd.4
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 09:36:18 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 201sor25633308wma.0.2019.01.02.09.36.16
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 42D6B8E00F9
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 19:22:44 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id x67so11810249pfk.16
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 16:22:44 -0800 (PST)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id b3si10260947pgc.587.2019.01.04.16.22.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 09:36:17 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 2/3] kasan: make tag based mode work with CONFIG_HARDENED_USERCOPY
-Date: Wed,  2 Jan 2019 18:36:07 +0100
-Message-Id: <21de3c171438760a232d51cea56792c886bc9160.1546450432.git.andreyknvl@google.com>
-In-Reply-To: <cover.1546450432.git.andreyknvl@google.com>
-References: <cover.1546450432.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jan 2019 16:22:43 -0800 (PST)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v2 PATCH 1/5] doc: memcontrol: fix the obsolete content about force empty
+Date: Sat,  5 Jan 2019 08:19:16 +0800
+Message-Id: <1546647560-40026-2-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1546647560-40026-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1546647560-40026-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-With CONFIG_HARDENED_USERCOPY enabled __check_heap_object() compares and
-then subtracts a potentially tagged pointer with a non-tagged address of
-the page that this pointer belongs to, which leads to unexpected behavior.
+We don't do page cache reparent anymore when offlining memcg, so update
+force empty related content accordingly.
 
-Untag the pointer in __check_heap_object() before doing any of these
-operations.
-
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/slub.c | 2 ++
- 1 file changed, 2 insertions(+)
+ Documentation/cgroup-v1/memory.txt | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 36c0befeebd8..1e3d0ec4e200 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3846,6 +3846,8 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
- 	unsigned int offset;
- 	size_t object_size;
+diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
+index 3682e99..8e2cb1d 100644
+--- a/Documentation/cgroup-v1/memory.txt
++++ b/Documentation/cgroup-v1/memory.txt
+@@ -70,7 +70,7 @@ Brief summary of control files.
+  memory.soft_limit_in_bytes	 # set/show soft limit of memory usage
+  memory.stat			 # show various statistics
+  memory.use_hierarchy		 # set/show hierarchical account enabled
+- memory.force_empty		 # trigger forced move charge to parent
++ memory.force_empty		 # trigger forced page reclaim
+  memory.pressure_level		 # set memory pressure notifications
+  memory.swappiness		 # set/show swappiness parameter of vmscan
+ 				 (See sysctl's vm.swappiness)
+@@ -459,8 +459,9 @@ About use_hierarchy, see Section 6.
+   the cgroup will be reclaimed and as many pages reclaimed as possible.
  
-+	ptr = kasan_reset_tag(ptr);
-+
- 	/* Find object and usable object size. */
- 	s = page->slab_cache;
+   The typical use case for this interface is before calling rmdir().
+-  Because rmdir() moves all pages to parent, some out-of-use page caches can be
+-  moved to the parent. If you want to avoid that, force_empty will be useful.
++  Though rmdir() offlines memcg, but the memcg may still stay there due to
++  charged file caches. Some out-of-use page caches may keep charged until
++  memory pressure happens. If you want to avoid that, force_empty will be useful.
  
+   Also, note that when memory.kmem.limit_in_bytes is set the charges due to
+   kernel pages will still be seen. This is not considered a failure and the
 -- 
-2.20.1.415.g653613c723-goog
+1.8.3.1
