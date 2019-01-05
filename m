@@ -2,176 +2,139 @@ Return-Path: <SRS0=AeVH=PN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FD64C43612
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 21:54:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29AE8C43387
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 22:55:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F1765222C7
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 21:54:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BBE7E222BB
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 22:55:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="aLv2aXvu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1765222C7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="eqx40GO4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BBE7E222BB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C6D08E012E; Sat,  5 Jan 2019 16:54:26 -0500 (EST)
+	id 2A9BF8E012F; Sat,  5 Jan 2019 17:55:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 574DE8E00F9; Sat,  5 Jan 2019 16:54:26 -0500 (EST)
+	id 232728E00F9; Sat,  5 Jan 2019 17:55:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4169C8E012E; Sat,  5 Jan 2019 16:54:26 -0500 (EST)
+	id 0FBC58E012F; Sat,  5 Jan 2019 17:55:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C35048E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 16:54:25 -0500 (EST)
-Received: by mail-lf1-f69.google.com with SMTP id x2so3799001lfg.16
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 13:54:25 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D448A8E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 17:54:59 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id m52so17873081otc.13
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 14:54:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=+1ou9Ablj7aPz54GczAfBZDoTjLzri1LRQMpX+g56pk=;
-        b=D+P0PxYRtXHKLiGfsxCxmAK0WMMmidB+hTSSk1yKSnetWfHOuQ4QcHwadI8Sl+02mR
-         hfdXzS+Li+uWQtr/m6HpiF6X1nlHvXtN/7BvqWU+mJdoTftjrbz9tEhroMLABUS+l8M4
-         NQ7gmi4obxnpTG6L6q1MIx65tff9s3FNp9WfXZjW5DXyCxtxWKnoLQfSL+JprQCK5Be/
-         LkunIKnBpjZhgIr3kC4TO9mmDMc8ELM4sHS4J09voRhY1qPbXZ+tG/Fyec0L3ELVeK2Z
-         pKoxkqaStIooyLfVOi3rC4Y7s/jjx+Z0u5t/ZZBOoiFvaPkwjTAXA8HdEDHXxV7dQuqT
-         1M9g==
-X-Gm-Message-State: AJcUukfOEJ3IM72lkRqIFtfYf0kG+U/LvkSUKM3CFy1/pg4mZSUNVt1r
-	SbkT0fd/iPuJmoJVM4xRdbbcdlBunUF0VhNXj/zXI6EXyQ6x7URZfTWobtcaMomgoVPFO41I+HK
-	xmgxuUfMXNN4uQdmnNFS2JcfymZ/kXXIVY4XZz8R8OSa+mM0DrYweRZvOiyDpCFqRnW1BVWVft7
-	cfXqnMEEcIlZJbvd/r/v4bRaunEA1vKPg576ixG64Tu7QikEQtOaJSUaMy8YilEtMNlrMvd/PfG
-	0Kp/HVpVFau/txYdxr9HQkwe45hPSMfhq58XfyUc3B89pYbCJmh78hzwxXruYl1U9FRiGwNHt5o
-	aAIl8JsDXXXzEB6BBFSkPfIABBwy09HeNmktFGpytUhQ9XWbzn1M2Httlwr0MF1JCP3tRYatONS
-	m
-X-Received: by 2002:a2e:5d12:: with SMTP id r18-v6mr35372252ljb.89.1546725264705;
-        Sat, 05 Jan 2019 13:54:24 -0800 (PST)
-X-Received: by 2002:a2e:5d12:: with SMTP id r18-v6mr35372239ljb.89.1546725263678;
-        Sat, 05 Jan 2019 13:54:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546725263; cv=none;
+        bh=AWttGSuK6p3ZjKI0uWuqGI1eUFhgSNn7XCSj6cGkh3c=;
+        b=SI/lBIrqiZSSaTuEDPzsYls/7MrEMtv5sbniKsJFICDWQqWxhiYZ49CRmdnmVqYCJP
+         iwuoUEIleVbTtdWX+MUbymkemIodCsqaGcvPkNXc+q/V4CnBV0yP5BU++f4+EbD7ojG6
+         yga1EwAnMYLdPXol+DM1UQE5e/AXO29C+Pl9Q2p7EYd1/8LlSx5O4F0oaKSCH+jB58lw
+         fufVSf9pcIXkZkm3L6AyJE64s9pEcD8EPEz1mOGkHCuIzxL/oGx4nR+Xmo8BGmpXQ5qI
+         fb21SCh62TM1CzN+QPVCiHCPVg07l4qgCxWNtxTWB0bw/CxX8tNVyZt0uT+GcxehVtqq
+         MW8g==
+X-Gm-Message-State: AJcUukcAzNPTtY7Nm8KJOu9oGUN0TFqhLLqiZXDvc0Wo5yXhLHJ9yumY
+	MrexIiGu9gODFDbSFN6AqElGcTykN5U4zoPqBfXTW54JJzlcrWULIV5z38Qm+Pxhv07KHOSUl4r
+	FGaqXXPAntLy+iB945AomuY0jsZUmpGB0jp6rj6Mt7yDr3qNII46WGbtVvvJFGHpF+fbNwFNIhp
+	hDMzfKDfTJYKTyUY453elakph5uiEKYU+g2bX0LMAqSVezrbUinK55yyXxuki3171fTs/o+JHZq
+	rcv5A+x0sINCJRMzmMO+QLjUox4gQLjygmNNmOBazfePkMKYrAsvKmmUQoABZGSuCoc085TZbV6
+	Pd6g0v916TXMAY+cF0x/iU//2V4oP36JoINPK4xAb/6a+PJ/sqUgy2mORA/J7jXc8Nj0sGq/y3B
+	1
+X-Received: by 2002:aca:5406:: with SMTP id i6mr4642436oib.344.1546728899550;
+        Sat, 05 Jan 2019 14:54:59 -0800 (PST)
+X-Received: by 2002:aca:5406:: with SMTP id i6mr4642421oib.344.1546728898835;
+        Sat, 05 Jan 2019 14:54:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546728898; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ly+Nc+C9yQTNl09YfV+g6x0gzWoMgS3sjeOssB1AeDyIp6P4Hb/t+Yh949iiO34grx
-         V6xYsuTN0V/dvB+UJXYnGjYVuoeEj9B0W5X8URBz1PmDvu2m+mDrP9evGu+lXLVapZyX
-         xrnvzDTAz1bqDsiKSfMYFfrvMnyvmIWtn+EJr5nK8u8bdeiLTDFj0+LLsRjN9/XLqqJY
-         BsyFEHgPKrCo7tqapqdsuoiAHYTOKUhv/Ha55dk5463SVtuGw+roQWYdnHJEQ36bhkkC
-         11Kut01DF97ux6Qt6ZRcqZedIxOUDR4gFY7ZMH/odyIaqSgxi4CRk+m3lWXddiEOZ+1t
-         mlNw==
+        b=Sc4hRbBivms3iiQH7boiHTK+RgUYcYH96HsggUfasM0F0eCRCDfozBAnXB/f2OC4P0
+         86Y0nKOcsQ1j9/oJStknkFyYk37eBQeJwaKl0Zs5KzsH3ckgYQbTHnX0JIX6oZxTz0to
+         LFyAH9be/sXCoShfL13y/jHScbM6Rj8mxH43OpUcQZW+kvPu0yG5iykkrJ2A3fqyXv/s
+         PDVYqmTDqRiwMK8dDbKY8KG4Gqa8EdbSdpngwZWwKMseUxayqKOmAtYrNs8FC5jRGLwq
+         4Zg/8saUXtAVKYaic6JV6M/mqdvuuvxXYu7wr6K/YsEEUN/g0sWBIOXZsa//oWu3ljV/
+         0teg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=+1ou9Ablj7aPz54GczAfBZDoTjLzri1LRQMpX+g56pk=;
-        b=yj3tSWx/biZFuywweoRqZQSWi8dTcUIHhgBkuuDVTd5bNC44M+sudCOW6tQ4/Zo9Le
-         Y6WuV46n4apGo+tufesymUeG3JO4NkRTq7Fu70heb3u7kvC8Cv0CfjlvM8uf3GjKTmHK
-         FQ+i60xvM3gn1NLn3xbc71rOdnMJztrKEgAwUxSO/+YcHl1SI4ot55Hlf+F9Oy2fmXpf
-         UnVwFsy0AU4V5iYHl8LIoOMYrSMSaLCOXPeeh1l3vD/h0IIJisMBIaeR+cub0IrSk9j8
-         v+WdKBRgta6kDWHywvHqPZyMvPxDYKBliZ6d+hWzp2imhILOYfLGADPehnupTqAP1AST
-         Ny3Q==
+        bh=AWttGSuK6p3ZjKI0uWuqGI1eUFhgSNn7XCSj6cGkh3c=;
+        b=AF6KS7z8jZBXT7BvoLFn4l115TVeHXHd0CYn0ICfCvve9APbrIkTJS3gkQkurP0T1S
+         T2O9odWlERJ/4x3+a17PBA6KuhA9fp98ZOVfF3cDkGgf8jFZWJs/v9fU8kmMrpsaWyq4
+         J7oIE9z8l3xoS7e0FiLSOcsN4K64gMji4NlE9xE5tfIpshCoU+7r3D0yWAKdQUGhoTq6
+         MpuQwGgnR94lFk1HRA4T7IhrF9tf/s8mRpDJvCPvaQs0rZYmqbyc9tmqrofZ+lM9Tf29
+         rYJJS8WO/Pk9OI+j09c/wwUjJi2W1F7k9QKlBivQffv6EwPnmVN9TVNRN6wd4V0Xzqvh
+         pHkg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=aLv2aXvu;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=eqx40GO4;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g7-v6sor36327694ljk.19.2019.01.05.13.54.23
+        by mx.google.com with SMTPS id k203sor26180708oib.16.2019.01.05.14.54.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 05 Jan 2019 13:54:23 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sat, 05 Jan 2019 14:54:58 -0800 (PST)
+Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=aLv2aXvu;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=eqx40GO4;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=+1ou9Ablj7aPz54GczAfBZDoTjLzri1LRQMpX+g56pk=;
-        b=aLv2aXvuQ2PcnOES4bn3an92ZWFwet2D8xWSCbWkNHh0ScTlLJjUThLCdtqbEwdzdq
-         KwMAljejKSH453sW9kRjuoDOKAO+SJ9pEZzB2L0igqHXwWwGHe0+QdjWIuFF/3H43T1S
-         OQj3p5p+5O3bs8MJLbC8JhX9XV5Puwstpxp0E=
-X-Google-Smtp-Source: AFSGD/XMNmFPvUxcCOdulWh3n9Oz/AirA6IMN8Xhw/u0Jm7+jUGM8qI4F43XU8k+u1EMztT182mo+A==
-X-Received: by 2002:a2e:458b:: with SMTP id s133-v6mr30652625lja.170.1546725262215;
-        Sat, 05 Jan 2019 13:54:22 -0800 (PST)
-Received: from mail-lj1-f176.google.com (mail-lj1-f176.google.com. [209.85.208.176])
-        by smtp.gmail.com with ESMTPSA id q6sm11702689lfh.52.2019.01.05.13.54.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 13:54:20 -0800 (PST)
-Received: by mail-lj1-f176.google.com with SMTP id v15-v6so35178110ljh.13
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 13:54:20 -0800 (PST)
-X-Received: by 2002:a2e:9c7:: with SMTP id 190-v6mr24066633ljj.120.1546725259853;
- Sat, 05 Jan 2019 13:54:19 -0800 (PST)
+        bh=AWttGSuK6p3ZjKI0uWuqGI1eUFhgSNn7XCSj6cGkh3c=;
+        b=eqx40GO4zIHPgE+QjMGQalPzUUHZbK7ytCQV+2CmGTqAUsFauvbP9beoaPzxmfh4d+
+         QU4cVFLFYhOt/plmBGqWDbEMqcof5mtji5luIYrMfZuR87Vmn9mcGAGLmARrd8WY8w5J
+         wsnO2lspdw7kaXOjpkWdVqh3lt8wOKbujTIYogecUOZqLuhilFfHIEtaxiJuqjlwpjx7
+         ITEVR+0BTJp+xdMwflGSwgGQPgU3Y3a4HfKHs6hF2QJFwys4JpD4J/WJNo9vfADUtat6
+         7zW/F1xVn3DSNj8gWosEo4KlI2TRjW5aDrfDQidAT+Td6IYrQsMl4UGKPh6jF0qkafFu
+         r+NQ==
+X-Google-Smtp-Source: ALg8bN45fc2VvmbJfiQx1YNlOX4oneiJm8hW7M1GM74nSdXA6z2wJWuqs1L0ynaCy3lW11h4eN4mTWsIhK100VDBlvo=
+X-Received: by 2002:aca:bcc6:: with SMTP id m189mr4630820oif.337.1546728898294;
+ Sat, 05 Jan 2019 14:54:58 -0800 (PST)
 MIME-Version: 1.0
 References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <CAHk-=wicks2BEwm1BhdvEj_P3yawmvQuG3NOnjhdrUDEtTGizw@mail.gmail.com>
- <nycvar.YFH.7.76.1901052108390.16954@cbobk.fhfr.pm> <CAHk-=whGmE4QVr6NbgHnrVGVENfM3s1y6GNbsfh8PcOg=6bpqw@mail.gmail.com>
- <nycvar.YFH.7.76.1901052131480.16954@cbobk.fhfr.pm>
-In-Reply-To: <nycvar.YFH.7.76.1901052131480.16954@cbobk.fhfr.pm>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 5 Jan 2019 13:54:03 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wgrSKyN23yp-npq6+J-4pGqbzxb3mJ183PryjHw7PWDyA@mail.gmail.com>
+In-Reply-To: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
+From: Jann Horn <jannh@google.com>
+Date: Sat, 5 Jan 2019 23:54:32 +0100
 Message-ID:
- <CAHk-=wgrSKyN23yp-npq6+J-4pGqbzxb3mJ183PryjHw7PWDyA@mail.gmail.com>
+ <CAG48ez2jAp9xkPXQmVXm0PqNrFGscg9BufQRem2UD8FGX-YzPw@mail.gmail.com>
 Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Jiri Kosina <jikos@kernel.org>, Masatake YAMATO <yamato@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
+	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
+	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190105215403.mUw4qYhNovfebhjEdYRHswNDpHWK4t3-NyX-FxT8C7E@z>
+Message-ID: <20190105225432.9KHux_3mbW93fpZqsZmeYev4i2mxr280XaC5YAvJgWk@z>
 
-On Sat, Jan 5, 2019 at 12:43 PM Jiri Kosina <jikos@kernel.org> wrote:
+On Sat, Jan 5, 2019 at 6:27 PM Jiri Kosina <jikos@kernel.org> wrote:
+> There are possibilities [1] how mincore() could be used as a converyor of
+> a sidechannel information about pagecache metadata.
 >
-> > Who actually _uses_ mincore()? That's probably the best guide to what
-> > we should do. Maybe they open the file read-only even if they are the
-> > owner, and we really should look at file ownership instead.
+> Provide vm.mincore_privileged sysctl, which makes it possible to mincore()
+> start returning -EPERM in case it's invoked by a process lacking
+> CAP_SYS_ADMIN.
 >
-> Yeah, well
+> The default behavior stays "mincore() can be used by anybody" in order to
+> be conservative with respect to userspace behavior.
 >
->         https://codesearch.debian.net/search?q=mincore
->
-> is a bit too much mess to get some idea quickly I am afraid.
+> [1] https://www.theregister.co.uk/2019/01/05/boffins_beat_page_cache/
 
-Yeah, heh.
-
-And the first hit is 'fincore', which probably nobody cares about
-anyway, but it does
-
-    fd = open (name, O_RDONLY)
-    ..
-    mmap(window, len, PROT_NONE, MAP_PRIVATE, ..
-
-so if we want to keep that working, we'd really need to actually check
-file ownership rather than just looking at f_mode.
-
-But I don't know if anybody *uses* and cares about fincore, and it's
-particularly questionable for non-root users.
-
-And the Android go runtime code seems to oddly use mincore to figure
-out page size:
-
-  // try using mincore to detect the physical page size.
-  // mincore should return EINVAL when address is not a multiple of
-system page size.
-
-which is all kinds of odd, but whatever.. Why mincore, rather than
-something sane and obvious like mmap? Don't ask me...
-
-Anyway, the Debian code search just results in mostly non-present
-stuff. It's sad that google code search is no more. It was great for
-exactly these kinds of questions.
-
-The mono runtime seems to have some mono_pages_not_faulted() function,
-but I don't know if people use it for file mappings, and I couldn't
-find any interesting users of it.
-
-I didn't find anything that seems to really care, but I gave up after
-a few pages of really boring stuff.
-
-                    Linus
+Just checking: I guess /proc/$pid/pagemap (iow, the pagemap_read()
+handler) is less problematic because it only returns data about the
+state of page tables, and doesn't query the address_space? In other
+words, it permits monitoring evictions, but non-intrusively detecting
+that something has been loaded into memory by another process is
+harder?
 
