@@ -2,168 +2,152 @@ Return-Path: <SRS0=AeVH=PN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0BB9C43444
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 20:13:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A90B9C43612
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 20:17:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A1B39222FE
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 20:13:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 48D3A22342
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 20:17:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Ovm4s7qz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1B39222FE
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="K2mrC1he"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48D3A22342
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52D278E012B; Sat,  5 Jan 2019 15:13:24 -0500 (EST)
+	id C315E8E012C; Sat,  5 Jan 2019 15:17:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4DCBE8E00F9; Sat,  5 Jan 2019 15:13:24 -0500 (EST)
+	id BB84F8E00F9; Sat,  5 Jan 2019 15:17:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CB938E012B; Sat,  5 Jan 2019 15:13:24 -0500 (EST)
+	id A59C58E012C; Sat,  5 Jan 2019 15:17:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C25CA8E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 15:13:23 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id x9-v6so10766947ljd.21
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 12:13:23 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 3053E8E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 15:17:32 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id l12-v6so10617027ljb.11
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 12:17:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Pdi+Bg1i6iYAyJ/YB9jfmxDEJpBzO7ZGd7liVQjUxaA=;
-        b=tsLGlJkaKL7SIajCljJMhRomRLgwjD+lMv/oLF6U6malIDIjVyhctSEXFG8x8KVWW8
-         onYavlJq1NoY1FSSdI+iHK3Br3rLXe7MngozxdD82ux3fCHvjlJ5I9Af7YONqwmD+2SA
-         EfnKsUBYc4zoIPXj1g3Iz4LUqR3uij3Szaa7LwHM46JEOvs1EFfD7DgyvC7oSUIPsApO
-         1YcRXRJWKE1WRpKiysYzWh4XODX2PMkKP5bj5Q0PCxKugf6BWP9XY04VzPNiBmXjl8GO
-         werR3atp40GhnaaZX7pGVx9jFuMS8jgF+dZNXJvD+XkjI5pnPUd/Z/SnMwVM+arEilFu
-         eHxg==
-X-Gm-Message-State: AA+aEWbhncUfvqRodyWBko8V5Qkfcs7xy17bi9ib7f854IhDRWIG04Rn
-	e5fOEo9U1oOW9620V7tvKDVGmeiRQcvafwU+yb0VqUDKMnnbdUUGlUccCPuwXNch8P75h7ne08A
-	n637pc9l0otJWlwSQjjUPtT/U0eNLihTrhSFxlhJykkWFRw8Avr/bWUMRqBQ5UrtIrIImE5ff19
-	tx0KPN/9TlVfjaGJ5tvIP+z9bR3SrECKHEj647dxv99ZQ3NPxmInHIxcPsnV1/DAKb9o2/FXptW
-	bLOYKmzrhY9d9QhbDaa6LGk6CeB+h3fhkQN/UHjNkZy54vQC8aWsfYDi6vrHGqi1X5xRYo0VG35
-	agK/etdCVVinxpiJ4oXbwc/0iDu9WsEDy9sPsgOwXgsgRFGvvZHfJSHlPXzuGg2wrR5pzNc9SxK
-	a
-X-Received: by 2002:a19:3809:: with SMTP id f9mr26915420lfa.148.1546719202868;
-        Sat, 05 Jan 2019 12:13:22 -0800 (PST)
-X-Received: by 2002:a19:3809:: with SMTP id f9mr26915407lfa.148.1546719202287;
-        Sat, 05 Jan 2019 12:13:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546719202; cv=none;
+        bh=BRF36iWgYXCowecQCa4ahsuhW8PKhuB6aSQnN1znDbc=;
+        b=CtgSaF0OBOB/2ZiCdlCB4S3m+qFnEguA7MKJtGzri/6yg6w/D5l9t/O+U0r0Oqipb0
+         9LAN+KQ0xrrovB9CmfNTPBq9UBhhwzpydVqK1TYsxYC559Sr8CV5AurM0IZ6MrdRXP80
+         Fm1Q0sRUguM7nzrs4sh4c+MbN7Nk4q6P608crWypsZXEIge2C8QYvLbdRQTwkZNqJbRm
+         3lhq8y/ZRz53YMVolaLRlBcS69xm+ntu6Enedl1shXA97nUpvtM5dv62Hb0bpfPqH4Yv
+         cPiCtHmvSLolf2Dxkwy6pVXOIKbypxWMCW7opOevnyiu53WPcbBbDEKr3m9d7u3hU2/H
+         yyAQ==
+X-Gm-Message-State: AA+aEWbTKXOYlHOIml4z9mHiJYAcTB3tgHQu9YZhzyZFJ1qAxfrm94Cf
+	F/x78sXlP5WB/fIDd/oNvHFv38m5zwKeQMfv/Gpjex0bjMikzY9Tob8kpUtTji/ngQvL0v3+WoC
+	bwJ4PHMvsqIFU3IkSOjgZ2FxSWEQEZj1H4QWMG9nj9PQvUS/AH3vTo4NbhGpAMwNhddjg81zaXT
+	ADzyscDRzVslFPPEX3IjU13ZwcofFURJxIWaaHqaw4fn8fWApKTRINk2AeDW6YThDG/jh9gbM/M
+	WyPEgAEbasTGEIg0HiZF2TmTVqIgXKCWN+S0Ov7DmDjFqTbwk1HYkd/A4JwZhNB1pGsDMEpkYiM
+	RQUxWns88HNYAiVBUTcJq55LWjXvG//wI/zSSo1FtTW3fw18Fdhiszy74QwXnSr8mM6UmLf4fU4
+	T
+X-Received: by 2002:a2e:5356:: with SMTP id t22-v6mr29617629ljd.26.1546719451585;
+        Sat, 05 Jan 2019 12:17:31 -0800 (PST)
+X-Received: by 2002:a2e:5356:: with SMTP id t22-v6mr29617620ljd.26.1546719450780;
+        Sat, 05 Jan 2019 12:17:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546719450; cv=none;
         d=google.com; s=arc-20160816;
-        b=LIRCH/Ne3PRveLE5vbuzVV9ZTHqZyGoe2cCXDqlQRgkLCTFYg/JwFBurn7yWgA87Wm
-         wDDDxWa63CYUZAT2PwGFmFKbwEE3LsB5au6roJxBppwCpcpWjQmIb2XafAJlQQhAThM8
-         /m6WEnNwSP7OxEj5KVQ0gj70Z36fueuFH/9x4qtTN+1dBnIbLg/Q0R8dZaU5FIchaOs8
-         Fe9omx5NMXtHeJ4FbY5po15Wg2TDEivhCBe8yLjVygdGIfA/o6+rKRLcUOKMc0g1VPVD
-         UZFOM5fK2APTw98yleLvdkuKCHXqf+0AJj7kXVYRAh2jgYxDmjXx2VgWLlg2QQw3Q1mz
-         HQow==
+        b=JS5xzsXxYqm9d9ITUIWzYM+UkDaztpKq3j1BmApEkAddZWCDPwgXMj2p6Dlx0MkRZu
+         vWFO5DZ2inpQcAH6r7mKQSSfkZp7PIyZAWD+dlvktGR01fpwXvmgvylpVj4CjtgxjkSo
+         VHsx+GD0s00lAF/9nmYcEfgHiFmGxonu7Fw4d2ZRWeAKS1Aa3fi2OrSBdjzL8TE8xmuz
+         rpdTQw+/Mv2EcMBDaGN/QEzSIMN6U1roQ2tdiiBAbyO3n2rJbQTJC/9AJ1qXCHW8uagG
+         aZspJ5yYbMKbpo60DkVAST7KdevZ242Hxrg6du6QgjACrbetu94od0fjaKOmP2QI3K/G
+         YYlA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=Pdi+Bg1i6iYAyJ/YB9jfmxDEJpBzO7ZGd7liVQjUxaA=;
-        b=H4MhgbTL0G57QcbXrayONJ4cqwFDa8qkkc2MVyzCV9lB8yAKJI9SeJ/FvKnX4MczfD
-         CB7Fkc00pJxaG9SINDru5jIgtjKgFiGnx7GS3gqiNClBQXmh/keOvSub+ZmRqcZCw4jl
-         ZhfyQl52+eZEgupsk2ZydEWH00rw68BkQSLWnBUMxKAMlWLbn10nsjl96nuLzySml1tW
-         Wd5K6TDEDH2HV57zpCi03BQn3zm26EmjFIpmOz0xKfKXL+vF8mfRvwTOahcvR6p/cfMr
-         2hWsfOjMasHQNxOsO63dp6tut3kWcKFwm0nf5OLntOJBY469UJ+ZUtdvvwOGCsEpIYwX
-         a3eg==
+        bh=BRF36iWgYXCowecQCa4ahsuhW8PKhuB6aSQnN1znDbc=;
+        b=NVgC6KhLeDEt7YSK4r4bSwLf+uifLEKf3BLrYiRkfjh/7jOX9dw5buEuA+cV6vwKmd
+         BvCOgXiBfHXnXQzF0X28YZFugQ88LYDQgGjmzVuxcZvJsb/46QZvMzlnqMIHuoHVBtw+
+         tFb1hPdRasr+REOTs/kQSgwu0JqZ6f5sXIjsIyG5R+21j//sU1bFCL2gBvm6HsPgP5Og
+         pC/1jBjoCPHidgHJsB6NImBL5INSNf+X+Gx9yDBHE7tyIPo8SB8yy4cn/OdTa+zrR7YM
+         SywX/H6F3Vbarcd2ev31F74hwdl4FmYF/amGXUyeHtR2YlSSUPpBHpLZGRApBmQgffq2
+         C8Yg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Ovm4s7qz;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=K2mrC1he;
        spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k25sor15478992lfj.26.2019.01.05.12.13.22
+        by mx.google.com with SMTPS id o26-v6sor34356856ljj.36.2019.01.05.12.17.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 05 Jan 2019 12:13:22 -0800 (PST)
+        Sat, 05 Jan 2019 12:17:30 -0800 (PST)
 Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Ovm4s7qz;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=K2mrC1he;
        spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=linux-foundation.org; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=Pdi+Bg1i6iYAyJ/YB9jfmxDEJpBzO7ZGd7liVQjUxaA=;
-        b=Ovm4s7qzBlZaFkhRQHYQAfhZuyMy8xnAoaOuLMym+53o/QgkGGfnxgHlttRFkYO0Gj
-         7+uqgCM/NMv2jKFKNKxBNgXexzIvyLZduESW3zVSmxX5oY85FuDM23SDZkRu/VBjDrFH
-         ktPUT1ftZfADhqSMujGo9gCGz4FRn/hgRLlz8=
-X-Google-Smtp-Source: ALg8bN6+k3IVplDQEP4aiY2q3Eo+vNAmJ8s8GBMGKxcFmxdupU1CbTNaPCkgjk6gaBY5NUYj340Xzg==
-X-Received: by 2002:a19:4948:: with SMTP id l8mr7114585lfj.156.1546719201634;
-        Sat, 05 Jan 2019 12:13:21 -0800 (PST)
-Received: from mail-lf1-f50.google.com (mail-lf1-f50.google.com. [209.85.167.50])
-        by smtp.gmail.com with ESMTPSA id h21sm12005426lfk.41.2019.01.05.12.13.18
+        bh=BRF36iWgYXCowecQCa4ahsuhW8PKhuB6aSQnN1znDbc=;
+        b=K2mrC1helUL4L325HY2NrT1I4s0DGh5TZeQoHqBCb4EiGtuS6OMSSMFj/IXj91AApP
+         0WIe+9z7ZKrZaj/QnItuCV8+QYEkOSxpr6DSt8xIIp314eWRJzAXpHNi0YCE6TpH5LnR
+         EZ7lEPWEqoE21UAsTku9cUmNgSynPP2Ll+JaI=
+X-Google-Smtp-Source: ALg8bN6x8bAIzbF378h5FV4sppffw62emlIPJ84xhiV5CS6U9rFnxMRzf4wyL/vmVhM+ezo2w4y70Q==
+X-Received: by 2002:a2e:c41:: with SMTP id o1-v6mr31463336ljd.152.1546719449900;
+        Sat, 05 Jan 2019 12:17:29 -0800 (PST)
+Received: from mail-lj1-f174.google.com (mail-lj1-f174.google.com. [209.85.208.174])
+        by smtp.gmail.com with ESMTPSA id c203sm11862130lfe.95.2019.01.05.12.17.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 12:13:19 -0800 (PST)
-Received: by mail-lf1-f50.google.com with SMTP id y11so27602996lfj.4
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 12:13:18 -0800 (PST)
-X-Received: by 2002:a19:3fcf:: with SMTP id m198mr26631654lfa.106.1546719198576;
- Sat, 05 Jan 2019 12:13:18 -0800 (PST)
+        Sat, 05 Jan 2019 12:17:28 -0800 (PST)
+Received: by mail-lj1-f174.google.com with SMTP id v15-v6so35085615ljh.13
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 12:17:28 -0800 (PST)
+X-Received: by 2002:a2e:95c6:: with SMTP id y6-v6mr10266322ljh.59.1546719448269;
+ Sat, 05 Jan 2019 12:17:28 -0800 (PST)
 MIME-Version: 1.0
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm> <CAHk-=wicks2BEwm1BhdvEj_P3yawmvQuG3NOnjhdrUDEtTGizw@mail.gmail.com>
-In-Reply-To: <CAHk-=wicks2BEwm1BhdvEj_P3yawmvQuG3NOnjhdrUDEtTGizw@mail.gmail.com>
+References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
+ <CAHk-=wicks2BEwm1BhdvEj_P3yawmvQuG3NOnjhdrUDEtTGizw@mail.gmail.com> <nycvar.YFH.7.76.1901052108390.16954@cbobk.fhfr.pm>
+In-Reply-To: <nycvar.YFH.7.76.1901052108390.16954@cbobk.fhfr.pm>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 5 Jan 2019 12:13:01 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wif_9nvNHJiyxHzJ80_WUb0P7CXNBvXkjZz-r1u0ozp7g@mail.gmail.com>
+Date: Sat, 5 Jan 2019 12:17:12 -0800
+X-Gmail-Original-Message-ID: <CAHk-=whGmE4QVr6NbgHnrVGVENfM3s1y6GNbsfh8PcOg=6bpqw@mail.gmail.com>
 Message-ID:
- <CAHk-=wif_9nvNHJiyxHzJ80_WUb0P7CXNBvXkjZz-r1u0ozp7g@mail.gmail.com>
+ <CAHk-=whGmE4QVr6NbgHnrVGVENfM3s1y6GNbsfh8PcOg=6bpqw@mail.gmail.com>
 Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
 To: Jiri Kosina <jikos@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
 	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, 
 	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
-Content-Type: multipart/mixed; boundary="0000000000006646d6057ebba023"
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190105201301.Ah9qlnOi-DZv01yBdmtP0dkFvfFTxuN6BGvc5uoyksE@z>
+Message-ID: <20190105201712.-qTXxiq1Dxg8b_7oJjLnIAKTkbIhOoGIkOPYQ8OVTxU@z>
 
---0000000000006646d6057ebba023
-Content-Type: text/plain; charset="UTF-8"
+[ Crossed emails ]
 
-On Sat, Jan 5, 2019 at 11:46 AM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+On Sat, Jan 5, 2019 at 12:12 PM Jiri Kosina <jikos@kernel.org> wrote:
 >
-> Can we please just limit it to vma's that are either anonymous, or map
-> a file that the user actually owns?
+> I am still not completely sure what to return in such cases though; we can
+> either blatantly lie and always pretend that the pages are resident
 
-.. or slightly simpler: a file that the user opened for writing.
+That's what my untested patch did. Or maybe just claim they are all
+not present?
 
-IOW, some (TOTALLY UNTESTED!) patch like this?
+And again, that patch was entirely untested, so it may be garbage and
+have some fundamental problem. I also don't know exactly what rule
+might make most sense, but "you can write to the file" certainly to me
+implies that you also could know what parts of it are in-core.
 
-               Linus
+Who actually _uses_ mincore()? That's probably the best guide to what
+we should do. Maybe they open the file read-only even if they are the
+owner, and we really should look at file ownership instead.
 
---0000000000006646d6057ebba023
-Content-Type: text/x-patch; charset="US-ASCII"; name="patch.diff"
-Content-Disposition: attachment; filename="patch.diff"
-Content-Transfer-Encoding: base64
-Content-ID: <f_jqjwnxes0>
-X-Attachment-Id: f_jqjwnxes0
+I tried to make that "can_do_mincore()" function easy to understand
+and easy to just modify to some sane state.
 
-IG1tL21pbmNvcmUuYyB8IDE0ICsrKysrKysrKysrKystCiAxIGZpbGUgY2hhbmdlZCwgMTMgaW5z
-ZXJ0aW9ucygrKSwgMSBkZWxldGlvbigtKQoKZGlmZiAtLWdpdCBhL21tL21pbmNvcmUuYyBiL21t
-L21pbmNvcmUuYwppbmRleCAyMTgwOTliNWVkMzEuLjYxZTM4ODk1ZmIwMiAxMDA2NDQKLS0tIGEv
-bW0vbWluY29yZS5jCisrKyBiL21tL21pbmNvcmUuYwpAQCAtMTY5LDYgKzE2OSwxMyBAQCBzdGF0
-aWMgaW50IG1pbmNvcmVfcHRlX3JhbmdlKHBtZF90ICpwbWQsIHVuc2lnbmVkIGxvbmcgYWRkciwg
-dW5zaWduZWQgbG9uZyBlbmQsCiAJcmV0dXJuIDA7CiB9CiAKK3N0YXRpYyBpbmxpbmUgYm9vbCBj
-YW5fZG9fbWluY29yZShzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSkKK3sKKwlyZXR1cm4gdm1h
-X2lzX2Fub255bW91cyh2bWEpCisJCXx8ICh2bWEtPnZtX2ZpbGUgJiYgKHZtYS0+dm1fZmlsZS0+
-Zl9tb2RlICYgRk1PREVfV1JJVEUpKQorCQl8fCBjYXBhYmxlKENBUF9TWVNfQURNSU4pOworfQor
-CiAvKgogICogRG8gYSBjaHVuayBvZiAic3lzX21pbmNvcmUoKSIuIFdlJ3ZlIGFscmVhZHkgY2hl
-Y2tlZAogICogYWxsIHRoZSBhcmd1bWVudHMsIHdlIGhvbGQgdGhlIG1tYXAgc2VtYXBob3JlOiB3
-ZSBzaG91bGQKQEAgLTE4OSw4ICsxOTYsMTMgQEAgc3RhdGljIGxvbmcgZG9fbWluY29yZSh1bnNp
-Z25lZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgcGFnZXMsIHVuc2lnbmVkIGNoYXIgKnYKIAl2
-bWEgPSBmaW5kX3ZtYShjdXJyZW50LT5tbSwgYWRkcik7CiAJaWYgKCF2bWEgfHwgYWRkciA8IHZt
-YS0+dm1fc3RhcnQpCiAJCXJldHVybiAtRU5PTUVNOwotCW1pbmNvcmVfd2Fsay5tbSA9IHZtYS0+
-dm1fbW07CiAJZW5kID0gbWluKHZtYS0+dm1fZW5kLCBhZGRyICsgKHBhZ2VzIDw8IFBBR0VfU0hJ
-RlQpKTsKKwlpZiAoIWNhbl9kb19taW5jb3JlKHZtYSkpIHsKKwkJdW5zaWduZWQgbG9uZyBwYWdl
-cyA9IChlbmQgLSBhZGRyKSA+PiBQQUdFX1NISUZUOworCQltZW1zZXQodmVjLCAxLCBwYWdlcyk7
-CisJCXJldHVybiBwYWdlczsKKwl9CisJbWluY29yZV93YWxrLm1tID0gdm1hLT52bV9tbTsKIAll
-cnIgPSB3YWxrX3BhZ2VfcmFuZ2UoYWRkciwgZW5kLCAmbWluY29yZV93YWxrKTsKIAlpZiAoZXJy
-IDwgMCkKIAkJcmV0dXJuIGVycjsK
---0000000000006646d6057ebba023--
+Again, my patch is meant as a "perhaps something like this?" rather
+than some "this is _exactly_ how it must be done". Take the patch as a
+quick suggestion, not some final answer.
+
+              Linus
 
