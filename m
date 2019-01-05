@@ -2,233 +2,202 @@ Return-Path: <SRS0=AeVH=PN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2494C43387
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:38:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2AB0CC43444
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 17:27:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81E1A20874
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:38:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="2fcG53Q1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81E1A20874
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	by mail.kernel.org (Postfix) with ESMTP id CB81421848
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 17:27:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CB81421848
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 33CF48E0120; Sat,  5 Jan 2019 10:38:04 -0500 (EST)
+	id 1B09F8E0122; Sat,  5 Jan 2019 12:27:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2ED668E00F9; Sat,  5 Jan 2019 10:38:04 -0500 (EST)
+	id 1616D8E00F9; Sat,  5 Jan 2019 12:27:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 18EB38E0120; Sat,  5 Jan 2019 10:38:04 -0500 (EST)
+	id 04FA58E0122; Sat,  5 Jan 2019 12:27:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C18AC8E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:38:03 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id l9so28897303plt.7
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:38:03 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4108E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 12:27:09 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id e12so36133505edd.16
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 09:27:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:from:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=fU6vft3hVVQEZCRQOV3YAEscJw+f6svb4ufOnAIl02E=;
-        b=MPXIM+x2N6CIPqXZW+SNQ7iDPIALyO5zIYq4LywDZhDr4750uN0FmulgUaCHkDaaTQ
-         5VM4E1R6UOpCdnCOfuzG3c5Ul9tgBxeLkB8NoZe5HCB5gOjv4vZhYe6wocshR7RObYpi
-         klaeTTDlajJMIaxcy+pmsmu957ZQJ/A8rc8kVJNIkrX5pHbFYd12xdvM/cnk+afKZhtH
-         EFwUehb4MEOlpDvoj+45mdCxAbC6goNabl+ybrz/mwpcTn/z3Z0uK5R+WuYm6zkoGBry
-         18VoH5EOsuqsbPv+4IUShWVIGxFpiiTawbJIX5ORdzwAAyAtGJdduwdvCVHxgz0Ynu5P
-         uHjw==
-X-Gm-Message-State: AA+aEWbfXzBRMY08FVgozwsZXTFUV6c4e/A84q6c0k3vlb9t+vKlM/40
-	/LO3+2prOkbCPPXB8qU42lvjZpRwDyQGn1l9ar9hn6/g6xpnXCMtLv+gNfXVaU+iTE00z2o+UXe
-	btCpf6sYO2iUyjILR3sa4JbzJFlUAn5qNZLc1yZ5KYguYnA9qiIewMSJHBlZVGlM=
-X-Received: by 2002:a62:e044:: with SMTP id f65mr55976916pfh.208.1546702683326;
-        Sat, 05 Jan 2019 07:38:03 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6cKA2dLp8emxgFHWyl+OE71r0tyy1eLFmNYNHjhqlRPGHj+iUDcQpXKYqu8IzNzYIcCCkJ
-X-Received: by 2002:a62:e044:: with SMTP id f65mr55976889pfh.208.1546702682537;
-        Sat, 05 Jan 2019 07:38:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546702682; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:user-agent:mime-version;
+        bh=rbh7SbMsDzLW85qhFs/JA9KR+911TMgBdFkozzVBbtQ=;
+        b=GncuAAb4e27vpYQ9azvC1pzOGHiVLLujXUn3rJu6Q8GZLJ5tiofH/wl6B9V4ixD7GS
+         BVnznGt5UjASBXehl2mZAuEQNdlKpXaNX3y4Fjy7AC4BHv+lU0bdcEWYvCjumd1Asn8x
+         4Rjf7nvhD/GXXGZp9+ZM0XTJt2/wbpHTBzkXnV3Leunib0CgqDBl7Q1hY4tP8rqmdBJF
+         Li1EoGSsJGt4PTaYh+ohz2BRtQYcA6cc9rdzQn32Ny/9e9bRxHb85/KIXaqQsQW402EA
+         Bd+v7s3eW72PI8MmN8HkzohHSDekHfA4LY33bhOpHXc2/WtexiU+zVUP1rsPOtB/DRlw
+         qnjQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AA+aEWb7FJlFuQT9laCp9F1knAwMeZd7UxqxiruZuU4U/Q+vSJ5E23H6
+	MQEqvKq3SFmBabfEvXClpGWBrIgnakyqmf0B0XcGSzqJXy3D7Z7AP74StX6dwpH5/IlRHBdgD/7
+	2B+7ZxVAkvh85Qr1SofagfLfTohmee8m+ttj0fk0J43xr7vqQAKVDvSqIiqFnlo0=
+X-Received: by 2002:a50:cdd0:: with SMTP id h16mr51244883edj.151.1546709229113;
+        Sat, 05 Jan 2019 09:27:09 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/VGfy4tWzY2OOwdjU8FGMgLB/ltTX0/v1vpKF2n2GrVET4wogAzL8lfHYRPRoulxBd0OkPe
+X-Received: by 2002:a50:cdd0:: with SMTP id h16mr51244829edj.151.1546709227944;
+        Sat, 05 Jan 2019 09:27:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546709227; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z6aq/fHTFTTN6nm2769yDlxnl9ijow5ZS4Y4WNwPgenXcp3iR03hErMqKXa2JqKpUj
-         OOKUiiidqbzBFdv+KXKCPcYvTVn9DrB02TRMyAjjBXpNliv09cnHgIw3zl+89q2otCv7
-         6JMDolGl+xWefVqkCXtu4Ihg7/YCsos8UEumqYqchzV1kD4p4QRBZmct3483m8LkryXy
-         CR/x2RNrvq5gM4jzUilzGQs8MpCo5oiKKu/1kbc3cR4yzEBHV+LUybKwDRtZw5t68hmo
-         IV9oTkyd61A5mOyXklmZEwS+ZHdSRHlwbNwNMuReV/Lk/htYeN1UVr7pyjdbYkC8ugV7
-         rJLQ==
+        b=GSvvk45YRXuFTa5thoqZl4l30UII1LEAd4PKwL86QxxKK8p/mbLwFE59hVjRI1Robv
+         /f2QX1loE0Z5JmM5eZtHNBsfLgaD26V1XVFXLI6kGVFpUMgAngbi00JISa0TLr5lD52U
+         Cab6j7VLvhceyyYBkzhUxMBdcpDzzFw1HtoX9CChHZvYFlo6onCm7IfTFcd0+oaRejF7
+         G/d+Q5HD7Idque9dV7LbpWf3Ad5aEdfXXdlB1AAESURzOLs3aQqNAfyVGa+9OWLJ7vce
+         Q+7HfLNHUT84QSWdotpRPvk3HS8nLTb2K+Sk2s9EaPHh3heo8QEuwrPUZsKwmU4kXp3s
+         Q97Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:from:cc:to
-         :subject:dkim-signature;
-        bh=fU6vft3hVVQEZCRQOV3YAEscJw+f6svb4ufOnAIl02E=;
-        b=pWeSesayUISHxprloEnZHZpFpJRjv5ryIq39/Rg3HO5BdqxPWFzMGeiILeniD5gC1b
-         3qoumkRfy/SvORteGhc8LW+k4nJ/itvQV7/7ap5dVpgIRAnilsNsqyMYg1ebHwI1FP25
-         zvurgTChNLub8d5mfSMcc+UNNfuo7rL/QfyjfdVtqPlOif4JM8Ci/yHNYQSU2XuLF2oc
-         g76RS+jcwn0nQ+6CZB1K5sPQrFBp0I5Qc9y+Lomhs5rWv2oTGlveVa9XSrqENHoVs9ni
-         NWUuf4mA+3exsFEYFigknSWPF43bJ2SQPgM+W9n23SIseCOISwJ/2hxUppTdY9q4Kwl+
-         LfyA==
+        h=mime-version:user-agent:message-id:subject:cc:to:from:date;
+        bh=rbh7SbMsDzLW85qhFs/JA9KR+911TMgBdFkozzVBbtQ=;
+        b=DJ/OpPH4y+9jgAatsHloDgAXm3MGPtMN7YUl4QIL6+OULQMIc1WKF1yBPCJ7GrLl/a
+         iKGAJmXTABh2lKJX01qffOdwmlatuYPFz9GqLHDhfn6i+4kCFsj4TouZiDj0IJ/CfDaz
+         W1JOfvRLjdAPWIrYiiVqSAuBCkMupe6h9uVLFw94ybjdn0d0rWiw/j4aOaMnjOr9antW
+         d0PoSrXKtkny8k/cMWZgazepTMugkK5ZMquI+6KTbt88hwQwIzFHVbTgP/+W/039wLzP
+         UdVAG9l6/bltQq86WbBQJEnHmRmGnmBXjHdKS1ib5yQX072+UCSUnE0rp9wVjl+TVtGc
+         kTTA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2fcG53Q1;
-       spf=pass (google.com: domain of srs0=bkkl=pn=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=bKkL=PN=linuxfoundation.org=gregkh@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r17si56369955pgh.299.2019.01.05.07.38.02
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z17-v6si1333488ejg.14.2019.01.05.09.27.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 07:38:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of srs0=bkkl=pn=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Sat, 05 Jan 2019 09:27:07 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2fcG53Q1;
-       spf=pass (google.com: domain of srs0=bkkl=pn=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=bKkL=PN=linuxfoundation.org=gregkh@kernel.org"
-Received: from localhost (unknown [188.89.135.87])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8CDDA20868;
-	Sat,  5 Jan 2019 15:38:01 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1546702682;
-	bh=BEfANQWyt2ctzMeU0Ze/b0yH33JYnS7q1r5V+nuRhKY=;
-	h=Subject:To:Cc:From:Date:From;
-	b=2fcG53Q1czEZPrFb6h+s+Odzf6B8lYsaP2+4uw3SQicouVQyIir0g28sloz1DnpDm
-	 wj/uPVVhdG6n5hpn6p3VMtbx0av3wdcdyhHnmMNuEs10WLEJtOHZltdSzOSCHcGqsO
-	 /gXUjoTFfrGA432U8hYNVS9hbIJsEWFa7nwOzUUY=
-Subject: Patch "x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off" has been added to the 4.20-stable tree
-To: ak@linux.intel.com,bp@suse.de,dave.hansen@intel.com,gregkh@linuxfoundation.org,jkosina@suse.cz,linux-mm@kvack.org,mhocko@suse.com,pasha.tatashin@soleen.com,tglx@linutronix.de,torvalds@linux-foundation.org
-Cc: <stable-commits@vger.kernel.org>
-From: <gregkh@linuxfoundation.org>
-Date: Sat, 05 Jan 2019 16:32:07 +0100
-Message-ID: <1546702327210248@kroah.com>
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 24DAFAF09;
+	Sat,  5 Jan 2019 17:27:07 +0000 (UTC)
+Date: Sat, 5 Jan 2019 18:27:05 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Greg KH <gregkh@linuxfoundation.org>, 
+    Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>
+cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+    linux-api@vger.kernel.org
+Subject: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Message-ID: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
+User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-X-stable: commit
-X-Patchwork-Hint: ignore 
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190105153207.WAjvjLa0j9__JxCmfi9wlTkbwmwxARZHRP0CnTfb6EI@z>
+Message-ID: <20190105172705.jxdz--rnXBZQNTsl0CJzHldLtsVI3hh_CydIwytVhMk@z>
 
+From: Jiri Kosina <jkosina@suse.cz>
 
-This is a note to let you know that I've just added the patch titled
+There are possibilities [1] how mincore() could be used as a converyor of 
+a sidechannel information about pagecache metadata.
 
-    x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
+Provide vm.mincore_privileged sysctl, which makes it possible to mincore() 
+start returning -EPERM in case it's invoked by a process lacking 
+CAP_SYS_ADMIN.
 
-to the 4.20-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+The default behavior stays "mincore() can be used by anybody" in order to 
+be conservative with respect to userspace behavior.
 
-The filename of the patch is:
-     x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
-and it can be found in the queue-4.20 subdirectory.
+[1] https://www.theregister.co.uk/2019/01/05/boffins_beat_page_cache/
 
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
-From 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 Mon Sep 17 00:00:00 2001
-From: Michal Hocko <mhocko@suse.com>
-Date: Tue, 13 Nov 2018 19:49:10 +0100
-Subject: x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
-
-From: Michal Hocko <mhocko@suse.com>
-
-commit 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 upstream.
-
-Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
-the system is deemed affected by L1TF vulnerability. Even though the limit
-is quite high for most deployments it seems to be too restrictive for
-deployments which are willing to live with the mitigation disabled.
-
-We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
-clearly out of the limit.
-
-Drop the swap restriction when l1tf=off is specified. It also doesn't make
-much sense to warn about too much memory for the l1tf mitigation when it is
-forcefully disabled by the administrator.
-
-[ tglx: Folded the documentation delta change ]
-
-Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Jiri Kosina <jkosina@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: <linux-mm@kvack.org>
-Cc: stable@vger.kernel.org
-Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
+Signed-off-by: Jiri Kosina <jkosina@suse.cz>
 ---
- Documentation/admin-guide/kernel-parameters.txt |    3 +++
- Documentation/admin-guide/l1tf.rst              |    6 +++++-
- arch/x86/kernel/cpu/bugs.c                      |    3 ++-
- arch/x86/mm/init.c                              |    2 +-
- 4 files changed, 11 insertions(+), 3 deletions(-)
+ Documentation/sysctl/vm.txt | 9 +++++++++
+ kernel/sysctl.c             | 8 ++++++++
+ mm/mincore.c                | 5 +++++
+ 3 files changed, 22 insertions(+)
 
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2096,6 +2096,9 @@
- 			off
- 				Disables hypervisor mitigations and doesn't
- 				emit any warnings.
-+				It also drops the swap size and available
-+				RAM limit restriction on both hypervisor and
-+				bare metal.
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 187ce4f599a2..afb8635e925e 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -41,6 +41,7 @@ Currently, these files are in /proc/sys/vm:
+ - min_free_kbytes
+ - min_slab_ratio
+ - min_unmapped_ratio
++- mincore_privileged
+ - mmap_min_addr
+ - mmap_rnd_bits
+ - mmap_rnd_compat_bits
+@@ -485,6 +486,14 @@ files and similar are considered.
+ The default is 1 percent.
  
- 			Default is 'flush'.
- 
---- a/Documentation/admin-guide/l1tf.rst
-+++ b/Documentation/admin-guide/l1tf.rst
-@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid
- 
-   off		Disables hypervisor mitigations and doesn't emit any
- 		warnings.
-+		It also drops the swap size and available RAM limit restrictions
-+		on both hypervisor and bare metal.
+ ==============================================================
++mincore_privileged:
 +
-   ============  =============================================================
++mincore() could be potentially used to mount a side-channel attack against
++pagecache metadata. This sysctl provides system administrators means to
++make it available only to processess that own CAP_SYS_ADMIN capability.
++
++The default is 0, which means mincore() can be used without restrictions.
++==============================================================
  
- The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
-@@ -576,7 +579,8 @@ Default mitigations
-   The kernel default mitigations for vulnerable processors are:
+ mmap_min_addr
  
-   - PTE inversion to protect against malicious user space. This is done
--    unconditionally and cannot be controlled.
-+    unconditionally and cannot be controlled. The swap storage is limited
-+    to ~16TB.
- 
-   - L1D conditional flushing on VMENTER when EPT is enabled for
-     a guest.
---- a/arch/x86/kernel/cpu/bugs.c
-+++ b/arch/x86/kernel/cpu/bugs.c
-@@ -1002,7 +1002,8 @@ static void __init l1tf_select_mitigatio
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 1825f712e73b..f03cb07c8dd4 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -114,6 +114,7 @@ extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
+ #ifndef CONFIG_MMU
+ extern int sysctl_nr_trim_pages;
  #endif
++extern int sysctl_mincore_privileged;
  
- 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
--	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
-+	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
-+			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
- 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
- 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
- 				half_pa);
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
+ /* Constants used for minimum and  maximum */
+ #ifdef CONFIG_LOCKUP_DETECTOR
+@@ -1684,6 +1685,13 @@ static struct ctl_table vm_table[] = {
+ 		.extra2		= (void *)&mmap_rnd_compat_bits_max,
+ 	},
+ #endif
++	{
++		.procname	= "mincore_privileged",
++		.data		= &sysctl_mincore_privileged,
++		.maxlen		= sizeof(sysctl_mincore_privileged),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
+ 	{ }
+ };
  
- 	pages = generic_max_swapfile_size();
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 218099b5ed31..77d4928cdfaa 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -21,6 +21,8 @@
+ #include <linux/uaccess.h>
+ #include <asm/pgtable.h>
  
--	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
-+	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
- 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
- 		unsigned long long l1tf_limit = l1tf_pfn_limit();
- 		/*
-
-
-Patches currently in stable-queue which might be from mhocko@suse.com are
-
-queue-4.20/x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
++int sysctl_mincore_privileged;
++
+ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
+ 			unsigned long end, struct mm_walk *walk)
+ {
+@@ -228,6 +230,9 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+ 	unsigned long pages;
+ 	unsigned char *tmp;
+ 
++	if (sysctl_mincore_privileged && !capable(CAP_SYS_ADMIN))
++		return -EPERM;
++
+ 	/* Check the start address: needs to be page-aligned.. */
+ 	if (start & ~PAGE_MASK)
+ 		return -EINVAL;
+-- 
+Jiri Kosina
+SUSE Labs
 
