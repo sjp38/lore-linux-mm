@@ -6,95 +6,95 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EAE75C43444
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:27:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BB47C43387
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:27:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D5AF206B6
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:27:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ACD46206B6
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:27:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="LvkZsu5l"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D5AF206B6
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="C4n/lF8T"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACD46206B6
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE0F68E011C; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
+	id 4F16E8E011D; Sat,  5 Jan 2019 10:27:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C910E8E00F9; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
+	id 4A12D8E00F9; Sat,  5 Jan 2019 10:27:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B7D9B8E011C; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
+	id 344B98E011D; Sat,  5 Jan 2019 10:27:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F0F8E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id w19so47907513qto.13
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:27:52 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 093678E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:27:55 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id d31so47896879qtc.4
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:27:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:from:date
          :message-id:mime-version:content-transfer-encoding;
-        bh=3cKLJllDG2sKIkbak+RNsHy89gqGRx4p3ljcIfv8jaA=;
-        b=INYvRhWe5a8s0pgCR4mGTKWk9xanlCVbrh1fqHFfT4Yhjf+wvcpzMWt0tBS0Ex3gD/
-         2WiPZleTCpEp+mPQyLCrOFSsasi8aAXq4CwXcWiG7c907/5z6L5GMKNfzpzKRoELlpoP
-         BoQkJo38beWJww4pTjjmf1TT1G+eXRBQans4hgVYT7KqyzzpESDVyM+2a7xOMlj2FEae
-         +b/9ZE1ixTp08QQ3IUv5oVIlyUD+5EpQJ7CBnim7JyGDsxIbrjKE/MiiOWWTyXNq21XB
-         QeJtBC1uegzn9oCpjz9cRPlSLS3f4aKN/yLXjLNIvAbbPzGNQ3dyXHXRBsQErJvnXbMc
-         y3tA==
-X-Gm-Message-State: AJcUukcNIB8I9314j9IJhm/W6WdjmAf8ss3OMuMgt6CrkuEfzXW0WSXe
-	WdpIj3kmjtZW8FmQRP8YfUtaF6pjuwxJq6q9tGWY0OvdpGXD1ltT2Bgowq4JQzNujOmybKUX/2V
-	vJF3dBktnjy700cPLbHYa9UARGqLyEX7B47NnB4s5ho2jHNknm9vlfKYuy1DIjrE=
-X-Received: by 2002:aed:3084:: with SMTP id 4mr53114789qtf.30.1546702072223;
-        Sat, 05 Jan 2019 07:27:52 -0800 (PST)
-X-Google-Smtp-Source: AFSGD/VnQUoo0eX0g80pXqrVlWRxxdRcEKKVVxdtjy9ibYExcwot0Of5V3C0h6jHnBKGvyenKAvZ
-X-Received: by 2002:aed:3084:: with SMTP id 4mr53114763qtf.30.1546702071435;
-        Sat, 05 Jan 2019 07:27:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546702071; cv=none;
+        bh=T42aXqHiwWdcO4VDlqQ7H7Y9dNgNnHUI7XpKr1FV5Bc=;
+        b=B/hXkVMgAynncbFbMUw+xtLfW7sZ9jZAAhcvJ37nSSqstwR1PAgaEc8eO6Xj8rpETy
+         +AadAZBpehLGgdENiTjlkrakjxp6rwWncVxMoClzlxoeUzEo6nqr9m073bcm4LFqXZGw
+         VrFLpFL7+me6w4i2t4xQ+olFX17bkBFRhV6U4Vc3gK/vn26dopaNQlRVBXqnjF9mF4zB
+         pS6oAXaFftJ+ZOcZewKfEV4onN8FVrPtpTCbcysxytO9h+hdyUMQI+WThq+MA0WM22Eq
+         Rzyr3dkUsGROKUhRUclmtYzJBvOzphgyYDppeqGZ+2XVXZweyvcVYA4u+trbfLiSorEJ
+         k4Kw==
+X-Gm-Message-State: AA+aEWYyWlbmdoJm5DffhBQlEpogDOEsU0d0oTPu8yfWHwnxiScyYFkq
+	Q6hXQVjTagSPrvSl4XWB/6JRvGQh2PJaRTTYIN0D2l+By9JiTmq2DZWgr3E3PT054txwCTACGmp
+	XT0p9DOFnO9gKtdMu1hl/qlZT4p432Zgw5RDUOX2foDX/Lz6OYKeTf/YyYKJ93dI=
+X-Received: by 2002:aed:33e3:: with SMTP id v90mr53245517qtd.261.1546702074730;
+        Sat, 05 Jan 2019 07:27:54 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/XPp/NUxrAyg4dXar4XiIE/iAbxN57BhTU5hxOgG5DSuqCvRwklCtfj9VuDjk5/ApCLMaR2
+X-Received: by 2002:aed:33e3:: with SMTP id v90mr53245489qtd.261.1546702074132;
+        Sat, 05 Jan 2019 07:27:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546702074; cv=none;
         d=google.com; s=arc-20160816;
-        b=QaUdCMFVMk7GdKhspQB8ukkfqBzLYX3ZE9sdC4F5b78oOnIObHpvm7z6VDHm6icwKC
-         aNHs7vhAtaqftjePU7jexMHYtsKYAPZzc25yy55u54raeOo3X/oYwLWoNXQ1Aj9iYK+x
-         kprmCJXTYrNa64yvYuZa29L8pi+Nu6JEMwk987QbCgB7anYiA7IwawqC5zpQ6ahcwn9j
-         wvl+JnnM4jmKZuG0qlG2LZpPRZ6VA62Tl9tiMJUgwk+y9kooU92QTzgyzjjdDW9Ep0D0
-         5wndla09bRe4tvnFZppggqN66klAm6+OFHeNYo8IUTW+vvWCz7ApPX6YuJAXrb7mxXfu
-         Jdcw==
+        b=ubE75GKYyu0J5YkfBOMMkJ0RDN+2dPMQvv0IAu5FVJ+avF4q2XS21uOjqr5Dr0dYEU
+         1Gh9PRlYDv5Q6Ojp6Z31/IKvbNs+qxfW7G3PQW+z34EC8lZ1YCfw38IKcd7W61KRASjJ
+         B59Qh0vc1oZghoBwyYhHB6koEMG9fKLM9229GTnN2HRZiBt36A8FMCfh4PQVsKk2JZSm
+         T8lp819GsbU4RBd43/eaE086Q2MV0Dc4oDPhgjq+WH31ur9PZMCGbwo/aNoMhw9HAHkT
+         FAtqevFvVoFtop1Z5aI+QIDHv62Y8jj9leFahY2ljH6SaSHW34oXoVdI+an6hBSMyz+r
+         yA1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:message-id:date:from:cc:to
          :subject:dkim-signature;
-        bh=3cKLJllDG2sKIkbak+RNsHy89gqGRx4p3ljcIfv8jaA=;
-        b=Ixdnv7icGTJTOjW0bDzsdjPrD5JFaoZ1zW+R/hnXzeBQEjNtS8hvy7Ns2PjdfKJOrZ
-         xSsWbbmIa4NDVdcBYWZsMOrCrEBujRH+mmvO2dm1kiXVohIStzkFq5+SGpbAsa8mV6Xa
-         kac8IJ97KMBgoktUpMTB8AXxojM+SsZo7Q4UfFnP0SObpdMRLBDc8IGS2h/vPQ5wxHhg
-         +R5XL6hEZvn+ao/M0f1O6b4Ol8Ih+9VpLo5w42yyiL6RHj/i4UxcJAHhbF1nAgn/DxBm
-         LhWTdw8euHCPfSBT7uJ1GsF1PjTKVxo4LWk5BeeUB8jFExEFqyfJDDHREM2bDWSfNxrt
-         MQ2g==
+        bh=T42aXqHiwWdcO4VDlqQ7H7Y9dNgNnHUI7XpKr1FV5Bc=;
+        b=V4kafQq26Zluuua8g27B3f7mdpqGikPgIyyZZgV4iktoF5B8vNAML4fAGNGSr+fsRO
+         C1U30EzQ8d2xRBXegb2hSHJks18XeBDXRE9fWL66THNGsD1fcR7FZrm/mLhljpnByFyN
+         Vm82FzhAHWuGNRRz6PBqQYs1V7JMW7s0gDIiH6UKpd/u6eQCbJNQUEfhOU5o2Xw4XV5X
+         ir2DDKdRy2pHvbSuwD1WJbdE7IgDy6ZRZufnZqFcs0QJ3jjoZPiP3EH3R/8C8/paEJmd
+         r5Tsu7eWAZ8H4YeMeEEdKSJ5HJKeeddjsjoo6jdPu0+ZkKF1rSMIDMdk9vuEqYjokvR+
+         yLVA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=LvkZsu5l;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b="C4n/lF8T";
        spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.25 as permitted sender) smtp.mailfrom=greg@kroah.com
 Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id l45si704895qtc.21.2019.01.05.07.27.51
+        by mx.google.com with ESMTPS id d15si132622qkj.41.2019.01.05.07.27.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 07:27:51 -0800 (PST)
+        Sat, 05 Jan 2019 07:27:54 -0800 (PST)
 Received-SPF: pass (google.com: domain of greg@kroah.com designates 66.111.4.25 as permitted sender) client-ip=66.111.4.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=LvkZsu5l;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b="C4n/lF8T";
        spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.25 as permitted sender) smtp.mailfrom=greg@kroah.com
 Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
-	by mailout.nyi.internal (Postfix) with ESMTP id 0345422070;
-	Sat,  5 Jan 2019 10:27:51 -0500 (EST)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute6.internal (MEProxy); Sat, 05 Jan 2019 10:27:51 -0500
+	by mailout.nyi.internal (Postfix) with ESMTP id D6C5621B5A;
+	Sat,  5 Jan 2019 10:27:53 -0500 (EST)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute6.internal (MEProxy); Sat, 05 Jan 2019 10:27:53 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:content-type
 	:date:from:message-id:mime-version:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=3cKLJl
-	lDG2sKIkbak+RNsHy89gqGRx4p3ljcIfv8jaA=; b=LvkZsu5l81Lz0b0bayvZqz
-	nq/N0mTHaFE18YmVkJzBFMnLgsVoCkqpPFKRRGlRdYzzbdg4pczJnnK3wLkmBaLa
-	6Ser2bM+od9p1nZASbjbb3kbi7MxIDAzM8BLzopdDHBVqbP4IyiyYXYZrL5D5fEj
-	KelGO9b4yxPiks4pbiWF3U4vj1WKO/JXbGZF61vH4eGmNm7hEPJT82/dcMXciwKc
-	SgdSGQbnet3tEmIUGXQOJ3LSCTPWoEWe50yho+72t581WqVHJjGMqmVfL7HGj02J
-	FEY70gPxQhtS/RAjcSdAx626zCjWk78XEumpTWiAOo32UsYhATJfAg4nabmgH/Zw
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=T42aXq
+	HiwWdcO4VDlqQ7H7Y9dNgNnHUI7XpKr1FV5Bc=; b=C4n/lF8Tl8mjdFFZE3vLdG
+	IbBu3xCNTfGGq/vghpBIoO/Sg+dVQCpGBwTfVarMpoOOi7Iynm4f7axF3ts+JSSm
+	9z1u40auNHfAfYzkYPUM4wavPdrcGKGoLuZfl9HUBX+DMRWvUuMMurXarOP5DJY0
+	g9oYQnhOtzKOewB2dK8oHSNfpW1hWFy++BmUZZFuedvqULKO24IQq3LajD+H/9kZ
+	hBJo8OVHa45QiM+AzoqP96/zWnlX+oGL6FtZQE9zIxuveXoGW/T74oyRE9B5PhAW
+	aoH7FhgoNdhvcZ0fdDW48BDw05Xkknv0VWpT08+GhpaIu6cRTt58Wnh818GxuMlA
 	==
-X-ME-Sender: <xms:9cwwXEgwZeZHACbY7xWpJACkk2zbooQE8N5pJwSJoZLiimYiI9O1fw>
+X-ME-Sender: <xms:-cwwXHe39rGUhv4AdVSDws10iA8H1FEukIkyA8DiY7cXngJ1GMFqBg>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrvdefgdejkeculddtuddrgedtkedrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthen
     uceurghilhhouhhtmecufedttdenucenucfjughrpefuvffhfffkgggtgfesthekredttd
@@ -102,19 +102,19 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrvdefgdejkeculddtuddrgedtke
     gheqnecuffhomhgrihhnpehkvghrnhgvlhdrohhrghenucfkphepudekkedrkeelrddufe
     ehrdekjeenucfrrghrrghmpehmrghilhhfrhhomhepghhrvghgsehkrhhorghhrdgtohhm
     necuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:9cwwXEeMrDF386qcR2ZeogfJFmWEp6FBRe8ad5j1AqJvxQNdmH9M9Q>
-    <xmx:9cwwXJnY9pxT-CWXWg1JANVHsiBdlCiWmjsPXs7kIywh-tOVqM4GTw>
-    <xmx:9cwwXAzCxica6shsBfuhyIBKbT-Hfsr6tbz01ePbD2p-x37AlV_Nng>
-    <xmx:9swwXP1AphqAcAMSVnNVrNdkv9_C-weqHmiYw2H9n-pqC6RxWp4Lmg>
+X-ME-Proxy: <xmx:-cwwXAk9NlVehrbk3lKZJToTmZqiqvSGdytPIuGNeeziDR6tE9ufvg>
+    <xmx:-cwwXHKoYUqpvELiz5OGJE3nyhme25ufSRVtemnsxXCon4dGzVoU8Q>
+    <xmx:-cwwXBSUyNck0I7A5tQU5BM0tI3s_EH8udmUHMg_RJ_hMeu-xLYDXA>
+    <xmx:-cwwXJOOi6XC9vWJ5pNu2upjKhZ6XGpf0K4fqiIMpZfl1ftEhvr85g>
 Received: from localhost (unknown [188.89.135.87])
-	by mail.messagingengine.com (Postfix) with ESMTPA id D65BEE4802;
-	Sat,  5 Jan 2019 10:27:48 -0500 (EST)
-Subject: FAILED: patch "[PATCH] x86/speculation/l1tf: Drop the swap storage limit restriction" failed to apply to 4.9-stable tree
+	by mail.messagingengine.com (Postfix) with ESMTPA id 2943910087;
+	Sat,  5 Jan 2019 10:27:53 -0500 (EST)
+Subject: FAILED: patch "[PATCH] x86/speculation/l1tf: Drop the swap storage limit restriction" failed to apply to 4.4-stable tree
 To: mhocko@suse.com,ak@linux.intel.com,bp@suse.de,dave.hansen@intel.com,jkosina@suse.cz,linux-mm@kvack.org,pasha.tatashin@soleen.com,tglx@linutronix.de,torvalds@linux-foundation.org
 Cc: <stable@vger.kernel.org>
 From: <gregkh@linuxfoundation.org>
-Date: Sat, 05 Jan 2019 16:27:47 +0100
-Message-ID: <154670206723833@kroah.com>
+Date: Sat, 05 Jan 2019 16:27:51 +0100
+Message-ID: <1546702071210176@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8bit
@@ -123,10 +123,10 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190105152747.Tn2GCXyfBfPcya1WXDtipSSzjNRIdSaWouV3dR-sU8o@z>
+Message-ID: <20190105152751.gUJEh8UweFKSkGMI9_yOYcY6OSzXRX-66Wr0Ipx-hD8@z>
 
 
-The patch below does not apply to the 4.9-stable tree.
+The patch below does not apply to the 4.4-stable tree.
 If someone wants it applied there, or to any other stable or longterm
 tree, then please email the backport, including the original git commit
 id to <stable@vger.kernel.org>.
