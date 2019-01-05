@@ -1,67 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BDC468E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:05:38 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id y88so10520093pfi.9
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 07:05:38 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b35sor3496331plb.6.2019.01.11.07.05.37
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E70A68E00F9
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 19:21:10 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id ay11so28095314plb.20
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 16:21:10 -0800 (PST)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id j132si4261668pfc.84.2019.01.04.16.21.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 Jan 2019 07:05:37 -0800 (PST)
-Date: Fri, 11 Jan 2019 20:39:33 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
- vm_insert_range
-Message-ID: <20190111150933.GA2760@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jan 2019 16:21:09 -0800 (PST)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v2 PATCH 4/5] mm: memcontrol: bring force_empty into default hierarchy
+Date: Sat,  5 Jan 2019 08:19:19 +0800
+Message-Id: <1546647560-40026-5-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1546647560-40026-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1546647560-40026-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, linux@armlinux.org.uk, robin.murphy@arm.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
+To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+The default hierarchy doesn't support force_empty, but there are some
+usecases which create and remove memcgs very frequently, and the
+tasks in the memcg may just access the files which are unlikely
+accessed by anyone else. So, we prefer force_empty the memcg before
+rmdir'ing it to reclaim the page cache so that they don't get
+accumulated to incur unnecessary memory pressure. Since the memory
+pressure may incur direct reclaim to harm some latency sensitive
+applications.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+There is another patch which introduces asynchronous memory reclaim when
+offlining, but the behavior of force_empty is still needed by some
+usecases which want to get the memory reclaimed immediately.  So, bring
+force_empty interface in default hierarchy too.
+
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 17 ++---------------
- 1 file changed, 2 insertions(+), 15 deletions(-)
+ Documentation/admin-guide/cgroup-v2.rst | 14 ++++++++++++++
+ mm/memcontrol.c                         |  4 ++++
+ 2 files changed, 18 insertions(+)
 
-diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-index a8db758..c9e207f 100644
---- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-+++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-@@ -221,26 +221,13 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
- 					      struct vm_area_struct *vma)
- {
- 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
--	unsigned int i, count = obj->size >> PAGE_SHIFT;
-+	unsigned int count = obj->size >> PAGE_SHIFT;
- 	unsigned long user_count = vma_pages(vma);
--	unsigned long uaddr = vma->vm_start;
--	unsigned long offset = vma->vm_pgoff;
--	unsigned long end = user_count + offset;
--	int ret;
+diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+index 7bf3f12..0290c65 100644
+--- a/Documentation/admin-guide/cgroup-v2.rst
++++ b/Documentation/admin-guide/cgroup-v2.rst
+@@ -1289,6 +1289,20 @@ PAGE_SIZE multiple when read back.
+ 	Shows pressure stall information for memory. See
+ 	Documentation/accounting/psi.txt for details.
  
- 	if (user_count == 0)
- 		return -ENXIO;
--	if (end > count)
--		return -ENXIO;
++  memory.force_empty
++        This interface is provided to make cgroup's memory usage empty.
++        When writing anything to this
++
++        # echo 0 > memory.force_empty
++
++        the cgroup will be reclaimed and as many pages reclaimed as possible.
++
++        The typical use case for this interface is before calling rmdir().
++        Though rmdir() offlines memcg, but the memcg may still stay there due to
++        charged file caches. Some out-of-use page caches may keep charged until
++        memory pressure happens. If you want to avoid that, force_empty will be
++        useful.
++
  
--	for (i = offset; i < end; i++) {
--		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
--		if (ret)
--			return ret;
--		uaddr += PAGE_SIZE;
--	}
--
--	return 0;
-+	return vm_insert_range(vma, rk_obj->pages, count);
- }
+ Usage Guidelines
+ ~~~~~~~~~~~~~~~~
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 5a13c6b..c4a7dc7 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5743,6 +5743,10 @@ static ssize_t memory_oom_group_write(struct kernfs_open_file *of,
+ 		.seq_show = wipe_on_offline_show,
+ 		.write_u64 = wipe_on_offline_write,
+ 	},
++	{
++		.name = "force_empty",
++		.write = mem_cgroup_force_empty_write,
++	},
+ 	{ }	/* terminate */
+ };
  
- static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
 -- 
-1.9.1
+1.8.3.1
