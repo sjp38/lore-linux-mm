@@ -2,218 +2,238 @@ Return-Path: <SRS0=AeVH=PN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0421CC43444
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 08:11:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EAE75C43444
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:27:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8ECC1218DE
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 08:11:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6D5AF206B6
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 15:27:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="lQ0oaOye"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8ECC1218DE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="LvkZsu5l"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D5AF206B6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DB5D08E011A; Sat,  5 Jan 2019 03:11:09 -0500 (EST)
+	id CE0F68E011C; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D63138E00F9; Sat,  5 Jan 2019 03:11:09 -0500 (EST)
+	id C910E8E00F9; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C78FA8E011A; Sat,  5 Jan 2019 03:11:09 -0500 (EST)
+	id B7D9B8E011C; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A11D28E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 03:11:09 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id h7so44178355iof.19
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 00:11:09 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 90F0F8E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:27:52 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id w19so47907513qto.13
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:27:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=cIs0x50wlTwnIomvIy5lwTIVwX6fTi46qI2POylPo4s=;
-        b=ApBO5LhCeZ2on09zCq3qmqJQnLxWZlQ4J9+DXjkvy73CbsUX/LftlK7UVM5lMKAZlk
-         cAVY5bb5oVFND5hZ2SZaMbHYm7xbc9o9w9MmH8qTxlSCe3d9y9MARlMWcXa32JFx+1pe
-         9OzmNUrlz7UV+LsPd1SCTmx217dDmb9eJvX6Zt8/Hmp4uBxX98NAv/5r49M6/yxNxUmQ
-         xDQa6eeH9eORMUFu/kToj9ynbHk3x0OtTiPbKIn9mMBHsPvzFAlnEXU0eJyLSYmIg7qn
-         iXKvgUz1dq0jUpZm5SFUHLCp2TH2lz49JZOouvMsOECdsOx9YnmeX+iDNfc3OETWMg3B
-         zi/w==
-X-Gm-Message-State: AA+aEWZwTEvPqsh+IHvQmhBNn6MT1ix0lKpseSOzRPqnphepQ4yiLAZX
-	EHITRCCi7kNgukYuQVz/H5JMxoACc3eeo+YD2n8+4yvj0jrlNPZFUvdV4EQChhKNcsPD0SggzP3
-	U59fyI7l1o8PgvgXCF3T3jWxE47XiruXuQCC6ATz+L0Bwvs1XRpE7mfXfOt6KYIEiyU5BQk5+Qm
-	XTCOnaM/lT7HudfGJ36cl7I98l/vcq5a7RVPF9H+dVCGy0bOO4IRH6TnIkRVDeTu6OsrFrK0yue
-	OhLSO2+85GBIaqzQnF6aai3PYu46JOrci821KscCBI71C3dx/3ht7/hExr4d3K7Nnpn/PR3HUol
-	6R/To02L+iWxpoZCTpFXcpcPcgKNwZ8+jXdue9mYHgQJVDtRpkiMxSEKGeWFGtG7pZrdXZv/qkW
-	9
-X-Received: by 2002:a02:49c9:: with SMTP id p70mr36661248jad.40.1546675869331;
-        Sat, 05 Jan 2019 00:11:09 -0800 (PST)
-X-Received: by 2002:a02:49c9:: with SMTP id p70mr36661225jad.40.1546675868257;
-        Sat, 05 Jan 2019 00:11:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546675868; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:from:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=3cKLJllDG2sKIkbak+RNsHy89gqGRx4p3ljcIfv8jaA=;
+        b=INYvRhWe5a8s0pgCR4mGTKWk9xanlCVbrh1fqHFfT4Yhjf+wvcpzMWt0tBS0Ex3gD/
+         2WiPZleTCpEp+mPQyLCrOFSsasi8aAXq4CwXcWiG7c907/5z6L5GMKNfzpzKRoELlpoP
+         BoQkJo38beWJww4pTjjmf1TT1G+eXRBQans4hgVYT7KqyzzpESDVyM+2a7xOMlj2FEae
+         +b/9ZE1ixTp08QQ3IUv5oVIlyUD+5EpQJ7CBnim7JyGDsxIbrjKE/MiiOWWTyXNq21XB
+         QeJtBC1uegzn9oCpjz9cRPlSLS3f4aKN/yLXjLNIvAbbPzGNQ3dyXHXRBsQErJvnXbMc
+         y3tA==
+X-Gm-Message-State: AJcUukcNIB8I9314j9IJhm/W6WdjmAf8ss3OMuMgt6CrkuEfzXW0WSXe
+	WdpIj3kmjtZW8FmQRP8YfUtaF6pjuwxJq6q9tGWY0OvdpGXD1ltT2Bgowq4JQzNujOmybKUX/2V
+	vJF3dBktnjy700cPLbHYa9UARGqLyEX7B47NnB4s5ho2jHNknm9vlfKYuy1DIjrE=
+X-Received: by 2002:aed:3084:: with SMTP id 4mr53114789qtf.30.1546702072223;
+        Sat, 05 Jan 2019 07:27:52 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/VnQUoo0eX0g80pXqrVlWRxxdRcEKKVVxdtjy9ibYExcwot0Of5V3C0h6jHnBKGvyenKAvZ
+X-Received: by 2002:aed:3084:: with SMTP id 4mr53114763qtf.30.1546702071435;
+        Sat, 05 Jan 2019 07:27:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546702071; cv=none;
         d=google.com; s=arc-20160816;
-        b=0gs9Qy0ISM5pi1GQRiuoElEhe1Kfk8FJShe6/3MWTuYTIEN/avtd8xeyQeQKAmunIu
-         xmqnjN1y8yoUZfCvWMd3rQogmbJq5z+6Cpu3//EJe1jdejJs57yi50zNimGfE36KC13u
-         VbErT9TFoMwTYUCncUjPNRy6deFkHoM9Id/+jVfYfWmevpqHDn3z0/rbdERsWGxz8mvw
-         BKxxRc2KIu4bx8rFKnsovTz7NRYQh9fPWhFtDmmE/z4MmQGYzfohT/r9vj4KIxCk8oDz
-         BagRxQsjh9zTuUMJyT73dfJfEXqlaYo+st4dNuhdU1xq1AzdEAYum8YVaIQJeYlR8c8H
-         XBLA==
+        b=QaUdCMFVMk7GdKhspQB8ukkfqBzLYX3ZE9sdC4F5b78oOnIObHpvm7z6VDHm6icwKC
+         aNHs7vhAtaqftjePU7jexMHYtsKYAPZzc25yy55u54raeOo3X/oYwLWoNXQ1Aj9iYK+x
+         kprmCJXTYrNa64yvYuZa29L8pi+Nu6JEMwk987QbCgB7anYiA7IwawqC5zpQ6ahcwn9j
+         wvl+JnnM4jmKZuG0qlG2LZpPRZ6VA62Tl9tiMJUgwk+y9kooU92QTzgyzjjdDW9Ep0D0
+         5wndla09bRe4tvnFZppggqN66klAm6+OFHeNYo8IUTW+vvWCz7ApPX6YuJAXrb7mxXfu
+         Jdcw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=cIs0x50wlTwnIomvIy5lwTIVwX6fTi46qI2POylPo4s=;
-        b=uwBQJZ3rlveW/EEUQrT26Jr0ebn0rDk9yZLw1ezzZzivXPmbxpNHdVm6X9fCNGKv/7
-         QOaCd9VQr4GhoGK+X5UeGxfOMXVTHXtMfSG9geZsyc3FBBAnnti42g/Weqzw/jP/RqfY
-         V6Lw0I5d9DYyVlNKy4Z2nEss9e5aqw00d/nLSWemkNYKlHFLa0wtwCVRik+MPfzAQJ1f
-         TMEurXuoOkZtquV58D/m7MfqmmjONL/HvqgJqhrtTEC2TY54R9dz81huR+PccnwaY5am
-         SjebNgdoO00OmPoKkPc2XMDEOyxFuZdtOpyOK9AtYOyy2Swa+/6q8A8vVS8NpWu4f2lY
-         mZew==
+        h=content-transfer-encoding:mime-version:message-id:date:from:cc:to
+         :subject:dkim-signature;
+        bh=3cKLJllDG2sKIkbak+RNsHy89gqGRx4p3ljcIfv8jaA=;
+        b=Ixdnv7icGTJTOjW0bDzsdjPrD5JFaoZ1zW+R/hnXzeBQEjNtS8hvy7Ns2PjdfKJOrZ
+         xSsWbbmIa4NDVdcBYWZsMOrCrEBujRH+mmvO2dm1kiXVohIStzkFq5+SGpbAsa8mV6Xa
+         kac8IJ97KMBgoktUpMTB8AXxojM+SsZo7Q4UfFnP0SObpdMRLBDc8IGS2h/vPQ5wxHhg
+         +R5XL6hEZvn+ao/M0f1O6b4Ol8Ih+9VpLo5w42yyiL6RHj/i4UxcJAHhbF1nAgn/DxBm
+         LhWTdw8euHCPfSBT7uJ1GsF1PjTKVxo4LWk5BeeUB8jFExEFqyfJDDHREM2bDWSfNxrt
+         MQ2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=lQ0oaOye;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r185sor5198050ita.21.2019.01.05.00.11.08
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=LvkZsu5l;
+       spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.25 as permitted sender) smtp.mailfrom=greg@kroah.com
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id l45si704895qtc.21.2019.01.05.07.27.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 05 Jan 2019 00:11:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 05 Jan 2019 07:27:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of greg@kroah.com designates 66.111.4.25 as permitted sender) client-ip=66.111.4.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=lQ0oaOye;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=cIs0x50wlTwnIomvIy5lwTIVwX6fTi46qI2POylPo4s=;
-        b=lQ0oaOyeEOcC0Pf8NCXim2giwyDcsUNJGrpEj5p9DC6xR3coODKIU+bVVs9iuvg2Oe
-         20oNfPD03VFVyd++tIQ/XlHX6+F9nphu2ujRCgU1JRmgd49GzizQ9c4G5DYLysgndz6h
-         QLtvz2UBRcJxYu03HpcYbj0PLkQfjaPXMcWHta4TbgJY9+lJqEIHpr1UUs90BMFWBKX8
-         9CJ9n7N/Ilulo6mVQlumfp5Uc+S+gMUw2/m6fACiuLIAfH7AEX8yaq5RlU0YirRNi2ao
-         WRiI7lcOizkk674S0TI74rvt6WqalGT3nq8pPDA7JQw+5lqUScNjprIfpl6kJHkGl3VE
-         UDww==
-X-Google-Smtp-Source: ALg8bN6u5n2IvXceWoXop7+MJk9u7e6s2Plf0gzsT7OprDyml/6ON/jR3JAJHPQTaNwhS6Twy5HIsvRsVEKS1SB8G3Q=
-X-Received: by 2002:a24:f14d:: with SMTP id q13mr2658620iti.166.1546675867621;
- Sat, 05 Jan 2019 00:11:07 -0800 (PST)
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=LvkZsu5l;
+       spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.25 as permitted sender) smtp.mailfrom=greg@kroah.com
+Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
+	by mailout.nyi.internal (Postfix) with ESMTP id 0345422070;
+	Sat,  5 Jan 2019 10:27:51 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute6.internal (MEProxy); Sat, 05 Jan 2019 10:27:51 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:content-type
+	:date:from:message-id:mime-version:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=3cKLJl
+	lDG2sKIkbak+RNsHy89gqGRx4p3ljcIfv8jaA=; b=LvkZsu5l81Lz0b0bayvZqz
+	nq/N0mTHaFE18YmVkJzBFMnLgsVoCkqpPFKRRGlRdYzzbdg4pczJnnK3wLkmBaLa
+	6Ser2bM+od9p1nZASbjbb3kbi7MxIDAzM8BLzopdDHBVqbP4IyiyYXYZrL5D5fEj
+	KelGO9b4yxPiks4pbiWF3U4vj1WKO/JXbGZF61vH4eGmNm7hEPJT82/dcMXciwKc
+	SgdSGQbnet3tEmIUGXQOJ3LSCTPWoEWe50yho+72t581WqVHJjGMqmVfL7HGj02J
+	FEY70gPxQhtS/RAjcSdAx626zCjWk78XEumpTWiAOo32UsYhATJfAg4nabmgH/Zw
+	==
+X-ME-Sender: <xms:9cwwXEgwZeZHACbY7xWpJACkk2zbooQE8N5pJwSJoZLiimYiI9O1fw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrvdefgdejkeculddtuddrgedtkedrtddtmd
+    cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthen
+    uceurghilhhouhhtmecufedttdenucenucfjughrpefuvffhfffkgggtgfesthekredttd
+    dtlfenucfhrhhomhepoehgrhgvghhkhheslhhinhhugihfohhunhgurghtihhonhdrohhr
+    gheqnecuffhomhgrihhnpehkvghrnhgvlhdrohhrghenucfkphepudekkedrkeelrddufe
+    ehrdekjeenucfrrghrrghmpehmrghilhhfrhhomhepghhrvghgsehkrhhorghhrdgtohhm
+    necuvehluhhsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:9cwwXEeMrDF386qcR2ZeogfJFmWEp6FBRe8ad5j1AqJvxQNdmH9M9Q>
+    <xmx:9cwwXJnY9pxT-CWXWg1JANVHsiBdlCiWmjsPXs7kIywh-tOVqM4GTw>
+    <xmx:9cwwXAzCxica6shsBfuhyIBKbT-Hfsr6tbz01ePbD2p-x37AlV_Nng>
+    <xmx:9swwXP1AphqAcAMSVnNVrNdkv9_C-weqHmiYw2H9n-pqC6RxWp4Lmg>
+Received: from localhost (unknown [188.89.135.87])
+	by mail.messagingengine.com (Postfix) with ESMTPA id D65BEE4802;
+	Sat,  5 Jan 2019 10:27:48 -0500 (EST)
+Subject: FAILED: patch "[PATCH] x86/speculation/l1tf: Drop the swap storage limit restriction" failed to apply to 4.9-stable tree
+To: mhocko@suse.com,ak@linux.intel.com,bp@suse.de,dave.hansen@intel.com,jkosina@suse.cz,linux-mm@kvack.org,pasha.tatashin@soleen.com,tglx@linutronix.de,torvalds@linux-foundation.org
+Cc: <stable@vger.kernel.org>
+From: <gregkh@linuxfoundation.org>
+Date: Sat, 05 Jan 2019 16:27:47 +0100
+Message-ID: <154670206723833@kroah.com>
 MIME-Version: 1.0
-References: <000000000000d0ce25057e75e2da@google.com> <000000000000b65931057ea9cf82@google.com>
-In-Reply-To: <000000000000b65931057ea9cf82@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sat, 5 Jan 2019 09:10:56 +0100
-Message-ID:
- <CACT4Y+ZsitqhD6RYxMRcwrhnevT48xgd+BU0EJo6uBc-gyT0+w@mail.gmail.com>
-Subject: Re: WARNING in mem_cgroup_update_lru_size
-To: syzbot <syzbot+c950a368703778078dc8@syzkaller.appspotmail.com>
-Cc: cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@kernel.org>, netdev <netdev@vger.kernel.org>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190105081056.sAdIyw0UYDTXrEh44VcrFwRKwdv_bEDWLwVXfQQ7gEE@z>
-
-On Fri, Jan 4, 2019 at 11:58 PM syzbot
-<syzbot+c950a368703778078dc8@syzkaller.appspotmail.com> wrote:
->
-> syzbot has found a reproducer for the following crash on:
->
-> HEAD commit:    96d4f267e40f Remove 'type' argument from access_ok() funct..
-> git tree:       net
-> console output: https://syzkaller.appspot.com/x/log.txt?x=160c9a80c00000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=7308e68273924137
-> dashboard link: https://syzkaller.appspot.com/bug?extid=c950a368703778078dc8
-> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=125376bb400000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=121d85ab400000
->
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+c950a368703778078dc8@syzkaller.appspotmail.com
-
-Based on the repro looks like another incarnation of:
-#syz dup: kernel panic: stack is corrupted in udp4_lib_lookup2
-https://syzkaller.appspot.com/bug?id=4821de869e3d78a255a034bf212a4e009f6125a7
+Message-ID: <20190105152747.Tn2GCXyfBfPcya1WXDtipSSzjNRIdSaWouV3dR-sU8o@z>
 
 
+The patch below does not apply to the 4.9-stable tree.
+If someone wants it applied there, or to any other stable or longterm
+tree, then please email the backport, including the original git commit
+id to <stable@vger.kernel.org>.
 
-> ------------[ cut here ]------------
-> kasan: CONFIG_KASAN_INLINE enabled
-> mem_cgroup_update_lru_size(00000000d6ca43c5, 1, 1): lru_size -2032898272
-> kasan: GPF could be caused by NULL-ptr deref or user memory access
-> WARNING: CPU: 0 PID: 11430 at mm/memcontrol.c:1160
-> mem_cgroup_update_lru_size+0xb2/0xe0 mm/memcontrol.c:1160
-> general protection fault: 0000 [#1] PREEMPT SMP KASAN
-> Kernel panic - not syncing: panic_on_warn set ...
-> CPU: 1 PID: 4 Comm:  Not tainted 4.20.0+ #8
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> RIP: 0010:__read_once_size include/linux/compiler.h:191 [inline]
-> RIP: 0010:get_running_cputimer include/linux/sched/cputime.h:85 [inline]
-> RIP: 0010:account_group_system_time include/linux/sched/cputime.h:149
-> [inline]
-> RIP: 0010:account_system_index_time+0xe8/0x5f0 kernel/sched/cputime.c:168
-> Code: 04 00 00 49 8b 84 24 00 07 00 00 48 ba 00 00 00 00 00 fc ff df 48 8d
-> b8 40 01 00 00 48 8d 88 28 01 00 00 48 89 fe 48 c1 ee 03 <0f> b6 14 16 48
-> 89 fe 83 e6 07 40 38 f2 7f 08 84 d2 0f 85 93 03 00
-> RSP: 0018:ffff8880ae707a80 EFLAGS: 00010006
-> RAX: 0000000041b58ab3 RBX: 1ffff11015ce0f54 RCX: 0000000041b58bdb
-> RDX: dffffc0000000000 RSI: 000000000836b17e RDI: 0000000041b58bf3
-> RBP: ffff8880ae707b48 R08: ffff8880ae71f5f0 R09: ffffffff8a9a805d
-> R10: ffffffff8a9a8050 R11: 0000000000000001 R12: ffff8880a94bc440
-> R13: 0000000000981859 R14: 0000000000000003 R15: ffff8880ae707b20
-> FS:  0000000000000000(0000) GS:ffff8880ae700000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00000000006dae70 CR3: 0000000086205000 CR4: 00000000001406e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
->   <IRQ>
->   irqtime_account_process_tick.isra.0+0x3a2/0x490 kernel/sched/cputime.c:380
->   account_process_tick+0x27f/0x350 kernel/sched/cputime.c:483
->   update_process_times+0x25/0x80 kernel/time/timer.c:1633
->   tick_sched_handle+0xa2/0x190 kernel/time/tick-sched.c:161
->   tick_sched_timer+0x47/0x130 kernel/time/tick-sched.c:1271
->   __run_hrtimer kernel/time/hrtimer.c:1389 [inline]
->   __hrtimer_run_queues+0x3a7/0x1050 kernel/time/hrtimer.c:1451
->   hrtimer_interrupt+0x314/0x770 kernel/time/hrtimer.c:1509
->   local_apic_timer_interrupt arch/x86/kernel/apic/apic.c:1035 [inline]
->   smp_apic_timer_interrupt+0x18d/0x760 arch/x86/kernel/apic/apic.c:1060
->   apic_timer_interrupt+0xf/0x20 arch/x86/entry/entry_64.S:807
->   </IRQ>
-> Modules linked in:
-> ---[ end trace 42848964955b563b ]---
-> RIP: 0010:__read_once_size include/linux/compiler.h:191 [inline]
-> RIP: 0010:get_running_cputimer include/linux/sched/cputime.h:85 [inline]
-> RIP: 0010:account_group_system_time include/linux/sched/cputime.h:149
-> [inline]
-> RIP: 0010:account_system_index_time+0xe8/0x5f0 kernel/sched/cputime.c:168
-> Code: 04 00 00 49 8b 84 24 00 07 00 00 48 ba 00 00 00 00 00 fc ff df 48 8d
-> b8 40 01 00 00 48 8d 88 28 01 00 00 48 89 fe 48 c1 ee 03 <0f> b6 14 16 48
-> 89 fe 83 e6 07 40 38 f2 7f 08 84 d2 0f 85 93 03 00
-> RSP: 0018:ffff8880ae707a80 EFLAGS: 00010006
-> RAX: 0000000041b58ab3 RBX: 1ffff11015ce0f54 RCX: 0000000041b58bdb
-> RDX: dffffc0000000000 RSI: 000000000836b17e RDI: 0000000041b58bf3
-> RBP: ffff8880ae707b48 R08: ffff8880ae71f5f0 R09: ffffffff8a9a805d
-> R10: ffffffff8a9a8050 R11: 0000000000000001 R12: ffff8880a94bc440
-> R13: 0000000000981859 R14: 0000000000000003 R15: ffff8880ae707b20
-> FS:  0000000000000000(0000) GS:ffff8880ae700000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00000000006dae70 CR3: 0000000086205000 CR4: 00000000001406e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Shutting down cpus with NMI
-> Kernel Offset: disabled
-> Rebooting in 86400 seconds..
->
-> --
-> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/000000000000b65931057ea9cf82%40google.com.
-> For more options, visit https://groups.google.com/d/optout.
+thanks,
+
+greg k-h
+
+------------------ original commit in Linus's tree ------------------
+
+From 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 Mon Sep 17 00:00:00 2001
+From: Michal Hocko <mhocko@suse.com>
+Date: Tue, 13 Nov 2018 19:49:10 +0100
+Subject: [PATCH] x86/speculation/l1tf: Drop the swap storage limit restriction
+ when l1tf=off
+
+Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
+the system is deemed affected by L1TF vulnerability. Even though the limit
+is quite high for most deployments it seems to be too restrictive for
+deployments which are willing to live with the mitigation disabled.
+
+We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
+clearly out of the limit.
+
+Drop the swap restriction when l1tf=off is specified. It also doesn't make
+much sense to warn about too much memory for the l1tf mitigation when it is
+forcefully disabled by the administrator.
+
+[ tglx: Folded the documentation delta change ]
+
+Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: Jiri Kosina <jkosina@suse.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: <linux-mm@kvack.org>
+Cc: stable@vger.kernel.org
+Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
+
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index 05a252e5178d..835e422572eb 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -2095,6 +2095,9 @@
+ 			off
+ 				Disables hypervisor mitigations and doesn't
+ 				emit any warnings.
++				It also drops the swap size and available
++				RAM limit restriction on both hypervisor and
++				bare metal.
+ 
+ 			Default is 'flush'.
+ 
+diff --git a/Documentation/admin-guide/l1tf.rst b/Documentation/admin-guide/l1tf.rst
+index b85dd80510b0..9af977384168 100644
+--- a/Documentation/admin-guide/l1tf.rst
++++ b/Documentation/admin-guide/l1tf.rst
+@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid arguments for this option are:
+ 
+   off		Disables hypervisor mitigations and doesn't emit any
+ 		warnings.
++		It also drops the swap size and available RAM limit restrictions
++		on both hypervisor and bare metal.
++
+   ============  =============================================================
+ 
+ The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
+@@ -576,7 +579,8 @@ Default mitigations
+   The kernel default mitigations for vulnerable processors are:
+ 
+   - PTE inversion to protect against malicious user space. This is done
+-    unconditionally and cannot be controlled.
++    unconditionally and cannot be controlled. The swap storage is limited
++    to ~16TB.
+ 
+   - L1D conditional flushing on VMENTER when EPT is enabled for
+     a guest.
+diff --git a/arch/x86/kernel/cpu/bugs.c b/arch/x86/kernel/cpu/bugs.c
+index a68b32cb845a..58689ac64440 100644
+--- a/arch/x86/kernel/cpu/bugs.c
++++ b/arch/x86/kernel/cpu/bugs.c
+@@ -1002,7 +1002,8 @@ static void __init l1tf_select_mitigation(void)
+ #endif
+ 
+ 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
+-	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
++	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
++			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
+ 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
+ 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
+ 				half_pa);
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index ef99f3892e1f..427a955a2cf2 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
+ 
+ 	pages = generic_max_swapfile_size();
+ 
+-	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
++	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
+ 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
+ 		unsigned long long l1tf_limit = l1tf_pfn_limit();
+ 		/*
 
