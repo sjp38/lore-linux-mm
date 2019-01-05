@@ -2,149 +2,140 @@ Return-Path: <SRS0=AeVH=PN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C4BCC43612
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 19:24:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18563C43444
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 19:46:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3990221915
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 19:24:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3990221915
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id CE4CF22371
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 19:46:54 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Omya8saF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE4CF22371
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF74D8E0125; Sat,  5 Jan 2019 14:24:06 -0500 (EST)
+	id 78B238E0128; Sat,  5 Jan 2019 14:46:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C7C938E00F9; Sat,  5 Jan 2019 14:24:06 -0500 (EST)
+	id 739608E00F9; Sat,  5 Jan 2019 14:46:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B1C7B8E0125; Sat,  5 Jan 2019 14:24:06 -0500 (EST)
+	id 651758E0128; Sat,  5 Jan 2019 14:46:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 510388E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 14:24:06 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id d41so35857005eda.12
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 11:24:06 -0800 (PST)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E9E6C8E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 14:46:53 -0500 (EST)
+Received: by mail-lf1-f71.google.com with SMTP id z10so3782617lfe.21
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 11:46:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=jJ+jGacXZo4Ybr8s5P1KbEwvFpRSHBMbVRnJ1VTbiqQ=;
-        b=WrQpDGPfRpa4O0Kvn4dFnvkOIU88H6oeIxb6JPOQeBdg2DojLyQjFn9lRfqIHMs2SD
-         6eEbMSSK0eLTPlkkLbf05WAQaH1T/pwZfCK7Ssh8pbVwmqpZ+/bZIRp7rPU6cFDhLXy+
-         XNnjjA7kmOmTe1uRuL7o3CuctQXZJ8zc2d9jdrBC56KgJJ/Uw8NfOy3hb8gyDXLUvQae
-         6DswavJOxrarpkQNxUFonNYgQjTJEM7sf/SpQ4sUW5gUp74KtVIjrZQdb/7NulSe87Uq
-         FudqjCw1wwGiutjH4NrCW99OpDbGr07U52oQPFxiiVt87ej7Nl5QS8epVAJ9GVmXbiVA
-         TCPg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukel5q/CAOpEQrjGFFeNCC+ibnjcVUS7Pn1Hs0fP43pyk6o9Il6q
-	orMAhpf8ArZ3LZ9gu1Km3cZDwDzy2euAMZLVMk3t4HgJHk9pIrfmzYPXyNwpGEXC9ei+qBZp4J7
-	GcOhQMACcWyv5/Ci/PZ81dOEe87SGLKQ/F2VD3y2Zs9fb7ACJk3aS6I2MYb7dFGM=
-X-Received: by 2002:a17:906:48c2:: with SMTP id d2-v6mr6301889ejt.244.1546716245841;
-        Sat, 05 Jan 2019 11:24:05 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5GhGUVNGw/wEc3ZDFyFGiFHwYRBFEJBZ6etUlHx1hlis5QFgidyXn+FN+itHhIJDGGwmpL
-X-Received: by 2002:a17:906:48c2:: with SMTP id d2-v6mr6301861ejt.244.1546716245043;
-        Sat, 05 Jan 2019 11:24:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546716245; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=sfMKo7ATNMJUBNjbzn0K8OxXUEt33ltVZgJi38nELQs=;
+        b=NwOKzH2Stk8M9US9fvQ00UNwUIKPagY4SQ+ROL946XWhS2fnVB2q1tFfSBM6HzTC4I
+         wsQxe0VWE4gHGTCMeYoiQxLIaBVPTOgM0q0BNNyFb5NrG/1blcfCQ0+I8FW9YtY2L9J/
+         tFlwq56zIXpA+L6FQr260PywhgPT4DgMt+an3v++FvqO5+p2YgkQ+YcoWWtsN4+IkVcl
+         L3pgaIWOVHUohLOUv7hvE6ApiRSIpu8QX8W4R/ijcPm9imCTQeoN1X+pwaaWnUFbQ7Nc
+         HdquGSXHteDYMfkekJaG01YgfHdDmEEodgSLI+/TIp37T8gT1wUKmxny2hNntMArQEAu
+         mW0Q==
+X-Gm-Message-State: AA+aEWYZzM++lsiqmSZWTTDHjrAa9hSAfFKPWiQEMWzYoX05qNJ2dcd0
+	OuEohvvaAx0jheIds7/GHPD5uiAWdgw+o18HpyxP7AIQpDSlcTZBJ/iQvNbDgqOo7nLBJMZGBav
+	z4wgc7S/UsCpAsdcOf0TVPfzfNz00k675cz/y5/k6DjFzu8zrlRQXIKmbzNHGmR/DG93/DPHoCO
+	+t+DmenGRx6rb5LUBSMulx0ARNx2Un03r4zuT0VUrDRE6UE90jew5tlllrhbGHtBfiwyvmA1BWV
+	KOtPcb+XPSUG14Z8U2s71v1wjQTcAnBQ3mkBEOKESUhs+prvlVtadN/L787+t7pxrBh+aPwOiH3
+	tCarr+DRc8Vjvkw2xOpzfZIRDSRbC3uNQlSwIPnXCOR3EEf1so+zAkZ3a3Rac2gO+KyXKxCZ7QB
+	R
+X-Received: by 2002:a19:c4cc:: with SMTP id u195mr26749284lff.141.1546717612943;
+        Sat, 05 Jan 2019 11:46:52 -0800 (PST)
+X-Received: by 2002:a19:c4cc:: with SMTP id u195mr26749278lff.141.1546717612058;
+        Sat, 05 Jan 2019 11:46:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546717612; cv=none;
         d=google.com; s=arc-20160816;
-        b=sez8E8SzhMX+lvtzzqpunFKFUIF87BeDS2bI3HdvOjpIj3WiGTHKru8IS5/TfqlJaI
-         8Q1eW9AkzOSQbeZ05ewDUF4XvT/yurw2Lu+L9pXAVy3EGM21WdzKs0gn+qye38JtmVqi
-         55VWdwqZeVJbQtIDXuHVnhAa2wQN6CVY6atbAZ/d6NZXg2MYUy51LkbhNuTrvVGo8DY1
-         nbsr6w0BF++Yt42pg2emHefxux3BtTKrk0Y1z5MxAOMoev8+F1KPYjABt+uyNHeQJAg/
-         mUz2z2su7HbgtiELQMdNWF8KKLHLM6G3dwRk6+RRYN6pNhfUERSN7+fBDTOftIKgL3YW
-         ByHA==
+        b=0xt3HjChU2RlPlBHd1hAIamhnfb/dndV6sjBmzk4cot1IxpCzoAgwn/I18JdAQ4RTx
+         AFbYGrLSHXBTR2LVn8EdtpKHEra1Q5oGI6ZYiBQC4NLnbJJCQKeXDJ22HA5UgXF7iwrr
+         qq+a2OQpcuzErETsZosb9lc9/usG4jXC5uv44/DXUvN0mtpA8V++iV/pV9JqjHURK4n3
+         qRW16lmM5cp70mFGXucStHA27flTav4euffgPG2IkQXS3gq/XUGIR14TeFJ4GUqjVd7p
+         673OyJ6MJHIIV3Vq6/dZW33XjXIocB94dVM8h9VOeb+GeAef7gDyBuqVIUoGrs4WNolT
+         X+jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=jJ+jGacXZo4Ybr8s5P1KbEwvFpRSHBMbVRnJ1VTbiqQ=;
-        b=ZeTykzWp7boTMW3fC98CXxWvbnaIM0NyEnNNc359WoadVZr6V8RLS/3aPLkLGcUf5Q
-         BUh4bqY6zIAVLjEL/BzOa/zbbnC120bjb1eYmYqv57Z0Ck9yyM7z7dyp9KyWGUM6tuTA
-         kiRIqBEMijniknYkq7mn9wfpzs+VmNITyIB1C/Gy0B4IspLBICY6k7/ajhx4kwU7xWLw
-         o4eJDumWLxgOhgLUoXMNDuoA7+RU7KfdxhK7/ftJkF/T99XATUT/JVAI26w1O1+wWv6j
-         MN7+GtFbKG8vfq9mD284KgpsL//l5ZSbAM3pTeZLaYm7cedDfYmI6a2xZuAniFqqHM21
-         DrRA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=sfMKo7ATNMJUBNjbzn0K8OxXUEt33ltVZgJi38nELQs=;
+        b=JdTrzXLLaTU1/heTwdVx16HCVsUVQaxeeMuvRa1k/u3yrKdc2vTiTcqpevg6887l7j
+         NMthLNYZygnRS8wrJvl/BcNSL3MdL4FSHjT1Bxp/ow2gNOdIiHZXoCBeEG3sUHOtv93R
+         IXObwUXx3fwy/qtSWgrl94/u7g+zOlX65gySPWr7yPGqcBXazRehtwG5hnz3/A08uyVG
+         +buzUY26DAVdyOVQ/gDgFSu3vmH/EijXWMQR0lBJTkwy02YDSqvKfZq8PJPz4QeSCwWg
+         AlFvm57oDaN9ENDQiBIxy/kwDSJk/C8rzYkcMwkxM6MhnUHUFbmY0JOG7aZLKWTZ4QRv
+         7QjA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s17si408754edr.396.2019.01.05.11.24.04
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Omya8saF;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x82sor15219027lff.40.2019.01.05.11.46.51
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 05 Jan 2019 11:46:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Omya8saF;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=sfMKo7ATNMJUBNjbzn0K8OxXUEt33ltVZgJi38nELQs=;
+        b=Omya8saF/W27WjohuXlwpfrj4/+p7Bksv9DohJlsBfsrJA7OY/3Q3YPW0wVln7VJnM
+         cs3qJ46WDfuFVB/SShwQNUY8X0wsqohZWk4LpS04v6uCOqfWBSB730CAc8u48gBSynwd
+         qBDKTkyJmnFF3QumYh9Hw5nxCpVz1LDsRIMvs=
+X-Google-Smtp-Source: ALg8bN71ZGPa6wUvmIgPlBm0oQbbTREOHa8ZRDkpomw8FCzfgssCY87djacp1Yk3xLqngDXpHgCb9Q==
+X-Received: by 2002:a19:4cc3:: with SMTP id z186mr7324397lfa.37.1546717610923;
+        Sat, 05 Jan 2019 11:46:50 -0800 (PST)
+Received: from mail-lf1-f44.google.com (mail-lf1-f44.google.com. [209.85.167.44])
+        by smtp.gmail.com with ESMTPSA id y23-v6sm13011951ljk.95.2019.01.05.11.46.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 11:24:04 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
-Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay1.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0A0CAACE8;
-	Sat,  5 Jan 2019 19:24:04 +0000 (UTC)
-Date: Sat, 5 Jan 2019 20:24:03 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-cc: Linus Torvalds <torvalds@linux-foundation.org>, 
-    Andrew Morton <akpm@linux-foundation.org>, 
-    Greg KH <gregkh@linuxfoundation.org>, 
-    Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, 
-    linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-    linux-api@vger.kernel.org
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <d4846cb2-2a4b-b8b3-daac-e5f51751bbf1@suse.cz>
-Message-ID: <nycvar.YFH.7.76.1901052016250.16954@cbobk.fhfr.pm>
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm> <d4846cb2-2a4b-b8b3-daac-e5f51751bbf1@suse.cz>
-User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
+        Sat, 05 Jan 2019 11:46:50 -0800 (PST)
+Received: by mail-lf1-f44.google.com with SMTP id y14so8630522lfg.13
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 11:46:49 -0800 (PST)
+X-Received: by 2002:a19:3fcf:: with SMTP id m198mr26611229lfa.106.1546717609589;
+ Sat, 05 Jan 2019 11:46:49 -0800 (PST)
 MIME-Version: 1.0
+References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
+In-Reply-To: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 5 Jan 2019 11:46:33 -0800
+X-Gmail-Original-Message-ID: <CAHk-=wicks2BEwm1BhdvEj_P3yawmvQuG3NOnjhdrUDEtTGizw@mail.gmail.com>
+Message-ID:
+ <CAHk-=wicks2BEwm1BhdvEj_P3yawmvQuG3NOnjhdrUDEtTGizw@mail.gmail.com>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
+	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190105192403.brE6ZWJBBySymIwzqj95ScKtXbcTPj7x1fLOIUP9Q_A@z>
+Message-ID: <20190105194633._Y2tMRRkoSKmpfdkl-WYqhuIjVbST_Q_N74fl49HWbM@z>
 
-On Sat, 5 Jan 2019, Vlastimil Babka wrote:
+On Sat, Jan 5, 2019 at 9:27 AM Jiri Kosina <jikos@kernel.org> wrote:
+>
+> From: Jiri Kosina <jkosina@suse.cz>
+>
+> There are possibilities [1] how mincore() could be used as a converyor of
+> a sidechannel information about pagecache metadata.
 
-> > There are possibilities [1] how mincore() could be used as a converyor of 
-> > a sidechannel information about pagecache metadata.
-> > 
-> > Provide vm.mincore_privileged sysctl, which makes it possible to mincore() 
-> > start returning -EPERM in case it's invoked by a process lacking 
-> > CAP_SYS_ADMIN.
-> 
-> Haven't checked the details yet, but wouldn't it be safe if anonymous private
-> mincore() kept working, and restrictions were applied only to page cache?
+Can we please just limit it to vma's that are either anonymous, or map
+a file that the user actually owns?
 
-I was considering that, but then I decided not to do so, as that'd make 
-the interface even more confusing and semantics non-obvious in the 
-'privileged' case.
+Then the capability check could be for "override the file owner check"
+instead, which makes tons of sense.
 
-> > The default behavior stays "mincore() can be used by anybody" in order to 
-> > be conservative with respect to userspace behavior.
-> 
-> What if we lied instead of returned -EPERM, to not break userspace so 
-> obviously? I guess false positive would be the safer lie?
+No new sysctl's for something like this, please.
 
-So your proposal basically would be
-
-if (privileged && !CAP_SYS_ADMIN)
-	if (pagecache)
-		return false;
-	else
-		return do_mincore()
-
-right ?
-
-I think userspace would hate us for that semantics, but on the other hand 
-I can sort of understand the 'mincore() is racy anyway, so what' argument, 
-if that's what you are suggesting.
-
-But then, I have no idea what userspace is using mincore() for. 
-https://codesearch.debian.net/search?q=mincore might provide some insight 
-I guess (thanks Matthew).
-
--- 
-Jiri Kosina
-SUSE Labs
+             Linus
 
