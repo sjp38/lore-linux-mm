@@ -2,158 +2,196 @@ Return-Path: <SRS0=AeVH=PN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E8E29C43387
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 23:28:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FEA9C43387
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 23:32:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A40E6222BB
-	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 23:28:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A9CCF222BB
+	for <linux-mm@archiver.kernel.org>; Sat,  5 Jan 2019 23:32:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Vy1s/+P5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A40E6222BB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BfVlvKxU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9CCF222BB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 551C58E0134; Sat,  5 Jan 2019 18:28:40 -0500 (EST)
+	id 54EA48E0135; Sat,  5 Jan 2019 18:32:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D8E28E00F9; Sat,  5 Jan 2019 18:28:40 -0500 (EST)
+	id 4FD8E8E00F9; Sat,  5 Jan 2019 18:32:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 37A578E0134; Sat,  5 Jan 2019 18:28:40 -0500 (EST)
+	id 39FC78E0135; Sat,  5 Jan 2019 18:32:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B8BB28E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 18:28:39 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id t22-v6so10816122lji.14
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 15:28:39 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E75368E00F9
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 18:31:59 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id v2so29392958plg.6
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 15:31:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=5UH4pfWyQs4/o8iN9usZb3uixTnpzedXbZLwZju+Xnw=;
-        b=NMHkyy9dVThDTJz9uKq39fzvEuhKpJXtjeTHESZQ0xbiv5pOBbuHyGrJVcXpi21c5j
-         p0ZurxQURxcj6a3VGfV1oWSYUAhGAaVwZ7LTqL0eCwjbn4SLtxxlzi2xrVciUxSxZCdF
-         N1gbOj78PDenbg70Djtdb5XjdH/ylY6cLXBrar8/OIp63WMz68877yMG/MtfGuo43IQZ
-         aON2QxsHNOb0gzRBdwijO/nFk75yWuIiw45hA1ZsWkDuOmI0nkDx5ljX3cRPwVmh5UdQ
-         90j1W4OVNlGYI8uyMGc7x+KsmfI1ecoqkcYRZZ7FKv2l21FVsuE6f2ndLb42/GEatBxh
-         n5lw==
-X-Gm-Message-State: AJcUukcL6kDFY19rgO8LaEyr7pmnDUjqWK1g+rMDC/3jzkQwnIPZvu4F
-	GiXhrIw/1sJBCKR6RdP1Qp8j/E7JcA4Q7GRBkh5U0OK62hdIIxve8f6K7EZJ7Hoz+/YJRxJRft3
-	iwvcsBSYjw7eNaGWL0LdK1lB8qUNvUtmmLBSKcQOj5uz5rST9DT23DIvz9jlv6ClADh6ljjJvzz
-	m/13T4RVGCp+gMcdIzJEBgWN093UQPUayalNQdwIyn+diqq1uVLQecTNn/MYDSxmsfCz1tcvxRJ
-	bGTTYSJkr1Ca1TFxcgGYrlzb+VR0Q445DEU8WddVflkxoekEThRUi0+mgecInwRQrC0I913SkgN
-	kttSnKuCOWt3iU2bLKdS35l8tcH0WlAJc2ja0Y6fsKVwteaggCBPdhPjH2/gA3O7L8m1uHOhpz7
-	S
-X-Received: by 2002:a2e:9c52:: with SMTP id t18-v6mr26063190ljj.149.1546730919175;
-        Sat, 05 Jan 2019 15:28:39 -0800 (PST)
-X-Received: by 2002:a2e:9c52:: with SMTP id t18-v6mr26063180ljj.149.1546730918339;
-        Sat, 05 Jan 2019 15:28:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546730918; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references;
+        bh=WVVkeTSU/juW8PY5Y2BUjN7xzMiqVZ2++EBgVIVpgHA=;
+        b=lWgzg9GwmlqKbWcseMbM77P8Yl79m8iVhP4kIr5E+LCTyy5nNK28wKB6yRl/Y9pZy3
+         KG7QwOwlp0vzEOcSiXzYQgVro872nZxkiElvRd8D1KGmdXRAWx61l0JaUDxVV2jpU0Jz
+         geJsb1PxdEAaNaORlUiGr52yiSlZZi+WWctKFHXsk8kvwGuNldTKfoqBKj7HfHwYHiFK
+         YLNRvWraNRW3tqlXAEXkRRo7C/2ykiBKDXhJyd1hG/RxhgM8n25khPqDeQiiQPJAUvdh
+         4toV27N1KoxZTMfRep6O3yBWOeBB6pF/oXf8hTY/NhCjRun6qllqWK6bnYw3salXLcq3
+         8kBw==
+X-Gm-Message-State: AJcUukcFNXDzFXi7mwr5GnD1ffEK1q/Z2e9yReiJHnsrww4rN9MTHoCx
+	IsNE1bfjol55iZwAsNL82FnFExlIfBtJzMosc0SWDQ3No9mwGw8gDgro2V8ylkfppcWGAnYEKgO
+	78elUZpE95a3PWaf4y+RTDJvCCn3L3WMyzaCy0Dm3UZ51nymERCkPNpW5njjdYi23WRP2rUvyAf
+	2KjcvFHERL9lch8fJTdP1+AHrnkyUHzgP8T5YPqb3BZq7m3ehpru6Au1DPl/EcBiDUKoOzIv0od
+	sejDFf1vys0RUAg4ZnAee/bFCLrktigHkLYYmIw91McIaYInFlaM2wNjK+di8STVo1znySFCxdx
+	MfJELeU9wz+zB4OPsk/KAKzfHaW34XOWvy5cqSVfP8Xm6/HF24STARWm1dfwD5rqNva9oqgDZbY
+	r
+X-Received: by 2002:a17:902:a40f:: with SMTP id p15mr57387759plq.286.1546731119482;
+        Sat, 05 Jan 2019 15:31:59 -0800 (PST)
+X-Received: by 2002:a17:902:a40f:: with SMTP id p15mr57387739plq.286.1546731118783;
+        Sat, 05 Jan 2019 15:31:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546731118; cv=none;
         d=google.com; s=arc-20160816;
-        b=qwyt/9SYabCGcn6h8I0yywVJUWAWOMjkzqbzF33ZDkILXsO3wYMQe+/Tk0FFrav8uq
-         7Db7Hu42lV1iboOvrv9okQrHEbMvkW3m+8xsAQ7udJ3ZblGwxX6Ltv97dj4Inp4pXvyz
-         /DNSJ9+2U/AxTsSvTVbkKvG+NqT3yghk8iKmuPpNmhj2W5zF68jYfGDWR/cfDB23+ujc
-         fvFGHtWCGHR89TerVSm75A0iVsKfkl/y5UDKHlPat+Fs0ISdVD+m09B9dM8vrZUQOaY6
-         38wQnvD9kGmq4jhi4Itlg4FkSISI+jHcXnB9zRluMNDtxf+plMDr1d889uo/3LC9rSB/
-         neyw==
+        b=p7xZvbf/NPYNe6k6egliSe3zkEa9LVtbisnN3lPu9WpLBkQC9PUVx0DolW0V1qJtmY
+         SvIybtHfLdt+6vkDwM/cCpmm1FQrie9lyA0MXFRyzZ/83H8Axp9aqt4PlwkAKzZCmYk3
+         D84Ht5fPR/7q4bjOFoN1uLazAVD1UsQnD80S4wJDKAbcGpDlrYGRFzzoQ5QZRAW5DgbE
+         1tKbMx15Pkcz9NciDvYKpj7/o7wmASds10rRc6Fe8/KsJGHJ/Ta8GZ81cQipX/L0rFxe
+         l4qgjxhUsvDcw1SYRPSDUxC0ng3Ork5BdDJk7V/ozOfuYoIqT2ONQ0p2gxOF5jCtIvcf
+         85JA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=5UH4pfWyQs4/o8iN9usZb3uixTnpzedXbZLwZju+Xnw=;
-        b=wxaSCDidB2CXpxSVlzC3Ldyq41ziDQiotGa637vbBfT/IDsjNoYhYL6y+2/txcuBnv
-         Jyu1uMEkrml4wavEn8rkiEDDKckEUIluoXKI5KibZmOC/yjHJmbDQTd0qt6nVd4FqqvM
-         PWeNyrdokqnTl41Ixurw+eW347TW217l/c4blWBOandbQzrpMa2EIxzUiyqRgTVGXvmY
-         zrnRKbdcLnvBHUBCsPvAqy6rx6G2t2v8f7sArgT6LPAx3CMHA97jhvyb1AVlt1EVKhG5
-         mbuGkoHqojB5r1Ay6nEX8cS90rVMBHrAJaI8kTgbSmQLOIowjVSWOmUBaW0F3oXpjqGc
-         /27A==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from
+         :dkim-signature;
+        bh=WVVkeTSU/juW8PY5Y2BUjN7xzMiqVZ2++EBgVIVpgHA=;
+        b=C1elldFuqlqXKO1/31VPUjjL0XzJTEha4JmauIV9y3vz41SmNJLQt2Oq+iDau9eJvv
+         MeLA7aZ8gKS7QdRCee8fDKZUgy/bCEHe6OMDk4WswO1J6EezulnoqxAfiPL8pyPhnV3L
+         ja+1lnSf6THIeUliM/nR8HSGN4rG7T0G6EdDhOdeh/qcJgGwdONGnbTuxJzXueu9Jm22
+         We3NE+nBiPvKLggo0sBTSlYvdCc4H4FIsL3xYJ6uAKEDb5RpQTkNKs0UwlaD40lfceKy
+         d5daAK6ukFwDS3SPnSqToTr+sB1w07HsEGjWy1GQGENOUTk86UH/xaaQ1JcZBsiimISI
+         M8pA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="Vy1s/+P5";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BfVlvKxU;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x66-v6sor35490602ljb.20.2019.01.05.15.28.38
+        by mx.google.com with SMTPS id q22sor32026377pll.36.2019.01.05.15.31.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 05 Jan 2019 15:28:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sat, 05 Jan 2019 15:31:58 -0800 (PST)
+Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="Vy1s/+P5";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BfVlvKxU;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=5UH4pfWyQs4/o8iN9usZb3uixTnpzedXbZLwZju+Xnw=;
-        b=Vy1s/+P5NMNsFNOwWt1LLInuk+ntWVFTDJtSxCVKVIIYg1AEnMy9K7h69QPpXAn/rN
-         UOhyNwMdL3pZ6oNf2UkegmPg7nFD7KFdUN8yQWn4bRLdByG5iKDgxoDp9kYFnb9VIw38
-         l3rvFtZebFJMWoGj3bmBaOAakkxYuwAU1ZZUc=
-X-Google-Smtp-Source: ALg8bN7BWj6WrLxjD13TgH3Fatry3gY9IYji4Gbf7r2+jJSsgzZqLJkBBNmkDzarvIwEGM6Dvp4AKQ==
-X-Received: by 2002:a2e:5b1d:: with SMTP id p29-v6mr31276172ljb.176.1546730917255;
-        Sat, 05 Jan 2019 15:28:37 -0800 (PST)
-Received: from mail-lj1-f172.google.com (mail-lj1-f172.google.com. [209.85.208.172])
-        by smtp.gmail.com with ESMTPSA id n8-v6sm14216334lji.90.2019.01.05.15.28.35
-        for <linux-mm@kvack.org>
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:in-reply-to:references;
+        bh=WVVkeTSU/juW8PY5Y2BUjN7xzMiqVZ2++EBgVIVpgHA=;
+        b=BfVlvKxU9jO51fanv0m57OlDnNaLYDQzsG574qPIK5kpe6RUMxhIgCx4U9JgZxMLJs
+         AKvPHrGK+IV0rgitbrE0SzoZCf2ppbWWp38mpOspt+w0wWeY9tnb/YHc5ZRbHffEK3vq
+         VpRQOmZLPZCdrdYZALng6Pl4JYaegsV5jgLFLX3wWmMGuF0TeW3iT2Ac7jBJN6+DBHv9
+         Xh3ccvcNfo+8OkkjwmQkgLIJoQpvYsaf2zVv6IlcPxnPmoLQgl3BgWWtjOu849+2HFFm
+         6W3WoOAth+b1iYgd0FcJu4WITRyxzf8fzsny3mLZADFmCqLy2eIaOsGxX76zXFgBoH2j
+         puww==
+X-Google-Smtp-Source: ALg8bN5DJFAMjUfnSfLk65oG7lFUmccdm4iL2N9q7fvwCblXKF5Ckw3JaASScyX/W2L79OjC3YYRvQ==
+X-Received: by 2002:a17:902:264:: with SMTP id 91mr56450816plc.108.1546731118191;
+        Sat, 05 Jan 2019 15:31:58 -0800 (PST)
+Received: from localhost ([185.92.221.13])
+        by smtp.gmail.com with ESMTPSA id x27sm115431450pfe.178.2019.01.05.15.31.56
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 15:28:36 -0800 (PST)
-Received: by mail-lj1-f172.google.com with SMTP id n18-v6so35264490lji.7
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 15:28:35 -0800 (PST)
-X-Received: by 2002:a2e:9983:: with SMTP id w3-v6mr15001293lji.133.1546730915544;
- Sat, 05 Jan 2019 15:28:35 -0800 (PST)
-MIME-Version: 1.0
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <CAG48ez2jAp9xkPXQmVXm0PqNrFGscg9BufQRem2UD8FGX-YzPw@mail.gmail.com>
- <CAHk-=whL4sZiM=JcdQAYQvHm7h7xEtVUh+gYGYhoSk4vi38tXg@mail.gmail.com> <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com>
-In-Reply-To: <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 5 Jan 2019 15:28:19 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wie+SA1WCQ5nTKgvWyBUdTGxHjAOaoms-=Xu7-wC4j=Ag@mail.gmail.com>
-Message-ID:
- <CAHk-=wie+SA1WCQ5nTKgvWyBUdTGxHjAOaoms-=Xu7-wC4j=Ag@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Jann Horn <jannh@google.com>
-Cc: Jiri Kosina <jikos@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+        Sat, 05 Jan 2019 15:31:57 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org,
+	mhocko@suse.com,
+	osalvador@suse.de,
+	david@redhat.com,
+	Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH v4] mm: remove extra drain pages on pcp list
+Date: Sun,  6 Jan 2019 07:31:41 +0800
+Message-Id: <20190105233141.2329-1-richard.weiyang@gmail.com>
+X-Mailer: git-send-email 2.15.1
+In-Reply-To: <20181221170228.10686-1-richard.weiyang@gmail.com>
+References: <20181221170228.10686-1-richard.weiyang@gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190105232819.6OsdO__63Y7aCrngmR1KlOxwxH3DR0D1c-e_omgoK8o@z>
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20190105233141.7gim0kYV3mtPcpG0URNBUh_IHQ7XMaeVsgJ0eXtjJGk@z>
 
-On Sat, Jan 5, 2019 at 3:16 PM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> It goes back to forever, it looks like. I can't find a reason.
+In current implementation, there are two places to isolate a range of
+page: __offline_pages() and alloc_contig_range(). During this procedure,
+it will drain pages on pcp list.
 
-Our man-pages talk abouit the "without doing IO" part. That may be the
-result of our code, though, not the reason for it.
+Below is a brief call flow:
 
-The BSD man-page has other flags, but doesn't describe what "in core"
-really means:
+  __offline_pages()/alloc_contig_range()
+      start_isolate_page_range()
+          set_migratetype_isolate()
+              drain_all_pages()
+      drain_all_pages()                 <--- A
 
-     MINCORE_INCORE        Page is in core (resident).
+From this snippet we can see current logic is isolate and drain pcp list
+for each pageblock and drain pcp list again for the whole range.
 
-     MINCORE_REFERENCED        Page has been referenced by us.
+start_isolate_page_range is responsible for isolating the given pfn
+range. One part of that job is to make sure that also pages that are on
+the allocator pcp lists are properly isolated. Otherwise they could be
+reused and the range wouldn't be completely isolated until the memory is
+freed back.  While there is no strict guarantee here because pages might
+get allocated at any time before drain_all_pages is called there doesn't
+seem to be any strong demand for such a guarantee.
 
-     MINCORE_MODIFIED        Page has been modified by us.
+In any case, draining is already done at the isolation level and there
+is no need to do it again later by start_isolate_page_range callers
+(memory hotplug and CMA allocator currently). Therefore remove pointless
+draining in existing callers to make the code more clear and
+functionally correct.
 
-     MINCORE_REFERENCED_OTHER  Page has been referenced.
+[mhocko@suse.com: provide a clearer changelog for the last two paragraph]
 
-     MINCORE_MODIFIED_OTHER    Page has been modified.
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-     MINCORE_SUPER        Page is part of a large (``super'') page.
+---
+v4:
+  * adjust last two paragraph changelog from Michal's comment
+v3:
+  * it is not proper to rely on caller to drain pages, so keep to drain
+    pages during iteration and remove the one in callers.
+v2: adjust changelog with MIGRATE_ISOLATE effects for the isolated range
+---
+ mm/memory_hotplug.c | 1 -
+ mm/page_alloc.c     | 1 -
+ 2 files changed, 2 deletions(-)
 
-but the fact that it has MINCORE_MODIFIED_OTHER does obviously imply
-that yes, historically it really did look up the pages elsewhere, not
-just in the page tables.
-
-Still, maybe we can get away with just making it be about our own page
-tables. That would be lovely.
-
-                 Linus
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 6910e0eea074..d2fa6cbbb2db 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1599,7 +1599,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 
+ 	cond_resched();
+ 	lru_add_drain_all();
+-	drain_all_pages(zone);
+ 
+ 	pfn = scan_movable_pages(start_pfn, end_pfn);
+ 	if (pfn) { /* We have movable pages */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f1edd36a1e2b..d9ee4bb3a1a7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8041,7 +8041,6 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	 */
+ 
+ 	lru_add_drain_all();
+-	drain_all_pages(cc.zone);
+ 
+ 	order = 0;
+ 	outer_start = start;
+-- 
+2.15.1
 
