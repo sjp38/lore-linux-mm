@@ -2,219 +2,287 @@ Return-Path: <SRS0=q3d4=PO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FEA9C43387
-	for <linux-mm@archiver.kernel.org>; Sun,  6 Jan 2019 01:51:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 09D26C43387
+	for <linux-mm@archiver.kernel.org>; Sun,  6 Jan 2019 06:02:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C89F2222CB
-	for <linux-mm@archiver.kernel.org>; Sun,  6 Jan 2019 01:51:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Um4YEyAt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C89F2222CB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 5AB622087F
+	for <linux-mm@archiver.kernel.org>; Sun,  6 Jan 2019 06:02:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AB622087F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B39E8E0139; Sat,  5 Jan 2019 20:51:21 -0500 (EST)
+	id 882388E013A; Sun,  6 Jan 2019 01:02:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 063088E00F9; Sat,  5 Jan 2019 20:51:21 -0500 (EST)
+	id 82E088E00F9; Sun,  6 Jan 2019 01:02:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E6CC48E0139; Sat,  5 Jan 2019 20:51:20 -0500 (EST)
+	id 6F6F98E013A; Sun,  6 Jan 2019 01:02:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 766478E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 20:51:20 -0500 (EST)
-Received: by mail-lf1-f70.google.com with SMTP id y24so3825802lfh.4
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 17:51:20 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 433E18E00F9
+	for <linux-mm@kvack.org>; Sun,  6 Jan 2019 01:02:40 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id w15so5308253ita.1
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 22:02:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=AcswdOBczXk+iMEaWZLv2123bIfAtssmPcZQKRLxpec=;
-        b=CRjAClVa2u/+nwIA+TITSvjVqe5VUuKC4fUEYz7NDW9MT0BeZT5YVFTo1ZZ62edxlR
-         G1G8CwWulDkt/Zo/nxaXISQ648yn+WQpAFWYzQZiACD3wQ4VawdClYQ9siWX7mcDaZID
-         0ZtpFaf5iABSWoTi/acjgD5F80Sgt8KIiqCNOKnQYtqg9W8mWX7IhPXnR1JD6yYlnyWa
-         4PvWlMVjmaUQKwGIXTy2GBIHMeTVu7N5Bf0ZW0yZy8uB2oszMu/fbjXiu4oxP0nKf8P7
-         62MTx8hpwOz+/F7Q49lzWAy7IkxMnORanubg140I5/mqf5lUinqTI9LXkaQuFDwnLrT/
-         F3RQ==
-X-Gm-Message-State: AJcUukeyKKt0xuEdCP1FZPxq6ebUp/jrRmheGjve07vy9+3oeKAIe6O6
-	Rz5Z8x+5n+Zj745Yy9v7Q0ZGcH8zvJPg99XkaSr2BGjnY7BBcrgTYQGylvgx6P+Q45fSiL7P6hJ
-	fjvjg/EUMmE3OR8kLrsohbpfR9GnDA18ea3ZFayeBBUJCpJoNT1TO6ykpzlH6QEzZi20ZJiE358
-	HMYfQyu3hXUcrVCnjC8OHrMfOJR3ufMud4bzp/LrNoSWmvYX7dDfX2stVhxAk41wS10b/KlE5of
-	L4vktIInKCvzXiD1p++JuIwNmUo+N06rLL6RuFdpOPpFppaEydw2O9WtWW9OQfyOLZStLC6dSb/
-	wZdiMySGXfbLG/aXHAMKzjutaY5nojSYaZv7elIO5Xl45SxQq0gbcQeUngX9sKpBot1OIXnOZ50
-	l
-X-Received: by 2002:a2e:851a:: with SMTP id j26-v6mr30844319lji.163.1546739479661;
-        Sat, 05 Jan 2019 17:51:19 -0800 (PST)
-X-Received: by 2002:a2e:851a:: with SMTP id j26-v6mr30844298lji.163.1546739478585;
-        Sat, 05 Jan 2019 17:51:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546739478; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=IBy7CUE1MoGzeLgBiLJ3wW/iNqBlnNP/Lx5F9H9IxTI=;
+        b=bwUj5mXim5lHYXeh6r8MMzcmPyLtevxWBo+FGpdTT7duO/TvXaFKVA06MYDDrA2xqR
+         VjgOMPgxXBKlPwflk35tp1tTHHS7iQ3zeTGM6wH8fGLeoopIOEevAnhwbR6ddJtlPQQa
+         EEQtIAwyeH/4HRk5rSnVclguqXoK7/OogiSoFXjWuX5IwHHQlaZRzHGP6+hpcAmOtXb7
+         akG5MPFXXYvOYNnymcOIz4rKQIPR2N5zYE7ujBHIsLidB8H2UZbYe0mZjI+jddC33rEB
+         +auRcVHDFOm5hV4RNAF8k2Zy0YykJoSGO1TWWZYWUpvHwyJJwfUhtLMkJ/aCcZNw5lAC
+         ZA5A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: AJcUukej/CvPqjOIuLbrBBcj3/McQdHGfLjJP/GdJWClUSxZFKOvPCjf
+	4UoV8zX8RPKLq597sO3C3tM5jiLv/qK5gy6b0VqfssHiAAQb0xm1ik5gQtEb+B3BdFIkznG5BBW
+	8JMNAu1lDyz82pYLn8OWVeFBzInzw/IJypfcbv/c4taWTcg/kXpZrVkZ/WpY/4T8c3A==
+X-Received: by 2002:a02:7a58:: with SMTP id z24mr24397246jad.22.1546754559827;
+        Sat, 05 Jan 2019 22:02:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4haIQ7/fYSZL9frIhlOn63F5thUMYJuM3xxvPobMTQbsojTlqzwiRlEsNu7de5UAkQPLHh
+X-Received: by 2002:a02:7a58:: with SMTP id z24mr24397206jad.22.1546754558628;
+        Sat, 05 Jan 2019 22:02:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546754558; cv=none;
         d=google.com; s=arc-20160816;
-        b=zehevUtQ8TMxd2mjvYnTB+JezQu3qWbgnqoqS4UPk8oqXHRjTL7fk9jVn5vjKu2WL+
-         BN1yFc0jl5feUgwsjStnmxkp6r4UEd4c6oEnr+gk0H7XfLv8Yb5m0Sj2F76aPJ5btEIB
-         xsRnpA+6eVFruKQ3LANAuFJ568vKvWOE9Z/pLQ+fTZZ6JdBg6j7vMlB4DzTjk7u4o05U
-         iLFdleoRT92rjF205Q9TsWAFq6GnsZJjB1FXmFCWHXBOAwqF9Qz8c83iySgyVdYCnZUA
-         91I7ngx+hCdopqJl+EiojWUKYJyxFOXS2jrCN+JNUXJ7omi/Tg9wcKP/JgV3ctWh/5RY
-         Xv5Q==
+        b=bAKW/MLPwrknDIRE41RvZtQX0d9k/AiaTt8Bv9ZcbORuIh5pJQKrTaciXVMw5M3FcW
+         0TLd1i1hc/n24f2O1q+2xbuaMQA/fNiGnpSYbBcfZi14JW3Wh3OKGcFYVfuTtPX1GfC0
+         R7eAFZSluk1kxXqqAEiQcW6yIHMae7EHRy9iDpzAh+EGQC/bLG9JYWo40ADlk2FWb1Pf
+         0JT3kANRvvB+NO7UeLlM0pUTQMTgAVVc7UiQ4aEiWCiK/UxXk4FKNyUY9L2lIEBv8bHZ
+         ZhOTJfZm2KeYPLjr/UThugLfB6j/UJVzZWaTYeYSQhgmclLiUas8uuTYjxw2agEVO7yp
+         WmUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=AcswdOBczXk+iMEaWZLv2123bIfAtssmPcZQKRLxpec=;
-        b=TFP6gDBcqA74ZKoJambSZLxlnjOrkYvO7T34fTlVAsDyuapkidgO6pWqcQeeWOrbaf
-         QTPYdWRuFYnAonvQuPMTBAzgh9rGIClghlX2NmVZASa+03dV347KYVo3yEsQbPsx7hz3
-         40Zk2RSwmuGsT1Ll7XLpzqafQceZ1lU/AsoQ+6vpL9oyI+Tg/GIi47GIMzjMcQq/xgQC
-         k47olelHmANZjWzEPgcMajAZkEPegYNdpg0+Ej2qSPLJryAiFkcjhWxwAKM9sdFsx3Tl
-         rklyLPASIcqVUZEfVuV4+ly4gy8ZDeI2yMeGGeYYN3YIWt4MuHlffqWYmqdLnXSImbrx
-         R8Gw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=IBy7CUE1MoGzeLgBiLJ3wW/iNqBlnNP/Lx5F9H9IxTI=;
+        b=OSKbIwr3igevmzjT6Ea81BlbdJMuUua5+y1NBpB2AGEnb99Cm1u0agpQqcoersgDVq
+         p+lw2axEyeioBz+AoFM+l5q36qWbLRTcMbKqcXMFAia5bHJcFBdnp1Pm1JxKtmjWhX+L
+         rlVVhjLZwR7BEjs4kaEMoKfyye+SjZnsMe6rkLF7kyZ8qFvCakdj654cDDCQcufCq8oG
+         /qNdMXFAib+ATBsrVj7XbqcaWeGjaC3e59KyFG6hpUBUn8+LLQOS1SAMtuE7sKyQYDUg
+         zyHljKgyvesk3IGbD9iijKlYVMzNAbuK2NZzbXY8O5kWXyxOMae748TbKpkiCyV92LW2
+         cAUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Um4YEyAt;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a12-v6sor34922828lji.34.2019.01.05.17.51.18
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 05 Jan 2019 17:51:18 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Um4YEyAt;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=AcswdOBczXk+iMEaWZLv2123bIfAtssmPcZQKRLxpec=;
-        b=Um4YEyAt8jYVvSh/qfFiqPF+GCGUMUEdHNIOKX3UpSSg+Jiiq+gkn8CZUF4jdBJxd5
-         ZcIyf17YCpILnvKPAgOoflI/KyDQRA5TVSSZoMnoaUCNfSp9CUyGyNuqDxtLhGzrhKXo
-         B7zTL8Hn+Ok5KsEFJHpktWBjGUYOLesmk/W0o=
-X-Google-Smtp-Source: ALg8bN6qm4cE81MbN4LzpCg0RGumd17a4AajAnN1pACN7prwI2x+jG3PnoYWQNo8XP7yJirEq7AC4g==
-X-Received: by 2002:a2e:568d:: with SMTP id k13-v6mr32610694lje.105.1546739477472;
-        Sat, 05 Jan 2019 17:51:17 -0800 (PST)
-Received: from mail-lf1-f53.google.com (mail-lf1-f53.google.com. [209.85.167.53])
-        by smtp.gmail.com with ESMTPSA id f8sm13250941lfe.72.2019.01.05.17.51.16
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id m7si3293461itn.21.2019.01.05.22.02.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 17:51:16 -0800 (PST)
-Received: by mail-lf1-f53.google.com with SMTP id c16so27835259lfj.8
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 17:51:16 -0800 (PST)
-X-Received: by 2002:a19:6e0b:: with SMTP id j11mr30297686lfc.124.1546739475480;
- Sat, 05 Jan 2019 17:51:15 -0800 (PST)
+        Sat, 05 Jan 2019 22:02:38 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav108.sakura.ne.jp (fsav108.sakura.ne.jp [27.133.134.235])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x0662Vgo033717;
+	Sun, 6 Jan 2019 15:02:31 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav108.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav108.sakura.ne.jp);
+ Sun, 06 Jan 2019 15:02:31 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav108.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x0662NgW033652
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Sun, 6 Jan 2019 15:02:31 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: [PATCH] memcg: killed threads should not invoke memcg OOM killer
+To: Michal Hocko <mhocko@kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org,
+        Kirill Tkhai <ktkhai@virtuozzo.com>,
+        Linus Torvalds <torvalds@linux-foundation.org>
+References: <1545819215-10892-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <f6d97ad3-ab04-f5e2-4822-96eac6ab45da@i-love.sakura.ne.jp>
+Date: Sun, 6 Jan 2019 15:02:24 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <CAG48ez2jAp9xkPXQmVXm0PqNrFGscg9BufQRem2UD8FGX-YzPw@mail.gmail.com>
- <CAHk-=whL4sZiM=JcdQAYQvHm7h7xEtVUh+gYGYhoSk4vi38tXg@mail.gmail.com>
- <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com>
- <CAHk-=wiMQeCEKESWTmm15x79NjEjNwFvjZ=9XenxY7yH8zqa7A@mail.gmail.com>
- <20190106001138.GW6310@bombadil.infradead.org> <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com>
-In-Reply-To: <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 5 Jan 2019 17:50:59 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com>
-Message-ID:
- <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jann Horn <jannh@google.com>, Jiri Kosina <jikos@kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
-Content-Type: multipart/mixed; boundary="000000000000ff4c37057ec05817"
+In-Reply-To: <1545819215-10892-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset="UTF-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190106015059.5AXgIulqjhLCGoguywIFI_IN473JDPQZABPJh6WKUAU@z>
+Message-ID: <20190106060224.yMdrgleHSw0__dqcFL4MyZySCdOe-nUwapvvIOLaA7E@z>
 
---000000000000ff4c37057ec05817
-Content-Type: text/plain; charset="UTF-8"
+Michal and Johannes, can we please stop this stupid behavior now?
 
-On Sat, Jan 5, 2019 at 4:22 PM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> But I think my patch to just rip out all that page lookup, and just
-> base it on the page table state has the fundamental advantage that it
-> gets rid of code. Maybe I should jst commit it, and see if anything
-> breaks? We do have options in case things break, and then we'd at
-> least know who cares (and perhaps a lot more information of _why_ they
-> care).
+Reproducer:
+----------
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sched.h>
+#include <sys/mman.h>
 
-Slightly updated patch in case somebody wants to try things out.
+#define NUMTHREADS 256
+#define MMAPSIZE 4 * 10485760
+#define STACKSIZE 4096
+static int pipe_fd[2] = { EOF, EOF };
+static int memory_eater(void *unused)
+{
+	int fd = open("/dev/zero", O_RDONLY);
+	char *buf = mmap(NULL, MMAPSIZE, PROT_WRITE | PROT_READ,
+			 MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+	read(pipe_fd[0], buf, 1);
+	read(fd, buf, MMAPSIZE);
+	pause();
+	return 0;
+}
+int main(int argc, char *argv[])
+{
+	int i;
+	char *stack;
+	FILE *fp;
+	const unsigned long size = 1048576 * 200;
+	mkdir("/sys/fs/cgroup/memory/test1", 0755);
+	fp = fopen("/sys/fs/cgroup/memory/test1/memory.limit_in_bytes", "w");
+	fprintf(fp, "%lu\n", size);
+	fclose(fp);
+	fp = fopen("/sys/fs/cgroup/memory/test1/tasks", "w");
+	fprintf(fp, "%u\n", getpid());
+	fclose(fp);
+	if (setgid(-2) || setuid(-2) || pipe(pipe_fd))
+		return 1;
+	if (fork() == 0) {
+		stack = mmap(NULL, STACKSIZE * NUMTHREADS, PROT_WRITE | PROT_READ,
+			     MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+		for (i = 0; i < NUMTHREADS; i++)
+			if (clone(memory_eater, stack + (i + 1) * STACKSIZE,
+				  CLONE_SIGHAND | CLONE_THREAD | CLONE_VM | CLONE_FS | CLONE_FILES, NULL) == -1)
+				break;
+		close(pipe_fd[1]);
+		pause();
+	}
+	close(pipe_fd[0]);
+	for (i = 0; i < NUMTHREADS / 2; i++)
+		if (fork() == 0) {
+			close(pipe_fd[1]);
+			pause();
+		}
+	sleep(1);
+	close(pipe_fd[1]);
+	pause();
+	return 0;
+}
+----------
 
-Also, any comments about the pmd_trans_unstable() case?
+Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20190106.txt.xz :
+----------
+[   79.104729] a.out invoked oom-killer: gfp_mask=0x6200ca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+(...snipped...)
+[   79.237203] memory: usage 204800kB, limit 204800kB, failcnt 2834
+[   79.242176] memory+swap: usage 204800kB, limit 9007199254740988kB, failcnt 0
+[   79.245175] kmem: usage 23420kB, limit 9007199254740988kB, failcnt 0
+[   79.247945] Memory cgroup stats for /test1: cache:177456KB rss:3420KB rss_huge:0KB shmem:177456KB mapped_file:177540KB dirty:0KB writeback:0KB swap:0KB inactive_anon:177676KB active_anon:3612KB inactive_file:0KB active_file:0KB unevictable:0KB
+[   79.256726] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/test1,task_memcg=/test1,task=a.out,pid=8204,uid=-2
+[   79.262470] Memory cgroup out of memory: Kill process 8204 (a.out) score 822 or sacrifice child
+[   79.266901] Killed process 8204 (a.out) total-vm:10491132kB, anon-rss:92kB, file-rss:444kB, shmem-rss:167028kB
+[   79.272974] oom_reaper: reaped process 8447 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:167488kB
+[   79.277733] a.out invoked oom-killer: gfp_mask=0x6200ca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+(...snipped...)
+[   79.386222] memory: usage 204708kB, limit 204800kB, failcnt 2837
+[   79.412519] Killed process 8205 (a.out) total-vm:4348kB, anon-rss:92kB, file-rss:0kB, shmem-rss:0kB
+(...snipped...)
+[   79.539042] memory: usage 204600kB, limit 204800kB, failcnt 2838
+[   79.564617] Killed process 8206 (a.out) total-vm:4348kB, anon-rss:92kB, file-rss:0kB, shmem-rss:0kB
+(...snipped...)
+[   81.967741] Memory cgroup out of memory: Kill process 8203 (a.out) score 6 or sacrifice child
+[   81.971760] Killed process 8203 (a.out) total-vm:4348kB, anon-rss:92kB, file-rss:1156kB, shmem-rss:0kB
+[   81.977329] a.out invoked oom-killer: gfp_mask=0x6200ca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+(...snipped...)
+[   81.977529] memory: usage 187160kB, limit 204800kB, failcnt 2838
+[   81.977530] memory+swap: usage 187160kB, limit 9007199254740988kB, failcnt 0
+[   81.977531] kmem: usage 8264kB, limit 9007199254740988kB, failcnt 0
+[   81.977532] Memory cgroup stats for /test1: cache:178248KB rss:372KB rss_huge:0KB shmem:178248KB mapped_file:178332KB dirty:0KB writeback:0KB swap:0KB inactive_anon:178568KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
+[   81.977545] Out of memory and no killable processes...
+(...snipped...)
+[   87.914960] a.out invoked oom-killer: gfp_mask=0x6200ca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+(...snipped...)
+[   88.019110] memory: usage 183472kB, limit 204800kB, failcnt 2838
+[   88.021629] memory+swap: usage 183472kB, limit 9007199254740988kB, failcnt 0
+[   88.024513] kmem: usage 4448kB, limit 9007199254740988kB, failcnt 0
+[   88.027137] Memory cgroup stats for /test1: cache:178512KB rss:372KB rss_huge:0KB shmem:178512KB mapped_file:178464KB dirty:0KB writeback:0KB swap:0KB inactive_anon:178760KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
+[   88.036008] Out of memory and no killable processes...
+----------
 
-                    Linus
 
---000000000000ff4c37057ec05817
-Content-Type: text/x-patch; charset="US-ASCII"; name="patch.diff"
-Content-Disposition: attachment; filename="patch.diff"
-Content-Transfer-Encoding: base64
-Content-ID: <f_jqk8qbng0>
-X-Attachment-Id: f_jqk8qbng0
 
-IG1tL21pbmNvcmUuYyB8IDk0ICsrKysrKysrKy0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogMSBmaWxlIGNoYW5nZWQsIDEzIGluc2VydGlvbnMoKyks
-IDgxIGRlbGV0aW9ucygtKQoKZGlmZiAtLWdpdCBhL21tL21pbmNvcmUuYyBiL21tL21pbmNvcmUu
-YwppbmRleCAyMTgwOTliNWVkMzEuLmYwZjkxNDYxYTlmNCAxMDA2NDQKLS0tIGEvbW0vbWluY29y
-ZS5jCisrKyBiL21tL21pbmNvcmUuYwpAQCAtNDIsNzIgKzQyLDE0IEBAIHN0YXRpYyBpbnQgbWlu
-Y29yZV9odWdldGxiKHB0ZV90ICpwdGUsIHVuc2lnbmVkIGxvbmcgaG1hc2ssIHVuc2lnbmVkIGxv
-bmcgYWRkciwKIAlyZXR1cm4gMDsKIH0KIAotLyoKLSAqIExhdGVyIHdlIGNhbiBnZXQgbW9yZSBw
-aWNreSBhYm91dCB3aGF0ICJpbiBjb3JlIiBtZWFucyBwcmVjaXNlbHkuCi0gKiBGb3Igbm93LCBz
-aW1wbHkgY2hlY2sgdG8gc2VlIGlmIHRoZSBwYWdlIGlzIGluIHRoZSBwYWdlIGNhY2hlLAotICog
-YW5kIGlzIHVwIHRvIGRhdGU7IGkuZS4gdGhhdCBubyBwYWdlLWluIG9wZXJhdGlvbiB3b3VsZCBi
-ZSByZXF1aXJlZAotICogYXQgdGhpcyB0aW1lIGlmIGFuIGFwcGxpY2F0aW9uIHdlcmUgdG8gbWFw
-IGFuZCBhY2Nlc3MgdGhpcyBwYWdlLgotICovCi1zdGF0aWMgdW5zaWduZWQgY2hhciBtaW5jb3Jl
-X3BhZ2Uoc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcsIHBnb2ZmX3QgcGdvZmYpCi17Ci0J
-dW5zaWduZWQgY2hhciBwcmVzZW50ID0gMDsKLQlzdHJ1Y3QgcGFnZSAqcGFnZTsKLQotCS8qCi0J
-ICogV2hlbiB0bXBmcyBzd2FwcyBvdXQgYSBwYWdlIGZyb20gYSBmaWxlLCBhbnkgcHJvY2VzcyBt
-YXBwaW5nIHRoYXQKLQkgKiBmaWxlIHdpbGwgbm90IGdldCBhIHN3cF9lbnRyeV90IGluIGl0cyBw
-dGUsIGJ1dCByYXRoZXIgaXQgaXMgbGlrZQotCSAqIGFueSBvdGhlciBmaWxlIG1hcHBpbmcgKGll
-LiBtYXJrZWQgIXByZXNlbnQgYW5kIGZhdWx0ZWQgaW4gd2l0aAotCSAqIHRtcGZzJ3MgLmZhdWx0
-KS4gU28gc3dhcHBlZCBvdXQgdG1wZnMgbWFwcGluZ3MgYXJlIHRlc3RlZCBoZXJlLgotCSAqLwot
-I2lmZGVmIENPTkZJR19TV0FQCi0JaWYgKHNobWVtX21hcHBpbmcobWFwcGluZykpIHsKLQkJcGFn
-ZSA9IGZpbmRfZ2V0X2VudHJ5KG1hcHBpbmcsIHBnb2ZmKTsKLQkJLyoKLQkJICogc2htZW0vdG1w
-ZnMgbWF5IHJldHVybiBzd2FwOiBhY2NvdW50IGZvciBzd2FwY2FjaGUKLQkJICogcGFnZSB0b28u
-Ci0JCSAqLwotCQlpZiAoeGFfaXNfdmFsdWUocGFnZSkpIHsKLQkJCXN3cF9lbnRyeV90IHN3cCA9
-IHJhZGl4X3RvX3N3cF9lbnRyeShwYWdlKTsKLQkJCXBhZ2UgPSBmaW5kX2dldF9wYWdlKHN3YXBf
-YWRkcmVzc19zcGFjZShzd3ApLAotCQkJCQkgICAgIHN3cF9vZmZzZXQoc3dwKSk7Ci0JCX0KLQl9
-IGVsc2UKLQkJcGFnZSA9IGZpbmRfZ2V0X3BhZ2UobWFwcGluZywgcGdvZmYpOwotI2Vsc2UKLQlw
-YWdlID0gZmluZF9nZXRfcGFnZShtYXBwaW5nLCBwZ29mZik7Ci0jZW5kaWYKLQlpZiAocGFnZSkg
-ewotCQlwcmVzZW50ID0gUGFnZVVwdG9kYXRlKHBhZ2UpOwotCQlwdXRfcGFnZShwYWdlKTsKLQl9
-Ci0KLQlyZXR1cm4gcHJlc2VudDsKLX0KLQotc3RhdGljIGludCBfX21pbmNvcmVfdW5tYXBwZWRf
-cmFuZ2UodW5zaWduZWQgbG9uZyBhZGRyLCB1bnNpZ25lZCBsb25nIGVuZCwKLQkJCQlzdHJ1Y3Qg
-dm1fYXJlYV9zdHJ1Y3QgKnZtYSwgdW5zaWduZWQgY2hhciAqdmVjKQotewotCXVuc2lnbmVkIGxv
-bmcgbnIgPSAoZW5kIC0gYWRkcikgPj4gUEFHRV9TSElGVDsKLQlpbnQgaTsKLQotCWlmICh2bWEt
-PnZtX2ZpbGUpIHsKLQkJcGdvZmZfdCBwZ29mZjsKLQotCQlwZ29mZiA9IGxpbmVhcl9wYWdlX2lu
-ZGV4KHZtYSwgYWRkcik7Ci0JCWZvciAoaSA9IDA7IGkgPCBucjsgaSsrLCBwZ29mZisrKQotCQkJ
-dmVjW2ldID0gbWluY29yZV9wYWdlKHZtYS0+dm1fZmlsZS0+Zl9tYXBwaW5nLCBwZ29mZik7Ci0J
-fSBlbHNlIHsKLQkJZm9yIChpID0gMDsgaSA8IG5yOyBpKyspCi0JCQl2ZWNbaV0gPSAwOwotCX0K
-LQlyZXR1cm4gbnI7Ci19Ci0KIHN0YXRpYyBpbnQgbWluY29yZV91bm1hcHBlZF9yYW5nZSh1bnNp
-Z25lZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLAogCQkJCSAgIHN0cnVjdCBtbV93YWxr
-ICp3YWxrKQogewotCXdhbGstPnByaXZhdGUgKz0gX19taW5jb3JlX3VubWFwcGVkX3JhbmdlKGFk
-ZHIsIGVuZCwKLQkJCQkJCSAgd2Fsay0+dm1hLCB3YWxrLT5wcml2YXRlKTsKKwl1bnNpZ25lZCBj
-aGFyICp2ZWMgPSB3YWxrLT5wcml2YXRlOworCXVuc2lnbmVkIGxvbmcgbnIgPSAoZW5kIC0gYWRk
-cikgPj4gUEFHRV9TSElGVDsKKworCW1lbXNldCh2ZWMsIDAsIG5yKTsKKwl3YWxrLT5wcml2YXRl
-ICs9IG5yOwogCXJldHVybiAwOwogfQogCkBAIC0xMjcsOCArNjksOSBAQCBzdGF0aWMgaW50IG1p
-bmNvcmVfcHRlX3JhbmdlKHBtZF90ICpwbWQsIHVuc2lnbmVkIGxvbmcgYWRkciwgdW5zaWduZWQg
-bG9uZyBlbmQsCiAJCWdvdG8gb3V0OwogCX0KIAorCS8qIFdlJ2xsIGNvbnNpZGVyIGEgVEhQIHBh
-Z2UgdW5kZXIgY29uc3RydWN0aW9uIHRvIGJlIHRoZXJlICovCiAJaWYgKHBtZF90cmFuc191bnN0
-YWJsZShwbWQpKSB7Ci0JCV9fbWluY29yZV91bm1hcHBlZF9yYW5nZShhZGRyLCBlbmQsIHZtYSwg
-dmVjKTsKKwkJbWVtc2V0KHZlYywgMSwgbnIpOwogCQlnb3RvIG91dDsKIAl9CiAKQEAgLTEzNywy
-OCArODAsMTcgQEAgc3RhdGljIGludCBtaW5jb3JlX3B0ZV9yYW5nZShwbWRfdCAqcG1kLCB1bnNp
-Z25lZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLAogCQlwdGVfdCBwdGUgPSAqcHRlcDsK
-IAogCQlpZiAocHRlX25vbmUocHRlKSkKLQkJCV9fbWluY29yZV91bm1hcHBlZF9yYW5nZShhZGRy
-LCBhZGRyICsgUEFHRV9TSVpFLAotCQkJCQkJIHZtYSwgdmVjKTsKKwkJCSp2ZWMgPSAwOwogCQll
-bHNlIGlmIChwdGVfcHJlc2VudChwdGUpKQogCQkJKnZlYyA9IDE7CiAJCWVsc2UgeyAvKiBwdGUg
-aXMgYSBzd2FwIGVudHJ5ICovCiAJCQlzd3BfZW50cnlfdCBlbnRyeSA9IHB0ZV90b19zd3BfZW50
-cnkocHRlKTsKIAotCQkJaWYgKG5vbl9zd2FwX2VudHJ5KGVudHJ5KSkgewotCQkJCS8qCi0JCQkJ
-ICogbWlncmF0aW9uIG9yIGh3cG9pc29uIGVudHJpZXMgYXJlIGFsd2F5cwotCQkJCSAqIHVwdG9k
-YXRlCi0JCQkJICovCi0JCQkJKnZlYyA9IDE7Ci0JCQl9IGVsc2UgewotI2lmZGVmIENPTkZJR19T
-V0FQCi0JCQkJKnZlYyA9IG1pbmNvcmVfcGFnZShzd2FwX2FkZHJlc3Nfc3BhY2UoZW50cnkpLAot
-CQkJCQkJICAgIHN3cF9vZmZzZXQoZW50cnkpKTsKLSNlbHNlCi0JCQkJV0FSTl9PTigxKTsKLQkJ
-CQkqdmVjID0gMTsKLSNlbmRpZgotCQkJfQorCQkJLyoKKwkJCSAqIG1pZ3JhdGlvbiBvciBod3Bv
-aXNvbiBlbnRyaWVzIGFyZSBhbHdheXMKKwkJCSAqIHVwdG9kYXRlCisJCQkgKi8KKwkJCSp2ZWMg
-PSAhIW5vbl9zd2FwX2VudHJ5KGVudHJ5KTsKIAkJfQogCQl2ZWMrKzsKIAl9Cg==
---000000000000ff4c37057ec05817--
+From 0fb58415770a83d6c40d471e1840f8bc4a35ca83 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Wed, 26 Dec 2018 19:13:35 +0900
+Subject: [PATCH] memcg: killed threads should not invoke memcg OOM killer
+
+If $N > $M, a single process with $N threads in a memcg group can easily
+kill all $M processes in that memcg group, for mem_cgroup_out_of_memory()
+does not check if current thread needs to invoke the memcg OOM killer.
+
+  T1@P1     |T2...$N@P1|P2...$M   |OOM reaper
+  ----------+----------+----------+----------
+                        # all sleeping
+  try_charge()
+    mem_cgroup_out_of_memory()
+      mutex_lock(oom_lock)
+             try_charge()
+               mem_cgroup_out_of_memory()
+                 mutex_lock(oom_lock)
+      out_of_memory()
+        select_bad_process()
+        oom_kill_process(P1)
+        wake_oom_reaper()
+                                   oom_reap_task() # ignores P1
+      mutex_unlock(oom_lock)
+                 out_of_memory()
+                   select_bad_process(P2...M)
+                        # all killed by T2...N@P1
+                   wake_oom_reaper()
+                                   oom_reap_task() # ignores P2...M
+                 mutex_unlock(oom_lock)
+
+We don't need to invoke the memcg OOM killer if current thread was killed
+when waiting for oom_lock, for mem_cgroup_oom_synchronize(true) and
+memory_max_write() can bail out upon SIGKILL, and try_charge() allows
+already killed/exiting threads to make forward progress.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/memcontrol.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b860dd4f7..b0d3bf3 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1389,8 +1389,13 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	};
+ 	bool ret;
+ 
+-	mutex_lock(&oom_lock);
+-	ret = out_of_memory(&oc);
++	if (mutex_lock_killable(&oom_lock))
++		return true;
++	/*
++	 * A few threads which were not waiting at mutex_lock_killable() can
++	 * fail to bail out. Therefore, check again after holding oom_lock.
++	 */
++	ret = fatal_signal_pending(current) || out_of_memory(&oc);
+ 	mutex_unlock(&oom_lock);
+ 	return ret;
+ }
+-- 
+1.8.3.1
 
