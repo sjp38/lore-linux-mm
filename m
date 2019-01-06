@@ -1,100 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D4B8F8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 19:44:34 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id e17so2645955wrw.13
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 16:44:34 -0800 (PST)
-Received: from mail.us.es (mail.us.es. [193.147.175.20])
-        by mx.google.com with ESMTPS id a124si9873899wmf.38.2019.01.09.16.44.32
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 810098E0001
+	for <linux-mm@kvack.org>; Sun,  6 Jan 2019 06:00:33 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 12so29852736plb.18
+        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 03:00:33 -0800 (PST)
+Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60116.outbound.protection.outlook.com. [40.107.6.116])
+        by mx.google.com with ESMTPS id i6si56846855pgq.207.2019.01.06.03.00.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 16:44:33 -0800 (PST)
-Received: from antivirus1-rhel7.int (unknown [192.168.2.11])
-	by mail.us.es (Postfix) with ESMTP id 314411E8F9F
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 01:44:31 +0100 (CET)
-Received: from antivirus1-rhel7.int (localhost [127.0.0.1])
-	by antivirus1-rhel7.int (Postfix) with ESMTP id 1EF24DA7FC
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 01:44:31 +0100 (CET)
-Date: Thu, 10 Jan 2019 01:44:26 +0100
-From: Pablo Neira Ayuso <pablo@netfilter.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 06 Jan 2019 03:00:31 -0800 (PST)
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
 Subject: Re: [PATCH v2] netfilter: account ebt_table_info to kmemcg
-Message-ID: <20190110004426.p4n4lrpnnvv4czir@salvia>
+Date: Sun, 6 Jan 2019 11:00:24 +0000
+Message-ID: <5cc8efad-9d3d-3136-3ddc-1f8a640cb1f8@virtuozzo.com>
 References: <20190103031431.247970-1-shakeelb@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20190103031431.247970-1-shakeelb@google.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <44C40DD317502844B1969825E000CB76@eurprd08.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Florian Westphal <fw@strlen.de>, Kirill Tkhai <ktkhai@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, bridge@lists.linux-foundation.org
+To: Shakeel Butt <shakeelb@google.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Florian Westphal <fw@strlen.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com" <syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com>, Pablo Neira Ayuso <pablo@netfilter.org>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Roopa Prabhu <roopa@cumulusnetworks.com>, Nikolay Aleksandrov <nikolay@cumulusnetworks.com>, "netfilter-devel@vger.kernel.org" <netfilter-devel@vger.kernel.org>, "coreteam@netfilter.org" <coreteam@netfilter.org>, "bridge@lists.linux-foundation.org" <bridge@lists.linux-foundation.org>
 
-On Wed, Jan 02, 2019 at 07:14:31PM -0800, Shakeel Butt wrote:
-> The [ip,ip6,arp]_tables use x_tables_info internally and the underlying
-> memory is already accounted to kmemcg. Do the same for ebtables. The
-> syzbot, by using setsockopt(EBT_SO_SET_ENTRIES), was able to OOM the
-> whole system from a restricted memcg, a potential DoS.
-> 
-> By accounting the ebt_table_info, the memory used for ebt_table_info can
-> be contained within the memcg of the allocating process. However the
-> lifetime of ebt_table_info is independent of the allocating process and
-> is tied to the network namespace. So, the oom-killer will not be able to
-> relieve the memory pressure due to ebt_table_info memory. The memory for
-> ebt_table_info is allocated through vmalloc. Currently vmalloc does not
-> handle the oom-killed allocating process correctly and one large
-> allocation can bypass memcg limit enforcement. So, with this patch,
-> at least the small allocations will be contained. For large allocations,
-> we need to fix vmalloc.
-
-Fine with this -mm?
-
-If no objections, I'll apply this to the netfilter tree. Thanks.
-
-> Reported-by: syzbot+7713f3aa67be76b1552c@syzkaller.appspotmail.com
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> Cc: Florian Westphal <fw@strlen.de>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Cc: Pablo Neira Ayuso <pablo@netfilter.org>
-> Cc: Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
-> Cc: Roopa Prabhu <roopa@cumulusnetworks.com>
-> Cc: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Linux MM <linux-mm@kvack.org>
-> Cc: netfilter-devel@vger.kernel.org
-> Cc: coreteam@netfilter.org
-> Cc: bridge@lists.linux-foundation.org
-> Cc: LKML <linux-kernel@vger.kernel.org>
-> ---
-> Changelog since v1:
-> - More descriptive commit message.
-> 
->  net/bridge/netfilter/ebtables.c | 6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/net/bridge/netfilter/ebtables.c b/net/bridge/netfilter/ebtables.c
-> index 491828713e0b..5e55cef0cec3 100644
-> --- a/net/bridge/netfilter/ebtables.c
-> +++ b/net/bridge/netfilter/ebtables.c
-> @@ -1137,14 +1137,16 @@ static int do_replace(struct net *net, const void __user *user,
->  	tmp.name[sizeof(tmp.name) - 1] = 0;
->  
->  	countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
-> -	newinfo = vmalloc(sizeof(*newinfo) + countersize);
-> +	newinfo = __vmalloc(sizeof(*newinfo) + countersize, GFP_KERNEL_ACCOUNT,
-> +			    PAGE_KERNEL);
->  	if (!newinfo)
->  		return -ENOMEM;
->  
->  	if (countersize)
->  		memset(newinfo->counters, 0, countersize);
->  
-> -	newinfo->entries = vmalloc(tmp.entries_size);
-> +	newinfo->entries = __vmalloc(tmp.entries_size, GFP_KERNEL_ACCOUNT,
-> +				     PAGE_KERNEL);
->  	if (!newinfo->entries) {
->  		ret = -ENOMEM;
->  		goto free_newinfo;
-> -- 
-> 2.20.1.415.g653613c723-goog
-> 
+T24gMDMuMDEuMjAxOSAwNjoxNCwgU2hha2VlbCBCdXR0IHdyb3RlOg0KPiBUaGUgW2lwLGlwNixh
+cnBdX3RhYmxlcyB1c2UgeF90YWJsZXNfaW5mbyBpbnRlcm5hbGx5IGFuZCB0aGUgdW5kZXJseWlu
+Zw0KPiBtZW1vcnkgaXMgYWxyZWFkeSBhY2NvdW50ZWQgdG8ga21lbWNnLiBEbyB0aGUgc2FtZSBm
+b3IgZWJ0YWJsZXMuIFRoZQ0KPiBzeXpib3QsIGJ5IHVzaW5nIHNldHNvY2tvcHQoRUJUX1NPX1NF
+VF9FTlRSSUVTKSwgd2FzIGFibGUgdG8gT09NIHRoZQ0KPiB3aG9sZSBzeXN0ZW0gZnJvbSBhIHJl
+c3RyaWN0ZWQgbWVtY2csIGEgcG90ZW50aWFsIERvUy4NCj4gDQo+IEJ5IGFjY291bnRpbmcgdGhl
+IGVidF90YWJsZV9pbmZvLCB0aGUgbWVtb3J5IHVzZWQgZm9yIGVidF90YWJsZV9pbmZvIGNhbg0K
+PiBiZSBjb250YWluZWQgd2l0aGluIHRoZSBtZW1jZyBvZiB0aGUgYWxsb2NhdGluZyBwcm9jZXNz
+LiBIb3dldmVyIHRoZQ0KPiBsaWZldGltZSBvZiBlYnRfdGFibGVfaW5mbyBpcyBpbmRlcGVuZGVu
+dCBvZiB0aGUgYWxsb2NhdGluZyBwcm9jZXNzIGFuZA0KPiBpcyB0aWVkIHRvIHRoZSBuZXR3b3Jr
+IG5hbWVzcGFjZS4gU28sIHRoZSBvb20ta2lsbGVyIHdpbGwgbm90IGJlIGFibGUgdG8NCj4gcmVs
+aWV2ZSB0aGUgbWVtb3J5IHByZXNzdXJlIGR1ZSB0byBlYnRfdGFibGVfaW5mbyBtZW1vcnkuIFRo
+ZSBtZW1vcnkgZm9yDQo+IGVidF90YWJsZV9pbmZvIGlzIGFsbG9jYXRlZCB0aHJvdWdoIHZtYWxs
+b2MuIEN1cnJlbnRseSB2bWFsbG9jIGRvZXMgbm90DQo+IGhhbmRsZSB0aGUgb29tLWtpbGxlZCBh
+bGxvY2F0aW5nIHByb2Nlc3MgY29ycmVjdGx5IGFuZCBvbmUgbGFyZ2UNCj4gYWxsb2NhdGlvbiBj
+YW4gYnlwYXNzIG1lbWNnIGxpbWl0IGVuZm9yY2VtZW50LiBTbywgd2l0aCB0aGlzIHBhdGNoLA0K
+PiBhdCBsZWFzdCB0aGUgc21hbGwgYWxsb2NhdGlvbnMgd2lsbCBiZSBjb250YWluZWQuIEZvciBs
+YXJnZSBhbGxvY2F0aW9ucywNCj4gd2UgbmVlZCB0byBmaXggdm1hbGxvYy4NCj4gDQo+IFJlcG9y
+dGVkLWJ5OiBzeXpib3QrNzcxM2YzYWE2N2JlNzZiMTU1MmNAc3l6a2FsbGVyLmFwcHNwb3RtYWls
+LmNvbQ0KPiBTaWduZWQtb2ZmLWJ5OiBTaGFrZWVsIEJ1dHQgPHNoYWtlZWxiQGdvb2dsZS5jb20+
+DQo+IENjOiBGbG9yaWFuIFdlc3RwaGFsIDxmd0BzdHJsZW4uZGU+DQo+IENjOiBNaWNoYWwgSG9j
+a28gPG1ob2Nrb0BrZXJuZWwub3JnPg0KPiBDYzogS2lyaWxsIFRraGFpIDxrdGtoYWlAdmlydHVv
+enpvLmNvbT4NCj4gQ2M6IFBhYmxvIE5laXJhIEF5dXNvIDxwYWJsb0BuZXRmaWx0ZXIub3JnPg0K
+PiBDYzogSm96c2VmIEthZGxlY3NpayA8a2FkbGVjQGJsYWNraG9sZS5rZmtpLmh1Pg0KPiBDYzog
+Um9vcGEgUHJhYmh1IDxyb29wYUBjdW11bHVzbmV0d29ya3MuY29tPg0KPiBDYzogTmlrb2xheSBB
+bGVrc2FuZHJvdiA8bmlrb2xheUBjdW11bHVzbmV0d29ya3MuY29tPg0KPiBDYzogQW5kcmV3IE1v
+cnRvbiA8YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz4NCj4gQ2M6IExpbnV4IE1NIDxsaW51eC1t
+bUBrdmFjay5vcmc+DQo+IENjOiBuZXRmaWx0ZXItZGV2ZWxAdmdlci5rZXJuZWwub3JnDQo+IENj
+OiBjb3JldGVhbUBuZXRmaWx0ZXIub3JnDQo+IENjOiBicmlkZ2VAbGlzdHMubGludXgtZm91bmRh
+dGlvbi5vcmcNCj4gQ2M6IExLTUwgPGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc+DQo+IC0t
+LQ0KPiBDaGFuZ2Vsb2cgc2luY2UgdjE6DQo+IC0gTW9yZSBkZXNjcmlwdGl2ZSBjb21taXQgbWVz
+c2FnZS4NCg0KUmV2aWV3ZWQtYnk6IEtpcmlsbCBUa2hhaSA8a3RraGFpQHZpcnR1b3p6by5jb20+
+DQoNCj4gDQo+ICBuZXQvYnJpZGdlL25ldGZpbHRlci9lYnRhYmxlcy5jIHwgNiArKysrLS0NCj4g
+IDEgZmlsZSBjaGFuZ2VkLCA0IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pDQo+IA0KPiBk
+aWZmIC0tZ2l0IGEvbmV0L2JyaWRnZS9uZXRmaWx0ZXIvZWJ0YWJsZXMuYyBiL25ldC9icmlkZ2Uv
+bmV0ZmlsdGVyL2VidGFibGVzLmMNCj4gaW5kZXggNDkxODI4NzEzZTBiLi41ZTU1Y2VmMGNlYzMg
+MTAwNjQ0DQo+IC0tLSBhL25ldC9icmlkZ2UvbmV0ZmlsdGVyL2VidGFibGVzLmMNCj4gKysrIGIv
+bmV0L2JyaWRnZS9uZXRmaWx0ZXIvZWJ0YWJsZXMuYw0KPiBAQCAtMTEzNywxNCArMTEzNywxNiBA
+QCBzdGF0aWMgaW50IGRvX3JlcGxhY2Uoc3RydWN0IG5ldCAqbmV0LCBjb25zdCB2b2lkIF9fdXNl
+ciAqdXNlciwNCj4gIAl0bXAubmFtZVtzaXplb2YodG1wLm5hbWUpIC0gMV0gPSAwOw0KPiAgDQo+
+ICAJY291bnRlcnNpemUgPSBDT1VOVEVSX09GRlNFVCh0bXAubmVudHJpZXMpICogbnJfY3B1X2lk
+czsNCj4gLQluZXdpbmZvID0gdm1hbGxvYyhzaXplb2YoKm5ld2luZm8pICsgY291bnRlcnNpemUp
+Ow0KPiArCW5ld2luZm8gPSBfX3ZtYWxsb2Moc2l6ZW9mKCpuZXdpbmZvKSArIGNvdW50ZXJzaXpl
+LCBHRlBfS0VSTkVMX0FDQ09VTlQsDQo+ICsJCQkgICAgUEFHRV9LRVJORUwpOw0KPiAgCWlmICgh
+bmV3aW5mbykNCj4gIAkJcmV0dXJuIC1FTk9NRU07DQo+ICANCj4gIAlpZiAoY291bnRlcnNpemUp
+DQo+ICAJCW1lbXNldChuZXdpbmZvLT5jb3VudGVycywgMCwgY291bnRlcnNpemUpOw0KPiAgDQo+
+IC0JbmV3aW5mby0+ZW50cmllcyA9IHZtYWxsb2ModG1wLmVudHJpZXNfc2l6ZSk7DQo+ICsJbmV3
+aW5mby0+ZW50cmllcyA9IF9fdm1hbGxvYyh0bXAuZW50cmllc19zaXplLCBHRlBfS0VSTkVMX0FD
+Q09VTlQsDQo+ICsJCQkJICAgICBQQUdFX0tFUk5FTCk7DQo+ICAJaWYgKCFuZXdpbmZvLT5lbnRy
+aWVzKSB7DQo+ICAJCXJldCA9IC1FTk9NRU07DQo+ICAJCWdvdG8gZnJlZV9uZXdpbmZvOw0KPiAN
+Cg0K
