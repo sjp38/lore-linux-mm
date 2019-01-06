@@ -1,246 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 42E668E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 03:59:47 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id f5-v6so8672678ljj.17
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 00:59:47 -0800 (PST)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 345FE8E0001
+	for <linux-mm@kvack.org>; Sun,  6 Jan 2019 10:58:00 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id t133so46175548iof.20
+        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 07:58:00 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u19sor12773625lfc.20.2019.01.02.00.59.45
+        by mx.google.com with SMTPS id j79sor23583883jad.11.2019.01.06.07.57.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 02 Jan 2019 00:59:45 -0800 (PST)
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Subject: [RFC v3 3/3] selftests/vm: add script helper for CONFIG_TEST_VMALLOC_MODULE
-Date: Wed,  2 Jan 2019 09:59:24 +0100
-Message-Id: <20190102085924.14145-4-urezki@gmail.com>
-In-Reply-To: <20190102085924.14145-1-urezki@gmail.com>
-References: <20190102085924.14145-1-urezki@gmail.com>
+        Sun, 06 Jan 2019 07:57:59 -0800 (PST)
+MIME-Version: 1.0
+References: <0100016819f5682e-a7e2541c-4390-4e14-ac65-8793243215c6-000000@email.amazonses.com>
+In-Reply-To: <0100016819f5682e-a7e2541c-4390-4e14-ac65-8793243215c6-000000@email.amazonses.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sun, 6 Jan 2019 16:57:47 +0100
+Message-ID: <CACT4Y+avxq-9MshcDAtKMpGbQPBGvAmK801TuTgiK12onM9H9Q@mail.gmail.com>
+Subject: Re: [FIX] slab: Alien caches must not be initialized if the
+ allocation of the alien cache failed
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Shuah Khan <shuah@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: akpm@linuxfoundation.org, Linux-MM <linux-mm@kvack.org>, stable@kernel.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Add the test script for the kernel test driver to analyse vmalloc
-allocator for benchmarking and stressing purposes. It is just a kernel
-module loader. You can specify and pass different parameters in order
-to investigate allocations behaviour. See "usage" output for more
-details.
+On Fri, Jan 4, 2019 at 6:42 PM Christopher Lameter <cl@linux.com> wrote:
+>
+> From: Christoph Lameter <cl@linux.com>
+>
+> Callers of __alloc_alien() check for NULL.
+> We must do the same check in __alloc_alien() after the allocation of
+> the alien cache to avoid potential NULL pointer dereferences
+> should the  allocation fail.
+>
+> Fixes: 49dfc304ba241b315068023962004542c5118103 ("slab: use the lock on alien_cache, instead of the lock on array_cache")
+> Fixes: c8522a3a5832b843570a3315674f5a3575958a5 ("Slab: introduce alloc_alien")
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Also add basic vmalloc smoke test to the "run_vmtests" suite.
+Please also add the Reported-by tag to commit for tracking purposes:
 
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
----
- tools/testing/selftests/vm/run_vmtests     |  16 +++
- tools/testing/selftests/vm/test_vmalloc.sh | 176 +++++++++++++++++++++++++++++
- 2 files changed, 192 insertions(+)
- create mode 100755 tools/testing/selftests/vm/test_vmalloc.sh
+Reported-by: syzbot+d6ed4ec679652b4fd4e4@syzkaller.appspotmail.com
 
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 88cbe5575f0c..48ac0f757e9c 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -200,4 +200,20 @@ else
-     echo "[PASS]"
- fi
- 
-+echo "------------------------------------"
-+echo "running vmalloc stability smoke test"
-+echo "------------------------------------"
-+./test_vmalloc.sh smoke
-+ret_val=$?
-+
-+if [ $ret_val -eq 0 ]; then
-+	echo "[PASS]"
-+elif [ $ret_val -eq $ksft_skip ]; then
-+	 echo "[SKIP]"
-+	 exitcode=$ksft_skip
-+else
-+	echo "[FAIL]"
-+	exitcode=1
-+fi
-+
- exit $exitcode
-diff --git a/tools/testing/selftests/vm/test_vmalloc.sh b/tools/testing/selftests/vm/test_vmalloc.sh
-new file mode 100755
-index 000000000000..06d2bb109f06
---- /dev/null
-+++ b/tools/testing/selftests/vm/test_vmalloc.sh
-@@ -0,0 +1,176 @@
-+#!/bin/bash
-+# SPDX-License-Identifier: GPL-2.0
-+#
-+# Copyright (C) 2018 Uladzislau Rezki (Sony) <urezki@gmail.com>
-+#
-+# This is a test script for the kernel test driver to analyse vmalloc
-+# allocator. Therefore it is just a kernel module loader. You can specify
-+# and pass different parameters in order to:
-+#     a) analyse performance of vmalloc allocations;
-+#     b) stressing and stability check of vmalloc subsystem.
-+
-+TEST_NAME="vmalloc"
-+DRIVER="test_${TEST_NAME}"
-+
-+# 1 if fails
-+exitcode=1
-+
-+# Kselftest framework requirement - SKIP code is 4.
-+ksft_skip=4
-+
-+#
-+# Static templates for performance, stressing and smoke tests.
-+# Also it is possible to pass any supported parameters manualy.
-+#
-+PERF_PARAM="single_cpu_test=1 sequential_test_order=1 test_repeat_count=3"
-+SMOKE_PARAM="single_cpu_test=1 test_loop_count=10000 test_repeat_count=10"
-+STRESS_PARAM="test_repeat_count=20"
-+
-+check_test_requirements()
-+{
-+	uid=$(id -u)
-+	if [ $uid -ne 0 ]; then
-+		echo "$0: Must be run as root"
-+		exit $ksft_skip
-+	fi
-+
-+	if ! which modprobe > /dev/null 2>&1; then
-+		echo "$0: You need modprobe installed"
-+		exit $ksft_skip
-+	fi
-+
-+	if ! modinfo $DRIVER > /dev/null 2>&1; then
-+		echo "$0: You must have the following enabled in your kernel:"
-+		echo "CONFIG_TEST_VMALLOC=m"
-+		exit $ksft_skip
-+	fi
-+}
-+
-+run_perfformance_check()
-+{
-+	echo "Run performance tests to evaluate how fast vmalloc allocation is."
-+	echo "It runs all test cases on one single CPU with sequential order."
-+
-+	modprobe $DRIVER $PERF_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Ccheck the kernel message buffer to see the summary."
-+}
-+
-+run_stability_check()
-+{
-+	echo "Run stability tests. In order to stress vmalloc subsystem we run"
-+	echo "all available test cases on all available CPUs simultaneously."
-+	echo "It will take time, so be patient."
-+
-+	modprobe $DRIVER $STRESS_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+run_smoke_check()
-+{
-+	echo "Run smoke test. Note, this test provides basic coverage."
-+	echo "Please check $0 output how it can be used"
-+	echo "for deep performance analysis as well as stress testing."
-+
-+	modprobe $DRIVER $SMOKE_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+usage()
-+{
-+	echo -n "Usage: $0 [ performance ] | [ stress ] | | [ smoke ] | "
-+	echo "manual parameters"
-+	echo
-+	echo "Valid tests and parameters:"
-+	echo
-+	modinfo $DRIVER
-+	echo
-+	echo "Example usage:"
-+	echo
-+	echo "# Shows help message"
-+	echo "./${DRIVER}.sh"
-+	echo
-+	echo "# Runs 1 test(id_1), repeats it 5 times on all online CPUs"
-+	echo "./${DRIVER}.sh run_test_mask=1 test_repeat_count=5"
-+	echo
-+	echo -n "# Runs 4 tests(id_1|id_2|id_4|id_16) on one CPU with "
-+	echo "sequential order"
-+	echo -n "./${DRIVER}.sh single_cpu_test=1 sequential_test_order=1 "
-+	echo "run_test_mask=23"
-+	echo
-+	echo -n "# Runs all tests on all online CPUs, shuffled order, repeats "
-+	echo "20 times"
-+	echo "./${DRIVER}.sh test_repeat_count=20"
-+	echo
-+	echo "# Performance analysis"
-+	echo "./${DRIVER}.sh performance"
-+	echo
-+	echo "# Stress testing"
-+	echo "./${DRIVER}.sh stress"
-+	echo
-+	exit 0
-+}
-+
-+function validate_passed_args()
-+{
-+	VALID_ARGS=`modinfo $DRIVER | awk '/parm:/ {print $2}' | sed 's/:.*//'`
-+
-+	#
-+	# Something has been passed, check it.
-+	#
-+	for passed_arg in $@; do
-+		key=${passed_arg//=*/}
-+		val="${passed_arg:$((${#key}+1))}"
-+		valid=0
-+
-+		for valid_arg in $VALID_ARGS; do
-+			if [[ $key = $valid_arg ]] && [[ $val -gt 0 ]]; then
-+				valid=1
-+				break
-+			fi
-+		done
-+
-+		if [[ $valid -ne 1 ]]; then
-+			echo "Error: key or value is not correct: ${key} $val"
-+			exit $exitcode
-+		fi
-+	done
-+}
-+
-+function run_manual_check()
-+{
-+	#
-+	# Validate passed parameters. If there is wrong one,
-+	# the script exists and does not execute further.
-+	#
-+	validate_passed_args $@
-+
-+	echo "Run the test with following parameters: $@"
-+	modprobe $DRIVER $@ > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+function run_test()
-+{
-+	if [ $# -eq 0 ]; then
-+		usage
-+	else
-+		if [[ "$1" = "performance" ]]; then
-+			run_perfformance_check
-+		elif [[ "$1" = "stress" ]]; then
-+			run_stability_check
-+		elif [[ "$1" = "smoke" ]]; then
-+			run_smoke_check
-+		else
-+			run_manual_check $@
-+		fi
-+	fi
-+}
-+
-+check_test_requirements
-+run_test $@
-+
-+exit 0
--- 
-2.11.0
+
+> Index: linux/mm/slab.c
+> ===================================================================
+> --- linux.orig/mm/slab.c
+> +++ linux/mm/slab.c
+> @@ -666,8 +666,10 @@ static struct alien_cache *__alloc_alien
+>         struct alien_cache *alc = NULL;
+>
+>         alc = kmalloc_node(memsize, gfp, node);
+> -       init_arraycache(&alc->ac, entries, batch);
+> -       spin_lock_init(&alc->lock);
+> +       if (alc) {
+> +               init_arraycache(&alc->ac, entries, batch);
+> +               spin_lock_init(&alc->lock);
+> +       }
+>         return alc;
+>  }
+>
