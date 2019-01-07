@@ -2,174 +2,163 @@ Return-Path: <SRS0=+lVK=PP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BCB13C43387
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 07:31:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FF8EC43387
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 08:38:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 462ED2085A
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 07:31:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 462ED2085A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=windriver.com
+	by mail.kernel.org (Postfix) with ESMTP id 29D71206B7
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 08:38:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EswmIADM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29D71206B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8EF28E0009; Mon,  7 Jan 2019 02:31:32 -0500 (EST)
+	id 701158E000C; Mon,  7 Jan 2019 03:38:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A3DB08E0001; Mon,  7 Jan 2019 02:31:32 -0500 (EST)
+	id 687BF8E0001; Mon,  7 Jan 2019 03:38:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 956A28E0009; Mon,  7 Jan 2019 02:31:32 -0500 (EST)
+	id 54FE58E000C; Mon,  7 Jan 2019 03:38:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 536F58E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 02:31:32 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id j8so31345575plb.1
-        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 23:31:32 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2790B8E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 03:38:07 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id 135so25332itk.5
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 00:38:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=osfVfAN6sk7BBFrB+BYASlCwB+j+pdLBsMY/18N8aJM=;
-        b=jXmCKhxhf60pyz3y1PydxJUXg/hsxuo9wg+TAsPswNH8yL8gOdjxEzNodQgVizVGsr
-         kGQjN1Q2hQUjLwcY/ABNmXCqvPktpxTG+27+g+d4T3r3BrpzZmRSKplAnGAWwzi5GlCe
-         ahzBMIYuB2e92QiX5CWV5eQ5GxVcmYSY90WJbNBkW25UK6gU3WbuP3zzsJxneSP4r1kr
-         WJpFZ9Vx3YLm1mNIeC84McGY3+GVF/qSGqFEg22XBQr2/aBlLckg+/NkuRueFO1zU6d3
-         ilzl9J51Yor4DsyvLG4b/1pie7ca4oeH02oMP7d8xFQBjvqArdt5WTYxBllS0dd5sjPn
-         IiQw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhe.he@windriver.com designates 147.11.1.11 as permitted sender) smtp.mailfrom=Zhe.He@windriver.com
-X-Gm-Message-State: AJcUukegbKp0JqZ4Yd+al4+uxrMxFHtftlntC85MQzEIZX6gfxWPkhMl
-	5hb3nNFYXRiCJUX5Oyf5iaSJhGeyJf3Q2KxGFuJJ1A8W+YJHhr9SAtUvMIOpJOB9QadRXobHZnx
-	Zr35+TeD/RqP1HA1G1UJbUsEoMBOn2/y49ph+9HtXcZnct3UqG+kT0FRU2GNgfpzphQ==
-X-Received: by 2002:a63:3287:: with SMTP id y129mr10132810pgy.337.1546846291859;
-        Sun, 06 Jan 2019 23:31:31 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6DGp2m9TJujCOYWkvVV0t17Z1zDEe7MDAWfk24OoyoqlWCIex3XXc1bK9JyH4ztKcMQOVt
-X-Received: by 2002:a63:3287:: with SMTP id y129mr10132757pgy.337.1546846290909;
-        Sun, 06 Jan 2019 23:31:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546846290; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=CVx1N3/1yZKes91LPFLzCoAaNamYHEmbi9lrJ9mdkOM=;
+        b=SUaEiTmvBZcHOUILEgOkWTOql2h7dPDToPCil7DU3YgcUh/d4XQmUOMtoedLsGZf2x
+         DFevCrOAzWEmDeS5QdoddWhtjdugkxIZx7g49cPcnm34O/mwngtQBCGcGct5M7X9IZRk
+         ZGTXRbadEsEtje1xmtGRFBiWi2iuyFScvaG7jn9SfUztRhPPevtcHBb8x5AgM0m0y15n
+         yBY9o6e6SCnfRgniULad/SSlX/e46oaLUbf9Z6B0soXKePGRKdv7QkdUssZDOiZq8FIi
+         fKxYO6jgWXD/+hH+5Iy8Tp9Bk2bVrEC5UzpeAYsLZIwkRFhcOz+3IcCYjAxu9wJJRmaz
+         AX4Q==
+X-Gm-Message-State: AJcUukdeeuEWQRU7E8F3P2k4ZHclAdG+43iFiMKtoxVc481RuCiUgWvn
+	dA9v3RJAkkAIKehtw+6HShBHqKJVFGcQ1jyoIp7ldVMSyJwdgmu9aa0yMyf+uyzpdTg+Pdpxf3H
+	wkubWzgxVcULNM7+CNaANPvMZj8ogOGdgADpPCUpBksegnMSvrq/ngxUmon0UqyMXPg+HGJ93Z3
+	6hoDJc1/uQSMEuvlwWCUDbmg+uOp+ytnLHJszffILRrtqyls2Jfwbdkk6C27VYdl9s5M+U/x67W
+	CODMl4uXFbVNVydZ9n/4knBtFnl7XVnqufRHu5dqro4Dy/niuwOhigwKfloN5wf4ZMF6EHjDfeL
+	7ychKxqkUk/fE3Op5oy+ABgPGz3fjmuyIJ0GCVRbXc9JRZsedT5e3IF7ztPhixmFAiWLv4fFRyX
+	M
+X-Received: by 2002:a24:65c8:: with SMTP id u191mr6900633itb.7.1546850286769;
+        Mon, 07 Jan 2019 00:38:06 -0800 (PST)
+X-Received: by 2002:a24:65c8:: with SMTP id u191mr6900613itb.7.1546850286038;
+        Mon, 07 Jan 2019 00:38:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546850286; cv=none;
         d=google.com; s=arc-20160816;
-        b=yaHIdKzIk3nDD567p1xFuA1bMHRIn1R7YWhBKGwHti5B8+wq7dio5FUGAtmcRS3FM0
-         5d08w4uicSVk3iVMQWHBkq69QmM1QLnOvxfMgBRjoCe53o3L63OpB08FoO9WTUnUeib0
-         f3QYj67Bl9iT4r+8IdgifO4egn5mUclYha8jZObQm3+zbCVoBl2nObTnvsUqDRWzgGZv
-         F2VvkMeFUs34PhB927S26mIdXd6S6Kza+FLM14yWDaoN1W5jo1ShqyCU9niV/pABsLK+
-         hFDFS1z3Q7pTKudyXi7Tz1ypJW5dSKwHCwmE4fBIdLIFXS9xpFIrskJ3FD4M3ftJudoC
-         pcDQ==
+        b=BoE0GM3uJf6ERLFYwDtMUDziDQYO8juTzRQzyWakBPq+cill8+1gHfN+GWEq2dwVGT
+         6SvwwzRrjURPglI1Lx/993tLn6ubiSI1ZdTp9C0/nnI54avNWSi/V93GkiSu1H4L231d
+         WOrPmxX8y4h/2COUZSGh4m8Ws0zs1QQhr1mQ2VIiywQtlFALidZLovoI0nmdML3tj5aY
+         1P8WRljgkTrc23fmEJsncSddeJfBJoDS9ZZRJQ06jEoBObKp4kvt5r+dE/RWw5zMM3kH
+         xGMu/5u0nIk4WgVnrMHl7r2bz6k0fmFP+MUBEetf/+3uym0MRPvy9oT8PDXW5Q3qc/uM
+         iTOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=osfVfAN6sk7BBFrB+BYASlCwB+j+pdLBsMY/18N8aJM=;
-        b=iINr6YNXtHWxNzQnMRVOJ1XdKKv1kIR0R1SLDmZlUb9ixu2XjbbHDYNgz0MKNUWtaC
-         tqg0sawJqiCJfWW/TYZI4L/Yg7v1xPmtZbsQHRTY/18Ep8FWMColtrOrN3zuGGAQ7Fpb
-         UW5gS5yNAltNhD4XZ5ghl6fSXhkXsOp3JMnKuOXAxLwlaNuV9CJHhnjz+AWheWjRMe5U
-         XigkNyN3Ll5wBLOXBoRNpcJ+iUm+b1XPa7ugqlYNEKxGIlUAo4Y3JKMmWjEGMUmfjKs/
-         RkfSDe5Sy4dK34vO86Fn6jESJ0NCYSW63lMGwA6jUNQOin5qmnEWDi9m/Yf4TeyVg1Cd
-         hLqg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=CVx1N3/1yZKes91LPFLzCoAaNamYHEmbi9lrJ9mdkOM=;
+        b=bAT+TE2LJyXV/6IKXQFYNzkWbajYC0QL7F2yHLNrlNyxnT344hlegwj8jeMkRzawFR
+         mTxPSbbv4s+80IsVKid0PmkhV2xpkUOZxYaIF0Iezbq7py0VFm7gsFHRa8+zqOGjlxgn
+         Mh0Kh5DtGOIchc5hAJcPjTkpBpxjmt1CcTUxau8Uh+iQ3fEghxyuaqcStugGdH38RCk3
+         GGnwD+xdfJiWs8F1sjDNnzEvtAlRX4iKLKspjJCeBP6OTJGYoC+QdPEbzhmqrpiLHk1x
+         HZAyi5mU14tZG7pjS0KCSfXdPIRpOtVW84MxAlVxzjjeo7DbRCQfKmc/S2GRPo/1Uh5W
+         5Kyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhe.he@windriver.com designates 147.11.1.11 as permitted sender) smtp.mailfrom=Zhe.He@windriver.com
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id k5si12736984plt.111.2019.01.06.23.31.30
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EswmIADM;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l125sor32115426iof.41.2019.01.07.00.38.05
         for <linux-mm@kvack.org>
-        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 06 Jan 2019 23:31:30 -0800 (PST)
-Received-SPF: pass (google.com: domain of zhe.he@windriver.com designates 147.11.1.11 as permitted sender) client-ip=147.11.1.11;
+        (Google Transport Security);
+        Mon, 07 Jan 2019 00:38:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhe.he@windriver.com designates 147.11.1.11 as permitted sender) smtp.mailfrom=Zhe.He@windriver.com
-Received: from ALA-HCA.corp.ad.wrs.com ([147.11.189.40])
-	by mail.windriver.com (8.15.2/8.15.1) with ESMTPS id x077VMIc020188
-	(version=TLSv1 cipher=AES128-SHA bits=128 verify=FAIL);
-	Sun, 6 Jan 2019 23:31:22 -0800 (PST)
-Received: from [128.224.162.180] (128.224.162.180) by ALA-HCA.corp.ad.wrs.com
- (147.11.189.50) with Microsoft SMTP Server (TLS) id 14.3.408.0; Sun, 6 Jan
- 2019 23:31:21 -0800
-Subject: Re: [PATCH] mm: kmemleak: Turn kmemleak_lock to spin lock and RCU
- primitives
-To: Catalin Marinas <catalin.marinas@arm.com>, <paulmck@linux.ibm.com>,
-        <josh@joshtriplett.org>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
-References: <1546612153-451172-1-git-send-email-zhe.he@windriver.com>
- <20190104183715.GC187360@arrakis.emea.arm.com>
-From: He Zhe <zhe.he@windriver.com>
-Message-ID: <f923e9e9-ed73-5054-3d82-b2244c67a65e@windriver.com>
-Date: Mon, 7 Jan 2019 15:31:18 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.2.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EswmIADM;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=CVx1N3/1yZKes91LPFLzCoAaNamYHEmbi9lrJ9mdkOM=;
+        b=EswmIADMoit8HAC/ONWLIUOs82xUyZZ7KMpmO9np6klXABsQU1QTRU18JTuiNxSRAO
+         JqCEQgIK+qEXqqFcT232liEa7b5BoboTP1JaHua26Oxa3PU6ycJYqOje/YOsiHvTN8hu
+         h72X/T2z8V4h4XkHJOprue2txZdkbRWgcW91+MtWEN19h2y984vSFt7LlQpQ8mSXiAZ0
+         yFG3AunNP1aSP7HEefVBgpijQe27ZzmdODIBmHYBeyWeG5+vk3VBUqgd44hSWiEWf900
+         HTYM6PegdJmyslG9PeWQE8bjwKTPXGS5giqesuBuGi+5zHfrIQ+1VE8C/UWcQXqXW2Za
+         WaiA==
+X-Google-Smtp-Source: ALg8bN565vD9gCVSgZ0kouTj2emPGiwItjw1PmyzR2yMpnUaBIORex/wGD7CZ9/km0XWTaveGh3JDkr1kJL25ChZtV0=
+X-Received: by 2002:a6b:3f06:: with SMTP id m6mr39444084ioa.117.1546850285729;
+ Mon, 07 Jan 2019 00:38:05 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190104183715.GC187360@arrakis.emea.arm.com>
+References: <1545966002-3075-1-git-send-email-kernelfans@gmail.com>
+ <1545966002-3075-2-git-send-email-kernelfans@gmail.com> <20181231084018.GA28478@rapoport-lnx>
+ <CAFgQCTvQnj7zReFvH_gmfVJdPXE325o+z4Xx76fupvsLR_7H2A@mail.gmail.com>
+ <20190102092749.GA22664@rapoport-lnx> <20190102101804.GD1990@MiWiFi-R3L-srv>
+ <20190102170537.GA3591@rapoport-lnx> <20190103184706.GU2509588@devbig004.ftw2.facebook.com>
+In-Reply-To: <20190103184706.GU2509588@devbig004.ftw2.facebook.com>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Mon, 7 Jan 2019 16:37:54 +0800
+Message-ID:
+ <CAFgQCTt2=6mwFid8HS+K5UsqkBv8y7N5WOoKpVxYzNxjwmV75A@mail.gmail.com>
+Subject: Re: [PATCHv3 1/2] mm/memblock: extend the limit inferior of bottom-up
+ after parsing hotplug attr
+To: Tejun Heo <tj@kernel.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, Baoquan He <bhe@redhat.com>, linux-acpi@vger.kernel.org, 
+	linux-mm@kvack.org, kexec@lists.infradead.org, 
+	"Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Michal Hocko <mhocko@suse.com>, Jonathan Corbet <corbet@lwn.net>, 
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Nicholas Piggin <npiggin@gmail.com>, 
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Daniel Vacek <neelx@redhat.com>, 
+	Mathieu Malaterre <malat@debian.org>, Stefan Agner <stefan@agner.ch>, Dave Young <dyoung@redhat.com>, 
+	yinghai@kernel.org, vgoyal@redhat.com, linux-kernel@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Originating-IP: [128.224.162.180]
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190107073118.0WvjC1yLjCnGx9APxdRsN2FGwYCeo5goRfE62UEK-IE@z>
+Message-ID: <20190107083754.xCTXqk_T4YyKmXaUNGeM1JmfU5J7ptgTswVvgC9Lp50@z>
 
-
-
-On 1/5/19 2:37 AM, Catalin Marinas wrote:
-> On Fri, Jan 04, 2019 at 10:29:13PM +0800, zhe.he@windriver.com wrote:
->> It's not necessary to keep consistency between readers and writers of
->> kmemleak_lock. RCU is more proper for this case. And in order to gain better
->> performance, we turn the reader locks to RCU read locks and writer locks to
->> normal spin locks.
-> This won't work.
->
->> @@ -515,9 +515,7 @@ static struct kmemleak_object *find_and_get_object(unsigned long ptr, int alias)
->>  	struct kmemleak_object *object;
->>  
->>  	rcu_read_lock();
->> -	read_lock_irqsave(&kmemleak_lock, flags);
->>  	object = lookup_object(ptr, alias);
->> -	read_unlock_irqrestore(&kmemleak_lock, flags);
-> The comment on lookup_object() states that the kmemleak_lock must be
-> held. That's because we don't have an RCU-like mechanism for removing
-> removing objects from the object_tree_root:
->
->>  
->>  	/* check whether the object is still available */
->>  	if (object && !get_object(object))
->> @@ -537,13 +535,13 @@ static struct kmemleak_object *find_and_remove_object(unsigned long ptr, int ali
->>  	unsigned long flags;
->>  	struct kmemleak_object *object;
->>  
->> -	write_lock_irqsave(&kmemleak_lock, flags);
->> +	spin_lock_irqsave(&kmemleak_lock, flags);
->>  	object = lookup_object(ptr, alias);
->>  	if (object) {
->>  		rb_erase(&object->rb_node, &object_tree_root);
->>  		list_del_rcu(&object->object_list);
->>  	}
->> -	write_unlock_irqrestore(&kmemleak_lock, flags);
->> +	spin_unlock_irqrestore(&kmemleak_lock, flags);
-> So here, while list removal is RCU-safe, rb_erase() is not.
->
-> If you have time to implement an rb_erase_rcu(), than we could reduce
-> the locking in kmemleak.
-
-Thanks, I really neglected that rb_erase is not RCU-safe here.
-
-I'm not sure if it is practically possible to implement rb_erase_rcu. Here
-is my concern:
-In the code paths starting from rb_erase, the tree is tweaked at many
-places, in both __rb_erase_augmented and ____rb_erase_color. To my
-understanding, there are many intermediate versions of the tree
-during the erasion. In some of the versions, the tree is incomplete, i.e.
-some nodes(not the one to be deleted) are invisible to readers. I'm not
-sure if this is acceptable as an RCU implementation. Does it mean we
-need to form a rb_erase_rcu from scratch?
-
-And are there any other concerns about this attempt?
-
-Let me add RCU supporters Paul and Josh here. Your advice would be
-highly appreciated.
+I send out a series [RFC PATCH 0/4] x86_64/mm: remove bottom-up
+allocation style by pushing forward the parsing of mem hotplug info (
+https://lore.kernel.org/lkml/1546849485-27933-1-git-send-email-kernelfans@gmail.com/T/#t).
+Please give comment if you are interested.
 
 Thanks,
-Zhe
+Pingfan
 
-
+On Fri, Jan 4, 2019 at 2:47 AM Tejun Heo <tj@kernel.org> wrote:
 >
+> Hello,
+>
+> On Wed, Jan 02, 2019 at 07:05:38PM +0200, Mike Rapoport wrote:
+> > I agree that currently the bottom-up allocation after the kernel text has
+> > issues with KASLR. But this issues are not necessarily related to the
+> > memory hotplug. Even with a single memory node, a bottom-up allocation will
+> > fail if KASLR would put the kernel near the end of node0.
+> >
+> > What I am trying to understand is whether there is a fundamental reason to
+> > prevent allocations from [0, kernel_start)?
+> >
+> > Maybe Tejun can recall why he suggested to start bottom-up allocations from
+> > kernel_end.
+>
+> That's from 79442ed189ac ("mm/memblock.c: introduce bottom-up
+> allocation mode").  I wasn't involved in that patch, so no idea why
+> the restrictions were added, but FWIW it doesn't seem necessary to me.
+>
+> Thanks.
+>
+> --
+> tejun
 
