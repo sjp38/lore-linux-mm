@@ -6,88 +6,88 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB991C43444
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D00CC43612
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 94A9B2183E
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94A9B2183E
+	by mail.kernel.org (Postfix) with ESMTP id 18CE12173C
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18CE12173C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 119F08E002E; Mon,  7 Jan 2019 09:39:44 -0500 (EST)
+	id 6BC4C8E002F; Mon,  7 Jan 2019 09:39:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CC2F8E0001; Mon,  7 Jan 2019 09:39:44 -0500 (EST)
+	id 671628E0001; Mon,  7 Jan 2019 09:39:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8A7D8E002E; Mon,  7 Jan 2019 09:39:43 -0500 (EST)
+	id 47FA28E002F; Mon,  7 Jan 2019 09:39:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B99E8E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 09:39:43 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id e12so376858edd.16
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 06:39:43 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D863A8E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 09:39:44 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e17so382088edr.7
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 06:39:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=LFZQrU8fTXYe+4yKyznILHyyYdOjuztNdiLALRdIzAY=;
-        b=W/ot4HpxKJvhvMpRDTDZBLj3xrEQ/T+HWLa/jPrYU9TcnbnipBjs+/N9SEQpdbx6Dt
-         qWqwLcZzIkoRMpj2FI0qFs22Ncf6hZiPKXdRuSWAJNH3n4vb8ILjFhrQLSbHAEcv0r2V
-         SU8AHjVJzWZZjJAGwa/oMaSgW4IuEV9k1dQ6DHGlpbn2Idxna1rdxGoEzmymCoUbB3kb
-         CjMTVXuzftP3z3iI2iuxKMp+f8+COy4LKIc47SVNGKWL4OJAn48rR4uXRhK76+y8mFRw
-         cp3AttnlgIgBqsX1VR2ApDHi0KiyIIw8acoyK+MSUcg6HoC7hPd8UY3Dzr9C2YjSa5Lc
-         fKAw==
+        bh=czsf4vL5FOcnDURNZogytxKTVT3D/fN437qEHjVuQNY=;
+        b=USo/h3ljzJbudQR5TJDcXtmqqPB0DYsARtocgBZj6DyOwg85tCpJVcxw7vHNvyUSlP
+         GP6/umpaFqjFWRb48c4bohAllvVijBTds6hKRpCLZOftlxr0MBd7itzRzVgrn9HSn1lm
+         gZX03dNr8rtCjaJefYdy1pmT4uQfe/dHwlNwy2s0/zbP5meSDonfr5ZwDrNviX3zEHiC
+         XLSLp55Ys3xKlJARk+Qs7rJS8+2vBCvNqJ/cobbtBT58ecxqwXNyMOMc9Sf7rxz2LpMG
+         LNsz6Vil3vQgr5UJfA/vlVusR9LowaGDPXuLcQEXV38oNSCuiiNuYEdm72GSO2d4W+mt
+         wzog==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AA+aEWakuEzTEiQrC2gwokRHZgRXYgKSY88DPYbAVo+07FbhUo7GZ56E
-	Zn5HmV6FeGOikbI6qpOJUFpLzNtZaDt1SdX5JvsUHTzjYYQToZ3DSTaD6EluyOPJDcuA9npZCi9
-	jmRUUYie5oDuaGl1BTlLlRX/39Y7384vfcQlOUeju7ioKzQKCKhDGCI7EADmxiGSVzUHDalaIUX
-	hoornkkZ6z6U3PGbX2xCOKYrdegHnzR09b7hiAGEa8mKltUOzaByT40aXaLHZxgt5XQuTNBbwNS
-	d4huGk3J1rEWValqsv7m5D9QY02ffbiX8jbwbqxBUU1V4kVfxJ+xhPeqOdWN+7p7BdlacMPNwzx
-	su6g3ua2gYI2AwFK8659Mnat0e/DySjqu8W3yIR0RWCQfWDDHNqOhIJ3/ReLT3zyMkh3+DVqHw=
+X-Gm-Message-State: AA+aEWa27b7GHP9SyaEAlEWaCZeaJd9c6TOOpr3kuyCZ+fEogzA+60eV
+	Q4iVU/FgpN+l+b1CyiJxGOyk7WuY0mJLVZXW5dWwSU7TsWLBAC5RTkj/LVdGrB+x/XqL+oY8Wwe
+	MPKBEx/8C22ssT/ciN815fNeouj2deQsRlq+xj8Dz5pZiKDQpe5iT2YWKa3vzkqp0ADELX1w2Dw
+	x4qlgckjcYYJh1zDgT4KV9WiT4q8W7N09CoWUHut7Ttdl8MPYsRINGUBBBjpHM3u/x1z8Ih6njI
+	gNOEsb3MKL0Vnb2HR51qzbW2yBO6I8wh9zhfmLEZUg4/DqvpflCIr0oXoO45JLI+aE4ELCBDzsw
+	yAU2qZOGicF+5CzkG22WmX5+VXlnQhn2SotjCxJAso5dD+cbvKeJwrc57Su5F4g8ANzf7Vfzsw=
 	=
-X-Received: by 2002:a50:8d8c:: with SMTP id r12mr55243304edh.105.1546871983057;
+X-Received: by 2002:a50:af21:: with SMTP id g30mr52882454edd.234.1546871984394;
+        Mon, 07 Jan 2019 06:39:44 -0800 (PST)
+X-Received: by 2002:a50:af21:: with SMTP id g30mr52882407edd.234.1546871983534;
         Mon, 07 Jan 2019 06:39:43 -0800 (PST)
-X-Received: by 2002:a50:8d8c:: with SMTP id r12mr55243251edh.105.1546871982175;
-        Mon, 07 Jan 2019 06:39:42 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546871982; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1546871983; cv=none;
         d=google.com; s=arc-20160816;
-        b=NKe500z5fDDWEuOUh4/5wB8r1xa076SvuWXrfqZo3El3iJukubRoy7kVVThoKP7m+G
-         cYFqDb0M/N6ZAGVkRXQZpf52sCGS3FUAnGH+EuUcnfROfe/u5n9+ZUgn0x9zmONvc99z
-         DugQrnhNImK77F/4nW9fU7AfGV6jkzCDd9IcACwD5qwmYB4sONxP4bUN/3WtEtNAIEoX
-         ZSRJnT1Hc0XI+iEQwBEl3yg8EgPuzRzdd7v7PlyRw9f7n2tqVkDXF1euLXxhSu12L4sP
-         AZvGlngWUGkZKJ0cQaDpYQHBX7TgpLzD0ffhTI0ax8vG9hiZduW8xrA5SLwN9dWmY/Fq
-         aOGQ==
+        b=ctWSqK5wSw3VeNswPm39qsQbdIYvXNykYeoKtMbMdCWGNZSP7U7ROAHNvCRizMltsb
+         YYe6VhLiRQ0KN93SC8+gj2nna1+lNtX6zwXZpc4+VNk3PXb6vmMqPhWxO+fTiAdGD603
+         Xr2udajZ/AEcW7U6ui7rJdG0kU+lDxh/b22ItrCHjX6qNken+tmvJZS1ArJntLvMGrgR
+         /+reBphOu7W8JWr9zbxPKk5yeCMZRqrQCSHuyiiaTaA37IIcfBWj684eIYbUa+wphqcl
+         AsYMtW7U2gazHdIt7SlLgq/7eBYT7ybgT0g/rOnKRFpArk8hSMjaNYBjbWrboeE6zVff
+         DpTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=LFZQrU8fTXYe+4yKyznILHyyYdOjuztNdiLALRdIzAY=;
-        b=nUz0XKxiuwFTORTl/Fw+pehkDNNPvpdZIPYE9Rd5z6oJ2/iTMvbpT9MZKql8U8wgCt
-         H+U2oS4N2sXV8viRXWhJZJBUInMl3tg3eu/o+76PG5TdyRkHHgi/L2hs3gqe26Nt8o3O
-         nqLTFgxfh620e98irNwzrrFmVk4Kd0FCUFpUB1/NJhN4vL6L3PMnJQZaVlRDW4ZvQ2Zm
-         rxkedA7vhokeZvtVTbNyM/STjf9VeApuIYq0vhgOvoSF47RhL4QkMZp2+38kkpjsXdjd
-         0kpIa5VvmEzFlrGX1SPkJwRBcWPpTVfOmxpcLKGwe10zbSR5DLunME60ojbcvyjjIZ97
-         rtGA==
+        bh=czsf4vL5FOcnDURNZogytxKTVT3D/fN437qEHjVuQNY=;
+        b=YtxeCmK05FIAeONnPDBY2HKOPe+YzneQuB5Ip0wT9Lh090fibY7PUCWBGlV/3dWvg7
+         d/U3JWr4KTtY5qg2HQXWox64k5fxbF8GuupjfhnjucZ7QpzoJcC9j8E3qYpUGQLfRntP
+         yYICqGt5IcwbC4F4GTVnA8u7mFXbR5++DjEsyX+FMB+cJCcwwr1YOjkSYMPVpNCkHkkw
+         V32xxFrAJbyOR2YvlorJB1QiGk+m1cPgPVughj2W4INXsJPflVmSPDGjxjFphRK5Vfk3
+         ZkOvp8fTs7u9Jn/kXcMteBeGaqLlGX6iyXT16uZBmlOGH2Yxj5+4E2XkuVzw3NXvvTYV
+         U6gA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bz3-v6sor18549802ejb.17.2019.01.07.06.39.42
+        by mx.google.com with SMTPS id a37sor36264614edd.23.2019.01.07.06.39.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 07 Jan 2019 06:39:42 -0800 (PST)
+        Mon, 07 Jan 2019 06:39:43 -0800 (PST)
 Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AFSGD/XDwJtPft+7e+YBwwRMOEFJiiNj0lmF71HskZs7fiZ6HzWFIE7LfZHsN6DrG9+SFqQ6YZXLew==
-X-Received: by 2002:a17:906:d191:: with SMTP id c17-v6mr47364442ejz.27.1546871981554;
-        Mon, 07 Jan 2019 06:39:41 -0800 (PST)
+X-Google-Smtp-Source: AFSGD/Uhw9JeGaHha/JfMcZjkBf21wzOw/01k7ipnizHZJkKEM6lzU1I0tG3yeYB8iVCpINRJsmKrg==
+X-Received: by 2002:a50:d311:: with SMTP id g17mr55094523edh.187.1546871982911;
+        Mon, 07 Jan 2019 06:39:42 -0800 (PST)
 Received: from tiehlicka.suse.cz (prg-ext-pat.suse.com. [213.151.95.130])
-        by smtp.gmail.com with ESMTPSA id l18sm29285813edq.87.2019.01.07.06.39.40
+        by smtp.gmail.com with ESMTPSA id l18sm29285813edq.87.2019.01.07.06.39.41
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 06:39:40 -0800 (PST)
+        Mon, 07 Jan 2019 06:39:41 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
 To: <linux-mm@kvack.org>
 Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
@@ -95,9 +95,9 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	LKML <linux-kernel@vger.kernel.org>,
 	Michal Hocko <mhocko@suse.com>
-Subject: [PATCH 1/2] mm, oom: marks all killed tasks as oom victims
-Date: Mon,  7 Jan 2019 15:38:01 +0100
-Message-Id: <20190107143802.16847-2-mhocko@kernel.org>
+Subject: [PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
+Date: Mon,  7 Jan 2019 15:38:02 +0100
+Message-Id: <20190107143802.16847-3-mhocko@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190107143802.16847-1-mhocko@kernel.org>
 References: <20190107143802.16847-1-mhocko@kernel.org>
@@ -109,54 +109,68 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190107143801.Bb32kWpVYfSTl5Klaf5ieYP1vQsU4dh2rkPYqxOmWpI@z>
+Message-ID: <20190107143802.p6PM1tis6fPoDoFEv753NG63bDU2RbowJBHmLzcSsec@z>
 
 From: Michal Hocko <mhocko@suse.com>
 
-Historically we have called mark_oom_victim only to the main task
-selected as the oom victim because oom victims have access to memory
-reserves and granting the access to all killed tasks could deplete
-memory reserves very quickly and cause even larger problems.
+Tetsuo has reported [1] that a single process group memcg might easily
+swamp the log with no-eligible oom victim reports due to race between
+the memcg charge and oom_reaper
 
-Since only a partial access to memory reserves is allowed there is no
-longer this risk and so all tasks killed along with the oom victim
-can be considered as well.
+Thread 1		Thread2				oom_reaper
+try_charge		try_charge
+			  mem_cgroup_out_of_memory
+			    mutex_lock(oom_lock)
+  mem_cgroup_out_of_memory
+    mutex_lock(oom_lock)
+			      out_of_memory
+			        select_bad_process
+				oom_kill_process(current)
+				  wake_oom_reaper
+							  oom_reap_task
+							  MMF_OOM_SKIP->victim
+			    mutex_unlock(oom_lock)
+    out_of_memory
+      select_bad_process # no task
 
-The primary motivation for that is that process groups which do not
-shared signals would behave more like standard thread groups wrt oom
-handling (aka tsk_is_oom_victim will work the same way for them).
+If Thread1 didn't race it would bail out from try_charge and force the
+charge. We can achieve the same by checking tsk_is_oom_victim inside
+the oom_lock and therefore close the race.
 
-- Use find_lock_task_mm to stabilize mm as suggested by Tetsuo
-
+[1] http://lkml.kernel.org/r/bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/oom_kill.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ mm/memcontrol.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index f0e8cd9edb1a..0246c7a4e44e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -892,6 +892,7 @@ static void __oom_kill_process(struct task_struct *victim)
- 	 */
- 	rcu_read_lock();
- 	for_each_process(p) {
-+		struct task_struct *t;
- 		if (!process_shares_mm(p, mm))
- 			continue;
- 		if (same_thread_group(p, victim))
-@@ -911,6 +912,11 @@ static void __oom_kill_process(struct task_struct *victim)
- 		if (unlikely(p->flags & PF_KTHREAD))
- 			continue;
- 		do_send_sig_info(SIGKILL, SEND_SIG_PRIV, p, PIDTYPE_TGID);
-+		t = find_lock_task_mm(p);
-+		if (!t)
-+			continue;
-+		mark_oom_victim(t);
-+		task_unlock(t);
- 	}
- 	rcu_read_unlock();
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index af7f18b32389..90eb2e2093e7 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1387,10 +1387,22 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 		.gfp_mask = gfp_mask,
+ 		.order = order,
+ 	};
+-	bool ret;
++	bool ret = true;
  
+ 	mutex_lock(&oom_lock);
++
++	/*
++	 * multi-threaded tasks might race with oom_reaper and gain
++	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
++	 * to out_of_memory failure if the task is the last one in
++	 * memcg which would be a false possitive failure reported
++	 */
++	if (tsk_is_oom_victim(current))
++		goto unlock;
++
+ 	ret = out_of_memory(&oc);
++
++unlock:
+ 	mutex_unlock(&oom_lock);
+ 	return ret;
+ }
 -- 
 2.20.1
 
