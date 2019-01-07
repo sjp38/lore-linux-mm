@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A4398E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 07:52:16 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id f69so148990pff.5
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 04:52:16 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1540D8E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 07:40:24 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id 143so95970pgc.3
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 04:40:24 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n15si60176110pgk.27.2019.01.07.04.52.15
+        by mx.google.com with ESMTPS id i13si11442482pgi.260.2019.01.07.04.40.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 04:52:15 -0800 (PST)
+        Mon, 07 Jan 2019 04:40:22 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.19 090/170] x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
-Date: Mon,  7 Jan 2019 13:31:57 +0100
-Message-Id: <20190107104503.633415008@linuxfoundation.org>
-In-Reply-To: <20190107104452.953560660@linuxfoundation.org>
-References: <20190107104452.953560660@linuxfoundation.org>
+Subject: [PATCH 4.20 054/145] x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
+Date: Mon,  7 Jan 2019 13:31:31 +0100
+Message-Id: <20190107104444.427143561@linuxfoundation.org>
+In-Reply-To: <20190107104437.308206189@linuxfoundation.org>
+References: <20190107104437.308206189@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,7 +23,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Pavel Tatashin <pasha.tatashin@soleen.com>, Andi Kleen <ak@linux.intel.com>, Jiri Kosina <jkosina@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org
 
-4.19-stable review patch.  If anyone has any objections, please let me know.
+4.20-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -69,7 +69,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2073,6 +2073,9 @@
+@@ -2096,6 +2096,9 @@
  			off
  				Disables hypervisor mitigations and doesn't
  				emit any warnings.
@@ -103,7 +103,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
      a guest.
 --- a/arch/x86/kernel/cpu/bugs.c
 +++ b/arch/x86/kernel/cpu/bugs.c
-@@ -1000,7 +1000,8 @@ static void __init l1tf_select_mitigatio
+@@ -1002,7 +1002,8 @@ static void __init l1tf_select_mitigatio
  #endif
  
  	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
@@ -115,7 +115,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  				half_pa);
 --- a/arch/x86/mm/init.c
 +++ b/arch/x86/mm/init.c
-@@ -932,7 +932,7 @@ unsigned long max_swapfile_size(void)
+@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
  
  	pages = generic_max_swapfile_size();
  
