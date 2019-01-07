@@ -1,33 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DEA6C8E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 04:10:29 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id t2so1317859edb.22
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 01:10:29 -0800 (PST)
-Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
-        by mx.google.com with ESMTP id q5-v6si4275073ejs.232.2019.01.08.01.10.27
-        for <linux-mm@kvack.org>;
-        Tue, 08 Jan 2019 01:10:27 -0800 (PST)
-Date: Tue, 8 Jan 2019 10:10:26 +0100
-From: Oscar Salvador <osalvador@suse.de>
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F24C28E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 06:34:17 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id f2so27286qtg.14
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 03:34:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j16si15978589qvp.114.2019.01.07.03.34.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Jan 2019 03:34:16 -0800 (PST)
 Subject: Re: [PATCH v4] mm: remove extra drain pages on pcp list
-Message-ID: <20190108091019.ax2mzjcvrpknn6ve@d104.suse.de>
 References: <20181221170228.10686-1-richard.weiyang@gmail.com>
  <20190105233141.2329-1-richard.weiyang@gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <f9391cab-38a6-bd61-9bb8-93c33861d968@redhat.com>
+Date: Mon, 7 Jan 2019 12:34:13 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20190105233141.2329-1-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, david@redhat.com
+To: Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, osalvador@suse.de
 
-On Sun, Jan 06, 2019 at 07:31:41AM +0800, Wei Yang wrote:
+On 06.01.19 00:31, Wei Yang wrote:
+> In current implementation, there are two places to isolate a range of
+> page: __offline_pages() and alloc_contig_range(). During this procedure,
+> it will drain pages on pcp list.
+> 
+> Below is a brief call flow:
+> 
+>   __offline_pages()/alloc_contig_range()
+>       start_isolate_page_range()
+>           set_migratetype_isolate()
+>               drain_all_pages()
+>       drain_all_pages()                 <--- A
+> 
+> From this snippet we can see current logic is isolate and drain pcp list
+> for each pageblock and drain pcp list again for the whole range.
+> 
+> start_isolate_page_range is responsible for isolating the given pfn
+> range. One part of that job is to make sure that also pages that are on
+> the allocator pcp lists are properly isolated. Otherwise they could be
+> reused and the range wouldn't be completely isolated until the memory is
+> freed back.  While there is no strict guarantee here because pages might
+> get allocated at any time before drain_all_pages is called there doesn't
+> seem to be any strong demand for such a guarantee.
+> 
+> In any case, draining is already done at the isolation level and there
+> is no need to do it again later by start_isolate_page_range callers
+> (memory hotplug and CMA allocator currently). Therefore remove pointless
+> draining in existing callers to make the code more clear and
+> functionally correct.
+> 
+> [mhocko@suse.com: provide a clearer changelog for the last two paragraph]
+> 
 > Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 > Acked-by: Michal Hocko <mhocko@suse.com>
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Acked-by: David Hildenbrand <david@redhat.com>
 
 > 
 > ---
@@ -66,10 +99,11 @@ Reviewed-by: Oscar Salvador <osalvador@suse.de>
 >  
 >  	order = 0;
 >  	outer_start = start;
-> -- 
-> 2.15.1
 > 
 
+
 -- 
-Oscar Salvador
-SUSE L3
+
+Thanks,
+
+David / dhildenb
