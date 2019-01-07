@@ -1,30 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 83A418E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 13:59:16 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id x67so828198pfk.16
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 10:59:16 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n20si19490054plp.294.2019.01.07.10.59.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 10:59:15 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x07Ii0Dt131076
-	for <linux-mm@kvack.org>; Mon, 7 Jan 2019 13:59:14 -0500
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pv9atkfba-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 07 Jan 2019 13:59:14 -0500
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 7 Jan 2019 18:59:13 -0000
-Date: Mon, 7 Jan 2019 10:59:31 -0800
-From: "Paul E. McKenney" <paulmck@linux.ibm.com>
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 864DF8E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 05:10:20 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id d41so107971eda.12
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 02:10:20 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id m14-v6si2954435ejr.112.2019.01.07.02.10.18
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jan 2019 02:10:19 -0800 (PST)
+Date: Mon, 7 Jan 2019 10:10:13 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
 Subject: Re: [PATCH] mm: kmemleak: Turn kmemleak_lock to spin lock and RCU
  primitives
-Reply-To: paulmck@linux.ibm.com
+Message-ID: <20190107101013.334spvonrenl3mne@mbp>
 References: <1546612153-451172-1-git-send-email-zhe.he@windriver.com>
  <20190104183715.GC187360@arrakis.emea.arm.com>
  <f923e9e9-ed73-5054-3d82-b2244c67a65e@windriver.com>
@@ -32,15 +20,12 @@ MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <f923e9e9-ed73-5054-3d82-b2244c67a65e@windriver.com>
-Message-Id: <20190107185931.GE1215@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: He Zhe <zhe.he@windriver.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, josh@joshtriplett.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: paulmck@linux.ibm.com, josh@joshtriplett.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On Mon, Jan 07, 2019 at 03:31:18PM +0800, He Zhe wrote:
-> 
-> 
 > On 1/5/19 2:37 AM, Catalin Marinas wrote:
 > > On Fri, Jan 04, 2019 at 10:29:13PM +0800, zhe.he@windriver.com wrote:
 > >> It's not necessary to keep consistency between readers and writers of
@@ -92,14 +77,32 @@ On Mon, Jan 07, 2019 at 03:31:18PM +0800, He Zhe wrote:
 > some nodes(not the one to be deleted) are invisible to readers. I'm not
 > sure if this is acceptable as an RCU implementation. Does it mean we
 > need to form a rb_erase_rcu from scratch?
-> 
+
+If it's possible, I think it would help. I had a quick look as well but
+as it seemed non-trivial, I moved on to something else.
+
 > And are there any other concerns about this attempt?
-> 
-> Let me add RCU supporters Paul and Josh here. Your advice would be
-> highly appreciated.
 
-If updates and rebalancing are handled carefully, it can be made to work.
-The classic paper by Kung and Lehman covers the rebalancing issues:
-http://www.eecs.harvard.edu/~htk/publication/1980-tods-kung-lehman.pdf
+No concerns if it's possible at all. In the meantime, you could try to
+replace the rw_lock with a classic spinlock. There was a thread recently
+and I concluded that the rw_lock is no longer necessary as we don't have
+multiple readers contention.
 
-							Thanx, Paul
+Yet another improvement could be to drop the kmemleak_object.lock
+entirely and just rely on the main kmemleak_lock. I don't think the
+fine-grained locking saves us much as in most cases where it acquires
+the object->lock it already holds (or may have acquired/released) the
+kmemleak_lock.
+
+Note that even if we have an rb_erase_rcu(), we'd still need to acquire
+the object->lock to prevent the scanned block being de-allocated
+(unmapped in the case of vmalloc()). So if we manage with a single
+kmemleak_lock (spin_lock_t), it may give a similar performance boost to
+what you've got without kmemleak_lock.
+
+FTR, the original aim of RCU grace period in kmemleak was to avoid a
+recursive call into the slab freeing code; it later came in handy for
+some list traversal.
+
+-- 
+Catalin
