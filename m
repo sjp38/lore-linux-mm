@@ -1,50 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ADC558E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 06:48:11 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id n196so3342557oig.15
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 03:48:11 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id i41si34505144ota.323.2019.01.09.03.48.09
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E57648E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 00:58:15 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id x3so6359154itb.6
+        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 21:58:15 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s21sor12706234iol.146.2019.01.06.21.58.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 03:48:10 -0800 (PST)
-Subject: Re: [PATCH] lockdep: Add debug printk() for downgrade_write()
- warning.
-References: <1546771139-9349-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <e1a38e21-d5fe-dee3-7081-bc1a12965a68@i-love.sakura.ne.jp>
- <20190106201941.49f6dc4a4d2e9d15b575f88a@linux-foundation.org>
- <CACT4Y+Y=V-yRQN6YV_wXT0gejbQKTtUu7wrRmuPVojaVv6NFsQ@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <162036ee-81f1-36b1-7658-15a5f98c7d29@i-love.sakura.ne.jp>
-Date: Wed, 9 Jan 2019 20:47:43 +0900
+        (Google Transport Security);
+        Sun, 06 Jan 2019 21:58:14 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+Y=V-yRQN6YV_wXT0gejbQKTtUu7wrRmuPVojaVv6NFsQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <1546771139-9349-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <e1a38e21-d5fe-dee3-7081-bc1a12965a68@i-love.sakura.ne.jp> <20190106201941.49f6dc4a4d2e9d15b575f88a@linux-foundation.org>
+In-Reply-To: <20190106201941.49f6dc4a4d2e9d15b575f88a@linux-foundation.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 7 Jan 2019 06:58:01 +0100
+Message-ID: <CACT4Y+Y=V-yRQN6YV_wXT0gejbQKTtUu7wrRmuPVojaVv6NFsQ@mail.gmail.com>
+Subject: Re: [PATCH] lockdep: Add debug printk() for downgrade_write() warning.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
 
-Hello, Peter.
+On Mon, Jan 7, 2019 at 5:19 AM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> On Sun, 6 Jan 2019 19:56:59 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> > syzbot is frequently hitting downgrade_write(&mm->mmap_sem) warning from
+> > munmap() request, but I don't know why it is happening. Since lockdep is
+> > not printing enough information, let's print more. This patch is meant for
+> > linux-next.git only and will be removed after the problem is solved.
+> >
+> > --- a/kernel/locking/lockdep.c
+> > +++ b/kernel/locking/lockdep.c
+> > @@ -50,6 +50,7 @@
+> >  #include <linux/random.h>
+> >  #include <linux/jhash.h>
+> >  #include <linux/nmi.h>
+> > +#include <linux/rwsem.h>
+> >
+> >  #include <asm/sections.h>
+> >
+> > @@ -3550,6 +3551,24 @@ static int __lock_downgrade(struct lockdep_map *lock, unsigned long ip)
+> >       curr->lockdep_depth = i;
+> >       curr->curr_chain_key = hlock->prev_chain_key;
+> >
+> > +#if defined(CONFIG_RWSEM_XCHGADD_ALGORITHM) && defined(CONFIG_DEBUG_AID_FOR_SYZBOT)
+> > +     if (hlock->read && curr->mm) {
+> > +             struct rw_semaphore *sem = container_of(lock,
+> > +                                                     struct rw_semaphore,
+> > +                                                     dep_map);
+> > +
+> > +             if (sem == &curr->mm->mmap_sem) {
+> > +#if defined(CONFIG_RWSEM_SPIN_ON_OWNER)
+> > +                     pr_warn("mmap_sem: hlock->read=%d count=%ld current=%px, owner=%px\n",
+> > +                             hlock->read, atomic_long_read(&sem->count),
+> > +                             curr, READ_ONCE(sem->owner));
+> > +#else
+> > +                     pr_warn("mmap_sem: hlock->read=%d count=%ld\n",
+> > +                             hlock->read, atomic_long_read(&sem->count));
+> > +#endif
+> > +             }
+> > +     }
+> > +#endif
+> >       WARN(hlock->read, "downgrading a read lock");
+> >       hlock->read = 1;
+> >       hlock->acquire_ip = ip;
+>
+> I tossed it in there.
+>
+> But I wonder if anyone is actually running this code.  Because
+>
+> --- a/lib/Kconfig.debug~info-task-hung-in-generic_file_write_iter
+> +++ a/lib/Kconfig.debug
+> @@ -2069,6 +2069,12 @@ config IO_STRICT_DEVMEM
+>
+>           If in doubt, say Y.
+>
+> +config DEBUG_AID_FOR_SYZBOT
+> +       bool "Additional debug code for syzbot"
+> +       default n
+> +       help
+> +         This option is intended for testing by syzbot.
+> +
 
-We got two reports. Neither RWSEM_READER_OWNED nor RWSEM_ANONYMOUSLY_OWNED is set, and
-(presumably) sem->owner == current is true, but count is -1. What does this mean?
 
-https://syzkaller.appspot.com/text?tag=CrashLog&x=169dbb9b400000
+Yes, syzbot always defines this option:
 
-[ 2580.337550][ T3645] mmap_sem: hlock->read=1 count=-4294967295 current=ffff888050e04140, owner=ffff888050e04140
-[ 2580.353526][ T3645] ------------[ cut here ]------------
-[ 2580.367859][ T3645] downgrading a read lock
-[ 2580.367935][ T3645] WARNING: CPU: 1 PID: 3645 at kernel/locking/lockdep.c:3572 lock_downgrade+0x35d/0xbe0
-[ 2580.382206][ T3645] Kernel panic - not syncing: panic_on_warn set ...
+https://github.com/google/syzkaller/blob/master/dashboard/config/upstream-kasan.config#L14
+https://github.com/google/syzkaller/blob/master/dashboard/config/upstream-kmsan.config#L9
 
-https://syzkaller.appspot.com/text?tag=CrashLog&x=1542da4f400000
+It's meant specifically for such cases.
 
-[  386.342585][T16698] mmap_sem: hlock->read=1 count=-4294967295 current=ffff8880512ae180, owner=ffff8880512ae180
-[  386.348586][T16698] ------------[ cut here ]------------
-[  386.357203][T16698] downgrading a read lock
-[  386.357294][T16698] WARNING: CPU: 1 PID: 16698 at kernel/locking/lockdep.c:3572 lock_downgrade+0x35d/0xbe0
-[  386.372148][T16698] Kernel panic - not syncing: panic_on_warn set ...
+Tetsuo already got some useful information for past bugs using this feature.
