@@ -2,175 +2,176 @@ Return-Path: <SRS0=+lVK=PP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D00CC43612
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3B72C43387
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 18:13:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 18CE12173C
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18CE12173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5791C2087F
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 18:13:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5791C2087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=collabora.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6BC4C8E002F; Mon,  7 Jan 2019 09:39:45 -0500 (EST)
+	id B4B9D8E0031; Mon,  7 Jan 2019 13:13:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 671628E0001; Mon,  7 Jan 2019 09:39:45 -0500 (EST)
+	id AD71E8E0001; Mon,  7 Jan 2019 13:13:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 47FA28E002F; Mon,  7 Jan 2019 09:39:45 -0500 (EST)
+	id 99E1D8E0031; Mon,  7 Jan 2019 13:13:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D863A8E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 09:39:44 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id e17so382088edr.7
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 06:39:44 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B8BA8E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 13:13:55 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id f18so460316wrt.1
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 10:13:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=czsf4vL5FOcnDURNZogytxKTVT3D/fN437qEHjVuQNY=;
-        b=USo/h3ljzJbudQR5TJDcXtmqqPB0DYsARtocgBZj6DyOwg85tCpJVcxw7vHNvyUSlP
-         GP6/umpaFqjFWRb48c4bohAllvVijBTds6hKRpCLZOftlxr0MBd7itzRzVgrn9HSn1lm
-         gZX03dNr8rtCjaJefYdy1pmT4uQfe/dHwlNwy2s0/zbP5meSDonfr5ZwDrNviX3zEHiC
-         XLSLp55Ys3xKlJARk+Qs7rJS8+2vBCvNqJ/cobbtBT58ecxqwXNyMOMc9Sf7rxz2LpMG
-         LNsz6Vil3vQgr5UJfA/vlVusR9LowaGDPXuLcQEXV38oNSCuiiNuYEdm72GSO2d4W+mt
-         wzog==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AA+aEWa27b7GHP9SyaEAlEWaCZeaJd9c6TOOpr3kuyCZ+fEogzA+60eV
-	Q4iVU/FgpN+l+b1CyiJxGOyk7WuY0mJLVZXW5dWwSU7TsWLBAC5RTkj/LVdGrB+x/XqL+oY8Wwe
-	MPKBEx/8C22ssT/ciN815fNeouj2deQsRlq+xj8Dz5pZiKDQpe5iT2YWKa3vzkqp0ADELX1w2Dw
-	x4qlgckjcYYJh1zDgT4KV9WiT4q8W7N09CoWUHut7Ttdl8MPYsRINGUBBBjpHM3u/x1z8Ih6njI
-	gNOEsb3MKL0Vnb2HR51qzbW2yBO6I8wh9zhfmLEZUg4/DqvpflCIr0oXoO45JLI+aE4ELCBDzsw
-	yAU2qZOGicF+5CzkG22WmX5+VXlnQhn2SotjCxJAso5dD+cbvKeJwrc57Su5F4g8ANzf7Vfzsw=
-	=
-X-Received: by 2002:a50:af21:: with SMTP id g30mr52882454edd.234.1546871984394;
-        Mon, 07 Jan 2019 06:39:44 -0800 (PST)
-X-Received: by 2002:a50:af21:: with SMTP id g30mr52882407edd.234.1546871983534;
-        Mon, 07 Jan 2019 06:39:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546871983; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=G7vfL13FefGMTya6xzgnByE6fZ+0duHn8ctpkjExpBo=;
+        b=FJnj7ViUbVmT1V0tiynb9XOSs3G+PVHT2hpe4pULLlRNUmfMh8epNNCAAH30J7EXwE
+         ySWR/xtrlvJuq2tyI1PM9eyiH0EDpYeH2cR5GffnygD3uCDHa8tFq2TdGfCCg0Q3+iuE
+         8ba0VJv7XFbbKuA5HW55NreUXhISLV6B1K4yz4gJs9OreeCSy+Nz4G3FcmV7HLx9Zz5b
+         sYSeEjKHQz09WfwWaUbOlWq3na//IH/BnyZLD4Zn3YLv1ZKkmR8aVgOCjrycXg2dxluB
+         vaH1MG/CvWHS5nP0erMprfwIIzcCBlKJIw1OA/6ERM4qrxO0MzVaH3ptub7HWYpG8vNE
+         jiJQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=gael.portay@collabora.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+X-Gm-Message-State: AJcUukcXpSPMZMcvsPQpSeyq/qCVC1Menx5IOvI6AY8gNwPpNqba4yoL
+	dPcYqUSfgr6q9zWe6KAaVVEOWtKS0OT6HhrbKrLVfdZse3LGScImsWWIqqp+k1+c+9VHOg1MF+1
+	9YEy7VozXvC97XKEolg6wb8ezD/lG9d8jgoJHoIlfe3w/3iQMPph81IbKeHOC7UImTQ==
+X-Received: by 2002:adf:afdc:: with SMTP id y28mr50591631wrd.275.1546884834773;
+        Mon, 07 Jan 2019 10:13:54 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7G6+adc0I1+uBegmFXUHETfTqbjKV5xet2mU+/H8tcv8tgLe59Qlma3JRbG7SZ9Oj2Ec9x
+X-Received: by 2002:adf:afdc:: with SMTP id y28mr50591582wrd.275.1546884833828;
+        Mon, 07 Jan 2019 10:13:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546884833; cv=none;
         d=google.com; s=arc-20160816;
-        b=ctWSqK5wSw3VeNswPm39qsQbdIYvXNykYeoKtMbMdCWGNZSP7U7ROAHNvCRizMltsb
-         YYe6VhLiRQ0KN93SC8+gj2nna1+lNtX6zwXZpc4+VNk3PXb6vmMqPhWxO+fTiAdGD603
-         Xr2udajZ/AEcW7U6ui7rJdG0kU+lDxh/b22ItrCHjX6qNken+tmvJZS1ArJntLvMGrgR
-         /+reBphOu7W8JWr9zbxPKk5yeCMZRqrQCSHuyiiaTaA37IIcfBWj684eIYbUa+wphqcl
-         AsYMtW7U2gazHdIt7SlLgq/7eBYT7ybgT0g/rOnKRFpArk8hSMjaNYBjbWrboeE6zVff
-         DpTQ==
+        b=LwlFO7xI0vj8nFIhTH3Cag5uAePcJ7he+sDj+9TxC+BiJD/smRV0xPvf1xFffCy47s
+         OyII4zmD4Bwx2Dv7aimcO7lgQLDVNa4twu6nak4LBBGPppu77TyAx4/Fx375KU1aOCJh
+         JbojCEst7QwCzO1blxyCE+eBMj6DWBwzdphRvJ8wS6qFFrKKECqQAKADkiAMlIJazd7t
+         ORTQvUTYP+tPmtAP1SdXwzcq/E0FjZZS716onxU24GColMq/91IO17Mb7EIWpvabZzHX
+         Q5zHIb8iCv8FiAG9euM2wdQQ1+ABysRwOAY0pEThwjtO+6pOC2iskPJ7btwslLDp2Grn
+         axiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=czsf4vL5FOcnDURNZogytxKTVT3D/fN437qEHjVuQNY=;
-        b=YtxeCmK05FIAeONnPDBY2HKOPe+YzneQuB5Ip0wT9Lh090fibY7PUCWBGlV/3dWvg7
-         d/U3JWr4KTtY5qg2HQXWox64k5fxbF8GuupjfhnjucZ7QpzoJcC9j8E3qYpUGQLfRntP
-         yYICqGt5IcwbC4F4GTVnA8u7mFXbR5++DjEsyX+FMB+cJCcwwr1YOjkSYMPVpNCkHkkw
-         V32xxFrAJbyOR2YvlorJB1QiGk+m1cPgPVughj2W4INXsJPflVmSPDGjxjFphRK5Vfk3
-         ZkOvp8fTs7u9Jn/kXcMteBeGaqLlGX6iyXT16uZBmlOGH2Yxj5+4E2XkuVzw3NXvvTYV
-         U6gA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=G7vfL13FefGMTya6xzgnByE6fZ+0duHn8ctpkjExpBo=;
+        b=uVHyUlYiQ5PpIhV4Km+lhowNwYAnEeYeZXUyb02rOu0T3/KbDH/SOadL4v5U8cWzQg
+         u/wqUfoTm6K02foaGVgdYD6u2TD087GSF7Hh0tjTlMom4/L8Fp9th1FmBwXLvSAhTTu2
+         wV1SFkotL9SV3r4CG6eceAIj80K4WGIzW6sio+yZW1RvY8CG+wny3bL6VYEX/GWA6ELs
+         DIlr6qm6/P1WHsmbBZy9orgsu3IC1XbCAn71qMSJtSlT4lraEDHli3cJprSEN5P6PtJL
+         8Z6AgsxOPQs6Q+fPziqLxSGJX3LrMJaYgRm7hS20/SCFg+ENke5yqZoceUxUpwIRXvJm
+         RC+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a37sor36264614edd.23.2019.01.07.06.39.43
+       spf=pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=gael.portay@collabora.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [2a00:1098:0:82:1000:25:2eeb:e3e3])
+        by mx.google.com with ESMTPS id j65si5439852wmj.102.2019.01.07.10.13.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 07 Jan 2019 06:39:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 07 Jan 2019 10:13:53 -0800 (PST)
+Received-SPF: pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) client-ip=2a00:1098:0:82:1000:25:2eeb:e3e3;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AFSGD/Uhw9JeGaHha/JfMcZjkBf21wzOw/01k7ipnizHZJkKEM6lzU1I0tG3yeYB8iVCpINRJsmKrg==
-X-Received: by 2002:a50:d311:: with SMTP id g17mr55094523edh.187.1546871982911;
-        Mon, 07 Jan 2019 06:39:42 -0800 (PST)
-Received: from tiehlicka.suse.cz (prg-ext-pat.suse.com. [213.151.95.130])
-        by smtp.gmail.com with ESMTPSA id l18sm29285813edq.87.2019.01.07.06.39.41
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 06:39:41 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-To: <linux-mm@kvack.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Michal Hocko <mhocko@suse.com>
-Subject: [PATCH 2/2] memcg: do not report racy no-eligible OOM tasks
-Date: Mon,  7 Jan 2019 15:38:02 +0100
-Message-Id: <20190107143802.16847-3-mhocko@kernel.org>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190107143802.16847-1-mhocko@kernel.org>
-References: <20190107143802.16847-1-mhocko@kernel.org>
+       spf=pass (google.com: domain of gael.portay@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=gael.portay@collabora.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+Received: from [127.0.0.1] (localhost [127.0.0.1])
+	(Authenticated sender: gportay)
+	with ESMTPSA id 994522604BB
+Date: Mon, 7 Jan 2019 13:13:55 -0500
+From: =?utf-8?B?R2HDq2w=?= PORTAY <gael.portay@collabora.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>,
+	Alan Stern <stern@rowland.harvard.edu>, linux-mm@kvack.org,
+	usb-storage@lists.one-eyed-alien.net
+Subject: Re: [usb-storage] Re: cma: deadlock using usb-storage and fs
+Message-ID: <20190107181355.qqbdc6pguq4w3z6u@archlinux.localdomain>
+References: <20181216222117.v5bzdfdvtulv2t54@archlinux.localdomain>
+ <Pine.LNX.4.44L0.1812171038300.1630-100000@iolanthe.rowland.org>
+ <20181217182922.bogbrhjm6ubnswqw@archlinux.localdomain>
+ <c3ab7935-8d8d-27a0-99a7-0dab51244a42@redhat.com>
+ <593e3757-6f50-22bc-d5a9-ea5819b9a63d@oracle.com>
+ <da35de2c-b8ad-9b01-b582-8f1f8061e8e1@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <da35de2c-b8ad-9b01-b582-8f1f8061e8e1@redhat.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190107143802.p6PM1tis6fPoDoFEv753NG63bDU2RbowJBHmLzcSsec@z>
+Message-ID: <20190107181355.X3QBXvxkRCk5PPJ_3bBSx5_5vFpiQtqSbWaVBOAx3zE@z>
 
-From: Michal Hocko <mhocko@suse.com>
+Laura,
 
-Tetsuo has reported [1] that a single process group memcg might easily
-swamp the log with no-eligible oom victim reports due to race between
-the memcg charge and oom_reaper
+On Tue, Dec 18, 2018 at 01:14:42PM -0800, Laura Abbott wrote:
+> On 12/18/18 11:42 AM, Mike Kravetz wrote:
+> > On 12/17/18 1:57 PM, Laura Abbott wrote:
+> > > On 12/17/18 10:29 AM, Gaël PORTAY wrote:
+> > > 
+> > > Last time I looked at this, we needed the cma_mutex for serialization
+> > > so unless we want to rework that, I think we need to not use CMA in the
+> > > writeback case (i.e. GFP_IO).
 
-Thread 1		Thread2				oom_reaper
-try_charge		try_charge
-			  mem_cgroup_out_of_memory
-			    mutex_lock(oom_lock)
-  mem_cgroup_out_of_memory
-    mutex_lock(oom_lock)
-			      out_of_memory
-			        select_bad_process
-				oom_kill_process(current)
-				  wake_oom_reaper
-							  oom_reap_task
-							  MMF_OOM_SKIP->victim
-			    mutex_unlock(oom_lock)
-    out_of_memory
-      select_bad_process # no task
+I followed what you suggested and add gfpflags_allow_writeback that
+tests against the __GFP_IO flag:
 
-If Thread1 didn't race it would bail out from try_charge and force the
-charge. We can achieve the same by checking tsk_is_oom_victim inside
-the oom_lock and therefore close the race.
+static inline bool gfpflags_allow_writeback(const gfp_t gfp_flags)
+{
+	return !!(gfp_flags & __GFP_IO);
+}
 
-[1] http://lkml.kernel.org/r/bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/memcontrol.c | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+And then not to go for CMA in the case of writeback in function
+__dma_alloc:
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index af7f18b32389..90eb2e2093e7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1387,10 +1387,22 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
- 	};
--	bool ret;
-+	bool ret = true;
- 
- 	mutex_lock(&oom_lock);
-+
-+	/*
-+	 * multi-threaded tasks might race with oom_reaper and gain
-+	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
-+	 * to out_of_memory failure if the task is the last one in
-+	 * memcg which would be a false possitive failure reported
-+	 */
-+	if (tsk_is_oom_victim(current))
-+		goto unlock;
-+
- 	ret = out_of_memory(&oc);
-+
-+unlock:
- 	mutex_unlock(&oom_lock);
- 	return ret;
- }
--- 
-2.20.1
+-	cma = allowblock ? dev_get_cma_area(dev) : false;
++	allowwriteback = gfpflags_allow_writeback(gfp);
++	cma = (allowblock && !allowwriteback) ? dev_get_cma_area(dev) : false;
+
+This workaround fixes the issue I faced (I have prepared a patch).
+
+> > I am wondering if we still need to hold the cma_mutex while calling
+> > alloc_contig_range().  Looking back at the history, it appears that
+> > the reason for holding the mutex was to prevent two threads from operating
+> > on the same pageblock.
+> > 
+> > Commit 2c7452a075d4 ("mm/page_isolation.c: make start_isolate_page_range()
+> > fail if already isolated") will cause alloc_contig_range to return EBUSY
+> > if two callers are attempting to operate on the same pageblock.  This was
+> > added because memory hotplug as well as gigantac page allocation call
+> > alloc_contig_range and could conflict with each other or cma.   cma_alloc
+> > has logic to retry if EBUSY is returned.  Although, IIUC it assumes the
+> > EBUSY is the result of specific pages being busy as opposed to someone
+> > else operating on the pageblock.  Therefore, the retry logic to 'try a
+> > different set of pages' is not what one  would/should attempt in the case
+> > someone else is operating on the pageblock.
+> > 
+> > Would it be possible or make sense to remove the mutex and retry when
+> > EBUSY?  Or, am I missing some other reason for holding the mutex.
+> > 
+> 
+> I had forgotten that start_isolate_page_range had been updated to
+> return -EBUSY. It looks like we would need to update
+> the callback for migrate_pages in __alloc_contig_migrate_range
+> since alloc_migrate_target by default will use __GFP_IO.
+> So I _think_ if we update that to honor GFP_NOIO we could
+> remove the mutex assuming the rest of migrate_pages honors
+> it properly.
+> 
+
+I have also removed the mutex (start_isolate_page_range retunrs -EBUSY),
+and it worked (in my case).
+
+But I did not do the proper magic because I am not sure of what should
+be done and how: -EBUSY is not handled and __GFP_NOIO is not honored. 
+
+Regards,
+Gael
 
