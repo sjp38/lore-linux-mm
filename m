@@ -1,150 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B7DC28E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:50:54 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id m19so35039164edc.6
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:50:54 -0800 (PST)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id s34si4249719edb.417.2019.01.04.04.50.52
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 562858E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 05:21:57 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r13so33544257pgb.7
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 02:21:57 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id g2si43813877plp.130.2019.01.07.02.21.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:50:53 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id CD9D81C1D6B
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:50:52 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 03/25] mm, compaction: Remove last_migrated_pfn from compact_control
-Date: Fri,  4 Jan 2019 12:49:49 +0000
-Message-Id: <20190104125011.16071-4-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        Mon, 07 Jan 2019 02:21:56 -0800 (PST)
+Date: Mon, 7 Jan 2019 18:21:52 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH v2 11/21] kvm: allocate page table pages from DRAM
+Message-ID: <20190107102152.d3infdyw3zupu2xj@wfg-t540p.sh.intel.com>
+References: <20181226131446.330864849@intel.com>
+ <20181226133351.703380444@intel.com>
+ <b99ef113-a9c1-f580-0fee-9f258b861391@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <b99ef113-a9c1-f580-0fee-9f258b861391@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Yao Yuan <yuan.yao@intel.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-The last_migrated_pfn field is a bit dubious as to whether it really helps
-but either way, the information from it can be inferred without increasing
-the size of compact_control so remove the field.
+On Wed, Jan 02, 2019 at 08:47:25AM -0800, Dave Hansen wrote:
+>On 12/26/18 5:14 AM, Fengguang Wu wrote:
+>> +static unsigned long __get_dram_free_pages(gfp_t gfp_mask)
+>> +{
+>> +       struct page *page;
+>> +
+>> +       page = __alloc_pages(GFP_KERNEL_ACCOUNT, 0, numa_node_id());
+>> +       if (!page)
+>> +	       return 0;
+>> +       return (unsigned long) page_address(page);
+>> +}
+>
+>There seems to be a ton of *policy* baked into these patches.  For
+>instance: thou shalt not allocate page tables pages from PMEM.  That's
+>surely not a policy we want to inflict on every Linux user until the end
+>of time.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 25 +++++++++----------------
- mm/internal.h   |  1 -
- 2 files changed, 9 insertions(+), 17 deletions(-)
+Right. It's straight forward policy for users that care performance.
+The project is planned by 3 steps, at this moment we are in phase (1):
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ef29490b0f46..fb4d9f52ed56 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -886,15 +886,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		cc->nr_migratepages++;
- 		nr_isolated++;
- 
--		/*
--		 * Record where we could have freed pages by migration and not
--		 * yet flushed them to buddy allocator.
--		 * - this is the lowest page that was isolated and likely be
--		 * then freed by migration.
--		 */
--		if (!cc->last_migrated_pfn)
--			cc->last_migrated_pfn = low_pfn;
--
- 		/* Avoid isolating too much */
- 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
- 			++low_pfn;
-@@ -918,7 +909,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			}
- 			putback_movable_pages(&cc->migratepages);
- 			cc->nr_migratepages = 0;
--			cc->last_migrated_pfn = 0;
- 			nr_isolated = 0;
- 		}
- 
-@@ -1539,6 +1529,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 	enum compact_result ret;
- 	unsigned long start_pfn = zone->zone_start_pfn;
- 	unsigned long end_pfn = zone_end_pfn(zone);
-+	unsigned long last_migrated_pfn;
- 	const bool sync = cc->mode != MIGRATE_ASYNC;
- 
- 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
-@@ -1584,7 +1575,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 			cc->whole_zone = true;
- 	}
- 
--	cc->last_migrated_pfn = 0;
-+	last_migrated_pfn = 0;
- 
- 	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
- 				cc->free_pfn, end_pfn, sync);
-@@ -1593,12 +1584,14 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 
- 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
- 		int err;
-+		unsigned long start_pfn = cc->migrate_pfn;
- 
- 		switch (isolate_migratepages(zone, cc)) {
- 		case ISOLATE_ABORT:
- 			ret = COMPACT_CONTENDED;
- 			putback_movable_pages(&cc->migratepages);
- 			cc->nr_migratepages = 0;
-+			last_migrated_pfn = 0;
- 			goto out;
- 		case ISOLATE_NONE:
- 			/*
-@@ -1608,6 +1601,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 			 */
- 			goto check_drain;
- 		case ISOLATE_SUCCESS:
-+			last_migrated_pfn = start_pfn;
- 			;
- 		}
- 
-@@ -1639,8 +1633,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 				cc->migrate_pfn = block_end_pfn(
- 						cc->migrate_pfn - 1, cc->order);
- 				/* Draining pcplists is useless in this case */
--				cc->last_migrated_pfn = 0;
--
-+				last_migrated_pfn = 0;
- 			}
- 		}
- 
-@@ -1652,18 +1645,18 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 		 * compact_finished() can detect immediately if allocation
- 		 * would succeed.
- 		 */
--		if (cc->order > 0 && cc->last_migrated_pfn) {
-+		if (cc->order > 0 && last_migrated_pfn) {
- 			int cpu;
- 			unsigned long current_block_start =
- 				block_start_pfn(cc->migrate_pfn, cc->order);
- 
--			if (cc->last_migrated_pfn < current_block_start) {
-+			if (last_migrated_pfn < current_block_start) {
- 				cpu = get_cpu();
- 				lru_add_drain_cpu(cpu);
- 				drain_local_pages(zone);
- 				put_cpu();
- 				/* No more flushing until we migrate again */
--				cc->last_migrated_pfn = 0;
-+				last_migrated_pfn = 0;
- 			}
- 		}
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index 9437ba5791db..c6f794ad21a9 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -187,7 +187,6 @@ struct compact_control {
- 	unsigned int nr_migratepages;	/* Number of pages to migrate */
- 	unsigned long free_pfn;		/* isolate_freepages search base */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
--	unsigned long last_migrated_pfn;/* Not yet flushed page being freed */
- 	struct zone *zone;
- 	unsigned long total_migrate_scanned;
- 	unsigned long total_free_scanned;
--- 
-2.16.4
+1) core functionalities, easy to backport
+2) upstream-able total solution
+3) upstream when API stabilized
+
+The dumb kernel interface /proc/PID/idle_pages enables doing
+the majority policies in user space. However for the other smaller
+parts, it looks easier to just implement an obvious policy first.
+Then to consider more possibilities.
+
+>I think the more important question is how we can have the specific
+>policy that this patch implements, but also leave open room for other
+>policies, such as: "I don't care how slow this VM runs, minimize the
+>amount of fast memory it eats."
+
+Agreed. I'm open for more ways. We can treat these patches as the
+soliciting version. If anyone send reasonable improvements or even
+totally different way of doing it, I'd be happy to incorporate.
+
+Thanks,
+Fengguang
