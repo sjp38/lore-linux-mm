@@ -1,350 +1,359 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E71D58E00AE
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 18:55:23 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id x3so37062258itb.6
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 15:55:23 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id l40si4307405jaj.107.2019.01.03.15.55.22
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DDED38E0038
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 18:33:54 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id c14so1010581pls.21
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 15:33:54 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id t6si60005220plz.96.2019.01.07.15.33.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jan 2019 15:55:22 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH 2/2] hugetlbfs: Revert "use i_mmap_rwsem for more pmd sharing synchronization"
-Date: Thu,  3 Jan 2019 15:54:52 -0800
-Message-Id: <20190103235452.29335-2-mike.kravetz@oracle.com>
-In-Reply-To: <20190103235452.29335-1-mike.kravetz@oracle.com>
-References: <20190103235452.29335-1-mike.kravetz@oracle.com>
+        Mon, 07 Jan 2019 15:33:53 -0800 (PST)
+Subject: [PATCH v7 2/3] mm: Move buddy list manipulations into helpers
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 07 Jan 2019 15:21:16 -0800
+Message-ID: <154690327612.676627.7469591833063917773.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Prakash Sangappa <prakash.sangappa@oracle.com>, Jan Stancek <jstancek@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>mhocko@suse.com, keith.busch@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
-This reverts commit b43a9990055958e70347c56f90ea2ae32c67334c
+In preparation for runtime randomization of the zone lists, take all
+(well, most of) the list_*() functions in the buddy allocator and put
+them in helper functions. Provide a common control point for injecting
+additional behavior when freeing pages.
 
-The reverted commit caused issues with migration and poisoning of anon
-huge pages.  The LTP move_pages12 test will cause an "unable to handle
-kernel NULL pointer" BUG would occur with stack similar to:
-
-RIP: 0010:down_write+0x1b/0x40
-Call Trace:
- migrate_pages+0x81f/0xb90
- __ia32_compat_sys_migrate_pages+0x190/0x190
- do_move_pages_to_node.isra.53.part.54+0x2a/0x50
- kernel_move_pages+0x566/0x7b0
- __x64_sys_move_pages+0x24/0x30
- do_syscall_64+0x5b/0x180
- entry_SYSCALL_64_after_hwframe+0x44/0xa9
-
-The purpose of the reverted patch was to fix some long existing races
-with huge pmd sharing.  It used i_mmap_rwsem for this purpose with the
-idea that this could also be used to address truncate/page fault races
-with another patch.  Further analysis has determined that i_mmap_rwsem
-can not be used to address all these hugetlbfs synchronization issues.
-Therefore, revert this patch while working an another approach to the
-underlying issues.
-
-Reported-by: Jan Stancek <jstancek@redhat.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/hugetlb.c        | 64 +++++++++++----------------------------------
- mm/memory-failure.c | 16 ++----------
- mm/migrate.c        | 13 +--------
- mm/rmap.c           |  4 ---
- mm/userfaultfd.c    | 11 ++------
- 5 files changed, 20 insertions(+), 88 deletions(-)
+ include/linux/mm.h       |    3 --
+ include/linux/mm_types.h |    3 ++
+ include/linux/mmzone.h   |   51 ++++++++++++++++++++++++++++++++++
+ mm/compaction.c          |    4 +--
+ mm/page_alloc.c          |   70 ++++++++++++++++++----------------------------
+ 5 files changed, 84 insertions(+), 47 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 5671ac9d13bb..06643af2905f 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3238,7 +3238,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 	struct page *ptepage;
- 	unsigned long addr;
- 	int cow;
--	struct address_space *mapping = vma->vm_file->f_mapping;
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long sz = huge_page_size(h);
- 	struct mmu_notifier_range range;
-@@ -3250,23 +3249,13 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 		mmu_notifier_range_init(&range, src, vma->vm_start,
- 					vma->vm_end, MMU_NOTIFY_CLEAR);
- 		mmu_notifier_invalidate_range_start(&range);
--	} else {
--		/*
--		 * For shared mappings i_mmap_rwsem must be held to call
--		 * huge_pte_alloc, otherwise the returned ptep could go
--		 * away if part of a shared pmd and another thread calls
--		 * huge_pmd_unshare.
--		 */
--		i_mmap_lock_read(mapping);
- 	}
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 80bb6408fe73..1621acd10f83 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -500,9 +500,6 @@ static inline void vma_set_anonymous(struct vm_area_struct *vma)
+ struct mmu_gather;
+ struct inode;
  
- 	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
- 		spinlock_t *src_ptl, *dst_ptl;
+-#define page_private(page)		((page)->private)
+-#define set_page_private(page, v)	((page)->private = (v))
 -
- 		src_pte = huge_pte_offset(src, addr, sz);
- 		if (!src_pte)
- 			continue;
--
- 		dst_pte = huge_pte_alloc(dst, addr, sz);
- 		if (!dst_pte) {
- 			ret = -ENOMEM;
-@@ -3337,8 +3326,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 
- 	if (cow)
- 		mmu_notifier_invalidate_range_end(&range);
--	else
--		i_mmap_unlock_read(mapping);
- 
- 	return ret;
- }
-@@ -3785,18 +3772,14 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
- 			};
- 
- 			/*
--			 * hugetlb_fault_mutex and i_mmap_rwsem must be
--			 * dropped before handling userfault.  Reacquire
--			 * after handling fault to make calling code simpler.
-+			 * hugetlb_fault_mutex must be dropped before
-+			 * handling userfault.  Reacquire after handling
-+			 * fault to make calling code simpler.
- 			 */
- 			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
- 							idx, haddr);
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
--			i_mmap_unlock_read(mapping);
--
- 			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
--
--			i_mmap_lock_read(mapping);
- 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 			goto out;
- 		}
-@@ -3944,11 +3927,6 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
- 	if (ptep) {
--		/*
--		 * Since we hold no locks, ptep could be stale.  That is
--		 * OK as we are only making decisions based on content and
--		 * not actually modifying content here.
--		 */
- 		entry = huge_ptep_get(ptep);
- 		if (unlikely(is_hugetlb_entry_migration(entry))) {
- 			migration_entry_wait_huge(vma, mm, ptep);
-@@ -3956,31 +3934,20 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
- 			return VM_FAULT_HWPOISON_LARGE |
- 				VM_FAULT_SET_HINDEX(hstate_index(h));
-+	} else {
-+		ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
-+		if (!ptep)
-+			return VM_FAULT_OOM;
- 	}
- 
--	/*
--	 * Acquire i_mmap_rwsem before calling huge_pte_alloc and hold
--	 * until finished with ptep.  This prevents huge_pmd_unshare from
--	 * being called elsewhere and making the ptep no longer valid.
--	 *
--	 * ptep could have already be assigned via huge_pte_offset.  That
--	 * is OK, as huge_pte_alloc will return the same value unless
--	 * something changed.
--	 */
- 	mapping = vma->vm_file->f_mapping;
--	i_mmap_lock_read(mapping);
--	ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
--	if (!ptep) {
--		i_mmap_unlock_read(mapping);
--		return VM_FAULT_OOM;
--	}
-+	idx = vma_hugecache_offset(h, vma, haddr);
- 
- 	/*
- 	 * Serialize hugepage allocation and instantiation, so that we don't
- 	 * get spurious allocation failures if two CPUs race to instantiate
- 	 * the same page in the page cache.
- 	 */
--	idx = vma_hugecache_offset(h, vma, haddr);
- 	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, haddr);
- 	mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 
-@@ -4068,7 +4035,6 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- out_mutex:
- 	mutex_unlock(&hugetlb_fault_mutex_table[hash]);
--	i_mmap_unlock_read(mapping);
- 	/*
- 	 * Generally it's safe to hold refcount during waiting page lock. But
- 	 * here we just wait to defer the next page fault to avoid busy loop and
-@@ -4674,12 +4640,10 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
-  * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
-  * and returns the corresponding pte. While this is not necessary for the
-  * !shared pmd case because we can allocate the pmd later as well, it makes the
-- * code much cleaner.
-- *
-- * This routine must be called with i_mmap_rwsem held in at least read mode.
-- * For hugetlbfs, this prevents removal of any page table entries associated
-- * with the address space.  This is important as we are setting up sharing
-- * based on existing page table entries (mappings).
-+ * code much cleaner. pmd allocation is essential for the shared case because
-+ * pud has to be populated inside the same i_mmap_rwsem section - otherwise
-+ * racing tasks could either miss the sharing (see huge_pte_offset) or select a
-+ * bad pmd for sharing.
-  */
- pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ #if !defined(__HAVE_ARCH_PTE_DEVMAP) || !defined(CONFIG_TRANSPARENT_HUGEPAGE)
+ static inline int pmd_devmap(pmd_t pmd)
  {
-@@ -4696,6 +4660,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	if (!vma_shareable(vma, addr))
- 		return (pte_t *)pmd_alloc(mm, pud, addr);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 2c471a2c43fa..1c7dc7ffa288 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -214,6 +214,9 @@ struct page {
+ #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
+ #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
  
-+	i_mmap_lock_write(mapping);
- 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
- 		if (svma == vma)
- 			continue;
-@@ -4725,6 +4690,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	spin_unlock(ptl);
- out:
- 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-+	i_mmap_unlock_write(mapping);
- 	return pte;
++#define page_private(page)		((page)->private)
++#define set_page_private(page, v)	((page)->private = (v))
++
+ struct page_frag_cache {
+ 	void * va;
+ #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 8c37a023a790..b78a45e0b11c 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -18,6 +18,8 @@
+ #include <linux/pageblock-flags.h>
+ #include <linux/page-flags-layout.h>
+ #include <linux/atomic.h>
++#include <linux/mm_types.h>
++#include <linux/page-flags.h>
+ #include <asm/page.h>
+ 
+ /* Free memory management - zoned buddy allocator.  */
+@@ -98,6 +100,55 @@ struct free_area {
+ 	unsigned long		nr_free;
+ };
+ 
++/* Used for pages not on another list */
++static inline void add_to_free_area(struct page *page, struct free_area *area,
++			     int migratetype)
++{
++	list_add(&page->lru, &area->free_list[migratetype]);
++	area->nr_free++;
++}
++
++/* Used for pages not on another list */
++static inline void add_to_free_area_tail(struct page *page, struct free_area *area,
++				  int migratetype)
++{
++	list_add_tail(&page->lru, &area->free_list[migratetype]);
++	area->nr_free++;
++}
++
++/* Used for pages which are on another list */
++static inline void move_to_free_area(struct page *page, struct free_area *area,
++			     int migratetype)
++{
++	list_move(&page->lru, &area->free_list[migratetype]);
++}
++
++static inline struct page *get_page_from_free_area(struct free_area *area,
++					    int migratetype)
++{
++	return list_first_entry_or_null(&area->free_list[migratetype],
++					struct page, lru);
++}
++
++static inline void rmv_page_order(struct page *page)
++{
++	__ClearPageBuddy(page);
++	set_page_private(page, 0);
++}
++
++static inline void del_page_from_free_area(struct page *page,
++		struct free_area *area, int migratetype)
++{
++	list_del(&page->lru);
++	rmv_page_order(page);
++	area->nr_free--;
++}
++
++static inline bool free_area_empty(struct free_area *area, int migratetype)
++{
++	return list_empty(&area->free_list[migratetype]);
++}
++
+ struct pglist_data;
+ 
+ /*
+diff --git a/mm/compaction.c b/mm/compaction.c
+index ef29490b0f46..a22ac7ab65c5 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1359,13 +1359,13 @@ static enum compact_result __compact_finished(struct zone *zone,
+ 		bool can_steal;
+ 
+ 		/* Job done if page is free of the right migratetype */
+-		if (!list_empty(&area->free_list[migratetype]))
++		if (!free_area_empty(area, migratetype))
+ 			return COMPACT_SUCCESS;
+ 
+ #ifdef CONFIG_CMA
+ 		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
+ 		if (migratetype == MIGRATE_MOVABLE &&
+-			!list_empty(&area->free_list[MIGRATE_CMA]))
++			!free_area_empty(area, MIGRATE_CMA))
+ 			return COMPACT_SUCCESS;
+ #endif
+ 		/*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2adcd6da8a07..0b4791a2dd43 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -743,12 +743,6 @@ static inline void set_page_order(struct page *page, unsigned int order)
+ 	__SetPageBuddy(page);
  }
  
-@@ -4735,7 +4701,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-  * indicated by page_count > 1, unmap is achieved by clearing pud and
-  * decrementing the ref count. If count == 1, the pte page is not shared.
-  *
-- * Called with page table lock held and i_mmap_rwsem held in write mode.
-+ * called with page table lock held.
-  *
-  * returns: 1 successfully unmapped a shared pte page
-  *	    0 the underlying pte page is not shared, or it is the last user
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 6379fff1a5ff..7c72f2a95785 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -966,7 +966,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	enum ttu_flags ttu = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
- 	struct address_space *mapping;
- 	LIST_HEAD(tokill);
--	bool unmap_success = true;
-+	bool unmap_success;
- 	int kill = 1, forcekill;
- 	struct page *hpage = *hpagep;
- 	bool mlocked = PageMlocked(hpage);
-@@ -1028,19 +1028,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	if (kill)
- 		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
- 
--	if (!PageHuge(hpage)) {
--		unmap_success = try_to_unmap(hpage, ttu);
--	} else if (mapping) {
--		/*
--		 * For hugetlb pages, try_to_unmap could potentially call
--		 * huge_pmd_unshare.  Because of this, take semaphore in
--		 * write mode here and set TTU_RMAP_LOCKED to indicate we
--		 * have taken the lock at this higer level.
--		 */
--		i_mmap_lock_write(mapping);
--		unmap_success = try_to_unmap(hpage, ttu|TTU_RMAP_LOCKED);
--		i_mmap_unlock_write(mapping);
--	}
-+	unmap_success = try_to_unmap(hpage, ttu);
- 	if (!unmap_success)
- 		pr_err("Memory failure: %#lx: failed to unmap page (mapcount=%d)\n",
- 		       pfn, page_mapcount(hpage));
-diff --git a/mm/migrate.c b/mm/migrate.c
-index d8730bd8d878..b4f0557b83fb 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1324,19 +1324,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 		goto put_anon;
- 
- 	if (page_mapped(hpage)) {
--		struct address_space *mapping = page_mapping(hpage);
+-static inline void rmv_page_order(struct page *page)
+-{
+-	__ClearPageBuddy(page);
+-	set_page_private(page, 0);
+-}
 -
--		/*
--		 * try_to_unmap could potentially call huge_pmd_unshare.
--		 * Because of this, take semaphore in write mode here and
--		 * set TTU_RMAP_LOCKED to let lower levels know we have
--		 * taken the lock.
--		 */
--		i_mmap_lock_write(mapping);
- 		try_to_unmap(hpage,
--			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|
--			TTU_RMAP_LOCKED);
--		i_mmap_unlock_write(mapping);
-+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
- 		page_was_mapped = 1;
+ /*
+  * This function checks whether a page is free && is the buddy
+  * we can coalesce a page and its buddy if
+@@ -849,13 +843,11 @@ static inline void __free_one_page(struct page *page,
+ 		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+ 		 * merge with it and move up one order.
+ 		 */
+-		if (page_is_guard(buddy)) {
++		if (page_is_guard(buddy))
+ 			clear_page_guard(zone, buddy, order, migratetype);
+-		} else {
+-			list_del(&buddy->lru);
+-			zone->free_area[order].nr_free--;
+-			rmv_page_order(buddy);
+-		}
++		else
++			del_page_from_free_area(buddy, &zone->free_area[order],
++					migratetype);
+ 		combined_pfn = buddy_pfn & pfn;
+ 		page = page + (combined_pfn - pfn);
+ 		pfn = combined_pfn;
+@@ -905,15 +897,13 @@ static inline void __free_one_page(struct page *page,
+ 		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+ 		if (pfn_valid_within(buddy_pfn) &&
+ 		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
+-			list_add_tail(&page->lru,
+-				&zone->free_area[order].free_list[migratetype]);
+-			goto out;
++			add_to_free_area_tail(page, &zone->free_area[order],
++					      migratetype);
++			return;
+ 		}
  	}
  
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 000de5d02468..62e47f3462cf 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -25,7 +25,6 @@
-  *     page->flags PG_locked (lock_page)
-  *       hugetlbfs_i_mmap_rwsem_key (in huge_pmd_share)
-  *         mapping->i_mmap_rwsem
-- *           hugetlb_fault_mutex (hugetlbfs specific page fault mutex)
-  *           anon_vma->rwsem
-  *             mm->page_table_lock or pte_lock
-  *               zone_lru_lock (in mark_page_accessed, isolate_lru_page)
-@@ -1381,9 +1380,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		/*
- 		 * If sharing is possible, start and end will be adjusted
- 		 * accordingly.
--		 *
--		 * If called for a huge page, caller must hold i_mmap_rwsem
--		 * in write mode as it is possible to call huge_pmd_unshare.
- 		 */
- 		adjust_range_if_pmd_sharing_possible(vma, &range.start,
- 						     &range.end);
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index 065c1ce191c4..d59b5a73dfb3 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -267,14 +267,10 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		VM_BUG_ON(dst_addr & ~huge_page_mask(h));
+-	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
+-out:
+-	zone->free_area[order].nr_free++;
++	add_to_free_area(page, &zone->free_area[order], migratetype);
+ }
  
- 		/*
--		 * Serialize via i_mmap_rwsem and hugetlb_fault_mutex.
--		 * i_mmap_rwsem ensures the dst_pte remains valid even
--		 * in the case of shared pmds.  fault mutex prevents
--		 * races with other faulting threads.
-+		 * Serialize via hugetlb_fault_mutex
- 		 */
--		mapping = dst_vma->vm_file->f_mapping;
--		i_mmap_lock_read(mapping);
- 		idx = linear_page_index(dst_vma, dst_addr);
-+		mapping = dst_vma->vm_file->f_mapping;
- 		hash = hugetlb_fault_mutex_hash(h, dst_mm, dst_vma, mapping,
- 								idx, dst_addr);
- 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
-@@ -283,7 +279,6 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		dst_pte = huge_pte_alloc(dst_mm, dst_addr, huge_page_size(h));
- 		if (!dst_pte) {
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
--			i_mmap_unlock_read(mapping);
- 			goto out_unlock;
+ /*
+@@ -1852,7 +1842,7 @@ static inline void expand(struct zone *zone, struct page *page,
+ 		if (set_page_guard(zone, &page[size], high, migratetype))
+ 			continue;
+ 
+-		list_add(&page[size].lru, &area->free_list[migratetype]);
++		add_to_free_area(&page[size], area, migratetype);
+ 		area->nr_free++;
+ 		set_page_order(&page[size], high);
+ 	}
+@@ -1994,13 +1984,10 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 	/* Find a page of the appropriate size in the preferred list */
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+ 		area = &(zone->free_area[current_order]);
+-		page = list_first_entry_or_null(&area->free_list[migratetype],
+-							struct page, lru);
++		page = get_page_from_free_area(area, migratetype);
+ 		if (!page)
+ 			continue;
+-		list_del(&page->lru);
+-		rmv_page_order(page);
+-		area->nr_free--;
++		del_page_from_free_area(page, area, migratetype);
+ 		expand(zone, page, order, current_order, area, migratetype);
+ 		set_pcppage_migratetype(page, migratetype);
+ 		return page;
+@@ -2086,8 +2073,7 @@ static int move_freepages(struct zone *zone,
  		}
  
-@@ -291,7 +286,6 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		dst_pteval = huge_ptep_get(dst_pte);
- 		if (!huge_pte_none(dst_pteval)) {
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
--			i_mmap_unlock_read(mapping);
- 			goto out_unlock;
+ 		order = page_order(page);
+-		list_move(&page->lru,
+-			  &zone->free_area[order].free_list[migratetype]);
++		move_to_free_area(page, &zone->free_area[order], migratetype);
+ 		page += 1 << order;
+ 		pages_moved += 1 << order;
+ 	}
+@@ -2263,7 +2249,7 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+ 
+ single_page:
+ 	area = &zone->free_area[current_order];
+-	list_move(&page->lru, &area->free_list[start_type]);
++	move_to_free_area(page, area, start_type);
+ }
+ 
+ /*
+@@ -2287,7 +2273,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
+ 		if (fallback_mt == MIGRATE_TYPES)
+ 			break;
+ 
+-		if (list_empty(&area->free_list[fallback_mt]))
++		if (free_area_empty(area, fallback_mt))
+ 			continue;
+ 
+ 		if (can_steal_fallback(order, migratetype))
+@@ -2374,9 +2360,7 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
+ 		for (order = 0; order < MAX_ORDER; order++) {
+ 			struct free_area *area = &(zone->free_area[order]);
+ 
+-			page = list_first_entry_or_null(
+-					&area->free_list[MIGRATE_HIGHATOMIC],
+-					struct page, lru);
++			page = get_page_from_free_area(area, MIGRATE_HIGHATOMIC);
+ 			if (!page)
+ 				continue;
+ 
+@@ -2499,8 +2483,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype,
+ 	VM_BUG_ON(current_order == MAX_ORDER);
+ 
+ do_steal:
+-	page = list_first_entry(&area->free_list[fallback_mt],
+-							struct page, lru);
++	page = get_page_from_free_area(area, fallback_mt);
+ 
+ 	steal_suitable_fallback(zone, page, alloc_flags, start_migratetype,
+ 								can_steal);
+@@ -2937,6 +2920,7 @@ EXPORT_SYMBOL_GPL(split_page);
+ 
+ int __isolate_free_page(struct page *page, unsigned int order)
+ {
++	struct free_area *area = &page_zone(page)->free_area[order];
+ 	unsigned long watermark;
+ 	struct zone *zone;
+ 	int mt;
+@@ -2961,9 +2945,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 	}
+ 
+ 	/* Remove page from free list */
+-	list_del(&page->lru);
+-	zone->free_area[order].nr_free--;
+-	rmv_page_order(page);
++
++	del_page_from_free_area(page, area, mt);
+ 
+ 	/*
+ 	 * Set the pageblock if the isolated page is at least half of a
+@@ -3265,13 +3248,13 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+ 			continue;
+ 
+ 		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
+-			if (!list_empty(&area->free_list[mt]))
++			if (!free_area_empty(area, mt))
+ 				return true;
  		}
  
-@@ -299,7 +293,6 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 						dst_addr, src_addr, &page);
+ #ifdef CONFIG_CMA
+ 		if ((alloc_flags & ALLOC_CMA) &&
+-		    !list_empty(&area->free_list[MIGRATE_CMA])) {
++		    !free_area_empty(area, MIGRATE_CMA)) {
+ 			return true;
+ 		}
+ #endif
+@@ -5173,7 +5156,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
  
- 		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
--		i_mmap_unlock_read(mapping);
- 		vm_alloc_shared = vm_shared;
- 
- 		cond_resched();
--- 
-2.17.2
+ 			types[order] = 0;
+ 			for (type = 0; type < MIGRATE_TYPES; type++) {
+-				if (!list_empty(&area->free_list[type]))
++				if (!free_area_empty(area, type))
+ 					types[order] |= 1 << type;
+ 			}
+ 		}
+@@ -8318,6 +8301,9 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	pfn = start_pfn;
+ 	while (pfn < end_pfn) {
++		struct free_area *area;
++		int mt;
++
+ 		if (!pfn_valid(pfn)) {
+ 			pfn++;
+ 			continue;
+@@ -8336,13 +8322,13 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		BUG_ON(page_count(page));
+ 		BUG_ON(!PageBuddy(page));
+ 		order = page_order(page);
++		area = &zone->free_area[order];
+ #ifdef CONFIG_DEBUG_VM
+ 		pr_info("remove from free list %lx %d %lx\n",
+ 			pfn, 1 << order, end_pfn);
+ #endif
+-		list_del(&page->lru);
+-		rmv_page_order(page);
+-		zone->free_area[order].nr_free--;
++		mt = get_pageblock_migratetype(page);
++		del_page_from_free_area(page, area, mt);
+ 		for (i = 0; i < (1 << order); i++)
+ 			SetPageReserved((page+i));
+ 		pfn += (1 << order);
