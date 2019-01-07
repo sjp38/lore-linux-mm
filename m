@@ -1,147 +1,193 @@
-Return-Path: <SRS0=q3d4=PO=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=+lVK=PP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E54CC43612
-	for <linux-mm@archiver.kernel.org>; Sun,  6 Jan 2019 21:46:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A45CC43387
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 05:58:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3A5E9213A2
-	for <linux-mm@archiver.kernel.org>; Sun,  6 Jan 2019 21:46:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E8DA62070B
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 05:58:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="M/bEAEry"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A5E9213A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="MzLeUA9X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8DA62070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 82E368E0003; Sun,  6 Jan 2019 16:46:58 -0500 (EST)
+	id 2C27E8E0007; Mon,  7 Jan 2019 00:58:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B3508E0001; Sun,  6 Jan 2019 16:46:58 -0500 (EST)
+	id 271ED8E0001; Mon,  7 Jan 2019 00:58:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A3488E0003; Sun,  6 Jan 2019 16:46:58 -0500 (EST)
+	id 189168E0007; Mon,  7 Jan 2019 00:58:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F187A8E0001
-	for <linux-mm@kvack.org>; Sun,  6 Jan 2019 16:46:57 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id e12-v6so10834431ljb.18
-        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 13:46:57 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E57648E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 00:58:15 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id x3so6359154itb.6
+        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 21:58:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Nn7oD0ol2iP0y2yprlx6IYbrc5ZCwYkBInEfjdZxW1Q=;
-        b=lZ/rJhqJZ//P1vswWkImLXwpv3hIcgJBgzQzq59l/9eGHqW2+Ap/xK6nELH9jtapWU
-         zA3hHJYzx97FEKkcg2/yLhSAHnTjF9iYsW7dXfx9qJiNsf5JX+7WllmmkEOeRyvHB4rM
-         a++v1FPkJ0wOgfTr5G3L9xBO+CXOk2FDFHmWroU4/NrV569eMYw7YfsWfgfWYtn1eNWD
-         uIkU4Tz06aK9Xwnb8HBNc9Bbr80tgR7HrMl80P09v9yWIj/sSLvS5PWu+QasLi47RRZv
-         9eOrpxb/dJ1r3OvulXmcg6j9UDOH2jGCcp3wI348MtHhPQGFpAFsvr73ehbpF9Pgccwl
-         bBBQ==
-X-Gm-Message-State: AA+aEWYVPVMvltir/+YJgPSKjD4MAnwhuSQ5khNaIV8EYjsFEKW2xahH
-	V93EyQxoYhiOfDALs1rH6iNJWIKVh1t0pXzBo/tYLhnP+bCkbb65omwnnU3X9gFpu69PpCuvpX/
-	XnGvglgzmCFzaeQhAo/SZbaF44y1ANy6YbFp9qF8NyegIej2r92+kFgQ85951ZyO6uLqxRkvkMm
-	cQSWr2mj3HSPKaoITgx3ssjJ2tZe/gvT6gfoZKVQJgL0REtP0aKGcUHfEd+cELG0LIdXPMj2D0p
-	ER29sfHQytrUkTvhn0JigF6urPRSHg6P+4hysdiX5730CIdKgnyB+nOxu2XSSOlaO7ikb8elued
-	SfLOPpoRTxFeaX3bjL8btddHk3c9DHSdrXnx3MkPRnle9AQlvfiFDCVlWZqadJrTEzOHYoLX1aU
-	4
-X-Received: by 2002:a19:2b54:: with SMTP id r81mr31135585lfr.34.1546811217222;
-        Sun, 06 Jan 2019 13:46:57 -0800 (PST)
-X-Received: by 2002:a19:2b54:: with SMTP id r81mr31135568lfr.34.1546811216113;
-        Sun, 06 Jan 2019 13:46:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546811216; cv=none;
+        bh=ri/9cAQ4o6M2ErMtq9RazYzpci6FuAaDDs9D+J9lSlM=;
+        b=NQUikO0u6Y/kr1nnmYnt7FTbzDSkTJX/8+gJc2vkzWpNdMwP359n/l8a0WEJ8hvv2g
+         6EPHA5D3HpN1HRwMnZytgcZD/SBV4HP2q0HtEj5K1gRPfMNMr4rPrKL4YS+YNmrTi2aK
+         J7S6S43ONg1HZssUlcMA9lqnI5f33m3PDTVhYJ4ZK52gXBv5fGSZk1BEsMNvxU/QJ9Fh
+         cWxNm1/rpKFZERV02xbOpiG7xPSg6FOmpzRP3+DAOE1oEr93okI3K/jxkhhbv1W0NAg7
+         E3FOiJaP3Y0PxJqZHK5sGhPQf6UjbT/GzKEpAAjcAk2ght1YMIMeel3mS4pK7YLVGW04
+         qC5g==
+X-Gm-Message-State: AA+aEWbSfROSCSihwI0voKGfY64xDII8peV5r3ieqpvMZGx7x9mOYeKS
+	eMcmdU2L9bOY+1GzvaCcQRKQL5Q1mDGeVpYNhH/mfK3lAyttxxdm2nsUzl7ruGoNeYNc6z9VWET
+	JbncKpmdzSURHL6jfBuh4XqTkenBmGkzlAr+cKhTxU8DPZjMwCO+LzJaKLnkgArekwNMwxWhT2O
+	4AiVikwrI/zYYtMqfljYetArvWW+86WLTVGS+jT4N4c2fOaViaCFgFcTOgkY54HuVedG/1MDSZZ
+	6htrjbfxMtoenYIUHlyLeHaBuleIIlVHkZt+VEszpeqAhIjqcPMPcX7EYMeJFVEyUVD3yBwJ3J+
+	k1NCvy2LzVgcTJ4vPjKOlxns7Ur4/Y7uNAfg7loQDYu+GU9s7vNN6F6opcfaMD4Vb1mhlc9Bz+G
+	7
+X-Received: by 2002:a02:3da:: with SMTP id e87mr37255599jae.78.1546840695606;
+        Sun, 06 Jan 2019 21:58:15 -0800 (PST)
+X-Received: by 2002:a02:3da:: with SMTP id e87mr37255579jae.78.1546840694564;
+        Sun, 06 Jan 2019 21:58:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546840694; cv=none;
         d=google.com; s=arc-20160816;
-        b=mgm+QRkojaILe39LfiUhbdk2fd9mwKx3jnaw9JfnetWNcUA0sWdNW4LfPaybDzAjHO
-         qrTsYcXic+YVSNyrCPDgC0Gi6pY7ZCV1XSK+ZpYUIGAEjX7LmnWqcG1a+IEXMh0SCkDk
-         87QLO7VC8V31CZBYq7vo6e2JPAB7vxIfJHqCAcS3BhVtg2jGyQhx3nglX+EhikB0Bf3b
-         nlCvQolZWf4dZeLhHVsYyJUnNDCQQy/3XQmg+aR3tS9sjnTDLHHmYHE6BCRYfyxqW4u1
-         fQt6w69HZtlEHh9bVLDN0KCXHk/XGZ6O6654/21V6ui1oiWsMblvHZn4WpqoQMdeSi2f
-         aLvQ==
+        b=fzaT9l0KtNJP/6eLSDGghdxKO6QUeIyC4zS+yNUgfmBR9ikPV9kAJ3GrOAGkkHVwcx
+         +Xi7YLlHELOI/zy2gHaAkYTx/7ZY4QDkkw0iSZfjZq6M6g1bdou9Ciji7DgaSWn4DMet
+         hDPkf1otw2jJ4zxH5qQsZYxDiM4gxdYtvoloJmXPG9pErK5IsA9HMXntpqSjjkaPeQOu
+         8q2O/uahTZIHhbsQv2N+/HwXKz4iwJzdDrh6f4i/gvuNEZi2h5gy+nAbQt4NzNwKKV1f
+         TwosDYhEmUww3xlqtioQMIhrEoaaxMyLv44JZfXG5jOOLEC0IiBQWMZKCLifL3mJMDD/
+         oi1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=Nn7oD0ol2iP0y2yprlx6IYbrc5ZCwYkBInEfjdZxW1Q=;
-        b=BZA4s9Cqh8EMZuylKn4XDxQJSLkGlbtPlVweG8F3YDbduBW9ySylz7uy9LWAMwJXvM
-         zgtZSjAEHJ5cDhX1uQQDHKKyNtpJRXYVdtAh/b9HsEWnkAKNpycr/UVDzU4HMQZDYvnz
-         /6utubcp9GLAdlu3uwwqBCGWWJ9B5TT+egbC9uf3fJW2Y96bdobd5wXQrcJl7zY0cJ4X
-         3tvXr1Z9pDqazcw2IUYRCl9/QnfijI3k9gBnskRnDet5wdEn+Yc1Irx9WPQOJqYoN/Tk
-         7fEyC9Y0JXnrZ8ZrE3qTwqkTFAez3e5FYLT5zvReI29d7lece8byUKnF15nYceM/ZJKw
-         5V3g==
+        bh=ri/9cAQ4o6M2ErMtq9RazYzpci6FuAaDDs9D+J9lSlM=;
+        b=GKe4LvZQN/UB3GAHAq8ScLCG6x3ref1wBKkAjGAylBJRGCpI1rzdyxatLpDaShpd7d
+         MHTpYy2hR1U2gWahreRoG4N38GOnsjn24PDseLngqk4REPocbMfDjJyIO0M8M1GcmQLQ
+         ZEJRaV8MguqDo1GRhi0UboOfLsX8qltF0Whas0UUDewL5VkJfRX5iv09OM3qHdl7a5qy
+         xmoKimXYnE512ejdInwDWOWeUaoAq161lcCcgmK2peQ3pIzfMOsqi9l/rBMTyED3xjOx
+         Wojnv0D3jjeN3KfTvpj5QXFprmJNDbS+8DexWvzHdDENTxcm+z2yYlOHNvhDrH65qH83
+         +aKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="M/bEAEry";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=MzLeUA9X;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u10sor15902865lfu.33.2019.01.06.13.46.55
+        by mx.google.com with SMTPS id s21sor12706234iol.146.2019.01.06.21.58.14
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 06 Jan 2019 13:46:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sun, 06 Jan 2019 21:58:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="M/bEAEry";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=MzLeUA9X;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=Nn7oD0ol2iP0y2yprlx6IYbrc5ZCwYkBInEfjdZxW1Q=;
-        b=M/bEAErya4WRSn1yBbBGino0mk0VL3ARKUKSUTjPHagjtYO0zZ0S6MvcT7J5V2CWp6
-         bOL3Jrs2fvoni9kUHg4lOokcHUJ6H5QMa6syqJfEW0w/haX0AYMs8KJlqwsGEDtCkz6u
-         nXNYcC+GPtGSdTNy5xuCQTCKFgzJZ+nNo6Yy4=
-X-Google-Smtp-Source: ALg8bN6AKIdxxxgI0la6ezgO+5mw0aaL4LSfAZX/LEwcLCnAcvWp1faN3jS6FP+sk7HTJ69674/Eew==
-X-Received: by 2002:a19:4948:: with SMTP id l8mr8647390lfj.156.1546811215126;
-        Sun, 06 Jan 2019 13:46:55 -0800 (PST)
-Received: from mail-lj1-f180.google.com (mail-lj1-f180.google.com. [209.85.208.180])
-        by smtp.gmail.com with ESMTPSA id m10-v6sm13590778ljj.34.2019.01.06.13.46.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Jan 2019 13:46:53 -0800 (PST)
-Received: by mail-lj1-f180.google.com with SMTP id k15-v6so36511962ljc.8
-        for <linux-mm@kvack.org>; Sun, 06 Jan 2019 13:46:53 -0800 (PST)
-X-Received: by 2002:a2e:95c6:: with SMTP id y6-v6mr11741960ljh.59.1546811213226;
- Sun, 06 Jan 2019 13:46:53 -0800 (PST)
+        bh=ri/9cAQ4o6M2ErMtq9RazYzpci6FuAaDDs9D+J9lSlM=;
+        b=MzLeUA9Xq+wrrW9rhTDwGZNBoY41yGEYA7OuHciwxxyPhaomfSD0rL+SDv5VwvsMAu
+         DMl5en0sxK8jC1SH65UOFrl/Dsw7tL7ESV9mQ6jHLi8qfsXxPKzwNtnzs0wDjhnJlGFM
+         5DZgXmrcQ2PPprV6YCE6TXFSyX+fxyUEkNUbnNSXGWeITxmR//AKEsY6+MigAZ54PkFM
+         qR7ebhMFlnoA1UC+wcUrSHnSLp5EZm1wAGVytMekj2TNC/SUJSO9noSC0WRR4u8bzCDB
+         OYS5+Se3vvwnTT7qgdnnZOmOIfgAN/dr+PyNXlJJjD3utPzRYQCuYYfQGATMVGNK57k9
+         ra7A==
+X-Google-Smtp-Source: ALg8bN4WdFyMRAfh7I4rR0HqwtROXQJhK9gFOSPn6ypd4eI2mXTiyP1fbWHbqadAL53Z+ONUBOkjjifa3xMuPWTlQXY=
+X-Received: by 2002:a5d:8491:: with SMTP id t17mr41948434iom.11.1546840694038;
+ Sun, 06 Jan 2019 21:58:14 -0800 (PST)
 MIME-Version: 1.0
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <CAG48ez2jAp9xkPXQmVXm0PqNrFGscg9BufQRem2UD8FGX-YzPw@mail.gmail.com>
- <CAHk-=whL4sZiM=JcdQAYQvHm7h7xEtVUh+gYGYhoSk4vi38tXg@mail.gmail.com>
- <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com>
- <CAHk-=wiMQeCEKESWTmm15x79NjEjNwFvjZ=9XenxY7yH8zqa7A@mail.gmail.com>
- <20190106001138.GW6310@bombadil.infradead.org> <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com>
- <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com>
-In-Reply-To: <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 6 Jan 2019 13:46:37 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com>
+References: <1546771139-9349-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <e1a38e21-d5fe-dee3-7081-bc1a12965a68@i-love.sakura.ne.jp> <20190106201941.49f6dc4a4d2e9d15b575f88a@linux-foundation.org>
+In-Reply-To: <20190106201941.49f6dc4a4d2e9d15b575f88a@linux-foundation.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 7 Jan 2019 06:58:01 +0100
 Message-ID:
- <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jann Horn <jannh@google.com>, Jiri Kosina <jikos@kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+ <CACT4Y+Y=V-yRQN6YV_wXT0gejbQKTtUu7wrRmuPVojaVv6NFsQ@mail.gmail.com>
+Subject: Re: [PATCH] lockdep: Add debug printk() for downgrade_write() warning.
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, 
+	Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, 
+	Will Deacon <will.deacon@arm.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190106214637.WKjqV6rP1AeareyYWgF0z2KbdrUaahzyDcpNP9BzCyg@z>
+Message-ID: <20190107055801.jQmpkBACGPySxg2uNEKzX5JTrk8DKQYExwq04W38PEI@z>
 
-On Sat, Jan 5, 2019 at 5:50 PM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+On Mon, Jan 7, 2019 at 5:19 AM Andrew Morton <akpm@linux-foundation.org> wrote:
 >
-> Slightly updated patch in case somebody wants to try things out.
+> On Sun, 6 Jan 2019 19:56:59 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> > syzbot is frequently hitting downgrade_write(&mm->mmap_sem) warning from
+> > munmap() request, but I don't know why it is happening. Since lockdep is
+> > not printing enough information, let's print more. This patch is meant for
+> > linux-next.git only and will be removed after the problem is solved.
+> >
+> > --- a/kernel/locking/lockdep.c
+> > +++ b/kernel/locking/lockdep.c
+> > @@ -50,6 +50,7 @@
+> >  #include <linux/random.h>
+> >  #include <linux/jhash.h>
+> >  #include <linux/nmi.h>
+> > +#include <linux/rwsem.h>
+> >
+> >  #include <asm/sections.h>
+> >
+> > @@ -3550,6 +3551,24 @@ static int __lock_downgrade(struct lockdep_map *lock, unsigned long ip)
+> >       curr->lockdep_depth = i;
+> >       curr->curr_chain_key = hlock->prev_chain_key;
+> >
+> > +#if defined(CONFIG_RWSEM_XCHGADD_ALGORITHM) && defined(CONFIG_DEBUG_AID_FOR_SYZBOT)
+> > +     if (hlock->read && curr->mm) {
+> > +             struct rw_semaphore *sem = container_of(lock,
+> > +                                                     struct rw_semaphore,
+> > +                                                     dep_map);
+> > +
+> > +             if (sem == &curr->mm->mmap_sem) {
+> > +#if defined(CONFIG_RWSEM_SPIN_ON_OWNER)
+> > +                     pr_warn("mmap_sem: hlock->read=%d count=%ld current=%px, owner=%px\n",
+> > +                             hlock->read, atomic_long_read(&sem->count),
+> > +                             curr, READ_ONCE(sem->owner));
+> > +#else
+> > +                     pr_warn("mmap_sem: hlock->read=%d count=%ld\n",
+> > +                             hlock->read, atomic_long_read(&sem->count));
+> > +#endif
+> > +             }
+> > +     }
+> > +#endif
+> >       WARN(hlock->read, "downgrading a read lock");
+> >       hlock->read = 1;
+> >       hlock->acquire_ip = ip;
+>
+> I tossed it in there.
+>
+> But I wonder if anyone is actually running this code.  Because
+>
+> --- a/lib/Kconfig.debug~info-task-hung-in-generic_file_write_iter
+> +++ a/lib/Kconfig.debug
+> @@ -2069,6 +2069,12 @@ config IO_STRICT_DEVMEM
+>
+>           If in doubt, say Y.
+>
+> +config DEBUG_AID_FOR_SYZBOT
+> +       bool "Additional debug code for syzbot"
+> +       default n
+> +       help
+> +         This option is intended for testing by syzbot.
+> +
 
-I decided to just apply that patch. It is *not* marked for stable,
-very intentionally, because I expect that we will need to wait and see
-if there are issues with it, and whether we might have to do something
-entirely different (more like the traditional behavior with some extra
-"only for owner" logic).
 
-But doing a test patch during the merge window (which is about to
-close) sounds like the right thing to do.
+Yes, syzbot always defines this option:
 
-                 Linus
+https://github.com/google/syzkaller/blob/master/dashboard/config/upstream-kasan.config#L14
+https://github.com/google/syzkaller/blob/master/dashboard/config/upstream-kmsan.config#L9
+
+It's meant specifically for such cases.
+
+Tetsuo already got some useful information for past bugs using this feature.
 
