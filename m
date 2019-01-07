@@ -2,165 +2,131 @@ Return-Path: <SRS0=+lVK=PP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06E7AC43387
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BC0DC43387
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF4D42173C
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="YBtIrEuP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF4D42173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	by mail.kernel.org (Postfix) with ESMTP id 50D842173C
+	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 14:39:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50D842173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 49CAA8E002C; Mon,  7 Jan 2019 09:39:23 -0500 (EST)
+	id ED3EE8E002D; Mon,  7 Jan 2019 09:39:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 449F98E0001; Mon,  7 Jan 2019 09:39:23 -0500 (EST)
+	id E82E78E0001; Mon,  7 Jan 2019 09:39:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 312E28E002C; Mon,  7 Jan 2019 09:39:23 -0500 (EST)
+	id D4C608E002D; Mon,  7 Jan 2019 09:39:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D080F8E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 09:39:22 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id b186so149957wmc.8
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 06:39:22 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CBDB8E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 09:39:42 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id f31so371641edf.17
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 06:39:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=MgR59jfi1kQ8zgjSThadf+p9+kl1MDrvdK55shLEZYA=;
-        b=Y/wVlQAJviZwc3VKyHB+zH5Fci7P6899D7BsGDjYzJqigG3W4FKnC9z5yXK0aFMVUy
-         vxiHzbGxY3Eu/OZKionAYt23biBp6RXYOZYW420wS8hjdxBK1AxsX5T6hde/SosrGXCc
-         Npt92OCS7v2NCYNjIp8UQQnOvBSdzTVhYfrIiPipbYu5g4ergd+kZmP2376CXSmkw7Z+
-         HnqfkgjTBJpA2JzahML3yfxz/dFru1h4y6366/WTvBYUAwgDpt/ggrNZB8EdlXtDvyKJ
-         JApsKXbeG4G7SxTmpTm2gGldc09VpLQEMFl3nnvwNROA5WMVQwUI+YP5XrE9+bUarok4
-         wbzQ==
-X-Gm-Message-State: AJcUukexGqmqSXHl3xsXLg9YVUsbMxkpMXCnEjD1NsOv8aDMsEmSXrOe
-	LM0MUbxunvozNzzptzh1u8QK48rB3wD5vtzoltD5TAEDxpPjRNUqYajkuPmcOQnEccZJkntlfN3
-	9rHWZJRBOgPAJAq8/+3yWe8Y/OGBC6AWAGLFDZo8L1EX84bFNmCh266wZwXbO8QhcJ54P+8aYIF
-	TGlpPWll7MWyTZQepxYcULkECK7DohK0MY2GJvtkIGP46WnpfDDj3i0FzQD50gRKoqn7mUeSuLz
-	w3bTMjH1tUEsG/gwyKwfvBLO4qJ0CwKWx2KqQIRWiXhucqLITQ3+yMVb/kix9VW09E2YsVs1QhH
-	ik3p0l1iboqR2VVwTlrPXVUxpOGlo4jgkNK4ajArDeIBLhAXyPlVAXD/fYxm6uC6ofr9POKCyhO
-	e
-X-Received: by 2002:a5d:56d2:: with SMTP id m18mr55644738wrw.113.1546871962367;
-        Mon, 07 Jan 2019 06:39:22 -0800 (PST)
-X-Received: by 2002:a5d:56d2:: with SMTP id m18mr55644696wrw.113.1546871961537;
-        Mon, 07 Jan 2019 06:39:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546871961; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=5tRaWG9w/bpcFZS51x2blm7DQSPjMkRHfXBKvSfmEO4=;
+        b=L91Pgg5cLZjoWFq1pvkeV7OxOB0WodVDPjNeNnxQnzgTCvDGNwVaom0eHnxlBGKjxK
+         czGD/wB/5xrYGv5hkxS42Vd8dixMWzO/R9wTS8qx9QUazEw3+OV3sBTIoDJlgXoIY2RE
+         pDPjYTfTiBgjcTbVX47DC3OBP2FmgcymsmOAFtMBDfcEUYlLcJW5LuKVBB8sX2KOTlUB
+         +a3Ov5YQat/N6iEFInBQetGeraes5FDHxEbWYTrSqOzDEvb2e8LpPXb9Anf4zx8FYYXs
+         X48l8pHBUHl4bxO0JJ6EQZpxC2iIEQT5fKJO49F6ASs7zFEFC2Z16qFSPOYk+a6hWO3t
+         dufQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AA+aEWb0KsXYL3NxKeTXn7KPPLvXNo6C8tcdZfgw2x4bisMhZg0ZNFyo
+	BW0/8AWa6r/qzk97RJbdM/j7tmvBW2kQA7/hzHA05aZ21jxsVOzkBZZzogCMPN8w/WB4lr//P/u
+	sN0cwVn3McsErgK6JTqFSq4iI83EM8OLOSLQxVOTUpFgSkdcSXxjEHQ2ShBK4uzVwaYoF4Q7+KS
+	rwlhXuw4sAGmaB2K/ZO90EdY4wqbB+tMEjGw6h41jIeXDTCOgMqYz1HwPe+uGhA88/D8KJl9kt1
+	bEwB4S5fn6YUhDR9FVdvqW25EIpI8WIjdXtIK5o70BzK+Tq5ucRbY7uqTpfTC+XMkXuIlPUsTJV
+	8KMdiBvmKa5bUgM1CtLNi2a9bSWI3B1ZFdLf5lI+ZBqrbWc6PjdeQvB3uJxLTy/8/ayVcFBB1Q=
+	=
+X-Received: by 2002:a50:f489:: with SMTP id s9mr55427723edm.101.1546871982022;
+        Mon, 07 Jan 2019 06:39:42 -0800 (PST)
+X-Received: by 2002:a50:f489:: with SMTP id s9mr55427663edm.101.1546871981043;
+        Mon, 07 Jan 2019 06:39:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546871981; cv=none;
         d=google.com; s=arc-20160816;
-        b=lm4MgC5WwfV3HHDIB0IdYsWALRTNR2/gRM9l4tuxzlp4YvGP1mLWlsg885cubUlWSD
-         CQxmGPG4B2wv8UkQcTo+TJdDWXFX7+x/f+Loj8S5vnlO9RYSpLs6KtwqE/5oUzfsEMIj
-         OBjnn7slCdBCu4Eu3zjSC2eHyrf55cpeDmgBW29I3a3qkncQYb/beNs+5QSKgx3Dl01y
-         uFRmY75LuIjvPgfFdZzgf0EylFMxz+4j8wcBBEJgF71xXwjvG0pf+Aw2iRZPPhCLzrLL
-         V/Qt2dko53fDZiCkApXxruXHgBbr1/o7IL76MslE1gLA0BOPXTnLc7HapGb1hzkE7jgV
-         DTkQ==
+        b=WVvfa7T5Cfi2ezrnzCKyTGM18ijZXzU7ZpfjErf2GsGkHCW+JKKLsqkXm7JXpuOa94
+         KQAN63FY/RTUJTeGJ7Iv5g/FCzfgeT5yzFUowIwylxL4jDO1RP5ekZgz2gkzoXHTgqYA
+         9P1BzueznNHyCKbkh4+sQ+wgeczirelNdQ+p1aoWUs0EjLaVmFE0aQ+wo1gvsPndW1TB
+         y56xaL3qmbyflEo4qkmJeXB3vwwGa6IY2yBzPR+Dw9iT/LETCmih74SfaZx230tcxb/6
+         vp6kOvDG3SIw+O73A+GdG2wUNS2E/Z/NpVY26wc7wrYLBzIrdOU8aAJ+Lu2w8BH6Evke
+         jngQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=MgR59jfi1kQ8zgjSThadf+p9+kl1MDrvdK55shLEZYA=;
-        b=OBQMC3cO2x0hnea6WPto7faIjYaDq2ZvJSy3C02M6xjV0kVwQ1Pt/NEpTkrSRLLD9f
-         7eUIQBzJhvVjn/ZXDbFetUNevDKKCLN0BEBLzzoGj9JN8/RFJdC4RhhNnclFKBCqp4bQ
-         7QjzkrETHLVGaRElxES5BgFsVMOqHs56VzzncliKx5DPktnncrBerLMnPqWLP3eVztUO
-         anSg3eB6G/+MhyRnf6ugpWoLTadGPOGubc/CuK3Jy1pp+VZ68TdCmudsH6n8jyeShMQs
-         JjSsrW0TDAvdIdRFo86ayRU7K63uIXmSutOFpgL66gEw5wwP5cvmiMo5SHxwKRO+XI+6
-         oHBA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=5tRaWG9w/bpcFZS51x2blm7DQSPjMkRHfXBKvSfmEO4=;
+        b=NNS0a60exWN6l6iIRC9sFPbEu27A+2++0jPfcX3YGLmWxC1n9gRGkoHiUyvrSQ0aoa
+         Iv/5kiXjbnVsA2LZ/BfTkYj8Eu3UCsFvtlDHb/YtBO+ORosZ+dLcwMVAKv+dl/rvV3K/
+         P3FzpOEhyJoc1sLXwje475+O6981jQ62uCwZjaWlPPg3uUeSPnOuXqfn4R7+QOZUDGbI
+         aJP7080xagdm4OWugsJpBbfs5nxiVD62SJ/Gs7dPBt3uYrPTzI+UWiV2U2KUChzbo4Xv
+         3Wykml+z95AvYmHggA9MVbDT7rHfYxV4mKD996uugBKVnyU25IHeh5X4mClkK4FNT5v3
+         rKhg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=YBtIrEuP;
-       spf=pass (google.com: domain of amit.pundir@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=amit.pundir@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v1sor35185705wro.44.2019.01.07.06.39.21
+        by mx.google.com with SMTPS id f2sor37817818ede.19.2019.01.07.06.39.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 07 Jan 2019 06:39:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of amit.pundir@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 07 Jan 2019 06:39:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=YBtIrEuP;
-       spf=pass (google.com: domain of amit.pundir@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=amit.pundir@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=MgR59jfi1kQ8zgjSThadf+p9+kl1MDrvdK55shLEZYA=;
-        b=YBtIrEuPiKng0sd+zTQrbimV25ScTF6JHUDSlmvS2oUzDO78mLx0Mb/o1MdJWQMZHy
-         v50iwxE4mBJ6CGtzOstZw4x+Efh+NYUePOi0AyD70/I+Mn3/izo+VPYzFLotY4gP5iut
-         7Vh9aCkhe/MbW6MYBdBByIQJF7DRUSowKMyXU=
-X-Google-Smtp-Source: ALg8bN4sBT5lQsmfevBEriKosOerKoklx3shvUXRG1D1AY2lff6FjyJrBfuIPunndXBgg4Hunm0bgAbkyan7lXglPZM=
-X-Received: by 2002:adf:e983:: with SMTP id h3mr50281784wrm.232.1546871961064;
- Mon, 07 Jan 2019 06:39:21 -0800 (PST)
+       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: AFSGD/UbqBj8Yo+QEtRTxDtV5oQIeDDOS6Geta9x8qi72hOl59hF37p6FNT0/XlUN0k1SwWTttTePw==
+X-Received: by 2002:a50:a5b8:: with SMTP id a53mr57562641edc.199.1546871980381;
+        Mon, 07 Jan 2019 06:39:40 -0800 (PST)
+Received: from tiehlicka.suse.cz (prg-ext-pat.suse.com. [213.151.95.130])
+        by smtp.gmail.com with ESMTPSA id l18sm29285813edq.87.2019.01.07.06.39.38
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Jan 2019 06:39:39 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+To: <linux-mm@kvack.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>
+Subject: [PATCH 0/2] oom, memcg: do not report racy no-eligible OOM
+Date: Mon,  7 Jan 2019 15:38:00 +0100
+Message-Id: <20190107143802.16847-1-mhocko@kernel.org>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-References: <CAMi1Hd0fZwp7WzGhLSmWG3K+DS+nwT9P9o=zAOGRFDDhjpnGpQ@mail.gmail.com>
- <20190107114710.GA206194@google.com>
-In-Reply-To: <20190107114710.GA206194@google.com>
-From: Amit Pundir <amit.pundir@linaro.org>
-Date: Mon, 7 Jan 2019 20:08:44 +0530
-Message-ID:
- <CAMi1Hd2Zo=zK-rYUd9=Fq87QU7qr2rhftJB+CS-OUFWFQD+OPQ@mail.gmail.com>
-Subject: Re: [for-4.9.y] Patch series "use up highorder free pages before OOM"
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, 
-	Mel Gorman <mgorman@techsingularity.net>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190107143844.1E6cVwyGc2lr8SwSvxBWEGgm5VuY-aybYOPCJqhT9po@z>
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20190107143800.YDuTjGaFjvNfcK9JoYS5gkj6y9hdaXDMSYdOTJJj5LM@z>
 
-On Mon, 7 Jan 2019 at 17:17, Minchan Kim <minchan@kernel.org> wrote:
->
-> On Mon, Jan 07, 2019 at 04:37:37PM +0530, Amit Pundir wrote:
-> > Hi Minchan,
-> >
-> > Kindly review your following mm/OOM upstream fixes for stable 4.9.y.
-> >
-> > 88ed365ea227 ("mm: don't steal highatomic pageblock")
-> > 04c8716f7b00 ("mm: try to exhaust highatomic reserve before the OOM")
-> > 29fac03bef72 ("mm: make unreserve highatomic functions reliable")
-> >
-> > One of the patch from this series:
-> > 4855e4a7f29d ("mm: prevent double decrease of nr_reserved_highatomic")
-> > has already been picked up for 4.9.y.
-> >
-> > The original patch series https://lkml.org/lkml/2016/10/12/77 was sort
-> > of NACked for stable https://lkml.org/lkml/2016/10/12/655 because no
-> > one else reported this OOM behavior on lkml. And the only reason I'm
-> > bringing this up again, for stable-4.9.y tree, is that msm-4.9 Android
-> > trees cherry-picked this whole series as is for their production devices.
-> >
-> > Are there any concerns around this series, in case I submit it to
-> > stable mailing list for v4.9.y?
->
-> Actually, it was not NAK. Other MM guy wanted to backport but I didn't
-> intentionally because I didn't see other reports at that time.
->
-> However, after that, I got a private email from some other kernel team
-> and debugged together. It hit this problem and solved by above patches
-> so they backported it.
-> If you say Android already check-picked them, it's third time I heard
-> the problem(If they really pick those patch due to some problem) since
-> we merge those patches into upstream.
-> So, I belive it's worth to merge if someone could volunteer.
+Hi,
+I have posted this as an RFC previously [1]. Tetsuo has pointed out some
+issues with the patch 1 which I have fixed hopefully. Other than that
+this is just a rebase on top of Linus tree.
 
-This is where it gets tricky, Code Aurora cherry-picked these patches
-for their Android v4.9.y tree, where they get applied cleanly i.e. no
-backport needed. But there is no way to tell if these patches indeed
-solved an OOM bug or two for them.
+The original cover:
+this is a follow up for [2] which has been nacked mostly because Tetsuo
+was able to find a simple workload which can trigger a race where
+no-eligible task is reported without a good reason. I believe the patch2
+addresses that issue and we do not have to play dirty games with
+throttling just because of the race. I still believe that patch proposed
+in [2] is a useful one but this can be addressed later.
 
-So let me put it this way, is it safe to apply this series on v4.9
-kernel? Or should I be wary of regressions?
+This series comprises 2 patch. The first one is something I meant to do
+loooong time ago, I just never have time to do that. We need it here to
+handle CLONE_VM without CLONE_SIGHAND cases. The second patch closes the
+race.
 
-Regards,
-Amit Pundir
+Feedback is appreciated of course.
 
->
-> Thanks.
+[1] http://lkml.kernel.org/r/20181022071323.9550-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20181010151135.25766-1-mhocko@kernel.org
+
 
