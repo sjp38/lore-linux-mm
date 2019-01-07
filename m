@@ -1,232 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 87EC78E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:54:18 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id 39so35263097edq.13
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:54:18 -0800 (PST)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id r24si206942edp.187.2019.01.04.04.54.16
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D080F8E0001
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 09:39:22 -0500 (EST)
+Received: by mail-wm1-f72.google.com with SMTP id b186so149957wmc.8
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 06:39:22 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v1sor35185705wro.44.2019.01.07.06.39.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:54:16 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id A3EF61C1C34
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:54:16 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 23/25] mm, compaction: Be selective about what pageblocks to clear skip hints
-Date: Fri,  4 Jan 2019 12:50:09 +0000
-Message-Id: <20190104125011.16071-24-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        (Google Transport Security);
+        Mon, 07 Jan 2019 06:39:21 -0800 (PST)
+MIME-Version: 1.0
+References: <CAMi1Hd0fZwp7WzGhLSmWG3K+DS+nwT9P9o=zAOGRFDDhjpnGpQ@mail.gmail.com>
+ <20190107114710.GA206194@google.com>
+In-Reply-To: <20190107114710.GA206194@google.com>
+From: Amit Pundir <amit.pundir@linaro.org>
+Date: Mon, 7 Jan 2019 20:08:44 +0530
+Message-ID: <CAMi1Hd2Zo=zK-rYUd9=Fq87QU7qr2rhftJB+CS-OUFWFQD+OPQ@mail.gmail.com>
+Subject: Re: [for-4.9.y] Patch series "use up highorder free pages before OOM"
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-Pageblock hints are cleared when compaction restarts or kswapd makes enough
-progress that it can sleep but it's over-eager in that the bit is cleared
-for migration sources with no LRU pages and migration targets with no free
-pages. As pageblock skip hint flushes are relatively rare and out-of-band
-with respect to kswapd, this patch makes a few more expensive checks to
-see if it's appropriate to even clear the bit. Every pageblock that is
-not cleared will avoid 512 pages being scanned unnecessarily on x86-64.
+On Mon, 7 Jan 2019 at 17:17, Minchan Kim <minchan@kernel.org> wrote:
+>
+> On Mon, Jan 07, 2019 at 04:37:37PM +0530, Amit Pundir wrote:
+> > Hi Minchan,
+> >
+> > Kindly review your following mm/OOM upstream fixes for stable 4.9.y.
+> >
+> > 88ed365ea227 ("mm: don't steal highatomic pageblock")
+> > 04c8716f7b00 ("mm: try to exhaust highatomic reserve before the OOM")
+> > 29fac03bef72 ("mm: make unreserve highatomic functions reliable")
+> >
+> > One of the patch from this series:
+> > 4855e4a7f29d ("mm: prevent double decrease of nr_reserved_highatomic")
+> > has already been picked up for 4.9.y.
+> >
+> > The original patch series https://lkml.org/lkml/2016/10/12/77 was sort
+> > of NACked for stable https://lkml.org/lkml/2016/10/12/655 because no
+> > one else reported this OOM behavior on lkml. And the only reason I'm
+> > bringing this up again, for stable-4.9.y tree, is that msm-4.9 Android
+> > trees cherry-picked this whole series as is for their production devices.
+> >
+> > Are there any concerns around this series, in case I submit it to
+> > stable mailing list for v4.9.y?
+>
+> Actually, it was not NAK. Other MM guy wanted to backport but I didn't
+> intentionally because I didn't see other reports at that time.
+>
+> However, after that, I got a private email from some other kernel team
+> and debugged together. It hit this problem and solved by above patches
+> so they backported it.
+> If you say Android already check-picked them, it's third time I heard
+> the problem(If they really pick those patch due to some problem) since
+> we merge those patches into upstream.
+> So, I belive it's worth to merge if someone could volunteer.
 
-The impact is variable with different workloads showing small differences
-in latency, success rates and scan rates. This is expected as clearing
-the hints is not that common but doing a small amount of work out-of-band
-to avoid a large amount of work in-band later is generally a good thing.
+This is where it gets tricky, Code Aurora cherry-picked these patches
+for their Android v4.9.y tree, where they get applied cleanly i.e. no
+backport needed. But there is no way to tell if these patches indeed
+solved an OOM bug or two for them.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/mmzone.h |   2 +
- mm/compaction.c        | 119 +++++++++++++++++++++++++++++++++++++++++--------
- 2 files changed, 102 insertions(+), 19 deletions(-)
+So let me put it this way, is it safe to apply this series on v4.9
+kernel? Or should I be wary of regressions?
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index cc4a507d7ca4..faa1e6523f49 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -480,6 +480,8 @@ struct zone {
- 	unsigned long		compact_cached_free_pfn;
- 	/* pfn where async and sync compaction migration scanner should start */
- 	unsigned long		compact_cached_migrate_pfn[2];
-+	unsigned long		compact_init_migrate_pfn;
-+	unsigned long		compact_init_free_pfn;
- #endif
- 
- #ifdef CONFIG_COMPACTION
-diff --git a/mm/compaction.c b/mm/compaction.c
-index cc532e81a7b7..7f316e1a7275 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -231,6 +231,62 @@ static bool pageblock_skip_persistent(struct page *page)
- 	return false;
- }
- 
-+static bool
-+__reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
-+							bool check_target)
-+{
-+	struct page *page = pfn_to_online_page(pfn);
-+	struct page *end_page;
-+
-+	if (!page)
-+		return false;
-+	if (zone != page_zone(page))
-+		return false;
-+	if (pageblock_skip_persistent(page))
-+		return false;
-+
-+	/*
-+	 * If skip is already cleared do no further checking once the
-+	 * restart points have been set.
-+	 */
-+	if (check_source && check_target && !get_pageblock_skip(page))
-+		return true;
-+
-+	/*
-+	 * If clearing skip for the target scanner, do not select a
-+	 * non-movable pageblock as the starting point.
-+	 */
-+	if (!check_source && check_target &&
-+	    get_pageblock_migratetype(page) != MIGRATE_MOVABLE)
-+		return false;
-+
-+	/*
-+	 * Only clear the hint if a sample indicates there is either a
-+	 * free page or an LRU page in the block. One or other condition
-+	 * is necessary for the block to be a migration source/target.
-+	 */
-+	page = pfn_to_page(pageblock_start_pfn(pfn));
-+	if (zone != page_zone(page))
-+		return false;
-+	end_page = page + pageblock_nr_pages;
-+
-+	do {
-+		if (check_source && PageLRU(page)) {
-+			clear_pageblock_skip(page);
-+			return true;
-+		}
-+
-+		if (check_target && PageBuddy(page)) {
-+			clear_pageblock_skip(page);
-+			return true;
-+		}
-+
-+		page += (1 << PAGE_ALLOC_COSTLY_ORDER);
-+	} while (page < end_page);
-+
-+	return false;
-+}
-+
- /*
-  * This function is called to clear all cached information on pageblocks that
-  * should be skipped for page isolation when the migrate and free page scanner
-@@ -238,30 +294,54 @@ static bool pageblock_skip_persistent(struct page *page)
-  */
- static void __reset_isolation_suitable(struct zone *zone)
- {
--	unsigned long start_pfn = zone->zone_start_pfn;
--	unsigned long end_pfn = zone_end_pfn(zone);
--	unsigned long pfn;
-+	unsigned long migrate_pfn = zone->zone_start_pfn;
-+	unsigned long free_pfn = zone_end_pfn(zone);
-+	unsigned long reset_migrate = free_pfn;
-+	unsigned long reset_free = migrate_pfn;
-+	bool source_set = false;
-+	bool free_set = false;
- 
--	zone->compact_blockskip_flush = false;
-+	if (!zone->compact_blockskip_flush)
-+		return;
- 
--	/* Walk the zone and mark every pageblock as suitable for isolation */
--	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
--		struct page *page;
-+	zone->compact_blockskip_flush = false;
- 
-+	/*
-+	 * Walk the zone and update pageblock skip information. Source looks
-+	 * for PageLRU while target looks for PageBuddy. When the scanner
-+	 * is found, both PageBuddy and PageLRU are checked as the pageblock
-+	 * is suitable as both source and target.
-+	 */
-+	for (; migrate_pfn < free_pfn; migrate_pfn += pageblock_nr_pages,
-+					free_pfn -= pageblock_nr_pages) {
- 		cond_resched();
- 
--		page = pfn_to_online_page(pfn);
--		if (!page)
--			continue;
--		if (zone != page_zone(page))
--			continue;
--		if (pageblock_skip_persistent(page))
--			continue;
-+		/* Update the migrate PFN */
-+		if (__reset_isolation_pfn(zone, migrate_pfn, true, source_set) &&
-+		    migrate_pfn < reset_migrate) {
-+			source_set = true;
-+			reset_migrate = migrate_pfn;
-+			zone->compact_init_migrate_pfn = reset_migrate;
-+			zone->compact_cached_migrate_pfn[0] = reset_migrate;
-+			zone->compact_cached_migrate_pfn[1] = reset_migrate;
-+		}
- 
--		clear_pageblock_skip(page);
-+		/* Update the free PFN */
-+		if (__reset_isolation_pfn(zone, free_pfn, free_set, true) &&
-+		    free_pfn > reset_free) {
-+			free_set = true;
-+			reset_free = free_pfn;
-+			zone->compact_init_free_pfn = reset_free;
-+			zone->compact_cached_free_pfn = reset_free;
-+		}
- 	}
- 
--	reset_cached_positions(zone);
-+	/* Leave no distance if no suitable block was reset */
-+	if (reset_migrate >= reset_free) {
-+		zone->compact_cached_migrate_pfn[0] = migrate_pfn;
-+		zone->compact_cached_migrate_pfn[1] = migrate_pfn;
-+		zone->compact_cached_free_pfn = free_pfn;
-+	}
- }
- 
- void reset_isolation_suitable(pg_data_t *pgdat)
-@@ -1193,7 +1273,7 @@ fast_isolate_freepages(struct compact_control *cc)
- 	 * If starting the scan, use a deeper search and use the highest
- 	 * PFN found if a suitable one is not found.
- 	 */
--	if (cc->free_pfn == pageblock_start_pfn(zone_end_pfn(cc->zone) - 1)) {
-+	if (cc->free_pfn >= cc->zone->compact_init_free_pfn) {
- 		limit = pageblock_nr_pages >> 1;
- 		scan_start = true;
- 	}
-@@ -1338,7 +1418,6 @@ static void isolate_freepages(struct compact_control *cc)
- 	unsigned long isolate_start_pfn; /* exact pfn we start at */
- 	unsigned long block_end_pfn;	/* end of current pageblock */
- 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
--	unsigned long nr_isolated;
- 	struct list_head *freelist = &cc->freepages;
- 	unsigned int stride;
- 
-@@ -1374,6 +1453,8 @@ static void isolate_freepages(struct compact_control *cc)
- 				block_end_pfn = block_start_pfn,
- 				block_start_pfn -= pageblock_nr_pages,
- 				isolate_start_pfn = block_start_pfn) {
-+		unsigned long nr_isolated;
-+
- 		/*
- 		 * This can iterate a massively long zone without finding any
- 		 * suitable migration targets, so periodically check resched.
-@@ -2020,7 +2101,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 			cc->zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
- 		}
- 
--		if (cc->migrate_pfn == start_pfn)
-+		if (cc->migrate_pfn <= cc->zone->compact_init_migrate_pfn)
- 			cc->whole_zone = true;
- 	}
- 
--- 
-2.16.4
+Regards,
+Amit Pundir
+
+>
+> Thanks.
