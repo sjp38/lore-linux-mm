@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 11A698E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 14:34:44 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id g188so2597461pgc.22
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 11:34:44 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 395338E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 14:33:43 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 12so2681386plb.18
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 11:33:43 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r2si14647872pgo.483.2019.01.08.11.34.42
+        by mx.google.com with ESMTPS id 9si9498864plc.40.2019.01.08.11.33.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 11:34:42 -0800 (PST)
+        Tue, 08 Jan 2019 11:33:42 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.9 35/36] mm/page-writeback.c: don't break integrity writeback on ->writepage() error
-Date: Tue,  8 Jan 2019 14:33:47 -0500
-Message-Id: <20190108193348.123880-35-sashal@kernel.org>
-In-Reply-To: <20190108193348.123880-1-sashal@kernel.org>
-References: <20190108193348.123880-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 51/53] mm/page-writeback.c: don't break integrity writeback on ->writepage() error
+Date: Tue,  8 Jan 2019 14:32:19 -0500
+Message-Id: <20190108193222.123316-51-sashal@kernel.org>
+In-Reply-To: <20190108193222.123316-1-sashal@kernel.org>
+References: <20190108193222.123316-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -67,10 +67,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 21 insertions(+), 14 deletions(-)
 
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 807236aed275..281a46aeae61 100644
+index 3175ac850a53..e001de5ac50c 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -2148,6 +2148,7 @@ int write_cache_pages(struct address_space *mapping,
+@@ -2157,6 +2157,7 @@ int write_cache_pages(struct address_space *mapping,
  {
  	int ret = 0;
  	int done = 0;
@@ -78,7 +78,7 @@ index 807236aed275..281a46aeae61 100644
  	struct pagevec pvec;
  	int nr_pages;
  	pgoff_t uninitialized_var(writeback_index);
-@@ -2244,25 +2245,31 @@ int write_cache_pages(struct address_space *mapping,
+@@ -2253,25 +2254,31 @@ int write_cache_pages(struct address_space *mapping,
  				goto continue_unlock;
  
  			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
