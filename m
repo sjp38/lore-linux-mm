@@ -1,74 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F7A38E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 10:14:00 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id b24so25608069pls.11
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 07:14:00 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c191si499116pfg.72.2019.01.03.07.13.59
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 06AC48E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 16:36:24 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id y88so3658682pfi.9
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 13:36:23 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c22si5701512pgb.254.2019.01.08.13.36.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jan 2019 07:13:59 -0800 (PST)
-Date: Thu, 3 Jan 2019 16:13:57 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm/vmalloc: fix size check for
- remap_vmalloc_range_partial()
-Message-ID: <20190103151357.GR31793@dhcp22.suse.cz>
-References: <20190103145954.16942-1-rpenyaev@suse.de>
- <20190103145954.16942-2-rpenyaev@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 08 Jan 2019 13:36:22 -0800 (PST)
+Date: Tue, 8 Jan 2019 13:36:21 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: Remove redundant test from find_get_pages_contig
+Message-ID: <20190108213621.GH6310@bombadil.infradead.org>
+References: <20190107200224.13260-1-willy@infradead.org>
+ <20190107143319.c74593a70c86441b80e7cccc@linux-foundation.org>
+ <20190107223935.GC6310@bombadil.infradead.org>
+ <20190107150904.09e56f51acaf417ed21f13a3@linux-foundation.org>
+ <20190108202635.GE6310@bombadil.infradead.org>
+ <20190108132649.8f25386d966f04b0bccd6d77@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190103145954.16942-2-rpenyaev@suse.de>
+In-Reply-To: <20190108132649.8f25386d966f04b0bccd6d77@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Penyaev <rpenyaev@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Joe Perches <joe@perches.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 03-01-19 15:59:52, Roman Penyaev wrote:
-> area->size can include adjacent guard page but get_vm_area_size()
-> returns actual size of the area.
+On Tue, Jan 08, 2019 at 01:26:49PM -0800, Andrew Morton wrote:
+> On Tue, 8 Jan 2019 12:26:35 -0800 Matthew Wilcox <willy@infradead.org> wrote:
 > 
-> This fixes possible kernel crash when userspace tries to map area
-> on 1 page bigger: size check passes but the following vmalloc_to_page()
-> returns NULL on last guard (non-existing) page.
-
-Can this actually happen? I am not really familiar with all the callers
-of this API but VM_NO_GUARD is not really used wildly in the kernel.
-All I can see is kasan na arm64 which doesn't really seem to use it
-for vmalloc.
-
-So is the problem real or this is a mere cleanup?
- 
-> Signed-off-by: Roman Penyaev <rpenyaev@suse.de>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Joe Perches <joe@perches.com>
-> Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: stable@vger.kernel.org
-> ---
->  mm/vmalloc.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > Would it be excessively cautious to put a WARN_ON_ONCE() in there for a
+> > > while?
+> > 
+> > I think it would ... it'd get in the way of a subsequent patch to store
+> > only head pages in the page cache.
 > 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 871e41c55e23..2cd24186ba84 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2248,7 +2248,7 @@ int remap_vmalloc_range_partial(struct vm_area_struct *vma, unsigned long uaddr,
->  	if (!(area->flags & VM_USERMAP))
->  		return -EINVAL;
->  
-> -	if (kaddr + size > area->addr + area->size)
-> +	if (kaddr + size > area->addr + get_vm_area_size(area))
->  		return -EINVAL;
->  
->  	do {
-> -- 
-> 2.19.1
+> OK, shall grab.  Perhaps the changelog could gain a few words
+> explaining the history, etc.
 
--- 
-Michal Hocko
-SUSE Labs
+Yeah, I suck at changelogs.  Particularly when I've encountered something
+that's distracting me from the thing I was trying to do.  How about this:
+
+mm: Remove redundant test from find_get_pages_contig
+
+After we establish a reference on the page, we check the pointer
+continues to be in the correct position in i_pages.  Checking page->index
+afterwards is unnecessary; if it were to change, then the pointer to it
+from the page cache would also move.  The check used to be done before
+grabbing a reference on the page which was racy (see 9cbb4cb21b19f
+("mm: find_get_pages_contig fixlet")), but nobody noticed that moving
+the check after grabbing the reference was redundant.
+
+Signed-off-by: Matthew Wilcox <willy@infradead.org>
