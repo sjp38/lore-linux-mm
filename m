@@ -2,159 +2,184 @@ Return-Path: <SRS0=RE7g=PQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC524C43612
-	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 17:58:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8455C43612
+	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 18:40:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 704E2206A3
-	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 17:58:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="GokJAs66"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 704E2206A3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id B46AB206B6
+	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 18:40:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B46AB206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C29FA8E0087; Tue,  8 Jan 2019 12:58:12 -0500 (EST)
+	id 43DE28E008B; Tue,  8 Jan 2019 13:40:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BAF398E0038; Tue,  8 Jan 2019 12:58:12 -0500 (EST)
+	id 3C6988E0038; Tue,  8 Jan 2019 13:40:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A76778E0087; Tue,  8 Jan 2019 12:58:12 -0500 (EST)
+	id 26A2C8E008B; Tue,  8 Jan 2019 13:40:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3655E8E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 12:58:12 -0500 (EST)
-Received: by mail-lf1-f71.google.com with SMTP id y24so369457lfh.4
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 09:58:12 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D615A8E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 13:40:20 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id b8so3339678pfe.10
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 10:40:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=db+M0hMXHCoSkBdeDd5EZtIcwj8USIPc3aH5GApnu2E=;
-        b=rnhhp4ECAeRE8osonW6CCYHV8raAl2qbyySOC2v1Njwpe9pEV9V2DsFUEt79DHm19g
-         H515fXiI8iHrvKEfEbbdIiPP2HF4RdVCP9JuN0NZXXtMPwC1yW1qfT5ZlhhrrK7JJkkg
-         T6kCaebIl87zWghM0RvjiOxcViXOND7kfsC7eRrAOlP529zUGLvB/UJeuAuoV92FLoPJ
-         KBh2g7J2p0F+cP1yWcD+DOMEzS7NcbmOw8GrCpMC9jTWz0Gb/CKEKD4gfhbMsT+qDA/q
-         KdZ1cb90EuAnQspaDbHiuDb+P5m53QfiS4ZAKFNYfxpzX39kvbNiCKqJKJC20eyFto1y
-         R76g==
-X-Gm-Message-State: AJcUukcAHzWLKvQSkM99o4YV/3EY7KtUH29CiLpvExdHxtm7pYr+s+x/
-	qf8wQEMmhDd+n40q1P4cShkrwrTIymKo9nlHnVIdQYH4rH1s661HV6DZ1VPb3AgfpQWVIEtPRC1
-	BZjXsIfSP8gH5NTF3FUBdO0J5ym2qUN0BRMJoT/TOqtd1WSvCDT5Trc0AACAxHnb27tntD1RLp2
-	5/90knv2OIEr9GL1IvMPBbeB5JVNKUrjyMemiulTrQy0RjfxQ68JWTC+IzGpKEMeragyVcNd9iZ
-	TECUUOk1zeZVnpNk4kek/MRdrQKCxRDa8fu0w6Ip9zwIxrjLoRXIs2XA/hNBaBcEyfuwqdD4DAR
-	mSmsijl/rlq4kTjPljrDX/AVrwUPfeYCh4H4pNvtwl3ZDOP5sXqsbwZHrM1D+Vts3kTEdliq2vK
-	m
-X-Received: by 2002:a19:5e5d:: with SMTP id z29mr1581144lfi.105.1546970291450;
-        Tue, 08 Jan 2019 09:58:11 -0800 (PST)
-X-Received: by 2002:a19:5e5d:: with SMTP id z29mr1581101lfi.105.1546970290283;
-        Tue, 08 Jan 2019 09:58:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546970290; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=P0jC4RE0YQqxTaHtWGJJArBJ9hZ0heUQ0oMl2IH3Qog=;
+        b=mewoKYP/lt/3a9+MnjtZaH3vgn2OvBZW++Bkv1DeScTxaiHehkHY0gBsmJjvIu/+pz
+         +ur2Fg4e8C4BQUL1ai4Q0WaU/8lLxUYOjNDN3taxqgGcWH3Un1JscHh3Zx5vJA+coz2r
+         71VxgklHuZcF2Z2r9U1h69HSvM4t2HAi5Xw+CFeoNxiFysH+yS8ltiLVbUf2pMdZEcoy
+         5Hl/OZGXj13z/nK4MPaAJjd/VcWo7KZX+Kc1w81fEnvTdQYnz97IKbuLVncK6omIJRJf
+         ye+2EyPAMPQzQXoA+VAdyZ5/dWRx6rK0dF0OfEkOLyOaMQWHxdukJSVKmNySx617cjlS
+         sWqA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUuke1EvMqTPGj3wXyc7/iTMCPFLxcwAiz4GuOUPnmyCmSTPvh8ykH
+	/ytHVwsZQDVOZ6TcIQ54gAKNIVapyMgd4PJA3MiA99as9ciffrYy1pDYSvAD2xucg3MYHhIlLEs
+	D2ywln2YHunzd8lgG/zuSpfLljg0YX9gTAmGXQGyFhtlPfE09JzP6HCeyrRXekymaPw==
+X-Received: by 2002:a17:902:654a:: with SMTP id d10mr2821540pln.324.1546972820527;
+        Tue, 08 Jan 2019 10:40:20 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5Svit/cWFXHIJIwx716Cd8f+OeGGu1WBZkY4kzNKH1JpyM6wCgwkf3az+p+X0niuYmwdNr
+X-Received: by 2002:a17:902:654a:: with SMTP id d10mr2821502pln.324.1546972819583;
+        Tue, 08 Jan 2019 10:40:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546972819; cv=none;
         d=google.com; s=arc-20160816;
-        b=hoHo63Y6bRPeDrJgwiY8pln5HU7yxzx4DMNKBisPkcjyHcfYgfWjJIB8gZhfDIDhI+
-         H9VGeRyOfK6ownOrnE7morvCDibIbc/9wtOX2MwW7/CvaNcOkFVy1BYbSACB7YpdNi/V
-         WG5fNipjWoWDnpMWL/b/TjKlB/y893HMvEtVpUo8VfrkEVZ6w2Nye7w3DMsXBHoMoy2T
-         BIjEekWO1VCxmBIcFvkzPoPRP62+gh9FmVodUFqlklhk4QR7ovoqY1EQrh4+wpSCsCwo
-         joUPEyOEHkx6nSTunB3poZtLxyfWqIrYX5wSt4dyU8fg3WSe0lRPHCEymT5YHOQnOZIF
-         hpyQ==
+        b=nkZu8W8aADJZKzIJtHZsBy+3lemeWUr97K1CYISf2leDU/Qi5bP+O8odQu/gN5Wtd4
+         qrnTGEO+R1x4gtViYSEm4VjI+Ng3PeVJ/EOC6BuevtALPdLBFONm5efIKflDOeXzTDC+
+         mbEgeJBumA/TIYP2ri/yqN3uDmgtvX0Uawdlhcf+8mDEeUYrUKUZTr3SS8+MoVN6DZSa
+         yi/Sk9ct4SBCVG6/9ltnyjHWw4nF7rXVQaoO0WX+dJaMNQg6NqXVsl9Fn7CyZ0u5daJy
+         Vhq2Y4R8EyrYLGVrZqMI9tHeByOMccnrtakZUvj0fqxjrupm5wqoW31en6MDoibqcUXL
+         N4Fg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=db+M0hMXHCoSkBdeDd5EZtIcwj8USIPc3aH5GApnu2E=;
-        b=d6ULeWwUXsJi3C+LJTmY6OUgSCF6viBc8WNSsVXTPErtsZ/OZsemgQVjpaJ0ce5eQU
-         BxpN3fOiBsQFiYfwFdbOShXVeSzqrT7VZqxlx8eO6rIs6R5rzIsw/3UkdfhenmHJgxyF
-         MAHC3r67UBPvC8PJsrhIiSP06Y01dbwaujCesGfuJG6VzA2ECsIlI0bRr8i+w3sFvjRU
-         PF/Xf5g6msfGsr6waZlo4JB1G+OsVqkLNsKW2YVd41Ub4LTLNx5ulT2h2J7262epIPTh
-         sbqNex9pf0OSnKJwElJ312BvLtm7hfw6p61MxoqOj0psffyZs+pBTcW9Q/Djzn7dN/Qq
-         0iYA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=P0jC4RE0YQqxTaHtWGJJArBJ9hZ0heUQ0oMl2IH3Qog=;
+        b=lrJ+ZOyyUwkqQj9TGJltnmhLojU57rcJ8ikLR0oR1bfOb0gWBFL30jNEuHU+oVeBB1
+         mY5yuQgtat2tfkoGwHl5CjaJkDuOyNozaA4lmGo0WyagLYFXQtqmLtOp1+6NK1TTIe6n
+         beK+SZpGSKYlf8bMdtG02O3q+lwDWcJhenbgAU+vs4qFhoet20o+yVx8OMf4a39st47/
+         /PZTmWN+o8ZPwkWLivohixH05I5N/ozqTqbJMh6nuJc13CswYedBzzxZICkGfvScNAZo
+         4YgYLCc6/MKXmaxdMemFhkiILK82UWWr8D+k7hp8iNfu0BFdVJkZFHvcrM4g7hnO+5fe
+         biNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=GokJAs66;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y24-v6sor39689068ljy.1.2019.01.08.09.58.10
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 08 Jan 2019 09:58:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=GokJAs66;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=db+M0hMXHCoSkBdeDd5EZtIcwj8USIPc3aH5GApnu2E=;
-        b=GokJAs66VB328JuQAj7nCMPOAKLlFcIc1p0dIohaE7gWVg6SFWJMtUNk8AtOJne6fl
-         ykxMuYplWSTTnqZD6aJrfG9Fs/q+OYzkO7lTF3D5CUolWfqub2ihmQauLhXG90AsQt1c
-         6/pQk57mtM2CylvQftRJfayqv1m0lTg+9u4aM=
-X-Google-Smtp-Source: ALg8bN48sB8A8awIAr5+4gNwM+4+n2bja/bWpR3KbkkAHv/PgCNdhLbgwoJjVjFRdunP51T/ebO5PQ==
-X-Received: by 2002:a2e:890b:: with SMTP id d11-v6mr1590673lji.113.1546970288648;
-        Tue, 08 Jan 2019 09:58:08 -0800 (PST)
-Received: from mail-lf1-f53.google.com (mail-lf1-f53.google.com. [209.85.167.53])
-        by smtp.gmail.com with ESMTPSA id u65sm14080720lff.54.2019.01.08.09.58.06
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id e13si9225907pfi.271.2019.01.08.10.40.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 09:58:07 -0800 (PST)
-Received: by mail-lf1-f53.google.com with SMTP id u18so3579379lff.10
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 09:58:06 -0800 (PST)
-X-Received: by 2002:a19:6e0b:: with SMTP id j11mr1719606lfc.124.1546970286304;
- Tue, 08 Jan 2019 09:58:06 -0800 (PST)
-MIME-Version: 1.0
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <CAG48ez2jAp9xkPXQmVXm0PqNrFGscg9BufQRem2UD8FGX-YzPw@mail.gmail.com>
- <CAHk-=whL4sZiM=JcdQAYQvHm7h7xEtVUh+gYGYhoSk4vi38tXg@mail.gmail.com>
- <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com>
- <CAHk-=wiMQeCEKESWTmm15x79NjEjNwFvjZ=9XenxY7yH8zqa7A@mail.gmail.com>
- <20190106001138.GW6310@bombadil.infradead.org> <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com>
- <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com>
- <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com> <20190108044336.GB27534@dastard>
-In-Reply-To: <20190108044336.GB27534@dastard>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 8 Jan 2019 09:57:49 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com>
-Message-ID:
- <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Dave Chinner <david@fromorbit.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, 
-	Jiri Kosina <jikos@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+        Tue, 08 Jan 2019 10:40:19 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga004.jf.intel.com ([10.7.209.38])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jan 2019 10:40:19 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,455,1539673200"; 
+   d="scan'208";a="265497410"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga004.jf.intel.com with ESMTP; 08 Jan 2019 10:40:18 -0800
+Message-ID: <37498672d5b2345b1435477e78251282af42742b.camel@linux.intel.com>
+Subject: Re: [PATCH v7] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, 
+ akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz,
+ osalvador@suse.de,  linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: getarunks@gmail.com
+Date: Tue, 08 Jan 2019 10:40:18 -0800
+In-Reply-To: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
+References: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190108175749.OEKWJcx_j0MIynW0W2EBZJ0o7Z-wfrDtbzuB-SRxCKs@z>
+Message-ID: <20190108184018.F6DZSoz7jteH0PjgdSHnksTmeB-cMDbiT_k9si-KMS0@z>
 
-On Mon, Jan 7, 2019 at 8:43 PM Dave Chinner <david@fromorbit.com> wrote:
->
-> So, I read the paper and before I was half way through it I figured
-> there are a bunch of other similar page cache invalidation attacks
-> we can perform without needing mincore. i.e. Focussing on mmap() and
-> mincore() misses the wider issues we have with global shared caches.
+On Fri, 2019-01-04 at 10:31 +0530, Arun KS wrote:
+> When freeing pages are done with higher order, time spent on coalescing
+> pages by buddy allocator can be reduced.  With section size of 256MB, hot
+> add latency of a single section shows improvement from 50-60 ms to less
+> than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> external providers of online callback to align with the change.
+> 
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
-Oh, agreed, and that was discussed in the original report too.
+After running into my initial issue I actually had a few more questions
+about this patch.
 
-The thing is, you can also depend on our pre-faulting of pages in the
-page fault handler, and use that to get the cached status of nearby
-pages. So do something like "fault one page, then do mincore() to see
-how many pages near it were mapped". See our "do_fault_around()"
-logic.
+> [...]
+> +static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
+> +{
+> +	unsigned long end = start + nr_pages;
+> +	int order, ret, onlined_pages = 0;
+> +
+> +	while (start < end) {
+> +		order = min(MAX_ORDER - 1,
+> +			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
+> +
+> +		ret = (*online_page_callback)(pfn_to_page(start), order);
+> +		if (!ret)
+> +			onlined_pages += (1UL << order);
+> +		else if (ret > 0)
+> +			onlined_pages += ret;
+> +
+> +		start += (1UL << order);
+> +	}
+> +	return onlined_pages;
+>  }
+>  
 
-But mincore is certainly the easiest interface, and the one that
-doesn't require much effort or setup. It's also the one where our old
-behavior was actually arguably simply stupid and actively wrong (ie
-"in caches" isn't even strictly speaking a valid question, since the
-caches in question may be invalid). So let's try to see if giving
-mincore() slightly more well-defined semantics actually causes any
-pain.
+Should the limit for this really be MAX_ORDER - 1 or should it be
+pageblock_order? In some cases this will be the same value, but I seem
+to recall that for x86 MAX_ORDER can be several times larger than
+pageblock_order.
 
-I do think that the RWF_NOWAIT case might also be interesting to look at.
+>  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+>  			void *arg)
+>  {
+> -	unsigned long i;
+>  	unsigned long onlined_pages = *(unsigned long *)arg;
+> -	struct page *page;
+>  
+>  	if (PageReserved(pfn_to_page(start_pfn)))
 
-                 Linus
+I'm not sure we even really need this check. Getting back to the
+discussion I have been having with Michal in regards to the need for
+the DAX pages to not have the reserved bit cleared I was originally
+wondering if we could replace this check with a call to
+online_section_nr since the section shouldn't be online until we set
+the bit below in online_mem_sections.
+
+However after doing some further digging it looks like this could
+probably be dropped entirely since we only call this function from
+online_pages and that function is only called by memory_block_action if
+pages_correctly_probed returns true. However pages_correctly_probed
+should return false if any of the sections contained in the page range
+is already online.
+
+> -		for (i = 0; i < nr_pages; i++) {
+> -			page = pfn_to_page(start_pfn + i);
+> -			(*online_page_callback)(page);
+> -			onlined_pages++;
+> -		}
+> +		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
+>  
+>  	online_mem_sections(start_pfn, start_pfn + nr_pages);
+>  
 
