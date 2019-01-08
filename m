@@ -1,61 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 11B168E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 06:28:27 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e17so1484597edr.7
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 03:28:27 -0800 (PST)
-Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id l19-v6si4504870ejp.77.2019.01.08.03.28.25
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D18248E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 14:33:46 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id p9so3447742pfj.3
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 11:33:46 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id r11si17677153pgg.327.2019.01.08.11.33.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 03:28:25 -0800 (PST)
-Received: from mail.blacknight.com (unknown [81.17.255.152])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 545D61C1F16
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 11:28:25 +0000 (GMT)
-Date: Tue, 8 Jan 2019 11:28:23 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC 3/3] mm, compaction: introduce deferred async compaction
-Message-ID: <20190108112823.GP31517@techsingularity.net>
-References: <20181211142941.20500-1-vbabka@suse.cz>
- <20181211142941.20500-4-vbabka@suse.cz>
+        Tue, 08 Jan 2019 11:33:45 -0800 (PST)
+From: Sasha Levin <sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 52/53] mm/swap: use nr_node_ids for avail_lists in swap_info_struct
+Date: Tue,  8 Jan 2019 14:32:20 -0500
+Message-Id: <20190108193222.123316-52-sashal@kernel.org>
+In-Reply-To: <20190108193222.123316-1-sashal@kernel.org>
+References: <20190108193222.123316-1-sashal@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20181211142941.20500-4-vbabka@suse.cz>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Cc: Aaron Lu <aaron.lu@intel.com>, Vasily Averin <vvs@virtuozzo.com>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
 
-On Tue, Dec 11, 2018 at 03:29:41PM +0100, Vlastimil Babka wrote:
-> Deferring compaction happens when it fails to fulfill the allocation request at
-> given order, and then a number of the following direct compaction attempts for
-> same or higher orders is skipped; with further failures, the number grows
-> exponentially up to 64. This is reset e.g. when compaction succeeds.
-> 
-> Until now, defering compaction is only performed after a sync compaction fails,
-> and then it also blocks async compaction attempts. The rationale is that only a
-> failed sync compaction is expected to fully exhaust all compaction potential of
-> a zone. However, for THP page faults that use __GFP_NORETRY, this means only
-> async compaction is attempted and thus it is never deferred, potentially
-> resulting in pointless reclaim/compaction attempts in a badly fragmented node.
-> 
-> This patch therefore tracks and checks async compaction deferred status in
-> addition, and mostly separately from sync compaction. This allows deferring THP
-> fault compaction without affecting any sync pageblock-order compaction.
-> Deferring for sync compaction however implies deferring for async compaction as
-> well. When deferred status is reset, it is reset for both modes.
-> 
-> The expected outcome is less compaction/reclaim activity for failing THP faults
-> likely with some expense on THP fault success rate.
-> 
+From: Aaron Lu <aaron.lu@intel.com>
 
-Either pre/post compaction series I think this makes sense although the
-details may change slightly. If the caller allows then do async
-compaction, sync compaction if that fails and defer if that also fails.
-If the caller can only do async compaction then defer upon failure and
-keep track of those two callers separetly.
+[ Upstream commit 66f71da9dd38af17dc17209cdde7987d4679a699 ]
 
+Since a2468cc9bfdf ("swap: choose swap device according to numa node"),
+avail_lists field of swap_info_struct is changed to an array with
+MAX_NUMNODES elements.  This made swap_info_struct size increased to 40KiB
+and needs an order-4 page to hold it.
+
+This is not optimal in that:
+1 Most systems have way less than MAX_NUMNODES(1024) nodes so it
+  is a waste of memory;
+2 It could cause swapon failure if the swap device is swapped on
+  after system has been running for a while, due to no order-4
+  page is available as pointed out by Vasily Averin.
+
+Solve the above two issues by using nr_node_ids(which is the actual
+possible node number the running system has) for avail_lists instead of
+MAX_NUMNODES.
+
+nr_node_ids is unknown at compile time so can't be directly used when
+declaring this array.  What I did here is to declare avail_lists as zero
+element array and allocate space for it when allocating space for
+swap_info_struct.  The reason why keep using array but not pointer is
+plist_for_each_entry needs the field to be part of the struct, so pointer
+will not work.
+
+This patch is on top of Vasily Averin's fix commit.  I think the use of
+kvzalloc for swap_info_struct is still needed in case nr_node_ids is
+really big on some systems.
+
+Link: http://lkml.kernel.org/r/20181115083847.GA11129@intel.com
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Vasily Averin <vvs@virtuozzo.com>
+Cc: Huang Ying <ying.huang@intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ include/linux/swap.h | 11 ++++++++++-
+ mm/swapfile.c        |  3 ++-
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index f02fb5db8914..4fd1ab9565ba 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -231,7 +231,6 @@ struct swap_info_struct {
+ 	unsigned long	flags;		/* SWP_USED etc: see above */
+ 	signed short	prio;		/* swap priority of this type */
+ 	struct plist_node list;		/* entry in swap_active_head */
+-	struct plist_node avail_lists[MAX_NUMNODES];/* entry in swap_avail_heads */
+ 	signed char	type;		/* strange name for an index */
+ 	unsigned int	max;		/* extent of the swap_map */
+ 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
+@@ -272,6 +271,16 @@ struct swap_info_struct {
+ 					 */
+ 	struct work_struct discard_work; /* discard worker */
+ 	struct swap_cluster_list discard_clusters; /* discard clusters list */
++	struct plist_node avail_lists[0]; /*
++					   * entries in swap_avail_heads, one
++					   * entry per node.
++					   * Must be last as the number of the
++					   * array is nr_node_ids, which is not
++					   * a fixed value so have to allocate
++					   * dynamically.
++					   * And it has to be an array so that
++					   * plist_for_each_* can work.
++					   */
+ };
+ 
+ #ifdef CONFIG_64BIT
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 08e8cd21770c..d687dc3c7050 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2829,8 +2829,9 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 	struct swap_info_struct *p;
+ 	unsigned int type;
+ 	int i;
++	int size = sizeof(*p) + nr_node_ids * sizeof(struct plist_node);
+ 
+-	p = kvzalloc(sizeof(*p), GFP_KERNEL);
++	p = kvzalloc(size, GFP_KERNEL);
+ 	if (!p)
+ 		return ERR_PTR(-ENOMEM);
+ 
 -- 
-Mel Gorman
-SUSE Labs
+2.19.1
