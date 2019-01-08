@@ -1,246 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F088E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 09:22:40 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id l12-v6so9404914ljb.11
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 06:22:40 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r16-v6sor31631756ljr.41.2019.01.03.06.22.37
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ACA438E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 03:50:17 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id f2so2808416qtg.14
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 00:50:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i41si7368964qtc.57.2019.01.08.00.50.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 Jan 2019 06:22:38 -0800 (PST)
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Subject: [RFC PATCH 3/3] selftests/vm: add script helper for CONFIG_TEST_VMALLOC_MODULE
-Date: Thu,  3 Jan 2019 15:21:08 +0100
-Message-Id: <20190103142108.20744-4-urezki@gmail.com>
-In-Reply-To: <20190103142108.20744-1-urezki@gmail.com>
-References: <20190103142108.20744-1-urezki@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Jan 2019 00:50:16 -0800 (PST)
+Date: Tue, 8 Jan 2019 16:50:02 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCHv3 1/2] mm/memblock: extend the limit inferior of
+ bottom-up after parsing hotplug attr
+Message-ID: <20190108085002.GA18718@MiWiFi-R3L-srv>
+References: <1545966002-3075-2-git-send-email-kernelfans@gmail.com>
+ <20181231084018.GA28478@rapoport-lnx>
+ <CAFgQCTvQnj7zReFvH_gmfVJdPXE325o+z4Xx76fupvsLR_7H2A@mail.gmail.com>
+ <20190102092749.GA22664@rapoport-lnx>
+ <20190102101804.GD1990@MiWiFi-R3L-srv>
+ <20190102170537.GA3591@rapoport-lnx>
+ <20190103184706.GU2509588@devbig004.ftw2.facebook.com>
+ <20190104150929.GA32252@rapoport-lnx>
+ <20190105034450.GE30750@MiWiFi-R3L-srv>
+ <20190106062733.GA3728@rapoport-lnx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190106062733.GA3728@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Shuah Khan <shuah@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Thomas Gleixner <tglx@linutronix.de>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Tejun Heo <tj@kernel.org>, Pingfan Liu <kernelfans@gmail.com>, linux-acpi@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Tang Chen <tangchen@cn.fujitsu.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Jonathan Corbet <corbet@lwn.net>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Nicholas Piggin <npiggin@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Daniel Vacek <neelx@redhat.com>, Mathieu Malaterre <malat@debian.org>, Stefan Agner <stefan@agner.ch>, Dave Young <dyoung@redhat.com>, yinghai@kernel.org, vgoyal@redhat.com, linux-kernel@vger.kernel.org
 
-Add the test script for the kernel test driver to analyse vmalloc
-allocator for benchmarking and stressing purposes. It is just a kernel
-module loader. You can specify and pass different parameters in order
-to investigate allocations behaviour. See "usage" output for more
-details.
+On 01/06/19 at 08:27am, Mike Rapoport wrote:
+> I do not suggest to discard the bottom-up method, I merely suggest to allow
+> it to use [0, kernel_start).
 
-Also add basic vmalloc smoke test to the "run_vmtests" suite.
+Sorry for late reply.
 
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
----
- tools/testing/selftests/vm/run_vmtests     |  16 +++
- tools/testing/selftests/vm/test_vmalloc.sh | 176 +++++++++++++++++++++++++++++
- 2 files changed, 192 insertions(+)
- create mode 100755 tools/testing/selftests/vm/test_vmalloc.sh
+I misunderstood it, sorry.
 
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 584a91ae4a8f..951c507a27f7 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -211,4 +211,20 @@ else
-     echo "[PASS]"
- fi
- 
-+echo "------------------------------------"
-+echo "running vmalloc stability smoke test"
-+echo "------------------------------------"
-+./test_vmalloc.sh smoke
-+ret_val=$?
-+
-+if [ $ret_val -eq 0 ]; then
-+	echo "[PASS]"
-+elif [ $ret_val -eq $ksft_skip ]; then
-+	 echo "[SKIP]"
-+	 exitcode=$ksft_skip
-+else
-+	echo "[FAIL]"
-+	exitcode=1
-+fi
-+
- exit $exitcode
-diff --git a/tools/testing/selftests/vm/test_vmalloc.sh b/tools/testing/selftests/vm/test_vmalloc.sh
-new file mode 100755
-index 000000000000..06d2bb109f06
---- /dev/null
-+++ b/tools/testing/selftests/vm/test_vmalloc.sh
-@@ -0,0 +1,176 @@
-+#!/bin/bash
-+# SPDX-License-Identifier: GPL-2.0
-+#
-+# Copyright (C) 2018 Uladzislau Rezki (Sony) <urezki@gmail.com>
-+#
-+# This is a test script for the kernel test driver to analyse vmalloc
-+# allocator. Therefore it is just a kernel module loader. You can specify
-+# and pass different parameters in order to:
-+#     a) analyse performance of vmalloc allocations;
-+#     b) stressing and stability check of vmalloc subsystem.
-+
-+TEST_NAME="vmalloc"
-+DRIVER="test_${TEST_NAME}"
-+
-+# 1 if fails
-+exitcode=1
-+
-+# Kselftest framework requirement - SKIP code is 4.
-+ksft_skip=4
-+
-+#
-+# Static templates for performance, stressing and smoke tests.
-+# Also it is possible to pass any supported parameters manualy.
-+#
-+PERF_PARAM="single_cpu_test=1 sequential_test_order=1 test_repeat_count=3"
-+SMOKE_PARAM="single_cpu_test=1 test_loop_count=10000 test_repeat_count=10"
-+STRESS_PARAM="test_repeat_count=20"
-+
-+check_test_requirements()
-+{
-+	uid=$(id -u)
-+	if [ $uid -ne 0 ]; then
-+		echo "$0: Must be run as root"
-+		exit $ksft_skip
-+	fi
-+
-+	if ! which modprobe > /dev/null 2>&1; then
-+		echo "$0: You need modprobe installed"
-+		exit $ksft_skip
-+	fi
-+
-+	if ! modinfo $DRIVER > /dev/null 2>&1; then
-+		echo "$0: You must have the following enabled in your kernel:"
-+		echo "CONFIG_TEST_VMALLOC=m"
-+		exit $ksft_skip
-+	fi
-+}
-+
-+run_perfformance_check()
-+{
-+	echo "Run performance tests to evaluate how fast vmalloc allocation is."
-+	echo "It runs all test cases on one single CPU with sequential order."
-+
-+	modprobe $DRIVER $PERF_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Ccheck the kernel message buffer to see the summary."
-+}
-+
-+run_stability_check()
-+{
-+	echo "Run stability tests. In order to stress vmalloc subsystem we run"
-+	echo "all available test cases on all available CPUs simultaneously."
-+	echo "It will take time, so be patient."
-+
-+	modprobe $DRIVER $STRESS_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+run_smoke_check()
-+{
-+	echo "Run smoke test. Note, this test provides basic coverage."
-+	echo "Please check $0 output how it can be used"
-+	echo "for deep performance analysis as well as stress testing."
-+
-+	modprobe $DRIVER $SMOKE_PARAM > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+usage()
-+{
-+	echo -n "Usage: $0 [ performance ] | [ stress ] | | [ smoke ] | "
-+	echo "manual parameters"
-+	echo
-+	echo "Valid tests and parameters:"
-+	echo
-+	modinfo $DRIVER
-+	echo
-+	echo "Example usage:"
-+	echo
-+	echo "# Shows help message"
-+	echo "./${DRIVER}.sh"
-+	echo
-+	echo "# Runs 1 test(id_1), repeats it 5 times on all online CPUs"
-+	echo "./${DRIVER}.sh run_test_mask=1 test_repeat_count=5"
-+	echo
-+	echo -n "# Runs 4 tests(id_1|id_2|id_4|id_16) on one CPU with "
-+	echo "sequential order"
-+	echo -n "./${DRIVER}.sh single_cpu_test=1 sequential_test_order=1 "
-+	echo "run_test_mask=23"
-+	echo
-+	echo -n "# Runs all tests on all online CPUs, shuffled order, repeats "
-+	echo "20 times"
-+	echo "./${DRIVER}.sh test_repeat_count=20"
-+	echo
-+	echo "# Performance analysis"
-+	echo "./${DRIVER}.sh performance"
-+	echo
-+	echo "# Stress testing"
-+	echo "./${DRIVER}.sh stress"
-+	echo
-+	exit 0
-+}
-+
-+function validate_passed_args()
-+{
-+	VALID_ARGS=`modinfo $DRIVER | awk '/parm:/ {print $2}' | sed 's/:.*//'`
-+
-+	#
-+	# Something has been passed, check it.
-+	#
-+	for passed_arg in $@; do
-+		key=${passed_arg//=*/}
-+		val="${passed_arg:$((${#key}+1))}"
-+		valid=0
-+
-+		for valid_arg in $VALID_ARGS; do
-+			if [[ $key = $valid_arg ]] && [[ $val -gt 0 ]]; then
-+				valid=1
-+				break
-+			fi
-+		done
-+
-+		if [[ $valid -ne 1 ]]; then
-+			echo "Error: key or value is not correct: ${key} $val"
-+			exit $exitcode
-+		fi
-+	done
-+}
-+
-+function run_manual_check()
-+{
-+	#
-+	# Validate passed parameters. If there is wrong one,
-+	# the script exists and does not execute further.
-+	#
-+	validate_passed_args $@
-+
-+	echo "Run the test with following parameters: $@"
-+	modprobe $DRIVER $@ > /dev/null 2>&1
-+	echo "Done."
-+	echo "Check the kernel ring buffer to see the summary."
-+}
-+
-+function run_test()
-+{
-+	if [ $# -eq 0 ]; then
-+		usage
-+	else
-+		if [[ "$1" = "performance" ]]; then
-+			run_perfformance_check
-+		elif [[ "$1" = "stress" ]]; then
-+			run_stability_check
-+		elif [[ "$1" = "smoke" ]]; then
-+			run_smoke_check
-+		else
-+			run_manual_check $@
-+		fi
-+	fi
-+}
-+
-+check_test_requirements
-+run_test $@
-+
-+exit 0
--- 
-2.11.0
+> > This bottom-up way is taken on many ARCHes, it works well on system if
+> > KASLR is not enabled. Below is the searching result in the current linux
+> > kernel, we can see that all ARCHes have this mechanism, except of
+> > arm/arm64. But now only arm64/mips/x86 have KASLR.
+> > 
+> > W/o KASLR, allocating memblock region above kernle end when hotplug info
+> > is not parsed, looks very reasonable. Since kernel is usually put at
+> > lower address, e.g on x86, it's 16M. My thought is that we need do
+> > memblock allocation around kernel before hotplug info parsed. That is
+> > for system w/o KASLR, we will keep the current bottom-up way; for system
+> > with KASLR, we should allocate memblock region top-down just below
+> > kernel start.
+> 
+> I completely agree. I was thinking about making
+> memblock_find_in_range_node() to do something like
+> 
+> if (memblock_bottom_up()) {
+> 	bottom_up_start = max(start, kernel_end);
+
+In this way, if start < kernel_end, it will still succeed to find a
+region in bottom-up way after kernel end.
+
+I am still reading code. Just noticed Pingfan sent a RFC patchset to put
+SRAT parsing earlier, not sure if he has tested it in numa system with
+acpi. I doubt that really works.
+
+Thanks
+Baoquan
+
+> 	ret = __memblock_find_range_bottom_up(bottom_up_start, end,
+> 					      size, align, nid, flags);
+
+
+
+> 	if (ret)
+> 		return ret;
+> 
+> 	bottom_up_start = max(start, 0);
+> 	end = kernel_start;
+> 
+> 	ret = __memblock_find_range_top_down(bottom_up_start, end,
+> 					     size, align, nid, flags);
+> 	if (ret)
+> 		return ret;
+> }
