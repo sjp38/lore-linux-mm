@@ -1,359 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DDED38E0038
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 18:33:54 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id c14so1010581pls.21
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 15:33:54 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id t6si60005220plz.96.2019.01.07.15.33.53
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 054A58E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 15:05:54 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id s3so4227303iob.15
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 12:05:54 -0800 (PST)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id n143sor19887434itn.34.2019.01.08.12.05.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 15:33:53 -0800 (PST)
-Subject: [PATCH v7 2/3] mm: Move buddy list manipulations into helpers
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 07 Jan 2019 15:21:16 -0800
-Message-ID: <154690327612.676627.7469591833063917773.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 08 Jan 2019 12:05:52 -0800 (PST)
+Date: Tue,  8 Jan 2019 12:05:38 -0800
+Message-Id: <20190108200538.80371-1-shakeelb@google.com>
+Mime-Version: 1.0
+Subject: [PATCH v2] memcg: schedule high reclaim for remote memcgs on high_work
+From: Shakeel Butt <shakeelb@google.com>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>mhocko@suse.com, keith.busch@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-In preparation for runtime randomization of the zone lists, take all
-(well, most of) the list_*() functions in the buddy allocator and put
-them in helper functions. Provide a common control point for injecting
-additional behavior when freeing pages.
+If a memcg is over high limit, memory reclaim is scheduled to run on
+return-to-userland. However it is assumed that the memcg is the current
+process's memcg. With remote memcg charging for kmem or swapping in a
+page charged to remote memcg, current process can trigger reclaim on
+remote memcg. So, schduling reclaim on return-to-userland for remote
+memcgs will ignore the high reclaim altogether. So, record the memcg
+needing high reclaim and trigger high reclaim for that memcg on
+return-to-userland. However if the memcg is already recorded for high
+reclaim and the recorded memcg is not the descendant of the the memcg
+needing high reclaim, punt the high reclaim to the work queue.
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
 ---
- include/linux/mm.h       |    3 --
- include/linux/mm_types.h |    3 ++
- include/linux/mmzone.h   |   51 ++++++++++++++++++++++++++++++++++
- mm/compaction.c          |    4 +--
- mm/page_alloc.c          |   70 ++++++++++++++++++----------------------------
- 5 files changed, 84 insertions(+), 47 deletions(-)
+Changelog since v1:
+- Punt high reclaim of a memcg to work queue only if the recorded memcg
+  is not its descendant.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe73..1621acd10f83 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -500,9 +500,6 @@ static inline void vma_set_anonymous(struct vm_area_struct *vma)
- struct mmu_gather;
- struct inode;
+ include/linux/sched.h |  3 +++
+ kernel/fork.c         |  1 +
+ mm/memcontrol.c       | 18 +++++++++++++-----
+ 3 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a95d1a9574e7..9a46243e6585 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1168,6 +1168,9 @@ struct task_struct {
  
--#define page_private(page)		((page)->private)
--#define set_page_private(page, v)	((page)->private = (v))
--
- #if !defined(__HAVE_ARCH_PTE_DEVMAP) || !defined(CONFIG_TRANSPARENT_HUGEPAGE)
- static inline int pmd_devmap(pmd_t pmd)
- {
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 2c471a2c43fa..1c7dc7ffa288 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -214,6 +214,9 @@ struct page {
- #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
- #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
- 
-+#define page_private(page)		((page)->private)
-+#define set_page_private(page, v)	((page)->private = (v))
+ 	/* Used by memcontrol for targeted memcg charge: */
+ 	struct mem_cgroup		*active_memcg;
 +
- struct page_frag_cache {
- 	void * va;
- #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 8c37a023a790..b78a45e0b11c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -18,6 +18,8 @@
- #include <linux/pageblock-flags.h>
- #include <linux/page-flags-layout.h>
- #include <linux/atomic.h>
-+#include <linux/mm_types.h>
-+#include <linux/page-flags.h>
- #include <asm/page.h>
- 
- /* Free memory management - zoned buddy allocator.  */
-@@ -98,6 +100,55 @@ struct free_area {
- 	unsigned long		nr_free;
- };
- 
-+/* Used for pages not on another list */
-+static inline void add_to_free_area(struct page *page, struct free_area *area,
-+			     int migratetype)
-+{
-+	list_add(&page->lru, &area->free_list[migratetype]);
-+	area->nr_free++;
-+}
-+
-+/* Used for pages not on another list */
-+static inline void add_to_free_area_tail(struct page *page, struct free_area *area,
-+				  int migratetype)
-+{
-+	list_add_tail(&page->lru, &area->free_list[migratetype]);
-+	area->nr_free++;
-+}
-+
-+/* Used for pages which are on another list */
-+static inline void move_to_free_area(struct page *page, struct free_area *area,
-+			     int migratetype)
-+{
-+	list_move(&page->lru, &area->free_list[migratetype]);
-+}
-+
-+static inline struct page *get_page_from_free_area(struct free_area *area,
-+					    int migratetype)
-+{
-+	return list_first_entry_or_null(&area->free_list[migratetype],
-+					struct page, lru);
-+}
-+
-+static inline void rmv_page_order(struct page *page)
-+{
-+	__ClearPageBuddy(page);
-+	set_page_private(page, 0);
-+}
-+
-+static inline void del_page_from_free_area(struct page *page,
-+		struct free_area *area, int migratetype)
-+{
-+	list_del(&page->lru);
-+	rmv_page_order(page);
-+	area->nr_free--;
-+}
-+
-+static inline bool free_area_empty(struct free_area *area, int migratetype)
-+{
-+	return list_empty(&area->free_list[migratetype]);
-+}
-+
- struct pglist_data;
- 
- /*
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ef29490b0f46..a22ac7ab65c5 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1359,13 +1359,13 @@ static enum compact_result __compact_finished(struct zone *zone,
- 		bool can_steal;
- 
- 		/* Job done if page is free of the right migratetype */
--		if (!list_empty(&area->free_list[migratetype]))
-+		if (!free_area_empty(area, migratetype))
- 			return COMPACT_SUCCESS;
- 
- #ifdef CONFIG_CMA
- 		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
- 		if (migratetype == MIGRATE_MOVABLE &&
--			!list_empty(&area->free_list[MIGRATE_CMA]))
-+			!free_area_empty(area, MIGRATE_CMA))
- 			return COMPACT_SUCCESS;
++	/* Used by memcontrol for high relcaim: */
++	struct mem_cgroup		*memcg_high_reclaim;
  #endif
- 		/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2adcd6da8a07..0b4791a2dd43 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -743,12 +743,6 @@ static inline void set_page_order(struct page *page, unsigned int order)
- 	__SetPageBuddy(page);
- }
  
--static inline void rmv_page_order(struct page *page)
--{
--	__ClearPageBuddy(page);
--	set_page_private(page, 0);
--}
--
- /*
-  * This function checks whether a page is free && is the buddy
-  * we can coalesce a page and its buddy if
-@@ -849,13 +843,11 @@ static inline void __free_one_page(struct page *page,
- 		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
- 		 * merge with it and move up one order.
- 		 */
--		if (page_is_guard(buddy)) {
-+		if (page_is_guard(buddy))
- 			clear_page_guard(zone, buddy, order, migratetype);
--		} else {
--			list_del(&buddy->lru);
--			zone->free_area[order].nr_free--;
--			rmv_page_order(buddy);
--		}
-+		else
-+			del_page_from_free_area(buddy, &zone->free_area[order],
-+					migratetype);
- 		combined_pfn = buddy_pfn & pfn;
- 		page = page + (combined_pfn - pfn);
- 		pfn = combined_pfn;
-@@ -905,15 +897,13 @@ static inline void __free_one_page(struct page *page,
- 		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
- 		if (pfn_valid_within(buddy_pfn) &&
- 		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
--			list_add_tail(&page->lru,
--				&zone->free_area[order].free_list[migratetype]);
--			goto out;
-+			add_to_free_area_tail(page, &zone->free_area[order],
-+					      migratetype);
-+			return;
- 		}
- 	}
+ #ifdef CONFIG_BLK_CGROUP
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 68e0a0c0b2d3..98c9963ac8d5 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -916,6 +916,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
  
--	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
--out:
--	zone->free_area[order].nr_free++;
-+	add_to_free_area(page, &zone->free_area[order], migratetype);
- }
- 
- /*
-@@ -1852,7 +1842,7 @@ static inline void expand(struct zone *zone, struct page *page,
- 		if (set_page_guard(zone, &page[size], high, migratetype))
- 			continue;
- 
--		list_add(&page[size].lru, &area->free_list[migratetype]);
-+		add_to_free_area(&page[size], area, migratetype);
- 		area->nr_free++;
- 		set_page_order(&page[size], high);
- 	}
-@@ -1994,13 +1984,10 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 	/* Find a page of the appropriate size in the preferred list */
- 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
- 		area = &(zone->free_area[current_order]);
--		page = list_first_entry_or_null(&area->free_list[migratetype],
--							struct page, lru);
-+		page = get_page_from_free_area(area, migratetype);
- 		if (!page)
- 			continue;
--		list_del(&page->lru);
--		rmv_page_order(page);
--		area->nr_free--;
-+		del_page_from_free_area(page, area, migratetype);
- 		expand(zone, page, order, current_order, area, migratetype);
- 		set_pcppage_migratetype(page, migratetype);
- 		return page;
-@@ -2086,8 +2073,7 @@ static int move_freepages(struct zone *zone,
- 		}
- 
- 		order = page_order(page);
--		list_move(&page->lru,
--			  &zone->free_area[order].free_list[migratetype]);
-+		move_to_free_area(page, &zone->free_area[order], migratetype);
- 		page += 1 << order;
- 		pages_moved += 1 << order;
- 	}
-@@ -2263,7 +2249,7 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
- 
- single_page:
- 	area = &zone->free_area[current_order];
--	list_move(&page->lru, &area->free_list[start_type]);
-+	move_to_free_area(page, area, start_type);
- }
- 
- /*
-@@ -2287,7 +2273,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
- 		if (fallback_mt == MIGRATE_TYPES)
- 			break;
- 
--		if (list_empty(&area->free_list[fallback_mt]))
-+		if (free_area_empty(area, fallback_mt))
- 			continue;
- 
- 		if (can_steal_fallback(order, migratetype))
-@@ -2374,9 +2360,7 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
- 		for (order = 0; order < MAX_ORDER; order++) {
- 			struct free_area *area = &(zone->free_area[order]);
- 
--			page = list_first_entry_or_null(
--					&area->free_list[MIGRATE_HIGHATOMIC],
--					struct page, lru);
-+			page = get_page_from_free_area(area, MIGRATE_HIGHATOMIC);
- 			if (!page)
- 				continue;
- 
-@@ -2499,8 +2483,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype,
- 	VM_BUG_ON(current_order == MAX_ORDER);
- 
- do_steal:
--	page = list_first_entry(&area->free_list[fallback_mt],
--							struct page, lru);
-+	page = get_page_from_free_area(area, fallback_mt);
- 
- 	steal_suitable_fallback(zone, page, alloc_flags, start_migratetype,
- 								can_steal);
-@@ -2937,6 +2920,7 @@ EXPORT_SYMBOL_GPL(split_page);
- 
- int __isolate_free_page(struct page *page, unsigned int order)
- {
-+	struct free_area *area = &page_zone(page)->free_area[order];
- 	unsigned long watermark;
- 	struct zone *zone;
- 	int mt;
-@@ -2961,9 +2945,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 	}
- 
- 	/* Remove page from free list */
--	list_del(&page->lru);
--	zone->free_area[order].nr_free--;
--	rmv_page_order(page);
-+
-+	del_page_from_free_area(page, area, mt);
- 
- 	/*
- 	 * Set the pageblock if the isolated page is at least half of a
-@@ -3265,13 +3248,13 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- 			continue;
- 
- 		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
--			if (!list_empty(&area->free_list[mt]))
-+			if (!free_area_empty(area, mt))
- 				return true;
- 		}
- 
- #ifdef CONFIG_CMA
- 		if ((alloc_flags & ALLOC_CMA) &&
--		    !list_empty(&area->free_list[MIGRATE_CMA])) {
-+		    !free_area_empty(area, MIGRATE_CMA)) {
- 			return true;
- 		}
+ #ifdef CONFIG_MEMCG
+ 	tsk->active_memcg = NULL;
++	tsk->memcg_high_reclaim = NULL;
  #endif
-@@ -5173,7 +5156,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 	return tsk;
  
- 			types[order] = 0;
- 			for (type = 0; type < MIGRATE_TYPES; type++) {
--				if (!list_empty(&area->free_list[type]))
-+				if (!free_area_empty(area, type))
- 					types[order] |= 1 << type;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e9db1160ccbc..81fada6b4a32 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2145,7 +2145,8 @@ void mem_cgroup_handle_over_high(void)
+ 	if (likely(!nr_pages))
+ 		return;
+ 
+-	memcg = get_mem_cgroup_from_mm(current->mm);
++	memcg = current->memcg_high_reclaim;
++	current->memcg_high_reclaim = NULL;
+ 	reclaim_high(memcg, nr_pages, GFP_KERNEL);
+ 	css_put(&memcg->css);
+ 	current->memcg_nr_pages_over_high = 0;
+@@ -2301,10 +2302,10 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * If the hierarchy is above the normal consumption range, schedule
+ 	 * reclaim on returning to userland.  We can perform reclaim here
+ 	 * if __GFP_RECLAIM but let's always punt for simplicity and so that
+-	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
+-	 * not recorded as it most likely matches current's and won't
+-	 * change in the meantime.  As high limit is checked again before
+-	 * reclaim, the cost of mismatch is negligible.
++	 * GFP_KERNEL can consistently be used during reclaim. Record the memcg
++	 * for the return-to-userland high reclaim. If the memcg is already
++	 * recorded and the recorded memcg is not the descendant of the memcg
++	 * needing high reclaim, punt the high reclaim to the work queue.
+ 	 */
+ 	do {
+ 		if (page_counter_read(&memcg->memory) > memcg->high) {
+@@ -2312,6 +2313,13 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 			if (in_interrupt()) {
+ 				schedule_work(&memcg->high_work);
+ 				break;
++			} else if (!current->memcg_high_reclaim) {
++				css_get(&memcg->css);
++				current->memcg_high_reclaim = memcg;
++			} else if (!mem_cgroup_is_descendant(
++					current->memcg_high_reclaim, memcg)) {
++				schedule_work(&memcg->high_work);
++				break;
  			}
- 		}
-@@ -8318,6 +8301,9 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 	spin_lock_irqsave(&zone->lock, flags);
- 	pfn = start_pfn;
- 	while (pfn < end_pfn) {
-+		struct free_area *area;
-+		int mt;
-+
- 		if (!pfn_valid(pfn)) {
- 			pfn++;
- 			continue;
-@@ -8336,13 +8322,13 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 		BUG_ON(page_count(page));
- 		BUG_ON(!PageBuddy(page));
- 		order = page_order(page);
-+		area = &zone->free_area[order];
- #ifdef CONFIG_DEBUG_VM
- 		pr_info("remove from free list %lx %d %lx\n",
- 			pfn, 1 << order, end_pfn);
- #endif
--		list_del(&page->lru);
--		rmv_page_order(page);
--		zone->free_area[order].nr_free--;
-+		mt = get_pageblock_migratetype(page);
-+		del_page_from_free_area(page, area, mt);
- 		for (i = 0; i < (1 << order); i++)
- 			SetPageReserved((page+i));
- 		pfn += (1 << order);
+ 			current->memcg_nr_pages_over_high += batch;
+ 			set_notify_resume(current);
+-- 
+2.20.1.97.g81188d93c3-goog
