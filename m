@@ -1,252 +1,777 @@
-Return-Path: <SRS0=+lVK=PP=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=RE7g=PQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF623C43387
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 23:34:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84622C43387
+	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 00:18:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7457E2070B
-	for <linux-mm@archiver.kernel.org>; Mon,  7 Jan 2019 23:34:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7457E2070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 1E9AE20827
+	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 00:18:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="FANBkjLM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E9AE20827
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0221E8E0045; Mon,  7 Jan 2019 18:34:00 -0500 (EST)
+	id A39FF8E0047; Mon,  7 Jan 2019 19:18:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F13378E0038; Mon,  7 Jan 2019 18:33:59 -0500 (EST)
+	id 9EAC78E0038; Mon,  7 Jan 2019 19:18:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E2A848E0045; Mon,  7 Jan 2019 18:33:59 -0500 (EST)
+	id 8B09A8E0047; Mon,  7 Jan 2019 19:18:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A40728E0038
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 18:33:59 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id p15so1322520pfk.7
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 15:33:59 -0800 (PST)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 507158E0038
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 19:18:44 -0500 (EST)
+Received: by mail-vs1-f69.google.com with SMTP id o132so822513vsd.11
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 16:18:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:date:message-id:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=D6R2d8jUdCA20oSwfq2pCDQChznk2D94CBWykdCqt8A=;
-        b=aIAcVoOgwTWUTmsjCtmwwtorWHfCP9OaqhPebfDsXM2RmDsLrxagS5b/hud6UawQtn
-         9fnP3+JlL5w3A0HcRHT5wjwFmHuiRJgbnebDzL+RP5uGxyvmikTVb5FMGrOhwFcvfqfh
-         XIE3MXg1poB4i/gAxjQ/TAY1Up328QbW75SjKOZqckvtSjrCB3NwwRaN27E0YUq7UZv4
-         qQSJxyYInWCAlKyTJ304aRdCYZiNpYUXB/1v/1MF7I7qe6zN1f7PtcbARZrgJ0Ei0LQB
-         Z3zRnQEb+em6KOdYnK8+FjbKo7xu+/wDVjvRGFDY/SCNy4Z0hRYfksmf1WmSIj3PvVU+
-         Ptrg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukcOZYc+VxcRXYblR/4BMcbR6lHexeUibLRyDLwnh/cDB75WkQ4I
-	QZCYi/vSbvmmko/Hlf8yVtMI+mNlVxzTXNE1g+vyeVV8Ty6xeFfHTax4jvE1qrwTTec+ey33UMD
-	D06A0+1NZF4RobRlCmNkO1adY+2Jm83x6QQ1f+xcF4n9sSrQT8xPCi/nnzERzyFp4zA==
-X-Received: by 2002:a63:de46:: with SMTP id y6mr12563388pgi.198.1546904039308;
-        Mon, 07 Jan 2019 15:33:59 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7FWMyeIzgO1Ig8wcF2fR123bFcJ4ygItULNYAAWRdKMzsyxYJSG+doPZEsUZ2URIum14+G
-X-Received: by 2002:a63:de46:: with SMTP id y6mr12563360pgi.198.1546904038501;
-        Mon, 07 Jan 2019 15:33:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546904038; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=i9vfxz6eJKo7DzFlsyJm4fJFNeGhHeHAbLFdYtcNq0M=;
+        b=HYUj0wemRDyRQMqwCg8clf8PPEW3ljF23gtSdJUa6URAi6v3tkK/r4OXcjNutaX5qS
+         Bl+wG6vioJMINRWAfbhRwU8rYSg8n0KJOdgLtMCSeJLVHE+CYyJm7ZIUX8nAZm3/jIIH
+         k9C3ug6FMUMRWsNr/i/3XzxQWAOC5JZActeH1uYNPpcy06S6MwqnyLeBh6+cPZogPd0x
+         leEdCAzoYwcrrNt/6POEncorJB/VQN1ePWVKBNvAC2+CbWUGlq/qfRzMU2Ue4QNgzHQP
+         wgf810ZUtxV4mdZGjGbgixkKdWL1TjmHXxM83qDBCWNK9w2ncRdHxxBVkMktPPmDxNUK
+         Vxyw==
+X-Gm-Message-State: AJcUukfTJ9TOVzfce3C82XM1oeBvHO5xDQEvqoAvs6j3RczQRU7TwytW
+	Eh92rYiSZWorhcVToJNID4frI+1Tbr34FNfMUhFYaPXOX60KosYLuVn1YSUXf0dzyEg99B025od
+	pdVORETG/k+ePiOFuN40bQ1HZ5bocuMfqTA8qXaJCKKDcy0H6ID5CqudJwxgoJaoxNtyjpmjuhX
+	Mxxb5nQWaQp3c12myrlKkPl26AzXEQ+1pi6lpUpHyZuW1iDuWqXuXQUq0oJzblGyWMTr3H5fCvA
+	xDsc0x4Xw2CK7/XisXIQfgW+NPLCKT+wASy720rMd168Z6loM3dQQWepVmj7vrArYfyCcMrMLz7
+	dD6wArafrDdkWiRfl91yki0Ho+NHQ3aPjyuyCiAvCxBEbwJmZEyy3Hzemkku4uf26wQF20yzD4O
+	S
+X-Received: by 2002:a67:4d4f:: with SMTP id a76mr22849260vsb.167.1546906723883;
+        Mon, 07 Jan 2019 16:18:43 -0800 (PST)
+X-Received: by 2002:a67:4d4f:: with SMTP id a76mr22849236vsb.167.1546906721932;
+        Mon, 07 Jan 2019 16:18:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546906721; cv=none;
         d=google.com; s=arc-20160816;
-        b=jmzoyNJKPdWmM3cLTbyUw+QKMDLu6fmeSaH3uoGrlsbaupwTW6LJOwwiFzmMdcPebc
-         zkh54gfWJRmhc+mkGLz1sp6Geh+TGAM4w+dtuw7dMHdMRtDcK/w0x/DZRYygMBjs5nK8
-         vfLfMJoJUyKKzTSTs+XUJUa9x4MAdsVaD3+8wdnMSY58XciVrg6snEG3RBdkJ8YiBnOT
-         /7dk7y+yqU83WWGaal5CKoDPYTKIKaoJ3zeX+isO1zJiOE+zsNb5tlXSR1ws1749iaxd
-         vdsmImI0lRhh/QGuy7qgj9SUYQBTlUqLY8tLYD1M6297fp0eltyr8dJPdH37vHSXnfI1
-         pKKA==
+        b=gjEtblH8wzMz1uSas3zIYEEq22bgywfuNiWjiFfCqEtjvoWoYv03+1aHj70cvRVfSp
+         1Zj9AIhS2LunalLwkt/ocNR1KhRVfxMtegx+oLNwqYju5skJBGMVkrJFbxDxPy78OBZE
+         vrgDN7mk73W6xQDZQ68jwUgxgFz6VDwPGQYhd3mLXFiICWJ+BRP6W16Kd6YIRhvHU9vp
+         pQZdyG3vxBM4CtjzagE++DcjLtziSXH2XStChj4mLix5guSlenKy55kEz3ku6Dprefpc
+         ehmfyAOGjIAXvtlf3EbcX9aC+wkI0mLUUsBNE2KgUnrtVZWYQdiazaPrhMPujF2RkWSB
+         qFPQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=D6R2d8jUdCA20oSwfq2pCDQChznk2D94CBWykdCqt8A=;
-        b=WPqNQfbHfE356NIZSDKcjEIFL/eRAuTewOXpDeTm60OmzYoZWnRTEJivCzRQ4ENDAm
-         th80+hIaER6FVWsbzG7OKFHL0JWzRMI8TPhIyuTn1ZWacBihW7fF4EpqziHxFEhM56Zq
-         QMqH0kBEPClEVODsLQlB8mwKsKpan6qTq4twltqVrM2xCMpgGeNGQnseTCVocB1DE2av
-         GNHM7Amvtw6NBNqkSSGb4v5lHFPevT4DUiZqX7QBTl/70695VGgjtza7nI3p+JiX3yjB
-         7Dw5SNyO3mGzaf4Cw7MgayiVjz8fNDZ7M0ADVoHGvxkqy5+MvOlHphLaCn//+UrIpu1S
-         LvWQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=i9vfxz6eJKo7DzFlsyJm4fJFNeGhHeHAbLFdYtcNq0M=;
+        b=Ted3lHocnhsw94Jfk1PgkX4TfeCwNi3qoFoHIZUwhqr9vfiX2WmMjxx8CryxjTic/a
+         sNHiMoaYAKaPuLE5w5lTMOhde2bLjugAbWeyLJ86TZRtBUv50WSRvxbXmOjF2jQ1qnv3
+         LGnuq2lr3zjdnoJvjfmHm39OHxyGmN7TVk9ZfYHON3D1Q178naHCsjsleEDkfD2RON1+
+         h6ng1Z6r9fG9GejmbEiI5ZAxSlxjTWdDGS6L4YcdQrVoLgF21Y3ygWjrlHVb7i4tNTnY
+         4+L9zocbiDpXb13RzNaA9IMLEAIWewEv+oFdpD/YRXaFtLwsbmzJgg/sOePYk9BmIS30
+         VN7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id x64si8003259pfx.87.2019.01.07.15.33.58
+       dkim=pass header.i=@chromium.org header.s=google header.b=FANBkjLM;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s80sor34568139vsa.27.2019.01.07.16.18.41
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 07 Jan 2019 16:18:41 -0800 (PST)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@chromium.org header.s=google header.b=FANBkjLM;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=i9vfxz6eJKo7DzFlsyJm4fJFNeGhHeHAbLFdYtcNq0M=;
+        b=FANBkjLMt23eNINxoxnA6BEaoYYh2vCENp341JJ1ZwE8+UI0z0VGsu3rQltbukymKX
+         thc7mIJcNLikuLJ95JXL/aRwoPz4DJQaw6WyuLgsFa8oXcL7FKdW1oMMMnsHUoNzPHkq
+         QxvR5BxFPjFNY3v7PVEzkEkn5RUVGH9bwkjUI=
+X-Google-Smtp-Source: AFSGD/Xh3r9+qzKtUWALDma0a9G5OWMY7faAgWzWQJ2SXjaWhAx3qR8iZtP11b2vwpBOwpEldTawqg==
+X-Received: by 2002:a67:e44f:: with SMTP id n15mr26890025vsm.116.1546906720779;
+        Mon, 07 Jan 2019 16:18:40 -0800 (PST)
+Received: from mail-vs1-f41.google.com (mail-vs1-f41.google.com. [209.85.217.41])
+        by smtp.gmail.com with ESMTPSA id h84sm22537960vsi.28.2019.01.07.16.18.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 15:33:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jan 2019 15:33:58 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,451,1539673200"; 
-   d="scan'208";a="116258313"
-Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga003.jf.intel.com with ESMTP; 07 Jan 2019 15:33:57 -0800
-Subject: [PATCH v7 3/3] mm: Maintain randomization of page free lists
-From: Dan Williams <dan.j.williams@intel.com>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Kees Cook <keescook@chromium.org>,
- Dave Hansen <dave.hansen@linux.intel.com>, mhocko@suse.com,
- keith.busch@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- mgorman@suse.de
-Date: Mon, 07 Jan 2019 15:21:21 -0800
-Message-ID:
- <154690328135.676627.5979130839159447106.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: StGit/0.18-2-gc94f
+        Mon, 07 Jan 2019 16:18:39 -0800 (PST)
+Received: by mail-vs1-f41.google.com with SMTP id p74so1439352vsc.0
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 16:18:39 -0800 (PST)
+X-Received: by 2002:a67:e199:: with SMTP id e25mr10972008vsl.188.1546906718916;
+ Mon, 07 Jan 2019 16:18:38 -0800 (PST)
 MIME-Version: 1.0
+References: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <154690327057.676627.18166704439241470885.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <154690327057.676627.18166704439241470885.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 7 Jan 2019 16:18:27 -0800
+X-Gmail-Original-Message-ID: <CAGXu5jLGkfHax86C-M9ya05ojPwwKrpDL90k3gfAqxKc_emKpA@mail.gmail.com>
+Message-ID:
+ <CAGXu5jLGkfHax86C-M9ya05ojPwwKrpDL90k3gfAqxKc_emKpA@mail.gmail.com>
+Subject: Re: [PATCH v7 1/3] mm: Shuffle initial free memory to improve
+ memory-side-cache utilization
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Dave Hansen <dave.hansen@linux.intel.com>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Keith Busch <keith.busch@intel.com>, Linux-MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190107232121._rowH_y7rl-m5kASIpZ4cQ8pkF4KkKBeZI35vTJ5BO8@z>
+Message-ID: <20190108001827.88jNV97K6TVGIKEEdx-h_o1ZGPk5TRQCjtCDrHpnE40@z>
 
-When freeing a page with an order >= shuffle_page_order randomly select
-the front or back of the list for insertion.
+On Mon, Jan 7, 2019 at 3:33 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> Randomization of the page allocator improves the average utilization of
+> a direct-mapped memory-side-cache. Memory side caching is a platform
+> capability that Linux has been previously exposed to in HPC
+> (high-performance computing) environments on specialty platforms. In
+> that instance it was a smaller pool of high-bandwidth-memory relative to
+> higher-capacity / lower-bandwidth DRAM. Now, this capability is going to
+> be found on general purpose server platforms where DRAM is a cache in
+> front of higher latency persistent memory [1].
+>
+> Robert offered an explanation of the state of the art of Linux
+> interactions with memory-side-caches [2], and I copy it here:
+>
+>     It's been a problem in the HPC space:
+>     http://www.nersc.gov/research-and-development/knl-cache-mode-performance-coe/
+>
+>     A kernel module called zonesort is available to try to help:
+>     https://software.intel.com/en-us/articles/xeon-phi-software
+>
+>     and this abandoned patch series proposed that for the kernel:
+>     https://lkml.org/lkml/2017/8/23/195
+>
+>     Dan's patch series doesn't attempt to ensure buffers won't conflict, but
+>     also reduces the chance that the buffers will. This will make performance
+>     more consistent, albeit slower than "optimal" (which is near impossible
+>     to attain in a general-purpose kernel).  That's better than forcing
+>     users to deploy remedies like:
+>         "To eliminate this gradual degradation, we have added a Stream
+>          measurement to the Node Health Check that follows each job;
+>          nodes are rebooted whenever their measured memory bandwidth
+>          falls below 300 GB/s."
+>
+> A replacement for zonesort was merged upstream in commit cc9aec03e58f
+> "x86/numa_emulation: Introduce uniform split capability". With this
+> numa_emulation capability, memory can be split into cache sized
+> ("near-memory" sized) numa nodes. A bind operation to such a node, and
+> disabling workloads on other nodes, enables full cache performance.
+> However, once the workload exceeds the cache size then cache conflicts
+> are unavoidable. While HPC environments might be able to tolerate
+> time-scheduling of cache sized workloads, for general purpose server
+> platforms, the oversubscribed cache case will be the common case.
+>
+> The worst case scenario is that a server system owner benchmarks a
+> workload at boot with an un-contended cache only to see that performance
+> degrade over time, even below the average cache performance due to
+> excessive conflicts. Randomization clips the peaks and fills in the
+> valleys of cache utilization to yield steady average performance.
+>
+> Here are some performance impact details of the patches:
+>
+> 1/ An Intel internal synthetic memory bandwidth measurement tool, saw a
+> 3X speedup in a contrived case that tries to force cache conflicts. The
+> contrived cased used the numa_emulation capability to force an instance
+> of the benchmark to be run in two of the near-memory sized numa nodes.
+> If both instances were placed on the same emulated they would fit and
+> cause zero conflicts.  While on separate emulated nodes without
+> randomization they underutilized the cache and conflicted unnecessarily
+> due to the in-order allocation per node.
+>
+> 2/ A well known Java server application benchmark was run with a heap
+> size that exceeded cache size by 3X. The cache conflict rate was 8% for
+> the first run and degraded to 21% after page allocator aging. With
+> randomization enabled the rate levelled out at 11%.
+>
+> 3/ A MongoDB workload did not observe measurable difference in
+> cache-conflict rates, but the overall throughput dropped by 7% with
+> randomization in one case.
+>
+> 4/ Mel Gorman ran his suite of performance workloads with randomization
+> enabled on platforms without a memory-side-cache and saw a mix of some
+> improvements and some losses [3].
+>
+> While there is potentially significant improvement for applications that
+> depend on low latency access across a wide working-set, the performance
+> may be negligible to negative for other workloads. For this reason the
+> shuffle capability defaults to off unless a direct-mapped
+> memory-side-cache is detected. Even then, the page_alloc.shuffle=0
+> parameter can be specified to disable the randomization on those
+> systems.
+>
+> Outside of memory-side-cache utilization concerns there is potentially
+> security benefit from randomization. Some data exfiltration and
+> return-oriented-programming attacks rely on the ability to infer the
+> location of sensitive data objects. The kernel page allocator,
+> especially early in system boot, has predictable first-in-first out
+> behavior for physical pages. Pages are freed in physical address order
+> when first onlined.
+>
+> Quoting Kees:
+>     "While we already have a base-address randomization
+>      (CONFIG_RANDOMIZE_MEMORY), attacks against the same hardware and
+>      memory layouts would certainly be using the predictability of
+>      allocation ordering (i.e. for attacks where the base address isn't
+>      important: only the relative positions between allocated memory).
+>      This is common in lots of heap-style attacks. They try to gain
+>      control over ordering by spraying allocations, etc.
+>
+>      I'd really like to see this because it gives us something similar
+>      to CONFIG_SLAB_FREELIST_RANDOM but for the page allocator."
+>
+> While SLAB_FREELIST_RANDOM reduces the predictability of some local slab
+> caches it leaves vast bulk of memory to be predictably in order
+> allocated.  However, it should be noted, the concrete security benefits
+> are hard to quantify, and no known CVE is mitigated by this
+> randomization.
+>
+> Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
+> perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
+> when they are initially populated with free memory at boot and at
+> hotplug time. Do this based on either the presence of a
+> page_alloc.shuffle=Y command line parameter, or autodetection of a
+> memory-side-cache (to be added in a follow-on patch).
+>
+> The shuffling is done in terms of CONFIG_SHUFFLE_PAGE_ORDER sized free
+> pages where the default CONFIG_SHUFFLE_PAGE_ORDER is MAX_ORDER-1 i.e.
+> 10, 4MB this trades off randomization granularity for time spent
+> shuffling.  MAX_ORDER-1 was chosen to be minimally invasive to the page
+> allocator while still showing memory-side cache behavior improvements,
+> and the expectation that the security implications of finer granularity
+> randomization is mitigated by CONFIG_SLAB_FREELIST_RANDOM.
+>
+> The performance impact of the shuffling appears to be in the noise
+> compared to other memory initialization work. Also the bulk of the work
+> is done in the background as a part of deferred_init_memmap().
+>
+> This initial randomization can be undone over time so a follow-on patch
+> is introduced to inject entropy on page free decisions. It is reasonable
+> to ask if the page free entropy is sufficient, but it is not enough due
+> to the in-order initial freeing of pages. At the start of that process
+> putting page1 in front or behind page0 still keeps them close together,
+> page2 is still near page1 and has a high chance of being adjacent. As
+> more pages are added ordering diversity improves, but there is still
+> high page locality for the low address pages and this leads to no
+> significant impact to the cache conflict rate.
+>
+> [1]: https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
+> [2]: https://lkml.org/lkml/2018/9/22/54
+> [3]: https://lkml.org/lkml/2018/10/12/309
+>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Kees Cook <keescook@chromium.org>
 
-While the mm tries to defragment physical pages into huge pages this can
-tend to make the page allocator more predictable over time. Inject the
-front-back randomness to preserve the initial randomness established by
-shuffle_free_memory() when the kernel was booted.
+Reviewed-by: Kees Cook <keescook@chromium.org>
 
-The overhead of this manipulation is constrained by only being applied
-for MAX_ORDER sized pages by default.
+With some comments below...
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/mmzone.h  |   10 ++++++++++
- include/linux/shuffle.h |   12 ++++++++++++
- mm/page_alloc.c         |   11 +++++++++--
- mm/shuffle.c            |   16 ++++++++++++++++
- 4 files changed, 47 insertions(+), 2 deletions(-)
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Mike Rapoport <rppt@linux.ibm.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  include/linux/list.h    |   17 ++++
+>  include/linux/mmzone.h  |    4 +
+>  include/linux/shuffle.h |   48 ++++++++++
+>  init/Kconfig            |   36 ++++++++
+>  mm/Makefile             |    7 +-
+>  mm/memblock.c           |   10 ++
+>  mm/memory_hotplug.c     |    3 +
+>  mm/page_alloc.c         |    3 +
+>  mm/shuffle.c            |  215 +++++++++++++++++++++++++++++++++++++++++++++++
+>  9 files changed, 341 insertions(+), 2 deletions(-)
+>  create mode 100644 include/linux/shuffle.h
+>  create mode 100644 mm/shuffle.c
+>
+> diff --git a/include/linux/list.h b/include/linux/list.h
+> index edb7628e46ed..3dfb8953f241 100644
+> --- a/include/linux/list.h
+> +++ b/include/linux/list.h
+> @@ -150,6 +150,23 @@ static inline void list_replace_init(struct list_head *old,
+>         INIT_LIST_HEAD(old);
+>  }
+>
+> +/**
+> + * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
+> + * @entry1: the location to place entry2
+> + * @entry2: the location to place entry1
+> + */
+> +static inline void list_swap(struct list_head *entry1,
+> +                            struct list_head *entry2)
+> +{
+> +       struct list_head *pos = entry2->prev;
+> +
+> +       list_del(entry2);
+> +       list_replace(entry1, entry2);
+> +       if (pos == entry1)
+> +               pos = entry2;
+> +       list_add(entry1, pos);
+> +}
+> +
+>  /**
+>   * list_del_init - deletes entry from list and reinitialize it.
+>   * @entry: the element to delete from the list.
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index cc4a507d7ca4..8c37a023a790 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1272,6 +1272,10 @@ void sparse_init(void);
+>  #else
+>  #define sparse_init()  do {} while (0)
+>  #define sparse_index_init(_sec, _nid)  do {} while (0)
+> +static inline int pfn_present(unsigned long pfn)
+> +{
+> +       return 1;
+> +}
+>  #endif /* CONFIG_SPARSEMEM */
+>
+>  /*
+> diff --git a/include/linux/shuffle.h b/include/linux/shuffle.h
+> new file mode 100644
+> index 000000000000..d109161f4a62
+> --- /dev/null
+> +++ b/include/linux/shuffle.h
+> @@ -0,0 +1,48 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +// Copyright(c) 2018 Intel Corporation. All rights reserved.
+> +#ifndef _MM_SHUFFLE_H
+> +#define _MM_SHUFFLE_H
+> +#include <linux/jump_label.h>
+> +
+> +enum mm_shuffle_ctl {
+> +       SHUFFLE_ENABLE,
+> +       SHUFFLE_FORCE_DISABLE,
+> +};
+> +#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
+> +DECLARE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
+> +extern void page_alloc_shuffle(enum mm_shuffle_ctl ctl);
+> +extern void __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+> +               unsigned long end_pfn);
+> +static inline void shuffle_free_memory(pg_data_t *pgdat,
+> +               unsigned long start_pfn, unsigned long end_pfn)
+> +{
+> +       if (!static_branch_unlikely(&page_alloc_shuffle_key))
+> +               return;
+> +       __shuffle_free_memory(pgdat, start_pfn, end_pfn);
+> +}
+> +
+> +extern void __shuffle_zone(struct zone *z, unsigned long start_pfn,
+> +               unsigned long end_pfn);
+> +static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
+> +               unsigned long end_pfn)
+> +{
+> +       if (!static_branch_unlikely(&page_alloc_shuffle_key))
+> +               return;
+> +       __shuffle_zone(z, start_pfn, end_pfn);
+> +}
+> +#else
+> +static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+> +               unsigned long end_pfn)
+> +{
+> +}
+> +
+> +static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
+> +               unsigned long end_pfn)
+> +{
+> +}
+> +
+> +static inline void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
+> +{
+> +}
+> +#endif
+> +#endif /* _MM_SHUFFLE_H */
+> diff --git a/init/Kconfig b/init/Kconfig
+> index d47cb77a220e..db7758476e7a 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -1714,6 +1714,42 @@ config SLAB_FREELIST_HARDENED
+>           sacrifies to harden the kernel slab allocator against common
+>           freelist exploit methods.
+>
+> +config SHUFFLE_PAGE_ALLOCATOR
+> +       bool "Page allocator randomization"
+> +       depends on ACPI_NUMA
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b78a45e0b11c..c15f7f703be0 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -98,6 +98,8 @@ extern int page_group_by_mobility_disabled;
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
- 	unsigned long		nr_free;
-+	u64			rand;
-+	u8			rand_bits;
- };
- 
- /* Used for pages not on another list */
-@@ -116,6 +118,14 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
- 	area->nr_free++;
- }
- 
-+#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
-+/* Used to preserve page allocation order entropy */
-+void add_to_free_area_random(struct page *page, struct free_area *area,
-+		int migratetype);
-+#else
-+#define add_to_free_area_random add_to_free_area
-+#endif
-+
- /* Used for pages which are on another list */
- static inline void move_to_free_area(struct page *page, struct free_area *area,
- 			     int migratetype)
-diff --git a/include/linux/shuffle.h b/include/linux/shuffle.h
-index d109161f4a62..85b7f5f32867 100644
---- a/include/linux/shuffle.h
-+++ b/include/linux/shuffle.h
-@@ -30,6 +30,13 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
- 		return;
- 	__shuffle_zone(z, start_pfn, end_pfn);
- }
-+
-+static inline bool is_shuffle_order(int order)
-+{
-+	if (!static_branch_unlikely(&page_alloc_shuffle_key))
-+                return false;
-+	return order >= CONFIG_SHUFFLE_PAGE_ORDER;
-+}
- #else
- static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
- 		unsigned long end_pfn)
-@@ -44,5 +51,10 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
- static inline void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
- {
- }
-+
-+static inline bool is_shuffle_order(int order)
-+{
-+	return false;
-+}
- #endif
- #endif /* _MM_SHUFFLE_H */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0b4791a2dd43..f3a859b66d70 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -43,6 +43,7 @@
- #include <linux/mempolicy.h>
- #include <linux/memremap.h>
- #include <linux/stop_machine.h>
-+#include <linux/random.h>
- #include <linux/sort.h>
- #include <linux/pfn.h>
- #include <linux/backing-dev.h>
-@@ -889,7 +890,8 @@ static inline void __free_one_page(struct page *page,
- 	 * so it's less likely to be used soon and more likely to be merged
- 	 * as a higher order page
- 	 */
--	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
-+	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
-+			&& !is_shuffle_order(order)) {
- 		struct page *higher_page, *higher_buddy;
- 		combined_pfn = buddy_pfn & pfn;
- 		higher_page = page + (combined_pfn - pfn);
-@@ -903,7 +905,12 @@ static inline void __free_one_page(struct page *page,
- 		}
- 	}
- 
--	add_to_free_area(page, &zone->free_area[order], migratetype);
-+	if (is_shuffle_order(order))
-+		add_to_free_area_random(page, &zone->free_area[order],
-+				migratetype);
-+	else
-+		add_to_free_area(page, &zone->free_area[order], migratetype);
-+
- }
- 
- /*
-diff --git a/mm/shuffle.c b/mm/shuffle.c
-index 07961ff41a03..4cadf51c9b40 100644
---- a/mm/shuffle.c
-+++ b/mm/shuffle.c
-@@ -213,3 +213,19 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
- 		shuffle_zone(z, start_pfn, end_pfn);
- }
-+
-+void add_to_free_area_random(struct page *page, struct free_area *area,
-+		int migratetype)
-+{
-+	if (area->rand_bits == 0) {
-+		area->rand_bits = 64;
-+		area->rand = get_random_u64();
-+	}
-+
-+	if (area->rand & 1)
-+		add_to_free_area(page, area, migratetype);
-+	else
-+		add_to_free_area_tail(page, area, migratetype);
-+	area->rand_bits--;
-+	area->rand >>= 1;
-+}
+Why does this need ACPI_NUMA? (e.g. why can't I use this on a non-ACPI
+arm64 system?)
+
+> +       default SLAB_FREELIST_RANDOM
+> +       help
+> +         Randomization of the page allocator improves the average
+> +         utilization of a direct-mapped memory-side-cache. See section
+> +         5.2.27 Heterogeneous Memory Attribute Table (HMAT) in the ACPI
+> +         6.2a specification for an example of how a platform advertises
+> +         the presence of a memory-side-cache. There are also incidental
+> +         security benefits as it reduces the predictability of page
+> +         allocations to compliment SLAB_FREELIST_RANDOM, but the
+> +         default granularity of shuffling on 4MB (MAX_ORDER) pages is
+> +         selected based on cache utilization benefits.
+> +
+> +         While the randomization improves cache utilization it may
+> +         negatively impact workloads on platforms without a cache. For
+> +         this reason, by default, the randomization is enabled only
+> +         after runtime detection of a direct-mapped memory-side-cache.
+> +         Otherwise, the randomization may be force enabled with the
+> +         'page_alloc.shuffle' kernel command line parameter.
+> +
+> +         Say Y if unsure.
+> +
+> +config SHUFFLE_PAGE_ORDER
+> +       depends on SHUFFLE_PAGE_ALLOCATOR
+> +       int "Page allocator shuffle order"
+> +       range 0 10
+> +       default 10
+> +       help
+> +         Specify the granularity at which shuffling (randomization) is
+> +         performed. By default this is set to MAX_ORDER-1 to minimize
+> +         runtime impact of randomization and with the expectation that
+> +         SLAB_FREELIST_RANDOM mitigates heap attacks on smaller
+> +         object granularities.
+> +
+>  config SLUB_CPU_PARTIAL
+>         default y
+>         depends on SLUB && SMP
+> diff --git a/mm/Makefile b/mm/Makefile
+> index d210cc9d6f80..ac5e5ba78874 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -33,7 +33,7 @@ mmu-$(CONFIG_MMU)     += process_vm_access.o
+>  endif
+>
+>  obj-y                  := filemap.o mempool.o oom_kill.o fadvise.o \
+> -                          maccess.o page_alloc.o page-writeback.o \
+> +                          maccess.o page-writeback.o \
+>                            readahead.o swap.o truncate.o vmscan.o shmem.o \
+>                            util.o mmzone.o vmstat.o backing-dev.o \
+>                            mm_init.o mmu_context.o percpu.o slab_common.o \
+> @@ -41,6 +41,11 @@ obj-y                        := filemap.o mempool.o oom_kill.o fadvise.o \
+>                            interval_tree.o list_lru.o workingset.o \
+>                            debug.o $(mmu-y)
+>
+> +# Give 'page_alloc' its own module-parameter namespace
+> +page-alloc-y := page_alloc.o
+> +page-alloc-$(CONFIG_SHUFFLE_PAGE_ALLOCATOR) += shuffle.o
+> +
+> +obj-y += page-alloc.o
+
+I'll get over it, but having both page-alloc.o and page_alloc.o hurts me. :)
+
+>  obj-y += init-mm.o
+>  obj-y += memblock.o
+>
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 022d4cbb3618..3602f7a2eab4 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -17,6 +17,7 @@
+>  #include <linux/poison.h>
+>  #include <linux/pfn.h>
+>  #include <linux/debugfs.h>
+> +#include <linux/shuffle.h>
+>  #include <linux/kmemleak.h>
+>  #include <linux/seq_file.h>
+>  #include <linux/memblock.h>
+> @@ -1929,9 +1930,16 @@ static unsigned long __init free_low_memory_core_early(void)
+>          *  low ram will be on Node1
+>          */
+>         for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+> -                               NULL)
+> +                               NULL) {
+> +               pg_data_t *pgdat;
+> +
+>                 count += __free_memory_core(start, end);
+>
+> +               for_each_online_pgdat(pgdat)
+> +                       shuffle_free_memory(pgdat, PHYS_PFN(start),
+> +                                       PHYS_PFN(end));
+> +       }
+> +
+>         return count;
+>  }
+>
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index b9a667d36c55..7caffb9a91ab 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -23,6 +23,7 @@
+>  #include <linux/highmem.h>
+>  #include <linux/vmalloc.h>
+>  #include <linux/ioport.h>
+> +#include <linux/shuffle.h>
+>  #include <linux/delay.h>
+>  #include <linux/migrate.h>
+>  #include <linux/page-isolation.h>
+> @@ -895,6 +896,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>         zone->zone_pgdat->node_present_pages += onlined_pages;
+>         pgdat_resize_unlock(zone->zone_pgdat, &flags);
+>
+> +       shuffle_zone(zone, pfn, zone_end_pfn(zone));
+> +
+>         if (onlined_pages) {
+>                 node_states_set_node(nid, &arg);
+>                 if (need_zonelists_rebuild)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index cde5dac6229a..2adcd6da8a07 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -61,6 +61,7 @@
+>  #include <linux/sched/rt.h>
+>  #include <linux/sched/mm.h>
+>  #include <linux/page_owner.h>
+> +#include <linux/shuffle.h>
+>  #include <linux/kthread.h>
+>  #include <linux/memcontrol.h>
+>  #include <linux/ftrace.h>
+> @@ -1634,6 +1635,8 @@ static int __init deferred_init_memmap(void *data)
+>         }
+>         pgdat_resize_unlock(pgdat, &flags);
+>
+> +       shuffle_zone(zone, first_init_pfn, zone_end_pfn(zone));
+> +
+>         /* Sanity check that the next zone really is unpopulated */
+>         WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
+>
+> diff --git a/mm/shuffle.c b/mm/shuffle.c
+> new file mode 100644
+> index 000000000000..07961ff41a03
+> --- /dev/null
+> +++ b/mm/shuffle.c
+> @@ -0,0 +1,215 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +// Copyright(c) 2018 Intel Corporation. All rights reserved.
+> +
+> +#include <linux/mm.h>
+> +#include <linux/init.h>
+> +#include <linux/mmzone.h>
+> +#include <linux/random.h>
+> +#include <linux/shuffle.h>
+> +#include <linux/moduleparam.h>
+> +#include "internal.h"
+> +
+> +DEFINE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
+> +static unsigned long shuffle_state;
+> +
+> +/*
+> + * Depending on the architecture, module parameter parsing may run
+> + * before, or after the cache detection. SHUFFLE_FORCE_DISABLE prevents,
+> + * or reverts the enabling of the shuffle implementation. SHUFFLE_ENABLE
+> + * attempts to turn on the implementation, but aborts if it finds
+> + * SHUFFLE_FORCE_DISABLE already set.
+> + */
+> +void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
+> +{
+> +       if (ctl == SHUFFLE_FORCE_DISABLE)
+> +               set_bit(SHUFFLE_FORCE_DISABLE, &shuffle_state);
+> +
+> +       if (test_bit(SHUFFLE_FORCE_DISABLE, &shuffle_state)) {
+> +               if (test_and_clear_bit(SHUFFLE_ENABLE, &shuffle_state))
+> +                       static_branch_disable(&page_alloc_shuffle_key);
+> +       } else if (ctl == SHUFFLE_ENABLE
+> +                       && !test_and_set_bit(SHUFFLE_ENABLE, &shuffle_state))
+> +               static_branch_enable(&page_alloc_shuffle_key);
+> +}
+> +
+> +static bool shuffle_param;
+> +extern int shuffle_show(char *buffer, const struct kernel_param *kp)
+> +{
+> +       return sprintf(buffer, "%c\n", test_bit(SHUFFLE_ENABLE, &shuffle_state)
+> +                       ? 'Y' : 'N');
+> +}
+> +static int shuffle_store(const char *val, const struct kernel_param *kp)
+> +{
+> +       int rc = param_set_bool(val, kp);
+> +
+> +       if (rc < 0)
+> +               return rc;
+> +       if (shuffle_param)
+> +               page_alloc_shuffle(SHUFFLE_ENABLE);
+> +       else
+> +               page_alloc_shuffle(SHUFFLE_FORCE_DISABLE);
+> +       return 0;
+> +}
+> +module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
+
+If this is 0400, you don't intend it to be changed after boot. If it's
+supposed to be immutable, why not make these __init calls?
+
+> +
+> +/*
+> + * For two pages to be swapped in the shuffle, they must be free (on a
+> + * 'free_area' lru), have the same order, and have the same migratetype.
+> + */
+> +static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
+> +{
+> +       struct page *page;
+> +
+> +       /*
+> +        * Given we're dealing with randomly selected pfns in a zone we
+> +        * need to ask questions like...
+> +        */
+> +
+> +       /* ...is the pfn even in the memmap? */
+> +       if (!pfn_valid_within(pfn))
+> +               return NULL;
+> +
+> +       /* ...is the pfn in a present section or a hole? */
+> +       if (!pfn_present(pfn))
+> +               return NULL;
+> +
+> +       /* ...is the page free and currently on a free_area list? */
+> +       page = pfn_to_page(pfn);
+> +       if (!PageBuddy(page))
+> +               return NULL;
+> +
+> +       /*
+> +        * ...is the page on the same list as the page we will
+> +        * shuffle it with?
+> +        */
+> +       if (page_order(page) != order)
+> +               return NULL;
+> +
+> +       return page;
+> +}
+> +
+> +/*
+> + * Fisher-Yates shuffle the freelist which prescribes iterating through
+> + * an array, pfns in this case, and randomly swapping each entry with
+> + * another in the span, end_pfn - start_pfn.
+> + *
+> + * To keep the implementation simple it does not attempt to correct for
+> + * sources of bias in the distribution, like modulo bias or
+> + * pseudo-random number generator bias. I.e. the expectation is that
+> + * this shuffling raises the bar for attacks that exploit the
+> + * predictability of page allocations, but need not be a perfect
+> + * shuffle.
+> + *
+> + * Note that we don't use @z->zone_start_pfn and zone_end_pfn(@z)
+> + * directly since the caller may be aware of holes in the zone and can
+> + * improve the accuracy of the random pfn selection.
+> + */
+> +#define SHUFFLE_RETRY 10
+> +static void __meminit shuffle_zone_order(struct zone *z, unsigned long start_pfn,
+> +               unsigned long end_pfn, const int order)
+> +{
+> +       unsigned long i, flags;
+> +       const int order_pages = 1 << order;
+> +
+> +       if (start_pfn < z->zone_start_pfn)
+> +               start_pfn = z->zone_start_pfn;
+> +       if (end_pfn > zone_end_pfn(z))
+> +               end_pfn = zone_end_pfn(z);
+> +
+> +       /* probably means that start/end were outside the zone */
+> +       if (end_pfn <= start_pfn)
+> +               return;
+> +       spin_lock_irqsave(&z->lock, flags);
+> +       start_pfn = ALIGN(start_pfn, order_pages);
+> +       for (i = start_pfn; i < end_pfn; i += order_pages) {
+> +               unsigned long j;
+> +               int migratetype, retry;
+> +               struct page *page_i, *page_j;
+> +
+> +               /*
+> +                * We expect page_i, in the sub-range of a zone being
+> +                * added (@start_pfn to @end_pfn), to more likely be
+> +                * valid compared to page_j randomly selected in the
+> +                * span @zone_start_pfn to @spanned_pages.
+> +                */
+> +               page_i = shuffle_valid_page(i, order);
+> +               if (!page_i)
+> +                       continue;
+> +
+> +               for (retry = 0; retry < SHUFFLE_RETRY; retry++) {
+> +                       /*
+> +                        * Pick a random order aligned page from the
+> +                        * start of the zone. Use the *whole* zone here
+> +                        * so that if it is freed in tiny pieces that we
+> +                        * randomize in the whole zone, not just within
+> +                        * those fragments.
+> +                        *
+> +                        * Since page_j comes from a potentially sparse
+> +                        * address range we want to try a bit harder to
+> +                        * find a shuffle point for page_i.
+> +                        */
+> +                       j = z->zone_start_pfn +
+> +                               ALIGN_DOWN(get_random_long() % z->spanned_pages,
+> +                                               order_pages);
+
+How late in the boot process does this happen, btw? Do we get warnings
+from the RNG about early usage?
+
+> +                       page_j = shuffle_valid_page(j, order);
+> +                       if (page_j && page_j != page_i)
+> +                               break;
+> +               }
+> +               if (retry >= SHUFFLE_RETRY) {
+> +                       pr_debug("%s: failed to swap %#lx\n", __func__, i);
+> +                       continue;
+> +               }
+> +
+> +               /*
+> +                * Each migratetype corresponds to its own list, make
+> +                * sure the types match otherwise we're moving pages to
+> +                * lists where they do not belong.
+> +                */
+> +               migratetype = get_pageblock_migratetype(page_i);
+> +               if (get_pageblock_migratetype(page_j) != migratetype) {
+> +                       pr_debug("%s: migratetype mismatch %#lx\n", __func__, i);
+> +                       continue;
+> +               }
+> +
+> +               list_swap(&page_i->lru, &page_j->lru);
+> +
+> +               pr_debug("%s: swap: %#lx -> %#lx\n", __func__, i, j);
+> +
+> +               /* take it easy on the zone lock */
+> +               if ((i % (100 * order_pages)) == 0) {
+> +                       spin_unlock_irqrestore(&z->lock, flags);
+> +                       cond_resched();
+> +                       spin_lock_irqsave(&z->lock, flags);
+> +               }
+> +       }
+> +       spin_unlock_irqrestore(&z->lock, flags);
+> +}
+> +
+> +void __meminit __shuffle_zone(struct zone *z, unsigned long start_pfn,
+> +               unsigned long end_pfn)
+> +{
+> +       int i;
+> +
+> +       /* shuffle all the orders at the specified order and higher */
+> +       for (i = CONFIG_SHUFFLE_PAGE_ORDER; i < MAX_ORDER; i++)
+> +               shuffle_zone_order(z, start_pfn, end_pfn, i);
+> +}
+> +
+> +/**
+> + * shuffle_free_memory - reduce the predictability of the page allocator
+> + * @pgdat: node page data
+> + * @start_pfn: Limit the shuffle to the greater of this value or zone start
+> + * @end_pfn: Limit the shuffle to the less of this value or zone end
+> + *
+> + * While shuffle_zone() attempts to avoid holes with pfn_valid() and
+> + * pfn_present() they can not report sub-section sized holes. @start_pfn
+> + * and @end_pfn limit the shuffle to the exact memory pages being freed.
+> + */
+> +void __meminit __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+> +               unsigned long end_pfn)
+> +{
+> +       struct zone *z;
+> +
+> +       for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+> +               shuffle_zone(z, start_pfn, end_pfn);
+> +}
+>
+
+
+-- 
+Kees Cook
 
