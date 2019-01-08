@@ -1,19 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9AC8E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 06:24:28 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id e29so1505925ede.19
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 03:24:28 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f27-v6si196474ejh.100.2019.01.08.03.24.27
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0088B8E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 05:04:47 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id a62so1493694oii.23
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 02:04:46 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id g5si380445otn.228.2019.01.08.02.04.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 03:24:27 -0800 (PST)
-Date: Tue, 8 Jan 2019 12:24:25 +0100
-From: Jan Kara <jack@suse.cz>
+        Tue, 08 Jan 2019 02:04:45 -0800 (PST)
 Subject: Re: INFO: task hung in generic_file_write_iter
-Message-ID: <20190108112425.GC8076@quack2.suse.cz>
-References: <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
+References: <0000000000009ce88d05714242a8@google.com>
+ <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
  <9b9fcdda-c347-53ee-fdbb-8a7d11cf430e@I-love.SAKURA.ne.jp>
  <20180720130602.f3d6dc4c943558875a36cb52@linux-foundation.org>
  <a2df1f24-f649-f5d8-0b2d-66d45b6cb61f@i-love.sakura.ne.jp>
@@ -22,68 +20,94 @@ References: <4b349bff-8ad4-6410-250d-593b13d8d496@I-love.SAKURA.ne.jp>
  <20190102144015.GA23089@quack2.suse.cz>
  <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
  <20190102172636.GA29127@quack2.suse.cz>
- <bf209c90-3624-68cd-c0db-86a91210f873@i-love.sakura.ne.jp>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <bf209c90-3624-68cd-c0db-86a91210f873@i-love.sakura.ne.jp>
+Date: Tue, 8 Jan 2019 19:04:06 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bf209c90-3624-68cd-c0db-86a91210f873@i-love.sakura.ne.jp>
+In-Reply-To: <20190102172636.GA29127@quack2.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, linux-mm@kvack.org, mgorman@techsingularity.net, Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, linux-mm@kvack.org, mgorman@techsingularity.net, Michal Hocko <mhocko@kernel.org>, ak@linux.intel.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, mawilcox@microsoft.com, syzkaller-bugs@googlegroups.com, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Tue 08-01-19 19:04:06, Tetsuo Handa wrote:
-> On 2019/01/03 2:26, Jan Kara wrote:
-> > On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
-> >> On 2019/01/02 23:40, Jan Kara wrote:
-> >>> I had a look into this and the only good explanation for this I have is
-> >>> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
-> >>> If that would happen, we'd get exactly the behavior syzkaller observes
-> >>> because grow_buffers() would populate different page than
-> >>> __find_get_block() then looks up.
-> >>>
-> >>> However I don't see how that's possible since the filesystem has the block
-> >>> device open exclusively and blkdev_bszset() makes sure we also have
-> >>> exclusive access to the block device before changing the block device size.
-> >>> So changing block device block size after filesystem gets access to the
-> >>> device should be impossible. 
-> >>>
-> >>> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
-> >>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
-> >>> whether my theory is right or not. Thanks!
-> >>>
+On 2019/01/03 2:26, Jan Kara wrote:
+> On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
+>> On 2019/01/02 23:40, Jan Kara wrote:
+>>> I had a look into this and the only good explanation for this I have is
+>>> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
+>>> If that would happen, we'd get exactly the behavior syzkaller observes
+>>> because grow_buffers() would populate different page than
+>>> __find_get_block() then looks up.
+>>>
+>>> However I don't see how that's possible since the filesystem has the block
+>>> device open exclusively and blkdev_bszset() makes sure we also have
+>>> exclusive access to the block device before changing the block device size.
+>>> So changing block device block size after filesystem gets access to the
+>>> device should be impossible. 
+>>>
+>>> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
+>>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
+>>> whether my theory is right or not. Thanks!
+>>>
+
+Got two reports. 'size' is 512 while bdev->bd_inode->i_blkbits is 12.
+
+https://syzkaller.appspot.com/text?tag=CrashLog&x=1237c3ab400000
+
+[  385.723941][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+(...snipped...)
+[  568.159544][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+
+https://syzkaller.appspot.com/text?tag=CrashLog&x=143383d7400000
+
+[ 1355.681513][ T6893] syz-executor0(6893): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+[ 1358.274585][T15649] kworker/u4:17(15649): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+(...snipped...)
+[ 1455.341572][ T6893] syz-executor0(6893): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+[ 1455.541457][T15649] kworker/u4:17(15649): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+
+>>
+>> OK. Andrew, will you add (or fold into) this change?
+>>
+>> From e6f334380ad2c87457bfc2a4058316c47f75824a Mon Sep 17 00:00:00 2001
+>> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Date: Thu, 3 Jan 2019 01:03:35 +0900
+>> Subject: [PATCH] fs/buffer.c: dump more info for __getblk_gfp() stall problem
+>>
+>> We need to dump more variables on top of
+>> "fs/buffer.c: add debug print for __getblk_gfp() stall problem".
+>>
+>> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Cc: Jan Kara <jack@suse.cz>
+>> ---
+>>  fs/buffer.c | 9 +++++++--
+>>  1 file changed, 7 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/fs/buffer.c b/fs/buffer.c
+>> index 580fda0..a50acac 100644
+>> --- a/fs/buffer.c
+>> +++ b/fs/buffer.c
+>> @@ -1066,9 +1066,14 @@ static sector_t blkdev_max_block(struct block_device *bdev, unsigned int size)
+>>  #ifdef CONFIG_DEBUG_AID_FOR_SYZBOT
+>>  		if (!time_after(jiffies, current->getblk_stamp + 3 * HZ))
+>>  			continue;
+>> -		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx\n",
+>> +		printk(KERN_ERR "%s(%u): getblk(): executed=%x bh_count=%d bh_state=%lx "
+>> +		       "bdev_super_blocksize=%lu size=%u "
+>> +		       "bdev_super_blocksize_bits=%u bdev_inode_blkbits=%u\n",
+>>  		       current->comm, current->pid, current->getblk_executed,
+>> -		       current->getblk_bh_count, current->getblk_bh_state);
+>> +		       current->getblk_bh_count, current->getblk_bh_state,
+>> +		       bdev->bd_super->s_blocksize, size,
+>> +		       bdev->bd_super->s_blocksize_bits,
+>> +		       bdev->bd_inode->i_blkbits);
 > 
-> Got two reports. 'size' is 512 while bdev->bd_inode->i_blkbits is 12.
+> Well, bd_super may be NULL if there's no filesystem mounted so it would be
+> safer to check for this rather than blindly dereferencing it... Otherwise
+> the change looks good to me.
 > 
-> https://syzkaller.appspot.com/text?tag=CrashLog&x=1237c3ab400000
+> 								Honza
 > 
-> [  385.723941][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-> (...snipped...)
-> [  568.159544][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-
-Right, so indeed the block size in the superblock and in the block device
-gets out of sync which explains why we endlessly loop in the buffer cache
-code. The superblock uses blocksize of 512 while the block device thinks
-the set block size is 4096.
-
-And after staring into the code for some time, I finally have a trivial
-reproducer:
-
-truncate -s 1G /tmp/image
-losetup /dev/loop0 /tmp/image
-mkfs.ext4 -b 1024 /dev/loop0
-mount -t ext4 /dev/loop0 /mnt
-losetup -c /dev/loop0
-l /mnt
-<hangs>
-
-And the problem is that LOOP_SET_CAPACITY ioctl ends up reseting block
-device block size to 4096 by calling bd_set_size(). I have to think how to
-best fix this...
-
-Thanks for your help with debugging this!
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
