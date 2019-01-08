@@ -2,184 +2,209 @@ Return-Path: <SRS0=RE7g=PQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E8455C43612
-	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 18:40:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0D8DC43387
+	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 20:05:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B46AB206B6
-	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 18:40:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B46AB206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 937F520660
+	for <linux-mm@archiver.kernel.org>; Tue,  8 Jan 2019 20:05:54 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rlkAF1Mj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 937F520660
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43DE28E008B; Tue,  8 Jan 2019 13:40:21 -0500 (EST)
+	id 3FDE98E009B; Tue,  8 Jan 2019 15:05:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C6988E0038; Tue,  8 Jan 2019 13:40:21 -0500 (EST)
+	id 3AD058E0038; Tue,  8 Jan 2019 15:05:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 26A2C8E008B; Tue,  8 Jan 2019 13:40:21 -0500 (EST)
+	id 2C6538E009B; Tue,  8 Jan 2019 15:05:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D615A8E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 13:40:20 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id b8so3339678pfe.10
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 10:40:20 -0800 (PST)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 054A58E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 15:05:54 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id s3so4227303iob.15
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 12:05:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=P0jC4RE0YQqxTaHtWGJJArBJ9hZ0heUQ0oMl2IH3Qog=;
-        b=mewoKYP/lt/3a9+MnjtZaH3vgn2OvBZW++Bkv1DeScTxaiHehkHY0gBsmJjvIu/+pz
-         +ur2Fg4e8C4BQUL1ai4Q0WaU/8lLxUYOjNDN3taxqgGcWH3Un1JscHh3Zx5vJA+coz2r
-         71VxgklHuZcF2Z2r9U1h69HSvM4t2HAi5Xw+CFeoNxiFysH+yS8ltiLVbUf2pMdZEcoy
-         5Hl/OZGXj13z/nK4MPaAJjd/VcWo7KZX+Kc1w81fEnvTdQYnz97IKbuLVncK6omIJRJf
-         ye+2EyPAMPQzQXoA+VAdyZ5/dWRx6rK0dF0OfEkOLyOaMQWHxdukJSVKmNySx617cjlS
-         sWqA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUuke1EvMqTPGj3wXyc7/iTMCPFLxcwAiz4GuOUPnmyCmSTPvh8ykH
-	/ytHVwsZQDVOZ6TcIQ54gAKNIVapyMgd4PJA3MiA99as9ciffrYy1pDYSvAD2xucg3MYHhIlLEs
-	D2ywln2YHunzd8lgG/zuSpfLljg0YX9gTAmGXQGyFhtlPfE09JzP6HCeyrRXekymaPw==
-X-Received: by 2002:a17:902:654a:: with SMTP id d10mr2821540pln.324.1546972820527;
-        Tue, 08 Jan 2019 10:40:20 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Svit/cWFXHIJIwx716Cd8f+OeGGu1WBZkY4kzNKH1JpyM6wCgwkf3az+p+X0niuYmwdNr
-X-Received: by 2002:a17:902:654a:: with SMTP id d10mr2821502pln.324.1546972819583;
-        Tue, 08 Jan 2019 10:40:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1546972819; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=txNiwTr9zOR1HjVOP3bo2qaITo/vW1+4t71PfijPP4c=;
+        b=SZvRkQJ5qWgfQghjjpVNVxQ0hH7Sq1yDZyB+0DxTPxYjO0p9tVVqSd9ID0Zb7qlyUR
+         nBkJT++r4Sv0s5d4QcmxezIMWPpVr3b7QBNATRf4OsJO4ZCvBzqVUEutN4f0SOfpyT0Y
+         jo3SU3/UUfmYIFenBBkVEmhFXpGgy4yIjTeZH8u+YF6T4zVOm9nCE2s8UqmEBAorJjxo
+         TtpcwuGQSYtAkNKTSsAZRt3cmZF91e5B+nnpclKKiuAIlKoFju6SSdmc4kSp68P3Ha2j
+         uO5cnHLxC3QDe21JezzgHABwaUQ6RAKVgEmcYzy7J2DMVJoQQmVCfBBYpE2gVivoJF/Z
+         ALfg==
+X-Gm-Message-State: AJcUukfWmwTTUNMEBZIV2116OpF+hY2DUpO3hAQuWP01F96w/XudsJUS
+	C3sMjkDmQIcXBd2+2+KDmmNYkPiGOD9Tg67V4OfNUlBT2qG2BnwjA59IGVE/eeiZKvrpYraTTCj
+	FhTHKRcKgKkwwH6mrCRyRBWnO7ZEDBIejbyS9NvUf4qVKW5p9Tw5Pf6XyHmhL4W/YZ0SqdGv8w6
+	+Rx0eesb7hcG4pD9vCgsQLV/Zep2vBhCbQSyFWLvZar6Rw2Ug0pRxnnKgZ6nXQr8g9z+1gJzH23
+	RGNpPOv5kfrJUCFoR4HxKamu2OFy/sPTj2F10oLcmQFFDPipETKV7GkwE5rd/owOp4XlDafa/PO
+	cci/SkrKitWVIlaigZi8TSDif36ewmlEZ/YQWP1QPmlBELtLwB/HLbg7c3WeT75ayIZGiQnpJzj
+	C
+X-Received: by 2002:a24:100d:: with SMTP id 13mr2262168ity.58.1546977953740;
+        Tue, 08 Jan 2019 12:05:53 -0800 (PST)
+X-Received: by 2002:a24:100d:: with SMTP id 13mr2262135ity.58.1546977952902;
+        Tue, 08 Jan 2019 12:05:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1546977952; cv=none;
         d=google.com; s=arc-20160816;
-        b=nkZu8W8aADJZKzIJtHZsBy+3lemeWUr97K1CYISf2leDU/Qi5bP+O8odQu/gN5Wtd4
-         qrnTGEO+R1x4gtViYSEm4VjI+Ng3PeVJ/EOC6BuevtALPdLBFONm5efIKflDOeXzTDC+
-         mbEgeJBumA/TIYP2ri/yqN3uDmgtvX0Uawdlhcf+8mDEeUYrUKUZTr3SS8+MoVN6DZSa
-         yi/Sk9ct4SBCVG6/9ltnyjHWw4nF7rXVQaoO0WX+dJaMNQg6NqXVsl9Fn7CyZ0u5daJy
-         Vhq2Y4R8EyrYLGVrZqMI9tHeByOMccnrtakZUvj0fqxjrupm5wqoW31en6MDoibqcUXL
-         N4Fg==
+        b=WYZogbh/PWXmUKRCbydq2zaCPLzNKP8UNl6DhZd9EKrLckg3jZkQFEcSfXntpl6ODf
+         Q6RDskyrBtfgs2XfDffdMZyCxgHgFtvVimFRMPvy0qLOjDhSJqvktUfBSOPj6+5vZazu
+         2hGoCmlQiLkfDzG2FAp9eshdkdx5WbZrraiPDNbb2JpciVjBv8rx5ksYQQUvv4iv6GFf
+         GkUOqqBkp+2VaxPZAtSz01lPUJ6T5DYWmrNOQH1fW91q2zlAkbChCdp+BhgvQ90kVyId
+         G5/Bh7gN1GqyZkzE3k3LPKgQokORupWzNRKVGBu79sUEmV3TNIL8DfGscoufeU+qP3nT
+         ZBhg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=P0jC4RE0YQqxTaHtWGJJArBJ9hZ0heUQ0oMl2IH3Qog=;
-        b=lrJ+ZOyyUwkqQj9TGJltnmhLojU57rcJ8ikLR0oR1bfOb0gWBFL30jNEuHU+oVeBB1
-         mY5yuQgtat2tfkoGwHl5CjaJkDuOyNozaA4lmGo0WyagLYFXQtqmLtOp1+6NK1TTIe6n
-         beK+SZpGSKYlf8bMdtG02O3q+lwDWcJhenbgAU+vs4qFhoet20o+yVx8OMf4a39st47/
-         /PZTmWN+o8ZPwkWLivohixH05I5N/ozqTqbJMh6nuJc13CswYedBzzxZICkGfvScNAZo
-         4YgYLCc6/MKXmaxdMemFhkiILK82UWWr8D+k7hp8iNfu0BFdVJkZFHvcrM4g7hnO+5fe
-         biNQ==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=txNiwTr9zOR1HjVOP3bo2qaITo/vW1+4t71PfijPP4c=;
+        b=dvrHJXvGjTuG9Jms3Aji7pdU+TqQOYd3fp0cw2sxe11qLWx5BmD+3IfuCXATCo0HBN
+         00yH/RYAiWy8NYTyCaFtFSpxtXFUOgF6MA2Edko2+IkN5c7DW5SBiU5tRi8A9Io2YjBZ
+         wL80E7dYD5tDuEjSXs8OkXwUq82IqcMWRqDKwrZomsSIB9k4wNb/0Bzj1ir68ZcyKy7W
+         o31UgOqAn3/tgPyXWLMePy9s59EwQLF6UMFFy0enaSZdz/OcHSFBOrlHBGEVUnQQbfye
+         Z+6vHVhY+tBaWiNipFRWm4nsINxq8uicIl0xra6gHcHHcJVX7iGCv+nlA7i39TWGkAkR
+         hgew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id e13si9225907pfi.271.2019.01.08.10.40.19
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rlkAF1Mj;
+       spf=pass (google.com: domain of 3oai1xagkcgerg9jddkafnnfkd.bnlkhmtw-llju9bj.nqf@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3oAI1XAgKCGERG9JDDKAFNNFKD.BNLKHMTW-LLJU9BJ.NQF@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id n143sor19887434itn.34.2019.01.08.12.05.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 10:40:19 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Tue, 08 Jan 2019 12:05:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3oai1xagkcgerg9jddkafnnfkd.bnlkhmtw-llju9bj.nqf@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Jan 2019 10:40:19 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,455,1539673200"; 
-   d="scan'208";a="265497410"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga004.jf.intel.com with ESMTP; 08 Jan 2019 10:40:18 -0800
-Message-ID: <37498672d5b2345b1435477e78251282af42742b.camel@linux.intel.com>
-Subject: Re: [PATCH v7] mm/page_alloc.c: memory_hotplug: free pages as
- higher order
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, 
- akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz,
- osalvador@suse.de,  linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: getarunks@gmail.com
-Date: Tue, 08 Jan 2019 10:40:18 -0800
-In-Reply-To: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
-References: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rlkAF1Mj;
+       spf=pass (google.com: domain of 3oai1xagkcgerg9jddkafnnfkd.bnlkhmtw-llju9bj.nqf@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3oAI1XAgKCGERG9JDDKAFNNFKD.BNLKHMTW-LLJU9BJ.NQF@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=txNiwTr9zOR1HjVOP3bo2qaITo/vW1+4t71PfijPP4c=;
+        b=rlkAF1MjC29sfFIQEKpxF+0AV8L6qXF+nhZkPIbME243C8Jwuvj/1e3xhDjqtHVE59
+         0mGycnvWR4daAKkMgxLrA0v6A/yIqABPwr4rXJFrczjy+fy8/dUJhDlLOdXWguHugkBV
+         18G0CBHsGd6SSb7Ou2aE7ZATlNwGbwmiJvAYv8wxgcL2Cu5TdZUFF7NWcKlK+EpGeBy4
+         Le24umrAwRk7E58WuRH0ZdLHihGcAFfp3mjLPj2x5YaLCD3FbvYPqjIcIXQou3GVpMth
+         J5C1QwAXBOp7qtlHNFGRbKfZUDmkIJAqtIV3aPZsqXblElgsQmIsJefKLeks2sxKZV/X
+         K3CA==
+X-Google-Smtp-Source: ALg8bN4CvWVUPVnD74x3rMa3McPsCj5IBNGdgmPr7bgHkGszws1zhUP4HnQrEnbheeYFeQcp9NcbBfz1bvsWww==
+X-Received: by 2002:a24:1c87:: with SMTP id c129mr2340547itc.11.1546977952601;
+ Tue, 08 Jan 2019 12:05:52 -0800 (PST)
+Date: Tue,  8 Jan 2019 12:05:38 -0800
+Message-Id: <20190108200538.80371-1-shakeelb@google.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+X-Mailer: git-send-email 2.20.1.97.g81188d93c3-goog
+Subject: [PATCH v2] memcg: schedule high reclaim for remote memcgs on high_work
+From: Shakeel Butt <shakeelb@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
+	Shakeel Butt <shakeelb@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190108184018.F6DZSoz7jteH0PjgdSHnksTmeB-cMDbiT_k9si-KMS0@z>
+Message-ID: <20190108200538.urWPuz5HKECd3WnUaUz4N4v-JUNVYwhiOD9D4gjgXRM@z>
 
-On Fri, 2019-01-04 at 10:31 +0530, Arun KS wrote:
-> When freeing pages are done with higher order, time spent on coalescing
-> pages by buddy allocator can be reduced.  With section size of 256MB, hot
-> add latency of a single section shows improvement from 50-60 ms to less
-> than 1 ms, hence improving the hot add latency by 60 times.  Modify
-> external providers of online callback to align with the change.
-> 
-> Signed-off-by: Arun KS <arunks@codeaurora.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+If a memcg is over high limit, memory reclaim is scheduled to run on
+return-to-userland. However it is assumed that the memcg is the current
+process's memcg. With remote memcg charging for kmem or swapping in a
+page charged to remote memcg, current process can trigger reclaim on
+remote memcg. So, schduling reclaim on return-to-userland for remote
+memcgs will ignore the high reclaim altogether. So, record the memcg
+needing high reclaim and trigger high reclaim for that memcg on
+return-to-userland. However if the memcg is already recorded for high
+reclaim and the recorded memcg is not the descendant of the the memcg
+needing high reclaim, punt the high reclaim to the work queue.
 
-After running into my initial issue I actually had a few more questions
-about this patch.
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+Changelog since v1:
+- Punt high reclaim of a memcg to work queue only if the recorded memcg
+  is not its descendant.
 
-> [...]
-> +static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
-> +{
-> +	unsigned long end = start + nr_pages;
-> +	int order, ret, onlined_pages = 0;
-> +
-> +	while (start < end) {
-> +		order = min(MAX_ORDER - 1,
-> +			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-> +
-> +		ret = (*online_page_callback)(pfn_to_page(start), order);
-> +		if (!ret)
-> +			onlined_pages += (1UL << order);
-> +		else if (ret > 0)
-> +			onlined_pages += ret;
-> +
-> +		start += (1UL << order);
-> +	}
-> +	return onlined_pages;
->  }
->  
+ include/linux/sched.h |  3 +++
+ kernel/fork.c         |  1 +
+ mm/memcontrol.c       | 18 +++++++++++++-----
+ 3 files changed, 17 insertions(+), 5 deletions(-)
 
-Should the limit for this really be MAX_ORDER - 1 or should it be
-pageblock_order? In some cases this will be the same value, but I seem
-to recall that for x86 MAX_ORDER can be several times larger than
-pageblock_order.
-
->  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->  			void *arg)
->  {
-> -	unsigned long i;
->  	unsigned long onlined_pages = *(unsigned long *)arg;
-> -	struct page *page;
->  
->  	if (PageReserved(pfn_to_page(start_pfn)))
-
-I'm not sure we even really need this check. Getting back to the
-discussion I have been having with Michal in regards to the need for
-the DAX pages to not have the reserved bit cleared I was originally
-wondering if we could replace this check with a call to
-online_section_nr since the section shouldn't be online until we set
-the bit below in online_mem_sections.
-
-However after doing some further digging it looks like this could
-probably be dropped entirely since we only call this function from
-online_pages and that function is only called by memory_block_action if
-pages_correctly_probed returns true. However pages_correctly_probed
-should return false if any of the sections contained in the page range
-is already online.
-
-> -		for (i = 0; i < nr_pages; i++) {
-> -			page = pfn_to_page(start_pfn + i);
-> -			(*online_page_callback)(page);
-> -			onlined_pages++;
-> -		}
-> +		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
->  
->  	online_mem_sections(start_pfn, start_pfn + nr_pages);
->  
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a95d1a9574e7..9a46243e6585 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1168,6 +1168,9 @@ struct task_struct {
+ 
+ 	/* Used by memcontrol for targeted memcg charge: */
+ 	struct mem_cgroup		*active_memcg;
++
++	/* Used by memcontrol for high relcaim: */
++	struct mem_cgroup		*memcg_high_reclaim;
+ #endif
+ 
+ #ifdef CONFIG_BLK_CGROUP
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 68e0a0c0b2d3..98c9963ac8d5 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -916,6 +916,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
+ 
+ #ifdef CONFIG_MEMCG
+ 	tsk->active_memcg = NULL;
++	tsk->memcg_high_reclaim = NULL;
+ #endif
+ 	return tsk;
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e9db1160ccbc..81fada6b4a32 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2145,7 +2145,8 @@ void mem_cgroup_handle_over_high(void)
+ 	if (likely(!nr_pages))
+ 		return;
+ 
+-	memcg = get_mem_cgroup_from_mm(current->mm);
++	memcg = current->memcg_high_reclaim;
++	current->memcg_high_reclaim = NULL;
+ 	reclaim_high(memcg, nr_pages, GFP_KERNEL);
+ 	css_put(&memcg->css);
+ 	current->memcg_nr_pages_over_high = 0;
+@@ -2301,10 +2302,10 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * If the hierarchy is above the normal consumption range, schedule
+ 	 * reclaim on returning to userland.  We can perform reclaim here
+ 	 * if __GFP_RECLAIM but let's always punt for simplicity and so that
+-	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
+-	 * not recorded as it most likely matches current's and won't
+-	 * change in the meantime.  As high limit is checked again before
+-	 * reclaim, the cost of mismatch is negligible.
++	 * GFP_KERNEL can consistently be used during reclaim. Record the memcg
++	 * for the return-to-userland high reclaim. If the memcg is already
++	 * recorded and the recorded memcg is not the descendant of the memcg
++	 * needing high reclaim, punt the high reclaim to the work queue.
+ 	 */
+ 	do {
+ 		if (page_counter_read(&memcg->memory) > memcg->high) {
+@@ -2312,6 +2313,13 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 			if (in_interrupt()) {
+ 				schedule_work(&memcg->high_work);
+ 				break;
++			} else if (!current->memcg_high_reclaim) {
++				css_get(&memcg->css);
++				current->memcg_high_reclaim = memcg;
++			} else if (!mem_cgroup_is_descendant(
++					current->memcg_high_reclaim, memcg)) {
++				schedule_work(&memcg->high_work);
++				break;
+ 			}
+ 			current->memcg_nr_pages_over_high += batch;
+ 			set_notify_resume(current);
+-- 
+2.20.1.97.g81188d93c3-goog
 
