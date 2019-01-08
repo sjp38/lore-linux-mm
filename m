@@ -1,176 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 309C08E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:48:01 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id y88so5738512pfi.9
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:48:01 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.47.59
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DED28E0038
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 19:19:26 -0500 (EST)
+Received: by mail-vs1-f70.google.com with SMTP id o132so823308vsd.11
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 16:19:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s80sor34568717vsa.27.2019.01.07.16.19.25
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 07 Jan 2019 16:19:25 -0800 (PST)
+Received: from mail-ua1-f52.google.com (mail-ua1-f52.google.com. [209.85.222.52])
+        by smtp.gmail.com with ESMTPSA id o9sm19268266vke.46.2019.01.07.16.19.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 09:47:59 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv3 07/13] node: Add heterogenous memory access attributes
-Date: Wed,  9 Jan 2019 10:43:35 -0700
-Message-Id: <20190109174341.19818-8-keith.busch@intel.com>
-In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
-References: <20190109174341.19818-1-keith.busch@intel.com>
+        Mon, 07 Jan 2019 16:19:23 -0800 (PST)
+Received: by mail-ua1-f52.google.com with SMTP id z24so731271ual.8
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 16:19:23 -0800 (PST)
+MIME-Version: 1.0
+References: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <154690328135.676627.5979130839159447106.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <154690328135.676627.5979130839159447106.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 7 Jan 2019 16:19:11 -0800
+Message-ID: <CAGXu5jKGOMHoTf0ixKCr_KFprc1Z6S2f1LYdNgMuHsL2UEm-_Q@mail.gmail.com>
+Subject: Re: [PATCH v7 3/3] mm: Maintain randomization of page free lists
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Keith Busch <keith.busch@intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Heterogeneous memory systems provide memory nodes with different latency
-and bandwidth performance attributes. Provide a new kernel interface for
-subsystems to register the attributes under the memory target node's
-initiator access class. If the system provides this information, applications
-may query these attributes when deciding which node to request memory.
+On Mon, Jan 7, 2019 at 3:34 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> When freeing a page with an order >= shuffle_page_order randomly select
+> the front or back of the list for insertion.
+>
+> While the mm tries to defragment physical pages into huge pages this can
+> tend to make the page allocator more predictable over time. Inject the
+> front-back randomness to preserve the initial randomness established by
+> shuffle_free_memory() when the kernel was booted.
+>
+> The overhead of this manipulation is constrained by only being applied
+> for MAX_ORDER sized pages by default.
+>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-The following example shows the new sysfs hierarchy for a node exporting
-performance attributes:
+Reviewed-by: Kees Cook <keescook@chromium.org>
 
-  # tree -P "read*|write*" /sys/devices/system/node/nodeY/classZ/
-  /sys/devices/system/node/nodeY/classZ/
-  |-- read_bandwidth
-  |-- read_latency
-  |-- write_bandwidth
-  `-- write_latency
+-Kees
 
-The bandwidth is exported as MB/s and latency is reported in nanoseconds.
-Memory accesses from an initiator node that is not one of the memory's
-class "Z" initiator nodes may encounter different performance than
-reported here. When a subsystem makes use of this interface, initiators
-of a lower class number, "Z", have better performance relative to higher
-class numbers. When provided, class 0 is the highest performing access
-class.
+> ---
+>  include/linux/mmzone.h  |   10 ++++++++++
+>  include/linux/shuffle.h |   12 ++++++++++++
+>  mm/page_alloc.c         |   11 +++++++++--
+>  mm/shuffle.c            |   16 ++++++++++++++++
+>  4 files changed, 47 insertions(+), 2 deletions(-)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index b78a45e0b11c..c15f7f703be0 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -98,6 +98,8 @@ extern int page_group_by_mobility_disabled;
+>  struct free_area {
+>         struct list_head        free_list[MIGRATE_TYPES];
+>         unsigned long           nr_free;
+> +       u64                     rand;
+> +       u8                      rand_bits;
+>  };
+>
+>  /* Used for pages not on another list */
+> @@ -116,6 +118,14 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
+>         area->nr_free++;
+>  }
+>
+> +#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
+> +/* Used to preserve page allocation order entropy */
+> +void add_to_free_area_random(struct page *page, struct free_area *area,
+> +               int migratetype);
+> +#else
+> +#define add_to_free_area_random add_to_free_area
+> +#endif
+> +
+>  /* Used for pages which are on another list */
+>  static inline void move_to_free_area(struct page *page, struct free_area *area,
+>                              int migratetype)
+> diff --git a/include/linux/shuffle.h b/include/linux/shuffle.h
+> index d109161f4a62..85b7f5f32867 100644
+> --- a/include/linux/shuffle.h
+> +++ b/include/linux/shuffle.h
+> @@ -30,6 +30,13 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
+>                 return;
+>         __shuffle_zone(z, start_pfn, end_pfn);
+>  }
+> +
+> +static inline bool is_shuffle_order(int order)
+> +{
+> +       if (!static_branch_unlikely(&page_alloc_shuffle_key))
+> +                return false;
+> +       return order >= CONFIG_SHUFFLE_PAGE_ORDER;
+> +}
+>  #else
+>  static inline void shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+>                 unsigned long end_pfn)
+> @@ -44,5 +51,10 @@ static inline void shuffle_zone(struct zone *z, unsigned long start_pfn,
+>  static inline void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
+>  {
+>  }
+> +
+> +static inline bool is_shuffle_order(int order)
+> +{
+> +       return false;
+> +}
+>  #endif
+>  #endif /* _MM_SHUFFLE_H */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 0b4791a2dd43..f3a859b66d70 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -43,6 +43,7 @@
+>  #include <linux/mempolicy.h>
+>  #include <linux/memremap.h>
+>  #include <linux/stop_machine.h>
+> +#include <linux/random.h>
+>  #include <linux/sort.h>
+>  #include <linux/pfn.h>
+>  #include <linux/backing-dev.h>
+> @@ -889,7 +890,8 @@ static inline void __free_one_page(struct page *page,
+>          * so it's less likely to be used soon and more likely to be merged
+>          * as a higher order page
+>          */
+> -       if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
+> +       if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
+> +                       && !is_shuffle_order(order)) {
+>                 struct page *higher_page, *higher_buddy;
+>                 combined_pfn = buddy_pfn & pfn;
+>                 higher_page = page + (combined_pfn - pfn);
+> @@ -903,7 +905,12 @@ static inline void __free_one_page(struct page *page,
+>                 }
+>         }
+>
+> -       add_to_free_area(page, &zone->free_area[order], migratetype);
+> +       if (is_shuffle_order(order))
+> +               add_to_free_area_random(page, &zone->free_area[order],
+> +                               migratetype);
+> +       else
+> +               add_to_free_area(page, &zone->free_area[order], migratetype);
+> +
+>  }
+>
+>  /*
+> diff --git a/mm/shuffle.c b/mm/shuffle.c
+> index 07961ff41a03..4cadf51c9b40 100644
+> --- a/mm/shuffle.c
+> +++ b/mm/shuffle.c
+> @@ -213,3 +213,19 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat, unsigned long start_pfn,
+>         for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+>                 shuffle_zone(z, start_pfn, end_pfn);
+>  }
+> +
+> +void add_to_free_area_random(struct page *page, struct free_area *area,
+> +               int migratetype)
+> +{
+> +       if (area->rand_bits == 0) {
+> +               area->rand_bits = 64;
+> +               area->rand = get_random_u64();
+> +       }
+> +
+> +       if (area->rand & 1)
+> +               add_to_free_area(page, area, migratetype);
+> +       else
+> +               add_to_free_area_tail(page, area, migratetype);
+> +       area->rand_bits--;
+> +       area->rand >>= 1;
+> +}
+>
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
----
- drivers/base/Kconfig |  8 ++++++++
- drivers/base/node.c  | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/node.h | 25 +++++++++++++++++++++++++
- 3 files changed, 81 insertions(+)
 
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 3e63a900b330..6014980238e8 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -149,6 +149,14 @@ config DEBUG_TEST_DRIVER_REMOVE
- 	  unusable. You should say N here unless you are explicitly looking to
- 	  test this functionality.
- 
-+config HMEM_REPORTING
-+	bool
-+	default y
-+	depends on NUMA
-+	help
-+	  Enable reporting for heterogenous memory access attributes under
-+	  their non-uniform memory nodes.
-+
- source "drivers/base/test/Kconfig"
- 
- config SYS_HYPERVISOR
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 1da5072116ab..1e909f61e8b1 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -66,6 +66,9 @@ struct node_class_nodes {
- 	unsigned		class;
- 	nodemask_t		initiator_nodes;
- 	nodemask_t		target_nodes;
-+#ifdef CONFIG_HMEM_REPORTING
-+	struct node_hmem_attrs	hmem_attrs;
-+#endif
- };
- #define to_class_nodes(dev) container_of(dev, struct node_class_nodes, dev)
- 
-@@ -145,6 +148,51 @@ static struct node_class_nodes *node_init_node_class(struct device *parent,
- 	return NULL;
- }
- 
-+#ifdef CONFIG_HMEM_REPORTING
-+#define ACCESS_ATTR(name) 						   \
-+static ssize_t name##_show(struct device *dev,				   \
-+			   struct device_attribute *attr,		   \
-+			   char *buf)					   \
-+{									   \
-+	return sprintf(buf, "%u\n", to_class_nodes(dev)->hmem_attrs.name); \
-+}									   \
-+static DEVICE_ATTR_RO(name);
-+
-+ACCESS_ATTR(read_bandwidth)
-+ACCESS_ATTR(read_latency)
-+ACCESS_ATTR(write_bandwidth)
-+ACCESS_ATTR(write_latency)
-+
-+static struct attribute *access_attrs[] = {
-+	&dev_attr_read_bandwidth.attr,
-+	&dev_attr_read_latency.attr,
-+	&dev_attr_write_bandwidth.attr,
-+	&dev_attr_write_latency.attr,
-+	NULL,
-+};
-+ATTRIBUTE_GROUPS(access);
-+
-+void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
-+			 unsigned class)
-+{
-+	struct node_class_nodes *c;
-+	struct node *node;
-+
-+	if (WARN_ON_ONCE(!node_online(nid)))
-+		return;
-+
-+	node = node_devices[nid];
-+	c = node_init_node_class(&node->dev, &node->class_list, class);
-+	if (!c)
-+		return;
-+
-+	c->hmem_attrs = *hmem_attrs;
-+	if (sysfs_create_groups(&c->dev.kobj, access_groups))
-+		pr_info("failed to add performance attribute group to node %d\n",
-+			nid);
-+}
-+#endif
-+
- #define K(x) ((x) << (PAGE_SHIFT - 10))
- static ssize_t node_read_meminfo(struct device *dev,
- 			struct device_attribute *attr, char *buf)
-diff --git a/include/linux/node.h b/include/linux/node.h
-index 8e3666c12ef2..e22940a593c2 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -20,6 +20,31 @@
- #include <linux/list.h>
- #include <linux/workqueue.h>
- 
-+#ifdef CONFIG_HMEM_REPORTING
-+/**
-+ * struct node_hmem_attrs - heterogeneous memory performance attributes
-+ *
-+ * @read_bandwidth:	Read bandwidth in MB/s
-+ * @write_bandwidth:	Write bandwidth in MB/s
-+ * @read_latency:	Read latency in nanoseconds
-+ * @write_latency:	Write latency in nanoseconds
-+ */
-+struct node_hmem_attrs {
-+	unsigned int read_bandwidth;
-+	unsigned int write_bandwidth;
-+	unsigned int read_latency;
-+	unsigned int write_latency;
-+};
-+void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
-+			 unsigned class);
-+#else
-+static inline void node_set_perf_attrs(unsigned int nid,
-+				       struct node_hmem_attrs *hmem_attrs,
-+				       unsigned class)
-+{
-+}
-+#endif
-+
- struct node {
- 	struct device	dev;
- 	struct list_head class_list;
 -- 
-2.14.4
+Kees Cook
