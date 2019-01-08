@@ -1,136 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 18DEC8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 07:22:06 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id b18so22342671oii.1
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 04:22:06 -0800 (PST)
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id i9si24195303oth.116.2019.01.02.04.22.04
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 370D38E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 08:09:01 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id r9so2680759pfb.13
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 05:09:01 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id q10si63940777pll.221.2019.01.08.05.08.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 04:22:04 -0800 (PST)
-Date: Wed, 2 Jan 2019 12:21:10 +0000
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-Subject: Re: [RFC][PATCH v2 00/21] PMEM NUMA node and hotness
- accounting/migration
-Message-ID: <20190102122110.00000206@huawei.com>
-In-Reply-To: <20181228195224.GY16738@dhcp22.suse.cz>
-References: <20181226131446.330864849@intel.com>
-	<20181227203158.GO16738@dhcp22.suse.cz>
-	<20181228050806.ewpxtwo3fpw7h3lq@wfg-t540p.sh.intel.com>
-	<20181228084105.GQ16738@dhcp22.suse.cz>
-	<20181228094208.7lgxhha34zpqu4db@wfg-t540p.sh.intel.com>
-	<20181228121515.GS16738@dhcp22.suse.cz>
-	<20181228133111.zromvopkfcg3m5oy@wfg-t540p.sh.intel.com>
-	<20181228195224.GY16738@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 08 Jan 2019 05:08:59 -0800 (PST)
+Date: Tue, 8 Jan 2019 14:08:49 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: possible deadlock in __wake_up_common_lock
+Message-ID: <20190108130849.GF6808@hirez.programming.kicks-ass.net>
+References: <000000000000f67ca2057e75bec3@google.com>
+ <1194004c-f176-6253-a5fd-682472dccacc@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1194004c-f176-6253-a5fd-682472dccacc@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Mel  Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, linux-accelerators@lists.ozlabs.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: syzbot <syzbot+93d94a001cfbce9e60e1@syzkaller.appspotmail.com>, aarcange@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@dominikbrodowski.net, mhocko@suse.com, rientjes@google.com, syzkaller-bugs@googlegroups.com, xieyisheng1@huawei.com, zhongjiang@huawei.com, Mel Gorman <mgorman@techsingularity.net>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, hannes@cmpxchg.org
 
-On Fri, 28 Dec 2018 20:52:24 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
+On Wed, Jan 02, 2019 at 01:51:01PM +0100, Vlastimil Babka wrote:
 
-> [Ccing Mel and Andrea]
+> > syz-executor0/8529 is trying to acquire lock:
+> > 000000005e7fb829 (&pgdat->kswapd_wait){....}, at:  
+> > __wake_up_common_lock+0x19e/0x330 kernel/sched/wait.c:120
 > 
-> On Fri 28-12-18 21:31:11, Wu Fengguang wrote:
-> > > > > I haven't looked at the implementation yet but if you are proposing a
-> > > > > special cased zone lists then this is something CDM (Coherent Device
-> > > > > Memory) was trying to do two years ago and there was quite some
-> > > > > skepticism in the approach.  
-> > > > 
-> > > > It looks we are pretty different than CDM. :)
-> > > > We creating new NUMA nodes rather than CDM's new ZONE.
-> > > > The zonelists modification is just to make PMEM nodes more separated.  
-> > > 
-> > > Yes, this is exactly what CDM was after. Have a zone which is not
-> > > reachable without explicit request AFAIR. So no, I do not think you are
-> > > too different, you just use a different terminology ;)  
+> From the backtrace at the end of report I see it's coming from
+> 
+> >   wakeup_kswapd+0x5f0/0x930 mm/vmscan.c:3982
+> >   steal_suitable_fallback+0x538/0x830 mm/page_alloc.c:2217
+> 
+> This wakeup_kswapd is new due to Mel's 1c30844d2dfe ("mm: reclaim small
+> amounts of memory when an external fragmentation event occurs") so CC Mel.
+
+Right; and I see Mel already has a fix for that.
+
+> > the existing dependency chain (in reverse order) is:
 > > 
-> > Got it. OK.. The fall back zonelists patch does need more thoughts.
+> > -> #4 (&(&zone->lock)->rlock){-.-.}:
+> >         __raw_spin_lock_irqsave include/linux/spinlock_api_smp.h:110 [inline]
+> >         _raw_spin_lock_irqsave+0x99/0xd0 kernel/locking/spinlock.c:152
+> >         rmqueue mm/page_alloc.c:3082 [inline]
+> >         get_page_from_freelist+0x9eb/0x52a0 mm/page_alloc.c:3491
+> >         __alloc_pages_nodemask+0x4f3/0xde0 mm/page_alloc.c:4529
+> >         __alloc_pages include/linux/gfp.h:473 [inline]
+> >         alloc_page_interleave+0x25/0x1c0 mm/mempolicy.c:1988
+> >         alloc_pages_current+0x1bf/0x210 mm/mempolicy.c:2104
+> >         alloc_pages include/linux/gfp.h:509 [inline]
+> >         depot_save_stack+0x3f1/0x470 lib/stackdepot.c:260
+> >         save_stack+0xa9/0xd0 mm/kasan/common.c:79
+> >         set_track mm/kasan/common.c:85 [inline]
+> >         kasan_kmalloc+0xcb/0xd0 mm/kasan/common.c:482
+> >         kasan_slab_alloc+0x12/0x20 mm/kasan/common.c:397
+> >         kmem_cache_alloc+0x130/0x730 mm/slab.c:3541
+> >         kmem_cache_zalloc include/linux/slab.h:731 [inline]
+> >         fill_pool lib/debugobjects.c:134 [inline]
+> >         __debug_object_init+0xbb8/0x1290 lib/debugobjects.c:379
+> >         debug_object_init lib/debugobjects.c:431 [inline]
+> >         debug_object_activate+0x323/0x600 lib/debugobjects.c:512
+> >         debug_timer_activate kernel/time/timer.c:708 [inline]
+> >         debug_activate kernel/time/timer.c:763 [inline]
+> >         __mod_timer kernel/time/timer.c:1040 [inline]
+> >         mod_timer kernel/time/timer.c:1101 [inline]
+> >         add_timer+0x50e/0x1490 kernel/time/timer.c:1137
+> >         __queue_delayed_work+0x249/0x380 kernel/workqueue.c:1533
+> >         queue_delayed_work_on+0x1a2/0x1f0 kernel/workqueue.c:1558
+> >         queue_delayed_work include/linux/workqueue.h:527 [inline]
+> >         schedule_delayed_work include/linux/workqueue.h:628 [inline]
+> >         start_dirtytime_writeback+0x4e/0x53 fs/fs-writeback.c:2043
+> >         do_one_initcall+0x145/0x957 init/main.c:889
+> >         do_initcall_level init/main.c:957 [inline]
+> >         do_initcalls init/main.c:965 [inline]
+> >         do_basic_setup init/main.c:983 [inline]
+> >         kernel_init_freeable+0x4c1/0x5af init/main.c:1136
+> >         kernel_init+0x11/0x1ae init/main.c:1056
+> >         ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:352
 > > 
-> > In long term POV, Linux should be prepared for multi-level memory.
-> > Then there will arise the need to "allocate from this level memory".
-> > So it looks good to have separated zonelists for each level of memory.  
-> 
-> Well, I do not have a good answer for you here. We do not have good
-> experiences with those systems, I am afraid. NUMA is with us for more
-> than a decade yet our APIs are coarse to say the least and broken at so
-> many times as well. Starting a new API just based on PMEM sounds like a
-> ticket to another disaster to me.
-> 
-> I would like to see solid arguments why the current model of numa nodes
-> with fallback in distances order cannot be used for those new
-> technologies in the beginning and develop something better based on our
-> experiences that we gain on the way.
-> 
-> I would be especially interested about a possibility of the memory
-> migration idea during a memory pressure and relying on numa balancing to
-> resort the locality on demand rather than hiding certain NUMA nodes or
-> zones from the allocator and expose them only to the userspace.
+> > -> #3 (&base->lock){-.-.}:
 
-This is indeed a very interesting direction.  I'm coming at this from a CCIX
-point of view.  Ignore the next bit of you are already familiar with CCIX :)
+However I really, _really_ hate that dependency. We really should not
+get memory allocations under rq->lock.
 
-Main thing CCIX brings is that memory can be fully coherent
-anywhere in the system including out near accelerators, all via shared physical
-address space, leveraging ATS / IOMMUs / MMUs to do translations. Result is a
-big and possibly extremely heterogenous NUMA system.  All the setup is done in
-firmware so by the time the kernel sees it everything is in SRAT / SLIT
-/ NFIT / HMAT etc.
+We seem to avoid this for the existing hrtimer usage, because of
+hrtimer_init() doing: debug_init() -> debug_hrtimer_init() ->
+debug_object_init().
 
-We have a few usecases that need some more fine grained control combined with
-automated balancing.  So far we've been messing with nasty tricks like
-hotplugging memory after boot a long way away, or the original CDM zone patches
-(knowing they weren't likely to go anywhere!)  Userspace is all hand tuned
-which is not great in the long run...
+But that isn't done for the (PSI) schedule_delayed_work() thing for some
+raisin; even though: group_init() does INIT_DELAYED_WORK() ->
+__INIT_DELAYED_WORK() -> __init_timer() -> init_timer_key() ->
+debug_init() -> debug_timer_init() -> debug_object_init().
 
-Use cases (I've probably missed some):
+But _somehow_ that isn't doing it.
 
-* Storage Class Memory near to the host CPU / DRAM controllers (pretty much
-  the same as this series is considering).  Note that there isn't necessarily
-  any 'pairing' with host DRAM as seen in this RFC.  A typical system might have
-  a large single pool with similar access characteristics from each host SOC.
-  The paired approach is probably going to be common in early systems though.
-  Also not necessarily Non Volatile, could just be a big DDR expansion board.
+Now debug_object_activate() has this case:
 
-* RAM out near an accelerator. Aim would be to migrate data to that RAM if
-  the access patterns from the accelerator justify it being there rather than
-  near any of the host CPUs.  In a memory pressure on host situation anything
-  could be pushed out there as probably still better than swapping.
-  Note that this would require some knowledge of 'who' is doing the accessing
-  which isn't needed for what this RFC is doing.
+	if (descr->is_static_object && descr->is_static_object(addr)) {
+		debug_object_init()
 
-* Hot pages may not be hot just because the host is using them a lot.  It would be
-  very useful to have a means of adding information available from accelerators
-  beyond simple accessed bits (dreaming ;)  One problem here is translation
-  caches (ATCs) as they won't normally result in any updates to the page accessed
-  bits.  The arm SMMU v3 spec for example makes it clear (though it's kind of
-  obvious) that the ATS request is the only opportunity to update the accessed
-  bit.  The nasty option here would be to periodically flush the ATC to force
-  the access bit updates via repeats of the ATS request (ouch).
-  That option only works if the iommu supports updating the accessed flag
-  (optional on SMMU v3 for example).
+which does an debug_object_init() for static allocations, which brings
+us to:
 
-We need the explicit placement, but can get that from existing NUMA controls.
-More of a concern is persuading the kernel it really doesn't want to put
-it's data structures in distant memory as it can be very very distant.
+  static DEFINE_PER_CPU(struct psi_group_cpu, system_group_pcpu);
+  static struct psi_group psi_system = {
 
-So ideally I'd love this set to head in a direction that helps me tick off
-at least some of the above usecases and hopefully have some visibility on
-how to address the others moving forwards,
+But that _should_ get initialized by psi_init(), which is called from
+sched_init() which _should_ be waaay before do_basic_setup().
 
-Good to see some new thoughts in this area!
-
-Jonathan
-> 
-> > On the other hand, there will also be page allocations that don't care
-> > about the exact memory level. So it looks reasonable to expect
-> > different kind of fallback zonelists that can be selected by NUMA policy.
-> > 
-> > Thanks,
-> > Fengguang  
-> 
+Something goes wobbly.. but I'm not seeing it.
