@@ -1,244 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E52A8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:48:00 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id o23so4583476pll.0
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:48:00 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.47.58
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D46F8E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 09:38:33 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c18so1661486edt.23
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 06:38:33 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s17si4804edr.396.2019.01.08.06.38.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 09:47:59 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv3 06/13] acpi/hmat: Register processor domain to its memory
-Date: Wed,  9 Jan 2019 10:43:34 -0700
-Message-Id: <20190109174341.19818-7-keith.busch@intel.com>
-In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
-References: <20190109174341.19818-1-keith.busch@intel.com>
+        Tue, 08 Jan 2019 06:38:31 -0800 (PST)
+Date: Tue, 8 Jan 2019 15:38:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/2] memcg: Facilitate termination of memcg OOM victims.
+Message-ID: <20190108143830.GV31793@dhcp22.suse.cz>
+References: <20190107143802.16847-1-mhocko@kernel.org>
+ <a49e2b45-10b2-715c-7dcb-2eb7ec5d2cf2@i-love.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a49e2b45-10b2-715c-7dcb-2eb7ec5d2cf2@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-If the HMAT Subsystem Address Range provides a valid processor proximity
-domain for a memory domain, or a processor domain with the highest
-performing access exists, register the memory target with that initiator
-so this relationship will be visible under the node's sysfs directory.
+On Tue 08-01-19 23:21:23, Tetsuo Handa wrote:
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> 
+> If memcg OOM events in different domains are pending, already OOM-killed
+> threads needlessly wait for pending memcg OOM events in different domains.
+> An out_of_memory() call is slow because it involves printk(). With slow
+> serial consoles, out_of_memory() might take more than a second. Therefore,
+> allowing killed processes to quickly call mmput() from exit_mm() from
+> do_exit() will help calling __mmput() (which can reclaim more memory than
+> the OOM reaper can reclaim) quickly.
 
-Since HMAT requires valid address ranges have an equivalent SRAT entry,
-verify each memory target satisfies this requirement.
+Can you post it separately out of this thread please? It is really a
+separate topic and I do not want to end with back and forth without
+making a further progress.
+ 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  mm/memcontrol.c | 17 +++++++++++------
+>  1 file changed, 11 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 90eb2e2..a7d3ba9 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1389,14 +1389,19 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	};
+>  	bool ret = true;
+>  
+> -	mutex_lock(&oom_lock);
+> -
+>  	/*
+> -	 * multi-threaded tasks might race with oom_reaper and gain
+> -	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
+> -	 * to out_of_memory failure if the task is the last one in
+> -	 * memcg which would be a false possitive failure reported
+> +	 * Multi-threaded tasks might race with oom_reaper() and gain
+> +	 * MMF_OOM_SKIP before reaching out_of_memory(). But if current
+> +	 * thread was already killed or is ready to terminate, there is
+> +	 * no need to call out_of_memory() nor wait for oom_reaoer() to
+> +	 * set MMF_OOM_SKIP. These three checks minimize possibility of
+> +	 * needlessly calling out_of_memory() and try to call exit_mm()
+> +	 * as soon as possible.
+>  	 */
+> +	if (mutex_lock_killable(&oom_lock))
+> +		return true;
+> +	if (fatal_signal_pending(current))
+> +		goto unlock;
+>  	if (tsk_is_oom_victim(current))
+>  		goto unlock;
+>  
+> -- 
+> 1.8.3.1
+> 
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
----
- drivers/acpi/hmat.c | 143 +++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 136 insertions(+), 7 deletions(-)
-
-diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
-index 833a783868d5..efb33c74d1a3 100644
---- a/drivers/acpi/hmat.c
-+++ b/drivers/acpi/hmat.c
-@@ -17,6 +17,43 @@
- #include <linux/slab.h>
- #include <linux/sysfs.h>
- 
-+static LIST_HEAD(targets);
-+
-+struct memory_target {
-+	struct list_head node;
-+	unsigned int memory_pxm;
-+	unsigned long p_nodes[BITS_TO_LONGS(MAX_NUMNODES)];
-+};
-+
-+static __init struct memory_target *find_mem_target(unsigned int m)
-+{
-+	struct memory_target *t;
-+
-+	list_for_each_entry(t, &targets, node)
-+		if (t->memory_pxm == m)
-+			return t;
-+	return NULL;
-+}
-+
-+static __init void alloc_memory_target(unsigned int mem_pxm)
-+{
-+	struct memory_target *t;
-+
-+	if (pxm_to_node(mem_pxm) == NUMA_NO_NODE)
-+		return;
-+
-+	t = find_mem_target(mem_pxm);
-+	if (t)
-+		return;
-+
-+	t = kzalloc(sizeof(*t), GFP_KERNEL);
-+	if (!t)
-+		return;
-+
-+	t->memory_pxm = mem_pxm;
-+	list_add_tail(&t->node, &targets);
-+}
-+
- static __init const char *hmat_data_type(u8 type)
- {
- 	switch (type) {
-@@ -53,11 +90,30 @@ static __init const char *hmat_data_type_suffix(u8 type)
- 	};
- }
- 
-+static __init void hmat_update_access(u8 type, u32 value, u32 *best)
-+{
-+	switch (type) {
-+	case ACPI_HMAT_ACCESS_LATENCY:
-+	case ACPI_HMAT_READ_LATENCY:
-+	case ACPI_HMAT_WRITE_LATENCY:
-+		if (!*best || *best > value)
-+			*best = value;
-+		break;
-+	case ACPI_HMAT_ACCESS_BANDWIDTH:
-+	case ACPI_HMAT_READ_BANDWIDTH:
-+	case ACPI_HMAT_WRITE_BANDWIDTH:
-+		if (!*best || *best < value)
-+			*best = value;
-+		break;
-+	}
-+}
-+
- static __init int hmat_parse_locality(union acpi_subtable_headers *header,
- 				      const unsigned long end)
- {
-+	struct memory_target *t;
- 	struct acpi_hmat_locality *loc = (void *)header;
--	unsigned int init, targ, total_size, ipds, tpds;
-+	unsigned int init, targ, pass, p_node, total_size, ipds, tpds;
- 	u32 *inits, *targs, value;
- 	u16 *entries;
- 	u8 type;
-@@ -87,12 +143,28 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
- 	targs = &inits[ipds];
- 	entries = (u16 *)(&targs[tpds]);
- 	for (targ = 0; targ < tpds; targ++) {
--		for (init = 0; init < ipds; init++) {
--			value = entries[init * tpds + targ];
--			value = (value * loc->entry_base_unit) / 10;
--			pr_info("  Initiator-Target[%d-%d]:%d%s\n",
--				inits[init], targs[targ], value,
--				hmat_data_type_suffix(type));
-+		u32 best = 0;
-+
-+		t = find_mem_target(targs[targ]);
-+		for (pass = 0; pass < 2; pass++) {
-+			for (init = 0; init < ipds; init++) {
-+				value = entries[init * tpds + targ];
-+				value = (value * loc->entry_base_unit) / 10;
-+
-+				if (!pass) {
-+					hmat_update_access(type, value, &best);
-+					pr_info("  Initiator-Target[%d-%d]:%d%s\n",
-+						inits[init], targs[targ], value,
-+						hmat_data_type_suffix(type));
-+					continue;
-+				}
-+
-+				if (!t)
-+					continue;
-+				p_node = pxm_to_node(inits[init]);
-+				if (p_node != NUMA_NO_NODE && value == best)
-+					set_bit(p_node, t->p_nodes);
-+			}
- 		}
- 	}
- 	return 0;
-@@ -122,6 +194,7 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
- 					   const unsigned long end)
- {
- 	struct acpi_hmat_address_range *spa = (void *)header;
-+	struct memory_target *t = NULL;
- 
- 	if (spa->header.length != sizeof(*spa)) {
- 		pr_err("HMAT: Unexpected address range header length: %d\n",
-@@ -131,6 +204,23 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
- 	pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
- 		spa->physical_address_base, spa->physical_address_length,
- 		spa->flags, spa->processor_PD, spa->memory_PD);
-+
-+	if (spa->flags & ACPI_HMAT_MEMORY_PD_VALID) {
-+		t = find_mem_target(spa->memory_PD);
-+		if (!t) {
-+			pr_warn("HMAT: Memory Domain missing from SRAT\n");
-+			return -EINVAL;
-+		}
-+	}
-+	if (t && spa->flags & ACPI_HMAT_PROCESSOR_PD_VALID) {
-+		int p_node = pxm_to_node(spa->processor_PD);
-+
-+		if (p_node == NUMA_NO_NODE) {
-+			pr_warn("HMAT: Invalid Processor Domain\n");
-+			return -EINVAL;
-+		}
-+		set_bit(p_node, t->p_nodes);
-+	}
- 	return 0;
- }
- 
-@@ -154,6 +244,33 @@ static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
- 	}
- }
- 
-+static __init int srat_parse_mem_affinity(union acpi_subtable_headers *header,
-+					  const unsigned long end)
-+{
-+	struct acpi_srat_mem_affinity *ma = (void *)header;
-+
-+	if (!ma)
-+		return -EINVAL;
-+	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
-+		return 0;
-+	alloc_memory_target(ma->proximity_domain);
-+	return 0;
-+}
-+
-+static __init void hmat_register_targets(void)
-+{
-+	struct memory_target *t, *next;
-+	unsigned m, p;
-+
-+	list_for_each_entry_safe(t, next, &targets, node) {
-+		list_del(&t->node);
-+		m = pxm_to_node(t->memory_pxm);
-+		for_each_set_bit(p, t->p_nodes, MAX_NUMNODES)
-+			register_memory_node_under_compute_node(m, p, 0);
-+		kfree(t);
-+	}
-+}
-+
- static __init int hmat_init(void)
- {
- 	struct acpi_table_header *tbl;
-@@ -163,6 +280,17 @@ static __init int hmat_init(void)
- 	if (srat_disabled())
- 		return 0;
- 
-+	status = acpi_get_table(ACPI_SIG_SRAT, 0, &tbl);
-+	if (ACPI_FAILURE(status))
-+		return 0;
-+
-+	if (acpi_table_parse_entries(ACPI_SIG_SRAT,
-+				sizeof(struct acpi_table_srat),
-+				ACPI_SRAT_TYPE_MEMORY_AFFINITY,
-+				srat_parse_mem_affinity, 0) < 0)
-+		goto out_put;
-+	acpi_put_table(tbl);
-+
- 	status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
- 	if (ACPI_FAILURE(status))
- 		return 0;
-@@ -173,6 +301,7 @@ static __init int hmat_init(void)
- 					     hmat_parse_subtable, 0) < 0)
- 			goto out_put;
- 	}
-+	hmat_register_targets();
- out_put:
- 	acpi_put_table(tbl);
- 	return 0;
 -- 
-2.14.4
+Michal Hocko
+SUSE Labs
