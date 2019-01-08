@@ -1,186 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C98A18E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 02:37:49 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id t2so1223396edb.22
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 23:37:49 -0800 (PST)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id 18-v6si737763ejo.149.2019.01.07.23.37.47
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6509F8E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 04:12:21 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id 39so1361961edq.13
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 01:12:21 -0800 (PST)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id q47si2849711edd.98.2019.01.08.01.12.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 23:37:48 -0800 (PST)
-Message-Id: <e939991366b784ef13c7afcab51749e3b46327ac.1546932949.git.christophe.leroy@c-s.fr>
-In-Reply-To: <0b0db24e18063076e9d9f4e376994af83da05456.1546932949.git.christophe.leroy@c-s.fr>
-References: <0b0db24e18063076e9d9f4e376994af83da05456.1546932949.git.christophe.leroy@c-s.fr>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v2 2/2] powerpc: use probe_user_read()
-Date: Tue,  8 Jan 2019 07:37:47 +0000 (UTC)
+        Tue, 08 Jan 2019 01:12:19 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 618841C223C
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 09:12:19 +0000 (GMT)
+Date: Tue, 8 Jan 2019 09:12:17 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 00/25] Increase success rates and reduce latency of
+ compaction v2
+Message-ID: <20190108091217.GL31517@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190107154354.b0805ca15767fc7ea9e37545@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190107154354.b0805ca15767fc7ea9e37545@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-Instead of opencoding, use probe_user_read() to failessly
-read a user location.
+On Mon, Jan 07, 2019 at 03:43:54PM -0800, Andrew Morton wrote:
+> On Fri,  4 Jan 2019 12:49:46 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > This series reduces scan rates and success rates of compaction, primarily
+> > by using the free lists to shorten scans, better controlling of skip
+> > information and whether multiple scanners can target the same block and
+> > capturing pageblocks before being stolen by parallel requests. The series
+> > is based on the 4.21/5.0 merge window after Andrew's tree had been merged.
+> > It's known to rebase cleanly.
+> > 
+> > ...
+> >
+> >  include/linux/compaction.h |    3 +-
+> >  include/linux/gfp.h        |    7 +-
+> >  include/linux/mmzone.h     |    2 +
+> >  include/linux/sched.h      |    4 +
+> >  kernel/sched/core.c        |    3 +
+> >  mm/compaction.c            | 1031 ++++++++++++++++++++++++++++++++++----------
+> >  mm/internal.h              |   23 +-
+> >  mm/migrate.c               |    2 +-
+> >  mm/page_alloc.c            |   70 ++-
+> >  9 files changed, 908 insertions(+), 237 deletions(-)
+> 
+> Boy that's a lot of material. 
 
-Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
----
- v2: Using probe_user_read() instead of probe_user_address()
+It's unfortunate I know. It just turned out that there is a lot that had
+to change to make the most important patches in the series work without
+obvious side-effects.
 
- arch/powerpc/kernel/process.c   | 12 +-----------
- arch/powerpc/mm/fault.c         |  6 +-----
- arch/powerpc/perf/callchain.c   | 20 +++-----------------
- arch/powerpc/perf/core-book3s.c |  8 +-------
- arch/powerpc/sysdev/fsl_pci.c   | 10 ++++------
- 5 files changed, 10 insertions(+), 46 deletions(-)
+> I just tossed it in there unread for
+> now.  Do you have any suggestions as to how we can move ahead with
+> getting this appropriately reviewed and tested?
+> 
 
-diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
-index ce393df243aa..6a4b59d574c2 100644
---- a/arch/powerpc/kernel/process.c
-+++ b/arch/powerpc/kernel/process.c
-@@ -1298,16 +1298,6 @@ void show_user_instructions(struct pt_regs *regs)
- 
- 	pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
- 
--	/*
--	 * Make sure the NIP points at userspace, not kernel text/data or
--	 * elsewhere.
--	 */
--	if (!__access_ok(pc, NR_INSN_TO_PRINT * sizeof(int), USER_DS)) {
--		pr_info("%s[%d]: Bad NIP, not dumping instructions.\n",
--			current->comm, current->pid);
--		return;
--	}
--
- 	seq_buf_init(&s, buf, sizeof(buf));
- 
- 	while (n) {
-@@ -1318,7 +1308,7 @@ void show_user_instructions(struct pt_regs *regs)
- 		for (i = 0; i < 8 && n; i++, n--, pc += sizeof(int)) {
- 			int instr;
- 
--			if (probe_kernel_address((const void *)pc, instr)) {
-+			if (probe_user_read(&instr, (void __user *)pc, sizeof(instr))) {
- 				seq_buf_printf(&s, "XXXXXXXX ");
- 				continue;
- 			}
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index 887f11bcf330..ec74305fa330 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -276,12 +276,8 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
- 		if ((flags & FAULT_FLAG_WRITE) && (flags & FAULT_FLAG_USER) &&
- 		    access_ok(nip, sizeof(*nip))) {
- 			unsigned int inst;
--			int res;
- 
--			pagefault_disable();
--			res = __get_user_inatomic(inst, nip);
--			pagefault_enable();
--			if (!res)
-+			if (!probe_user_read(&inst, nip, sizeof(inst)))
- 				return !store_updates_sp(inst);
- 			*must_retry = true;
- 		}
-diff --git a/arch/powerpc/perf/callchain.c b/arch/powerpc/perf/callchain.c
-index 0af051a1974e..0680efb2237b 100644
---- a/arch/powerpc/perf/callchain.c
-+++ b/arch/powerpc/perf/callchain.c
-@@ -159,12 +159,8 @@ static int read_user_stack_64(unsigned long __user *ptr, unsigned long *ret)
- 	    ((unsigned long)ptr & 7))
- 		return -EFAULT;
- 
--	pagefault_disable();
--	if (!__get_user_inatomic(*ret, ptr)) {
--		pagefault_enable();
-+	if (!probe_user_read(ret, ptr, sizeof(*ret)))
- 		return 0;
--	}
--	pagefault_enable();
- 
- 	return read_user_stack_slow(ptr, ret, 8);
- }
-@@ -175,12 +171,8 @@ static int read_user_stack_32(unsigned int __user *ptr, unsigned int *ret)
- 	    ((unsigned long)ptr & 3))
- 		return -EFAULT;
- 
--	pagefault_disable();
--	if (!__get_user_inatomic(*ret, ptr)) {
--		pagefault_enable();
-+	if (!probe_user_read(ret, ptr, sizeof(*ret)))
- 		return 0;
--	}
--	pagefault_enable();
- 
- 	return read_user_stack_slow(ptr, ret, 4);
- }
-@@ -307,17 +299,11 @@ static inline int current_is_64bit(void)
-  */
- static int read_user_stack_32(unsigned int __user *ptr, unsigned int *ret)
- {
--	int rc;
--
- 	if ((unsigned long)ptr > TASK_SIZE - sizeof(unsigned int) ||
- 	    ((unsigned long)ptr & 3))
- 		return -EFAULT;
- 
--	pagefault_disable();
--	rc = __get_user_inatomic(*ret, ptr);
--	pagefault_enable();
--
--	return rc;
-+	return probe_user_read(ret, ptr, sizeof(*ret));
- }
- 
- static inline void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
-diff --git a/arch/powerpc/perf/core-book3s.c b/arch/powerpc/perf/core-book3s.c
-index b0723002a396..4b64ddf0db68 100644
---- a/arch/powerpc/perf/core-book3s.c
-+++ b/arch/powerpc/perf/core-book3s.c
-@@ -416,7 +416,6 @@ static void power_pmu_sched_task(struct perf_event_context *ctx, bool sched_in)
- static __u64 power_pmu_bhrb_to(u64 addr)
- {
- 	unsigned int instr;
--	int ret;
- 	__u64 target;
- 
- 	if (is_kernel_addr(addr)) {
-@@ -427,13 +426,8 @@ static __u64 power_pmu_bhrb_to(u64 addr)
- 	}
- 
- 	/* Userspace: need copy instruction here then translate it */
--	pagefault_disable();
--	ret = __get_user_inatomic(instr, (unsigned int __user *)addr);
--	if (ret) {
--		pagefault_enable();
-+	if (probe_user_read(&instr, (unsigned int __user *)addr, sizeof(instr)))
- 		return 0;
--	}
--	pagefault_enable();
- 
- 	target = branch_target(&instr);
- 	if ((!target) || (instr & BRANCH_ABSOLUTE))
-diff --git a/arch/powerpc/sysdev/fsl_pci.c b/arch/powerpc/sysdev/fsl_pci.c
-index 918be816b097..c8a1b26489f5 100644
---- a/arch/powerpc/sysdev/fsl_pci.c
-+++ b/arch/powerpc/sysdev/fsl_pci.c
-@@ -1068,13 +1068,11 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
- 	addr += mfspr(SPRN_MCAR);
- 
- 	if (is_in_pci_mem_space(addr)) {
--		if (user_mode(regs)) {
--			pagefault_disable();
--			ret = get_user(inst, (__u32 __user *)regs->nip);
--			pagefault_enable();
--		} else {
-+		if (user_mode(regs))
-+			ret = probe_user_read(&inst, (void __user *)regs->nip,
-+					      sizeof(inst));
-+		else
- 			ret = probe_kernel_address((void *)regs->nip, inst);
--		}
- 
- 		if (!ret && mcheck_handle_load(regs, inst)) {
- 			regs->nip += 4;
+The main workloads that should see a difference are those that use
+MADV_HUGEPAGE or change /sys/kernel/mm/transparent_hugepage/defrag. I'm
+expecting MADV_HUGEPAGE is more common in practice. By default, there
+should be little change as direct compaction is not used heavily for THP.
+Although SLUB workloads might see a difference given a long enough uptime,
+it will be relatively difficult to detect.
+
+As this was partially motivated by the __GFP_THISNODE discussion, I
+would like to hear from David if this series makes an impact, if any,
+when starting Google workloads on a fragmented system.
+
+Similarly, I would be interested in hearing if Andrea's KVM startup times
+see any benefit. I'm expecting less here as I expect that workload is
+still bound by reclaim thrashing the local node in reclaim. Still, a
+confirmation would be nice and if there is any benefit then it's a plus
+even if the workload gets reclaimed excessively.
+
+Local tests didn't show up anything interesting *other* than what is
+already in the changelogs as those workloads are specifically targetting
+those paths. Intel LKP has not reported any regressions (functional or
+performance) despite being on git.kernel.org for a few weeks. However,
+as they are using default configurations, this is not much of a surprise.
+
+Review is harder. Vlastimil would normally be the best fit as he has
+worked on compaction but for him or for anyone else, I'm expecting they're
+dealing with a backlog after the holidays.  I know I still have to get
+to Vlastimil's recent series on THP allocations so I'm guilty of the same
+crime with respect to review.
+
 -- 
-2.13.3
+Mel Gorman
+SUSE Labs
