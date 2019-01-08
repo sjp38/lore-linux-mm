@@ -1,241 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 191808E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 09:34:44 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id m19so1703405edc.6
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 06:34:44 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m12si5093edc.331.2019.01.08.06.34.42
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D6FA18E0038
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 23:51:35 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id w185so2218376qka.9
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 20:51:35 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j13si3762835qtk.203.2019.01.07.20.51.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 06:34:42 -0800 (PST)
-Date: Tue, 8 Jan 2019 15:34:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/alloc: fallback to first node if the wanted node
- offline
-Message-ID: <20190108143440.GU31793@dhcp22.suse.cz>
-References: <CAFgQCTuu54oZWKq_ppEvZFb4Mz31gVmsa37gTap+e9KbE=T0aQ@mail.gmail.com>
- <20181207155627.GG1286@dhcp22.suse.cz>
- <20181210123738.GN1286@dhcp22.suse.cz>
- <CAFgQCTupPc1rKv2SrmWD+eJ0H6PRaizPBw3+AG67_PuLA2SKFw@mail.gmail.com>
- <20181212115340.GQ1286@dhcp22.suse.cz>
- <CAFgQCTuhW6sPtCNFmnz13p30v3owE3Rty5WJNgtqgz8XaZT-aQ@mail.gmail.com>
- <CAFgQCTtFZ8ku7W_7rcmrbmH4Qvsv7zgOSHKfPSpNSkVjYkPfBg@mail.gmail.com>
- <20181217132926.GM30879@dhcp22.suse.cz>
- <CAFgQCTubm9B1_zM+oc1GLfOChu+XY9N4OcjyeDgk6ggObRtMKg@mail.gmail.com>
- <20181220091934.GC14234@dhcp22.suse.cz>
+        Mon, 07 Jan 2019 20:51:34 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x084msLl049220
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2019 23:51:34 -0500
+Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pvk82n5ku-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 07 Jan 2019 23:51:34 -0500
+Received: from localhost
+	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 8 Jan 2019 04:51:33 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH V6 2/4] mm: Add get_user_pages_cma_migrate
+Date: Tue,  8 Jan 2019 10:21:08 +0530
+In-Reply-To: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
+References: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181220091934.GC14234@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+Message-Id: <20190108045110.28597-3-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
+To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-On Thu 20-12-18 10:19:34, Michal Hocko wrote:
-> On Thu 20-12-18 15:19:39, Pingfan Liu wrote:
-> > Hi Michal,
-> > 
-> > WIth this patch applied on the old one, I got the following message.
-> > Please get it from attachment.
-> [...]
-> > [    0.409637] NUMA: Node 1 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0x7fffffff] -> [mem 0x00000000-0x7fffffff]
-> > [    0.419858] NUMA: Node 1 [mem 0x00000000-0x7fffffff] + [mem 0x100000000-0x47fffffff] -> [mem 0x00000000-0x47fffffff]
-> > [    0.430356] NODE_DATA(0) allocated [mem 0x87efd4000-0x87effefff]
-> > [    0.436325]     NODE_DATA(0) on node 5
-> > [    0.440092] Initmem setup node 0 [mem 0x0000000000000000-0x0000000000000000]
-> > [    0.447078] node[0] zonelist: 
-> > [    0.450106] NODE_DATA(1) allocated [mem 0x47ffd5000-0x47fffffff]
-> > [    0.456114] NODE_DATA(2) allocated [mem 0x87efa9000-0x87efd3fff]
-> > [    0.462064]     NODE_DATA(2) on node 5
-> > [    0.465852] Initmem setup node 2 [mem 0x0000000000000000-0x0000000000000000]
-> > [    0.472813] node[2] zonelist: 
-> > [    0.475846] NODE_DATA(3) allocated [mem 0x87ef7e000-0x87efa8fff]
-> > [    0.481827]     NODE_DATA(3) on node 5
-> > [    0.485590] Initmem setup node 3 [mem 0x0000000000000000-0x0000000000000000]
-> > [    0.492575] node[3] zonelist: 
-> > [    0.495608] NODE_DATA(4) allocated [mem 0x87ef53000-0x87ef7dfff]
-> > [    0.501587]     NODE_DATA(4) on node 5
-> > [    0.505349] Initmem setup node 4 [mem 0x0000000000000000-0x0000000000000000]
-> > [    0.512334] node[4] zonelist: 
-> > [    0.515370] NODE_DATA(5) allocated [mem 0x87ef28000-0x87ef52fff]
-> > [    0.521384] NODE_DATA(6) allocated [mem 0x87eefd000-0x87ef27fff]
-> > [    0.527329]     NODE_DATA(6) on node 5
-> > [    0.531091] Initmem setup node 6 [mem 0x0000000000000000-0x0000000000000000]
-> > [    0.538076] node[6] zonelist: 
-> > [    0.541109] NODE_DATA(7) allocated [mem 0x87eed2000-0x87eefcfff]
-> > [    0.547090]     NODE_DATA(7) on node 5
-> > [    0.550851] Initmem setup node 7 [mem 0x0000000000000000-0x0000000000000000]
-> > [    0.557836] node[7] zonelist: 
-> 
-> OK, so it is clear that building zonelists this early is not going to
-> fly. We do not have the complete information yet. I am not sure when do
-> we get that at this moment but I suspect the we either need to move that
-> initialization to a sooner stage or we have to reconsider whether the
-> phase when we build zonelists really needs to consider only online numa
-> nodes.
-> 
-> [...]
-> > [    1.067658] percpu: Embedded 46 pages/cpu @(____ptrval____) s151552 r8192 d28672 u262144
-> > [    1.075692] node[1] zonelist: 1:Normal 1:DMA32 1:DMA 5:Normal 
-> > [    1.081376] node[5] zonelist: 5:Normal 1:Normal 1:DMA32 1:DMA 
-> 
-> I hope to get to this before I leave for christmas vacation, if not I
-> will stare into it after then.
+This helper does a get_user_pages_fast making sure we migrate pages found in the
+CMA area before taking page reference. This makes sure that we don't keep
+non-movable pages (due to page reference count) in the CMA area.
 
-I am sorry but I didn't get to this sooner. But I've got another idea. I
-concluded that the whole dance is simply bogus and we should treat
-memory less nodes, well, as nodes with no memory ranges rather than
-special case them. Could you give the following a spin please?
+This will be used by ppc64 in a later patch to avoid pinning pages in the CMA
+region. ppc64 uses CMA region for allocation of hardware page table (hash page
+table) and not able to migrate pages out of CMA region results in page table
+allocation failures.
 
+One case where we hit this easy is when a guest using VFIO passthrough device.
+VFIO locks all the guests memory and if the guest memory is backed by CMA
+region, it becomes unmovable resulting in fragmenting the CMA and possibly
+preventing other guest from allocation a large enough hash page table.
+
+NOTE: We allocate new page without using __GFP_THISNODE
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 ---
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 1308f5408bf7..0e79445cfd85 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -216,8 +216,6 @@ static void __init alloc_node_data(int nid)
+ include/linux/hugetlb.h |   2 +
+ include/linux/migrate.h |   3 +
+ mm/hugetlb.c            |   4 +-
+ mm/migrate.c            | 149 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 156 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 087fd5f48c91..1eed0cdaec0e 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -371,6 +371,8 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+ 				nodemask_t *nmask);
+ struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
+ 				unsigned long address);
++struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
++				     int nid, nodemask_t *nmask);
+ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+ 			pgoff_t idx);
  
- 	node_data[nid] = nd;
- 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
--
--	node_set_online(nid);
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index e13d9bf2f9a5..bc83e12a06e9 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -285,6 +285,9 @@ static inline int migrate_vma(const struct migrate_vma_ops *ops,
  }
+ #endif /* IS_ENABLED(CONFIG_MIGRATE_VMA_HELPER) */
  
- /**
-@@ -535,6 +533,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 	/* Account for nodes with cpus and no memory */
- 	node_possible_map = numa_nodes_parsed;
- 	numa_nodemask_from_meminfo(&node_possible_map, mi);
-+	pr_info("parsed=%*pbl, possible=%*pbl\n", nodemask_pr_args(&numa_nodes_parsed), nodemask_pr_args(&node_possible_map));
- 	if (WARN_ON(nodes_empty(node_possible_map)))
- 		return -EINVAL;
- 
-@@ -570,7 +569,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 		return -EINVAL;
- 
- 	/* Finally register nodes. */
--	for_each_node_mask(nid, node_possible_map) {
-+	for_each_node_mask(nid, numa_nodes_parsed) {
- 		u64 start = PFN_PHYS(max_pfn);
- 		u64 end = 0;
- 
-@@ -581,9 +580,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 			end = max(mi->blk[i].end, end);
- 		}
- 
--		if (start >= end)
--			continue;
--
- 		/*
- 		 * Don't confuse VM with a node that doesn't have the
- 		 * minimum amount of memory:
-@@ -592,6 +588,8 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 			continue;
- 
- 		alloc_node_data(nid);
-+		if (end)
-+			node_set_online(nid);
- 	}
- 
- 	/* Dump memblock with node info and return. */
-@@ -721,21 +719,6 @@ void __init x86_numa_init(void)
- 	numa_init(dummy_numa_init);
- }
- 
--static void __init init_memory_less_node(int nid)
--{
--	unsigned long zones_size[MAX_NR_ZONES] = {0};
--	unsigned long zholes_size[MAX_NR_ZONES] = {0};
--
--	/* Allocate and initialize node data. Memory-less node is now online.*/
--	alloc_node_data(nid);
--	free_area_init_node(nid, zones_size, 0, zholes_size);
--
--	/*
--	 * All zonelists will be built later in start_kernel() after per cpu
--	 * areas are initialized.
--	 */
--}
--
- /*
-  * Setup early cpu_to_node.
-  *
-@@ -763,9 +746,6 @@ void __init init_cpu_to_node(void)
- 		if (node == NUMA_NO_NODE)
- 			continue;
- 
--		if (!node_online(node))
--			init_memory_less_node(node);
--
- 		numa_set_node(cpu, node);
- 	}
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2ec9cc407216..52e54d16662a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5234,6 +5234,8 @@ static void build_zonelists(pg_data_t *pgdat)
- 	int node, load, nr_nodes = 0;
- 	nodemask_t used_mask;
- 	int local_node, prev_node;
-+	struct zone *zone;
-+	struct zoneref *z;
- 
- 	/* NUMA-aware ordering of nodes */
- 	local_node = pgdat->node_id;
-@@ -5259,6 +5261,11 @@ static void build_zonelists(pg_data_t *pgdat)
- 
- 	build_zonelists_in_node_order(pgdat, node_order, nr_nodes);
- 	build_thisnode_zonelists(pgdat);
++extern int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
++				      struct page **pages);
 +
-+	pr_info("node[%d] zonelist: ", pgdat->node_id);
-+	for_each_zone_zonelist(zone, z, &pgdat->node_zonelists[ZONELIST_FALLBACK], MAX_NR_ZONES-1)
-+		pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
-+	pr_cont("\n");
+ #endif /* CONFIG_MIGRATION */
+ 
+ #endif /* _LINUX_MIGRATE_H */
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 745088810965..fc4afaec1055 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1586,8 +1586,8 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 	return page;
  }
  
- #ifdef CONFIG_HAVE_MEMORYLESS_NODES
-@@ -5361,10 +5368,11 @@ static void __build_all_zonelists(void *data)
- 	if (self && !node_online(self->node_id)) {
- 		build_zonelists(self);
- 	} else {
--		for_each_online_node(nid) {
-+		for_each_node(nid) {
- 			pg_data_t *pgdat = NODE_DATA(nid);
+-static struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
+-		int nid, nodemask_t *nmask)
++struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
++				     int nid, nodemask_t *nmask)
+ {
+ 	struct page *page;
  
--			build_zonelists(pgdat);
-+			if (pgdat)
-+				build_zonelists(pgdat);
- 		}
- 
- #ifdef CONFIG_HAVE_MEMORYLESS_NODES
-@@ -6644,10 +6652,8 @@ static unsigned long __init find_min_pfn_for_node(int nid)
- 	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
- 		min_pfn = min(min_pfn, start_pfn);
- 
--	if (min_pfn == ULONG_MAX) {
--		pr_warn("Could not find start_pfn for node %d\n", nid);
-+	if (min_pfn == ULONG_MAX)
- 		return 0;
--	}
- 
- 	return min_pfn;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index ccf8966caf6f..5e21c7aee942 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -2982,3 +2982,152 @@ int migrate_vma(const struct migrate_vma_ops *ops,
  }
-@@ -6991,8 +6997,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 	mminit_verify_pageflags_layout();
- 	setup_nr_node_ids();
- 	zero_resv_unavail();
--	for_each_online_node(nid) {
-+	for_each_node(nid) {
- 		pg_data_t *pgdat = NODE_DATA(nid);
+ EXPORT_SYMBOL(migrate_vma);
+ #endif /* defined(MIGRATE_VMA_HELPER) */
 +
-+		if (!pgdat)
-+			continue;
++static struct page *new_non_cma_page(struct page *page, unsigned long private)
++{
++	/*
++	 * We want to make sure we allocate the new page from the same node
++	 * as the source page.
++	 */
++	int nid = page_to_nid(page);
++	/*
++	 * Trying to allocate a page for migration. Ignore allocation
++	 * failure warnings. We don't force __GFP_THISNODE here because
++	 * this node here is the node where we have CMA reservation and
++	 * in some case these nodes will have really less non movable
++	 * allocation memory.
++	 */
++	gfp_t gfp_mask = GFP_USER | __GFP_NOWARN;
 +
- 		free_area_init_node(nid, NULL,
- 				find_min_pfn_for_node(nid), NULL);
- 
++	if (PageHighMem(page))
++		gfp_mask |= __GFP_HIGHMEM;
++
++#ifdef CONFIG_HUGETLB_PAGE
++	if (PageHuge(page)) {
++		struct hstate *h = page_hstate(page);
++		/*
++		 * We don't want to dequeue from the pool because pool pages will
++		 * mostly be from the CMA region.
++		 */
++		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
++	}
++#endif
++	if (PageTransHuge(page)) {
++		struct page *thp;
++		/*
++		 * ignore allocation failure warnings
++		 */
++		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_NOWARN;
++
++		/*
++		 * Remove the movable mask so that we don't allocate from
++		 * CMA area again.
++		 */
++		thp_gfpmask &= ~__GFP_MOVABLE;
++		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
++		if (!thp)
++			return NULL;
++		prep_transhuge_page(thp);
++		return thp;
++	}
++
++	return __alloc_pages_node(nid, gfp_mask, 0);
++}
++
++/**
++ * get_user_pages_cma_migrate() - pin user pages in memory by migrating pages in CMA region
++ * @start:	starting user address
++ * @nr_pages:	number of pages from start to pin
++ * @write:	whether pages will be written to
++ * @pages:	array that receives pointers to the pages pinned.
++ *		Should be at least nr_pages long.
++ *
++ * Attempt to pin user pages in memory without taking mm->mmap_sem.
++ * If not successful, it will fall back to taking the lock and
++ * calling get_user_pages().
++ *
++ * If the pinned pages are backed by CMA region, we migrate those pages out,
++ * allocating new pages from non-CMA region. This helps in avoiding keeping
++ * pages pinned in the CMA region for a long time thereby resulting in
++ * CMA allocation failures.
++ *
++ * Returns number of pages pinned. This may be fewer than the number
++ * requested. If nr_pages is 0 or negative, returns 0. If no pages
++ * were pinned, returns -errno.
++ */
++
++int get_user_pages_cma_migrate(unsigned long start, int nr_pages, int write,
++			       struct page **pages)
++{
++	int i, ret;
++	unsigned long flags;
++	bool drain_allow = true;
++	bool migrate_allow = true;
++	LIST_HEAD(cma_page_list);
++
++get_user_again:
++	/*
++	 * If get_user_pages ends up allocating pages, make sure we don't
++	 * allocate from CMA region so that we can avoid the migration below.
++	 */
++	flags = memalloc_nocma_save();
++	ret = get_user_pages_fast(start, nr_pages, write, pages);
++	memalloc_nocma_restore(flags);
++	if (ret <= 0)
++		return ret;
++
++	for (i = 0; i < ret; ++i) {
++		/*
++		 * If we get a page from the CMA zone, since we are going to
++		 * be pinning these entries, we might as well move them out
++		 * of the CMA zone if possible.
++		 */
++		if (is_migrate_cma_page(pages[i]) && migrate_allow) {
++
++			struct page *head = compound_head(pages[i]);
++
++			if (PageHuge(head)) {
++				isolate_huge_page(head, &cma_page_list);
++			} else {
++				if (!PageLRU(head) && drain_allow) {
++					lru_add_drain_all();
++					drain_allow = false;
++				}
++
++				if (!isolate_lru_page(head)) {
++					list_add_tail(&head->lru, &cma_page_list);
++					mod_node_page_state(page_pgdat(head),
++							    NR_ISOLATED_ANON +
++							    page_is_file_cache(head),
++							    hpage_nr_pages(head));
++				}
++			}
++		}
++	}
++	if (!list_empty(&cma_page_list)) {
++		/*
++		 * drop the above get_user_pages reference.
++		 */
++		for (i = 0; i < ret; ++i)
++			put_page(pages[i]);
++
++		if (migrate_pages(&cma_page_list, new_non_cma_page,
++				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
++			/*
++			 * some of the pages failed migration. Do get_user_pages
++			 * without migration.
++			 */
++			migrate_allow = false;
++
++			if (!list_empty(&cma_page_list))
++				putback_movable_pages(&cma_page_list);
++		}
++		/*
++		 * We did migrate all the pages, Try to get the page references again
++		 * migrating any new CMA pages which we failed to isolate earlier.
++		 */
++		drain_allow = true;
++		goto get_user_again;
++	}
++	return ret;
++}
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1
