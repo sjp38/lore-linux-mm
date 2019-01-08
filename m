@@ -1,87 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F3C58E0038
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 21:27:04 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id d13so952741wrr.6
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 18:27:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q4sor36287638wru.28.2019.01.07.18.27.02
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4540D8E0038
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 23:51:43 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id z126so2194209qka.10
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 20:51:43 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n137si1179713qkn.1.2019.01.07.20.51.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 07 Jan 2019 18:27:02 -0800 (PST)
-Date: Mon, 7 Jan 2019 19:26:59 -0700
-From: Nathan Chancellor <natechancellor@gmail.com>
-Subject: Re: [PATCH] kasan: fix kasan_check_read/write definitions
-Message-ID: <20190108022659.GA13470@flashbox>
-References: <20181211133453.2835077-1-arnd@arndb.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Jan 2019 20:51:42 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x084mr4R049098
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2019 23:51:42 -0500
+Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pvk82n5qj-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 07 Jan 2019 23:51:41 -0500
+Received: from localhost
+	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 8 Jan 2019 04:51:41 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH V6 4/4] powerpc/mm/iommu: Allow large IOMMU page size only for hugetlb backing
+Date: Tue,  8 Jan 2019 10:21:10 +0530
+In-Reply-To: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
+References: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181211133453.2835077-1-arnd@arndb.de>
+Content-Transfer-Encoding: 8bit
+Message-Id: <20190108045110.28597-5-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Anders Roxell <anders.roxell@linaro.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, Stephen Rothwell <sfr@canb.auug.org.au>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-On Tue, Dec 11, 2018 at 02:34:35PM +0100, Arnd Bergmann wrote:
-> Building little-endian allmodconfig kernels on arm64 started failing
-> with the generated atomic.h implementation, since we now try to call
-> kasan helpers from the EFI stub:
-> 
-> aarch64-linux-gnu-ld: drivers/firmware/efi/libstub/arm-stub.stub.o: in function `atomic_set':
-> include/generated/atomic-instrumented.h:44: undefined reference to `__efistub_kasan_check_write'
-> 
-> I suspect that we get similar problems in other files that explicitly
-> disable KASAN for some reason but call atomic_t based helper functions.
-> 
-> We can fix this by checking the predefined __SANITIZE_ADDRESS__ macro
-> that the compiler sets instead of checking CONFIG_KASAN, but this in turn
-> requires a small hack in mm/kasan/common.c so we do see the extern
-> declaration there instead of the inline function.
-> 
-> Fixes: b1864b828644 ("locking/atomics: build atomic headers as required")
-> Reported-by: Anders Roxell <anders.roxell@linaro.org>
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-> ---
->  include/linux/kasan-checks.h | 2 +-
->  mm/kasan/common.c            | 2 ++
->  2 files changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/kasan-checks.h b/include/linux/kasan-checks.h
-> index d314150658a4..a61dc075e2ce 100644
-> --- a/include/linux/kasan-checks.h
-> +++ b/include/linux/kasan-checks.h
-> @@ -2,7 +2,7 @@
->  #ifndef _LINUX_KASAN_CHECKS_H
->  #define _LINUX_KASAN_CHECKS_H
->  
-> -#ifdef CONFIG_KASAN
-> +#if defined(__SANITIZE_ADDRESS__) || defined(__KASAN_INTERNAL)
->  void kasan_check_read(const volatile void *p, unsigned int size);
->  void kasan_check_write(const volatile void *p, unsigned int size);
->  #else
-> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-> index 03d5d1374ca7..51a7932c33a3 100644
-> --- a/mm/kasan/common.c
-> +++ b/mm/kasan/common.c
-> @@ -14,6 +14,8 @@
->   *
->   */
->  
-> +#define __KASAN_INTERNAL
-> +
->  #include <linux/export.h>
->  #include <linux/interrupt.h>
->  #include <linux/init.h>
-> -- 
-> 2.20.0
-> 
+THP pages can get split during different code paths. An incremented reference
+count do imply we will not split the compound page. But the pmd entry can be
+converted to level 4 pte entries. Keep the code simpler by allowing large
+IOMMU page size only if the guest ram is backed by hugetlb pages.
 
-Hi all,
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ arch/powerpc/mm/mmu_context_iommu.c | 24 +++++++-----------------
+ 1 file changed, 7 insertions(+), 17 deletions(-)
 
-Was there any other movement on this patch? I am noticing this fail as
-well and I have applied this patch in the meantime; it would be nice for
-it to be merged so I could drop it from my stack.
-
-Thanks,
-Nathan
+diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
+index 52ccab294b47..62c7590378d4 100644
+--- a/arch/powerpc/mm/mmu_context_iommu.c
++++ b/arch/powerpc/mm/mmu_context_iommu.c
+@@ -98,8 +98,6 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+ 	struct mm_iommu_table_group_mem_t *mem;
+ 	long i, ret = 0, locked_entries = 0;
+ 	unsigned int pageshift;
+-	unsigned long flags;
+-	unsigned long cur_ua;
+ 
+ 	mutex_lock(&mem_list_mutex);
+ 
+@@ -167,22 +165,14 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+ 	for (i = 0; i < entries; ++i) {
+ 		struct page *page = mem->hpages[i];
+ 
+-		cur_ua = ua + (i << PAGE_SHIFT);
+-		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
+-			pte_t *pte;
++		/*
++		 * Allow to use larger than 64k IOMMU pages. Only do that
++		 * if we are backed by hugetlb.
++		 */
++		if ((mem->pageshift > PAGE_SHIFT) && PageHuge(page)) {
+ 			struct page *head = compound_head(page);
+-			unsigned int compshift = compound_order(head);
+-			unsigned int pteshift;
+-
+-			local_irq_save(flags); /* disables as well */
+-			pte = find_linux_pte(mm->pgd, cur_ua, NULL, &pteshift);
+-
+-			/* Double check it is still the same pinned page */
+-			if (pte && pte_page(*pte) == head &&
+-			    pteshift == compshift + PAGE_SHIFT)
+-				pageshift = max_t(unsigned int, pteshift,
+-						PAGE_SHIFT);
+-			local_irq_restore(flags);
++
++			pageshift = compound_order(head) + PAGE_SHIFT;
+ 		}
+ 		mem->pageshift = min(mem->pageshift, pageshift);
+ 		/*
+-- 
+2.20.1
