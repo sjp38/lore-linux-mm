@@ -1,78 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 93D148E0038
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:12:36 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id q62so6199887pgq.9
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 04:12:36 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id c10si28105749pla.173.2019.01.10.04.12.35
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AF688E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 09:52:48 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id v4so1678957edm.18
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 06:52:48 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 24si29696edu.308.2019.01.08.06.52.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 04:12:35 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+        Tue, 08 Jan 2019 06:52:47 -0800 (PST)
+Date: Tue, 8 Jan 2019 15:52:45 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm: memcontrol: use struct_size() in kmalloc()
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190104183726.GA6374@embeddedor>
-Date: Thu, 10 Jan 2019 05:12:17 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <8B12C965-1406-4464-96FF-B9C04187DD7D@oracle.com>
+Message-ID: <20190108145245.GW31793@dhcp22.suse.cz>
 References: <20190104183726.GA6374@embeddedor>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190104183726.GA6374@embeddedor>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Gustavo A. R. Silva" <gustavo@embeddedor.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
+Cc Andrew (original patch is here http://lkml.kernel.org/r/20190104183726.GA6374@embeddedor)
 
-
-> On Jan 4, 2019, at 11:37 AM, Gustavo A. R. Silva =
-<gustavo@embeddedor.com> wrote:
->=20
-> One of the more common cases of allocation size calculations is =
-finding
+On Fri 04-01-19 12:37:26, Gustavo A. R. Silva wrote:
+> One of the more common cases of allocation size calculations is finding
 > the size of a structure that has a zero-sized array at the end, along
 > with memory for some number of elements for that array. For example:
->=20
+> 
 > struct foo {
->    int stuff;
->    void *entry[];
+>     int stuff;
+>     void *entry[];
 > };
->=20
-> instance =3D kmalloc(sizeof(struct foo) + sizeof(void *) * count, =
-GFP_KERNEL);
->=20
+> 
+> instance = kmalloc(sizeof(struct foo) + sizeof(void *) * count, GFP_KERNEL);
+> 
 > Instead of leaving these open-coded and prone to type mistakes, we can
 > now use the new struct_size() helper:
->=20
-> instance =3D kmalloc(struct_size(instance, entry, count), GFP_KERNEL);
->=20
+> 
+> instance = kmalloc(struct_size(instance, entry, count), GFP_KERNEL);
+
+This looks indeed neater
+
 > This code was detected with the help of Coccinelle.
->=20
+> 
 > Signed-off-by: Gustavo A. R. Silva <gustavo@embeddedor.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks
+
 > ---
-> mm/memcontrol.c | 3 +--
-> 1 file changed, 1 insertion(+), 2 deletions(-)
->=20
+>  mm/memcontrol.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
 > index af7f18b32389..ad256cf7da47 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -3626,8 +3626,7 @@ static int =
-__mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
-> 	size =3D thresholds->primary ? thresholds->primary->size + 1 : =
-1;
->=20
-> 	/* Allocate memory for new array of thresholds */
-> -	new =3D kmalloc(sizeof(*new) + size * sizeof(struct =
-mem_cgroup_threshold),
+> @@ -3626,8 +3626,7 @@ static int __mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
+>  	size = thresholds->primary ? thresholds->primary->size + 1 : 1;
+>  
+>  	/* Allocate memory for new array of thresholds */
+> -	new = kmalloc(sizeof(*new) + size * sizeof(struct mem_cgroup_threshold),
 > -			GFP_KERNEL);
-> +	new =3D kmalloc(struct_size(new, entries, size), GFP_KERNEL);
-> 	if (!new) {
-> 		ret =3D -ENOMEM;
-> 		goto unlock;
-> --=20
+> +	new = kmalloc(struct_size(new, entries, size), GFP_KERNEL);
+>  	if (!new) {
+>  		ret = -ENOMEM;
+>  		goto unlock;
+> -- 
 > 2.20.1
->=20
 
-Reviewed-by: William Kucharski <william.kucharski@oracle.com>=
+-- 
+Michal Hocko
+SUSE Labs
