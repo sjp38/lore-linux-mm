@@ -1,107 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 59F468E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 03:51:03 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 82so2257067pfs.20
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 00:51:03 -0800 (PST)
-Received: from aws.guarana.org (aws.guarana.org. [13.237.110.252])
-        by mx.google.com with ESMTPS id g8si15262846pgo.166.2019.01.08.00.51.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 08 Jan 2019 00:51:01 -0800 (PST)
-Date: Tue, 8 Jan 2019 08:50:58 +0000
-From: Kevin Easton <kevin@guarana.org>
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CB6088E0038
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 23:43:42 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id 143so1372048pgc.3
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 20:43:42 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id f7si10866365pga.87.2019.01.07.20.43.39
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jan 2019 20:43:41 -0800 (PST)
+Date: Tue, 8 Jan 2019 15:43:36 +1100
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Message-ID: <20190108085058.GA23237@ip-172-31-15-78>
+Message-ID: <20190108044336.GB27534@dastard>
 References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <CAHk-=wicks2BEwm1BhdvEj_P3yawmvQuG3NOnjhdrUDEtTGizw@mail.gmail.com>
- <nycvar.YFH.7.76.1901052108390.16954@cbobk.fhfr.pm>
- <CAHk-=whGmE4QVr6NbgHnrVGVENfM3s1y6GNbsfh8PcOg=6bpqw@mail.gmail.com>
- <nycvar.YFH.7.76.1901052131480.16954@cbobk.fhfr.pm>
- <CAHk-=wgrSKyN23yp-npq6+J-4pGqbzxb3mJ183PryjHw7PWDyA@mail.gmail.com>
+ <CAG48ez2jAp9xkPXQmVXm0PqNrFGscg9BufQRem2UD8FGX-YzPw@mail.gmail.com>
+ <CAHk-=whL4sZiM=JcdQAYQvHm7h7xEtVUh+gYGYhoSk4vi38tXg@mail.gmail.com>
+ <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com>
+ <CAHk-=wiMQeCEKESWTmm15x79NjEjNwFvjZ=9XenxY7yH8zqa7A@mail.gmail.com>
+ <20190106001138.GW6310@bombadil.infradead.org>
+ <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com>
+ <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com>
+ <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAHk-=wgrSKyN23yp-npq6+J-4pGqbzxb3mJ183PryjHw7PWDyA@mail.gmail.com>
+In-Reply-To: <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Jiri Kosina <jikos@kernel.org>, Masatake YAMATO <yamato@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+Cc: Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Jiri Kosina <jikos@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Sat, Jan 05, 2019 at 01:54:03PM -0800, Linus Torvalds wrote:
-> On Sat, Jan 5, 2019 at 12:43 PM Jiri Kosina <jikos@kernel.org> wrote:
+On Sun, Jan 06, 2019 at 01:46:37PM -0800, Linus Torvalds wrote:
+> On Sat, Jan 5, 2019 at 5:50 PM Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
 > >
-> > > Who actually _uses_ mincore()? That's probably the best guide to what
-> > > we should do. Maybe they open the file read-only even if they are the
-> > > owner, and we really should look at file ownership instead.
-> >
-> > Yeah, well
-> >
-> >         https://codesearch.debian.net/search?q=mincore
-> >
-> > is a bit too much mess to get some idea quickly I am afraid.
+> > Slightly updated patch in case somebody wants to try things out.
 > 
-> Yeah, heh.
-> 
-> And the first hit is 'fincore', which probably nobody cares about
-> anyway, but it does
-> 
->     fd = open (name, O_RDONLY)
->     ..
->     mmap(window, len, PROT_NONE, MAP_PRIVATE, ..
-> 
-> so if we want to keep that working, we'd really need to actually check
-> file ownership rather than just looking at f_mode.
-> 
-> But I don't know if anybody *uses* and cares about fincore, and it's
-> particularly questionable for non-root users.
-> 
-...
-> I didn't find anything that seems to really care, but I gave up after
-> a few pages of really boring stuff.
+> I decided to just apply that patch. It is *not* marked for stable,
+> very intentionally, because I expect that we will need to wait and see
+> if there are issues with it, and whether we might have to do something
+> entirely different (more like the traditional behavior with some extra
+> "only for owner" logic).
 
-I've gone through everything in the Debian code search, and this is the
-stuff that seems like it would be affected at all by the current patch:
+So, I read the paper and before I was half way through it I figured
+there are a bunch of other similar page cache invalidation attacks
+we can perform without needing mincore. i.e. Focussing on mmap() and
+mincore() misses the wider issues we have with global shared caches.
 
-util-linux
-    Contains 'fincore' as already noted above.
+My first thought:
 
-e2fsprogs
-    e4defrag tries to drop pages that it caused to be loaded into the
-    page cache, but it's not clear that this ever worked as designed 
-    anyway (it calls mincore() before ioctl(fd, EXT4_IOC_MOVE_EXT ..)
-    but then after the sync_file_range it drops the pages that *were*
-    in the page cache at the time of mincore()).
+	fd = open(some_file, O_RDONLY);
+	iov[0].iov_base = buf;
+	iov[0].iov_len = 1;
+	ret = preadv2(fd, iov, 1, off, RWF_NOWAIT);
+	switch (ret) {
+	case -EAGAIN:
+		/* page not resident in page cache */
+		break;
+	case 1:
+		/* page resident in page cache */
+		break;
+	default:
+		/* beyond EOF or some other error */
+		break;
+	}
 
-pgfincore
-    postgresql extension used to try to dump/restore page cache status
-    of database backing files across reboots.  It uses a fresh mapping
-    with mincore() to try to determine the current page cache status of
-    a file.
+This is "as documented" in the man page for preadv2:
 
-nocache
-    LD_PRELOAD library that tries to drop any pages that the victim
-    program has caused to be loaded into the page cache, uses mincore
-    on a fresh mapping to see what was resident beforehand.  Also 
-    includes 'cachestats' command that's basically another 'fincore'.
+RWF_NOWAIT (since Linux 4.14)
+      Do  not  wait  for  data which is not immediately available.
+      If this flag is specified, the preadv2() system call will
+      return instantly if it would have to read data from the
+      backing storage or wait for a lock.  If some data was
+      successfully read, it will return the number of bytes read.
+      If no bytes were read, it will return  -1 and set errno to
+      EAGAIN.  Currently, this flag is meaningful only for
+      preadv2().
 
-xfsprogs
-    xfs_io has a 'mincore' sub-command that is roughly equivalent to
-    'fincore'.
+IOWs, we've explicitly designed interfaces to communicate whether
+data is "immediately accessible" or not to the application so they
+can make sensible decisions about IO scheduling. i.e. IO won't
+block the main application processing loop and so can be scheduled in
+the background by the app and the data processed when that IO
+returns.  That just so happens to be exactly the same information
+about the page cache that mincore is making available to userspace.
 
-vmtouch
-    vmtouch is "Portable file system cache diagnostics and control",
-    among other things it implements 'fincore' type functionality, and
-    one of its touted use-cases is "Preserving virtual memory profile
-    when failing over servers".
+If we "remove" this information from the interfaces like it has been
+done for mincore(), it doesn't mean userspace can't get it in other
+ways. e.g. it now just has to time the read(2) syscall duration and
+infer whether the data came from the page cache or disk from the
+timing information.
 
-qemu
-    qemu uses mincore() with a fresh PROT_NONE, MAP_PRIVATE mapping to
-    implement the "x-check-cache-dropped" option.  
-    ( https://patchwork.kernel.org/patch/10395865/ )
+IMO, there's nothing new or novel about this page cache information
+leak - it was just a matter of time before some researcher put 2 and
+2 together and realised that sharing the page cache across a
+security boundary is little different from sharing deduplicated
+pages across those same security boundaries.  i.e. As long as we
+shared caches across security boundaries and userspace can control
+both cache invalidation and instantiation, we cannot prevent
+userspace from constructing these invalidate+read information
+exfiltration scenarios.
 
-(Everything else I could see was either looking at anonymous VMAs, its
-own existing mapping that it's been using for actual IO, or was just
-using mincore() to see if an address was part of any mapping at all).
+And then there is overlayfs. Overlay is really just a way to
+efficiently share the page cache of the same underlying read-only
+directory tree across all containers on a host. i.e.  we have been
+specifically designing our container hosting systems to share the
+underlying read-only page cache across all security boundaries on
+the host. If overlay is vulnerable to these shared page cache
+attacks (seems extremely likely) then we've got much bigger problems
+than mincore to think about....
 
-    - Kevin
+> But doing a test patch during the merge window (which is about to
+> close) sounds like the right thing to do.
+
+IMO it seems like the wrong thing to do. It's just a hacky band-aid
+over a specific extraction method and does nothing to reduce the
+actual scope of the information leak. Focussing on the band-aid
+means you've missed all the other avenues that the same information
+is exposed and all the infrastructure we've build on the core
+concept of sharing kernel side pages across security boundaries.
+
+And that's even without considering whether the change breaks
+userspace. Which it does. e.g. vmtouch is fairly widely used to
+manage page cache instantiation for rapid bring-up and migration of
+guest VMs and containers. They save the hot page cache information
+from a running container and then using that to instantiate the page
+cache in new instances running the same workload so they run at full
+speed right from the start. This use case calls mincore() to pull
+the page cache information from the running container.
+
+If anyone else proposed merging a syscall implementation change that
+was extremely likely to break userspace you'd be shouting at them
+that "we don't break userspace"....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
