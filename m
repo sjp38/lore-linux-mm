@@ -1,67 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 92B388E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 14:21:38 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id t10so4709754plo.13
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 11:21:38 -0800 (PST)
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id p5si66295pls.338.2019.01.09.11.21.36
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FABD8E0038
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 22:49:47 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id p79so2122244qki.15
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 19:49:47 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y186sor28910250qkd.21.2019.01.07.19.49.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 11:21:37 -0800 (PST)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC v3 PATCH 0/5] mm: memcontrol: do memory reclaim when offlining
-Date: Thu, 10 Jan 2019 03:14:40 +0800
-Message-Id: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+        (Google Transport Security);
+        Mon, 07 Jan 2019 19:49:45 -0800 (PST)
+Subject: Re: [PATCH v2] kmemleak: survive in a low-memory situation
+From: Qian Cai <cai@lca.pw>
+References: <20190102165931.GB6584@arrakis.emea.arm.com>
+ <20190102180619.12392-1-cai@lca.pw> <20190103093201.GB31793@dhcp22.suse.cz>
+ <9197d86b-a684-c7f4-245b-63c890f1104f@lca.pw>
+ <20190103170735.GV31793@dhcp22.suse.cz> <20190107104314.uugftsqcjsi5j6g2@mbp>
+ <47dbc0fc-5322-10fb-a8c4-698a4b17e3b3@lca.pw>
+Message-ID: <ecb5d958-1e86-7725-e271-def315265537@lca.pw>
+Date: Mon, 7 Jan 2019 22:49:43 -0500
+MIME-Version: 1.0
+In-Reply-To: <47dbc0fc-5322-10fb-a8c4-698a4b17e3b3@lca.pw>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-We have some usecases which create and remove memcgs very frequently,
-and the tasks in the memcg may just access the files which are unlikely
-accessed by anyone else.  So, we prefer force_empty the memcg before
-rmdir'ing it to reclaim the page cache so that they don't get
-accumulated to incur unnecessary memory pressure.  Since the memory
-pressure may incur direct reclaim to harm some latency sensitive
-applications.
 
-Force empty would help out such usecase, however force empty reclaims
-memory synchronously when writing to memory.force_empty.  It may take
-some time to return and the afterwards operations are blocked by it.
-Although this can be done in background, some usecases may need create
-new memcg with the same name right after the old one is deleted.  So,
-the creation might get blocked by the before reclaim/remove operation.
+On 1/7/19 9:06 PM, Qian Cai wrote:
+> 
+> 
+> On 1/7/19 5:43 AM, Catalin Marinas wrote:
+>> On Thu, Jan 03, 2019 at 06:07:35PM +0100, Michal Hocko wrote:
+>>>>> On Wed 02-01-19 13:06:19, Qian Cai wrote:
+>>>>> [...]
+>>>>>> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+>>>>>> index f9d9dc250428..9e1aa3b7df75 100644
+>>>>>> --- a/mm/kmemleak.c
+>>>>>> +++ b/mm/kmemleak.c
+>>>>>> @@ -576,6 +576,16 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+>>>>>>  	struct rb_node **link, *rb_parent;
+>>>>>>  
+>>>>>>  	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+>>>>>> +#ifdef CONFIG_PREEMPT_COUNT
+>>>>>> +	if (!object) {
+>>>>>> +		/* last-ditch effort in a low-memory situation */
+>>>>>> +		if (irqs_disabled() || is_idle_task(current) || in_atomic())
+>>>>>> +			gfp = GFP_ATOMIC;
+>>>>>> +		else
+>>>>>> +			gfp = gfp_kmemleak_mask(gfp) | __GFP_DIRECT_RECLAIM;
+>>>>>> +		object = kmem_cache_alloc(object_cache, gfp);
+>>>>>> +	}
+>>>>>> +#endif
+>> [...]
+>>> I will not object to this workaround but I strongly believe that
+>>> kmemleak should rethink the metadata allocation strategy to be really
+>>> robust.
+>>
+>> This would be nice indeed and it was discussed last year. I just haven't
+>> got around to trying anything yet:
+>>
+>> https://marc.info/?l=linux-mm&m=152812489819532
+>>
+> 
+> It could be helpful to apply this 10-line patch first if has no fundamental
+> issue, as it survives probably 50 times running LTP oom* workloads without a
+> single kmemleak allocation failure.
+> 
+> Of course, if someone is going to embed kmemleak metadata into slab objects
+> itself soon, this workaround is not needed.
+> 
 
-Delaying memory reclaim in cgroup offline for such usecase sounds
-reasonable.  Introduced a new interface, called wipe_on_offline for both
-default and legacy hierarchy, which does memory reclaim in css offline
-kworker.
-
-v2 -> v3:
-* Introduced may_swap parameter to mem_cgroup_force_empty() to keep force_empty behavior per   Shakeel
-* Fixed some comments from Shakeel
- 
-v1 -> v2:
-* Introduced wipe_on_offline interface suggested by Michal
-* Bring force_empty into default hierarchy
-
-Patch #1: Fix some obsolete information about force_empty in the document
-Patch #2: Introduce may_swap parameter to mem_cgroup_force_empty()
-Patch #3: Introduces wipe_on_offline interface
-Patch #4: Being force_empty into default hierarchy
-Patch #5: Document update
-
-Yang Shi (5):
-      doc: memcontrol: fix the obsolete content about force empty
-      mm: memcontrol: add may_swap parameter to mem_cgroup_force_empty()
-      mm: memcontrol: introduce wipe_on_offline interface
-      mm: memcontrol: bring force_empty into default hierarchy
-      doc: memcontrol: add description for wipe_on_offline
-
- Documentation/admin-guide/cgroup-v2.rst | 23 ++++++++++++++++++++
- Documentation/cgroup-v1/memory.txt      | 17 ++++++++++++---
- include/linux/memcontrol.h              |  3 +++
- mm/memcontrol.c                         | 63 ++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 4 files changed, 98 insertions(+), 8 deletions(-)
+Well, it is really hard to tell even if someone get eventually redesign kmemleak
+to embed the metadata into slab objects alone would survive LTP oom* workloads,
+because it seems still use separate metadata for non-slab objects where kmemleak
+allocation could fail like it right now and disable itself again.
