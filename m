@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B83258E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 14:32:18 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id d3so2590728pgv.23
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 11:32:18 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B46C88E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 14:29:38 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id o17so2604768pgi.14
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 11:29:38 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d92si1065322pld.45.2019.01.08.11.32.17
+        by mx.google.com with ESMTPS id cb2si4096658plb.298.2019.01.08.11.29.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 11:32:17 -0800 (PST)
+        Tue, 08 Jan 2019 11:29:37 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.19 95/97] mm/swap: use nr_node_ids for avail_lists in swap_info_struct
-Date: Tue,  8 Jan 2019 14:29:44 -0500
-Message-Id: <20190108192949.122407-95-sashal@kernel.org>
-In-Reply-To: <20190108192949.122407-1-sashal@kernel.org>
-References: <20190108192949.122407-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.20 114/117] mm/swap: use nr_node_ids for avail_lists in swap_info_struct
+Date: Tue,  8 Jan 2019 14:26:22 -0500
+Message-Id: <20190108192628.121270-114-sashal@kernel.org>
+In-Reply-To: <20190108192628.121270-1-sashal@kernel.org>
+References: <20190108192628.121270-1-sashal@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -68,10 +68,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  2 files changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 8e2c11e692ba..77221c16733a 100644
+index d8a07a4f171d..3d3630b3f63d 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -232,7 +232,6 @@ struct swap_info_struct {
+@@ -233,7 +233,6 @@ struct swap_info_struct {
  	unsigned long	flags;		/* SWP_USED etc: see above */
  	signed short	prio;		/* swap priority of this type */
  	struct plist_node list;		/* entry in swap_active_head */
@@ -79,7 +79,7 @@ index 8e2c11e692ba..77221c16733a 100644
  	signed char	type;		/* strange name for an index */
  	unsigned int	max;		/* extent of the swap_map */
  	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
-@@ -273,6 +272,16 @@ struct swap_info_struct {
+@@ -274,6 +273,16 @@ struct swap_info_struct {
  					 */
  	struct work_struct discard_work; /* discard worker */
  	struct swap_cluster_list discard_clusters; /* discard clusters list */
@@ -97,10 +97,10 @@ index 8e2c11e692ba..77221c16733a 100644
  
  #ifdef CONFIG_64BIT
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 8810a6d7d67f..08ba73eaaba2 100644
+index 8688ae65ef58..6e06821623f6 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -2819,8 +2819,9 @@ static struct swap_info_struct *alloc_swap_info(void)
+@@ -2812,8 +2812,9 @@ static struct swap_info_struct *alloc_swap_info(void)
  	struct swap_info_struct *p;
  	unsigned int type;
  	int i;
