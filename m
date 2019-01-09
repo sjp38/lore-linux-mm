@@ -1,300 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F2008E00A0
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 03:40:35 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id w185so5628312qka.9
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 00:40:35 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r22si2059529qtp.273.2019.01.09.00.40.34
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C8408E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 20:54:05 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id b16so5172378qtc.22
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 17:54:05 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 95si1462753qvc.202.2019.01.08.17.54.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 00:40:34 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x098cmpa089726
-	for <linux-mm@kvack.org>; Wed, 9 Jan 2019 03:40:33 -0500
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pwaf8fqkw-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 09 Jan 2019 03:40:33 -0500
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 9 Jan 2019 08:40:31 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: Re: [PATCH V6 3/4] powerpc/mm/iommu: Allow migration of cma allocated pages during mm_iommu_get
-In-Reply-To: <20190109015359.GE20586@redhat.com>
-References: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com> <20190108045110.28597-4-aneesh.kumar@linux.ibm.com> <20190109015359.GE20586@redhat.com>
-Date: Wed, 09 Jan 2019 14:10:22 +0530
+        Tue, 08 Jan 2019 17:54:04 -0800 (PST)
+Date: Tue, 8 Jan 2019 20:53:59 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH V6 3/4] powerpc/mm/iommu: Allow migration of cma
+ allocated pages during mm_iommu_get
+Message-ID: <20190109015359.GE20586@redhat.com>
+References: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
+ <20190108045110.28597-4-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87a7kajkax.fsf@linux.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190108045110.28597-4-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-Andrea Arcangeli <aarcange@redhat.com> writes:
+Hello,
 
-> Hello,
->
-> On Tue, Jan 08, 2019 at 10:21:09AM +0530, Aneesh Kumar K.V wrote:
->> @@ -187,41 +149,25 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
->>  		goto unlock_exit;
->>  	}
->>  
->> +	ret = get_user_pages_cma_migrate(ua, entries, 1, mem->hpages);
->
-> In terms of gup APIs, I've been wondering if this shall become
-> get_user_pages_longerm(FOLL_CMA_MIGRATE). So basically moving this
-> CMA migrate logic inside get_user_pages_longerm.
+On Tue, Jan 08, 2019 at 10:21:09AM +0530, Aneesh Kumar K.V wrote:
+> @@ -187,41 +149,25 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+>  		goto unlock_exit;
+>  	}
+>  
+> +	ret = get_user_pages_cma_migrate(ua, entries, 1, mem->hpages);
 
-Do we need the FOLL_CMA_MIGRATE flag? Wondering whether a long term pin
-won't imply a CMA migrate? What is the benefit of that FOLL_CMA_MIGRATE
-flags. We can do better by taking a list of pages for migration and I
-guess it is much simpler if we limit that migration logic to
-get_user_pages_longterm()?
+In terms of gup APIs, I've been wondering if this shall become
+get_user_pages_longerm(FOLL_CMA_MIGRATE). So basically moving this
+CMA migrate logic inside get_user_pages_longerm.
 
-I ended up with something like below. Do you suggest we should add those
-isolate_lru and other details via FOLL_CMA_MIGRATE flag and do that when
-we take the page reference instead of doing this by iterating the page array in
-get_user_pages_longterm as in the below diff?
+It depends if powerpc will ever need to bail on dax and/or if other
+non-powerpc vfio drivers which are already bailing on dax may also
+later optionally need to avoid interfering with CMA.
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 05acd7e2eb22..6e8152594e83 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -13,6 +13,9 @@
- #include <linux/sched/signal.h>
- #include <linux/rwsem.h>
- #include <linux/hugetlb.h>
-+#include <linux/migrate.h>
-+#include <linux/mm_inline.h>
-+#include <linux/sched/mm.h>
- 
- #include <asm/mmu_context.h>
- #include <asm/pgtable.h>
-@@ -1126,7 +1129,167 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
- }
- EXPORT_SYMBOL(get_user_pages);
- 
-+#if defined(CONFIG_FS_DAX) || defined (CONFIG_CMA)
-+
- #ifdef CONFIG_FS_DAX
-+static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
-+{
-+	long i;
-+	struct vm_area_struct *vma_prev = NULL;
-+
-+	for (i = 0; i < nr_pages; i++) {
-+		struct vm_area_struct *vma = vmas[i];
-+
-+		if (vma == vma_prev)
-+			continue;
-+
-+		vma_prev = vma;
-+
-+		if (vma_is_fsdax(vma))
-+			return true;
-+	}
-+	return false;
-+}
-+#else
-+static inline bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
-+{
-+	return false;
-+}
-+#endif
-+
-+#ifdef CONFIG_CMA
-+static struct page *new_non_cma_page(struct page *page, unsigned long private)
-+{
-+	/*
-+	 * We want to make sure we allocate the new page from the same node
-+	 * as the source page.
-+	 */
-+	int nid = page_to_nid(page);
-+	/*
-+	 * Trying to allocate a page for migration. Ignore allocation
-+	 * failure warnings. We don't force __GFP_THISNODE here because
-+	 * this node here is the node where we have CMA reservation and
-+	 * in some case these nodes will have really less non movable
-+	 * allocation memory.
-+	 */
-+	gfp_t gfp_mask = GFP_USER | __GFP_NOWARN;
-+
-+	if (PageHighMem(page))
-+		gfp_mask |= __GFP_HIGHMEM;
-+
-+#ifdef CONFIG_HUGETLB_PAGE
-+	if (PageHuge(page)) {
-+		struct hstate *h = page_hstate(page);
-+		/*
-+		 * We don't want to dequeue from the pool because pool pages will
-+		 * mostly be from the CMA region.
-+		 */
-+		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
-+	}
-+#endif
-+	if (PageTransHuge(page)) {
-+		struct page *thp;
-+		/*
-+		 * ignore allocation failure warnings
-+		 */
-+		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_NOWARN;
-+
-+		/*
-+		 * Remove the movable mask so that we don't allocate from
-+		 * CMA area again.
-+		 */
-+		thp_gfpmask &= ~__GFP_MOVABLE;
-+		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
-+	}
-+
-+	return __alloc_pages_node(nid, gfp_mask, 0);
-+}
-+
-+static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-+					unsigned int gup_flags,
-+					struct page **pages,
-+					struct vm_area_struct **vmas)
-+{
-+	long i;
-+	bool drain_allow = true;
-+	bool migrate_allow = true;
-+	LIST_HEAD(cma_page_list);
-+
-+check_again:
-+	for (i = 0; i < nr_pages; i++) {
-+		/*
-+		 * If we get a page from the CMA zone, since we are going to
-+		 * be pinning these entries, we might as well move them out
-+		 * of the CMA zone if possible.
-+		 */
-+		if (is_migrate_cma_page(pages[i])) {
-+
-+			struct page *head = compound_head(pages[i]);
-+
-+			if (PageHuge(head)) {
-+				isolate_huge_page(head, &cma_page_list);
-+			} else {
-+				if (!PageLRU(head) && drain_allow) {
-+					lru_add_drain_all();
-+					drain_allow = false;
-+				}
-+
-+				if (!isolate_lru_page(head)) {
-+					list_add_tail(&head->lru, &cma_page_list);
-+					mod_node_page_state(page_pgdat(head),
-+							    NR_ISOLATED_ANON +
-+							    page_is_file_cache(head),
-+							    hpage_nr_pages(head));
-+				}
-+			}
-+		}
-+	}
-+
-+	if (!list_empty(&cma_page_list)) {
-+		/*
-+		 * drop the above get_user_pages reference.
-+		 */
-+		for (i = 0; i < nr_pages; i++)
-+			put_page(pages[i]);
-+
-+		if (migrate_pages(&cma_page_list, new_non_cma_page,
-+				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
-+			/*
-+			 * some of the pages failed migration. Do get_user_pages
-+			 * without migration.
-+			 */
-+			migrate_allow = false;
-+
-+			if (!list_empty(&cma_page_list))
-+				putback_movable_pages(&cma_page_list);
-+		}
-+		/*
-+		 * We did migrate all the pages, Try to get the page references again
-+		 * migrating any new CMA pages which we failed to isolate earlier.
-+		 */
-+		nr_pages = get_user_pages(start, nr_pages, gup_flags, pages, vmas);
-+		if ((nr_pages > 0) && migrate_allow) {
-+			drain_allow = true;
-+			goto check_again;
-+		}
-+	}
-+
-+	return nr_pages;
-+}
-+#else
-+static inline long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-+					       unsigned int gup_flags,
-+					       struct page **pages,
-+					       struct vm_area_struct **vmas)
-+{
-+	return nr_pages;
-+}
-+#endif
-+
- /*
-  * This is the same as get_user_pages() in that it assumes we are
-  * operating on the current task's mm, but it goes further to validate
-@@ -1140,11 +1303,11 @@ EXPORT_SYMBOL(get_user_pages);
-  * Contrast this to iov_iter_get_pages() usages which are transient.
-  */
- long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
--		unsigned int gup_flags, struct page **pages,
--		struct vm_area_struct **vmas_arg)
-+			     unsigned int gup_flags, struct page **pages,
-+			     struct vm_area_struct **vmas_arg)
- {
- 	struct vm_area_struct **vmas = vmas_arg;
--	struct vm_area_struct *vma_prev = NULL;
-+	unsigned long flags;
- 	long rc, i;
- 
- 	if (!pages)
-@@ -1157,31 +1320,20 @@ long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
- 			return -ENOMEM;
- 	}
- 
-+	flags = memalloc_nocma_save();
- 	rc = get_user_pages(start, nr_pages, gup_flags, pages, vmas);
-+	memalloc_nocma_restore(flags);
-+	if (rc < 0)
-+		goto out;
- 
--	for (i = 0; i < rc; i++) {
--		struct vm_area_struct *vma = vmas[i];
--
--		if (vma == vma_prev)
--			continue;
--
--		vma_prev = vma;
--
--		if (vma_is_fsdax(vma))
--			break;
--	}
--
--	/*
--	 * Either get_user_pages() failed, or the vma validation
--	 * succeeded, in either case we don't need to put_page() before
--	 * returning.
--	 */
--	if (i >= rc)
-+	if (check_dax_vmas(vmas, rc)) {
-+		for (i = 0; i < rc; i++)
-+			put_page(pages[i]);
-+		rc = -EOPNOTSUPP;
- 		goto out;
-+	}
- 
--	for (i = 0; i < rc; i++)
--		put_page(pages[i]);
--	rc = -EOPNOTSUPP;
-+	rc = check_and_migrate_cma_pages(start, rc, gup_flags, pages, vmas);
- out:
- 	if (vmas != vmas_arg)
- 		kfree(vmas);
+Aside from the API detail above, this CMA page migration logic seems a
+good solution for the problem.
+
+Thanks,
+Andrea
