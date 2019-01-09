@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 933598E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 15:06:32 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id u20so33418772pfa.1
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 12:06:32 -0800 (PST)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id b9si48038295pgt.293.2019.01.02.12.06.29
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D9DCE8E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 14:18:50 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id u20so5947638pfa.1
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 11:18:50 -0800 (PST)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id p14si5220131pfi.12.2019.01.09.11.18.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 12:06:31 -0800 (PST)
+        Wed, 09 Jan 2019 11:18:49 -0800 (PST)
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [PATCH 1/3] doc: memcontrol: fix the obsolete content about force empty
-Date: Thu,  3 Jan 2019 04:05:31 +0800
-Message-Id: <1546459533-36247-2-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v3 PATCH 1/5] doc: memcontrol: fix the obsolete content about force empty
+Date: Thu, 10 Jan 2019 03:14:41 +0800
+Message-Id: <1547061285-100329-2-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
 Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 We don't do page cache reparent anymore when offlining memcg, so update
 force empty related content accordingly.
 
-Cc: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
