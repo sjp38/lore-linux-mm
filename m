@@ -1,72 +1,271 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 752B58E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:51:35 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id c3so35318604eda.3
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:51:35 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id r24si203929edp.187.2019.01.04.04.51.33
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AB4118E00A1
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:47:59 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id o23so4583458pll.0
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:47:59 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.47.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:51:33 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 94DED98837
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:51:33 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 07/25] mm, migrate: Immediately fail migration of a page with no migration handler
-Date: Fri,  4 Jan 2019 12:49:53 +0000
-Message-Id: <20190104125011.16071-8-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        Wed, 09 Jan 2019 09:47:58 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv3 04/13] node: Link memory nodes to their compute nodes
+Date: Wed,  9 Jan 2019 10:43:32 -0700
+Message-Id: <20190109174341.19818-5-keith.busch@intel.com>
+In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
+References: <20190109174341.19818-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-Pages with no migration handler use a fallback handler which sometimes
-works and sometimes persistently retries. A historical example was blockdev
-pages but there are others such as odd refcounting when page->private
-is used.  These are retried multiple times which is wasteful during
-compaction so this patch will fail migration faster unless the caller
-specifies MIGRATE_SYNC.
+Systems may be constructed with various specialized nodes. Some nodes
+may provide memory, some provide compute devices that access and use
+that memory, and others may provide both. Nodes that provide memory are
+referred to as memory targets, and nodes that can initiate memory access
+are referred to as memory initiators.
 
-This is not expected to help THP allocation success rates but it did
-reduce latencies very slightly in some cases.
+Memory targets will often have varying access characteristics from
+different initiators, and platforms may have ways to express those
+relationships. In preparation for these systems, provide interfaces
+for the kernel to export the memory relationship among different node's
+memory targets and their initiators with symlinks to each other's nodes,
+and export node lists showing the same relationship.
 
-1-socket thpfioscale
-                                        4.20.0                 4.20.0
-                              noreserved-v2r15         failfast-v2r15
-Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-Amean     fault-both-3      3839.67 (   0.00%)     3833.72 (   0.15%)
-Amean     fault-both-5      5177.47 (   0.00%)     4967.15 (   4.06%)
-Amean     fault-both-7      7245.03 (   0.00%)     7139.19 (   1.46%)
-Amean     fault-both-12    11534.89 (   0.00%)    11326.30 (   1.81%)
-Amean     fault-both-18    16241.10 (   0.00%)    16270.70 (  -0.18%)
-Amean     fault-both-24    19075.91 (   0.00%)    19839.65 (  -4.00%)
-Amean     fault-both-30    22712.11 (   0.00%)    21707.05 (   4.43%)
-Amean     fault-both-32    21692.92 (   0.00%)    21968.16 (  -1.27%)
+If a system provides access locality for each initiator-target pair, nodes
+may be grouped into ranked access classes relative to other nodes. The new
+interface allows a subsystem to register relationships of varying classes
+if available and desired to be exported. A lower class number indicates
+a higher performing tier, with 0 being the best performing class.
 
-The 2-socket results are not materially different. Scan rates are similar
-as expected.
+A memory initiator may have multiple memory targets in the same access
+class. The initiator's memory targets in given class indicate the node's
+access characteristics perform better relative to other initiator nodes
+either unreported or in lower class numbers. The targets within an
+initiator's class, though, do not necessarily perform the same as each
+other.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+A memory target node may have multiple memory initiators. All linked
+initiators in a target's class have the same access characteristics as
+each other to that target.
+
+The following example show the nodes' new sysfs hierarchy for a memory
+target node 'Y' with class 0 access from initiator node 'X':
+
+  # symlinks -v /sys/devices/system/node/nodeX/class0/
+  relative: /sys/devices/system/node/nodeX/class0/targetY -> ../../nodeY
+
+  # symlinks -v /sys/devices/system/node/nodeY/class0/
+  relative: /sys/devices/system/node/nodeY/class0/initiatorX -> ../../nodeX
+
+And the same information is reflected in the nodelist:
+
+  # cat /sys/devices/system/node/nodeX/class0/target_nodelist
+  Y
+
+  # cat /sys/devices/system/node/nodeY/class0/initiator_nodelist
+  X
+
+Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- mm/migrate.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/base/node.c  | 127 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ include/linux/node.h |   6 ++-
+ 2 files changed, 131 insertions(+), 2 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 5d1839a9148d..547cc1f3f3bb 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -916,7 +916,7 @@ static int fallback_migrate_page(struct address_space *mapping,
- 	 */
- 	if (page_has_private(page) &&
- 	    !try_to_release_page(page, GFP_KERNEL))
--		return -EAGAIN;
-+		return mode == MIGRATE_SYNC ? -EAGAIN : -EBUSY;
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 86d6cd92ce3d..1da5072116ab 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -17,6 +17,7 @@
+ #include <linux/nodemask.h>
+ #include <linux/cpu.h>
+ #include <linux/device.h>
++#include <linux/pm_runtime.h>
+ #include <linux/swap.h>
+ #include <linux/slab.h>
  
- 	return migrate_page(mapping, newpage, page, mode);
+@@ -59,6 +60,91 @@ static inline ssize_t node_read_cpulist(struct device *dev,
+ static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
+ static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
+ 
++struct node_class_nodes {
++	struct device		dev;
++	struct list_head	list_node;
++	unsigned		class;
++	nodemask_t		initiator_nodes;
++	nodemask_t		target_nodes;
++};
++#define to_class_nodes(dev) container_of(dev, struct node_class_nodes, dev)
++
++static ssize_t initiator_nodelist_show(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++	struct node_class_nodes *c = to_class_nodes(dev);
++	return scnprintf(buf, PAGE_SIZE - 1, "%*pbl\n",
++			 nodemask_pr_args(&c->initiator_nodes));
++}
++static DEVICE_ATTR_RO(initiator_nodelist);
++
++static ssize_t target_nodelist_show(struct device *dev,
++				struct device_attribute *attr, char *buf)
++{
++	struct node_class_nodes *c = to_class_nodes(dev);
++	return scnprintf(buf, PAGE_SIZE - 1, "%*pbl\n",
++			 nodemask_pr_args(&c->target_nodes));
++}
++static DEVICE_ATTR_RO(target_nodelist);
++
++static struct attribute *node_class_node_attrs[] = {
++	&dev_attr_initiator_nodelist.attr,
++	&dev_attr_target_nodelist.attr,
++	NULL,
++};
++ATTRIBUTE_GROUPS(node_class_node);
++
++static void node_remove_classes(struct node *node)
++{
++	struct node_class_nodes *c, *cnext;
++
++	list_for_each_entry_safe(c, cnext, &node->class_list, list_node) {
++		list_del(&c->list_node);
++		device_unregister(&c->dev);
++	}
++}
++
++static void node_class_release(struct device *dev)
++{
++	kfree(to_class_nodes(dev));
++}
++
++static struct node_class_nodes *node_init_node_class(struct device *parent,
++						     struct list_head *list,
++						     unsigned class)
++{
++	struct node_class_nodes *class_node;
++	struct device *dev;
++
++	list_for_each_entry(class_node, list, list_node)
++		if (class_node->class == class)
++			return class_node;
++
++	class_node = kzalloc(sizeof(*class_node), GFP_KERNEL);
++	if (!class_node)
++		return NULL;
++
++	class_node->class = class;
++	dev = &class_node->dev;
++	dev->parent = parent;
++	dev->release = node_class_release;
++	dev->groups = node_class_node_groups;
++	if (dev_set_name(dev, "class%u", class))
++		goto free;
++
++	if (device_register(dev))
++		goto free_name;
++
++	pm_runtime_no_callbacks(dev);
++	list_add_tail(&class_node->list_node, list);
++	return class_node;
++free_name:
++	kfree_const(dev->kobj.name);
++free:
++	kfree(class_node);
++	return NULL;
++}
++
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ static ssize_t node_read_meminfo(struct device *dev,
+ 			struct device_attribute *attr, char *buf)
+@@ -340,7 +426,7 @@ static int register_node(struct node *node, int num)
+ void unregister_node(struct node *node)
+ {
+ 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+-
++	node_remove_classes(node);
+ 	device_unregister(&node->dev);
  }
+ 
+@@ -372,6 +458,44 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+ 				 kobject_name(&node_devices[nid]->dev.kobj));
+ }
+ 
++int register_memory_node_under_compute_node(unsigned int m, unsigned int p,
++					    unsigned class)
++{
++	struct node *init, *targ;
++	struct node_class_nodes *i, *t;
++	char initiator[20]; /* "initiator4294967295\0" */
++	char target[17];    /* "target4294967295\0" */
++	int ret;
++
++	if (!node_online(p) || !node_online(m))
++		return -ENODEV;
++
++	init = node_devices[p];
++	targ = node_devices[m];
++	i = node_init_node_class(&init->dev, &init->class_list, class);
++	t = node_init_node_class(&targ->dev, &targ->class_list, class);
++	if (!i || !t)
++		return -ENOMEM;
++
++	snprintf(initiator, sizeof(initiator), "initiator%u", p);
++	snprintf(target, sizeof(target), "target%u", m);
++	ret = sysfs_create_link(&i->dev.kobj, &targ->dev.kobj, target);
++	if (ret)
++		return ret;
++
++	ret = sysfs_create_link(&t->dev.kobj, &init->dev.kobj, initiator);
++	if (ret)
++		goto err;
++
++	node_set(m, i->target_nodes);
++	node_set(p, t->initiator_nodes);
++	return 0;
++ err:
++	sysfs_remove_link(&node_devices[p]->dev.kobj,
++			  kobject_name(&node_devices[m]->dev.kobj));
++	return ret;
++}
++
+ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+ {
+ 	struct device *obj;
+@@ -580,6 +704,7 @@ int __register_one_node(int nid)
+ 			register_cpu_under_node(cpu, nid);
+ 	}
+ 
++	INIT_LIST_HEAD(&node_devices[nid]->class_list);
+ 	/* initialize work queue for memory hot plug */
+ 	init_node_hugetlb_work(nid);
+ 
+diff --git a/include/linux/node.h b/include/linux/node.h
+index 257bb3d6d014..8e3666c12ef2 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -17,11 +17,12 @@
+ 
+ #include <linux/device.h>
+ #include <linux/cpumask.h>
++#include <linux/list.h>
+ #include <linux/workqueue.h>
+ 
+ struct node {
+ 	struct device	dev;
+-
++	struct list_head class_list;
+ #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+ 	struct work_struct	node_work;
+ #endif
+@@ -75,6 +76,9 @@ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+ extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 					   unsigned long phys_index);
+ 
++extern int register_memory_node_under_compute_node(unsigned int m, unsigned int p,
++						   unsigned class);
++
+ #ifdef CONFIG_HUGETLBFS
+ extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
+ 					 node_registration_func_t unregister);
 -- 
-2.16.4
+2.14.4
