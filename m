@@ -1,95 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A02A8E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:53:17 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id t7so34967632edr.21
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:53:17 -0800 (PST)
-Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id h13si2217209edf.24.2019.01.04.04.53.15
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 92E028E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 14:20:04 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 4so4722287plc.5
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 11:20:04 -0800 (PST)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id x5si7000951pga.440.2019.01.09.11.20.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:53:15 -0800 (PST)
-Received: from mail.blacknight.com (unknown [81.17.254.16])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 8096A1C1788
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:53:15 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 17/25] mm, compaction: Keep cached migration PFNs synced for unusable pageblocks
-Date: Fri,  4 Jan 2019 12:50:03 +0000
-Message-Id: <20190104125011.16071-18-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        Wed, 09 Jan 2019 11:20:02 -0800 (PST)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v3 PATCH 4/5] mm: memcontrol: bring force_empty into default hierarchy
+Date: Thu, 10 Jan 2019 03:14:44 +0800
+Message-Id: <1547061285-100329-5-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Migrate has separate cached PFNs for ASYNC and SYNC* migration on the
-basis that some migrations will fail in ASYNC mode. However, if the cached
-PFNs match at the start of scanning and pageblocks are skipped due to
-having no isolation candidates, then the sync state does not matter.
-This patch keeps matching cached PFNs in sync until a pageblock with
-isolation candidates is found.
+The default hierarchy doesn't support force_empty, but there are some
+usecases which create and remove memcgs very frequently, and the
+tasks in the memcg may just access the files which are unlikely
+accessed by anyone else. So, we prefer force_empty the memcg before
+rmdir'ing it to reclaim the page cache so that they don't get
+accumulated to incur unnecessary memory pressure. Since the memory
+pressure may incur direct reclaim to harm some latency sensitive
+applications.
 
-The actual benefit is marginal given that the sync scanner following the
-async scanner will often skip a number of pageblocks but it's useless
-work. Any benefit depends heavily on whether the scanners restarted
-recently so overall the reduction in scan rates is a mere 2.8% which
-is borderline noise.
+There is another patch which introduces asynchronous memory reclaim when
+offlining, but the behavior of force_empty is still needed by some
+usecases which want to get the memory reclaimed immediately.  So, bring
+force_empty interface in default hierarchy too.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/compaction.c | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ Documentation/admin-guide/cgroup-v2.rst | 14 ++++++++++++++
+ mm/memcontrol.c                         |  4 ++++
+ 2 files changed, 18 insertions(+)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 921720f7a416..be27e4fa1b40 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1967,6 +1967,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 	unsigned long end_pfn = zone_end_pfn(cc->zone);
- 	unsigned long last_migrated_pfn;
- 	const bool sync = cc->mode != MIGRATE_ASYNC;
-+	bool update_cached;
- 	unsigned long a, b, c;
+diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+index 7bf3f12..0290c65 100644
+--- a/Documentation/admin-guide/cgroup-v2.rst
++++ b/Documentation/admin-guide/cgroup-v2.rst
+@@ -1289,6 +1289,20 @@ PAGE_SIZE multiple when read back.
+ 	Shows pressure stall information for memory. See
+ 	Documentation/accounting/psi.txt for details.
  
- 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
-@@ -2019,6 +2020,17 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 
- 	last_migrated_pfn = 0;
- 
-+	/*
-+	 * Migrate has separate cached PFNs for ASYNC and SYNC* migration on
-+	 * the basis that some migrations will fail in ASYNC mode. However,
-+	 * if the cached PFNs match and pageblocks are skipped due to having
-+	 * no isolation candidates, then the sync state does not matter.
-+	 * Until a pageblock with isolation candidates is found, keep the
-+	 * cached PFNs in sync to avoid revisiting the same blocks.
-+	 */
-+	update_cached = !sync &&
-+		cc->zone->compact_cached_migrate_pfn[0] == cc->zone->compact_cached_migrate_pfn[1];
++  memory.force_empty
++        This interface is provided to make cgroup's memory usage empty.
++        When writing anything to this
 +
- 	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
- 				cc->free_pfn, end_pfn, sync);
- 
-@@ -2050,6 +2062,11 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 			last_migrated_pfn = 0;
- 			goto out;
- 		case ISOLATE_NONE:
-+			if (update_cached) {
-+				cc->zone->compact_cached_migrate_pfn[1] =
-+					cc->zone->compact_cached_migrate_pfn[0];
-+			}
++        # echo 0 > memory.force_empty
 +
- 			/*
- 			 * We haven't isolated and migrated anything, but
- 			 * there might still be unflushed migrations from
-@@ -2057,6 +2074,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 			 */
- 			goto check_drain;
- 		case ISOLATE_SUCCESS:
-+			update_cached = false;
- 			last_migrated_pfn = start_pfn;
- 			;
- 		}
++        the cgroup will be reclaimed and as many pages reclaimed as possible.
++
++        The typical use case for this interface is before calling rmdir().
++        Though rmdir() offlines memcg, but the memcg may still stay there due to
++        charged file caches. Some out-of-use page caches may keep charged until
++        memory pressure happens. If you want to avoid that, force_empty will be
++        useful.
++
+ 
+ Usage Guidelines
+ ~~~~~~~~~~~~~~~~
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ff50810..5d42a19 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5743,6 +5743,10 @@ static ssize_t memory_oom_group_write(struct kernfs_open_file *of,
+ 		.seq_show = wipe_on_offline_show,
+ 		.write_u64 = wipe_on_offline_write,
+ 	},
++	{
++		.name = "force_empty",
++		.write = mem_cgroup_force_empty_write,
++	},
+ 	{ }	/* terminate */
+ };
+ 
 -- 
-2.16.4
+1.8.3.1
