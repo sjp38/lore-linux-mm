@@ -1,71 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E7AED8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:06:38 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 75so10507440pfq.8
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 07:06:38 -0800 (PST)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B0498E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:37:57 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id p65-v6so1961572ljb.16
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:37:57 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i11sor3787964pfj.7.2019.01.11.07.06.37
+        by mx.google.com with SMTPS id 142sor14010047lfz.23.2019.01.09.08.37.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 11 Jan 2019 07:06:37 -0800 (PST)
-Date: Fri, 11 Jan 2019 20:40:37 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 5/9] drm/xen/xen_drm_front_gem.c: Convert to use
- vm_insert_range
-Message-ID: <20190111151037.GA2781@jordon-HP-15-Notebook-PC>
+        Wed, 09 Jan 2019 08:37:55 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+References: <20190109161916.GA23410@jordon-HP-15-Notebook-PC> <20190109162332.GL6310@bombadil.infradead.org>
+In-Reply-To: <20190109162332.GL6310@bombadil.infradead.org>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Wed, 9 Jan 2019 22:11:46 +0530
+Message-ID: <CAFqt6zYQU+jN57Lh2Enx-t9EKHSjSKibUHU1Y-KyzAzxWVy3Qw@mail.gmail.com>
+Subject: Re: [PATCH] include/linux/hmm.h: Convert to use vm_fault_t
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, oleksandr_andrushchenko@epam.com, airlied@linux.ie, linux@armlinux.org.uk, robin.murphy@arm.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, jglisse@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>
 
-Convert to use vm_insert_range() to map range of kernel
-memory to user vma.
+On Wed, Jan 9, 2019 at 9:53 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Wed, Jan 09, 2019 at 09:49:17PM +0530, Souptick Joarder wrote:
+> > convert to use vm_fault_t type as return type for
+> > fault handler.
+>
+> I think you'll also need to convert hmm_devmem_fault().  And that's
+> going to lead to some more spots.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- drivers/gpu/drm/xen/xen_drm_front_gem.c | 18 +++++-------------
- 1 file changed, 5 insertions(+), 13 deletions(-)
+I will add it in v2.
+>
+> (It's important to note that this is the patch working as designed.  It's
+> throwing up warnings where code *hasn't* been converted to vm_fault_t yet
+> but should have been).
 
-diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
-index 47ff019..9990c2f 100644
---- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
-+++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
-@@ -225,8 +225,7 @@ struct drm_gem_object *
- static int gem_mmap_obj(struct xen_gem_object *xen_obj,
- 			struct vm_area_struct *vma)
- {
--	unsigned long addr = vma->vm_start;
--	int i;
-+	int ret;
- 
- 	/*
- 	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
-@@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
- 	 * FIXME: as we insert all the pages now then no .fault handler must
- 	 * be called, so don't provide one
- 	 */
--	for (i = 0; i < xen_obj->num_pages; i++) {
--		int ret;
--
--		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
--		if (ret < 0) {
--			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
--			return ret;
--		}
-+	ret = vm_insert_range(vma, xen_obj->pages, xen_obj->num_pages);
-+	if (ret < 0)
-+		DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
- 
--		addr += PAGE_SIZE;
--	}
--	return 0;
-+	return ret;
- }
- 
- int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
--- 
-1.9.1
+Ok.
