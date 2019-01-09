@@ -1,81 +1,61 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F17018E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 15:06:06 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id j3so33942199itf.5
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 12:06:06 -0800 (PST)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id x17si76662itj.18.2019.01.02.12.06.05
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 12:06:05 -0800 (PST)
+Return-Path: <linux-kernel-owner@vger.kernel.org>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [PATCH 2/3] mm: memcontrol: do not try to do swap when force empty
-Date: Thu,  3 Jan 2019 04:05:32 +0800
-Message-Id: <1546459533-36247-3-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1546459533-36247-1-git-send-email-yang.shi@linux.alibaba.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+Subject: [v3 PATCH 2/5] mm: memcontrol: add may_swap parameter to mem_cgroup_force_empty()
+Date: Thu, 10 Jan 2019 03:14:42 +0800
+Message-Id: <1547061285-100329-3-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
 Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+List-ID: <linux-mm.kvack.org>
 
-The typical usecase of force empty is to try to reclaim as much as
-possible memory before offlining a memcg.  Since there should be no
-attached tasks to offlining memcg, the tasks anonymous pages would have
-already been freed or uncharged.  Even though anonymous pages get
-swapped out, but they still get charged to swap space.  So, it sounds
-pointless to do swap for force empty.
+mem_cgroup_force_empty() will be reused by the following patch which
+does memory reclaim when offlining.  It is unnecessary to do swap in that
+path, but force_empty still needs keep intact since it is also used by
+other usecases per Shakeel.
 
-I tried to dig into the history of this, it was introduced by
-commit 8c7c6e34a125 ("memcg: mem+swap controller core"), but there is
-not any clue about why it was done so at the first place.
-
-The below simple test script shows slight file cache reclaim improvement
-when swap is on.
-
-echo 3 > /proc/sys/vm/drop_caches
-mkdir /sys/fs/cgroup/memory/test
-echo 30 > /sys/fs/cgroup/memory/test/memory.swappiness
-echo $$ >/sys/fs/cgroup/memory/test/cgroup.procs
-cat /proc/meminfo | grep ^Cached|awk -F" " '{print $2}'
-dd if=/dev/zero of=/mnt/test bs=1M count=1024
-ping localhost > /dev/null &
-echo 1 > /sys/fs/cgroup/memory/test/memory.force_empty
-killall ping
-echo $$ >/sys/fs/cgroup/memory/cgroup.procs
-cat /proc/meminfo | grep ^Cached|awk -F" " '{print $2}'
-rmdir /sys/fs/cgroup/memory/test
-cat /proc/meminfo | grep ^Cached|awk -F" " '{print $2}'
-
-The number of page cache is:
-			w/o		w/
-before force empty    1088792        1088784
-after force empty     41492          39428
-reclaimed	      1047300        1049356
-
-Without doing swap, force empty can reclaim 2MB more memory in 1GB page
-cache.
+So, introduce may_swap parameter to mem_cgroup_force_empty().  This is
+the preparation for the following patch.
 
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shakeel Butt <shakeelb@google.com>
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memcontrol.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6e1469b..bbf39b5 100644
+index af7f18b..eaa3970 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2872,7 +2872,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
+@@ -2878,7 +2878,7 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+  *
+  * Caller is responsible for holding css reference for memcg.
+  */
+-static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
++static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool may_swap)
+ {
+ 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 
+@@ -2895,7 +2895,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
  			return -EINTR;
  
  		progress = try_to_free_mem_cgroup_pages(memcg, 1,
 -							GFP_KERNEL, true);
-+							GFP_KERNEL, false);
++							GFP_KERNEL, may_swap);
  		if (!progress) {
  			nr_retries--;
  			/* maybe some writeback is necessary */
+@@ -2915,7 +2915,7 @@ static ssize_t mem_cgroup_force_empty_write(struct kernfs_open_file *of,
+ 
+ 	if (mem_cgroup_is_root(memcg))
+ 		return -EINVAL;
+-	return mem_cgroup_force_empty(memcg) ?: nbytes;
++	return mem_cgroup_force_empty(memcg, true) ?: nbytes;
+ }
+ 
+ static u64 mem_cgroup_hierarchy_read(struct cgroup_subsys_state *css,
 -- 
 1.8.3.1
