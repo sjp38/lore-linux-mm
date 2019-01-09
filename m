@@ -1,62 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF5E58E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 04:59:40 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id g145so6272493yba.13
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 01:59:40 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id s62si25814079ybc.451.2019.01.11.01.59.39
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BC7BB8E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 16:26:07 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id v4so3349412edm.18
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 13:26:07 -0800 (PST)
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id b3si2031695ede.42.2019.01.09.13.26.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 01:59:39 -0800 (PST)
-Date: Fri, 11 Jan 2019 12:59:19 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [PATCH] mm, swap: Potential NULL dereference in
- get_swap_page_of_type()
-Message-ID: <20190111095919.GA1757@kadam>
+        Wed, 09 Jan 2019 13:26:06 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id E06821C2AD8
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 21:26:05 +0000 (GMT)
+Date: Wed, 9 Jan 2019 21:26:03 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, compaction: Use free lists to quickly locate a
+ migration target -fix
+Message-ID: <20190109212603.GY31517@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190109111344.GU31517@techsingularity.net>
+ <20190109112731.7d189ba6a606ca8f84dc5fa2@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <20190109112731.7d189ba6a606ca8f84dc5fa2@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>
-Cc: Huang Ying <ying.huang@intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Dave Hansen <dave.hansen@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Omar Sandoval <osandov@fb.com>, Tejun Heo <tj@kernel.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Linux-MM <linux-mm@kvack.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-Smatch complains that the NULL checks on "si" aren't consistent.  This
-seems like a real bug because we have not ensured that the type is
-valid and so "si" can be NULL.
+On Wed, Jan 09, 2019 at 11:27:31AM -0800, Andrew Morton wrote:
+> On Wed, 9 Jan 2019 11:13:44 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > Full compaction of a node passes in negative orders which can lead to array
+> > boundary issues. While it could be addressed in the control flow of the
+> > primary loop, it would be fragile so explicitly check for the condition.
+> > This is a fix for the mmotm patch
+> > broken-out/mm-compaction-use-free-lists-to-quickly-locate-a-migration-target.patch
+> > 
+> > ...
+> >
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -1206,6 +1206,10 @@ fast_isolate_freepages(struct compact_control *cc)
+> >  	bool scan_start = false;
+> >  	int order;
+> >  
+> > +	/* Full compaction passes in a negative order */
+> > +	if (order <= 0)
+> > +		return cc->free_pfn;
+> > +
+> >  	/*
+> >  	 * If starting the scan, use a deeper search and use the highest
+> >  	 * PFN found if a suitable one is not found.
+> 
+> `order' is uninitialized.
 
-Fixes: ec8acf20afb8 ("swap: add per-partition lock for swapfile")
-Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+Twice I managed to send out the wrong one :(
+
+---8<---
+mm, compaction: Use free lists to quickly locate a migration target -fix
+
+Full compaction of a node passes in negative orders which can lead to array
+boundary issues. While it could be addressed in the control flow of the
+primary loop, it would be fragile so explicitly check for the condition.
+This is a fix for the mmotm patch
+broken-out/mm-compaction-use-free-lists-to-quickly-locate-a-migration-target.patch
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/swapfile.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ mm/compaction.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index f0edf7244256..21e92c757205 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1048,9 +1048,12 @@ swp_entry_t get_swap_page_of_type(int type)
- 	struct swap_info_struct *si;
- 	pgoff_t offset;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9438f0564ed5..4b46ae96cc1b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1206,6 +1206,10 @@ fast_isolate_freepages(struct compact_control *cc)
+ 	bool scan_start = false;
+ 	int order;
  
-+	if (type >= nr_swapfiles)
-+		goto fail;
++	/* Full compaction passes in a negative order */
++	if (cc->order <= 0)
++		return cc->free_pfn;
 +
- 	si = swap_info[type];
- 	spin_lock(&si->lock);
--	if (si && (si->flags & SWP_WRITEOK)) {
-+	if (si->flags & SWP_WRITEOK) {
- 		atomic_long_dec(&nr_swap_pages);
- 		/* This is called for allocating swap entry, not cache */
- 		offset = scan_swap_map(si, 1);
-@@ -1061,6 +1064,7 @@ swp_entry_t get_swap_page_of_type(int type)
- 		atomic_long_inc(&nr_swap_pages);
- 	}
- 	spin_unlock(&si->lock);
-+fail:
- 	return (swp_entry_t) {0};
- }
- 
--- 
-2.17.1
+ 	/*
+ 	 * If starting the scan, use a deeper search and use the highest
+ 	 * PFN found if a suitable one is not found.
