@@ -1,62 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C3F628E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 19:26:52 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id t26so7341521pgu.18
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:26:52 -0800 (PST)
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id y6si51191750pll.384.2019.01.10.16.26.51
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E8408E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 08:38:31 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id u20so6711917qtk.6
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 05:38:31 -0800 (PST)
+Received: from mail.bluematt.me (mail.bluematt.me. [192.241.179.72])
+        by mx.google.com with ESMTPS id o7si5802962qti.38.2019.01.09.05.38.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 16:26:51 -0800 (PST)
-From: Vineet Gupta <vineet.gupta1@synopsys.com>
-Subject: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
-Date: Thu, 10 Jan 2019 16:26:27 -0800
-Message-ID: <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
-In-Reply-To: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
-References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 09 Jan 2019 05:38:30 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [Bug 202149] New: NULL Pointer Dereference in __split_huge_pmd on PPC64LE
+From: Matt Corallo <kernel@bluematt.me>
+In-Reply-To: <8736q2jbhr.fsf@linux.ibm.com>
+Date: Wed, 9 Jan 2019 08:38:28 -0500
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <A61367CF-277E-4E74-8A9D-C94C5E53817B@bluematt.me>
+References: <bug-202149-27@https.bugzilla.kernel.org/> <20190104170459.c8c7fa57ba9bc8a69dee5666@linux-foundation.org> <87ef9nk4cj.fsf@linux.ibm.com> <ed4bea40-cf9e-89a1-f99a-3dbd6249847f@bluematt.me> <8736q2jbhr.fsf@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-snps-arc@lists.infradead.org, linux-mm@kvack.org, peterz@infradead.org, Vineet Gupta <vineet.gupta1@synopsys.com>, Miklos Szeredi <mszeredi@redhat.com>, Ingo Molnar <mingo@kernel.org>, Jani Nikula <jani.nikula@intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andrew  Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, bugzilla-daemon@bugzilla.kernel.org
 
-| > Also, set_mask_bits is used in fs quite a bit and we can possibly come up
-| > with a generic llsc based implementation (w/o the cmpxchg loop)
-|
-| May I also suggest changing the return value of set_mask_bits() to old.
-|
-| You can compute the new value given old, but you cannot compute the old
-| value given new, therefore old is the better return value. Also, no
-| current user seems to use the return value, so changing it is without
-| risk.
+It's normal daily usage on a workstation (TALOS 2). I've seen it at least tw=
+ice, both times in rustc, though I've run rustc more times than I can count.=
+ Note that the program that triggered it was running in lxc and it only happ=
+ened after upgrading to 4.19.
 
-Link: http://lkml.kernel.org/g/20150807110955.GH16853@twins.programming.kicks-ass.net
-Suggested-by: Peter Zijlstra <peterz@infradead.org>
-Cc: Miklos Szeredi <mszeredi@redhat.com>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Jani Nikula <jani.nikula@intel.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- include/linux/bitops.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> On Jan 9, 2019, at 06:50, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> wr=
+ote:
+>=20
+> Matt Corallo <kernel@bluematt.me> writes:
+>=20
+>> .config follows. I have not tested with 64K pages as, sadly, I have a=20
+>> large BTRFS volume that was formatted on x86, and am thus stuck with 4K=20=
 
-diff --git a/include/linux/bitops.h b/include/linux/bitops.h
-index 705f7c442691..602af23b98c7 100644
---- a/include/linux/bitops.h
-+++ b/include/linux/bitops.h
-@@ -246,7 +246,7 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
- 		new__ = (old__ & ~mask__) | bits__;		\
- 	} while (cmpxchg(ptr, old__, new__) != old__);		\
- 								\
--	new__;							\
-+	old__;							\
- })
- #endif
- 
--- 
-2.7.4
+>> pages. Note that this is roughly the Debian kernel, so it has whatever=20=
+
+>> patches Debian defaults to applying, a list of which follows.
+>>=20
+>=20
+> What is the test you are running? I tried a 4K page size config on P9. I
+> am running ltp test suite there. Also tried few thp memremap tests.
+> Nothing hit that.
+>=20
+> root@:~/tests/ltp/testcases/kernel/mem/thp# getconf  PAGESIZE
+> 4096
+> root@ltc-boston123:~/tests/ltp/testcases/kernel/mem/thp# grep thp /proc/vm=
+stat=20
+> thp_fault_alloc 641141
+> thp_fault_fallback 0
+> thp_collapse_alloc 90
+> thp_collapse_alloc_failed 0
+> thp_file_alloc 0
+> thp_file_mapped 0
+> thp_split_page 1
+> thp_split_page_failed 0
+> thp_deferred_split_page 641150
+> thp_split_pmd 24
+> thp_zero_page_alloc 1
+> thp_zero_page_alloc_failed 0
+> thp_swpout 0
+> thp_swpout_fallback 0
+> root@:~/tests/ltp/testcases/kernel/mem/thp#=20
+>=20
+> -aneesh
+>=20
