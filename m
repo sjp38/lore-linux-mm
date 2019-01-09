@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DBC868E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 20:56:52 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id j13so22912884oii.8
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 17:56:52 -0800 (PST)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id x2sor28012424ota.72.2019.01.02.17.56.51
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB628E00A4
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:48:01 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id n17so5711860pfk.23
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:48:01 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.48.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 17:56:51 -0800 (PST)
-Date: Wed,  2 Jan 2019 17:56:38 -0800
-Message-Id: <20190103015638.205424-1-shakeelb@google.com>
-Mime-Version: 1.0
-Subject: [PATCH] memcg: schedule high reclaim for remote memcgs on high_work
-From: Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Jan 2019 09:48:00 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv3 08/13] Documentation/ABI: Add node performance attributes
+Date: Wed,  9 Jan 2019 10:43:36 -0700
+Message-Id: <20190109174341.19818-9-keith.busch@intel.com>
+In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
+References: <20190109174341.19818-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-If a memcg is over high limit, memory reclaim is scheduled to run on
-return-to-userland. However it is assumed that the memcg is the current
-process's memcg. With remote memcg charging for kmem or swapping in a
-page charged to remote memcg, current process can trigger reclaim on
-remote memcg. So, schduling reclaim on return-to-userland for remote
-memcgs will ignore the high reclaim altogether. So, punt the high
-reclaim of remote memcgs to high_work.
+Add descriptions for memory class initiator performance access attributes.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- mm/memcontrol.c | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ Documentation/ABI/stable/sysfs-devices-node | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e9db1160ccbc..47439c84667a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2302,19 +2302,23 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * reclaim on returning to userland.  We can perform reclaim here
- 	 * if __GFP_RECLAIM but let's always punt for simplicity and so that
- 	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
--	 * not recorded as it most likely matches current's and won't
--	 * change in the meantime.  As high limit is checked again before
--	 * reclaim, the cost of mismatch is negligible.
-+	 * not recorded as the return-to-userland high reclaim will only reclaim
-+	 * from current's memcg (or its ancestor). For other memcgs we punt them
-+	 * to work queue.
- 	 */
- 	do {
- 		if (page_counter_read(&memcg->memory) > memcg->high) {
--			/* Don't bother a random interrupted task */
--			if (in_interrupt()) {
-+			/*
-+			 * Don't bother a random interrupted task or if the
-+			 * memcg is not current's memcg's ancestor.
-+			 */
-+			if (in_interrupt() ||
-+			    !mm_match_cgroup(current->mm, memcg)) {
- 				schedule_work(&memcg->high_work);
--				break;
-+			} else {
-+				current->memcg_nr_pages_over_high += batch;
-+				set_notify_resume(current);
- 			}
--			current->memcg_nr_pages_over_high += batch;
--			set_notify_resume(current);
- 			break;
- 		}
- 	} while ((memcg = parent_mem_cgroup(memcg)));
+diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+index a9c47b4b0eee..74cfc80cabf6 100644
+--- a/Documentation/ABI/stable/sysfs-devices-node
++++ b/Documentation/ABI/stable/sysfs-devices-node
+@@ -114,3 +114,31 @@ Description:
+ 		The node list of memory targets that this initiator node has
+ 		class "Y" access. Memory accesses from this node to nodes not
+ 		in this list may have differet performance.
++
++What:		/sys/devices/system/node/nodeX/classY/read_bandwidth
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		This node's read bandwidth in MB/s available to memory
++		initiators in nodes found in this class's initiators_nodelist.
++
++What:		/sys/devices/system/node/nodeX/classY/read_latency
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		This node's read latency in nanosecondss available to memory
++		initiators in nodes found in this class's initiators_nodelist.
++
++What:		/sys/devices/system/node/nodeX/classY/write_bandwidth
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		This node's write bandwidth in MB/s available to memory
++		initiators in nodes found in this class's initiators_nodelist.
++
++What:		/sys/devices/system/node/nodeX/classY/write_latency
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		This node's write latency in nanosecondss available to memory
++		initiators in nodes found in this class's initiators_nodelist.
 -- 
-2.20.1.415.g653613c723-goog
+2.14.4
