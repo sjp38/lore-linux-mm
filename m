@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 12EFB8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 10:14:32 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id v72so4314167pgb.10
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 07:14:32 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id k186si70033585pgc.576.2019.01.09.07.14.29
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 022248E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 06:50:56 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id v11so4045475ply.4
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 03:50:55 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id b11si64621770pgb.536.2019.01.09.03.50.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 07:14:29 -0800 (PST)
-Date: Wed, 9 Jan 2019 23:13:42 +0800
+        Wed, 09 Jan 2019 03:50:54 -0800 (PST)
+Date: Wed, 9 Jan 2019 19:50:37 +0800
 From: kbuild test robot <lkp@intel.com>
 Subject: Re: [PATCH v4] mm: Create the new vm_fault_t type
-Message-ID: <201901092347.nIGS7dtC%fengguang.wu@intel.com>
+Message-ID: <201901091938.efAoCTaE%fengguang.wu@intel.com>
 References: <20190108183041.GA12137@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BXVAT5kNtrzKuDFl"
+Content-Type: multipart/mixed; boundary="u3/rZRmxL6MmkK24"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
 In-Reply-To: <20190108183041.GA12137@jordon-HP-15-Notebook-PC>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -25,10 +24,9 @@ To: Souptick Joarder <jrdr.linux@gmail.com>
 Cc: kbuild-all@01.org, akpm@linux-foundation.org, rppt@linux.ibm.com, mhocko@suse.com, dan.j.williams@intel.com, willy@infradead.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, william.kucharski@oracle.com
 
 
---BXVAT5kNtrzKuDFl
-Content-Type: text/plain; charset=iso-8859-1
+--u3/rZRmxL6MmkK24
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
 
 Hi Souptick,
 
@@ -47,61 +45,103 @@ reproduce:
 
 All warnings (new ones prefixed by >>):
 
->> kernel/memremap.c:46:34: warning: incorrect type in return expression (different base types)
-   kernel/memremap.c:46:34:    expected restricted vm_fault_t
-   kernel/memremap.c:46:34:    got int
+>> arch/x86/mm/fault.c:1051:39: warning: restricted vm_fault_t degrades to integer
+   arch/x86/mm/fault.c:1057:29: warning: restricted vm_fault_t degrades to integer
+   arch/x86/mm/fault.c:1059:29: warning: restricted vm_fault_t degrades to integer
+>> arch/x86/mm/fault.c:1094:62: warning: incorrect type in argument 4 (different base types)
+   arch/x86/mm/fault.c:1094:62:    expected unsigned int fault
+   arch/x86/mm/fault.c:1094:62:    got restricted vm_fault_t [usertype] fault
 
-vim +46 kernel/memremap.c
+vim +1051 arch/x86/mm/fault.c
 
-9476df7d Dan Williams     2016-01-15  19  
-5042db43 J�r�me Glisse    2017-09-08  20  #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
-2b740303 Souptick Joarder 2018-08-23  21  vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
-5042db43 J�r�me Glisse    2017-09-08  22  		       unsigned long addr,
-5042db43 J�r�me Glisse    2017-09-08  23  		       swp_entry_t entry,
-5042db43 J�r�me Glisse    2017-09-08  24  		       unsigned int flags,
-5042db43 J�r�me Glisse    2017-09-08  25  		       pmd_t *pmdp)
-5042db43 J�r�me Glisse    2017-09-08  26  {
-5042db43 J�r�me Glisse    2017-09-08  27  	struct page *page = device_private_entry_to_page(entry);
-063a7d1d Dan Williams     2018-12-28  28  	struct hmm_devmem *devmem;
-063a7d1d Dan Williams     2018-12-28  29  
-063a7d1d Dan Williams     2018-12-28  30  	devmem = container_of(page->pgmap, typeof(*devmem), pagemap);
-5042db43 J�r�me Glisse    2017-09-08  31  
-5042db43 J�r�me Glisse    2017-09-08  32  	/*
-5042db43 J�r�me Glisse    2017-09-08  33  	 * The page_fault() callback must migrate page back to system memory
-5042db43 J�r�me Glisse    2017-09-08  34  	 * so that CPU can access it. This might fail for various reasons
-5042db43 J�r�me Glisse    2017-09-08  35  	 * (device issue, device was unsafely unplugged, ...). When such
-5042db43 J�r�me Glisse    2017-09-08  36  	 * error conditions happen, the callback must return VM_FAULT_SIGBUS.
-5042db43 J�r�me Glisse    2017-09-08  37  	 *
-5042db43 J�r�me Glisse    2017-09-08  38  	 * Note that because memory cgroup charges are accounted to the device
-5042db43 J�r�me Glisse    2017-09-08  39  	 * memory, this should never fail because of memory restrictions (but
-5042db43 J�r�me Glisse    2017-09-08  40  	 * allocation of regular system page might still fail because we are
-5042db43 J�r�me Glisse    2017-09-08  41  	 * out of memory).
-5042db43 J�r�me Glisse    2017-09-08  42  	 *
-5042db43 J�r�me Glisse    2017-09-08  43  	 * There is a more in-depth description of what that callback can and
-5042db43 J�r�me Glisse    2017-09-08  44  	 * cannot do, in include/linux/memremap.h
-5042db43 J�r�me Glisse    2017-09-08  45  	 */
-063a7d1d Dan Williams     2018-12-28 @46  	return devmem->page_fault(vma, addr, page, flags, pmdp);
-5042db43 J�r�me Glisse    2017-09-08  47  }
-5042db43 J�r�me Glisse    2017-09-08  48  EXPORT_SYMBOL(device_private_entry_fault);
-5042db43 J�r�me Glisse    2017-09-08  49  #endif /* CONFIG_DEVICE_PRIVATE */
-5042db43 J�r�me Glisse    2017-09-08  50  
+92181f190 Nick Piggin       2009-01-20  1031  
+2d4a71676 Ingo Molnar       2009-02-20  1032  static void
+a6e04aa92 Andi Kleen        2009-09-16  1033  do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
+27274f731 Eric W. Biederman 2018-09-18  1034  	  unsigned int fault)
+92181f190 Nick Piggin       2009-01-20  1035  {
+92181f190 Nick Piggin       2009-01-20  1036  	struct task_struct *tsk = current;
+92181f190 Nick Piggin       2009-01-20  1037  
+2d4a71676 Ingo Molnar       2009-02-20  1038  	/* Kernel mode? Handle exceptions or die: */
+1067f0309 Ricardo Neri      2017-10-27  1039  	if (!(error_code & X86_PF_USER)) {
+4fc349011 Andy Lutomirski   2011-11-07  1040  		no_context(regs, error_code, address, SIGBUS, BUS_ADRERR);
+960545691 Linus Torvalds    2010-08-13  1041  		return;
+960545691 Linus Torvalds    2010-08-13  1042  	}
+2d4a71676 Ingo Molnar       2009-02-20  1043  
+cd1b68f08 Ingo Molnar       2009-02-20  1044  	/* User-space => ok to do another page fault: */
+92181f190 Nick Piggin       2009-01-20  1045  	if (is_prefetch(regs, error_code, address))
+92181f190 Nick Piggin       2009-01-20  1046  		return;
+2d4a71676 Ingo Molnar       2009-02-20  1047  
+e49d3cbef Andy Lutomirski   2018-11-19  1048  	set_signal_archinfo(address, error_code);
+2d4a71676 Ingo Molnar       2009-02-20  1049  
+a6e04aa92 Andi Kleen        2009-09-16  1050  #ifdef CONFIG_MEMORY_FAILURE
+f672b49b0 Andi Kleen        2010-09-27 @1051  	if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
+40e553946 Eric W. Biederman 2018-01-19  1052  		unsigned lsb = 0;
+40e553946 Eric W. Biederman 2018-01-19  1053  
+40e553946 Eric W. Biederman 2018-01-19  1054  		pr_err(
+a6e04aa92 Andi Kleen        2009-09-16  1055  	"MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
+a6e04aa92 Andi Kleen        2009-09-16  1056  			tsk->comm, tsk->pid, address);
+40e553946 Eric W. Biederman 2018-01-19  1057  		if (fault & VM_FAULT_HWPOISON_LARGE)
+40e553946 Eric W. Biederman 2018-01-19  1058  			lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
+40e553946 Eric W. Biederman 2018-01-19  1059  		if (fault & VM_FAULT_HWPOISON)
+40e553946 Eric W. Biederman 2018-01-19  1060  			lsb = PAGE_SHIFT;
+40e553946 Eric W. Biederman 2018-01-19  1061  		force_sig_mceerr(BUS_MCEERR_AR, (void __user *)address, lsb, tsk);
+40e553946 Eric W. Biederman 2018-01-19  1062  		return;
+a6e04aa92 Andi Kleen        2009-09-16  1063  	}
+a6e04aa92 Andi Kleen        2009-09-16  1064  #endif
+b4fd52f25 Eric W. Biederman 2018-09-18  1065  	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, tsk);
+92181f190 Nick Piggin       2009-01-20  1066  }
+92181f190 Nick Piggin       2009-01-20  1067  
+3a13c4d76 Johannes Weiner   2013-09-12  1068  static noinline void
+2d4a71676 Ingo Molnar       2009-02-20  1069  mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+25c102d80 Eric W. Biederman 2018-09-18  1070  	       unsigned long address, vm_fault_t fault)
+92181f190 Nick Piggin       2009-01-20  1071  {
+1067f0309 Ricardo Neri      2017-10-27  1072  	if (fatal_signal_pending(current) && !(error_code & X86_PF_USER)) {
+4fc349011 Andy Lutomirski   2011-11-07  1073  		no_context(regs, error_code, address, 0, 0);
+3a13c4d76 Johannes Weiner   2013-09-12  1074  		return;
+b80ef10e8 KOSAKI Motohiro   2011-05-26  1075  	}
+b80ef10e8 KOSAKI Motohiro   2011-05-26  1076  
+2d4a71676 Ingo Molnar       2009-02-20  1077  	if (fault & VM_FAULT_OOM) {
+f86268549 Andrey Vagin      2011-03-09  1078  		/* Kernel mode? Handle exceptions or die: */
+1067f0309 Ricardo Neri      2017-10-27  1079  		if (!(error_code & X86_PF_USER)) {
+4fc349011 Andy Lutomirski   2011-11-07  1080  			no_context(regs, error_code, address,
+4fc349011 Andy Lutomirski   2011-11-07  1081  				   SIGSEGV, SEGV_MAPERR);
+3a13c4d76 Johannes Weiner   2013-09-12  1082  			return;
+f86268549 Andrey Vagin      2011-03-09  1083  		}
+f86268549 Andrey Vagin      2011-03-09  1084  
+c2d23f919 David Rientjes    2012-12-12  1085  		/*
+c2d23f919 David Rientjes    2012-12-12  1086  		 * We ran out of memory, call the OOM killer, and return the
+c2d23f919 David Rientjes    2012-12-12  1087  		 * userspace (which will retry the fault, or kill us if we got
+c2d23f919 David Rientjes    2012-12-12  1088  		 * oom-killed):
+c2d23f919 David Rientjes    2012-12-12  1089  		 */
+c2d23f919 David Rientjes    2012-12-12  1090  		pagefault_out_of_memory();
+2d4a71676 Ingo Molnar       2009-02-20  1091  	} else {
+f672b49b0 Andi Kleen        2010-09-27  1092  		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+f672b49b0 Andi Kleen        2010-09-27  1093  			     VM_FAULT_HWPOISON_LARGE))
+27274f731 Eric W. Biederman 2018-09-18 @1094  			do_sigbus(regs, error_code, address, fault);
+33692f275 Linus Torvalds    2015-01-29  1095  		else if (fault & VM_FAULT_SIGSEGV)
+768fd9c69 Eric W. Biederman 2018-09-18  1096  			bad_area_nosemaphore(regs, error_code, address);
+92181f190 Nick Piggin       2009-01-20  1097  		else
+92181f190 Nick Piggin       2009-01-20  1098  			BUG();
+92181f190 Nick Piggin       2009-01-20  1099  	}
+2d4a71676 Ingo Molnar       2009-02-20  1100  }
+92181f190 Nick Piggin       2009-01-20  1101  
 
-:::::: The code at line 46 was first introduced by commit
-:::::: 063a7d1d3623db31ca5d2309cab6030ebf93b72f mm/hmm: fix memremap.h, move dev_page_fault_t callback to hmm
+:::::: The code at line 1051 was first introduced by commit
+:::::: f672b49b07a4a152fc4251f2aec6b4d05164c4cd x86: HWPOISON: Report correct address granuality for huge hwpoison faults
 
-:::::: TO: Dan Williams <dan.j.williams@intel.com>
-:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
+:::::: TO: Andi Kleen <ak@linux.intel.com>
+:::::: CC: Andi Kleen <ak@linux.intel.com>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---BXVAT5kNtrzKuDFl
+--u3/rZRmxL6MmkK24
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICKXvNVwAAy5jb25maWcAlDzbctw2su/5iinnJaktJ5Isyz7nlB5AEuTAQxIMAM7FLyxF
+H4sICObbNVwAAy5jb25maWcAlDzbctw2su/5iinnJaktJ5Isyz7nlB5AEuTAQxIMAM7FLyxF
 GnlVa0k+I2nX/vvTDfDSADFKTmprLXY37o2+Y37+6ecFe3l+vL96vru++vr1x+LL/mF/uHre
 3yxu777u/2eRyUUtzYJnwvwGxOXdw8v3379/vOguzhfvfzv57eTt4fp0sdofHvZfF+njw+3d
 lxdof/f48NPPP8H/fgbg/Tfo6vDfiy/X128/LH7J9n/eXT0sPvz2Dlqf/ur+ANJU1rkoujTt
@@ -1348,4 +1388,4 @@ M/FTtcA6dWi6MOqnpSfEfvfdHYcp7zzPQMiAPlIJqeKf4o3GPBULtZ6wdEL/YBiEDOebvrFn
 hxyTkTjh2dueLPGIizh27GmbXoqUe5jSes+2hXcDa5/fmFjAhVbx6nqgw82bsxb1YuZ44/8D
 5MyQrA8uBAA=
 
---BXVAT5kNtrzKuDFl--
+--u3/rZRmxL6MmkK24--
