@@ -1,145 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ECDBE8E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 06:16:34 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id l45so1496474edb.1
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 03:16:34 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id s10-v6si2210981ejh.16.2019.01.08.03.16.32
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D9A838E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 07:20:38 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id v24-v6so1779971ljj.10
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 04:20:38 -0800 (PST)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id v23-v6si63981269ljh.63.2019.01.09.04.20.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 03:16:32 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 73F2698B0A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 11:16:32 +0000 (UTC)
-Date: Tue, 8 Jan 2019 11:16:30 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC 1/3] mm, thp: restore __GFP_NORETRY for madvised thp fault
- allocations
-Message-ID: <20190108111630.GN31517@techsingularity.net>
-References: <20181211142941.20500-1-vbabka@suse.cz>
- <20181211142941.20500-2-vbabka@suse.cz>
+        Wed, 09 Jan 2019 04:20:36 -0800 (PST)
+Subject: [PATCH 1/3] mm: Uncharge and keep page in pagecache on memcg reclaim
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Wed, 09 Jan 2019 15:20:24 +0300
+Message-ID: <154703642447.32690.5604527676583713589.stgit@localhost.localdomain>
+In-Reply-To: <154703479840.32690.6504699919905946726.stgit@localhost.localdomain>
+References: <154703479840.32690.6504699919905946726.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20181211142941.20500-2-vbabka@suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, josef@toxicpanda.com, jack@suse.cz, hughd@google.com, ktkhai@virtuozzo.com, darrick.wong@oracle.com, mhocko@suse.com, aryabinin@virtuozzo.com, guro@fb.com, mgorman@techsingularity.net, shakeelb@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 11, 2018 at 03:29:39PM +0100, Vlastimil Babka wrote:
-> Commit 2516035499b9 ("mm, thp: remove __GFP_NORETRY from khugepaged and
-> madvised allocations") intended to make THP faults in MADV_HUGEPAGE areas more
-> successful for processes that indicate that they are willing to pay a higher
-> initial setup cost for long-term THP benefits. In the current page allocator
-> implementation this means that the allocations will try to use reclaim and the
-> more costly sync compaction mode, in case the initial direct async compaction
-> fails.
-> 
+This patch makes __remove_mapping() not remove a page from
+pagecache on memcg reclaim. After all mappings are removed
+and refcounter is freezed, we uncharge page memcg. Further
+putback_lru_page() places page into root_mem_cgroup, so it
+remains in pagecache till global reclaim. This gives memcg
+tasks extra possibility to obtain page from pagecache
+instead of launching IO.
 
-First off, I'm going to have trouble reasoning about this because there
-is also my own series that reduces compaction failure rates. If that
-series get approved, then it's far more likely that when compaction
-fails that we really mean it and retries from the page allocator context
-may be pointless unless the caller indicates it should really retry for
-a long time.
+Next patch makes pagecache_get_page() to recharge a page
+in case of its memcg is NULL (i.e., on first access after
+uncharging). It looks to be the only function, which is
+used by filesystems to obtain a pagecache page. Here we
+introduce AS_KEEP_MEMCG_RECLAIM flag to mark the filesystems,
+which are reviewed, that they really follow this way. It
+has a sense to keep pages in __remove_mapping() only for
+them. Later, we remove this flags after all filesystems are
+reviewed.
 
-The corner case I have in mind is a compaction failure on a very small
-percentage of remaining pageblocks that are currently under writeback.
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ include/linux/pagemap.h |    1 +
+ mm/vmscan.c             |   22 ++++++++++++++++++----
+ 2 files changed, 19 insertions(+), 4 deletions(-)
 
-It also means that the merit of this series needs to account for whether
-it's before or after the compaction series as the impact will be
-different. FWIW, I had the same problem with evaluating the compaction
-series on the context of __GFP_THISNODE vs !__GFP_THISNODE
-
-> However, THP faults also include __GFP_THISNODE, which, combined with direct
-> reclaim, can result in a node-reclaim-like local node thrashing behavior, as
-> reported by Andrea [1].
-> 
-> While this patch is not a full fix, the first step is to restore __GFP_NORETRY
-> for madvised THP faults. The expected downside are potentially worse THP
-> fault success rates for the madvised areas, which will have to then rely more
-> on khugepaged. For khugepaged, __GFP_NORETRY is not restored, as its activity
-> should be limited enough by sleeping to cause noticeable thrashing.
-> 
-> Note that alloc_new_node_page() and new_page() is probably another candidate as
-> they handle the migrate_pages(2), resp. mbind(2) syscall, which can thus allow
-> unprivileged node-reclaim-like behavior.
-> 
-> The patch also updates the comments in alloc_hugepage_direct_gfpmask() because
-> elsewhere compaction during page fault is called direct compaction, and
-> 'synchronous' refers to the migration mode, which is not used for THP faults.
-> 
-> [1] https://lkml.kernel.org/m/20180820032204.9591-1-aarcange@redhat.com
-> 
-> Reported-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> ---
->  mm/huge_memory.c | 13 ++++++-------
->  1 file changed, 6 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 5da55b38b1b7..c442b12b060c 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -633,24 +633,23 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
->  {
->  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
->  
-> -	/* Always do synchronous compaction */
-> +	/* Always try direct compaction */
->  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
-> -		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
-> +		return GFP_TRANSHUGE | __GFP_NORETRY;
->  
-
-While I get that you want to reduce thrashing, the configuration item
-really indicates the system (not just the caller, but everyone) is willing
-to take a hit to get a THP.
-
->  	/* Kick kcompactd and fail quickly */
->  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
->  		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
->  
-> -	/* Synchronous compaction if madvised, otherwise kick kcompactd */
-> +	/* Direct compaction if madvised, otherwise kick kcompactd */
->  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
->  		return GFP_TRANSHUGE_LIGHT |
-> -			(vma_madvised ? __GFP_DIRECT_RECLAIM :
-> +			(vma_madvised ? (__GFP_DIRECT_RECLAIM | __GFP_NORETRY):
->  					__GFP_KSWAPD_RECLAIM);
->  
-
-Similar note.
-
-> -	/* Only do synchronous compaction if madvised */
-> +	/* Only do direct compaction if madvised */
->  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
-> -		return GFP_TRANSHUGE_LIGHT |
-> -		       (vma_madvised ? __GFP_DIRECT_RECLAIM : 0);
-> +		return vma_madvised ? (GFP_TRANSHUGE | __GFP_NORETRY) : GFP_TRANSHUGE_LIGHT;
->  
-
-Similar note.
-
-That said, if this series went in before the compaction series then I
-would think it's ok and I would Ack it. However, *after* the compaction
-series, I think it would make more sense to rip out or severely reduce the
-complex should_compact_retry logic and move towards "if compaction returns,
-the page allocator should take its word for it except in extreme cases".
-
-Compaction previously was a bit too casual about partially scanning
-backblocks and the setting/clearing of pageblock bits. The retry logic
-sortof dealt with it by making reset/clear cycles very frequent but
-after the series, they are relatively rare[1].
-
-[1] Says he bravely before proven otherwise
-
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 1020e6f40880..1b880da85868 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -29,6 +29,7 @@ enum mapping_flags {
+ 	AS_EXITING	= 4, 	/* final truncate in progress */
+ 	/* writeback related tags are not used */
+ 	AS_NO_WRITEBACK_TAGS = 5,
++	AS_KEEP_MEMCG_RECLAIM = 6,
+ };
+ 
+ /**
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a714c4f800e9..7237603c8973 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -887,7 +887,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
+  * gets returned with a refcount of 0.
+  */
+ static int __remove_mapping(struct address_space *mapping, struct page *page,
+-			    bool reclaimed)
++			    bool reclaimed, bool memcg_reclaim)
+ {
+ 	unsigned long flags;
+ 	int refcount;
+@@ -963,7 +963,20 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+ 		if (reclaimed && page_is_file_cache(page) &&
+ 		    !mapping_exiting(mapping) && !dax_mapping(mapping))
+ 			shadow = workingset_eviction(mapping, page);
+-		__delete_from_page_cache(page, shadow);
++#ifdef CONFIG_MEMCG
++		if (memcg_reclaim &&
++		    test_bit(AS_KEEP_MEMCG_RECLAIM, &mapping->flags)) {
++			/*
++			 * Page is not dirty/writeback/mapped, so we may avoid
++			 * taking mem_cgroup::move_lock for changing its memcg.
++			 * See mem_cgroup_move_account() for details.
++			 */
++			mem_cgroup_uncharge(page);
++			page_ref_unfreeze(page, refcount);
++			goto cannot_free;
++		} else
++#endif
++			__delete_from_page_cache(page, shadow);
+ 		xa_unlock_irqrestore(&mapping->i_pages, flags);
+ 
+ 		if (freepage != NULL)
+@@ -985,7 +998,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+  */
+ int remove_mapping(struct address_space *mapping, struct page *page)
+ {
+-	if (__remove_mapping(mapping, page, false)) {
++	if (__remove_mapping(mapping, page, false, false)) {
+ 		/*
+ 		 * Unfreezing the refcount with 1 rather than 2 effectively
+ 		 * drops the pagecache ref for us without requiring another
+@@ -1458,7 +1471,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 			count_vm_event(PGLAZYFREED);
+ 			count_memcg_page_event(page, PGLAZYFREED);
+-		} else if (!mapping || !__remove_mapping(mapping, page, true))
++		} else if (!mapping || !__remove_mapping(mapping, page, true,
++							!global_reclaim(sc)))
+ 			goto keep_locked;
+ 
+ 		unlock_page(page);
