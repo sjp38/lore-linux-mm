@@ -1,78 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F0D838E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 02:41:08 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id 202so28366671pgb.6
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 23:41:08 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id t5si50603594pgc.369.2019.01.02.23.41.07
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C97C8E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:47:59 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id c14so4552196pls.21
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:47:59 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.47.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jan 2019 23:41:07 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [v4 PATCH 2/2] mm: swap: add comment for swap_vma_readahead
-References: <1546145375-793-1-git-send-email-yang.shi@linux.alibaba.com>
-	<1546145375-793-2-git-send-email-yang.shi@linux.alibaba.com>
-Date: Thu, 03 Jan 2019 15:41:05 +0800
-In-Reply-To: <1546145375-793-2-git-send-email-yang.shi@linux.alibaba.com>
-	(Yang Shi's message of "Sun, 30 Dec 2018 12:49:35 +0800")
-Message-ID: <875zv6w5m6.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        Wed, 09 Jan 2019 09:47:58 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv3 05/13] Documentation/ABI: Add new node sysfs attributes
+Date: Wed,  9 Jan 2019 10:43:33 -0700
+Message-Id: <20190109174341.19818-6-keith.busch@intel.com>
+In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
+References: <20190109174341.19818-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: tim.c.chen@intel.com, minchan@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-Yang Shi <yang.shi@linux.alibaba.com> writes:
+Add entries for memory initiator and target node class attributes.
 
-> swap_vma_readahead()'s comment is missed, just add it.
->
-> Cc: Huang Ying <ying.huang@intel.com>
-> Cc: Tim Chen <tim.c.chen@intel.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  mm/swap_state.c | 17 +++++++++++++++++
->  1 file changed, 17 insertions(+)
->
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 78d500e..dd8f698 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -698,6 +698,23 @@ static void swap_ra_info(struct vm_fault *vmf,
->  	pte_unmap(orig_pte);
->  }
->  
-> +/**
-> + * swap_vm_readahead - swap in pages in hope we need them soon
+Signed-off-by: Keith Busch <keith.busch@intel.com>
+---
+ Documentation/ABI/stable/sysfs-devices-node | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
 
-s/swap_vm_readahead/swap_vma_readahead/
-
-> + * @entry: swap entry of this memory
-> + * @gfp_mask: memory allocation flags
-> + * @vmf: fault information
-> + *
-> + * Returns the struct page for entry and addr, after queueing swapin.
-> + *
-> + * Primitive swap readahead code. We simply read in a few pages whoes
-> + * virtual addresses are around the fault address in the same vma.
-> + *
-> + * This has been extended to use the NUMA policies from the mm triggering
-> + * the readahead.
-
-What is this?  I know you copy it from swap_cluster_readahead(), but we
-have only one mm for vma readahead.
-
-> + * Caller must hold down_read on the vma->vm_mm if vmf->vma is not NULL.
-
-Better to make it explicit that your are talking about mmap_sem?
-
-Best Regards,
-Huang, Ying
-
-> + *
-> + */
->  static struct page *swap_vma_readahead(swp_entry_t fentry, gfp_t gfp_mask,
->  				       struct vm_fault *vmf)
->  {
+diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+index 3e90e1f3bf0a..a9c47b4b0eee 100644
+--- a/Documentation/ABI/stable/sysfs-devices-node
++++ b/Documentation/ABI/stable/sysfs-devices-node
+@@ -90,4 +90,27 @@ Date:		December 2009
+ Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
+ Description:
+ 		The node's huge page size control/query attributes.
+-		See Documentation/admin-guide/mm/hugetlbpage.rst
+\ No newline at end of file
++		See Documentation/admin-guide/mm/hugetlbpage.rst
++
++What:		/sys/devices/system/node/nodeX/classY/
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		The node's relationship to other nodes for access class "Y".
++
++What:		/sys/devices/system/node/nodeX/classY/initiator_nodelist
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		The node list of memory initiators that have class "Y" access
++		to this node's memory. CPUs and other memory initiators in
++		nodes not in the list accessing this node's memory may have
++		different performance.
++
++What:		/sys/devices/system/node/nodeX/classY/target_nodelist
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		The node list of memory targets that this initiator node has
++		class "Y" access. Memory accesses from this node to nodes not
++		in this list may have differet performance.
+-- 
+2.14.4
