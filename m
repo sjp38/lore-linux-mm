@@ -2,153 +2,183 @@ Return-Path: <SRS0=IlG+=PR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BDD35C43387
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 15:25:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6642BC43612
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:09:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C192206BA
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 15:25:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C192206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=whu.edu.cn
+	by mail.kernel.org (Postfix) with ESMTP id 24E77206BB
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:09:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24E77206BB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D2238E009E; Wed,  9 Jan 2019 10:25:00 -0500 (EST)
+	id CD4818E009F; Wed,  9 Jan 2019 11:09:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 181938E0038; Wed,  9 Jan 2019 10:25:00 -0500 (EST)
+	id C830F8E0038; Wed,  9 Jan 2019 11:09:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 04A878E009E; Wed,  9 Jan 2019 10:25:00 -0500 (EST)
+	id B99BB8E009F; Wed,  9 Jan 2019 11:09:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B98538E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 10:24:59 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id d3so4313606pgv.23
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 07:24:59 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 770858E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:09:13 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id b8so5542914pfe.10
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:09:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :references:in-reply-to:subject:date:message-id:mime-version
-         :content-transfer-encoding:thread-index:content-language;
-        bh=3LKxE6zAvs+nYtuCq90r+nGTFMn9Pph1/xm+joxpk8o=;
-        b=rmasLJyGsiStH3YSRax7Kqdcl268KEn/CjQXaXWmuGefza/RUc/xfJcur7o9xJ26is
-         icGuVFFlsjHjpA4fxX+ro8Nwrf6K3uH+hKsThNvzVhbbRmolSrLTuUV18slAqudB+J2M
-         2D8Nt9RjlL9X7wFA9Qjs8pzZFdRIodNNmNeQqOldfYyKuKfAKPny9jTjIWbvM86/33gb
-         LTqwMo8kLAfxDCctqjnJwyPCGH0SVKawixoQLgvjsMtV4bwwDpKFBTWyXYEEdhhXQfqZ
-         k/CY+gT3djMwxQvEAzw2UwZnfLihB3Lt1kdDuofkbL6AolWdit92UWHaWVOkDhMtPQyh
-         +LRQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rocking@whu.edu.cn designates 159.65.134.6 as permitted sender) smtp.mailfrom=rocking@whu.edu.cn
-X-Gm-Message-State: AJcUukdAIqPuniROOrJ1cNkgVi59qnZKpYqd8dwZS2h7ZKG9Og3YaBAE
-	jqs8syiQ0RYKvYc1HPr/WqgjKVKQbJJtmIdUXfai/8SrNljDlIfI6DJEBYd8ywdS+UMwI0FDYcX
-	VPglniMnPL95P0Tcs6pSXHdljUZEN1d7UYFfuC7CHcq5cd+6rRbiL02+lohvKaajR3g==
-X-Received: by 2002:a63:658:: with SMTP id 85mr5726855pgg.373.1547047499446;
-        Wed, 09 Jan 2019 07:24:59 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4MefKahGGqbilqnjIb1UPChqE2sMRbYkRj/XKsBZ9SONP4vNb3Vwx6L3D8KVRiM2RYvlAl
-X-Received: by 2002:a63:658:: with SMTP id 85mr5726817pgg.373.1547047498728;
-        Wed, 09 Jan 2019 07:24:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547047498; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=EE/0BkdGGAB6magwhJ8ugQ7KDd8Q/T2tsYZKliX9xAg=;
+        b=LZusDdsuDcoKsfQQJWALmMcTaAIy18wWFNuTSm2fLMAn7tCpQyPCmnmoI+x6EZM6vo
+         JZETEQ53/HTdLyEl6/GlPLQmvbUmjwlYcIl5bPqDrr+ZfPNTAEBwIrKkc84D3QbaRX+S
+         s6elROeZE1WhBlrm3S9EWxLe/iL/C21pcz1zuTI1j7TtudAlGKyhpzFeHVwo3mH38yvP
+         Um1uLk33gi2zHd4+U6iZD6uAKucYhr6NdGLeqXXcMJJzNQCNOcCSrbanZlrgx9l4GMRa
+         PFVdtwjSLEdsgj6D/uvLm6PuszlQ5lxXegxkgAtrq4Sa6oV0NAIneFx9KzzyCzYDuxm9
+         HMZw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukeSHSoOdwlVlt80sPmbeEcytToudxlXocMuMOxpqvSKlrH+qq3N
+	EqARTMyCpLXtMdiBIz+5vbF0qYfivCJIiFjA1EX9SgXL8u2vsU4Acw/oRIx2AsCwWE0IDQLzxUe
+	oicguCxIh2rXaFZEe8R5WV6GgM40Mzf62VwsbdbwfTWn50C1xqQyr1fKI0ysgWn+wdw==
+X-Received: by 2002:a62:8893:: with SMTP id l141mr6438719pfd.1.1547050153129;
+        Wed, 09 Jan 2019 08:09:13 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN73d41SsF3pHUIVbGvgQwRe137KVuBTrnpMvS3vnsHFWC5TWsBYnxIED/ASznRoyNILUnKi
+X-Received: by 2002:a62:8893:: with SMTP id l141mr6438657pfd.1.1547050152364;
+        Wed, 09 Jan 2019 08:09:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547050152; cv=none;
         d=google.com; s=arc-20160816;
-        b=sLTBEy3evpSKYVtXbCZY6WmHfDgizILh37wmdylHigSI31hqYDeR/BJGVOUGtaZ0wB
-         qspnn/ueWbEGtJ/pqqaUCbrkxwN5ADYaZM8fugjmkJyr/aF/jJ+tEn/gJUv/2fkwsOBT
-         BwVqcsD1gl1hR43rgfiv5pc5TZlYEcalem7IS1AMpIqAPZI4Giv6LCxTKl+YcgVHFt7V
-         HZAH1vC2lymd3fl9VeLeDQ75QMxYrOyO464hUgkRDxJTHx/7ugMMKhggLvrvrgYzQbl3
-         rEAy+T3HwIJqNk9bOTLyFnAwAL29wy8MAVbuN7NAzctud0FVjdwFzaUceE9cGbdQxns6
-         SR9w==
+        b=L8MzrNTxPNbexYYu5fJ0waMH//UoZegVSYkgvP4rbAB4ms0CceOPsp8nEHLPm9aJOe
+         zafYcDz5XrJxAs6162PgUPN2sw95bdzJgzFYPEemKe0iEMOBrFcJDvAPhJf3sGk68X5J
+         vA2n9KHIEzofEfsxzVPha2tlxz1JbLevTeXJ5gJwzpWjR1GYHzXw4i+GKgWTmyJIZQi7
+         DCK6gNSFs88B9UKDOajsNJZ3lmn2AuWGKqHaONUYGIr+3ySBDbj12NhnOotJafCc0w6v
+         77x3T2S5XN53fsXmlcrbaA+s96H7Na5lZdo7V37n/Lu7Z2pH9X0dpN4X8E4DvaQMIBPp
+         9oqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:thread-index:content-transfer-encoding
-         :mime-version:message-id:date:subject:in-reply-to:references:cc:to
-         :from;
-        bh=3LKxE6zAvs+nYtuCq90r+nGTFMn9Pph1/xm+joxpk8o=;
-        b=w1fIrw073RXNlj6o4zlAsrH2M2mvhn53nBGIP2AETttZjb6MLk1i+570DusEktf7rk
-         NeUm9VYdIH/Z0kTbdEeEmCiYQ8xlgzJQ6WRt8gMEzrjCuhwmiTTV1jlAbjWQ9ysismmI
-         2rGReh+vt7LF4x+l9+A4TxEgbxb3uKN7AewEYyhrJYhnie7TdrmFYavI/TrjvVcF1YSM
-         VL2i7sFwfRfv+HHirUTWEy/UH8QAQ0xX9qEI2MGPQh+4B9fZHzEX/Ye2ZEzuaHHH+RwI
-         NIpxGo6HUNFYYdqBZQrBpDCCpnUVoYldJS4LZc6wMbLN9U8fYgpEk4qtmTxXWkWT5i10
-         FLMw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=EE/0BkdGGAB6magwhJ8ugQ7KDd8Q/T2tsYZKliX9xAg=;
+        b=O1/BniC/EOwtMme/7htBHeLxleEfRRj5slwtl+T8HqgnmCSPmAlg7NybgHXFFniRQQ
+         r/xjCEmXQ1ZN/Lip2Z64Rha12XFbqrM+ezP4Bgn9REJW+gl6wRQDTaPlNubSuQf87oQ0
+         qMdSToa03U0C6w/wk3q6zWodI8Aeo3HTqqnkoXT9T1yRGi5Q9CwCS5+lf+UkErWi0kdz
+         +Z7xthFmDNSURnOuCBUStYYCKZlhgNfXsjeN19jsgaU22Cazam8JGg6fScwzMnfzABye
+         RtvkEabkRzxh28xWdYBO/U+c5opQnCx1QjFFk/c51j8SoH+ydXK3Vb/ViEVFBKgDJDMt
+         jtzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rocking@whu.edu.cn designates 159.65.134.6 as permitted sender) smtp.mailfrom=rocking@whu.edu.cn
-Received: from zg8tmtu5ljy1ljeznc42.icoremail.net (zg8tmtu5ljy1ljeznc42.icoremail.net. [159.65.134.6])
-        by mx.google.com with SMTP id i16si66128209pgk.445.2019.01.09.07.24.58
-        for <linux-mm@kvack.org>;
-        Wed, 09 Jan 2019 07:24:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of rocking@whu.edu.cn designates 159.65.134.6 as permitted sender) client-ip=159.65.134.6;
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id 101si71045016pld.22.2019.01.09.08.09.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Jan 2019 08:09:12 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rocking@whu.edu.cn designates 159.65.134.6 as permitted sender) smtp.mailfrom=rocking@whu.edu.cn
-Received: from MI20170214RZUL (unknown [114.255.247.135])
-	by email2 (Coremail) with SMTP id AgBjCgDX3zc8EjZcB5YRCg--.43451S3;
-	Wed, 09 Jan 2019 23:24:47 +0800 (CST)
-From: "Peng Wang" <rocking@whu.edu.cn>
-To: "'Matthew Wilcox'" <willy@infradead.org>
-Cc: <cl@linux.com>,
-	<penberg@kernel.org>,
-	<rientjes@google.com>,
-	<iamjoonsoo.kim@lge.com>,
-	<akpm@linux-foundation.org>,
-	<linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>
-References: <20190109090628.1695-1-rocking@whu.edu.cn> <20190109121352.GI6310@bombadil.infradead.org>
-In-Reply-To: <20190109121352.GI6310@bombadil.infradead.org>
-Subject: RE: [PATCH] mm/slub.c: re-randomize random_seq if necessary
-Date: Wed, 9 Jan 2019 23:24:44 +0800
-Message-ID: <000501d4a82f$74821b40$5d8651c0$@whu.edu.cn>
-MIME-Version: 1.0
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Jan 2019 08:09:11 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,458,1539673200"; 
+   d="scan'208";a="116778211"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga003.jf.intel.com with ESMTP; 09 Jan 2019 08:09:11 -0800
+Message-ID: <fa89d216da811e97428ad155770bcca5eddecc37.camel@linux.intel.com>
+Subject: Re: [PATCH v7] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Arun KS <arunks@codeaurora.org>
+Cc: arunks.linux@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, 
+	vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, 
+	linux-mm@kvack.org, getarunks@gmail.com
+Date: Wed, 09 Jan 2019 08:09:11 -0800
+In-Reply-To: <fdc656df7c54819f60d9a1682c84b14f@codeaurora.org>
+References: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
+	 <7c81c8bc741819e87e9a2a39a8b1b6d2f8d3423a.camel@linux.intel.com>
+	 <fdc656df7c54819f60d9a1682c84b14f@codeaurora.org>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-X-Mailer: Microsoft Outlook 16.0
-Thread-Index: AQHS10gH9bp1oZXRh7a3ROcd3vd+NwIerMmLpZmMotA=
-Content-Language: zh-cn
-X-CM-TRANSID:AgBjCgDX3zc8EjZcB5YRCg--.43451S3
-X-Coremail-Antispam: 1UD129KBjvdXoWrurW5tr4rCr4fCw15Zw43KFg_yoWDGrg_Za
-	4IvFyDAa15Wr4DWa45Ca15ZryxKr9ruF18t34kGr12qryvqrZrA3W5W34xu3WIvFn8GrW3
-	Ar4kJa1xAasakjkaLaAFLSUrUUUUUb8apTn2vfkv8UJUUUU8Yxn0WfASr-VFAUDa7-sFnT
-	9fnUUIcSsGvfJTRUUUb2xYjsxI4VWxJwAYFVCjjxCrM7AC8VAFwI0_Gr0_Xr1l1xkIjI8I
-	6I8E6xAIw20EY4v20xvaj40_Wr0E3s1l1IIY67AEw4v_Jr0_Jr4l8cAvFVAK0II2c7xJM2
-	8CjxkF64kEwVA0rcxSw2x7M28EF7xvwVC0I7IYx2IY67AKxVW7JVWDJwA2z4x0Y4vE2Ix0
-	cI8IcVCY1x0267AKxVWxJVW8Jr1l84ACjcxK6I8E87Iv67AKxVW0oVCq3wA2z4x0Y4vEx4
-	A2jsIEc7CjxVAFwI0_GcCE3s1le2I262IYc4CY6c8Ij28IcVAaY2xG8wAqx4xG64xvF2IE
-	w4CE5I8CrVC2j2WlYx0E2Ix0cI8IcVAFwI0_Jr0_Jr4lYx0Ex4A2jsIE14v26r1j6r4UMc
-	vjeVCFs4IE7xkEbVWUJVW8JwACjcxG0xvY0x0EwIxGrwCY02Avz4vE14v_XrWl42xK82IY
-	c2Ij64vIr41l4I8I3I0E4IkC6x0Yz7v_Jr0_Gr1lx2IqxVAqx4xG67AKxVWUJVWUGwC20s
-	026x8GjcxK67AKxVWUGVWUWwC2zVAF1VAY17CE14v26r1q6r43MIIYrxkI7VAKI48JMIIF
-	0xvE2Ix0cI8IcVAFwI0_Jr0_JF4lIxAIcVC0I7IYx2IY6xkF7I0E14v26r1j6r4UMIIF0x
-	vE42xK8VAvwI8IcIk0rVWrJr0_WFyUJwCI42IY6I8E87Iv67AKxVWUJVW8JwCI42IY6I8E
-	87Iv6xkF7I0E14v26r4j6r4UJbIYCTnIWIevJa73UjIFyTuYvjxU4znQUUUUU
-X-CM-SenderInfo: qsqrijaqrviiqqxyq4lkxovvfxof0/
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.004773, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190109152444.RLNtgft24Zf4QvzLP7eYXdIUXuYx8Cv5epW8Xm3tOQ0@z>
+Message-ID: <20190109160911.JoKS2RXnecutMJzbly8Fld0TbBNz8_mTfmXHk7zj4B4@z>
 
-
-On Wednesday, January 9, 2019 8:14 PM, Matthew Wilcox wrote:
-> On Wed, Jan 09, 2019 at 05:06:27PM +0800, Peng Wang wrote:
-> > calculate_sizes() could be called in several places
-> > like (red_zone/poison/order/store_user)_store() while
-> > random_seq remains unchanged.
-> >
-> > If random_seq is not NULL in calculate_sizes(), re-randomize it.
+On Wed, 2019-01-09 at 11:51 +0530, Arun KS wrote:
+> On 2019-01-09 03:47, Alexander Duyck wrote:
+> > On Fri, 2019-01-04 at 10:31 +0530, Arun KS wrote:
+> > > When freeing pages are done with higher order, time spent on 
+> > > coalescing
+> > > pages by buddy allocator can be reduced.  With section size of 256MB, 
+> > > hot
+> > > add latency of a single section shows improvement from 50-60 ms to 
+> > > less
+> > > than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> > > external providers of online callback to align with the change.
+> > > 
+> > > Signed-off-by: Arun KS <arunks@codeaurora.org>
+> > > Acked-by: Michal Hocko <mhocko@suse.com>
+> > > Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> > 
+> > Sorry, ended up encountering a couple more things that have me a bit
+> > confused.
+> > 
+> > [...]
+> > 
+> > > diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> > > index 5301fef..211f3fe 100644
+> > > --- a/drivers/hv/hv_balloon.c
+> > > +++ b/drivers/hv/hv_balloon.c
+> > > @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, 
+> > > unsigned long size,
+> > >  	}
+> > >  }
+> > > 
+> > > -static void hv_online_page(struct page *pg)
+> > > +static int hv_online_page(struct page *pg, unsigned int order)
+> > >  {
+> > >  	struct hv_hotadd_state *has;
+> > >  	unsigned long flags;
+> > > @@ -783,10 +783,12 @@ static void hv_online_page(struct page *pg)
+> > >  		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+> > >  			continue;
+> > > 
+> > > -		hv_page_online_one(has, pg);
+> > > +		hv_bring_pgs_online(has, pfn, (1UL << order));
+> > >  		break;
+> > >  	}
+> > >  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
+> > > +
+> > > +	return 0;
+> > >  }
+> > > 
+> > >  static int pfn_covered(unsigned long start_pfn, unsigned long 
+> > > pfn_cnt)
+> > 
+> > So the question I have is why was a return value added to these
+> > functions? They were previously void types and now they are int. What
+> > is the return value expected other than 0?
 > 
-> Why do we want to re-randomise the slab at these points?
+> Earlier with returning a void there was now way for an arch code to 
+> denying onlining of this particular page. By using an int as return 
+> type, we can implement this. In one of the boards I was using, there are 
+> some pages which should not be onlined because they are used for other 
+> purposes(like secure trust zone or hypervisor).
 
-At these points, s->size might change,
-but random_seq still use the old size and not updated.
+So where is the code using that? I don't see any functions in the
+kernel that are returning anything other than 0. Maybe you should hold
+off on changing the return type and make that a separate patch to be
+enabled when you add the new functions that can return non-zero values.
 
-When doing shuffle_freelist() in allocat_slab(),
-old next object offset would be used. 
-
-    idx = s->random_seq[*pos];
-
-One possible case:
-
-s->size gets smaller, then number of objects in a slab gets bigger.
-The size of s->random_seq array should be bigger but not updated.
-In next_freelist_entry(), *pos might exceed the s->random_seq.
-
-When we get zero value from s->random_seq[*pos] twice after exceeding,
-BUG_ON(object == fp) would be triggered in set_freepointer().
+That way if someone wants to backport this they are just getting the
+bits needed to enable the improved hot-plug times without adding the
+extra overhead for changing the return type.
 
 
