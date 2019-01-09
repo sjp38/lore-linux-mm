@@ -2,136 +2,198 @@ Return-Path: <SRS0=IlG+=PR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AB2DC43387
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:37:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C546EC43387
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:40:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 45C54205C9
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:37:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="NfJyBJNP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45C54205C9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 859E5206BB
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:40:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 859E5206BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D84458E00A0; Wed,  9 Jan 2019 11:37:57 -0500 (EST)
+	id 236F28E00A0; Wed,  9 Jan 2019 11:40:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D0A068E0038; Wed,  9 Jan 2019 11:37:57 -0500 (EST)
+	id 1E4FB8E0038; Wed,  9 Jan 2019 11:40:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD3298E00A0; Wed,  9 Jan 2019 11:37:57 -0500 (EST)
+	id 0AD038E00A0; Wed,  9 Jan 2019 11:40:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B0498E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:37:57 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id p65-v6so1961572ljb.16
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:37:57 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A26738E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:40:39 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id e29so3207767ede.19
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:40:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=hpOd4KOhVWXZ0ZdlLnkpFIAFTQUwdhkSA+jWkyxu/bA=;
-        b=mBtE+8W1at9H7Le00k4rNu1VJA9ZAe7i+ZvVTgyGxuY2mM8gH+EAm8jMENGcdYApCu
-         al86QcP5jLU5SLByTxt9NHEhYJUpMVH3mFcaYRi4MOOi39NT5qPlcVohQOXCtFUWTG03
-         GFde6QhZNtYPiqsNPQ6UpDhBR9097fW3TIAwF88fduUfE6RrdHb+t/jS47ri4Q0FkfOj
-         SQaNRt1g1DYsH0p9dk1/QGhTaBZlyq6PbBXA11mcIB9Q46+gzs7GGW9Xs/SD2TSNPRRv
-         8dsS/lrwjZWMs7/4dGfFrNrw770DNKGeI8AOZMw+F/gwQHvUkqAmYw7PFmxWkPv5h+4g
-         Fuig==
-X-Gm-Message-State: AJcUukdMaOnsAkjoUyElikYsqMeL8tkpwXiYUOX1M3j+8Q8AwcAmPASO
-	k8+f98PGgE3OjOl1PaXq4cQ9z28vImGGfCA4vqKD+OdeR23N/3nVh1zzdeU0M+LH9QcZMZVx6iI
-	KI/Bk58yp4qCLkIR6MFzjEU6fXTeYk7kRoHCf3krqK3HjOWbeEC6qkTfTnRVLNANq6U87tyrVcj
-	doeN25hmUSO7dDavjMNu27g2Uvrfnt8EDNjgAbX99JsSodv7GSyiRC/UZ+9SE0pQXKpi9rTMWAf
-	w6VIvW3GUsNP54bj1HrRLINf3wYSdRkm4BjWCCt0HZ847/9eTp4XtMyezZrTF+Acvt6kw3aWkTj
-	zS3QQr/J/ewji+PwCIKYStls0rf8wnzbM7/fWpg3I8BTsSVXL+LWHZY48hkvBua/POoc4RXqR6V
-	K
-X-Received: by 2002:a19:2106:: with SMTP id h6mr3798957lfh.29.1547051876608;
-        Wed, 09 Jan 2019 08:37:56 -0800 (PST)
-X-Received: by 2002:a19:2106:: with SMTP id h6mr3798919lfh.29.1547051875744;
-        Wed, 09 Jan 2019 08:37:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547051875; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=aDvrgZgqyB2GQtMjh4VtH5ecdHk0OysmftWgol7M3xg=;
+        b=EbkQtarb1sOb8mYGnaFmjEZzkMwQHxbmMXpDQaqPjOK9x032l7Zjl+8Ntcb0pZ5TLk
+         cPKiDdxY0ZKo4N7kQsIcgE/eXsr7ejuoC23XA3GBmETihU0n0rguo3zbiEevmpop/G/2
+         6sGrald+VOzcaRKCUjmf63G7YQ1EB48kw4Uh5RnTe42QqOyOczu/pF4Nahps4zOC2QoP
+         BaaTJAVq3KFPhAztnAYH8fBkciqcgJYxj8+Peyr6zfpDYaUzQXbAsKySoKhYXMWmj8Fn
+         1foE95hv04xLehAtcHRMiU/8twekWpOSEKfzdCB9g0VcpVkoef94ok1cuKQg3SBt797O
+         4ILA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rpenyaev@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=rpenyaev@suse.de
+X-Gm-Message-State: AJcUukcoypvQLgKIT5rIYBOZfCHjxjD3vBG1ZKgaCT4vXwPKLp6K/aT2
+	hcm1Lu26hrLFsUdFWdsp3wvGHdiHpBBQlQQZauk/3cEuSCbXmVkGzNRdMKD1DR2Q4ySKGikosS/
+	qnDXRBjp/Rl/67xwj/3Ib+raFAcYN6wMZbgdnW2RdCBDtcWR0pWVR+c7KgIALTUk4Hw==
+X-Received: by 2002:a17:906:c288:: with SMTP id r8-v6mr6015099ejz.9.1547052039093;
+        Wed, 09 Jan 2019 08:40:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4qfYDFRuvuAdvV8QpLJETHu4/njNIKqimTQSSr8tvwTuWIsh35SkN1dgCyrGkX13LRyOaG
+X-Received: by 2002:a17:906:c288:: with SMTP id r8-v6mr6015031ejz.9.1547052037657;
+        Wed, 09 Jan 2019 08:40:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547052037; cv=none;
         d=google.com; s=arc-20160816;
-        b=uOri/X5c+mTs8Pv2Et/kF7AkDzC+q45w9tTMK2kTR7w2wwV3Lpr0a+ZerDKNa0r9Dz
-         uZ30TWOmMp8kaAMsPoqM8Yub8StLS3HgeHV5snDpXn6GuuvNOWmHJAsOoekp1Iuzb1jt
-         sE21QDDKy3s3iHObko95XvnGDhXXgphal9dxmxaXTVpok8WTCPaiAm3Sd/TleXKqep18
-         +7GfIW34tYTTJQ65RNMbknNuRxX5qbL9dPl/MAJDctcOl+qg03n7L1VHCwskrI2KNh6u
-         cI7mrh6LGJAi9kRlgvS9Kl+49Jz0f+o7vfnsNxxcDIN96gbI6MV3nAmN2GQ/G4T/PeOg
-         sFCA==
+        b=wmVzY5f1ANpY4+BJiE+thEpBOA2PrmSqKvAqj3fUwnidl/md2+dx/EVxvSFuDM+Ilm
+         y9l6d32pICrbZM7pm84iLQ+z41dY3WV/MwspqLYuxlDOp/hn/ry0phQuDLsb8GCP1yao
+         nrsKQFbomU/WUKbWXZiFi7fnZ6qK9p1XKdITIkEQFdUrUUMnlojTSNu4YpQ36aJSqLUg
+         +9OE4i8+tWO9menDuYh8yWzARybkBLumP3EQrBtEeaJciiJe5WMEby29AeP/tlJuBfE6
+         Qm7Xz5Lhg7mPQp5GxuhdAtQ/S99k1Ft1TCNkLOLDERNfbuzYsgrsjxVjjdT4Kg9QUN+d
+         oCWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=hpOd4KOhVWXZ0ZdlLnkpFIAFTQUwdhkSA+jWkyxu/bA=;
-        b=z5VJEusZ1KBRBbvAX1B2rd5nHfo9K0nFOL+QVZz6+PlpERw57I80TwyRwYdsQWklVs
-         d/kT+yXecWIXvbBWi7bWEEvxHjZ1g9p9xUAL8XJJoVd1st1JilxjumwIbUqL8bjufeE2
-         cMUS//hzVo0Lx6RVmHfQ92c8Oknol2qJQzr00AxIYqsvUH9po/KHinVOfm5LAZPKJTbn
-         WLrk5+q0YVuaaEKk7xHPEl0X71tSNPauUtpiu19Ku7gzidQRUXHXD2SrUDBNn21X2FJC
-         +kYBjGJobRST4Asm2cU3Hrs7nkCx97yL6EEZSYfZaigpJboURGMfahbwjo5rPDz+R8uZ
-         4POA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=aDvrgZgqyB2GQtMjh4VtH5ecdHk0OysmftWgol7M3xg=;
+        b=R8djFws/cenCLiN3Vv/Y+OyLjhKTzDccBhImQiOVKmw07IdJr7ceQVKK0cAoW7tm5H
+         Si/u5lCtxUnpVOnw1S7BKXhhGjRZiHpwiz+8QeF+J76kUQ/ITvlrImoWUE6XCXQjMR7g
+         LOm5Ebnvz4WmzqRPcNIkcUKP2XSU3xJuT44rWQNuv94LnaoA4bSYuLW0WGT8qZB1GklZ
+         g3208G/XcpfoDcb94Rwbvn/WcSljaDbevN+bIU16buHNkFh3VtX0DkrCt7IsOSwDbi69
+         rGKo2RuFBtHkDxJ8zJnCU4wKp19H3cZQt2n0tJU4N+X8aIvJzjCMjGQVZAWzfC32OaaN
+         f7yg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NfJyBJNP;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 142sor14010047lfz.23.2019.01.09.08.37.55
+       spf=pass (google.com: domain of rpenyaev@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=rpenyaev@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o13si1551064edr.264.2019.01.09.08.40.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 09 Jan 2019 08:37:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Jan 2019 08:40:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of rpenyaev@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NfJyBJNP;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=hpOd4KOhVWXZ0ZdlLnkpFIAFTQUwdhkSA+jWkyxu/bA=;
-        b=NfJyBJNP+A2pxkF+NsTb0axj1JVmsIGePDLjWasCKbvY5Oeo0W/6duHA2+9VddhYlW
-         8bP8ubvLP90Vd2INGZACF6/6xTGGxLbW9gk6uTzoCrnEQv83HfuR2hzwoPYd2VA3BVcH
-         yaijCSepdsAun5H/62Z9sg/AIE2NEfT4xpGIKQuAk2TN/CCRgx5zJ8NmaeGe2BxP1OOg
-         UTZ8z0MiecvrSiMijqhYWg3qYudIctW+LbS6YGn3qLpwVKWn/wC9kUf8WHj0wBf2BoVI
-         ajpecRIoc11UA+gqFAEo+eJLNhmRJuLz3LlnEEXgULyF9Tk/k32e1KELSsNI/8OC6VKp
-         Trtg==
-X-Google-Smtp-Source: ALg8bN7HYEAYVDhoJOy2VZl/oQu8bMNl9nvj+Z6fTXvBgWBdK7HamubHUq6qaP5uvlNe/+zZI/XNJBIbvXNw/KI0T8A=
-X-Received: by 2002:a19:2906:: with SMTP id p6mr3756886lfp.17.1547051875267;
- Wed, 09 Jan 2019 08:37:55 -0800 (PST)
+       spf=pass (google.com: domain of rpenyaev@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=rpenyaev@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay1.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 500A7AF74;
+	Wed,  9 Jan 2019 16:40:37 +0000 (UTC)
+From: Roman Penyaev <rpenyaev@suse.de>
+To: 
+Cc: Roman Penyaev <rpenyaev@suse.de>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Joe Perches <joe@perches.com>,
+	"Luis R. Rodriguez" <mcgrof@kernel.org>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [RFC PATCH 02/15] mm/vmalloc: move common logic from  __vmalloc_area_node to a separate func
+Date: Wed,  9 Jan 2019 17:40:12 +0100
+Message-Id: <20190109164025.24554-3-rpenyaev@suse.de>
+X-Mailer: git-send-email 2.19.1
+In-Reply-To: <20190109164025.24554-1-rpenyaev@suse.de>
+References: <20190109164025.24554-1-rpenyaev@suse.de>
 MIME-Version: 1.0
-References: <20190109161916.GA23410@jordon-HP-15-Notebook-PC> <20190109162332.GL6310@bombadil.infradead.org>
-In-Reply-To: <20190109162332.GL6310@bombadil.infradead.org>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Wed, 9 Jan 2019 22:11:46 +0530
-Message-ID:
- <CAFqt6zYQU+jN57Lh2Enx-t9EKHSjSKibUHU1Y-KyzAzxWVy3Qw@mail.gmail.com>
-Subject: Re: [PATCH] include/linux/hmm.h: Convert to use vm_fault_t
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, jglisse@redhat.com, 
-	Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, 
-	Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190109164146.D0reyCLGi1L2hJQIg1JXeZ9hkpcs7YkXZFLp0xGuq3M@z>
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20190109164012.W_SEPq7Qqz64jbp9fYgoW-EoFFYDmsgUGo3elclHq1o@z>
 
-On Wed, Jan 9, 2019 at 9:53 PM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Wed, Jan 09, 2019 at 09:49:17PM +0530, Souptick Joarder wrote:
-> > convert to use vm_fault_t type as return type for
-> > fault handler.
->
-> I think you'll also need to convert hmm_devmem_fault().  And that's
-> going to lead to some more spots.
+This one moves logic related to pages array creation to a separate
+function, which will be used by vrealloc() call as well, which
+implementation will follow.
 
-I will add it in v2.
->
-> (It's important to note that this is the patch working as designed.  It's
-> throwing up warnings where code *hasn't* been converted to vm_fault_t yet
-> but should have been).
+Signed-off-by: Roman Penyaev <rpenyaev@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Joe Perches <joe@perches.com>
+Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ mm/vmalloc.c | 36 +++++++++++++++++++++++++++++-------
+ 1 file changed, 29 insertions(+), 7 deletions(-)
 
-Ok.
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 4851b4a67f55..ad6cd807f6db 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1662,21 +1662,26 @@ EXPORT_SYMBOL(vmap);
+ static void *__vmalloc_node(unsigned long size, unsigned long align,
+ 			    gfp_t gfp_mask, pgprot_t prot,
+ 			    int node, const void *caller);
+-static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+-				 pgprot_t prot, int node)
++
++static int alloc_vm_area_array(struct vm_struct *area, gfp_t gfp_mask, int node)
+ {
++	unsigned int nr_pages, array_size;
+ 	struct page **pages;
+-	unsigned int nr_pages, array_size, i;
++
+ 	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+-	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
+ 	const gfp_t highmem_mask = (gfp_mask & (GFP_DMA | GFP_DMA32)) ?
+ 					0 :
+ 					__GFP_HIGHMEM;
+ 
++	if (WARN_ON(area->pages))
++		return -EINVAL;
++
+ 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
++	if (!nr_pages)
++		return -EINVAL;
++
+ 	array_size = (nr_pages * sizeof(struct page *));
+ 
+-	area->nr_pages = nr_pages;
+ 	/* Please note that the recursion is strictly bounded. */
+ 	if (array_size > PAGE_SIZE) {
+ 		pages = __vmalloc_node(array_size, 1, nested_gfp|highmem_mask,
+@@ -1684,8 +1689,25 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 	} else {
+ 		pages = kmalloc_node(array_size, nested_gfp, node);
+ 	}
++	if (!pages)
++		return -ENOMEM;
++
++	area->nr_pages = nr_pages;
+ 	area->pages = pages;
+-	if (!area->pages) {
++
++	return 0;
++}
++
++static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
++				 pgprot_t prot, int node)
++{
++	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
++	const gfp_t highmem_mask = (gfp_mask & (GFP_DMA | GFP_DMA32)) ?
++					0 :
++					__GFP_HIGHMEM;
++	unsigned int i;
++
++	if (alloc_vm_area_array(area, gfp_mask, node)) {
+ 		remove_vm_area(area->addr);
+ 		kfree(area);
+ 		return NULL;
+@@ -1709,7 +1731,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 			cond_resched();
+ 	}
+ 
+-	if (map_vm_area(area, prot, pages))
++	if (map_vm_area(area, prot, area->pages))
+ 		goto fail;
+ 	return area->addr;
+ 
+-- 
+2.19.1
 
