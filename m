@@ -1,515 +1,314 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 18E8B8E0008
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:11:09 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id t26so7044006pgu.18
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:11:09 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id e13si15463741pfi.271.2019.01.10.13.11.07
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B260E8E00A2
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:40:40 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id d41so3104220eda.12
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:40:40 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x17-v6si1409578eji.266.2019.01.09.08.40.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:11:07 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [RFC PATCH v7 12/16] xpfo, mm: remove dependency on CONFIG_PAGE_EXTENSION
-Date: Thu, 10 Jan 2019 14:09:44 -0700
-Message-Id: <a9436d3bc7943123bdbaac3f3e2b6bec3153ee05.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
+        Wed, 09 Jan 2019 08:40:38 -0800 (PST)
+From: Roman Penyaev <rpenyaev@suse.de>
+Subject: [RFC 00/15] epoll: support pollable epoll from userspace
+Date: Wed,  9 Jan 2019 17:40:10 +0100
+Message-Id: <20190109164025.24554-1-rpenyaev@suse.de>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, "Vasileios P . Kemerlis" <vpk@cs.columbia.edu>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>, Marco Benatto <marco.antonio.780@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Roman Penyaev <rpenyaev@suse.de>, "Luis R. Rodriguez" <mcgrof@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrea Parri <andrea.parri@amarulasolutions.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Davidlohr Bueso <dbueso@suse.de>, Jason Baron <jbaron@akamai.com>, Joe Perches <joe@perches.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Julian Stecklina <jsteckli@amazon.de>
+Hi all,
 
-Instead of using the page extension debug feature, encode all
-information, we need for XPFO in struct page. This allows to get rid of
-some checks in the hot paths and there are also no pages anymore that
-are allocated before XPFO is enabled.
+This series introduces pollable epoll from userspace, i.e. user creates
+epfd with a new EPOLL_USERPOLL flag, mmaps epoll descriptor, gets header
+and ring pointers and then consumes ready events from a ring, avoiding
+epoll_wait() call.  When ring is empty, user has to call epoll_wait()
+in order to wait for new events.  epoll_wait() returns -ESTALE if user
+ring has events in the ring (kind of indication, that user has to consume
+events from the user ring first, I could not invent anything better than
+returning -ESTALE).
 
-Also make debugging aids configurable for maximum performance.
+For user header and user ring allocation I used vmalloc_user().  I found
+that it is much easy to reuse remap_vmalloc_range_partial() instead of
+dealing with page cache (like aio.c does).  What is also nice is that
+virtual address is properly aligned on SHMLBA, thus there should not be
+any d-cache aliasing problems on archs with vivt or vipt caches.
 
-Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
-Cc: x86@kernel.org
-Cc: kernel-hardening@lists.openwall.com
-Cc: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
-Cc: Juerg Haefliger <juerg.haefliger@canonical.com>
-Cc: Tycho Andersen <tycho@docker.com>
-Cc: Marco Benatto <marco.antonio.780@gmail.com>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
----
- include/linux/mm_types.h       |   8 ++
- include/linux/page-flags.h     |  13 +++
- include/linux/xpfo.h           |   3 +-
- include/trace/events/mmflags.h |  10 +-
- mm/page_alloc.c                |   3 +-
- mm/page_ext.c                  |   4 -
- mm/xpfo.c                      | 162 ++++++++-------------------------
- security/Kconfig               |  12 ++-
- 8 files changed, 81 insertions(+), 134 deletions(-)
+Also I required vrealloc(), which can hide all this "alloc new area - get
+pages - map pages" stuff.  So vrealloc() is introduced in first 3 patches.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 2c471a2c43fa..d17d33f36a01 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -204,6 +204,14 @@ struct page {
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- 	int _last_cpupid;
- #endif
-+
-+#ifdef CONFIG_XPFO
-+	/* Counts the number of times this page has been kmapped. */
-+	atomic_t xpfo_mapcount;
-+
-+	/* Serialize kmap/kunmap of this page */
-+	spinlock_t xpfo_lock;
-+#endif
- } _struct_page_alignment;
- 
- /*
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 50ce1bddaf56..a532063f27b5 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -101,6 +101,10 @@ enum pageflags {
- #if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
- 	PG_young,
- 	PG_idle,
-+#endif
-+#ifdef CONFIG_XPFO
-+	PG_xpfo_user,		/* Page is allocated to user-space */
-+	PG_xpfo_unmapped,	/* Page is unmapped from the linear map */
- #endif
- 	__NR_PAGEFLAGS,
- 
-@@ -398,6 +402,15 @@ TESTCLEARFLAG(Young, young, PF_ANY)
- PAGEFLAG(Idle, idle, PF_ANY)
- #endif
- 
-+#ifdef CONFIG_XPFO
-+PAGEFLAG(XpfoUser, xpfo_user, PF_ANY)
-+TESTCLEARFLAG(XpfoUser, xpfo_user, PF_ANY)
-+TESTSETFLAG(XpfoUser, xpfo_user, PF_ANY)
-+PAGEFLAG(XpfoUnmapped, xpfo_unmapped, PF_ANY)
-+TESTCLEARFLAG(XpfoUnmapped, xpfo_unmapped, PF_ANY)
-+TESTSETFLAG(XpfoUnmapped, xpfo_unmapped, PF_ANY)
-+#endif
-+
- /*
-  * On an anonymous page mapped into a user virtual memory area,
-  * page->mapping points to its anon_vma, not to a struct address_space;
-diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index d4b38ab8a633..ea5188882f49 100644
---- a/include/linux/xpfo.h
-+++ b/include/linux/xpfo.h
-@@ -27,7 +27,7 @@ struct page;
- 
- #include <linux/types.h>
- 
--extern struct page_ext_operations page_xpfo_ops;
-+void xpfo_init_single_page(struct page *page);
- 
- void set_kpte(void *kaddr, struct page *page, pgprot_t prot);
- void xpfo_dma_map_unmap_area(bool map, const void *addr, size_t size,
-@@ -56,6 +56,7 @@ phys_addr_t user_virt_to_phys(unsigned long addr);
- 
- #else /* !CONFIG_XPFO */
- 
-+static inline void xpfo_init_single_page(struct page *page) { }
- static inline void xpfo_kmap(void *kaddr, struct page *page) { }
- static inline void xpfo_kunmap(void *kaddr, struct page *page) { }
- static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index a1675d43777e..6bb000bb366f 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -79,6 +79,12 @@
- #define IF_HAVE_PG_IDLE(flag,string)
- #endif
- 
-+#ifdef CONFIG_XPFO
-+#define IF_HAVE_PG_XPFO(flag,string) ,{1UL << flag, string}
-+#else
-+#define IF_HAVE_PG_XPFO(flag,string)
-+#endif
-+
- #define __def_pageflag_names						\
- 	{1UL << PG_locked,		"locked"	},		\
- 	{1UL << PG_waiters,		"waiters"	},		\
-@@ -105,7 +111,9 @@ IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
- IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
- IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
- IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
--IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
-+IF_HAVE_PG_IDLE(PG_idle,		"idle"		)		\
-+IF_HAVE_PG_XPFO(PG_xpfo_user,		"xpfo_user"	)		\
-+IF_HAVE_PG_XPFO(PG_xpfo_unmapped,	"xpfo_unmapped" ) 		\
- 
- #define show_page_flags(flags)						\
- 	(flags) ? __print_flags(flags, "|",				\
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 08e277790b5f..d00382b20001 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1024,6 +1024,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
- 	if (bad)
- 		return false;
- 
-+	xpfo_free_pages(page, order);
- 	page_cpupid_reset_last(page);
- 	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
- 	reset_page_owner(page, order);
-@@ -1038,7 +1039,6 @@ static __always_inline bool free_pages_prepare(struct page *page,
- 	kernel_poison_pages(page, 1 << order, 0);
- 	kernel_map_pages(page, 1 << order, 0);
- 	kasan_free_pages(page, order);
--	xpfo_free_pages(page, order);
- 
- 	return true;
- }
-@@ -1191,6 +1191,7 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 	if (!is_highmem_idx(zone))
- 		set_page_address(page, __va(pfn << PAGE_SHIFT));
- #endif
-+	xpfo_init_single_page(page);
- }
- 
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-index 38e5013dcb9a..ae44f7adbe07 100644
---- a/mm/page_ext.c
-+++ b/mm/page_ext.c
-@@ -8,7 +8,6 @@
- #include <linux/kmemleak.h>
- #include <linux/page_owner.h>
- #include <linux/page_idle.h>
--#include <linux/xpfo.h>
- 
- /*
-  * struct page extension
-@@ -69,9 +68,6 @@ static struct page_ext_operations *page_ext_ops[] = {
- #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
- 	&page_idle_ops,
- #endif
--#ifdef CONFIG_XPFO
--	&page_xpfo_ops,
--#endif
+** Limitations
+    
+1. Expect always EPOLLET flag for new epoll items (Edge Triggered behavior)
+     obviously we can't call vfs_epoll() from userpace to have level
+     triggered behaviour.
+    
+2. No support for EPOLLWAKEUP
+     events are consumed from userspace, thus no way to call __pm_relax()
+    
+3. No support for EPOLLEXCLUSIVE
+     If device does not pass pollflags to wake_up() there is no way to
+     call poll() from the context under spinlock, thus special work is
+     scheduled to offload polling.  In this specific case we can't
+     support exclusive wakeups, because we do not know actual result
+     of scheduled work and have to wake up every waiter.
+    
+4. No support for nesting of epoll descriptors polled from userspace
+     no real good reason to scan ready events of user ring from the
+     kernel, so just do not do that.
+
+
+** Principle of operation
+
+* Basic structures shared with userspace:
+
+In order to consume events from userspace all inserted items should be
+stored in items array, which has original epoll_event field and u32
+field for keeping ready events, i.e. each item has the following struct:
+
+ struct user_epitem {
+    unsigned int ready_events;
+    struct epoll_event event;
  };
- 
- static unsigned long total_usage;
-diff --git a/mm/xpfo.c b/mm/xpfo.c
-index e80374b0c78e..cbfeafc2f10f 100644
---- a/mm/xpfo.c
-+++ b/mm/xpfo.c
-@@ -16,33 +16,16 @@
- #include <linux/highmem.h>
- #include <linux/mm.h>
- #include <linux/module.h>
--#include <linux/page_ext.h>
- #include <linux/xpfo.h>
- 
- #include <asm/tlbflush.h>
- 
--/* XPFO page state flags */
--enum xpfo_flags {
--	XPFO_PAGE_USER,		/* Page is allocated to user-space */
--	XPFO_PAGE_UNMAPPED,	/* Page is unmapped from the linear map */
--};
--
--/* Per-page XPFO house-keeping data */
--struct xpfo {
--	unsigned long flags;	/* Page state */
--	bool inited;		/* Map counter and lock initialized */
--	atomic_t mapcount;	/* Counter for balancing map/unmap requests */
--	spinlock_t maplock;	/* Lock to serialize map/unmap requests */
--};
--
--DEFINE_STATIC_KEY_FALSE(xpfo_inited);
-+DEFINE_STATIC_KEY_TRUE(xpfo_inited);
- DEFINE_STATIC_KEY_FALSE(xpfo_do_tlb_flush);
- 
--static bool xpfo_disabled __initdata;
--
- static int __init noxpfo_param(char *str)
- {
--	xpfo_disabled = true;
-+	static_branch_disable(&xpfo_inited);
- 
- 	return 0;
+ BUILD_BUG_ON(sizeof(struct user_epitem) != 16);
+
+And the following is a header, which is seen by userspace:
+
+ struct user_header {
+    unsigned int magic;          /* epoll user header magic */
+    unsigned int state;          /* epoll ring state */
+    unsigned int header_length;  /* length of the header + items */
+    unsigned int index_length;   /* length of the index ring */
+    unsigned int max_items_nr;   /* max num of items slots */
+    unsigned int max_index_nr;   /* max num of items indeces, always pow2 */
+    unsigned int head;           /* updated by userland */
+    unsigned int tail;           /* updated by kernel */
+    unsigned int padding[24];    /* Header size is 128 bytes */
+
+    struct user_epitem items[];
+ };
+
+ /* Header is 128 bytes, thus items are aligned on CPU cache */
+ BUILD_BUG_ON(sizeof(struct user_header) != 128);
+
+>From the very beginning kernel allocates 1 page for user header, i.e. by
+default we have 248 items for 4096 size page.
+
+When 249'th item is inserted special expanding should be done, which will
+be discussed later.
+
+Ready events are kept in a ring buffer, which is simply an index table,
+where each element points to an item in a header:
+
+ unsinged int *user_index;
+
+Kernel allocates also 1 page for user index, i.e. for 4096 page we have
+1024 ring elements capacity.
+
+
+* How is new event accounted on kernel side?  Hot it is consumed from
+* userspace?
+
+When new event comes for some epoll item kernel does the following:
+
+ struct user_epitem *uitem;
+
+ /* Each item has a bit (index in user items array), discussed later */
+ uitem = user_header->items[epi->bit];
+
+ if (!atomic_fetch_or(uitem->ready_events, pollflags)) {
+     i = atomic_add(&ep->user_header->tail, 1);
+
+     item_idx = &user_index[i & index_mask];
+
+     /* Signal with a bit, user spins on index expecting value > 0 */
+     *item_idx = idx + 1;
+
+    /*
+     * Want index update be flushed from CPU write buffer and
+     * immediately visible on userspace side to avoid long busy
+     * loops.
+     */
+     smp_wmb();
  }
-@@ -57,34 +40,13 @@ static int __init xpfotlbflush_param(char *str)
- early_param("noxpfo", noxpfo_param);
- early_param("xpfotlbflush", xpfotlbflush_param);
- 
--static bool __init need_xpfo(void)
--{
--	if (xpfo_disabled) {
--		printk(KERN_INFO "XPFO disabled\n");
--		return false;
--	}
--
--	return true;
--}
--
--static void init_xpfo(void)
--{
--	printk(KERN_INFO "XPFO enabled\n");
--	static_branch_enable(&xpfo_inited);
--}
--
--struct page_ext_operations page_xpfo_ops = {
--	.size = sizeof(struct xpfo),
--	.need = need_xpfo,
--	.init = init_xpfo,
--};
--
- bool __init xpfo_enabled(void)
- {
--	return !xpfo_disabled;
-+	if (!static_branch_unlikely(&xpfo_inited))
-+		return false;
-+	else
-+		return true;
+
+Important thing here is that ring can't infinitely grow and corrupt other
+elements, because kernel always checks that item was marked as ready, so
+userspace has to clear ready_events field.
+
+On userside events the following code should be used in order to consume
+events:
+
+ tail = READ_ONCE(header->tail);
+ for (i = 0; header->head != tail; header->head++) {
+     item_idx_ptr = &index[idx & indeces_mask];
+
+     /*
+      * Spin here till we see valid index
+      */
+     while (!(idx = __atomic_load_n(item_idx_ptr, __ATOMIC_ACQUIRE)))
+         ;
+
+     item = &header->items[idx - 1];
+
+     /*
+      * Mark index as invalid, that is for userspace only, kernel does not care
+      * and will refill this pointer only when observes that event is cleared,
+      * which happens below.
+      */
+     *item_idx_ptr = 0;
+
+     /*
+      * Fetch data first, if event is cleared by the kernel we drop the data
+      * returning false.
+      */
+     event->data = item->event.data;
+     event->events = __atomic_exchange_n(&item->ready_events, 0,
+                         __ATOMIC_RELEASE);
+
  }
--EXPORT_SYMBOL(xpfo_enabled);
--
- 
- static void xpfo_cond_flush_kernel_tlb(struct page *page, int order)
- {
-@@ -92,58 +54,40 @@ static void xpfo_cond_flush_kernel_tlb(struct page *page, int order)
- 		xpfo_flush_kernel_tlb(page, order);
+
+
+* How new epoll item gets its index inside user items array?
+
+Kernel has a bitmap for that and gets free bit on attempt to insert a new
+epoll item.  When bitmap is full - it has been expanded.
+
+* What happens when user items or user index has to be expanded or shrunk?
+
+For that quite rare cases kernel has to ask userspace to invoke epoll_wait()
+in order to reallocate all user pointers under locks, i.e. for that
+particular period all events are routed to kernel lists instead of user
+ring and kernel sets special INACTIVE state in user header in order to
+notify user that new event's won't appear in the ring until the user
+calls epoll_wait().  Worth to mention, that expand is done directly inside
+ep_insert(), because expand is an allocation of a new page and recreation
+of virtual area on kernel side, which does not affect mappings on userside.
+
+* How userspace detects that kernel has expanded or shrunk the memory?
+
+Any of the item ctl operations (add, mod, del) can be executed in parallel
+with events consumption from user ring.
+
+Expand is safe from user perspective (new pages is mapped to kernel side,
+but user does not know and care about that), so expand happens directly
+in epoll_ctl(EPOLL_CTL_ADD), but kernel routes all new events to kernel
+lists and asks user to call epoll_wait() with special INACTIVE state.
+
+Shrink is a bit different.  When epoll_ctl(EPOLL_CTL_DEL) is called and
+kernel decides to shrink the memory, it routes new events to kernel lists,
+marks user header state as INACTIVE and does not put item bit immediately,
+but postpones it until user calls epoll_wait() (which should happen soon,
+because user_header->state is INACTIVE and user should come to sleep to
+kernel).  So shrink happens only on epoll_wait() call with all necessary
+locks taken.
+
+Bit put should be postponed because user can observe corrupted event item
+if events are not yet consumed from the ring, bit is put and then
+immediately reused by concurrent item insert.  To avoid this possible
+race bit put is postponed when header state is INACTIVE and all events
+are routed to kernel lists.
+
+So returning to the quesion: how userspace detects that kernel has changed
+the memory?  User has to cache lengths before epoll_wait(), compare old
+cached values with new from header and call mremap() if values differ:
+
+ header_length = header->header_length;
+ index_length = header->index_length;
+
+ rc = epoll_wait(epfd, NULL, 0, -1);
+ assert(rc < 0);
+ if (errno != -ESTALE)
+     return -errno;
+
+ if (header_length != header->header_length) {
+    header = mremap(header, header_length, header->header_length, MREMAP_MAYMOVE);
+    assert(header != MAP_FAILED);
  }
- 
--static inline struct xpfo *lookup_xpfo(struct page *page)
-+void __meminit xpfo_init_single_page(struct page *page)
- {
--	struct page_ext *page_ext = lookup_page_ext(page);
--
--	if (unlikely(!page_ext)) {
--		WARN(1, "xpfo: failed to get page ext");
--		return NULL;
--	}
--
--	return (void *)page_ext + page_xpfo_ops.offset;
-+	spin_lock_init(&page->xpfo_lock);
+ if (index_length != header->index_length) {
+    index = mremap(index, index_length, header->index_length, MREMAP_MAYMOVE);
+    assert(index != MAP_FAILED);
  }
- 
- void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
- {
- 	int i, flush_tlb = 0;
--	struct xpfo *xpfo;
- 
- 	if (!static_branch_unlikely(&xpfo_inited))
- 		return;
- 
- 	for (i = 0; i < (1 << order); i++)  {
--		xpfo = lookup_xpfo(page + i);
--		if (!xpfo)
--			continue;
--
--		WARN(test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags),
--		     "xpfo: unmapped page being allocated\n");
--
--		/* Initialize the map lock and map counter */
--		if (unlikely(!xpfo->inited)) {
--			spin_lock_init(&xpfo->maplock);
--			atomic_set(&xpfo->mapcount, 0);
--			xpfo->inited = true;
--		}
--		WARN(atomic_read(&xpfo->mapcount),
--		     "xpfo: already mapped page being allocated\n");
--
-+#ifdef CONFIG_XPFO_DEBUG
-+		BUG_ON(PageXpfoUser(page + i));
-+		BUG_ON(PageXpfoUnmapped(page + i));
-+		BUG_ON(spin_is_locked(&(page + i)->xpfo_lock));
-+		BUG_ON(atomic_read(&(page + i)->xpfo_mapcount));
-+#endif
- 		if ((gfp & GFP_HIGHUSER) == GFP_HIGHUSER) {
- 			if (static_branch_unlikely(&xpfo_do_tlb_flush)) {
- 				/*
- 				 * Tag the page as a user page and flush the TLB if it
- 				 * was previously allocated to the kernel.
- 				 */
--				if (!test_and_set_bit(XPFO_PAGE_USER, &xpfo->flags))
-+				if (!TestSetPageXpfoUser(page + i))
- 					flush_tlb = 1;
- 			} else {
--				set_bit(XPFO_PAGE_USER, &xpfo->flags);
-+				SetPageXpfoUser(page + i);
- 			}
- 
- 		} else {
- 			/* Tag the page as a non-user (kernel) page */
--			clear_bit(XPFO_PAGE_USER, &xpfo->flags);
-+			ClearPageXpfoUser(page + i);
- 		}
- 	}
- 
-@@ -154,27 +98,21 @@ void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
- void xpfo_free_pages(struct page *page, int order)
- {
- 	int i;
--	struct xpfo *xpfo;
- 
- 	if (!static_branch_unlikely(&xpfo_inited))
- 		return;
- 
- 	for (i = 0; i < (1 << order); i++) {
--		xpfo = lookup_xpfo(page + i);
--		if (!xpfo || unlikely(!xpfo->inited)) {
--			/*
--			 * The page was allocated before page_ext was
--			 * initialized, so it is a kernel page.
--			 */
--			continue;
--		}
-+#ifdef CONFIG_XPFO_DEBUG
-+		BUG_ON(atomic_read(&(page + i)->xpfo_mapcount));
-+#endif
- 
- 		/*
- 		 * Map the page back into the kernel if it was previously
- 		 * allocated to user space.
- 		 */
--		if (test_and_clear_bit(XPFO_PAGE_USER, &xpfo->flags)) {
--			clear_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
-+		if (TestClearPageXpfoUser(page + i)) {
-+			ClearPageXpfoUnmapped(page + i);
- 			set_kpte(page_address(page + i), page + i,
- 				 PAGE_KERNEL);
- 		}
-@@ -183,84 +121,56 @@ void xpfo_free_pages(struct page *page, int order)
- 
- void xpfo_kmap(void *kaddr, struct page *page)
- {
--	struct xpfo *xpfo;
--
- 	if (!static_branch_unlikely(&xpfo_inited))
- 		return;
- 
--	xpfo = lookup_xpfo(page);
--
--	/*
--	 * The page was allocated before page_ext was initialized (which means
--	 * it's a kernel page) or it's allocated to the kernel, so nothing to
--	 * do.
--	 */
--	if (!xpfo || unlikely(!xpfo->inited) ||
--	    !test_bit(XPFO_PAGE_USER, &xpfo->flags))
-+	if (!PageXpfoUser(page))
- 		return;
- 
--	spin_lock(&xpfo->maplock);
-+	spin_lock(&page->xpfo_lock);
- 
- 	/*
- 	 * The page was previously allocated to user space, so map it back
- 	 * into the kernel. No TLB flush required.
- 	 */
--	if ((atomic_inc_return(&xpfo->mapcount) == 1) &&
--	    test_and_clear_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags))
-+	if ((atomic_inc_return(&page->xpfo_mapcount) == 1) &&
-+	    TestClearPageXpfoUnmapped(page))
- 		set_kpte(kaddr, page, PAGE_KERNEL);
- 
--	spin_unlock(&xpfo->maplock);
-+	spin_unlock(&page->xpfo_lock);
- }
- EXPORT_SYMBOL(xpfo_kmap);
- 
- void xpfo_kunmap(void *kaddr, struct page *page)
- {
--	struct xpfo *xpfo;
--
- 	if (!static_branch_unlikely(&xpfo_inited))
- 		return;
- 
--	xpfo = lookup_xpfo(page);
--
--	/*
--	 * The page was allocated before page_ext was initialized (which means
--	 * it's a kernel page) or it's allocated to the kernel, so nothing to
--	 * do.
--	 */
--	if (!xpfo || unlikely(!xpfo->inited) ||
--	    !test_bit(XPFO_PAGE_USER, &xpfo->flags))
-+	if (!PageXpfoUser(page))
- 		return;
- 
--	spin_lock(&xpfo->maplock);
-+	spin_lock(&page->xpfo_lock);
- 
- 	/*
- 	 * The page is to be allocated back to user space, so unmap it from the
- 	 * kernel, flush the TLB and tag it as a user page.
- 	 */
--	if (atomic_dec_return(&xpfo->mapcount) == 0) {
--		WARN(test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags),
--		     "xpfo: unmapping already unmapped page\n");
--		set_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
-+	if (atomic_dec_return(&page->xpfo_mapcount) == 0) {
-+#ifdef CONFIG_XPFO_DEBUG
-+		BUG_ON(PageXpfoUnmapped(page));
-+#endif
-+		SetPageXpfoUnmapped(page);
- 		set_kpte(kaddr, page, __pgprot(0));
- 		xpfo_cond_flush_kernel_tlb(page, 0);
- 	}
- 
--	spin_unlock(&xpfo->maplock);
-+	spin_unlock(&page->xpfo_lock);
- }
- EXPORT_SYMBOL(xpfo_kunmap);
- 
- bool xpfo_page_is_unmapped(struct page *page)
- {
--	struct xpfo *xpfo;
--
--	if (!static_branch_unlikely(&xpfo_inited))
--		return false;
--
--	xpfo = lookup_xpfo(page);
--	if (unlikely(!xpfo) && !xpfo->inited)
--		return false;
--
--	return test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
-+	return PageXpfoUnmapped(page);
- }
- EXPORT_SYMBOL(xpfo_page_is_unmapped);
- 
-diff --git a/security/Kconfig b/security/Kconfig
-index 8d0e4e303551..c7c581bac963 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -13,7 +13,6 @@ config XPFO
- 	bool "Enable eXclusive Page Frame Ownership (XPFO)"
- 	default n
- 	depends on ARCH_SUPPORTS_XPFO
--	select PAGE_EXTENSION
- 	help
- 	  This option offers protection against 'ret2dir' kernel attacks.
- 	  When enabled, every time a page frame is allocated to user space, it
-@@ -25,6 +24,17 @@ config XPFO
- 
- 	  If in doubt, say "N".
- 
-+config XPFO_DEBUG
-+       bool "Enable debugging of XPFO"
-+       default n
-+       depends on XPFO
-+       help
-+         Enables additional checking of XPFO data structures that help find
-+	 bugs in the XPFO implementation. This option comes with a slight
-+	 performance cost.
-+
-+	 If in doubt, say "N".
-+
- config SECURITY_DMESG_RESTRICT
- 	bool "Restrict unprivileged access to the kernel syslog"
- 	default n
+
+* Is it possible to consume events from many threads on userspace side?
+
+That should be possible in a lockless manner, and kernel keeps extra number
+of free slots in a ring (EPOLL_USER_EXTRA_INDEX_NR = 16) in order to let
+user consume events from up to 16 threads in parallel.
+
+It seems that this can be a good feature thinking about performance, but I
+could not decide is it enough to report this value in a user header or let
+user change that somehow on epoll_create1() call (or a new one?).
+
+* Is there any testing app available?
+
+There is a small app [1] which starts many threads with many event fds and
+produces many events, while single consumer fetches them from userspace
+and goes to kernel from time to time in order to wait.
+
+
+This is RFC because for memory allocation I used vmalloc(), which virtual
+space for kernel seems limited for some archs.  So for example for 1 mln
+of items kernel has to allocate 10^6 x 16 [items] + 10^6 x 4 [index],
+that is around ~20mb, seems very small, but not sure is it ok or not.
+
+I temporarily used gcc atomic builtins on kernel side, because I did find
+any good way to atomically update plain unsigned int of user_header
+structure without casting it to atomic_t.  Or casting is fine in that case?
+
+There are not enough good, informative and shiny comments in the code,
+explaining all the machinery.  The most hard part is left, I would say.
+
+Only very basic scenarios are tested, all these things with user
+reallocations (expand, shrink) are not tested at all.
+
+[1] https://github.com/rouming/test-tools/blob/master/userpolled-epoll.c
+
+Roman Penyaev (15):
+  mm/vmalloc: add new 'alignment' field for vm_struct structure
+  mm/vmalloc: move common logic from  __vmalloc_area_node to a separate
+    func
+  mm/vmalloc: introduce new vrealloc() call and its subsidiary reach
+    analog
+  epoll: move private helpers from a header to the source
+  epoll: introduce user header structure and user index for polling from
+    userspace
+  epoll: introduce various of helpers for user structure lengths
+    calculations
+  epoll: extend epitem struct with new members for polling from
+    userspace
+  epoll: some sanity flags checks for epoll syscalls for polled epfd
+    from userspace
+  epoll: introduce stand-alone helpers for polling from userspace
+  epoll: support polling from userspace for ep_insert()
+  epoll: offload polling to a work in case of epfd polled from userspace
+  epoll: support polling from userspace for ep_remove()
+  epoll: support polling from userspace for ep_modify()
+  epoll: support polling from userspace for ep_poll()
+  epoll: support mapping for epfd when polled from userspace
+
+ fs/eventpoll.c                 | 1042 +++++++++++++++++++++++++++++---
+ include/linux/vmalloc.h        |    4 +
+ include/uapi/linux/eventpoll.h |   15 +-
+ mm/vmalloc.c                   |  152 ++++-
+ 4 files changed, 1117 insertions(+), 96 deletions(-)
+
+Signed-off-by: Roman Penyaev <rpenyaev@suse.de>
+Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Davidlohr Bueso <dbueso@suse.de>
+Cc: Jason Baron <jbaron@akamai.com>
+Cc: Joe Perches <joe@perches.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 -- 
-2.17.1
+2.19.1
