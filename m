@@ -1,210 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FD2F8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:03:38 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id n39so15928591qtn.18
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:03:38 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k124si1342834qkd.2.2019.01.11.03.03.37
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DB73A8E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 06:16:12 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t2so2778185edb.22
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 03:16:12 -0800 (PST)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id q10si1417106edd.257.2019.01.09.03.16.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:03:37 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V13 07/19] block: use bio_for_each_bvec() to compute multi-page bvec count
-Date: Fri, 11 Jan 2019 19:01:15 +0800
-Message-Id: <20190111110127.21664-8-ming.lei@redhat.com>
-In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
-References: <20190111110127.21664-1-ming.lei@redhat.com>
+        Wed, 09 Jan 2019 03:16:11 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 1937E1C29E0
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:16:11 +0000 (GMT)
+Date: Wed, 9 Jan 2019 11:16:09 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, compaction: Round-robin the order while searching the
+ free lists for a target -fix
+Message-ID: <20190109111609.GW31517@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, Dan Carpenter <dan.carpenter@oracle.com>, kirill@shutemov.name, Linux-MM <linux-mm@kvack.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-First it is more efficient to use bio_for_each_bvec() in both
-blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
-many multi-page bvecs there are in the bio.
+Dan Carpenter reported the following static checker warning:
 
-Secondly once bio_for_each_bvec() is used, the bvec may need to be
-splitted because its length can be very longer than max segment size,
-so we have to split the big bvec into several segments.
+        mm/compaction.c:1252 next_search_order()
+        warn: impossible condition '(cc->search_order < 0) => (0-u16max < 0)'
 
-Thirdly when splitting multi-page bvec into segments, the max segment
-limit may be reached, so the bio split need to be considered under
-this situation too.
+While a negative order never makes sense, the control flow is
+easier if search_order is signed. This is a fix to the mmotm patch
+broken-out/mm-compaction-round-robin-the-order-while-searching-the-free-lists-for-a-target.patch
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- block/blk-merge.c | 99 ++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 79 insertions(+), 20 deletions(-)
+ mm/internal.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/block/blk-merge.c b/block/blk-merge.c
-index f85d878f313d..abe1c89c1253 100644
---- a/block/blk-merge.c
-+++ b/block/blk-merge.c
-@@ -161,6 +161,69 @@ static inline unsigned get_max_io_size(struct request_queue *q,
- 	return sectors;
- }
- 
-+static unsigned get_max_segment_size(struct request_queue *q,
-+				     unsigned offset)
-+{
-+	unsigned long mask = queue_segment_boundary(q);
-+
-+	return min_t(unsigned long, mask - (mask & offset) + 1,
-+		     queue_max_segment_size(q));
-+}
-+
-+/*
-+ * Split the bvec @bv into segments, and update all kinds of
-+ * variables.
-+ */
-+static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
-+		unsigned *nsegs, unsigned *last_seg_size,
-+		unsigned *front_seg_size, unsigned *sectors)
-+{
-+	unsigned len = bv->bv_len;
-+	unsigned total_len = 0;
-+	unsigned new_nsegs = 0, seg_size = 0;
-+
-+	/*
-+	 * Multi-page bvec may be too big to hold in one segment, so the
-+	 * current bvec has to be splitted as multiple segments.
-+	 */
-+	while (len && new_nsegs + *nsegs < queue_max_segments(q)) {
-+		seg_size = get_max_segment_size(q, bv->bv_offset + total_len);
-+		seg_size = min(seg_size, len);
-+
-+		new_nsegs++;
-+		total_len += seg_size;
-+		len -= seg_size;
-+
-+		if ((bv->bv_offset + total_len) & queue_virt_boundary(q))
-+			break;
-+	}
-+
-+	if (!new_nsegs)
-+		return !!len;
-+
-+	/* update front segment size */
-+	if (!*nsegs) {
-+		unsigned first_seg_size;
-+
-+		if (new_nsegs == 1)
-+			first_seg_size = get_max_segment_size(q, bv->bv_offset);
-+		else
-+			first_seg_size = queue_max_segment_size(q);
-+
-+		if (*front_seg_size < first_seg_size)
-+			*front_seg_size = first_seg_size;
-+	}
-+
-+	/* update other varibles */
-+	*last_seg_size = seg_size;
-+	*nsegs += new_nsegs;
-+	if (sectors)
-+		*sectors += total_len >> 9;
-+
-+	/* split in the middle of the bvec if len != 0 */
-+	return !!len;
-+}
-+
- static struct bio *blk_bio_segment_split(struct request_queue *q,
- 					 struct bio *bio,
- 					 struct bio_set *bs,
-@@ -174,7 +237,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 	struct bio *new = NULL;
- 	const unsigned max_sectors = get_max_io_size(q, bio);
- 
--	bio_for_each_segment(bv, bio, iter) {
-+	bio_for_each_bvec(bv, bio, iter) {
- 		/*
- 		 * If the queue doesn't support SG gaps and adding this
- 		 * offset would create a gap, disallow it.
-@@ -189,8 +252,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 			 */
- 			if (nsegs < queue_max_segments(q) &&
- 			    sectors < max_sectors) {
--				nsegs++;
--				sectors = max_sectors;
-+				/* split in the middle of bvec */
-+				bv.bv_len = (max_sectors - sectors) << 9;
-+				bvec_split_segs(q, &bv, &nsegs,
-+						&seg_size,
-+						&front_seg_size,
-+						&sectors);
- 			}
- 			goto split;
- 		}
-@@ -212,14 +279,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 		if (nsegs == queue_max_segments(q))
- 			goto split;
- 
--		if (nsegs == 1 && seg_size > front_seg_size)
--			front_seg_size = seg_size;
--
--		nsegs++;
- 		bvprv = bv;
- 		bvprvp = &bvprv;
--		seg_size = bv.bv_len;
--		sectors += bv.bv_len >> 9;
-+
-+		if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
-+				    &front_seg_size, &sectors))
-+			goto split;
- 
- 	}
- 
-@@ -233,8 +298,6 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
- 			bio = new;
- 	}
- 
--	if (nsegs == 1 && seg_size > front_seg_size)
--		front_seg_size = seg_size;
- 	bio->bi_seg_front_size = front_seg_size;
- 	if (seg_size > bio->bi_seg_back_size)
- 		bio->bi_seg_back_size = seg_size;
-@@ -297,6 +360,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
- 	struct bio_vec bv, bvprv = { NULL };
- 	int prev = 0;
- 	unsigned int seg_size, nr_phys_segs;
-+	unsigned front_seg_size = bio->bi_seg_front_size;
- 	struct bio *fbio, *bbio;
- 	struct bvec_iter iter;
- 
-@@ -316,7 +380,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
- 	seg_size = 0;
- 	nr_phys_segs = 0;
- 	for_each_bio(bio) {
--		bio_for_each_segment(bv, bio, iter) {
-+		bio_for_each_bvec(bv, bio, iter) {
- 			/*
- 			 * If SG merging is disabled, each bio vector is
- 			 * a segment
-@@ -336,20 +400,15 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
- 				continue;
- 			}
- new_segment:
--			if (nr_phys_segs == 1 && seg_size >
--			    fbio->bi_seg_front_size)
--				fbio->bi_seg_front_size = seg_size;
--
--			nr_phys_segs++;
- 			bvprv = bv;
- 			prev = 1;
--			seg_size = bv.bv_len;
-+			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
-+					&front_seg_size, NULL);
- 		}
- 		bbio = bio;
- 	}
- 
--	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
--		fbio->bi_seg_front_size = seg_size;
-+	fbio->bi_seg_front_size = front_seg_size;
- 	if (seg_size > bbio->bi_seg_back_size)
- 		bbio->bi_seg_back_size = seg_size;
- 
--- 
-2.9.5
+diff --git a/mm/internal.h b/mm/internal.h
+index d028abd8a8f3..e74dbc257550 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -192,7 +192,7 @@ struct compact_control {
+ 	unsigned long total_migrate_scanned;
+ 	unsigned long total_free_scanned;
+ 	unsigned short fast_search_fail;/* failures to use free list searches */
+-	unsigned short search_order;	/* order to start a fast search at */
++	short search_order;		/* order to start a fast search at */
+ 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+ 	int order;			/* order a direct compactor needs */
+ 	int migratetype;		/* migratetype of direct compactor */
