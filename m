@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9465D8E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:53:37 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id z10so35109614edz.15
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:53:37 -0800 (PST)
-Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
-        by mx.google.com with ESMTPS id i46si3118602eda.288.2019.01.04.04.53.36
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B40A58E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 00:05:13 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id n39so5506773qtn.18
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 21:05:13 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e5si6157414qkd.22.2019.01.08.21.05.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:53:36 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id D7616B87A3
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:53:35 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 19/25] mm, compaction: Do not consider a need to reschedule as contention
-Date: Fri,  4 Jan 2019 12:50:05 +0000
-Message-Id: <20190104125011.16071-20-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        Tue, 08 Jan 2019 21:05:13 -0800 (PST)
+Date: Wed, 9 Jan 2019 13:05:05 +0800
+From: Peter Xu <peterx@redhat.com>
+Subject: Re: [PATCH 1/1] mm/hugetlb.c: teach follow_hugetlb_page() to handle
+ FOLL_NOWAIT
+Message-ID: <20190109050505.GC12837@xz-x1>
+References: <20190109020203.26669-1-aarcange@redhat.com>
+ <20190109020203.26669-2-aarcange@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190109020203.26669-2-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-Scanning on large machines can take a considerable length of time and
-eventually need to be rescheduled. This is treated as an abort event but
-that's not appropriate as the attempt is likely to be retried after making
-numerous checks and taking another cycle through the page allocator.
-This patch will check the need to reschedule if necessary but continue
-the scanning.
+On Tue, Jan 08, 2019 at 09:02:03PM -0500, Andrea Arcangeli wrote:
+> hugetlb needs the same fix as faultin_nopage (which was applied in
+> 96312e61282ae3f6537a562625706498cbc75594) or KVM hangs because it
+> thinks the mmap_sem was already released by hugetlb_fault() if it
+> returned VM_FAULT_RETRY, but it wasn't in the FOLL_NOWAIT case.
+> 
+> Fixes: ce53053ce378 ("kvm: switch get_user_page_nowait() to get_user_pages_unlocked()")
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Tested-by: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+> Reported-by: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-The main benefit is reduced scanning when compaction is taking a long time
-or the machine is over-saturated. It also avoids an unnecessary exit of
-compaction that ends up being retried by the page allocator in the outer
-loop.
+FWIW:
 
-                                        4.20.0                 4.20.0
-                              synccached-v2r15        noresched-v2r15
-Amean     fault-both-3      2655.55 (   0.00%)     2736.50 (  -3.05%)
-Amean     fault-both-5      4580.67 (   0.00%)     4133.70 (   9.76%)
-Amean     fault-both-7      5740.50 (   0.00%)     5738.61 (   0.03%)
-Amean     fault-both-12     9237.55 (   0.00%)     9392.82 (  -1.68%)
-Amean     fault-both-18    12899.51 (   0.00%)    13257.15 (  -2.77%)
-Amean     fault-both-24    16342.47 (   0.00%)    16859.44 (  -3.16%)
-Amean     fault-both-30    20394.26 (   0.00%)    16249.30 *  20.32%*
-Amean     fault-both-32    17450.76 (   0.00%)    14904.71 *  14.59%*
+Reviewed-by: Peter Xu <peterx@redhat.com>
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/compaction.c | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+> ---
+>  mm/hugetlb.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index e37efd5d8318..b3622d7888c8 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4301,7 +4301,8 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  				break;
+>  			}
+>  			if (ret & VM_FAULT_RETRY) {
+> -				if (nonblocking)
+> +				if (nonblocking &&
+> +				    !(fault_flags & FAULT_FLAG_RETRY_NOWAIT))
+>  					*nonblocking = 0;
+>  				*nr_pages = 0;
+>  				/*
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 1a41a2dbff24..75eb0d40d4d7 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -398,19 +398,11 @@ static bool compact_lock_irqsave(spinlock_t *lock, unsigned long *flags,
- 	return true;
- }
- 
--/*
-- * Aside from avoiding lock contention, compaction also periodically checks
-- * need_resched() and records async compaction as contended if necessary.
-- */
-+/* Avoid soft-lockups due to long scan times */
- static inline void compact_check_resched(struct compact_control *cc)
- {
--	/* async compaction aborts if contended */
--	if (need_resched()) {
--		if (cc->mode == MIGRATE_ASYNC)
--			cc->contended = true;
--
-+	if (need_resched())
- 		cond_resched();
--	}
- }
- 
- /*
+Regards,
+
 -- 
-2.16.4
+Peter Xu
