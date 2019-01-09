@@ -1,100 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B0C818E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 13:56:55 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 75so5862995pfq.8
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 10:56:55 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u9si68353243pge.48.2019.01.09.10.56.53
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 56AF18E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:17:13 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id i124so4440125pgc.2
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:17:13 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id w67si20181058pgb.45.2019.01.09.08.17.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 10:56:54 -0800 (PST)
-Date: Wed, 9 Jan 2019 10:56:52 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v7] mm/page_alloc.c: memory_hotplug: free pages as
+        Wed, 09 Jan 2019 08:17:12 -0800 (PST)
+Message-ID: <54c280dbd0ff8e17a6c465778c98e2dbbbde7918.camel@linux.intel.com>
+Subject: Re: [PATCH v8] mm/page_alloc.c: memory_hotplug: free pages as
  higher order
-Message-Id: <20190109105652.40e24fa969a2bb7a58e097a8@linux-foundation.org>
-In-Reply-To: <2efb06e91d9af48bf3d1d38bd50e0458@codeaurora.org>
-References: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
-	<fb6465c99b3ada2c6af587a7eb00016d96d56f77.camel@linux.intel.com>
-	<20190108181352.GI31793@dhcp22.suse.cz>
-	<bfb543b6e343c21c3e263a110f234e08@codeaurora.org>
-	<20190109073718.GM31793@dhcp22.suse.cz>
-	<a053bd9b93e71baae042cdfc3432f945@codeaurora.org>
-	<20190109084031.GN31793@dhcp22.suse.cz>
-	<e005e71b125b9b8ddee668d1df9ad5ec@codeaurora.org>
-	<20190109105754.GR31793@dhcp22.suse.cz>
-	<2efb06e91d9af48bf3d1d38bd50e0458@codeaurora.org>
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Wed, 09 Jan 2019 08:17:11 -0800
+In-Reply-To: <1547032395-24582-1-git-send-email-arunks@codeaurora.org>
+References: <1547032395-24582-1-git-send-email-arunks@codeaurora.org>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, arunks.linux@gmail.com, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
+To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: getarunks@gmail.com
 
-On Wed, 09 Jan 2019 16:36:36 +0530 Arun KS <arunks@codeaurora.org> wrote:
-
-> On 2019-01-09 16:27, Michal Hocko wrote:
-> > On Wed 09-01-19 16:12:48, Arun KS wrote:
-> > [...]
-> >> It will be called once per online of a section and the arg value is 
-> >> always
-> >> set to 0 while entering online_pages_range.
-> > 
-> > You rare right that this will be the case in the most simple scenario.
-> > But the point is that the callback can be called several times from
-> > walk_system_ram_range and then your current code wouldn't work 
-> > properly.
+On Wed, 2019-01-09 at 16:43 +0530, Arun KS wrote:
+> When freeing pages are done with higher order, time spent on coalescing
+> pages by buddy allocator can be reduced.  With section size of 256MB, hot
+> add latency of a single section shows improvement from 50-60 ms to less
+> than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> external providers of online callback to align with the change.
 > 
-> Thanks. Will use +=
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> ---
+> Changes since v7:
+> - Rebased to 5.0-rc1.
+> - Fixed onlined_pages accounting.
+> - Added comment for return value of online_page_callback.
+> - Renamed xen_bring_pgs_online to xen_online_pages.
 
-The v8 patch
-https://lore.kernel.org/lkml/1547032395-24582-1-git-send-email-arunks@codeaurora.org/T/#u
+As far as the renaming you should try to be consistent. If you aren't
+going to rename generic_online_page or hv_online_page I wouldn't bother
+with renaming xen_online_page. I would stick with the name
+xen_online_page since it is a single high order page that you are
+freeing.
 
-(which you apparently sent 7 minutes after typing the above) still has
+> 
+> Changes since v6:
+> - Rebased to 4.20
+> - Changelog updated.
+> - No improvement seen on arm64, hence removed removal of prefetch.
+> 
+> Changes since v5:
+> - Rebased to 4.20-rc1.
+> - Changelog updated.
+> 
+> Changes since v4:
+> - As suggested by Michal Hocko,
+> - Simplify logic in online_pages_block() by using get_order().
+> - Seperate out removal of prefetch from __free_pages_core().
+> 
+> Changes since v3:
+> - Renamed _free_pages_boot_core -> __free_pages_core.
+> - Removed prefetch from __free_pages_core.
+> - Removed xen_online_page().
+> 
+> Changes since v2:
+> - Reuse code from __free_pages_boot_core().
+> 
+> Changes since v1:
+> - Removed prefetch().
+> 
+> Changes since RFC:
+> - Rebase.
+> - As suggested by Michal Hocko remove pages_per_block.
+> - Modifed external providers of online_page_callback.
+> 
+> v7: https://lore.kernel.org/patchwork/patch/1028908/
+> v6: https://lore.kernel.org/patchwork/patch/1007253/
+> v5: https://lore.kernel.org/patchwork/patch/995739/
+> v4: https://lore.kernel.org/patchwork/patch/995111/
+> v3: https://lore.kernel.org/patchwork/patch/992348/
+> v2: https://lore.kernel.org/patchwork/patch/991363/
+> v1: https://lore.kernel.org/patchwork/patch/989445/
+> RFC: https://lore.kernel.org/patchwork/patch/984754/
+> ---
+>  drivers/hv/hv_balloon.c        |  6 +++--
+>  drivers/xen/balloon.c          | 21 +++++++++++------
+>  include/linux/memory_hotplug.h |  2 +-
+>  mm/internal.h                  |  1 +
+>  mm/memory_hotplug.c            | 51 +++++++++++++++++++++++++++++++-----------
+>  mm/page_alloc.c                |  8 +++----
+>  6 files changed, 62 insertions(+), 27 deletions(-)
+> 
+> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> index 5301fef..211f3fe 100644
+> --- a/drivers/hv/hv_balloon.c
+> +++ b/drivers/hv/hv_balloon.c
+> @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+>  	}
+>  }
+>  
+> -static void hv_online_page(struct page *pg)
+> +static int hv_online_page(struct page *pg, unsigned int order)
+>  {
+>  	struct hv_hotadd_state *has;
+>  	unsigned long flags;
+> @@ -783,10 +783,12 @@ static void hv_online_page(struct page *pg)
+>  		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+>  			continue;
+>  
+> -		hv_page_online_one(has, pg);
+> +		hv_bring_pgs_online(has, pfn, (1UL << order));
+>  		break;
+>  	}
+>  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
+> +
+> +	return 0;
+>  }
+>  
 
- static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 			void *arg)
- {
--	unsigned long i;
- 	unsigned long onlined_pages = *(unsigned long *)arg;
--	struct page *page;
- 
- 	if (PageReserved(pfn_to_page(start_pfn)))
--		for (i = 0; i < nr_pages; i++) {
--			page = pfn_to_page(start_pfn + i);
--			(*online_page_callback)(page);
--			onlined_pages++;
--		}
-+		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
+I would hold off on adding return values until you actually have code
+that uses them. It will make things easier if somebody has to backport
+this to a stable branch and avoid adding complexity until it is needed.
 
+Also the patch description doesn't really explain that it is doing this
+so it might be better to break it off into a separate patch so you can
+call out exactly why you are adding a return value in the patch
+description.
 
-Even then the code makes no sense.
-
-static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-			void *arg)
-{
-	unsigned long onlined_pages = *(unsigned long *)arg;
-
-	if (PageReserved(pfn_to_page(start_pfn)))
-		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
-
-	online_mem_sections(start_pfn, start_pfn + nr_pages);
-
-	*(unsigned long *)arg += onlined_pages;
-	return 0;
-}
-
-Either the final assignment should be
-
-	*(unsigned long *)arg = onlined_pages;
-
-or the initialization should be
-
-	unsigned long onlined_pages = 0;
-
-
-
-This is becoming a tad tiresome and I'd prefer not to have to check up
-on such things.  Can we please get this right?  
+- Alex
