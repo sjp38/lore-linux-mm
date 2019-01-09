@@ -1,109 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F408E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 23:39:43 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id t72so6850082pfi.21
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 20:39:43 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id a2si7581315pfb.166.2019.01.09.20.39.41
+	by kanga.kvack.org (Postfix) with ESMTP id B0C818E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 13:56:55 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 75so5862995pfq.8
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 10:56:55 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u9si68353243pge.48.2019.01.09.10.56.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 20:39:41 -0800 (PST)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Thu, 10 Jan 2019 10:09:40 +0530
-From: Arun KS <arunks@codeaurora.org>
-Subject: Re: [PATCH v7] mm/page_alloc.c: memory_hotplug: free pages as higher
- order
-In-Reply-To: <fa89d216da811e97428ad155770bcca5eddecc37.camel@linux.intel.com>
+        Wed, 09 Jan 2019 10:56:54 -0800 (PST)
+Date: Wed, 9 Jan 2019 10:56:52 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v7] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+Message-Id: <20190109105652.40e24fa969a2bb7a58e097a8@linux-foundation.org>
+In-Reply-To: <2efb06e91d9af48bf3d1d38bd50e0458@codeaurora.org>
 References: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
- <7c81c8bc741819e87e9a2a39a8b1b6d2f8d3423a.camel@linux.intel.com>
- <fdc656df7c54819f60d9a1682c84b14f@codeaurora.org>
- <fa89d216da811e97428ad155770bcca5eddecc37.camel@linux.intel.com>
-Message-ID: <210ea658c3bdd074febbe90b19e88615@codeaurora.org>
+	<fb6465c99b3ada2c6af587a7eb00016d96d56f77.camel@linux.intel.com>
+	<20190108181352.GI31793@dhcp22.suse.cz>
+	<bfb543b6e343c21c3e263a110f234e08@codeaurora.org>
+	<20190109073718.GM31793@dhcp22.suse.cz>
+	<a053bd9b93e71baae042cdfc3432f945@codeaurora.org>
+	<20190109084031.GN31793@dhcp22.suse.cz>
+	<e005e71b125b9b8ddee668d1df9ad5ec@codeaurora.org>
+	<20190109105754.GR31793@dhcp22.suse.cz>
+	<2efb06e91d9af48bf3d1d38bd50e0458@codeaurora.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: arunks.linux@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
+To: Arun KS <arunks@codeaurora.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, arunks.linux@gmail.com, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-On 2019-01-09 21:39, Alexander Duyck wrote:
-> On Wed, 2019-01-09 at 11:51 +0530, Arun KS wrote:
->> On 2019-01-09 03:47, Alexander Duyck wrote:
->> > On Fri, 2019-01-04 at 10:31 +0530, Arun KS wrote:
->> > > When freeing pages are done with higher order, time spent on
->> > > coalescing
->> > > pages by buddy allocator can be reduced.  With section size of 256MB,
->> > > hot
->> > > add latency of a single section shows improvement from 50-60 ms to
->> > > less
->> > > than 1 ms, hence improving the hot add latency by 60 times.  Modify
->> > > external providers of online callback to align with the change.
->> > >
->> > > Signed-off-by: Arun KS <arunks@codeaurora.org>
->> > > Acked-by: Michal Hocko <mhocko@suse.com>
->> > > Reviewed-by: Oscar Salvador <osalvador@suse.de>
->> >
->> > Sorry, ended up encountering a couple more things that have me a bit
->> > confused.
->> >
->> > [...]
->> >
->> > > diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
->> > > index 5301fef..211f3fe 100644
->> > > --- a/drivers/hv/hv_balloon.c
->> > > +++ b/drivers/hv/hv_balloon.c
->> > > @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start,
->> > > unsigned long size,
->> > >  	}
->> > >  }
->> > >
->> > > -static void hv_online_page(struct page *pg)
->> > > +static int hv_online_page(struct page *pg, unsigned int order)
->> > >  {
->> > >  	struct hv_hotadd_state *has;
->> > >  	unsigned long flags;
->> > > @@ -783,10 +783,12 @@ static void hv_online_page(struct page *pg)
->> > >  		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
->> > >  			continue;
->> > >
->> > > -		hv_page_online_one(has, pg);
->> > > +		hv_bring_pgs_online(has, pfn, (1UL << order));
->> > >  		break;
->> > >  	}
->> > >  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
->> > > +
->> > > +	return 0;
->> > >  }
->> > >
->> > >  static int pfn_covered(unsigned long start_pfn, unsigned long
->> > > pfn_cnt)
->> >
->> > So the question I have is why was a return value added to these
->> > functions? They were previously void types and now they are int. What
->> > is the return value expected other than 0?
->> 
->> Earlier with returning a void there was now way for an arch code to
->> denying onlining of this particular page. By using an int as return
->> type, we can implement this. In one of the boards I was using, there 
->> are
->> some pages which should not be onlined because they are used for other
->> purposes(like secure trust zone or hypervisor).
+On Wed, 09 Jan 2019 16:36:36 +0530 Arun KS <arunks@codeaurora.org> wrote:
+
+> On 2019-01-09 16:27, Michal Hocko wrote:
+> > On Wed 09-01-19 16:12:48, Arun KS wrote:
+> > [...]
+> >> It will be called once per online of a section and the arg value is 
+> >> always
+> >> set to 0 while entering online_pages_range.
+> > 
+> > You rare right that this will be the case in the most simple scenario.
+> > But the point is that the callback can be called several times from
+> > walk_system_ram_range and then your current code wouldn't work 
+> > properly.
 > 
-> So where is the code using that? I don't see any functions in the
-> kernel that are returning anything other than 0. Maybe you should hold
-> off on changing the return type and make that a separate patch to be
-> enabled when you add the new functions that can return non-zero values.
-> 
-> That way if someone wants to backport this they are just getting the
-> bits needed to enable the improved hot-plug times without adding the
-> extra overhead for changing the return type.
+> Thanks. Will use +=
 
-The implementation was in our downstream code. I thought this might be 
-useful for someone else in similar situations.
-Considering the above mentioned reasons, I ll remove changing the return 
-type.
+The v8 patch
+https://lore.kernel.org/lkml/1547032395-24582-1-git-send-email-arunks@codeaurora.org/T/#u
 
-Regards,
-Arun
+(which you apparently sent 7 minutes after typing the above) still has
+
+ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+ 			void *arg)
+ {
+-	unsigned long i;
+ 	unsigned long onlined_pages = *(unsigned long *)arg;
+-	struct page *page;
+ 
+ 	if (PageReserved(pfn_to_page(start_pfn)))
+-		for (i = 0; i < nr_pages; i++) {
+-			page = pfn_to_page(start_pfn + i);
+-			(*online_page_callback)(page);
+-			onlined_pages++;
+-		}
++		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
+
+
+Even then the code makes no sense.
+
+static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+			void *arg)
+{
+	unsigned long onlined_pages = *(unsigned long *)arg;
+
+	if (PageReserved(pfn_to_page(start_pfn)))
+		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
+
+	online_mem_sections(start_pfn, start_pfn + nr_pages);
+
+	*(unsigned long *)arg += onlined_pages;
+	return 0;
+}
+
+Either the final assignment should be
+
+	*(unsigned long *)arg = onlined_pages;
+
+or the initialization should be
+
+	unsigned long onlined_pages = 0;
+
+
+
+This is becoming a tad tiresome and I'd prefer not to have to check up
+on such things.  Can we please get this right?  
