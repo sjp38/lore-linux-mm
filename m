@@ -2,162 +2,165 @@ Return-Path: <SRS0=IlG+=PR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1337C43387
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 18:26:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC5EBC43387
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 19:27:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9E93A214C6
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 18:26:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="S25Z8OJ1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E93A214C6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 672C2206BA
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 19:27:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 672C2206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 283118E00A0; Wed,  9 Jan 2019 13:26:05 -0500 (EST)
+	id 1B7EC8E00A1; Wed,  9 Jan 2019 14:27:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20B098E0038; Wed,  9 Jan 2019 13:26:05 -0500 (EST)
+	id 16A128E0038; Wed,  9 Jan 2019 14:27:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 122968E00A0; Wed,  9 Jan 2019 13:26:05 -0500 (EST)
+	id 009798E00A1; Wed,  9 Jan 2019 14:27:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 972DE8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 13:26:04 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id 2-v6so2042533ljs.15
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 10:26:04 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B165C8E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 14:27:40 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id f9so4723798pgs.13
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 11:27:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=iYHo4BDWkQuib5zX71OSEA0OVBabwksHuuT/CZTIf4w=;
-        b=gkjiwyH+tiCZwDNq9OhJraIA5Pd40DdI/QR65Bt80ZB4vSxeqM33aVVig+xs1Iz30w
-         I4mfx8ohKZ/GsIzixVaOCk69kRmFizK+MHhov/HsKc629TR1LlbGcDKJfRhO00AlZsn8
-         3X8Og6ch3CtElDJnwmktt4sBb0NZLrqgPJz3GeXBnAk6ErPo/ZgbPq82NU3ddQKff8/b
-         7m2Fr2/kBbJ6dnkWb91795UrnrVwXXtQRzWqszJY1fT4jQLjtc0WSJfA41IVp2YY14ug
-         66jWhmSJ40LzA5iQzlxtTZkZ+kByGNjC6tXhNdsn3ZwRkC8KHG7Gs7RbyLqBw3o43DXD
-         IiTg==
-X-Gm-Message-State: AJcUukdsquezZLKev8YjW5PtkaMdi3bexTUojOLSDdtQZxo7qFXWjACJ
-	xf8Ves/rAqsOlxGkWQqLsA3wFtBFR6Wok92nItUYp1eRtPHa2Jxz1uK6BCacd5xEDSH0H5Bk3KU
-	kuMgH11oNGOgj9Dhe/seqhEetSZFrtAbrmoo0EsPpCwUjWGbVaGxTnCJGcp2xeF75b/cNryiCJY
-	iBTI9Rxz3/kyUNG0q3SxBTpdGdIpcf8B1YB+R5SGjO30eZ4Xqc3Ti9tt3S0kBnKvBCKtokl7oxW
-	JqOT39nxCYNk4VhC4ictAg8pouJddyeRX/5KI/SUWS+BdXG4Qj/rPhDH3UMRbL4mXZ8rywK/xoS
-	KNruLy0Z7g4QI2uJKv3bAubaz6FaOQs5kEmMgyB8ARstUKFKf1MlRJ0KuBPPy2no21aEYY5oLWn
-	f
-X-Received: by 2002:a2e:9ad0:: with SMTP id p16-v6mr4475634ljj.102.1547058363818;
-        Wed, 09 Jan 2019 10:26:03 -0800 (PST)
-X-Received: by 2002:a2e:9ad0:: with SMTP id p16-v6mr4475603ljj.102.1547058362753;
-        Wed, 09 Jan 2019 10:26:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547058362; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=YvHbbFTQGKzu1yoPcOk6gELXGq0DpSPHtmrDxZOcDa4=;
+        b=LsNVq0Ba5RnIHV0Ea8ZQr9erA2pbCh9LULKGtZ0GPTh1eajKV4lHdk7E0SYPiB6BMl
+         ekOqcB7DZrusDlLYC8UmlQLtTSm9vRck7AKBx61mIK08P2UTWT0150vgDvAma7N4zJLS
+         R2h3T/xNC1kWjrzWRibIx9l7WnBtqQ9UMQE5icmD3pFs15opqIbhvLHs3ivvO8ssJemU
+         wpd5abkZT1+AennENbA4calau4jg+nCrjuwhMhoFBzAEqoj6ninpKV236fr2WVpHNdgP
+         ifJjfTZ2wi6r2VzVW5FwhUbH6Ui5jrm8R80HxCliydcRnk4kW+hQR33YdhH5C4UkylmG
+         VsbQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: AJcUukdH4M2JAfw0RNnMAeZEnm/M8V76d0nO1c+cvZR/xSclDzCWnoc1
+	I25vixIM0Bu7T51KwyxQhB06oa2erB8Tnoabt+TicLCO8iqZOdfDM3FpeVQgGPKJogG0A02sNH0
+	Q3F3AieDPuUiMnqsCapx95ycm9RuHbkKQ6yL6O8ZyKi63ad9xJ0t3eWNWrnNW9L3npw==
+X-Received: by 2002:a63:f844:: with SMTP id v4mr6554405pgj.82.1547062060359;
+        Wed, 09 Jan 2019 11:27:40 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4+URTajkmDU2T74IU6TAb7wm8vDXipKCyr0jJMM0fxN6opty+8UKXPo3fNE5ixc47zwKNM
+X-Received: by 2002:a63:f844:: with SMTP id v4mr6554350pgj.82.1547062059156;
+        Wed, 09 Jan 2019 11:27:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547062059; cv=none;
         d=google.com; s=arc-20160816;
-        b=aY0HxIqaR0PC/fWUbegl74/jRHKfmO/ZkTuDQVpgnhDhsxCMJAL99zuaVSxFtkBaGY
-         9XjhOeJK0z/63lSn7Y3SlMUqHfc+oWBBAMSi+RlN1pptMjZvl6tUEoihqDBqe2VpkpJt
-         vDRJFQyC3N3w8ewEr4OeV+KePDVp19FILf1K7eIuiYm03yuR5ggv6aNFoGMymNjMBv9V
-         KUuvPldF//ue/mtzo+FT08s/baVNxTrYt7jXseAbkfZnuEXuUxp6GSlW9FSHn719t2bF
-         I29MOOCbsFmRrFTLq3as528mxfZJb5BYikTFLFrgzZQa/kjPhPjiv9GZp9ffSo6nCWgO
-         UAYw==
+        b=JhQKx6eM44jJK1OIi6zj/HUppfttn1HYe1fOrVSIKBqz/tTYfZOw0npZ1u2NkpBdm6
+         HmeD2LLbaLAS+PlB86y75byydUE0/HTNlOHFDXvq7sy2HdrqizVvqbnMG5sEOH26Q1XR
+         al+dkzx91ngAUkUO9ZFn+uLMA4qgXGbTGizkgHW6fo65RLEid/ENGu3kzQndWn2cWIqV
+         CqmrStEA3zNWhIW2KmlLPcxNzEHe4LFG64LfXfGqsAOOCDNwXjBBpUDBt07/U50V45Ci
+         TQerzAjIECxm+LWb2TDeaXPESlPkF9Su0nQYG9CIF111xPXY7RBIXaVv887Zk+7up9Rs
+         29EA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=iYHo4BDWkQuib5zX71OSEA0OVBabwksHuuT/CZTIf4w=;
-        b=uS4VXZ+jyRSrU/rKFlgMlA52jiAO2tXtw/jQ2CF4TPrlgNShhwFEUtIM3f36dIdzdj
-         T+rqoddhcvXhW6fhMu3TDZ50M+nYgpXKCTdAvMLw+PeSZLU9PP+msAWMxZ744yJKv9ww
-         hzbuhk9T4uwIweW4W/mzwz2TQR8KwVCqSXqzhpdpKEwXzrI5qo1jddLQ0kTIdw+DtiIT
-         HieoLwMBxoIFn+8fmmd3cyjoEuLDgBTxbEk8gy3A3Zu/tNUbU4ivXDGQKrvM6UMk5a63
-         o3CUZ9U8Ces0Y7zYPoMZcKdcVC6iI2Shu3HA4J0TCKEW82TcY3A52DjQwAp+/7pEce+l
-         V6tg==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=YvHbbFTQGKzu1yoPcOk6gELXGq0DpSPHtmrDxZOcDa4=;
+        b=OIhLVUFWnoOkRVbangY6fm5/UWvtfme/PmhT3YNIO7EPMBun+bMfd/B4mz1Blq4Fl8
+         k7boqf0PKp1oOkFJUl10C25OZUFVYlLji/J/JqlHqb6o3wHL4ka27b7HkTglwq8zy22g
+         OmNAPgAuSaq7NHR/OOC0GP3ZTtVwI9YJLDZ6rKgUac+8Q0EuGjlvnuQcwdLqJyd2pDUf
+         LefN2q4MMuyr17RA3Is++fDtA74E0DSXI6LtgMX6t7Jae1sbBrUD9DSzsKMLIpLhExCx
+         NpoBYZI4a+0UUgYiwQWf9upNwnUCeG2mU/Ntd2H5iTAtYzQ6Xl0nSEmrMDTqoz68V2Cm
+         1TRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=S25Z8OJ1;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a22-v6sor42303303ljd.6.2019.01.09.10.26.02
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 09 Jan 2019 10:26:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=S25Z8OJ1;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=iYHo4BDWkQuib5zX71OSEA0OVBabwksHuuT/CZTIf4w=;
-        b=S25Z8OJ1pX0QKsZYg/M0fXk3w3bXm7xAcOnQjDOREYBiQR8iMYf6faROB/7DN+39Fr
-         CCHlM8Jo6MDQYsdV25OSIoh3iQT+GmLbIADo8OGLR2nu4DxhnWCrlN2q9+chgfDv5I+K
-         CRUqm5AcGPUNJI+0aaNtaQLg9O32BM1sMYLWo=
-X-Google-Smtp-Source: ALg8bN6TUt1QLAkxbNyZu1jy6sE2SBdHSKn/Ws+b5sy2oHzCpMPPwr/1I9lEpW3LTdFuuYER3d8UeA==
-X-Received: by 2002:a2e:a289:: with SMTP id k9-v6mr4030292lja.24.1547058361572;
-        Wed, 09 Jan 2019 10:26:01 -0800 (PST)
-Received: from mail-lf1-f54.google.com (mail-lf1-f54.google.com. [209.85.167.54])
-        by smtp.gmail.com with ESMTPSA id 11sm13967940lfq.89.2019.01.09.10.26.00
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id f24si10448757pgj.315.2019.01.09.11.27.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 10:26:00 -0800 (PST)
-Received: by mail-lf1-f54.google.com with SMTP id i26so6404529lfc.0
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 10:26:00 -0800 (PST)
-X-Received: by 2002:a19:982:: with SMTP id 124mr3883924lfj.138.1547058359888;
- Wed, 09 Jan 2019 10:25:59 -0800 (PST)
-MIME-Version: 1.0
-References: <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com>
- <CAHk-=wiMQeCEKESWTmm15x79NjEjNwFvjZ=9XenxY7yH8zqa7A@mail.gmail.com>
- <20190106001138.GW6310@bombadil.infradead.org> <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com>
- <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com>
- <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com>
- <20190108044336.GB27534@dastard> <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com>
- <20190109022430.GE27534@dastard> <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
- <20190109043906.GF27534@dastard>
-In-Reply-To: <20190109043906.GF27534@dastard>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 9 Jan 2019 10:25:43 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
-Message-ID:
- <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 09 Jan 2019 11:27:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R231e4;CH=green;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0THtvvDg_1547061291;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0THtvvDg_1547061291)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 10 Jan 2019 03:14:59 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: mhocko@suse.com,
+	hannes@cmpxchg.org,
+	shakeelb@google.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [v3 PATCH 5/5] doc: memcontrol: add description for wipe_on_offline
+Date: Thu, 10 Jan 2019 03:14:45 +0800
+Message-Id: <1547061285-100329-6-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190109182543.CYAIHce_lQFiEkiPYD7HhdR2KsTGFhxIEoUhkYJU2YY@z>
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20190109191445.yNhtP8uJvihoSx2W5DfU34mdqnm6tt_8bZFkuPNJ3eA@z>
 
-On Tue, Jan 8, 2019 at 8:39 PM Dave Chinner <david@fromorbit.com> wrote:
->
-> FWIW, I just realised that the easiest, most reliable way to
-> invalidate the page cache over a file range is simply to do a
-> O_DIRECT read on it.
+Add desprition of wipe_on_offline interface in cgroup documents.
 
-If that's the case, that's actually an O_DIRECT bug.
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ Documentation/admin-guide/cgroup-v2.rst |  9 +++++++++
+ Documentation/cgroup-v1/memory.txt      | 10 ++++++++++
+ 2 files changed, 19 insertions(+)
 
-It should only invalidate the caches on write.
-
-On reads, it wants to either _flush_ any direct caches before the
-read, or just take the data from the caches. At no point is
-"invalidate" a valid model.
-
-Of course, I'm not in the least bit shocked if O_DIRECT is buggy like
-this. But looking at least at the ext4 routine, the read just does
-
-        ret = filemap_write_and_wait_range(mapping, iocb->ki_pos,
-
-and I don't see any invalidation.
-
-Having read access to a file absolutely should *not* mean that you can
-flush caches on it. That's a write op.
-
-Any filesystem that invalidates the caches on read is utterly buggy.
-
-Can you actually point to such a thing? Let's get that fixed, because
-it's completely wrong regardless of this whole mincore issue.
-
-               Linus
+diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+index 0290c65..e4ef08c 100644
+--- a/Documentation/admin-guide/cgroup-v2.rst
++++ b/Documentation/admin-guide/cgroup-v2.rst
+@@ -1303,6 +1303,15 @@ PAGE_SIZE multiple when read back.
+         memory pressure happens. If you want to avoid that, force_empty will be
+         useful.
+ 
++  memory.wipe_on_offline
++
++        This is similar to force_empty, but it just does memory reclaim
++        asynchronously in css offline kworker.
++
++        Writing into 1 will enable it, disable it by writing into 0.
++
++        It would reclaim as much as possible memory just as what force_empty does.
++
+ 
+ Usage Guidelines
+ ~~~~~~~~~~~~~~~~
+diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
+index 8e2cb1d..1c6e1ca 100644
+--- a/Documentation/cgroup-v1/memory.txt
++++ b/Documentation/cgroup-v1/memory.txt
+@@ -71,6 +71,7 @@ Brief summary of control files.
+  memory.stat			 # show various statistics
+  memory.use_hierarchy		 # set/show hierarchical account enabled
+  memory.force_empty		 # trigger forced page reclaim
++ memory.wipe_on_offline		 # trigger forced page reclaim when offlining
+  memory.pressure_level		 # set memory pressure notifications
+  memory.swappiness		 # set/show swappiness parameter of vmscan
+ 				 (See sysctl's vm.swappiness)
+@@ -581,6 +582,15 @@ hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
+ 
+ The "total" count is sum of file + anon + unevictable.
+ 
++5.7 wipe_on_offline
++
++This is similar to force_empty, but it just does memory reclaim asynchronously
++in css offline kworker.
++
++Writing into 1 will enable it, disable it by writing into 0.
++
++It would reclaim as much as possible memory just as what force_empty does.
++
+ 6. Hierarchy support
+ 
+ The memory controller supports a deep hierarchy and hierarchical accounting.
+-- 
+1.8.3.1
 
