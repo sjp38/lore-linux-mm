@@ -2,136 +2,149 @@ Return-Path: <SRS0=IlG+=PR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 43FF9C43612
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 02:31:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BD16C43387
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 02:57:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 07A1A217F9
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 02:31:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07A1A217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id F15912146F
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 02:57:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F15912146F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9BDAC8E009F; Tue,  8 Jan 2019 21:31:38 -0500 (EST)
+	id 5D7D98E009D; Tue,  8 Jan 2019 21:57:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 943DC8E0038; Tue,  8 Jan 2019 21:31:38 -0500 (EST)
+	id 587258E0038; Tue,  8 Jan 2019 21:57:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 80AD38E009F; Tue,  8 Jan 2019 21:31:38 -0500 (EST)
+	id 478248E009D; Tue,  8 Jan 2019 21:57:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 229F48E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 21:31:38 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id e29so2363427ede.19
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 18:31:38 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DB2498E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 21:57:01 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id o21so2368268edq.4
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 18:57:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=TZE1yZrtEyR+lBk0N8kxSweADarJQTGJbRD12vzgFwE=;
-        b=mwnrxlkmUyRvCWLFFZWjtQdw0H06HuPvuQcmwk9OQlzCcfXuio5u2DNmYaWYHxt+X7
-         VZIQEhtyovVYE+d4xXOjEL3GBsqQyfRcO5FFE5UIBxufj/f9E0k4opsXesoOi32vCZf+
-         IB7vzn4tbedG8JmJlBz8XbWR9i9OuMztqocf1gsvtQTl4OyE/1edRqmI1tA51xQ9tonz
-         iSyOvfR3IzSXOIk4r6xIjSamE+f1gHW0FYi5kZDWMg3ME5Jed/fo8clr9EQNle6UxHBB
-         ORI/x7edJsPmrcpUPGKQRgMVkMSBfMgbOewYqXT9ogy99hr3QIMoR1nbqA+gX5xRGK4S
-         fmWg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukf3uKrnTXW0Db8g1a9yxFzsTho25WPnFYdD9SapMf3GL1JioZlM
-	UxZq992vGXL8ooLOcXrj3ufExJ/aAzhAHfwiiQ2jUP3AVWXkwi5HzzzHeYoQANEIskGiM5Spj0N
-	q8M0TPwLZAqJQevaWn0V/TNX/aS2yE6tJMbyGKqxv9UttY9s6Nveo0SpxSKJqQrU=
-X-Received: by 2002:a50:bdc8:: with SMTP id z8mr4183137edh.46.1547001097673;
-        Tue, 08 Jan 2019 18:31:37 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6gFVpiUhUAdp05cDDqdeOzwdDx1o82CL8dCMLAXh8qp170j70G1SF4m+Zu5JLrRP4SBwfY
-X-Received: by 2002:a50:bdc8:: with SMTP id z8mr4183109edh.46.1547001096820;
-        Tue, 08 Jan 2019 18:31:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547001096; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:content-transfer-encoding:mime-version;
+        bh=igOEgkrKiIpGXo5UrLOBR4UOq3p0/vKuaMXWYwgXv6g=;
+        b=r/IWK94kOXEaGHRGVAcXDxdw2hSqm6/FXmgWK0HNG3jsb5Ft7wh7A1bzhrN7ADaSXE
+         CjXbCDbvsM6CDFfNilOkBLhF4/Ud7FPR5vFX4iqMRMHmURhmUjpzXsKxo6voXtSodQ8J
+         AsiDR7GWjW0cQHtSq3aYum9eTl3e7SlUPMR1wKBkKnVzdsVebmVv/qtzG4++iHpQlLDU
+         TTpU/7kpNIcahmvJlPFwRO/Fuyu8WAQMVI4IMtmcPAZaIrpXqC5gbR2FoO5Id4Pxw234
+         kfaplQF564Gv/B3sDXvW0M2nPdHmIZr2LvZse7FR9JThzwIcRUogLgn7RVVEZBjf9txh
+         kXtw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+X-Gm-Message-State: AJcUukcI/qjPTsU9Yd/T0snC19gHb8lILO9J43VKHP1Ovs61Q43Ue2ff
+	/IT+ahN4l1AxLzh+t0LNctJkA6GRt61FWZPeWKT4mSl5mtPWbpW1E0cZG2NRPVX15mxntFrUnJS
+	9l1CXTeSmym1p9ogVyntBUBfus2xhBTxcZAaEr1407uO0TAEHQ+phMby2G35rhgmgTQ==
+X-Received: by 2002:a50:a8a4:: with SMTP id k33mr4318861edc.109.1547002621445;
+        Tue, 08 Jan 2019 18:57:01 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7EtWkD6GOPKq/+sz2Km8QwDPyHiPydlRiYxsP3Gg/l/U6jIzM89PfW/4vyL4hjln/8Gcvz
+X-Received: by 2002:a50:a8a4:: with SMTP id k33mr4318835edc.109.1547002620588;
+        Tue, 08 Jan 2019 18:57:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547002620; cv=none;
         d=google.com; s=arc-20160816;
-        b=fnkt1K5SNRRbKQImQtWogpZOcIuS1VWAmcFw7xNLgwz5BWzL4SRFeuEkBsbSXhuFiz
-         IunIuApnm1WjrlwftujtQNW69hB/W5DHRDAq9M1fBNHBFPJYuFmRb+/8t1nD7XkeAh07
-         71IbPncHchenc2oW81jCekbUirE74YJ+C1xVaRmtneqvwD1UF2JqZMa8Kj8v5ilvEg3S
-         +yJItbAEIsk4r9qmqYLMZpqdGZmQk/0lZt0DDtI0CQ+3vlRuXQezhwMnUB7twZjTm7JV
-         PX9giWr3I20Z0bLdYGWMJPvps3XScHn908TbChLzphZYOgmddNKLTzNcmpmcy01KhOCW
-         m5ng==
+        b=jtBCL+5bVLW9XTsEtb7nTY8/GcY1HhYhwyOEMxe4bQ3yseoTXyDSV2bjt5VBeU+Th6
+         HsrNPDolIdU1Wef+sW5Nm/KO1wTJ7IQGeSpzRZ/u0AWZMc1HTpGaRMCU5bLSEhJhzBg8
+         /VSZLNa2Ce7hlvC8b63SY747onibZFQFRGnQVzp6OiSRXoh2+OWg8MDrsO2RqwfzYvO7
+         Rd+foMn0eUh7FG9HUK9Rf7aXqpxa+yxHz++hOSHdxrl4AyuBJs0yvvB24bm7plEf3Vvb
+         KcVRo0E/epYOFNh9JyKOcEx9StZ6+QS6Rxx4o50WKK8zJ6y5pz9Dr+PJ46O12xS14cC8
+         NDEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=TZE1yZrtEyR+lBk0N8kxSweADarJQTGJbRD12vzgFwE=;
-        b=nPH5HT3HOaH42iC2+W0aqeNvHsMd4Q4BQumw/8FoZS2doCFxIYLrKNVsg4lS1AlAFc
-         yrHj1I64SJhL3/hRSLaYGQyWE/Q3G6MeX/gl1t896oMOWQspjfHORGAdvC1Ycqk+lZtz
-         moSgL8bhSfI7B47kf17yuq8U7a31QeUuFWMdph/mz2dxx6I5OEij3WbAXc+GDyv4Vbp6
-         /nR+QeiRRh6Ksn0eRDqKeMApgA4fjDEOX1OrWsqmEuBuitJ2ahgINm0SyZ8iZsRWMF89
-         ZuK6GwRpxaU/923V+Vy2EqCjbCizQHPztEADce6BI0tvPor+Dcir43A5jXMt5QVmx+Am
-         27Pw==
+        h=mime-version:content-transfer-encoding:message-id:date:subject:cc
+         :to:from;
+        bh=igOEgkrKiIpGXo5UrLOBR4UOq3p0/vKuaMXWYwgXv6g=;
+        b=NRQIxjUNGO5rtmisNuALGpb9r0eTRF1LuLJp3YgY0IdfX4qggFmi0I1zehCGlyyt0a
+         duOVsFaBo1UXWzYm1Q9njFRcZm/2Ewvok//4oIdtB9YFYIgjVraciX40yQDFgo3IxiO7
+         iN6X3cGUkToaLX4WjeTApHCvIFWjCTvJQZYfsr3Og9HeSUct7htZqtKfBCsK9fv2ZDLc
+         XMNZvjLppWVrkeQg4kylVElpY45ljj+bDzBbvICeB85gLaGJ8FzoW/x1QMYCjEgagQoT
+         FHTjUa88nnJMJHaUPRs+3zpGs2PDyGrmc08DirJqeba8wfhMDFYP4hr3tCf2wH80mNDy
+         jG1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g25si300508edr.258.2019.01.08.18.31.36
+       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id e22-v6si356385ejs.224.2019.01.08.18.57.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 18:31:36 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 08 Jan 2019 18:57:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay1.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3C8A2AEAD;
-	Wed,  9 Jan 2019 02:31:36 +0000 (UTC)
-Date: Wed, 9 Jan 2019 03:31:35 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-To: Dave Chinner <david@fromorbit.com>
-cc: Linus Torvalds <torvalds@linux-foundation.org>, 
-    Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, 
-    Greg KH <gregkh@linuxfoundation.org>, 
-    Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, 
-    Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, 
-    Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <20190109022430.GE27534@dastard>
-Message-ID: <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
-References: <CAG48ez2jAp9xkPXQmVXm0PqNrFGscg9BufQRem2UD8FGX-YzPw@mail.gmail.com> <CAHk-=whL4sZiM=JcdQAYQvHm7h7xEtVUh+gYGYhoSk4vi38tXg@mail.gmail.com> <CAHk-=wg5Kk+r36=jcGBaLUj+gjopjgiW5eyvkdMqvn0jFkD_iQ@mail.gmail.com> <CAHk-=wiMQeCEKESWTmm15x79NjEjNwFvjZ=9XenxY7yH8zqa7A@mail.gmail.com>
- <20190106001138.GW6310@bombadil.infradead.org> <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com> <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com> <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com>
- <20190108044336.GB27534@dastard> <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com> <20190109022430.GE27534@dastard>
-User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
-MIME-Version: 1.0
+       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+Received: from DGGEMS406-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 51E308BAB234272D1035;
+	Wed,  9 Jan 2019 10:56:26 +0800 (CST)
+Received: from localhost.localdomain.localdomain (10.175.113.25) by
+ DGGEMS406-HUB.china.huawei.com (10.3.19.206) with Microsoft SMTP Server id
+ 14.3.408.0; Wed, 9 Jan 2019 10:56:18 +0800
+From: YueHaibing <yuehaibing@huawei.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton
+	<akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>,
+	Michal Hocko <mhocko@suse.com>
+CC: YueHaibing <yuehaibing@huawei.com>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, <kernel-janitors@vger.kernel.org>
+Subject: [PATCH -next] mm, compaction: remove set but not used variables 'a, b, c'
+Date: Wed, 9 Jan 2019 03:02:47 +0000
+Message-ID: <1547002967-6127-1-git-send-email-yuehaibing@huawei.com>
+X-Mailer: git-send-email 1.8.3.1
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+X-Originating-IP: [10.175.113.25]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190109023135.EOYH649q25pC7VBrG5DU_L8qgRjlPzAka0aeSm8mCZ0@z>
+Message-ID: <20190109030247.S3y4PhG28KGZXVekfK_8DnC-ufxpiyYCREL8htyQamE@z>
 
-On Wed, 9 Jan 2019, Dave Chinner wrote:
+Fixes gcc '-Wunused-but-set-variable' warning:
 
-> > But mincore is certainly the easiest interface, and the one that
-> > doesn't require much effort or setup.
-> 
-> Off the top of my head, here's a few vectors for reading the page
-> cache residency state without perturbing the page cache residency
-> pattern:
-> 	- mincore
-> 	- preadv2(RWF_NOWAIT)
-> 	- fadvise(POSIX_FADV_RANDOM); timed read(2) syscalls
-> 	- madvise(MADV_RANDOM); timed read of first byte in each page
+mm/compaction.c: In function 'compact_zone':
+mm/compaction.c:2063:22: warning:
+ variable 'c' set but not used [-Wunused-but-set-variable]
+mm/compaction.c:2063:19: warning:
+ variable 'b' set but not used [-Wunused-but-set-variable]
+mm/compaction.c:2063:16: warning:
+ variable 'a' set but not used [-Wunused-but-set-variable]
 
-While I obviously agree that all those are creating pagecache sidechannel 
-in principle, I think we really should mostly focus on the first two (with 
-mincore() already having been covered).
+This never used since 94d5992baaa5 ("mm, compaction: finish pageblock
+scanning on contention")
 
-Rationale has been provided by Daniel Gruss in this thread -- if the 
-attacker is left with cache timing as the only available vector, he's 
-going to be much more successful with mounting hardware cache timing 
-attack anyway.
+Signed-off-by: YueHaibing <yuehaibing@huawei.com>
+---
+ mm/compaction.c | 5 -----
+ 1 file changed, 5 deletions(-)
 
-Thanks,
+diff --git a/mm/compaction.c b/mm/compaction.c
+index f73fe07..529f19a 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -2060,7 +2060,6 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 	unsigned long last_migrated_pfn;
+ 	const bool sync = cc->mode != MIGRATE_ASYNC;
+ 	bool update_cached;
+-	unsigned long a, b, c;
+ 
+ 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+ 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
+@@ -2106,10 +2105,6 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 			cc->whole_zone = true;
+ 	}
+ 
+-	a = cc->migrate_pfn;
+-	b = cc->free_pfn;
+-	c = (cc->free_pfn - cc->migrate_pfn) / pageblock_nr_pages;
+-
+ 	last_migrated_pfn = 0;
+ 
+ 	/*
 
--- 
-Jiri Kosina
-SUSE Labs
+
 
