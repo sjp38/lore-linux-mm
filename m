@@ -1,89 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 969B78E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 06:25:03 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id x15so1508299edd.2
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 03:25:03 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id i19si2194095edr.271.2019.01.08.03.25.02
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 738ED8E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 02:34:14 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id i55so2573863ede.14
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 23:34:14 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 5-v6si957951ejx.137.2019.01.08.23.34.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 03:25:02 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id E8EDD9888D
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 11:25:01 +0000 (UTC)
-Date: Tue, 8 Jan 2019 11:25:00 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC 2/3] mm, page_alloc: reclaim for __GFP_NORETRY costly
- requests only when compaction was skipped
-Message-ID: <20190108112500.GO31517@techsingularity.net>
-References: <20181211142941.20500-1-vbabka@suse.cz>
- <20181211142941.20500-3-vbabka@suse.cz>
+        Tue, 08 Jan 2019 23:34:12 -0800 (PST)
+Date: Wed, 9 Jan 2019 08:34:09 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm/page_owner: fix for deferred struct page init
+Message-ID: <20190109073409.GA2027@dhcp22.suse.cz>
+References: <20181220092202.GD14234@dhcp22.suse.cz>
+ <20181220185031.43146-1-cai@lca.pw>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181211142941.20500-3-vbabka@suse.cz>
+In-Reply-To: <20181220185031.43146-1-cai@lca.pw>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, Pavel.Tatashin@microsoft.com, mingo@kernel.org, hpa@zytor.com, mgorman@techsingularity.net, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 11, 2018 at 03:29:40PM +0100, Vlastimil Babka wrote:
-> For costly __GFP_NORETRY allocations (including THP's) we first do an initial
-> compaction attempt and if that fails, we proceed with reclaim and another
-> round of compaction, unless compaction was deferred due to earlier multiple
-> failures. Andrea proposed [1] that we count all compaction failures as the
-> defered case in try_to_compact_pages(), but I don't think that's a good idea
-> in general.
-
-I'm still stuck on the pre/post compaction series dilemma. I agree with
-you before the compaction series and disagree with you after. I'm not
-sitting on the fence here, I really think the series materially alters
-the facts :(.
-
-> Instead, change the __GFP_NORETRY specific condition so that it
-> only proceeds with further reclaim/compaction when the initial compaction
-> attempt was skipped due to lack of free base pages.
+On Thu 20-12-18 13:50:31, Qian Cai wrote:
+> When booting a system with "page_owner=on",
 > 
-> Note that the original condition probably never worked properly for THP's,
-> because compaction can only become deferred after a sync compaction failure,
-> and THP's only perform async compaction, except khugepaged, which is
-> infrequent, or madvised faults (until the previous patch restored __GFP_NORETRY
-> for those) which are not the default case. Deferring due to async compaction
-> failures should be however also beneficial and thus introduced in the next
-> patch.
+> start_kernel
+>   page_ext_init
+>     invoke_init_callbacks
+>       init_section_page_ext
+>         init_page_owner
+>           init_early_allocated_pages
+>             init_zones_in_node
+>               init_pages_in_zone
+>                 lookup_page_ext
+>                   page_to_nid
 > 
-> Also note that due to how try_to_compact_pages() constructs its return value
-> from compaction attempts across the whole zonelist, returning COMPACT_SKIPPED
-> means that compaction was skipped for *all* attempted zones/nodes, which means
-> all zones/nodes are low on memory at the same moment. This is probably rare,
+> The issue here is that page_to_nid() will not work since some page
+> flags have no node information until later in page_alloc_init_late() due
+> to DEFERRED_STRUCT_PAGE_INIT. Hence, it could trigger an out-of-bounds
+> access with an invalid nid.
+> 
+> [    8.666047] UBSAN: Undefined behaviour in ./include/linux/mm.h:1104:50
+> [    8.672603] index 7 is out of range for type 'zone [5]'
+> 
+> Also, kernel will panic since flags were poisoned earlier with,
+> 
+> CONFIG_DEBUG_VM_PGFLAGS=y
+> CONFIG_NODE_NOT_IN_PAGE_FLAGS=n
+> 
+> start_kernel
+>   setup_arch
+>     pagetable_init
+>       paging_init
+>         sparse_init
+>           sparse_init_nid
+>             memblock_alloc_try_nid_raw
+> 
+> Although later it tries to set page flags for pages in reserved bootmem
+> regions,
+> 
+> mm_init
+>   mem_init
+>     memblock_free_all
+>       free_low_memory_core_early
+>         reserve_bootmem_region
+> 
+> there could still have some freed pages from the page allocator but yet
+> to be initialized due to DEFERRED_STRUCT_PAGE_INIT. It have already been
+> dealt with a bit in page_ext_init().
+> 
+> * Take into account DEFERRED_STRUCT_PAGE_INIT.
+> */
+> if (early_pfn_to_nid(pfn) != nid)
+> 	continue;
+> 
+> However it did not handle it well in init_pages_in_zone() which end up
+> calling page_to_nid().
+> 
+> [   11.917212] page:ffffea0004200000 is uninitialized and poisoned
+> [   11.917220] raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff
+> ffffffffffffffff
+> [   11.921745] raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff
+> ffffffffffffffff
+> [   11.924523] page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+> [   11.926498] page_owner info is not active (free page?)
+> [   12.329560] kernel BUG at include/linux/mm.h:990!
+> [   12.337632] RIP: 0010:init_page_owner+0x486/0x520
+> 
+> Since there is no other routines depend on page_ext_init() in
+> start_kernel() and no real benefit to call it so early, just move it
+> after page_alloc_init_late() to ensure that there is no deferred pages
+> need to de dealt with.
 
-It's not as rare as I imagined but compaction series changes it so that
-it really is rare or when it occurs, it probably means compaction will
-fail if retried.
+The last paragraph should be updated. I would propose something like
+this.
 
-> which would mean that the resulting 'goto nopage' would be very common,just
-> because e.g. a single zone had enough memory and compaction failed there, while
-> the rest of nodes could succeed after reclaim.  However, since THP faults use
-> __GFP_THISNODE, compaction is also attempted only for a single node, so in
-> practice there should be no significant loss of information when constructing
-> the return value, nor bias towards 'goto nopage' for THP faults.
+"
+This means that assumptions behind fe53ca54270a ("mm: use
+early_pfn_to_nid in page_ext_init") are incomplete. Therefore revert the
+commit for now. A proper way to move the page_owner initialization to
+sooner is to hook into memmap initialization.
+"
 > 
 
-Post the compaction series, we never direct compact a remote node. I
-think post the series this concept still makes sense but it would turn
-into 
+Fixes: fe53ca54270a ("mm: use early_pfn_to_nid in page_ext_init")
 
-a) try async compaction
-b) try sync compaction
-c) defer unconditionally
+> Suggested-by: Michal Hocko <mhocko@kernel.org>
+> Signed-off-by: Qian Cai <cai@lca.pw>
 
-Ideally Andrea would be able to report back on this but if we can decide
-on the compaction series and the ordering of this, I can shove the results
-through the SUSE test grid with both the usemem (similar to Andrea's case)
-and the thpscale/thpfioscale cases and see what the latency and success
-rates look like.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+> 
+> v2: postpone init_page_ext() to after page_alloc_init_late().
+> 
+>  init/main.c   | 2 +-
+>  mm/page_ext.c | 3 +--
+>  2 files changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/init/main.c b/init/main.c
+> index 2b7b7fe173c9..1aeb062b2cb7 100644
+> --- a/init/main.c
+> +++ b/init/main.c
+> @@ -696,7 +696,6 @@ asmlinkage __visible void __init start_kernel(void)
+>  		initrd_start = 0;
+>  	}
+>  #endif
+> -	page_ext_init();
+>  	kmemleak_init();
+>  	setup_per_cpu_pageset();
+>  	numa_policy_init();
+> @@ -1147,6 +1146,7 @@ static noinline void __init kernel_init_freeable(void)
+>  	sched_init_smp();
+>  
+>  	page_alloc_init_late();
+> +	page_ext_init();
+>  
+>  	do_basic_setup();
+>  
+> diff --git a/mm/page_ext.c b/mm/page_ext.c
+> index ae44f7adbe07..d76fd51e312a 100644
+> --- a/mm/page_ext.c
+> +++ b/mm/page_ext.c
+> @@ -399,9 +399,8 @@ void __init page_ext_init(void)
+>  			 * -------------pfn-------------->
+>  			 * N0 | N1 | N2 | N0 | N1 | N2|....
+>  			 *
+> -			 * Take into account DEFERRED_STRUCT_PAGE_INIT.
+>  			 */
+> -			if (early_pfn_to_nid(pfn) != nid)
+> +			if (pfn_to_nid(pfn) != nid)
+>  				continue;
+>  			if (init_section_page_ext(pfn, nid))
+>  				goto oom;
+> -- 
+> 2.17.2 (Apple Git-113)
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
