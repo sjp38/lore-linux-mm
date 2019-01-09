@@ -1,100 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B65FF8E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:33 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id t2so8661081pfj.15
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:33 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id b89si9544153pfj.207.2019.01.10.13.10.32
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D253E8E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 21:38:17 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id f2so5363765qtg.14
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 18:38:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p65si2323495qkf.138.2019.01.08.18.38.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:10:32 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [RFC PATCH v7 04/16] swiotlb: Map the buffer if it was unmapped by XPFO
-Date: Thu, 10 Jan 2019 14:09:36 -0700
-Message-Id: <98f9b9be522d694d5a52640dd1dfbdd14ca6f8e5.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
+        Tue, 08 Jan 2019 18:38:17 -0800 (PST)
+Date: Tue, 8 Jan 2019 21:38:12 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH V6 1/4] mm/cma: Add PF flag to force non cma alloc
+Message-ID: <20190109023812.GF20586@redhat.com>
+References: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
+ <20190108045110.28597-2-aneesh.kumar@linux.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190108045110.28597-2-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: Juerg Haefliger <juerg.haefliger@canonical.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tycho Andersen <tycho@docker.com>, Khalid Aziz <khalid.aziz@oracle.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-From: Juerg Haefliger <juerg.haefliger@canonical.com>
+On Tue, Jan 08, 2019 at 10:21:07AM +0530, Aneesh Kumar K.V wrote:
+> This patch add PF_MEMALLOC_NOCMA which make sure any allocation in that context
+> is marked non movable and hence cannot be satisfied by CMA region.
+> 
+> This is useful with get_user_pages_cma_migrate where we take a page pin by
+> migrating pages from CMA region. Marking the section PF_MEMALLOC_NOCMA ensures
+> that we avoid uncessary page migration later.
+> 
+> Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 
-v6: * guard against lookup_xpfo() returning NULL
-
-CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
-Signed-off-by: Tycho Andersen <tycho@docker.com>
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
----
- include/linux/xpfo.h |  4 ++++
- kernel/dma/swiotlb.c |  3 ++-
- mm/xpfo.c            | 15 +++++++++++++++
- 3 files changed, 21 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index a39259ce0174..e38b823f44e3 100644
---- a/include/linux/xpfo.h
-+++ b/include/linux/xpfo.h
-@@ -35,6 +35,8 @@ void xpfo_kunmap(void *kaddr, struct page *page);
- void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp);
- void xpfo_free_pages(struct page *page, int order);
- 
-+bool xpfo_page_is_unmapped(struct page *page);
-+
- #else /* !CONFIG_XPFO */
- 
- static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-@@ -42,6 +44,8 @@ static inline void xpfo_kunmap(void *kaddr, struct page *page) { }
- static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }
- static inline void xpfo_free_pages(struct page *page, int order) { }
- 
-+static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }
-+
- #endif /* CONFIG_XPFO */
- 
- #endif /* _LINUX_XPFO_H */
-diff --git a/kernel/dma/swiotlb.c b/kernel/dma/swiotlb.c
-index 045930e32c0e..820a54b57491 100644
---- a/kernel/dma/swiotlb.c
-+++ b/kernel/dma/swiotlb.c
-@@ -396,8 +396,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
- {
- 	unsigned long pfn = PFN_DOWN(orig_addr);
- 	unsigned char *vaddr = phys_to_virt(tlb_addr);
-+	struct page *page = pfn_to_page(pfn);
- 
--	if (PageHighMem(pfn_to_page(pfn))) {
-+	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
- 		/* The buffer does not have a mapping.  Map it in and copy */
- 		unsigned int offset = orig_addr & ~PAGE_MASK;
- 		char *buffer;
-diff --git a/mm/xpfo.c b/mm/xpfo.c
-index bff24afcaa2e..cdbcbac582d5 100644
---- a/mm/xpfo.c
-+++ b/mm/xpfo.c
-@@ -220,3 +220,18 @@ void xpfo_kunmap(void *kaddr, struct page *page)
- 	spin_unlock(&xpfo->maplock);
- }
- EXPORT_SYMBOL(xpfo_kunmap);
-+
-+bool xpfo_page_is_unmapped(struct page *page)
-+{
-+	struct xpfo *xpfo;
-+
-+	if (!static_branch_unlikely(&xpfo_inited))
-+		return false;
-+
-+	xpfo = lookup_xpfo(page);
-+	if (unlikely(!xpfo) && !xpfo->inited)
-+		return false;
-+
-+	return test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
-+}
-+EXPORT_SYMBOL(xpfo_page_is_unmapped);
--- 
-2.17.1
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
