@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DDFD98E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 22:12:58 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id x17so755687ita.1
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 19:12:58 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1850C8E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 22:13:22 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id 135so5860811itk.5
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 19:13:22 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u13sor29924206ioc.60.2019.01.10.19.12.57
+        by mx.google.com with SMTPS id v134sor21205088itb.19.2019.01.08.19.13.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 10 Jan 2019 19:12:57 -0800 (PST)
+        Tue, 08 Jan 2019 19:13:20 -0800 (PST)
 MIME-Version: 1.0
 References: <CAFgQCTuu54oZWKq_ppEvZFb4Mz31gVmsa37gTap+e9KbE=T0aQ@mail.gmail.com>
  <20181207155627.GG1286@dhcp22.suse.cz> <20181210123738.GN1286@dhcp22.suse.cz>
@@ -19,8 +19,8 @@ References: <CAFgQCTuu54oZWKq_ppEvZFb4Mz31gVmsa37gTap+e9KbE=T0aQ@mail.gmail.com>
  <20181220091934.GC14234@dhcp22.suse.cz> <20190108143440.GU31793@dhcp22.suse.cz>
 In-Reply-To: <20190108143440.GU31793@dhcp22.suse.cz>
 From: Pingfan Liu <kernelfans@gmail.com>
-Date: Fri, 11 Jan 2019 11:12:45 +0800
-Message-ID: <CAFgQCTtdJ1mR6v2Y3ojHSmjg9U90cAUddhxG3Y_8zNDR5Aw9oQ@mail.gmail.com>
+Date: Wed, 9 Jan 2019 11:13:08 +0800
+Message-ID: <CAFgQCTv1hfcL6+hAxcyd-u6kgAkBFBqbkKqC4E=KCJB+jmSruQ@mail.gmail.com>
 Subject: Re: [PATCH] mm/alloc: fallback to first node if the wanted node offline
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
@@ -86,6 +86,11 @@ On Tue, Jan 8, 2019 at 10:34 PM Michal Hocko <mhocko@kernel.org> wrote:
 > memory less nodes, well, as nodes with no memory ranges rather than
 > special case them. Could you give the following a spin please?
 >
+
+Sure, I have queued a loan for the remote machine. It will take some time.
+
+Regards,
+Pingfan
 > ---
 > diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
 > index 1308f5408bf7..0e79445cfd85 100644
@@ -233,7 +238,6 @@ On Tue, Jan 8, 2019 at 10:34 PM Michal Hocko <mhocko@kernel.org> wrote:
 >                 free_area_init_node(nid, NULL,
 >                                 find_min_pfn_for_node(nid), NULL);
 >
-Hi, this patch works! Feel free to use tested-by me
-
-Best Regards
-Pingfan
+> --
+> Michal Hocko
+> SUSE Labs
