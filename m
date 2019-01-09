@@ -2,163 +2,219 @@ Return-Path: <SRS0=IlG+=PR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FE6FC43387
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:16:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 496FAC43612
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:17:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 290482070B
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:16:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="o0tKtF4y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 290482070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 03E69206BB
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 16:17:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03E69206BB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE4EA8E009E; Wed,  9 Jan 2019 11:16:55 -0500 (EST)
+	id AD3DD8E009F; Wed,  9 Jan 2019 11:17:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B6BD38E0038; Wed,  9 Jan 2019 11:16:55 -0500 (EST)
+	id A81F58E0038; Wed,  9 Jan 2019 11:17:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A84248E009E; Wed,  9 Jan 2019 11:16:55 -0500 (EST)
+	id 9993C8E009F; Wed,  9 Jan 2019 11:17:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3624D8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:16:55 -0500 (EST)
-Received: by mail-lf1-f69.google.com with SMTP id g16so609587lfb.22
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:16:55 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 56AF18E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:17:13 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id i124so4440125pgc.2
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:17:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=guTeVeqW9KLhp8/c6KawSHCWPSc4BbHsuX5EpTBXe4Q=;
-        b=BHvomHifCn9y4aDcRGJBddMfb+xY0oGohrU6E4gCT0PAvN4gIa+K3uwPN1GSKFMhBH
-         HPmRAEf9k8/ZB6C/Eh2dGCZbTy8oIexdk/Z/DdR11HvFsSwm4lLHxK09aDoGJT+E4BPv
-         Vv3hTFbxO0Sk9cEYiZZlXJD4ZUZ4CAD7RDNEIw7u8zc5iRwrwUZMObR+MbzNDq1T/811
-         Xf4+2OCikGU8KyrrAeLnTUXAbFqUBaxp2JX7rS1/BCa7LBdem+oEEgamgtd9NFzva2/o
-         V4rAfRGl9zjj9GD5u7nLqXFhotWm4NPytIVAopkxWakF+O2b6H4wd4dCNlR7UUJfRxr4
-         4xEA==
-X-Gm-Message-State: AJcUukcQIwIt/T6kmhLd/NYRwMeOKNqCi0iOBBg4WySFUMLzCJh40Zzc
-	exTTjKCP9XTAkd+cHpzlogmbBWvSvhLczK5CzWRN1t0XzYUU5W/1AQ3N9CQ9CMnYalfEExx88vU
-	3cynV/MiKXrvOd8Wai85UaqGy7C9xvq3qKM9+Cso4ten5qfNhHBx5W1NWFp7cnipg4pF7CYjCzR
-	XGheTFUGWIyuZUoFGCeJsBlhiq+QVYTCsRRP6OPzUL50Lxgk6Z1C54/pClLntnx9RytCe9muyCt
-	fD9GAv4J8+v2Eqvg047vBgOEaIbqwvT8oM5H0SUXyKmMQjIJq3AfvBbU+5GbN1PaD1xNWWVv02O
-	PIRJ3TFuNzSG4YwycAJ5v50ati8b6Y75IVAcdQeqVV774glFyvGDQ/JMOI7veDr2BBU/J8Uu1cu
-	7
-X-Received: by 2002:a2e:91d1:: with SMTP id u17-v6mr3819058ljg.160.1547050614542;
-        Wed, 09 Jan 2019 08:16:54 -0800 (PST)
-X-Received: by 2002:a2e:91d1:: with SMTP id u17-v6mr3819012ljg.160.1547050613520;
-        Wed, 09 Jan 2019 08:16:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547050613; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=H3eJDd1yJeVfDVTg6pjbdfuW01Mh++zUqKlTTppHX0g=;
+        b=nV/cdS/JJyv+ahZAskIa60koX3OlehpFGZZFke+xtTHLC1DK/vyKge9HNb08g1A6ot
+         V30k7FonCVJLmct8XgADWaARvA3ot4hfG+lhHt39wvK5xLRYElh5Z5vT3jMgX1yZLGYW
+         WZun4/B9giwWycQw0l9zpdyFuYTfSvCeA/Rv2RUt8u395tzW6fCnj/GWb2dLa9rRzF/o
+         jc3Hr7igGA5Wu1Kt881HRIs5zf0QGwou0vIHsljb+wsU5CjmunLUXBE4OQN1d8LEeznn
+         8w07z1TVAUn90iB7D3+yVoGNUcEYj1YycTD4N9+emSrD2ISS1i9QNLuG5p8c0gQEPMWs
+         Xr8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukdDVD93dEhX9q/mvnwXdBgZNGijagbiP8+fw+BcoNQTJ6p1IBJz
+	uBs3+F73BcxQ6vXSivxaq+wj01eXEukqXtWWbuLkF22mX4waL9SW8jPw6dFd5GKF7EkU931NUeb
+	8+RXjU6m6Mh9QEd86cLSlsbtlG8+JwG08QuIRCNYt00Fir/K0K23v7WoQeSs6A3APag==
+X-Received: by 2002:a63:5f89:: with SMTP id t131mr6065659pgb.26.1547050632995;
+        Wed, 09 Jan 2019 08:17:12 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5rPnFoEDIl1yX2bakt/CNshkdjiSQHQjUzNHPx+JQ9422nC5IJ+Ey3Q3r70S/68NL1Fkdf
+X-Received: by 2002:a63:5f89:: with SMTP id t131mr6065612pgb.26.1547050632085;
+        Wed, 09 Jan 2019 08:17:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547050632; cv=none;
         d=google.com; s=arc-20160816;
-        b=tsInwoNh7tJ7UkWAe2tyHB0HRJ1cETNd3RvyeKecM4J/ixGOclh+bn4cyAsDSI22kl
-         i9gABmJIN8HgSHp/iyOmavr3UaAw679b+kqDwJFGQcicruFVNEYXAGHc5f1ZRPeMiAcV
-         +oBpxSr9WdO/05brVenIszvfuBn9bjtc5hngTrJ+owYd8DNWKtkF8tUTW+ml/+iviVXo
-         5r0xBaWE9HBLxy1mfHk8uyrOZuyCuJqb5k77oTUVqCi02Xlo3qIS/yc4Q+86hU5u3oqt
-         +78CQCSrbkZ5+GDfW4tcak9BJc1cihRUXWq3ipDvX0crXkmBb8tWWsi2F6+u7lb3MOTK
-         drZw==
+        b=PiqG27rOkCa/4ak9DS0IJviqmIjbKlagU2q+0F3TZhhqRRoNYtUFZP4Eq2mvvl9egg
+         pZP31epc8b3qCxG+by29AFtA0lQFlclAD6QpknhiTypW+9T6Y0h9PwsRfgjMJwwzjv1e
+         kQeB3ztIdGoICVXhFc6tUogqZepSUSuZv8pVFYzUq1NkeEKncL8Cby4lj4XMB/56/Mt9
+         u53vxI67Af2+ePj+09tGLJjONz4C1zlM9k/JEzrwzIy01rzVTgOE0aNrDbkbQeFc4vdr
+         mseqiSbJy95Sj0zcN6+nHKMTcJ5r/RT1NwZQzYsKo4zf1oBWuj2CmqLcG2pQs1jVLlE+
+         UpYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=guTeVeqW9KLhp8/c6KawSHCWPSc4BbHsuX5EpTBXe4Q=;
-        b=laQcdWRvON2v6xlfQXP+0XK8MnyKeaYxebh6ZjXjqq86YYMhmdxMYuLlps8t55qYuv
-         UEmEsCkWZLZNegU0be3hyFhkRFpe8OafyDteAbmHm/3a1X0eR/oxAM1nxFL6UksQKUdn
-         SE4T614jAw9m8GpSWPZR506ZHFl9GPoG/eptRA6sZAOoWrEmHziq1PMh3q4jkYrucFMu
-         T6HbtuvtNKy1kvo3VrM+a+aoobjpsE5yeYQdIcafXuGD0ihDvyMasVSyGMBaIfZi9bdE
-         Gf//+jwZnjRflVTt5Ecr1YdXFbkCb7joUlz+Rgo1WbKK3RgaLutW9ISiWGNpW4VLVd9x
-         hieQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=H3eJDd1yJeVfDVTg6pjbdfuW01Mh++zUqKlTTppHX0g=;
+        b=FZqsYOMrSlxH869/83bsPottkagW3ww7pwZi9vYQ/t2h9mdMrSGldMM5fxwhroM1bR
+         3gXj8w521kw2AcXnhpemV3R9tdyp/hrYFP0It5eyzBo/5NhJZnycwJAQVCFfhdXaOEyw
+         5izT8Z7pqFnqJjxZ1hfafqlJTknS+X622O0wXSG0Xi4iG466cmHyBs9AENEMWEvjXFMs
+         RcxCN60gM+sqPStofbpquGLuHGgzRvJSNns2QcbM0EKqvaIO4ILlH7U2g1wV8aSLNvID
+         HQUxEmc7/+wnt+fEX9G7g9kBFqvbF++jOjYihFWRkyrvSS99Jdj2PHqXaIiJblkpC53c
+         7sPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=o0tKtF4y;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s22sor17248274lfb.46.2019.01.09.08.16.53
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id w67si20181058pgb.45.2019.01.09.08.17.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 09 Jan 2019 08:16:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Jan 2019 08:17:12 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=o0tKtF4y;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=guTeVeqW9KLhp8/c6KawSHCWPSc4BbHsuX5EpTBXe4Q=;
-        b=o0tKtF4yQrmQxwfrlRXVheuHHZtBgHvb3NozqG4C0b4owVYXoP8CXsWB2hn1LzrbkL
-         Cu78l0TfbmiJIHHA7NBpRZBy2GQPHVZ68EMv4zAUnSPxButnaO3gbLgK6rpQA5yUkGjJ
-         Zb9M8nyYhYDADOePrU+MGnv2oEn1qcrqEjAsIBE3nNidMD4gU04E8KiajvoCa2A6RuhC
-         gWIigZ643mRaEHMsDAJXyYr/Ob9ivq0WzF8k9QmvCc4hFhcLVvxBHnJfVeNRlx6egG1/
-         ERrMa4A8XcxoS41mrfdKlhatMtB1TzVzxJugo9rp4lgVxNK46DvXdv8cMC+7A+V4BMJc
-         VkBw==
-X-Google-Smtp-Source: ALg8bN6L/1v9lG/onJDkftwo5CLjSVh6yjnoXg6BMYTz1TsHsWSZwZtjHWHD4JJDm4oN2uTJ0xf5zCWDrGqYkoopjAs=
-X-Received: by 2002:a19:c70a:: with SMTP id x10mr3764528lff.88.1547050612929;
- Wed, 09 Jan 2019 08:16:52 -0800 (PST)
-MIME-Version: 1.0
-References: <20190109161916.GA23410@jordon-HP-15-Notebook-PC>
-In-Reply-To: <20190109161916.GA23410@jordon-HP-15-Notebook-PC>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Wed, 9 Jan 2019 21:50:44 +0530
-Message-ID:
- <CAFqt6zbeHPs359c03q8wCENfW5DJ3W6_ber78fCmoQzYcUhpCQ@mail.gmail.com>
-Subject: Re: [PATCH] include/linux/hmm.h: Convert to use vm_fault_t
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: jglisse@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, 
-	Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Jan 2019 08:17:11 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,458,1539673200"; 
+   d="scan'208";a="105258001"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga007.jf.intel.com with ESMTP; 09 Jan 2019 08:17:11 -0800
+Message-ID: <54c280dbd0ff8e17a6c465778c98e2dbbbde7918.camel@linux.intel.com>
+Subject: Re: [PATCH v8] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, 
+ akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz,
+ osalvador@suse.de,  linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: getarunks@gmail.com
+Date: Wed, 09 Jan 2019 08:17:11 -0800
+In-Reply-To: <1547032395-24582-1-git-send-email-arunks@codeaurora.org>
+References: <1547032395-24582-1-git-send-email-arunks@codeaurora.org>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190109162044.3eO38wjH9s0Sh17klxF0fb10WHzh3PE_fuAtpNzeK4Y@z>
+Message-ID: <20190109161711.l_HZmxvIMdwsymCXUPu7uptPQuJLYXD9VWHZKVOwbzw@z>
 
-On Wed, Jan 9, 2019 at 9:45 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->
-> convert to use vm_fault_t type as return type for
-> fault handler.
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-
-kbuild reported a warning during testing of final vm_fault_t patch integrated
-in mm tree.
-
-[auto build test WARNING on linus/master]
-[also build test WARNING on v5.0-rc1 next-20190109]
-[if your patch is applied to the wrong git tree, please drop us a note
-to help improve the system]
-
-url:    https://github.com/0day-ci/linux/commits/Souptick-Joarder/mm-Create-the-new-vm_fault_t-type/20190109-154216
-
->> kernel/memremap.c:46:34: warning: incorrect type in return expression (different base types)
-   kernel/memremap.c:46:34:    expected restricted vm_fault_t
-   kernel/memremap.c:46:34:    got int
-
-This patch has fixed the warning.
-
+On Wed, 2019-01-09 at 16:43 +0530, Arun KS wrote:
+> When freeing pages are done with higher order, time spent on coalescing
+> pages by buddy allocator can be reduced.  With section size of 256MB, hot
+> add latency of a single section shows improvement from 50-60 ms to less
+> than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> external providers of online callback to align with the change.
+> 
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
 > ---
->  include/linux/hmm.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 66f9ebb..7c5ace3 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -468,7 +468,7 @@ struct hmm_devmem_ops {
->          * Note that mmap semaphore is held in read mode at least when this
->          * callback occurs, hence the vma is valid upon callback entry.
->          */
-> -       int (*fault)(struct hmm_devmem *devmem,
-> +       vm_fault_t (*fault)(struct hmm_devmem *devmem,
->                      struct vm_area_struct *vma,
->                      unsigned long addr,
->                      const struct page *page,
-> --
-> 1.9.1
->
+> Changes since v7:
+> - Rebased to 5.0-rc1.
+> - Fixed onlined_pages accounting.
+> - Added comment for return value of online_page_callback.
+> - Renamed xen_bring_pgs_online to xen_online_pages.
+
+As far as the renaming you should try to be consistent. If you aren't
+going to rename generic_online_page or hv_online_page I wouldn't bother
+with renaming xen_online_page. I would stick with the name
+xen_online_page since it is a single high order page that you are
+freeing.
+
+> 
+> Changes since v6:
+> - Rebased to 4.20
+> - Changelog updated.
+> - No improvement seen on arm64, hence removed removal of prefetch.
+> 
+> Changes since v5:
+> - Rebased to 4.20-rc1.
+> - Changelog updated.
+> 
+> Changes since v4:
+> - As suggested by Michal Hocko,
+> - Simplify logic in online_pages_block() by using get_order().
+> - Seperate out removal of prefetch from __free_pages_core().
+> 
+> Changes since v3:
+> - Renamed _free_pages_boot_core -> __free_pages_core.
+> - Removed prefetch from __free_pages_core.
+> - Removed xen_online_page().
+> 
+> Changes since v2:
+> - Reuse code from __free_pages_boot_core().
+> 
+> Changes since v1:
+> - Removed prefetch().
+> 
+> Changes since RFC:
+> - Rebase.
+> - As suggested by Michal Hocko remove pages_per_block.
+> - Modifed external providers of online_page_callback.
+> 
+> v7: https://lore.kernel.org/patchwork/patch/1028908/
+> v6: https://lore.kernel.org/patchwork/patch/1007253/
+> v5: https://lore.kernel.org/patchwork/patch/995739/
+> v4: https://lore.kernel.org/patchwork/patch/995111/
+> v3: https://lore.kernel.org/patchwork/patch/992348/
+> v2: https://lore.kernel.org/patchwork/patch/991363/
+> v1: https://lore.kernel.org/patchwork/patch/989445/
+> RFC: https://lore.kernel.org/patchwork/patch/984754/
+> ---
+>  drivers/hv/hv_balloon.c        |  6 +++--
+>  drivers/xen/balloon.c          | 21 +++++++++++------
+>  include/linux/memory_hotplug.h |  2 +-
+>  mm/internal.h                  |  1 +
+>  mm/memory_hotplug.c            | 51 +++++++++++++++++++++++++++++++-----------
+>  mm/page_alloc.c                |  8 +++----
+>  6 files changed, 62 insertions(+), 27 deletions(-)
+> 
+> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> index 5301fef..211f3fe 100644
+> --- a/drivers/hv/hv_balloon.c
+> +++ b/drivers/hv/hv_balloon.c
+> @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+>  	}
+>  }
+>  
+> -static void hv_online_page(struct page *pg)
+> +static int hv_online_page(struct page *pg, unsigned int order)
+>  {
+>  	struct hv_hotadd_state *has;
+>  	unsigned long flags;
+> @@ -783,10 +783,12 @@ static void hv_online_page(struct page *pg)
+>  		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+>  			continue;
+>  
+> -		hv_page_online_one(has, pg);
+> +		hv_bring_pgs_online(has, pfn, (1UL << order));
+>  		break;
+>  	}
+>  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
+> +
+> +	return 0;
+>  }
+>  
+
+I would hold off on adding return values until you actually have code
+that uses them. It will make things easier if somebody has to backport
+this to a stable branch and avoid adding complexity until it is needed.
+
+Also the patch description doesn't really explain that it is doing this
+so it might be better to break it off into a separate patch so you can
+call out exactly why you are adding a return value in the patch
+description.
+
+- Alex
 
