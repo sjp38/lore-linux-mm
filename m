@@ -1,31 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B40A58E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 00:05:13 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id n39so5506773qtn.18
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 21:05:13 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e5si6157414qkd.22.2019.01.08.21.05.12
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0FB78E0038
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 21:53:05 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id y16so2976998ybk.2
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 18:53:05 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id 204si43234428ywi.272.2019.01.08.18.53.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 21:05:13 -0800 (PST)
-Date: Wed, 9 Jan 2019 13:05:05 +0800
-From: Peter Xu <peterx@redhat.com>
+        Tue, 08 Jan 2019 18:53:04 -0800 (PST)
 Subject: Re: [PATCH 1/1] mm/hugetlb.c: teach follow_hugetlb_page() to handle
  FOLL_NOWAIT
-Message-ID: <20190109050505.GC12837@xz-x1>
 References: <20190109020203.26669-1-aarcange@redhat.com>
  <20190109020203.26669-2-aarcange@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c15462f3-f901-a624-8174-400d331c45bc@oracle.com>
+Date: Tue, 8 Jan 2019 18:53:00 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
 In-Reply-To: <20190109020203.26669-2-aarcange@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, Peter Xu <peterx@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-On Tue, Jan 08, 2019 at 09:02:03PM -0500, Andrea Arcangeli wrote:
+On 1/8/19 6:02 PM, Andrea Arcangeli wrote:
 > hugetlb needs the same fix as faultin_nopage (which was applied in
 > 96312e61282ae3f6537a562625706498cbc75594) or KVM hangs because it
 > thinks the mmap_sem was already released by hugetlb_fault() if it
@@ -36,9 +37,11 @@ On Tue, Jan 08, 2019 at 09:02:03PM -0500, Andrea Arcangeli wrote:
 > Tested-by: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 > Reported-by: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-FWIW:
+Thanks for fixing this.
 
-Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+-- 
+Mike Kravetz
 
 > ---
 >  mm/hugetlb.c | 3 ++-
@@ -58,8 +61,4 @@ Reviewed-by: Peter Xu <peterx@redhat.com>
 >  					*nonblocking = 0;
 >  				*nr_pages = 0;
 >  				/*
-
-Regards,
-
--- 
-Peter Xu
+> 
