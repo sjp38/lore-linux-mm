@@ -1,77 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E80628E0038
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 23:51:26 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id a18so1363469pga.16
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 20:51:26 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id p4si10628351pli.432.2019.01.07.20.51.25
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4293F8E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 14:18:17 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id m13so4713924pls.15
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 11:18:17 -0800 (PST)
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id q16si22876825pgh.185.2019.01.09.11.18.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 20:51:25 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x084mt3k089755
-	for <linux-mm@kvack.org>; Mon, 7 Jan 2019 23:51:25 -0500
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2pvf8kqr4m-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 07 Jan 2019 23:51:24 -0500
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 8 Jan 2019 04:51:23 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V6 0/4] mm/kvm/vfio/ppc64: Migrate compound pages out of CMA region
-Date: Tue,  8 Jan 2019 10:21:06 +0530
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
+        Wed, 09 Jan 2019 11:18:15 -0800 (PST)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [v3 PATCH 3/5] mm: memcontrol: introduce wipe_on_offline interface
+Date: Thu, 10 Jan 2019 03:14:43 +0800
+Message-Id: <1547061285-100329-4-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-ppc64 use CMA area for the allocation of guest page table (hash page table). We won't
-be able to start guest if we fail to allocate hash page table. We have observed
-hash table allocation failure because we failed to migrate pages out of CMA region
-because they were pinned. This happen when we are using VFIO. VFIO on ppc64 pins
-the entire guest RAM. If the guest RAM pages get allocated out of CMA region, we
-won't be able to migrate those pages. The pages are also pinned for the lifetime of the
-guest.
+We have some usecases which create and remove memcgs very frequently,
+and the tasks in the memcg may just access the files which are unlikely
+accessed by anyone else.  So, we prefer force_empty the memcg before
+rmdir'ing it to reclaim the page cache so that they don't get
+accumulated to incur unnecessary memory pressure.  Since the memory
+pressure may incur direct reclaim to harm some latency sensitive
+applications.
 
-Currently we support migration of non-compound pages. With THP and with the addition of
- hugetlb migration we can end up allocating compound pages from CMA region. This
-patch series add support for migrating compound pages. The first path adds the helper
-get_user_pages_cma_migrate() which pin the page making sure we migrate them out of
-CMA region before incrementing the reference count. 
+Force empty would help out such usecase, however force empty reclaims
+memory synchronously when writing to memory.force_empty.  It may take
+some time to return and the afterwards operations are blocked by it.
+Although this can be done in background, some usecases may need create
+new memcg with the same name right after the old one is deleted.  So,
+the creation might get blocked by the before reclaim/remove operation.
 
-Changes from V5:
-* Add PF_MEMALLOC_NOCMA
-* remote __GFP_THISNODE when allocating target page for migration
+Delaying memory reclaim in cgroup offline for such usecase sounds
+reasonable.  Introduced a new interface, called wipe_on_offline for both
+default and legacy hierarchy, which does memory reclaim in css offline
+kworker.
 
-Changes from V4:
-* use __GFP_NOWARN when allocating pages to avoid page allocation failure warnings.
+Writing to 1 would enable it, writing 0 would disable it.
 
-Changes from V3:
-* Move the hugetlb check before transhuge check
-* Use compound head page when isolating hugetlb page
+Suggested-by: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ include/linux/memcontrol.h |  3 +++
+ mm/memcontrol.c            | 53 ++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 54 insertions(+), 2 deletions(-)
 
-
-Aneesh Kumar K.V (4):
-  mm/cma: Add PF flag to force non cma alloc
-  mm: Add get_user_pages_cma_migrate
-  powerpc/mm/iommu: Allow migration of cma allocated pages during
-    mm_iommu_get
-  powerpc/mm/iommu: Allow large IOMMU page size only for hugetlb backing
-
- arch/powerpc/mm/mmu_context_iommu.c | 144 ++++++++-------------------
- include/linux/hugetlb.h             |   2 +
- include/linux/migrate.h             |   3 +
- include/linux/sched.h               |   1 +
- include/linux/sched/mm.h            |  36 +++++--
- mm/hugetlb.c                        |   4 +-
- mm/migrate.c                        | 149 ++++++++++++++++++++++++++++
- 7 files changed, 227 insertions(+), 112 deletions(-)
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 83ae11c..2f1258a 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -311,6 +311,9 @@ struct mem_cgroup {
+ 	struct list_head event_list;
+ 	spinlock_t event_list_lock;
+ 
++	/* Reclaim as much as possible memory in offline kworker */
++	bool wipe_on_offline;
++
+ 	struct mem_cgroup_per_node *nodeinfo[0];
+ 	/* WARNING: nodeinfo must be the last member here */
+ };
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index eaa3970..ff50810 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2918,6 +2918,35 @@ static ssize_t mem_cgroup_force_empty_write(struct kernfs_open_file *of,
+ 	return mem_cgroup_force_empty(memcg, true) ?: nbytes;
+ }
+ 
++static int wipe_on_offline_show(struct seq_file *m, void *v)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
++
++	seq_printf(m, "%lu\n", (unsigned long)memcg->wipe_on_offline);
++
++	return 0;
++}
++
++static int wipe_on_offline_write(struct cgroup_subsys_state *css,
++				 struct cftype *cft, u64 val)
++{
++	int ret = 0;
++
++	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
++
++	if (mem_cgroup_is_root(memcg))
++		return -EINVAL;
++
++	if (val == 0)
++		memcg->wipe_on_offline = false;
++	else if (val == 1)
++		memcg->wipe_on_offline = true;
++	else
++		ret = -EINVAL;
++
++	return ret;
++}
++
+ static u64 mem_cgroup_hierarchy_read(struct cgroup_subsys_state *css,
+ 				     struct cftype *cft)
+ {
+@@ -4283,6 +4312,11 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
+ 		.write = mem_cgroup_reset,
+ 		.read_u64 = mem_cgroup_read_u64,
+ 	},
++	{
++		.name = "wipe_on_offline",
++		.seq_show = wipe_on_offline_show,
++		.write_u64 = wipe_on_offline_write,
++	},
+ 	{ },	/* terminate */
+ };
+ 
+@@ -4569,11 +4603,20 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	page_counter_set_min(&memcg->memory, 0);
+ 	page_counter_set_low(&memcg->memory, 0);
+ 
++	/*
++	 * Reclaim as much as possible memory when offlining.
++	 *
++	 * Do it after min/low is reset otherwise some memory might
++	 * be protected by min/low.
++	 */
++	if (memcg->wipe_on_offline)
++		mem_cgroup_force_empty(memcg, false);
++	else
++		drain_all_stock(memcg);
++
+ 	memcg_offline_kmem(memcg);
+ 	wb_memcg_offline(memcg);
+ 
+-	drain_all_stock(memcg);
+-
+ 	mem_cgroup_id_put(memcg);
+ }
+ 
+@@ -5694,6 +5737,12 @@ static ssize_t memory_oom_group_write(struct kernfs_open_file *of,
+ 		.seq_show = memory_oom_group_show,
+ 		.write = memory_oom_group_write,
+ 	},
++	{
++		.name = "wipe_on_offline",
++		.flags = CFTYPE_NOT_ON_ROOT,
++		.seq_show = wipe_on_offline_show,
++		.write_u64 = wipe_on_offline_write,
++	},
+ 	{ }	/* terminate */
+ };
+ 
 -- 
-2.20.1
+1.8.3.1
