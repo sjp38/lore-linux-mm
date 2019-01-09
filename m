@@ -1,93 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BF5048E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 07:20:41 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id t22-v6so1774967lji.14
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 04:20:41 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id q5-v6si75650981lji.207.2019.01.09.04.20.39
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 92BF28E00A9
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:48:03 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id d18so5759162pfe.0
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:48:03 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.48.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 04:20:39 -0800 (PST)
-Content-Transfer-Encoding: 7bit
-Subject: [PATCH RFC 0/3] mm: Reduce IO by improving algorithm of memcg
- pagecache pages eviction
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Wed, 09 Jan 2019 15:20:18 +0300
-Message-ID: <154703479840.32690.6504699919905946726.stgit@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+        Wed, 09 Jan 2019 09:48:02 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv3 12/13] acpi/hmat: Register memory side cache attributes
+Date: Wed,  9 Jan 2019 10:43:40 -0700
+Message-Id: <20190109174341.19818-13-keith.busch@intel.com>
+In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
+References: <20190109174341.19818-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, hannes@cmpxchg.org, josef@toxicpanda.com, jack@suse.cz, hughd@google.com, ktkhai@virtuozzo.com, darrick.wong@oracle.com, mhocko@suse.com, aryabinin@virtuozzo.com, guro@fb.com, mgorman@techsingularity.net, shakeelb@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-On nodes without memory overcommit, it's common a situation,
-when memcg exceeds its limit and pages from pagecache are
-shrinked on reclaim, while node has a lot of free memory.
-Further access to the pages requires real device IO, while
-IO causes time delays, worse powerusage, worse throughput
-for other users of the device, etc.
+Register memory side cache attributes with the memory's node if HMAT
+provides the side cache iniformation table.
 
-Cleancache is not a good solution for this problem, since
-it implies copying of page on every cleancache_put_page()
-and cleancache_get_page(). Also, it requires introduction
-of internal per-cleancache_ops data structures to manage
-cached pages and their inodes relationships, which again
-introduces overhead.
-
-This patchset introduces another solution. It introduces
-a new scheme for evicting memcg pages:
-
-  1)__remove_mapping() uncharges unmapped page memcg
-    and leaves page in pagecache on memcg reclaim;
-
-  2)putback_lru_page() places page into root_mem_cgroup
-    list, since its memcg is NULL. Page may be evicted
-    on global reclaim (and this will be easily, as
-    page is not mapped, so shrinker will shrink it
-    with 100% probability of success);
-
-  3)pagecache_get_page() charges page into memcg of
-    a task, which takes it first.
-
-Below is small test, which shows profit of the patchset.
-
-Create memcg with limit 20M (exact value does not matter much):
-  $ mkdir /sys/fs/cgroup/memory/ct
-  $ echo 20M > /sys/fs/cgroup/memory/ct/memory.limit_in_bytes
-  $ echo $$ > /sys/fs/cgroup/memory/ct/tasks
-
-Then twice read 1GB file:
-  $ time cat file_1gb > /dev/null
-
-Before (2 iterations):
-  1)0.01user 0.82system 0:11.16elapsed 7%CPU
-  2)0.01user 0.91system 0:11.16elapsed 8%CPU
-
-After (2 iterations):
-  1)0.01user 0.57system 0:11.31elapsed 5%CPU
-  2)0.00user 0.28system 0:00.28elapsed 100%CPU
-
-With the patch set applied, we have file pages are cached
-during the second read, so the result is 39 times faster.
-
-This may be useful for slow disks, NFS, nodes without
-overcommit by memory, in case of two memcg access the same
-files, etc.
-
+Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
+ drivers/acpi/hmat.c | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
 
-Kirill Tkhai (3):
-      mm: Uncharge and keep page in pagecache on memcg reclaim
-      mm: Recharge page memcg on first get from pagecache
-      mm: Pass FGP_NOWAIT in generic_file_buffered_read and enable ext4
-
-
- fs/ext4/inode.c         |    1 +
- include/linux/pagemap.h |    1 +
- mm/filemap.c            |   38 ++++++++++++++++++++++++++++++++++++--
- mm/vmscan.c             |   22 ++++++++++++++++++----
- 4 files changed, 56 insertions(+), 6 deletions(-)
-
---
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
+index 45e20dc677f9..9efdd0a63a79 100644
+--- a/drivers/acpi/hmat.c
++++ b/drivers/acpi/hmat.c
+@@ -206,6 +206,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+ 				   const unsigned long end)
+ {
+ 	struct acpi_hmat_cache *cache = (void *)header;
++	struct node_cache_attrs cache_attrs;
+ 	u32 attrs;
+ 
+ 	if (cache->header.length < sizeof(*cache)) {
+@@ -219,6 +220,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+ 		cache->memory_PD, cache->cache_size, attrs,
+ 		cache->number_of_SMBIOShandles);
+ 
++	cache_attrs.size = cache->cache_size;
++	cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
++	cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
++
++	switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
++	case ACPI_HMAT_CA_DIRECT_MAPPED:
++		cache_attrs.associativity = NODE_CACHE_DIRECT_MAP;
++		break;
++	case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
++		cache_attrs.associativity = NODE_CACHE_INDEXED;
++		break;
++	case ACPI_HMAT_CA_NONE:
++	default:
++		cache_attrs.associativity = NODE_CACHE_OTHER;
++		break;
++	}
++
++	switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
++	case ACPI_HMAT_CP_WB:
++		cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
++		break;
++	case ACPI_HMAT_CP_WT:
++		cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
++		break;
++	case ACPI_HMAT_CP_NONE:
++	default:
++		cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
++		break;
++	}
++
++	node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
+ 	return 0;
+ }
+ 
+-- 
+2.14.4
