@@ -2,207 +2,188 @@ Return-Path: <SRS0=IlG+=PR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A149DC43387
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 05:44:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67583C43387
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 08:39:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AFDF206BA
-	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 05:44:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D1CBF214C6
+	for <linux-mm@archiver.kernel.org>; Wed,  9 Jan 2019 08:39:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="T+BtHPWA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AFDF206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="hLEsvWQO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1CBF214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EAB8F8E009D; Wed,  9 Jan 2019 00:44:44 -0500 (EST)
+	id 461FA8E009D; Wed,  9 Jan 2019 03:39:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E59798E0038; Wed,  9 Jan 2019 00:44:44 -0500 (EST)
+	id 3EB268E0038; Wed,  9 Jan 2019 03:39:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D22778E009D; Wed,  9 Jan 2019 00:44:44 -0500 (EST)
+	id 2DA4F8E009D; Wed,  9 Jan 2019 03:39:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F3EE8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 00:44:44 -0500 (EST)
-Received: by mail-yw1-f70.google.com with SMTP id t17so3324822ywc.23
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 21:44:44 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ED8078E0038
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 03:39:46 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id 124so3321776ybb.9
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 00:39:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=6nHgzPv8OHHMQOhvL9odj368V6gyeIizn/EW268BFmo=;
-        b=BZQBAc+1ZZfIqht0WHnVfxd5Lnj72QjlVkncNEKrOYHI3JFZEy9pPYsivSsPt5E/WV
-         BfrvUhF5kVEU9Zk+uVeyZCNYo0w8O28j4ljfcclm6PctlNWFlW+o70kJuYc3XkT0kpzV
-         oIpu6pH+u3Rtha/S+IGTudACPr9cx9FLx+gWITXtDtJsjDv3n0pVuBm1uSIkQ2mTgUe1
-         QLIKmkIqsBT/y598WAZH0Y82L4TmTTn+mM1djq1sxi8neTcceQJHbf8RyO108Ln6lKBt
-         Xeu1s+68fVBomWDgr0Fxw3Z6CqWyt34oF98IIdkT5YngDssxJJwLvPkoQ2LO4lmWQM6+
-         vniA==
-X-Gm-Message-State: AJcUukd9Hh/ZALWzUDYMFMQNu52caMsmuvUDKUb9btMVnzmgKvneZOE3
-	6u75Of6TOUFuEy1TKi8i56qD67gZ0pxz5HpHudbTuliyyut9iSSd/jcNdS7F4fPOY+pmeQ/0+0B
-	L266494BZfIjSVbL+k8DStsHtJp/NagZhVgsFaBoG+VHARMJZ3lbWW6/Gc/nllKu7+XCdNO6T+X
-	Or8S6Wki3AiyDe4ZLY4/IGktVoQmpgQgAJfemJoDatnhWfD2xoD/EAnxovGARSxdF3QmOdAdJQN
-	zzkHv0i+rFbHgQcUCgrlTXtzpkP4rCArRhKlgAyQDxgo3+FlXGb0aHPUnwQTmGVtmEfOA5AA2SI
-	lL6L9Y2o8dw0SPDd/Mcu37LpGDoknVTr1y7c/XCLuAseWUQpgWQQOFz2CHB6v75f356VQgz9X4u
-	E
-X-Received: by 2002:a81:b61a:: with SMTP id u26mr4310934ywh.428.1547012684293;
-        Tue, 08 Jan 2019 21:44:44 -0800 (PST)
-X-Received: by 2002:a81:b61a:: with SMTP id u26mr4310921ywh.428.1547012683648;
-        Tue, 08 Jan 2019 21:44:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547012683; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :dkim-signature;
+        bh=d8nk7slwlRpiZg/raOdY1xeZB8HZ56EW4GxJN3oaLI4=;
+        b=VwYqyKVDv+jJQARPKn4jpQoa2T7oJgZl6YGuIPW6rH7j0JrV6AmKJCBjBRE6rMqYjX
+         fVnbQnKvC4kmMaIem2iBp0uSCqa1aCp4LM2G250Ph904MIYXIBd8l8uOXv/aZD9ITOKF
+         cgVg2gqHhfw04MEp7CrzpGU+vZvMT97pkb5i5HS7uAlKpXROW12P3WW12aro3OdImCuB
+         JRr/HQSpuYcA6vajRiB9A+IHzJr3j0Ww6J/zArnXsy4NkeCQ+fgb88GniG1rZ/AXfh1p
+         a8p3lHQqYOkvLCH0ODsQXfSwytYcf8qkBxKBUpydjsK0DhuIbNW9kMgYMr3F7wB/RZaY
+         XbXw==
+X-Gm-Message-State: AJcUukdkcdEiR5JXdFktrnxYMm30Le9ERRYmSE2EpDh6ardzMCmowEkw
+	lfagKsuqsHkP/WH6Rp2iek3sk6LQhS6irysgkfpxmN14THuC3C63jAoDvt+sDkf4eyTn/f3w6xK
+	hDLhGUsay8/b1TrMKcBWi5LvQ8Qf1PO/zlsFTfSyFDgxsBcs2p+ydQDLFnpqImT4+bg==
+X-Received: by 2002:a25:2f58:: with SMTP id v85mr4932961ybv.100.1547023186541;
+        Wed, 09 Jan 2019 00:39:46 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5cQPw1zVHHjEMnP35RIY4dPMkMb8roBvEvbWkYVxurWhN2feOjaA1+L1GD10vPxnJy2XyA
+X-Received: by 2002:a25:2f58:: with SMTP id v85mr4932935ybv.100.1547023185933;
+        Wed, 09 Jan 2019 00:39:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547023185; cv=none;
         d=google.com; s=arc-20160816;
-        b=cYo9ndhvdeZcia+d0G0bKpokSAr5PwYd5Cs0gqlTMVMF+vwvFdKGIbMf0Nxqcwpl9I
-         NjiDyz+4HuV12WfVVD5NTyIwpegv4zsv9HdDKc5aBok+Wpbq+tl2D4T+XkiofoMAL8jA
-         YKzG3/+C2xSaVsJrCXeuIbTSQ9FNi3UFEP1CAFkNvkJ4ugK7DGQtwQHGHPmSjZ66Lq7w
-         am5dyMEuP7pqS7qZ0RqSLxV7D2YjKwSiJlLYPq+JGDNQkeJ+J6m+Htz2v6j+wkz6x3Ss
-         u1lqxFqcSuDH1KqbV/OetjvulCERp49L7LTjlHDPFbtTC8u5og6jHdiPSRhvBWLcZe43
-         o47A==
+        b=l4zLAaRs/E7Ylu9tj2WrlkFKbWG8AZZRD9vW0g4ljmmsIr21axwq4sZ2Z1bzsSCDX3
+         rm6XQtasSvxBxyNNR6z+9pT9PKk2UsJLhAYB1iJns48HcfTpSInYdH+vMXmGDm9OW1B+
+         2u8TZ9/NlvNONMmvhJ6pNkTHwdWGsgHxeLTb2Z+L/BQrIl3ZyebbxuTJax0gw7JWPS2j
+         tLXNh4goeJTR1i8Yt1+m7w3Nkjxxd4Hy94BcxUs69a00IQfnCV/PYNh8KRfiSEZgH4KY
+         gL8p2ygPnr2fG7SOFrCa2QO3uvSr+Rn/M/7QLlRJKsAfic0EaajmEiK1MDEzBB6XHITX
+         9RfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=6nHgzPv8OHHMQOhvL9odj368V6gyeIizn/EW268BFmo=;
-        b=TXU7nIluqv3nBPAfh4M5nZG9P9PJkx5O4cwxoHnxzfT5AyGeKa3UIVRx+oRqq9k4JM
-         inzxoxS7JaQsO6tHkIIbgMBJOctVDX3+HudFvAhdSa1lJJftLwYcOMVxgV+B1waS3/h2
-         CXoty+c/3YcRKGI88xzMKI2+V+nQeaAI8asLtkATsU15me0WazwBpfxHqlpw22evqdqW
-         Cwt5DY2Po+FV329Wq8WtDowRdCW8rMs63br0SMLLra1ZgDZq0UnIwMt/nErGxi22NB0N
-         x3zdxlovR66rDsrbHi9+fLREiMnP8HOaKYYdPRP7Yj3dOdwkF0MPMMzgeJ0L3P5X9qpe
-         fmVQ==
+        h=dkim-signature:mime-version:message-id:date:subject:cc:to:from;
+        bh=d8nk7slwlRpiZg/raOdY1xeZB8HZ56EW4GxJN3oaLI4=;
+        b=LO7d20eaYW42GL0vQTeBQYrwZYb0Wz4DRJ9qlyFXa6QPa5JkLZ1y3gqbgaZ0Pbiqek
+         I8F/ghk8eOGQICUNvBhHtnDM0pObV9tKyD4vw6BpXguPMAfl1taX72bvgkig+U76Pn/0
+         STDQbiowVXh6Nzp2y7m7j5D4ktKon9IoLO9fjjy/BZdvpqXXvfWaA8soOMXvLmNBCRCU
+         0muLWHyIV7Ee46CapnlDGTRH5p9UiNx246Wuguqb1yvqoLchHhryPlC/sLWyOag5U8YL
+         mdkvCGe8hCs5YyW90mzKEZRquMSirzarLE5PN6EN33XRgGYSPa7CijeO5NhxSDjsGJYB
+         nSVg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=T+BtHPWA;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v19sor24360952ybb.88.2019.01.08.21.44.43
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=hLEsvWQO;
+       spf=pass (google.com: domain of prpatel@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=prpatel@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id e189si29876247ybb.13.2019.01.09.00.39.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 08 Jan 2019 21:44:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Jan 2019 00:39:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of prpatel@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=T+BtHPWA;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=6nHgzPv8OHHMQOhvL9odj368V6gyeIizn/EW268BFmo=;
-        b=T+BtHPWAN7zFhlQJ3Vh7wdCJ+9Db2lsKHltj0bZCAebH1WiEy/bGepN15kGNiU6469
-         ma5r8vkSiWbBVxLwouI02LIchw3YoIyHYBRZwkB5Mi09ldoK0U4m4ykkg5iORhBPlrPh
-         g1WBZrFyVRuFCEyVU3B6VRzFk0aUui5Hr22SMVyzXMDfAkmF4CdNPksyjrJumw0d4q4D
-         93Ro/R63gHWvIeT4IwK7z2HTr+0dokmPc2Cwsj47wUMBzNlbRFkDi5tOyOnI90QT9+Wi
-         m9V53rJfzirHyQAUR3sIjq1htXAy4TLE2wChDX4H9psoaB26huD3zIy+8n0ZD0i+c+H+
-         0rEA==
-X-Google-Smtp-Source: ALg8bN7WC9YarGVhTwVTk4rmmMzeT1JUxVUtrATiopraERlgM5IN/iq9S9pbXWCiF6mNWSpgMszQDXsj1t05ClcxXUw=
-X-Received: by 2002:a25:26c8:: with SMTP id m191mr4384247ybm.377.1547012683115;
- Tue, 08 Jan 2019 21:44:43 -0800 (PST)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=hLEsvWQO;
+       spf=pass (google.com: domain of prpatel@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=prpatel@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c35b3440001>; Wed, 09 Jan 2019 00:39:32 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Wed, 09 Jan 2019 00:39:44 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Wed, 09 Jan 2019 00:39:44 -0800
+Received: from HQMAIL108.nvidia.com (172.18.146.13) by HQMAIL103.nvidia.com
+ (172.20.187.11) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Wed, 9 Jan
+ 2019 08:39:44 +0000
+Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL108.nvidia.com
+ (172.18.146.13) with Microsoft SMTP Server (TLS) id 15.0.1395.4 via Frontend
+ Transport; Wed, 9 Jan 2019 08:39:44 +0000
+Received: from prpatel.nvidia.com (Not Verified[10.24.229.63]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
+	id <B5c35b34c0006>; Wed, 09 Jan 2019 00:39:44 -0800
+From: Prateek Patel <prpatel@nvidia.com>
+To: <paul@paul-moore.com>, <sds@tycho.nsa.gov>, <eparis@parisplace.org>,
+	<linux-kernel@vger.kernel.org>, <catalin.marinas@arm.com>,
+	<selinux@vger.kernel.org>
+CC: <linux-tegra@vger.kernel.org>, <talho@nvidia.com>, <swarren@nvidia.com>,
+	<prpatel@nvidia.com>, <linux-mm@kvack.org>, <snikam@nvidia.com>,
+	<vdumpa@nvidia.com>, Sri Krishna chowdary <schowdary@nvidia.com>
+Subject: [PATCH] selinux: avc: mark avc node as not a leak
+Date: Wed, 9 Jan 2019 14:09:22 +0530
+Message-ID: <1547023162-6381-1-git-send-email-prpatel@nvidia.com>
+X-Mailer: git-send-email 2.7.4
+X-NVConfidentiality: public
 MIME-Version: 1.0
-References: <20190109040107.4110-1-riel@surriel.com> <CALvZod6=-kdUk23i7eOr5AO-_2Fk_BmJiL3QjSJ4S4QOs0xKkw@mail.gmail.com>
-In-Reply-To: <CALvZod6=-kdUk23i7eOr5AO-_2Fk_BmJiL3QjSJ4S4QOs0xKkw@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 8 Jan 2019 21:44:32 -0800
-Message-ID:
- <CALvZod5+QFLtn4D+xn2REy3sHUR5z3EsJQPGrfzWobK5wmRnjg@mail.gmail.com>
-Subject: Re: [PATCH] mm,slab,memcg: call memcg kmem put cache with same
- condition as get
-To: Rik van Riel <riel@surriel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, kernel-team@fb.com, 
-	Linux MM <linux-mm@kvack.org>, stable@vger.kernel.org, 
-	Alexey Dobriyan <adobriyan@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, 
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 Content-Type: text/plain; charset="UTF-8"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1547023172; bh=d8nk7slwlRpiZg/raOdY1xeZB8HZ56EW4GxJN3oaLI4=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+	 X-NVConfidentiality:MIME-Version:Content-Type;
+	b=hLEsvWQOHdvqppyoGhavWWiwtZHwSrIOoTQRuR78d2ScVatIwkp8OmLC69zts+iBf
+	 rsYu5zBXuve4SBmFveLWtpGwKsN55oKASYwIZl5Sc03RASnWufgc1HAJ6fcLTCXyWS
+	 k4jxYJkeBhaN2237bCl4Nj/Hq1rNbnsjWVJjOkRfrDUamBVpv2ydK51cEuhLo7IOKI
+	 1PlqVrim5zVM/NoBOy3IirQw2x4hE/+Vy+Jxax+zSGEYfC2QUybzY7jqzFGBvvJIHF
+	 5QhqomtxUsdzzeQOK5ssYb7M725bS95iCtix76TycWyH0bjc8zb/9ztsLv6nWJvpzM
+	 UTuAJev+smbpg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190109054432.mV7_TCg9jmGcO4cxR6ji67E-qjdTahomLGMEvM3-uXM@z>
+Message-ID: <20190109083922.AhLOLLRb6NnBEDDAn88E4lbPWKQquRdJXiuOQAB2O44@z>
 
-On Tue, Jan 8, 2019 at 9:36 PM Shakeel Butt <shakeelb@google.com> wrote:
->
-> On Tue, Jan 8, 2019 at 8:01 PM Rik van Riel <riel@surriel.com> wrote:
-> >
-> > There is an imbalance between when slab_pre_alloc_hook calls
-> > memcg_kmem_get_cache and when slab_post_alloc_hook calls
-> > memcg_kmem_put_cache.
-> >
->
-> Can you explain how there is an imbalance? If the returned kmem cache
-> from memcg_kmem_get_cache() is the memcg kmem cache then the refcnt of
-> memcg is elevated and the memcg_kmem_put_cache() will correctly
-> decrement the refcnt of the memcg.
->
-> > This can cause a memcg kmem cache to be destroyed right as
-> > an object from that cache is being allocated,
+From: Sri Krishna chowdary <schowdary@nvidia.com>
 
-Also please note that the memcg kmem caches are destroyed (if empty)
-on memcg offline. The css_tryget_online() within
-memcg_kmem_get_cache() will fail.
+kmemleak detects allocated objects as leaks if not accessed for
+default scan time. The memory allocated using avc_alloc_node
+is freed using rcu mechanism when nodes are reclaimed or on
+avc_flush. So, there is no real leak here and kmemleak_scan
+detects it as a leak which is false positive. Hence, mark it as
+kmemleak_not_leak.
 
-See kernel/cgroup/cgroup.c
-* 2. When the percpu_ref is confirmed to be visible as killed on all CPUs
- *    and thus css_tryget_online() is guaranteed to fail, the css can be
- *    offlined by invoking offline_css().  After offlining, the base ref is
- *    put.  Implemented in css_killed_work_fn().
+Following is the log for avc_alloc_node detected as leak:
+unreferenced object 0xffffffc0dd1a0e60 (size 64):
+  comm "InputDispatcher", pid 648, jiffies 4294944629 (age 698.180s)
+  hex dump (first 32 bytes):
+    ed 00 00 00 ed 00 00 00 17 00 00 00 3f fe 41 00  ............?.A.
+    00 00 00 00 ff ff ff ff 01 00 00 00 00 00 00 00  ................
+  backtrace:
+    [<ffffffc000192390>] __save_stack_trace+0x24/0x34
+    [<ffffffc000192dcc>] create_object+0x13c/0x290
+    [<ffffffc000b926f0>] kmemleak_alloc+0x80/0xbc
+    [<ffffffc00018e018>] kmem_cache_alloc+0x128/0x1f8
+    [<ffffffc000313d40>] avc_alloc_node+0x2c/0x1e8
+    [<ffffffc000313f34>] avc_insert+0x38/0x13c
+    [<ffffffc000314084>] avc_compute_av+0x4c/0x60
+    [<ffffffc00031461c>] avc_has_perm_flags+0x90/0x188
+    [<ffffffc000319430>] sock_has_perm+0x84/0x98
+    [<ffffffc0003194e4>] selinux_socket_sendmsg+0x1c/0x28
+    [<ffffffc000312f58>] security_socket_sendmsg+0x14/0x20
+    [<ffffffc0009c60c4>] sock_sendmsg+0x70/0xc8
+    [<ffffffc0009c8884>] SyS_sendto+0x140/0x1ec
+    [<ffffffc0000853c0>] el0_svc_naked+0x34/0x38
+    [<ffffffffffffffff>] 0xffffffffffffffff
 
-> > which is probably
-> > not good. It could lead to things like a memcg allocating new
-> > kmalloc slabs instead of using freed space in old ones, maybe
-> > memory leaks, and maybe oopses as a memcg kmalloc slab is getting
-> > destroyed on one CPU while another CPU is trying to do an allocation
-> > from that same memcg.
-> >
-> > The obvious fix would be to use the same condition for calling
-> > memcg_kmem_put_cache that we also use to decide whether to call
-> > memcg_kmem_get_cache.
-> >
-> > I am not sure how long this bug has been around, since the last
-> > changeset to touch that code - 452647784b2f ("mm: memcontrol: cleanup
-> >  kmem charge functions") - merely moved the bug from one location to
-> > another. I am still tagging that changeset, because the fix should
-> > automatically apply that far back.
-> >
-> > Signed-off-by: Rik van Riel <riel@surriel.com>
-> > Fixes: 452647784b2f ("mm: memcontrol: cleanup kmem charge functions")
-> > Cc: kernel-team@fb.com
-> > Cc: linux-mm@kvack.org
-> > Cc: stable@vger.kernel.org
-> > Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> > Cc: Christoph Lameter <cl@linux.com>
-> > Cc: Pekka Enberg <penberg@kernel.org>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: David Rientjes <rientjes@google.com>
-> > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Tejun Heo <tj@kernel.org>
-> > ---
-> >  mm/slab.h | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/mm/slab.h b/mm/slab.h
-> > index 4190c24ef0e9..ab3d95bef8a0 100644
-> > --- a/mm/slab.h
-> > +++ b/mm/slab.h
-> > @@ -444,7 +444,8 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
-> >                 p[i] = kasan_slab_alloc(s, object, flags);
-> >         }
-> >
-> > -       if (memcg_kmem_enabled())
-> > +       if (memcg_kmem_enabled() &&
-> > +           ((flags & __GFP_ACCOUNT) || (s->flags & SLAB_ACCOUNT)))
->
-> I don't think these extra checks are needed. They are safe but not needed.
->
-> >                 memcg_kmem_put_cache(s);
-> >  }
-> >
-> > --
-> > 2.17.1
-> >
->
-> thanks,
-> Shakeel
+Signed-off-by: Sri Krishna chowdary <schowdary@nvidia.com>
+Signed-off-by: Prateek <prpatel@nvidia.com>
+---
+ security/selinux/avc.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/security/selinux/avc.c b/security/selinux/avc.c
+index 635e5c1..ecfd0cd 100644
+--- a/security/selinux/avc.c
++++ b/security/selinux/avc.c
+@@ -30,6 +30,7 @@
+ #include <linux/audit.h>
+ #include <linux/ipv6.h>
+ #include <net/ipv6.h>
++#include <linux/kmemleak.h>
+ #include "avc.h"
+ #include "avc_ss.h"
+ #include "classmap.h"
+@@ -573,6 +574,7 @@ static struct avc_node *avc_alloc_node(struct selinux_avc *avc)
+ 	if (!node)
+ 		goto out;
+ 
++	kmemleak_not_leak(node);
+ 	INIT_HLIST_NODE(&node->list);
+ 	avc_cache_stats_incr(allocations);
+ 
+-- 
+2.7.4
 
