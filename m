@@ -1,82 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BCA988E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 00:04:53 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id m19so33138993edc.6
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 21:04:53 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u9-v6si183033ejk.320.2019.01.02.21.04.52
-        for <linux-mm@kvack.org>;
-        Wed, 02 Jan 2019 21:04:52 -0800 (PST)
-Subject: Re: [RESEND PATCH V3 0/5] arm64/mm: Enable HugeTLB migration
-References: <1545121450-1663-1-git-send-email-anshuman.khandual@arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <c2fbd55e-4413-1bcf-769c-fd1064e74a2c@arm.com>
-Date: Thu, 3 Jan 2019 10:34:38 +0530
-MIME-Version: 1.0
-In-Reply-To: <1545121450-1663-1-git-send-email-anshuman.khandual@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A1BC18E0008
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:43 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id i3so8675417pfj.4
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:43 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id d13si17304163pgu.40.2019.01.10.13.10.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 13:10:42 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v7 09/16] mm: add a user_virt_to_phys symbol
+Date: Thu, 10 Jan 2019 14:09:41 -0700
+Message-Id: <c9a409397fc608f7ae6297597d9ea3d21eeb3b38.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
-Cc: suzuki.poulose@arm.com, will.deacon@arm.com, Steven.Price@arm.com, steve.capper@arm.com, catalin.marinas@arm.com, mhocko@kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>
 
+From: Tycho Andersen <tycho@docker.com>
 
+We need someting like this for testing XPFO. Since it's architecture
+specific, putting it in the test code is slightly awkward, so let's make it
+an arch-specific symbol and export it for use in LKDTM.
 
-On 12/18/2018 01:54 PM, Anshuman Khandual wrote:
-> This patch series enables HugeTLB migration support for all supported
-> huge page sizes at all levels including contiguous bit implementation.
-> Following HugeTLB migration support matrix has been enabled with this
-> patch series. All permutations have been tested except for the 16GB.
-> 
->          CONT PTE    PMD    CONT PMD    PUD
->          --------    ---    --------    ---
-> 4K:         64K     2M         32M     1G
-> 16K:         2M    32M          1G
-> 64K:         2M   512M         16G
-> 
-> First the series adds migration support for PUD based huge pages. It
-> then adds a platform specific hook to query an architecture if a
-> given huge page size is supported for migration while also providing
-> a default fallback option preserving the existing semantics which just
-> checks for (PMD|PUD|PGDIR)_SHIFT macros. The last two patches enables
-> HugeTLB migration on arm64 and subscribe to this new platform specific
-> hook by defining an override.
-> 
-> The second patch differentiates between movability and migratability
-> aspects of huge pages and implements hugepage_movable_supported() which
-> can then be used during allocation to decide whether to place the huge
-> page in movable zone or not.
-> 
-> This is just a resend for the previous version (V3) after the rebase
-> on current mainline kernel. Also added all the tags previous version
-> had received.
-> 
-> Changes in V3:
-> 
-> - Re-ordered patches 1 and 2 per Michal
-> - s/Movability/Migratability/ in unmap_and_move_huge_page() per Naoya
-> 
-> Changes in V2: (https://lkml.org/lkml/2018/10/12/190)
-> 
-> - Added a new patch which differentiates migratability and movability
->   of huge pages and implements hugepage_movable_supported() function
->   as suggested by Michal Hocko.
-> 
-> Anshuman Khandual (5):
->   mm/hugetlb: Distinguish between migratability and movability
->   mm/hugetlb: Enable PUD level huge page migration
->   mm/hugetlb: Enable arch specific huge page size support for migration
->   arm64/mm: Enable HugeTLB migration
->   arm64/mm: Enable HugeTLB migration for contiguous bit HugeTLB pages
-> 
+v6: * add a definition of user_virt_to_phys in the !CONFIG_XPFO case
 
-Hello Andrew,
+CC: linux-arm-kernel@lists.infradead.org
+CC: x86@kernel.org
+Signed-off-by: Tycho Andersen <tycho@docker.com>
+Tested-by: Marco Benatto <marco.antonio.780@gmail.com>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+---
+ arch/x86/mm/xpfo.c   | 57 ++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/xpfo.h |  8 +++++++
+ 2 files changed, 65 insertions(+)
 
-Just wondering if there are any updates on this series ? Is there something we need to
-improve or fix some where in this series for it to get merged. Please do let us know.
-Thank you.
-
-- Anshuman
+diff --git a/arch/x86/mm/xpfo.c b/arch/x86/mm/xpfo.c
+index d1f04ea533cd..bcdb2f2089d2 100644
+--- a/arch/x86/mm/xpfo.c
++++ b/arch/x86/mm/xpfo.c
+@@ -112,3 +112,60 @@ inline void xpfo_flush_kernel_tlb(struct page *page, int order)
+ 
+ 	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
+ }
++
++/* Convert a user space virtual address to a physical address.
++ * Shamelessly copied from slow_virt_to_phys() and lookup_address() in
++ * arch/x86/mm/pageattr.c
++ */
++phys_addr_t user_virt_to_phys(unsigned long addr)
++{
++	phys_addr_t phys_addr;
++	unsigned long offset;
++	pgd_t *pgd;
++	p4d_t *p4d;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte;
++
++	pgd = pgd_offset(current->mm, addr);
++	if (pgd_none(*pgd))
++		return 0;
++
++	p4d = p4d_offset(pgd, addr);
++	if (p4d_none(*p4d))
++		return 0;
++
++	if (p4d_large(*p4d) || !p4d_present(*p4d)) {
++		phys_addr = (unsigned long)p4d_pfn(*p4d) << PAGE_SHIFT;
++		offset = addr & ~P4D_MASK;
++		goto out;
++	}
++
++	pud = pud_offset(p4d, addr);
++	if (pud_none(*pud))
++		return 0;
++
++	if (pud_large(*pud) || !pud_present(*pud)) {
++		phys_addr = (unsigned long)pud_pfn(*pud) << PAGE_SHIFT;
++		offset = addr & ~PUD_MASK;
++		goto out;
++	}
++
++	pmd = pmd_offset(pud, addr);
++	if (pmd_none(*pmd))
++		return 0;
++
++	if (pmd_large(*pmd) || !pmd_present(*pmd)) {
++		phys_addr = (unsigned long)pmd_pfn(*pmd) << PAGE_SHIFT;
++		offset = addr & ~PMD_MASK;
++		goto out;
++	}
++
++	pte =  pte_offset_kernel(pmd, addr);
++	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
++	offset = addr & ~PAGE_MASK;
++
++out:
++	return (phys_addr_t)(phys_addr | offset);
++}
++EXPORT_SYMBOL(user_virt_to_phys);
+diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+index 0c26836a24e1..d4b38ab8a633 100644
+--- a/include/linux/xpfo.h
++++ b/include/linux/xpfo.h
+@@ -23,6 +23,10 @@ struct page;
+ 
+ #ifdef CONFIG_XPFO
+ 
++#include <linux/dma-mapping.h>
++
++#include <linux/types.h>
++
+ extern struct page_ext_operations page_xpfo_ops;
+ 
+ void set_kpte(void *kaddr, struct page *page, pgprot_t prot);
+@@ -48,6 +52,8 @@ void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
+ 
+ bool xpfo_enabled(void);
+ 
++phys_addr_t user_virt_to_phys(unsigned long addr);
++
+ #else /* !CONFIG_XPFO */
+ 
+ static inline void xpfo_kmap(void *kaddr, struct page *page) { }
+@@ -72,6 +78,8 @@ static inline void xpfo_temp_unmap(const void *addr, size_t size,
+ 
+ static inline bool xpfo_enabled(void) { return false; }
+ 
++static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
++
+ #endif /* CONFIG_XPFO */
+ 
+ #endif /* _LINUX_XPFO_H */
+-- 
+2.17.1
