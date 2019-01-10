@@ -1,85 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E5C8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 09:30:37 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 68so10452704pfr.6
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:30:37 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h5si23104310pfg.233.2019.01.11.06.30.36
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7B98E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 09:55:10 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id y35so4540099edb.5
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 06:55:10 -0800 (PST)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id w51si3245413edc.321.2019.01.10.06.55.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 06:30:36 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 019/105] x86/dump_pagetables: Fix LDT remap address marker
-Date: Fri, 11 Jan 2019 15:13:50 +0100
-Message-Id: <20190111131104.844827246@linuxfoundation.org>
-In-Reply-To: <20190111131102.899065735@linuxfoundation.org>
-References: <20190111131102.899065735@linuxfoundation.org>
+        Thu, 10 Jan 2019 06:55:09 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id E5D151C1DD8
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 14:55:08 +0000 (GMT)
+Date: Thu, 10 Jan 2019 14:55:07 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC 1/3] mm, thp: restore __GFP_NORETRY for madvised thp fault
+ allocations
+Message-ID: <20190110145507.GB31517@techsingularity.net>
+References: <20181211142941.20500-1-vbabka@suse.cz>
+ <20181211142941.20500-2-vbabka@suse.cz>
+ <20190108111630.GN31517@techsingularity.net>
+ <cba804dd-5a07-0a40-b5ae-86795dc860d4@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <cba804dd-5a07-0a40-b5ae-86795dc860d4@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, jgross@suse.com, bhe@redhat.com, hans.van.kranenburg@mendix.com, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Sasha Levin <sashal@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-4.14-stable review patch.  If anyone has any objections, please let me know.
+On Thu, Jan 10, 2019 at 02:52:32PM +0100, Vlastimil Babka wrote:
+> > It also means that the merit of this series needs to account for whether
+> > it's before or after the compaction series as the impact will be
+> > different. FWIW, I had the same problem with evaluating the compaction
+> > series on the context of __GFP_THISNODE vs !__GFP_THISNODE
+> 
+> Right. In that case I think for mainline, making compaction better has
+> priority over trying to compensate for it.
 
-------------------
+Thanks, I agree.
 
-[ Upstream commit 254eb5505ca0ca749d3a491fc6668b6c16647a99 ]
+> The question is if somebody
+> wants to fix stable/older distro kernels. Now that it wasn't possible to
+> remove the __GFP_THISNODE for THP's, I thought this might be an
+> alternative acceptable to anyone, provided that it works. Backporting
+> your compaction series would be much more difficult I guess. Of course
+> distro kernels can also divert from mainline and go with the
+> __GFP_THISNODE removal privately.
+> 
 
-The LDT remap placement has been changed. It's now placed before the direct
-mapping in the kernel virtual address space for both paging modes.
+That is a good point and hopefully Andrea can come back with some data from
+his side. I can queue up something our side and see how it affects the
+usemem case. As it's a backporting issue that I think would be rejected
+by the stable rules, we can discuss the specifics offline and keep "did
+it work or not" for here.
 
-Change address markers order accordingly.
+I agree that backporting the compaction series too far back would get
+"interesting" as some of the pre-requisites are unexpected -- e.g. all
+the data we have assumes the fragmentation avoidance stuff is in place and
+that in turn has other dependencies such as when kcompactd gets woken up,
+your patches on how fallbacks are managed etc.
 
-Fixes: d52888aa2753 ("x86/mm: Move LDT remap out of KASLR region on 5-level paging")
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: bp@alien8.de
-Cc: hpa@zytor.com
-Cc: dave.hansen@linux.intel.com
-Cc: luto@kernel.org
-Cc: peterz@infradead.org
-Cc: boris.ostrovsky@oracle.com
-Cc: jgross@suse.com
-Cc: bhe@redhat.com
-Cc: hans.van.kranenburg@mendix.com
-Cc: linux-mm@kvack.org
-Cc: xen-devel@lists.xenproject.org
-Link: https://lkml.kernel.org/r/20181130202328.65359-3-kirill.shutemov@linux.intel.com
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- arch/x86/mm/dump_pagetables.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+> >> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> >> index 5da55b38b1b7..c442b12b060c 100644
+> >> --- a/mm/huge_memory.c
+> >> +++ b/mm/huge_memory.c
+> >> @@ -633,24 +633,23 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+> >>  {
+> >>  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+> >>  
+> >> -	/* Always do synchronous compaction */
+> >> +	/* Always try direct compaction */
+> >>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+> >> -		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
+> >> +		return GFP_TRANSHUGE | __GFP_NORETRY;
+> >>  
+> > 
+> > While I get that you want to reduce thrashing, the configuration item
+> > really indicates the system (not just the caller, but everyone) is willing
+> > to take a hit to get a THP.
+> 
+> Yeah some hit in exchange for THP's, but probably not an overreclaim due
+> to __GFP_THISNODE implications.
+> 
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index cf403e057f3f..6bca45d06676 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -51,10 +51,10 @@ struct addr_marker {
- enum address_markers_idx {
- 	USER_SPACE_NR = 0,
- 	KERNEL_SPACE_NR,
--	LOW_KERNEL_NR,
--#if defined(CONFIG_MODIFY_LDT_SYSCALL) && defined(CONFIG_X86_5LEVEL)
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
- 	LDT_NR,
- #endif
-+	LOW_KERNEL_NR,
- 	VMALLOC_START_NR,
- 	VMEMMAP_START_NR,
- #ifdef CONFIG_KASAN
-@@ -62,9 +62,6 @@ enum address_markers_idx {
- 	KASAN_SHADOW_END_NR,
- #endif
- 	CPU_ENTRY_AREA_NR,
--#if defined(CONFIG_MODIFY_LDT_SYSCALL) && !defined(CONFIG_X86_5LEVEL)
--	LDT_NR,
--#endif
- #ifdef CONFIG_X86_ESPFIX64
- 	ESPFIX_START_NR,
- #endif
+Fair point, we can get that data.
+
 -- 
-2.19.1
+Mel Gorman
+SUSE Labs
