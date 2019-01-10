@@ -1,175 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A55CC8E0008
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:52 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id ay11so6918943plb.20
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:52 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id d7si71395773pfo.108.2019.01.10.13.10.50
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C1228E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 17:08:11 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id a18so7144930pga.16
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 14:08:11 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z188sor53812003pgb.42.2019.01.10.14.08.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:10:51 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [RFC PATCH v7 16/16] xpfo, mm: Defer TLB flushes for non-current CPUs (x86 only)
-Date: Thu, 10 Jan 2019 14:09:48 -0700
-Message-Id: <c97fd93699adc018d666c3842ee973cb0acced2c.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
+        (Google Transport Security);
+        Thu, 10 Jan 2019 14:08:09 -0800 (PST)
+From: Suren Baghdasaryan <surenb@google.com>
+Subject: [PATCH v2 2/5] kernel: cgroup: add poll file operation
+Date: Thu, 10 Jan 2019 14:07:15 -0800
+Message-Id: <20190110220718.261134-3-surenb@google.com>
+In-Reply-To: <20190110220718.261134-1-surenb@google.com>
+References: <20190110220718.261134-1-surenb@google.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: gregkh@linuxfoundation.org
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
 
-XPFO flushes kernel space TLB entries for pages that are now mapped
-in userspace on not only the current CPU but also all other CPUs.
-If the number of TLB entries to flush exceeds
-tlb_single_page_flush_ceiling, this results in entire TLB neing
-flushed on all CPUs. A malicious userspace app can exploit the
-dual mapping of a physical page caused by physmap only on the CPU
-it is running on. There is no good reason to incur the very high
-cost of TLB flush on CPUs that may never run the malicious app or
-do not have any TLB entries for the malicious app. The cost of
-full TLB flush goes up dramatically on machines with high core
-count.
+From: Johannes Weiner <hannes@cmpxchg.org>
 
-This patch flushes relevant TLB entries for current process or
-entire TLB depending upon number of entries for the current CPU
-and posts a pending TLB flush on all other CPUs when a page is
-unmapped from kernel space and mapped in userspace. This pending
-TLB flush is posted for each task separately and TLB is flushed on
-a CPU when a task is scheduled on it that has a pending TLB flush
-posted for that CPU. This patch does two things - (1) it
-potentially aggregates multiple TLB flushes into one, and (2) it
-avoids TLB flush on CPUs that never run the task that caused a TLB
-flush. This has very significant impact especially on machines
-with large core counts. To illustrate this, kernel was compiled
-with -j on two classes of machines - a server with high core count
-and large amount of memory, and a desktop class machine with more
-modest specs. System time from "make -j" from vanilla 4.20 kernel,
-4.20 with XPFO patches before applying this patch and after
-applying this patch are below:
+Cgroup has a standardized poll/notification mechanism for waking all
+pollers on all fds when a filesystem node changes. To allow polling
+for custom events, add a .poll callback that can override the default.
 
-Hardware: 96-core Intel Xeon Platinum 8160 CPU @ 2.10GHz, 768 GB RAM
-make -j60 all
+This is in preparation for pollable cgroup pressure files which have
+per-fd trigger configurations.
 
-4.20				915.183s
-4.19+XPFO			24129.354s	26.366x
-4.19+XPFO+Deferred flush	1216.987s	 1.330xx
-
-Hardware: 4-core Intel Core i5-3550 CPU @ 3.30GHz, 8G RAM
-make -j4 all
-
-4.20				607.671s
-4.19+XPFO			1588.646s	2.614x
-4.19+XPFO+Deferred flush	794.473s	1.307xx
-
-This patch could use more optimization. For instance, it posts a
-pending full TLB flush for other CPUs even when number of TLB
-entries being flushed does not exceed tlb_single_page_flush_ceiling.
-Batching more TLB entry flushes, as was suggested for earlier
-version of these patches, can help reduce these cases. This same
-code should be implemented for other architectures as well once
-finalized.
-
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 ---
- arch/x86/include/asm/tlbflush.h |  1 +
- arch/x86/mm/tlb.c               | 27 +++++++++++++++++++++++++++
- arch/x86/mm/xpfo.c              |  2 +-
- include/linux/sched.h           |  9 +++++++++
- 4 files changed, 38 insertions(+), 1 deletion(-)
+ include/linux/cgroup-defs.h |  4 ++++
+ kernel/cgroup/cgroup.c      | 12 ++++++++++++
+ 2 files changed, 16 insertions(+)
 
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index f4204bf377fc..92d23629d01d 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -561,6 +561,7 @@ extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 				unsigned long end, unsigned int stride_shift,
- 				bool freed_tables);
- extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
-+extern void xpfo_flush_tlb_kernel_range(unsigned long start, unsigned long end);
+diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
+index 5e1694fe035b..6f9ea8601421 100644
+--- a/include/linux/cgroup-defs.h
++++ b/include/linux/cgroup-defs.h
+@@ -32,6 +32,7 @@ struct kernfs_node;
+ struct kernfs_ops;
+ struct kernfs_open_file;
+ struct seq_file;
++struct poll_table_struct;
  
- static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
- {
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 03b6b4c2238d..b04a501c850b 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -319,6 +319,15 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 		__flush_tlb_all();
- 	}
+ #define MAX_CGROUP_TYPE_NAMELEN 32
+ #define MAX_CGROUP_ROOT_NAMELEN 64
+@@ -573,6 +574,9 @@ struct cftype {
+ 	ssize_t (*write)(struct kernfs_open_file *of,
+ 			 char *buf, size_t nbytes, loff_t off);
+ 
++	__poll_t (*poll)(struct kernfs_open_file *of,
++			 struct poll_table_struct *pt);
++
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ 	struct lock_class_key	lockdep_key;
  #endif
-+
-+	/* If there is a pending TLB flush for this CPU due to XPFO
-+	 * flush, do it now.
-+	 */
-+	if (tsk && cpumask_test_and_clear_cpu(cpu, &tsk->pending_xpfo_flush)) {
-+		count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
-+		__flush_tlb_all();
-+	}
-+
- 	this_cpu_write(cpu_tlbstate.is_lazy, false);
- 
- 	/*
-@@ -801,6 +810,24 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
- 	}
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+index 7a8429f8e280..3f533f95acdc 100644
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -3499,6 +3499,16 @@ static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
+ 	return ret ?: nbytes;
  }
  
-+void xpfo_flush_tlb_kernel_range(unsigned long start, unsigned long end)
++static __poll_t cgroup_file_poll(struct kernfs_open_file *of, poll_table *pt)
 +{
++	struct cftype *cft = of->kn->priv;
 +
-+	/* Balance as user space task's flush, a bit conservative */
-+	if (end == TLB_FLUSH_ALL ||
-+	    (end - start) > tlb_single_page_flush_ceiling << PAGE_SHIFT) {
-+		do_flush_tlb_all(NULL);
-+	} else {
-+		struct flush_tlb_info info;
++	if (cft->poll)
++		return cft->poll(of, pt);
 +
-+		info.start = start;
-+		info.end = end;
-+		do_kernel_range_flush(&info);
-+	}
-+	cpumask_setall(&current->pending_xpfo_flush);
-+	cpumask_clear_cpu(smp_processor_id(), &current->pending_xpfo_flush);
++	return kernfs_generic_poll(of, pt);
 +}
 +
- void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
+ static void *cgroup_seqfile_start(struct seq_file *seq, loff_t *ppos)
  {
- 	struct flush_tlb_info info = {
-diff --git a/arch/x86/mm/xpfo.c b/arch/x86/mm/xpfo.c
-index bcdb2f2089d2..5aa17cb2c813 100644
---- a/arch/x86/mm/xpfo.c
-+++ b/arch/x86/mm/xpfo.c
-@@ -110,7 +110,7 @@ inline void xpfo_flush_kernel_tlb(struct page *page, int order)
- 		return;
- 	}
+ 	return seq_cft(seq)->seq_start(seq, ppos);
+@@ -3537,6 +3547,7 @@ static struct kernfs_ops cgroup_kf_single_ops = {
+ 	.open			= cgroup_file_open,
+ 	.release		= cgroup_file_release,
+ 	.write			= cgroup_file_write,
++	.poll			= cgroup_file_poll,
+ 	.seq_show		= cgroup_seqfile_show,
+ };
  
--	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
-+	xpfo_flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
- }
- 
- /* Convert a user space virtual address to a physical address.
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 291a9bd5b97f..ba298be3b5a1 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1206,6 +1206,15 @@ struct task_struct {
- 	unsigned long			prev_lowest_stack;
- #endif
- 
-+	/*
-+	 * When a full TLB flush is needed to flush stale TLB entries
-+	 * for pages that have been mapped into userspace and unmapped
-+	 * from kernel space, this TLB flush will be delayed until the
-+	 * task is scheduled on that CPU. Keep track of CPUs with
-+	 * pending full TLB flush forced by xpfo.
-+	 */
-+	cpumask_t			pending_xpfo_flush;
-+
- 	/*
- 	 * New fields for task_struct should be added above here, so that
- 	 * they are included in the randomized portion of task_struct.
+@@ -3545,6 +3556,7 @@ static struct kernfs_ops cgroup_kf_ops = {
+ 	.open			= cgroup_file_open,
+ 	.release		= cgroup_file_release,
+ 	.write			= cgroup_file_write,
++	.poll			= cgroup_file_poll,
+ 	.seq_start		= cgroup_seqfile_start,
+ 	.seq_next		= cgroup_seqfile_next,
+ 	.seq_stop		= cgroup_seqfile_stop,
 -- 
-2.17.1
+2.20.1.97.g81188d93c3-goog
