@@ -1,51 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F8768E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:50:34 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id d41so34696291eda.12
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:50:34 -0800 (PST)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id y6si2193096edi.116.2019.01.04.04.50.32
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AB008E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:30 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id i3so8674959pfj.4
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:30 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id o127si18490753pfo.251.2019.01.10.13.10.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:50:32 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 6B74898837
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:50:32 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 01/25] mm, compaction: Shrink compact_control
-Date: Fri,  4 Jan 2019 12:49:47 +0000
-Message-Id: <20190104125011.16071-2-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        Thu, 10 Jan 2019 13:10:28 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v7 02/16] x86: always set IF before oopsing from page fault
+Date: Thu, 10 Jan 2019 14:09:34 -0700
+Message-Id: <46b0f1a61dabf6440d461c063a32573b96f3a5ce.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>
 
-The isolate and migrate scanners should never isolate more than a pageblock
-of pages so unsigned int is sufficient saving 8 bytes on a 64-bit build.
+From: Tycho Andersen <tycho@docker.com>
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Oopsing might kill the task, via rewind_stack_do_exit() at the bottom, and
+that might sleep:
+
+Aug 23 19:30:27 xpfo kernel: [   38.302714] BUG: sleeping function called from invalid context at ./include/linux/percpu-rwsem.h:33
+Aug 23 19:30:27 xpfo kernel: [   38.303837] in_atomic(): 0, irqs_disabled(): 1, pid: 1970, name: lkdtm_xpfo_test
+Aug 23 19:30:27 xpfo kernel: [   38.304758] CPU: 3 PID: 1970 Comm: lkdtm_xpfo_test Tainted: G      D         4.13.0-rc5+ #228
+Aug 23 19:30:27 xpfo kernel: [   38.305813] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.1-1ubuntu1 04/01/2014
+Aug 23 19:30:27 xpfo kernel: [   38.306926] Call Trace:
+Aug 23 19:30:27 xpfo kernel: [   38.307243]  dump_stack+0x63/0x8b
+Aug 23 19:30:27 xpfo kernel: [   38.307665]  ___might_sleep+0xec/0x110
+Aug 23 19:30:27 xpfo kernel: [   38.308139]  __might_sleep+0x45/0x80
+Aug 23 19:30:27 xpfo kernel: [   38.308593]  exit_signals+0x21/0x1c0
+Aug 23 19:30:27 xpfo kernel: [   38.309046]  ? blocking_notifier_call_chain+0x11/0x20
+Aug 23 19:30:27 xpfo kernel: [   38.309677]  do_exit+0x98/0xbf0
+Aug 23 19:30:27 xpfo kernel: [   38.310078]  ? smp_reader+0x27/0x40 [lkdtm]
+Aug 23 19:30:27 xpfo kernel: [   38.310604]  ? kthread+0x10f/0x150
+Aug 23 19:30:27 xpfo kernel: [   38.311045]  ? read_user_with_flags+0x60/0x60 [lkdtm]
+Aug 23 19:30:27 xpfo kernel: [   38.311680]  rewind_stack_do_exit+0x17/0x20
+
+To be safe, let's just always enable irqs.
+
+The particular case I'm hitting is:
+
+Aug 23 19:30:27 xpfo kernel: [   38.278615]  __bad_area_nosemaphore+0x1a9/0x1d0
+Aug 23 19:30:27 xpfo kernel: [   38.278617]  bad_area_nosemaphore+0xf/0x20
+Aug 23 19:30:27 xpfo kernel: [   38.278618]  __do_page_fault+0xd1/0x540
+Aug 23 19:30:27 xpfo kernel: [   38.278620]  ? irq_work_queue+0x9b/0xb0
+Aug 23 19:30:27 xpfo kernel: [   38.278623]  ? wake_up_klogd+0x36/0x40
+Aug 23 19:30:27 xpfo kernel: [   38.278624]  trace_do_page_fault+0x3c/0xf0
+Aug 23 19:30:27 xpfo kernel: [   38.278625]  do_async_page_fault+0x14/0x60
+Aug 23 19:30:27 xpfo kernel: [   38.278627]  async_page_fault+0x28/0x30
+
+When a fault is in kernel space which has been triggered by XPFO.
+
+Signed-off-by: Tycho Andersen <tycho@docker.com>
+CC: x86@kernel.org
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 ---
- mm/internal.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ arch/x86/mm/fault.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index f4a7bb02decf..5ddf5d3771a0 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -184,8 +184,8 @@ struct compact_control {
- 	struct list_head freepages;	/* List of free pages to migrate to */
- 	struct list_head migratepages;	/* List of pages being migrated */
- 	struct zone *zone;
--	unsigned long nr_freepages;	/* Number of isolated free pages */
--	unsigned long nr_migratepages;	/* Number of pages to migrate */
-+	unsigned int nr_freepages;	/* Number of isolated free pages */
-+	unsigned int nr_migratepages;	/* Number of pages to migrate */
- 	unsigned long total_migrate_scanned;
- 	unsigned long total_free_scanned;
- 	unsigned long free_pfn;		/* isolate_freepages search base */
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 71d4b9d4d43f..ba51652fbd33 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -748,6 +748,12 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 	/* Executive summary in case the body of the oops scrolled away */
+ 	printk(KERN_DEFAULT "CR2: %016lx\n", address);
+ 
++	/*
++	 * We're about to oops, which might kill the task. Make sure we're
++	 * allowed to sleep.
++	 */
++	flags |= X86_EFLAGS_IF;
++
+ 	oops_end(flags, regs, sig);
+ }
+ 
 -- 
-2.16.4
+2.17.1
