@@ -1,251 +1,311 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C6E8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 13:58:35 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id x18-v6so4005503lji.0
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:58:35 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id y29si58212219lfj.45.2019.01.11.10.58.32
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F16998E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 11:23:36 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id m3so8111998pfj.14
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 08:23:36 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id g21si26790118plo.435.2019.01.10.08.23.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 10:58:32 -0800 (PST)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH] kasan: Remove use after scope bugs detection.
-Date: Fri, 11 Jan 2019 21:58:42 +0300
-Message-Id: <20190111185842.13978-1-aryabinin@virtuozzo.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Thu, 10 Jan 2019 08:23:34 -0800 (PST)
+Message-ID: <f65b1b22426855ff261b3af719e58eded576a168.camel@linux.intel.com>
+Subject: Re: [PATCH v9] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Thu, 10 Jan 2019 08:23:34 -0800
+In-Reply-To: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
+References: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Qian Cai <cai@lca.pw>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: getarunks@gmail.com
 
-Use after scope bugs detector seems to be almost entirely useless
-for the linux kernel. It exists over two years, but I've seen only
-one valid bug so far [1]. And the bug was fixed before it has been
-reported. There were some other use-after-scope reports, but they
-were false-positives due to different reasons like incompatibility
-with structleak plugin.
+On Thu, 2019-01-10 at 11:05 +0530, Arun KS wrote:
+> When freeing pages are done with higher order, time spent on coalescing
+> pages by buddy allocator can be reduced.  With section size of 256MB, hot
+> add latency of a single section shows improvement from 50-60 ms to less
+> than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> external providers of online callback to align with the change.
+> 
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
-This feature significantly increases stack usage, especially with
-GCC < 9 version, and causes a 32K stack overflow. It probably
-adds performance penalty too.
+So I decided to give this one last thorough review and I think I might
+have found a few more minor issues, but not anything that is
+necessarily a showstopper.
 
-Given all that, let's remove use-after-scope detector entirely.
+Reviewed-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-While preparing this patch I've noticed that we mistakenly enable
-use-after-scope detection for clang compiler regardless of
-CONFIG_KASAN_EXTRA setting. This is also fixed now.
+> ---
+> Changes since v8:
+> - Remove return type change for online_page_callback.
+> - Use consistent names for external online_page providers.
+> - Fix onlined_pages accounting.
+> 
+> Changes since v7:
+> - Rebased to 5.0-rc1.
+> - Fixed onlined_pages accounting.
+> - Added comment for return value of online_page_callback.
+> - Renamed xen_bring_pgs_online to xen_online_pages.
+> 
+> Changes since v6:
+> - Rebased to 4.20
+> - Changelog updated.
+> - No improvement seen on arm64, hence removed removal of prefetch.
+> 
+> Changes since v5:
+> - Rebased to 4.20-rc1.
+> - Changelog updated.
+> 
+> Changes since v4:
+> - As suggested by Michal Hocko,
+> - Simplify logic in online_pages_block() by using get_order().
+> - Seperate out removal of prefetch from __free_pages_core().
+> 
+> Changes since v3:
+> - Renamed _free_pages_boot_core -> __free_pages_core.
+> - Removed prefetch from __free_pages_core.
+> - Removed xen_online_page().
+> 
+> Changes since v2:
+> - Reuse code from __free_pages_boot_core().
+> 
+> Changes since v1:
+> - Removed prefetch().
+> 
+> Changes since RFC:
+> - Rebase.
+> - As suggested by Michal Hocko remove pages_per_block.
+> - Modifed external providers of online_page_callback.
+> 
+> v8: https://lore.kernel.org/patchwork/patch/1030332/
+> v7: https://lore.kernel.org/patchwork/patch/1028908/
+> v6: https://lore.kernel.org/patchwork/patch/1007253/
+> v5: https://lore.kernel.org/patchwork/patch/995739/
+> v4: https://lore.kernel.org/patchwork/patch/995111/
+> v3: https://lore.kernel.org/patchwork/patch/992348/
+> v2: https://lore.kernel.org/patchwork/patch/991363/
+> v1: https://lore.kernel.org/patchwork/patch/989445/
+> RFC: https://lore.kernel.org/patchwork/patch/984754/
+> ---
+> ---
+>  drivers/hv/hv_balloon.c        |  4 ++--
+>  drivers/xen/balloon.c          | 15 ++++++++++-----
+>  include/linux/memory_hotplug.h |  2 +-
+>  mm/internal.h                  |  1 +
+>  mm/memory_hotplug.c            | 37 +++++++++++++++++++++++++------------
+>  mm/page_alloc.c                |  8 ++++----
+>  6 files changed, 43 insertions(+), 24 deletions(-)
+> 
+> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> index 5301fef..55d79f8 100644
+> --- a/drivers/hv/hv_balloon.c
+> +++ b/drivers/hv/hv_balloon.c
+> @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+>  	}
+>  }
+>  
+> -static void hv_online_page(struct page *pg)
+> +static void hv_online_page(struct page *pg, unsigned int order)
+>  {
+>  	struct hv_hotadd_state *has;
+>  	unsigned long flags;
+> @@ -783,7 +783,7 @@ static void hv_online_page(struct page *pg)
+>  		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+>  			continue;
+>  
 
-[1] http://lkml.kernel.org/r/<20171129052106.rhgbjhhis53hkgfn@wfg-t540p.sh.intel.com>
+I haven't followed earlier reviews, but do we know for certain the
+entire range being onlined will fit within a single hv_hotadd_state? If
+nothing else it seems like this check should be updated so that we are
+checking to verify that pfn + (1UL << order) is less than or equal to
+has->end_pfn.
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Qian Cai <cai@lca.pw>
-Cc: Alexander Potapenko <glider@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
----
- arch/arm64/include/asm/memory.h |  4 ----
- lib/Kconfig.debug               |  1 -
- lib/Kconfig.kasan               | 10 ----------
- lib/test_kasan.c                | 24 ------------------------
- mm/kasan/generic.c              | 19 -------------------
- mm/kasan/generic_report.c       |  3 ---
- mm/kasan/kasan.h                |  3 ---
- scripts/Makefile.kasan          |  5 -----
- scripts/gcc-plugins/Kconfig     |  4 ----
- 9 files changed, 73 deletions(-)
+> -		hv_page_online_one(has, pg);
+> +		hv_bring_pgs_online(has, pfn, (1UL << order));
+>  		break;
+>  	}
+>  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
+> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> index ceb5048..d107447 100644
+> --- a/drivers/xen/balloon.c
+> +++ b/drivers/xen/balloon.c
+> @@ -369,14 +369,19 @@ static enum bp_state reserve_additional_memory(void)
+>  	return BP_ECANCELED;
+>  }
+>  
+> -static void xen_online_page(struct page *page)
+> +static void xen_online_page(struct page *page, unsigned int order)
+>  {
+> -	__online_page_set_limits(page);
+> +	unsigned long i, size = (1 << order);
+> +	unsigned long start_pfn = page_to_pfn(page);
+> +	struct page *p;
+>  
+> +	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
+>  	mutex_lock(&balloon_mutex);
+> -
+> -	__balloon_append(page);
+> -
+> +	for (i = 0; i < size; i++) {
+> +		p = pfn_to_page(start_pfn + i);
+> +		__online_page_set_limits(p);
+> +		__balloon_append(p);
+> +	}
+>  	mutex_unlock(&balloon_mutex);
+>  }
+>  
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index 07da5c6..e368730 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -87,7 +87,7 @@ extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+>  	unsigned long *valid_start, unsigned long *valid_end);
+>  extern void __offline_isolated_pages(unsigned long, unsigned long);
+>  
+> -typedef void (*online_page_callback_t)(struct page *page);
+> +typedef void (*online_page_callback_t)(struct page *page, unsigned int order);
+>  
+>  extern int set_online_page_callback(online_page_callback_t callback);
+>  extern int restore_online_page_callback(online_page_callback_t callback);
+> diff --git a/mm/internal.h b/mm/internal.h
+> index f4a7bb0..536bc2a 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -163,6 +163,7 @@ static inline struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+>  extern int __isolate_free_page(struct page *page, unsigned int order);
+>  extern void memblock_free_pages(struct page *page, unsigned long pfn,
+>  					unsigned int order);
+> +extern void __free_pages_core(struct page *page, unsigned int order);
+>  extern void prep_compound_page(struct page *page, unsigned int order);
+>  extern void post_alloc_hook(struct page *page, unsigned int order,
+>  					gfp_t gfp_flags);
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index b9a667d..77dff24 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -47,7 +47,7 @@
+>   * and restore_online_page_callback() for generic callback restore.
+>   */
+>  
+> -static void generic_online_page(struct page *page);
+> +static void generic_online_page(struct page *page, unsigned int order);
+>  
+>  static online_page_callback_t online_page_callback = generic_online_page;
+>  static DEFINE_MUTEX(online_page_callback_lock);
+> @@ -656,26 +656,39 @@ void __online_page_free(struct page *page)
+>  }
+>  EXPORT_SYMBOL_GPL(__online_page_free);
+>  
+> -static void generic_online_page(struct page *page)
+> +static void generic_online_page(struct page *page, unsigned int order)
+>  {
+> -	__online_page_set_limits(page);
+> -	__online_page_increment_counters(page);
+> -	__online_page_free(page);
+> +	__free_pages_core(page, order);
+> +	totalram_pages_add(1UL << order);
+> +#ifdef CONFIG_HIGHMEM
+> +	if (PageHighMem(page))
+> +		totalhigh_pages_add(1UL << order);
+> +#endif
+> +}
+> +
+> +static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
+> +{
+> +	unsigned long end = start + nr_pages;
+> +	int order, ret, onlined_pages = 0;
+> +
+> +	while (start < end) {
+> +		order = min(MAX_ORDER - 1,
+> +			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
 
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index e1ec947e7c0c..0e236a99b3ef 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -80,11 +80,7 @@
-  */
- #ifdef CONFIG_KASAN
- #define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
--#ifdef CONFIG_KASAN_EXTRA
--#define KASAN_THREAD_SHIFT	2
--#else
- #define KASAN_THREAD_SHIFT	1
--#endif /* CONFIG_KASAN_EXTRA */
- #else
- #define KASAN_SHADOW_SIZE	(0)
- #define KASAN_THREAD_SHIFT	0
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index d4df5b24d75e..a219f3488ad7 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -222,7 +222,6 @@ config ENABLE_MUST_CHECK
- config FRAME_WARN
- 	int "Warn for stack frames larger than (needs gcc 4.4)"
- 	range 0 8192
--	default 3072 if KASAN_EXTRA
- 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
- 	default 1280 if (!64BIT && PARISC)
- 	default 1024 if (!64BIT && !PARISC)
-diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-index d8c474b6691e..67d7d1309c52 100644
---- a/lib/Kconfig.kasan
-+++ b/lib/Kconfig.kasan
-@@ -78,16 +78,6 @@ config KASAN_SW_TAGS
- 
- endchoice
- 
--config KASAN_EXTRA
--	bool "KASAN: extra checks"
--	depends on KASAN_GENERIC && DEBUG_KERNEL && !COMPILE_TEST
--	help
--	  This enables further checks in generic KASAN, for now it only
--	  includes the address-use-after-scope check that can lead to
--	  excessive kernel stack usage, frame size warnings and longer
--	  compile time.
--	  See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81715
--
- choice
- 	prompt "Instrumentation type"
- 	depends on KASAN
-diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-index 51b78405bf24..7de2702621dc 100644
---- a/lib/test_kasan.c
-+++ b/lib/test_kasan.c
-@@ -480,29 +480,6 @@ static noinline void __init copy_user_test(void)
- 	kfree(kmem);
- }
- 
--static noinline void __init use_after_scope_test(void)
--{
--	volatile char *volatile p;
--
--	pr_info("use-after-scope on int\n");
--	{
--		int local = 0;
--
--		p = (char *)&local;
--	}
--	p[0] = 1;
--	p[3] = 1;
--
--	pr_info("use-after-scope on array\n");
--	{
--		char local[1024] = {0};
--
--		p = local;
--	}
--	p[0] = 1;
--	p[1023] = 1;
--}
--
- static noinline void __init kasan_alloca_oob_left(void)
- {
- 	volatile int i = 10;
-@@ -682,7 +659,6 @@ static int __init kmalloc_tests_init(void)
- 	kasan_alloca_oob_right();
- 	ksize_unpoisons_memory();
- 	copy_user_test();
--	use_after_scope_test();
- 	kmem_cache_double_free();
- 	kmem_cache_invalid_free();
- 	kasan_memchr();
-diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
-index ccb6207276e3..504c79363a34 100644
---- a/mm/kasan/generic.c
-+++ b/mm/kasan/generic.c
-@@ -275,25 +275,6 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
- void __asan_handle_no_return(void) {}
- EXPORT_SYMBOL(__asan_handle_no_return);
- 
--/* Emitted by compiler to poison large objects when they go out of scope. */
--void __asan_poison_stack_memory(const void *addr, size_t size)
--{
--	/*
--	 * Addr is KASAN_SHADOW_SCALE_SIZE-aligned and the object is surrounded
--	 * by redzones, so we simply round up size to simplify logic.
--	 */
--	kasan_poison_shadow(addr, round_up(size, KASAN_SHADOW_SCALE_SIZE),
--			    KASAN_USE_AFTER_SCOPE);
--}
--EXPORT_SYMBOL(__asan_poison_stack_memory);
--
--/* Emitted by compiler to unpoison large objects when they go into scope. */
--void __asan_unpoison_stack_memory(const void *addr, size_t size)
--{
--	kasan_unpoison_shadow(addr, size);
--}
--EXPORT_SYMBOL(__asan_unpoison_stack_memory);
--
- /* Emitted by compiler to poison alloca()ed objects. */
- void __asan_alloca_poison(unsigned long addr, size_t size)
- {
-diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
-index 5e12035888f2..36c645939bc9 100644
---- a/mm/kasan/generic_report.c
-+++ b/mm/kasan/generic_report.c
-@@ -82,9 +82,6 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
- 	case KASAN_KMALLOC_FREE:
- 		bug_type = "use-after-free";
- 		break;
--	case KASAN_USE_AFTER_SCOPE:
--		bug_type = "use-after-scope";
--		break;
- 	case KASAN_ALLOCA_LEFT:
- 	case KASAN_ALLOCA_RIGHT:
- 		bug_type = "alloca-out-of-bounds";
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index ea51b2d898ec..3e0c11f7d7a1 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -34,7 +34,6 @@
- #define KASAN_STACK_MID         0xF2
- #define KASAN_STACK_RIGHT       0xF3
- #define KASAN_STACK_PARTIAL     0xF4
--#define KASAN_USE_AFTER_SCOPE   0xF8
- 
- /*
-  * alloca redzone shadow values
-@@ -187,8 +186,6 @@ void __asan_unregister_globals(struct kasan_global *globals, size_t size);
- void __asan_loadN(unsigned long addr, size_t size);
- void __asan_storeN(unsigned long addr, size_t size);
- void __asan_handle_no_return(void);
--void __asan_poison_stack_memory(const void *addr, size_t size);
--void __asan_unpoison_stack_memory(const void *addr, size_t size);
- void __asan_alloca_poison(unsigned long addr, size_t size);
- void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom);
- 
-diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
-index 25c259df8ffa..f1fb8e502657 100644
---- a/scripts/Makefile.kasan
-+++ b/scripts/Makefile.kasan
-@@ -27,14 +27,9 @@ else
- 	 $(call cc-param,asan-globals=1) \
- 	 $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
- 	 $(call cc-param,asan-stack=1) \
--	 $(call cc-param,asan-use-after-scope=1) \
- 	 $(call cc-param,asan-instrument-allocas=1)
- endif
- 
--ifdef CONFIG_KASAN_EXTRA
--CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
--endif
--
- endif # CONFIG_KASAN_GENERIC
- 
- ifdef CONFIG_KASAN_SW_TAGS
-diff --git a/scripts/gcc-plugins/Kconfig b/scripts/gcc-plugins/Kconfig
-index d45f7f36b859..d9fd9988ef27 100644
---- a/scripts/gcc-plugins/Kconfig
-+++ b/scripts/gcc-plugins/Kconfig
-@@ -68,10 +68,6 @@ config GCC_PLUGIN_LATENT_ENTROPY
- 
- config GCC_PLUGIN_STRUCTLEAK
- 	bool "Force initialization of variables containing userspace addresses"
--	# Currently STRUCTLEAK inserts initialization out of live scope of
--	# variables from KASAN point of view. This leads to KASAN false
--	# positive reports. Prohibit this combination for now.
--	depends on !KASAN_EXTRA
- 	help
- 	  This plugin zero-initializes any structures containing a
- 	  __user attribute. This can prevent some classes of information
--- 
-2.19.2
+So this is mostly just optimization related so you can ignore this
+suggestion if you want. I was looking at this and it occurred to me
+that I don't think you need to convert this to a physical address do
+you?
+
+Couldn't you just do something like the following:
+		if ((end - start) >= (1UL << (MAX_ORDER - 1))
+			order = MAX_ORDER - 1;
+		else
+			order = __fls(end - start);
+
+I would think this would save you a few steps in terms of conversions
+and such since you are already working in page frame numbers anyway so
+a block of 8 pfns would represent an order 3 page wouldn't it?
+
+Also it seems like an alternative to using "end" would be to just track
+nr_pages. Then you wouldn't have to do the "end - start" math in a few
+spots as long as you remembered to decrement nr_pages by the amount you
+increment start by.
+
+> +		(*online_page_callback)(pfn_to_page(start), order);
+> +
+> +		onlined_pages += (1UL << order);
+> +		start += (1UL << order);
+> +	}
+> +	return onlined_pages;
+>  }
+>  
+>  static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+>  			void *arg)
+>  {
+> -	unsigned long i;
+>  	unsigned long onlined_pages = *(unsigned long *)arg;
+> -	struct page *page;
+>  
+>  	if (PageReserved(pfn_to_page(start_pfn)))
+> -		for (i = 0; i < nr_pages; i++) {
+> -			page = pfn_to_page(start_pfn + i);
+> -			(*online_page_callback)(page);
+> -			onlined_pages++;
+> -		}
+> +		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
+>  
+>  	online_mem_sections(start_pfn, start_pfn + nr_pages);
+>  
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d295c9b..883212a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1303,7 +1303,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+>  	local_irq_restore(flags);
+>  }
+>  
+> -static void __init __free_pages_boot_core(struct page *page, unsigned int order)
+> +void __free_pages_core(struct page *page, unsigned int order)
+>  {
+>  	unsigned int nr_pages = 1 << order;
+>  	struct page *p = page;
+> @@ -1382,7 +1382,7 @@ void __init memblock_free_pages(struct page *page, unsigned long pfn,
+>  {
+>  	if (early_page_uninitialised(pfn))
+>  		return;
+> -	return __free_pages_boot_core(page, order);
+> +	__free_pages_core(page, order);
+>  }
+>  
+>  /*
+> @@ -1472,14 +1472,14 @@ static void __init deferred_free_range(unsigned long pfn,
+>  	if (nr_pages == pageblock_nr_pages &&
+>  	    (pfn & (pageblock_nr_pages - 1)) == 0) {
+>  		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+> -		__free_pages_boot_core(page, pageblock_order);
+> +		__free_pages_core(page, pageblock_order);
+>  		return;
+>  	}
+>  
+>  	for (i = 0; i < nr_pages; i++, page++, pfn++) {
+>  		if ((pfn & (pageblock_nr_pages - 1)) == 0)
+>  			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+> -		__free_pages_boot_core(page, 0);
+> +		__free_pages_core(page, 0);
+>  	}
+>  }
+>  
