@@ -1,76 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A788E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 00:06:00 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id u20so36400495pfa.1
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 21:06:00 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id d23si54107902pgm.559.2019.01.03.21.05.59
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA02C8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:24 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id g12so6888151pll.22
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:24 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id w22si11275375plp.301.2019.01.10.13.10.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jan 2019 21:05:59 -0800 (PST)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Fri, 04 Jan 2019 10:35:58 +0530
-From: Arun KS <arunks@codeaurora.org>
-Subject: Re: [PATCH v6 1/2] memory_hotplug: Free pages as higher order
-In-Reply-To: <5e55c6e64a2bfd6eed855ea17a34788b@codeaurora.org>
-References: <1541484194-1493-1-git-send-email-arunks@codeaurora.org>
- <20181106140638.GN27423@dhcp22.suse.cz>
- <542cd3516b54d88d1bffede02c6045b8@codeaurora.org>
- <20181106200823.GT27423@dhcp22.suse.cz>
- <5e55c6e64a2bfd6eed855ea17a34788b@codeaurora.org>
-Message-ID: <40a4d5154fbd0006fbe55eb68703bb65@codeaurora.org>
+        Thu, 10 Jan 2019 13:10:23 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v7 01/16] mm: add MAP_HUGETLB support to vm_mmap
+Date: Thu, 10 Jan 2019 14:09:33 -0700
+Message-Id: <5b692498fde91fe22181cdb6ed20f058f598fb43.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: arunks.linux@gmail.com, akpm@linux-foundation.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
+To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>
 
-On 2018-11-07 11:51, Arun KS wrote:
-> On 2018-11-07 01:38, Michal Hocko wrote:
->> On Tue 06-11-18 21:01:29, Arun KS wrote:
->>> On 2018-11-06 19:36, Michal Hocko wrote:
->>> > On Tue 06-11-18 11:33:13, Arun KS wrote:
->>> > > When free pages are done with higher order, time spend on
->>> > > coalescing pages by buddy allocator can be reduced. With
->>> > > section size of 256MB, hot add latency of a single section
->>> > > shows improvement from 50-60 ms to less than 1 ms, hence
->>> > > improving the hot add latency by 60%. Modify external
->>> > > providers of online callback to align with the change.
->>> > >
->>> > > This patch modifies totalram_pages, zone->managed_pages and
->>> > > totalhigh_pages outside managed_page_count_lock. A follow up
->>> > > series will be send to convert these variable to atomic to
->>> > > avoid readers potentially seeing a store tear.
->>> >
->>> > Is there any reason to rush this through rather than wait for counters
->>> > conversion first?
->>> 
->>> Sure Michal.
->>> 
->>> Conversion patch, https://patchwork.kernel.org/cover/10657217/ is 
->>> currently
->>> incremental to this patch.
->> 
->> The ordering should be other way around. Because as things stand with
->> this patch first it is possible to introduce a subtle race prone
->> updates. As I've said I am skeptical the race would matter, really, 
->> but
->> there is no real reason to risk for that. Especially when you have the
->> other (first) half ready.
-> 
-> Makes sense. I have rebased the preparatory patch on top of -rc1.
-> https://patchwork.kernel.org/patch/10670787/
+From: Tycho Andersen <tycho@docker.com>
 
-Hello Michal,
+vm_mmap is exported, which means kernel modules can use it. In particular,
+for testing XPFO support, we want to use it with the MAP_HUGETLB flag, so
+let's support it via vm_mmap.
 
-Please review version 7 sent,
-https://lore.kernel.org/patchwork/patch/1028908/
+Signed-off-by: Tycho Andersen <tycho@docker.com>
+Tested-by: Marco Benatto <marco.antonio.780@gmail.com>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+---
+ include/linux/mm.h |  2 ++
+ mm/mmap.c          | 19 +------------------
+ mm/util.c          | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 18 deletions(-)
 
-Regards,
-Arun
-> 
-> Regards,
-> Arun
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5411de93a363..30bddc7b3c75 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2361,6 +2361,8 @@ struct vm_unmapped_area_info {
+ extern unsigned long unmapped_area(struct vm_unmapped_area_info *info);
+ extern unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
+ 
++struct file *map_hugetlb_setup(unsigned long *len, unsigned long flags);
++
+ /*
+  * Search for an unmapped address range.
+  *
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 6c04292e16a7..c668d7d27c2b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1582,24 +1582,7 @@ unsigned long ksys_mmap_pgoff(unsigned long addr, unsigned long len,
+ 		if (unlikely(flags & MAP_HUGETLB && !is_file_hugepages(file)))
+ 			goto out_fput;
+ 	} else if (flags & MAP_HUGETLB) {
+-		struct user_struct *user = NULL;
+-		struct hstate *hs;
+-
+-		hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
+-		if (!hs)
+-			return -EINVAL;
+-
+-		len = ALIGN(len, huge_page_size(hs));
+-		/*
+-		 * VM_NORESERVE is used because the reservations will be
+-		 * taken when vm_ops->mmap() is called
+-		 * A dummy user value is used because we are not locking
+-		 * memory so no accounting is necessary
+-		 */
+-		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len,
+-				VM_NORESERVE,
+-				&user, HUGETLB_ANONHUGE_INODE,
+-				(flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
++		file = map_hugetlb_setup(&len, flags);
+ 		if (IS_ERR(file))
+ 			return PTR_ERR(file);
+ 	}
+diff --git a/mm/util.c b/mm/util.c
+index 8bf08b5b5760..536c14cf88ba 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -357,6 +357,29 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	return ret;
+ }
+ 
++struct file *map_hugetlb_setup(unsigned long *len, unsigned long flags)
++{
++	struct user_struct *user = NULL;
++	struct hstate *hs;
++
++	hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
++	if (!hs)
++		return ERR_PTR(-EINVAL);
++
++	*len = ALIGN(*len, huge_page_size(hs));
++
++	/*
++	 * VM_NORESERVE is used because the reservations will be
++	 * taken when vm_ops->mmap() is called
++	 * A dummy user value is used because we are not locking
++	 * memory so no accounting is necessary
++	 */
++	return hugetlb_file_setup(HUGETLB_ANON_FILE, *len,
++			VM_NORESERVE,
++			&user, HUGETLB_ANONHUGE_INODE,
++			(flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
++}
++
+ unsigned long vm_mmap(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
+ 	unsigned long flag, unsigned long offset)
+@@ -366,6 +389,15 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
+ 	if (unlikely(offset_in_page(offset)))
+ 		return -EINVAL;
+ 
++	if (flag & MAP_HUGETLB) {
++		if (file)
++			return -EINVAL;
++
++		file = map_hugetlb_setup(&len, flag);
++		if (IS_ERR(file))
++			return PTR_ERR(file);
++	}
++
+ 	return vm_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
+ }
+ EXPORT_SYMBOL(vm_mmap);
+-- 
+2.17.1
