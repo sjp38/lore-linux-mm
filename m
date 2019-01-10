@@ -1,146 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A9608E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:35:03 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id a18so31881619pga.16
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:35:03 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 1si57025810plb.103.2019.01.05.07.35.01
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 24CBA8E0038
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:00:21 -0500 (EST)
+Received: by mail-yw1-f72.google.com with SMTP id v187so5673040ywv.15
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 04:00:21 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id m7si43766048ywe.146.2019.01.10.04.00.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 07:35:02 -0800 (PST)
-Subject: Patch "x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off" has been added to the 4.19-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Sat, 05 Jan 2019 16:31:44 +0100
-Message-ID: <154670230458199@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+        Thu, 10 Jan 2019 04:00:20 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [v3 PATCH 5/5] doc: memcontrol: add description for
+ wipe_on_offline
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <1547061285-100329-6-git-send-email-yang.shi@linux.alibaba.com>
+Date: Thu, 10 Jan 2019 05:00:13 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <0746F690-2C0C-4041-842A-19CEB28A5E45@oracle.com>
+References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1547061285-100329-6-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ak@linux.intel.com, bp@suse.de, dave.hansen@intel.com, gregkh@linuxfoundation.org, jkosina@suse.cz, linux-mm@kvack.org, mhocko@suse.com, pasha.tatashin@soleen.com, tglx@linutronix.de, torvalds@linux-foundation.org
-Cc: stable-commits@vger.kernel.org
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Michal Hocko <mhocko@suse.com>, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+
+Just a few grammar corrections since this is going into Documentation:
 
 
-This is a note to let you know that I've just added the patch titled
+> On Jan 9, 2019, at 12:14 PM, Yang Shi <yang.shi@linux.alibaba.com> =
+wrote:
+>=20
+> Add desprition of wipe_on_offline interface in cgroup documents.
+Add a description of the wipe_on_offline interface to the cgroup =
+documents.
 
-    x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Shakeel Butt <shakeelb@google.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+> Documentation/admin-guide/cgroup-v2.rst |  9 +++++++++
+> Documentation/cgroup-v1/memory.txt      | 10 ++++++++++
+> 2 files changed, 19 insertions(+)
+>=20
+> diff --git a/Documentation/admin-guide/cgroup-v2.rst =
+b/Documentation/admin-guide/cgroup-v2.rst
+> index 0290c65..e4ef08c 100644
+> --- a/Documentation/admin-guide/cgroup-v2.rst
+> +++ b/Documentation/admin-guide/cgroup-v2.rst
+> @@ -1303,6 +1303,15 @@ PAGE_SIZE multiple when read back.
+>         memory pressure happens. If you want to avoid that, =
+force_empty will be
+>         useful.
+>=20
+> +  memory.wipe_on_offline
+> +
+> +        This is similar to force_empty, but it just does memory =
+reclaim
+> +        asynchronously in css offline kworker.
+> +
+> +        Writing into 1 will enable it, disable it by writing into 0.
+Writing a 1 will enable it; writing a 0 will disable it.
 
-to the 4.19-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+> +
+> +        It would reclaim as much as possible memory just as what =
+force_empty does.
+It will reclaim as much memory as possible, just as force_empty does.
 
-The filename of the patch is:
-     x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
-and it can be found in the queue-4.19 subdirectory.
+> +
+>=20
+> Usage Guidelines
+> ~~~~~~~~~~~~~~~~
+> diff --git a/Documentation/cgroup-v1/memory.txt =
+b/Documentation/cgroup-v1/memory.txt
+> index 8e2cb1d..1c6e1ca 100644
+> --- a/Documentation/cgroup-v1/memory.txt
+> +++ b/Documentation/cgroup-v1/memory.txt
+> @@ -71,6 +71,7 @@ Brief summary of control files.
+>  memory.stat			 # show various statistics
+>  memory.use_hierarchy		 # set/show hierarchical account enabled
+>  memory.force_empty		 # trigger forced page reclaim
+> + memory.wipe_on_offline		 # trigger forced page reclaim =
+when offlining
+>  memory.pressure_level		 # set memory pressure =
+notifications
+>  memory.swappiness		 # set/show swappiness parameter of =
+vmscan
+> 				 (See sysctl's vm.swappiness)
+> @@ -581,6 +582,15 @@ hierarchical_<counter>=3D<counter pages> N0=3D<node=
+ 0 pages> N1=3D<node 1 pages> ...
+>=20
+> The "total" count is sum of file + anon + unevictable.
+>=20
+> +5.7 wipe_on_offline
+> +
+> +This is similar to force_empty, but it just does memory reclaim =
+asynchronously
+> +in css offline kworker.
+> +
+> +Writing into 1 will enable it, disable it by writing into 0.
+Writing a 1 will enable it; writing a 0 will disable it.
 
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
+> +
+> +It would reclaim as much as possible memory just as what force_empty =
+does.
+It will reclaim as much memory as possible, just as force_empty does.
 
-
->From 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 Mon Sep 17 00:00:00 2001
-From: Michal Hocko <mhocko@suse.com>
-Date: Tue, 13 Nov 2018 19:49:10 +0100
-Subject: x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
-
-From: Michal Hocko <mhocko@suse.com>
-
-commit 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 upstream.
-
-Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
-the system is deemed affected by L1TF vulnerability. Even though the limit
-is quite high for most deployments it seems to be too restrictive for
-deployments which are willing to live with the mitigation disabled.
-
-We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
-clearly out of the limit.
-
-Drop the swap restriction when l1tf=off is specified. It also doesn't make
-much sense to warn about too much memory for the l1tf mitigation when it is
-forcefully disabled by the administrator.
-
-[ tglx: Folded the documentation delta change ]
-
-Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Jiri Kosina <jkosina@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: <linux-mm@kvack.org>
-Cc: stable@vger.kernel.org
-Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- Documentation/admin-guide/kernel-parameters.txt |    3 +++
- Documentation/admin-guide/l1tf.rst              |    6 +++++-
- arch/x86/kernel/cpu/bugs.c                      |    3 ++-
- arch/x86/mm/init.c                              |    2 +-
- 4 files changed, 11 insertions(+), 3 deletions(-)
-
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2073,6 +2073,9 @@
- 			off
- 				Disables hypervisor mitigations and doesn't
- 				emit any warnings.
-+				It also drops the swap size and available
-+				RAM limit restriction on both hypervisor and
-+				bare metal.
- 
- 			Default is 'flush'.
- 
---- a/Documentation/admin-guide/l1tf.rst
-+++ b/Documentation/admin-guide/l1tf.rst
-@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid
- 
-   off		Disables hypervisor mitigations and doesn't emit any
- 		warnings.
-+		It also drops the swap size and available RAM limit restrictions
-+		on both hypervisor and bare metal.
-+
-   ============  =============================================================
- 
- The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
-@@ -576,7 +579,8 @@ Default mitigations
-   The kernel default mitigations for vulnerable processors are:
- 
-   - PTE inversion to protect against malicious user space. This is done
--    unconditionally and cannot be controlled.
-+    unconditionally and cannot be controlled. The swap storage is limited
-+    to ~16TB.
- 
-   - L1D conditional flushing on VMENTER when EPT is enabled for
-     a guest.
---- a/arch/x86/kernel/cpu/bugs.c
-+++ b/arch/x86/kernel/cpu/bugs.c
-@@ -1000,7 +1000,8 @@ static void __init l1tf_select_mitigatio
- #endif
- 
- 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
--	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
-+	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
-+			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
- 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
- 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
- 				half_pa);
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -932,7 +932,7 @@ unsigned long max_swapfile_size(void)
- 
- 	pages = generic_max_swapfile_size();
- 
--	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
-+	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
- 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
- 		unsigned long long l1tf_limit = l1tf_pfn_limit();
- 		/*
-
-
-Patches currently in stable-queue which might be from mhocko@suse.com are
-
-queue-4.19/x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
+> +
+> 6. Hierarchy support
+>=20
+> The memory controller supports a deep hierarchy and hierarchical =
+accounting.
+> --=20
+> 1.8.3.1
+>=20
