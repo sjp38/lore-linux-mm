@@ -1,56 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A178E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 03:27:44 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id f69so4746543pff.5
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 00:27:44 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g8si1355593pli.50.2019.01.09.00.27.43
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E418E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 12:03:06 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id w15so11636708ita.1
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 09:03:06 -0800 (PST)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id 68sor29915072itu.24.2019.01.10.09.03.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 00:27:43 -0800 (PST)
-Date: Wed, 9 Jan 2019 11:27:33 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [bug report] mm, compaction: round-robin the order while searching
- the free lists for a target
-Message-ID: <20190109082733.GA5424@kadam>
+        (Google Transport Security);
+        Thu, 10 Jan 2019 09:03:05 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Thu, 10 Jan 2019 09:03:04 -0800
+Message-ID: <000000000000491844057f1d8d2f@google.com>
+Subject: KASAN: null-ptr-deref Read in reclaim_high
+From: syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@techsingularity.net
-Cc: linux-mm@kvack.org
+To: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, syzkaller-bugs@googlegroups.com, vdavydov.dev@gmail.com
 
-Hello Mel Gorman,
+Hello,
 
-The patch 1688e2896de4: "mm, compaction: round-robin the order while
-searching the free lists for a target" from Jan 8, 2019, leads to the
-following static checker warning:
+syzbot found the following crash on:
 
-	mm/compaction.c:1252 next_search_order()
-	warn: impossible condition '(cc->search_order < 0) => (0-u16max < 0)'
+HEAD commit:    6cab33afc3dd Add linux-next specific files for 20190110
+git tree:       linux-next
+console output: https://syzkaller.appspot.com/x/log.txt?x=178b287b400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=611f89e5b6868db
+dashboard link: https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
+compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14259017400000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=141630a0c00000
 
-mm/compaction.c
-    1243 static int next_search_order(struct compact_control *cc, int order)
-    1244 {
-    1245 	order--;
-    1246 	if (order < 0)
-    1247 		order = cc->order - 1;
-    1248 
-    1249 	/* Search wrapped around? */
-    1250 	if (order == cc->search_order) {
-    1251 		cc->search_order--;
---> 1252 		if (cc->search_order < 0)
-                            ^^^^^^^^^^^^^^^^^^^^
-u16 can't be negative.
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com
 
-    1253 			cc->search_order = cc->order - 1;
-    1254 		return -1;
-    1255 	}
-    1256 
-    1257 	return order;
-    1258 }
+==================================================================
+BUG: KASAN: null-ptr-deref in atomic64_read  
+include/generated/atomic-instrumented.h:836 [inline]
+BUG: KASAN: null-ptr-deref in atomic_long_read  
+include/generated/atomic-long.h:28 [inline]
+BUG: KASAN: null-ptr-deref in page_counter_read  
+include/linux/page_counter.h:47 [inline]
+BUG: KASAN: null-ptr-deref in reclaim_high.constprop.0+0xa6/0x1e0  
+mm/memcontrol.c:2149
+Read of size 8 at addr 0000000000000138 by task syz-executor037/7964
 
-regards,
-dan carpenter
+CPU: 1 PID: 7964 Comm: syz-executor037 Not tainted 5.0.0-rc1-next-20190110  
+#9
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x1db/0x2d0 lib/dump_stack.c:113
+  kasan_report.cold+0x5/0x40 mm/kasan/report.c:321
+  check_memory_region_inline mm/kasan/generic.c:185 [inline]
+  check_memory_region+0x123/0x190 mm/kasan/generic.c:191
+  kasan_check_read+0x11/0x20 mm/kasan/common.c:100
+  atomic64_read include/generated/atomic-instrumented.h:836 [inline]
+  atomic_long_read include/generated/atomic-long.h:28 [inline]
+  page_counter_read include/linux/page_counter.h:47 [inline]
+  reclaim_high.constprop.0+0xa6/0x1e0 mm/memcontrol.c:2149
+  mem_cgroup_handle_over_high+0xc1/0x180 mm/memcontrol.c:2178
+  tracehook_notify_resume include/linux/tracehook.h:190 [inline]
+  exit_to_usermode_loop+0x299/0x3b0 arch/x86/entry/common.c:166
+  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
+  syscall_return_slowpath+0x519/0x5f0 arch/x86/entry/common.c:268
+  ret_from_fork+0x15/0x50 arch/x86/entry/entry_64.S:344
+RIP: 0033:0x44034a
+Code: Bad RIP value.
+RSP: 002b:00007ffc31cd3040 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
+RAX: 0000000000000000 RBX: 0000000000000000 RCX: 000000000044034a
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000001200011
+RBP: 00007ffc31cd3060 R08: 0000000000000001 R09: 0000000002027880
+R10: 0000000002027b50 R11: 0000000000000246 R12: 0000000000000001
+R13: 000000000000cc59 R14: 0000000000000000 R15: 0000000000000000
+==================================================================
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
+syzbot can test patches for this bug, for details see:
+https://goo.gl/tpsmEJ#testing-patches
