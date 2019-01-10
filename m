@@ -2,211 +2,171 @@ Return-Path: <SRS0=Jdrj=PS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68414C43612
-	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 16:26:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA285C43444
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 17:03:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F4F520874
-	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 16:26:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F4F520874
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id A17DB214C6
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 17:03:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A17DB214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C39238E0003; Thu, 10 Jan 2019 11:26:04 -0500 (EST)
+	id 3B71B8E0002; Thu, 10 Jan 2019 12:03:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE8E68E0001; Thu, 10 Jan 2019 11:26:04 -0500 (EST)
+	id 367438E0001; Thu, 10 Jan 2019 12:03:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B005B8E0003; Thu, 10 Jan 2019 11:26:04 -0500 (EST)
+	id 256148E0002; Thu, 10 Jan 2019 12:03:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 836F68E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 11:26:04 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id j5so11243978qtk.11
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 08:26:04 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E418E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 12:03:06 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id w15so11636708ita.1
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 09:03:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=OkJsHFUjv1xXlNNOQU8ylwJOBOrlBheNMkAZfOt+LIs=;
-        b=VY4n9RdBOJE0QbZoMUpqgYUUKcLQalxFc50WiC9HUO8xInYe4j5uOTo9G1XnwV9bmd
-         VSI7hjqYccwMH843+xaW1/XMYH84NpLBwpYVylsQbr2pY0LllSiaj9zpr4nmGZF+nDLT
-         Jhv6NoTx5biJIroCDjE8gzhvRzaasCFptZUj6HQS4nX1YPPHGmWuytPrLA7lT+TCtrqv
-         niapCi0a/qNrRYCqhmf1LB9XKIWgWi+6cjxNtsYcxPyjk7G84kHRTvxRzvkiBhHadq8X
-         +iZY7ZSLChAB1xg/WsPb2kAZPC18quGOwGx4TnHuye6bFDvkmJeBdN+VzX7Nl1xiZwWI
-         cVvA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukepxDFQOUQpi+ZHCJwLq34OfeuMQ1DrgLDDBHju5z7jOfg+Zc18
-	hV/VyVYi7q/ubkz2T2HRH4e08OwaYoyohYU/yMgR3djdVGJxSDQ6sZJ/Zpj9Moha949ocx7f8SQ
-	9WAEGUKK0C1SEY/10AmGg2YzNDMbdzCWs5v6AUnABTb35GEvqKWM7i/65QKqCpL/EBQ==
-X-Received: by 2002:ac8:668c:: with SMTP id d12mr10001133qtp.242.1547137564232;
-        Thu, 10 Jan 2019 08:26:04 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6GSzTFD8AA0YzjVyfMq/VAoESQfMGDavln+JhTVZQ5oRb3cspzox9RQxhM80C8rmpKpPHb
-X-Received: by 2002:ac8:668c:: with SMTP id d12mr10001085qtp.242.1547137563514;
-        Thu, 10 Jan 2019 08:26:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547137563; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:message-id:subject:from:to;
+        bh=q3/b7ctL3EfmnlaMuYGMLe973HhALm+0afuZshfPZ3o=;
+        b=faVWJyIIL/P+8HmFFHQ9qYUr+lTHhpH8wzEgdNR4PoFS8Kl/SkA3CBaJ+FAI4ssZft
+         qtlQG5jiG/wDE/FrcopWtZkHiyPve+NY49/zE2jtsRiJIYATUpNb03J5D2m2Ljqg7rWt
+         1etgFIdWiD0O/U6c+csqN7X34Hp8IXcAYfhCbOeFaazTHKfihTGdCq5woe4xsTdOJAzW
+         6Uc1T6LVUJdIWoG8AP4IfnLv4ng+6JKbHeP7rczDFqtuFoeGTAusqT0+Z9MBT0sNcjGy
+         kx2ZdhxEy4NdIsc07Q9uysiOE/Qe3V7XaRvNo9S5vHWMw5yVQnfy4fIFAi7MVXF4NQtV
+         f/BA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3yho3xakbaimz56rhsslyhwwpk.nvvnsl1zlyjvu0lu0.jvt@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3yHo3XAkbAIMz56rhsslyhwwpk.nvvnsl1zlyjvu0lu0.jvt@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: AJcUukfI1YMlysslLGvF3ZPI9n/fZwpr63HhoDqwrQ4h3qo8Bv3i5SZC
+	Waun1c8gQsUfeesAkdcOnlhpq9+PjMbRNN5Kg7Gfm9beqOl4pTgAez6J92+Eu+HjsU0TGbIjVbN
+	p+NAGVc6ZzNxRT42VVvdzRwdE2iYu1fOYTKqhfYaWiP24aiKiW6E1eaFwaYkR1qfDozDaeV4Pk1
+	qOIsSl6uQy8mHJUDF+6hYEK4Lx48YOk/JA+LMuberkVWtiM4ceya8stSnQ+KNEFnsQF3ETSuQ48
+	xZqSbKgflv2KjHtw1k2iUUIADtdbSupsisTv5Rh0w4bnR/K7JoVtdcxHTvBcsuqMmVZi+hNPvPS
+	QAPKHWgIu5dh1pGR96rY/nYDKzQwF9zpRL7S2PpznYIAZ4auILOpQhm3w43Q8iuqyYESH6DTgw=
+	=
+X-Received: by 2002:a5e:c914:: with SMTP id z20mr6988047iol.72.1547139786652;
+        Thu, 10 Jan 2019 09:03:06 -0800 (PST)
+X-Received: by 2002:a5e:c914:: with SMTP id z20mr6988001iol.72.1547139785677;
+        Thu, 10 Jan 2019 09:03:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547139785; cv=none;
         d=google.com; s=arc-20160816;
-        b=dUSQCkOnFwFoEgVCI0fKQgSoIOSXRq0YMdcYgNtPnuJ5DZHk53kLKLhKKslZt37C09
-         XFnwNFGDC+vOW0exea7Tm4Kl4LS0aPKeJ5S74+utQN1w0FSvo87RkOZscuzeVrnF2ZJg
-         GTKDM89gQyRtpr0g2oX1HVYooLoA2i6pFOboXrbRIRHt1Ctq1NNPFfaMvcN9/kuQ9089
-         N8QMGIZ92EAc80d++VyvvK+kq9FvmGFV2mjvU1Yrj1eadCTw6gdgmhWVQvKY9FKGs/Y3
-         H1wkuAP+CBH9HmZeLoVzDIWSFbM3WgT6XmExRg7izGwSO5n9nvZfg9YPYxs7SFAeHIl/
-         XQHA==
+        b=yrpOk9VvnxSRKg/9y/6+iqMkx23P3nlDb8hKbKsZFhwcIZsuSocTIkYzHRC1hpIOtf
+         eTM+YT7BhZ0klbFOLSZYZCkYoqvl3O0MTcFRmyRPvlmjHNnCfxryLXLIKO1lClbRXFEg
+         zRbbvOXZs965tPVw97olkujLQEk7T1qGNRaA2snIby4as47Cn8jGAa9Ts3ANDKB8zlWI
+         sSGwiqqaT+pLpmt7Zh+HlB+zwBCVrZnU+fQHdcPIUecBk9PNCFw74mx51in/UJQZ9FYK
+         DDFfGLO/mQ8Yqlj34/f7vDUn9EN7FUdgaHel0jq0BUMVhYmvuyRQ5W6eSKETwdY8y4/6
+         tltw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=OkJsHFUjv1xXlNNOQU8ylwJOBOrlBheNMkAZfOt+LIs=;
-        b=JsDKgm7bTBJEluB9375snc1LRTro6oUMMBh2tub43im9sOrYV1yIsXdNQPNFSTF4gu
-         cYmF7LRP20orwOdI9gB7cOU0a1DoXuj+XR5mfwssvclbzEidAE1ObhDo7x4Oeuxf3PNs
-         6Ngw7C58jJKd5/CLZIehfZXPyKno8laHXM/kZFTrFDwZGKGaP4AZCa9a7f+0mwW2wTFT
-         ILJQO2r6cbO2KAXnJy7Kf5M15DOeHodPFeCRv5gIwglTxLiwjF63jCCGSOQPywC3Nj4P
-         QUikpSN+aUdEmbRs7RBJIGaMYyaMa+PvRG8ct+7oCbr/8CcgwBNBfhI0S5HYDgW8ftP7
-         DgnQ==
+        h=to:from:subject:message-id:date:mime-version;
+        bh=q3/b7ctL3EfmnlaMuYGMLe973HhALm+0afuZshfPZ3o=;
+        b=JlKNAEEaQWa6HTpbKTYLIZBL8yJv6DreqP5ZKhDOkUHgpuHX4TjCmmWfmpEKXSxyoA
+         oCkBfUFZVv61BwljVVhP5/cCi6HNns9tgNw6mDPui8IePDmdq9q9o2YM+oETQOBQhcVl
+         PdQ83HNC+LSjqXu/xfacGX4aSTtFnc5xDjTNfJTc22eiRJdXYLjILv7sSx5jpQ7sNBxi
+         C1MIxFpk6Oux1Dcd9EXOeT6wftMrbwGDPDq3dnAHSYGshm502w8/rxybp9IM06ee3xFX
+         NARW1ffKHVUBsPbB+zQEq1uk9Y+HeBEHRZl/7Nyk+Rdtb6dbsOKoHMEC74nDsJ5aFFyz
+         1SQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t23si1045496qtp.212.2019.01.10.08.26.03
+       spf=pass (google.com: domain of 3yho3xakbaimz56rhsslyhwwpk.nvvnsl1zlyjvu0lu0.jvt@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3yHo3XAkbAIMz56rhsslyhwwpk.nvvnsl1zlyjvu0lu0.jvt@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id 68sor29915072itu.24.2019.01.10.09.03.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 08:26:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 10 Jan 2019 09:03:05 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3yho3xakbaimz56rhsslyhwwpk.nvvnsl1zlyjvu0lu0.jvt@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 27C19C7CA9;
-	Thu, 10 Jan 2019 16:26:02 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.215])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5571D60123;
-	Thu, 10 Jan 2019 16:25:58 +0000 (UTC)
-Date: Thu, 10 Jan 2019 11:25:56 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
-	Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>,
-	Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>,
-	Liu Jingqi <jingqi.liu@intel.com>,
-	Dong Eddie <eddie.dong@intel.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Zhang Yi <yi.z.zhang@linux.intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Mel Gorman <mgorman@suse.de>,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH v2 00/21] PMEM NUMA node and hotness
- accounting/migration
-Message-ID: <20190110162556.GC4394@redhat.com>
-References: <20181226131446.330864849@intel.com>
- <20181227203158.GO16738@dhcp22.suse.cz>
- <20181228050806.ewpxtwo3fpw7h3lq@wfg-t540p.sh.intel.com>
- <20181228084105.GQ16738@dhcp22.suse.cz>
- <20181228094208.7lgxhha34zpqu4db@wfg-t540p.sh.intel.com>
- <20181228121515.GS16738@dhcp22.suse.cz>
- <20181228133111.zromvopkfcg3m5oy@wfg-t540p.sh.intel.com>
- <20181228195224.GY16738@dhcp22.suse.cz>
+       spf=pass (google.com: domain of 3yho3xakbaimz56rhsslyhwwpk.nvvnsl1zlyjvu0lu0.jvt@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3yHo3XAkbAIMz56rhsslyhwwpk.nvvnsl1zlyjvu0lu0.jvt@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: ALg8bN5S1Gqk1xvS8TeAi0E79BDxF/BPl2kRDAyq52cNGYKNbpWaSnHMDRipQXXzLCAPHF5nKDS+mTWX6JiYBqwWHmVGcudKDGdD
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20181228195224.GY16738@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 10 Jan 2019 16:26:02 +0000 (UTC)
+X-Received: by 2002:a24:4ac3:: with SMTP id k186mr4745912itb.37.1547139784707;
+ Thu, 10 Jan 2019 09:03:04 -0800 (PST)
+Date: Thu, 10 Jan 2019 09:03:04 -0800
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <000000000000491844057f1d8d2f@google.com>
+Subject: KASAN: null-ptr-deref Read in reclaim_high
+From: syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com>
+To: cgroups@vger.kernel.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, 
+	linux-mm@kvack.org, mhocko@kernel.org, syzkaller-bugs@googlegroups.com, 
+	vdavydov.dev@gmail.com
+Content-Type: text/plain; charset="UTF-8"; delsp="yes"; format="flowed"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190110162556.Zsroe_dzWLvVjYjw-_ke9XXn3Q5YPIdJhUryQNAYfTI@z>
+Message-ID: <20190110170304.TOjATNd9BU4NqM_Afca6hNkEz8D5BCWGLwJ4xXPXpgE@z>
 
-On Fri, Dec 28, 2018 at 08:52:24PM +0100, Michal Hocko wrote:
-> [Ccing Mel and Andrea]
-> 
-> On Fri 28-12-18 21:31:11, Wu Fengguang wrote:
-> > > > > I haven't looked at the implementation yet but if you are proposing a
-> > > > > special cased zone lists then this is something CDM (Coherent Device
-> > > > > Memory) was trying to do two years ago and there was quite some
-> > > > > skepticism in the approach.
-> > > > 
-> > > > It looks we are pretty different than CDM. :)
-> > > > We creating new NUMA nodes rather than CDM's new ZONE.
-> > > > The zonelists modification is just to make PMEM nodes more separated.
-> > > 
-> > > Yes, this is exactly what CDM was after. Have a zone which is not
-> > > reachable without explicit request AFAIR. So no, I do not think you are
-> > > too different, you just use a different terminology ;)
-> > 
-> > Got it. OK.. The fall back zonelists patch does need more thoughts.
-> > 
-> > In long term POV, Linux should be prepared for multi-level memory.
-> > Then there will arise the need to "allocate from this level memory".
-> > So it looks good to have separated zonelists for each level of memory.
-> 
-> Well, I do not have a good answer for you here. We do not have good
-> experiences with those systems, I am afraid. NUMA is with us for more
-> than a decade yet our APIs are coarse to say the least and broken at so
-> many times as well. Starting a new API just based on PMEM sounds like a
-> ticket to another disaster to me.
-> 
-> I would like to see solid arguments why the current model of numa nodes
-> with fallback in distances order cannot be used for those new
-> technologies in the beginning and develop something better based on our
-> experiences that we gain on the way.
+Hello,
 
-I see several issues with distance. First it does fully abstract the
-underlying topology and this might be problematic, for instance if
-you memory with different characteristic in same node like persistent
-memory connected to some CPU then it might be faster for that CPU to
-access that persistent memory has it has dedicated link to it than to
-access some other remote memory for which the CPU might have to share
-the link with other CPUs or devices.
+syzbot found the following crash on:
 
-Second distance is no longer easy to compute when you are not trying
-to answer what is the fastest memory for CPU-N but rather asking what
-is the fastest memory for CPU-N and device-M ie when you are trying to
-find the best memory for a group of CPUs/devices. The answer can
-changes drasticly depending on members of the groups.
+HEAD commit:    6cab33afc3dd Add linux-next specific files for 20190110
+git tree:       linux-next
+console output: https://syzkaller.appspot.com/x/log.txt?x=178b287b400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=611f89e5b6868db
+dashboard link: https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
+compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14259017400000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=141630a0c00000
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com
+
+==================================================================
+BUG: KASAN: null-ptr-deref in atomic64_read  
+include/generated/atomic-instrumented.h:836 [inline]
+BUG: KASAN: null-ptr-deref in atomic_long_read  
+include/generated/atomic-long.h:28 [inline]
+BUG: KASAN: null-ptr-deref in page_counter_read  
+include/linux/page_counter.h:47 [inline]
+BUG: KASAN: null-ptr-deref in reclaim_high.constprop.0+0xa6/0x1e0  
+mm/memcontrol.c:2149
+Read of size 8 at addr 0000000000000138 by task syz-executor037/7964
+
+CPU: 1 PID: 7964 Comm: syz-executor037 Not tainted 5.0.0-rc1-next-20190110  
+#9
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x1db/0x2d0 lib/dump_stack.c:113
+  kasan_report.cold+0x5/0x40 mm/kasan/report.c:321
+  check_memory_region_inline mm/kasan/generic.c:185 [inline]
+  check_memory_region+0x123/0x190 mm/kasan/generic.c:191
+  kasan_check_read+0x11/0x20 mm/kasan/common.c:100
+  atomic64_read include/generated/atomic-instrumented.h:836 [inline]
+  atomic_long_read include/generated/atomic-long.h:28 [inline]
+  page_counter_read include/linux/page_counter.h:47 [inline]
+  reclaim_high.constprop.0+0xa6/0x1e0 mm/memcontrol.c:2149
+  mem_cgroup_handle_over_high+0xc1/0x180 mm/memcontrol.c:2178
+  tracehook_notify_resume include/linux/tracehook.h:190 [inline]
+  exit_to_usermode_loop+0x299/0x3b0 arch/x86/entry/common.c:166
+  prepare_exit_to_usermode arch/x86/entry/common.c:197 [inline]
+  syscall_return_slowpath+0x519/0x5f0 arch/x86/entry/common.c:268
+  ret_from_fork+0x15/0x50 arch/x86/entry/entry_64.S:344
+RIP: 0033:0x44034a
+Code: Bad RIP value.
+RSP: 002b:00007ffc31cd3040 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
+RAX: 0000000000000000 RBX: 0000000000000000 RCX: 000000000044034a
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000001200011
+RBP: 00007ffc31cd3060 R08: 0000000000000001 R09: 0000000002027880
+R10: 0000000002027b50 R11: 0000000000000246 R12: 0000000000000001
+R13: 000000000000cc59 R14: 0000000000000000 R15: 0000000000000000
+==================================================================
 
 
-Some advance programmer already do graph matching ie they match the
-graph of their program dataset/computation with the topology graph
-of the computer they run on to determine what is best placement both
-for threads and memory.
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
 
-
-> I would be especially interested about a possibility of the memory
-> migration idea during a memory pressure and relying on numa balancing to
-> resort the locality on demand rather than hiding certain NUMA nodes or
-> zones from the allocator and expose them only to the userspace.
-
-For device memory we have more things to think of like:
-    - memory not accessible by CPU
-    - non cache coherent memory (yet still useful in some case if
-      application explicitly ask for it)
-    - device driver want to keep full control over memory as older
-      application like graphic for GPU, do need contiguous physical
-      memory and other tight control over physical memory placement
-
-So if we are talking about something to replace NUMA i would really
-like for that to be inclusive of device memory (which can itself be
-a hierarchy of different memory with different characteristics).
-
-Note that i do believe the NUMA proposed solution is something useful
-now. But for a new API it would be good to allow thing like device
-memory.
-
-This is a good topic to discuss during next LSF/MM
-
-Cheers,
-Jérôme
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
+syzbot can test patches for this bug, for details see:
+https://goo.gl/tpsmEJ#testing-patches
 
