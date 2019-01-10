@@ -2,161 +2,190 @@ Return-Path: <SRS0=Jdrj=PS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47197C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 20:44:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EBF8C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 21:01:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F2D3920665
-	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 20:44:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E8FA7208E3
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 21:01:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="TAC164qN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2D3920665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qv4UO6Fp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8FA7208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 92DE78E0002; Thu, 10 Jan 2019 15:44:36 -0500 (EST)
+	id 886358E0001; Thu, 10 Jan 2019 16:01:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8DE418E0001; Thu, 10 Jan 2019 15:44:36 -0500 (EST)
+	id 836648E0002; Thu, 10 Jan 2019 16:01:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F5078E0002; Thu, 10 Jan 2019 15:44:36 -0500 (EST)
+	id 7384E8E0001; Thu, 10 Jan 2019 16:01:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D288E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 15:44:36 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id q33so12642600qte.23
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 12:44:36 -0800 (PST)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ED438E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:01:41 -0500 (EST)
+Received: by mail-vs1-f69.google.com with SMTP id f203so5171911vsd.17
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:01:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:date
-         :in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=LiawR9Y4EId2HmnEiWWnQVQHGhE1inrk85t73A47gpM=;
-        b=oRy6OXqMuErtfOb0tId7bU+UW1/Qa0WV8RVAZAN11ecgDOXBkxQhF+RtflZAG4kOw1
-         nbExBQSnS1jNfou+TRwJqIimQVRebfKnv4WBZaO3GvUqRoOACAFEqRmgRj3HNJXC2iMU
-         ZUc7ZQOH5hnAACAYe4dfoUqPkW2DINI72jMP95L6lBfEKseL0uj+9xTQ37dPJSGWfgm7
-         XuE19XAaCK1GkofjzE5ZIJYS/hjubRYIrZTx7BCAAhQXDGu6j9y5TrNQPQSviVNwgjN4
-         3rLAZ4hDEe9di6CpZbAtsKuCW/J7NYzgdHj5EWEEXSbNBNWNgP3XZRy+K2GVlMbNr4Fc
-         3mlQ==
-X-Gm-Message-State: AJcUukeSP5pzbHknNmwSzfJWVcvQzzK1ZLYSaqDzQo8ZWldjEG6gLDyP
-	uNtecmoJuPF+IRDzPhLsuE3CBLt9fHFX3MZ877W3taNMGnO7OG9mS5xxN8uPHdQ2R9jIXJprlcD
-	AxloCAY9zDi3LBjRk+4FEybwdSgvc4PVkQdqMB9cd0XKd+OwgtWIgucL+EdUZ8Ht3PrODsLTSTy
-	AGYEbHBInFr66+SsoMWWX3/coP74ijiBhJFd6eiwoPYYi9yiv1Z1u4ZGH594XWRKiPvu/txsxWa
-	RrB22tw4iNWpkH4wThVLxAwI7QBm6SosOHgi+vkHLH8UrqFquxXDmdzD9hT2OJpm7kz5phBwQjq
-	VZd9sgqmVysGXBNVW7h868VqyFB6Rzpxd9GnkHuENE/LIQrL/jWG7OHgCC+7P+mm2YDDSZ/eL2o
-	4
-X-Received: by 2002:a0c:a3e2:: with SMTP id v89mr11421865qvv.226.1547153076098;
-        Thu, 10 Jan 2019 12:44:36 -0800 (PST)
-X-Received: by 2002:a0c:a3e2:: with SMTP id v89mr11421836qvv.226.1547153075621;
-        Thu, 10 Jan 2019 12:44:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547153075; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=BwQUwoxWE9xddt/5B/7ivk+f8UFrG0jsvJWk4vuuwFQ=;
+        b=aARpOXSTIsd2V2VJeltb5OlQni1g8j8jCxcx6XfXWNzPnbh3nbRoVbrc85+61HOT9K
+         XgaR0ZcvTnhueZqCmIdtDHHL8fu0UIefeVxKV0Jj/VAS/zk3Zpu/IMHqmbCMFfPpN68Q
+         xsgciPaQ6+2UayfK2Ej2mJ5P0ePDEt7PpGXmemUMsXwLP9a7pfXLQrEL7EWFCV7hUsvy
+         ba3z17lsnVrrBZLNLlJ+cQ/M/nVUhpoFgw3XNfXDZ1HqaJEwnypM9QNuP8nrRWj+Enfb
+         j7aBOZF8+5s6u3s/xuARr3S3ndcK/srPHVMlPS2R7dXRdXr74FdFG/dnX1Vb0EM8tyGc
+         sNZg==
+X-Gm-Message-State: AJcUukdRWMVA0QmlQoImdHbMbKRhmahF7GtfHuCGeWVNJnDQ/OZLzMrl
+	RztA4aVlAxdO33PMl9T+ivIYou/zY1rez5Sv2arHr6K5/3uoOgvBs4FugQatL4pB0XyafM976H1
+	+IgkpwidXqnyv3mS68NuFJ3ZjqBLG14k1rqHYcwfedviiK/5kWewZKCQwXwkcWcGpYNOagpUNwM
+	+BjnvOk/f8JxxEPafuGngMcSm+uzko5Z/gTUh5FdXmWzBXHliw2JAwtbachUEM4K6Xc73oII6QJ
+	R8S/IcqSK/0z269oawgQZSpeCxRFzNl/kmwqVwqWTiy1HdQdF9rLzoZKiiobKsAGm03pAepvRXa
+	WG1chBQdfev2ZlCC5/BEQ9W0QqE50hioqmZa7uHfDULVUXSmViyEArTFJGchSg0bqK8wCiGqZLX
+	w
+X-Received: by 2002:a67:79d2:: with SMTP id u201mr4980548vsc.12.1547154100824;
+        Thu, 10 Jan 2019 13:01:40 -0800 (PST)
+X-Received: by 2002:a67:79d2:: with SMTP id u201mr4980524vsc.12.1547154099853;
+        Thu, 10 Jan 2019 13:01:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547154099; cv=none;
         d=google.com; s=arc-20160816;
-        b=E6cu84IdYtclCn7QwEmsB+iNTFH9pQcvQsMrbu1nT7foTsF77W5GOE5jjcdJFFccJT
-         xRoZNIF7qyXzT05gxzTuW1wdEafGeQk7sgib9LSKuAJTlQtRZ34zfxqmxpD+2U3H6GA9
-         tZBXx6s7oSy8Xy/w0ayw+DhBDZsG7pIxcEiDMk59jdXcYAHl4DsfsQtzk9at9VOQiF2e
-         RBJBxs79deGmTwEcM9jJkC0l3BDtVS7I5Xmxy2HGuHH0NRaB8fQGNjETugEH1SClu6nT
-         eRwCvRiA9DV3xP+lCdEq/x12bz7/WYZRdigk9Jdmv79XQ43igT2OUSTVzC7Z/nTGUCXv
-         HP2w==
+        b=OYBk2KhF76wPqtYXxZBjG/TD6c+n1DHr7pTcqp/K0540Jfd4N2b9LQ+PrxwgGoHDcT
+         mE1cjxGK2vt1Eg9HmUQZKHHWLyHiOuY5Z7zqou/gXlx99/Kj/rvHhj7ASCbxCl/YEag8
+         eknkXCg9hM7UUdtNJGdOZkgdKEBnmdzRfZbZwhCuI63fmgfWUs6CTQYUXL+xYpi4NN0/
+         EzlJwGC9i11dhyclWd6bVilEJqjjKFSSZ4Fy5W1wW6A2Z/vsdegaA4MRwpKkdCI02ch3
+         +aNDcANK3iowfTpXmiHFyFEfbBOB0QZUSQ7o4c7twci917QqoANA4m+bokZZ9C3fNAt4
+         JaNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :to:from:subject:message-id:dkim-signature;
-        bh=LiawR9Y4EId2HmnEiWWnQVQHGhE1inrk85t73A47gpM=;
-        b=aedmHSCs+vxMixIc4SqvH/aHeSNrE0KaeSmu+RTefCAgdDVU0gQbCk+UIAyk+nJq7f
-         FSbdAI8xnk+RglIuZMNjVpcjEZ9zDc9Epz/4+kBNPCXAejSSq2wWNU7Fp3yNnExh+vBr
-         xadKPVBvvIXOm7xcnJbnYq73gxkrUBJWFQUuhpOpYsqPvARi0budY6ua0JiMbsMjr4DY
-         9EGCjsWZReXHIfpu1fCiFppseS8+jqYbQ/iPWrdz7tei7usgmypkE16Qp/v3gcIgWjJx
-         09X8PUFiF4GhARLd3tVKpV+r0L/ZPc0uC3P4j3EiC707L6Np3zv7R2HXWOEWWSAvipdZ
-         reKA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=BwQUwoxWE9xddt/5B/7ivk+f8UFrG0jsvJWk4vuuwFQ=;
+        b=hlWIKsGEN3YyJLiDb9XLLPFwS3B6PXlMS+hHy4AkDFul+D5dGwSN5wagQAcs+qyoXq
+         IRtDB2h29q6ovjgKXb51bNMoC3WF9E65bVz1wp/0NYlU6Hgm19gMS9byLWNs/oEaz3XZ
+         W/9o8vsu6uGFlCW8annZ6ISw+XTwzIOmLdVyOCk+ydk/o8f2LCyy1XPlBbstzFGSbzeY
+         EzFnvUZ9rCN25LIou1p50ffaBzUt0doiozvR1OOEz7+KXstCLDL1fQKMyNWRcX0QWwXk
+         5fuLCNw1lCGpw/9GBeqFqv3fR4D+kCqRwEd1yrtJyP1qHX0p7ymaTRgoIaZ9QKayBUK5
+         bE1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=TAC164qN;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qv4UO6Fp;
+       spf=pass (google.com: domain of baicar.tyler@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=baicar.tyler@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b127sor36586224qkc.48.2019.01.10.12.44.35
+        by mx.google.com with SMTPS id n11sor49768125vsk.36.2019.01.10.13.01.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 10 Jan 2019 12:44:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 10 Jan 2019 13:01:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of baicar.tyler@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=TAC164qN;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qv4UO6Fp;
+       spf=pass (google.com: domain of baicar.tyler@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=baicar.tyler@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=LiawR9Y4EId2HmnEiWWnQVQHGhE1inrk85t73A47gpM=;
-        b=TAC164qNxX6pCF470izPjspwoGJ8My6MxL3m/OGJcygmVV/w3PXD33j8Lz3o9N7c3Y
-         YivpqTsPh3x/uNt83i5CdFVZBFhNVGCpqlQS91hDS/2owIoEoijbgTg1Ssw/xEb3+0l6
-         GvPMle0s+pQvvgO1rnE473g9TNjJ3o5QkDkVTNcMlavW1BPuqEqwPtGRKl2v7Y3QZdVS
-         rUOWSb7XhPNWGSVs+E7DQp4BRGD3KfXZZMpZPfgNkufVQbWd1UZKvkDKAiZbHmyE5e99
-         C2xyoMSUIK1zFbaX0bYCbsA0WPhJXkyOpOlenpoXoxgeBpEfknRHe60avw65pSwQaFZd
-         CHLg==
-X-Google-Smtp-Source: ALg8bN4qv1tInlK0ItvrOiYSkskO+hotyjP0WRNtOALskW1LMjNt/TePuBtZNe7vwbmBHG1CfmrB2w==
-X-Received: by 2002:a37:8c04:: with SMTP id o4mr10270933qkd.165.1547153075405;
-        Thu, 10 Jan 2019 12:44:35 -0800 (PST)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id y14sm47282899qky.83.2019.01.10.12.44.34
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 12:44:35 -0800 (PST)
-Message-ID: <1547153074.6911.8.camel@lca.pw>
-Subject: Re: PROBLEM: syzkaller found / pool corruption-overwrite / page in
- user-area or NULL
-From: Qian Cai <cai@lca.pw>
-To: James Bottomley <jejb@linux.ibm.com>, Esme <esploit@protonmail.ch>, 
-	"dgilbert@interlog.com"
-	 <dgilbert@interlog.com>, "martin.petersen@oracle.com"
-	 <martin.petersen@oracle.com>, "linux-scsi@vger.kernel.org"
-	 <linux-scsi@vger.kernel.org>, "linux-kernel@vger.kernel.org"
-	 <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Date: Thu, 10 Jan 2019 15:44:34 -0500
-In-Reply-To: <1547150339.2814.9.camel@linux.ibm.com>
-References: 
-	<t78EEfgpy3uIwPUvqvmuQEYEWKG9avWzjUD3EyR93Qaf_tfx1gqt4XplrqMgdxR1U9SsrVdA7G9XeUZacgUin0n6lBzoxJHVJ9Ko0yzzrxI=@protonmail.ch>
-	 <1547150339.2814.9.camel@linux.ibm.com>
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=BwQUwoxWE9xddt/5B/7ivk+f8UFrG0jsvJWk4vuuwFQ=;
+        b=qv4UO6FpqbcXjESpEyv6dMMa0ZVDKl3AXXY3Z6ghoqkOyRPJSb2wxDdd9jY9/MQqDz
+         ZNxeGNGg13e5BuSafswztXuyY+nVAD+KTFUyapwOv6M4lK2tX6RZ2GVZPk4tFBp4X9Kp
+         GhFvUnmyfOcEd+ZzfLzkXNw8lZepJZ3YANpPesKc9HztZhEUJvva5RQvpZmygFBctHlb
+         iY2vT1hiRBdDIxQ53VEInE9XoL77Yd6Kcx+UTYCnO0vXHkopySwwJqzoxNTmUnWlOr5U
+         qNyCfYclsQZLlURpkiOT1QeuJ1/thy9dmNNnV9/15lfHi786u+TmLJGuITP05OsWOKJ5
+         nkRg==
+X-Google-Smtp-Source: ALg8bN7/euEd7hrNjX8CZxbHBxPuqP9dEQzhslf1LrRY1c4u3M0PvYOPaAqoVJxODXBanGQcn9ihKfe8zsRMn3xd7qk=
+X-Received: by 2002:a67:6b07:: with SMTP id g7mr4545930vsc.150.1547154099333;
+ Thu, 10 Jan 2019 13:01:39 -0800 (PST)
+MIME-Version: 1.0
+References: <20181203180613.228133-1-james.morse@arm.com> <20181203180613.228133-11-james.morse@arm.com>
+ <20181211183634.GO27375@zn.tnic> <56cfa16b-ece4-76e0-3799-58201f8a4ff1@arm.com>
+In-Reply-To: <56cfa16b-ece4-76e0-3799-58201f8a4ff1@arm.com>
+From: Tyler Baicar <baicar.tyler@gmail.com>
+Date: Thu, 10 Jan 2019 16:01:27 -0500
+Message-ID:
+ <CABo9ajArdbYMOBGPRa185yo9MnKRb0pgS-pHqUNdNS9m+kKO-Q@mail.gmail.com>
+Subject: Re: [PATCH v7 10/25] ACPI / APEI: Tell firmware the estatus queue
+ consumed the records
+To: James Morse <james.morse@arm.com>
+Cc: Borislav Petkov <bp@alien8.de>, Linux ACPI <linux-acpi@vger.kernel.org>, 
+	kvmarm@lists.cs.columbia.edu, 
+	arm-mail-list <linux-arm-kernel@lists.infradead.org>, linux-mm@kvack.org, 
+	Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, 
+	Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, 
+	Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, 
+	Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, 
+	Fan Wu <wufan@codeaurora.org>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190110204434.fPYNvE2VgpFrR6ZGAecC1GKH_1mGs7BSksRjCa4P7iQ@z>
+Message-ID: <20190110210127.u7ruOxmkR_sxI1Au_tBcHdSDpzkY-ejdDHg_Kq3MsVI@z>
 
-On Thu, 2019-01-10 at 11:58 -0800, James Bottomley wrote:
-> On Thu, 2019-01-10 at 19:12 +0000, Esme wrote:
-> > Sorry for the resend some mail servers rejected the mime type.
-> > 
-> > Hi, I've been getting more into Kernel stuff lately and forged ahead
-> > with some syzkaller bug finding.  I played with reducing it further
-> > as you can see from the attached c code but am moving on and hope to
-> > get better about this process moving forward as I'm still building
-> > out my test systems/debugging tools.
-> > 
-> > Attached is the report and C repro that still triggers on a fresh git
-> > pull as of a few minutes ago, if you need anything else please let me
-> > know.
-> > Esme
-> > 
-> > Linux syzkaller 5.0.0-rc1+ #5 SMP Tue Jan 8 20:39:33 EST 2019 x86_64
-> > GNU/Linux
-> 
-> I'm not sure I'm reading this right, but it seems that a simple
-> allocation inside block/scsi_ioctl.h
-> 
-> 	buffer = kzalloc(bytes, q->bounce_gfp | GFP_USER| __GFP_NOWARN);
-> 
-> (where bytes is < 4k) caused a slub padding check failure on free. 
-> From the internal details, the freeing entity seems to be KASAN as part
-> of its quarantine reduction (albeit triggered by this kzalloc).  I'm
-> not remotely familiar with what KASAN is doing, but it seems the memory
-> corruption problem is somewhere within the KASAN tracking?
-> 
-> I added linux-mm in case they can confirm this diagnosis or give me a
-> pointer to what might be wrong in scsi.
-> 
+On Thu, Jan 10, 2019 at 1:23 PM James Morse <james.morse@arm.com> wrote:
+> >>
+> >> +    if (is_hest_type_generic_v2(ghes) && ghes_ack_error(ghes->generic_v2))
+> >
+> > Since ghes_ack_error() is always prepended with this check, you could
+> > push it down into the function:
+> >
+> > ghes_ack_error(ghes)
+> > ...
+> >
+> >       if (!is_hest_type_generic_v2(ghes))
+> >               return 0;
+> >
+> > and simplify the two callsites :)
+>
+> Great idea! ...
+>
+> .. huh. Turns out for ghes_proc() we discard any errors other than ENOENT from
+> ghes_read_estatus() if is_hest_type_generic_v2(). This masks EIO.
+>
+> Most of the error sources discard the result, the worst thing I can find is
+> ghes_irq_func() will return IRQ_HANDLED, instead of IRQ_NONE when we didn't
+> really handle the IRQ. They're registered as SHARED, but I don't have an example
+> of what goes wrong next.
+>
+> I think this will also stop the spurious handling code kicking in to shut it up
+> if its broken and screaming. Unlikely, but not impossible.
+>
+> Fixed in a prior patch, with Boris' suggestion, ghes_proc()s tail ends up look
+> like this:
+> ----------------------%<----------------------
+> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+> index 0321d9420b1e..8d1f9930b159 100644
+> --- a/drivers/acpi/apei/ghes.c
+> +++ b/drivers/acpi/apei/ghes.c
+> @@ -700,18 +708,11 @@ static int ghes_proc(struct ghes *ghes)
+>
+>  out:
+>         ghes_clear_estatus(ghes, buf_paddr);
+> +       if (rc != -ENOENT)
+> +               rc_ack = ghes_ack_error(ghes);
+>
+> -       if (rc == -ENOENT)
+> -               return rc;
+> -
+> -       /*
+> -        * GHESv2 type HEST entries introduce support for error acknowledgment,
+> -        * so only acknowledge the error if this support is present.
+> -        */
+> -       if (is_hest_type_generic_v2(ghes))
+> -               return ghes_ack_error(ghes->generic_v2);
+> -
+> -       return rc;
+> +       /* If rc and rc_ack failed, return the first one */
+> +       return rc ? rc : rc_ack;
+>  }
+> ----------------------%<----------------------
+>
 
-Well, need your .config and /proc/cmdline then.
+Looks good to me, I guess there's no harm in acking invalid error status blocks.
+
+T
 
