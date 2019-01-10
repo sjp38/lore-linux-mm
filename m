@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F038E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 13:02:20 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id a10so24305178plp.14
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 10:02:20 -0800 (PST)
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id t18sor21692527pfi.23.2019.01.02.10.02.18
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F99B8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 10:31:47 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id l83so5702445ybl.3
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:31:47 -0800 (PST)
+Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730056.outbound.protection.outlook.com. [40.107.73.56])
+        by mx.google.com with ESMTPS id m129si46092114ywb.139.2019.01.10.07.31.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 10:02:18 -0800 (PST)
-Date: Wed,  2 Jan 2019 10:01:45 -0800
-Message-Id: <20190102180145.57406-1-shakeelb@google.com>
-Mime-Version: 1.0
-Subject: [PATCH] fork, memcg: fix cached_stacks case
-From: Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 07:31:46 -0800 (PST)
+From: "StDenis, Tom" <Tom.StDenis@amd.com>
+Subject: Re: After Vega 56/64 GPU hang I unable reboot system
+Date: Thu, 10 Jan 2019 15:31:42 +0000
+Message-ID: <5bb81bc0-1313-7f33-7ed6-6424454300ad@amd.com>
+References: 
+ <CABXGCsPu3g8WZXV1RpggLFuL3bgofmXMs1SiPyYnPyEOW7t3Dg@mail.gmail.com>
+ <24702c72-cc06-1b54-0ab9-6d2409362c27@amd.com>
+ <CABXGCsMPjKnCb7hpuenL5q3_HJgoGW=VB9FRrBpJsZMtA7LxpA@mail.gmail.com>
+ <3ffe451b-1f17-23a5-985b-28d26fbaf7da@amd.com>
+ <09781f6e-5ea3-ccfd-1aa2-79941b089863@amd.com>
+ <CABXGCsPCACOhOo4DTCiOam65SiOiudrKpn5vKAL72bV6iGo9vA@mail.gmail.com>
+ <CABXGCsMMSMJuURyhBQC3GuZc7m6Wq7FH=8_rpSWHrZT-0dJeGA@mail.gmail.com>
+ <e1ced25f-4f35-320b-5208-7e1ca3565a3a@amd.com>
+ <CABXGCsPPjz57=Et-V-_iGyY0GrEwfcK2QcRJcqiujUp90zaz-g@mail.gmail.com>
+ <CABXGCsN4NwYG4UeJ9a-P_8cEd1qg_sC24z3L3Ek9Wn0JttkZ=g@mail.gmail.com>
+In-Reply-To: 
+ <CABXGCsN4NwYG4UeJ9a-P_8cEd1qg_sC24z3L3Ek9Wn0JttkZ=g@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <A771F76D90A4F048A8EC95D6807DDE11@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@surriel.com>, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, stable@vger.kernel.org
+To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: "Wentland, Harry" <Harry.Wentland@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Koenig, Christian" <Christian.Koenig@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, "Grodzovsky, Andrey" <Andrey.Grodzovsky@amd.com>
 
-Commit 5eed6f1dff87 ("fork,memcg: fix crash in free_thread_stack on
-memcg charge fail") fixes a crash caused due to failed memcg charge of
-the kernel stack. However the fix misses the cached_stacks case which
-this patch fixes. So, the same crash can happen if the memcg charge of
-a cached stack is failed.
-
-Fixes: 5eed6f1dff87 ("fork,memcg: fix crash in free_thread_stack on memcg charge fail")
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: <stable@vger.kernel.org>
----
- kernel/fork.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/kernel/fork.c b/kernel/fork.c
-index e4a51124661a..593cd1577dff 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -216,6 +216,7 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
- 		memset(s->addr, 0, THREAD_SIZE);
- 
- 		tsk->stack_vm_area = s;
-+		tsk->stack = s->addr;
- 		return s->addr;
- 	}
- 
--- 
-2.20.1.415.g653613c723-goog
+SGkgTWlrZSwNCg0KVGhpcyBtaWdodCBiZSBhbiBpc3N1ZSBiZXR0ZXIgc3VpdGVkIGZvciBvdXIg
+bGx2bSB0ZWFtIHNpbmNlIHVtciBqdXN0IA0KdXNlcyBsbHZtLWRldiB0byBhY2Nlc3MgdGhlIGRp
+YXNzZW1ibHkgY29kZS4NCg0KSSdsbCBtYWtlIHN1cmUgdGhlIGtleSBmb2xrIGFyZSBhd2FyZS4N
+Cg0KQ2hlZXJzLA0KVG9tDQoNCg0KT24gMjAxOS0wMS0xMCAxMDoyMiBhLm0uLCBNaWtoYWlsIEdh
+dnJpbG92IHdyb3RlOg0KPiBPbiBUaHUsIDEwIEphbiAyMDE5IGF0IDAwOjM2LCBNaWtoYWlsIEdh
+dnJpbG92DQo+IDxtaWtoYWlsLnYuZ2F2cmlsb3ZAZ21haWwuY29tPiB3cm90ZToNCj4+DQo+PiBB
+bGwgbmV3IG9uZSBsb2dzIGF0dGFjaGVkIGhlcmUuDQo+Pg0KPj4gVGhhbmtzLg0KPj4NCj4+IFAu
+Uy4gVGhpcyB0aW1lIEkgaGFkIHRvIHRlcm1pbmF0ZSBjb21tYW5kIGAuL3VtciAtTyB2ZXJib3Nl
+LGZvbGxvdyAtUg0KPj4gZ2Z4Wy5dID4gZ2Z4LmxvZyAyPiYxYCBjYXVzZSBpdCB0cmllZCB0byB3
+cml0ZSBsb2cgaW5maW5pdGVseS4NCj4+IEkgYWxzbyBoYWQgdG8gdGVybWluYXRlIGNvbW1hbmQg
+YC4vdW1yIC1PIHZlcmJvc2UsZm9sbG93IC1SIGdmeFsuXSA+DQo+PiBnZngubG9nIDI+JjFgIGNh
+dXNlIGl0IHN0dWNrIGZvciBhIGxvbmcgdGltZS4NCj4+DQo+Pg0KPiANCj4gSXQgYmVjYW1lIGNs
+ZWFyIHdoeSB1bXIgc3R1Y2sgYXQgdGhlIGdmeCBkdW1wLiBJIHJhbiB1bXIgdW5kZXIgZ2RiIGFu
+ZA0KPiBJIGdvdCAgYSBzZWdmYXVsdCBhdCBhIG1vbWVudCB3aGVuIHVtciB3YXMgc3R1Y2sgZWFy
+bGllci4NCj4gVG9tLCBhcmUgeW91IGhlcmU/IENhbiB5b3UgbG9vayBhdHRhY2hlZCBiYWNrdHJh
+Y2U/DQo+IA0KPiANCj4gLS0NCj4gQmVzdCBSZWdhcmRzLA0KPiBNaWtlIEdhdnJpbG92Lg0KPiAN
+Cg0K
