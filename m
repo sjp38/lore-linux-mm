@@ -1,279 +1,515 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3031B8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 08:01:06 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id v8so35672912ioh.11
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 05:01:06 -0800 (PST)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id u141sor41953053itb.8.2019.01.02.05.01.04
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 18E8B8E0008
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:11:09 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id t26so7044006pgu.18
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:11:09 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id e13si15463741pfi.271.2019.01.10.13.11.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 05:01:04 -0800 (PST)
-MIME-Version: 1.0
-Date: Wed, 02 Jan 2019 05:01:04 -0800
-Message-ID: <000000000000133d0a057e793df4@google.com>
-Subject: KASAN: stack-out-of-bounds Read in corrupted (3)
-From: syzbot <syzbot+2ab493acb9d8329345a3@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 13:11:07 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v7 12/16] xpfo, mm: remove dependency on CONFIG_PAGE_EXTENSION
+Date: Thu, 10 Jan 2019 14:09:44 -0700
+Message-Id: <a9436d3bc7943123bdbaac3f3e2b6bec3153ee05.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: crecklin@redhat.com, keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
+To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, "Vasileios P . Kemerlis" <vpk@cs.columbia.edu>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>, Marco Benatto <marco.antonio.780@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Khalid Aziz <khalid.aziz@oracle.com>
 
-Hello,
+From: Julian Stecklina <jsteckli@amazon.de>
 
-syzbot found the following crash on:
+Instead of using the page extension debug feature, encode all
+information, we need for XPFO in struct page. This allows to get rid of
+some checks in the hot paths and there are also no pages anymore that
+are allocated before XPFO is enabled.
 
-HEAD commit:    28e8c4bc8eb4 Merge tag 'rtc-4.21' of git://git.kernel.org/..
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=122355bf400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=c2ab9708c613a224
-dashboard link: https://syzkaller.appspot.com/bug?extid=2ab493acb9d8329345a3
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=106e29e7400000
+Also make debugging aids configurable for maximum performance.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+2ab493acb9d8329345a3@syzkaller.appspotmail.com
-
-
-------------[ cut here ]------------
-==================================================================
-DEBUG_LOCKS_WARN_ON(current->hardirq_context)
-------------[ cut here ]------------
-BUG: KASAN: stack-out-of-bounds in debug_spin_lock_before  
-kernel/locking/spinlock_debug.c:83 [inline]
-BUG: KASAN: stack-out-of-bounds in do_raw_spin_lock+0x303/0x360  
-kernel/locking/spinlock_debug.c:112
-Bad or missing usercopy whitelist? Kernel memory overwrite attempt detected  
-to SLAB object 'task_struct' (offset 912, size 2)!
-Read of size 4 at addr ffff8880a9466a44 by task kworker/1:0/7562
-WARNING: CPU: 0 PID: -1455013312 at mm/usercopy.c:78  
-usercopy_warn+0xeb/0x110 mm/usercopy.c:78
-
-Kernel panic - not syncing: panic_on_warn set ...
-CPU: 1 PID: 7562 Comm: kworker/1:0 Not tainted 4.20.0+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Workqueue: rcu_gp process_srcu
-Call Trace:
-  <IRQ>
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1db/0x2d0 lib/dump_stack.c:113
-  print_address_description.cold+0x7c/0x20d mm/kasan/report.c:187
-  kasan_report.cold+0x1b/0x40 mm/kasan/report.c:317
-  __asan_report_load4_noabort+0x14/0x20 mm/kasan/generic_report.c:134
-  debug_spin_lock_before kernel/locking/spinlock_debug.c:83 [inline]
-  do_raw_spin_lock+0x303/0x360 kernel/locking/spinlock_debug.c:112
-  __raw_spin_lock_irqsave include/linux/spinlock_api_smp.h:117 [inline]
-  _raw_spin_lock_irqsave+0x9d/0xcd kernel/locking/spinlock.c:152
-  try_to_wake_up+0xb9/0x1480 kernel/sched/core.c:1965
-  wake_up_process+0x10/0x20 kernel/sched/core.c:2129
-  process_timeout+0x31/0x40 kernel/time/timer.c:1732
-  call_timer_fn+0x254/0x900 kernel/time/timer.c:1325
-  expire_timers kernel/time/timer.c:1362 [inline]
-  __run_timers+0x6fc/0xd50 kernel/time/timer.c:1681
-  run_timer_softirq+0x52/0xb0 kernel/time/timer.c:1694
-  __do_softirq+0x30b/0xb11 kernel/softirq.c:292
-  invoke_softirq kernel/softirq.c:373 [inline]
-  irq_exit+0x180/0x1d0 kernel/softirq.c:413
-  exiting_irq arch/x86/include/asm/apic.h:536 [inline]
-  smp_apic_timer_interrupt+0x1b7/0x760 arch/x86/kernel/apic/apic.c:1062
-  apic_timer_interrupt+0xf/0x20 arch/x86/entry/entry_64.S:807
-  </IRQ>
-RIP: 0010:rdtsc arch/x86/include/asm/msr.h:207 [inline]
-RIP: 0010:rdtsc_ordered arch/x86/include/asm/msr.h:232 [inline]
-RIP: 0010:delay_tsc+0x4c/0xc0 arch/x86/lib/delay.c:61
-Code: e8 0f 31 48 c1 e2 20 48 09 c2 49 89 d4 eb 16 f3 90 bf 01 00 00 00 e8  
-33 70 68 f9 e8 de 5c a0 fb 44 39 e8 75 36 0f ae e8 0f 31 <48> c1 e2 20 48  
-89 d3 48 09 c3 48 89 d8 4c 29 e0 4c 39 f0 73 24 bf
-RSP: 0018:ffff8880891af5a0 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff13
-RAX: 00000000f513364d RBX: 00000201f5133563 RCX: ffffffff838fb3ca
-RDX: 0000000000000201 RSI: ffffffff838fb3d8 RDI: 0000000000000005
-RBP: ffff8880891af5c0 R08: ffff88808f0ec240 R09: fffffbfff16af64d
-R10: ffff8880891af710 R11: ffffffff8b57b267 R12: 00000201f51326c9
-R13: 0000000000000001 R14: 0000000000002ced R15: ffffffff8b57aec0
-  __delay arch/x86/lib/delay.c:161 [inline]
-  __const_udelay+0x5f/0x80 arch/x86/lib/delay.c:175
-  try_check_zero+0x352/0x5c0 kernel/rcu/srcutree.c:730
-  srcu_advance_state kernel/rcu/srcutree.c:1167 [inline]
-  process_srcu+0x642/0x1400 kernel/rcu/srcutree.c:1261
-  process_one_work+0xd0c/0x1ce0 kernel/workqueue.c:2153
-  worker_thread+0x143/0x14a0 kernel/workqueue.c:2296
-  kthread+0x357/0x430 kernel/kthread.c:246
-  ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:352
-
-CPU: 0 PID: -1455013312 Comm:  Not tainted 4.20.0+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Allocated by task 2839968544:
-Call Trace:
-BUG: unable to handle kernel paging request at ffffffff8cf07580
-#PF error: [normal kernel read fault]
-PGD 9871067 P4D 9871067 PUD 9872063 PMD 0
-Oops: 0000 [#1] PREEMPT SMP KASAN
-CPU: 1 PID: 7562 Comm: kworker/1:0 Not tainted 4.20.0+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Workqueue: rcu_gp process_srcu
-RIP: 0010:depot_fetch_stack+0x10/0x30 lib/stackdepot.c:202
-Code: 36 0f 23 fe e9 20 fe ff ff 48 89 df e8 29 0f 23 fe e9 f1 fd ff ff 90  
-90 90 90 89 f8 c1 ef 11 25 ff ff 1f 00 81 e7 f0 3f 00 00 <48> 03 3c c5 80  
-31 f4 8b 8b 47 0c 48 83 c7 18 c7 46 10 00 00 00 00
-RSP: 0018:ffff8880ae707640 EFLAGS: 00010006
-RAX: 00000000001f8880 RBX: ffff8880a9467a44 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffff8880ae707648 RDI: 0000000000003ff0
-RBP: ffff8880ae707670 R08: 000000000000001d R09: ffffed1015ce3ef9
-R10: ffffed1015ce3ef8 R11: ffff8880ae71f7c7 R12: ffffea0002a51980
-R13: ffff8880a9466a44 R14: ffff8880aa13d900 R15: ffff8880a9467a40
-FS:  0000000000000000(0000) GS:ffff8880ae700000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: ffffffff8cf07580 CR3: 0000000099fe2000 CR4: 00000000001406e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
-  <IRQ>
-  describe_object mm/kasan/report.c:158 [inline]
-  print_address_description.cold+0x16a/0x20d mm/kasan/report.c:194
-  kasan_report.cold+0x1b/0x40 mm/kasan/report.c:317
-  __asan_report_load4_noabort+0x14/0x20 mm/kasan/generic_report.c:134
-  debug_spin_lock_before kernel/locking/spinlock_debug.c:83 [inline]
-  do_raw_spin_lock+0x303/0x360 kernel/locking/spinlock_debug.c:112
-  __raw_spin_lock_irqsave include/linux/spinlock_api_smp.h:117 [inline]
-  _raw_spin_lock_irqsave+0x9d/0xcd kernel/locking/spinlock.c:152
-  try_to_wake_up+0xb9/0x1480 kernel/sched/core.c:1965
-  wake_up_process+0x10/0x20 kernel/sched/core.c:2129
-  process_timeout+0x31/0x40 kernel/time/timer.c:1732
-  call_timer_fn+0x254/0x900 kernel/time/timer.c:1325
-  expire_timers kernel/time/timer.c:1362 [inline]
-  __run_timers+0x6fc/0xd50 kernel/time/timer.c:1681
-  run_timer_softirq+0x52/0xb0 kernel/time/timer.c:1694
-  __do_softirq+0x30b/0xb11 kernel/softirq.c:292
-  invoke_softirq kernel/softirq.c:373 [inline]
-  irq_exit+0x180/0x1d0 kernel/softirq.c:413
-  exiting_irq arch/x86/include/asm/apic.h:536 [inline]
-  smp_apic_timer_interrupt+0x1b7/0x760 arch/x86/kernel/apic/apic.c:1062
-  apic_timer_interrupt+0xf/0x20 arch/x86/entry/entry_64.S:807
-  </IRQ>
-RIP: 0010:rdtsc arch/x86/include/asm/msr.h:207 [inline]
-RIP: 0010:rdtsc_ordered arch/x86/include/asm/msr.h:232 [inline]
-RIP: 0010:delay_tsc+0x4c/0xc0 arch/x86/lib/delay.c:61
-Code: e8 0f 31 48 c1 e2 20 48 09 c2 49 89 d4 eb 16 f3 90 bf 01 00 00 00 e8  
-33 70 68 f9 e8 de 5c a0 fb 44 39 e8 75 36 0f ae e8 0f 31 <48> c1 e2 20 48  
-89 d3 48 09 c3 48 89 d8 4c 29 e0 4c 39 f0 73 24 bf
-RSP: 0018:ffff8880891af5a0 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff13
-RAX: 00000000f513364d RBX: 00000201f5133563 RCX: ffffffff838fb3ca
-RDX: 0000000000000201 RSI: ffffffff838fb3d8 RDI: 0000000000000005
-RBP: ffff8880891af5c0 R08: ffff88808f0ec240 R09: fffffbfff16af64d
-R10: ffff8880891af710 R11: ffffffff8b57b267 R12: 00000201f51326c9
-R13: 0000000000000001 R14: 0000000000002ced R15: ffffffff8b57aec0
-  __delay arch/x86/lib/delay.c:161 [inline]
-  __const_udelay+0x5f/0x80 arch/x86/lib/delay.c:175
-  try_check_zero+0x352/0x5c0 kernel/rcu/srcutree.c:730
-  srcu_advance_state kernel/rcu/srcutree.c:1167 [inline]
-  process_srcu+0x642/0x1400 kernel/rcu/srcutree.c:1261
-  process_one_work+0xd0c/0x1ce0 kernel/workqueue.c:2153
-  worker_thread+0x143/0x14a0 kernel/workqueue.c:2296
-  kthread+0x357/0x430 kernel/kthread.c:246
-  ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:352
-Modules linked in:
-CR2: ffffffff8cf07580
----[ end trace 7f399f30ebf94723 ]---
-RIP: 0010:depot_fetch_stack+0x10/0x30 lib/stackdepot.c:202
-Code: 36 0f 23 fe e9 20 fe ff ff 48 89 df e8 29 0f 23 fe e9 f1 fd ff ff 90  
-90 90 90 89 f8 c1 ef 11 25 ff ff 1f 00 81 e7 f0 3f 00 00 <48> 03 3c c5 80  
-31 f4 8b 8b 47 0c 48 83 c7 18 c7 46 10 00 00 00 00
-RSP: 0018:ffff8880ae707640 EFLAGS: 00010006
-RAX: 00000000001f8880 RBX: ffff8880a9467a44 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffff8880ae707648 RDI: 0000000000003ff0
-RBP: ffff8880ae707670 R08: 000000000000001d R09: ffffed1015ce3ef9
-R10: ffffed1015ce3ef8 R11: ffff8880ae71f7c7 R12: ffffea0002a51980
-R13: ffff8880a9466a44 R14: ffff8880aa13d900 R15: ffff8880a9467a40
-FS:  0000000000000000(0000) GS:ffff8880ae700000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: ffffffff8cf07580 CR3: 0000000099fe2000 CR4: 00000000001406e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Shutting down cpus with NMI
-usercopy: Kernel memory overwrite attempt detected to SLAB  
-object 'sighand_cache' (offset 2320, size 2)!
-------------[ cut here ]------------
-kernel BUG at mm/usercopy.c:102!
-WARNING: CPU: 0 PID: -1455013312 at kernel/rcu/tree_plugin.h:414  
-__rcu_read_lock+0x75/0x90 kernel/rcu/tree_plugin.h:416
-Modules linked in:
-CPU: 0 PID: -1455013312 Comm:  Tainted: G      D           4.20.0+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-RIP: 0010:__rcu_read_lock+0x75/0x90 kernel/rcu/tree_plugin.h:414
-Code: 00 48 8d bb 70 03 00 00 48 89 fa 48 c1 ea 03 0f b6 04 02 84 c0 74 04  
-3c 03 7e 14 81 bb 70 03 00 00 ff ff ff 3f 7f 03 5b 5d c3 <0f> 0b 5b 5d c3  
-e8 61 db 59 00 eb e5 e8 5a db 59 00 eb aa 0f 1f 84
-RSP: 0018:ffff8880a9463850 EFLAGS: 00010012
-RAX: 0000000000000000 RBX: ffff8880a9464240 RCX: ffffffff816b545f
-RDX: 0000000000000000 RSI: 0000000000000004 RDI: ffff8880a94645b0
-RBP: ffff8880a9463858 R08: ffff8880a9464240 R09: 0000000000000004
-R10: ffffed1015cc3ef8 R11: ffff8880ae61f7c7 R12: 0000000000000000
-R13: 0000000000000008 R14: ffff8880a94638d0 R15: ffff8880a94639d8
-FS:  0000000000000000(0000) GS:ffff8880ae600000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f1524df3169 CR3: 000000008509b000 CR4: 00000000001406f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
-irq event stamp: 2321324489
-hardirqs last  enabled at (2170814927): [<ffffed101528c974>]  
-0xffffed101528c974
-hardirqs last disabled at (2321324489): [<ffffffff8167a729>]  
-vprintk_emit+0x169/0x960 kernel/printk/printk.c:1911
-softirqs last  enabled at (0): [<ffffffff86e92120>] gue6_err+0x0/0x6b0  
-net/ipv6/fou6.c:86
-softirqs last disabled at (1): [<0000000000000001>] 0x1
----[ end trace 7f399f30ebf94724 ]---
-invalid opcode: 0000 [#2] PREEMPT SMP KASAN
-CPU: 0 PID: -1455013312 Comm:  Tainted: G      D W         4.20.0+ #4
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-RIP: 0010:usercopy_abort+0xbd/0xbf mm/usercopy.c:102
-Code: c0 e8 0d 0b b2 ff 48 8b 55 c0 49 89 d9 4d 89 f0 ff 75 c8 4c 89 e1 4c  
-89 ee 48 c7 c7 00 27 55 88 ff 75 d0 41 57 e8 5d 4b 98 ff <0f> 0b e8 e2 0a  
-b2 ff e8 dd af f5 ff 8b 95 20 ff ff ff 4c 89 e1 31
-RSP: 0018:ffff8880a9463a80 EFLAGS: 00010086
-RAX: 0000000000000068 RBX: ffffffff88494720 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffffffff8167d666 RDI: ffffed101528c742
-RBP: ffff8880a9463ad8 R08: 0000000000000068 R09: ffffed1015cc3ef9
-R10: ffffed1015cc3ef8 R11: ffff8880ae61f7c7 R12: ffffffff893bcfb5
-R13: ffffffff88552560 R14: ffffffff885524a0 R15: ffffffff88552460
-FS:  0000000000000000(0000) GS:ffff8880ae600000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f1524df3169 CR3: 000000008509b000 CR4: 00000000001406f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
-Modules linked in:
----[ end trace 7f399f30ebf94725 ]---
-RIP: 0010:depot_fetch_stack+0x10/0x30 lib/stackdepot.c:202
-Code: 36 0f 23 fe e9 20 fe ff ff 48 89 df e8 29 0f 23 fe e9 f1 fd ff ff 90  
-90 90 90 89 f8 c1 ef 11 25 ff ff 1f 00 81 e7 f0 3f 00 00 <48> 03 3c c5 80  
-31 f4 8b 8b 47 0c 48 83 c7 18 c7 46 10 00 00 00 00
-RSP: 0018:ffff8880ae707640 EFLAGS: 00010006
-RAX: 00000000001f8880 RBX: ffff8880a9467a44 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: ffff8880ae707648 RDI: 0000000000003ff0
-RBP: ffff8880ae707670 R08: 000000000000001d R09: ffffed1015ce3ef9
-R10: ffffed1015ce3ef8 R11: ffff8880ae71f7c7 R12: ffffea0002a51980
-R13: ffff8880a9466a44 R14: ffff8880aa13d900 R15: ffff8880a9467a40
-FS:  0000000000000000(0000) GS:ffff8880ae600000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f1524df3169 CR3: 000000008509b000 CR4: 00000000001406f0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-
-
+Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
+Cc: x86@kernel.org
+Cc: kernel-hardening@lists.openwall.com
+Cc: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
+Cc: Juerg Haefliger <juerg.haefliger@canonical.com>
+Cc: Tycho Andersen <tycho@docker.com>
+Cc: Marco Benatto <marco.antonio.780@gmail.com>
+Cc: David Woodhouse <dwmw2@infradead.org>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 ---
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+ include/linux/mm_types.h       |   8 ++
+ include/linux/page-flags.h     |  13 +++
+ include/linux/xpfo.h           |   3 +-
+ include/trace/events/mmflags.h |  10 +-
+ mm/page_alloc.c                |   3 +-
+ mm/page_ext.c                  |   4 -
+ mm/xpfo.c                      | 162 ++++++++-------------------------
+ security/Kconfig               |  12 ++-
+ 8 files changed, 81 insertions(+), 134 deletions(-)
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
-syzbot can test patches for this bug, for details see:
-https://goo.gl/tpsmEJ#testing-patches
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 2c471a2c43fa..d17d33f36a01 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -204,6 +204,14 @@ struct page {
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ 	int _last_cpupid;
+ #endif
++
++#ifdef CONFIG_XPFO
++	/* Counts the number of times this page has been kmapped. */
++	atomic_t xpfo_mapcount;
++
++	/* Serialize kmap/kunmap of this page */
++	spinlock_t xpfo_lock;
++#endif
+ } _struct_page_alignment;
+ 
+ /*
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 50ce1bddaf56..a532063f27b5 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -101,6 +101,10 @@ enum pageflags {
+ #if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
+ 	PG_young,
+ 	PG_idle,
++#endif
++#ifdef CONFIG_XPFO
++	PG_xpfo_user,		/* Page is allocated to user-space */
++	PG_xpfo_unmapped,	/* Page is unmapped from the linear map */
+ #endif
+ 	__NR_PAGEFLAGS,
+ 
+@@ -398,6 +402,15 @@ TESTCLEARFLAG(Young, young, PF_ANY)
+ PAGEFLAG(Idle, idle, PF_ANY)
+ #endif
+ 
++#ifdef CONFIG_XPFO
++PAGEFLAG(XpfoUser, xpfo_user, PF_ANY)
++TESTCLEARFLAG(XpfoUser, xpfo_user, PF_ANY)
++TESTSETFLAG(XpfoUser, xpfo_user, PF_ANY)
++PAGEFLAG(XpfoUnmapped, xpfo_unmapped, PF_ANY)
++TESTCLEARFLAG(XpfoUnmapped, xpfo_unmapped, PF_ANY)
++TESTSETFLAG(XpfoUnmapped, xpfo_unmapped, PF_ANY)
++#endif
++
+ /*
+  * On an anonymous page mapped into a user virtual memory area,
+  * page->mapping points to its anon_vma, not to a struct address_space;
+diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+index d4b38ab8a633..ea5188882f49 100644
+--- a/include/linux/xpfo.h
++++ b/include/linux/xpfo.h
+@@ -27,7 +27,7 @@ struct page;
+ 
+ #include <linux/types.h>
+ 
+-extern struct page_ext_operations page_xpfo_ops;
++void xpfo_init_single_page(struct page *page);
+ 
+ void set_kpte(void *kaddr, struct page *page, pgprot_t prot);
+ void xpfo_dma_map_unmap_area(bool map, const void *addr, size_t size,
+@@ -56,6 +56,7 @@ phys_addr_t user_virt_to_phys(unsigned long addr);
+ 
+ #else /* !CONFIG_XPFO */
+ 
++static inline void xpfo_init_single_page(struct page *page) { }
+ static inline void xpfo_kmap(void *kaddr, struct page *page) { }
+ static inline void xpfo_kunmap(void *kaddr, struct page *page) { }
+ static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index a1675d43777e..6bb000bb366f 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -79,6 +79,12 @@
+ #define IF_HAVE_PG_IDLE(flag,string)
+ #endif
+ 
++#ifdef CONFIG_XPFO
++#define IF_HAVE_PG_XPFO(flag,string) ,{1UL << flag, string}
++#else
++#define IF_HAVE_PG_XPFO(flag,string)
++#endif
++
+ #define __def_pageflag_names						\
+ 	{1UL << PG_locked,		"locked"	},		\
+ 	{1UL << PG_waiters,		"waiters"	},		\
+@@ -105,7 +111,9 @@ IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
+ IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
+ IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
+ IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
+-IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
++IF_HAVE_PG_IDLE(PG_idle,		"idle"		)		\
++IF_HAVE_PG_XPFO(PG_xpfo_user,		"xpfo_user"	)		\
++IF_HAVE_PG_XPFO(PG_xpfo_unmapped,	"xpfo_unmapped" ) 		\
+ 
+ #define show_page_flags(flags)						\
+ 	(flags) ? __print_flags(flags, "|",				\
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 08e277790b5f..d00382b20001 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1024,6 +1024,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ 	if (bad)
+ 		return false;
+ 
++	xpfo_free_pages(page, order);
+ 	page_cpupid_reset_last(page);
+ 	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+ 	reset_page_owner(page, order);
+@@ -1038,7 +1039,6 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ 	kernel_poison_pages(page, 1 << order, 0);
+ 	kernel_map_pages(page, 1 << order, 0);
+ 	kasan_free_pages(page, order);
+-	xpfo_free_pages(page, order);
+ 
+ 	return true;
+ }
+@@ -1191,6 +1191,7 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 	if (!is_highmem_idx(zone))
+ 		set_page_address(page, __va(pfn << PAGE_SHIFT));
+ #endif
++	xpfo_init_single_page(page);
+ }
+ 
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index 38e5013dcb9a..ae44f7adbe07 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -8,7 +8,6 @@
+ #include <linux/kmemleak.h>
+ #include <linux/page_owner.h>
+ #include <linux/page_idle.h>
+-#include <linux/xpfo.h>
+ 
+ /*
+  * struct page extension
+@@ -69,9 +68,6 @@ static struct page_ext_operations *page_ext_ops[] = {
+ #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+ 	&page_idle_ops,
+ #endif
+-#ifdef CONFIG_XPFO
+-	&page_xpfo_ops,
+-#endif
+ };
+ 
+ static unsigned long total_usage;
+diff --git a/mm/xpfo.c b/mm/xpfo.c
+index e80374b0c78e..cbfeafc2f10f 100644
+--- a/mm/xpfo.c
++++ b/mm/xpfo.c
+@@ -16,33 +16,16 @@
+ #include <linux/highmem.h>
+ #include <linux/mm.h>
+ #include <linux/module.h>
+-#include <linux/page_ext.h>
+ #include <linux/xpfo.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+-/* XPFO page state flags */
+-enum xpfo_flags {
+-	XPFO_PAGE_USER,		/* Page is allocated to user-space */
+-	XPFO_PAGE_UNMAPPED,	/* Page is unmapped from the linear map */
+-};
+-
+-/* Per-page XPFO house-keeping data */
+-struct xpfo {
+-	unsigned long flags;	/* Page state */
+-	bool inited;		/* Map counter and lock initialized */
+-	atomic_t mapcount;	/* Counter for balancing map/unmap requests */
+-	spinlock_t maplock;	/* Lock to serialize map/unmap requests */
+-};
+-
+-DEFINE_STATIC_KEY_FALSE(xpfo_inited);
++DEFINE_STATIC_KEY_TRUE(xpfo_inited);
+ DEFINE_STATIC_KEY_FALSE(xpfo_do_tlb_flush);
+ 
+-static bool xpfo_disabled __initdata;
+-
+ static int __init noxpfo_param(char *str)
+ {
+-	xpfo_disabled = true;
++	static_branch_disable(&xpfo_inited);
+ 
+ 	return 0;
+ }
+@@ -57,34 +40,13 @@ static int __init xpfotlbflush_param(char *str)
+ early_param("noxpfo", noxpfo_param);
+ early_param("xpfotlbflush", xpfotlbflush_param);
+ 
+-static bool __init need_xpfo(void)
+-{
+-	if (xpfo_disabled) {
+-		printk(KERN_INFO "XPFO disabled\n");
+-		return false;
+-	}
+-
+-	return true;
+-}
+-
+-static void init_xpfo(void)
+-{
+-	printk(KERN_INFO "XPFO enabled\n");
+-	static_branch_enable(&xpfo_inited);
+-}
+-
+-struct page_ext_operations page_xpfo_ops = {
+-	.size = sizeof(struct xpfo),
+-	.need = need_xpfo,
+-	.init = init_xpfo,
+-};
+-
+ bool __init xpfo_enabled(void)
+ {
+-	return !xpfo_disabled;
++	if (!static_branch_unlikely(&xpfo_inited))
++		return false;
++	else
++		return true;
+ }
+-EXPORT_SYMBOL(xpfo_enabled);
+-
+ 
+ static void xpfo_cond_flush_kernel_tlb(struct page *page, int order)
+ {
+@@ -92,58 +54,40 @@ static void xpfo_cond_flush_kernel_tlb(struct page *page, int order)
+ 		xpfo_flush_kernel_tlb(page, order);
+ }
+ 
+-static inline struct xpfo *lookup_xpfo(struct page *page)
++void __meminit xpfo_init_single_page(struct page *page)
+ {
+-	struct page_ext *page_ext = lookup_page_ext(page);
+-
+-	if (unlikely(!page_ext)) {
+-		WARN(1, "xpfo: failed to get page ext");
+-		return NULL;
+-	}
+-
+-	return (void *)page_ext + page_xpfo_ops.offset;
++	spin_lock_init(&page->xpfo_lock);
+ }
+ 
+ void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
+ {
+ 	int i, flush_tlb = 0;
+-	struct xpfo *xpfo;
+ 
+ 	if (!static_branch_unlikely(&xpfo_inited))
+ 		return;
+ 
+ 	for (i = 0; i < (1 << order); i++)  {
+-		xpfo = lookup_xpfo(page + i);
+-		if (!xpfo)
+-			continue;
+-
+-		WARN(test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags),
+-		     "xpfo: unmapped page being allocated\n");
+-
+-		/* Initialize the map lock and map counter */
+-		if (unlikely(!xpfo->inited)) {
+-			spin_lock_init(&xpfo->maplock);
+-			atomic_set(&xpfo->mapcount, 0);
+-			xpfo->inited = true;
+-		}
+-		WARN(atomic_read(&xpfo->mapcount),
+-		     "xpfo: already mapped page being allocated\n");
+-
++#ifdef CONFIG_XPFO_DEBUG
++		BUG_ON(PageXpfoUser(page + i));
++		BUG_ON(PageXpfoUnmapped(page + i));
++		BUG_ON(spin_is_locked(&(page + i)->xpfo_lock));
++		BUG_ON(atomic_read(&(page + i)->xpfo_mapcount));
++#endif
+ 		if ((gfp & GFP_HIGHUSER) == GFP_HIGHUSER) {
+ 			if (static_branch_unlikely(&xpfo_do_tlb_flush)) {
+ 				/*
+ 				 * Tag the page as a user page and flush the TLB if it
+ 				 * was previously allocated to the kernel.
+ 				 */
+-				if (!test_and_set_bit(XPFO_PAGE_USER, &xpfo->flags))
++				if (!TestSetPageXpfoUser(page + i))
+ 					flush_tlb = 1;
+ 			} else {
+-				set_bit(XPFO_PAGE_USER, &xpfo->flags);
++				SetPageXpfoUser(page + i);
+ 			}
+ 
+ 		} else {
+ 			/* Tag the page as a non-user (kernel) page */
+-			clear_bit(XPFO_PAGE_USER, &xpfo->flags);
++			ClearPageXpfoUser(page + i);
+ 		}
+ 	}
+ 
+@@ -154,27 +98,21 @@ void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
+ void xpfo_free_pages(struct page *page, int order)
+ {
+ 	int i;
+-	struct xpfo *xpfo;
+ 
+ 	if (!static_branch_unlikely(&xpfo_inited))
+ 		return;
+ 
+ 	for (i = 0; i < (1 << order); i++) {
+-		xpfo = lookup_xpfo(page + i);
+-		if (!xpfo || unlikely(!xpfo->inited)) {
+-			/*
+-			 * The page was allocated before page_ext was
+-			 * initialized, so it is a kernel page.
+-			 */
+-			continue;
+-		}
++#ifdef CONFIG_XPFO_DEBUG
++		BUG_ON(atomic_read(&(page + i)->xpfo_mapcount));
++#endif
+ 
+ 		/*
+ 		 * Map the page back into the kernel if it was previously
+ 		 * allocated to user space.
+ 		 */
+-		if (test_and_clear_bit(XPFO_PAGE_USER, &xpfo->flags)) {
+-			clear_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
++		if (TestClearPageXpfoUser(page + i)) {
++			ClearPageXpfoUnmapped(page + i);
+ 			set_kpte(page_address(page + i), page + i,
+ 				 PAGE_KERNEL);
+ 		}
+@@ -183,84 +121,56 @@ void xpfo_free_pages(struct page *page, int order)
+ 
+ void xpfo_kmap(void *kaddr, struct page *page)
+ {
+-	struct xpfo *xpfo;
+-
+ 	if (!static_branch_unlikely(&xpfo_inited))
+ 		return;
+ 
+-	xpfo = lookup_xpfo(page);
+-
+-	/*
+-	 * The page was allocated before page_ext was initialized (which means
+-	 * it's a kernel page) or it's allocated to the kernel, so nothing to
+-	 * do.
+-	 */
+-	if (!xpfo || unlikely(!xpfo->inited) ||
+-	    !test_bit(XPFO_PAGE_USER, &xpfo->flags))
++	if (!PageXpfoUser(page))
+ 		return;
+ 
+-	spin_lock(&xpfo->maplock);
++	spin_lock(&page->xpfo_lock);
+ 
+ 	/*
+ 	 * The page was previously allocated to user space, so map it back
+ 	 * into the kernel. No TLB flush required.
+ 	 */
+-	if ((atomic_inc_return(&xpfo->mapcount) == 1) &&
+-	    test_and_clear_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags))
++	if ((atomic_inc_return(&page->xpfo_mapcount) == 1) &&
++	    TestClearPageXpfoUnmapped(page))
+ 		set_kpte(kaddr, page, PAGE_KERNEL);
+ 
+-	spin_unlock(&xpfo->maplock);
++	spin_unlock(&page->xpfo_lock);
+ }
+ EXPORT_SYMBOL(xpfo_kmap);
+ 
+ void xpfo_kunmap(void *kaddr, struct page *page)
+ {
+-	struct xpfo *xpfo;
+-
+ 	if (!static_branch_unlikely(&xpfo_inited))
+ 		return;
+ 
+-	xpfo = lookup_xpfo(page);
+-
+-	/*
+-	 * The page was allocated before page_ext was initialized (which means
+-	 * it's a kernel page) or it's allocated to the kernel, so nothing to
+-	 * do.
+-	 */
+-	if (!xpfo || unlikely(!xpfo->inited) ||
+-	    !test_bit(XPFO_PAGE_USER, &xpfo->flags))
++	if (!PageXpfoUser(page))
+ 		return;
+ 
+-	spin_lock(&xpfo->maplock);
++	spin_lock(&page->xpfo_lock);
+ 
+ 	/*
+ 	 * The page is to be allocated back to user space, so unmap it from the
+ 	 * kernel, flush the TLB and tag it as a user page.
+ 	 */
+-	if (atomic_dec_return(&xpfo->mapcount) == 0) {
+-		WARN(test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags),
+-		     "xpfo: unmapping already unmapped page\n");
+-		set_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
++	if (atomic_dec_return(&page->xpfo_mapcount) == 0) {
++#ifdef CONFIG_XPFO_DEBUG
++		BUG_ON(PageXpfoUnmapped(page));
++#endif
++		SetPageXpfoUnmapped(page);
+ 		set_kpte(kaddr, page, __pgprot(0));
+ 		xpfo_cond_flush_kernel_tlb(page, 0);
+ 	}
+ 
+-	spin_unlock(&xpfo->maplock);
++	spin_unlock(&page->xpfo_lock);
+ }
+ EXPORT_SYMBOL(xpfo_kunmap);
+ 
+ bool xpfo_page_is_unmapped(struct page *page)
+ {
+-	struct xpfo *xpfo;
+-
+-	if (!static_branch_unlikely(&xpfo_inited))
+-		return false;
+-
+-	xpfo = lookup_xpfo(page);
+-	if (unlikely(!xpfo) && !xpfo->inited)
+-		return false;
+-
+-	return test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
++	return PageXpfoUnmapped(page);
+ }
+ EXPORT_SYMBOL(xpfo_page_is_unmapped);
+ 
+diff --git a/security/Kconfig b/security/Kconfig
+index 8d0e4e303551..c7c581bac963 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -13,7 +13,6 @@ config XPFO
+ 	bool "Enable eXclusive Page Frame Ownership (XPFO)"
+ 	default n
+ 	depends on ARCH_SUPPORTS_XPFO
+-	select PAGE_EXTENSION
+ 	help
+ 	  This option offers protection against 'ret2dir' kernel attacks.
+ 	  When enabled, every time a page frame is allocated to user space, it
+@@ -25,6 +24,17 @@ config XPFO
+ 
+ 	  If in doubt, say "N".
+ 
++config XPFO_DEBUG
++       bool "Enable debugging of XPFO"
++       default n
++       depends on XPFO
++       help
++         Enables additional checking of XPFO data structures that help find
++	 bugs in the XPFO implementation. This option comes with a slight
++	 performance cost.
++
++	 If in doubt, say "N".
++
+ config SECURITY_DMESG_RESTRICT
+ 	bool "Restrict unprivileged access to the kernel syslog"
+ 	default n
+-- 
+2.17.1
