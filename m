@@ -1,271 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0715E8E0038
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 00:35:50 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id 4so5577269plc.5
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 21:35:49 -0800 (PST)
-Received: from alexa-out-blr.qualcomm.com (alexa-out-blr-02.qualcomm.com. [103.229.18.198])
-        by mx.google.com with ESMTPS id b7si49891612plb.234.2019.01.09.21.35.47
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D55518E0038
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 00:06:47 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id m3so6908341pfj.14
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 21:06:47 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id x6si1850220plv.321.2019.01.09.21.06.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 21:35:48 -0800 (PST)
+        Wed, 09 Jan 2019 21:06:46 -0800 (PST)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Thu, 10 Jan 2019 10:36:43 +0530
 From: Arun KS <arunks@codeaurora.org>
-Subject: [PATCH v9] mm/page_alloc.c: memory_hotplug: free pages as higher order
-Date: Thu, 10 Jan 2019 11:05:43 +0530
-Message-Id: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
+Subject: Re: [PATCH v7] mm/page_alloc.c: memory_hotplug: free pages as higher
+ order
+In-Reply-To: <20190109105652.40e24fa969a2bb7a58e097a8@linux-foundation.org>
+References: <1546578076-31716-1-git-send-email-arunks@codeaurora.org>
+ <fb6465c99b3ada2c6af587a7eb00016d96d56f77.camel@linux.intel.com>
+ <20190108181352.GI31793@dhcp22.suse.cz>
+ <bfb543b6e343c21c3e263a110f234e08@codeaurora.org>
+ <20190109073718.GM31793@dhcp22.suse.cz>
+ <a053bd9b93e71baae042cdfc3432f945@codeaurora.org>
+ <20190109084031.GN31793@dhcp22.suse.cz>
+ <e005e71b125b9b8ddee668d1df9ad5ec@codeaurora.org>
+ <20190109105754.GR31793@dhcp22.suse.cz>
+ <2efb06e91d9af48bf3d1d38bd50e0458@codeaurora.org>
+ <20190109105652.40e24fa969a2bb7a58e097a8@linux-foundation.org>
+Message-ID: <51ebe46608c1b502bb7985498f29302d@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: arunks.linux@gmail.com, alexander.h.duyck@linux.intel.com, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: getarunks@gmail.com, Arun KS <arunks@codeaurora.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, arunks.linux@gmail.com, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-When freeing pages are done with higher order, time spent on coalescing
-pages by buddy allocator can be reduced.  With section size of 256MB, hot
-add latency of a single section shows improvement from 50-60 ms to less
-than 1 ms, hence improving the hot add latency by 60 times.  Modify
-external providers of online callback to align with the change.
+On 2019-01-10 00:26, Andrew Morton wrote:
+> On Wed, 09 Jan 2019 16:36:36 +0530 Arun KS <arunks@codeaurora.org> 
+> wrote:
+> 
+>> On 2019-01-09 16:27, Michal Hocko wrote:
+>> > On Wed 09-01-19 16:12:48, Arun KS wrote:
+>> > [...]
+>> >> It will be called once per online of a section and the arg value is
+>> >> always
+>> >> set to 0 while entering online_pages_range.
+>> >
+>> > You rare right that this will be the case in the most simple scenario.
+>> > But the point is that the callback can be called several times from
+>> > walk_system_ram_range and then your current code wouldn't work
+>> > properly.
+>> 
+>> Thanks. Will use +=
+> 
+> The v8 patch
+> https://lore.kernel.org/lkml/1547032395-24582-1-git-send-email-arunks@codeaurora.org/T/#u
+> 
+> (which you apparently sent 7 minutes after typing the above) still has
+> 
+>  static int online_pages_range(unsigned long start_pfn, unsigned long 
+> nr_pages,
+>  			void *arg)
+>  {
+> -	unsigned long i;
+>  	unsigned long onlined_pages = *(unsigned long *)arg;
+> -	struct page *page;
+> 
+>  	if (PageReserved(pfn_to_page(start_pfn)))
+> -		for (i = 0; i < nr_pages; i++) {
+> -			page = pfn_to_page(start_pfn + i);
+> -			(*online_page_callback)(page);
+> -			onlined_pages++;
+> -		}
+> +		onlined_pages = online_pages_blocks(start_pfn, nr_pages);
+> 
+> 
+> Even then the code makes no sense.
+> 
+> static int online_pages_range(unsigned long start_pfn, unsigned long 
+> nr_pages,
+> 			void *arg)
+> {
+> 	unsigned long onlined_pages = *(unsigned long *)arg;
+> 
+> 	if (PageReserved(pfn_to_page(start_pfn)))
+> 		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
+> 
+> 	online_mem_sections(start_pfn, start_pfn + nr_pages);
+> 
+> 	*(unsigned long *)arg += onlined_pages;
+> 	return 0;
+> }
+> 
+> Either the final assignment should be
+> 
+> 	*(unsigned long *)arg = onlined_pages;
+> 
+> or the initialization should be
+> 
+> 	unsigned long onlined_pages = 0;
+> 
+> 
+> 
+> This is becoming a tad tiresome and I'd prefer not to have to check up
+> on such things.  Can we please get this right?
 
-Signed-off-by: Arun KS <arunks@codeaurora.org>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
----
-Changes since v8:
-- Remove return type change for online_page_callback.
-- Use consistent names for external online_page providers.
-- Fix onlined_pages accounting.
+Sorry about that. Will fix it.
 
-Changes since v7:
-- Rebased to 5.0-rc1.
-- Fixed onlined_pages accounting.
-- Added comment for return value of online_page_callback.
-- Renamed xen_bring_pgs_online to xen_online_pages.
-
-Changes since v6:
-- Rebased to 4.20
-- Changelog updated.
-- No improvement seen on arm64, hence removed removal of prefetch.
-
-Changes since v5:
-- Rebased to 4.20-rc1.
-- Changelog updated.
-
-Changes since v4:
-- As suggested by Michal Hocko,
-- Simplify logic in online_pages_block() by using get_order().
-- Seperate out removal of prefetch from __free_pages_core().
-
-Changes since v3:
-- Renamed _free_pages_boot_core -> __free_pages_core.
-- Removed prefetch from __free_pages_core.
-- Removed xen_online_page().
-
-Changes since v2:
-- Reuse code from __free_pages_boot_core().
-
-Changes since v1:
-- Removed prefetch().
-
-Changes since RFC:
-- Rebase.
-- As suggested by Michal Hocko remove pages_per_block.
-- Modifed external providers of online_page_callback.
-
-v8: https://lore.kernel.org/patchwork/patch/1030332/
-v7: https://lore.kernel.org/patchwork/patch/1028908/
-v6: https://lore.kernel.org/patchwork/patch/1007253/
-v5: https://lore.kernel.org/patchwork/patch/995739/
-v4: https://lore.kernel.org/patchwork/patch/995111/
-v3: https://lore.kernel.org/patchwork/patch/992348/
-v2: https://lore.kernel.org/patchwork/patch/991363/
-v1: https://lore.kernel.org/patchwork/patch/989445/
-RFC: https://lore.kernel.org/patchwork/patch/984754/
----
----
- drivers/hv/hv_balloon.c        |  4 ++--
- drivers/xen/balloon.c          | 15 ++++++++++-----
- include/linux/memory_hotplug.h |  2 +-
- mm/internal.h                  |  1 +
- mm/memory_hotplug.c            | 37 +++++++++++++++++++++++++------------
- mm/page_alloc.c                |  8 ++++----
- 6 files changed, 43 insertions(+), 24 deletions(-)
-
-diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
-index 5301fef..55d79f8 100644
---- a/drivers/hv/hv_balloon.c
-+++ b/drivers/hv/hv_balloon.c
-@@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
- 	}
- }
- 
--static void hv_online_page(struct page *pg)
-+static void hv_online_page(struct page *pg, unsigned int order)
- {
- 	struct hv_hotadd_state *has;
- 	unsigned long flags;
-@@ -783,7 +783,7 @@ static void hv_online_page(struct page *pg)
- 		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
- 			continue;
- 
--		hv_page_online_one(has, pg);
-+		hv_bring_pgs_online(has, pfn, (1UL << order));
- 		break;
- 	}
- 	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index ceb5048..d107447 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -369,14 +369,19 @@ static enum bp_state reserve_additional_memory(void)
- 	return BP_ECANCELED;
- }
- 
--static void xen_online_page(struct page *page)
-+static void xen_online_page(struct page *page, unsigned int order)
- {
--	__online_page_set_limits(page);
-+	unsigned long i, size = (1 << order);
-+	unsigned long start_pfn = page_to_pfn(page);
-+	struct page *p;
- 
-+	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
- 	mutex_lock(&balloon_mutex);
--
--	__balloon_append(page);
--
-+	for (i = 0; i < size; i++) {
-+		p = pfn_to_page(start_pfn + i);
-+		__online_page_set_limits(p);
-+		__balloon_append(p);
-+	}
- 	mutex_unlock(&balloon_mutex);
- }
- 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 07da5c6..e368730 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -87,7 +87,7 @@ extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
- 	unsigned long *valid_start, unsigned long *valid_end);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
- 
--typedef void (*online_page_callback_t)(struct page *page);
-+typedef void (*online_page_callback_t)(struct page *page, unsigned int order);
- 
- extern int set_online_page_callback(online_page_callback_t callback);
- extern int restore_online_page_callback(online_page_callback_t callback);
-diff --git a/mm/internal.h b/mm/internal.h
-index f4a7bb0..536bc2a 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -163,6 +163,7 @@ static inline struct page *pageblock_pfn_to_page(unsigned long start_pfn,
- extern int __isolate_free_page(struct page *page, unsigned int order);
- extern void memblock_free_pages(struct page *page, unsigned long pfn,
- 					unsigned int order);
-+extern void __free_pages_core(struct page *page, unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned int order);
- extern void post_alloc_hook(struct page *page, unsigned int order,
- 					gfp_t gfp_flags);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b9a667d..77dff24 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -47,7 +47,7 @@
-  * and restore_online_page_callback() for generic callback restore.
-  */
- 
--static void generic_online_page(struct page *page);
-+static void generic_online_page(struct page *page, unsigned int order);
- 
- static online_page_callback_t online_page_callback = generic_online_page;
- static DEFINE_MUTEX(online_page_callback_lock);
-@@ -656,26 +656,39 @@ void __online_page_free(struct page *page)
- }
- EXPORT_SYMBOL_GPL(__online_page_free);
- 
--static void generic_online_page(struct page *page)
-+static void generic_online_page(struct page *page, unsigned int order)
- {
--	__online_page_set_limits(page);
--	__online_page_increment_counters(page);
--	__online_page_free(page);
-+	__free_pages_core(page, order);
-+	totalram_pages_add(1UL << order);
-+#ifdef CONFIG_HIGHMEM
-+	if (PageHighMem(page))
-+		totalhigh_pages_add(1UL << order);
-+#endif
-+}
-+
-+static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
-+{
-+	unsigned long end = start + nr_pages;
-+	int order, ret, onlined_pages = 0;
-+
-+	while (start < end) {
-+		order = min(MAX_ORDER - 1,
-+			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-+		(*online_page_callback)(pfn_to_page(start), order);
-+
-+		onlined_pages += (1UL << order);
-+		start += (1UL << order);
-+	}
-+	return onlined_pages;
- }
- 
- static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 			void *arg)
- {
--	unsigned long i;
- 	unsigned long onlined_pages = *(unsigned long *)arg;
--	struct page *page;
- 
- 	if (PageReserved(pfn_to_page(start_pfn)))
--		for (i = 0; i < nr_pages; i++) {
--			page = pfn_to_page(start_pfn + i);
--			(*online_page_callback)(page);
--			onlined_pages++;
--		}
-+		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
- 
- 	online_mem_sections(start_pfn, start_pfn + nr_pages);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d295c9b..883212a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1303,7 +1303,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	local_irq_restore(flags);
- }
- 
--static void __init __free_pages_boot_core(struct page *page, unsigned int order)
-+void __free_pages_core(struct page *page, unsigned int order)
- {
- 	unsigned int nr_pages = 1 << order;
- 	struct page *p = page;
-@@ -1382,7 +1382,7 @@ void __init memblock_free_pages(struct page *page, unsigned long pfn,
- {
- 	if (early_page_uninitialised(pfn))
- 		return;
--	return __free_pages_boot_core(page, order);
-+	__free_pages_core(page, order);
- }
- 
- /*
-@@ -1472,14 +1472,14 @@ static void __init deferred_free_range(unsigned long pfn,
- 	if (nr_pages == pageblock_nr_pages &&
- 	    (pfn & (pageblock_nr_pages - 1)) == 0) {
- 		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, pageblock_order);
-+		__free_pages_core(page, pageblock_order);
- 		return;
- 	}
- 
- 	for (i = 0; i < nr_pages; i++, page++, pfn++) {
- 		if ((pfn & (pageblock_nr_pages - 1)) == 0)
- 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--		__free_pages_boot_core(page, 0);
-+		__free_pages_core(page, 0);
- 	}
- }
- 
--- 
-1.9.1
+Regards,
+Arun
