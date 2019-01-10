@@ -1,70 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C08CE8E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 14:59:09 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id v72so6936936pgb.10
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 11:59:09 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id m75si4624897pga.432.2019.01.10.11.59.08
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BBAFC8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:26:37 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id h85so5580006oib.9
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 10:26:37 -0800 (PST)
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id v19si29117112oif.242.2019.01.10.10.26.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 11:59:08 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0AJrYQ3073952
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 14:59:07 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2px9errune-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 14:59:07 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <jejb@linux.ibm.com>;
-	Thu, 10 Jan 2019 19:59:06 -0000
-Subject: Re: PROBLEM: syzkaller found / pool corruption-overwrite / page in
- user-area or NULL
-From: James Bottomley <jejb@linux.ibm.com>
-Date: Thu, 10 Jan 2019 11:58:59 -0800
-In-Reply-To: <t78EEfgpy3uIwPUvqvmuQEYEWKG9avWzjUD3EyR93Qaf_tfx1gqt4XplrqMgdxR1U9SsrVdA7G9XeUZacgUin0n6lBzoxJHVJ9Ko0yzzrxI=@protonmail.ch>
-References: 
-	<t78EEfgpy3uIwPUvqvmuQEYEWKG9avWzjUD3EyR93Qaf_tfx1gqt4XplrqMgdxR1U9SsrVdA7G9XeUZacgUin0n6lBzoxJHVJ9Ko0yzzrxI=@protonmail.ch>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Thu, 10 Jan 2019 10:26:36 -0800 (PST)
+Date: Thu, 10 Jan 2019 18:26:10 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+Subject: Re: [RFC][PATCH v2 00/21] PMEM NUMA node and hotness
+ accounting/migration
+Message-ID: <20190110182610.00004250@huawei.com>
+In-Reply-To: <20190108145256.GX31793@dhcp22.suse.cz>
+References: <20181226131446.330864849@intel.com>
+	<20181227203158.GO16738@dhcp22.suse.cz>
+	<20181228050806.ewpxtwo3fpw7h3lq@wfg-t540p.sh.intel.com>
+	<20181228084105.GQ16738@dhcp22.suse.cz>
+	<20181228094208.7lgxhha34zpqu4db@wfg-t540p.sh.intel.com>
+	<20181228121515.GS16738@dhcp22.suse.cz>
+	<20181228133111.zromvopkfcg3m5oy@wfg-t540p.sh.intel.com>
+	<20181228195224.GY16738@dhcp22.suse.cz>
+	<20190102122110.00000206@huawei.com>
+	<20190108145256.GX31793@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Message-Id: <1547150339.2814.9.camel@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Esme <esploit@protonmail.ch>, "dgilbert@interlog.com" <dgilbert@interlog.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: "security@kernel.org" <security@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Fan Du <fan.du@intel.com>, Yao Yuan <yuan.yao@intel.com>, Peng Dong <dongx.peng@intel.com>, Huang Ying <ying.huang@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Dong Eddie <eddie.dong@intel.com>, Dave Hansen <dave.hansen@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Mel Gorman  <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>," <linux-accelerators@lists.ozlabs.org>
 
-On Thu, 2019-01-10 at 19:12 +0000, Esme wrote:
-> Sorry for the resend some mail servers rejected the mime type.
+On Tue, 8 Jan 2019 15:52:56 +0100
+Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Wed 02-01-19 12:21:10, Jonathan Cameron wrote:
+> [...]
+> > So ideally I'd love this set to head in a direction that helps me tick off
+> > at least some of the above usecases and hopefully have some visibility on
+> > how to address the others moving forwards,  
 > 
-> Hi, I've been getting more into Kernel stuff lately and forged ahead
-> with some syzkaller bug finding.  I played with reducing it further
-> as you can see from the attached c code but am moving on and hope to
-> get better about this process moving forward as I'm still building
-> out my test systems/debugging tools.
-> 
-> Attached is the report and C repro that still triggers on a fresh git
-> pull as of a few minutes ago, if you need anything else please let me
-> know.
-> Esme
-> 
-> Linux syzkaller 5.0.0-rc1+ #5 SMP Tue Jan 8 20:39:33 EST 2019 x86_64
-> GNU/Linux
+> Is it sufficient to have such a memory marked as movable (aka only have
+> ZONE_MOVABLE)? That should rule out most of the kernel allocations and
+> it fits the "balance by migration" concept.
 
-I'm not sure I'm reading this right, but it seems that a simple
-allocation inside block/scsi_ioctl.h
+Yes, to some degree. That's exactly what we are doing, though a things currently
+stand I think you have to turn it on via a kernel command line and mark it
+hotpluggable in ACPI. Given it my or may not actually be hotpluggable
+that's less than elegant.
 
-	buffer = kzalloc(bytes, q->bounce_gfp | GFP_USER| __GFP_NOWARN);
+Let's randomly decide not to explore that one further for a few more weeks.
+la la la la
 
-(where bytes is < 4k) caused a slub padding check failure on free. 
->From the internal details, the freeing entity seems to be KASAN as part
-of its quarantine reduction (albeit triggered by this kzalloc).  I'm
-not remotely familiar with what KASAN is doing, but it seems the memory
-corruption problem is somewhere within the KASAN tracking?
+If we have general balancing by migration then things are definitely
+heading in a useful direction as long as 'hot' takes into account the
+main user not being a CPU.  You are right that migration dealing with
+the movable kernel allocations is a nice side effect though which I
+hadn't thought about.  Long run we might end up with everything where
+it should be after some level of burn in period. A generic version of
+this proposal is looking nicer and nicer!
 
-I added linux-mm in case they can confirm this diagnosis or give me a
-pointer to what might be wrong in scsi.
+Thanks,
 
-James
+Jonathan
