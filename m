@@ -1,82 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 92BF28E00A9
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 12:48:03 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id d18so5759162pfe.0
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 09:48:03 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id c10si25675731pla.173.2019.01.09.09.48.02
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E67F08E0008
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:37 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id v72so7060575pgb.10
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:37 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id w15si3508564plk.357.2019.01.10.13.10.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 09:48:02 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv3 12/13] acpi/hmat: Register memory side cache attributes
-Date: Wed,  9 Jan 2019 10:43:40 -0700
-Message-Id: <20190109174341.19818-13-keith.busch@intel.com>
-In-Reply-To: <20190109174341.19818-1-keith.busch@intel.com>
-References: <20190109174341.19818-1-keith.busch@intel.com>
+        Thu, 10 Jan 2019 13:10:36 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v7 08/16] arm64/mm: disable section/contiguous mappings if XPFO is enabled
+Date: Thu, 10 Jan 2019 14:09:40 -0700
+Message-Id: <3dfdd42afe1749d4f82816f967532643de3a5024.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Khalid Aziz <khalid.aziz@oracle.com>
 
-Register memory side cache attributes with the memory's node if HMAT
-provides the side cache iniformation table.
+From: Tycho Andersen <tycho@docker.com>
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
+XPFO doesn't support section/contiguous mappings yet, so let's disable it
+if XPFO is turned on.
+
+Thanks to Laura Abbot for the simplification from v5, and Mark Rutland for
+pointing out we need NO_CONT_MAPPINGS too.
+
+CC: linux-arm-kernel@lists.infradead.org
+Signed-off-by: Tycho Andersen <tycho@docker.com>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 ---
- drivers/acpi/hmat.c | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ arch/arm64/mm/mmu.c  | 2 +-
+ include/linux/xpfo.h | 4 ++++
+ mm/xpfo.c            | 6 ++++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
-index 45e20dc677f9..9efdd0a63a79 100644
---- a/drivers/acpi/hmat.c
-+++ b/drivers/acpi/hmat.c
-@@ -206,6 +206,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
- 				   const unsigned long end)
- {
- 	struct acpi_hmat_cache *cache = (void *)header;
-+	struct node_cache_attrs cache_attrs;
- 	u32 attrs;
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index d1d6601b385d..f4dd27073006 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -451,7 +451,7 @@ static void __init map_mem(pgd_t *pgdp)
+ 	struct memblock_region *reg;
+ 	int flags = 0;
  
- 	if (cache->header.length < sizeof(*cache)) {
-@@ -219,6 +220,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
- 		cache->memory_PD, cache->cache_size, attrs,
- 		cache->number_of_SMBIOShandles);
+-	if (debug_pagealloc_enabled())
++	if (debug_pagealloc_enabled() || xpfo_enabled())
+ 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
  
-+	cache_attrs.size = cache->cache_size;
-+	cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
-+	cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
+ 	/*
+diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+index 2682a00ebbcb..0c26836a24e1 100644
+--- a/include/linux/xpfo.h
++++ b/include/linux/xpfo.h
+@@ -46,6 +46,8 @@ void xpfo_temp_map(const void *addr, size_t size, void **mapping,
+ void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
+ 		     size_t mapping_len);
+ 
++bool xpfo_enabled(void);
 +
-+	switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
-+	case ACPI_HMAT_CA_DIRECT_MAPPED:
-+		cache_attrs.associativity = NODE_CACHE_DIRECT_MAP;
-+		break;
-+	case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
-+		cache_attrs.associativity = NODE_CACHE_INDEXED;
-+		break;
-+	case ACPI_HMAT_CA_NONE:
-+	default:
-+		cache_attrs.associativity = NODE_CACHE_OTHER;
-+		break;
-+	}
-+
-+	switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
-+	case ACPI_HMAT_CP_WB:
-+		cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
-+		break;
-+	case ACPI_HMAT_CP_WT:
-+		cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
-+		break;
-+	case ACPI_HMAT_CP_NONE:
-+	default:
-+		cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
-+		break;
-+	}
-+
-+	node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
- 	return 0;
+ #else /* !CONFIG_XPFO */
+ 
+ static inline void xpfo_kmap(void *kaddr, struct page *page) { }
+@@ -68,6 +70,8 @@ static inline void xpfo_temp_unmap(const void *addr, size_t size,
  }
  
+ 
++static inline bool xpfo_enabled(void) { return false; }
++
+ #endif /* CONFIG_XPFO */
+ 
+ #endif /* _LINUX_XPFO_H */
+diff --git a/mm/xpfo.c b/mm/xpfo.c
+index f79075bf7d65..25fba05d01bd 100644
+--- a/mm/xpfo.c
++++ b/mm/xpfo.c
+@@ -70,6 +70,12 @@ struct page_ext_operations page_xpfo_ops = {
+ 	.init = init_xpfo,
+ };
+ 
++bool __init xpfo_enabled(void)
++{
++	return !xpfo_disabled;
++}
++EXPORT_SYMBOL(xpfo_enabled);
++
+ static inline struct xpfo *lookup_xpfo(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
 -- 
-2.14.4
+2.17.1
