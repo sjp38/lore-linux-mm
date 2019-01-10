@@ -1,105 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AFAE8E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:23 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id w17so72891wmc.6
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:23 -0800 (PST)
-Received: from mail-40133.protonmail.ch (mail-40133.protonmail.ch. [185.70.40.133])
-        by mx.google.com with ESMTPS id i1si4035854wmg.3.2019.01.10.13.10.21
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FA6F8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:03:53 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id f2so13016987qtg.14
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:03:53 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f194sor36894295qka.45.2019.01.10.13.03.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:10:22 -0800 (PST)
-Date: Thu, 10 Jan 2019 21:10:20 +0000
-From: Esme <esploit@protonmail.ch>
-Reply-To: Esme <esploit@protonmail.ch>
-Subject: Re: PROBLEM: syzkaller found / pool corruption-overwrite / page in user-area or NULL
-Message-ID: <_eAiOKAc5XvXj5oa6DQFgR2W0XgtaPXr4ZjA2_SzH4JpHUjgUajvPd2yOIJr2FIE3g8vrl89S_lrvW0ghMqZlFWYFseLGRu4b5HZggLn3l0=@protonmail.ch>
-In-Reply-To: <1547154231.6911.10.camel@lca.pw>
-References: <t78EEfgpy3uIwPUvqvmuQEYEWKG9avWzjUD3EyR93Qaf_tfx1gqt4XplrqMgdxR1U9SsrVdA7G9XeUZacgUin0n6lBzoxJHVJ9Ko0yzzrxI=@protonmail.ch>
- <1547150339.2814.9.camel@linux.ibm.com>
- <1547153074.6911.8.camel@lca.pw>
- <4u36JfbOrbu9CXLDErzQKvorP0gc2CzyGe60rBmZsGAGIw6RacZnIfoSsAF0I0TCnVx0OvcqCZFN6ntbgicJ66cWew9cOXRgcuWxSPdL3ko=@protonmail.ch>
- <1547154231.6911.10.camel@lca.pw>
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_da5a7d27cc8fca6ab36266ba41875329"
+        (Google Transport Security);
+        Thu, 10 Jan 2019 13:03:52 -0800 (PST)
+Message-ID: <1547154231.6911.10.camel@lca.pw>
+Subject: Re: PROBLEM: syzkaller found / pool corruption-overwrite / page in
+ user-area or NULL
+From: Qian Cai <cai@lca.pw>
+Date: Thu, 10 Jan 2019 16:03:51 -0500
+In-Reply-To: <4u36JfbOrbu9CXLDErzQKvorP0gc2CzyGe60rBmZsGAGIw6RacZnIfoSsAF0I0TCnVx0OvcqCZFN6ntbgicJ66cWew9cOXRgcuWxSPdL3ko=@protonmail.ch>
+References: 
+	<t78EEfgpy3uIwPUvqvmuQEYEWKG9avWzjUD3EyR93Qaf_tfx1gqt4XplrqMgdxR1U9SsrVdA7G9XeUZacgUin0n6lBzoxJHVJ9Ko0yzzrxI=@protonmail.ch>
+	 <1547150339.2814.9.camel@linux.ibm.com> <1547153074.6911.8.camel@lca.pw>
+	 <4u36JfbOrbu9CXLDErzQKvorP0gc2CzyGe60rBmZsGAGIw6RacZnIfoSsAF0I0TCnVx0OvcqCZFN6ntbgicJ66cWew9cOXRgcuWxSPdL3ko=@protonmail.ch>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cai@lca.pw
-Cc: jejb@linux.ibm.com, dgilbert@interlog.com, martin.petersen@oracle.com, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Esme <esploit@protonmail.ch>
+Cc: James Bottomley <jejb@linux.ibm.com>, "dgilbert@interlog.com" <dgilbert@interlog.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This is a multi-part message in MIME format.
+On Thu, 2019-01-10 at 20:47 +0000, Esme wrote:
+> Sure thing;
+> 
+> cmdline;
+> qemu-system-x86_64 -kernel linux//arch/x86/boot/bzImage -append console=ttyS0
+> root=/dev/sda debug earlyprintk=serial slub_debug=QUZ -hda stretch.img -net
+> user,hostfwd=tcp::10021-:22 -net nic -enable-kvm -nographic -m 2G -smp 2
+> -pidfile
+> 
+> CONFIG_PAGE*; (full file attached);
+> 
+> # CONFIG_DEBUG_PAGEALLOC is not set
+> CONFIG_PAGE_POISONING=y
+> CONFIG_PAGE_POISONING_NO_SANITY=y
+> # CONFIG_PAGE_POISONING_ZERO is not set
+> # CONFIG_DEBUG_PAGE_REF is not set
+> CONFIG_FAIL_PAGE_ALLOC=y
 
---b1_da5a7d27cc8fca6ab36266ba41875329
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Confused.
 
-VGhlIGluZm9ybWF0aW9uIGdhdGhlcmluZyBzY3JpcHRzIG1heSBoYXZlIHRha2VuIG15IGhvc3Qg
-a2VybmVsIDQuMjApIEknbGwgZG91YmxlIGNoZWNrIGZyb20gcHJvYy9jb25maWcuZwoKU2VudCBm
-cm9tIFByb3Rvbk1haWwgbW9iaWxlCgotLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0t
-Ck9uIEphbiAxMCwgMjAxOSwgNDowMyBQTSwgUWlhbiBDYWkgd3JvdGU6Cgo+IE9uIFRodSwgMjAx
-OS0wMS0xMCBhdCAyMDo0NyArMDAwMCwgRXNtZSB3cm90ZToKPj4gU3VyZSB0aGluZzsKPj4KPj4g
-Y21kbGluZTsKPj4gcWVtdS1zeXN0ZW0teDg2XzY0IC1rZXJuZWwgbGludXgvL2FyY2gveDg2L2Jv
-b3QvYnpJbWFnZSAtYXBwZW5kIGNvbnNvbGU9dHR5UzAKPj4gcm9vdD0vZGV2L3NkYSBkZWJ1ZyBl
-YXJseXByaW50az1zZXJpYWwgc2x1Yl9kZWJ1Zz1RVVogLWhkYSBzdHJldGNoLmltZyAtbmV0Cj4+
-IHVzZXIsaG9zdGZ3ZD10Y3A6OjEwMDIxLToyMiAtbmV0IG5pYyAtZW5hYmxlLWt2bSAtbm9ncmFw
-aGljIC1tIDJHIC1zbXAgMgo+PiAtcGlkZmlsZQo+Pgo+PiBDT05GSUdfUEFHRSo7IChmdWxsIGZp
-bGUgYXR0YWNoZWQpOwo+Pgo+PiAjIENPTkZJR19ERUJVR19QQUdFQUxMT0MgaXMgbm90IHNldAo+
-PiBDT05GSUdfUEFHRV9QT0lTT05JTkc9eQo+PiBDT05GSUdfUEFHRV9QT0lTT05JTkdfTk9fU0FO
-SVRZPXkKPj4gIyBDT05GSUdfUEFHRV9QT0lTT05JTkdfWkVSTyBpcyBub3Qgc2V0Cj4+ICMgQ09O
-RklHX0RFQlVHX1BBR0VfUkVGIGlzIG5vdCBzZXQKPj4gQ09ORklHX0ZBSUxfUEFHRV9BTExPQz15
-Cj4KPiBDb25mdXNlZC4KPgo+IGh0dHBzOi8vd3d3Lm1haWwtYXJjaGl2ZS5jb20vbGludXgta2Vy
-bmVsQHZnZXIua2VybmVsLm9yZy9tc2cxODk2NDEwLmh0bWwKPgo+IEl0IHNhaWQgNS4wLjAtcmMx
-Kwo+Cj4gaHR0cHM6Ly93d3cubWFpbC1hcmNoaXZlLmNvbS9saW51eC1rZXJuZWxAdmdlci5rZXJu
-ZWwub3JnL21zZzE4OTY0MTAvcmVwcm8ucmVwb3IKPiB0Cj4KPiBJdCBzYWlkIDQuMjAuMCssIGFu
-ZCBpdCBhbHNvIGhhdmUsCj4KPiAiZ2VuZXJhbCBwcm90ZWN0aW9uIGZhdWx0OiAwMDAwIFsjMV0g
-U01QIERFQlVHX1BBR0VBTExPQyBLQVNBTiBQVEkiCj4KPiB3aGljaCBpbmRpY2F0ZWQgQ09ORklH
-X0RFQlVHX1BBR0VBTExPQz15IGJ1dCB5b3VyIC5jb25maWcgc2FpZCBOTy4KPgo+IEhvd2V2ZXIs
-IGl0IGxvb2tzIGxpa2UgYSBtZXNzIHRoYXQgS0FTQU4gZG9lcyBub3QgcGxheSB3ZWxsIHdpdGgg
-YWxsIHRob3NlCj4gU0xVQl9ERUJVRywgQ09ORklHX0RFQlVHX1BBR0VBTExPQyBldGMsIGJlY2F1
-c2UgaXQgZXNzZW50aWFsbHkgc3RlcCBpbnRvIGVhY2gKPiBvdGhlcnMnIHRvZXMgYnkgcmVkem9u
-aW5nLCBwb2lzb25pbmcgaW4gYWxsb2NhdGUgYW5kIGZyZWUgcGFnZXMu
+https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1896410.html
 
+It said 5.0.0-rc1+
 
---b1_da5a7d27cc8fca6ab36266ba41875329
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
+https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1896410/repro.repor
+t
 
-VGhlIGluZm9ybWF0aW9uIGdhdGhlcmluZyBzY3JpcHRzIG1heSBoYXZlIHRha2VuIG15IGhvc3Qg
-a2VybmVsIDQuMjApIEknbGwgZG91YmxlIGNoZWNrIGZyb20gcHJvYy9jb25maWcuZzxicj48YnI+
-PGJyPlNlbnQgZnJvbSBQcm90b25NYWlsIG1vYmlsZTxicj48YnI+PGJyPjxicj4tLS0tLS0tLSBP
-cmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPk9uIEphbiAxMCwgMjAxOSwgNDowMyBQTSwgUWlh
-biBDYWkgPCBjYWlAbGNhLnB3PiB3cm90ZTo8YmxvY2txdW90ZSBjbGFzcz0icHJvdG9ubWFpbF9x
-dW90ZSI+PGJyPjxwIGRpcj0ibHRyIj5PbiBUaHUsIDIwMTktMDEtMTAgYXQgMjA6NDcgKzAwMDAs
-IEVzbWUgd3JvdGU6PGJyPg0KJmd0OyBTdXJlIHRoaW5nOzxicj4NCiZndDs8YnI+DQomZ3Q7IGNt
-ZGxpbmU7PGJyPg0KJmd0OyBxZW11LXN5c3RlbS14ODZfNjQgLWtlcm5lbCBsaW51eC8vYXJjaC94
-ODYvYm9vdC9iekltYWdlIC1hcHBlbmQgY29uc29sZT10dHlTMDxicj4NCiZndDsgcm9vdD0vZGV2
-L3NkYSBkZWJ1ZyBlYXJseXByaW50az1zZXJpYWwgc2x1Yl9kZWJ1Zz1RVVogLWhkYSBzdHJldGNo
-LmltZyAtbmV0PGJyPg0KJmd0OyB1c2VyLGhvc3Rmd2Q9dGNwOjoxMDAyMS06MjIgLW5ldCBuaWMg
-LWVuYWJsZS1rdm0gLW5vZ3JhcGhpYyAtbSAyRyAtc21wIDI8YnI+DQomZ3Q7IC1waWRmaWxlPGJy
-Pg0KJmd0Ozxicj4NCiZndDsgQ09ORklHX1BBR0UqOyAoZnVsbCBmaWxlIGF0dGFjaGVkKTs8YnI+
-DQomZ3Q7PGJyPg0KJmd0OyAjIENPTkZJR19ERUJVR19QQUdFQUxMT0MgaXMgbm90IHNldDxicj4N
-CiZndDsgQ09ORklHX1BBR0VfUE9JU09OSU5HPXk8YnI+DQomZ3Q7IENPTkZJR19QQUdFX1BPSVNP
-TklOR19OT19TQU5JVFk9eTxicj4NCiZndDsgIyBDT05GSUdfUEFHRV9QT0lTT05JTkdfWkVSTyBp
-cyBub3Qgc2V0PGJyPg0KJmd0OyAjIENPTkZJR19ERUJVR19QQUdFX1JFRiBpcyBub3Qgc2V0PGJy
-Pg0KJmd0OyBDT05GSUdfRkFJTF9QQUdFX0FMTE9DPXk8L3A+DQo8cCBkaXI9Imx0ciI+Q29uZnVz
-ZWQuPC9wPg0KPHAgZGlyPSJsdHIiPjxhIGhyZWY9Imh0dHBzOi8vd3d3Lm1haWwtYXJjaGl2ZS5j
-b20vbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZy9tc2cxODk2NDEwLmh0bWwiPmh0dHBzOi8v
-d3d3Lm1haWwtYXJjaGl2ZS5jb20vbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZy9tc2cxODk2
-NDEwLmh0bWw8L2E+PC9wPg0KPHAgZGlyPSJsdHIiPkl0IHNhaWQgNS4wLjAtcmMxKzwvcD4NCjxw
-IGRpcj0ibHRyIj48YSBocmVmPSJodHRwczovL3d3dy5tYWlsLWFyY2hpdmUuY29tL2xpbnV4LWtl
-cm5lbEB2Z2VyLmtlcm5lbC5vcmcvbXNnMTg5NjQxMC9yZXByby5yZXBvciI+aHR0cHM6Ly93d3cu
-bWFpbC1hcmNoaXZlLmNvbS9saW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnL21zZzE4OTY0MTAv
-cmVwcm8ucmVwb3I8L2E+PGJyPg0KdDwvcD4NCjxwIGRpcj0ibHRyIj5JdCBzYWlkIDQuMjAuMCss
-IGFuZCBpdCBhbHNvIGhhdmUsPC9wPg0KPHAgZGlyPSJsdHIiPiJnZW5lcmFsIHByb3RlY3Rpb24g
-ZmF1bHQ6IDAwMDAgWyMxXSBTTVAgREVCVUdfUEFHRUFMTE9DIEtBU0FOIFBUSSI8L3A+DQo8cCBk
-aXI9Imx0ciI+d2hpY2ggaW5kaWNhdGVkIENPTkZJR19ERUJVR19QQUdFQUxMT0M9eSBidXQgeW91
-ciAuY29uZmlnIHNhaWQgTk8uPC9wPg0KPHAgZGlyPSJsdHIiPkhvd2V2ZXIsIGl0IGxvb2tzIGxp
-a2UgYSBtZXNzIHRoYXQgS0FTQU4gZG9lcyBub3QgcGxheSB3ZWxsIHdpdGggYWxsIHRob3NlPGJy
-Pg0KU0xVQl9ERUJVRywgQ09ORklHX0RFQlVHX1BBR0VBTExPQyBldGMsIGJlY2F1c2UgaXQgZXNz
-ZW50aWFsbHkgc3RlcCBpbnRvIGVhY2g8YnI+DQpvdGhlcnMnIHRvZXMgYnkgcmVkem9uaW5nLCBw
-b2lzb25pbmcgaW4gYWxsb2NhdGUgYW5kIGZyZWUgcGFnZXMuPGJyPg0KPC9wPg0KPC9kaXY+
+It said 4.20.0+, and it also have,
 
+"general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI"
 
+which indicated CONFIG_DEBUG_PAGEALLOC=y but your .config said NO.
 
---b1_da5a7d27cc8fca6ab36266ba41875329--
+However, it looks like a mess that KASAN does not play well with all those
+SLUB_DEBUG, CONFIG_DEBUG_PAGEALLOC etc, because it essentially step into each
+others' toes by redzoning, poisoning in allocate and free pages.
