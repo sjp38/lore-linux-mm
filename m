@@ -1,75 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CE128E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 23:01:29 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id f22so5026615qkm.11
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 20:01:29 -0800 (PST)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id q45si738869qte.344.2019.01.08.20.01.25
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BD128E0008
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:11:05 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id x26so7082947pgc.5
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:11:05 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id f13si3453629pln.368.2019.01.10.13.11.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 20:01:25 -0800 (PST)
-From: Rik van Riel <riel@surriel.com>
-Subject: [PATCH] mm,slab,memcg: call memcg kmem put cache with same condition as get
-Date: Tue,  8 Jan 2019 23:01:07 -0500
-Message-Id: <20190109040107.4110-1-riel@surriel.com>
+        Thu, 10 Jan 2019 13:11:04 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v7 13/16] xpfo, mm: optimize spinlock usage in xpfo_kunmap
+Date: Thu, 10 Jan 2019 14:09:45 -0700
+Message-Id: <95b6fa40ce6c7afb4a9e58f8d747d86aa7a94177.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Rik van Riel <riel@surriel.com>, kernel-team@fb.com, linux-mm@kvack.org, stable@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, "Vasileios P . Kemerlis" <vpk@cs.columbia.edu>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>, Marco Benatto <marco.antonio.780@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Khalid Aziz <khalid.aziz@oracle.com>
 
-There is an imbalance between when slab_pre_alloc_hook calls
-memcg_kmem_get_cache and when slab_post_alloc_hook calls
-memcg_kmem_put_cache.
+From: Julian Stecklina <jsteckli@amazon.de>
 
-This can cause a memcg kmem cache to be destroyed right as
-an object from that cache is being allocated, which is probably
-not good. It could lead to things like a memcg allocating new
-kmalloc slabs instead of using freed space in old ones, maybe
-memory leaks, and maybe oopses as a memcg kmalloc slab is getting
-destroyed on one CPU while another CPU is trying to do an allocation
-from that same memcg.
+Only the xpfo_kunmap call that needs to actually unmap the page
+needs to be serialized. We need to be careful to handle the case,
+where after the atomic decrement of the mapcount, a xpfo_kmap
+increased the mapcount again. In this case, we can safely skip
+modifying the page table.
 
-The obvious fix would be to use the same condition for calling
-memcg_kmem_put_cache that we also use to decide whether to call
-memcg_kmem_get_cache.
+Model-checked with up to 4 concurrent callers with Spin.
 
-I am not sure how long this bug has been around, since the last
-changeset to touch that code - 452647784b2f ("mm: memcontrol: cleanup
- kmem charge functions") - merely moved the bug from one location to
-another. I am still tagging that changeset, because the fix should
-automatically apply that far back.
-
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Fixes: 452647784b2f ("mm: memcontrol: cleanup kmem charge functions")
-Cc: kernel-team@fb.com
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org
-Cc: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>
+Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
+Cc: x86@kernel.org
+Cc: kernel-hardening@lists.openwall.com
+Cc: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
+Cc: Juerg Haefliger <juerg.haefliger@canonical.com>
+Cc: Tycho Andersen <tycho@docker.com>
+Cc: Marco Benatto <marco.antonio.780@gmail.com>
+Cc: David Woodhouse <dwmw2@infradead.org>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 ---
- mm/slab.h | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/xpfo.c | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)
 
-diff --git a/mm/slab.h b/mm/slab.h
-index 4190c24ef0e9..ab3d95bef8a0 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -444,7 +444,8 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
- 		p[i] = kasan_slab_alloc(s, object, flags);
- 	}
+diff --git a/mm/xpfo.c b/mm/xpfo.c
+index cbfeafc2f10f..dbf20efb0499 100644
+--- a/mm/xpfo.c
++++ b/mm/xpfo.c
+@@ -149,22 +149,24 @@ void xpfo_kunmap(void *kaddr, struct page *page)
+ 	if (!PageXpfoUser(page))
+ 		return;
  
--	if (memcg_kmem_enabled())
-+	if (memcg_kmem_enabled() &&
-+	    ((flags & __GFP_ACCOUNT) || (s->flags & SLAB_ACCOUNT)))
- 		memcg_kmem_put_cache(s);
+-	spin_lock(&page->xpfo_lock);
+-
+ 	/*
+ 	 * The page is to be allocated back to user space, so unmap it from the
+ 	 * kernel, flush the TLB and tag it as a user page.
+ 	 */
+ 	if (atomic_dec_return(&page->xpfo_mapcount) == 0) {
+-#ifdef CONFIG_XPFO_DEBUG
+-		BUG_ON(PageXpfoUnmapped(page));
+-#endif
+-		SetPageXpfoUnmapped(page);
+-		set_kpte(kaddr, page, __pgprot(0));
+-		xpfo_cond_flush_kernel_tlb(page, 0);
+-	}
++		spin_lock(&page->xpfo_lock);
+ 
+-	spin_unlock(&page->xpfo_lock);
++		/*
++		 * In the case, where we raced with kmap after the
++		 * atomic_dec_return, we must not nuke the mapping.
++		 */
++		if (atomic_read(&page->xpfo_mapcount) == 0) {
++			SetPageXpfoUnmapped(page);
++			set_kpte(kaddr, page, __pgprot(0));
++			xpfo_cond_flush_kernel_tlb(page, 0);
++		}
++		spin_unlock(&page->xpfo_lock);
++	}
  }
+ EXPORT_SYMBOL(xpfo_kunmap);
  
 -- 
 2.17.1
