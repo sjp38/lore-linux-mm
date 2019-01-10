@@ -1,155 +1,181 @@
-Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=Jdrj=PS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 175A5C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 21:05:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A913CC43612
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 15:03:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC941217F5
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 21:05:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IvUXzBPQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC941217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7279D214DA
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 15:03:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7279D214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 19B2B8E0003; Mon, 18 Feb 2019 16:05:09 -0500 (EST)
+	id F37AD8E0003; Thu, 10 Jan 2019 10:03:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 14A8F8E0002; Mon, 18 Feb 2019 16:05:09 -0500 (EST)
+	id EE5E38E0001; Thu, 10 Jan 2019 10:03:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 03AB28E0003; Mon, 18 Feb 2019 16:05:08 -0500 (EST)
+	id DD5688E0003; Thu, 10 Jan 2019 10:03:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C6ED08E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 16:05:08 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id p62so11823491ywd.3
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:05:08 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B005E8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 10:03:47 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id q3so10969122qtq.15
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:03:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=9DzCR79XKeIjL7+2ReBiux03I1IsbcYYGjv2zjhhJ2U=;
-        b=h3t/fPPdeHJ3hHQuIJyDZLV+lSeDK2Eeo1U68frwrALKTY+hLQ3TBdjmgoUtJau4rY
-         JIxdl5yHKGyO+jw2GboC7Mhskc5uT/uNJ6FWETtNLlKDUONZteX8TFUn0JZoYWUdN20G
-         2wJc1EwJdW9N6TheR10Z9kQvQTYSV11d3JHccYDn9tfige8+o3eO/Dq8J7gwWum3R3s2
-         IEN20i6D+JDzPAHLaHS4HcVPMLEvnFCYgUDZc315EcZSqpr2Hk7sEuJPVTD4YiZpYfGR
-         1AGaAhFNeyt7hFddSqB2nEj8JBMNsedMirKecMKbWGLqpLXkQb4cbgsu/L0zt4U/Kdon
-         kuWg==
-X-Gm-Message-State: AHQUAuZ/IaZr1PxxCQYFZYG0RzTe4EQmN1zGkpEgfMfbSOqL2n7aFRwH
-	NpRRbuj8g2izfGYHSrxT2NMDWwlIBnQbYG3qkDwnaR2oPFTB/JogwQSyqUPFr7K96Iiz2gaRtOn
-	78Lc1Bpj+txdXfhewXibVWVQ9/nfQyHRsx6/icN7TjOdqwE6XVqkY08+e1joi5eC6KhwjuTAxzz
-	RRuSkez9XCWaCvrPbxxd3LI4cGVdFuBUTXuizdoQCBLz9Odd8cUyh8pxx45hHXYaGXHqu4PZak4
-	oa0yBx4mfJNbY2RX7NJ0CO0LmPsyCDTzhDNppI7xEuDA0hYjYi2wJgGj+WyTJ87h7hA8wlvQp6S
-	2umTK1AC0Q3bCzUxB5LVjHEpLKVOZBxckLfvVvq28ofx2pfKgHzfq92CWD3YTbFXJZvS2PK7zA=
-	=
-X-Received: by 2002:a81:6c86:: with SMTP id h128mr20857484ywc.477.1550523908414;
-        Mon, 18 Feb 2019 13:05:08 -0800 (PST)
-X-Received: by 2002:a81:6c86:: with SMTP id h128mr20857430ywc.477.1550523907814;
-        Mon, 18 Feb 2019 13:05:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550523907; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=PDR/bdrTz3E2jzVYZSQ/dSwPEl49mCFxhnqppZN6Coc=;
+        b=HzWcqGVDz3QJ2k5gIO5yarO3HCsHOG7761JyQ3SGmHeHaaJU4bYDk4YZlyDn+0OdzP
+         v51h4b0iaj4+yCQaEiwHhSK23J2jmpHAIHQ8OehRLu9F9GUL8vQrBgOVBLdRCkLWay1t
+         iD4Hv9mfl5NB4cRLl6DItbn3WIRrsCVMJ7tKIfRzKy+3maYhtC9xR3dJ85DYsWG5Bhqm
+         JOjSVYjsp7akNPyrZJhDaAdmFnp86XIbtF30XNVQHBh76JkMoUkAZenhCBpqa2Ii4AhB
+         OstLDpfvaVmYMHgR7K2DF1dzmezfgpsA/QwqsqEsgMOjWLeIbr3nThs9USx9xcsTDIE3
+         4qdg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukdrYZFjRIGkruSQVHtRHJE/SC0mWeKqj4robESGIZqurxMlAp0n
+	lKDCWUywalJiLQwk5N5ddF8T4GTOLlYcTLXs7EqpvhXTeE2e/1NSQbERRT3NID/J1kS4sMQTu0X
+	dU9+lNx9le/bDWjtu2Ek7CkpugwVJXkmH2gyhmxpoZY6OvbKyxUFoZPscrfmzO3isjQ==
+X-Received: by 2002:a0c:a086:: with SMTP id c6mr9716236qva.154.1547132627483;
+        Thu, 10 Jan 2019 07:03:47 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5i9Vs8xJhweEJZnkfdzzA+s2KTLXuvpapKLiFdLZdkOC6akPItKHRQ8CkYLGt4zd4aHjL+
+X-Received: by 2002:a0c:a086:: with SMTP id c6mr9716168qva.154.1547132626694;
+        Thu, 10 Jan 2019 07:03:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547132626; cv=none;
         d=google.com; s=arc-20160816;
-        b=oA5cyynlEVLDYhZB8ERgfR8LPdzPIhnVUSRfLU03uByox9n4eDbHXTGYQGXmKFSxap
-         Yx0PEujXk+F2eG9IRMWubcBQ8pSbpzpL9jYRX7uWtBHWuC+juqsf2KJoISC3b3efjYap
-         ore2tje/31aOVISk4A2KSZtb+SiUKR0/CK840UOEdkgDg0OIapkYyPrHd5rwMrJfMuaE
-         nDPUjmIeG/od1vXtjm+7VF39JQclBemaJ/BkR6bzw9cuZacxa02PuQMevaI00QT9VnaJ
-         Raai18qUNR99w1v9Djnmlyy+1zb1jeluTuCI0PbzVujCB5tMduW29rnXs8hO2upnHqFs
-         EYeQ==
+        b=0c800yBXal6JjVGMjPkZ9fb25dHarnCCzhAN8NOI/IxtLG0Lh4ysy6s2s1z3Da7Dez
+         MNf4XVLG6oXiYMYwG1jiEuMnHZ4FPa/dJMdnpYWcAV2uE5+Zif3IU0fmuDyz5KjXFFQH
+         BVSbIh+usKhjk7Iii+GSuzp2wO4WRPBBYJUzMJBzUEuEtOjWrEwfzkk+9wuLcsZNipzD
+         cvn75xK6xQaUrnaEp3wA1Bp2QWQ7OyXoiWHmhutc/++a1W8+A61kf7IfUECMubBFOe23
+         vLbGe0hETsJnEQGoRxLe90uvBhr3u/cJeEld4etAStdwfk99sooTPv//E5hVMPZ4P7nH
+         Zssg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=9DzCR79XKeIjL7+2ReBiux03I1IsbcYYGjv2zjhhJ2U=;
-        b=RcVKXJ5yYJHSpLLRvNqREZkcOD7nqG4xy2sYRvdMRJ0mzhC4lYw5PvN8wgYSK8cu7b
-         luj2LsPwPesfdxFd1LsAGE1lcLwXKaNsXFPhftwtHDwf0pWp0vtpOnFf6yHNHW/boAEw
-         yjJ5Je+87A9YVs8gipU88+EkggvS2d16YIPGmldKnA4MUQpw9yFse0fzbeNUwOuMaghN
-         vs+1TODlziO6cIahAPfvMW8XabBjtMZ8sQpJpsnyYCWQKL85OPiYnAeJp7rtDkg0gHzz
-         vnl1niHPEN0e23sdKZNajCx88kvn9111Fhxz1FKsw+801CWbjX7ly+1+X9ofGDNYAM5v
-         q47Q==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=PDR/bdrTz3E2jzVYZSQ/dSwPEl49mCFxhnqppZN6Coc=;
+        b=rhhBKP/Guk01/YvU83y5miS+t7BRrMx5mu1J1wWXDYOMdKC411nwwSXmpE4vISPve3
+         GnXMRHc14GtIObAljsKW114WgX3QyC3958PYWXJGhkutviTyXcayvVAbBu8rcf4MrokI
+         i7DVGt5pqfPyLHaDFC75EHhrdrTyjHJ4PB77s4pdzhA1zN3qxCFjV8S45sNsr8R9mxcU
+         RzYp+1LyZeZJ05W0jEBMVL9Vz3htenK3OecHrUmOiPwEBli8qxWp2QuDFqjTRl9vGdm8
+         QcTznIH9L5HSBkkkOOaPI8alJs2hmkkhNuI6IdyW1PMKyd/PROP9vMD/HZKfbmEfIEXs
+         ws1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IvUXzBPQ;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 80sor2437578ybf.129.2019.02.18.13.05.07
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q45si3998217qte.344.2019.01.10.07.03.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 18 Feb 2019 13:05:07 -0800 (PST)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IvUXzBPQ;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=9DzCR79XKeIjL7+2ReBiux03I1IsbcYYGjv2zjhhJ2U=;
-        b=IvUXzBPQJEIyKxoXbz4dX0We4ImmqwmBbZb8b00WHoEnhmrQvX86N2WSx0rP1NzXFS
-         uwDuVGKTJxW0Bg0RNeRMY2lqSxHlylMUB1QW2kusIPBR/1eSRw3pLDFw0DxTiX4xKIJH
-         HI39c8dzh86yRNfROF1J4MTzi+z8cRaElf9D2wcp1bxf3Ak2psiTe3TVvbaMcSCeL0xz
-         0v5+CKY58TFKGjYiJixaNyF/JCodpDsL5qER8CF0AdDGaUzq7o2WyEBYDVhxhqSvThX0
-         wA2HOyR7hXaqWcIJ88Uhcpnx5RhK0K7pvEyKDaPBn85ZliSQTNNAHNknlI/GapPFjD4Q
-         6KrA==
-X-Google-Smtp-Source: AHgI3IZQ85hICO8PJBHbJ2RZysx/uNUHQA80/Hg8S4A0SZHPMgNXU2TbgLlCgJHTrnqFDEdrI6avxw==
-X-Received: by 2002:a25:d04b:: with SMTP id h72mr15655803ybg.152.1550523907337;
-        Mon, 18 Feb 2019 13:05:07 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::5:2c70])
-        by smtp.gmail.com with ESMTPSA id z23sm7007499ywj.36.2019.02.18.13.05.06
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 13:05:06 -0800 (PST)
-Date: Mon, 18 Feb 2019 13:05:04 -0800
-From: Tejun Heo <tj@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: hannes@cmpxchg.org, corbet@lwn.net, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] doc: cgroup: correct the wrong information about measure
- of memory pressure
-Message-ID: <20190218210504.GT50184@devbig004.ftw2.facebook.com>
-References: <1550278564-81540-1-git-send-email-yang.shi@linux.alibaba.com>
+        Thu, 10 Jan 2019 07:03:46 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C16CD2CD7FE;
+	Thu, 10 Jan 2019 15:03:45 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.215])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 18A727F1A2;
+	Thu, 10 Jan 2019 15:03:45 +0000 (UTC)
+Date: Thu, 10 Jan 2019 10:03:43 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: akpm@linux-foundation.org, willy@infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/hmm: Convert to use vm_fault_t
+Message-ID: <20190110150343.GA4394@redhat.com>
+References: <20190110145900.GA1317@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
-In-Reply-To: <1550278564-81540-1-git-send-email-yang.shi@linux.alibaba.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190110145900.GA1317@jordon-HP-15-Notebook-PC>
+User-Agent: Mutt/1.10.0 (2018-05-17)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 10 Jan 2019 15:03:45 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
+Message-ID: <20190110150343.ICj-PXHoinhOLy1qGtNlX6N6mRjVG_4QOZMtP7j60KA@z>
 
-On Sat, Feb 16, 2019 at 08:56:04AM +0800, Yang Shi wrote:
-> Since PSI has implemented some kind of measure of memory pressure, the
-> statement about lack of such measure is not true anymore.
+On Thu, Jan 10, 2019 at 08:29:00PM +0530, Souptick Joarder wrote:
+> convert to use vm_fault_t type as return type for
+> fault handler.
 > 
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Jonathan Corbet <corbet@lwn.net>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> kbuild reported warning during testing of
+> *mm-create-the-new-vm_fault_t-type.patch* available in below link -
+> https://patchwork.kernel.org/patch/10752741/
+> 
+> [auto build test WARNING on linus/master]
+> [also build test WARNING on v5.0-rc1 next-20190109]
+> [if your patch is applied to the wrong git tree, please drop us a note
+> to help improve the system]
+> 
+> kernel/memremap.c:46:34: warning: incorrect type in return expression
+>                          (different base types)
+> kernel/memremap.c:46:34: expected restricted vm_fault_t
+> kernel/memremap.c:46:34: got int
+> 
+> This patch has fixed the warnings and also hmm_devmem_fault() is
+> converted to return vm_fault_t to avoid further warnings.
+> 
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+
 > ---
->  Documentation/admin-guide/cgroup-v2.rst | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
+>  include/linux/hmm.h | 4 ++--
+>  mm/hmm.c            | 2 +-
+>  2 files changed, 3 insertions(+), 3 deletions(-)
 > 
-> diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
-> index 7bf3f12..9a92013 100644
-> --- a/Documentation/admin-guide/cgroup-v2.rst
-> +++ b/Documentation/admin-guide/cgroup-v2.rst
-> @@ -1310,8 +1310,7 @@ network to a file can use all available memory but can also operate as
->  performant with a small amount of memory.  A measure of memory
->  pressure - how much the workload is being impacted due to lack of
->  memory - is necessary to determine whether a workload needs more
-> -memory; unfortunately, memory pressure monitoring mechanism isn't
-> -implemented yet.
-> +memory.
-
-Maybe refer to PSI?
-
-Thanks.
-
--- 
-tejun
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 66f9ebb..ad50b7b 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -468,7 +468,7 @@ struct hmm_devmem_ops {
+>  	 * Note that mmap semaphore is held in read mode at least when this
+>  	 * callback occurs, hence the vma is valid upon callback entry.
+>  	 */
+> -	int (*fault)(struct hmm_devmem *devmem,
+> +	vm_fault_t (*fault)(struct hmm_devmem *devmem,
+>  		     struct vm_area_struct *vma,
+>  		     unsigned long addr,
+>  		     const struct page *page,
+> @@ -511,7 +511,7 @@ struct hmm_devmem_ops {
+>   * chunk, as an optimization. It must, however, prioritize the faulting address
+>   * over all the others.
+>   */
+> -typedef int (*dev_page_fault_t)(struct vm_area_struct *vma,
+> +typedef vm_fault_t (*dev_page_fault_t)(struct vm_area_struct *vma,
+>  				unsigned long addr,
+>  				const struct page *page,
+>  				unsigned int flags,
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index a04e4b8..fe1cd87 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -990,7 +990,7 @@ static void hmm_devmem_ref_kill(struct percpu_ref *ref)
+>  	percpu_ref_kill(ref);
+>  }
+>  
+> -static int hmm_devmem_fault(struct vm_area_struct *vma,
+> +static vm_fault_t hmm_devmem_fault(struct vm_area_struct *vma,
+>  			    unsigned long addr,
+>  			    const struct page *page,
+>  			    unsigned int flags,
+> -- 
+> 1.9.1
+> 
 
