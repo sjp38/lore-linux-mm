@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D288E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 15:44:36 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id q33so12642600qte.23
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 12:44:36 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BF4B88E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 15:39:54 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id k90so12924042qte.0
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 12:39:54 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b127sor36586224qkc.48.2019.01.10.12.44.35
+        by mx.google.com with SMTPS id g20sor72798413qtb.45.2019.01.10.12.39.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 10 Jan 2019 12:44:35 -0800 (PST)
-Message-ID: <1547153074.6911.8.camel@lca.pw>
+        Thu, 10 Jan 2019 12:39:53 -0800 (PST)
+Message-ID: <1547152791.6911.6.camel@lca.pw>
 Subject: Re: PROBLEM: syzkaller found / pool corruption-overwrite / page in
  user-area or NULL
 From: Qian Cai <cai@lca.pw>
-Date: Thu, 10 Jan 2019 15:44:34 -0500
+Date: Thu, 10 Jan 2019 15:39:51 -0500
 In-Reply-To: <1547150339.2814.9.camel@linux.ibm.com>
 References: 
 	<t78EEfgpy3uIwPUvqvmuQEYEWKG9avWzjUD3EyR93Qaf_tfx1gqt4XplrqMgdxR1U9SsrVdA7G9XeUZacgUin0n6lBzoxJHVJ9Ko0yzzrxI=@protonmail.ch>
@@ -58,4 +58,4 @@ On Thu, 2019-01-10 at 11:58 -0800, James Bottomley wrote:
 > pointer to what might be wrong in scsi.
 > 
 
-Well, need your .config and /proc/cmdline then.
+Did you enable page_poison with PAGE_POISONING_ZERO=y ?
