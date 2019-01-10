@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F16998E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 11:23:36 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id m3so8111998pfj.14
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 08:23:36 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id g21si26790118plo.435.2019.01.10.08.23.34
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D5EA8E0038
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 04:51:36 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id f17so4151120edm.20
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 01:51:36 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i46si1980861eda.288.2019.01.10.01.51.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 08:23:34 -0800 (PST)
-Message-ID: <f65b1b22426855ff261b3af719e58eded576a168.camel@linux.intel.com>
-Subject: Re: [PATCH v9] mm/page_alloc.c: memory_hotplug: free pages as
- higher order
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Thu, 10 Jan 2019 08:23:34 -0800
-In-Reply-To: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
+        Thu, 10 Jan 2019 01:51:34 -0800 (PST)
+Date: Thu, 10 Jan 2019 10:51:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v9] mm/page_alloc.c: memory_hotplug: free pages as higher
+ order
+Message-ID: <20190110095131.GJ31793@dhcp22.suse.cz>
 References: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: getarunks@gmail.com
+To: Arun KS <arunks@codeaurora.org>
+Cc: arunks.linux@gmail.com, alexander.h.duyck@linux.intel.com, akpm@linux-foundation.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-On Thu, 2019-01-10 at 11:05 +0530, Arun KS wrote:
+On Thu 10-01-19 11:05:43, Arun KS wrote:
 > When freeing pages are done with higher order, time spent on coalescing
 > pages by buddy allocator can be reduced.  With section size of 256MB, hot
 > add latency of a single section shows improvement from 50-60 ms to less
@@ -33,14 +33,15 @@ On Thu, 2019-01-10 at 11:05 +0530, Arun KS wrote:
 > 
 > Signed-off-by: Arun KS <arunks@codeaurora.org>
 > Acked-by: Michal Hocko <mhocko@suse.com>
+
+JFTR. I have mentioned that previously but let me repeat. You should be
+dropping any acks/reviewed-bys when making any non trivial changes to a
+patch and reposting.
+
+Nevertheless, the patch still looks ok so my Acked-by still applies to
+the core MM parts but do not assume that in future please.
+
 > Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
-So I decided to give this one last thorough review and I think I might
-have found a few more minor issues, but not anything that is
-necessarily a showstopper.
-
-Reviewed-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-
 > ---
 > Changes since v8:
 > - Remove return type change for online_page_callback.
@@ -119,13 +120,6 @@ Reviewed-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 >  		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
 >  			continue;
 >  
-
-I haven't followed earlier reviews, but do we know for certain the
-entire range being onlined will fit within a single hv_hotadd_state? If
-nothing else it seems like this check should be updated so that we are
-checking to verify that pfn + (1UL << order) is less than or equal to
-has->end_pfn.
-
 > -		hv_page_online_one(has, pg);
 > +		hv_bring_pgs_online(has, pfn, (1UL << order));
 >  		break;
@@ -224,27 +218,6 @@ has->end_pfn.
 > +	while (start < end) {
 > +		order = min(MAX_ORDER - 1,
 > +			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-
-So this is mostly just optimization related so you can ignore this
-suggestion if you want. I was looking at this and it occurred to me
-that I don't think you need to convert this to a physical address do
-you?
-
-Couldn't you just do something like the following:
-		if ((end - start) >= (1UL << (MAX_ORDER - 1))
-			order = MAX_ORDER - 1;
-		else
-			order = __fls(end - start);
-
-I would think this would save you a few steps in terms of conversions
-and such since you are already working in page frame numbers anyway so
-a block of 8 pfns would represent an order 3 page wouldn't it?
-
-Also it seems like an alternative to using "end" would be to just track
-nr_pages. Then you wouldn't have to do the "end - start" math in a few
-spots as long as you remembered to decrement nr_pages by the amount you
-increment start by.
-
 > +		(*online_page_callback)(pfn_to_page(start), order);
 > +
 > +		onlined_pages += (1UL << order);
@@ -309,3 +282,9 @@ increment start by.
 >  	}
 >  }
 >  
+> -- 
+> 1.9.1
+
+-- 
+Michal Hocko
+SUSE Labs
