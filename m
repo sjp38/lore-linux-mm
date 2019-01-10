@@ -1,82 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ED8078E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 03:39:46 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id 124so3321776ybb.9
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 00:39:46 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id e189si29876247ybb.13.2019.01.09.00.39.45
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EB8F8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 17:07:56 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id e89so8720567pfb.17
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 14:07:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i10sor502617plt.38.2019.01.10.14.07.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 00:39:45 -0800 (PST)
-From: Prateek Patel <prpatel@nvidia.com>
-Subject: [PATCH] selinux: avc: mark avc node as not a leak
-Date: Wed, 9 Jan 2019 14:09:22 +0530
-Message-ID: <1547023162-6381-1-git-send-email-prpatel@nvidia.com>
+        (Google Transport Security);
+        Thu, 10 Jan 2019 14:07:55 -0800 (PST)
+From: Suren Baghdasaryan <surenb@google.com>
+Subject: [PATCH v2 0/5] psi: pressure stall monitors v2
+Date: Thu, 10 Jan 2019 14:07:13 -0800
+Message-Id: <20190110220718.261134-1-surenb@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paul@paul-moore.com, sds@tycho.nsa.gov, eparis@parisplace.org, linux-kernel@vger.kernel.org, catalin.marinas@arm.com, selinux@vger.kernel.org
-Cc: linux-tegra@vger.kernel.org, talho@nvidia.com, swarren@nvidia.com, prpatel@nvidia.com, linux-mm@kvack.org, snikam@nvidia.com, vdumpa@nvidia.com, Sri Krishna chowdary <schowdary@nvidia.com>
+To: gregkh@linuxfoundation.org
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
 
-From: Sri Krishna chowdary <schowdary@nvidia.com>
+This is respin of:
+  https://lwn.net/ml/linux-kernel/20181214171508.7791-1-surenb@google.com/
 
-kmemleak detects allocated objects as leaks if not accessed for
-default scan time. The memory allocated using avc_alloc_node
-is freed using rcu mechanism when nodes are reclaimed or on
-avc_flush. So, there is no real leak here and kmemleak_scan
-detects it as a leak which is false positive. Hence, mark it as
-kmemleak_not_leak.
+Android is adopting psi to detect and remedy memory pressure that
+results in stuttering and decreased responsiveness on mobile devices.
 
-Following is the log for avc_alloc_node detected as leak:
-unreferenced object 0xffffffc0dd1a0e60 (size 64):
-  comm "InputDispatcher", pid 648, jiffies 4294944629 (age 698.180s)
-  hex dump (first 32 bytes):
-    ed 00 00 00 ed 00 00 00 17 00 00 00 3f fe 41 00  ............?.A.
-    00 00 00 00 ff ff ff ff 01 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<ffffffc000192390>] __save_stack_trace+0x24/0x34
-    [<ffffffc000192dcc>] create_object+0x13c/0x290
-    [<ffffffc000b926f0>] kmemleak_alloc+0x80/0xbc
-    [<ffffffc00018e018>] kmem_cache_alloc+0x128/0x1f8
-    [<ffffffc000313d40>] avc_alloc_node+0x2c/0x1e8
-    [<ffffffc000313f34>] avc_insert+0x38/0x13c
-    [<ffffffc000314084>] avc_compute_av+0x4c/0x60
-    [<ffffffc00031461c>] avc_has_perm_flags+0x90/0x188
-    [<ffffffc000319430>] sock_has_perm+0x84/0x98
-    [<ffffffc0003194e4>] selinux_socket_sendmsg+0x1c/0x28
-    [<ffffffc000312f58>] security_socket_sendmsg+0x14/0x20
-    [<ffffffc0009c60c4>] sock_sendmsg+0x70/0xc8
-    [<ffffffc0009c8884>] SyS_sendto+0x140/0x1ec
-    [<ffffffc0000853c0>] el0_svc_naked+0x34/0x38
-    [<ffffffffffffffff>] 0xffffffffffffffff
+Psi gives us the stall information, but because we're dealing with
+latencies in the millisecond range, periodically reading the pressure
+files to detect stalls in a timely fashion is not feasible. Psi also
+doesn't aggregate its averages at a high-enough frequency right now.
 
-Signed-off-by: Sri Krishna chowdary <schowdary@nvidia.com>
-Signed-off-by: Prateek <prpatel@nvidia.com>
----
- security/selinux/avc.c | 2 ++
- 1 file changed, 2 insertions(+)
+This patch series extends the psi interface such that users can
+configure sensitive latency thresholds and use poll() and friends to
+be notified when these are breached.
 
-diff --git a/security/selinux/avc.c b/security/selinux/avc.c
-index 635e5c1..ecfd0cd 100644
---- a/security/selinux/avc.c
-+++ b/security/selinux/avc.c
-@@ -30,6 +30,7 @@
- #include <linux/audit.h>
- #include <linux/ipv6.h>
- #include <net/ipv6.h>
-+#include <linux/kmemleak.h>
- #include "avc.h"
- #include "avc_ss.h"
- #include "classmap.h"
-@@ -573,6 +574,7 @@ static struct avc_node *avc_alloc_node(struct selinux_avc *avc)
- 	if (!node)
- 		goto out;
- 
-+	kmemleak_not_leak(node);
- 	INIT_HLIST_NODE(&node->list);
- 	avc_cache_stats_incr(allocations);
- 
+As high-frequency aggregation is costly, it implements an aggregation
+method that is optimized for fast, short-interval averaging, and makes
+the aggregation frequency adaptive, such that high-frequency updates
+only happen while monitored stall events are actively occurring.
+
+With these patches applied, Android can monitor for, and ward off,
+mounting memory shortages before they cause problems for the user.
+For example, using memory stall monitors in userspace low memory
+killer daemon (lmkd) we can detect mounting pressure and kill less
+important processes before device becomes visibly sluggish. In our
+memory stress testing psi memory monitors produce roughly 10x less
+false positives compared to vmpressure signals. Having ability to
+specify multiple triggers for the same psi metric allows other parts
+of Android framework to monitor memory state of the device and act
+accordingly.
+
+The new interface is straight-forward. The user opens one of the
+pressure files for writing and writes a trigger description into the
+file descriptor that defines the stall state - some or full, and the
+maximum stall time over a given window of time. E.g.:
+
+        /* Signal when stall time exceeds 100ms of a 1s window */
+        char trigger[] = "full 100000 1000000"
+        fd = open("/proc/pressure/memory")
+        write(fd, trigger, sizeof(trigger))
+        while (poll() >= 0) {
+                ...
+        };
+        close(fd);
+
+When the monitored stall state is entered, psi adapts its aggregation
+frequency according to what the configured time window requires in
+order to emit event signals in a timely fashion. Once the stalling
+subsides, aggregation reverts back to normal.
+
+The trigger is associated with the open file descriptor. To stop
+monitoring, the user only needs to close the file descriptor and the
+trigger is discarded.
+
+Patches 1-4 prepare the psi code for polling support. Patch 5
+implements the adaptive polling logic, the pressure growth detection
+optimized for short intervals, and hooks up write() and poll() on the
+pressure files.
+
+The patches were developed in collaboration with Johannes Weiner.
+
+The patches are based on 4.20-rc7.
+
+Johannes Weiner (2):
+  fs: kernfs: add poll file operation
+  kernel: cgroup: add poll file operation
+
+Suren Baghdasaryan (3):
+  psi: introduce state_mask to represent stalled psi states
+  psi: rename psi fields in preparation for psi trigger addition
+  psi: introduce psi monitor
+
+ Documentation/accounting/psi.txt | 104 ++++++
+ fs/kernfs/file.c                 |  31 +-
+ include/linux/cgroup-defs.h      |   4 +
+ include/linux/kernfs.h           |   6 +
+ include/linux/psi.h              |  10 +
+ include/linux/psi_types.h        |  83 ++++-
+ kernel/cgroup/cgroup.c           | 119 +++++-
+ kernel/sched/psi.c               | 597 ++++++++++++++++++++++++++++---
+ 8 files changed, 885 insertions(+), 69 deletions(-)
+
+Changes in v2:
+- Preserved psi idle mode, as per Peter
+- Changed input parser to use sscanf, as per Peter
+- Removed percentage threshold support, as per Johannes and Joel
+- Added explicit numbers corresponding to NR_PSI_TASK_COUNTS,
+NR_PSI_RESOURCES and NR_PSI_STATES, as per Peter
+- Added a note about psi_group_cpu struct new size in the changelog
+of the patch introducing new member (0003-...), as per Peter
+- Fixed 64-bit division using div_u64, as per kbuild test robot
+
 -- 
-2.7.4
+2.20.1.97.g81188d93c3-goog
