@@ -2,137 +2,175 @@ Return-Path: <SRS0=Jdrj=PS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D21D5C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 12:25:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3949C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 12:37:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9BBF021783
-	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 12:25:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BBF021783
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=codewreck.org
+	by mail.kernel.org (Postfix) with ESMTP id 67534214DA
+	for <linux-mm@archiver.kernel.org>; Thu, 10 Jan 2019 12:37:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67534214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17DAD8E009D; Thu, 10 Jan 2019 07:25:00 -0500 (EST)
+	id EB96F8E009D; Thu, 10 Jan 2019 07:37:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 105388E0038; Thu, 10 Jan 2019 07:25:00 -0500 (EST)
+	id E69AF8E0038; Thu, 10 Jan 2019 07:37:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F10438E009D; Thu, 10 Jan 2019 07:24:59 -0500 (EST)
+	id D31298E009D; Thu, 10 Jan 2019 07:37:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 956548E0038
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:24:59 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id w4so3074472wrt.21
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 04:24:59 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A565D8E0038
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:37:13 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id b16so9993065qtc.22
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 04:37:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Bj9SgAAar+FM+heBVPOYbcXkQWmnAQZTH1pNA0xI7ZM=;
-        b=ZhiH1F1ZUi+Wyiod3OM6w1TgPRVfUvqufIt0OzgIk+HgTlGeiviV3bc1vuMEiRjcE4
-         pyQYU+CUnIORXim3fPcNfq76cD16g7sr7wnWXIu6XFHLh4p4vT6bZSDxDeY23oM7ttu9
-         9BLHvmuPo7hI6iZwZfgKkKxecNOEJ3aFANWQLH8gKJ3OU7e+NAb61sSpmi7dvMyN4Nhw
-         UorHCVkrzNpYpDl+W4UwRwGcQdpYfbGSYcRbM59wp9ZLQys0Ns+uYDoxAJz/YvxNFNCy
-         kuda3hGI6RZBidooU6h+WebJ0SLe6stNQICuVCZCNIKb2FOG/wVlBREy8mwn9Mu5SYvQ
-         V4ug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) smtp.mailfrom=asmadeus@notk.org
-X-Gm-Message-State: AJcUukdR+aU0jPbuulMnHhhX+joYijSAFgKjWl8OpxzVnDQiKkC6kuPs
-	BQ0jbu2GIzc0aHpJgWwu1YQ6xc++ytFI3J/tHWGgIAWWKdT8iCn1O8jbsggmCimyrOte1STcnak
-	S3JS7EAku2pYJ645ulLcRxkE4v3VgsTNa3Kj8lYiGXs1KdHbdSQNeabbl1I/pOUE=
-X-Received: by 2002:a7b:c04e:: with SMTP id u14mr9887630wmc.113.1547123099191;
-        Thu, 10 Jan 2019 04:24:59 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN50LBma4IhCsOHi22y9JhBkICQoer19pcHr/D2HHx+DhNZXqn1BPSUg/hoOuUV5WUlJC8bq
-X-Received: by 2002:a7b:c04e:: with SMTP id u14mr9887584wmc.113.1547123098274;
-        Thu, 10 Jan 2019 04:24:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547123098; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=idE3oWkaJgXKNp0T7oyW6bgT5hObsaT6ydf+POpPD/o=;
+        b=j3YzznRQ8RT+psl5cB0ebOqvN8QXMbtwcWfoTVzMSU2o5EV5HRl5/hcyzmoqEfoog7
+         /5mFerQP2M1qtfP/lPMmbJJ34ybgDUxGhV1bkpfMnoIcAsFnCEtGFBq/5sQ03SAgCI1C
+         Yyhk+pXQEOkxzD4kvmD0fAFodaPc/c3XxML7AORUIzMmpNkOE5D8eM9I5c+Rmu+/Oua+
+         fJCLAoz4Y5LlNVeQkeV/9gD5RqULAYWJP5ESkfvzGl5t0Aa41Yv1Xbgyh/20qdRR3NEp
+         GyrAr1e8caq1Iv6cmtHQfx9/iy1ug534iUb8wVCGvMo50l3RagMgFutKq2efgH+Jhuox
+         eC2Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AJcUukfdCQyL5k26fa+LriirEU5Iqc0af6YGtllILC8IoLvRIgjXIzec
+	CzVZMucR1xMS/FR0vve7sb6KwZnhU7umZEGE6NN9wzNaO4rmHEZMHEdnr/LB1xriKFca/VSNu/L
+	O7QuoBxMvCMaka3naFnc8zrYgCFnQ5Dpc4oKd7h+UU5UKtemXa0hPXJAtYHbEs+sw3w==
+X-Received: by 2002:a37:7e45:: with SMTP id z66mr8937906qkc.23.1547123833383;
+        Thu, 10 Jan 2019 04:37:13 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5aqE73gG+LPD1YkDwtqEMTR5fZMZ/Zq3ZD+cBD/KrxNZdKFGBb4YYx4/fFmnbWQx6AC/ii
+X-Received: by 2002:a37:7e45:: with SMTP id z66mr8937882qkc.23.1547123832854;
+        Thu, 10 Jan 2019 04:37:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547123832; cv=none;
         d=google.com; s=arc-20160816;
-        b=c4YJltJ5UunMV1cKih/4s1jk/meWX0LE+WjQw7sd33myaET3SYHQ6MN1pPkrUdKBEk
-         8K+2t8GaLvdCTDRrpPnqK7ynasGhcZwVlqEF19QRpUfZhqkOHr+ObwCTYWO4hUtnzj7/
-         eKQnr0tPFBxY/bE5/OKlxqZqLEQBC6ylsjffMrAdj+1OZnCkhFExt/bHRsanUPYw0WLZ
-         2WFlmnSO74jYQLtc6oWDhNNqa/9M0NMR7y+SJORgL7QWkyXuI48apMGDQG5ONS5M/BCo
-         dQjdvHaZkagTzvY8pqCSIfJE8Iu4BuZk7O6ZtTWW77dR40N8uG683XDBESedKWKaELJ2
-         1aXA==
+        b=eRd8HmgoTeLw/Ryvzt0iOPy1YBFvl9lh/LKPY/d7VqDUEdl2ILYqW/Y8F02NwCAYti
+         B1ORlUfpa4fl6G2POlNBPuAahpwuAykr44Bn+Oy4YE4Jr/vwh2mC39qZ8aNKntTftIK/
+         5/f8MY4KgqSikPtIeI4kdTG18xffIeB9E1en3c6X9Vk4mJM7ZZyPH1Wk7n9XMgo32lC1
+         la5dm6YiMkdVlEycANDs2SJl6x7CMSy9/Cs3ZN+Vn6xWPdxXPrmrVDr8zXt9dSQBfyn/
+         +5iAvzCgm5EINq3Oo1WhPpKtA24Tbyri/g5C7opXWpI8ciNamfmXS6BzdqC8Bl1uwd+I
+         eIrw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Bj9SgAAar+FM+heBVPOYbcXkQWmnAQZTH1pNA0xI7ZM=;
-        b=RxMVJ+2c6s9+8HLU3VcKHxB38T0Eo7+E8wiaYBaR/Pred7h6So2uwLq/OB6Ck/zeWc
-         Erl3Osto88tSGkSJ6aeBvxi5frPW09Hfo+FcdiWJbES1xZabFSL6GZhLpX2pHvyFCV2r
-         X6W6qV+Jqy+btGK4TVnHQlkmdasW766kmeoQz++e7nNsk4wbMRIkS3ZenVMMrIfrki1/
-         7fG4ZpqoYUHFgVjAYHDtAmvP9ue6nFhUiVKtQ6UgLHHyOPNiYI283D8JLDPlVW0i8bXl
-         STJj079dSQk8B6p0oQ2T0NqnlCx7vvBhyLnat5FXssTwJCLTx1lA9J1dElNNXzcD4fHc
-         R6xg==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=idE3oWkaJgXKNp0T7oyW6bgT5hObsaT6ydf+POpPD/o=;
+        b=GmjGwShUjXhReAFABUOIKe0QzO0EShwjIQ5NxCqbTBN40H8LoIU2Z/wP9L+rgJVL7l
+         bkRyhgFo85m6wIpiaGRUPB2FxgGtr9l9D17w1j6qxq+jf6gEwFgHyZ2hVhg9HVyM9SOr
+         IJcc66qafGda7azQ32NxQJSN+Ki0j5ruH5B6CVkU7IV2dsC/ZPkZ7IOxlK8xUgtIV785
+         cylzspcl7WS9DjvPdXjfGce99b+l7Mb89pvsf6IkNlNF4VIn3AYpsfAJgdH+gfFr6NZK
+         ykmkuumKs0vh9CG1F39uLHDkwP4E1cvbdWmyJ+0hBE47Zv1Mcd20dSYFn3tiu4ID+0Ty
+         uPCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) smtp.mailfrom=asmadeus@notk.org
-Received: from nautica.notk.org (ipv6.notk.org. [2001:41d0:1:7a93::1])
-        by mx.google.com with ESMTPS id y8si686927wmg.178.2019.01.10.04.24.58
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l91si375939qtd.76.2019.01.10.04.37.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 04:24:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) client-ip=2001:41d0:1:7a93::1;
+        Thu, 10 Jan 2019 04:37:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) smtp.mailfrom=asmadeus@notk.org
-Received: by nautica.notk.org (Postfix, from userid 1001)
-	id A84A9C01B; Thu, 10 Jan 2019 13:24:57 +0100 (CET)
-Date: Thu, 10 Jan 2019 13:24:42 +0100
-From: Dominique Martinet <asmadeus@codewreck.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Jiri Kosina <jikos@kernel.org>,
-	Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg KH <gregkh@linuxfoundation.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>,
-	kernel list <linux-kernel@vger.kernel.org>,
-	Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Message-ID: <20190110122442.GA21216@nautica>
-References: <20190108044336.GB27534@dastard>
- <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com>
- <20190109022430.GE27534@dastard>
- <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
- <20190109043906.GF27534@dastard>
- <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
- <20190110004424.GH27534@dastard>
- <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard>
- <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0ACYqqE127403
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:37:12 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2px5j7hv1b-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 07:37:12 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 10 Jan 2019 12:37:10 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 10 Jan 2019 12:37:07 -0000
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x0ACb6Wo65536032
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Thu, 10 Jan 2019 12:37:06 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 50927A405F;
+	Thu, 10 Jan 2019 12:37:06 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4ABB0A405B;
+	Thu, 10 Jan 2019 12:37:04 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.199.54.61])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Thu, 10 Jan 2019 12:37:04 +0000 (GMT)
+X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org,
+        linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        Rafael Wysocki <rafael@kernel.org>,
+        Dave Hansen <dave.hansen@intel.com>,
+        Dan Williams <dan.j.williams@intel.com>,
+        Keith Busch <keith.busch@intel.com>
+Subject: Re: [PATCHv3 07/13] node: Add heterogenous memory access attributes
+In-Reply-To: <20190109174341.19818-8-keith.busch@intel.com>
+References: <20190109174341.19818-1-keith.busch@intel.com> <20190109174341.19818-8-keith.busch@intel.com>
+Date: Thu, 10 Jan 2019 18:07:02 +0530
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-In-Reply-To: <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+X-TM-AS-GCONF: 00
+x-cbid: 19011012-0020-0000-0000-000003045E6F
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19011012-0021-0000-0000-0000215561FA
+Message-Id: <87y37sit8x.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-01-10_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1901100103
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190110122442.D-AxJ19_1du8oZjG2Qz03VZ6BithvpXW57quzDRINAs@z>
+Message-ID: <20190110123702.Rd-LFDsvnvcMcR-_5BZMLo_R7ymgeUAT79CnR0m4CT4@z>
 
-Linus Torvalds wrote on Thu, Jan 10, 2019:
-> (Except, of course, if somebody actually notices outside of tests.
-> Which may well happen and just force us to revert that commit. But
-> that's a separate issue entirely).
+Keith Busch <keith.busch@intel.com> writes:
 
-Both Dave and I pointed at a couple of utilities that break with
-this. nocache can arguably work with the new behaviour but will behave
-differently; vmtouch on the other hand is no longer able to display
-what's in cache or not - people use that for example to "warm up" a
-container in page cache based on how it appears after it had been
-running for a while is a pretty valid usecase to me.
+> Heterogeneous memory systems provide memory nodes with different latency
+> and bandwidth performance attributes. Provide a new kernel interface for
+> subsystems to register the attributes under the memory target node's
+> initiator access class. If the system provides this information, applications
+> may query these attributes when deciding which node to request memory.
+>
+> The following example shows the new sysfs hierarchy for a node exporting
+> performance attributes:
+>
+>   # tree -P "read*|write*" /sys/devices/system/node/nodeY/classZ/
+>   /sys/devices/system/node/nodeY/classZ/
+>   |-- read_bandwidth
+>   |-- read_latency
+>   |-- write_bandwidth
+>   `-- write_latency
+>
+> The bandwidth is exported as MB/s and latency is reported in nanoseconds.
+> Memory accesses from an initiator node that is not one of the memory's
+> class "Z" initiator nodes may encounter different performance than
+> reported here. When a subsystem makes use of this interface, initiators
+> of a lower class number, "Z", have better performance relative to higher
+> class numbers. When provided, class 0 is the highest performing access
+> class.
 
-From the list Kevin harvested out of the debian code search, the
-postgresql use case is pretty similar - probe what pages of the database
-were in cache at shutdown so when you restart it you can preload these
-and reach "cruse speed" faster.
+How does the definition of performance relate to bandwidth and latency here?. The
+initiator in this class has the least latency and high bandwidth? Can there
+be a scenario where both are not best for the same node? ie, for a
+target Node Y, initiator Node A gives the highest bandwidth but initiator
+Node B gets the least latency. How such a config can be represented? Or is
+that not possible?
 
-Sure that's probably not billions of users but this all looks fairly
-valid to me...
-
--- 
-Dominique
+-aneesh
 
