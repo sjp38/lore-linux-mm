@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2899D8E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 15:02:31 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id v12so710786plp.16
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 12:02:31 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d4si65261819pfa.150.2019.01.07.12.02.29
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3408E8E0038
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 05:12:40 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id x82so10479387ita.9
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 02:12:40 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f64si41432844ioa.156.2019.01.10.02.12.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 07 Jan 2019 12:02:29 -0800 (PST)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH] mm: Remove redundant test from find_get_pages_contig
-Date: Mon,  7 Jan 2019 12:02:24 -0800
-Message-Id: <20190107200224.13260-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 02:12:39 -0800 (PST)
+Subject: Re: [PATCH] lockdep: Add debug printk() for downgrade_write()
+ warning.
+References: <1546771139-9349-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <e1a38e21-d5fe-dee3-7081-bc1a12965a68@i-love.sakura.ne.jp>
+ <20190106201941.49f6dc4a4d2e9d15b575f88a@linux-foundation.org>
+ <CACT4Y+Y=V-yRQN6YV_wXT0gejbQKTtUu7wrRmuPVojaVv6NFsQ@mail.gmail.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <146b28b0-e69c-cf3d-2b0c-0c78110e3718@i-love.sakura.ne.jp>
+Date: Thu, 10 Jan 2019 19:12:06 +0900
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+Y=V-yRQN6YV_wXT0gejbQKTtUu7wrRmuPVojaVv6NFsQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <willy@infradead.org>
+To: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>
 
-After we establish a reference on the page, we check the pointer continues
-to be in the correct position in i_pages.  There's no need to check the
-page->mapping or page->index afterwards; if those can change after we've
-got the reference, they can change after we return the page to the caller.
+On 2019/01/07 14:58, Dmitry Vyukov wrote:
+> On Mon, Jan 7, 2019 at 5:19 AM Andrew Morton <akpm@linux-foundation.org> wrote:
+>> I tossed it in there.
+>>
+>> But I wonder if anyone is actually running this code.  Because
+>>
+>> --- a/lib/Kconfig.debug~info-task-hung-in-generic_file_write_iter
+>> +++ a/lib/Kconfig.debug
+>> @@ -2069,6 +2069,12 @@ config IO_STRICT_DEVMEM
+>>
+>>           If in doubt, say Y.
+>>
+>> +config DEBUG_AID_FOR_SYZBOT
+>> +       bool "Additional debug code for syzbot"
+>> +       default n
+>> +       help
+>> +         This option is intended for testing by syzbot.
+>> +
+> 
+> 
+> Yes, syzbot always defines this option:
+> 
+> https://github.com/google/syzkaller/blob/master/dashboard/config/upstream-kasan.config#L14
+> https://github.com/google/syzkaller/blob/master/dashboard/config/upstream-kmsan.config#L9
+> 
+> It's meant specifically for such cases.
+> 
+> Tetsuo already got some useful information for past bugs using this feature.
+> 
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
----
- mm/filemap.c | 10 ----------
- 1 file changed, 10 deletions(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9f5e323e883e6..935fbc29aeb13 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1837,16 +1837,6 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto put_page;
- 
--		/*
--		 * must check mapping and index after taking the ref.
--		 * otherwise we can get both false positives and false
--		 * negatives, which is just confusing to the caller.
--		 */
--		if (!page->mapping || page_to_pgoff(page) != xas.xa_index) {
--			put_page(page);
--			break;
--		}
--
- 		pages[ret] = page;
- 		if (++ret == nr_pages)
- 			break;
--- 
-2.20.1
+Andrew, you can drop this patch, for a patch that fixes this problem is already available
+at https://lkml.kernel.org/r/1547093005-26085-1-git-send-email-longman@redhat.com .
+Peter, please apply the fix from Waiman Long.
