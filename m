@@ -1,143 +1,290 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AC128E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:06:04 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id u32so16327411qte.1
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:06:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w5si4299760qvi.223.2019.01.11.03.06.03
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E38C28E0008
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:40 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id l22so8676400pfb.2
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:40 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id d9si5491130pgb.105.2019.01.10.13.10.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:06:03 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V13 15/19] block: enable multipage bvecs
-Date: Fri, 11 Jan 2019 19:01:23 +0800
-Message-Id: <20190111110127.21664-16-ming.lei@redhat.com>
-In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
-References: <20190111110127.21664-1-ming.lei@redhat.com>
+        Thu, 10 Jan 2019 13:10:39 -0800 (PST)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v7 10/16] lkdtm: Add test for XPFO
+Date: Thu, 10 Jan 2019 14:09:42 -0700
+Message-Id: <5a8bb25b1f2209ea40160c6cabf2bc850800e3ad.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: Juerg Haefliger <juerg.haefliger@canonical.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tycho Andersen <tycho@docker.com>, Khalid Aziz <khalid.aziz@oracle.com>
 
-This patch pulls the trigger for multi-page bvecs.
+From: Juerg Haefliger <juerg.haefliger@canonical.com>
 
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
+This test simply reads from userspace memory via the kernel's linear
+map.
+
+v6: * drop an #ifdef, just let the test fail if XPFO is not supported
+    * add XPFO_SMP test to try and test the case when one CPU does an xpfo
+      unmap of an address, that it can't be used accidentally by other
+      CPUs.
+
+Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+Signed-off-by: Tycho Andersen <tycho@docker.com>
+Tested-by: Marco Benatto <marco.antonio.780@gmail.com>
+[jsteckli@amazon.de: rebased from v4.13 to v4.19]
+Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 ---
- block/bio.c         | 22 +++++++++++++++-------
- fs/iomap.c          |  4 ++--
- fs/xfs/xfs_aops.c   |  4 ++--
- include/linux/bio.h |  2 +-
- 4 files changed, 20 insertions(+), 12 deletions(-)
+ drivers/misc/lkdtm/Makefile |   1 +
+ drivers/misc/lkdtm/core.c   |   3 +
+ drivers/misc/lkdtm/lkdtm.h  |   5 +
+ drivers/misc/lkdtm/xpfo.c   | 194 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 203 insertions(+)
+ create mode 100644 drivers/misc/lkdtm/xpfo.c
 
-diff --git a/block/bio.c b/block/bio.c
-index 968b12fea564..83a2dfa417ca 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -753,6 +753,8 @@ EXPORT_SYMBOL(bio_add_pc_page);
-  * @page: page to add
-  * @len: length of the data to add
-  * @off: offset of the data in @page
-+ * @same_page: if %true only merge if the new data is in the same physical
-+ *		page as the last segment of the bio.
-  *
-  * Try to add the data at @page + @off to the last bvec of @bio.  This is a
-  * a useful optimisation for file systems with a block size smaller than the
-@@ -761,19 +763,25 @@ EXPORT_SYMBOL(bio_add_pc_page);
-  * Return %true on success or %false on failure.
-  */
- bool __bio_try_merge_page(struct bio *bio, struct page *page,
--		unsigned int len, unsigned int off)
-+		unsigned int len, unsigned int off, bool same_page)
- {
- 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
- 		return false;
+diff --git a/drivers/misc/lkdtm/Makefile b/drivers/misc/lkdtm/Makefile
+index 951c984de61a..97c6b7818cce 100644
+--- a/drivers/misc/lkdtm/Makefile
++++ b/drivers/misc/lkdtm/Makefile
+@@ -9,6 +9,7 @@ lkdtm-$(CONFIG_LKDTM)		+= refcount.o
+ lkdtm-$(CONFIG_LKDTM)		+= rodata_objcopy.o
+ lkdtm-$(CONFIG_LKDTM)		+= usercopy.o
+ lkdtm-$(CONFIG_LKDTM)		+= stackleak.o
++lkdtm-$(CONFIG_LKDTM)		+= xpfo.o
  
- 	if (bio->bi_vcnt > 0) {
- 		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
-+		phys_addr_t vec_end_addr = page_to_phys(bv->bv_page) +
-+			bv->bv_offset + bv->bv_len - 1;
-+		phys_addr_t page_addr = page_to_phys(page);
+ KASAN_SANITIZE_stackleak.o	:= n
+ KCOV_INSTRUMENT_rodata.o	:= n
+diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
+index 2837dc77478e..25f4ab4ebf50 100644
+--- a/drivers/misc/lkdtm/core.c
++++ b/drivers/misc/lkdtm/core.c
+@@ -185,6 +185,9 @@ static const struct crashtype crashtypes[] = {
+ 	CRASHTYPE(USERCOPY_KERNEL),
+ 	CRASHTYPE(USERCOPY_KERNEL_DS),
+ 	CRASHTYPE(STACKLEAK_ERASING),
++	CRASHTYPE(XPFO_READ_USER),
++	CRASHTYPE(XPFO_READ_USER_HUGE),
++	CRASHTYPE(XPFO_SMP),
+ };
  
--		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
--			bv->bv_len += len;
--			bio->bi_iter.bi_size += len;
--			return true;
--		}
-+		if (vec_end_addr + 1 != page_addr + off)
-+			return false;
-+		if (same_page && (vec_end_addr & PAGE_MASK) != page_addr)
-+			return false;
+ 
+diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
+index 3c6fd327e166..6b31ff0c7f8f 100644
+--- a/drivers/misc/lkdtm/lkdtm.h
++++ b/drivers/misc/lkdtm/lkdtm.h
+@@ -87,4 +87,9 @@ void lkdtm_USERCOPY_KERNEL_DS(void);
+ /* lkdtm_stackleak.c */
+ void lkdtm_STACKLEAK_ERASING(void);
+ 
++/* lkdtm_xpfo.c */
++void lkdtm_XPFO_READ_USER(void);
++void lkdtm_XPFO_READ_USER_HUGE(void);
++void lkdtm_XPFO_SMP(void);
 +
-+		bv->bv_len += len;
-+		bio->bi_iter.bi_size += len;
-+		return true;
- 	}
- 	return false;
- }
-@@ -819,7 +827,7 @@ EXPORT_SYMBOL_GPL(__bio_add_page);
- int bio_add_page(struct bio *bio, struct page *page,
- 		 unsigned int len, unsigned int offset)
- {
--	if (!__bio_try_merge_page(bio, page, len, offset)) {
-+	if (!__bio_try_merge_page(bio, page, len, offset, false)) {
- 		if (bio_full(bio))
- 			return 0;
- 		__bio_add_page(bio, page, len, offset);
-diff --git a/fs/iomap.c b/fs/iomap.c
-index af736acd9006..0c350e658b7f 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -318,7 +318,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 	 */
- 	sector = iomap_sector(iomap, pos);
- 	if (ctx->bio && bio_end_sector(ctx->bio) == sector) {
--		if (__bio_try_merge_page(ctx->bio, page, plen, poff))
-+		if (__bio_try_merge_page(ctx->bio, page, plen, poff, true))
- 			goto done;
- 		is_contig = true;
- 	}
-@@ -349,7 +349,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 		ctx->bio->bi_end_io = iomap_read_end_io;
- 	}
- 
--	__bio_add_page(ctx->bio, page, plen, poff);
-+	bio_add_page(ctx->bio, page, plen, poff);
- done:
- 	/*
- 	 * Move the caller beyond our range so that it keeps making progress.
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 1f1829e506e8..b9fd44168f61 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -616,12 +616,12 @@ xfs_add_to_ioend(
- 				bdev, sector);
- 	}
- 
--	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff)) {
-+	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff, true)) {
- 		if (iop)
- 			atomic_inc(&iop->write_count);
- 		if (bio_full(wpc->ioend->io_bio))
- 			xfs_chain_bio(wpc->ioend, wbc, bdev, sector);
--		__bio_add_page(wpc->ioend->io_bio, page, len, poff);
-+		bio_add_page(wpc->ioend->io_bio, page, len, poff);
- 	}
- 
- 	wpc->ioend->io_size += len;
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index c5231e5c7e85..1ece9f30294b 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -441,7 +441,7 @@ extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
- extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
- 			   unsigned int, unsigned int);
- bool __bio_try_merge_page(struct bio *bio, struct page *page,
--		unsigned int len, unsigned int off);
-+		unsigned int len, unsigned int off, bool same_page);
- void __bio_add_page(struct bio *bio, struct page *page,
- 		unsigned int len, unsigned int off);
- int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
+ #endif
+diff --git a/drivers/misc/lkdtm/xpfo.c b/drivers/misc/lkdtm/xpfo.c
+new file mode 100644
+index 000000000000..d903063bdd0b
+--- /dev/null
++++ b/drivers/misc/lkdtm/xpfo.c
+@@ -0,0 +1,194 @@
++/*
++ * This is for all the tests related to XPFO (eXclusive Page Frame Ownership).
++ */
++
++#include "lkdtm.h"
++
++#include <linux/cpumask.h>
++#include <linux/mman.h>
++#include <linux/uaccess.h>
++#include <linux/xpfo.h>
++#include <linux/kthread.h>
++
++#include <linux/delay.h>
++#include <linux/sched/task.h>
++
++#define XPFO_DATA 0xdeadbeef
++
++static unsigned long do_map(unsigned long flags)
++{
++	unsigned long user_addr, user_data = XPFO_DATA;
++
++	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
++			    PROT_READ | PROT_WRITE | PROT_EXEC,
++			    flags, 0);
++	if (user_addr >= TASK_SIZE) {
++		pr_warn("Failed to allocate user memory\n");
++		return 0;
++	}
++
++	if (copy_to_user((void __user *)user_addr, &user_data,
++			 sizeof(user_data))) {
++		pr_warn("copy_to_user failed\n");
++		goto free_user;
++	}
++
++	return user_addr;
++
++free_user:
++	vm_munmap(user_addr, PAGE_SIZE);
++	return 0;
++}
++
++static unsigned long *user_to_kernel(unsigned long user_addr)
++{
++	phys_addr_t phys_addr;
++	void *virt_addr;
++
++	phys_addr = user_virt_to_phys(user_addr);
++	if (!phys_addr) {
++		pr_warn("Failed to get physical address of user memory\n");
++		return NULL;
++	}
++
++	virt_addr = phys_to_virt(phys_addr);
++	if (phys_addr != virt_to_phys(virt_addr)) {
++		pr_warn("Physical address of user memory seems incorrect\n");
++		return NULL;
++	}
++
++	return virt_addr;
++}
++
++static void read_map(unsigned long *virt_addr)
++{
++	pr_info("Attempting bad read from kernel address %p\n", virt_addr);
++	if (*(unsigned long *)virt_addr == XPFO_DATA)
++		pr_err("FAIL: Bad read succeeded?!\n");
++	else
++		pr_err("FAIL: Bad read didn't fail but data is incorrect?!\n");
++}
++
++static void read_user_with_flags(unsigned long flags)
++{
++	unsigned long user_addr, *kernel;
++
++	user_addr = do_map(flags);
++	if (!user_addr) {
++		pr_err("FAIL: map failed\n");
++		return;
++	}
++
++	kernel = user_to_kernel(user_addr);
++	if (!kernel) {
++		pr_err("FAIL: user to kernel conversion failed\n");
++		goto free_user;
++	}
++
++	read_map(kernel);
++
++free_user:
++	vm_munmap(user_addr, PAGE_SIZE);
++}
++
++/* Read from userspace via the kernel's linear map. */
++void lkdtm_XPFO_READ_USER(void)
++{
++	read_user_with_flags(MAP_PRIVATE | MAP_ANONYMOUS);
++}
++
++void lkdtm_XPFO_READ_USER_HUGE(void)
++{
++	read_user_with_flags(MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB);
++}
++
++struct smp_arg {
++	unsigned long *virt_addr;
++	unsigned int cpu;
++};
++
++static int smp_reader(void *parg)
++{
++	struct smp_arg *arg = parg;
++	unsigned long *virt_addr;
++
++	if (arg->cpu != smp_processor_id()) {
++		pr_err("FAIL: scheduled on wrong CPU?\n");
++		return 0;
++	}
++
++	virt_addr = smp_cond_load_acquire(&arg->virt_addr, VAL != NULL);
++	read_map(virt_addr);
++
++	return 0;
++}
++
++#ifdef CONFIG_X86
++#define XPFO_SMP_KILLED SIGKILL
++#elif CONFIG_ARM64
++#define XPFO_SMP_KILLED SIGSEGV
++#else
++#error unsupported arch
++#endif
++
++/* The idea here is to read from the kernel's map on a different thread than
++ * did the mapping (and thus the TLB flushing), to make sure that the page
++ * faults on other cores too.
++ */
++void lkdtm_XPFO_SMP(void)
++{
++	unsigned long user_addr, *virt_addr;
++	struct task_struct *thread;
++	int ret;
++	struct smp_arg arg;
++
++	if (num_online_cpus() < 2) {
++		pr_err("not enough to do a multi cpu test\n");
++		return;
++	}
++
++	arg.virt_addr = NULL;
++	arg.cpu = (smp_processor_id() + 1) % num_online_cpus();
++	thread = kthread_create(smp_reader, &arg, "lkdtm_xpfo_test");
++	if (IS_ERR(thread)) {
++		pr_err("couldn't create kthread? %ld\n", PTR_ERR(thread));
++		return;
++	}
++
++	kthread_bind(thread, arg.cpu);
++	get_task_struct(thread);
++	wake_up_process(thread);
++
++	user_addr = do_map(MAP_PRIVATE | MAP_ANONYMOUS);
++	if (!user_addr)
++		goto kill_thread;
++
++	virt_addr = user_to_kernel(user_addr);
++	if (!virt_addr) {
++		/*
++		 * let's store something that will fail, so we can unblock the
++		 * thread
++		 */
++		smp_store_release(&arg.virt_addr, &arg);
++		goto free_user;
++	}
++
++	smp_store_release(&arg.virt_addr, virt_addr);
++
++	/* there must be a better way to do this. */
++	while (1) {
++		if (thread->exit_state)
++			break;
++		msleep_interruptible(100);
++	}
++
++free_user:
++	if (user_addr)
++		vm_munmap(user_addr, PAGE_SIZE);
++
++kill_thread:
++	ret = kthread_stop(thread);
++	if (ret != XPFO_SMP_KILLED)
++		pr_err("FAIL: thread wasn't killed: %d\n", ret);
++	put_task_struct(thread);
++}
 -- 
-2.9.5
+2.17.1
