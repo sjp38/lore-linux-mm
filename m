@@ -1,100 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 955F18E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:28:50 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id x15so5808307edd.2
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:28:50 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id j30si4189368edc.365.2019.01.11.03.28.48
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 88FF48E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 05:07:07 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id i12so994018ita.3
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:07:07 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m22sor28684487ioj.130.2019.01.11.02.07.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:28:48 -0800 (PST)
-Date: Fri, 11 Jan 2019 12:28:40 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: (ghes|hest)_disable
-Message-ID: <20190111112840.GB4729@zn.tnic>
+        (Google Transport Security);
+        Fri, 11 Jan 2019 02:07:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+ <1547183577-20309-2-git-send-email-kernelfans@gmail.com> <20190111061221.GB13263@localhost.localdomain>
+In-Reply-To: <20190111061221.GB13263@localhost.localdomain>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Fri, 11 Jan 2019 18:06:55 +0800
+Message-ID: <CAFgQCTvhcNK_-b-eVFZY8Ua2C+GbOVM+h4kB1us2vNvvyNPCYg@mail.gmail.com>
+Subject: Re: [PATCHv2 1/7] x86/mm: concentrate the code to memblock allocator enabled
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>, Tony Luck <tony.luck@intel.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
+To: Chao Fan <fanc.fnst@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-Ok,
+On Fri, Jan 11, 2019 at 2:13 PM Chao Fan <fanc.fnst@cn.fujitsu.com> wrote:
+>
+> On Fri, Jan 11, 2019 at 01:12:51PM +0800, Pingfan Liu wrote:
+> >This patch identifies the point where memblock alloc start. It has no
+> >functional.
+> [...]
+> >+#ifdef CONFIG_MEMORY_HOTPLUG
+> >+      /*
+> >+       * Memory used by the kernel cannot be hot-removed because Linux
+> >+       * cannot migrate the kernel pages. When memory hotplug is
+> >+       * enabled, we should prevent memblock from allocating memory
+> >+       * for the kernel.
+> >+       *
+> >+       * ACPI SRAT records all hotpluggable memory ranges. But before
+> >+       * SRAT is parsed, we don't know about it.
+> >+       *
+> >+       * The kernel image is loaded into memory at very early time. We
+> >+       * cannot prevent this anyway. So on NUMA system, we set any
+> >+       * node the kernel resides in as un-hotpluggable.
+> >+       *
+> >+       * Since on modern servers, one node could have double-digit
+> >+       * gigabytes memory, we can assume the memory around the kernel
+> >+       * image is also un-hotpluggable. So before SRAT is parsed, just
+> >+       * allocate memory near the kernel image to try the best to keep
+> >+       * the kernel away from hotpluggable memory.
+> >+       */
+> >+      if (movable_node_is_enabled())
+> >+              memblock_set_bottom_up(true);
+>
+> Hi Pingfan,
+>
+> In my understanding, 'movable_node' is based on the that memory near
+> kernel is considered as in the same node as kernel in high possibility.
+>
+> If SRAT has been parsed early, do we still need the kernel parameter
+> 'movable_node'? Since you have got the memory information about hot-remove,
+> so I wonder if it's OK to drop 'movable_node', and if memory-hotremove is
+> enabled, change memblock allocation according to SRAT.
+>
+x86_32 still need this logic. Maybe it can be doable later.
 
-lemme split this out into a separate thread and add Tony.
-
-On Thu, Jan 10, 2019 at 06:20:35PM +0000, James Morse wrote:
-> > Grrr, what an effing mess that code is! There's hest_disable *and*
-> > ghes_disable. Do we really need them both?
-> 
-> ghes_disable lets you ignore the firmware-first notifications, but still 'use'
-> the other error sources:
-> drivers/pci/pcie/aer.c picks out the three AER types, and uses apei_hest_parse()
-> to know if firmware is controlling AER, even if ghes_disable is set.
-
-Ok, that kinda makes sense.
-
-But look what our sparse documentation says:
-
-        hest_disable    [ACPI]
-                        Disable Hardware Error Source Table (HEST) support;
-                        corresponding firmware-first mode error processing
-                        logic will be disabled.
-
-
-and from looking at the code, hest_disable is kinda like the master
-switch because it gets evaluated first. Right?
-
-Which sounds to me like we want a generic switch which does:
-
-	apei=disable_ff_notifications
-
-to explicitly do exactly that - disable the firmware-first notification
-method. And then the master switch will be
-
-	apei=disable
-
-And we'll be able to pass whatever options here instead of all those
-different _disable switches which need lotsa code staring to figure out
-what exactly they even do in the first place.
-
-> x86's arch_apei_enable_cmcff() looks like it disables MCE to get firmware to
-> handle them. hest_disable would stop this, but instead ghes_disable keeps that,
-> and stops the NOTIFY_NMI being registered.
-
-Yeah, and when you boot with ghes_disable, that would say:
-
-	pr_info("HEST: Enabling Firmware First mode for corrected errors.\n");
-
-but there will be no notifications and users will scratch heads.
-
-> (do you consider cmdline arguments as ABI, or hard to justify and hard to remove?)
-
-I don't, frankly. I guess we will have to have a transition period where
-we keep them and issue a warning message that users should switch to
-"apei=xxx" instead and remove them after a lot of time has passed.
-
-> I don't think its broken enough to justify ripping them out. A user of
-> ghes_disable would be someone with broken firmware-first handling of AER. They
-> need to know firmware is changing the register values behind their back (so need
-> to parse the HEST), but want to ignore the junk notifications. It doesn't sound
-> like an unlikely scenario.
-
-Yes, that makes sense.
-
-But I think we should add a generic cmdline arg with suboptions and
-document exactly what all those do. Similar to "mce=" on x86 which is
-nicely documented in Documentation/x86/x86_64/boot-options.txt.
-
-Right now, only a few people understand what those do and in some of the
-cases they do too much/the wrong thing.
-
-Thoughts?
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Thanks,
+Pingfan
+> If there is something wrong in my understanding, please let me know.
+>
+> Thanks,
+> Chao Fan
+>
+> >+#endif
+> >       init_mem_mapping();
+> >+      memblock_set_current_limit(get_max_mapped());
+> >
+> >       idt_setup_early_pf();
+> >
+> >@@ -1145,8 +1145,6 @@ void __init setup_arch(char **cmdline_p)
+> >        */
+> >       mmu_cr4_features = __read_cr4() & ~X86_CR4_PCIDE;
+> >
+> >-      memblock_set_current_limit(get_max_mapped());
+> >-
+> >       /*
+> >        * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
+> >        */
+> >--
+> >2.7.4
+> >
+> >
+> >
+>
+>
