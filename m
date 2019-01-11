@@ -1,115 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 252A58E0002
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2019 08:56:13 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c3so34073245eda.3
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2019 05:56:13 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4489F8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 11:45:40 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id z10so6130821edz.15
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 08:45:40 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p18si7954444edc.306.2019.01.03.05.56.11
+        by mx.google.com with ESMTPS id b7si4097760edy.138.2019.01.11.08.45.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jan 2019 05:56:11 -0800 (PST)
-Date: Thu, 3 Jan 2019 14:56:09 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH v3] mm: remove extra drain pages on pcp list
-Message-ID: <20190103135609.GP31793@dhcp22.suse.cz>
-References: <20181218204656.4297-1-richard.weiyang@gmail.com>
- <20181221170228.10686-1-richard.weiyang@gmail.com>
+        Fri, 11 Jan 2019 08:45:38 -0800 (PST)
+Date: Fri, 11 Jan 2019 17:45:36 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/2] oom, memcg: do not report racy no-eligible OOM
+Message-ID: <20190111164536.GJ14956@dhcp22.suse.cz>
+References: <e55fb27c-f23b-0ac5-acfd-7265c0a3b8dc@i-love.sakura.ne.jp>
+ <20190109120212.GT31793@dhcp22.suse.cz>
+ <201901102359.x0ANxIbn020225@www262.sakura.ne.jp>
+ <fbdfdfeb-5664-ddf3-4d65-c64f9851ac26@i-love.sakura.ne.jp>
+ <20190111113354.GD14956@dhcp22.suse.cz>
+ <0d67b389-91e2-18ab-b596-39361b895c89@i-love.sakura.ne.jp>
+ <20190111133401.GA6997@dhcp22.suse.cz>
+ <d9f7b139-d51b-93ae-b5ad-856fd9f2c168@i-love.sakura.ne.jp>
+ <20190111150703.GI14956@dhcp22.suse.cz>
+ <baa43a5a-6cae-bc4e-5911-13d4bfcd32f2@i-love.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181221170228.10686-1-richard.weiyang@gmail.com>
+In-Reply-To: <baa43a5a-6cae-bc4e-5911-13d4bfcd32f2@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, osalvador@suse.de, david@redhat.com
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat 22-12-18 01:02:28, Wei Yang wrote:
-> In current implementation, there are two places to isolate a range of
-> page: __offline_pages() and alloc_contig_range(). During this procedure,
-> it will drain pages on pcp list.
+On Sat 12-01-19 00:37:05, Tetsuo Handa wrote:
+> On 2019/01/12 0:07, Michal Hocko wrote:
+> > On Fri 11-01-19 23:31:18, Tetsuo Handa wrote:
+> >> The OOM killer invoked by [ T9694] called printk() but didn't kill anything.
+> >> Instead, SIGINT from Ctrl-C killed all thread groups sharing current->mm.
+> > 
+> > I still do not get it. Those other processes are not sharing signals.
+> > Or is it due to injecting the signal too all of them with the proper
+> > timing?
 > 
-> Below is a brief call flow:
+> Pressing Ctrl-C between after task_will_free_mem(p) in oom_kill_process() and
+> before __oom_kill_process() (e.g. dump_header()) made fatal_signal_pending() = T
+> for all of them.
 > 
->   __offline_pages()/alloc_contig_range()
->       start_isolate_page_range()
->           set_migratetype_isolate()
->               drain_all_pages()
->       drain_all_pages()                 <--- A
+> > Anyway, could you update your patch and abstract 
+> > 	if (unlikely(tsk_is_oom_victim(current) ||
+> > 		     fatal_signal_pending(current) ||
+> > 		     current->flags & PF_EXITING))
+> > 
+> > in try_charge and reuse it in mem_cgroup_out_of_memory under the
+> > oom_lock with an explanation please?
 > 
-> >From this snippet we can see current logic is isolate and drain pcp list
-> for each pageblock and drain pcp list again for the whole range.
+> I don't think doing so makes sense, for
 > 
-> While the drain at A is not necessary. The reason is
-> start_isolate_page_range() will set the migrate type of a range to
-> MIGRATE_ISOLATE. After doing so, this range will never be allocated from
-> Buddy, neither to a real user nor to pcp list. This means the procedure
-> to drain pages on pcp list after start_isolate_page_range() will not
-> drain any page in the target range.
+>   tsk_is_oom_victim(current) = T && fatal_signal_pending(current) == F
+> 
+> can't happen for mem_cgroup_out_of_memory() under the oom_lock, and
+> current->flags cannot get PF_EXITING when current is inside
+> mem_cgroup_out_of_memory(). fatal_signal_pending(current) alone is
+> appropriate for mem_cgroup_out_of_memory() under the oom_lock because
+> 
+>   tsk_is_oom_victim(current) = F && fatal_signal_pending(current) == T
+> 
+> can happen there.
 
-I am still not happy with the changelog. I would suggest the following
-instead
+I meant to use the same check consistently. If we can bypass the charge
+under a list of conditions in the charge path we should be surely be
+able to the the same for the oom path. I will not insist but unless
+there is a strong reason I would prefer that.
 
-"
-start_isolate_page_range is responsible for isolating the given pfn
-range. One part of that job is to make sure that also pages that are on
-the allocator pcp lists are properly isolated. Otherwise they could be
-reused and the range wouldn't be completely isolated until the memory is
-freed back.  While there is no strict guarantee here because pages might
-get allocated at any time before drain_all_pages is called there doesn't
-seem to be any strong demand for such a guarantee.
+> Also, doing so might become wrong in future, for mem_cgroup_out_of_memory()
+> is also called from memory_max_write() which does not bail out upon
+> PF_EXITING. I don't think we can call memory_max_write() after current
+> thread got PF_EXITING, but nobody knows what change will happen in future.
 
-In any case, draining is already done at the isolation level and there
-is no need to do it again later by start_isolate_page_range callers
-(memory hotplug and CMA allocator currently). Therefore remove pointless
-draining in existing callers to make the code more clear and
-functionally correct.
-"
- 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-
-With something like that, you can add
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> 
-> ---
-> v3:
->   * it is not proper to rely on caller to drain pages, so keep to drain
->     pages during iteration and remove the one in callers.
-> v2: adjust changelog with MIGRATE_ISOLATE effects for the isolated range
-> ---
->  mm/memory_hotplug.c | 1 -
->  mm/page_alloc.c     | 1 -
->  2 files changed, 2 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 6910e0eea074..d2fa6cbbb2db 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1599,7 +1599,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  
->  	cond_resched();
->  	lru_add_drain_all();
-> -	drain_all_pages(zone);
->  
->  	pfn = scan_movable_pages(start_pfn, end_pfn);
->  	if (pfn) { /* We have movable pages */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index f1edd36a1e2b..d9ee4bb3a1a7 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -8041,7 +8041,6 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->  	 */
->  
->  	lru_add_drain_all();
-> -	drain_all_pages(cc.zone);
->  
->  	order = 0;
->  	outer_start = start;
-> -- 
-> 2.15.1
-> 
-
+No, this makes no sense what so ever.
 -- 
 Michal Hocko
 SUSE Labs
