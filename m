@@ -1,72 +1,294 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ED708E0038
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2019 06:09:57 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id z10so1476207edz.15
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2019 03:09:57 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f14si673014edw.282.2019.01.08.03.09.55
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DDA78E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:02:53 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id u20so16143045qtk.6
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:02:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v7si2375861qvl.15.2019.01.11.03.02.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jan 2019 03:09:55 -0800 (PST)
-From: Roman Penyaev <rpenyaev@suse.de>
-Subject: [PATCH 1/1] mm/vmalloc: Make vmalloc_32_user() align base kernel virtual address to SHMLBA
-Date: Tue,  8 Jan 2019 12:09:44 +0100
-Message-Id: <20190108110944.23591-1-rpenyaev@suse.de>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Fri, 11 Jan 2019 03:02:52 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 04/19] block: rename bvec helpers
+Date: Fri, 11 Jan 2019 19:01:12 +0800
+Message-Id: <20190111110127.21664-5-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Roman Penyaev <rpenyaev@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.com>, "David S . Miller" <davem@davemloft.net>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-This patch repeats the original one from David S. Miller:
+We will support multi-page bvec soon, and have to deal with
+single-page vs multi-page bvec. This patch follows Christoph's
+suggestion to rename all the following helpers:
 
-  2dca6999eed5 ("mm, perf_event: Make vmalloc_user() align base kernel virtual address to SHMLBA")
+	for_each_bvec
+	bvec_iter_bvec
+	bvec_iter_len
+	bvec_iter_page
+	bvec_iter_offset
 
-but for missed vmalloc_32_user() case, which also requires correct
-alignment of virtual address on kernel side to avoid D-caches
-aliases.  A bit of copy-paste from original patch to recover in
-memory of what is all about:
+into:
+	for_each_segment
+	segment_iter_bvec
+	segment_iter_len
+	segment_iter_page
+	segment_iter_offset
 
-  When a vmalloc'd area is mmap'd into userspace, some kind of
-  co-ordination is necessary for this to work on platforms with cpu
-  D-caches which can have aliases.
+so that these helpers named with 'segment' only deal with single-page
+bvec, or called segment. We will introduce helpers named with 'bvec'
+for multi-page bvec.
 
-  Otherwise kernel side writes won't be seen properly in userspace
-  and vice versa.
+bvec_iter_advance() isn't renamed becasue this helper is always operated
+on real bvec even though multi-page bvec is supported.
 
-  If the kernel side mapping and the user side one have the same
-  alignment, modulo SHMLBA, this can work as long as VM_SHARED is
-  shared of VMA and for all current users this is true.  VM_SHARED
-  will force SHMLBA alignment of the user side mmap on platforms with
-  D-cache aliasing matters.
-
-  David S. Miller
-
-Signed-off-by: Roman Penyaev <rpenyaev@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: David S. Miller <davem@davemloft.net>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Acked-by: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Suggested-by: Christoph Hellwig <hch@lst.de>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- mm/vmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .clang-format                  |  2 +-
+ drivers/md/dm-integrity.c      |  2 +-
+ drivers/md/dm-io.c             |  4 ++--
+ drivers/nvdimm/blk.c           |  4 ++--
+ drivers/nvdimm/btt.c           |  4 ++--
+ include/linux/bio.h            | 10 +++++-----
+ include/linux/bvec.h           | 20 +++++++++++---------
+ include/linux/ceph/messenger.h |  2 +-
+ lib/iov_iter.c                 |  2 +-
+ net/ceph/messenger.c           | 14 +++++++-------
+ 10 files changed, 33 insertions(+), 31 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 50b17c745149..e83961767dc1 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1971,7 +1971,7 @@ EXPORT_SYMBOL(vmalloc_32);
-  */
- void *vmalloc_32_user(unsigned long size)
+diff --git a/.clang-format b/.clang-format
+index e6080f5834a3..049200fbab94 100644
+--- a/.clang-format
++++ b/.clang-format
+@@ -120,7 +120,7 @@ ForEachMacros:
+   - 'for_each_available_child_of_node'
+   - 'for_each_bio'
+   - 'for_each_board_func_rsrc'
+-  - 'for_each_bvec'
++  - 'for_each_segment'
+   - 'for_each_child_of_node'
+   - 'for_each_clear_bit'
+   - 'for_each_clear_bit_from'
+diff --git a/drivers/md/dm-integrity.c b/drivers/md/dm-integrity.c
+index 457200ca6287..046b7785e3f6 100644
+--- a/drivers/md/dm-integrity.c
++++ b/drivers/md/dm-integrity.c
+@@ -1574,7 +1574,7 @@ static bool __journal_read_write(struct dm_integrity_io *dio, struct bio *bio,
+ 				char *tag_ptr = journal_entry_tag(ic, je);
+ 
+ 				if (bip) do {
+-					struct bio_vec biv = bvec_iter_bvec(bip->bip_vec, bip->bip_iter);
++					struct bio_vec biv = segment_iter_bvec(bip->bip_vec, bip->bip_iter);
+ 					unsigned tag_now = min(biv.bv_len, tag_todo);
+ 					char *tag_addr;
+ 					BUG_ON(PageHighMem(biv.bv_page));
+diff --git a/drivers/md/dm-io.c b/drivers/md/dm-io.c
+index 81ffc59d05c9..d72ec2bdd333 100644
+--- a/drivers/md/dm-io.c
++++ b/drivers/md/dm-io.c
+@@ -208,8 +208,8 @@ static void list_dp_init(struct dpages *dp, struct page_list *pl, unsigned offse
+ static void bio_get_page(struct dpages *dp, struct page **p,
+ 			 unsigned long *len, unsigned *offset)
  {
--	return __vmalloc_node_range(size, 1,  VMALLOC_START, VMALLOC_END,
-+	return __vmalloc_node_range(size, SHMLBA,  VMALLOC_START, VMALLOC_END,
- 				    GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL,
- 				    VM_USERMAP, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
+-	struct bio_vec bvec = bvec_iter_bvec((struct bio_vec *)dp->context_ptr,
+-					     dp->context_bi);
++	struct bio_vec bvec = segment_iter_bvec((struct bio_vec *)dp->context_ptr,
++						dp->context_bi);
+ 
+ 	*p = bvec.bv_page;
+ 	*len = bvec.bv_len;
+diff --git a/drivers/nvdimm/blk.c b/drivers/nvdimm/blk.c
+index db45c6bbb7bb..dfae945216bb 100644
+--- a/drivers/nvdimm/blk.c
++++ b/drivers/nvdimm/blk.c
+@@ -89,9 +89,9 @@ static int nd_blk_rw_integrity(struct nd_namespace_blk *nsblk,
+ 		struct bio_vec bv;
+ 		void *iobuf;
+ 
+-		bv = bvec_iter_bvec(bip->bip_vec, bip->bip_iter);
++		bv = segment_iter_bvec(bip->bip_vec, bip->bip_iter);
+ 		/*
+-		 * The 'bv' obtained from bvec_iter_bvec has its .bv_len and
++		 * The 'bv' obtained from segment_iter_bvec has its .bv_len and
+ 		 * .bv_offset already adjusted for iter->bi_bvec_done, and we
+ 		 * can use those directly
+ 		 */
+diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
+index b123b0dcf274..2bbbc90c7b91 100644
+--- a/drivers/nvdimm/btt.c
++++ b/drivers/nvdimm/btt.c
+@@ -1154,9 +1154,9 @@ static int btt_rw_integrity(struct btt *btt, struct bio_integrity_payload *bip,
+ 		struct bio_vec bv;
+ 		void *mem;
+ 
+-		bv = bvec_iter_bvec(bip->bip_vec, bip->bip_iter);
++		bv = segment_iter_bvec(bip->bip_vec, bip->bip_iter);
+ 		/*
+-		 * The 'bv' obtained from bvec_iter_bvec has its .bv_len and
++		 * The 'bv' obtained from segment_iter_bvec has its .bv_len and
+ 		 * .bv_offset already adjusted for iter->bi_bvec_done, and we
+ 		 * can use those directly
+ 		 */
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 72b4f7be2106..16a65361535f 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -48,14 +48,14 @@
+ #define bio_set_prio(bio, prio)		((bio)->bi_ioprio = prio)
+ 
+ #define bio_iter_iovec(bio, iter)				\
+-	bvec_iter_bvec((bio)->bi_io_vec, (iter))
++	segment_iter_bvec((bio)->bi_io_vec, (iter))
+ 
+ #define bio_iter_page(bio, iter)				\
+-	bvec_iter_page((bio)->bi_io_vec, (iter))
++	segment_iter_page((bio)->bi_io_vec, (iter))
+ #define bio_iter_len(bio, iter)					\
+-	bvec_iter_len((bio)->bi_io_vec, (iter))
++	segment_iter_len((bio)->bi_io_vec, (iter))
+ #define bio_iter_offset(bio, iter)				\
+-	bvec_iter_offset((bio)->bi_io_vec, (iter))
++	segment_iter_offset((bio)->bi_io_vec, (iter))
+ 
+ #define bio_page(bio)		bio_iter_page((bio), (bio)->bi_iter)
+ #define bio_offset(bio)		bio_iter_offset((bio), (bio)->bi_iter)
+@@ -738,7 +738,7 @@ static inline bool bioset_initialized(struct bio_set *bs)
+ #if defined(CONFIG_BLK_DEV_INTEGRITY)
+ 
+ #define bip_for_each_vec(bvl, bip, iter)				\
+-	for_each_bvec(bvl, (bip)->bip_vec, iter, (bip)->bip_iter)
++	for_each_segment(bvl, (bip)->bip_vec, iter, (bip)->bip_iter)
+ 
+ #define bio_for_each_integrity_vec(_bvl, _bio, _iter)			\
+ 	for_each_bio(_bio)						\
+diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+index ba0ae40e77c9..716a87b26a6a 100644
+--- a/include/linux/bvec.h
++++ b/include/linux/bvec.h
+@@ -50,23 +50,25 @@ struct bvec_iter {
+  */
+ #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
+ 
+-#define bvec_iter_page(bvec, iter)				\
++#define segment_iter_page(bvec, iter)				\
+ 	(__bvec_iter_bvec((bvec), (iter))->bv_page)
+ 
+-#define bvec_iter_len(bvec, iter)				\
++#define segment_iter_len(bvec, iter)				\
+ 	min((iter).bi_size,					\
+ 	    __bvec_iter_bvec((bvec), (iter))->bv_len - (iter).bi_bvec_done)
+ 
+-#define bvec_iter_offset(bvec, iter)				\
++#define segment_iter_offset(bvec, iter)				\
+ 	(__bvec_iter_bvec((bvec), (iter))->bv_offset + (iter).bi_bvec_done)
+ 
+-#define bvec_iter_bvec(bvec, iter)				\
++#define segment_iter_bvec(bvec, iter)				\
+ ((struct bio_vec) {						\
+-	.bv_page	= bvec_iter_page((bvec), (iter)),	\
+-	.bv_len		= bvec_iter_len((bvec), (iter)),	\
+-	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
++	.bv_page	= segment_iter_page((bvec), (iter)),	\
++	.bv_len		= segment_iter_len((bvec), (iter)),	\
++	.bv_offset	= segment_iter_offset((bvec), (iter)),	\
+ })
+ 
++#define bvec_iter_len  segment_iter_len
++
+ static inline bool bvec_iter_advance(const struct bio_vec *bv,
+ 		struct bvec_iter *iter, unsigned bytes)
+ {
+@@ -92,10 +94,10 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
+ 	return true;
+ }
+ 
+-#define for_each_bvec(bvl, bio_vec, iter, start)			\
++#define for_each_segment(bvl, bio_vec, iter, start)			\
+ 	for (iter = (start);						\
+ 	     (iter).bi_size &&						\
+-		((bvl = bvec_iter_bvec((bio_vec), (iter))), 1);	\
++		((bvl = segment_iter_bvec((bio_vec), (iter))), 1);	\
+ 	     bvec_iter_advance((bio_vec), &(iter), (bvl).bv_len))
+ 
+ /* for iterating one bio from start to end */
+diff --git a/include/linux/ceph/messenger.h b/include/linux/ceph/messenger.h
+index 800a2128d411..c7e37a7229c4 100644
+--- a/include/linux/ceph/messenger.h
++++ b/include/linux/ceph/messenger.h
+@@ -155,7 +155,7 @@ struct ceph_bvec_iter {
+ 									      \
+ 		__cur_iter = (it)->iter;				      \
+ 		__cur_iter.bi_size = (n);				      \
+-		for_each_bvec(bv, (it)->bvecs, __cur_iter, __cur_iter)	      \
++		for_each_segment(bv, (it)->bvecs, __cur_iter, __cur_iter)     \
+ 			(void)(BVEC_STEP);				      \
+ 	}))
+ 
+diff --git a/lib/iov_iter.c b/lib/iov_iter.c
+index be4bd627caf0..017eba58489c 100644
+--- a/lib/iov_iter.c
++++ b/lib/iov_iter.c
+@@ -66,7 +66,7 @@
+ 	__start.bi_size = n;				\
+ 	__start.bi_bvec_done = skip;			\
+ 	__start.bi_idx = 0;				\
+-	for_each_bvec(__v, i->bvec, __bi, __start) {	\
++	for_each_segment(__v, i->bvec, __bi, __start) {	\
+ 		if (!__v.bv_len)			\
+ 			continue;			\
+ 		(void)(STEP);				\
+diff --git a/net/ceph/messenger.c b/net/ceph/messenger.c
+index d5718284db57..7cda449752b1 100644
+--- a/net/ceph/messenger.c
++++ b/net/ceph/messenger.c
+@@ -878,17 +878,17 @@ static void ceph_msg_data_bvecs_cursor_init(struct ceph_msg_data_cursor *cursor,
+ 	cursor->bvec_iter = data->bvec_pos.iter;
+ 	cursor->bvec_iter.bi_size = cursor->resid;
+ 
+-	BUG_ON(cursor->resid < bvec_iter_len(bvecs, cursor->bvec_iter));
++	BUG_ON(cursor->resid < segment_iter_len(bvecs, cursor->bvec_iter));
+ 	cursor->last_piece =
+-	    cursor->resid == bvec_iter_len(bvecs, cursor->bvec_iter);
++	    cursor->resid == segment_iter_len(bvecs, cursor->bvec_iter);
+ }
+ 
+ static struct page *ceph_msg_data_bvecs_next(struct ceph_msg_data_cursor *cursor,
+ 						size_t *page_offset,
+ 						size_t *length)
+ {
+-	struct bio_vec bv = bvec_iter_bvec(cursor->data->bvec_pos.bvecs,
+-					   cursor->bvec_iter);
++	struct bio_vec bv = segment_iter_bvec(cursor->data->bvec_pos.bvecs,
++					      cursor->bvec_iter);
+ 
+ 	*page_offset = bv.bv_offset;
+ 	*length = bv.bv_len;
+@@ -901,7 +901,7 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
+ 	struct bio_vec *bvecs = cursor->data->bvec_pos.bvecs;
+ 
+ 	BUG_ON(bytes > cursor->resid);
+-	BUG_ON(bytes > bvec_iter_len(bvecs, cursor->bvec_iter));
++	BUG_ON(bytes > segment_iter_len(bvecs, cursor->bvec_iter));
+ 	cursor->resid -= bytes;
+ 	bvec_iter_advance(bvecs, &cursor->bvec_iter, bytes);
+ 
+@@ -914,9 +914,9 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
+ 		return false;	/* more bytes to process in this segment */
+ 
+ 	BUG_ON(cursor->last_piece);
+-	BUG_ON(cursor->resid < bvec_iter_len(bvecs, cursor->bvec_iter));
++	BUG_ON(cursor->resid < segment_iter_len(bvecs, cursor->bvec_iter));
+ 	cursor->last_piece =
+-	    cursor->resid == bvec_iter_len(bvecs, cursor->bvec_iter);
++	    cursor->resid == segment_iter_len(bvecs, cursor->bvec_iter);
+ 	return true;
+ }
+ 
 -- 
-2.19.1
+2.9.5
