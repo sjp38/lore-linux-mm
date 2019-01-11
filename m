@@ -1,59 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 185978E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:52:06 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c34so34718737edb.8
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:52:06 -0800 (PST)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
-        by mx.google.com with ESMTPS id a30-v6si360894ejl.130.2019.01.04.04.52.04
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 05D198E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:01:44 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id b17so10476163pfc.11
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 07:01:43 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h9sor53947593pgs.76.2019.01.11.07.01.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:52:04 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 33A8A1C1B9A
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:52:04 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 10/25] mm, compaction: Ignore the fragmentation avoidance boost for isolation and compaction
-Date: Fri,  4 Jan 2019 12:49:56 +0000
-Message-Id: <20190104125011.16071-11-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        (Google Transport Security);
+        Fri, 11 Jan 2019 07:01:42 -0800 (PST)
+Date: Fri, 11 Jan 2019 20:35:41 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH 0/9] Use vm_insert_range and vm_insert_range_buggy
+Message-ID: <20190111150541.GA2670@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com, sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org, linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
 
-When pageblocks get fragmented, watermarks are artifically boosted to
-reclaim pages to avoid further fragmentation events. However, compaction
-is often either fragmentation-neutral or moving movable pages away from
-unmovable/reclaimable pages. As the true watermarks are preserved, allow
-compaction to ignore the boost factor.
+Previouly drivers have their own way of mapping range of
+kernel pages/memory into user vma and this was done by
+invoking vm_insert_page() within a loop.
 
-The expected impact is very slight as the main benefit is that compaction
-is slightly more likely to succeed when the system has been fragmented
-very recently. On both 1-socket and 2-socket machines for THP-intensive
-allocation during fragmentation the success rate was increased by less
-than 1% which is marginal. However, detailed tracing indicated that
-failure of migration due to a premature ENOMEM triggered by watermark
-checks were eliminated.
+As this pattern is common across different drivers, it can
+be generalized by creating new functions and use it across
+the drivers.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+vm_insert_range() is the API which could be used to mapped
+kernel memory/pages in drivers which has considered vm_pgoff
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 57ba9d1da519..05c9a81d54ed 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2958,7 +2958,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 		 * watermark, because we already know our high-order page
- 		 * exists.
- 		 */
--		watermark = min_wmark_pages(zone) + (1UL << order);
-+		watermark = zone->_watermark[WMARK_MIN] + (1UL << order);
- 		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
- 			return 0;
- 
+vm_insert_range_buggy() is the API which could be used to map
+range of kernel memory/pages in drivers which has not considered
+vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
+
+We _could_ then at a later "fix" these drivers which are using
+vm_insert_range_buggy() to behave according to the normal vm_pgoff
+offsetting simply by removing the _buggy suffix on the function
+name and if that causes regressions, it gives us an easy way to revert.
+
+There is an existing bug in [7/9], where user passed length is not
+verified against object_count. For any value of length > object_count
+it will end up overrun page array which could lead to a potential bug.
+This is fixed as part of these conversion.
+
+Souptick Joarder (9):
+  mm: Introduce new vm_insert_range and vm_insert_range_buggy API
+  arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
+  drivers/firewire/core-iso.c: Convert to use vm_insert_range_buggy
+  drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
+  drm/xen/xen_drm_front_gem.c: Convert to use vm_insert_range
+  iommu/dma-iommu.c: Convert to use vm_insert_range
+  videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range_buggy
+  xen/gntdev.c: Convert to use vm_insert_range
+  xen/privcmd-buf.c: Convert to use vm_insert_range_buggy
+
+ arch/arm/mm/dma-mapping.c                         | 22 ++----
+ drivers/firewire/core-iso.c                       | 15 +----
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c       | 17 +----
+ drivers/gpu/drm/xen/xen_drm_front_gem.c           | 18 ++---
+ drivers/iommu/dma-iommu.c                         | 12 +---
+ drivers/media/common/videobuf2/videobuf2-dma-sg.c | 22 ++----
+ drivers/xen/gntdev.c                              | 16 ++---
+ drivers/xen/privcmd-buf.c                         |  8 +--
+ include/linux/mm.h                                |  4 ++
+ mm/memory.c                                       | 81 +++++++++++++++++++++++
+ mm/nommu.c                                        | 14 ++++
+ 11 files changed, 129 insertions(+), 100 deletions(-)
+
 -- 
-2.16.4
+1.9.1
