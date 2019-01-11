@@ -1,46 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B0C098E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:15:20 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id r9so5550101pfb.13
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 08:15:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s16sor50451952pfi.69.2019.01.09.08.15.19
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CDEA28E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 19:23:51 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id x7so7170633pll.23
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:23:51 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id d16si201256pfn.169.2019.01.10.16.23.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 09 Jan 2019 08:15:19 -0800 (PST)
-Date: Wed, 9 Jan 2019 21:49:17 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH] include/linux/hmm.h: Convert to use vm_fault_t
-Message-ID: <20190109161916.GA23410@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 16:23:50 -0800 (PST)
+Subject: Re: [kbuild-all] [PATCH 2/2] memcg: do not report racy no-eligible
+ OOM tasks
+References: <20190107143802.16847-3-mhocko@kernel.org>
+ <201901081642.Q6tXklr0%fengguang.wu@intel.com>
+ <20190108093959.GQ31793@dhcp22.suse.cz>
+From: Rong Chen <rong.a.chen@intel.com>
+Message-ID: <a0312c1e-dfed-5cff-c660-e1c1bea9843b@intel.com>
+Date: Fri, 11 Jan 2019 08:23:57 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20190108093959.GQ31793@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: jglisse@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@infradead.org, dan.j.williams@intel.com
+To: Michal Hocko <mhocko@kernel.org>, kbuild test robot <lkp@intel.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-convert to use vm_fault_t type as return type for
-fault handler.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- include/linux/hmm.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 66f9ebb..7c5ace3 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -468,7 +468,7 @@ struct hmm_devmem_ops {
- 	 * Note that mmap semaphore is held in read mode at least when this
- 	 * callback occurs, hence the vma is valid upon callback entry.
- 	 */
--	int (*fault)(struct hmm_devmem *devmem,
-+	vm_fault_t (*fault)(struct hmm_devmem *devmem,
- 		     struct vm_area_struct *vma,
- 		     unsigned long addr,
- 		     const struct page *page,
--- 
-1.9.1
+On 01/08/2019 05:39 PM, Michal Hocko wrote:
+> On Tue 08-01-19 16:35:42, kbuild test robot wrote:
+> [...]
+>> All warnings (new ones prefixed by >>):
+>>
+>>     include/linux/rcupdate.h:659:9: warning: context imbalance in 'find_lock_task_mm' - wrong count at exit
+>>     include/linux/sched/mm.h:141:37: warning: dereference of noderef expression
+>>     mm/oom_kill.c:225:28: warning: context imbalance in 'oom_badness' - unexpected unlock
+>>     mm/oom_kill.c:406:9: warning: context imbalance in 'dump_tasks' - different lock contexts for basic block
+>>>> mm/oom_kill.c:918:17: warning: context imbalance in '__oom_kill_process' - unexpected unlock
+> What exactly does this warning say? I do not see anything wrong about
+> the code. find_lock_task_mm returns a locked task when t != NULL and
+> mark_oom_victim doesn't do anything about the locking. Am I missing
+> something or the warning is just confused?
+
+Thanks for your reply. It looks like a false positive. We'll look into it.
+
+Best Regards,
+Rong Chen
+
+>
+> [...]
+>> 00508538 Michal Hocko          2019-01-07  915  		t = find_lock_task_mm(p);
+>> 00508538 Michal Hocko          2019-01-07  916  		if (!t)
+>> 00508538 Michal Hocko          2019-01-07  917  			continue;
+>> 00508538 Michal Hocko          2019-01-07 @918  		mark_oom_victim(t);
+>> 00508538 Michal Hocko          2019-01-07  919  		task_unlock(t);
+>> 647f2bdf David Rientjes        2012-03-21  920  	}
