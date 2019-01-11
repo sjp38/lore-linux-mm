@@ -1,129 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 579FF8E00F9
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 20:05:03 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 68so38276997pfr.6
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 17:05:03 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q24si14005799pgi.334.2019.01.04.17.05.01
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6623E8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 20:56:46 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id ay11so7338931plb.20
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 17:56:46 -0800 (PST)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40083.outbound.protection.outlook.com. [40.107.4.83])
+        by mx.google.com with ESMTPS id w19si16779600pgf.573.2019.01.10.17.56.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 17:05:01 -0800 (PST)
-Date: Fri, 4 Jan 2019 17:04:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 202149] New: NULL Pointer Dereference in __split_huge_pmd
- on PPC64LE
-Message-Id: <20190104170459.c8c7fa57ba9bc8a69dee5666@linux-foundation.org>
-In-Reply-To: <bug-202149-27@https.bugzilla.kernel.org/>
-References: <bug-202149-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 10 Jan 2019 17:56:45 -0800 (PST)
+From: Andy Duan <fugang.duan@nxp.com>
+Subject: RE: [rpmsg PATCH v2 1/1] rpmsg: virtio_rpmsg_bus: fix unexpected huge
+ vmap mappings
+Date: Fri, 11 Jan 2019 01:56:39 +0000
+Message-ID: 
+ <VI1PR0402MB36002B7D23FEA8408E0BBD3CFF850@VI1PR0402MB3600.eurprd04.prod.outlook.com>
+References: <1545812449-32455-1-git-send-email-fugang.duan@nxp.com>
+ <CAKv+Gu-zfTZAZfiQt1iUn9otqeDkJP-y-siuBUrWUR-Kq=BsVQ@mail.gmail.com>
+ <20181226145048.GA24307@infradead.org>
+ <VI1PR0402MB3600AC833D6F29ECC34C8D4CFFB60@VI1PR0402MB3600.eurprd04.prod.outlook.com>
+ <20181227121901.GA20892@infradead.org>
+ <VI1PR0402MB3600799A06B6BFE5EBF8837FFFB70@VI1PR0402MB3600.eurprd04.prod.outlook.com>
+ <VI1PR0402MB36000BD05AF4B242E13D9D05FF840@VI1PR0402MB3600.eurprd04.prod.outlook.com>
+ <42cbdef19ad74f84bc1222c3ad828487@SFHDAG7NODE2.st.com>
+In-Reply-To: <42cbdef19ad74f84bc1222c3ad828487@SFHDAG7NODE2.st.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, kernel@bluematt.me
+To: Loic PALLARDY <loic.pallardy@st.com>, Christoph Hellwig <hch@infradead.org>, "bjorn.andersson@linaro.org" <bjorn.andersson@linaro.org>, "ohad@wizery.com" <ohad@wizery.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Robin Murphy <robin.murphy@arm.com>, "linux-remoteproc@vger.kernel.org" <linux-remoteproc@vger.kernel.org>, "anup@brainfault.org" <anup@brainfault.org>, dl-linux-imx <linux-imx@nxp.com>, Richard Zhu <hongxing.zhu@nxp.com>, Jason Liu <jason.hui.liu@nxp.com>, Peng Fan <peng.fan@nxp.com>
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
-
-On Fri, 04 Jan 2019 22:49:52 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=202149
-> 
->             Bug ID: 202149
->            Summary: NULL Pointer Dereference in __split_huge_pmd on
->                     PPC64LE
-
-I think that trace is pointing at the ppc-specific
-pgtable_trans_huge_withdraw()?
-
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.19.13
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->           Assignee: akpm@linux-foundation.org
->           Reporter: kernel@bluematt.me
->         Regression: No
-> 
-> Kernel is actually 4.19.13 + this commit to fix mpt3sas, though I also saw this
-> fault with a different version of mpt3sas patched into an earlier 4.19 kernel
-> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=23c3828aa2f84edec7020c7397a22931e7a879e1
-> . Config is roughly Debian's default config + 4K pages instead of the default
-> 64K.
-> 
-> [ 9531.579895] Unable to handle kernel paging request for data at address
-> 0x00000000
-> [ 9531.579918] Faulting instruction address: 0xc000000000076c64
-> [ 9531.579930] Oops: Kernel access of bad area, sig: 11 [#1]
-> [ 9531.579948] LE SMP NR_CPUS=2048 NUMA PowerNV
-> [ 9531.579960] Modules linked in: binfmt_misc veth xt_nat tap
-> nft_chain_nat_ipv4 nft_chain_route_ipv4 tun btrfs zstd_compress zstd_decompress
-> xxhash ipip tunnel4 ip_tunnel ipt_MASQUERADE nf_nat_ipv4 nf_nat nf_conntrack
-> nf_defrag_ipv6 nf_defrag_ipv4 xt_DSCP xt_dscp nft_counter xt_tcpudp nft_compat
-> nf_tables nfnetlink amdgpu chash gpu_sched ast snd_hda_codec_hdmi ttm
-> drm_kms_helper snd_hda_intel snd_hda_codec drm sg snd_hda_core snd_hwdep
-> snd_pcm uas drm_panel_orientation_quirks syscopyarea sysfillrect snd_timer
-> sysimgblt fb_sys_fops tg3 mpt3sas snd i2c_algo_bit ofpart ipmi_powernv opal_prd
-> ipmi_devintf soundcore ipmi_msghandler powernv_flash libphy mtd raid_class
-> scsi_transport_sas at24 ip_tables x_tables autofs4 ext4 crc16 mbcache jbd2
-> fscrypto sd_mod raid10 raid456 crc32c_generic libcrc32c async_raid6_recov
-> [ 9531.580142]  async_memcpy async_pq evdev hid_generic usbhid hid raid6_pq
-> async_xor xor async_tx raid1 raid0 multipath linear md_mod usb_storage dm_crypt
-> dm_mod algif_skcipher af_alg ecb xts xhci_pci vmx_crypto xhci_hcd usbcore nvme
-> nvme_core usb_common
-> [ 9531.580219] CPU: 9 PID: 4762 Comm: rustc Not tainted 4.19.0-2-powerpc64le #1
-> Debian 4.19.13-1
-> [ 9531.580250] NIP:  c000000000076c64 LR: c00000000037ec38 CTR:
-> c0000000000471e0
-> [ 9531.580280] REGS: c0000001a4f6f840 TRAP: 0300   Not tainted 
-> (4.19.0-2-powerpc64le Debian 4.19.13-1)
-> [ 9531.580311] MSR:  9000000000009033 <SF,HV,EE,ME,IR,DR,RI,LE>  CR: 24202848 
-> XER: 00000000
-> [ 9531.580337] CFAR: c00000000037ec34 DAR: 0000000000000000 DSISR: 40000000
-> IRQMASK: 0 
->                GPR00: c00000000037ec38 c0000001a4f6fac0 c0000000010a5800
-> c0000008b1a2ec00 
->                GPR04: c0000001a0ccaf80 0000000000000800 c000000001202e60
-> c000000001202de0 
->                GPR08: 0000000000000009 c00a000006833280 c00a000000000000
-> c0000000010b9fd8 
->                GPR12: 0000000000002000 c000000fffff9600 00003fff40000000
-> 0001000000000000 
->                GPR16: e61fffffffffffff fffffffffffffe7f 0000000000000001
-> c00a0000065f48a8 
->                GPR20: c0000001a0ccaf80 0002000000000000 c0000008b1a2ec00
-> c000000001202de0 
->                GPR24: c00a000019a20000 c0000008b1a2ec00 c0000001a0ccaf80
-> c0000006f001c5b0 
->                GPR28: c00a000006833280 c000000001202e68 00003fff3e000000
-> 0000000000000000 
-> [ 9531.580483] NIP [c000000000076c64]
-> radix__pgtable_trans_huge_withdraw+0x94/0x160
-> [ 9531.580506] LR [c00000000037ec38] __split_huge_pmd+0x588/0xcc0
-> [ 9531.580524] Call Trace:
-> [ 9531.580541] [c0000001a4f6fac0] [c0000001a4f6fb10] 0xc0000001a4f6fb10
-> (unreliable)
-> [ 9531.580572] [c0000001a4f6faf0] [c00000000037ebbc]
-> __split_huge_pmd+0x50c/0xcc0
-> [ 9531.580605] [c0000001a4f6fbb0] [c00000000032aeb8]
-> move_page_tables+0x438/0xd30
-> [ 9531.580637] [c0000001a4f6fcc0] [c00000000032b8fc] move_vma+0x14c/0x370
-> [ 9531.580669] [c0000001a4f6fd60] [c00000000032c0a8] sys_mremap+0x588/0x670
-> [ 9531.580702] [c0000001a4f6fe30] [c00000000000b9e4] system_call+0x5c/0x70
-> [ 9531.580732] Instruction dump:
-> [ 9531.580760] 0b0a0000 e9060000 e9470000 7d294030 7d2907b4 79291f24 7d2900d0
-> 7d292038 
-> [ 9531.580797] 7929a402 79293664 7d2a4a14 ebe90010 <e95f0000> 7fbf5040 419e0064
-> 7c0802a6 
-> [ 9531.580837] ---[ end trace 21ba871647464d8b ]---
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+SGkgTG9pYywNCg0KRnJvbTogTG9pYyBQQUxMQVJEWSA8bG9pYy5wYWxsYXJkeUBzdC5jb20+IFNl
+bnQ6IDIwMTnE6jHUwjEwyNUgMjE6MDYNCj4gSGkgQW5keSwNCj4gDQo+ID4gLS0tLS1PcmlnaW5h
+bCBNZXNzYWdlLS0tLS0NCj4gPiBGcm9tOiBBbmR5IER1YW4gPGZ1Z2FuZy5kdWFuQG54cC5jb20+
+DQo+ID4gU2VudDogamV1ZGkgMTAgamFudmllciAyMDE5IDAyOjQ1DQo+ID4gVG86IENocmlzdG9w
+aCBIZWxsd2lnIDxoY2hAaW5mcmFkZWFkLm9yZz47IGJqb3JuLmFuZGVyc3NvbkBsaW5hcm8ub3Jn
+Ow0KPiA+IG9oYWRAd2l6ZXJ5LmNvbQ0KPiA+IENjOiBBcmQgQmllc2hldXZlbCA8YXJkLmJpZXNo
+ZXV2ZWxAbGluYXJvLm9yZz47IEFuZHJldyBNb3J0b24NCj4gPiA8YWtwbUBsaW51eC1mb3VuZGF0
+aW9uLm9yZz47IExpbnV4LU1NIDxsaW51eC1tbUBrdmFjay5vcmc+OyBSb2Jpbg0KPiA+IE11cnBo
+eSA8cm9iaW4ubXVycGh5QGFybS5jb20+OyBsaW51eC1yZW1vdGVwcm9jQHZnZXIua2VybmVsLm9y
+ZzsNCj4gPiBhbnVwQGJyYWluZmF1bHQub3JnOyBMb2ljIFBBTExBUkRZIDxsb2ljLnBhbGxhcmR5
+QHN0LmNvbT47DQo+ID4gZGwtbGludXgtaW14IDxsaW51eC1pbXhAbnhwLmNvbT47IFJpY2hhcmQg
+Wmh1IDxob25neGluZy56aHVAbnhwLmNvbT47DQo+ID4gSmFzb24gTGl1IDxqYXNvbi5odWkubGl1
+QG54cC5jb20+OyBQZW5nIEZhbiA8cGVuZy5mYW5AbnhwLmNvbT4NCj4gPiBTdWJqZWN0OiBSRTog
+W3JwbXNnIFBBVENIIHYyIDEvMV0gcnBtc2c6IHZpcnRpb19ycG1zZ19idXM6IGZpeA0KPiA+IHVu
+ZXhwZWN0ZWQgaHVnZSB2bWFwIG1hcHBpbmdzDQo+ID4NCj4gPiBGcm9tOiBBbmR5IER1YW4gU2Vu
+dDogMjAxOMTqMTLUwjI4yNUgOTo0OA0KPiA+ID4gRnJvbTogQ2hyaXN0b3BoIEhlbGx3aWcgPGhj
+aEBpbmZyYWRlYWQub3JnPiBTZW50OiAyMDE4xOoxMtTCMjfI1Q0KPiA+ID4gMjA6MTkNCj4gPiA+
+ID4gT24gVGh1LCBEZWMgMjcsIDIwMTggYXQgMDI6MzY6NTNBTSArMDAwMCwgQW5keSBEdWFuIHdy
+b3RlOg0KPiA+ID4gPiA+IFJwbXNnIGlzIHVzZWQgdG8gY29tbXVuaWNhdGUgd2l0aCByZW1vdGUg
+Y3B1IGxpa2UgTTQsIHRoZQ0KPiA+ID4gPiA+IGFsbG9jYXRlZCBtZW1vcnkgaXMgc2hhcmVkIGJ5
+IExpbnV4IGFuZCBNNCBzaWRlLiBJbiBnZW5lcmFsLA0KPiA+ID4gPiA+IExpbnV4IHNpZGUgcmVz
+ZXJ2ZWQgdGhlIHN0YXRpYyBtZW1vcnkgcmVnaW9uIGxpa2UgcGVyLWRldmljZSBETUENCj4gPiA+
+ID4gPiBwb29sIGFzIGNvaGVyZW50IG1lbW9yeSBmb3IgdGhlIFJQTVNHIHJlY2VpdmUvdHJhbnNt
+aXQgYnVmZmVycy4NCj4gPiA+ID4gPiBGb3IgdGhlIHN0YXRpYyBtZW1vcnkgcmVnaW9uLCBub3Jt
+YWwgcGFnZSBhbGxvY2F0b3IgY2Fubm90IG1hdGNoDQo+ID4gPiA+ID4gdGhlIHJlcXVpcmVtZW50
+IHVubGVzcyB0aGVyZSBoYXZlIHByb3RvY29sIHRvIHRlbGwgTTQgdGhlDQo+ID4gPiA+ID4gZHlu
+YW1pYyBSUE1TRw0KPiA+ID4gcmVjZWl2ZS90cmFuc21pdCBidWZmZXJzLg0KPiA+ID4gPg0KPiA+
+ID4gPiBJbiB0aGF0IGNhc2UgeW91IG5lZWQgYSBPRiByZXNlcnZlZCBtZW1vcnkgbm9kZSwgbGlr
+ZSB3ZSB1c2UgZm9yDQo+ID4gPiA+IHRoZSAic2hhcmVkLWRtYS1wb29sIiBjb2hlcmVudCBvciBj
+b250aWd1b3VzIGFsbG9jYXRpb25zLg0KPiA+ID4gPiBDdXJyZW50bHkgd2UgaGF2ZSB0aG9zZSB0
+d28gdmFyaWFudHMgd2lyZWQgdXAgdGhlIHRoZSBETUENCj4gPiA+ID4gYWxsb2NhdG9yLCBidXQg
+dGhleSBjYW4gYWxzbyB1c2VkIGRpcmVjdGx5IGJ5IGRyaXZlcnMuICBUbyBiZQ0KPiA+ID4gPiBo
+b25lc3QgSSBkb24ndCByZWFsbHkgbGlrZSBsaWtlIGRyaXZlcnMgZ2V0dGluZyB0b28gaW50aW1h
+dGUgd2l0aA0KPiA+ID4gPiB0aGUgbWVtb3J5IGFsbG9jYXRvciwgYnV0IEkgYWxzbyBkb24ndCB0
+aGluayB0aGF0IHByb3ZpZGluZyBhDQo+ID4gPiA+IGxpdHRsZSBnbHVlIGNvZGUgdG8gaW5zdGFu
+Y2lhdCBhIENNQSBwb29sIGZvciBhIG1lbW9yeSB0aGF0IGNhbiBiZQ0KPiA+ID4gPiB1c2VkIGRp
+cmVjdGx5IGJ5IHRoZSBkcml2ZXIgaXMgbXVjaCBvZiBhbiBpc3N1ZS4gIE1vc3Qgb2YgaXQgY291
+bGQNCj4gPiA+ID4gYmUgcmV1c2VkIGZyb20gdGhlIGV4aXN0aW5nIGNvZGUsIGp1c3Qgd2l0aCBh
+DQo+ID4gc2xpZ2h0bHkNCj4gPiA+IGxvd2VyIGxldmVsIGludGVyZmFjZXMuDQo+ID4gPiA+DQo+
+ID4gPiA+ID4gVG8gc3RvcCB0byBleHRyYWN0IHBhZ2VzIGZyb20gZG1hX2FsbG9jX2NvaGVyZW50
+LCB0aGUgcnBtc2cgYnVzDQo+ID4gPiA+ID4gaW1wbGVtZW50YXRpb24gYmFzZSBvbiB2aXJ0aW8g
+dGhhdCBhbHJlYWR5IHVzZSB0aGUgc2NhdHRlcmxpc3QNCj4gPiA+ID4gPiBtZWNoYW5pc20gZm9y
+IHZyaW5nIG1lbW9yeS4gU28gZm9yIHZpcnRpbyBkcml2ZXIgbGlrZSBSUE1TRyBidXMsDQo+ID4g
+PiA+ID4gd2UgaGF2ZSB0byBleHRyYWN0IHBhZ2VzIGZyb20gZG1hX2FsbG9jX2NvaGVyZW50Lg0K
+PiA+ID4gPg0KPiA+ID4gPiBUaGlzIHNlbnRlbmNlIGRvZXNuJ3QgcGFyc2UgZm9yIG1lLg0KPiA+
+ID4NCj4gPiA+IFZpcnRpbyBzdXBwbHkgdGhlIEFQSXMgdGhhdCByZXF1aXJlIHRoZSBzY2F0dGVy
+bGlzdCBwYWdlcyBmb3IgdmlydGlvIGluL291dCBidWY6DQo+ID4gPiBpbnQgdmlydHF1ZXVlX2Fk
+ZF9pbmJ1ZihzdHJ1Y3QgdmlydHF1ZXVlICp2cSwNCj4gPiA+ICAgICAgICAgICAgICAgICAgICAg
+ICAgIHN0cnVjdCBzY2F0dGVybGlzdCAqc2csIHVuc2lnbmVkIGludCBudW0sDQo+ID4gPiAgICAg
+ICAgICAgICAgICAgICAgICAgICB2b2lkICpkYXRhLA0KPiA+ID4gICAgICAgICAgICAgICAgICAg
+ICAgICAgZ2ZwX3QgZ2ZwKQ0KPiA+ID4gaW50IHZpcnRxdWV1ZV9hZGRfb3V0YnVmKHN0cnVjdCB2
+aXJ0cXVldWUgKnZxLA0KPiA+ID4gICAgICAgICAgICAgICAgICAgICAgICAgIHN0cnVjdCBzY2F0
+dGVybGlzdCAqc2csIHVuc2lnbmVkIGludCBudW0sDQo+ID4gPiAgICAgICAgICAgICAgICAgICAg
+ICAgICAgdm9pZCAqZGF0YSwNCj4gPiA+ICAgICAgICAgICAgICAgICAgICAgICAgICBnZnBfdCBn
+ZnApDQo+ID4gPg0KPiA+ID4NCj4gPiA+ID4NCj4gPiA+ID4gPiBJIGRvbid0IHRoaW5rIHRoZSBw
+YXRjaCBpcyBvbmUgaGFjaywgIGFzIHdlIGFscmVhZHkga25vdyB0aGUNCj4gPiA+ID4gPiBwaHlz
+aWNhbCBhZGRyZXNzIGZvciB0aGUgY29oZXJlbnQgbWVtb3J5LCAganVzdCB3YW50IHRvIGdldA0K
+PiA+ID4gPiA+IHBhZ2VzLCB0aGUgaW50ZXJmYWNlICJwZm5fdG9fcGFnZShQSFlTX1BGTih4KSki
+IGlzIHZlcnkNCj4gPiA+ID4gPiByZWFzb25hYmxlIHRvIHRoZSByZWxhdGVkIHBhZ2VzLg0KPiA+
+ID4gPg0KPiA+ID4gPiBzdHJ1Y3Qgc2NhdHRlcmxpc3QgZG9lc24ndCAoZGlyZWN0bHkpIHJlZmVy
+IHRvIHBoeXNpY2FsIGFkZHJlc3MsDQo+ID4gPiA+IGl0IHJlZmVycyB0byBwYWdlIHN0cnVjdHVy
+ZXMsIHdoaWNoIGVuY29kZSBhIGtlcm5lbCB2aXJ0dWFsDQo+ID4gPiA+IGFkZHJlc3MgaW4gdGhl
+IGtlcm5lbCBkaXJlY3QgbWFwcGluZywgYW5kIHdlIGludGVudGlvbmFsbHkgZG8gbm90DQo+ID4g
+PiA+IGd1YXJhbnRlZSBhIHJldHVybiBpbiB0aGUga2VybmVsIGRpcmVjdCBtYXBwaW5nIGZvciB0
+aGUgRE1BDQo+ID4gPiA+IGNvaGVyZW50IGFsbG9jYXRvciwgYXMgaW4gbWFueSBjYXNlcyB3ZSBo
+YXZlIHRvIGVpdGhlciBhbGxvY2F0ZQ0KPiA+ID4gPiBmcm9tIGEgc3BlY2lhbCBwb29sLCBmcm9t
+IGEgc3BlY2lhbCBhZGRyZXNzIHdpbmRvdyBvciByZW1hcCBtZW1vcnkNCj4gPiA+ID4gdG8gbWFy
+ayBpdCBhcyB1bmNhY2hlZC4gIEhvdyB0aGF0IGlzIGRvbmUgaXMgYW4gaW1wbGVuZW50YXRpb24N
+Cj4gPiA+ID4gZGV0YWlsIHRoYXQgaXMgbm90IGV4cG9zZWQgdG8gZHJpdmVycyBhbmQNCj4gPiA+
+IG1heSBjaGFuZ2UgYXQgYW55IHRpbWUuDQo+ID4gPiA+DQo+ID4gPiA+ID4gSWYgeW91IHN0aWNr
+IHRvIHVzZSBub3JtYWwgcGFnZSBhbGxvY2F0b3IgYW5kIHN0cmVhbWluZyBETUEgQVBJDQo+ID4g
+PiA+ID4gaW4gUlBNU0csICB0aGVuIHdlIGhhdmUgdG86DQo+ID4gPiA+ID4gLSBhZGQgbmV3IHF1
+aXJrIGZlYXR1cmUgZm9yIHZpcnRpbyBsaWtlIHRoZSBzYW1lIGZ1bmN0aW9uIGFzDQo+ID4gPiA+
+ID4gIlZJUlRJT19GX0lPTU1VX1BMQVRGT1JNIiwNCj4gPiA+ID4NCj4gPiA+ID4gWW91IGhhdmUg
+dG8gZG8gdGhhdCBhbnl3YXkuDQo+ID4gPg0KPiA+ID4gSSBkaXNjdXNzIHdpdGggb3VyIHRlYW0s
+IHVzZSBwYWdlIGFsbG9jYXRvciBjYW5ub3QgbWF0Y2ggb3VyIHJlcXVpcmVtZW50Lg0KPiA+ID4g
+aS5NWDhRTS9RWFAgcGxhdGZvcm1zIGhhdmUgcGFydGl0aW9uIGZlYXR1cmUgdGhhdCBsaW1pdCBN
+NCBvbmx5DQo+ID4gPiBhY2Nlc3MNCj4gPiBmaXhlZA0KPiA+ID4gZGRyIG1lbW9yeSByZWdpb24u
+IFN1cHBvc2Ugb3RoZXIgcGxhdGZvcm1zIGFsc28gaGF2ZSBzaW1pbGFyDQo+ID4gPiBsaW1pdGF0
+aW9uDQo+ID4gZm9yDQo+ID4gPiBzZWN1cmUgY2FzZS4NCj4gPiA+DQo+ID4gPiBTbyBpdCByZXF1
+aXJlcyB0byB1c2UgT0YgcmVzZXJ2ZWQgbWVtb3J5IGZvciB0aGUgInNoYXJlZC1kbWEtcG9vbCIN
+Cj4gPiBjb2hlcmVudA0KPiA+ID4gb3IgY29udGlndW91cyBhbGxvY2F0aW9ucy4NCj4gPiA+DQo+
+ID4gRG8geW91IGhhdmUgYW55IG90aGVyIGNvbW1lbnRzIGZvciB0aGUgcGF0Y2ggPw0KPiANCj4g
+SSB0cmllZCB5b3VyIHBhdGNoIG9uIFNUIHBsYXRmb3JtIGFuZCBpdCBkb2Vzbid0IGNvbXBpbGUg
+bmVpdGhlciBvbiBrZXJuZWwNCj4gdjUuMC1yYzEgbm9yIG9uIEJqb3JuJ3MgcnBtc2ctbmV4dC4N
+Cj4gZG1hX3RvX3BoeXMoKSBpcyB1bmtub3duIGFzIGRtYS1kaXJlY3QuaCBub3QgaW5jbHVkZWQg
+YW5kIKGuc3RydWN0DQo+IHZpcnRwcm9jX2luZm+hryBoYXMgbm8gbWVtYmVyIG5hbWVkIKGuYnVm
+c19kZXahry4NCj4gDQo+IENvdWxkIHlvdSBwbGVhc2Ugc2VuZCBhIG5ldyB2ZXJzaW9uIGZpeGlu
+ZyBjb21waWxhdGlvbiBpc3N1ZS4gSSB3b3VsZCBsaWtlIHRvDQo+IHRlc3QgaXQgb24gbXkgcGxh
+dGZvcm0gdG8gcHJvdmlkZSB5b3UgZmVlZGJhY2suDQo+IA0KDQpwaHlzX3RvX2RtYSwgZG1hX3Rv
+X3BoeXMgYW5kIGRtYV9jYXBhYmxlIGFyZSBoZWxwZXJzIHB1Ymxpc2hlZCBieQ0KYXJjaGl0ZWN0
+dXJlIGNvZGUgZm9yIHVzZSBvZiBzd2lvdGxiIGFuZCB4ZW4tc3dpb3RsYiBvbmx5LiAgRHJpdmVy
+cyBhcmUNCm5vdCBzdXBwb3NlZCB0byB1c2UgdGhlc2UgZGlyZWN0bHksIGJ1dCB1c2UgdGhlIERN
+QSBBUEkgaW5zdGVhZC4NCg0KU28gdGhlIGZpeCBpcyBub3QgYWNjZXB0YWJsZSBkdWUgdG8gYXJj
+aCBsaW1pdGF0aW9uLiAgQXMgQ2hyaXN0b3BoJ3Mgc2FpZCwgDQpJdCBuZWVkcyB0byBmaXggdGhl
+IHJvb3QgY2F1c2UuDQoNCkFuZHkNCg==
