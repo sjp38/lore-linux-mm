@@ -1,73 +1,40 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [v3 PATCH 5/5] doc: memcontrol: add description for wipe_on_offline
-Date: Thu, 10 Jan 2019 03:14:45 +0800
-Message-Id: <1547061285-100329-6-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: mhocko@suse.com, hannes@cmpxchg.org, shakeelb@google.com, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BBC58E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 01:26:02 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id a18so7852093pga.16
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 22:26:02 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id p189si38899199pfb.0.2019.01.10.22.26.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 22:26:00 -0800 (PST)
+Date: Fri, 11 Jan 2019 07:25:56 +0100
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2 1/5] fs: kernfs: add poll file operation
+Message-ID: <20190111062556.GA348@kroah.com>
+References: <20190110220718.261134-1-surenb@google.com>
+ <20190110220718.261134-2-surenb@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190110220718.261134-2-surenb@google.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com
 
-Add desprition of wipe_on_offline interface in cgroup documents.
+On Thu, Jan 10, 2019 at 02:07:14PM -0800, Suren Baghdasaryan wrote:
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Kernfs has a standardized poll/notification mechanism for waking all
+> pollers on all fds when a filesystem node changes. To allow polling
+> for custom events, add a .poll callback that can override the default.
+> 
+> This is in preparation for pollable cgroup pressure files which have
+> per-fd trigger configurations.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shakeel Butt <shakeelb@google.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- Documentation/admin-guide/cgroup-v2.rst |  9 +++++++++
- Documentation/cgroup-v1/memory.txt      | 10 ++++++++++
- 2 files changed, 19 insertions(+)
-
-diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
-index 0290c65..e4ef08c 100644
---- a/Documentation/admin-guide/cgroup-v2.rst
-+++ b/Documentation/admin-guide/cgroup-v2.rst
-@@ -1303,6 +1303,15 @@ PAGE_SIZE multiple when read back.
-         memory pressure happens. If you want to avoid that, force_empty will be
-         useful.
- 
-+  memory.wipe_on_offline
-+
-+        This is similar to force_empty, but it just does memory reclaim
-+        asynchronously in css offline kworker.
-+
-+        Writing into 1 will enable it, disable it by writing into 0.
-+
-+        It would reclaim as much as possible memory just as what force_empty does.
-+
- 
- Usage Guidelines
- ~~~~~~~~~~~~~~~~
-diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
-index 8e2cb1d..1c6e1ca 100644
---- a/Documentation/cgroup-v1/memory.txt
-+++ b/Documentation/cgroup-v1/memory.txt
-@@ -71,6 +71,7 @@ Brief summary of control files.
-  memory.stat			 # show various statistics
-  memory.use_hierarchy		 # set/show hierarchical account enabled
-  memory.force_empty		 # trigger forced page reclaim
-+ memory.wipe_on_offline		 # trigger forced page reclaim when offlining
-  memory.pressure_level		 # set memory pressure notifications
-  memory.swappiness		 # set/show swappiness parameter of vmscan
- 				 (See sysctl's vm.swappiness)
-@@ -581,6 +582,15 @@ hierarchical_<counter>=<counter pages> N0=<node 0 pages> N1=<node 1 pages> ...
- 
- The "total" count is sum of file + anon + unevictable.
- 
-+5.7 wipe_on_offline
-+
-+This is similar to force_empty, but it just does memory reclaim asynchronously
-+in css offline kworker.
-+
-+Writing into 1 will enable it, disable it by writing into 0.
-+
-+It would reclaim as much as possible memory just as what force_empty does.
-+
- 6. Hierarchy support
- 
- The memory controller supports a deep hierarchy and hierarchical accounting.
--- 
-1.8.3.1
+Reviewed-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
