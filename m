@@ -1,48 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B8DDB8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:32:30 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id x13so11353399wro.9
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:32:30 -0800 (PST)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50067.outbound.protection.outlook.com. [40.107.5.67])
-        by mx.google.com with ESMTPS id 68si31139244wra.172.2019.01.21.10.32.29
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA418E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:58:37 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id u20so11245883pfa.1
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 12:58:37 -0800 (PST)
+Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id l7si15083723pgk.169.2019.01.11.12.58.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 10:32:29 -0800 (PST)
-From: Jason Gunthorpe <jgg@mellanox.com>
-Subject: Re: [PATCH 6/6] drivers/IB,core: reduce scope of mmap_sem
-Date: Mon, 21 Jan 2019 18:32:26 +0000
-Message-ID: <20190121183218.GK25149@mellanox.com>
-References: <20190121174220.10583-1-dave@stgolabs.net>
- <20190121174220.10583-7-dave@stgolabs.net>
-In-Reply-To: <20190121174220.10583-7-dave@stgolabs.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <AF6C19A4E2A59848B1BBD303F838CD25@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        Fri, 11 Jan 2019 12:58:36 -0800 (PST)
+Subject: Re: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
+References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
+ <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
+ <20190111092408.GM30894@hirez.programming.kicks-ass.net>
+From: Vineet Gupta <vineet.gupta1@synopsys.com>
+Message-ID: <d36b8582-184a-37d2-699f-04837745b70a@synopsys.com>
+Date: Fri, 11 Jan 2019 12:58:22 -0800
 MIME-Version: 1.0
+In-Reply-To: <20190111092408.GM30894@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dledford@redhat.com" <dledford@redhat.com>, "jack@suse.de" <jack@suse.de>, "ira.weiny@intel.com" <ira.weiny@intel.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mark Rutland <mark.rutland@arm.com>, Miklos Szeredi <mszeredi@redhat.com>, Jani Nikula <jani.nikula@intel.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-snps-arc@lists.infradead.org, Ingo Molnar <mingo@kernel.org>
 
-On Mon, Jan 21, 2019 at 09:42:20AM -0800, Davidlohr Bueso wrote:
-> ib_umem_get() uses gup_longterm() and relies on the lock to
-> stabilze the vma_list, so we cannot really get rid of mmap_sem
-> altogether, but now that the counter is atomic, we can get of
-> some complexity that mmap_sem brings with only pinned_vm.
->=20
-> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
-> ---
->  drivers/infiniband/core/umem.c | 41 ++----------------------------------=
------
->  1 file changed, 2 insertions(+), 39 deletions(-)
+On 1/11/19 1:24 AM, Peter Zijlstra wrote:
+> diff --git a/include/linux/bitops.h b/include/linux/bitops.h
+> index 705f7c442691..2060d26a35f5 100644
+> --- a/include/linux/bitops.h
+> +++ b/include/linux/bitops.h
+> @@ -241,10 +241,10 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
+>  	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
+>  	typeof(*(ptr)) old__, new__;				\
+>  								\
+> +	old__ = READ_ONCE(*(ptr));				\
+>  	do {							\
+> -		old__ = READ_ONCE(*(ptr));			\
+>  		new__ = (old__ & ~mask__) | bits__;		\
+> -	} while (cmpxchg(ptr, old__, new__) != old__);		\
+> +	} while (!try_cmpxchg(ptr, &old__, new__));		\
+>  								\
+>  	new__;							\
+>  })
+> 
+> 
+> While there you probably want something like the above... 
 
-I think this addresses my comment..
+As a separate change perhaps so that a revert (unlikely as it might be) could be
+done with less pain.
 
-Considering that it is almost all infiniband, I'd rather it go it go
-through the RDMA tree with an ack from mm people? Please advise..
+> although,
+> looking at it now, we seem to have 'forgotten' to add try_cmpxchg to the
+> generic code :/
 
-Thanks,
-Jason
+So it _has_ to be a separate change ;-)
+
+But can we even provide a sane generic try_cmpxchg. The asm-generic cmpxchg relies
+on local irq save etc so it is clearly only to prevent a new arch from failing to
+compile. atomic*_cmpxchg() is different story since atomics have to be provided by
+arch.
+
+Anyhow what is more interesting is the try_cmpxchg API itself. So commit
+a9ebf306f52c756 introduced/use of try_cmpxchg(), which indeed makes the looping
+"nicer" to read and obvious code gen improvements.
+
+So,
+        for (;;) {
+                new = val $op $imm;
+                old = cmpxchg(ptr, val, new);
+                if (old == val)
+                        break;
+                val = old;
+        }
+
+becomes
+
+        do {
+        } while (!try_cmpxchg(ptr, &val, val $op $imm));
+
+
+But on pure LL/SC retry based arches, we still end up with generated code having 2
+loops. We discussed something similar a while back: see [1]
+
+First loop is inside inline asm to retry LL/SC and the outer one due to code
+above. Explicit return of try_cmpxchg() means setting up a register with a boolean
+status of cmpxchg (AFAIKR ARMv7 already does that but ARC e.g. uses a CPU flag
+thus requires an additional insn or two). We could arguably remove the inline asm
+loop and retry LL/SC from the outer loop, but it seems cleaner to keep the retry
+where it belongs.
+
+Also under the hood, try_cmpxchg() would end up re-reading it for the issue fixed
+by commit 44fe84459faf1a.
+
+Heck, it would all be simpler if we could express this w/o use of cmpxchg.
+
+	try_some_op(ptr, &val, val $op $imm);
+
+P.S. the horrible API name is for indicative purposes only
+
+This would remove the outer loop completely, also avoid any re-reads due to the
+semantics of cmpxchg etc.
+
+[1] https://www.spinics.net/lists/kernel/msg2029217.html
