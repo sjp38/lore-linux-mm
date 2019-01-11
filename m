@@ -1,102 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D80E8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 18:20:19 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id e17so6411679edr.7
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:20:19 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l37sor6682378edb.2.2019.01.11.15.20.17
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9059B8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 18:28:52 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id e14so3406177ybf.4
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:28:52 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id p124si14199438ywd.454.2019.01.11.15.28.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 Jan 2019 15:20:17 -0800 (PST)
-Date: Sat, 12 Jan 2019 00:20:07 +0100
-From: Andrea Parri <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH] mm, swap: Potential NULL dereference in
- get_swap_page_of_type()
-Message-ID: <20190111232007.GA27982@andrea>
-References: <20190111095919.GA1757@kadam>
- <20190111174128.oak64htbntvp7j6y@ca-dmjordan1.us.oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 15:28:51 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: align anon mmap for THP
+References: <20190111201003.19755-1-mike.kravetz@oracle.com>
+ <20190111215506.jmp2s5end2vlzhvb@black.fi.intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <ebd57b51-117b-4a3d-21d9-fc0287f437d6@oracle.com>
+Date: Fri, 11 Jan 2019 15:28:37 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190111174128.oak64htbntvp7j6y@ca-dmjordan1.us.oracle.com>
+In-Reply-To: <20190111215506.jmp2s5end2vlzhvb@black.fi.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Dan Carpenter <dan.carpenter@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Omar Sandoval <osandov@fb.com>, Tejun Heo <tj@kernel.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.ibm.com>, Alan Stern <stern@rowland.harvard.edu>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Toshi Kani <toshi.kani@hpe.com>, Boaz Harrosh <boazh@netapp.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi Daniel,
-
-On Fri, Jan 11, 2019 at 09:41:28AM -0800, Daniel Jordan wrote:
-> On Fri, Jan 11, 2019 at 12:59:19PM +0300, Dan Carpenter wrote:
-> > Smatch complains that the NULL checks on "si" aren't consistent.  This
-> > seems like a real bug because we have not ensured that the type is
-> > valid and so "si" can be NULL.
-> > 
-> > Fixes: ec8acf20afb8 ("swap: add per-partition lock for swapfile")
-> > Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
-> > ---
-> >  mm/swapfile.c | 6 +++++-
-> >  1 file changed, 5 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> > index f0edf7244256..21e92c757205 100644
-> > --- a/mm/swapfile.c
-> > +++ b/mm/swapfile.c
-> > @@ -1048,9 +1048,12 @@ swp_entry_t get_swap_page_of_type(int type)
-> >  	struct swap_info_struct *si;
-> >  	pgoff_t offset;
-> >  
-> > +	if (type >= nr_swapfiles)
-> > +		goto fail;
-> > +
+On 1/11/19 1:55 PM, Kirill A. Shutemov wrote:
+> On Fri, Jan 11, 2019 at 08:10:03PM +0000, Mike Kravetz wrote:
+>> At LPC last year, Boaz Harrosh asked why he had to 'jump through hoops'
+>> to get an address returned by mmap() suitably aligned for THP.  It seems
+>> that if mmap is asking for a mapping length greater than huge page
+>> size, it should align the returned address to huge page size.
+>>
+>> THP alignment has already been added for DAX, shm and tmpfs.  However,
+>> simple anon mappings does not take THP alignment into account.
 > 
-> As long as we're worrying about NULL, I think there should be an smp_rmb here
-> to ensure swap_info[type] isn't NULL in case of an (admittedly unlikely) racing
-> swapon that increments nr_swapfiles.  See smp_wmb in alloc_swap_info and the
-> matching smp_rmb's in the file.  And READ_ONCE's on either side of the barrier
-> per LKMM.
+> In general case, when no hint address provided, all anonymous memory
+> requests have tendency to clamp into a single bigger VMA and get you
+> better chance having THP, even if a single allocation is too small.
+> This patch will *reduce* the effect and I guess the net result will be
+> net negative.
+
+Ah!  I forgot about combining like mappings into a single vma.  Increasing
+alignment could/would prevent this.
+
+> The patch also effectively reduces bit available for ASLR and increases
+> address space fragmentation (increases number of VMA and therefore page
+> fault cost).
 > 
-> I'm adding Andrea (randomly selected from the many LKMM folks to avoid spamming
-> all) who can correct me if I'm wrong about any of this.
+> I think any change in this direction has to be way more data driven.
 
-This is to confirm that your analysis seems correct to me: the barriers
-should guarantee that get_swap_page_of_type() will observe the store to
-swap_info[type] performed by alloc_swap_info() (or a "co"-later store),
-provided get_swap_page_of_type() observes the increment of nr_swapfiles
-performed by the (same instance of) alloc_swap_info().
+Ok, I just wanted to ask the question.  I've seen application code doing
+the 'mmap sufficiently large area' then unmap to get desired alignment
+trick.  Was wondering if there was something we could do to help.
 
-One clarification about the READ_ONCE() matter: the LKMM cannot handle
-plain or unmarked (shared memory) accesses in their generality at the
-moment (patches providing support for these accesses are in the making,
-but they will take some time); IAC, I'm confident to anticipate that,
-for the particular pattern in question (aka, MP), marking the accesses
-to nr_swapfiles will be "LKMM-sane" (one way to achieve this would be
-to convert nr_swapfiles to an atomic_t type...).
-
-I take the liberty of adding other LKMM folks (so that they can blame
-me for "the spam"! ;-) ): I've learnt from experience that four or more
-eyes are better than two when it comes to discuss these matters... ;-)
-
-  Andrea
-
-
-> 
-> >  	si = swap_info[type];
-> >  	spin_lock(&si->lock);
-> > -	if (si && (si->flags & SWP_WRITEOK)) {
-> > +	if (si->flags & SWP_WRITEOK) {
-> >  		atomic_long_dec(&nr_swap_pages);
-> >  		/* This is called for allocating swap entry, not cache */
-> >  		offset = scan_swap_map(si, 1);
-> > @@ -1061,6 +1064,7 @@ swp_entry_t get_swap_page_of_type(int type)
-> >  		atomic_long_inc(&nr_swap_pages);
-> >  	}
-> >  	spin_unlock(&si->lock);
-> > +fail:
-> >  	return (swp_entry_t) {0};
-> >  }
-> >  
-> > -- 
-> > 2.17.1
-> > 
+Thanks
+-- 
+Mike Kravetz
