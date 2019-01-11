@@ -1,87 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C7708E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:07:55 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id t2so10529069pfj.15
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 07:07:55 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 763AB8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:13:55 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id i3so9496944pfj.4
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:13:55 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b22sor3942539pfe.48.2019.01.11.07.07.54
+        by mx.google.com with SMTPS id w11sor1629716ply.14.2019.01.10.21.13.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 11 Jan 2019 07:07:54 -0800 (PST)
-Date: Fri, 11 Jan 2019 20:41:54 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use
- vm_insert_range_buggy
-Message-ID: <20190111151154.GA2819@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Thu, 10 Jan 2019 21:13:54 -0800 (PST)
+From: Pingfan Liu <kernelfans@gmail.com>
+Subject: [PATCHv2 5/7] x86/mm: set allowed range for memblock allocator
+Date: Fri, 11 Jan 2019 13:12:55 +0800
+Message-Id: <1547183577-20309-6-git-send-email-kernelfans@gmail.com>
+In-Reply-To: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, pawel@osciak.com, m.szyprowski@samsung.com, kyungmin.park@samsung.com, mchehab@kernel.org, linux@armlinux.org.uk, robin.murphy@arm.com
-Cc: linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Pingfan Liu <kernelfans@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-Convert to use vm_insert_range_buggy to map range of kernel memory
-to user vma.
+Due to the incoming divergence of x86_32 and x86_64, there is requirement
+to set the allowed allocating range at the early boot stage.
+This patch also includes minor change to remove redundat cond check, refer
+to memblock_find_in_range_node(), memblock_find_in_range() has already
+protect itself from the case: start > end.
 
-This driver has ignored vm_pgoff. We could later "fix" these drivers
-to behave according to the normal vm_pgoff offsetting simply by
-removing the _buggy suffix on the function name and if that causes
-regressions, it gives us an easy way to revert.
-
-There is an existing bug inside gem_mmap_obj(), where user passed
-length is not checked against buf->num_pages. For any value of
-length > buf->num_pages it will end up overrun buf->pages[i],
-which could lead to a potential bug.
-
-This has been addressed by passing buf->num_pages as input to
-vm_insert_range_buggy() and inside this API error condition is
-checked which will avoid overrun the page boundary.
-
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Len Brown <lenb@kernel.org>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
+Cc: Baoquan He <bhe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: x86@kernel.org
+Cc: linux-acpi@vger.kernel.org
+Cc: linux-mm@kvack.org
 ---
- drivers/media/common/videobuf2/videobuf2-dma-sg.c | 22 ++++++----------------
- 1 file changed, 6 insertions(+), 16 deletions(-)
+ arch/x86/mm/init.c | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-index 015e737..ef046b4 100644
---- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-+++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-@@ -328,28 +328,18 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
- static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
- {
- 	struct vb2_dma_sg_buf *buf = buf_priv;
--	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
--	int i = 0;
-+	int err;
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index ef99f38..385b9cd 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -76,6 +76,14 @@ static unsigned long min_pfn_mapped;
  
- 	if (!buf) {
- 		printk(KERN_ERR "No memory to map\n");
- 		return -EINVAL;
+ static bool __initdata can_use_brk_pgt = true;
+ 
++static unsigned long min_pfn_allowed;
++static unsigned long max_pfn_allowed;
++void set_alloc_range(unsigned long low, unsigned long high)
++{
++	min_pfn_allowed = low;
++	max_pfn_allowed = high;
++}
++
+ /*
+  * Pages returned are already directly mapped.
+  *
+@@ -100,12 +108,10 @@ __ref void *alloc_low_pages(unsigned int num)
+ 	if ((pgt_buf_end + num) > pgt_buf_top || !can_use_brk_pgt) {
+ 		unsigned long ret = 0;
+ 
+-		if (min_pfn_mapped < max_pfn_mapped) {
+-			ret = memblock_find_in_range(
+-					min_pfn_mapped << PAGE_SHIFT,
+-					max_pfn_mapped << PAGE_SHIFT,
+-					PAGE_SIZE * num , PAGE_SIZE);
+-		}
++		ret = memblock_find_in_range(
++			min_pfn_allowed << PAGE_SHIFT,
++			max_pfn_allowed << PAGE_SHIFT,
++			PAGE_SIZE * num, PAGE_SIZE);
+ 		if (ret)
+ 			memblock_reserve(ret, PAGE_SIZE * num);
+ 		else if (can_use_brk_pgt)
+@@ -588,14 +594,17 @@ static void __init memory_map_top_down(unsigned long map_start,
+ 			start = map_start;
+ 		mapped_ram_size += init_range_memory_mapping(start,
+ 							last_start);
++		set_alloc_range(min_pfn_mapped, max_pfn_mapped);
+ 		last_start = start;
+ 		min_pfn_mapped = last_start >> PAGE_SHIFT;
+ 		if (mapped_ram_size >= step_size)
+ 			step_size = get_new_step_size(step_size);
  	}
  
--	do {
--		int ret;
--
--		ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
--		if (ret) {
--			printk(KERN_ERR "Remapping memory, error: %d\n", ret);
--			return ret;
--		}
--
--		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
--
-+	err = vm_insert_range_buggy(vma, buf->pages, buf->num_pages);
-+	if (err) {
-+		printk(KERN_ERR "Remapping memory, error: %d\n", err);
-+		return err;
+-	if (real_end < map_end)
++	if (real_end < map_end) {
+ 		init_range_memory_mapping(real_end, map_end);
++		set_alloc_range(min_pfn_mapped, max_pfn_mapped);
 +	}
+ }
  
- 	/*
- 	 * Use common vm_area operations to track buffer refcount.
+ /**
+@@ -636,6 +645,7 @@ static void __init memory_map_bottom_up(unsigned long map_start,
+ 		}
+ 
+ 		mapped_ram_size += init_range_memory_mapping(start, next);
++		set_alloc_range(min_pfn_mapped, max_pfn_mapped);
+ 		start = next;
+ 
+ 		if (mapped_ram_size >= step_size)
 -- 
-1.9.1
+2.7.4
