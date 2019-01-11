@@ -1,50 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B50B88E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:37:01 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id s71so9664095pfi.22
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:37:01 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m64si10114993pfb.224.2019.01.10.23.37.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 23:37:00 -0800 (PST)
-Date: Fri, 11 Jan 2019 08:36:55 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DCA68E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:36:10 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id d71so7986412pgc.1
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:36:10 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id b8si8853010pgi.575.2019.01.10.23.36.08
+        for <linux-mm@kvack.org>;
+        Thu, 10 Jan 2019 23:36:09 -0800 (PST)
+Date: Fri, 11 Jan 2019 18:36:06 +1100
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <20190110004424.GH27534@dastard>
-Message-ID: <nycvar.YFH.7.76.1901110836110.6626@cbobk.fhfr.pm>
-References: <20190106001138.GW6310@bombadil.infradead.org> <CAHk-=wiT=ov+6zYcnw_64ihYf74Amzqs67iVGtJMQq65PxiVYw@mail.gmail.com> <CAHk-=wg1A44Roa8C4dmfdXLRLmNysEW36=3R7f+tzZzbcJ2d2g@mail.gmail.com> <CAHk-=wiqbKEC5jUXr3ax+oUuiRrp=QMv_ZnUfO-SPv=UNJ-OTw@mail.gmail.com>
- <20190108044336.GB27534@dastard> <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com> <20190109022430.GE27534@dastard> <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm> <20190109043906.GF27534@dastard> <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
- <20190110004424.GH27534@dastard>
+Message-ID: <20190111073606.GP27534@dastard>
+References: <20190110004424.GH27534@dastard>
+ <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
+ <20190110070355.GJ27534@dastard>
+ <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+ <20190110122442.GA21216@nautica>
+ <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
+ <20190111020340.GM27534@dastard>
+ <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
+ <20190111040434.GN27534@dastard>
+ <CAHk-=wh-kegfnPC_dmw0A72Sdk4B9tvce-cOR=jEfHDU1-4Eew@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHk-=wh-kegfnPC_dmw0A72Sdk4B9tvce-cOR=jEfHDU1-4Eew@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dominique Martinet <asmadeus@codewreck.org>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Thu, 10 Jan 2019, Dave Chinner wrote:
-
-> Sounds nice from a theoretical POV, but reality has taught us very 
-> different lessons.
+On Thu, Jan 10, 2019 at 11:08:07PM -0800, Linus Torvalds wrote:
+> On Thu, Jan 10, 2019 at 8:04 PM Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > So it will only read the single page we tried to access and won't
+> > perturb the rest of the message encoded into subsequent pages in
+> > file.
 > 
-> FWIW, a quick check of XFS's history so you understand how long this 
-> behaviour has been around. It was introduced in the linux port in 2001 
-> as direct IO support was being added:
+> Dave, you're being intentionally obtuse, aren't you?
 > 
-> commit e837eac23662afae603aaaef7c94bc839c1b8f67
-> Author: Steve Lord <lord@sgi.com>
-> Date:   Mon Mar 5 16:47:52 2001 +0000
-> 
->     Add bounds checking for direct I/O, do the cache invalidation for
->     data coherency on direct I/O.
+> It's only that single page that *matters*. That's the page that the
+> probe reveals the status of - but it's also the page that the probe
+> then *changes* the status of.
 
-Out of curiosity, which repository is this from please? Even google 
-doesn't seem to know about this SHA.
+It changes the state of it /after/ we've already got the information
+we need from it. It's not up to date, it has to come from disk, we
+return EAGAIN, which means it was not in the cache.
 
-Thanks,
+i.e. if we return EAGAIN, we've leaked the inforation the attacker
+wants regardless of how the act of initiating readahead on the page
+change the state of the page.  Yes, it raises the complexity bar a
+bit, and lowers the monitoring frequency somewhat, but that's about
+it.
 
+Cheers,
+
+Dave.
 -- 
-Jiri Kosina
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
