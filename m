@@ -1,94 +1,46 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [v5 PATCH 1/2] mm: swap: check if swap backing device is congested or not
-Date: Fri,  4 Jan 2019 03:27:52 +0800
-Message-Id: <1546543673-108536-1-git-send-email-yang.shi@linux.alibaba.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: ying.huang@intel.com, tim.c.chen@intel.com, minchan@kernel.org, daniel.m.jordan@oracle.com, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 13B378E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 08:47:47 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id e1so645321wmg.0
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 05:47:47 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y5sor43009005wrs.27.2019.01.11.05.47.45
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 11 Jan 2019 05:47:45 -0800 (PST)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH] kasan, arm64: remove redundant ARCH_SLAB_MINALIGN define
+Date: Fri, 11 Jan 2019 14:47:40 +0100
+Message-Id: <7f36be5fdf491259d6c8100232fa93ff40edf841.1547214440.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
 
-Swap readahead would read in a few pages regardless if the underlying
-device is busy or not.  It may incur long waiting time if the device is
-congested, and it may also exacerbate the congestion.
+Defining ARCH_SLAB_MINALIGN in arch/arm64/include/asm/cache.h when KASAN
+is off is not needed, as it is defined in defined in include/linux/slab.h
+as ifndef.
 
-Use inode_read_congested() to check if the underlying device is busy or
-not like what file page readahead does.  Get inode from swap_info_struct.
-Although we can add inode information in swap_address_space
-(address_space->host), it may lead some unexpected side effect, i.e.
-it may break mapping_cap_account_dirty().  Using inode from
-swap_info_struct seems simple and good enough.
-
-Just does the check in vma_cluster_readahead() since
-swap_vma_readahead() is just used for non-rotational device which
-much less likely has congestion than traditional HDD.
-
-Although swap slots may be consecutive on swap partition, it still may be
-fragmented on swap file. This check would help to reduce excessive stall
-for such case.
-
-The test with page_fault1 of will-it-scale (sometimes tracing may just
-show runtest.py that is the wrapper script of page_fault1), which basically
-launches NR_CPU threads to generate 128MB anonymous pages for each thread,
-on my virtual machine with congested HDD shows long tail latency is reduced
-significantly.
-
-Without the patch
- page_fault1_thr-1490  [023]   129.311706: funcgraph_entry:      #57377.796 us |  do_swap_page();
- page_fault1_thr-1490  [023]   129.369103: funcgraph_entry:        5.642us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.369119: funcgraph_entry:      #1289.592 us |  do_swap_page();
- page_fault1_thr-1490  [023]   129.370411: funcgraph_entry:        4.957us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.370419: funcgraph_entry:        1.940us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.378847: funcgraph_entry:      #1411.385 us |  do_swap_page();
- page_fault1_thr-1490  [023]   129.380262: funcgraph_entry:        3.916us   |  do_swap_page();
- page_fault1_thr-1490  [023]   129.380275: funcgraph_entry:      #4287.751 us |  do_swap_page();
-
-With the patch
-      runtest.py-1417  [020]   301.925911: funcgraph_entry:      #9870.146 us |  do_swap_page();
-      runtest.py-1417  [020]   301.935785: funcgraph_entry:        9.802us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935799: funcgraph_entry:        3.551us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935806: funcgraph_entry:        2.142us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935853: funcgraph_entry:        6.938us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935864: funcgraph_entry:        3.765us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935871: funcgraph_entry:        3.600us   |  do_swap_page();
-      runtest.py-1417  [020]   301.935878: funcgraph_entry:        7.202us   |  do_swap_page();
-
-Acked-by: Tim Chen <tim.c.chen@intel.com>
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
-v5: Elaborate more about the test case per Daniel
-v4: Added observed effects in the commit log per Andrew
-v3: Move inode deference under swap device type check per Tim Chen
-v2: Check the swap device type per Tim Chen
+ arch/arm64/include/asm/cache.h | 2 --
+ 1 file changed, 2 deletions(-)
 
- mm/swap_state.c | 7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index fd2f21e..78d500e 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -538,11 +538,18 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 	bool do_poll = true, page_allocated;
- 	struct vm_area_struct *vma = vmf->vma;
- 	unsigned long addr = vmf->address;
-+	struct inode *inode = NULL;
+diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
+index eb43e09c1980..926434f413fa 100644
+--- a/arch/arm64/include/asm/cache.h
++++ b/arch/arm64/include/asm/cache.h
+@@ -60,8 +60,6 @@
  
- 	mask = swapin_nr_pages(offset) - 1;
- 	if (!mask)
- 		goto skip;
+ #ifdef CONFIG_KASAN_SW_TAGS
+ #define ARCH_SLAB_MINALIGN	(1ULL << KASAN_SHADOW_SCALE_SHIFT)
+-#else
+-#define ARCH_SLAB_MINALIGN	__alignof__(unsigned long long)
+ #endif
  
-+	if (si->flags & (SWP_BLKDEV | SWP_FS)) {
-+		inode = si->swap_file->f_mapping->host;
-+		if (inode_read_congested(inode))
-+			goto skip;
-+	}
-+
- 	do_poll = false;
- 	/* Read a page_cluster sized and aligned cluster around offset. */
- 	start_offset = offset & ~mask;
+ #ifndef __ASSEMBLY__
 -- 
-1.8.3.1
+2.20.1.97.g81188d93c3-goog
