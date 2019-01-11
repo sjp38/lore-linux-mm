@@ -1,68 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F5898E0002
-	for <linux-mm@kvack.org>; Tue,  1 Jan 2019 05:11:11 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id z126so34756577qka.10
-        for <linux-mm@kvack.org>; Tue, 01 Jan 2019 02:11:11 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s25si411087qki.72.2019.01.01.02.11.10
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AC5C88E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:10:24 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id 18so175844wmw.6
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:10:24 -0800 (PST)
+Received: from mo6-p02-ob.smtp.rzone.de (mo6-p02-ob.smtp.rzone.de. [2a01:238:20a:202:5302::5])
+        by mx.google.com with ESMTPS id s9si41804193wrm.42.2019.01.10.18.10.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Jan 2019 02:11:10 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x01A96jn032460
-	for <linux-mm@kvack.org>; Tue, 1 Jan 2019 05:11:10 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2pqtn8vf26-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 01 Jan 2019 05:11:09 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 1 Jan 2019 10:11:08 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: Re: [PATCH] mm: Introduce page_size()
-In-Reply-To: <20190101063031.GD6310@bombadil.infradead.org>
-References: <20181231134223.20765-1-willy@infradead.org> <87y385awg6.fsf@linux.ibm.com> <20190101063031.GD6310@bombadil.infradead.org>
-Date: Tue, 01 Jan 2019 15:41:00 +0530
+        Thu, 10 Jan 2019 18:10:21 -0800 (PST)
+Subject: Re: use generic DMA mapping code in powerpc V4
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+References: <2242B4B2-6311-492E-BFF9-6740E36EC6D4@xenosoft.de>
+ <84558d7f-5a7f-5219-0c3a-045e6b4c494f@xenosoft.de>
+ <20181213091021.GA2106@lst.de>
+ <835bd119-081e-a5ea-1899-189d439c83d6@xenosoft.de>
+ <76bc684a-b4d2-1d26-f18d-f5c9ba65978c@xenosoft.de>
+ <20181213112511.GA4574@lst.de>
+ <e109de27-f4af-147d-dc0e-067c8bafb29b@xenosoft.de>
+ <ad5a5a8a-d232-d523-a6f7-e9377fc3857b@xenosoft.de>
+ <e60d6ca3-860c-f01d-8860-c5e022ec7179@xenosoft.de>
+ <008c981e-bdd2-21a7-f5f7-c57e4850ae9a@xenosoft.de>
+ <20190103073622.GA24323@lst.de>
+ <71A251A5-FA06-4019-B324-7AED32F7B714@xenosoft.de>
+ <1b0c5c21-2761-d3a3-651b-3687bb6ae694@xenosoft.de>
+ <3504ee70-02de-049e-6402-2d530bf55a84@xenosoft.de>
+Message-ID: <23284859-bf0a-9cd5-a480-2a7fd7802056@xenosoft.de>
+Date: Fri, 11 Jan 2019 03:10:13 +0100
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87lg447knf.fsf@linux.ibm.com>
+In-Reply-To: <3504ee70-02de-049e-6402-2d530bf55a84@xenosoft.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: de-DE
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-Matthew Wilcox <willy@infradead.org> writes:
+Next step: 891dcc1072f1fa27a83da920d88daff6ca08fc02 (powerpc/dma: remove 
+dma_nommu_dma_supported)
 
-> On Tue, Jan 01, 2019 at 08:57:53AM +0530, Aneesh Kumar K.V wrote:
->> Matthew Wilcox <willy@infradead.org> writes:
->> > +/* Returns the number of bytes in this potentially compound page. */
->> > +static inline unsigned long page_size(struct page *page)
->> > +{
->> > +	return (unsigned long)PAGE_SIZE << compound_order(page);
->> > +}
->> > +
->> 
->> How about compound_page_size() to make it clear this is for
->> compound_pages? Should we make it work with Tail pages by doing
->> compound_head(page)?
+git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
+
+git checkout 891dcc1072f1fa27a83da920d88daff6ca08fc02
+
+Output:
+
+Note: checking out '891dcc1072f1fa27a83da920d88daff6ca08fc02'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -b with the checkout command again. Example:
+
+git checkout -b <new-branch-name>
+
+HEAD is now at 891dcc1... powerpc/dma: remove dma_nommu_dma_supported
+
+---
+
+Link to the Git: 
+http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
+
+Results: PASEMI onboard ethernet works and the X5000 (P5020 board) 
+boots. I also successfully tested sound, hardware 3D acceleration, 
+Bluetooth, network, booting with a label etc. The uImages work also in a 
+virtual e5500 quad-core QEMU machine.
+
+-- Christian
+
+
+On 09 January 2019 at 10:31AM, Christian Zigotzky wrote:
+> Next step: a64e18ba191ba9102fb174f27d707485ffd9389c (powerpc/dma: 
+> remove dma_nommu_get_required_mask)
 >
-> I think that's a terrible idea.  Actually, I think the whole way we handle
-> compound pages is terrible; we should only ever see head pages.  Doing
-> page cache lookups should only give us head pages.  Calling pfn_to_page()
-> should give us the head page.  We should only put head pages into SG lists.
-> Everywhere you see a struct page should only be a head page.
+> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
 >
-> I know we're far from that today, and there's lots of work to be done
-> to get there.  But the current state of handling compound pages is awful
-> and confusing.
+> git checkout a64e18ba191ba9102fb174f27d707485ffd9389c
 >
-> Also, page_size() isn't just for compound pages.  It works for regular
-> pages too.  I'd be open to putting a VM_BUG_ON(PageTail(page)) in it
-> to catch people who misuse it.
-
-Adding VM_BUG_ON is a good idea.
-
-Thanks,
--aneesh
+> Link to the Git: 
+> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
+>
+> Results: PASEMI onboard ethernet works and the X5000 (P5020 board) 
+> boots. I also successfully tested sound, hardware 3D acceleration, 
+> Bluetooth, network, booting with a label etc. The uImages work also in 
+> a virtual e5500 quad-core QEMU machine.
+>
+> -- Christian
+>
+>
+> On 05 January 2019 at 5:03PM, Christian Zigotzky wrote:
+>> Next step: c446404b041130fbd9d1772d184f24715cf2362f (powerpc/dma: 
+>> remove dma_nommu_mmap_coherent)
+>>
+>> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
+>>
+>> git checkout c446404b041130fbd9d1772d184f24715cf2362f
+>>
+>> Output:
+>>
+>> Note: checking out 'c446404b041130fbd9d1772d184f24715cf2362f'.
+>>
+>> You are in 'detached HEAD' state. You can look around, make experimental
+>> changes and commit them, and you can discard any commits you make in 
+>> this
+>> state without impacting any branches by performing another checkout.
+>>
+>> If you want to create a new branch to retain commits you create, you may
+>> do so (now or later) by using -b with the checkout command again. 
+>> Example:
+>>
+>>   git checkout -b <new-branch-name>
+>>
+>> HEAD is now at c446404... powerpc/dma: remove dma_nommu_mmap_coherent
+>>
+>> -----
+>>
+>> Link to the Git: 
+>> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
+>>
+>> Result: PASEMI onboard ethernet works and the X5000 (P5020 board) boots.
+>>
+>> -- Christian
+>>
+>
+>
