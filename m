@@ -1,98 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EB4AE8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 07:20:37 -0500 (EST)
-Received: by mail-lf1-f72.google.com with SMTP id m19so561225lfj.17
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 04:20:37 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id p11-v6si61579253ljc.73.2019.01.09.04.20.35
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 072548E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:10:06 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id p86-v6so3830864lja.2
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 07:10:05 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q23-v6sor44937173lji.14.2019.01.11.07.10.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 04:20:36 -0800 (PST)
-Subject: [PATCH 2/3] mm: Recharge page memcg on first get from pagecache
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Wed, 09 Jan 2019 15:20:30 +0300
-Message-ID: <154703642996.32690.7131436841852687919.stgit@localhost.localdomain>
-In-Reply-To: <154703479840.32690.6504699919905946726.stgit@localhost.localdomain>
-References: <154703479840.32690.6504699919905946726.stgit@localhost.localdomain>
+        (Google Transport Security);
+        Fri, 11 Jan 2019 07:10:04 -0800 (PST)
+Subject: Re: [PATCH 5/9] drm/xen/xen_drm_front_gem.c: Convert to use
+ vm_insert_range
+References: <20190111151037.GA2781@jordon-HP-15-Notebook-PC>
+From: Oleksandr Andrushchenko <andr2000@gmail.com>
+Message-ID: <1ce5287f-22d1-3704-1e81-a44b2c63cbd8@gmail.com>
+Date: Fri, 11 Jan 2019 17:10:01 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20190111151037.GA2781@jordon-HP-15-Notebook-PC>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, hannes@cmpxchg.org, josef@toxicpanda.com, jack@suse.cz, hughd@google.com, ktkhai@virtuozzo.com, darrick.wong@oracle.com, mhocko@suse.com, aryabinin@virtuozzo.com, guro@fb.com, mgorman@techsingularity.net, shakeelb@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, airlied@linux.ie, linux@armlinux.org.uk, robin.murphy@arm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, xen-devel@lists.xen.org, "Oleksandr_Andrushchenko@epam.com" <Oleksandr_Andrushchenko@epam.com>
 
-This patch makes pagecache_get_page() to charge uncharged
-page into memcg of process, which accesses the page first.
-Page will be returned in case of it's charged only, so
-memcg tasks can't use pages, which was left by __remove_mapping(),
-without accounting them. In case of accounting is not possible,
-pages remain in pagecache, and further global reclaim will
-remove them (and this will be easily, since pages are not
-mapped by any task).
-
-Also, note that uncharged page can't be dirty or under
-writeback, since it was able to be isolated in __remove_mapping()
-earlier.
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- mm/filemap.c |   30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 65c85c47bdb1..2603c44fc74a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1576,15 +1576,18 @@ EXPORT_SYMBOL(find_lock_entry);
- struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
- 	int fgp_flags, gfp_t gfp_mask)
- {
-+	struct mem_cgroup *memcg;
- 	struct page *page;
-+	bool drop_lock;
- 
- repeat:
-+	drop_lock = false;
- 	page = find_get_entry(mapping, offset);
- 	if (xa_is_value(page))
- 		page = NULL;
- 	if (!page)
- 		goto no_page;
--
-+lock:
- 	if (fgp_flags & FGP_LOCK) {
- 		if (fgp_flags & FGP_NOWAIT) {
- 			if (!trylock_page(page)) {
-@@ -1604,6 +1607,31 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
- 		VM_BUG_ON_PAGE(page->index != offset, page);
- 	}
- 
-+	if (!mem_cgroup_disabled() && !PageHuge(page) &&
-+	    !page_memcg(page) && !page_mapped(page) &&
-+	    test_bit(AS_KEEP_MEMCG_RECLAIM, &mapping->flags)) {
-+		if (!(fgp_flags & FGP_LOCK)) {
-+			drop_lock = true;
-+			fgp_flags |= FGP_LOCK;
-+			goto lock;
-+		}
-+
-+		if (!WARN_ON(PageDirty(page) || PageWriteback(page))) {
-+			if (mem_cgroup_try_charge(page, current->mm,
-+					gfp_mask, &memcg, false)) {
-+				unlock_page(page);
-+				put_page(page);
-+				return NULL;
-+			}
-+			mem_cgroup_commit_charge(page, memcg, true, false);
-+			if (!isolate_lru_page(page))
-+				putback_lru_page(page);
-+		}
-+	}
-+
-+	if (drop_lock)
-+		unlock_page(page);
-+
- 	if (fgp_flags & FGP_ACCESSED)
- 		mark_page_accessed(page);
- 
+On 1/11/19 5:10 PM, Souptick Joarder wrote:
+> Convert to use vm_insert_range() to map range of kernel
+> memory to user vma.
+>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
+> ---
+>   drivers/gpu/drm/xen/xen_drm_front_gem.c | 18 +++++-------------
+>   1 file changed, 5 insertions(+), 13 deletions(-)
+>
+> diff --git a/drivers/gpu/drm/xen/xen_drm_front_gem.c b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+> index 47ff019..9990c2f 100644
+> --- a/drivers/gpu/drm/xen/xen_drm_front_gem.c
+> +++ b/drivers/gpu/drm/xen/xen_drm_front_gem.c
+> @@ -225,8 +225,7 @@ struct drm_gem_object *
+>   static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+>   			struct vm_area_struct *vma)
+>   {
+> -	unsigned long addr = vma->vm_start;
+> -	int i;
+> +	int ret;
+>   
+>   	/*
+>   	 * clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
+> @@ -247,18 +246,11 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
+>   	 * FIXME: as we insert all the pages now then no .fault handler must
+>   	 * be called, so don't provide one
+>   	 */
+> -	for (i = 0; i < xen_obj->num_pages; i++) {
+> -		int ret;
+> -
+> -		ret = vm_insert_page(vma, addr, xen_obj->pages[i]);
+> -		if (ret < 0) {
+> -			DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
+> -			return ret;
+> -		}
+> +	ret = vm_insert_range(vma, xen_obj->pages, xen_obj->num_pages);
+> +	if (ret < 0)
+> +		DRM_ERROR("Failed to insert pages into vma: %d\n", ret);
+>   
+> -		addr += PAGE_SIZE;
+> -	}
+> -	return 0;
+> +	return ret;
+>   }
+>   
+>   int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
