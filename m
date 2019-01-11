@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F23748E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 09:55:03 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id e68so6351378plb.3
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 06:55:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c8sor52034526plr.70.2019.01.10.06.55.02
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4561D8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 08:55:40 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id d6so4601338wrm.19
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 05:55:40 -0800 (PST)
+Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [46.235.227.227])
+        by mx.google.com with ESMTPS id b84si13275605wme.1.2019.01.11.05.55.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 10 Jan 2019 06:55:02 -0800 (PST)
-Date: Thu, 10 Jan 2019 20:29:00 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH] mm/hmm: Convert to use vm_fault_t
-Message-ID: <20190110145900.GA1317@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 11 Jan 2019 05:55:38 -0800 (PST)
+Date: Fri, 11 Jan 2019 08:55:39 -0500
+From: =?utf-8?B?R2HDq2w=?= PORTAY <gael.portay@collabora.com>
+Subject: Re: [usb-storage] Re: cma: deadlock using usb-storage and fs
+Message-ID: <20190111135538.iv3vvashdnis5b2s@archlinux.localdomain>
+References: <20181216222117.v5bzdfdvtulv2t54@archlinux.localdomain>
+ <Pine.LNX.4.44L0.1812171038300.1630-100000@iolanthe.rowland.org>
+ <20181217182922.bogbrhjm6ubnswqw@archlinux.localdomain>
+ <c3ab7935-8d8d-27a0-99a7-0dab51244a42@redhat.com>
+ <593e3757-6f50-22bc-d5a9-ea5819b9a63d@oracle.com>
+ <da35de2c-b8ad-9b01-b582-8f1f8061e8e1@redhat.com>
+ <20190107181355.qqbdc6pguq4w3z6u@archlinux.localdomain>
+ <302af0f5-bc42-dcb2-01e3-86865e5581e2@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <302af0f5-bc42-dcb2-01e3-86865e5581e2@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: jglisse@redhat.com, willy@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Laura Abbott <labbott@redhat.com>, Alan Stern <stern@rowland.harvard.edu>, linux-mm@kvack.org, usb-storage@lists.one-eyed-alien.net
 
-convert to use vm_fault_t type as return type for
-fault handler.
+Mike,
 
-kbuild reported warning during testing of
-*mm-create-the-new-vm_fault_t-type.patch* available in below link -
-https://patchwork.kernel.org/patch/10752741/
+On Mon, Jan 07, 2019 at 06:06:21PM -0800, Mike Kravetz wrote:
+> On 1/7/19 10:13 AM, Ga�l PORTAY wrote:
+> > (...)
+> > 
+> > I have also removed the mutex (start_isolate_page_range retunrs -EBUSY),
+> > and it worked (in my case).
+> > 
+> > But I did not do the proper magic because I am not sure of what should
+> > be done and how: -EBUSY is not handled and __GFP_NOIO is not honored. 
+> 
+> If we remove the mutex, I am pretty sure we would want to distinguish
+> between the (at least) two types of _EBUSY that can be returned by
+> alloc_contig_range().  Seems that the retry logic should be different if
+> a page block is busy as opposed to pages within the range.
+> 
+> I'm busy with other things, but could get to this later this week or early
+> next week unless someone else has the time.
 
-[auto build test WARNING on linus/master]
-[also build test WARNING on v5.0-rc1 next-20190109]
-[if your patch is applied to the wrong git tree, please drop us a note
-to help improve the system]
+Thank you.
 
-kernel/memremap.c:46:34: warning: incorrect type in return expression
-                         (different base types)
-kernel/memremap.c:46:34: expected restricted vm_fault_t
-kernel/memremap.c:46:34: got int
+To not hesitate to ping me if you need to test things.
 
-This patch has fixed the warnings and also hmm_devmem_fault() is
-converted to return vm_fault_t to avoid further warnings.
-
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- include/linux/hmm.h | 4 ++--
- mm/hmm.c            | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 66f9ebb..ad50b7b 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -468,7 +468,7 @@ struct hmm_devmem_ops {
- 	 * Note that mmap semaphore is held in read mode at least when this
- 	 * callback occurs, hence the vma is valid upon callback entry.
- 	 */
--	int (*fault)(struct hmm_devmem *devmem,
-+	vm_fault_t (*fault)(struct hmm_devmem *devmem,
- 		     struct vm_area_struct *vma,
- 		     unsigned long addr,
- 		     const struct page *page,
-@@ -511,7 +511,7 @@ struct hmm_devmem_ops {
-  * chunk, as an optimization. It must, however, prioritize the faulting address
-  * over all the others.
-  */
--typedef int (*dev_page_fault_t)(struct vm_area_struct *vma,
-+typedef vm_fault_t (*dev_page_fault_t)(struct vm_area_struct *vma,
- 				unsigned long addr,
- 				const struct page *page,
- 				unsigned int flags,
-diff --git a/mm/hmm.c b/mm/hmm.c
-index a04e4b8..fe1cd87 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -990,7 +990,7 @@ static void hmm_devmem_ref_kill(struct percpu_ref *ref)
- 	percpu_ref_kill(ref);
- }
- 
--static int hmm_devmem_fault(struct vm_area_struct *vma,
-+static vm_fault_t hmm_devmem_fault(struct vm_area_struct *vma,
- 			    unsigned long addr,
- 			    const struct page *page,
- 			    unsigned int flags,
--- 
-1.9.1
+Regards,
+Gael
