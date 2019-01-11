@@ -1,93 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E33D18E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:03:25 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id 42so15970234qtr.7
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:03:25 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r72si1385583qkl.162.2019.01.11.03.03.25
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1618E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 14:18:56 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id g12-v6so4026707lji.3
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 11:18:56 -0800 (PST)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id m20si57990147lfb.58.2019.01.11.11.18.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:03:25 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V13 06/19] block: introduce bio_for_each_bvec() and rq_for_each_bvec()
-Date: Fri, 11 Jan 2019 19:01:14 +0800
-Message-Id: <20190111110127.21664-7-ming.lei@redhat.com>
-In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
-References: <20190111110127.21664-1-ming.lei@redhat.com>
+        Fri, 11 Jan 2019 11:18:54 -0800 (PST)
+Subject: Re: [PATCH 1/3] mm/vmalloc: fix size check for
+ remap_vmalloc_range_partial()
+References: <20190103145954.16942-1-rpenyaev@suse.de>
+ <20190103145954.16942-2-rpenyaev@suse.de>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <873d9ee8-9cee-b6f1-ca2c-f4da2d2ddfc0@virtuozzo.com>
+Date: Fri, 11 Jan 2019 22:19:12 +0300
+MIME-Version: 1.0
+In-Reply-To: <20190103145954.16942-2-rpenyaev@suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: Roman Penyaev <rpenyaev@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Joe Perches <joe@perches.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-bio_for_each_bvec() is used for iterating over multi-page bvec for bio
-split & merge code.
 
-rq_for_each_bvec() can be used for drivers which may handle the
-multi-page bvec directly, so far loop is one perfect use case.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
----
- include/linux/bio.h    | 10 ++++++++++
- include/linux/blkdev.h |  4 ++++
- include/linux/bvec.h   |  7 +++++++
- 3 files changed, 21 insertions(+)
+On 1/3/19 5:59 PM, Roman Penyaev wrote:
+> area->size can include adjacent guard page but get_vm_area_size()
+> returns actual size of the area.
+> 
+> This fixes possible kernel crash when userspace tries to map area
+> on 1 page bigger: size check passes but the following vmalloc_to_page()
+> returns NULL on last guard (non-existing) page.
+> 
+> Signed-off-by: Roman Penyaev <rpenyaev@suse.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Joe Perches <joe@perches.com>
+> Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: stable@vger.kernel.org
+> ---
 
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 16a65361535f..06888d45beb4 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -156,6 +156,16 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
- #define bio_for_each_segment(bvl, bio, iter)				\
- 	__bio_for_each_segment(bvl, bio, iter, (bio)->bi_iter)
- 
-+#define __bio_for_each_bvec(bvl, bio, iter, start)		\
-+	for (iter = (start);						\
-+	     (iter).bi_size &&						\
-+		((bvl = bvec_iter_bvec((bio)->bi_io_vec, (iter))), 1); \
-+	     bio_advance_iter((bio), &(iter), (bvl).bv_len))
-+
-+/* iterate over multi-page bvec */
-+#define bio_for_each_bvec(bvl, bio, iter)			\
-+	__bio_for_each_bvec(bvl, bio, iter, (bio)->bi_iter)
-+
- #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
- 
- static inline unsigned bio_segments(struct bio *bio)
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 338604dff7d0..7f4ca073e2f3 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -797,6 +797,10 @@ struct req_iterator {
- 	__rq_for_each_bio(_iter.bio, _rq)			\
- 		bio_for_each_segment(bvl, _iter.bio, _iter.iter)
- 
-+#define rq_for_each_bvec(bvl, _rq, _iter)			\
-+	__rq_for_each_bio(_iter.bio, _rq)			\
-+		bio_for_each_bvec(bvl, _iter.bio, _iter.iter)
-+
- #define rq_iter_last(bvec, _iter)				\
- 		(_iter.bio->bi_next == NULL &&			\
- 		 bio_iter_last(bvec, _iter.iter))
-diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-index babc6316c117..d441486db605 100644
---- a/include/linux/bvec.h
-+++ b/include/linux/bvec.h
-@@ -65,6 +65,13 @@ struct bvec_iter {
- #define bvec_iter_page_idx(bvec, iter)			\
- 	(bvec_iter_offset((bvec), (iter)) / PAGE_SIZE)
- 
-+#define bvec_iter_bvec(bvec, iter)				\
-+((struct bio_vec) {						\
-+	.bv_page	= bvec_iter_page((bvec), (iter)),	\
-+	.bv_len		= bvec_iter_len((bvec), (iter)),	\
-+	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
-+})
-+
- /* For building single-page bvec(segment) in flight */
-  #define segment_iter_offset(bvec, iter)				\
- 	(bvec_iter_offset((bvec), (iter)) % PAGE_SIZE)
--- 
-2.9.5
+Fixes: e69e9d4aee71 ("vmalloc: introduce remap_vmalloc_range_partial")
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
