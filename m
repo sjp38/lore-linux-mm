@@ -1,227 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DA1958E0038
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 23:51:39 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id y27so2169647qkj.21
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 20:51:39 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id w2si4866469qta.292.2019.01.07.20.51.38
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 19C6E8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 13:58:35 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id x18-v6so4005503lji.0
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 10:58:35 -0800 (PST)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id y29si58212219lfj.45.2019.01.11.10.58.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 20:51:38 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x084mqS4029011
-	for <linux-mm@kvack.org>; Mon, 7 Jan 2019 23:51:38 -0500
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2pvhxq0d95-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 07 Jan 2019 23:51:38 -0500
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 8 Jan 2019 04:51:37 -0000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V6 3/4] powerpc/mm/iommu: Allow migration of cma allocated pages during mm_iommu_get
-Date: Tue,  8 Jan 2019 10:21:09 +0530
-In-Reply-To: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
-References: <20190108045110.28597-1-aneesh.kumar@linux.ibm.com>
+        Fri, 11 Jan 2019 10:58:32 -0800 (PST)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH] kasan: Remove use after scope bugs detection.
+Date: Fri, 11 Jan 2019 21:58:42 +0300
+Message-Id: <20190111185842.13978-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Message-Id: <20190108045110.28597-4-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Qian Cai <cai@lca.pw>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 
-Current code doesn't do page migration if the page allocated is a compound page.
-With HugeTLB migration support, we can end up allocating hugetlb pages from
-CMA region. Also THP pages can be allocated from CMA region. This patch updates
-the code to handle compound pages correctly.
+Use after scope bugs detector seems to be almost entirely useless
+for the linux kernel. It exists over two years, but I've seen only
+one valid bug so far [1]. And the bug was fixed before it has been
+reported. There were some other use-after-scope reports, but they
+were false-positives due to different reasons like incompatibility
+with structleak plugin.
 
-This use the new helper get_user_pages_cma_migrate. It does single get_user_pages
-with right count, instead of doing one get_user_pages per page. That avoids
-reading page table multiple times.
+This feature significantly increases stack usage, especially with
+GCC < 9 version, and causes a 32K stack overflow. It probably
+adds performance penalty too.
 
-The patch also convert the hpas member of mm_iommu_table_group_mem_t to a union.
-We use the same storage location to store pointers to struct page. We cannot
-update all the code path use struct page *, because we access hpas in real mode
-and we can't do that struct page * to pfn conversion in real mode.
+Given all that, let's remove use-after-scope detector entirely.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+While preparing this patch I've noticed that we mistakenly enable
+use-after-scope detection for clang compiler regardless of
+CONFIG_KASAN_EXTRA setting. This is also fixed now.
+
+[1] http://lkml.kernel.org/r/<20171129052106.rhgbjhhis53hkgfn@wfg-t540p.sh.intel.com>
+
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
 ---
- arch/powerpc/mm/mmu_context_iommu.c | 124 +++++++++-------------------
- 1 file changed, 37 insertions(+), 87 deletions(-)
+ arch/arm64/include/asm/memory.h |  4 ----
+ lib/Kconfig.debug               |  1 -
+ lib/Kconfig.kasan               | 10 ----------
+ lib/test_kasan.c                | 24 ------------------------
+ mm/kasan/generic.c              | 19 -------------------
+ mm/kasan/generic_report.c       |  3 ---
+ mm/kasan/kasan.h                |  3 ---
+ scripts/Makefile.kasan          |  5 -----
+ scripts/gcc-plugins/Kconfig     |  4 ----
+ 9 files changed, 73 deletions(-)
 
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index a712a650a8b6..52ccab294b47 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -21,6 +21,7 @@
- #include <linux/sizes.h>
- #include <asm/mmu_context.h>
- #include <asm/pte-walk.h>
-+#include <linux/mm_inline.h>
+diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+index e1ec947e7c0c..0e236a99b3ef 100644
+--- a/arch/arm64/include/asm/memory.h
++++ b/arch/arm64/include/asm/memory.h
+@@ -80,11 +80,7 @@
+  */
+ #ifdef CONFIG_KASAN
+ #define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
+-#ifdef CONFIG_KASAN_EXTRA
+-#define KASAN_THREAD_SHIFT	2
+-#else
+ #define KASAN_THREAD_SHIFT	1
+-#endif /* CONFIG_KASAN_EXTRA */
+ #else
+ #define KASAN_SHADOW_SIZE	(0)
+ #define KASAN_THREAD_SHIFT	0
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index d4df5b24d75e..a219f3488ad7 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -222,7 +222,6 @@ config ENABLE_MUST_CHECK
+ config FRAME_WARN
+ 	int "Warn for stack frames larger than (needs gcc 4.4)"
+ 	range 0 8192
+-	default 3072 if KASAN_EXTRA
+ 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
+ 	default 1280 if (!64BIT && PARISC)
+ 	default 1024 if (!64BIT && !PARISC)
+diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+index d8c474b6691e..67d7d1309c52 100644
+--- a/lib/Kconfig.kasan
++++ b/lib/Kconfig.kasan
+@@ -78,16 +78,6 @@ config KASAN_SW_TAGS
  
- static DEFINE_MUTEX(mem_list_mutex);
+ endchoice
  
-@@ -34,8 +35,18 @@ struct mm_iommu_table_group_mem_t {
- 	atomic64_t mapped;
- 	unsigned int pageshift;
- 	u64 ua;			/* userspace address */
--	u64 entries;		/* number of entries in hpas[] */
--	u64 *hpas;		/* vmalloc'ed */
-+	u64 entries;		/* number of entries in hpas/hpages[] */
-+	/*
-+	 * in mm_iommu_get we temporarily use this to store
-+	 * struct page address.
-+	 *
-+	 * We need to convert ua to hpa in real mode. Make it
-+	 * simpler by storing physical address.
-+	 */
-+	union {
-+		struct page **hpages;	/* vmalloc'ed */
-+		phys_addr_t *hpas;
-+	};
- #define MM_IOMMU_TABLE_INVALID_HPA	((uint64_t)-1)
- 	u64 dev_hpa;		/* Device memory base address */
- };
-@@ -80,64 +91,15 @@ bool mm_iommu_preregistered(struct mm_struct *mm)
+-config KASAN_EXTRA
+-	bool "KASAN: extra checks"
+-	depends on KASAN_GENERIC && DEBUG_KERNEL && !COMPILE_TEST
+-	help
+-	  This enables further checks in generic KASAN, for now it only
+-	  includes the address-use-after-scope check that can lead to
+-	  excessive kernel stack usage, frame size warnings and longer
+-	  compile time.
+-	  See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81715
+-
+ choice
+ 	prompt "Instrumentation type"
+ 	depends on KASAN
+diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+index 51b78405bf24..7de2702621dc 100644
+--- a/lib/test_kasan.c
++++ b/lib/test_kasan.c
+@@ -480,29 +480,6 @@ static noinline void __init copy_user_test(void)
+ 	kfree(kmem);
  }
- EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
  
--/*
-- * Taken from alloc_migrate_target with changes to remove CMA allocations
-- */
--struct page *new_iommu_non_cma_page(struct page *page, unsigned long private)
+-static noinline void __init use_after_scope_test(void)
 -{
--	gfp_t gfp_mask = GFP_USER;
--	struct page *new_page;
+-	volatile char *volatile p;
 -
--	if (PageCompound(page))
--		return NULL;
+-	pr_info("use-after-scope on int\n");
+-	{
+-		int local = 0;
 -
--	if (PageHighMem(page))
--		gfp_mask |= __GFP_HIGHMEM;
--
--	/*
--	 * We don't want the allocation to force an OOM if possibe
--	 */
--	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
--	return new_page;
--}
--
--static int mm_iommu_move_page_from_cma(struct page *page)
--{
--	int ret = 0;
--	LIST_HEAD(cma_migrate_pages);
--
--	/* Ignore huge pages for now */
--	if (PageCompound(page))
--		return -EBUSY;
--
--	lru_add_drain();
--	ret = isolate_lru_page(page);
--	if (ret)
--		return ret;
--
--	list_add(&page->lru, &cma_migrate_pages);
--	put_page(page); /* Drop the gup reference */
--
--	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
--				NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE);
--	if (ret) {
--		if (!list_empty(&cma_migrate_pages))
--			putback_movable_pages(&cma_migrate_pages);
+-		p = (char *)&local;
 -	}
+-	p[0] = 1;
+-	p[3] = 1;
 -
--	return 0;
+-	pr_info("use-after-scope on array\n");
+-	{
+-		char local[1024] = {0};
+-
+-		p = local;
+-	}
+-	p[0] = 1;
+-	p[1023] = 1;
 -}
 -
- static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
--		unsigned long entries, unsigned long dev_hpa,
--		struct mm_iommu_table_group_mem_t **pmem)
-+			      unsigned long entries, unsigned long dev_hpa,
-+			      struct mm_iommu_table_group_mem_t **pmem)
+ static noinline void __init kasan_alloca_oob_left(void)
  {
- 	struct mm_iommu_table_group_mem_t *mem;
--	long i, j, ret = 0, locked_entries = 0;
-+	long i, ret = 0, locked_entries = 0;
- 	unsigned int pageshift;
- 	unsigned long flags;
- 	unsigned long cur_ua;
--	struct page *page = NULL;
+ 	volatile int i = 10;
+@@ -682,7 +659,6 @@ static int __init kmalloc_tests_init(void)
+ 	kasan_alloca_oob_right();
+ 	ksize_unpoisons_memory();
+ 	copy_user_test();
+-	use_after_scope_test();
+ 	kmem_cache_double_free();
+ 	kmem_cache_invalid_free();
+ 	kasan_memchr();
+diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
+index ccb6207276e3..504c79363a34 100644
+--- a/mm/kasan/generic.c
++++ b/mm/kasan/generic.c
+@@ -275,25 +275,6 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
+ void __asan_handle_no_return(void) {}
+ EXPORT_SYMBOL(__asan_handle_no_return);
  
- 	mutex_lock(&mem_list_mutex);
+-/* Emitted by compiler to poison large objects when they go out of scope. */
+-void __asan_poison_stack_memory(const void *addr, size_t size)
+-{
+-	/*
+-	 * Addr is KASAN_SHADOW_SCALE_SIZE-aligned and the object is surrounded
+-	 * by redzones, so we simply round up size to simplify logic.
+-	 */
+-	kasan_poison_shadow(addr, round_up(size, KASAN_SHADOW_SCALE_SIZE),
+-			    KASAN_USE_AFTER_SCOPE);
+-}
+-EXPORT_SYMBOL(__asan_poison_stack_memory);
+-
+-/* Emitted by compiler to unpoison large objects when they go into scope. */
+-void __asan_unpoison_stack_memory(const void *addr, size_t size)
+-{
+-	kasan_unpoison_shadow(addr, size);
+-}
+-EXPORT_SYMBOL(__asan_unpoison_stack_memory);
+-
+ /* Emitted by compiler to poison alloca()ed objects. */
+ void __asan_alloca_poison(unsigned long addr, size_t size)
+ {
+diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
+index 5e12035888f2..36c645939bc9 100644
+--- a/mm/kasan/generic_report.c
++++ b/mm/kasan/generic_report.c
+@@ -82,9 +82,6 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+ 	case KASAN_KMALLOC_FREE:
+ 		bug_type = "use-after-free";
+ 		break;
+-	case KASAN_USE_AFTER_SCOPE:
+-		bug_type = "use-after-scope";
+-		break;
+ 	case KASAN_ALLOCA_LEFT:
+ 	case KASAN_ALLOCA_RIGHT:
+ 		bug_type = "alloca-out-of-bounds";
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index ea51b2d898ec..3e0c11f7d7a1 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -34,7 +34,6 @@
+ #define KASAN_STACK_MID         0xF2
+ #define KASAN_STACK_RIGHT       0xF3
+ #define KASAN_STACK_PARTIAL     0xF4
+-#define KASAN_USE_AFTER_SCOPE   0xF8
  
-@@ -187,41 +149,25 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 		goto unlock_exit;
- 	}
+ /*
+  * alloca redzone shadow values
+@@ -187,8 +186,6 @@ void __asan_unregister_globals(struct kasan_global *globals, size_t size);
+ void __asan_loadN(unsigned long addr, size_t size);
+ void __asan_storeN(unsigned long addr, size_t size);
+ void __asan_handle_no_return(void);
+-void __asan_poison_stack_memory(const void *addr, size_t size);
+-void __asan_unpoison_stack_memory(const void *addr, size_t size);
+ void __asan_alloca_poison(unsigned long addr, size_t size);
+ void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom);
  
-+	ret = get_user_pages_cma_migrate(ua, entries, 1, mem->hpages);
-+	if (ret != entries) {
-+		/* free the reference taken */
-+		for (i = 0; i < ret; i++)
-+			put_page(mem->hpages[i]);
-+
-+		vfree(mem->hpas);
-+		kfree(mem);
-+		ret = -EFAULT;
-+		goto unlock_exit;
-+	} else {
-+		ret = 0;
-+	}
-+
-+	pageshift = PAGE_SHIFT;
- 	for (i = 0; i < entries; ++i) {
-+		struct page *page = mem->hpages[i];
-+
- 		cur_ua = ua + (i << PAGE_SHIFT);
--		if (1 != get_user_pages_fast(cur_ua,
--					1/* pages */, 1/* iswrite */, &page)) {
--			ret = -EFAULT;
--			for (j = 0; j < i; ++j)
--				put_page(pfn_to_page(mem->hpas[j] >>
--						PAGE_SHIFT));
--			vfree(mem->hpas);
--			kfree(mem);
--			goto unlock_exit;
--		}
--		/*
--		 * If we get a page from the CMA zone, since we are going to
--		 * be pinning these entries, we might as well move them out
--		 * of the CMA zone if possible. NOTE: faulting in + migration
--		 * can be expensive. Batching can be considered later
--		 */
--		if (is_migrate_cma_page(page)) {
--			if (mm_iommu_move_page_from_cma(page))
--				goto populate;
--			if (1 != get_user_pages_fast(cur_ua,
--						1/* pages */, 1/* iswrite */,
--						&page)) {
--				ret = -EFAULT;
--				for (j = 0; j < i; ++j)
--					put_page(pfn_to_page(mem->hpas[j] >>
--								PAGE_SHIFT));
--				vfree(mem->hpas);
--				kfree(mem);
--				goto unlock_exit;
--			}
--		}
--populate:
--		pageshift = PAGE_SHIFT;
- 		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
- 			pte_t *pte;
- 			struct page *head = compound_head(page);
-@@ -239,6 +185,10 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 			local_irq_restore(flags);
- 		}
- 		mem->pageshift = min(mem->pageshift, pageshift);
-+		/*
-+		 * We don't need struct page reference any more, switch
-+		 * to physical address.
-+		 */
- 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
- 	}
+diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
+index 25c259df8ffa..f1fb8e502657 100644
+--- a/scripts/Makefile.kasan
++++ b/scripts/Makefile.kasan
+@@ -27,14 +27,9 @@ else
+ 	 $(call cc-param,asan-globals=1) \
+ 	 $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
+ 	 $(call cc-param,asan-stack=1) \
+-	 $(call cc-param,asan-use-after-scope=1) \
+ 	 $(call cc-param,asan-instrument-allocas=1)
+ endif
  
+-ifdef CONFIG_KASAN_EXTRA
+-CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
+-endif
+-
+ endif # CONFIG_KASAN_GENERIC
+ 
+ ifdef CONFIG_KASAN_SW_TAGS
+diff --git a/scripts/gcc-plugins/Kconfig b/scripts/gcc-plugins/Kconfig
+index d45f7f36b859..d9fd9988ef27 100644
+--- a/scripts/gcc-plugins/Kconfig
++++ b/scripts/gcc-plugins/Kconfig
+@@ -68,10 +68,6 @@ config GCC_PLUGIN_LATENT_ENTROPY
+ 
+ config GCC_PLUGIN_STRUCTLEAK
+ 	bool "Force initialization of variables containing userspace addresses"
+-	# Currently STRUCTLEAK inserts initialization out of live scope of
+-	# variables from KASAN point of view. This leads to KASAN false
+-	# positive reports. Prohibit this combination for now.
+-	depends on !KASAN_EXTRA
+ 	help
+ 	  This plugin zero-initializes any structures containing a
+ 	  __user attribute. This can prevent some classes of information
 -- 
-2.20.1
+2.19.2
