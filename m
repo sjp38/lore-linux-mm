@@ -1,77 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C5B848E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 19:51:24 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id f125so5222066pgc.20
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 16:51:24 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id n3si18316322pld.36.2019.01.09.16.51.22
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 25C198E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 14:50:44 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id r9so11069615pfb.13
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 11:50:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 88sor4492058plb.63.2019.01.11.11.50.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 16:51:23 -0800 (PST)
-From: Sean Christopherson <sean.j.christopherson@intel.com>
-Subject: [PATCH] mm/mmu_notifier: mm/rmap.c: Fix a mmu_notifier range bug in try_to_unmap_one
-Date: Wed,  9 Jan 2019 16:51:17 -0800
-Message-Id: <20190110005117.18282-1-sean.j.christopherson@intel.com>
+        (Google Transport Security);
+        Fri, 11 Jan 2019 11:50:42 -0800 (PST)
+Date: Fri, 11 Jan 2019 12:50:37 -0700
+From: Tycho Andersen <tycho@tycho.ws>
+Subject: Re: [RFC PATCH v7 07/16] arm64/mm, xpfo: temporarily map dcache
+ regions
+Message-ID: <20190111195037.GH4102@cisco>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+ <eba179acbfdea5a646c5548cb82138c1c3b74aa2.1547153058.git.khalid.aziz@oracle.com>
+ <20190111145445.GA4102@cisco>
+ <19e61a22-bbae-d0ae-8d41-158d4b46bf01@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <19e61a22-bbae-d0ae-8d41-158d4b46bf01@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, leozinho29_eu@hotmail.com, Mike Galbraith <efault@gmx.de>, Adam Borowski <kilobyte@angband.pl>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, Felix Kuehling <felix.kuehling@amd.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: juergh@gmail.com, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com, Juerg Haefliger <juerg.haefliger@canonical.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-The conversion to use a structure for mmu_notifier_invalidate_range_*()
-unintentionally changed the usage in try_to_unmap_one() to init the
-'struct mmu_notifier_range' with vma->vm_start instead of @address,
-i.e. it invalidates the wrong address range.  Revert to the correct
-address range.
+On Fri, Jan 11, 2019 at 11:28:19AM -0700, Khalid Aziz wrote:
+> On 1/11/19 7:54 AM, Tycho Andersen wrote:
+> > On Thu, Jan 10, 2019 at 02:09:39PM -0700, Khalid Aziz wrote:
+> >> From: Juerg Haefliger <juerg.haefliger@canonical.com>
+> >>
+> >> If the page is unmapped by XPFO, a data cache flush results in a fatal
+> >> page fault, so let's temporarily map the region, flush the cache, and then
+> >> unmap it.
+> >>
+> >> v6: actually flush in the face of xpfo, and temporarily map the underlying
+> >>     memory so it can be flushed correctly
+> >>
+> >> CC: linux-arm-kernel@lists.infradead.org
+> >> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+> >> Signed-off-by: Tycho Andersen <tycho@docker.com>
+> >> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+> >> ---
+> >>  arch/arm64/mm/flush.c | 7 +++++++
+> >>  1 file changed, 7 insertions(+)
+> >>
+> >> diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
+> >> index 30695a868107..f12f26b60319 100644
+> >> --- a/arch/arm64/mm/flush.c
+> >> +++ b/arch/arm64/mm/flush.c
+> >> @@ -20,6 +20,7 @@
+> >>  #include <linux/export.h>
+> >>  #include <linux/mm.h>
+> >>  #include <linux/pagemap.h>
+> >> +#include <linux/xpfo.h>
+> >>  
+> >>  #include <asm/cacheflush.h>
+> >>  #include <asm/cache.h>
+> >> @@ -28,9 +29,15 @@
+> >>  void sync_icache_aliases(void *kaddr, unsigned long len)
+> >>  {
+> >>  	unsigned long addr = (unsigned long)kaddr;
+> >> +	unsigned long num_pages = XPFO_NUM_PAGES(addr, len);
+> >> +	void *mapping[num_pages];
+> > 
+> > Does this still compile with -Wvla? It was a bad hack on my part, and
+> > we should probably just drop it and come up with something else :)
+> 
+> I will make a note of it. I hope someone with better knowledge of arm64
+> than me can come up with a better solution ;)
 
-Manifests as KVM use-after-free WARNINGs and subsequent "BUG: Bad page
-state in process X" errors when reclaiming from a KVM guest due to KVM
-removing the wrong pages from its own mappings.
+It's not just arm64, IIRC everywhere I used xpfo_temp_map() has a VLA.
+I think this is in part because some of these paths don't allow
+allocation failures, so we can't do a dynamic allocation. Perhaps we
+need to reserve some memory for each call site?
 
-Reported-by: leozinho29_eu@hotmail.com
-Reported-by: Mike Galbraith <efault@gmx.de>
-Reported-by: Adam Borowski <kilobyte@angband.pl>
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Christian König <christian.koenig@amd.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Ross Zwisler <zwisler@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Radim Krčmář <rkrcmar@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Felix Kuehling <felix.kuehling@amd.com>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Fixes: ac46d4f3c432 ("mm/mmu_notifier: use structure for invalidate_range_start/end calls v2")
-Signed-off-by: Sean Christopherson <sean.j.christopherson@intel.com>
----
-
-FWIW, I looked through all other calls to mmu_notifier_range_init() in
-the patch and didn't spot any other unintentional functional changes.
-
- mm/rmap.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 68a1a5b869a5..0454ecc29537 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1371,8 +1371,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	 * Note that the page can not be free in this function as call of
- 	 * try_to_unmap() must hold a reference on the page.
- 	 */
--	mmu_notifier_range_init(&range, vma->vm_mm, vma->vm_start,
--				min(vma->vm_end, vma->vm_start +
-+	mmu_notifier_range_init(&range, vma->vm_mm, address,
-+				min(vma->vm_end, address +
- 				    (PAGE_SIZE << compound_order(page))));
- 	if (PageHuge(page)) {
- 		/*
--- 
-2.19.2
+Tycho
