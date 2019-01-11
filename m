@@ -1,54 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C48AD8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:08:29 -0500 (EST)
-Received: by mail-lf1-f71.google.com with SMTP id h11so969998lfc.9
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:08:29 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a13-v6sor45513079ljj.25.2019.01.10.23.08.27
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 10 Jan 2019 23:08:27 -0800 (PST)
-Received: from mail-lf1-f49.google.com (mail-lf1-f49.google.com. [209.85.167.49])
-        by smtp.gmail.com with ESMTPSA id q6sm14280660lfh.52.2019.01.10.23.08.24
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4610B8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:58:07 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id 144so252942wme.5
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 20:58:07 -0800 (PST)
+Received: from nautica.notk.org (nautica.notk.org. [91.121.71.147])
+        by mx.google.com with ESMTPS id u14si46218917wrg.415.2019.01.10.20.58.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 23:08:24 -0800 (PST)
-Received: by mail-lf1-f49.google.com with SMTP id c16so10076630lfj.8
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:08:24 -0800 (PST)
-MIME-Version: 1.0
-References: <20190109043906.GF27534@dastard> <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
- <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <20190111020340.GM27534@dastard> <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
- <20190111040434.GN27534@dastard>
-In-Reply-To: <20190111040434.GN27534@dastard>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 10 Jan 2019 23:08:07 -0800
-Message-ID: <CAHk-=wh-kegfnPC_dmw0A72Sdk4B9tvce-cOR=jEfHDU1-4Eew@mail.gmail.com>
+        Thu, 10 Jan 2019 20:58:05 -0800 (PST)
+Date: Fri, 11 Jan 2019 05:57:50 +0100
+From: Dominique Martinet <asmadeus@codewreck.org>
 Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20190111045750.GA27333@nautica>
+References: <20190109022430.GE27534@dastard>
+ <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
+ <20190109043906.GF27534@dastard>
+ <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
+ <20190110004424.GH27534@dastard>
+ <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
+ <20190110070355.GJ27534@dastard>
+ <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+ <20190110122442.GA21216@nautica>
+ <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Thu, Jan 10, 2019 at 8:04 PM Dave Chinner <david@fromorbit.com> wrote:
->
-> So it will only read the single page we tried to access and won't
-> perturb the rest of the message encoded into subsequent pages in
-> file.
+Linus Torvalds wrote on Thu, Jan 10, 2019:
+> On Thu, Jan 10, 2019 at 4:25 AM Dominique Martinet
+> <asmadeus@codewreck.org> wrote:
+> > Linus Torvalds wrote on Thu, Jan 10, 2019:
+> > > (Except, of course, if somebody actually notices outside of tests.
+> > > Which may well happen and just force us to revert that commit. But
+> > > that's a separate issue entirely).
+> >
+> > Both Dave and I pointed at a couple of utilities that break with
+> > this. nocache can arguably work with the new behaviour but will behave
+> > differently; vmtouch on the other hand is no longer able to display
+> > what's in cache or not - people use that for example to "warm up" a
+> > container in page cache based on how it appears after it had been
+> > running for a while is a pretty valid usecase to me.
+> 
+> So honestly, the main reason I'm loath to revert is that yes, we know
+> of theoretical differences, but they seem to all be
+> performance-related.
 
-Dave, you're being intentionally obtuse, aren't you?
+I don't see what other use mincore could have, yes - even the
+"debugging" use I gave is performance investigations and not hard
+problems (and I probably would go straight to perf nowadays, you'd get
+the info that the program doesn't use cache from the call graphs)
 
-It's only that single page that *matters*. That's the page that the
-probe reveals the status of - but it's also the page that the probe
-then *changes* the status of.
+> It would be really good to hear numbers. Is the warm-up optimization
+> something that changes things from 3ms to 3.5ms? Or does it change
+> things from 3ms to half a second?
 
-See?
+This is heavily workload and storage hardware dependant, so hard to give
+some absolute value.
 
-Think of it as "the act of measurement changes that which is
-measured". And that makes the measurement pointless.
+Trying with some big server, fast SSD, mysql and doing:
+ # echo 3 > /proc/sys/vm/drop_caches
+ # (optional) prefetch table and innodb files
+ # systemctl restart mariadb
+ # time mysql -q db "select * from mytable where id in $ENTRIES" > /dev/null
+ # time mysql -q db "select * from mytable where id in $ENTRIES2" > /dev/null
+ # time mysql -q db "select * from mytable where id in $ENTRIES3" > /dev/null
+(where ENTRIES* are lists of 1000 id, and id is indexed; the table is 8GB
+for 62590661 entries so 1000 entries is approx 128KB of data out of that
+file)
 
-              Linus
+I get on average over a few queries approximately a real time of 350ms,
+230ms and 220ms immediately after drop cache and service restart, and
+150ms, 60ms and 60ms after a prefetch (hand-wavy average over 3 runs, I
+didn't have the patience to do proper testing).
+(In both cases, user/sys are less than 10ms; I don't see much difference
+there)
+
+If I restart the service without dropping caches and redo the query I
+get 60ms from the first query onwards so I must not be preloading
+everything properly, some real script that would look all over a
+container to properly restore the page cache would do better than me
+blindly preloading a few files.
+
+Either way, we're talking about a factor of 2-3 until the application has
+been looking at most of the entries, and I didn't try to see how that
+would look like on spinning disks or the kind of slow storage one would
+get on VPS somewhere in the cloud - I'm sure someone with time to waste
+could get much more impressive figures, but this already look pretty
+worthwhile to me.
+
+-- 
+Dominique Martinet | Asmadeus
