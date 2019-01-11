@@ -2,170 +2,163 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA01DC43387
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:26:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D32D9C43612
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:44:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7E2F3206B7
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:26:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 92595214C6
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:44:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="arThAiTa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E2F3206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=synopsys.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="0wOYoZuy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92595214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 21EAD8E0006; Thu, 10 Jan 2019 19:26:53 -0500 (EST)
+	id 2846A8E0002; Thu, 10 Jan 2019 19:44:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1CC6B8E0001; Thu, 10 Jan 2019 19:26:53 -0500 (EST)
+	id 233AB8E0001; Thu, 10 Jan 2019 19:44:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0E5878E0006; Thu, 10 Jan 2019 19:26:53 -0500 (EST)
+	id 1237D8E0002; Thu, 10 Jan 2019 19:44:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C3F628E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 19:26:52 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id t26so7341521pgu.18
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:26:52 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C974B8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 19:44:53 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id q64so9008004pfa.18
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:44:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version;
-        bh=tONnOyuB2lpOpSvJpJpHHz+Hr9EbTu2vK/iB0IQUkdQ=;
-        b=W4NabjbInN9KshHpk+nap8RYIi4ooMSzvbx2SKlx93HXrvGw5ZCqHQZa09LmQuuz34
-         7QV7QTNk8yy3KyVLF8KkjKZ47B7mPQvHmJ+dGbScZU3bjyIU4qHnReCGzMCIijhdcXJs
-         FwLj+xuA2qVjLXZkUgblEp0wPwXsTtSWfl2MRi1P19iuYX2YoO40An+hdC0+dIVmn5FP
-         SPKoSs+FjAkYJRq+9OzQJGte3SKrYQ7PlEGsuuytVtryxBViXy7qTacjX6Ws5gaON62b
-         XMaQAgbUQ0vDw8X4wLWGN6Mc/aJecdCmBJnFQ+aHnQ/TQcSduyV5PdVgIhGD6Rj0jbJv
-         I8XA==
-X-Gm-Message-State: AJcUukdC8AjuRL+13GPh7/Mx4Y7e3ip9TihET97YTUMpzAZt0qlItrDM
-	PUE27CfmBsIpgea/pTFyeIp/saNpgqU+RE1zokoSwNnZpUFF14dKWtaclOrzHy1UaPNPk1IPwIn
-	efWLDqSqSmCxF3lOZpxd89Ne+BVL722ZP1sUvOCWM+xrIZU7GpWooW11zjL3eGo8uHA==
-X-Received: by 2002:a62:399b:: with SMTP id u27mr12781368pfj.181.1547166412458;
-        Thu, 10 Jan 2019 16:26:52 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4C+Y4CSE9ZT1qaANaxzh8RCnDltFE5I9VwzCsdKs31J+BasHDsAr825S4PzL3dhJ7iRMds
-X-Received: by 2002:a62:399b:: with SMTP id u27mr12781339pfj.181.1547166411811;
-        Thu, 10 Jan 2019 16:26:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547166411; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=AyO2ZUX14HwGnFRVfShkhM/0Ey6IITntw+hlIqJE8Hg=;
+        b=s77Cb2x0O4J/9+fOp91ywT3D/p5rf7aIDjvassGLYs6bUxg46hHibRxTseIh19Vlkw
+         sjzmAlIIL9OgUrHbT7D0R81XZAvO7FwoT4Wto+KZfqXAtEKxTQYxBQFxr4kBZbARo9ge
+         s9BrjPxnJsEsp3fckYhNj2jgwHa6YgPaKASyByrQ1iscwsX2KXIpgd8iekLic5xyyAaJ
+         Ms6ZpTakcekuHnMxFatmRSYA302f4URJQ46LRBciRo1PMHuodLfgZyKwb5+FQG5mCeFP
+         OHUddj/32tVxKDrDQGX7Y7qIXxcBc3jIb0Z8e4c50QHKuI6LaabULSEaqXIcrQps3dqi
+         0vNg==
+X-Gm-Message-State: AJcUukcHSC6Bne4sCwmI3GSE6ZCHqqyckm6cKgBPYkTHjbX+4R4kIdss
+	tqMYLg07nTmjjPxyXL3PM77RfB5ckHGPGLFQfcz89t1BsDu+1lLN4fg1cjXjJcos71dofp1ZNRI
+	5+1Xih/YJkewjKul3rDz9z7/q4ufAi4OLIoQ6KroyjehnnZ+JLIolaA8mIdjF4RhpiA==
+X-Received: by 2002:a63:5664:: with SMTP id g36mr9094710pgm.313.1547167493341;
+        Thu, 10 Jan 2019 16:44:53 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5Cu8Jv28/inCM5jy4hCZc8lKOpFZUy406iREUx/uQiac8vsv6pdw+G9Um9/4dMm0hpuIrP
+X-Received: by 2002:a63:5664:: with SMTP id g36mr9094676pgm.313.1547167492591;
+        Thu, 10 Jan 2019 16:44:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547167492; cv=none;
         d=google.com; s=arc-20160816;
-        b=fFOlfx05TziAVfsXBjvX7ZOzUDx3rSRc7coECcogWEQEg0ow8offhBPndyWpOOnKBL
-         G2wqokqlKXg0xKEiytu/uz137lmYD7LcleUu9K50jpO79WRoz7J6yjPCylOmTLQVIpkx
-         vZfmk0f+j20fJzYiIYzVxxaWgUYP/6PYbZppEn9YuIt+wmpq5Z6mBshVRNGUa5O5lr+/
-         Atpek8BkxCC/RsOhgu0EpPjGZwvF3xY1vROtgLKTDjtOStoHH3Zr444ie233peYoMTph
-         QknfHwIkFQ7cvUQ7GOUVifzsa8T49yV7xNAvocXc6cnBsO5CCihiNGvigiss8fo3y7qK
-         yoyQ==
+        b=xGg2iJ5/zsf2CY7WmXDX7aSeDkAh1XiJLAZApPGxEL96JB8m1HqQSHDWSJxVsdiXBR
+         N6FSPTHJwqQ1aPzDVgIo28ZePITN89gDsh1zAfLXME/hcJmgEM7TbOLCx43nkSqAWgwp
+         GO6LbdXvIgtIp4GP0PUoZFxUbaV9YXHNMi63FRcDJ4H4hbBXqUDUvPWEjgNwp9o81Wwx
+         gvrXquDh+/iwxdHaIr2L3bL7fLKjMPgqBPgMjVc3baR4i8ZiA3bnAAKGQRSQpHnaVq4x
+         zo7Mu0tH94FU+u+B2Ig4AlYCL0gbuIuEBJzKC3R8Gg7XUCKwYC+bhCMmZ+4lbRtqIuvd
+         ZFQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
-         :from:dkim-signature;
-        bh=tONnOyuB2lpOpSvJpJpHHz+Hr9EbTu2vK/iB0IQUkdQ=;
-        b=pBD1MD6t2xTI1FHlalnieJqY4WSWZ8wid9WjUubrl7L+VMhyI3yWMvI3xSd3mFUT7T
-         nMle0JK6Ur8eG7u9EgPf4zFnEsVR5r2tLvQ8iEa9jeqTFprK6thQV4V8nUhzA2IwL0Le
-         dVJ1UsrffjqBEYA4YVvWtnImHDocJoGyG9e3KFZr5ehJWk4f10qNbgTqTHYu56iD11TM
-         bK8rybWaOjIsRVoUbpbSWaIOrrvY2St1QmfZ5uxl/F5IqgIUCZe72F6nTkQh1ZR+F8bv
-         bJ+XAexJ3aaab9ZldvYf8ReXcdEBh4hB/sT2tfetgXEUd08e0xcA08Bzxv6wBJY3cFgT
-         xPUA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=AyO2ZUX14HwGnFRVfShkhM/0Ey6IITntw+hlIqJE8Hg=;
+        b=fecxpPnRVZAeBLGakhshSU3DvB1kaTDVoqu1AV38sLnPIUCxZsbSEa0KY+VG0W9TRd
+         NRIzz8fA+4cJKfnPeWCwiGZfufSGMBwaSSGFSlWkT0fmBNUdx7mbzDUiNMqNx0CZNPSZ
+         njKSShHe0d6+wp/Gsgw3lEr8evpDzTg8CFxV6EMcCMZgeCiHTbJpFBQii/XmO6u8RVV6
+         8ZO32gr9omQCM1S7XGWQkLoHHCN6qkSErvheY1WI1TI+ABYl6psOXmd1tQFtfsPbVzFi
+         +WfHJmnevU3zivFmsYWXc2GKzvn/we6Mf66RurRTp+CguDDHlkm7grJeRXW+XZso/9w6
+         QGqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@synopsys.com header.s=mail header.b=arThAiTa;
-       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.60.111 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id y6si51191750pll.384.2019.01.10.16.26.51
+       dkim=pass header.i=@kernel.org header.s=default header.b=0wOYoZuy;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id e4si6829871pgl.570.2019.01.10.16.44.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 16:26:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.60.111 as permitted sender) client-ip=198.182.60.111;
+        Thu, 10 Jan 2019 16:44:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@synopsys.com header.s=mail header.b=arThAiTa;
-       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.60.111 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
-Received: from mailhost.synopsys.com (mailhost2.synopsys.com [10.13.184.66])
-	by smtprelay.synopsys.com (Postfix) with ESMTP id 99A9E10C06EF;
-	Thu, 10 Jan 2019 16:26:50 -0800 (PST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=synopsys.com; s=mail;
-	t=1547166411; bh=MTd8hhL8+Yrd4J5zf9O3w4pCpQ1E6m+yK5NdRUgT2As=;
-	h=From:To:CC:Subject:Date:In-Reply-To:References:From;
-	b=arThAiTak6xtjdEQqT6DCcRORRxKOtPKlTZOKV/ZQLPMuplgeRxm5smd9cNlASzX6
-	 WDjzrQiDGNcYPSXlgN9OrHbfPrCEr9W0qGCRLpKziLfoOP/Vd/z9oRiYFMxP2PCVRN
-	 gugo+ZaJnTuhaJcpjCD9DmLCjdPzWf7/WO+qK75/V17XO5DTYREMHipU/BfRqD0UO+
-	 +a140xT9WNax6dENNdLpzceFqSXE1jnIjX1c3yf3RUgFSUjgYpy2KFJazxEWclrz5e
-	 EBwuQesuig/h/PxG9jewFe1dQpWDSobr/TZkQPUVlZ4G2nDUBiQQmtb5BawiqzBhFu
-	 /nmVMgepWt7Hg==
-Received: from US01WXQAHTC1.internal.synopsys.com (us01wxqahtc1.internal.synopsys.com [10.12.238.230])
-	by mailhost.synopsys.com (Postfix) with ESMTP id 63E3B39F7;
-	Thu, 10 Jan 2019 16:26:50 -0800 (PST)
-Received: from IN01WEHTCA.internal.synopsys.com (10.144.199.104) by
- US01WXQAHTC1.internal.synopsys.com (10.12.238.230) with Microsoft SMTP Server
- (TLS) id 14.3.408.0; Thu, 10 Jan 2019 16:26:50 -0800
-Received: from IN01WEHTCB.internal.synopsys.com (10.144.199.105) by
- IN01WEHTCA.internal.synopsys.com (10.144.199.103) with Microsoft SMTP Server
- (TLS) id 14.3.408.0; Fri, 11 Jan 2019 05:56:48 +0530
-Received: from vineetg-Latitude-E7450.internal.synopsys.com (10.10.161.70) by
- IN01WEHTCB.internal.synopsys.com (10.144.199.243) with Microsoft SMTP Server
- (TLS) id 14.3.408.0; Fri, 11 Jan 2019 05:56:50 +0530
-From: Vineet Gupta <vineet.gupta1@synopsys.com>
-To: <linux-kernel@vger.kernel.org>
-CC: <linux-snps-arc@lists.infradead.org>, <linux-mm@kvack.org>,
-	<peterz@infradead.org>, Vineet Gupta <vineet.gupta1@synopsys.com>,
-	Miklos Szeredi <mszeredi@redhat.com>, Ingo Molnar <mingo@kernel.org>,
-	Jani Nikula <jani.nikula@intel.com>,
-	Chris Wilson <chris@chris-wilson.co.uk>,
-	"Andrew  Morton" <akpm@linux-foundation.org>,
-	Will Deacon <will.deacon@arm.com>
-Subject: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
-Date: Thu, 10 Jan 2019 16:26:27 -0800
-Message-ID: <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
-References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=0wOYoZuy;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com [209.85.221.50])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id F19DA218CD
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:44:51 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1547167492;
+	bh=WG/P66XN4qR7HG2MSq1KjFJ2CkSzkKRidv2c1nBua0c=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=0wOYoZuyhSTuDfZfYOyUUB5GM/qZ9DSk4fNQHanVxK9hh7E3mLxhPcUrcR2SZRW5d
+	 b4nTmZ8zHmhPcBKNilb5lTl8kgLtNby3D7Z2g4CMUfmtAEdq9iQ09l2y1lGM8zpxvr
+	 u+8m/v/cCMoB1KoBZpIdHeGMzLrLmVjZfj6FClYE=
+Received: by mail-wr1-f50.google.com with SMTP id x10so13380913wrs.8
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:44:51 -0800 (PST)
+X-Received: by 2002:adf:f0c5:: with SMTP id x5mr10938341wro.77.1547167488414;
+ Thu, 10 Jan 2019 16:44:48 -0800 (PST)
 MIME-Version: 1.0
+References: <cover.1547153058.git.khalid.aziz@oracle.com> <CAGXu5jKS8XSw7nByaeXqgPbmRRw01E_zUYxLCk7zFepAVSw_aQ@mail.gmail.com>
+In-Reply-To: <CAGXu5jKS8XSw7nByaeXqgPbmRRw01E_zUYxLCk7zFepAVSw_aQ@mail.gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 10 Jan 2019 16:44:36 -0800
+X-Gmail-Original-Message-ID: <CALCETrVWjdo6C53eFz8Gc99q4HFsGpwf4kDXR5OG8E96t-gSLw@mail.gmail.com>
+Message-ID:
+ <CALCETrVWjdo6C53eFz8Gc99q4HFsGpwf4kDXR5OG8E96t-gSLw@mail.gmail.com>
+Subject: Re: [RFC PATCH v7 00/16] Add support for eXclusive Page Frame Ownership
+To: Kees Cook <keescook@chromium.org>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Andy Lutomirski <luto@kernel.org>, 
+	Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>, 
+	Juerg Haefliger <juergh@gmail.com>, Tycho Andersen <tycho@tycho.ws>, jsteckli@amazon.de, 
+	Andi Kleen <ak@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, 
+	liran.alon@oracle.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, deepa.srinivasan@oracle.com, 
+	chris hyser <chris.hyser@oracle.com>, Tyler Hicks <tyhicks@canonical.com>, 
+	"Woodhouse, David" <dwmw@amazon.co.uk>, Andrew Cooper <andrew.cooper3@citrix.com>, 
+	Jon Masters <jcm@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, kanth.ghatraju@oracle.com, 
+	Joao Martins <joao.m.martins@oracle.com>, Jim Mattson <jmattson@google.com>, 
+	pradeep.vincent@oracle.com, John Haxby <john.haxby@oracle.com>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Hellwig <hch@lst.de>, steven.sistare@oracle.com, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>
 Content-Type: text/plain; charset="UTF-8"
-X-Originating-IP: [10.10.161.70]
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111002627.BDn9LwjAmmp0OOUv-tVjNmcVaSZbskje7xnNiyr17Lg@z>
+Message-ID: <20190111004436.Z3J3cqMcwNwmBwdTxoiZjm7OWvrjWolbNIhh3cNw9R0@z>
 
-| > Also, set_mask_bits is used in fs quite a bit and we can possibly come up
-| > with a generic llsc based implementation (w/o the cmpxchg loop)
-|
-| May I also suggest changing the return value of set_mask_bits() to old.
-|
-| You can compute the new value given old, but you cannot compute the old
-| value given new, therefore old is the better return value. Also, no
-| current user seems to use the return value, so changing it is without
-| risk.
+On Thu, Jan 10, 2019 at 3:07 PM Kees Cook <keescook@chromium.org> wrote:
+>
+> On Thu, Jan 10, 2019 at 1:10 PM Khalid Aziz <khalid.aziz@oracle.com> wrote:
+> > I implemented a solution to reduce performance penalty and
+> > that has had large impact. When XPFO code flushes stale TLB entries,
+> > it does so for all CPUs on the system which may include CPUs that
+> > may not have any matching TLB entries or may never be scheduled to
+> > run the userspace task causing TLB flush. Problem is made worse by
+> > the fact that if number of entries being flushed exceeds
+> > tlb_single_page_flush_ceiling, it results in a full TLB flush on
+> > every CPU. A rogue process can launch a ret2dir attack only from a
+> > CPU that has dual mapping for its pages in physmap in its TLB. We
+> > can hence defer TLB flush on a CPU until a process that would have
+> > caused a TLB flush is scheduled on that CPU. I have added a cpumask
+> > to task_struct which is then used to post pending TLB flush on CPUs
+> > other than the one a process is running on. This cpumask is checked
+> > when a process migrates to a new CPU and TLB is flushed at that
+> > time. I measured system time for parallel make with unmodified 4.20
+> > kernel, 4.20 with XPFO patches before this optimization and then
+> > again after applying this optimization. Here are the results:
 
-Link: http://lkml.kernel.org/g/20150807110955.GH16853@twins.programming.kicks-ass.net
-Suggested-by: Peter Zijlstra <peterz@infradead.org>
-Cc: Miklos Szeredi <mszeredi@redhat.com>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Jani Nikula <jani.nikula@intel.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- include/linux/bitops.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I wasn't cc'd on the patch, so I don't know the exact details.
 
-diff --git a/include/linux/bitops.h b/include/linux/bitops.h
-index 705f7c442691..602af23b98c7 100644
---- a/include/linux/bitops.h
-+++ b/include/linux/bitops.h
-@@ -246,7 +246,7 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
- 		new__ = (old__ & ~mask__) | bits__;		\
- 	} while (cmpxchg(ptr, old__, new__) != old__);		\
- 								\
--	new__;							\
-+	old__;							\
- })
- #endif
- 
--- 
-2.7.4
+I'm assuming that "ret2dir" means that you corrupt the kernel into
+using a direct-map page as its stack.  If so, then I don't see why the
+task in whose context the attack is launched needs to be the same
+process as the one that has the page mapped for user access.
+
+My advice would be to attempt an entirely different optimization: try
+to avoid putting pages *back* into the direct map when they're freed
+until there is an actual need to use them for kernel purposes.
+
+How are you handing page cache?  Presumably MAP_SHARED PROT_WRITE
+pages are still in the direct map so that IO works.
 
