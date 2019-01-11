@@ -2,265 +2,259 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 666EEC43612
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 20:54:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AFAE8C43612
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 20:58:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17F802133F
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 20:54:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 608342183F
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 20:58:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="coilP1y2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17F802133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="ISh828SP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 608342183F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=synopsys.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8BFC88E0002; Fri, 11 Jan 2019 15:54:11 -0500 (EST)
+	id 0098E8E0002; Fri, 11 Jan 2019 15:58:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 87A568E0001; Fri, 11 Jan 2019 15:54:11 -0500 (EST)
+	id EFA448E0001; Fri, 11 Jan 2019 15:58:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 75DBB8E0002; Fri, 11 Jan 2019 15:54:11 -0500 (EST)
+	id DE9DF8E0002; Fri, 11 Jan 2019 15:58:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 43FE18E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:54:11 -0500 (EST)
-Received: by mail-vk1-f198.google.com with SMTP id 202so3296475vkp.16
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 12:54:11 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA418E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:58:37 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id u20so11245883pfa.1
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 12:58:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=IrGK6kyFNDsbI2MCdBSCbW6jFZfGOqsBleTmUr3JpGg=;
-        b=mVtZGS+pUnYwDnZswwz8tFTKS4pv6+1HPSHhKrCr5nfkoxLOhnVjZU5TuakDC+9CcP
-         OCi6eh1m+216flEEsouTyLhuWA+oNMCLP2m9a8uKe4swlMsIOi9AffWJCiVcw4cnlet1
-         cgjh4+uYnqV5YWXqSVEwWXqYS5g+cXHMr5rIzrtiRZq9X+QH9DN4Rde5i8uE1cfufEUI
-         NScvYpgKoazjrXSSWc+8gQMX/3PEZPx/fVz3RdG+qC6CY2mND64tNmCMKTKBn261lolF
-         dpz7/0fsmbo8oxAUbjy0D29JmjSLqt+/UJXbFDc5r+g82RbSfAxduQhXF/Q85IQXy0nW
-         0dNA==
-X-Gm-Message-State: AJcUukc57owgwDnqzwSSpHriE/ToI0tM9hQtKHXE2LAI7YYX7jJLmD8O
-	9n7ZRREakyG6YPVKiwSs4cwQt29FRoY4KtPuQl2gSnToUPpEjHb/eCQxXUFQ/53IengWP2/udd2
-	b6F8waWLHTLPGThGhylNMi0oRfgnJatb4jmz7ZTVRArMcUSLcxU2F4ZiOPZYwMI5rnOl7msz7j6
-	A4xwE1Hi84Syn+8Pji1/ncH4TwwEDlonLW5WOeRZzX/nat6kYsiPoaK0Pun3q/0AIuCqSH52oMZ
-	Syr1ARZV+CUTuiG8/Hj17h4O/a40j2/Pi++BfFipNdKHbN0ByzNcm9ZIbB/S8NkxkWmY09aY1Oh
-	9Cslnz4iZi452LofglUmUmmrblx88qTJRM8xdcyyCGcs5au/HRR1mdtMSJoRwmgQw3TeTvrbZvD
-	D
-X-Received: by 2002:ab0:8d9:: with SMTP id o25mr6130181uaf.127.1547240050839;
-        Fri, 11 Jan 2019 12:54:10 -0800 (PST)
-X-Received: by 2002:ab0:8d9:: with SMTP id o25mr6130169uaf.127.1547240049864;
-        Fri, 11 Jan 2019 12:54:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547240049; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:newsgroups
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=LzUuvRIYUaY7dDi9dT5pV4RhzRHJzG9HkZDrLehUx8E=;
+        b=Wxtsy0GwFAAFE9jao5yGdYrq8Ooy2MtDLX8EXJxy3regn8sv03iv5Yq/skeN16+pmr
+         Entk5UtXZrsBeDFeijzjJTxqfjqbvz9aDSE9xDczVEotGWaXpsqz/3PXYWTFXK5IGtx1
+         2MO8YZIfI6EYvrfWKTQXm7y6+FPHVSSSEJocX2YcVLIi7Z8Spn6bGbu1Yf76l219mUrl
+         UnM9PN1OuIdHdi0Udf4EUehub8dCZgMyGRjw4yA/Vak5Jo6vMuVJZ414RgUAE4nAu6uW
+         b5+PVy8Ca5qAmJm/tAegpAjtvuwOgrOBi0QuL6jJU6X4YjNGySq9+ijWGEa6ZGfMNfeB
+         Z+1A==
+X-Gm-Message-State: AJcUukcUvmZmkM6dPvY5o1XB5pAVMOfH3ScFs14lu1eFNdbAbj6ZfZh+
+	UZUFDePucIfiRv07mQfnTJyUy/brCMryRfU+EheFVTTkraaXenh8prKomb3DOqjD1LeZMbW5z/3
+	j11YvTJjS/t9H/PEye6NyarkfYiPK5LjLsOYOGkRsNpP+a+mNl9uD6qg428I8WL/e0A==
+X-Received: by 2002:a62:b15:: with SMTP id t21mr16696520pfi.136.1547240317226;
+        Fri, 11 Jan 2019 12:58:37 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5gCdMQ/2yZRJSA7bqj+1idQHpPRNZpA/FYPt5hid/HL8ZS+F0MBpuEEHQ9QgAM2uTo6BvC
+X-Received: by 2002:a62:b15:: with SMTP id t21mr16696476pfi.136.1547240316322;
+        Fri, 11 Jan 2019 12:58:36 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547240316; cv=none;
         d=google.com; s=arc-20160816;
-        b=B8XPX0xiNKqIw35Bd1vYuak0vodPOi9dn87UG6E6JgWbgOjx5lIEAxYfoo/tPczau3
-         omYb7reudJuWOhxuXYVBq7cHccGAJaPSUicB0feFHHrn9oCf3lQC7KD1+fhUqPfmjMXt
-         nJgyGnyoBqOkI+Egpnz8PGjEEh7fUg4YvYEmPNysUzRj6wC1XsQwzHPTObwtjE/YxQLs
-         dd0SPphag3326i7uuybiAlE5LvLrP6FMIWTkThtmRTPSsLYe7XrGSLixKZEAGt/rRzc2
-         T07qlIyiBa2UC5RaLWj7D+YGGintWvvQp3pGtl0/lpKOt2RoajCs9E63//xvctycaJ89
-         ioGA==
+        b=bjt0Jlt9qA2DFUNHPuGjUBrxeb7G6rnAcc5Pg9bgcBzxBh7QQ9rhl4aCDK+6o1FTzV
+         mvQHmYugk7MrM+TW+EcgLQRzHyy+wlftNB9b/AXH9RYEkqHbu2amZ+utgE8rXuf1NWU+
+         blgLcZVeziAQW9ihHuEBcJu+M1CQ0mq1+gy47gErSV2PDnkHYjFN1ow8aqgrZ/uM0XRh
+         iDKr7SzumP5kOS8QZXoko/9+4tXD06Cl/JcXYQ8lh44kHWwxJbfRmZk8jRGruygDjwtm
+         ZEpMxMAHcmKu1XHaHIk2VhiO55VLCI8Rot9wmH8xqj4Cz7Rgai3PB2McrHWPjVkRYe0c
+         FwQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=IrGK6kyFNDsbI2MCdBSCbW6jFZfGOqsBleTmUr3JpGg=;
-        b=gjnFF4KZi9IJ8i59oaXH8iac64XHjAwwgUDtk/eNYdlnWtRGs6WYMKcARpHjD34TuI
-         WZ9JtXU1o/GuZboZjnIEE+RLWkTMLTiUDXu2NfkwE2RlNIXGXJe28Yc7GK/wbizv+myd
-         9W5sDGlaeUiUkvXOb9jKbEgO0+vVqR7X4BJFjt9C7idF8J+ieK7Arco1Y5WjduTp/ZTv
-         mEOptAZ6MC2vDVYEuD6cHWfyVxHBZtbdUjC69YJb70/wvOYuyUIsUFd3EvU0iHmZ1IR0
-         FjnQyBWxSdE3GkCj4KzTPd8WVtlCo65pQ293bw12BMHfnWbjQDZIymauy9K6EL2eoQRS
-         OcFw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references
+         :newsgroups:cc:to:subject:dkim-signature;
+        bh=LzUuvRIYUaY7dDi9dT5pV4RhzRHJzG9HkZDrLehUx8E=;
+        b=FG790yQrIAPnEk39oLn2n+k8LiIduQLkxVm+F3sNcHRUN/mI0K/EIFFS4+Wwzhv24C
+         Fwg3V0KA1CkL2uz9PQsIDJ4zgEfWihONvkipXhTDlPrgSUItwzsCGrUU3C9GisSRfyhf
+         9pAL+JgYEUXunOQMZ0SLnXELE8xMxxc6fyjoR5UbEFnJHWKLVIN6pFjsXZybMWXIOSEB
+         1z7zO20GAdT3NDoSN9URBdoDDqd0I/csZtiXOoNubrLo0GvqkGx++aH7l0DXQdKNIUAa
+         Axkpfb+DoWY0jwXdaeQBY/MHMHoJuneqLqWovTSxjfdXiFmoBlsh4AEr8EugSUk2m/j1
+         /N+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=coilP1y2;
-       spf=pass (google.com: domain of baicar.tyler@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=baicar.tyler@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f79sor45703897vsf.85.2019.01.11.12.54.09
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=ISh828SP;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id l7si15083723pgk.169.2019.01.11.12.58.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 Jan 2019 12:54:09 -0800 (PST)
-Received-SPF: pass (google.com: domain of baicar.tyler@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 12:58:36 -0800 (PST)
+Received-SPF: pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) client-ip=198.182.47.9;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=coilP1y2;
-       spf=pass (google.com: domain of baicar.tyler@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=baicar.tyler@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=IrGK6kyFNDsbI2MCdBSCbW6jFZfGOqsBleTmUr3JpGg=;
-        b=coilP1y26oGDU6wUS+fvN+jrkiGu9WFMDZmv/ZTZS4As1As/sXkyZcPN1kkVUWzLv0
-         gn9FkVbwV1XaU+FmX4S4bEP/vpeiaCrQ/8Y0ChNe40IqQpny5tjNB3De3QKHqsdXNbDs
-         busvGNR8zIJ1kH/KF7mkgRq3BwD+k/LguR2H9c9f63QITZcue+wI0Vppi0mLwKO/eMe2
-         n+oeM9Jg+b7Hr46BKGYfFWG2x2bfHEJkwqoTReKmFJQFoW68COjPW1x+ojLubeLl2gNF
-         NmZZxG4GJAXADSi8BzIwJn8yh7+KEap8o9c5Hu+901WZLLOIVDLlo+I1O7sx79YT+kjw
-         s1ZA==
-X-Google-Smtp-Source: ALg8bN6W78g9CdT1Dp2WH+89xHb0aWAx6jqcwxO/2B2w6wWik+vga3B0ClPW1DAI0zjaquedPgoA3wRvjxOjOAPnvXA=
-X-Received: by 2002:a67:e242:: with SMTP id w2mr6715610vse.134.1547240049549;
- Fri, 11 Jan 2019 12:54:09 -0800 (PST)
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=ISh828SP;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from mailhost.synopsys.com (mailhost3.synopsys.com [10.12.238.238])
+	by smtprelay.synopsys.com (Postfix) with ESMTP id 34B0B24E1024;
+	Fri, 11 Jan 2019 12:58:35 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=synopsys.com; s=mail;
+	t=1547240315; bh=KjM2U8zzXjSYEEa9IM0sDfxFpgxQOltZA+m4yd6wiqk=;
+	h=Subject:To:CC:References:From:Date:In-Reply-To:From;
+	b=ISh828SPar9UKMdDEjE8Wdb2T3qkAGlNdSoyJP8tsP3sOULHigyLbanTW2Js9zoh4
+	 YLhE5ar4nzjkb3n5vMEtLzHhGxKUDdQsRzXaX1NxjHNnw6Ytliday5/GVT9m1iLOQf
+	 E2HSA537Wxat4QRAYjs8IoYYM1YyTay7SSMwsKEY001A2I1NKpJO4KoUe9TkKJUzKq
+	 EY79+X7VqSD9iLlWMrVdBwD/8DIrlRtf5e9WlVrwrtsAJd6U1J6RNBk0/RIQ/kTh/Y
+	 QsmsbyiYYcWeCuoRD27/RyVyVKmZOfGOsihJPXap/ICvEi2ZQOPxTX5HNcRhX6D/r3
+	 b31j2wSali7tw==
+Received: from US01WEHTC3.internal.synopsys.com (us01wehtc3.internal.synopsys.com [10.15.84.232])
+	by mailhost.synopsys.com (Postfix) with ESMTP id BDD2D37F9;
+	Fri, 11 Jan 2019 12:58:34 -0800 (PST)
+Received: from IN01WEHTCA.internal.synopsys.com (10.144.199.104) by
+ US01WEHTC3.internal.synopsys.com (10.15.84.232) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Fri, 11 Jan 2019 12:58:34 -0800
+Received: from IN01WEHTCB.internal.synopsys.com (10.144.199.105) by
+ IN01WEHTCA.internal.synopsys.com (10.144.199.103) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Sat, 12 Jan 2019 02:28:31 +0530
+Received: from [10.10.161.70] (10.10.161.70) by
+ IN01WEHTCB.internal.synopsys.com (10.144.199.243) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Sat, 12 Jan 2019 02:28:31 +0530
+Subject: Re: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
+To: Peter Zijlstra <peterz@infradead.org>
+CC: Mark Rutland <mark.rutland@arm.com>, Miklos Szeredi <mszeredi@redhat.com>,
+	Jani Nikula <jani.nikula@intel.com>, Will Deacon <will.deacon@arm.com>,
+	<linux-kernel@vger.kernel.org>, Chris Wilson <chris@chris-wilson.co.uk>,
+	<linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>,
+	<linux-snps-arc@lists.infradead.org>, Ingo Molnar <mingo@kernel.org>
+Newsgroups: gmane.linux.kernel.arc,gmane.linux.kernel,gmane.linux.kernel.mm
+References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
+ <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
+ <20190111092408.GM30894@hirez.programming.kicks-ass.net>
+From: Vineet Gupta <vineet.gupta1@synopsys.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vgupta@synopsys.com; keydata=
+ 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
+ hhqBJlyU6MVUa6vZNv8E
+Message-ID: <d36b8582-184a-37d2-699f-04837745b70a@synopsys.com>
+Date: Fri, 11 Jan 2019 12:58:22 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.2.1
 MIME-Version: 1.0
-References: <20181203180613.228133-1-james.morse@arm.com> <20181203180613.228133-11-james.morse@arm.com>
- <20181211183634.GO27375@zn.tnic> <56cfa16b-ece4-76e0-3799-58201f8a4ff1@arm.com>
- <CABo9ajArdbYMOBGPRa185yo9MnKRb0pgS-pHqUNdNS9m+kKO-Q@mail.gmail.com>
- <20190111120322.GD4729@zn.tnic> <CABo9ajAk5XNBmNHRRfUb-dQzW7-UOs5826jPkrVz-8zrtMUYkg@mail.gmail.com>
- <0939c14d-de58-f21d-57a6-89bdce3bcb44@arm.com>
-In-Reply-To: <0939c14d-de58-f21d-57a6-89bdce3bcb44@arm.com>
-From: Tyler Baicar <baicar.tyler@gmail.com>
-Date: Fri, 11 Jan 2019 15:53:56 -0500
-Message-ID:
- <CABo9ajB9TAkycLbe++yyDibXx33MntNV_Hy27JSXCVsvP6rf7g@mail.gmail.com>
-Subject: Re: [PATCH v7 10/25] ACPI / APEI: Tell firmware the estatus queue
- consumed the records
-To: James Morse <james.morse@arm.com>
-Cc: Borislav Petkov <bp@alien8.de>, Linux ACPI <linux-acpi@vger.kernel.org>, 
-	kvmarm@lists.cs.columbia.edu, 
-	arm-mail-list <linux-arm-kernel@lists.infradead.org>, linux-mm@kvack.org, 
-	Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, 
-	Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, 
-	Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, 
-	Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, 
-	Fan Wu <wufan@codeaurora.org>
+In-Reply-To: <20190111092408.GM30894@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset="UTF-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.10.161.70]
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111205356.NBzldR9foRm304AFALsGJ9z7GhQ-RbNrAy1iULrmjmE@z>
+Message-ID: <20190111205822.4-KS2-v8Zke1jCU4y2iftgr7vivlRj19Y9sCWnq9GOg@z>
 
-On Fri, Jan 11, 2019 at 1:09 PM James Morse <james.morse@arm.com> wrote:
-> On 11/01/2019 15:32, Tyler Baicar wrote:
-> > On Fri, Jan 11, 2019 at 7:03 AM Borislav Petkov <bp@alien8.de> wrote:
-> >> On Thu, Jan 10, 2019 at 04:01:27PM -0500, Tyler Baicar wrote:
-> >>> On Thu, Jan 10, 2019 at 1:23 PM James Morse <james.morse@arm.com> wrote:
-> >>>>>>
-> >>>>>> +    if (is_hest_type_generic_v2(ghes) && ghes_ack_error(ghes->generic_v2))
-> >>>>>
-> >>>>> Since ghes_ack_error() is always prepended with this check, you could
-> >>>>> push it down into the function:
-> >>>>>
-> >>>>> ghes_ack_error(ghes)
-> >>>>> ...
-> >>>>>
-> >>>>>       if (!is_hest_type_generic_v2(ghes))
-> >>>>>               return 0;
-> >>>>>
-> >>>>> and simplify the two callsites :)
-> >>>>
-> >>>> Great idea! ...
-> >>>>
-> >>>> .. huh. Turns out for ghes_proc() we discard any errors other than ENOENT from
-> >>>> ghes_read_estatus() if is_hest_type_generic_v2(). This masks EIO.
-> >>>>
-> >>>> Most of the error sources discard the result, the worst thing I can find is
-> >>>> ghes_irq_func() will return IRQ_HANDLED, instead of IRQ_NONE when we didn't
-> >>>> really handle the IRQ. They're registered as SHARED, but I don't have an example
-> >>>> of what goes wrong next.
-> >>>>
-> >>>> I think this will also stop the spurious handling code kicking in to shut it up
-> >>>> if its broken and screaming. Unlikely, but not impossible.
->
-> [....]
->
-> >>> Looks good to me, I guess there's no harm in acking invalid error status blocks.
->
-> Great, I didn't miss something nasty...
->
->
-> >> Err, why?
-> >
-> > If ghes_read_estatus() fails, then either there was no error populated or the
-> > error status block was invalid.
-> > If the error status block is invalid, then the kernel doesn't know what happened
-> > in hardware.
->
-> What do we mean by 'hardware' here? We're receiving a corrupt report of
-> something via memory.
+On 1/11/19 1:24 AM, Peter Zijlstra wrote:
+> diff --git a/include/linux/bitops.h b/include/linux/bitops.h
+> index 705f7c442691..2060d26a35f5 100644
+> --- a/include/linux/bitops.h
+> +++ b/include/linux/bitops.h
+> @@ -241,10 +241,10 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
+>  	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
+>  	typeof(*(ptr)) old__, new__;				\
+>  								\
+> +	old__ = READ_ONCE(*(ptr));				\
+>  	do {							\
+> -		old__ = READ_ONCE(*(ptr));			\
+>  		new__ = (old__ & ~mask__) | bits__;		\
+> -	} while (cmpxchg(ptr, old__, new__) != old__);		\
+> +	} while (!try_cmpxchg(ptr, &old__, new__));		\
+>  								\
+>  	new__;							\
+>  })
+> 
+> 
+> While there you probably want something like the above... 
 
-By Hardware here I meant whatever hardware was reporting the error.
+As a separate change perhaps so that a revert (unlikely as it might be) could be
+done with less pain.
 
-> The GHESv2 ack just means we're done with the memory. I think it exists because
-> the external-agent can't peek into the CPU to see if its returned from the
-> notification.
->
->
-> > I originally thought this was changing what's acked, but it's just changing the
-> > return value of ghes_proc() when ghes_read_estatus() returns -EIO.
->
-> Sorry, that will be due to my bad description.
->
->
-> >> I don't know what the firmware glue does on ARM but if I'd have to
-> >> remain logical - which is hard to do with firmware - the proper thing to
-> >> do would be this:
-> >>
-> >>         rc = ghes_read_estatus(ghes, &buf_paddr);
-> >>         if (rc) {
-> >>                 ghes_reset_hardware();
-> >
-> > The kernel would have no way of knowing what to do here.
->
-> Is there anything wrong with what we do today? We stamp on the records so that
-> we don't processes them again. (especially if is polled), and we tell firmware
-> it can re-use this memory.
->
-> (I think we should return an error, or print a ratelimited warning for corrupt
-> records)
+> although,
+> looking at it now, we seem to have 'forgotten' to add try_cmpxchg to the
+> generic code :/
 
-Agree, the print is already present in ghes_read_estatus.
+So it _has_ to be a separate change ;-)
 
-> >>         }
-> >>
-> >>         /* clear estatus and bla bla */
-> >>
-> >>         /* Now, I'm in the success case: */
-> >>          ghes_ack_error();
-> >>
-> >>
-> >> This way, you have the error path clear of something unexpected happened
-> >> when reading the hardware, obvious and separated. ghes_reset_hardware()
-> >> clears the registers and does the necessary steps to put the hardware in
-> >> good state again so that it can report the next error.
-> >>
-> >> And the success path simply acks the error and does possibly the same
-> >> thing. The naming of the functions is important though, to denote what
-> >> gets called when.
->
-> I think this duplicates the record-stamping/acking. If there is anything in that
-> memory region, the action for processed/copied/ignored-because-its-corrupt is
-> the same.
->
-> We can return on ENOENT out earlier, as nothing needs doing in that case. Its
-> what the GHES_TO_CLEAR spaghetti is for, we can probably move the ack thing into
-> ghes_clear_estatus(), that way that thing means 'I'm done with this memory'.
->
-> Something like:
-> -------------------------
-> rc = ghes_read_estatus();
-> if (rc == -ENOENT)
->         return 0;
+But can we even provide a sane generic try_cmpxchg. The asm-generic cmpxchg relies
+on local irq save etc so it is clearly only to prevent a new arch from failing to
+compile. atomic*_cmpxchg() is different story since atomics have to be provided by
+arch.
 
-We still should be returning at least the -ENOENT from ghes_read_estatus().
-That is being used by the SEA handling to determine if an SEA was properly
-reported/handled by the host kernel in the KVM SEA case.
+Anyhow what is more interesting is the try_cmpxchg API itself. So commit
+a9ebf306f52c756 introduced/use of try_cmpxchg(), which indeed makes the looping
+"nicer" to read and obvious code gen improvements.
 
-Here are the relevant functions:
-https://elixir.bootlin.com/linux/latest/source/drivers/acpi/apei/ghes.c#L797
-https://elixir.bootlin.com/linux/latest/source/arch/arm64/mm/fault.c#L723
-https://elixir.bootlin.com/linux/latest/source/virt/kvm/arm/mmu.c#L1706
+So,
+        for (;;) {
+                new = val $op $imm;
+                old = cmpxchg(ptr, val, new);
+                if (old == val)
+                        break;
+                val = old;
+        }
 
->
-> if (!rc) {
->         ghes_do_proc() and friends;
-> }
->
-> ghes_clear_estatus();
->
-> return rc;
-> -------------------------
->
-> We would no longer return errors from the ack code, I suspect that can only
-> happen for a corrupt gas, which we would have caught earlier as we rely on the
-> mapping being cached.
+becomes
+
+        do {
+        } while (!try_cmpxchg(ptr, &val, val $op $imm));
+
+
+But on pure LL/SC retry based arches, we still end up with generated code having 2
+loops. We discussed something similar a while back: see [1]
+
+First loop is inside inline asm to retry LL/SC and the outer one due to code
+above. Explicit return of try_cmpxchg() means setting up a register with a boolean
+status of cmpxchg (AFAIKR ARMv7 already does that but ARC e.g. uses a CPU flag
+thus requires an additional insn or two). We could arguably remove the inline asm
+loop and retry LL/SC from the outer loop, but it seems cleaner to keep the retry
+where it belongs.
+
+Also under the hood, try_cmpxchg() would end up re-reading it for the issue fixed
+by commit 44fe84459faf1a.
+
+Heck, it would all be simpler if we could express this w/o use of cmpxchg.
+
+	try_some_op(ptr, &val, val $op $imm);
+
+P.S. the horrible API name is for indicative purposes only
+
+This would remove the outer loop completely, also avoid any re-reads due to the
+semantics of cmpxchg etc.
+
+[1] https://www.spinics.net/lists/kernel/msg2029217.html
 
