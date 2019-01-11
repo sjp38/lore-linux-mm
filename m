@@ -1,149 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 057328E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:53:48 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id b3so35181738edi.0
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:53:47 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id b56si4122501eda.336.2019.01.04.04.53.46
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A47C8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 05:08:39 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id s25so12642357ioc.14
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:08:39 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u16sor32214230ior.37.2019.01.11.02.08.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:53:46 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 17B421C18D7
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:53:46 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 20/25] mm, compaction: Reduce unnecessary skipping of migration target scanner
-Date: Fri,  4 Jan 2019 12:50:06 +0000
-Message-Id: <20190104125011.16071-21-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        (Google Transport Security);
+        Fri, 11 Jan 2019 02:08:38 -0800 (PST)
+MIME-Version: 1.0
+References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+ <1547183577-20309-3-git-send-email-kernelfans@gmail.com> <20190111053036.GA13263@localhost.localdomain>
+In-Reply-To: <20190111053036.GA13263@localhost.localdomain>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Fri, 11 Jan 2019 18:08:26 +0800
+Message-ID: <CAFgQCTvWk6t_8fQG3OqNAQDX-23ZaRuCzRyM40-do1rPAhzwhw@mail.gmail.com>
+Subject: Re: [PATCHv2 2/7] acpi: change the topo of acpi_table_upgrade()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Chao Fan <fanc.fnst@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-The fast isolation of pages can move the scanner faster than is necessary
-depending on the contents of the free list. This patch will only allow
-the fast isolation to initialise the scanner and advance it slowly. The
-primary means of moving the scanner forward is via the linear scanner
-to reduce the likelihood the migration source/target scanners meet
-prematurely triggering a rescan.
+On Fri, Jan 11, 2019 at 1:31 PM Chao Fan <fanc.fnst@cn.fujitsu.com> wrote:
+>
+> On Fri, Jan 11, 2019 at 01:12:52PM +0800, Pingfan Liu wrote:
+> >The current acpi_table_upgrade() relies on initrd_start, but this var is
+> >only valid after relocate_initrd(). There is requirement to extract the
+> >acpi info from initrd before memblock-allocator can work(see [2/4]), hence
+> >acpi_table_upgrade() need to accept the input param directly.
+> >
+> >Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+> >Acked-by: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> >Cc: Thomas Gleixner <tglx@linutronix.de>
+> >Cc: Ingo Molnar <mingo@redhat.com>
+> >Cc: Borislav Petkov <bp@alien8.de>
+> >Cc: "H. Peter Anvin" <hpa@zytor.com>
+> >Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> >Cc: Andy Lutomirski <luto@kernel.org>
+> >Cc: Peter Zijlstra <peterz@infradead.org>
+> >Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> >Cc: Len Brown <lenb@kernel.org>
+> >Cc: Yinghai Lu <yinghai@kernel.org>
+> >Cc: Tejun Heo <tj@kernel.org>
+> >Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
+> >Cc: Baoquan He <bhe@redhat.com>
+> >Cc: Juergen Gross <jgross@suse.com>
+> >Cc: Andrew Morton <akpm@linux-foundation.org>
+> >Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> >Cc: Vlastimil Babka <vbabka@suse.cz>
+> >Cc: Michal Hocko <mhocko@suse.com>
+> >Cc: x86@kernel.org
+> >Cc: linux-acpi@vger.kernel.org
+> >Cc: linux-mm@kvack.org
+> >---
+> > arch/arm64/kernel/setup.c | 2 +-
+> > arch/x86/kernel/setup.c   | 2 +-
+> > drivers/acpi/tables.c     | 4 +---
+> > include/linux/acpi.h      | 4 ++--
+> > 4 files changed, 5 insertions(+), 7 deletions(-)
+> >
+> >diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
+> >index f4fc1e0..bc4b47d 100644
+> >--- a/arch/arm64/kernel/setup.c
+> >+++ b/arch/arm64/kernel/setup.c
+> >@@ -315,7 +315,7 @@ void __init setup_arch(char **cmdline_p)
+> >       paging_init();
+> >       efi_apply_persistent_mem_reservations();
+> >
+> >-      acpi_table_upgrade();
+> >+      acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
+> >
+> >       /* Parse the ACPI tables for possible boot-time configuration */
+> >       acpi_boot_table_init();
+> >diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+> >index ac432ae..dc8fc5d 100644
+> >--- a/arch/x86/kernel/setup.c
+> >+++ b/arch/x86/kernel/setup.c
+> >@@ -1172,8 +1172,8 @@ void __init setup_arch(char **cmdline_p)
+> >
+> >       reserve_initrd();
+> >
+> >-      acpi_table_upgrade();
+> >
+> I wonder whether this will cause two blank lines together.
+>
+Yes, will fix it in next version.
 
-                                        4.20.0                 4.20.0
-                               noresched-v2r15         slowfree-v2r15
-Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-Amean     fault-both-3      2736.50 (   0.00%)     2512.53 (   8.18%)
-Amean     fault-both-5      4133.70 (   0.00%)     4159.43 (  -0.62%)
-Amean     fault-both-7      5738.61 (   0.00%)     5950.15 (  -3.69%)
-Amean     fault-both-12     9392.82 (   0.00%)     8674.38 (   7.65%)
-Amean     fault-both-18    13257.15 (   0.00%)    12850.79 (   3.07%)
-Amean     fault-both-24    16859.44 (   0.00%)    17242.86 (  -2.27%)
-Amean     fault-both-30    16249.30 (   0.00%)    19404.18 * -19.42%*
-Amean     fault-both-32    14904.71 (   0.00%)    16200.79 (  -8.70%)
-
-The impact to latency, success rates and scan rates is marginal but
-avoiding unnecessary restarts is important. It helps later patches that
-are more careful about how pageblocks are treated as earlier iterations
-of those patches hit corner cases where the restarts were punishing and
-very visible.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/compaction.c | 27 ++++++++++-----------------
- 1 file changed, 10 insertions(+), 17 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 75eb0d40d4d7..6c5552c6d8f9 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -324,10 +324,9 @@ static void update_cached_migrate(struct compact_control *cc, unsigned long pfn)
-  * future. The information is later cleared by __reset_isolation_suitable().
-  */
- static void update_pageblock_skip(struct compact_control *cc,
--			struct page *page, unsigned long nr_isolated)
-+			struct page *page, unsigned long pfn)
- {
- 	struct zone *zone = cc->zone;
--	unsigned long pfn;
- 
- 	if (cc->no_set_skip_hint)
- 		return;
-@@ -335,13 +334,8 @@ static void update_pageblock_skip(struct compact_control *cc,
- 	if (!page)
- 		return;
- 
--	if (nr_isolated)
--		return;
--
- 	set_pageblock_skip(page);
- 
--	pfn = page_to_pfn(page);
--
- 	/* Update where async and sync compaction should restart */
- 	if (pfn < zone->compact_cached_free_pfn)
- 		zone->compact_cached_free_pfn = pfn;
-@@ -359,7 +353,7 @@ static inline bool pageblock_skip_persistent(struct page *page)
- }
- 
- static inline void update_pageblock_skip(struct compact_control *cc,
--			struct page *page, unsigned long nr_isolated)
-+			struct page *page, unsigned long pfn)
- {
- }
- 
-@@ -450,7 +444,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 				bool strict)
- {
- 	int nr_scanned = 0, total_isolated = 0;
--	struct page *cursor, *valid_page = NULL;
-+	struct page *cursor;
- 	unsigned long flags = 0;
- 	bool locked = false;
- 	unsigned long blockpfn = *start_pfn;
-@@ -477,9 +471,6 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 		if (!pfn_valid_within(blockpfn))
- 			goto isolate_fail;
- 
--		if (!valid_page)
--			valid_page = page;
--
- 		/*
- 		 * For compound pages such as THP and hugetlbfs, we can save
- 		 * potentially a lot of iterations if we skip them at once.
-@@ -576,10 +567,6 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 	if (strict && blockpfn < end_pfn)
- 		total_isolated = 0;
- 
--	/* Update the pageblock-skip if the whole pageblock was scanned */
--	if (blockpfn == end_pfn)
--		update_pageblock_skip(cc, valid_page, total_isolated);
--
- 	cc->total_free_scanned += nr_scanned;
- 	if (total_isolated)
- 		count_compact_events(COMPACTISOLATED, total_isolated);
-@@ -1295,8 +1282,10 @@ fast_isolate_freepages(struct compact_control *cc)
- 		}
- 	}
- 
--	if (highest && highest > cc->zone->compact_cached_free_pfn)
-+	if (highest && highest >= cc->zone->compact_cached_free_pfn) {
-+		highest -= pageblock_nr_pages;
- 		cc->zone->compact_cached_free_pfn = highest;
-+	}
- 
- 	cc->total_free_scanned += nr_scanned;
- 	if (!page)
-@@ -1376,6 +1365,10 @@ static void isolate_freepages(struct compact_control *cc)
- 		isolate_freepages_block(cc, &isolate_start_pfn, block_end_pfn,
- 					freelist, false);
- 
-+		/* Update the skip hint if the full pageblock was scanned */
-+		if (isolate_start_pfn == block_end_pfn)
-+			update_pageblock_skip(cc, page, block_start_pfn);
-+
- 		/* Are enough freepages isolated? */
- 		if (cc->nr_freepages >= cc->nr_migratepages) {
- 			if (isolate_start_pfn >= block_end_pfn) {
--- 
-2.16.4
+Thanks,
+Pingfan
+> Thanks,
+> Chao Fan
+>
+> >+      acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
+> >       vsmp_init();
+> >
+> >       io_delay_init();
+> >diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+> >index 61203ee..84e0a79 100644
+> >--- a/drivers/acpi/tables.c
+> >+++ b/drivers/acpi/tables.c
+> >@@ -471,10 +471,8 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
+> >
+> > #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
+> >
+> >-void __init acpi_table_upgrade(void)
+> >+void __init acpi_table_upgrade(void *data, size_t size)
+> > {
+> >-      void *data = (void *)initrd_start;
+> >-      size_t size = initrd_end - initrd_start;
+> >       int sig, no, table_nr = 0, total_offset = 0;
+> >       long offset = 0;
+> >       struct acpi_table_header *table;
+> >diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+> >index ed80f14..0b6e0b6 100644
+> >--- a/include/linux/acpi.h
+> >+++ b/include/linux/acpi.h
+> >@@ -1254,9 +1254,9 @@ acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
+> > #endif
+> >
+> > #ifdef CONFIG_ACPI_TABLE_UPGRADE
+> >-void acpi_table_upgrade(void);
+> >+void acpi_table_upgrade(void *data, size_t size);
+> > #else
+> >-static inline void acpi_table_upgrade(void) { }
+> >+static inline void acpi_table_upgrade(void *data, size_t size) { }
+> > #endif
+> >
+> > #if defined(CONFIG_ACPI) && defined(CONFIG_ACPI_WATCHDOG)
+> >--
+> >2.7.4
+> >
+> >
+> >
+>
+>
