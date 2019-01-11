@@ -1,146 +1,457 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CE758E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:38:00 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 68so39406927pfr.6
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:38:00 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n1si6581700pfh.96.2019.01.05.07.37.59
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3264B8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:13:41 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id g188so7742264pgc.22
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:13:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d80sor1724803pfj.29.2019.01.10.21.13.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 07:37:59 -0800 (PST)
-Subject: Patch "x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off" has been added to the 4.14-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Sat, 05 Jan 2019 16:31:21 +0100
-Message-ID: <1546702281204220@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Thu, 10 Jan 2019 21:13:39 -0800 (PST)
+From: Pingfan Liu <kernelfans@gmail.com>
+Subject: [PATCHv2 3/7] mm/memblock: introduce allocation boundary for tracing purpose
+Date: Fri, 11 Jan 2019 13:12:53 +0800
+Message-Id: <1547183577-20309-4-git-send-email-kernelfans@gmail.com>
+In-Reply-To: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ak@linux.intel.com, bp@suse.de, dave.hansen@intel.com, gregkh@linuxfoundation.org, jkosina@suse.cz, linux-mm@kvack.org, mhocko@suse.com, pasha.tatashin@soleen.com, tglx@linutronix.de, torvalds@linux-foundation.org
-Cc: stable-commits@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Pingfan Liu <kernelfans@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
+During boot time, there is requirement to tell whether a series of func
+call will consume memory or not. For some reason, a temporary memory
+resource can be loan to those func through memblock allocator, but at a
+check point, all of the loan memory should be turned back.
+A typical using style:
+ -1. find a usable range by memblock_find_in_range(), said, [A,B]
+ -2. before calling a series of func, memblock_set_current_limit(A,B,true)
+ -3. call funcs
+ -4. memblock_find_in_range(A,B,B-A,1), if failed, then some memory is not
+     turned back.
+ -5. reset the original limit
 
-This is a note to let you know that I've just added the patch titled
+E.g. in the case of hotmovable memory, some acpi routines should be called,
+and they are not allowed to own some movable memory. Although at present
+these functions do not consume memory, but later, if changed without
+awareness, they may do. With the above method, the allocation can be
+detected, and pr_warn() to ask people to resolve it.
 
-    x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
-
-to the 4.14-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
-and it can be found in the queue-4.14 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 Mon Sep 17 00:00:00 2001
-From: Michal Hocko <mhocko@suse.com>
-Date: Tue, 13 Nov 2018 19:49:10 +0100
-Subject: x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
-
-From: Michal Hocko <mhocko@suse.com>
-
-commit 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 upstream.
-
-Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
-the system is deemed affected by L1TF vulnerability. Even though the limit
-is quite high for most deployments it seems to be too restrictive for
-deployments which are willing to live with the mitigation disabled.
-
-We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
-clearly out of the limit.
-
-Drop the swap restriction when l1tf=off is specified. It also doesn't make
-much sense to warn about too much memory for the l1tf mitigation when it is
-forcefully disabled by the administrator.
-
-[ tglx: Folded the documentation delta change ]
-
-Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Jiri Kosina <jkosina@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: <linux-mm@kvack.org>
-Cc: stable@vger.kernel.org
-Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
+Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Len Brown <lenb@kernel.org>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
+Cc: Baoquan He <bhe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: x86@kernel.org
+Cc: linux-acpi@vger.kernel.org
+Cc: linux-mm@kvack.org
 ---
- Documentation/admin-guide/kernel-parameters.txt |    3 +++
- Documentation/admin-guide/l1tf.rst              |    6 +++++-
- arch/x86/kernel/cpu/bugs.c                      |    3 ++-
- arch/x86/mm/init.c                              |    2 +-
- 4 files changed, 11 insertions(+), 3 deletions(-)
+ arch/arm/mm/init.c              |  3 ++-
+ arch/arm/mm/mmu.c               |  4 ++--
+ arch/arm/mm/nommu.c             |  2 +-
+ arch/csky/kernel/setup.c        |  2 +-
+ arch/microblaze/mm/init.c       |  2 +-
+ arch/mips/kernel/setup.c        |  2 +-
+ arch/powerpc/mm/40x_mmu.c       |  6 ++++--
+ arch/powerpc/mm/44x_mmu.c       |  2 +-
+ arch/powerpc/mm/8xx_mmu.c       |  2 +-
+ arch/powerpc/mm/fsl_booke_mmu.c |  5 +++--
+ arch/powerpc/mm/hash_utils_64.c |  4 ++--
+ arch/powerpc/mm/init_32.c       |  2 +-
+ arch/powerpc/mm/pgtable-radix.c |  2 +-
+ arch/powerpc/mm/ppc_mmu_32.c    |  8 ++++++--
+ arch/powerpc/mm/tlb_nohash.c    |  6 ++++--
+ arch/unicore32/mm/mmu.c         |  2 +-
+ arch/x86/kernel/setup.c         |  2 +-
+ arch/xtensa/mm/init.c           |  2 +-
+ include/linux/memblock.h        | 10 +++++++---
+ mm/memblock.c                   | 23 ++++++++++++++++++-----
+ 20 files changed, 59 insertions(+), 32 deletions(-)
 
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -1965,6 +1965,9 @@
- 			off
- 				Disables hypervisor mitigations and doesn't
- 				emit any warnings.
-+				It also drops the swap size and available
-+				RAM limit restriction on both hypervisor and
-+				bare metal.
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 32e4845..58a4342 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -93,7 +93,8 @@ __tagtable(ATAG_INITRD2, parse_tag_initrd2);
+ static void __init find_limits(unsigned long *min, unsigned long *max_low,
+ 			       unsigned long *max_high)
+ {
+-	*max_low = PFN_DOWN(memblock_get_current_limit());
++	memblock_get_current_limit(NULL, max_low);
++	*max_low = PFN_DOWN(*max_low);
+ 	*min = PFN_UP(memblock_start_of_DRAM());
+ 	*max_high = PFN_DOWN(memblock_end_of_DRAM());
+ }
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index f5cc1cc..9025418 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -1240,7 +1240,7 @@ void __init adjust_lowmem_bounds(void)
+ 		}
+ 	}
  
- 			Default is 'flush'.
+-	memblock_set_current_limit(memblock_limit);
++	memblock_set_current_limit(0, memblock_limit, false);
+ }
  
---- a/Documentation/admin-guide/l1tf.rst
-+++ b/Documentation/admin-guide/l1tf.rst
-@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid
+ static inline void prepare_page_table(void)
+@@ -1625,7 +1625,7 @@ void __init paging_init(const struct machine_desc *mdesc)
  
-   off		Disables hypervisor mitigations and doesn't emit any
- 		warnings.
-+		It also drops the swap size and available RAM limit restrictions
-+		on both hypervisor and bare metal.
-+
-   ============  =============================================================
+ 	prepare_page_table();
+ 	map_lowmem();
+-	memblock_set_current_limit(arm_lowmem_limit);
++	memblock_set_current_limit(0, arm_lowmem_limit, false);
+ 	dma_contiguous_remap();
+ 	early_fixmap_shutdown();
+ 	devicemaps_init(mdesc);
+diff --git a/arch/arm/mm/nommu.c b/arch/arm/mm/nommu.c
+index 7d67c70..721535c 100644
+--- a/arch/arm/mm/nommu.c
++++ b/arch/arm/mm/nommu.c
+@@ -138,7 +138,7 @@ void __init adjust_lowmem_bounds(void)
+ 	adjust_lowmem_bounds_mpu();
+ 	end = memblock_end_of_DRAM();
+ 	high_memory = __va(end - 1) + 1;
+-	memblock_set_current_limit(end);
++	memblock_set_current_limit(0, end, false);
+ }
  
- The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
-@@ -576,7 +579,8 @@ Default mitigations
-   The kernel default mitigations for vulnerable processors are:
+ /*
+diff --git a/arch/csky/kernel/setup.c b/arch/csky/kernel/setup.c
+index dff8b89..e6f88bf 100644
+--- a/arch/csky/kernel/setup.c
++++ b/arch/csky/kernel/setup.c
+@@ -100,7 +100,7 @@ static void __init csky_memblock_init(void)
  
-   - PTE inversion to protect against malicious user space. This is done
--    unconditionally and cannot be controlled.
-+    unconditionally and cannot be controlled. The swap storage is limited
-+    to ~16TB.
+ 	highend_pfn = max_pfn;
+ #endif
+-	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
++	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
  
-   - L1D conditional flushing on VMENTER when EPT is enabled for
-     a guest.
---- a/arch/x86/kernel/cpu/bugs.c
-+++ b/arch/x86/kernel/cpu/bugs.c
-@@ -999,7 +999,8 @@ static void __init l1tf_select_mitigatio
+ 	dma_contiguous_reserve(0);
+ 
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index b17fd8a..cee99da 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -353,7 +353,7 @@ asmlinkage void __init mmu_init(void)
+ 	/* Shortly after that, the entire linear mapping will be available */
+ 	/* This will also cause that unflatten device tree will be allocated
+ 	 * inside 768MB limit */
+-	memblock_set_current_limit(memory_start + lowmem_size - 1);
++	memblock_set_current_limit(0, memory_start + lowmem_size - 1, false);
+ }
+ 
+ /* This is only called until mem_init is done. */
+diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
+index 8c6c48ed..62dabe1 100644
+--- a/arch/mips/kernel/setup.c
++++ b/arch/mips/kernel/setup.c
+@@ -862,7 +862,7 @@ static void __init arch_mem_init(char **cmdline_p)
+ 	 * with memblock_reserve; memblock_alloc* can be used
+ 	 * only after this point
+ 	 */
+-	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
++	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
+ 
+ #ifdef CONFIG_PROC_VMCORE
+ 	if (setup_elfcorehdr && setup_elfcorehdr_size) {
+diff --git a/arch/powerpc/mm/40x_mmu.c b/arch/powerpc/mm/40x_mmu.c
+index 61ac468..427bb56 100644
+--- a/arch/powerpc/mm/40x_mmu.c
++++ b/arch/powerpc/mm/40x_mmu.c
+@@ -141,7 +141,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
+ 	 * coverage with normal-sized pages (or other reasons) do not
+ 	 * attempt to allocate outside the allowed range.
+ 	 */
+-	memblock_set_current_limit(mapped);
++	memblock_set_current_limit(0, mapped, false);
+ 
+ 	return mapped;
+ }
+@@ -155,5 +155,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 	BUG_ON(first_memblock_base != 0);
+ 
+ 	/* 40x can only access 16MB at the moment (see head_40x.S) */
+-	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x00800000));
++	memblock_set_current_limit(0,
++		min_t(u64, first_memblock_size, 0x00800000),
++		false);
+ }
+diff --git a/arch/powerpc/mm/44x_mmu.c b/arch/powerpc/mm/44x_mmu.c
+index 12d9251..3cf127d 100644
+--- a/arch/powerpc/mm/44x_mmu.c
++++ b/arch/powerpc/mm/44x_mmu.c
+@@ -225,7 +225,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 
+ 	/* 44x has a 256M TLB entry pinned at boot */
+ 	size = (min_t(u64, first_memblock_size, PPC_PIN_SIZE));
+-	memblock_set_current_limit(first_memblock_base + size);
++	memblock_set_current_limit(0, first_memblock_base + size, false);
+ }
+ 
+ #ifdef CONFIG_SMP
+diff --git a/arch/powerpc/mm/8xx_mmu.c b/arch/powerpc/mm/8xx_mmu.c
+index 01b7f51..c75bca6 100644
+--- a/arch/powerpc/mm/8xx_mmu.c
++++ b/arch/powerpc/mm/8xx_mmu.c
+@@ -135,7 +135,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
+ 	 * attempt to allocate outside the allowed range.
+ 	 */
+ 	if (mapped)
+-		memblock_set_current_limit(mapped);
++		memblock_set_current_limit(0, mapped, false);
+ 
+ 	block_mapped_ram = mapped;
+ 
+diff --git a/arch/powerpc/mm/fsl_booke_mmu.c b/arch/powerpc/mm/fsl_booke_mmu.c
+index 080d49b..3be24b8 100644
+--- a/arch/powerpc/mm/fsl_booke_mmu.c
++++ b/arch/powerpc/mm/fsl_booke_mmu.c
+@@ -252,7 +252,8 @@ void __init adjust_total_lowmem(void)
+ 	pr_cont("%lu Mb, residual: %dMb\n", tlbcam_sz(tlbcam_index - 1) >> 20,
+ 	        (unsigned int)((total_lowmem - __max_low_memory) >> 20));
+ 
+-	memblock_set_current_limit(memstart_addr + __max_low_memory);
++	memblock_set_current_limit(0,
++		memstart_addr + __max_low_memory, false);
+ }
+ 
+ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+@@ -261,7 +262,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 	phys_addr_t limit = first_memblock_base + first_memblock_size;
+ 
+ 	/* 64M mapped initially according to head_fsl_booke.S */
+-	memblock_set_current_limit(min_t(u64, limit, 0x04000000));
++	memblock_set_current_limit(0, min_t(u64, limit, 0x04000000), false);
+ }
+ 
+ #ifdef CONFIG_RELOCATABLE
+diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+index 0cc7fbc..30fba80 100644
+--- a/arch/powerpc/mm/hash_utils_64.c
++++ b/arch/powerpc/mm/hash_utils_64.c
+@@ -925,7 +925,7 @@ static void __init htab_initialize(void)
+ 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
+ 				prot, mmu_linear_psize, mmu_kernel_ssize));
+ 	}
+-	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
++	memblock_set_current_limit(0, MEMBLOCK_ALLOC_ANYWHERE, false);
+ 
+ 	/*
+ 	 * If we have a memory_limit and we've allocated TCEs then we need to
+@@ -1867,7 +1867,7 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 			ppc64_rma_size = min_t(u64, ppc64_rma_size, 0x40000000);
+ 
+ 		/* Finally limit subsequent allocations */
+-		memblock_set_current_limit(ppc64_rma_size);
++		memblock_set_current_limit(0, ppc64_rma_size, false);
+ 	} else {
+ 		ppc64_rma_size = ULONG_MAX;
+ 	}
+diff --git a/arch/powerpc/mm/init_32.c b/arch/powerpc/mm/init_32.c
+index 3e59e5d..863d710 100644
+--- a/arch/powerpc/mm/init_32.c
++++ b/arch/powerpc/mm/init_32.c
+@@ -183,5 +183,5 @@ void __init MMU_init(void)
  #endif
  
- 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
--	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
-+	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
-+			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
- 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
- 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
- 				half_pa);
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -890,7 +890,7 @@ unsigned long max_swapfile_size(void)
+ 	/* Shortly after that, the entire linear mapping will be available */
+-	memblock_set_current_limit(lowmem_end_addr);
++	memblock_set_current_limit(0, lowmem_end_addr, false);
+ }
+diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
+index 9311560..8cd5f2d 100644
+--- a/arch/powerpc/mm/pgtable-radix.c
++++ b/arch/powerpc/mm/pgtable-radix.c
+@@ -603,7 +603,7 @@ void __init radix__early_init_mmu(void)
+ 		radix_init_pseries();
+ 	}
  
- 	pages = generic_max_swapfile_size();
+-	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
++	memblock_set_current_limit(0, MEMBLOCK_ALLOC_ANYWHERE, false);
  
--	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
-+	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
- 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
- 		unsigned long long l1tf_limit = l1tf_pfn_limit();
- 		/*
-
-
-Patches currently in stable-queue which might be from mhocko@suse.com are
-
-queue-4.14/x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
+ 	radix_init_iamr();
+ 	radix_init_pgtable();
+diff --git a/arch/powerpc/mm/ppc_mmu_32.c b/arch/powerpc/mm/ppc_mmu_32.c
+index f6f575b..80927ad 100644
+--- a/arch/powerpc/mm/ppc_mmu_32.c
++++ b/arch/powerpc/mm/ppc_mmu_32.c
+@@ -283,7 +283,11 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 
+ 	/* 601 can only access 16MB at the moment */
+ 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
+-		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01000000));
++		memblock_set_current_limit(0,
++			min_t(u64, first_memblock_size, 0x01000000),
++			false);
+ 	else /* Anything else has 256M mapped */
+-		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
++		memblock_set_current_limit(0,
++			min_t(u64, first_memblock_size, 0x10000000),
++			false);
+ }
+diff --git a/arch/powerpc/mm/tlb_nohash.c b/arch/powerpc/mm/tlb_nohash.c
+index ae5d568..d074362 100644
+--- a/arch/powerpc/mm/tlb_nohash.c
++++ b/arch/powerpc/mm/tlb_nohash.c
+@@ -735,7 +735,7 @@ static void __init early_mmu_set_memory_limit(void)
+ 		 * reduces the memory available to Linux.  We need to
+ 		 * do this because highmem is not supported on 64-bit.
+ 		 */
+-		memblock_enforce_memory_limit(linear_map_top);
++		memblock_enforce_memory_limit(0, linear_map_top, false);
+ 	}
+ #endif
+ 
+@@ -792,7 +792,9 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+ 		ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
+ 
+ 	/* Finally limit subsequent allocations */
+-	memblock_set_current_limit(first_memblock_base + ppc64_rma_size);
++	memblock_set_current_limit(0,
++			first_memblock_base + ppc64_rma_size,
++			false);
+ }
+ #else /* ! CONFIG_PPC64 */
+ void __init early_init_mmu(void)
+diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
+index 040a8c2..6d62529 100644
+--- a/arch/unicore32/mm/mmu.c
++++ b/arch/unicore32/mm/mmu.c
+@@ -286,7 +286,7 @@ static void __init sanity_check_meminfo(void)
+ 	int i, j;
+ 
+ 	lowmem_limit = __pa(vmalloc_min - 1) + 1;
+-	memblock_set_current_limit(lowmem_limit);
++	memblock_set_current_limit(0, lowmem_limit, false);
+ 
+ 	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
+ 		struct membank *bank = &meminfo.bank[j];
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index dc8fc5d..a0122cd 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -1130,7 +1130,7 @@ void __init setup_arch(char **cmdline_p)
+ 		memblock_set_bottom_up(true);
+ #endif
+ 	init_mem_mapping();
+-	memblock_set_current_limit(get_max_mapped());
++	memblock_set_current_limit(0, get_max_mapped(), false);
+ 
+ 	idt_setup_early_pf();
+ 
+diff --git a/arch/xtensa/mm/init.c b/arch/xtensa/mm/init.c
+index 30a48bb..b924387 100644
+--- a/arch/xtensa/mm/init.c
++++ b/arch/xtensa/mm/init.c
+@@ -60,7 +60,7 @@ void __init bootmem_init(void)
+ 	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
+ 	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
+ 
+-	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
++	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
+ 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
+ 
+ 	memblock_dump_all();
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index aee299a..49676f0 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -88,6 +88,8 @@ struct memblock_type {
+  */
+ struct memblock {
+ 	bool bottom_up;  /* is bottom up direction? */
++	bool enforce_checking;
++	phys_addr_t start_limit;
+ 	phys_addr_t current_limit;
+ 	struct memblock_type memory;
+ 	struct memblock_type reserved;
+@@ -482,12 +484,14 @@ static inline void memblock_dump_all(void)
+  * memblock_set_current_limit - Set the current allocation limit to allow
+  *                         limiting allocations to what is currently
+  *                         accessible during boot
+- * @limit: New limit value (physical address)
++ * [start_limit, end_limit]: New limit value (physical address)
++ * enforcing: whether check against the limit boundary or not
+  */
+-void memblock_set_current_limit(phys_addr_t limit);
++void memblock_set_current_limit(phys_addr_t start_limit,
++	phys_addr_t end_limit, bool enforcing);
+ 
+ 
+-phys_addr_t memblock_get_current_limit(void);
++bool memblock_get_current_limit(phys_addr_t *start, phys_addr_t *end);
+ 
+ /*
+  * pfn conversion functions
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 81ae63c..b792be0 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -116,6 +116,8 @@ struct memblock memblock __initdata_memblock = {
+ #endif
+ 
+ 	.bottom_up		= false,
++	.enforce_checking	= false,
++	.start_limit		= 0,
+ 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
+ };
+ 
+@@ -261,8 +263,11 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
+ {
+ 	phys_addr_t kernel_end, ret;
+ 
++	if (unlikely(memblock.enforce_checking)) {
++		start = memblock.start_limit;
++		end = memblock.current_limit;
+ 	/* pump up @end */
+-	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
++	} else if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
+ 		end = memblock.current_limit;
+ 
+ 	/* avoid allocating the first page */
+@@ -1826,14 +1831,22 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
+ 	}
+ }
+ 
+-void __init_memblock memblock_set_current_limit(phys_addr_t limit)
++void __init_memblock memblock_set_current_limit(phys_addr_t start,
++	phys_addr_t end, bool enforcing)
+ {
+-	memblock.current_limit = limit;
++	memblock.start_limit = start;
++	memblock.current_limit = end;
++	memblock.enforce_checking = enforcing;
+ }
+ 
+-phys_addr_t __init_memblock memblock_get_current_limit(void)
++bool __init_memblock memblock_get_current_limit(phys_addr_t *start,
++	phys_addr_t *end)
+ {
+-	return memblock.current_limit;
++	if (start)
++		*start = memblock.start_limit;
++	if (end)
++		*end = memblock.current_limit;
++	return memblock.enforce_checking;
+ }
+ 
+ static void __init_memblock memblock_dump(struct memblock_type *type)
+-- 
+2.7.4
