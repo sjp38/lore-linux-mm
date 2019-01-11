@@ -1,457 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3264B8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:13:41 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id g188so7742264pgc.22
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:13:41 -0800 (PST)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 42C068E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 11:26:36 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id t22-v6so3881398lji.14
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 08:26:36 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d80sor1724803pfj.29.2019.01.10.21.13.39
+        by mx.google.com with SMTPS id m10-v6sor44640343lje.8.2019.01.11.08.26.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 10 Jan 2019 21:13:39 -0800 (PST)
-From: Pingfan Liu <kernelfans@gmail.com>
-Subject: [PATCHv2 3/7] mm/memblock: introduce allocation boundary for tracing purpose
-Date: Fri, 11 Jan 2019 13:12:53 +0800
-Message-Id: <1547183577-20309-4-git-send-email-kernelfans@gmail.com>
-In-Reply-To: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
-References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+        Fri, 11 Jan 2019 08:26:34 -0800 (PST)
+Received: from mail-lj1-f170.google.com (mail-lj1-f170.google.com. [209.85.208.170])
+        by smtp.gmail.com with ESMTPSA id m4-v6sm15560999ljb.58.2019.01.11.08.26.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 08:26:31 -0800 (PST)
+Received: by mail-lj1-f170.google.com with SMTP id v1-v6so13467276ljd.0
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 08:26:31 -0800 (PST)
+MIME-Version: 1.0
+References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
+ <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+ <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
+ <20190111020340.GM27534@dastard> <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
+ <20190111040434.GN27534@dastard> <CAHk-=wh-kegfnPC_dmw0A72Sdk4B9tvce-cOR=jEfHDU1-4Eew@mail.gmail.com>
+ <20190111073606.GP27534@dastard>
+In-Reply-To: <20190111073606.GP27534@dastard>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 11 Jan 2019 08:26:14 -0800
+Message-ID: <CAHk-=wj+xyz_GKjgKpU6SF3qeqouGmRoR8uFxzg_c1VpeGEJMw@mail.gmail.com>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Pingfan Liu <kernelfans@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Dominique Martinet <asmadeus@codewreck.org>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-During boot time, there is requirement to tell whether a series of func
-call will consume memory or not. For some reason, a temporary memory
-resource can be loan to those func through memblock allocator, but at a
-check point, all of the loan memory should be turned back.
-A typical using style:
- -1. find a usable range by memblock_find_in_range(), said, [A,B]
- -2. before calling a series of func, memblock_set_current_limit(A,B,true)
- -3. call funcs
- -4. memblock_find_in_range(A,B,B-A,1), if failed, then some memory is not
-     turned back.
- -5. reset the original limit
+On Thu, Jan 10, 2019 at 11:36 PM Dave Chinner <david@fromorbit.com> wrote:
+>
+> > It's only that single page that *matters*. That's the page that the
+> > probe reveals the status of - but it's also the page that the probe
+> > then *changes* the status of.
+>
+> It changes the state of it /after/ we've already got the information
+> we need from it. It's not up to date, it has to come from disk, we
+> return EAGAIN, which means it was not in the cache.
 
-E.g. in the case of hotmovable memory, some acpi routines should be called,
-and they are not allowed to own some movable memory. Although at present
-these functions do not consume memory, but later, if changed without
-awareness, they may do. With the above method, the allocation can be
-detected, and pr_warn() to ask people to resolve it.
+Oh, I see the confusion.
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
-Cc: Baoquan He <bhe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: x86@kernel.org
-Cc: linux-acpi@vger.kernel.org
-Cc: linux-mm@kvack.org
----
- arch/arm/mm/init.c              |  3 ++-
- arch/arm/mm/mmu.c               |  4 ++--
- arch/arm/mm/nommu.c             |  2 +-
- arch/csky/kernel/setup.c        |  2 +-
- arch/microblaze/mm/init.c       |  2 +-
- arch/mips/kernel/setup.c        |  2 +-
- arch/powerpc/mm/40x_mmu.c       |  6 ++++--
- arch/powerpc/mm/44x_mmu.c       |  2 +-
- arch/powerpc/mm/8xx_mmu.c       |  2 +-
- arch/powerpc/mm/fsl_booke_mmu.c |  5 +++--
- arch/powerpc/mm/hash_utils_64.c |  4 ++--
- arch/powerpc/mm/init_32.c       |  2 +-
- arch/powerpc/mm/pgtable-radix.c |  2 +-
- arch/powerpc/mm/ppc_mmu_32.c    |  8 ++++++--
- arch/powerpc/mm/tlb_nohash.c    |  6 ++++--
- arch/unicore32/mm/mmu.c         |  2 +-
- arch/x86/kernel/setup.c         |  2 +-
- arch/xtensa/mm/init.c           |  2 +-
- include/linux/memblock.h        | 10 +++++++---
- mm/memblock.c                   | 23 ++++++++++++++++++-----
- 20 files changed, 59 insertions(+), 32 deletions(-)
+Yes, you get the information about whether something was in the cache
+or not, so the side channel does exist to some degree.
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 32e4845..58a4342 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -93,7 +93,8 @@ __tagtable(ATAG_INITRD2, parse_tag_initrd2);
- static void __init find_limits(unsigned long *min, unsigned long *max_low,
- 			       unsigned long *max_high)
- {
--	*max_low = PFN_DOWN(memblock_get_current_limit());
-+	memblock_get_current_limit(NULL, max_low);
-+	*max_low = PFN_DOWN(*max_low);
- 	*min = PFN_UP(memblock_start_of_DRAM());
- 	*max_high = PFN_DOWN(memblock_end_of_DRAM());
- }
-diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-index f5cc1cc..9025418 100644
---- a/arch/arm/mm/mmu.c
-+++ b/arch/arm/mm/mmu.c
-@@ -1240,7 +1240,7 @@ void __init adjust_lowmem_bounds(void)
- 		}
- 	}
- 
--	memblock_set_current_limit(memblock_limit);
-+	memblock_set_current_limit(0, memblock_limit, false);
- }
- 
- static inline void prepare_page_table(void)
-@@ -1625,7 +1625,7 @@ void __init paging_init(const struct machine_desc *mdesc)
- 
- 	prepare_page_table();
- 	map_lowmem();
--	memblock_set_current_limit(arm_lowmem_limit);
-+	memblock_set_current_limit(0, arm_lowmem_limit, false);
- 	dma_contiguous_remap();
- 	early_fixmap_shutdown();
- 	devicemaps_init(mdesc);
-diff --git a/arch/arm/mm/nommu.c b/arch/arm/mm/nommu.c
-index 7d67c70..721535c 100644
---- a/arch/arm/mm/nommu.c
-+++ b/arch/arm/mm/nommu.c
-@@ -138,7 +138,7 @@ void __init adjust_lowmem_bounds(void)
- 	adjust_lowmem_bounds_mpu();
- 	end = memblock_end_of_DRAM();
- 	high_memory = __va(end - 1) + 1;
--	memblock_set_current_limit(end);
-+	memblock_set_current_limit(0, end, false);
- }
- 
- /*
-diff --git a/arch/csky/kernel/setup.c b/arch/csky/kernel/setup.c
-index dff8b89..e6f88bf 100644
---- a/arch/csky/kernel/setup.c
-+++ b/arch/csky/kernel/setup.c
-@@ -100,7 +100,7 @@ static void __init csky_memblock_init(void)
- 
- 	highend_pfn = max_pfn;
- #endif
--	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
-+	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
- 
- 	dma_contiguous_reserve(0);
- 
-diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
-index b17fd8a..cee99da 100644
---- a/arch/microblaze/mm/init.c
-+++ b/arch/microblaze/mm/init.c
-@@ -353,7 +353,7 @@ asmlinkage void __init mmu_init(void)
- 	/* Shortly after that, the entire linear mapping will be available */
- 	/* This will also cause that unflatten device tree will be allocated
- 	 * inside 768MB limit */
--	memblock_set_current_limit(memory_start + lowmem_size - 1);
-+	memblock_set_current_limit(0, memory_start + lowmem_size - 1, false);
- }
- 
- /* This is only called until mem_init is done. */
-diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-index 8c6c48ed..62dabe1 100644
---- a/arch/mips/kernel/setup.c
-+++ b/arch/mips/kernel/setup.c
-@@ -862,7 +862,7 @@ static void __init arch_mem_init(char **cmdline_p)
- 	 * with memblock_reserve; memblock_alloc* can be used
- 	 * only after this point
- 	 */
--	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
-+	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
- 
- #ifdef CONFIG_PROC_VMCORE
- 	if (setup_elfcorehdr && setup_elfcorehdr_size) {
-diff --git a/arch/powerpc/mm/40x_mmu.c b/arch/powerpc/mm/40x_mmu.c
-index 61ac468..427bb56 100644
---- a/arch/powerpc/mm/40x_mmu.c
-+++ b/arch/powerpc/mm/40x_mmu.c
-@@ -141,7 +141,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
- 	 * coverage with normal-sized pages (or other reasons) do not
- 	 * attempt to allocate outside the allowed range.
- 	 */
--	memblock_set_current_limit(mapped);
-+	memblock_set_current_limit(0, mapped, false);
- 
- 	return mapped;
- }
-@@ -155,5 +155,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
- 	BUG_ON(first_memblock_base != 0);
- 
- 	/* 40x can only access 16MB at the moment (see head_40x.S) */
--	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x00800000));
-+	memblock_set_current_limit(0,
-+		min_t(u64, first_memblock_size, 0x00800000),
-+		false);
- }
-diff --git a/arch/powerpc/mm/44x_mmu.c b/arch/powerpc/mm/44x_mmu.c
-index 12d9251..3cf127d 100644
---- a/arch/powerpc/mm/44x_mmu.c
-+++ b/arch/powerpc/mm/44x_mmu.c
-@@ -225,7 +225,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
- 
- 	/* 44x has a 256M TLB entry pinned at boot */
- 	size = (min_t(u64, first_memblock_size, PPC_PIN_SIZE));
--	memblock_set_current_limit(first_memblock_base + size);
-+	memblock_set_current_limit(0, first_memblock_base + size, false);
- }
- 
- #ifdef CONFIG_SMP
-diff --git a/arch/powerpc/mm/8xx_mmu.c b/arch/powerpc/mm/8xx_mmu.c
-index 01b7f51..c75bca6 100644
---- a/arch/powerpc/mm/8xx_mmu.c
-+++ b/arch/powerpc/mm/8xx_mmu.c
-@@ -135,7 +135,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
- 	 * attempt to allocate outside the allowed range.
- 	 */
- 	if (mapped)
--		memblock_set_current_limit(mapped);
-+		memblock_set_current_limit(0, mapped, false);
- 
- 	block_mapped_ram = mapped;
- 
-diff --git a/arch/powerpc/mm/fsl_booke_mmu.c b/arch/powerpc/mm/fsl_booke_mmu.c
-index 080d49b..3be24b8 100644
---- a/arch/powerpc/mm/fsl_booke_mmu.c
-+++ b/arch/powerpc/mm/fsl_booke_mmu.c
-@@ -252,7 +252,8 @@ void __init adjust_total_lowmem(void)
- 	pr_cont("%lu Mb, residual: %dMb\n", tlbcam_sz(tlbcam_index - 1) >> 20,
- 	        (unsigned int)((total_lowmem - __max_low_memory) >> 20));
- 
--	memblock_set_current_limit(memstart_addr + __max_low_memory);
-+	memblock_set_current_limit(0,
-+		memstart_addr + __max_low_memory, false);
- }
- 
- void setup_initial_memory_limit(phys_addr_t first_memblock_base,
-@@ -261,7 +262,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
- 	phys_addr_t limit = first_memblock_base + first_memblock_size;
- 
- 	/* 64M mapped initially according to head_fsl_booke.S */
--	memblock_set_current_limit(min_t(u64, limit, 0x04000000));
-+	memblock_set_current_limit(0, min_t(u64, limit, 0x04000000), false);
- }
- 
- #ifdef CONFIG_RELOCATABLE
-diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-index 0cc7fbc..30fba80 100644
---- a/arch/powerpc/mm/hash_utils_64.c
-+++ b/arch/powerpc/mm/hash_utils_64.c
-@@ -925,7 +925,7 @@ static void __init htab_initialize(void)
- 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
- 				prot, mmu_linear_psize, mmu_kernel_ssize));
- 	}
--	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
-+	memblock_set_current_limit(0, MEMBLOCK_ALLOC_ANYWHERE, false);
- 
- 	/*
- 	 * If we have a memory_limit and we've allocated TCEs then we need to
-@@ -1867,7 +1867,7 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
- 			ppc64_rma_size = min_t(u64, ppc64_rma_size, 0x40000000);
- 
- 		/* Finally limit subsequent allocations */
--		memblock_set_current_limit(ppc64_rma_size);
-+		memblock_set_current_limit(0, ppc64_rma_size, false);
- 	} else {
- 		ppc64_rma_size = ULONG_MAX;
- 	}
-diff --git a/arch/powerpc/mm/init_32.c b/arch/powerpc/mm/init_32.c
-index 3e59e5d..863d710 100644
---- a/arch/powerpc/mm/init_32.c
-+++ b/arch/powerpc/mm/init_32.c
-@@ -183,5 +183,5 @@ void __init MMU_init(void)
- #endif
- 
- 	/* Shortly after that, the entire linear mapping will be available */
--	memblock_set_current_limit(lowmem_end_addr);
-+	memblock_set_current_limit(0, lowmem_end_addr, false);
- }
-diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
-index 9311560..8cd5f2d 100644
---- a/arch/powerpc/mm/pgtable-radix.c
-+++ b/arch/powerpc/mm/pgtable-radix.c
-@@ -603,7 +603,7 @@ void __init radix__early_init_mmu(void)
- 		radix_init_pseries();
- 	}
- 
--	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
-+	memblock_set_current_limit(0, MEMBLOCK_ALLOC_ANYWHERE, false);
- 
- 	radix_init_iamr();
- 	radix_init_pgtable();
-diff --git a/arch/powerpc/mm/ppc_mmu_32.c b/arch/powerpc/mm/ppc_mmu_32.c
-index f6f575b..80927ad 100644
---- a/arch/powerpc/mm/ppc_mmu_32.c
-+++ b/arch/powerpc/mm/ppc_mmu_32.c
-@@ -283,7 +283,11 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
- 
- 	/* 601 can only access 16MB at the moment */
- 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
--		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01000000));
-+		memblock_set_current_limit(0,
-+			min_t(u64, first_memblock_size, 0x01000000),
-+			false);
- 	else /* Anything else has 256M mapped */
--		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
-+		memblock_set_current_limit(0,
-+			min_t(u64, first_memblock_size, 0x10000000),
-+			false);
- }
-diff --git a/arch/powerpc/mm/tlb_nohash.c b/arch/powerpc/mm/tlb_nohash.c
-index ae5d568..d074362 100644
---- a/arch/powerpc/mm/tlb_nohash.c
-+++ b/arch/powerpc/mm/tlb_nohash.c
-@@ -735,7 +735,7 @@ static void __init early_mmu_set_memory_limit(void)
- 		 * reduces the memory available to Linux.  We need to
- 		 * do this because highmem is not supported on 64-bit.
- 		 */
--		memblock_enforce_memory_limit(linear_map_top);
-+		memblock_enforce_memory_limit(0, linear_map_top, false);
- 	}
- #endif
- 
-@@ -792,7 +792,9 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
- 		ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
- 
- 	/* Finally limit subsequent allocations */
--	memblock_set_current_limit(first_memblock_base + ppc64_rma_size);
-+	memblock_set_current_limit(0,
-+			first_memblock_base + ppc64_rma_size,
-+			false);
- }
- #else /* ! CONFIG_PPC64 */
- void __init early_init_mmu(void)
-diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
-index 040a8c2..6d62529 100644
---- a/arch/unicore32/mm/mmu.c
-+++ b/arch/unicore32/mm/mmu.c
-@@ -286,7 +286,7 @@ static void __init sanity_check_meminfo(void)
- 	int i, j;
- 
- 	lowmem_limit = __pa(vmalloc_min - 1) + 1;
--	memblock_set_current_limit(lowmem_limit);
-+	memblock_set_current_limit(0, lowmem_limit, false);
- 
- 	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
- 		struct membank *bank = &meminfo.bank[j];
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index dc8fc5d..a0122cd 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1130,7 +1130,7 @@ void __init setup_arch(char **cmdline_p)
- 		memblock_set_bottom_up(true);
- #endif
- 	init_mem_mapping();
--	memblock_set_current_limit(get_max_mapped());
-+	memblock_set_current_limit(0, get_max_mapped(), false);
- 
- 	idt_setup_early_pf();
- 
-diff --git a/arch/xtensa/mm/init.c b/arch/xtensa/mm/init.c
-index 30a48bb..b924387 100644
---- a/arch/xtensa/mm/init.c
-+++ b/arch/xtensa/mm/init.c
-@@ -60,7 +60,7 @@ void __init bootmem_init(void)
- 	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
- 	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
- 
--	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
-+	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
- 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
- 
- 	memblock_dump_all();
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index aee299a..49676f0 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -88,6 +88,8 @@ struct memblock_type {
-  */
- struct memblock {
- 	bool bottom_up;  /* is bottom up direction? */
-+	bool enforce_checking;
-+	phys_addr_t start_limit;
- 	phys_addr_t current_limit;
- 	struct memblock_type memory;
- 	struct memblock_type reserved;
-@@ -482,12 +484,14 @@ static inline void memblock_dump_all(void)
-  * memblock_set_current_limit - Set the current allocation limit to allow
-  *                         limiting allocations to what is currently
-  *                         accessible during boot
-- * @limit: New limit value (physical address)
-+ * [start_limit, end_limit]: New limit value (physical address)
-+ * enforcing: whether check against the limit boundary or not
-  */
--void memblock_set_current_limit(phys_addr_t limit);
-+void memblock_set_current_limit(phys_addr_t start_limit,
-+	phys_addr_t end_limit, bool enforcing);
- 
- 
--phys_addr_t memblock_get_current_limit(void);
-+bool memblock_get_current_limit(phys_addr_t *start, phys_addr_t *end);
- 
- /*
-  * pfn conversion functions
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 81ae63c..b792be0 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -116,6 +116,8 @@ struct memblock memblock __initdata_memblock = {
- #endif
- 
- 	.bottom_up		= false,
-+	.enforce_checking	= false,
-+	.start_limit		= 0,
- 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
- };
- 
-@@ -261,8 +263,11 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
- {
- 	phys_addr_t kernel_end, ret;
- 
-+	if (unlikely(memblock.enforce_checking)) {
-+		start = memblock.start_limit;
-+		end = memblock.current_limit;
- 	/* pump up @end */
--	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-+	} else if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
- 		end = memblock.current_limit;
- 
- 	/* avoid allocating the first page */
-@@ -1826,14 +1831,22 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
- 	}
- }
- 
--void __init_memblock memblock_set_current_limit(phys_addr_t limit)
-+void __init_memblock memblock_set_current_limit(phys_addr_t start,
-+	phys_addr_t end, bool enforcing)
- {
--	memblock.current_limit = limit;
-+	memblock.start_limit = start;
-+	memblock.current_limit = end;
-+	memblock.enforce_checking = enforcing;
- }
- 
--phys_addr_t __init_memblock memblock_get_current_limit(void)
-+bool __init_memblock memblock_get_current_limit(phys_addr_t *start,
-+	phys_addr_t *end)
- {
--	return memblock.current_limit;
-+	if (start)
-+		*start = memblock.start_limit;
-+	if (end)
-+		*end = memblock.current_limit;
-+	return memblock.enforce_checking;
- }
- 
- static void __init_memblock memblock_dump(struct memblock_type *type)
--- 
-2.7.4
+But it's actually hugely reduced for a rather important reason: the
+_primary_ reason for needing to know whether some page is in the cache
+or not is not actually to see if it was ever accessed - it's to see
+that the cache has been scrubbed (and to _guide_ the scrubbing), and
+*when* it was accessed.
+
+Think of it this way: the buffer cache residency is actually a
+horribly bad signal on its own mainly because you generally have a
+very high hit-rate. In most normal non-streaming situations with
+sufficient amounts of memory you have pretty much everything cached.
+
+So in order to use it as a signal, first you have to first scrub the
+cache (because if the page was already there, there's no signal at
+all), and then for the signal to be as useful as possible, you're also
+going to want to try to get out more than one bit of information: you
+are going to try to see the patterns and the timings of how it gets
+filled.
+
+And that's actually quite painful. You don't know the initial cache
+state, and you're not (in general) controlling the machine entirely,
+because there's also that actual other entity that you're trying to
+attack and see what it does.
+
+So what you want to do is basically to first make sure the cache is
+scrubbed (only for the pages you're interested in!), then trigger
+whatever behavior you are looking for, and then look how that affected
+the cache.
+
+In other words,  you want *multiple* residency status check - first to
+see what the cache state is (because you're going to want that for
+scrubbing), then to see that "yes, it's gone" when doing the
+scrubbing, and then to see the *pattern* and timings of how things are
+brought in.
+
+And then you're likely to want to do this over and over again, so that
+you can get real data out of the signal.
+
+This is why something that doesn't perturb what you measure is really
+important. If the act of measurement brings the page in, then you
+can't use it for that "did I successfully scrub it" phase at all, and
+you can't use it for measurement but once, so your view into patterns
+and timings is going to be *much* worse.
+
+And notice that this is true even if the act of measurement only
+affects the *one* page you're measuring. Sure, any additional noise
+around it would likely be annoying too, but it's not really necessary
+to make the attack much harder to carry out. In fact, it's almost
+irrelevant, since the signal you're trying to *see* is going to be
+affected by prefetching etc too, so the patterns and timings you need
+to look at are in bigger chunks than the readahead thing.
+
+So yes, you as an attacker can remove the prefetching from *your*
+load, but you can't remove it from the target load anyway, so you'll
+just have to live with it.
+
+Can you brute-force scrubbing? Yes. For something like an L1 cache,
+that's easy (well, QoS domains make it harder). For something like a
+disk cache, it's much harder, and makes any attempt to read out state
+a lot slower. The paper that started this all uses mincore() not just
+to see "is the page now scrubbed", but also to guide the scrubbing
+itself (working set estimation etc).
+
+And note that in many ways, the *scrubbing* is really the harder part.
+Populating the cache is really easy: just read the data you want to
+populate.
+
+So if you are looking for a particular signal, say "did this error
+case trigger so that it faulted in *that* piece of information", you'd
+want to scrub the target, populate everything else, and then try to
+measure at "did I trigger that target". Except you wouldn't want to do
+it one page at a time but see as much pattern of "they were touched in
+this order" as you can, and you'd like to get timing information of
+how the pages you are interested were populated too.
+
+And you'd generally do this over and over and over again because
+you're trying to read out some signal.
+
+Notice what the expensive operation was? It's the scrubbing.The "did
+the target do IO" you might actually even see other ways for the
+trivial cases, like even just look at iostat: just pre-populate
+everything but the part you care about, then try to trigger whatever
+you're searching for, and see if it caused IO or not.
+
+So it's a bit like a chalkboard: in order to read out the result, you
+need to erase it first, and doing that blindly is nasty. And you want
+to look at timings, which is also really nasty if every time you look,
+you smudge the very place you looked at. It makes it hard to see what
+somebody else is writing on the board if you're always overwriting
+what you just looked at. Did you get some new information? If not, now
+you have to go back and do that scrubbing again, and you'll likely be
+missing what *else* the person wrote.
+
+Ans as always: there is no "black and white". There is no "absolute
+security", and similarly, there is no "absolute leak proof". It's all
+about making it inconvenient enough that it's not really practical.
+
+                 Linus
