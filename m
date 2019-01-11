@@ -1,73 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AF5938E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 06:15:09 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e12so2816961edd.16
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 03:15:09 -0800 (PST)
-Received: from outbound-smtp26.blacknight.com (outbound-smtp26.blacknight.com. [81.17.249.194])
-        by mx.google.com with ESMTPS id g6si324256eds.222.2019.01.09.03.15.08
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4692D8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:08:55 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id m13so7369660pls.15
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:08:55 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j22sor1152364pll.8.2019.01.10.18.08.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jan 2019 03:15:08 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp26.blacknight.com (Postfix) with ESMTPS id EF5CBB8A07
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 11:15:07 +0000 (GMT)
-Date: Wed, 9 Jan 2019 11:15:06 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm, compaction: Finish pageblock scanning on contention -fix
-Message-ID: <20190109111506.GV31517@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        (Google Transport Security);
+        Thu, 10 Jan 2019 18:08:53 -0800 (PST)
+Date: Thu, 10 Jan 2019 18:08:37 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCHi v2] mm: put_and_wait_on_page_locked() while page is
+ migrated
+In-Reply-To: <fccdbef6-00cf-38ad-3aa0-9466c9b83176@suse.cz>
+Message-ID: <alpine.LSU.2.11.1901101748550.3146@eggly.anvils>
+References: <alpine.LSU.2.11.1811241858540.4415@eggly.anvils> <CAHk-=wjeqKYevxGnfCM4UkxX8k8xfArzM6gKkG3BZg1jBYThVQ@mail.gmail.com> <alpine.LSU.2.11.1811251900300.1278@eggly.anvils> <alpine.LSU.2.11.1811261121330.1116@eggly.anvils>
+ <fccdbef6-00cf-38ad-3aa0-9466c9b83176@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, YueHaibing <yuehaibing@huawei.com>, Linux-MM <linux-mm@kvack.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Hildenbrand <david@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, David Herrmann <dh.herrmann@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andi Kleen <ak@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux.com>, Nick Piggin <npiggin@gmail.com>, pifang@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-From: YueHaibing <yuehaibing@huawei.com>
+On Thu, 10 Jan 2019, Vlastimil Babka wrote:
+> 
+> For the record, anyone backporting this to older kernels should make
+> sure to also include 605ca5ede764 ("mm/huge_memory.c: reorder operations
+> in __split_huge_page_tail()") or they are in for a lot of fun, like me.
 
-Fixes gcc '-Wunused-but-set-variable' warning:
+Thanks a lot for alerting us all to this, Vlastimil.  Yes, I consider
+Konstantin's 605ca5ede764 a must-have, and so had it already in all
+the trees on which I was testing put_and_wait_on_page_locked(),
+without being aware of the critical role it was playing.
 
-mm/compaction.c: In function 'compact_zone':
-mm/compaction.c:2063:22: warning:
- variable 'c' set but not used [-Wunused-but-set-variable]
-mm/compaction.c:2063:19: warning:
- variable 'b' set but not used [-Wunused-but-set-variable]
-mm/compaction.c:2063:16: warning:
- variable 'a' set but not used [-Wunused-but-set-variable]
+But you do enjoy fun, don't you? So I shouldn't apologize :)
 
-This never used since 94d5992baaa5 ("mm, compaction: finish
-pageblock scanning on contention"). This is a fix to the mmotm patch
-broken-out/mm-compaction-finish-pageblock-scanning-on-contention.patch
+> 
+> Long story [1] short, Konstantin was correct in 605ca5ede764 changelog,
+> although it wasn't the main known issue he was fixing:
+> 
+>   clear_compound_head() also must be called before unfreezing page
+>   reference because after successful get_page_unless_zero() might follow
+>   put_page() which needs correct compound_head().
+> 
+> Which is exactly what happens in __migration_entry_wait():
+> 
+>         if (!get_page_unless_zero(page))
+>                 goto out;
+>         pte_unmap_unlock(ptep, ptl);
+>         put_and_wait_on_page_locked(page); -> does put_page(page)
+> 
+> while waiting on the THP split (which inserts those migration entries)
+> to finish. Before put_and_wait_on_page_locked() it would wait first, and
+> only then do put_page() on a page that's no longer tail page, so it
+> would work out despite the dangerous get_page_unless_zero() on a tail
+> page. Now it doesn't :)
 
-Signed-off-by: YueHaibing <yuehaibing@huawei.com>
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/compaction.c | 5 -----
- 1 file changed, 5 deletions(-)
+It took me a while to follow there, but yes, agreed.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 51da4691092b..ca8da58ce1cd 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1963,7 +1963,6 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 	unsigned long end_pfn = zone_end_pfn(cc->zone);
- 	unsigned long last_migrated_pfn;
- 	const bool sync = cc->mode != MIGRATE_ASYNC;
--	unsigned long a, b, c;
- 
- 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
- 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
-@@ -2009,10 +2008,6 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 			cc->whole_zone = true;
- 	}
- 
--	a = cc->migrate_pfn;
--	b = cc->free_pfn;
--	c = (cc->free_pfn - cc->migrate_pfn) / pageblock_nr_pages;
--
- 	last_migrated_pfn = 0;
- 
- 	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
+> 
+> Now if only 605ca5ede764 had a CC:stable and a Fixes: tag... Machine
+> Learning won this round though, because 605ca5ede764 was added to 4.14
+> stable by Sasha...
+
+I'm proud to have passed the Turing test in reverse, but actually
+that was me, not ML.  My 173d9d9fd3dd ("mm/huge_memory: splitting set
+mapping+index before unfreeze") in 4.20 built upon Konstantin's, so I
+included his as a precursor when sending the stable guys pre-XArray
+backports.  So Konstantin's is even in 4.9 stable now.
+
+Hugh
