@@ -1,129 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C108D8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:03:53 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id p24so16257027qtl.2
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:03:53 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v6si3022376qte.364.2019.01.11.03.03.52
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 806468E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 09:37:38 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id i124so8565646pgc.2
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:37:38 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id m3si964663pgc.232.2019.01.11.06.37.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:03:52 -0800 (PST)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V13 08/19] block: use bio_for_each_bvec() to map sg
-Date: Fri, 11 Jan 2019 19:01:16 +0800
-Message-Id: <20190111110127.21664-9-ming.lei@redhat.com>
-In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
-References: <20190111110127.21664-1-ming.lei@redhat.com>
+        Fri, 11 Jan 2019 06:37:37 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.19 029/148] x86/mm: Fix guard hole handling
+Date: Fri, 11 Jan 2019 15:13:27 +0100
+Message-Id: <20190111131115.468401035@linuxfoundation.org>
+In-Reply-To: <20190111131114.337122649@linuxfoundation.org>
+References: <20190111131114.337122649@linuxfoundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Hans van Kranenburg <hans.van.kranenburg@mendix.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Juergen Gross <jgross@suse.com>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, bhe@redhat.com, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Sasha Levin <sashal@kernel.org>
 
-It is more efficient to use bio_for_each_bvec() to map sg, meantime
-we have to consider splitting multipage bvec as done in blk_bio_segment_split().
+4.19-stable review patch.  If anyone has any objections, please let me know.
 
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
+------------------
+
+[ Upstream commit 16877a5570e0c5f4270d5b17f9bab427bcae9514 ]
+
+There is a guard hole at the beginning of the kernel address space, also
+used by hypervisors. It occupies 16 PGD entries.
+
+This reserved range is not defined explicitely, it is calculated relative
+to other entities: direct mapping and user space ranges.
+
+The calculation got broken by recent changes of the kernel memory layout:
+LDT remap range is now mapped before direct mapping and makes the
+calculation invalid.
+
+The breakage leads to crash on Xen dom0 boot[1].
+
+Define the reserved range explicitely. It's part of kernel ABI (hypervisors
+expect it to be stable) and must not depend on changes in the rest of
+kernel memory layout.
+
+[1] https://lists.xenproject.org/archives/html/xen-devel/2018-11/msg03313.html
+
+Fixes: d52888aa2753 ("x86/mm: Move LDT remap out of KASLR region on 5-level paging")
+Reported-by: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Tested-by: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+Reviewed-by: Juergen Gross <jgross@suse.com>
+Cc: bp@alien8.de
+Cc: hpa@zytor.com
+Cc: dave.hansen@linux.intel.com
+Cc: luto@kernel.org
+Cc: peterz@infradead.org
+Cc: boris.ostrovsky@oracle.com
+Cc: bhe@redhat.com
+Cc: linux-mm@kvack.org
+Cc: xen-devel@lists.xenproject.org
+Link: https://lkml.kernel.org/r/20181130202328.65359-2-kirill.shutemov@linux.intel.com
+Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- block/blk-merge.c | 70 +++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 50 insertions(+), 20 deletions(-)
+ arch/x86/include/asm/pgtable_64_types.h |  5 +++++
+ arch/x86/mm/dump_pagetables.c           |  8 ++++----
+ arch/x86/xen/mmu_pv.c                   | 11 ++++++-----
+ 3 files changed, 15 insertions(+), 9 deletions(-)
 
-diff --git a/block/blk-merge.c b/block/blk-merge.c
-index abe1c89c1253..bf736d2b3710 100644
---- a/block/blk-merge.c
-+++ b/block/blk-merge.c
-@@ -460,6 +460,54 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
- 	return biovec_phys_mergeable(q, &end_bv, &nxt_bv);
- }
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 84bd9bdc1987..88bca456da99 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -111,6 +111,11 @@ extern unsigned int ptrs_per_p4d;
+  */
+ #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
  
-+static struct scatterlist *blk_next_sg(struct scatterlist **sg,
-+		struct scatterlist *sglist)
-+{
-+	if (!*sg)
-+		return sglist;
++#define GUARD_HOLE_PGD_ENTRY	-256UL
++#define GUARD_HOLE_SIZE		(16UL << PGDIR_SHIFT)
++#define GUARD_HOLE_BASE_ADDR	(GUARD_HOLE_PGD_ENTRY << PGDIR_SHIFT)
++#define GUARD_HOLE_END_ADDR	(GUARD_HOLE_BASE_ADDR + GUARD_HOLE_SIZE)
 +
-+	/*
-+	 * If the driver previously mapped a shorter list, we could see a
-+	 * termination bit prematurely unless it fully inits the sg table
-+	 * on each mapping. We KNOW that there must be more entries here
-+	 * or the driver would be buggy, so force clear the termination bit
-+	 * to avoid doing a full sg_init_table() in drivers for each command.
-+	 */
-+	sg_unmark_end(*sg);
-+	return sg_next(*sg);
-+}
-+
-+static unsigned blk_bvec_map_sg(struct request_queue *q,
-+		struct bio_vec *bvec, struct scatterlist *sglist,
-+		struct scatterlist **sg)
-+{
-+	unsigned nbytes = bvec->bv_len;
-+	unsigned nsegs = 0, total = 0, offset = 0;
-+
-+	while (nbytes > 0) {
-+		unsigned seg_size;
-+		struct page *pg;
-+		unsigned idx;
-+
-+		*sg = blk_next_sg(sg, sglist);
-+
-+		seg_size = get_max_segment_size(q, bvec->bv_offset + total);
-+		seg_size = min(nbytes, seg_size);
-+
-+		offset = (total + bvec->bv_offset) % PAGE_SIZE;
-+		idx = (total + bvec->bv_offset) / PAGE_SIZE;
-+		pg = nth_page(bvec->bv_page, idx);
-+
-+		sg_set_page(*sg, pg, seg_size, offset);
-+
-+		total += seg_size;
-+		nbytes -= seg_size;
-+		nsegs++;
-+	}
-+
-+	return nsegs;
-+}
-+
- static inline void
- __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
- 		     struct scatterlist *sglist, struct bio_vec *bvprv,
-@@ -477,25 +525,7 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
- 		(*sg)->length += nbytes;
- 	} else {
- new_segment:
--		if (!*sg)
--			*sg = sglist;
--		else {
--			/*
--			 * If the driver previously mapped a shorter
--			 * list, we could see a termination bit
--			 * prematurely unless it fully inits the sg
--			 * table on each mapping. We KNOW that there
--			 * must be more entries here or the driver
--			 * would be buggy, so force clear the
--			 * termination bit to avoid doing a full
--			 * sg_init_table() in drivers for each command.
--			 */
--			sg_unmark_end(*sg);
--			*sg = sg_next(*sg);
--		}
--
--		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
--		(*nsegs)++;
-+		(*nsegs) += blk_bvec_map_sg(q, bvec, sglist, sg);
- 	}
- 	*bvprv = *bvec;
- }
-@@ -517,7 +547,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
- 	int nsegs = 0;
+ #define LDT_PGD_ENTRY		-240UL
+ #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
+ #define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index a12afff146d1..073755c89126 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -493,11 +493,11 @@ static inline bool is_hypervisor_range(int idx)
+ {
+ #ifdef CONFIG_X86_64
+ 	/*
+-	 * ffff800000000000 - ffff87ffffffffff is reserved for
+-	 * the hypervisor.
++	 * A hole in the beginning of kernel address space reserved
++	 * for a hypervisor.
+ 	 */
+-	return	(idx >= pgd_index(__PAGE_OFFSET) - 16) &&
+-		(idx <  pgd_index(__PAGE_OFFSET));
++	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
++		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
+ #else
+ 	return false;
+ #endif
+diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+index 2c84c6ad8b50..c8f011e07a15 100644
+--- a/arch/x86/xen/mmu_pv.c
++++ b/arch/x86/xen/mmu_pv.c
+@@ -640,19 +640,20 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+ 			  unsigned long limit)
+ {
+ 	int i, nr, flush = 0;
+-	unsigned hole_low, hole_high;
++	unsigned hole_low = 0, hole_high = 0;
  
- 	for_each_bio(bio)
--		bio_for_each_segment(bvec, bio, iter)
-+		bio_for_each_bvec(bvec, bio, iter)
- 			__blk_segment_map_sg(q, &bvec, sglist, &bvprv, sg,
- 					     &nsegs);
+ 	/* The limit is the last byte to be touched */
+ 	limit--;
+ 	BUG_ON(limit >= FIXADDR_TOP);
  
++#ifdef CONFIG_X86_64
+ 	/*
+ 	 * 64-bit has a great big hole in the middle of the address
+-	 * space, which contains the Xen mappings.  On 32-bit these
+-	 * will end up making a zero-sized hole and so is a no-op.
++	 * space, which contains the Xen mappings.
+ 	 */
+-	hole_low = pgd_index(USER_LIMIT);
+-	hole_high = pgd_index(PAGE_OFFSET);
++	hole_low = pgd_index(GUARD_HOLE_BASE_ADDR);
++	hole_high = pgd_index(GUARD_HOLE_END_ADDR);
++#endif
+ 
+ 	nr = pgd_index(limit) + 1;
+ 	for (i = 0; i < nr; i++) {
 -- 
-2.9.5
+2.19.1
