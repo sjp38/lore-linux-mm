@@ -1,45 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AA4C38E0001
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 06:08:15 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id v24so19123997wrd.23
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 03:08:15 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h7sor35119406wrv.20.2019.01.07.03.08.14
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FD2F8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:03:38 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id n39so15928591qtn.18
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:03:38 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k124si1342834qkd.2.2019.01.11.03.03.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 07 Jan 2019 03:08:14 -0800 (PST)
-MIME-Version: 1.0
-From: Amit Pundir <amit.pundir@linaro.org>
-Date: Mon, 7 Jan 2019 16:37:37 +0530
-Message-ID: <CAMi1Hd0fZwp7WzGhLSmWG3K+DS+nwT9P9o=zAOGRFDDhjpnGpQ@mail.gmail.com>
-Subject: [for-4.9.y] Patch series "use up highorder free pages before OOM"
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 03:03:37 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 07/19] block: use bio_for_each_bvec() to compute multi-page bvec count
+Date: Fri, 11 Jan 2019 19:01:15 +0800
+Message-Id: <20190111110127.21664-8-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-Hi Minchan,
+First it is more efficient to use bio_for_each_bvec() in both
+blk_bio_segment_split() and __blk_recalc_rq_segments() to compute how
+many multi-page bvecs there are in the bio.
 
-Kindly review your following mm/OOM upstream fixes for stable 4.9.y.
+Secondly once bio_for_each_bvec() is used, the bvec may need to be
+splitted because its length can be very longer than max segment size,
+so we have to split the big bvec into several segments.
 
-88ed365ea227 ("mm: don't steal highatomic pageblock")
-04c8716f7b00 ("mm: try to exhaust highatomic reserve before the OOM")
-29fac03bef72 ("mm: make unreserve highatomic functions reliable")
+Thirdly when splitting multi-page bvec into segments, the max segment
+limit may be reached, so the bio split need to be considered under
+this situation too.
 
-One of the patch from this series:
-4855e4a7f29d ("mm: prevent double decrease of nr_reserved_highatomic")
-has already been picked up for 4.9.y.
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
+---
+ block/blk-merge.c | 99 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 79 insertions(+), 20 deletions(-)
 
-The original patch series https://lkml.org/lkml/2016/10/12/77 was sort
-of NACked for stable https://lkml.org/lkml/2016/10/12/655 because no
-one else reported this OOM behavior on lkml. And the only reason I'm
-bringing this up again, for stable-4.9.y tree, is that msm-4.9 Android
-trees cherry-picked this whole series as is for their production devices.
-
-Are there any concerns around this series, in case I submit it to
-stable mailing list for v4.9.y?
-
-Regards,
-Amit Pundir
+diff --git a/block/blk-merge.c b/block/blk-merge.c
+index f85d878f313d..abe1c89c1253 100644
+--- a/block/blk-merge.c
++++ b/block/blk-merge.c
+@@ -161,6 +161,69 @@ static inline unsigned get_max_io_size(struct request_queue *q,
+ 	return sectors;
+ }
+ 
++static unsigned get_max_segment_size(struct request_queue *q,
++				     unsigned offset)
++{
++	unsigned long mask = queue_segment_boundary(q);
++
++	return min_t(unsigned long, mask - (mask & offset) + 1,
++		     queue_max_segment_size(q));
++}
++
++/*
++ * Split the bvec @bv into segments, and update all kinds of
++ * variables.
++ */
++static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
++		unsigned *nsegs, unsigned *last_seg_size,
++		unsigned *front_seg_size, unsigned *sectors)
++{
++	unsigned len = bv->bv_len;
++	unsigned total_len = 0;
++	unsigned new_nsegs = 0, seg_size = 0;
++
++	/*
++	 * Multi-page bvec may be too big to hold in one segment, so the
++	 * current bvec has to be splitted as multiple segments.
++	 */
++	while (len && new_nsegs + *nsegs < queue_max_segments(q)) {
++		seg_size = get_max_segment_size(q, bv->bv_offset + total_len);
++		seg_size = min(seg_size, len);
++
++		new_nsegs++;
++		total_len += seg_size;
++		len -= seg_size;
++
++		if ((bv->bv_offset + total_len) & queue_virt_boundary(q))
++			break;
++	}
++
++	if (!new_nsegs)
++		return !!len;
++
++	/* update front segment size */
++	if (!*nsegs) {
++		unsigned first_seg_size;
++
++		if (new_nsegs == 1)
++			first_seg_size = get_max_segment_size(q, bv->bv_offset);
++		else
++			first_seg_size = queue_max_segment_size(q);
++
++		if (*front_seg_size < first_seg_size)
++			*front_seg_size = first_seg_size;
++	}
++
++	/* update other varibles */
++	*last_seg_size = seg_size;
++	*nsegs += new_nsegs;
++	if (sectors)
++		*sectors += total_len >> 9;
++
++	/* split in the middle of the bvec if len != 0 */
++	return !!len;
++}
++
+ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 					 struct bio *bio,
+ 					 struct bio_set *bs,
+@@ -174,7 +237,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 	struct bio *new = NULL;
+ 	const unsigned max_sectors = get_max_io_size(q, bio);
+ 
+-	bio_for_each_segment(bv, bio, iter) {
++	bio_for_each_bvec(bv, bio, iter) {
+ 		/*
+ 		 * If the queue doesn't support SG gaps and adding this
+ 		 * offset would create a gap, disallow it.
+@@ -189,8 +252,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 			 */
+ 			if (nsegs < queue_max_segments(q) &&
+ 			    sectors < max_sectors) {
+-				nsegs++;
+-				sectors = max_sectors;
++				/* split in the middle of bvec */
++				bv.bv_len = (max_sectors - sectors) << 9;
++				bvec_split_segs(q, &bv, &nsegs,
++						&seg_size,
++						&front_seg_size,
++						&sectors);
+ 			}
+ 			goto split;
+ 		}
+@@ -212,14 +279,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 		if (nsegs == queue_max_segments(q))
+ 			goto split;
+ 
+-		if (nsegs == 1 && seg_size > front_seg_size)
+-			front_seg_size = seg_size;
+-
+-		nsegs++;
+ 		bvprv = bv;
+ 		bvprvp = &bvprv;
+-		seg_size = bv.bv_len;
+-		sectors += bv.bv_len >> 9;
++
++		if (bvec_split_segs(q, &bv, &nsegs, &seg_size,
++				    &front_seg_size, &sectors))
++			goto split;
+ 
+ 	}
+ 
+@@ -233,8 +298,6 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+ 			bio = new;
+ 	}
+ 
+-	if (nsegs == 1 && seg_size > front_seg_size)
+-		front_seg_size = seg_size;
+ 	bio->bi_seg_front_size = front_seg_size;
+ 	if (seg_size > bio->bi_seg_back_size)
+ 		bio->bi_seg_back_size = seg_size;
+@@ -297,6 +360,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 	struct bio_vec bv, bvprv = { NULL };
+ 	int prev = 0;
+ 	unsigned int seg_size, nr_phys_segs;
++	unsigned front_seg_size = bio->bi_seg_front_size;
+ 	struct bio *fbio, *bbio;
+ 	struct bvec_iter iter;
+ 
+@@ -316,7 +380,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 	seg_size = 0;
+ 	nr_phys_segs = 0;
+ 	for_each_bio(bio) {
+-		bio_for_each_segment(bv, bio, iter) {
++		bio_for_each_bvec(bv, bio, iter) {
+ 			/*
+ 			 * If SG merging is disabled, each bio vector is
+ 			 * a segment
+@@ -336,20 +400,15 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+ 				continue;
+ 			}
+ new_segment:
+-			if (nr_phys_segs == 1 && seg_size >
+-			    fbio->bi_seg_front_size)
+-				fbio->bi_seg_front_size = seg_size;
+-
+-			nr_phys_segs++;
+ 			bvprv = bv;
+ 			prev = 1;
+-			seg_size = bv.bv_len;
++			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
++					&front_seg_size, NULL);
+ 		}
+ 		bbio = bio;
+ 	}
+ 
+-	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
+-		fbio->bi_seg_front_size = seg_size;
++	fbio->bi_seg_front_size = front_seg_size;
+ 	if (seg_size > bbio->bi_seg_back_size)
+ 		bbio->bi_seg_back_size = seg_size;
+ 
+-- 
+2.9.5
