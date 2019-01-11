@@ -1,91 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DA6698E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 05:22:34 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 74so15753203pfk.12
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:22:34 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g23si16875pgb.229.2019.01.14.02.22.33
+	by kanga.kvack.org (Postfix) with ESMTP id 491438E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 16:06:44 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id t72so11214452pfi.21
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 13:06:44 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 3si4154052plo.102.2019.01.11.13.06.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 14 Jan 2019 02:22:33 -0800 (PST)
-Date: Mon, 14 Jan 2019 11:21:37 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 5/5] psi: introduce psi monitor
-Message-ID: <20190114102137.GB14054@worktop.programming.kicks-ass.net>
-References: <20190110220718.261134-1-surenb@google.com>
- <20190110220718.261134-6-surenb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 13:06:43 -0800 (PST)
+Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 94E27218E2
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 21:06:42 +0000 (UTC)
+Received: by mail-wr1-f51.google.com with SMTP id r10so16613367wrs.10
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 13:06:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190110220718.261134-6-surenb@google.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com> <31fe7522-0a59-94c8-663e-049e9ad2bff6@intel.com>
+ <7e3b2c4b-51ff-2027-3a53-8c798c2ca588@oracle.com> <8ffc77a9-6eae-7287-0ea3-56bfb61758cd@intel.com>
+In-Reply-To: <8ffc77a9-6eae-7287-0ea3-56bfb61758cd@intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 11 Jan 2019 13:06:27 -0800
+Message-ID: <CALCETrXqJJq1LMxfBA=LK=PYc5Q7hgeDQGap38h1AUAQuF2VHA@mail.gmail.com>
+Subject: Re: [RFC PATCH v7 00/16] Add support for eXclusive Page Frame Ownership
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Juerg Haefliger <juergh@gmail.com>, Tycho Andersen <tycho@tycho.ws>, jsteckli@amazon.de, Andi Kleen <ak@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, liran.alon@oracle.com, Kees Cook <keescook@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, deepa.srinivasan@oracle.com, chris hyser <chris.hyser@oracle.com>, Tyler Hicks <tyhicks@canonical.com>, "Woodhouse, David" <dwmw@amazon.co.uk>, Andrew Cooper <andrew.cooper3@citrix.com>, Jon Masters <jcm@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, kanth.ghatraju@oracle.com, Joao Martins <joao.m.martins@oracle.com>, Jim Mattson <jmattson@google.com>, pradeep.vincent@oracle.com, John Haxby <john.haxby@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Hellwig <hch@lst.de>, steven.sistare@oracle.com, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-On Thu, Jan 10, 2019 at 02:07:18PM -0800, Suren Baghdasaryan wrote:
-> +/*
-> + * psi_update_work represents slowpath accounting part while
-> + * psi_group_change represents hotpath part.
-> + * There are two potential races between these path:
-> + * 1. Changes to group->polling when slowpath checks for new stall, then
-> + *    hotpath records new stall and then slowpath resets group->polling
-> + *    flag. This leads to the exit from the polling mode while monitored
-> + *    states are still changing.
-> + * 2. Slowpath overwriting an immediate update scheduled from the hotpath
-> + *    with a regular update further in the future and missing the
-> + *    immediate update.
-> + * Both races are handled with a retry cycle in the slowpath:
-> + *
-> + *    HOTPATH:                         |    SLOWPATH:
-> + *                                     |
-> + * A) times[cpu] += delta              | E) delta = times[*]
-> + * B) start_poll = (delta[poll_mask] &&|    if delta[poll_mask]:
-> + *      cmpxchg(g->polling, 0, 1) == 0)| F)   polling_until = now +
-> + *                                     |              grace_period
-> + *                                     |    if now > polling_until:
-> + *    if start_poll:                   |      if g->polling:
-> + * C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
-> + *    else if !delayed_work_pending(): | H)     goto SLOWPATH
-> + * D)   schedule_delayed_work(PSI_FREQ)|    else:
-> + *                                     |      if !g->polling:
-> + *                                     | I)     g->polling = polling = 1
-> + *                                     | J) if delta && first_pass:
-> + *                                     |      next_avg = calculate_averages()
-> + *                                     |      if polling:
-> + *                                     |        next_poll = poll_triggers()
-> + *                                     |    if (delta && first_pass) || polling:
-> + *                                     | K)   mod_delayed_work(
-> + *                                     |          min(next_avg, next_poll))
-> + *                                     |      if !polling:
-> + *                                     |        first_pass = false
-> + *                                     | L)     goto SLOWPATH
-> + *
-> + * Race #1 is represented by (EABGD) sequence in which case slowpath
-> + * deactivates polling mode because it misses new monitored stall and hotpath
-> + * doesn't activate it because at (B) g->polling is not yet reset by slowpath
-> + * in (G). This race is handled by the (H) retry, which in the race described
-> + * above results in the new sequence of (EABGDHEIK) that reactivates polling
-> + * mode.
-> + *
-> + * Race #2 is represented by polling==false && (JABCK) sequence which
-> + * overwrites immediate update scheduled at (C) with a later (next_avg) update
-> + * scheduled at (K). This race is handled by the (L) retry which results in the
-> + * new sequence of polling==false && (JABCKLEIK) that reactivates polling mode
-> + * and reschedules next polling update (next_poll).
-> + *
-> + * Note that retries can't result in an infinite loop because retry #1 happens
-> + * only during polling reactivation and retry #2 happens only on the first
-> + * pass. Constant reactivations are impossible because polling will stay active
-> + * for at least grace_period. Worst case scenario involves two retries (HEJKLE)
-> + */
+On Fri, Jan 11, 2019 at 12:42 PM Dave Hansen <dave.hansen@intel.com> wrote:
+>
+> >> The second process could easily have the page's old TLB entry.  It could
+> >> abuse that entry as long as that CPU doesn't context switch
+> >> (switch_mm_irqs_off()) or otherwise flush the TLB entry.
+> >
+> > That is an interesting scenario. Working through this scenario, physmap
+> > TLB entry for a page is flushed on the local processor when the page is
+> > allocated to userspace, in xpfo_alloc_pages(). When the userspace passes
+> > page back into kernel, that page is mapped into kernel space using a va
+> > from kmap pool in xpfo_kmap() which can be different for each new
+> > mapping of the same page. The physical page is unmapped from kernel on
+> > the way back from kernel to userspace by xpfo_kunmap(). So two processes
+> > on different CPUs sharing same physical page might not be seeing the
+> > same virtual address for that page while they are in the kernel, as long
+> > as it is an address from kmap pool. ret2dir attack relies upon being
+> > able to craft a predictable virtual address in the kernel physmap for a
+> > physical page and redirect execution to that address. Does that sound right?
+>
+> All processes share one set of kernel page tables.  Or, did your patches
+> change that somehow that I missed?
+>
+> Since they share the page tables, they implicitly share kmap*()
+> mappings.  kmap_atomic() is not *used* by more than one CPU, but the
+> mapping is accessible and at least exists for all processors.
+>
+> I'm basically assuming that any entry mapped in a shared page table is
+> exploitable on any CPU regardless of where we logically *want* it to be
+> used.
+>
+>
 
-I'm having a fairly hard time with this. There's a distinct lack of
-memory ordering, and a suspicious mixing of atomic ops (cmpxchg) and
-regular loads and stores (without READ_ONCE/WRITE_ONCE even).
-
-Please clarify.
-
-(also, you look to have a whole bunch of line-breaks that are really not
-needed; concattenated the line would not be over 80 chars).
+We can, very easily, have kernel mappings that are private to a given
+mm.  Maybe this is useful here.
