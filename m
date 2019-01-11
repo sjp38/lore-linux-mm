@@ -1,106 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA418E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:58:37 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id u20so11245883pfa.1
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 12:58:37 -0800 (PST)
-Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id l7si15083723pgk.169.2019.01.11.12.58.36
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 20D668E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:59:10 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id u32so17962041qte.1
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 12:59:10 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e38sor76308827qtk.19.2019.01.11.12.59.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 12:58:36 -0800 (PST)
-Subject: Re: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
-References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
- <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
- <20190111092408.GM30894@hirez.programming.kicks-ass.net>
-From: Vineet Gupta <vineet.gupta1@synopsys.com>
-Message-ID: <d36b8582-184a-37d2-699f-04837745b70a@synopsys.com>
-Date: Fri, 11 Jan 2019 12:58:22 -0800
-MIME-Version: 1.0
-In-Reply-To: <20190111092408.GM30894@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Fri, 11 Jan 2019 12:59:09 -0800 (PST)
+From: Qian Cai <cai@lca.pw>
+Subject: [PATCH v2] rbtree: fix the red root
+Date: Fri, 11 Jan 2019 15:58:43 -0500
+Message-Id: <20190111205843.25761-1-cai@lca.pw>
+In-Reply-To: <20190111181600.GJ6310@bombadil.infradead.org>
+References: <20190111181600.GJ6310@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mark Rutland <mark.rutland@arm.com>, Miklos Szeredi <mszeredi@redhat.com>, Jani Nikula <jani.nikula@intel.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-snps-arc@lists.infradead.org, Ingo Molnar <mingo@kernel.org>
+To: akpm@linux-foundation.org
+Cc: esploit@protonmail.ch, jejb@linux.ibm.com, dgilbert@interlog.com, martin.petersen@oracle.com, joeypabalinas@gmail.com, walken@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qian Cai <cai@lca.pw>
 
-On 1/11/19 1:24 AM, Peter Zijlstra wrote:
-> diff --git a/include/linux/bitops.h b/include/linux/bitops.h
-> index 705f7c442691..2060d26a35f5 100644
-> --- a/include/linux/bitops.h
-> +++ b/include/linux/bitops.h
-> @@ -241,10 +241,10 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
->  	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
->  	typeof(*(ptr)) old__, new__;				\
->  								\
-> +	old__ = READ_ONCE(*(ptr));				\
->  	do {							\
-> -		old__ = READ_ONCE(*(ptr));			\
->  		new__ = (old__ & ~mask__) | bits__;		\
-> -	} while (cmpxchg(ptr, old__, new__) != old__);		\
-> +	} while (!try_cmpxchg(ptr, &old__, new__));		\
->  								\
->  	new__;							\
->  })
-> 
-> 
-> While there you probably want something like the above... 
+A GPF was reported,
 
-As a separate change perhaps so that a revert (unlikely as it might be) could be
-done with less pain.
+kasan: CONFIG_KASAN_INLINE enabled
+kasan: GPF could be caused by NULL-ptr deref or user memory access
+general protection fault: 0000 [#1] SMP KASAN
+        kasan_die_handler.cold.22+0x11/0x31
+        notifier_call_chain+0x17b/0x390
+        atomic_notifier_call_chain+0xa7/0x1b0
+        notify_die+0x1be/0x2e0
+        do_general_protection+0x13e/0x330
+        general_protection+0x1e/0x30
+        rb_insert_color+0x189/0x1480
+        create_object+0x785/0xca0
+        kmemleak_alloc+0x2f/0x50
+        kmem_cache_alloc+0x1b9/0x3c0
+        getname_flags+0xdb/0x5d0
+        getname+0x1e/0x20
+        do_sys_open+0x3a1/0x7d0
+        __x64_sys_open+0x7e/0xc0
+        do_syscall_64+0x1b3/0x820
+        entry_SYSCALL_64_after_hwframe+0x49/0xbe
 
-> although,
-> looking at it now, we seem to have 'forgotten' to add try_cmpxchg to the
-> generic code :/
+It turned out,
 
-So it _has_ to be a separate change ;-)
+gparent = rb_red_parent(parent);
+tmp = gparent->rb_right; <-- GPF was triggered here.
 
-But can we even provide a sane generic try_cmpxchg. The asm-generic cmpxchg relies
-on local irq save etc so it is clearly only to prevent a new arch from failing to
-compile. atomic*_cmpxchg() is different story since atomics have to be provided by
-arch.
+Apparently, "gparent" is NULL which indicates "parent" is rbtree's root
+which is red. Otherwise, it will be treated properly a few lines above.
 
-Anyhow what is more interesting is the try_cmpxchg API itself. So commit
-a9ebf306f52c756 introduced/use of try_cmpxchg(), which indeed makes the looping
-"nicer" to read and obvious code gen improvements.
+/*
+ * If there is a black parent, we are done.
+ * Otherwise, take some corrective action as,
+ * per 4), we don't want a red root or two
+ * consecutive red nodes.
+ */
+if(rb_is_black(parent))
+	break;
 
-So,
-        for (;;) {
-                new = val $op $imm;
-                old = cmpxchg(ptr, val, new);
-                if (old == val)
-                        break;
-                val = old;
-        }
+Hence, it violates the rule #1 (the root can't be red) and need a fix
+up, and also add a regression test for it. This looks like was
+introduced by 6d58452dc06 where it no longer always paint the root as
+black.
 
-becomes
+Fixes: 6d58452dc06 (rbtree: adjust root color in rb_insert_color() only
+when necessary)
+Reported-by: Esme <esploit@protonmail.ch>
+Tested-by: Joey Pabalinas <joeypabalinas@gmail.com>
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
 
-        do {
-        } while (!try_cmpxchg(ptr, &val, val $op $imm));
+v2: add a regression test.
 
+ lib/rbtree.c      |  7 +++++++
+ lib/rbtree_test.c | 11 +++++++++++
+ 2 files changed, 18 insertions(+)
 
-But on pure LL/SC retry based arches, we still end up with generated code having 2
-loops. We discussed something similar a while back: see [1]
-
-First loop is inside inline asm to retry LL/SC and the outer one due to code
-above. Explicit return of try_cmpxchg() means setting up a register with a boolean
-status of cmpxchg (AFAIKR ARMv7 already does that but ARC e.g. uses a CPU flag
-thus requires an additional insn or two). We could arguably remove the inline asm
-loop and retry LL/SC from the outer loop, but it seems cleaner to keep the retry
-where it belongs.
-
-Also under the hood, try_cmpxchg() would end up re-reading it for the issue fixed
-by commit 44fe84459faf1a.
-
-Heck, it would all be simpler if we could express this w/o use of cmpxchg.
-
-	try_some_op(ptr, &val, val $op $imm);
-
-P.S. the horrible API name is for indicative purposes only
-
-This would remove the outer loop completely, also avoid any re-reads due to the
-semantics of cmpxchg etc.
-
-[1] https://www.spinics.net/lists/kernel/msg2029217.html
+diff --git a/lib/rbtree.c b/lib/rbtree.c
+index d3ff682fd4b8..acc969ad8de9 100644
+--- a/lib/rbtree.c
++++ b/lib/rbtree.c
+@@ -127,6 +127,13 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
+ 			break;
+ 
+ 		gparent = rb_red_parent(parent);
++		if (unlikely(!gparent)) {
++			/*
++			 * The root is red so correct it.
++			 */
++			rb_set_parent_color(parent, NULL, RB_BLACK);
++			break;
++		}
+ 
+ 		tmp = gparent->rb_right;
+ 		if (parent != tmp) {	/* parent == gparent->rb_left */
+diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
+index b7055b2a07d3..afad0213a117 100644
+--- a/lib/rbtree_test.c
++++ b/lib/rbtree_test.c
+@@ -345,6 +345,17 @@ static int __init rbtree_test_init(void)
+ 		check(0);
+ 	}
+ 
++	/*
++	 * a little regression test to catch a bug may be introduced by
++	 * 6d58452dc06 (rbtree: adjust root color in rb_insert_color() only when
++	 * necessary)
++	 */
++	insert(nodes, &root);
++	nodes->rb.__rb_parent_color = RB_RED;
++	insert(nodes + 1, &root);
++	erase(nodes + 1, &root);
++	erase(nodes, &root);
++
+ 	printk(KERN_ALERT "augmented rbtree testing");
+ 
+ 	init();
+-- 
+2.17.2 (Apple Git-113)
