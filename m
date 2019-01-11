@@ -1,116 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 84F2E8E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:23:03 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id e12so4789985edd.16
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 10:23:03 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id x55si3735583eda.76.2019.01.10.10.23.01
-        for <linux-mm@kvack.org>;
-        Thu, 10 Jan 2019 10:23:01 -0800 (PST)
-Subject: Re: [PATCH v7 10/25] ACPI / APEI: Tell firmware the estatus queue
- consumed the records
-References: <20181203180613.228133-1-james.morse@arm.com>
- <20181203180613.228133-11-james.morse@arm.com>
- <20181211183634.GO27375@zn.tnic>
-From: James Morse <james.morse@arm.com>
-Message-ID: <56cfa16b-ece4-76e0-3799-58201f8a4ff1@arm.com>
-Date: Thu, 10 Jan 2019 18:22:56 +0000
-MIME-Version: 1.0
-In-Reply-To: <20181211183634.GO27375@zn.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 29D5D8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:02:31 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id p24so16249875qtl.2
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:02:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v2si5352213qtf.321.2019.01.11.03.02.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 03:02:30 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 03/19] block: remove bvec_iter_rewind()
+Date: Fri, 11 Jan 2019 19:01:11 +0800
+Message-Id: <20190111110127.21664-4-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>, baicar.tyler@gmail.com
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-Hi Boris,
+Commit 7759eb23fd980 ("block: remove bio_rewind_iter()") removes
+bio_rewind_iter(), then no one uses bvec_iter_rewind() any more,
+so remove it.
 
-(CC: +Tyler)
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
+---
+ include/linux/bvec.h | 24 ------------------------
+ 1 file changed, 24 deletions(-)
 
-On 11/12/2018 18:36, Borislav Petkov wrote:
-> On Mon, Dec 03, 2018 at 06:05:58PM +0000, James Morse wrote:
->> ACPI has a GHESv2 which is used on hardware reduced platforms to
->> explicitly acknowledge that the memory for CPER records has been
->> consumed. This lets an external agent know it can re-use this
->> memory for something else.
->>
->> Previously notify_nmi and the estatus queue didn't do this as
->> they were never used on hardware reduced platforms. Once we move
->> notify_sea over to use the estatus queue, it may become necessary.
->>
->> Add the call. This is safe for use in NMI context as the
->> read_ack_register is pre-mapped by ghes_new() before the
->> ghes can be added to an RCU list, and then found by the
->> notification handler.
-
->> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
->> index 366dbdd41ef3..15d94373ba72 100644
->> --- a/drivers/acpi/apei/ghes.c
->> +++ b/drivers/acpi/apei/ghes.c
->> @@ -926,6 +926,10 @@ static int _in_nmi_notify_one(struct ghes *ghes)
->>  	__process_error(ghes);
->>  	ghes_clear_estatus(ghes, buf_paddr);
->>  
->> +	if (is_hest_type_generic_v2(ghes) && ghes_ack_error(ghes->generic_v2))
-> 
-> Since ghes_ack_error() is always prepended with this check, you could
-> push it down into the function:
-> 
-> ghes_ack_error(ghes)
-> ...
-> 
-> 	if (!is_hest_type_generic_v2(ghes))
-> 		return 0;
-> 
-> and simplify the two callsites :)
-
-Great idea! ...
-
-.. huh. Turns out for ghes_proc() we discard any errors other than ENOENT from
-ghes_read_estatus() if is_hest_type_generic_v2(). This masks EIO.
-
-Most of the error sources discard the result, the worst thing I can find is
-ghes_irq_func() will return IRQ_HANDLED, instead of IRQ_NONE when we didn't
-really handle the IRQ. They're registered as SHARED, but I don't have an example
-of what goes wrong next.
-
-I think this will also stop the spurious handling code kicking in to shut it up
-if its broken and screaming. Unlikely, but not impossible.
-
-Fixed in a prior patch, with Boris' suggestion, ghes_proc()s tail ends up look
-like this:
-----------------------%<----------------------
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index 0321d9420b1e..8d1f9930b159 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -700,18 +708,11 @@ static int ghes_proc(struct ghes *ghes)
-
- out:
-        ghes_clear_estatus(ghes, buf_paddr);
-+       if (rc != -ENOENT)
-+               rc_ack = ghes_ack_error(ghes);
-
--       if (rc == -ENOENT)
--               return rc;
--
--       /*
--        * GHESv2 type HEST entries introduce support for error acknowledgment,
--        * so only acknowledge the error if this support is present.
--        */
--       if (is_hest_type_generic_v2(ghes))
--               return ghes_ack_error(ghes->generic_v2);
--
--       return rc;
-+       /* If rc and rc_ack failed, return the first one */
-+       return rc ? rc : rc_ack;
+diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+index 02c73c6aa805..ba0ae40e77c9 100644
+--- a/include/linux/bvec.h
++++ b/include/linux/bvec.h
+@@ -92,30 +92,6 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
+ 	return true;
  }
-----------------------%<----------------------
-
-
-Thanks,
-
-James
+ 
+-static inline bool bvec_iter_rewind(const struct bio_vec *bv,
+-				     struct bvec_iter *iter,
+-				     unsigned int bytes)
+-{
+-	while (bytes) {
+-		unsigned len = min(bytes, iter->bi_bvec_done);
+-
+-		if (iter->bi_bvec_done == 0) {
+-			if (WARN_ONCE(iter->bi_idx == 0,
+-				      "Attempted to rewind iter beyond "
+-				      "bvec's boundaries\n")) {
+-				return false;
+-			}
+-			iter->bi_idx--;
+-			iter->bi_bvec_done = __bvec_iter_bvec(bv, *iter)->bv_len;
+-			continue;
+-		}
+-		bytes -= len;
+-		iter->bi_size += len;
+-		iter->bi_bvec_done -= len;
+-	}
+-	return true;
+-}
+-
+ #define for_each_bvec(bvl, bio_vec, iter, start)			\
+ 	for (iter = (start);						\
+ 	     (iter).bi_size &&						\
+-- 
+2.9.5
