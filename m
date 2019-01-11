@@ -1,142 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A1BC18E0008
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:43 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id i3so8675417pfj.4
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:43 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d13si17304163pgu.40.2019.01.10.13.10.42
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 847FB8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:03:11 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id u32so16313724qte.1
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:03:11 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z2si8779353qtf.343.2019.01.11.03.03.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:10:42 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [RFC PATCH v7 09/16] mm: add a user_virt_to_phys symbol
-Date: Thu, 10 Jan 2019 14:09:41 -0700
-Message-Id: <c9a409397fc608f7ae6297597d9ea3d21eeb3b38.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
+        Fri, 11 Jan 2019 03:03:10 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 05/19] block: introduce multi-page bvec helpers
+Date: Fri, 11 Jan 2019 19:01:13 +0800
+Message-Id: <20190111110127.21664-6-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, Khalid Aziz <khalid.aziz@oracle.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-From: Tycho Andersen <tycho@docker.com>
+This patch introduces helpers of 'bvec_iter_*' for multi-page bvec
+support.
 
-We need someting like this for testing XPFO. Since it's architecture
-specific, putting it in the test code is slightly awkward, so let's make it
-an arch-specific symbol and export it for use in LKDTM.
+The introduced helpers treate one bvec as real multi-page segment,
+which may include more than one pages.
 
-v6: * add a definition of user_virt_to_phys in the !CONFIG_XPFO case
+The existed helpers of bvec_iter_* are interfaces for supporting current
+bvec iterator which is thought as single-page by drivers, fs, dm and
+etc. These introduced helpers will build single-page bvec in flight, so
+this way won't break current bio/bvec users, which needn't any change.
 
-CC: linux-arm-kernel@lists.infradead.org
-CC: x86@kernel.org
-Signed-off-by: Tycho Andersen <tycho@docker.com>
-Tested-by: Marco Benatto <marco.antonio.780@gmail.com>
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Follows some multi-page bvec background:
+
+- bvecs stored in bio->bi_io_vec is always multi-page style
+
+- bvec(struct bio_vec) represents one physically contiguous I/O
+  buffer, now the buffer may include more than one page after
+  multi-page bvec is supported, and all these pages represented
+  by one bvec is physically contiguous. Before multi-page bvec
+  support, at most one page is included in one bvec, we call it
+  single-page bvec.
+
+- .bv_page of the bvec points to the 1st page in the multi-page bvec
+
+- .bv_offset of the bvec is the offset of the buffer in the bvec
+
+The effect on the current drivers/filesystem/dm/bcache/...:
+
+- almost everyone supposes that one bvec only includes one single
+  page, so we keep the sp interface not changed, for example,
+  bio_for_each_segment() still returns single-page bvec
+
+- bio_for_each_segment_all() will return single-page bvec too
+
+- during iterating, iterator variable(struct bvec_iter) is always
+  updated in multi-page bvec style, and bvec_iter_advance() is kept
+  not changed
+
+- returned(copied) single-page bvec is built in flight by bvec
+  helpers from the stored multi-page bvec
+
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- arch/x86/mm/xpfo.c   | 57 ++++++++++++++++++++++++++++++++++++++++++++
- include/linux/xpfo.h |  8 +++++++
- 2 files changed, 65 insertions(+)
+ include/linux/bvec.h | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/mm/xpfo.c b/arch/x86/mm/xpfo.c
-index d1f04ea533cd..bcdb2f2089d2 100644
---- a/arch/x86/mm/xpfo.c
-+++ b/arch/x86/mm/xpfo.c
-@@ -112,3 +112,60 @@ inline void xpfo_flush_kernel_tlb(struct page *page, int order)
+diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+index 716a87b26a6a..babc6316c117 100644
+--- a/include/linux/bvec.h
++++ b/include/linux/bvec.h
+@@ -23,6 +23,7 @@
+ #include <linux/kernel.h>
+ #include <linux/bug.h>
+ #include <linux/errno.h>
++#include <linux/mm.h>
  
- 	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
- }
-+
-+/* Convert a user space virtual address to a physical address.
-+ * Shamelessly copied from slow_virt_to_phys() and lookup_address() in
-+ * arch/x86/mm/pageattr.c
-+ */
-+phys_addr_t user_virt_to_phys(unsigned long addr)
-+{
-+	phys_addr_t phys_addr;
-+	unsigned long offset;
-+	pgd_t *pgd;
-+	p4d_t *p4d;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+
-+	pgd = pgd_offset(current->mm, addr);
-+	if (pgd_none(*pgd))
-+		return 0;
-+
-+	p4d = p4d_offset(pgd, addr);
-+	if (p4d_none(*p4d))
-+		return 0;
-+
-+	if (p4d_large(*p4d) || !p4d_present(*p4d)) {
-+		phys_addr = (unsigned long)p4d_pfn(*p4d) << PAGE_SHIFT;
-+		offset = addr & ~P4D_MASK;
-+		goto out;
-+	}
-+
-+	pud = pud_offset(p4d, addr);
-+	if (pud_none(*pud))
-+		return 0;
-+
-+	if (pud_large(*pud) || !pud_present(*pud)) {
-+		phys_addr = (unsigned long)pud_pfn(*pud) << PAGE_SHIFT;
-+		offset = addr & ~PUD_MASK;
-+		goto out;
-+	}
-+
-+	pmd = pmd_offset(pud, addr);
-+	if (pmd_none(*pmd))
-+		return 0;
-+
-+	if (pmd_large(*pmd) || !pmd_present(*pmd)) {
-+		phys_addr = (unsigned long)pmd_pfn(*pmd) << PAGE_SHIFT;
-+		offset = addr & ~PMD_MASK;
-+		goto out;
-+	}
-+
-+	pte =  pte_offset_kernel(pmd, addr);
-+	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
-+	offset = addr & ~PAGE_MASK;
-+
-+out:
-+	return (phys_addr_t)(phys_addr | offset);
-+}
-+EXPORT_SYMBOL(user_virt_to_phys);
-diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index 0c26836a24e1..d4b38ab8a633 100644
---- a/include/linux/xpfo.h
-+++ b/include/linux/xpfo.h
-@@ -23,6 +23,10 @@ struct page;
+ /*
+  * was unsigned short, but we might as well be ready for > 64kB I/O pages
+@@ -50,16 +51,32 @@ struct bvec_iter {
+  */
+ #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
  
- #ifdef CONFIG_XPFO
+-#define segment_iter_page(bvec, iter)				\
++/* multi-page (segment) helpers */
++#define bvec_iter_page(bvec, iter)				\
+ 	(__bvec_iter_bvec((bvec), (iter))->bv_page)
  
-+#include <linux/dma-mapping.h>
+-#define segment_iter_len(bvec, iter)				\
++#define bvec_iter_len(bvec, iter)				\
+ 	min((iter).bi_size,					\
+ 	    __bvec_iter_bvec((bvec), (iter))->bv_len - (iter).bi_bvec_done)
+ 
+-#define segment_iter_offset(bvec, iter)				\
++#define bvec_iter_offset(bvec, iter)				\
+ 	(__bvec_iter_bvec((bvec), (iter))->bv_offset + (iter).bi_bvec_done)
+ 
++#define bvec_iter_page_idx(bvec, iter)			\
++	(bvec_iter_offset((bvec), (iter)) / PAGE_SIZE)
 +
-+#include <linux/types.h>
++/* For building single-page bvec(segment) in flight */
++ #define segment_iter_offset(bvec, iter)				\
++	(bvec_iter_offset((bvec), (iter)) % PAGE_SIZE)
 +
- extern struct page_ext_operations page_xpfo_ops;
- 
- void set_kpte(void *kaddr, struct page *page, pgprot_t prot);
-@@ -48,6 +52,8 @@ void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
- 
- bool xpfo_enabled(void);
- 
-+phys_addr_t user_virt_to_phys(unsigned long addr);
++#define segment_iter_len(bvec, iter)				\
++	min_t(unsigned, bvec_iter_len((bvec), (iter)),		\
++	      PAGE_SIZE - segment_iter_offset((bvec), (iter)))
 +
- #else /* !CONFIG_XPFO */
- 
- static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-@@ -72,6 +78,8 @@ static inline void xpfo_temp_unmap(const void *addr, size_t size,
- 
- static inline bool xpfo_enabled(void) { return false; }
- 
-+static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
++#define segment_iter_page(bvec, iter)				\
++	nth_page(bvec_iter_page((bvec), (iter)),		\
++		 bvec_iter_page_idx((bvec), (iter)))
 +
- #endif /* CONFIG_XPFO */
+ #define segment_iter_bvec(bvec, iter)				\
+ ((struct bio_vec) {						\
+ 	.bv_page	= segment_iter_page((bvec), (iter)),	\
+@@ -67,8 +84,6 @@ struct bvec_iter {
+ 	.bv_offset	= segment_iter_offset((bvec), (iter)),	\
+ })
  
- #endif /* _LINUX_XPFO_H */
+-#define bvec_iter_len  segment_iter_len
+-
+ static inline bool bvec_iter_advance(const struct bio_vec *bv,
+ 		struct bvec_iter *iter, unsigned bytes)
+ {
 -- 
-2.17.1
+2.9.5
