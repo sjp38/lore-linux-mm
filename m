@@ -1,97 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AF9C98E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 10:35:47 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id p20so12497225ywe.5
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 07:35:47 -0800 (PST)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id z4si32920054ybz.42.2019.01.04.07.35.46
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E3EC18E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 04:24:24 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id w15so944336ita.1
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 01:24:24 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id v6si153745itg.59.2019.01.11.01.24.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 07:35:46 -0800 (PST)
-From: Ashish Mhetre <amhetre@nvidia.com>
-Subject: [PATCH] mm: Expose lazy vfree pages to control via sysctl
-Date: Fri, 4 Jan 2019 21:05:41 +0530
-Message-ID: <1546616141-486-1-git-send-email-amhetre@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 11 Jan 2019 01:24:23 -0800 (PST)
+Date: Fri, 11 Jan 2019 10:24:08 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
+Message-ID: <20190111092408.GM30894@hirez.programming.kicks-ass.net>
+References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
+ <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vdumpa@nvidia.com, mcgrof@kernel.org, keescook@chromium.org, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, Snikam@nvidia.com, Ashish Mhetre <amhetre@nvidia.com>
+To: Vineet Gupta <vineet.gupta1@synopsys.com>
+Cc: linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-mm@kvack.org, Miklos Szeredi <mszeredi@redhat.com>, Ingo Molnar <mingo@kernel.org>, Jani Nikula <jani.nikula@intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>
 
-From: Hiroshi Doyu <hdoyu@nvidia.com>
+On Thu, Jan 10, 2019 at 04:26:27PM -0800, Vineet Gupta wrote:
 
-The purpose of lazy_max_pages is to gather virtual address space till it
-reaches the lazy_max_pages limit and then purge with a TLB flush and hence
-reduce the number of global TLB flushes.
-The default value of lazy_max_pages with one CPU is 32MB and with 4 CPUs it
-is 96MB i.e. for 4 cores, 96MB of vmalloc space will be gathered before it
-is purged with a TLB flush.
-This feature has shown random latency issues. For example, we have seen
-that the kernel thread for some camera application spent 30ms in
-__purge_vmap_area_lazy() with 4 CPUs.
-So, create "/proc/sys/lazy_vfree_pages" file to control lazy vfree pages.
-With this sysctl, the behaviour of lazy_vfree_pages can be controlled and
-the systems which can't tolerate latency issues can also disable it.
-This is one of the way through which lazy_vfree_pages can be controlled as
-proposed in this patch. The other possible solution would be to configure
-lazy_vfree_pages through kernel cmdline.
+> @@ -246,7 +246,7 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
+>  		new__ = (old__ & ~mask__) | bits__;		\
+>  	} while (cmpxchg(ptr, old__, new__) != old__);		\
 
-Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
-Signed-off-by: Ashish Mhetre <amhetre@nvidia.com>
----
- kernel/sysctl.c | 8 ++++++++
- mm/vmalloc.c    | 5 ++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+diff --git a/include/linux/bitops.h b/include/linux/bitops.h
+index 705f7c442691..2060d26a35f5 100644
+--- a/include/linux/bitops.h
++++ b/include/linux/bitops.h
+@@ -241,10 +241,10 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
+ 	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
+ 	typeof(*(ptr)) old__, new__;				\
+ 								\
++	old__ = READ_ONCE(*(ptr));				\
+ 	do {							\
+-		old__ = READ_ONCE(*(ptr));			\
+ 		new__ = (old__ & ~mask__) | bits__;		\
+-	} while (cmpxchg(ptr, old__, new__) != old__);		\
++	} while (!try_cmpxchg(ptr, &old__, new__));		\
+ 								\
+ 	new__;							\
+ })
 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 3ae223f..49523efc 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -111,6 +111,7 @@ extern int pid_max;
- extern int pid_max_min, pid_max_max;
- extern int percpu_pagelist_fraction;
- extern int latencytop_enabled;
-+extern int sysctl_lazy_vfree_pages;
- extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
- #ifndef CONFIG_MMU
- extern int sysctl_nr_trim_pages;
-@@ -1251,6 +1252,13 @@ static struct ctl_table kern_table[] = {
- 
- static struct ctl_table vm_table[] = {
- 	{
-+		.procname	= "lazy_vfree_pages",
-+		.data		= &sysctl_lazy_vfree_pages,
-+		.maxlen		= sizeof(sysctl_lazy_vfree_pages),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+	{
- 		.procname	= "overcommit_memory",
- 		.data		= &sysctl_overcommit_memory,
- 		.maxlen		= sizeof(sysctl_overcommit_memory),
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 97d4b25..fa07966 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -619,13 +619,16 @@ static void unmap_vmap_area(struct vmap_area *va)
-  * code, and it will be simple to change the scale factor if we find that it
-  * becomes a problem on bigger systems.
-  */
-+
-+int sysctl_lazy_vfree_pages = 32UL * 1024 * 1024 / PAGE_SIZE;
-+
- static unsigned long lazy_max_pages(void)
- {
- 	unsigned int log;
- 
- 	log = fls(num_online_cpus());
- 
--	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
-+	return log * sysctl_lazy_vfree_pages;
- }
- 
- static atomic_t vmap_lazy_nr = ATOMIC_INIT(0);
--- 
-2.7.4
+
+While there you probably want something like the above... although,
+looking at it now, we seem to have 'forgotten' to add try_cmpxchg to the
+generic code :/
