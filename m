@@ -2,177 +2,253 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0BADC43387
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:18:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EE714C43387
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:38:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7EC4120879
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:18:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 953162084C
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:38:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="JYnWAo/N"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7EC4120879
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uLNnYiWB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 953162084C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17B828E0005; Thu, 10 Jan 2019 21:18:39 -0500 (EST)
+	id 143C48E0005; Thu, 10 Jan 2019 21:38:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 12BE78E0001; Thu, 10 Jan 2019 21:18:39 -0500 (EST)
+	id 0F6348E0001; Thu, 10 Jan 2019 21:38:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 01AB88E0005; Thu, 10 Jan 2019 21:18:38 -0500 (EST)
+	id F263E8E0005; Thu, 10 Jan 2019 21:38:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 858068E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:18:38 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id z5-v6so3289799ljb.13
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:18:38 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CA4318E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:38:01 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id i12so144098ita.3
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:38:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=IwEmlRGwHdJ7O3lGFYJW+jg6ng3jN91JyPi2+zBjdEs=;
-        b=HA+IaR2nRmJK5cJJIDnWBuLE3sxnsSNYXZGuGh1sRGZp1tXMs8rmziqyUVk5CJuu5n
-         0GDF509mg9aLwCWmJZdXcP/Fu3EIQB/Ku2IgV/jFP6lWVX5dt4SPAZ3FeWMke0Qf6pg7
-         oZz5YKvPA1u5u63MzDMzaVAwCVWZpH7BsEudFr0WST75swgQRQS6rRNdBcE1upwrLGOT
-         t2LnHvEj3Ntic/Cm/qPWO/koyP/FnZ65GPXJzLLifAa/BuAsXm7AhOIEBRG3pirM/BNg
-         p8AUoVX2tHDt8WzsFNBl1/eNnSxDgd5qTHKvuhE40scrMsFb+tq3g3sWtNnVCjeNvgVM
-         ZYgg==
-X-Gm-Message-State: AJcUukelM0v3Ay78Frh+eNcHm060fZa7jmhtCdJdvbtx7TIWlLL6Ca5J
-	FqdaEtoiW2DQ1qFvR1Bipnwr9MGQVSb9F2ptNrCkY4v+ziRMaFiiIhXnaq6zVOngsttjMpP1db8
-	7XSh205CdH+N3lOersLXpUVOvsNwu7RQ5oAUZYgytobVR1LGCYNzOIW6Zubfba7IrA5W+Eivfgw
-	1snLYTPDCJTUqUV1EKpC5D1gzpXqUs4w3MOh0Z7mvxGZrSuGnlNBynq7phsefdS3dXEIWpuo+cS
-	0j4Y0GIxluzAnbyr8zIzBOoRI/5QZ6k4G8QPfWO5ad4cP+UVBKJoJ51CSYo4DlylrSwjzVNxqJD
-	RwdetLXoicufxHBjibX1BiS4VsZGV+hPVrl/x6JfJs4G80gjYSdKy7kJo06A5gg51tgPmtFhlqz
-	/
-X-Received: by 2002:a2e:97d7:: with SMTP id m23-v6mr8036178ljj.18.1547173117745;
-        Thu, 10 Jan 2019 18:18:37 -0800 (PST)
-X-Received: by 2002:a2e:97d7:: with SMTP id m23-v6mr8036160ljj.18.1547173116749;
-        Thu, 10 Jan 2019 18:18:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547173116; cv=none;
+        bh=ChVVd5G4oRILHPTf1tyaQyCJSFIBPNwRM4QhHAYVNtk=;
+        b=BufLe2WC+Jdoi16pBpGhI0YXatE8AfCPhcvJGNOqy2pLX1TRwceHi8vRyG2u5tIk/a
+         xNqhcxl3u1JICZNKtnrIsmpDnoiXCtigf8boouoS8bwtWDkmR2rM9HaLtxqSH5D2gLVV
+         K/l+LkMhPHwJzz1SD62HEHuX6LTYaRDS1b7bhltmTh+woOEcCSN38qAVUS3r0oCcp+HW
+         NX/QfFbEyNPERbIe8tmDIbpZnblqTCFYPrw8aeqoIDjEioTAnh7cAiRGw9xcKalySDUV
+         KLnpi2kn+3DDTwu3kn0WXksnGQzUyf9TV1e/8ocUgRPhnxrerbcODOE3xtlMOOxYyFLU
+         Ieog==
+X-Gm-Message-State: AJcUukeLtx2XvY63S5Xeu91ixWx+ttT/2iwGH8QdV34UypZbSvj9zpCq
+	1ZaPS03malGCblmv0434zPAO0JWwBjU+CgvXGVcUfzBGJhiZY111CuVvJGJxsCKWcA12dlu+rtr
+	TLTAFLpestkxDCN4mIYx4sd8+hMRs43S0y68/2pLV5bW6Gd44BBuJSEK1FnNzP6iHorQpJR0r+X
+	NDqTcbJuIOQFgUILVH/VyeTzBsjWNhIjiWKQzw4A1X9UWBVSx//OOkCGVskjJIAijCcuTyZ5ndk
+	o4GZJ+1H5vvEiTDuF+en+CL5X7NUYctPcBL//OsBHZWLcl2p1qZ1POvbUwkVRaHW/Tobh4//sgt
+	3JRFq14CRl7b2NOxEA/Ra71DrlVASNZ62nMAeaFRoGV6HhtD8epSyhvbB0Kn5bwZkY3qaqwwfvJ
+	1
+X-Received: by 2002:a6b:f814:: with SMTP id o20mr8478638ioh.129.1547174281537;
+        Thu, 10 Jan 2019 18:38:01 -0800 (PST)
+X-Received: by 2002:a6b:f814:: with SMTP id o20mr8478624ioh.129.1547174280797;
+        Thu, 10 Jan 2019 18:38:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547174280; cv=none;
         d=google.com; s=arc-20160816;
-        b=LO8CFg19NbYuednUeC2Rka5WJ9cSaUG+UBquA87KO6kCrVSAgA7y1pZloEnQZdq8Ij
-         BS3le3B3V8UPtvT0Kc3Qb4sFPyjVhPVoBw+725bGyiOiDDBCG3DD6xSW+YZp6lwRcmSZ
-         kDJH+2O6lUHLSA8SXER1XdS1f0usY4Tsp8i0azceuk8sCeKghLbQ+1F5l8CzFw1oinhJ
-         kmg/w6PP6W+taZcwv4+jk6EiQDZQ5ongagqOQOqFjN5itbEdraGZpqercxl9NqiZ9NvL
-         +uv431boCsMmlCGZz0wVu7BE4i3L9e0F+Fs6xGCuzFf98zq92I+zCldLXRODCSckCjxh
-         ohUQ==
+        b=CpbKa+2kCawEpmaaeEAKHk35DE5dxsWPYcfgM/Eu0Q68r6UVowLp2/iriEeeIwqADJ
+         y5bslbnrOin3OBCIx/Cwxt7tr9T6d/GZSiEuE4FSZ1t9sVITg9vv4SH+pPOvanbrsToe
+         Oqe/3okGOySP9jBYvv9ssGJaqRtVM6pCwuCtJAwfpToVilJdz4NeVhYrVUi8cJ1UEU6z
+         X0/8LcwZZFgCvMxEc4czkH2WdQj0LNIgGlyMFIYxo09Kb6BimH0QRZrzAUGGgY8gnjD4
+         FfUYSxA3ycQ2ah+5F5a/hH31jYioToQ6GRQNREnEJ19vSNWKwOflhKPVwdoC0fMjs6am
+         L7Dg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=IwEmlRGwHdJ7O3lGFYJW+jg6ng3jN91JyPi2+zBjdEs=;
-        b=GvRxiQpQLUcdt1mhyKrF/vUh6Evgy1bGNPxRvwm3gCWKDncnmi+8eWv7ltH8bjqjMH
-         0PElP+UpbvV0gV3FVkj+mVsTzHodZq3atUZbxGWwJduSdlahBSa+a3ljKnO9lV46vbqf
-         5ib6NTbl+wMAxxqHqKw3V8QBqlBdiMdMThaKlDxaWaRb6SBrBMKdXPRfVu4BSmon3la6
-         qEkPuwjgdczGW/9acF25ZOZ3irAhrReBJpgSe/ieIfPVt9/t6KsADTexs51CucDjTvju
-         F0Xq9H81zsw0WqyighyYIaOCxi/aktHx+EggaPbvC1pbM4cL0gp5VeYNghK/W90OAU1N
-         +SqA==
+        bh=ChVVd5G4oRILHPTf1tyaQyCJSFIBPNwRM4QhHAYVNtk=;
+        b=IjS8rm2ZwDjhnEzXh3OA2C9EaRJDPdOR2jWIuWzkpJ6A0UHuymInb39m8wjt0oEaDX
+         O6YRB8kyQZfPagJURlObeK28EZjmTftqchaKAeNvyQI+c2HqbsHOeCV7iv7cP4T+99WC
+         q7pvuwpyOZK/MuRkpgKvVC9Q4/ZD02wj0Eo26VvpEyx5MomKkOH3v937kn+oJyVVbVpZ
+         a+toSyhol62p4BGiE89Y8OQcomXWkbeCUHP2/YlFZIRToW2zIqidA1K7Xsv1ZhIZ9sX7
+         QbFk7xMmBuixDkRYCy3ZTaILhBD90dLKPxcLNY2QoL44PpYrsnk690LoYUKA1awchT6J
+         dYKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="JYnWAo/N";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uLNnYiWB;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z26sor19803458lfe.67.2019.01.10.18.18.36
+        by mx.google.com with SMTPS id 23sor241556jal.5.2019.01.10.18.38.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 10 Jan 2019 18:18:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 10 Jan 2019 18:38:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="JYnWAo/N";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uLNnYiWB;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=IwEmlRGwHdJ7O3lGFYJW+jg6ng3jN91JyPi2+zBjdEs=;
-        b=JYnWAo/Ni7M01k1aLsyCYKOAVaGuikAGimbR96ifjilXyAixrlW/S6dIFIVldFUuB7
-         P+oQbm8rz/de5ONsQm0c9mbnLfseb9TIku0uKKxLtZSkOBWe884bL5INJqxLEYT4fa70
-         wA3/Al5RSSgoTSyRpLPgS0Qum1NPASPXYVyls=
-X-Google-Smtp-Source: ALg8bN6DDfBqAw4wEKHByt1RbtMG//r3vbURSlH7WtA1rzoXIhlyjFJZ0lJfJzdLTfb0JdxLAU4zSQ==
-X-Received: by 2002:a19:59c2:: with SMTP id n185mr6709296lfb.118.1547173115578;
-        Thu, 10 Jan 2019 18:18:35 -0800 (PST)
-Received: from mail-lf1-f49.google.com (mail-lf1-f49.google.com. [209.85.167.49])
-        by smtp.gmail.com with ESMTPSA id c2-v6sm15484755ljj.41.2019.01.10.18.18.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 18:18:33 -0800 (PST)
-Received: by mail-lf1-f49.google.com with SMTP id y14so9711860lfg.13
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:18:33 -0800 (PST)
-X-Received: by 2002:a19:6e0b:: with SMTP id j11mr7540441lfc.124.1547173113051;
- Thu, 10 Jan 2019 18:18:33 -0800 (PST)
+        bh=ChVVd5G4oRILHPTf1tyaQyCJSFIBPNwRM4QhHAYVNtk=;
+        b=uLNnYiWB8I17TwcJpP71jhsWQB4meFDYlrAGHOkxy7wq6xDTSnZzk3eWhJkW7DO9IZ
+         WT1NBZ/YpqQu9ax/bSfID5CQoaoRKkc2Jdiov5yigZE7oKp0cV25oN/sxiVmTc9WFs2B
+         Kcj3lfnsb0uj3K+lKkrQEVssWYmy2yqje0zjmy/39oStMT6inoAVKqM6MbNCEKb+z+5r
+         5pPSC7htXM5SH6nHDIlHeCd+plBE7Dr57eSYIMqkGyCVCZTmZO/oyE7uiJfCrIfFj70R
+         mzOyG1SbRsD/l0uYpwQU3NXJOeIKCtcPe939oi+7lyC5Egz/c/tdaXln7vj1ERbjmyhY
+         KZ8g==
+X-Google-Smtp-Source: ALg8bN6aUllHXnFFLmH1NDESj5/2uRqt/6kCtMryq2v6x3xBiLqUIkUuC+kyE6HiOYq/eufCp7x3rS4MvHeYhQVunVw=
+X-Received: by 2002:a02:8244:: with SMTP id q4mr9163965jag.43.1547174280468;
+ Thu, 10 Jan 2019 18:38:00 -0800 (PST)
 MIME-Version: 1.0
-References: <20190109022430.GE27534@dastard> <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
- <20190109043906.GF27534@dastard> <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
- <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <20190111020340.GM27534@dastard>
-In-Reply-To: <20190111020340.GM27534@dastard>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 10 Jan 2019 18:18:16 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
+References: <1546848299-23628-1-git-send-email-kernelfans@gmail.com>
+ <20190108080538.GB4396@rapoport-lnx> <20190108090138.GB18718@MiWiFi-R3L-srv>
+ <20190108154852.GC14063@rapoport-lnx> <CAFgQCTtVjwJ_Rfp8DcmzPx6uYPnOx7E_x=YjC+MQ=mx7W38HEw@mail.gmail.com>
+ <20190110075652.GB32036@rapoport-lnx>
+In-Reply-To: <20190110075652.GB32036@rapoport-lnx>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Fri, 11 Jan 2019 10:37:49 +0800
 Message-ID:
- <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Dave Chinner <david@fromorbit.com>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Jiri Kosina <jikos@kernel.org>, 
-	Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+ <CAFgQCTtXp3gOhfzfQPnBP7wU7ABCJcyTTki689iqkVEr_A21AQ@mail.gmail.com>
+Subject: Re: [PATCHv5] x86/kdump: bugfix, make the behavior of crashkernel=X
+ consistent with kaslr
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Baoquan He <bhe@redhat.com>, linux-mm@kvack.org, kexec@lists.infradead.org, 
+	Tang Chen <tangchen@cn.fujitsu.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Michal Hocko <mhocko@suse.com>, Jonathan Corbet <corbet@lwn.net>, 
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, 
+	Nicholas Piggin <npiggin@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, 
+	Daniel Vacek <neelx@redhat.com>, Mathieu Malaterre <malat@debian.org>, Stefan Agner <stefan@agner.ch>, 
+	Dave Young <dyoung@redhat.com>, yinghai@kernel.org, vgoyal@redhat.com, 
+	linux-kernel@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111021816.7ktUwYG_a4PXwr8hFkTfsW-qIVW6zmfVk9C9xmrOHd4@z>
+Message-ID: <20190111023749.kPvVCE__eYWDoMOs4jIyc34cQC1SnkcFPYXx7q93B_0@z>
 
-On Thu, Jan 10, 2019 at 6:03 PM Dave Chinner <david@fromorbit.com> wrote:
+On Thu, Jan 10, 2019 at 3:57 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
 >
-> On Thu, Jan 10, 2019 at 02:11:01PM -0800, Linus Torvalds wrote:
-> > And we *can* do sane things about RWF_NOWAIT. For example, we could
-> > start async IO on RWF_NOWAIT, and suddenly it would go from "probe the
-> > page cache" to "probe and fill", and be much harder to use as an
-> > attack vector..
+> Hi Pingfan,
 >
-> We can only do that if the application submits the read via AIO and
-> has an async IO completion reporting mechanism.
+> On Wed, Jan 09, 2019 at 09:02:41PM +0800, Pingfan Liu wrote:
+> > On Tue, Jan 8, 2019 at 11:49 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> > >
+> > > On Tue, Jan 08, 2019 at 05:01:38PM +0800, Baoquan He wrote:
+> > > > Hi Mike,
+> > > >
+> > > > On 01/08/19 at 10:05am, Mike Rapoport wrote:
+> > > > > I'm not thrilled by duplicating this code (yet again).
+> > > > > I liked the v3 of this patch [1] more, assuming we allow bottom-up mode to
+> > > > > allocate [0, kernel_start) unconditionally.
+> > > > > I'd just replace you first patch in v3 [2] with something like:
+> > > >
+> > > > In initmem_init(), we will restore the top-down allocation style anyway.
+> > > > While reserve_crashkernel() is called after initmem_init(), it's not
+> > > > appropriate to adjust memblock_find_in_range_node(), and we really want
+> > > > to find region bottom up for crashkernel reservation, no matter where
+> > > > kernel is loaded, better call __memblock_find_range_bottom_up().
+> > > >
+> > > > Create a wrapper to do the necessary handling, then call
+> > > > __memblock_find_range_bottom_up() directly, looks better.
+> > >
+> > > What bothers me is 'the necessary handling' which is already done in
+> > > several places in memblock in a similar, but yet slightly different way.
+> > >
+> > > memblock_find_in_range() and memblock_phys_alloc_nid() retry with different
+> > > MEMBLOCK_MIRROR, but memblock_phys_alloc_try_nid() does that only when
+> > > allocating from the specified node and does not retry when it falls back to
+> > > any node. And memblock_alloc_internal() has yet another set of fallbacks.
+> > >
+> > > So what should be the necessary handling in the wrapper for
+> > > __memblock_find_range_bottom_up() ?
+> > >
+> > Well, it is a hard choice.
+> > > BTW, even without any memblock modifications, retrying allocation in
+> > > reserve_crashkerenel() for different ranges, like the proposal at [1] would
+> > > also work, wouldn't it?
+> > >
+> > Yes, it can work. Then is it worth to expose the bottom-up allocation
+> > style beside for hotmovable purpose?
+>
+> Some architectures use bottom-up as a "compatability" mode with bootmem.
+> And, I believe, powerpc and s390 use bottom-up to make some of the
+> allocations close to the kernel.
+>
+Ok, got it. Thanks.
 
-Oh, no, you misunderstand.
+Best regards,
+Pingfan
 
-RWF_NOWAIT has a lot of situations where it will potentially return
-early (the DAX and direct IO ones have their own), but I was thinking
-of the one in generic_file_buffered_read(), which triggers when you
-don't find a page mapping. That looks like the obvious "probe page
-cache" case.
-
-But we could literally move that test down just a few lines. Let it
-start read-ahead.
-
-.. and then it will actually trigger on the *second* case instead, where we have
-
-                if (!PageUptodate(page)) {
-                        if (iocb->ki_flags & IOCB_NOWAIT) {
-                                put_page(page);
-                                goto would_block;
-                        }
-
-and that's where RWF_MNOWAIT would act.
-
-It would still return EAGAIN.
-
-But it would have started filling the page cache. So now the act of
-probing would fill the page cache, and the attacker would be left high
-and dry - the fact that the page cache now exists is because of the
-attack, not because of whatever it was trying to measure.
-
-See?
-
-But obviously this kind of change only matters if we also have
-mincore() not returning the probe data. mincore() obviously can't do
-the same kind of read-ahead to defeat things.
-
-              Linus
+> > Thanks,
+> > Pingfan
+> > > [1] http://lists.infradead.org/pipermail/kexec/2017-October/019571.html
+> > >
+> > > > Thanks
+> > > > Baoquan
+> > > >
+> > > > >
+> > > > > diff --git a/mm/memblock.c b/mm/memblock.c
+> > > > > index 7df468c..d1b30b9 100644
+> > > > > --- a/mm/memblock.c
+> > > > > +++ b/mm/memblock.c
+> > > > > @@ -274,24 +274,14 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
+> > > > >      * try bottom-up allocation only when bottom-up mode
+> > > > >      * is set and @end is above the kernel image.
+> > > > >      */
+> > > > > -   if (memblock_bottom_up() && end > kernel_end) {
+> > > > > -           phys_addr_t bottom_up_start;
+> > > > > -
+> > > > > -           /* make sure we will allocate above the kernel */
+> > > > > -           bottom_up_start = max(start, kernel_end);
+> > > > > -
+> > > > > +   if (memblock_bottom_up()) {
+> > > > >             /* ok, try bottom-up allocation first */
+> > > > > -           ret = __memblock_find_range_bottom_up(bottom_up_start, end,
+> > > > > +           ret = __memblock_find_range_bottom_up(start, end,
+> > > > >                                                   size, align, nid, flags);
+> > > > >             if (ret)
+> > > > >                     return ret;
+> > > > >
+> > > > >             /*
+> > > > > -            * we always limit bottom-up allocation above the kernel,
+> > > > > -            * but top-down allocation doesn't have the limit, so
+> > > > > -            * retrying top-down allocation may succeed when bottom-up
+> > > > > -            * allocation failed.
+> > > > > -            *
+> > > > >              * bottom-up allocation is expected to be fail very rarely,
+> > > > >              * so we use WARN_ONCE() here to see the stack trace if
+> > > > >              * fail happens.
+> > > > >
+> > > > > [1] https://lore.kernel.org/lkml/1545966002-3075-3-git-send-email-kernelfans@gmail.com/
+> > > > > [2] https://lore.kernel.org/lkml/1545966002-3075-2-git-send-email-kernelfans@gmail.com/
+> > > > >
+> > > > > > +
+> > > > > > + return ret;
+> > > > > > +}
+> > > > > > +
+> > > > > >  /**
+> > > > > >   * __memblock_find_range_top_down - find free area utility, in top-down
+> > > > > >   * @start: start of candidate range
+> > > > > > --
+> > > > > > 2.7.4
+> > > > > >
+> > > > >
+> > > > > --
+> > > > > Sincerely yours,
+> > > > > Mike.
+> > > > >
+> > > >
+> > >
+> > > --
+> > > Sincerely yours,
+> > > Mike.
+> > >
+> >
+>
+> --
+> Sincerely yours,
+> Mike.
+>
 
