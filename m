@@ -1,77 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C03EC8E0002
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2019 12:36:16 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id 51so14900170wrb.15
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2019 09:36:16 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 74sor19820083wmm.16.2019.01.02.09.36.15
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B111E8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 04:23:19 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id f69so9922596pff.5
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 01:23:19 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c12si19397337pgb.402.2019.01.11.01.23.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 Jan 2019 09:36:15 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 1/3] kasan, arm64: use ARCH_SLAB_MINALIGN instead of manual aligning
-Date: Wed,  2 Jan 2019 18:36:06 +0100
-Message-Id: <b16c90197bb2c06c780e6e981c40345e03fda465.1546450432.git.andreyknvl@google.com>
-In-Reply-To: <cover.1546450432.git.andreyknvl@google.com>
-References: <cover.1546450432.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 01:23:18 -0800 (PST)
+Date: Fri, 11 Jan 2019 10:23:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/alloc: fallback to first node if the wanted node
+ offline
+Message-ID: <20190111092315.GB14956@dhcp22.suse.cz>
+References: <20181210123738.GN1286@dhcp22.suse.cz>
+ <CAFgQCTupPc1rKv2SrmWD+eJ0H6PRaizPBw3+AG67_PuLA2SKFw@mail.gmail.com>
+ <20181212115340.GQ1286@dhcp22.suse.cz>
+ <CAFgQCTuhW6sPtCNFmnz13p30v3owE3Rty5WJNgtqgz8XaZT-aQ@mail.gmail.com>
+ <CAFgQCTtFZ8ku7W_7rcmrbmH4Qvsv7zgOSHKfPSpNSkVjYkPfBg@mail.gmail.com>
+ <20181217132926.GM30879@dhcp22.suse.cz>
+ <CAFgQCTubm9B1_zM+oc1GLfOChu+XY9N4OcjyeDgk6ggObRtMKg@mail.gmail.com>
+ <20181220091934.GC14234@dhcp22.suse.cz>
+ <20190108143440.GU31793@dhcp22.suse.cz>
+ <CAFgQCTtdJ1mR6v2Y3ojHSmjg9U90cAUddhxG3Y_8zNDR5Aw9oQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFgQCTtdJ1mR6v2Y3ojHSmjg9U90cAUddhxG3Y_8zNDR5Aw9oQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, Vishwath Mohan <vishwath@google.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Pingfan Liu <kernelfans@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Bjorn Helgaas <bhelgaas@google.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
 
-Instead of changing cache->align to be aligned to KASAN_SHADOW_SCALE_SIZE
-in kasan_cache_create() we can reuse the ARCH_SLAB_MINALIGN macro.
+On Fri 11-01-19 11:12:45, Pingfan Liu wrote:
+[...]
+> Hi, this patch works! Feel free to use tested-by me
 
-Suggested-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- arch/arm64/include/asm/kasan.h | 4 ++++
- include/linux/slab.h           | 1 +
- mm/kasan/common.c              | 2 --
- 3 files changed, 5 insertions(+), 2 deletions(-)
+Thanks a lot for your testing! Now it is time to seriously think whether
+this is the right thing to do and sync all other arches that might have
+the same problem. I will take care of it. Thanks for your patience and
+effort. I will post something hopefully soon in a separate thread as
+this one grown too large already.
 
-diff --git a/arch/arm64/include/asm/kasan.h b/arch/arm64/include/asm/kasan.h
-index b52aacd2c526..ba26150d578d 100644
---- a/arch/arm64/include/asm/kasan.h
-+++ b/arch/arm64/include/asm/kasan.h
-@@ -36,6 +36,10 @@
- #define KASAN_SHADOW_OFFSET     (KASAN_SHADOW_END - (1ULL << \
- 					(64 - KASAN_SHADOW_SCALE_SHIFT)))
- 
-+#ifdef CONFIG_KASAN_SW_TAGS
-+#define ARCH_SLAB_MINALIGN	(1ULL << KASAN_SHADOW_SCALE_SHIFT)
-+#endif
-+
- void kasan_init(void);
- void kasan_copy_shadow(pgd_t *pgdir);
- asmlinkage void kasan_early_init(void);
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 11b45f7ae405..d87f913ab4e8 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -16,6 +16,7 @@
- #include <linux/overflow.h>
- #include <linux/types.h>
- #include <linux/workqueue.h>
-+#include <linux/kasan.h>
- 
- 
- /*
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 03d5d1374ca7..44390392d4c9 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -298,8 +298,6 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
- 		return;
- 	}
- 
--	cache->align = round_up(cache->align, KASAN_SHADOW_SCALE_SIZE);
--
- 	*flags |= SLAB_KASAN;
- }
- 
 -- 
-2.20.1.415.g653613c723-goog
+Michal Hocko
+SUSE Labs
