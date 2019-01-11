@@ -2,115 +2,121 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EF4DCC43444
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:26:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F183C43387
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:26:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC9BE2084C
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:26:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F1AE42084C
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 00:26:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="NWvzfKHn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC9BE2084C
+	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="XGRLCVo2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1AE42084C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=synopsys.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 48E638E0003; Thu, 10 Jan 2019 19:26:43 -0500 (EST)
+	id 4DBFA8E0004; Thu, 10 Jan 2019 19:26:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 43D4B8E0001; Thu, 10 Jan 2019 19:26:43 -0500 (EST)
+	id 4B6D48E0001; Thu, 10 Jan 2019 19:26:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 354808E0003; Thu, 10 Jan 2019 19:26:43 -0500 (EST)
+	id 37D198E0004; Thu, 10 Jan 2019 19:26:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E974B8E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 19:26:42 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id i3so9019798pfj.4
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:26:42 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EB0F98E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 19:26:43 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id ay11so7203175plb.20
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:26:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version;
-        bh=6VLDW5TH7W0fiA3LQLDP3Qgvgu7yECgoZDOg7pFZzkk=;
-        b=WPto03TsjXF1b+IaUz4Pv7b3YFzl/W/MqaEldmajbwAVf+EMKJq9296aY196LN/OZh
-         9fklzREozJZfC/rW0b+SKQzEcMKFyLn2SQvSuT1Rh0DFMHxsXPd5WaK/SrJb/DLgGO3M
-         M1Gq7A20p/sMmuvm+8L8ZhPfdhMRFXJdRyUZqTVnk/GtdE5913HXthZspDnM7NO3XrgQ
-         CuAeFVnWpd5TIHcJ8HxmuFrN7YiIFTiq0R7aZzifC27X0EJhHKzrB8feUGFp4o3U4m0w
-         ieGkh4EFCNc0kweJIHe/SLxxBMcIizJ6W3zQYr0wMPeCYzzsXZ/M9nWWVA4zO2ABiCal
-         wjKQ==
-X-Gm-Message-State: AJcUukf0jcshNwjajQUllNeIWZPxIzgjpxGuz1NUeKFkZyecTBl0/Goy
-	WkV/Pkj+JPNgCKDbirMmcase5zzt+rxYIGAye3/RIKKW/BDfFb8HBLoom1EbBS274OuE5bO/64N
-	txqUqSjL1SkICQLr5AcIgtOzdghYS8qgWXgWNyP3YTgp2/kvwjmmFANr+BShD30aEiQ==
-X-Received: by 2002:a17:902:830a:: with SMTP id bd10mr12490958plb.321.1547166402570;
+         :message-id:in-reply-to:references:mime-version;
+        bh=rybgnvg4UUXVXfPODAcLL7t8ooaSruZ0ikD0phBPoYw=;
+        b=ICEkxXGN80ixnatr8OBwbgE9zz62FJSy1Qu7TCzq5AmZeEleRTLEr3jhUGYrrbEh+V
+         YKCxnk2U/G2zzx1ENmLLHXYowJRXCSDMHXWZk6YIAe8SzY5T4yc1EF5pm6Au68cgfl5r
+         WNrsKSzONJdrL84DaXxz3z9gc9HNAb1Wv51VzPSBNqoxRhiQC5D3pUvaPO5uRE4mAfWK
+         7AxP4A/R21Z6Lr4jSEZY6s5CBHZQZXhA9oeHz1C3BroyE4fMKsvFnhgxO0CegT5DcoVu
+         VDnSx8lfqJuGw3X0FuHiHSomeBD3lRN+YL+5jGYHUw38DGZTLl3ahlw5fu4o3PZe5QHd
+         3rxA==
+X-Gm-Message-State: AJcUukdrD4UySbC6aWZDKyPJjEa7NkTXIKjBruXu0VZBrPTm232YBP7m
+	FLU+p0UfeLWfXNMTPWPGpRhwvt2iPpunGiaS4+CVdQsooZYwTA4Vyigq+KFilZEjpDm51iBU4LJ
+	/diSL6V+jqerdz2IkxpUs2JDust06BuufggYeRH7ljvP2n7C4fMh90aHFTP3TxzqfpQ==
+X-Received: by 2002:a17:902:b494:: with SMTP id y20mr12704315plr.178.1547166403645;
+        Thu, 10 Jan 2019 16:26:43 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4GwJ132tncLwpZJvGyY1pl9zDH+RyUACFXUQFHlRIRosE+B6i+yWsOfhkyFH02FQ1SqTEg
+X-Received: by 2002:a17:902:b494:: with SMTP id y20mr12704284plr.178.1547166402837;
         Thu, 10 Jan 2019 16:26:42 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6tKXvgU6gir2RRcYDnBvxw++/pCLio/nkUkxLsF0VbMihByB9yvZWL+I313ean+p7xBQB7
-X-Received: by 2002:a17:902:830a:: with SMTP id bd10mr12490921plb.321.1547166401817;
-        Thu, 10 Jan 2019 16:26:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547166401; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1547166402; cv=none;
         d=google.com; s=arc-20160816;
-        b=ooPWxia8xOGodJnIe03mcYgIJDClqx60PrW14ys95GolGKx2Q7B66u9I45E5s1gHrv
-         Y8AFS9McR2ZMHMv7X1iD0kewupm5PcnnmZoP0rZwR3UDlpr36bV8yVSBTapHfzT5zVnF
-         47JK0Q2tW3CI0trrKTMUI6r5RC567NQhb35LbxERlhEcVis7v/moIm6aCMb5P9A4EthS
-         px1eA5ljWYgjLV3sHOrczq4C1wyF4+fC1LjtAeRuI/IlHxS0JyVkEtJUSL6fYFkkPEie
-         5kGyCOm2+3g+k8fnnLO0TXRJNOXJG0UtUBu0QEgZ7ozQDJzaVa62cveciD1DrV+n7qg+
-         kstw==
+        b=MWBCAESJ1XAgOrWts6TGp6dYdHUla57rcWZiyhD2T4XrfpQsOw8qQlpb12G5rIALqr
+         0urjTkeYJelLv2sDIyZ5Jy0fgXXQgHCHfsEjK4upqzZmpaV3Pqll7rv0TrGoi8tuKm6Y
+         /YTu+lRh8Dnxh+vOxTjCmedtncLg9fRWhpXg0WZzgyA8Km0unyo9ZK9X6V5/QBwrs41v
+         tz2GNxSrsFID7elfn8bDRdlJbGiYIV0sdKPRiJim0nd6BiBJ80KyyzOMgny0R89IXJ1E
+         DdLxRPutIkIpC12NMcnwEsY/I6MtBd7cQ8qVyR58gp11HUjs+iiFimNtl1EoEcp705/E
+         yzIA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=6VLDW5TH7W0fiA3LQLDP3Qgvgu7yECgoZDOg7pFZzkk=;
-        b=RBGw+rrGkWKxzD5OvQRc03ygxqih0CquUYwsxeWMtaf3wlOPZHAqyE8OI+fE9VPe6Z
-         M8ano0TQnCAO8YkyosHxKEu1QcyIngeXhdW7iBuYO4BxWW937TudREwExRSTDKl3ozSx
-         gf/pW910BakvhT0f70wruPuVudIR8fpfXLOgYWhvTuaooyp4AqH9bQFBT7gsUNG87fRd
-         xRY50UZCB1quq1YQv5HdJdPNZ4sQkhrQtKtk4cZ5abVGc/+FgQKOgjxrgzMWY/33fA/a
-         EzbnXuqnfRGJFSz5OPda5046z6b1uZf8HSJX0E3qOXGpP4wECNqCEGTvyMQw83wZg2V8
-         busg==
+        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
+         :from:dkim-signature;
+        bh=rybgnvg4UUXVXfPODAcLL7t8ooaSruZ0ikD0phBPoYw=;
+        b=VaUuy/Enq3yL8GQHrKUktM741WRJmfCT6T5HBSwXcRbq9Nb15m013uUrRm37fv22dQ
+         ouadvjy7wD8LFtid+4d1D/8t8AwJ82i34/o7z9JBjnBlW7ZkgBAmTOJJIY90IYoO4Q0s
+         4N2Vmimno7usDmm2QVwqvQ0Svb2J4Vgg7O/mA0t2dv2rinZgzxQuxUrBX0JUqB7AqBmB
+         meD2eX9RWa2n0gavsy1qM7rF9M3lMRFwVGtRSfyLtPooul8F+PTQE6IrWajYMfljIFLA
+         8z5XA47LNIiTnAvNVLZ/5FW4rfxg3YX6WqbEitny12HpMarmDPjBSPJIKfd9bA7OVxyG
+         PbEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@synopsys.com header.s=mail header.b=NWvzfKHn;
-       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.60.111 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=XGRLCVo2;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id q127si5811602pfq.19.2019.01.10.16.26.41
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id c3si7995688plr.178.2019.01.10.16.26.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 16:26:41 -0800 (PST)
-Received-SPF: pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.60.111 as permitted sender) client-ip=198.182.60.111;
+        Thu, 10 Jan 2019 16:26:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) client-ip=198.182.47.9;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@synopsys.com header.s=mail header.b=NWvzfKHn;
-       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.60.111 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=XGRLCVo2;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
-Received: from mailhost.synopsys.com (mailhost2.synopsys.com [10.13.184.66])
-	by smtprelay.synopsys.com (Postfix) with ESMTP id 2B5A610C06EF;
+Received: from mailhost.synopsys.com (mailhost3.synopsys.com [10.12.238.238])
+	by smtprelay.synopsys.com (Postfix) with ESMTP id 1C92F24E0607;
 	Thu, 10 Jan 2019 16:26:41 -0800 (PST)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=synopsys.com; s=mail;
-	t=1547166401; bh=KGZ9OeLmlgo9sWjwCllJ2JfHatcqtBn7FO/ruNLVtd4=;
-	h=From:To:CC:Subject:Date:From;
-	b=NWvzfKHn4SzWSknpom+EaJ5nNKhfSjQWlUeCLMYRvImFBJlX3lVnn0EBHW1zy9m9l
-	 zJBh2DKWqssQWl1c/17HGNlQ2l4p2zYOTBXL90Lfbh8Xq335xYPEA8cKyIlBZcjYw4
-	 7QQ5qsci411q9R2mUrVC8ePZdOz5JR2nfHRSXZ5N1j+UcJDqJb65t1u7OzsKGGJ/23
-	 8O3Jn7IvrZcswpdoe9YfVR+YstVVTwpeLHbFufr9o4JU57tTBbQ2fbSaZ8oPAyvpoG
-	 qCTiOCewVXluJDWQtCzGlcwGZEl3F/l3/gsNC0Ng0I0aMPG6scawDPh2GCiAnoLWwC
-	 p4PtqiZgmdacw==
+	t=1547166402; bh=DVgWT4VOpi5ItAo8wxhZ9DfXiDw+m8gVPchbHy0ojuI=;
+	h=From:To:CC:Subject:Date:In-Reply-To:References:From;
+	b=XGRLCVo2XP8tQkWnaZQIZmEQVgpVkqn/Duw+Pi8ivbRQpZ0r0oZFFS8mKFKtld5U/
+	 j42v9RNlWg2TsIkvLteU7Hncr1BOYWa1KQdvttpfsOtWI2uVg1o4pe2BF1w19sp+OT
+	 aT4MQ7BHFq6F1sY8SOz2ZMlw/cIBsURPohz92YgHzUcEnbdGGt5VLNnz96Britwkr/
+	 s9ap5nwiAZY1pyftzTdIJ1kyXBpm9BcUaKt09EDMrilUQgL0GHep4l/rrnPRWm73mg
+	 7vBKSTwfVbnZ/vaqOvZcx5f6V8JaNr3JrUvM5yfuq/7EVXaYJe2fTdSHV9GnNgGyIz
+	 8FRViI6ZPLrJg==
 Received: from US01WEHTC3.internal.synopsys.com (us01wehtc3.internal.synopsys.com [10.15.84.232])
-	by mailhost.synopsys.com (Postfix) with ESMTP id 192A43993;
+	by mailhost.synopsys.com (Postfix) with ESMTP id 931343436;
 	Thu, 10 Jan 2019 16:26:41 -0800 (PST)
 Received: from IN01WEHTCA.internal.synopsys.com (10.144.199.104) by
  US01WEHTC3.internal.synopsys.com (10.15.84.232) with Microsoft SMTP Server
- (TLS) id 14.3.408.0; Thu, 10 Jan 2019 16:26:40 -0800
+ (TLS) id 14.3.408.0; Thu, 10 Jan 2019 16:26:41 -0800
 Received: from IN01WEHTCB.internal.synopsys.com (10.144.199.105) by
  IN01WEHTCA.internal.synopsys.com (10.144.199.103) with Microsoft SMTP Server
- (TLS) id 14.3.408.0; Fri, 11 Jan 2019 05:56:39 +0530
+ (TLS) id 14.3.408.0; Fri, 11 Jan 2019 05:56:42 +0530
 Received: from vineetg-Latitude-E7450.internal.synopsys.com (10.10.161.70) by
  IN01WEHTCB.internal.synopsys.com (10.144.199.243) with Microsoft SMTP Server
- (TLS) id 14.3.408.0; Fri, 11 Jan 2019 05:56:40 +0530
+ (TLS) id 14.3.408.0; Fri, 11 Jan 2019 05:56:43 +0530
 From: Vineet Gupta <vineet.gupta1@synopsys.com>
 To: <linux-kernel@vger.kernel.org>
 CC: <linux-snps-arc@lists.infradead.org>, <linux-mm@kvack.org>,
-	<peterz@infradead.org>, Vineet Gupta <vineet.gupta1@synopsys.com>
-Subject: [PATCH 0/3] Replace opencoded set_mask_bits
-Date: Thu, 10 Jan 2019 16:26:24 -0800
-Message-ID: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
+	<peterz@infradead.org>, Vineet Gupta <vineet.gupta1@synopsys.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	<linux-fsdevel@vger.kernel.org>
+Subject: [PATCH 1/3] coredump: Replace opencoded set_mask_bits()
+Date: Thu, 10 Jan 2019 16:26:25 -0800
+Message-ID: <1547166387-19785-2-git-send-email-vgupta@synopsys.com>
 X-Mailer: git-send-email 2.7.4
+In-Reply-To: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
+References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 X-Originating-IP: [10.10.161.70]
@@ -119,26 +125,40 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111002624.LTvzGWNpklB-IRI_UzYsmWBD6qsJeBs5F5CU5Lwy2Xg@z>
+Message-ID: <20190111002625.q2bKSy08V6w0OJS877Iyi1T5qAdJAQA8z-H33Z3D0uU@z>
 
-Hi,
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Link: http://lkml.kernel.org/g/20150807115710.GA16897@redhat.com
+Acked-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+---
+ fs/exec.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
 
-I did these a while back and forget. Rebased to 5.0-rc1.
-Please consider applying.
-
-Thx,
--Vineet
-
-Vineet Gupta (3):
-  coredump: Replace opencoded set_mask_bits()
-  fs: inode_set_flags() replace opencoded set_mask_bits()
-  bitops.h: set_mask_bits() to return old value
-
- fs/exec.c              | 7 +------
- fs/inode.c             | 8 +-------
- include/linux/bitops.h | 2 +-
- 3 files changed, 3 insertions(+), 14 deletions(-)
-
+diff --git a/fs/exec.c b/fs/exec.c
+index fb72d36f7823..df7f05362283 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1944,15 +1944,10 @@ EXPORT_SYMBOL(set_binfmt);
+  */
+ void set_dumpable(struct mm_struct *mm, int value)
+ {
+-	unsigned long old, new;
+-
+ 	if (WARN_ON((unsigned)value > SUID_DUMP_ROOT))
+ 		return;
+ 
+-	do {
+-		old = READ_ONCE(mm->flags);
+-		new = (old & ~MMF_DUMPABLE_MASK) | value;
+-	} while (cmpxchg(&mm->flags, old, new) != old);
++	set_mask_bits(&mm->flags, MMF_DUMPABLE_MASK, value);
+ }
+ 
+ SYSCALL_DEFINE3(execve,
 -- 
 2.7.4
 
