@@ -2,431 +2,152 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBFC0C43612
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 16:51:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96E76C43387
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 17:53:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9762820657
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 16:51:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9762820657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 60BFD20874
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 17:53:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="pKSoOo23"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60BFD20874
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37FDD8E0003; Fri, 11 Jan 2019 11:51:51 -0500 (EST)
+	id D8A958E0003; Fri, 11 Jan 2019 12:53:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 32F9F8E0001; Fri, 11 Jan 2019 11:51:51 -0500 (EST)
+	id D39D98E0001; Fri, 11 Jan 2019 12:53:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 220138E0003; Fri, 11 Jan 2019 11:51:51 -0500 (EST)
+	id C01E18E0003; Fri, 11 Jan 2019 12:53:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EC77B8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 11:51:50 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id z6so17061259qtj.21
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 08:51:50 -0800 (PST)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 99F178E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 12:53:25 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id p21so13718204iog.0
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 09:53:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=0OVrfS+heHWNNbBgZ8LJ3ynMQpi1+juez/NtcKW4jtY=;
-        b=QAYXxE+ZzE5DhcrVFPE7+ICl9CsSgsLpAtmh0ON5h2jGA16WRAmE9YSmr7GRXvI2hx
-         NnYq6uUSMAt1+B6qteqnSXF53M3x2wvw1tA9CX1NIPLwnBcKOFSskMCRQdRoxV/P68tL
-         Cd0U4E9uVEcAcmndkYJEhqx0/7vSfxAbDsr7YUAszAs7IIq0V6DTTp2own+Z694Vl8Na
-         B4RZ25//kaKNeUBtvMAi9HgCmOUmVzuWq+8Q2KatW3EYbzXaFuPqkUcgGVGsC3ouXlHf
-         61KFaBOcaBE9HdnkLfoqZDOYzVJHw4bddoBbXLW8AZ30P4IiyJPqSAPKrWoCTKbFZe2t
-         ONLg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukcojPdY4tA1k5OZ4FSY+8Gq+QDYGL4jRxTM0dNgjDAXKLxYzpfj
-	PdDUtbJNPlOkhbgdhjtFSZWC90CBUlSJG8bLflTScqCUqabH3phH82fprYehBDRvogB94yNAoff
-	UcUcphfIbINVsAgCRMlHjeRWMTZIBCSgmgrAyvHn4vF1VbcmDrtefHfTw7ULsWJ+6wg==
-X-Received: by 2002:a0c:9384:: with SMTP id f4mr14843049qvf.239.1547225510689;
-        Fri, 11 Jan 2019 08:51:50 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5ZnuaeqjPbBo0cpk3vPnHezn1drvLgFU/hAux3DxPZdz4Uhsfp8+zFdVh49nPfsFaDLW01
-X-Received: by 2002:a0c:9384:: with SMTP id f4mr14842963qvf.239.1547225509153;
-        Fri, 11 Jan 2019 08:51:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547225509; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=L3ihz0Ird+e4+UHksRLQl2xkZDvYaSIUNPIJGpUrwR4=;
+        b=HzW/1b5FqLq7dgCdCX2rtXo/hwYTGz4+l5OOwBjlbT5L68nDVSQfjvLFmJyPMAJMiS
+         UV2AvU9doLsR93Bfv5W3S+SbpcVqSK17LbTDKWTDmJB34LbcauBfYUWYM1Zbouf0H2Tz
+         SPru9lzyigTnA0dUvtwAhZbjzY3KXi5mwn7y0XtNbHm1QqIDIPeUp+cbxe2RGBOwgWQD
+         /mPJqpsF/mPqTUpn7SYcmW1Zqmw5NaCKdYyKS8cMs9RAaZmYouY+IKa44J3GwnJ/NM+8
+         Y9RWHFpvIZDqdp5Bogv+uyLidHwdjDQ38YY/69vz03nrTF+J6K5stgYbzSiSfu+OJpO5
+         Fi4w==
+X-Gm-Message-State: AJcUukeszt5Lgh7dAURSvfFmJRN2UQjwZMDVKRVsdAtAV8Md8WQqBXDa
+	q/OL6fNB3SvxxPUXOrN4ClbruUTcelmREOJKCOQgarR81YOpuYvbCLwDR9o5Wpsv6ebXWDlnLT/
+	hiLT4WP2fJk/r6v0rjiqgHj5aeP0Gzg7bMZI7YpQQiGXLq+NwQnJOIN/94bpE53HlSA==
+X-Received: by 2002:a24:3e43:: with SMTP id s64mr2010791its.111.1547229205365;
+        Fri, 11 Jan 2019 09:53:25 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4HDYRNUmyHWMb5MUqVmlI1ziuBEzZ1KCe4l+pyYu8CxQivYRHY+n6tvU3Id1GmIBDP75A1
+X-Received: by 2002:a24:3e43:: with SMTP id s64mr2010761its.111.1547229204705;
+        Fri, 11 Jan 2019 09:53:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547229204; cv=none;
         d=google.com; s=arc-20160816;
-        b=uDBSYWDPlfv7Zvf6XPhHG4MaNHbqoNs77MGObV/RVG/si5dZoH1pAmjFVr6knGJoUw
-         Efe8uz4WoVJAwZGyOnBHqsNJxLYqFIOUbs6Eeg3VYG6dEUDvPCA2USzvrMUt3hF/y3Dg
-         pKLD3rSyaWG8QYn3lIBMWDN409AQqrA4ApO111cTnDjMKcxF96bFDvbCz9mym4Yo/0D5
-         HmNDJ6q+AnXLEQPTF4m2Rc9orNtGPGPVQkkCqJrJ4dbtCVJMPtGm2FFPNeNebI+3Vbqv
-         7cNOr7pHoO4/SzOEj851PypkcehZoRmAe08uroN8JJ45CvbXA/hnuNJjr92FvpIFQmeE
-         8WkQ==
+        b=iL0gCRZNFQAfwk+W9JPDVv/QK0BFpbqRkix+0VJFPvPj+cvFUoBcrmaxCztr/T43dJ
+         5VX8oDfCV+B0B/CjNM/Scy1PGUmvKI6+Req5xMOG17TEkxDNZlIkRgSt8130Q2S44tQg
+         u/WBmpMY1kKXVwO9vPhYadv9B4mSFLMBeFYvaYZwgVgAj9IoYKMQHj7ryRkN0+QziXR/
+         9K+Ay1w+8kw5n/8kJ0LV+X5kTM99u282bjdyvRx+fkoh8qKzFGfQ7boU9VRIll57tKNY
+         Pcawr612Ck6SUZeyw5u/CrjEL+EnkhiHc275c0FgU5ofBKziC7Sjh9dJkZ/w+J0DMAvL
+         sFSw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=0OVrfS+heHWNNbBgZ8LJ3ynMQpi1+juez/NtcKW4jtY=;
-        b=nZfunZdr/H4KsMPBnvU1jHqxKvVjid6g+3eBUjzFfFGM95XR3X8QpzEozKMHiyWopL
-         9I+SvYFRJ0udMVxe3mFPyfw6i1pfympHQKddk5TaDVGpLeA3xoZNtsBxZN91o5INVFx6
-         rdS8XDLEEtwgo8pNKNp6FBgy/O0QXFA7Rb7rNHzzZj3YW3NlaStIK94Ryk16KxsmUZUe
-         RgW5CqBv8SV2lxEiwCLoW1bQ2hckzQYGXeu86NjEbceXR94vUiRn9T8dENbiErYH3yPT
-         aLe4LxWxn89JsfOBQ2/Wo4HVWiRUeB8Qwah4RXpMHkSKyRum0kWjPqTOv9k1Crzk/pyX
-         1soQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=L3ihz0Ird+e4+UHksRLQl2xkZDvYaSIUNPIJGpUrwR4=;
+        b=OryyaTaMsrgccFWcu9mEpAxfpLgeqwzHmn3tjSa+htTzEU/fWK0LVvNNJ/mqtfzoR1
+         w4c1MZLP1xhmtL7Bf29Nb+QzEgF/9tN1v6p+kXY3ahziaqC96pAM86vX2TyfhUtupWCz
+         X/NiRAgRibtr9xsxbJ2ko7Axd8sV3qRpY4VZrnqF17pgmCF/nwPAsaI5r7RxL2a6BlLU
+         BX+3e3h6zl4IpB5l9yAdZqwKr0Xi821a/1JXIMzmhgaerpmUOYxcNCcpxFalzdtO/UhZ
+         /+dm8fgliapOCNjVQ5jF8g4hT2bqXJFYYWHAi7tL/NQepG2GZGotfLiuDkLe05duT8LE
+         98ag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d16si1596883qtg.395.2019.01.11.08.51.48
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=pKSoOo23;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id k190si1345975ith.139.2019.01.11.09.53.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 08:51:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 11 Jan 2019 09:53:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 528D7C09942B;
-	Fri, 11 Jan 2019 16:51:47 +0000 (UTC)
-Received: from redhat.com (ovpn-125-134.rdu2.redhat.com [10.10.125.134])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4DFE4600C2;
-	Fri, 11 Jan 2019 16:51:44 +0000 (UTC)
-Date: Fri, 11 Jan 2019 11:51:42 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>,
-	Dave Chinner <david@fromorbit.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	John Hubbard <john.hubbard@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>, tom@talpey.com,
-	Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	"Dalessandro, Dennis" <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com,
-	rcampbell@nvidia.com,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190111165141.GB3190@redhat.com>
-References: <20181217181148.GA3341@redhat.com>
- <20181217183443.GO10600@bombadil.infradead.org>
- <20181218093017.GB18032@quack2.suse.cz>
- <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
- <20181219020723.GD4347@redhat.com>
- <20181219110856.GA18345@quack2.suse.cz>
- <20190103015533.GA15619@redhat.com>
- <20190103092654.GA31370@quack2.suse.cz>
- <20190103144405.GC3395@redhat.com>
- <a79b259b-3982-b271-025a-0656f70506f4@nvidia.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=pKSoOo23;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x0BHcvS3129655;
+	Fri, 11 Jan 2019 17:53:21 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=L3ihz0Ird+e4+UHksRLQl2xkZDvYaSIUNPIJGpUrwR4=;
+ b=pKSoOo23bd9rQm7LCdqSKg1G3TbIQjAP5IxsKDKvbWCf27qE+Oo1cVc1Ev24h7ZQm95w
+ NVH/B37nO4BBLl+Pbujb4ItV0IGuLEL549K+1kQ1XTMftflXMA/UJkHyw0Wp9tn/aYRi
+ tM1J6AdjwzbxRDf72I9u37v74I8acuxEPO8oqpE1PLMkTXbmTqfBFG+QI++PZegDd49l
+ ZuQPR9YBECsVKdR2QqhyFJQPQqxA7sZPo4Z2HKeY6a/jhX2X9CbOWckVyZdzRGr1dnZC
+ YD0CbFc/4AaDsE7Vgy/XosNKYzhcP/m+58AWyBRs077+XSZs7tg97VTrFZMGRys2jXpD qg== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2120.oracle.com with ESMTP id 2ptn7re58j-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 11 Jan 2019 17:53:20 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x0BHr3Li015213
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 11 Jan 2019 17:53:03 GMT
+Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x0BHqijW009240;
+	Fri, 11 Jan 2019 17:52:44 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 11 Jan 2019 09:52:44 -0800
+Date: Fri, 11 Jan 2019 09:53:01 -0800
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Baptiste Lepers <baptiste.lepers@gmail.com>, mgorman@techsingularity.net,
+        akpm@linux-foundation.org, dhowells@redhat.com, linux-mm@kvack.org,
+        hannes@cmpxchg.org
+Subject: Re: Lock overhead in shrink_inactive_list / Slow page reclamation
+Message-ID: <20190111175301.csgxlwpbsfecuwug@ca-dmjordan1.us.oracle.com>
+References: <CABdVr8R2y9B+2zzSAT_Ve=BQCa+F+E9_kVH+C28DGpkeQitiog@mail.gmail.com>
+ <20190111135938.GG14956@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <a79b259b-3982-b271-025a-0656f70506f4@nvidia.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 11 Jan 2019 16:51:48 +0000 (UTC)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <20190111135938.GG14956@dhcp22.suse.cz>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9133 signatures=668680
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=788
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1901110144
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000298, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111165142.kj9G3pYV-HGYH9CosjX5e1H6hLOzfP3a924DpP_3vT0@z>
 
-On Thu, Jan 10, 2019 at 06:59:31PM -0800, John Hubbard wrote:
-> On 1/3/19 6:44 AM, Jerome Glisse wrote:
-> > On Thu, Jan 03, 2019 at 10:26:54AM +0100, Jan Kara wrote:
-> >> On Wed 02-01-19 20:55:33, Jerome Glisse wrote:
-> >>> On Wed, Dec 19, 2018 at 12:08:56PM +0100, Jan Kara wrote:
-> >>>> On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
-> >>>>> On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
-
-[...]
-
-> >>> Now page_mkclean:
-> >>>
-> >>> int page_mkclean(struct page *page)
-> >>> {
-> >>>     int cleaned = 0;
-> >>> +   int real_mapcount = 0;
-> >>>     struct address_space *mapping;
-> >>>     struct rmap_walk_control rwc = {
-> >>>         .arg = (void *)&cleaned,
-> >>>         .rmap_one = page_mkclean_one,
-> >>>         .invalid_vma = invalid_mkclean_vma,
-> >>> +       .mapcount = &real_mapcount,
-> >>>     };
-> >>> +   int mapcount1, mapcount2;
-> >>>
-> >>>     BUG_ON(!PageLocked(page));
-> >>>
-> >>>     if (!page_mapped(page))
-> >>>         return 0;
-> >>>
-> >>>     mapping = page_mapping(page);
-> >>>     if (!mapping)
-> >>>         return 0;
-> >>>
-> >>> +   mapcount1 = page_mapcount(page);
-> >>>     // rmap_walk need to change to count mapping and return value
-> >>>     // in .mapcount easy one
-> >>>     rmap_walk(page, &rwc);
-> >>
-> >> So what prevents GUP_fast() to grab reference here and the test below would
-> >> think the page is not pinned? Or do you assume that every page_mkclean()
-> >> call will be protected by PageWriteback (currently it is not) so that
-> >> GUP_fast() blocks / bails out?
+On Fri, Jan 11, 2019 at 02:59:38PM +0100, Michal Hocko wrote:
+> On Fri 11-01-19 16:52:17, Baptiste Lepers wrote:
+> > Hello,
+> > 
+> > We have a performance issue with the page cache. One of our workload
+> > spends more than 50% of it's time in the lru_locks called by
+> > shrink_inactive_list in mm/vmscan.c.
 > 
-> Continuing this thread, still focusing only on the "how to maintain a PageDmaPinned
-> for each page" question (ignoring, for now, what to actually *do* in response to 
-> that flag being set):
-> 
-> 1. Jan's point above is still a problem: PageWriteback != "page_mkclean is happening".
-> This is probably less troubling than the next point, but it does undermine all the 
-> complicated schemes involving PageWriteback, that try to synchronize gup() with
-> page_mkclean().
-> 
-> 2. Also, the mapcount approach here still does not reliably avoid false negatives
-> (that is, a page may have been gup'd, but page_mkclean could miss that): gup()
-> can always jump in and increment the mapcount, while page_mkclean is in the middle
-> of making (wrong) decisions based on that mapcount. There's no lock to prevent that.
-> 
-> Again: mapcount can go up *or* down, so I'm not seeing a true solution yet.
+> Who does contend on the lock? Are there direct reclaimers or is it
+> solely kswapd with paths that are faulting the new page cache in?
 
-Both point is address by the solution at the end of this email.
+Yes, and could you please post your performance data showing the time in
+lru_lock?  Whatever you have is fine, but using perf with -g would give
+callstacks and help answer Michal's question about who's contending.
 
-> > 
-> > So GUP_fast() becomes:
-> > 
-> > GUP_fast_existing() { ... }
-> > GUP_fast()
-> > {
-> >     GUP_fast_existing();
-> > 
-> >     for (i = 0; i < npages; ++i) {
-> >         if (PageWriteback(pages[i])) {
-> >             // need to force slow path for this page
-> >         } else {
-> >             SetPageDmaPinned(pages[i]);
-> >             atomic_inc(pages[i]->mapcount);
-> >         }
-> >     }
-> > }
-> > 
-> > This is a minor slow down for GUP fast and it takes care of a
-> > write back race on behalf of caller. This means that page_mkclean
-> > can not see a mapcount value that increase. This simplify thing
-> > we can relax that. Note that what this is doing is making sure
-> > that GUP_fast never get lucky :) ie never GUP a page that is in
-> > the process of being write back but has not yet had its pte
-> > updated to reflect that.
-> > 
-> > 
-> >> But I think that detecting pinned pages with small false positive rate is
-> >> OK. The extra page bouncing will cost some performance but if it is rare,
-> >> then we are OK. So I think we can go for the simple version of detecting
-> >> pinned pages as you mentioned in some earlier email. We just have to be
-> >> sure there are no false negatives.
-> > 
-> 
-> Agree with that sentiment, but there are still false negatives and I'm not
-> yet seeing any solutions for that.
-
-So here is the solution:
-
-
-Is a page pin ? With no false negative:
-=======================================
-
-get_user_page*() aka GUP:
-     if (!PageAnon(page)) {
-        bool write_back = PageWriteback(page);
-        bool page_is_pin = PagePin(page);
-        if (write_back && !page_is_pin) {
-            /* Wait for write back a re-try GUP */
-            ...
-            goto retry;
-        }
-[G1]    smp_rmb();
-[G2]    atomic_inc(&page->_mapcount)
-[G3]    smp_wmb();
-[G4]    SetPagePin(page);
-[G5]    smp_wmb();
-[G6]    if (!write_back && !page_is_pin && PageWriteback(page)) {
-            /* Back-off as write back might have miss us */
-            atomic_dec(&page->_mapcount);
-            /* Wait for write back a re-try GUP */
-            ...
-            goto retry;
-        }
-     }
-
-put_user_page() aka PUP:
-[P1] if (!PageAnon(page)) atomic_dec(&page->_mapcount);
-[P2] put_page(page);
-
-page_mkclean():
-[C1] pined = TestClearPagePin(page);
-[C2] smp_mb();
-[C3] map_and_pin_count = atomic_read(&page->_mapcount)
-[C4] map_count = rmap_walk(page);
-[C5] if (pined && map_count < map_and_pin_count) SetPagePin(page);
-
-So with above code we store the map and pin count inside struct page
-_mapcount field. The idea is that we can count the number of page
-table entry that point to the page when reverse walking all the page
-mapping in page_mkclean() [C4].
-
-The issue is that GUP, PUP and page table entry zapping can all run
-concurrently with page_mkclean() and thus we can not get the real
-map and pin count and the real map count at a given point in time
-([C5] for instance in the above). However we only care about avoiding
-false negative ie we do not want to report a page as unpin if in fact
-it is pin (it has active GUP). Avoiding false positive would be nice
-but it would need more heavy weight synchronization within GUP and
-PUP (we can mitigate it see the section on that below).
-
-With the above scheme a page is _not_ pin (unpin) if and only if we
-have real_map_count == real_map_and_pin_count at a given point in
-time. In the above pseudo code the page is lock within page_mkclean()
-thus no new page table entry can be added and thus the number of page
-mapping can only go down (because of conccurent pte zapping). So no
-matter what happens at [C5] we have map_count <= real_map_count.
-
-At [C3] we have two cases to consider:
- [R1] A concurrent GUP after [C3] then we do not care what happens at
-      [C5] as the GUP would already have set the page pin flag. If it
-      raced before [C3] at [C1] with TestClearPagePin() then we would
-      have the map_and_pin_count reflect the GUP thanks to the memory
-      barrier [G3] and [C2].
- [R2] No concurrent GUP after [C3] then we only have concurrent PUP to
-      worry about and thus the real_map_and_pin_count can only go down.
-      So because we first snap shot that value at [C5] we have:
-      real_map_and_pin_count <= map_and_pin_count.
-
-      So at [C5] we end up with map_count <= real_map_count and with
-      real_map_and_pin_count <= map_pin_count but we also always have
-      real_map_count <= real_map_and_pin_count so it means we are in a
-      a <= b <= c <= d scenario and if a == d then b == c. So at [C5]
-      if map_count == map_pin_count then we know for sure that we have
-      real_map_count == real_map_and_pin_count and if that is the case
-      then the page is no longer pin. So at [C5] we will never miss a
-      pin page (no false negative).
-
-      Another way to word this is that we always under-estimate the real
-      map count and over estimate the map and pin count and thus we can
-      never have false negative (map count equal to map and pin count
-      while in fact real map count is inferior to real map and pin count).
-
-
-PageWriteback() test and ordering with page_mkclean()
-=====================================================
-
-In GUP we test for page write back flag to avoid pining a page that
-is under going write back. That flag is set after page_mkclean() so
-the filesystem code that will check for the pin flag need some memory
-barrier:
-    int __test_set_page_writeback(struct page *page, bool keep_write,
-+                                 bool *use_bounce_page)
-    {
-        ...
-  [T1]  TestSetPageWriteback(page);
-+ [T2]  smp_wmb();
-+ [T3]  *use_bounce_page = PagePin(page);
-        ...
-    }
-
-That way if there is a concurrent GUP we either have:
-    [R1] GUP sees the write back flag set before [G1] so it back-off
-    [R2] GUP sees no write back before [G1] here either we have GUP
-         that sees the write back flag at [G6] or [T3] that sees the
-         pin flag thanks to the memory barrier [G5] and [T2].
-
-So in all cases we never miss a pin or a write back.
-
-
-Mitigate false positive:
-========================
-
-If false positive is ever an issue we can improve the situation and to
-properly account conccurent pte zapping with the following changes:
-
-page_mkclean():
-[C1] pined = TestClearPagePin(page);
-[C2] smp_mb();
-[C3] map_and_pin_count = atomic_read(&page->_mapcount)
-[C4] map_count = rmap_walk(page, &page_mkclean_one());
-[C5] if (pined && !PagePin(page) && map_count < map_and_pin_count) {
-[C6]    map_and_pin_count2 = atomic_read(&page->_mapcount)
-[C7]    map_count = rmap_walk(page, &page_map_count(), map_and_pin_count2);
-[C8]    if (map_count < map_and_pin_count2) SetPagePin(page);
-     }
-
-page_map_count():
-[M1] if (pte_valid(pte) { map_count++; }
-     } else if (pte_special_zap(pte)) {
-[M2]    unsigned long map_count_at_zap = pte_special_zap_to_value(pte);
-[M3]    if (map_count_at_zap <= (map_and_pin_count & MASK)) map_count++;
-     }
-
-And pte zapping of file back page will write a special pte entry which
-has the page map and pin count value at the time the pte is zap. Also
-page_mkclean_one() unconditionaly replace those special pte with pte
-none and ignore them altogether. We only want to detect pte zapping that
-happens after [C6] and before [C7] is done.
-
-With [M3] we are counting all page table entry that have been zap after
-the map_and_pin_count value we read at [C6]. Again we have two cases:
- [R1] A concurrent GUP after [C6] then we do not care what happens
-      at [C8] as the GUP would already have set the page pin flag.
- [R2] No concurrent GUP then we only have concurrent PUP to worry
-      about. If they happen before [C6] they are included in [C6]
-      map_and_pin_count value. If after [C6] then we might miss a
-      page that is no longer pin ie we are over estimating the
-      map_and_pin_count (real_map_and_pin_count < map_and_pin_count
-      at [C8]). So no false negative just false positive.
-
-Here we just get the accurate real_map_count at [C6] time so if the
-page was no longer pin at [C6] time we will correctly detect it and
-not set the flag at [C8]. If there is any concurrent GUP that GUP
-would set the flag properly.
-
-There is one last thing to note about above code, the MASK in [M3].
-For special pte entry we might not have enough bits to store the
-whole map and pin count value (on 32bits arch). So we might expose
-ourself to wrap around. Again we do not care about [R1] case as any
-concurrent GUP will set the pin flag. So we only care if the only
-thing happening concurrently is either PUP or pte zapping. In both
-case its means that the map and pin count is going down so if there
-is a wrap around sometimes within [C7]/page_map_count() we have:
-  [t0] page_map_count() executed on some pte
-  [t1] page_map_count() executed on another pte after [t1]
-With:
-    (map_count_t0 & MASK) < (map_count_t1 & MASK)
-While in fact:
-    map_count_t0 > map_count_t1
-
-So if that happens then we will under-estimate the map count ie we
-will ignore some of the concurrent pte zapping and not count them.
-So again we are only exposing our self to false positive not false
-negative.
-
-
----------------------------------------------------------------------
-
-
-Hopes this prove that this solution do work. The false positive is
-something that i believe is acceptable. We will get them only when
-they are racing GUP or PUP. For racing GUP it is safer to have false
-positive. For racing PUP it would be nice to catch them but hey some
-times you just get unlucky.
-
-Note that any other solution will also suffer from false positive
-situation because anyway you are testing for the page pin status
-at a given point in time so it can always race with a PUP. So the
-only difference with any other solution would be how long is the
-false positive race window.
-
-
-Cheers,
-Jérôme
+Happy to help profile and debug offline.
 
