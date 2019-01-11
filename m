@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E3EC18E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 04:24:24 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id w15so944336ita.1
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 01:24:24 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id v6si153745itg.59.2019.01.11.01.24.23
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F25FD8E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:25:31 -0500 (EST)
+Received: by mail-yw1-f72.google.com with SMTP id x64so7134022ywc.6
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 20:25:31 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id a201si3013998ywa.415.2019.01.10.20.25.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 11 Jan 2019 01:24:23 -0800 (PST)
-Date: Fri, 11 Jan 2019 10:24:08 +0100
-From: Peter Zijlstra <peterz@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 20:25:31 -0800 (PST)
 Subject: Re: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
-Message-ID: <20190111092408.GM30894@hirez.programming.kicks-ass.net>
 References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
  <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
+From: Anthony Yznaga <anthony.yznaga@oracle.com>
+Message-ID: <693b30a9-96dc-a5e6-9708-c215b90146b0@oracle.com>
+Date: Thu, 10 Jan 2019 20:25:09 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <vineet.gupta1@synopsys.com>
-Cc: linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-mm@kvack.org, Miklos Szeredi <mszeredi@redhat.com>, Ingo Molnar <mingo@kernel.org>, Jani Nikula <jani.nikula@intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>
-
-On Thu, Jan 10, 2019 at 04:26:27PM -0800, Vineet Gupta wrote:
-
-> @@ -246,7 +246,7 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
->  		new__ = (old__ & ~mask__) | bits__;		\
->  	} while (cmpxchg(ptr, old__, new__) != old__);		\
-
-diff --git a/include/linux/bitops.h b/include/linux/bitops.h
-index 705f7c442691..2060d26a35f5 100644
---- a/include/linux/bitops.h
-+++ b/include/linux/bitops.h
-@@ -241,10 +241,10 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
- 	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
- 	typeof(*(ptr)) old__, new__;				\
- 								\
-+	old__ = READ_ONCE(*(ptr));				\
- 	do {							\
--		old__ = READ_ONCE(*(ptr));			\
- 		new__ = (old__ & ~mask__) | bits__;		\
--	} while (cmpxchg(ptr, old__, new__) != old__);		\
-+	} while (!try_cmpxchg(ptr, &old__, new__));		\
- 								\
- 	new__;							\
- })
+To: Vineet Gupta <vineet.gupta1@synopsys.com>, linux-kernel@vger.kernel.org
+Cc: linux-snps-arc@lists.infradead.org, linux-mm@kvack.org, peterz@infradead.org, Miklos Szeredi <mszeredi@redhat.com>, Ingo Molnar <mingo@kernel.org>, Jani Nikula <jani.nikula@intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>
 
 
-While there you probably want something like the above... although,
-looking at it now, we seem to have 'forgotten' to add try_cmpxchg to the
-generic code :/
+
+On 1/10/19 4:26 PM, Vineet Gupta wrote:
+> | > Also, set_mask_bits is used in fs quite a bit and we can possibly come up
+> | > with a generic llsc based implementation (w/o the cmpxchg loop)
+> |
+> | May I also suggest changing the return value of set_mask_bits() to old.
+> |
+> | You can compute the new value given old, but you cannot compute the old
+> | value given new, therefore old is the better return value. Also, no
+> | current user seems to use the return value, so changing it is without
+> | risk.
+>
+> Link: http://lkml.kernel.org/g/20150807110955.GH16853@twins.programming.kicks-ass.net
+> Suggested-by: Peter Zijlstra <peterz@infradead.org>
+> Cc: Miklos Szeredi <mszeredi@redhat.com>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Jani Nikula <jani.nikula@intel.com>
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+>
+
+Reviewed-by: Anthony Yznaga <anthony.yznaga@oracle.com>
