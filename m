@@ -2,189 +2,365 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E34A1C43387
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:41:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DBF6C43387
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:59:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 98D39214C6
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:41:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AC93920872
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 02:59:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MRa/9bfd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98D39214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="MS6kIQAs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC93920872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3665D8E0003; Thu, 10 Jan 2019 21:41:57 -0500 (EST)
+	id 332F08E0003; Thu, 10 Jan 2019 21:59:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3159A8E0001; Thu, 10 Jan 2019 21:41:57 -0500 (EST)
+	id 2BAD28E0001; Thu, 10 Jan 2019 21:59:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1DF2F8E0003; Thu, 10 Jan 2019 21:41:57 -0500 (EST)
+	id 184188E0003; Thu, 10 Jan 2019 21:59:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E38508E0001
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:41:56 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id o205so156203itc.2
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:41:56 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E03198E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:59:34 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id r191so6614895ybr.12
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:59:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RfMVf92gzaxzMAZMAu2AYRtnc2xIj45ckuZbtAg6QGU=;
-        b=DXx4GlyXvyp/vZ3/32igIKGAGVTfaBQMLF+CsGDeHqb48XApTTfD7HI1ZEXnwRx3cl
-         HQ1CAkIk50h8wPnq6/MC8rw10S7jjHFaOubvd9k46Oky9KuHl2s9HrA5l4ExNPVGq9Gl
-         +7wZiM0akZvS6Lgrwa5YSu75RF6dubtoq9KySa9r/R44IlwhlrpCq8hN1wt6jfe90DQZ
-         1s2vO/GWtxlZ9EA1vEiUflMFA3eHYqBsa3CCwKi7AGtMMfoR8vNjgOfj1C9BKi+UyWrG
-         HYzHcxZS5KD99yyVY9H9XtZXwx8ha0bTY+TFAJM72Oqgd7ai5Y445Lxo3qpyjbNLVOwL
-         AAAg==
-X-Gm-Message-State: AJcUuke10IvgVRRBMGyVtfnAsCG4RFT0lIq96MuIBgYr5i9dVgIuCsej
-	bX7OORwlDnge2oHybFNUdrAAzBoyhTgniEAouOar/H3vbFHYUnKpvETaTl/4XzTI/Cxw0L1/C8+
-	yOhts1GMYk615/s0AyStFGRMSJbrSTFdfPjPuOUaK8Hb/YTiFOEB7Wb0A74gJ4TdorUSTsppisB
-	Vm3Y0fjKBC7nztriYkrk9dr02Fo+sHdDbq+oOdsczOsVGr9K5tEk5Ycdjtp3rUIZZoxNKg0fLAN
-	zC5YXzAIUg/YuKiP75KkSE+GQ/1NDWoqeRgjhGTPu+3xlOMeddBW3baPG5+INppHR0JA+37nHmc
-	C8fuadYOWskiqjmDXyXaLPpgAGvQDvNJREWWKbCGroiNEgl7oC3sU/g8DJFCvypgqTW2T1IHlIs
-	U
-X-Received: by 2002:a6b:1490:: with SMTP id 138mr8911653iou.103.1547174516512;
-        Thu, 10 Jan 2019 18:41:56 -0800 (PST)
-X-Received: by 2002:a6b:1490:: with SMTP id 138mr8911642iou.103.1547174515828;
-        Thu, 10 Jan 2019 18:41:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547174515; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=8T7sWNsDeGtmRKP2KvNypFF/LerYK2UzqASBF7f1s24=;
+        b=O5KwuRI51SB7wWAGxTAh9IKAb9W70CyIZvk6VWq7YWiwMNSEnSxQ/2k13NZGNVmlRH
+         jENwrnGaRR71y5vtLuepbCEh4gwocJKaxG0DyrRb2Omr8CJB+w1Ace7C+v+1354n7J/8
+         M/XLZs2w5NluHhcs4AZXj3Pw9l1yyoRxpdTcYyYUjlZWQCriUxo8hp+/2TzdYul+Ut8u
+         H4bstHF0ksa9MU/5G6qB1OAPe7q2SWtXBHa9E6iTPof+SOSnbqZHAum+PjqN55ONL5he
+         vHCdPRffOzxv0Bl4s88OjZbnZ223Q2KpI7E4NWwIRl+GdPL/tddYAT1Xlm7pjUXmRskd
+         urzw==
+X-Gm-Message-State: AJcUukdKk7DZwAUcBxhJKQyv4lToHR5tK8UVrGejE0oSK8hLPVmi3s1C
+	uLuvg09eeQN72WtE/Avc2jcpfTiL12BjE3YJVNtUZEdhbkO2m0HzTP6Fei1fe6olsRlSWg410YL
+	f4gN5p9GiybCpSEnYAUruBb4Wy6Nvq5aqeyj1HfbF9uq6XuJsOBn4ZmqbwyQulWuwCQ==
+X-Received: by 2002:a81:3454:: with SMTP id b81mr12566880ywa.191.1547175574475;
+        Thu, 10 Jan 2019 18:59:34 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4C/98bIVpFEI6BSbDG3ochDzCV3WuezVErk2k0PPyGayqI8iFY1IpY9FImQijJDkhLlAQ8
+X-Received: by 2002:a81:3454:: with SMTP id b81mr12566852ywa.191.1547175573570;
+        Thu, 10 Jan 2019 18:59:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547175573; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ad1Mn89bWiaq5o0+YLIYvILhO2Hg0m+KGmJgKWgVz/fIF/XtqsEMsSLnxNGB65SeM9
-         LVpK2EPPelbInbFaMQ5qCRJPAB34L4qu/US0hgqiNn1fCB7bn6aX0JH0ulb1fg8jO83u
-         3zoiRltKlxfWMbbM81SH/6leaStWk0bJws6uURvoLHdl+a7ZS6Cn6acEh9al7Vp0XhoU
-         A0/QqnfcRoOtwzW6BTg0CxbOYGMELyy3h1nmaLWRcAVFD+El7g3WnV/lelAON5OQwzmp
-         TqIV7+zZJyNZjX53DJsIGxZ/5jy6YxQFLDJLtV67CC1GK2fyJhTZLjN68ldm9SbVi4cP
-         YZIQ==
+        b=vDzUYCpoi/n5Mc9/jIWRJGhFpr2bHxRLasOAJvIJkrPvNvNN4Jvm29b8hzn3k9kttL
+         uHzgyeFgDr4YuqKaMRky3fDeVGJCziBOts/hUiFR81Sqi3jhjVIJL/NF2JT507F+Ad9H
+         yUBgdBRU5bHyrgNsYC7od8DMiewkF6F2E1X9kOWQw7ABK/6vyCXDSf71KDskqgq2zSZA
+         t0D0Vn/mLJoiXpPNXPim3tXmvTqJ2e4S4tQKbi31pyrM1iNho6agKfEEm4cXGl3NqZWD
+         SngtJ37hHC6QjZR6ulFbalhB+iaJR+PSqMudwAupt5EHF2u49G+brvGeKrxxJozIaHeu
+         +dcQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=RfMVf92gzaxzMAZMAu2AYRtnc2xIj45ckuZbtAg6QGU=;
-        b=fHEtJaUb5Tv+fpyEVU19LWRi86MCnMRQDXLJL29goUgCAh5XIWFpUk/PsOXFu/8e19
-         /21ESimSGV6PjjE+LkZP+pJRBwjFPsADq1Xeby72cpJ+EtIV9WeUha3PDNftWU8dcbNJ
-         AJhZ1PztGO/4FrGi2+Fwccf1f9f82k5kUAbR7iY0MbbLCKCuVLlOw71rcyAJSkraJGjh
-         gV5lcBVwALXd4rsq521KRokEZtS2rCuefIjynusMGTxa8ew7J4iO2BlF5VuJ7PU3gSrf
-         5Wk8+RQCqbMl2un5hM1FzRKb9uk1YLTb5oSErR0nYiKZM3iTkp37etWCg7To5IY+coHI
-         MH5g==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=8T7sWNsDeGtmRKP2KvNypFF/LerYK2UzqASBF7f1s24=;
+        b=gsADF2VYkMKILAOqW7XK76TJa28ku8pxY9cLGc5L39AUuxAqlDn3LP+KYLUFY9gfw/
+         1MHn2e3MVLC9Y2mX0OiF1TbPNWKzHsGO8SP8g1Te0QSJORlQP6BFhnm3wMXRwLsniL2j
+         EDnKJvr0ZtIxTeIuuB8PVtmdHNIssKiXuhj6EO8pe9B9/+gsVgXZslNy8frG6FVTsaZw
+         oIJaR3syW5stMVmzi8n+kmXjIFxUBXnBjXpRs2YdvI6A/mTZsCssXgsmidiYa7O8uVdT
+         qqHsui0amEWIsl54BnYEPC5o64HnZVoLH+gjcuLGPQV9O39HJc/5V5KCH32xCOVxM8jR
+         tqyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="MRa/9bfd";
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m200sor208822itb.0.2019.01.10.18.41.55
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=MS6kIQAs;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id y62si14476274yba.94.2019.01.10.18.59.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 10 Jan 2019 18:41:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jan 2019 18:59:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="MRa/9bfd";
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=RfMVf92gzaxzMAZMAu2AYRtnc2xIj45ckuZbtAg6QGU=;
-        b=MRa/9bfdZyRjEJLIeG7zx4theoKEg2zKgAgFkxZWKncN6J87EabS6DUt0NbHO1ShdA
-         5VCjc19Bfd313iZS4han3kE2BUIsu4KP2d0mnR+bdlN0tCmi2tAsGryx7UV1q55ZEDkD
-         U9C9Ev40HlWbWLjIy8nxTZjhag0WOz4FJPnAsl9n+i+Rmg21C41DXjdU3LkKWbQvGoZ5
-         3WdypC25V/3ydUa1q5Ec6VDvN2voHGx1GAzSo1X9dXUgjVf7YXcUqN1EqW/9Mfk/66IV
-         GWlzmqJSRzdVqnTD23i7h+2jp0MH6UX79KJSD6/npLCUrRTqSlN1Be8lwtxlIH/MJl4D
-         C6fg==
-X-Google-Smtp-Source: ALg8bN7Gjki6FZggg6PyH5Cia7SKfuhztuj+BXYJGNQKyxr4jO6MOJX9oHMpyEvghsT3ptD0NxppM2zcXF6UenjhjZc=
-X-Received: by 2002:a24:7a94:: with SMTP id a142mr83215itc.88.1547174515528;
- Thu, 10 Jan 2019 18:41:55 -0800 (PST)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=MS6kIQAs;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c3806820001>; Thu, 10 Jan 2019 18:59:14 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Thu, 10 Jan 2019 18:59:32 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Thu, 10 Jan 2019 18:59:32 -0800
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 11 Jan
+ 2019 02:59:31 +0000
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+To: Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>
+CC: Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>,
+	Dan Williams <dan.j.williams@intel.com>, John Hubbard
+	<john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM
+	<linux-mm@kvack.org>, <tom@talpey.com>, Al Viro <viro@zeniv.linux.org.uk>,
+	<benve@cisco.com>, Christoph Hellwig <hch@infradead.org>, Christopher Lameter
+	<cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug
+ Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko
+	<mhocko@kernel.org>, <mike.marciniszyn@intel.com>, <rcampbell@nvidia.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel
+	<linux-fsdevel@vger.kernel.org>
+References: <20181214154321.GF8896@quack2.suse.cz>
+ <20181216215819.GC10644@dastard> <20181217181148.GA3341@redhat.com>
+ <20181217183443.GO10600@bombadil.infradead.org>
+ <20181218093017.GB18032@quack2.suse.cz>
+ <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
+ <20181219020723.GD4347@redhat.com> <20181219110856.GA18345@quack2.suse.cz>
+ <20190103015533.GA15619@redhat.com> <20190103092654.GA31370@quack2.suse.cz>
+ <20190103144405.GC3395@redhat.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <a79b259b-3982-b271-025a-0656f70506f4@nvidia.com>
+Date: Thu, 10 Jan 2019 18:59:31 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <1546848299-23628-1-git-send-email-kernelfans@gmail.com>
- <20190108080538.GB4396@rapoport-lnx> <20190108090138.GB18718@MiWiFi-R3L-srv>
- <20190108154852.GC14063@rapoport-lnx> <20190109142516.GA14211@MiWiFi-R3L-srv>
-In-Reply-To: <20190109142516.GA14211@MiWiFi-R3L-srv>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Fri, 11 Jan 2019 10:41:44 +0800
-Message-ID:
- <CAFgQCTt6YjoqfvZhEFNAvg-0_r_V5apowNAcg4SSLx1QOMSSWA@mail.gmail.com>
-Subject: Re: [PATCHv5] x86/kdump: bugfix, make the behavior of crashkernel=X
- consistent with kaslr
-To: Baoquan He <bhe@redhat.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org, kexec@lists.infradead.org, 
-	"Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
-	Michal Hocko <mhocko@suse.com>, Jonathan Corbet <corbet@lwn.net>, 
-	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Nicholas Piggin <npiggin@gmail.com>, 
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Daniel Vacek <neelx@redhat.com>, 
-	Mathieu Malaterre <malat@debian.org>, Stefan Agner <stefan@agner.ch>, Dave Young <dyoung@redhat.com>, 
-	yinghai@kernel.org, vgoyal@redhat.com, linux-kernel@vger.kernel.org
+In-Reply-To: <20190103144405.GC3395@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL101.nvidia.com (172.20.187.10)
 Content-Type: text/plain; charset="UTF-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1547175554; bh=8T7sWNsDeGtmRKP2KvNypFF/LerYK2UzqASBF7f1s24=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=MS6kIQAsnALSdgIUSgQ14qtpQ1F413ka8tuh9Tdgyayy0/22RF2Pu20W9SddvVkIy
+	 PsAMHm5eMVjWGM0EOd0g6Ep1dMBq8yHaY3V7ka1126LtF1H/n0pjLCJPXjxiqLbUeA
+	 JVDP34jTz3taqXoFwsuOL0dkGBjBVYRqlpGBvwxGbv41BGL9pNFC6UCGfy8E1IT4q2
+	 bl4gyvCLvHU3yvgxMCKwtZiwewLuNirmAdBnl2fLjdkfSG0o3TapCvvJrJ6WZBG3+Z
+	 tSY5k5W2FSSY2Ws9wIUhw7ZxOMMDFVFn7q2/n6YX6fudbZPxlJ12rTueXDCDko2gMC
+	 FKWEgTnggJFMA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111024144._dvjHAFz7JlBJkrnxgICwUJU_cXOK4cJ7yLKtrnXBL0@z>
+Message-ID: <20190111025931.us5OziCGAYIUAi3BkMqNFuttf5KWp0htrOWaIYFNhGc@z>
 
-On Wed, Jan 9, 2019 at 10:25 PM Baoquan He <bhe@redhat.com> wrote:
->
-> On 01/08/19 at 05:48pm, Mike Rapoport wrote:
-> > On Tue, Jan 08, 2019 at 05:01:38PM +0800, Baoquan He wrote:
-> > > Hi Mike,
-> > >
-> > > On 01/08/19 at 10:05am, Mike Rapoport wrote:
-> > > > I'm not thrilled by duplicating this code (yet again).
-> > > > I liked the v3 of this patch [1] more, assuming we allow bottom-up mode to
-> > > > allocate [0, kernel_start) unconditionally.
-> > > > I'd just replace you first patch in v3 [2] with something like:
-> > >
-> > > In initmem_init(), we will restore the top-down allocation style anyway.
-> > > While reserve_crashkernel() is called after initmem_init(), it's not
-> > > appropriate to adjust memblock_find_in_range_node(), and we really want
-> > > to find region bottom up for crashkernel reservation, no matter where
-> > > kernel is loaded, better call __memblock_find_range_bottom_up().
-> > >
-> > > Create a wrapper to do the necessary handling, then call
-> > > __memblock_find_range_bottom_up() directly, looks better.
-> >
-> > What bothers me is 'the necessary handling' which is already done in
-> > several places in memblock in a similar, but yet slightly different way.
->
-> The page aligning for start and the mirror flag setting, I suppose.
-> >
-> > memblock_find_in_range() and memblock_phys_alloc_nid() retry with different
-> > MEMBLOCK_MIRROR, but memblock_phys_alloc_try_nid() does that only when
-> > allocating from the specified node and does not retry when it falls back to
-> > any node. And memblock_alloc_internal() has yet another set of fallbacks.
->
-> Get what you mean, seems they are trying to allocate within mirrorred
-> memory region, if fail, try the non-mirrorred region. If kernel data
-> allocation failed, no need to care about if it's movable or not, it need
-> to live firstly. For the bottom-up allocation wrapper, maybe we need do
-> like this too?
->
-> >
-> > So what should be the necessary handling in the wrapper for
-> > __memblock_find_range_bottom_up() ?
-> >
-> > BTW, even without any memblock modifications, retrying allocation in
-> > reserve_crashkerenel() for different ranges, like the proposal at [1] would
-> > also work, wouldn't it?
->
-> Yes, it also looks good. This patch only calls once, seems a simpler
-> line adding.
->
-> In fact, below one and this patch, both is fine to me, as long as it
-> fixes the problem customers are complaining about.
->
-It seems that there is divergence on opinion. Maybe it is easier to
-fix this bug by dyoung's patch. I will repost his patch.
+On 1/3/19 6:44 AM, Jerome Glisse wrote:
+> On Thu, Jan 03, 2019 at 10:26:54AM +0100, Jan Kara wrote:
+>> On Wed 02-01-19 20:55:33, Jerome Glisse wrote:
+>>> On Wed, Dec 19, 2018 at 12:08:56PM +0100, Jan Kara wrote:
+>>>> On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
+>>>>> On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
+>>>>>> OK, so let's take another look at Jerome's _mapcount idea all by itself (using
+>>>>>> *only* the tracking pinned pages aspect), given that it is the lightest weight
+>>>>>> solution for that.  
+>>>>>>
+>>>>>> So as I understand it, this would use page->_mapcount to store both the real
+>>>>>> mapcount, and the dma pinned count (simply added together), but only do so for
+>>>>>> file-backed (non-anonymous) pages:
+>>>>>>
+>>>>>>
+>>>>>> __get_user_pages()
+>>>>>> {
+>>>>>> 	...
+>>>>>> 	get_page(page);
+>>>>>>
+>>>>>> 	if (!PageAnon)
+>>>>>> 		atomic_inc(page->_mapcount);
+>>>>>> 	...
+>>>>>> }
+>>>>>>
+>>>>>> put_user_page(struct page *page)
+>>>>>> {
+>>>>>> 	...
+>>>>>> 	if (!PageAnon)
+>>>>>> 		atomic_dec(&page->_mapcount);
+>>>>>>
+>>>>>> 	put_page(page);
+>>>>>> 	...
+>>>>>> }
+>>>>>>
+>>>>>> ...and then in the various consumers of the DMA pinned count, we use page_mapped(page)
+>>>>>> to see if any mapcount remains, and if so, we treat it as DMA pinned. Is that what you 
+>>>>>> had in mind?
+>>>>>
+>>>>> Mostly, with the extra two observations:
+>>>>>     [1] We only need to know the pin count when a write back kicks in
+>>>>>     [2] We need to protect GUP code with wait_for_write_back() in case
+>>>>>         GUP is racing with a write back that might not the see the
+>>>>>         elevated mapcount in time.
+>>>>>
+>>>>> So for [2]
+>>>>>
+>>>>> __get_user_pages()
+>>>>> {
+>>>>>     get_page(page);
+>>>>>
+>>>>>     if (!PageAnon) {
+>>>>>         atomic_inc(page->_mapcount);
+>>>>> +       if (PageWriteback(page)) {
+>>>>> +           // Assume we are racing and curent write back will not see
+>>>>> +           // the elevated mapcount so wait for current write back and
+>>>>> +           // force page fault
+>>>>> +           wait_on_page_writeback(page);
+>>>>> +           // force slow path that will fault again
+>>>>> +       }
+>>>>>     }
+>>>>> }
+>>>>
+>>>> This is not needed AFAICT. __get_user_pages() gets page reference (and it
+>>>> should also increment page->_mapcount) under PTE lock. So at that point we
+>>>> are sure we have writeable PTE nobody can change. So page_mkclean() has to
+>>>> block on PTE lock to make PTE read-only and only after going through all
+>>>> PTEs like this, it can check page->_mapcount. So the PTE lock provides
+>>>> enough synchronization.
+>>>>
+>>>>> For [1] only needing pin count during write back turns page_mkclean into
+>>>>> the perfect spot to check for that so:
+>>>>>
+>>>>> int page_mkclean(struct page *page)
+>>>>> {
+>>>>>     int cleaned = 0;
+>>>>> +   int real_mapcount = 0;
+>>>>>     struct address_space *mapping;
+>>>>>     struct rmap_walk_control rwc = {
+>>>>>         .arg = (void *)&cleaned,
+>>>>>         .rmap_one = page_mkclean_one,
+>>>>>         .invalid_vma = invalid_mkclean_vma,
+>>>>> +       .mapcount = &real_mapcount,
+>>>>>     };
+>>>>>
+>>>>>     BUG_ON(!PageLocked(page));
+>>>>>
+>>>>>     if (!page_mapped(page))
+>>>>>         return 0;
+>>>>>
+>>>>>     mapping = page_mapping(page);
+>>>>>     if (!mapping)
+>>>>>         return 0;
+>>>>>
+>>>>>     // rmap_walk need to change to count mapping and return value
+>>>>>     // in .mapcount easy one
+>>>>>     rmap_walk(page, &rwc);
+>>>>>
+>>>>>     // Big fat comment to explain what is going on
+>>>>> +   if ((page_mapcount(page) - real_mapcount) > 0) {
+>>>>> +       SetPageDMAPined(page);
+>>>>> +   } else {
+>>>>> +       ClearPageDMAPined(page);
+>>>>> +   }
+>>>>
+>>>> This is the detail I'm not sure about: Why cannot rmap_walk_file() race
+>>>> with e.g. zap_pte_range() which decrements page->_mapcount and thus the
+>>>> check we do in page_mkclean() is wrong?
+>>>>
+>>>
+>>> Ok so i found a solution for that. First GUP must wait for racing
+>>> write back. If GUP see a valid write-able PTE and the page has
+>>> write back flag set then it must back of as if the PTE was not
+>>> valid to force fault. It is just a race with page_mkclean and we
+>>> want ordering between the two. Note this is not strictly needed
+>>> so we can relax that but i believe this ordering is better to do
+>>> in GUP rather then having each single user of GUP test for this
+>>> to avoid the race.
+>>>
+>>> GUP increase mapcount only after checking that it is not racing
+>>> with writeback it also set a page flag (SetPageDMAPined(page)).
+>>>
+>>> When clearing a write-able pte we set a special entry inside the
+>>> page table (might need a new special swap type for this) and change
+>>> page_mkclean_one() to clear to 0 those special entry.
+>>>
+>>>
+>>> Now page_mkclean:
+>>>
+>>> int page_mkclean(struct page *page)
+>>> {
+>>>     int cleaned = 0;
+>>> +   int real_mapcount = 0;
+>>>     struct address_space *mapping;
+>>>     struct rmap_walk_control rwc = {
+>>>         .arg = (void *)&cleaned,
+>>>         .rmap_one = page_mkclean_one,
+>>>         .invalid_vma = invalid_mkclean_vma,
+>>> +       .mapcount = &real_mapcount,
+>>>     };
+>>> +   int mapcount1, mapcount2;
+>>>
+>>>     BUG_ON(!PageLocked(page));
+>>>
+>>>     if (!page_mapped(page))
+>>>         return 0;
+>>>
+>>>     mapping = page_mapping(page);
+>>>     if (!mapping)
+>>>         return 0;
+>>>
+>>> +   mapcount1 = page_mapcount(page);
+>>>     // rmap_walk need to change to count mapping and return value
+>>>     // in .mapcount easy one
+>>>     rmap_walk(page, &rwc);
+>>
+>> So what prevents GUP_fast() to grab reference here and the test below would
+>> think the page is not pinned? Or do you assume that every page_mkclean()
+>> call will be protected by PageWriteback (currently it is not) so that
+>> GUP_fast() blocks / bails out?
 
-Thanks and regards,
-Pingfan
-> >
-> > [1] http://lists.infradead.org/pipermail/kexec/2017-October/019571.html
->
-> Thanks
-> Baoquan
+Continuing this thread, still focusing only on the "how to maintain a PageDmaPinned
+for each page" question (ignoring, for now, what to actually *do* in response to 
+that flag being set):
+
+1. Jan's point above is still a problem: PageWriteback != "page_mkclean is happening".
+This is probably less troubling than the next point, but it does undermine all the 
+complicated schemes involving PageWriteback, that try to synchronize gup() with
+page_mkclean().
+
+2. Also, the mapcount approach here still does not reliably avoid false negatives
+(that is, a page may have been gup'd, but page_mkclean could miss that): gup()
+can always jump in and increment the mapcount, while page_mkclean is in the middle
+of making (wrong) decisions based on that mapcount. There's no lock to prevent that.
+
+Again: mapcount can go up *or* down, so I'm not seeing a true solution yet.
+
+> 
+> So GUP_fast() becomes:
+> 
+> GUP_fast_existing() { ... }
+> GUP_fast()
+> {
+>     GUP_fast_existing();
+> 
+>     for (i = 0; i < npages; ++i) {
+>         if (PageWriteback(pages[i])) {
+>             // need to force slow path for this page
+>         } else {
+>             SetPageDmaPinned(pages[i]);
+>             atomic_inc(pages[i]->mapcount);
+>         }
+>     }
+> }
+> 
+> This is a minor slow down for GUP fast and it takes care of a
+> write back race on behalf of caller. This means that page_mkclean
+> can not see a mapcount value that increase. This simplify thing
+> we can relax that. Note that what this is doing is making sure
+> that GUP_fast never get lucky :) ie never GUP a page that is in
+> the process of being write back but has not yet had its pte
+> updated to reflect that.
+> 
+> 
+>> But I think that detecting pinned pages with small false positive rate is
+>> OK. The extra page bouncing will cost some performance but if it is rare,
+>> then we are OK. So I think we can go for the simple version of detecting
+>> pinned pages as you mentioned in some earlier email. We just have to be
+>> sure there are no false negatives.
+> 
+
+Agree with that sentiment, but there are still false negatives and I'm not
+yet seeing any solutions for that.
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
