@@ -2,111 +2,111 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EEA8C43387
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 10:07:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A098EC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 10:08:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C54B20872
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 10:07:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 37F2C20872
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 10:08:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cNX4uAlE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C54B20872
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pKS1rELE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37F2C20872
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC77F8E0002; Fri, 11 Jan 2019 05:07:07 -0500 (EST)
+	id 96CBC8E0002; Fri, 11 Jan 2019 05:08:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C77918E0001; Fri, 11 Jan 2019 05:07:07 -0500 (EST)
+	id 91C198E0001; Fri, 11 Jan 2019 05:08:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B40AD8E0002; Fri, 11 Jan 2019 05:07:07 -0500 (EST)
+	id 8325D8E0002; Fri, 11 Jan 2019 05:08:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 88FF48E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 05:07:07 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id i12so994018ita.3
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:07:07 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A47C8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 05:08:39 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id s25so12642357ioc.14
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:08:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=0tV770gtlc+wsy+UJoYxGMN9qBxuKgWLEh7SlyYwABc=;
-        b=ATogtG4lxx/oVnGoFsNZhFdX4KX2qycaFItp//yBxoSipcyK2m7B7NY50W8K0JpVdE
-         V5C0xhjTSTCpGMhSZGA+tgv/YmD0xYMH71EJjbF7eHRKAx1yj4eiqbNvGMR/zHOpAtQb
-         u7WwJ7GyBp93rHunTVdw2xbKmYN6w7x2Q1tTPN6884sTbyBXapNaZgcJQU3OFYy5SPAe
-         LLBiNjxP+B6elOlXWJ6l4ASxg31jOVQ/qPsRFGZ9eg0qsqSHF7dEIFCo7NUrMuRF2DbW
-         jvpxLuBCCDHJRLsnhN5awA1xAA7xxQ+kGUaBEGBfXxWdL2P2+ssQdo6H4zSBQ3Qn9adb
-         vO2g==
-X-Gm-Message-State: AJcUukfJZLsOa7Mc5+DkMyKRU+DVQogivq4zYY/NqqlYdDmHoNjdzR+Z
-	LYPon6tEQjNGfx7Y9snkHozF4cjvfqwquqZKesTgEfgnz7MzC8SwOHTO/8FGMyufexau8q/428t
-	xzAsFQzmN5vEhTGCjzujG74YMHksl0k5hI8rr5tcpv3F1Vhf98SyJJZlNhNgjmfRAuJ2M700pTT
-	V9JV2euXL+nt4vM0wg/7dOWGfre4H3k+0XeiK8WUxpkWznilZqkzWGI3EdAd33lls+0oAaCvfbR
-	YDJwyLzTBpdQ0YMACrG3HXdOL3ZOCZxC3NHaAiewkNURUG35CGjEl2gqdXTLqtHFzX1OXM0XeSB
-	kC57c0mlYHd/o5Djaw8RLpZwlXsgfy96OsflnQE/bhYT74Cb9Nl+1DZp5KWEuH9j0XddpfZP7jX
-	N
-X-Received: by 2002:a02:c891:: with SMTP id m17mr4406582jao.45.1547201227320;
-        Fri, 11 Jan 2019 02:07:07 -0800 (PST)
-X-Received: by 2002:a02:c891:: with SMTP id m17mr4406567jao.45.1547201226675;
-        Fri, 11 Jan 2019 02:07:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547201226; cv=none;
+        bh=LUPiDJ7lnfm6wI/6H7WU6hN/VwCa62q6oRlvnlQWtA4=;
+        b=BdlMA4VRrePWZOSBX0DOT5PcDCkug5340Ixq0Y///RMYT5cQRftQTANNx7ZrsdjrdC
+         KogDES1r1D3qOIK3mP6Y7Q3RYAV64xRM0pfOQtj2d6l6CPfzD5sQ02Ij3z4NOxtgjFWM
+         JtHN9taEFZQo30dZOwi6AukmlQMOgriQ2LDaUeX+fta+I9wr2gahcdTbxY2STCK99qRh
+         yrnaMOEjsUVZjLRzFQchN8tYB/impw6VIp5hRf2nrVnnpR2cxicnaoaGvRwQFD862V8Q
+         36s/m6imZqUnbf/UFGiOiJB3pRa6n6aWAR1dywpiAidowQrgW8/yWL+jDZtKZ2DVo9xC
+         DKKg==
+X-Gm-Message-State: AJcUukfeMPROfy6QAStIjgR2sRIeD7Y43B+nvxSvpfUfP/3/oZXJgqft
+	rxWqYMARg1yiu/o1uGbHTNinZZDX/h8CBcMRZyQ+Ni+4fujPg72kgconXgrmGV9ipWuthKgIEWD
+	kmfyOKCy4DCs+XL48bhO3is8pU4Exh95zjk738gF505AP1HKj+tfm12O1XqNh/4xERObEgZ2o6i
+	7axeLkXXnwi6aBYzBqMXIXz8tLrdrwdMahvogk4gcTcd+vRbCaodtQ00mFY3FALYHm+/sMf1nCk
+	QxNGRMUOAJvMgGaKGuBZVN4v6WedC06CtnMsEgn1cPfjrd+v8NJLTs4wdO1RDWgBgxfvFimIS9i
+	l8dgsWnLmJVn/PsMqEYVdmYTqJ4+TFGMaqkx+IMr0fRw8i0h5/ZkKZjZC0qS5wKGNjUzSMs3tsp
+	a
+X-Received: by 2002:a02:a15e:: with SMTP id m30mr9983761jah.143.1547201319070;
+        Fri, 11 Jan 2019 02:08:39 -0800 (PST)
+X-Received: by 2002:a02:a15e:: with SMTP id m30mr9983737jah.143.1547201318427;
+        Fri, 11 Jan 2019 02:08:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547201318; cv=none;
         d=google.com; s=arc-20160816;
-        b=XeTwZnKCwIEQXNY/1RdQ6lPKq0GDTrt7KTqAtVSyzMAzKKXWDOEqKagmrtRGKCoA9L
-         IaOcaoi5zWUIC5+cS0o5G8ctbm3e5EsjiBqoM4LeL1jYNMl5kWnk5axsbTypASgxb5UR
-         tMB784c1l0R0LzWVYqHb8GFh8EcIPKNaEqnFxhXQrFCKHOzqxUY+q6/xLxtPE59gpkHU
-         imCBQ25zMFChu4LovA8FiAlFCaBj8yGOKIP6n07G4nJn+Cbpiy94apcA+C/Oh++8LLv5
-         59yigwJ129//ZLfWozGeqEJlPDM0LP8HQme+9GQ9Ow+CaU/ip1SZqaFsSUgNq44A0lW9
-         8E5w==
+        b=U1ivHZBFGsyzMF5hhSjnjYyvbnFdbvCHuLRijr9zfrSPM8Mf7VQFytzglH50HEgeXs
+         X2KASiQccLr2MyrywY+a580ro5/vHH/kYJG23mk20PEvjXxHDTxEg8raIo7AOG2EQA5e
+         AfYnUqLfSb+L87gaywAIuRYoWtVAsa5pPzAb+uiJqhZ0woYXgMedBl0/2Y54T0Yd8ggO
+         120ngcqE50aesAcg0yBlUZUvIikujYcuM9ysaNZW48q3Uxrf615e9L2bpROzh/BhxD1u
+         pO2Ioa53Ol33bNX3Z7ijYua/X7aCNOvkq+nAciJsckDRRHrS22zQWcX8/per0RKpkc0v
+         zqzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=0tV770gtlc+wsy+UJoYxGMN9qBxuKgWLEh7SlyYwABc=;
-        b=Hs1o+x7X3H32IrL1MgFx4xpMdWViKeYSFvgDQQ5w4g0GenhI9zDnVOazmjTHfef3Rk
-         UcB+cdc4cT3C27HsCj/2LKLw5n/glVc+LADNP9fxe6t6hMCMKCJtbItTux46Yq2KYci9
-         Pp1l4DncQQ7eSIojSetSGhmI96uRv37xFzI94B4f9pVJ9jCPscbZRi9F/uz9FaTN5w8Z
-         C64zGcevI1xEawIkmqsoR/onc5M4FLT94wCPt6mz5yH7nEcKFhcxyr02DEOFne+EMo5/
-         A5hPFcRzsVffIjVEsu0U5HCNlNuMVwSlw1feBT+fPj2d1QtXES1ufGihbCFAKtRfS1V7
-         Lmfw==
+        bh=LUPiDJ7lnfm6wI/6H7WU6hN/VwCa62q6oRlvnlQWtA4=;
+        b=LA2dZ3+L+K3VdvgowtXQuI1h9zLjLwVhWIFRT3aGAdjGsqMY6q5ZQFl4CqQjCR16u2
+         qjtV+b2fqH9xrjLCzPRCe9vk+5FWsELnURHsohbuJaRtn2RQzLRHYEY7c6NnqHNDldK1
+         0mPhriBUvWh/+9/v3a++ipOiyTc9gcfZTGc4eugxSc2UpgeM9ZuwPzrtiKaUURPMYPzE
+         SzMGjRXbMiXPZ+sDWq56OGrBRi038KPqqhjg58Tw+K4bb8JmZ3/tyABU0kmPlyRiwTQx
+         bjzpD9wiVpmGf5+UQd44oI8fJi2UJ7o1Jmy4qVX857NyOvCdDvAri36rIY0qZQI9D8Vp
+         60+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cNX4uAlE;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pKS1rELE;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m22sor28684487ioj.130.2019.01.11.02.07.06
+        by mx.google.com with SMTPS id u16sor32214230ior.37.2019.01.11.02.08.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 11 Jan 2019 02:07:06 -0800 (PST)
+        Fri, 11 Jan 2019 02:08:38 -0800 (PST)
 Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cNX4uAlE;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pKS1rELE;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=0tV770gtlc+wsy+UJoYxGMN9qBxuKgWLEh7SlyYwABc=;
-        b=cNX4uAlETZADN8aGRufMP3D/4vQLNg3X69OiSMjhjWYl7auJI9j39DuE573wzYBGPB
-         Z54d5fPFgjAi6qVJ+oWkKC2s4Q8LQXwrsMqf/Xqe5JAX+Ih3hgn/w1hVd1LMrQ2RwSxm
-         DLjcGH7rmc6U9CbplCjwBYbbNR1zJ3hBsKXnndGo291m4QEMvTkV2e+IiaOyqrAvm3l8
-         sop06tgie9xWkc+XMY4MO8IzM3AiwyEGYDE02eCIDXqlt467X05ipHMqhcdd+jbMOH08
-         +xEvlP6cymto4k/R9yxie0s814znsJDeXyjjXz5Zr4zPOaoYl0WaPUQVEZR3pA6WlABt
-         4tfg==
-X-Google-Smtp-Source: ALg8bN5Xzg+bZMposKlY51+EUlou7mGmeHx/TDH2StE42hULTAMczRfTbyGp2nwSeReF6n6voVc0KWtaO+hN0ViqkcQ=
-X-Received: by 2002:a5e:de01:: with SMTP id e1mr9201968iok.137.1547201226390;
- Fri, 11 Jan 2019 02:07:06 -0800 (PST)
+        bh=LUPiDJ7lnfm6wI/6H7WU6hN/VwCa62q6oRlvnlQWtA4=;
+        b=pKS1rELEFRWnEbgPRB33fqg4Ldf7pDMNfaJWJK6PiMwPiBUhTDbirHslHtkELzOgpS
+         rhqnyqt0uCNkHo1dYwmIRvEq1dfumYu3VqyGs7TaQ77sfaeGVzznsCl6oE+ySWZg6uRE
+         lcXFSJPjc1PmPi+qTm/TQ2+phaFZnLXZCq5cPS9OTqD6kepoo7AbNDSN0YhDYccacXCL
+         +YQgVB2slDxHWxi5EDdKK7gTZ5sgzQiqueEuGmgymvVLDu9LwNuy8Mfh034yTCDlxg4s
+         /Qmcza0Q2Gj9nyAvp2u7nK+HgQmHDThCgds5rtWP5f8LceXsWKH55q+a+Is8uQo/d+VY
+         8N/Q==
+X-Google-Smtp-Source: ALg8bN6WNs9URoD/NSCPCuBXeMSAJYykLzC0vXg1F0Wbe88bwpgBSntGdZZd1qx3KHGpRnmJFPd6BTU9VL+vpU+enrI=
+X-Received: by 2002:a6b:3f06:: with SMTP id m6mr8569121ioa.117.1547201318130;
+ Fri, 11 Jan 2019 02:08:38 -0800 (PST)
 MIME-Version: 1.0
 References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
- <1547183577-20309-2-git-send-email-kernelfans@gmail.com> <20190111061221.GB13263@localhost.localdomain>
-In-Reply-To: <20190111061221.GB13263@localhost.localdomain>
+ <1547183577-20309-3-git-send-email-kernelfans@gmail.com> <20190111053036.GA13263@localhost.localdomain>
+In-Reply-To: <20190111053036.GA13263@localhost.localdomain>
 From: Pingfan Liu <kernelfans@gmail.com>
-Date: Fri, 11 Jan 2019 18:06:55 +0800
+Date: Fri, 11 Jan 2019 18:08:26 +0800
 Message-ID:
- <CAFgQCTvhcNK_-b-eVFZY8Ua2C+GbOVM+h4kB1us2vNvvyNPCYg@mail.gmail.com>
-Subject: Re: [PATCHv2 1/7] x86/mm: concentrate the code to memblock allocator enabled
+ <CAFgQCTvWk6t_8fQG3OqNAQDX-23ZaRuCzRyM40-do1rPAhzwhw@mail.gmail.com>
+Subject: Re: [PATCHv2 2/7] acpi: change the topo of acpi_table_upgrade()
 To: Chao Fan <fanc.fnst@cn.fujitsu.com>
 Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, 
 	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
@@ -122,71 +122,114 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111100655.sPqSyu8uniecXMrw7cjZ1Ntp6EJr_SirRdhLR9O3DdQ@z>
+Message-ID: <20190111100826.GueSD3oTkdAmKs_GdF9zx2P8BlNt1iV7oDLqPabI6aU@z>
 
-On Fri, Jan 11, 2019 at 2:13 PM Chao Fan <fanc.fnst@cn.fujitsu.com> wrote:
+On Fri, Jan 11, 2019 at 1:31 PM Chao Fan <fanc.fnst@cn.fujitsu.com> wrote:
 >
-> On Fri, Jan 11, 2019 at 01:12:51PM +0800, Pingfan Liu wrote:
-> >This patch identifies the point where memblock alloc start. It has no
-> >functional.
-> [...]
-> >+#ifdef CONFIG_MEMORY_HOTPLUG
-> >+      /*
-> >+       * Memory used by the kernel cannot be hot-removed because Linux
-> >+       * cannot migrate the kernel pages. When memory hotplug is
-> >+       * enabled, we should prevent memblock from allocating memory
-> >+       * for the kernel.
-> >+       *
-> >+       * ACPI SRAT records all hotpluggable memory ranges. But before
-> >+       * SRAT is parsed, we don't know about it.
-> >+       *
-> >+       * The kernel image is loaded into memory at very early time. We
-> >+       * cannot prevent this anyway. So on NUMA system, we set any
-> >+       * node the kernel resides in as un-hotpluggable.
-> >+       *
-> >+       * Since on modern servers, one node could have double-digit
-> >+       * gigabytes memory, we can assume the memory around the kernel
-> >+       * image is also un-hotpluggable. So before SRAT is parsed, just
-> >+       * allocate memory near the kernel image to try the best to keep
-> >+       * the kernel away from hotpluggable memory.
-> >+       */
-> >+      if (movable_node_is_enabled())
-> >+              memblock_set_bottom_up(true);
+> On Fri, Jan 11, 2019 at 01:12:52PM +0800, Pingfan Liu wrote:
+> >The current acpi_table_upgrade() relies on initrd_start, but this var is
+> >only valid after relocate_initrd(). There is requirement to extract the
+> >acpi info from initrd before memblock-allocator can work(see [2/4]), hence
+> >acpi_table_upgrade() need to accept the input param directly.
+> >
+> >Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+> >Acked-by: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> >Cc: Thomas Gleixner <tglx@linutronix.de>
+> >Cc: Ingo Molnar <mingo@redhat.com>
+> >Cc: Borislav Petkov <bp@alien8.de>
+> >Cc: "H. Peter Anvin" <hpa@zytor.com>
+> >Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> >Cc: Andy Lutomirski <luto@kernel.org>
+> >Cc: Peter Zijlstra <peterz@infradead.org>
+> >Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> >Cc: Len Brown <lenb@kernel.org>
+> >Cc: Yinghai Lu <yinghai@kernel.org>
+> >Cc: Tejun Heo <tj@kernel.org>
+> >Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
+> >Cc: Baoquan He <bhe@redhat.com>
+> >Cc: Juergen Gross <jgross@suse.com>
+> >Cc: Andrew Morton <akpm@linux-foundation.org>
+> >Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> >Cc: Vlastimil Babka <vbabka@suse.cz>
+> >Cc: Michal Hocko <mhocko@suse.com>
+> >Cc: x86@kernel.org
+> >Cc: linux-acpi@vger.kernel.org
+> >Cc: linux-mm@kvack.org
+> >---
+> > arch/arm64/kernel/setup.c | 2 +-
+> > arch/x86/kernel/setup.c   | 2 +-
+> > drivers/acpi/tables.c     | 4 +---
+> > include/linux/acpi.h      | 4 ++--
+> > 4 files changed, 5 insertions(+), 7 deletions(-)
+> >
+> >diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
+> >index f4fc1e0..bc4b47d 100644
+> >--- a/arch/arm64/kernel/setup.c
+> >+++ b/arch/arm64/kernel/setup.c
+> >@@ -315,7 +315,7 @@ void __init setup_arch(char **cmdline_p)
+> >       paging_init();
+> >       efi_apply_persistent_mem_reservations();
+> >
+> >-      acpi_table_upgrade();
+> >+      acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
+> >
+> >       /* Parse the ACPI tables for possible boot-time configuration */
+> >       acpi_boot_table_init();
+> >diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+> >index ac432ae..dc8fc5d 100644
+> >--- a/arch/x86/kernel/setup.c
+> >+++ b/arch/x86/kernel/setup.c
+> >@@ -1172,8 +1172,8 @@ void __init setup_arch(char **cmdline_p)
+> >
+> >       reserve_initrd();
+> >
+> >-      acpi_table_upgrade();
+> >
+> I wonder whether this will cause two blank lines together.
 >
-> Hi Pingfan,
->
-> In my understanding, 'movable_node' is based on the that memory near
-> kernel is considered as in the same node as kernel in high possibility.
->
-> If SRAT has been parsed early, do we still need the kernel parameter
-> 'movable_node'? Since you have got the memory information about hot-remove,
-> so I wonder if it's OK to drop 'movable_node', and if memory-hotremove is
-> enabled, change memblock allocation according to SRAT.
->
-x86_32 still need this logic. Maybe it can be doable later.
+Yes, will fix it in next version.
 
 Thanks,
 Pingfan
-> If there is something wrong in my understanding, please let me know.
->
 > Thanks,
 > Chao Fan
 >
-> >+#endif
-> >       init_mem_mapping();
-> >+      memblock_set_current_limit(get_max_mapped());
+> >+      acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
+> >       vsmp_init();
 > >
-> >       idt_setup_early_pf();
+> >       io_delay_init();
+> >diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+> >index 61203ee..84e0a79 100644
+> >--- a/drivers/acpi/tables.c
+> >+++ b/drivers/acpi/tables.c
+> >@@ -471,10 +471,8 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
 > >
-> >@@ -1145,8 +1145,6 @@ void __init setup_arch(char **cmdline_p)
-> >        */
-> >       mmu_cr4_features = __read_cr4() & ~X86_CR4_PCIDE;
+> > #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
 > >
-> >-      memblock_set_current_limit(get_max_mapped());
-> >-
-> >       /*
-> >        * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
-> >        */
+> >-void __init acpi_table_upgrade(void)
+> >+void __init acpi_table_upgrade(void *data, size_t size)
+> > {
+> >-      void *data = (void *)initrd_start;
+> >-      size_t size = initrd_end - initrd_start;
+> >       int sig, no, table_nr = 0, total_offset = 0;
+> >       long offset = 0;
+> >       struct acpi_table_header *table;
+> >diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+> >index ed80f14..0b6e0b6 100644
+> >--- a/include/linux/acpi.h
+> >+++ b/include/linux/acpi.h
+> >@@ -1254,9 +1254,9 @@ acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
+> > #endif
+> >
+> > #ifdef CONFIG_ACPI_TABLE_UPGRADE
+> >-void acpi_table_upgrade(void);
+> >+void acpi_table_upgrade(void *data, size_t size);
+> > #else
+> >-static inline void acpi_table_upgrade(void) { }
+> >+static inline void acpi_table_upgrade(void *data, size_t size) { }
+> > #endif
+> >
+> > #if defined(CONFIG_ACPI) && defined(CONFIG_ACPI_WATCHDOG)
 > >--
 > >2.7.4
 > >
