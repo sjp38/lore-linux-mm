@@ -2,165 +2,202 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28F98C43387
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 11:32:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 840BFC43387
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 13:49:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBA0020652
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 11:32:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBA0020652
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 40E8B2084C
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 13:49:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="dJmuXoxo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40E8B2084C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 754B98E0011; Fri, 11 Jan 2019 06:32:57 -0500 (EST)
+	id C20AD8E0004; Fri, 11 Jan 2019 08:49:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6DE948E0001; Fri, 11 Jan 2019 06:32:57 -0500 (EST)
+	id BCE418E0001; Fri, 11 Jan 2019 08:49:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A7C18E0011; Fri, 11 Jan 2019 06:32:57 -0500 (EST)
+	id ABED88E0004; Fri, 11 Jan 2019 08:49:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F10E8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:32:57 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id w4so5980669otj.2
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:32:57 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D80C8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 08:49:05 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 74so10340973pfk.12
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 05:49:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=9WuW2iWvYf8AhFWrUoQ0lTlxA9Uj+Ul6pIlgpeQBrdc=;
-        b=iq6FCO5hQ8fhD/pJNNsusfSQlcRadzfow2UFVs6AyKm3frfN06gyUzR3SlR2rVs8pZ
-         AOlF6k+iNnBLsaqK6/GUs24g2WAiHsKBI7LlTfM8QvIiE3H20ezZARGNTSg0hxpEfYQc
-         9wBqfztAWkuDAO3ExCyLANMrIr6CS1cAYkKg8sXsFK9T7A5aEg64zhyNnq0QpQ7PX0T6
-         VIrQJNgvClmdRlelbfx9cMH86Of6VUdyha4QeBBWwurPeuvjR02rq9ZcKwfcwQUuJ/YY
-         fe9jg2DhLaK3IpSP0IHhN0RmLgLUxT+Sbsjbf29fzRCfDDjfVf0P4mdVf6xHUKnKhvqz
-         BwSA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: AJcUukft4cC2AxY55ChNzODxrFjLPm9YIze/1xu1yKnomKThqperVPi1
-	6YkxI7vqzhaUjobl8TgEZK6sbVLGUOowJChuxTRMd0lfQn+Z4jEN1Gf9S3qnwhmKYih5DsSQ2l4
-	0SiLRTGAIbPdzLWEgHajEcUj98ya4JN800heXjvIn87Y+Tv7QTvWDgkmGjRN42bnpDg==
-X-Received: by 2002:aca:6995:: with SMTP id e143mr8429942oic.283.1547206376801;
-        Fri, 11 Jan 2019 03:32:56 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6GkxP6QXLGUpQ7mW96g8zks7SmncELdF+LGy7puSjNKdyLmoBUd5RRM3I4UuKRUi5em2Cm
-X-Received: by 2002:aca:6995:: with SMTP id e143mr8429914oic.283.1547206376098;
-        Fri, 11 Jan 2019 03:32:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547206376; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=RXKHpApbXWxCHzZIFxDaePnTRIPPkx7fd2gBjWXrl0Q=;
+        b=OzkjxAWesD/tuQ+ToGWTyARu3480+bsBRJ9ccuSyIVsCgTrQsqEqnN5ozkSY/TiqTJ
+         5JDAsCKuZd8RdyK3AYIbXsar/RQyz/41x0XqOVNwC2zt+tdpzsdlvp0MiVlpzuiUr1Nc
+         kAq13FK03XbEXwTPAGyvjZ959ULuSZ29o85YOjCEfSxIa92qDB+TJ4F6+Ha5DFc7Gent
+         g9UWW6BifCPryvdG4nOJQ46Gh1TObwEmtNaKw07WvucBJ+MIaVZ5nHT7NN82x/UWU0oM
+         A/RkdSUUXzxbP6FUWJK9bpDNWs7qeu4sLpB7Ltxu/7bWLcdFzFo/b+CX5Vmd0xKsHnyJ
+         m00g==
+X-Gm-Message-State: AJcUukeZMcij2lv/qP8zu9+E8hjWTZjccJesmxppSVwnLAERZZedDES5
+	Uau12LltldmPneHs20xaNbXEKPpb6G2iUejaDR/rAZuCKveW/1gKZddJ6jlebdQz3IMKTldVNMO
+	xJ1KxzhV6AO+uFY9Vy5iRJCUjAT9iw+UVD3BbtaE7SB9e+8lFM6g5o/uASgRNEWtFrOpH8Omzsd
+	WWRx8ml8rltjD3obNuypa/SM/iGZhcXFR6mWO9m9rQcKeM2y3LfSx1WBfDcSriXLrAVZr4+Vy7X
+	P3ZCHmL6fiOBCJpWO05rtjM+Pn5DInjATmyHG5r7Z4AORLEWU6Xs0isbiUMSdtmMo6Q7JGXA2rd
+	sS5bGAXbTL78VjylzVMmZOx4vVGOp1n7xRF74TUc+BtVUmZqFyus+ALbdUHqlmZQmVtiWTEsC9f
+	P
+X-Received: by 2002:a17:902:201:: with SMTP id 1mr14591491plc.62.1547214545079;
+        Fri, 11 Jan 2019 05:49:05 -0800 (PST)
+X-Received: by 2002:a17:902:201:: with SMTP id 1mr14591452plc.62.1547214544034;
+        Fri, 11 Jan 2019 05:49:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547214544; cv=none;
         d=google.com; s=arc-20160816;
-        b=dnKpGjncLI7OKuFq/mbNNyylEYKAjfHIK+na11v5eSOF1pyPBvjl2uvhg7QiSeGOn6
-         huNRAQ+GfUzRdvbbkX5I5WxtOeEvbWbumxJQcCt1IsnidHbhZA38Z3zBt1DWzY+uli+H
-         kIo5aqKFar4SVr3Ey+8o0dYhHv4hMW1jjNOgtE2yQRUox7Nh+vWoo3+QkVVni2Fz5vBI
-         jIYLIICx/y1gGlaXSGu8AeabyRhBuaHM0aq0W3a6CQpCSpoHp6cTPIxl+JagajI4A8xe
-         wE65ZyrvdLelRPKgwpZxdjbzewOb6wx4bsnWcwTgfd73jhi2np11Nb4C1oxyAC2ab28Z
-         nN6g==
+        b=xId0dyt0tW9p1NcpFLRVjSU0ZmoMqNK0l5TJ4TbGz8cGQG9BfRMwyqxskaeoZ7Ht7b
+         ZqUkZN2LWUPDEl13wCHt3idK5PawfxU+BeFpCulDBqTFXDwAQp8DxfdySBb+DdV+k0OY
+         mgCGu1nSWv+Rpt0cNZDOvvu/142+Q5cDtywBAWQ4nEFU8mU/6kIk2wy+SZVOuDfSuiTf
+         FOUUf7b/YnETMqVkBdmSPoQ7UMiQcbEx2HUAMUOMzVpo4HA2+jXyB9mh3SKQrqT9cDye
+         t4P0k7VafKZS3DxVHGPWkV3zr16lguJLQKfIQvod2mqyXYCq4oxSToQHSuKewD8Y5HVq
+         43dA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=9WuW2iWvYf8AhFWrUoQ0lTlxA9Uj+Ul6pIlgpeQBrdc=;
-        b=0+UYPsHdLEZ7sj0yxZC9Uh+1NwjEs1f2bdBkHAL4+/Sx+O4dXPqpgTbokpYo2T0Gcw
-         RDwABpFg0GyVWRJ+vrh/sPynqltVKTtYHPxX8Df3WJN7k6Wyo09yMYEeAzYxQPpPOK+1
-         uB3afzXD0YjlvFH798XeWYZyGM/LToTHqmHfB+u5FykoKDBCkISfoRkn33iBazxmNAc2
-         g8DpAGliR59B+fuvXC/dlEcAqoN78ZCLjyZoiUGcL7P8D9hhcLTLwPNao3tW6tv+5vgO
-         VP/51UpuuKjIdugJwvLbXYKM5x/XyfY1/v786LaNHX/4Dkd3TuWi0utot6t++phvwwqO
-         zLmQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=RXKHpApbXWxCHzZIFxDaePnTRIPPkx7fd2gBjWXrl0Q=;
+        b=UuqjDf7Br/L2cwhzLMFlBlQwEhcXpMvPZoDkSCRUBdanNg+nXs1ibkN6u3lwspm6Aa
+         aX1+Qxe8bgT/q5eO4UNuv/ScmYIDicO9EzzyTgYBkhLKaPfBmaqSlE5c21GMZ0ZGkWza
+         UeEuWmZzeB8sjQBOUgOa23RcIwF2Rb+wmEYkXE2VVeFZo5EWoyVVrLO0sf9IRrsNoC3H
+         QP1OJ+GAydHtn/AeLBCl12ZxW4nalIdvatj28dLnhyB7/WHQUTtYlaIWKcRurpzAAGFg
+         4jTK5cN1Twe8DadAu7qwZte5W1Y4Lim4C44/NVu8aJljDC8MFe4A5s7s50R3vtzcYn5Z
+         4bpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id x72si26366566oix.204.2019.01.11.03.32.55
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dJmuXoxo;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w17sor56420440pga.2.2019.01.11.05.49.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 03:32:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        (Google Transport Security);
+        Fri, 11 Jan 2019 05:49:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id B0DB6391A3618A6E0D1D;
-	Fri, 11 Jan 2019 19:32:51 +0800 (CST)
-Received: from localhost (10.202.226.46) by DGGEMS402-HUB.china.huawei.com
- (10.3.19.202) with Microsoft SMTP Server id 14.3.408.0; Fri, 11 Jan 2019
- 19:32:48 +0800
-Date: Fri, 11 Jan 2019 11:32:38 +0000
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-To: Keith Busch <keith.busch@intel.com>
-CC: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>,
-	<linux-kernel@vger.kernel.org>, <linux-acpi@vger.kernel.org>,
-	<linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
-	"Dan Williams" <dan.j.williams@intel.com>
-Subject: Re: [PATCHv3 07/13] node: Add heterogenous memory access attributes
-Message-ID: <20190111113238.000068b0@huawei.com>
-In-Reply-To: <20190110173016.GC21095@localhost.localdomain>
-References: <20190109174341.19818-1-keith.busch@intel.com>
-	<20190109174341.19818-8-keith.busch@intel.com>
-	<87y37sit8x.fsf@linux.ibm.com>
-	<20190110173016.GC21095@localhost.localdomain>
-Organization: Huawei
-X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dJmuXoxo;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=RXKHpApbXWxCHzZIFxDaePnTRIPPkx7fd2gBjWXrl0Q=;
+        b=dJmuXoxoR2ebKOkVPfg/NJObqzbDxo0T1be0tynDB7z6tYj7G9hM8VM8rRfre8xL/V
+         J+Mhfuo76Dpr63Aw9Nx1khyw6zIEO4MCNMrBfBI4bsC1uKIcpqgsTkXaJiPhA7PU4ypq
+         itA0I7fvkdFB1bQqI0Iw+nFS+6FYEUIgYhaWX0RwgO6Yc6h2MLeMR9LWzeKWA1XVbY67
+         RJFRIZTQDBGbYvJARugClvD7yC7wXXL3KUNIli7rE4gdOKYyYJjWvTsqAYPH2zkzkYwD
+         n/MXITuQcZ+pBj1xyd1fo5wD2Td1v3bOR0R7eMo/k2I8zhFzEHgr2JM8YCmRgIlh0iyd
+         4V/A==
+X-Google-Smtp-Source: ALg8bN79Ji5SFeOBKJt3PLt4o/figJFVOUJpjacA7qTyh0mPZs5n0LFnTClGYX1AY0wZk8bxKDxdW0PBUJ/+g9Pum+o=
+X-Received: by 2002:a63:4706:: with SMTP id u6mr3155263pga.95.1547214543132;
+ Fri, 11 Jan 2019 05:49:03 -0800 (PST)
 MIME-Version: 1.0
+References: <cover.1546540962.git.andreyknvl@google.com> <52ddd881916bcc153a9924c154daacde78522227.1546540962.git.andreyknvl@google.com>
+ <fc93e5a4-fa54-98a1-ea5f-4708568d7857@arm.com>
+In-Reply-To: <fc93e5a4-fa54-98a1-ea5f-4708568d7857@arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Fri, 11 Jan 2019 14:48:52 +0100
+Message-ID:
+ <CAAeHK+wYo95G3pSoxDWwUs2wf-tBoupwf+0XjO68WXjLzsNWaw@mail.gmail.com>
+Subject: Re: [PATCH v3 1/3] kasan, arm64: use ARCH_SLAB_MINALIGN instead of
+ manual aligning
+To: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Will Deacon <will.deacon@arm.com>, Christoph Lameter <cl@linux.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, 
+	Nick Desaulniers <ndesaulniers@google.com>, Marc Zyngier <marc.zyngier@arm.com>, 
+	Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
+	"Eric W . Biederman" <ebiederm@xmission.com>, Ingo Molnar <mingo@kernel.org>, 
+	Paul Lawrence <paullawrence@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>, 
+	Arnd Bergmann <arnd@arndb.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, kasan-dev <kasan-dev@googlegroups.com>, 
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, 
+	Linux Memory Management List <linux-mm@kvack.org>, 
+	Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, 
+	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Jann Horn <jannh@google.com>, 
+	Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>, 
+	Vishwath Mohan <vishwath@google.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.202.226.46]
-X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111113238.Pn15710ZvsRxyk_RZGKoOeHEQaG5Y4fNFN1u1pJISSM@z>
+Message-ID: <20190111134852.wrremXHB74PXCLvYv4wxR2kGkNQnKiE6ccA95ezHRvQ@z>
 
-On Thu, 10 Jan 2019 10:30:17 -0700
-Keith Busch <keith.busch@intel.com> wrote:
+On Wed, Jan 9, 2019 at 11:10 AM Vincenzo Frascino
+<vincenzo.frascino@arm.com> wrote:
+>
+> On 03/01/2019 18:45, Andrey Konovalov wrote:
+> > Instead of changing cache->align to be aligned to KASAN_SHADOW_SCALE_SIZE
+> > in kasan_cache_create() we can reuse the ARCH_SLAB_MINALIGN macro.
+> >
+> > Suggested-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > ---
+> >  arch/arm64/include/asm/cache.h | 6 ++++++
+> >  mm/kasan/common.c              | 2 --
+> >  2 files changed, 6 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
+> > index 13dd42c3ad4e..eb43e09c1980 100644
+> > --- a/arch/arm64/include/asm/cache.h
+> > +++ b/arch/arm64/include/asm/cache.h
+> > @@ -58,6 +58,12 @@
+> >   */
+> >  #define ARCH_DMA_MINALIGN    (128)
+> >
+> > +#ifdef CONFIG_KASAN_SW_TAGS
+> > +#define ARCH_SLAB_MINALIGN   (1ULL << KASAN_SHADOW_SCALE_SHIFT)
+> > +#else
+> > +#define ARCH_SLAB_MINALIGN   __alignof__(unsigned long long)
+> > +#endif
+> > +
+>
+> Could you please remove the "#else" case here, because it is redundant (it is
+> defined in linux/slab.h as ifndef) and could be misleading in future?
 
-> On Thu, Jan 10, 2019 at 06:07:02PM +0530, Aneesh Kumar K.V wrote:
-> > Keith Busch <keith.busch@intel.com> writes:
-> >   
-> > > Heterogeneous memory systems provide memory nodes with different latency
-> > > and bandwidth performance attributes. Provide a new kernel interface for
-> > > subsystems to register the attributes under the memory target node's
-> > > initiator access class. If the system provides this information, applications
-> > > may query these attributes when deciding which node to request memory.
-> > >
-> > > The following example shows the new sysfs hierarchy for a node exporting
-> > > performance attributes:
-> > >
-> > >   # tree -P "read*|write*" /sys/devices/system/node/nodeY/classZ/
-> > >   /sys/devices/system/node/nodeY/classZ/
-> > >   |-- read_bandwidth
-> > >   |-- read_latency
-> > >   |-- write_bandwidth
-> > >   `-- write_latency
-> > >
-> > > The bandwidth is exported as MB/s and latency is reported in nanoseconds.
-> > > Memory accesses from an initiator node that is not one of the memory's
-> > > class "Z" initiator nodes may encounter different performance than
-> > > reported here. When a subsystem makes use of this interface, initiators
-> > > of a lower class number, "Z", have better performance relative to higher
-> > > class numbers. When provided, class 0 is the highest performing access
-> > > class.  
-> > 
-> > How does the definition of performance relate to bandwidth and latency here?. The
-> > initiator in this class has the least latency and high bandwidth? Can there
-> > be a scenario where both are not best for the same node? ie, for a
-> > target Node Y, initiator Node A gives the highest bandwidth but initiator
-> > Node B gets the least latency. How such a config can be represented? Or is
-> > that not possible?  
-> 
-> I am not aware of a real platform that has an initiator-target pair with
-> better latency but worse bandwidth than any different initiator paired to
-> the same target. If such a thing exists and a subsystem wants to report
-> that, you can register any arbitrary number of groups or classes and
-> rank them according to how you want them presented.
-> 
+Sure, sent a patch. Thanks!
 
-It's certainly possible if you are trading off against pin count by going
-out of the soc on a serial bus for some large SCM pool and also have a local
-SCM pool on a ddr 'like' bus or just ddr on fairly small number of channels
-(because some one didn't put memory on all of them).
-We will see this fairly soon in production parts.
-
-So need an 'ordering' choice for this circumstance that is predictable.
-
-Jonathan
+>
+> >  #ifndef __ASSEMBLY__
+> >
+> >  #include <linux/bitops.h>
+> > diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+> > index 03d5d1374ca7..44390392d4c9 100644
+> > --- a/mm/kasan/common.c
+> > +++ b/mm/kasan/common.c
+> > @@ -298,8 +298,6 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
+> >               return;
+> >       }
+> >
+> > -     cache->align = round_up(cache->align, KASAN_SHADOW_SCALE_SIZE);
+> > -
+> >       *flags |= SLAB_KASAN;
+> >  }
+> >
+> >
+>
+> --
+> Regards,
+> Vincenzo
+>
+> --
+> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+> To post to this group, send email to kasan-dev@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/fc93e5a4-fa54-98a1-ea5f-4708568d7857%40arm.com.
+> For more options, visit https://groups.google.com/d/optout.
 
