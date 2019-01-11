@@ -1,101 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 29E838E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:13:19 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id t10so7591230plo.13
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:13:19 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E38508E0001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:41:56 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id o205so156203itc.2
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 18:41:56 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c8sor1649554plr.70.2019.01.10.21.13.17
+        by mx.google.com with SMTPS id m200sor208822itb.0.2019.01.10.18.41.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 10 Jan 2019 21:13:17 -0800 (PST)
+        Thu, 10 Jan 2019 18:41:55 -0800 (PST)
+MIME-Version: 1.0
+References: <1546848299-23628-1-git-send-email-kernelfans@gmail.com>
+ <20190108080538.GB4396@rapoport-lnx> <20190108090138.GB18718@MiWiFi-R3L-srv>
+ <20190108154852.GC14063@rapoport-lnx> <20190109142516.GA14211@MiWiFi-R3L-srv>
+In-Reply-To: <20190109142516.GA14211@MiWiFi-R3L-srv>
 From: Pingfan Liu <kernelfans@gmail.com>
-Subject: [PATCHv2 0/7] x86_64/mm: remove bottom-up allocation style by pushing forward the parsing of mem hotplug info 
-Date: Fri, 11 Jan 2019 13:12:50 +0800
-Message-Id: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+Date: Fri, 11 Jan 2019 10:41:44 +0800
+Message-ID: <CAFgQCTt6YjoqfvZhEFNAvg-0_r_V5apowNAcg4SSLx1QOMSSWA@mail.gmail.com>
+Subject: Re: [PATCHv5] x86/kdump: bugfix, make the behavior of crashkernel=X
+ consistent with kaslr
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Pingfan Liu <kernelfans@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Baoquan He <bhe@redhat.com>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org, kexec@lists.infradead.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Jonathan Corbet <corbet@lwn.net>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Nicholas Piggin <npiggin@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Daniel Vacek <neelx@redhat.com>, Mathieu Malaterre <malat@debian.org>, Stefan Agner <stefan@agner.ch>, Dave Young <dyoung@redhat.com>, yinghai@kernel.org, vgoyal@redhat.com, linux-kernel@vger.kernel.org
 
-Background
-When kaslr kernel can be guaranteed to sit inside unmovable node
-after [1]. But if kaslr kernel is located near the end of the movable node,
-then bottom-up allocator may create pagetable which crosses the boundary
-between unmovable node and movable node.  It is a probability issue,
-two factors include -1. how big the gap between kernel end and
-unmovable node's end.  -2. how many memory does the system own.
-Alternative way to fix this issue is by increasing the gap by
-boot/compressed/kaslr*. But taking the scenario of PB level memory,
-the pagetable will take server MB even if using 1GB page, different page
-attr and fragment will make things worse. So it is hard to decide how much
-should the gap increase.
-The following figure show the defection of current bottom-up style:
-  [startA, endA][startB, "kaslr kernel verly close to" endB][startC, endC]
+On Wed, Jan 9, 2019 at 10:25 PM Baoquan He <bhe@redhat.com> wrote:
+>
+> On 01/08/19 at 05:48pm, Mike Rapoport wrote:
+> > On Tue, Jan 08, 2019 at 05:01:38PM +0800, Baoquan He wrote:
+> > > Hi Mike,
+> > >
+> > > On 01/08/19 at 10:05am, Mike Rapoport wrote:
+> > > > I'm not thrilled by duplicating this code (yet again).
+> > > > I liked the v3 of this patch [1] more, assuming we allow bottom-up mode to
+> > > > allocate [0, kernel_start) unconditionally.
+> > > > I'd just replace you first patch in v3 [2] with something like:
+> > >
+> > > In initmem_init(), we will restore the top-down allocation style anyway.
+> > > While reserve_crashkernel() is called after initmem_init(), it's not
+> > > appropriate to adjust memblock_find_in_range_node(), and we really want
+> > > to find region bottom up for crashkernel reservation, no matter where
+> > > kernel is loaded, better call __memblock_find_range_bottom_up().
+> > >
+> > > Create a wrapper to do the necessary handling, then call
+> > > __memblock_find_range_bottom_up() directly, looks better.
+> >
+> > What bothers me is 'the necessary handling' which is already done in
+> > several places in memblock in a similar, but yet slightly different way.
+>
+> The page aligning for start and the mirror flag setting, I suppose.
+> >
+> > memblock_find_in_range() and memblock_phys_alloc_nid() retry with different
+> > MEMBLOCK_MIRROR, but memblock_phys_alloc_try_nid() does that only when
+> > allocating from the specified node and does not retry when it falls back to
+> > any node. And memblock_alloc_internal() has yet another set of fallbacks.
+>
+> Get what you mean, seems they are trying to allocate within mirrorred
+> memory region, if fail, try the non-mirrorred region. If kernel data
+> allocation failed, no need to care about if it's movable or not, it need
+> to live firstly. For the bottom-up allocation wrapper, maybe we need do
+> like this too?
+>
+> >
+> > So what should be the necessary handling in the wrapper for
+> > __memblock_find_range_bottom_up() ?
+> >
+> > BTW, even without any memblock modifications, retrying allocation in
+> > reserve_crashkerenel() for different ranges, like the proposal at [1] would
+> > also work, wouldn't it?
+>
+> Yes, it also looks good. This patch only calls once, seems a simpler
+> line adding.
+>
+> In fact, below one and this patch, both is fine to me, as long as it
+> fixes the problem customers are complaining about.
+>
+It seems that there is divergence on opinion. Maybe it is easier to
+fix this bug by dyoung's patch. I will repost his patch.
 
-If nodeA,B is unmovable, while nodeC is movable, then init_mem_mapping()
-can generate pgtable on nodeC, which stain movable node.
-
-This patch makes it certainty instead of a probablity problem. It achieves
-this by pushing forward the parsing of mem hotplug info ahead of init_mem_mapping().
-
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
-Cc: Baoquan He <bhe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: x86@kernel.org
-Cc: linux-acpi@vger.kernel.org
-Cc: linux-mm@kvack.org
-Pingfan Liu (7):
-  x86/mm: concentrate the code to memblock allocator enabled
-  acpi: change the topo of acpi_table_upgrade()
-  mm/memblock: introduce allocation boundary for tracing purpose
-  x86/setup: parse acpi to get hotplug info before init_mem_mapping()
-  x86/mm: set allowed range for memblock allocator
-  x86/mm: remove bottom-up allocation style for x86_64
-  x86/mm: isolate the bottom-up style to init_32.c
-
- arch/arm/mm/init.c              |   3 +-
- arch/arm/mm/mmu.c               |   4 +-
- arch/arm/mm/nommu.c             |   2 +-
- arch/arm64/kernel/setup.c       |   2 +-
- arch/csky/kernel/setup.c        |   2 +-
- arch/microblaze/mm/init.c       |   2 +-
- arch/mips/kernel/setup.c        |   2 +-
- arch/powerpc/mm/40x_mmu.c       |   6 +-
- arch/powerpc/mm/44x_mmu.c       |   2 +-
- arch/powerpc/mm/8xx_mmu.c       |   2 +-
- arch/powerpc/mm/fsl_booke_mmu.c |   5 +-
- arch/powerpc/mm/hash_utils_64.c |   4 +-
- arch/powerpc/mm/init_32.c       |   2 +-
- arch/powerpc/mm/pgtable-radix.c |   2 +-
- arch/powerpc/mm/ppc_mmu_32.c    |   8 +-
- arch/powerpc/mm/tlb_nohash.c    |   6 +-
- arch/unicore32/mm/mmu.c         |   2 +-
- arch/x86/kernel/setup.c         |  93 ++++++++++++++---------
- arch/x86/mm/init.c              | 163 +++++-----------------------------------
- arch/x86/mm/init_32.c           | 147 ++++++++++++++++++++++++++++++++++++
- arch/x86/mm/mm_internal.h       |   8 +-
- arch/xtensa/mm/init.c           |   2 +-
- drivers/acpi/tables.c           |   4 +-
- include/linux/acpi.h            |   5 +-
- include/linux/memblock.h        |  10 ++-
- mm/memblock.c                   |  23 ++++--
- 26 files changed, 290 insertions(+), 221 deletions(-)
-
--- 
-2.7.4
+Thanks and regards,
+Pingfan
+> >
+> > [1] http://lists.infradead.org/pipermail/kexec/2017-October/019571.html
+>
+> Thanks
+> Baoquan
