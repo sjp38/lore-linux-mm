@@ -1,361 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DEFB8E00AE
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 07:54:29 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id b3so35182266edi.0
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2019 04:54:29 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id r18-v6si5649388ejh.206.2019.01.04.04.54.27
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 170988E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:02:00 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id d31so16249290qtc.4
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:02:00 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m68si92649qkd.120.2019.01.11.03.01.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Jan 2019 04:54:27 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id D214C1C1CB6
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2019 12:54:26 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 24/25] mm, compaction: Capture a page under direct compaction
-Date: Fri,  4 Jan 2019 12:50:10 +0000
-Message-Id: <20190104125011.16071-25-mgorman@techsingularity.net>
-In-Reply-To: <20190104125011.16071-1-mgorman@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
+        Fri, 11 Jan 2019 03:01:58 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 00/19] block: support multi-page bvec 
+Date: Fri, 11 Jan 2019 19:01:08 +0800
+Message-Id: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-Compaction is inherently race-prone as a suitable page freed during
-compaction can be allocated by any parallel task. This patch uses a
-capture_control structure to isolate a page immediately when it is freed
-by a direct compactor in the slow path of the page allocator. The intent
-is to avoid redundant scanning.
+Hi,
 
-                                        4.20.0                 4.20.0
-                               selective-v2r15          capture-v2r15
-Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-Amean     fault-both-3      2624.85 (   0.00%)     2594.49 (   1.16%)
-Amean     fault-both-5      3842.66 (   0.00%)     4088.32 (  -6.39%)
-Amean     fault-both-7      5459.47 (   0.00%)     5936.54 (  -8.74%)
-Amean     fault-both-12     9276.60 (   0.00%)    10160.85 (  -9.53%)
-Amean     fault-both-18    14030.73 (   0.00%)    13908.92 (   0.87%)
-Amean     fault-both-24    13298.10 (   0.00%)    16819.86 * -26.48%*
-Amean     fault-both-30    17648.62 (   0.00%)    17901.74 (  -1.43%)
-Amean     fault-both-32    19161.67 (   0.00%)    18621.32 (   2.82%)
+This patchset brings multi-page bvec into block layer:
 
-Latency is only moderately affected but the devil is in the details.
-A closer examination indicates that base page fault latency is much
-reduced but latency of huge pages is increased as it takes creater care
-to succeed. Part of the "problem" is that allocation success rates
-are close to 100% even when under pressure and compaction gets harder
+1) what is multi-page bvec?
 
-                                   4.20.0                 4.20.0
-                          selective-v2r15          capture-v2r15
-Percentage huge-1         0.00 (   0.00%)        0.00 (   0.00%)
-Percentage huge-3        99.95 (   0.00%)       99.98 (   0.03%)
-Percentage huge-5        98.83 (   0.00%)       98.01 (  -0.84%)
-Percentage huge-7        96.78 (   0.00%)       98.30 (   1.58%)
-Percentage huge-12       98.85 (   0.00%)       97.76 (  -1.10%)
-Percentage huge-18       97.52 (   0.00%)       99.05 (   1.57%)
-Percentage huge-24       97.07 (   0.00%)       99.34 (   2.35%)
-Percentage huge-30       96.59 (   0.00%)       99.08 (   2.58%)
-Percentage huge-32       95.94 (   0.00%)       99.03 (   3.22%)
+Multipage bvecs means that one 'struct bio_bvec' can hold multiple pages
+which are physically contiguous instead of one single page used in linux
+kernel for long time.
 
-And scan rates are reduced as expected by 10% for the migration
-scanner and 37% for the free scanner indicating that there is
-less redundant work.
+2) why is multi-page bvec introduced?
 
-Compaction migrate scanned    20338945.00    18133661.00
-Compaction free scanned       12590377.00     7986174.00
+Kent proposed the idea[1] first. 
 
-The impact on 2-socket is much larger albeit not presented. Under
-a different workload that fragments heavily, the allocation latency
-is reduced by 26% while the success rate goes from 63% to 80%
+As system's RAM becomes much bigger than before, and huge page, transparent
+huge page and memory compaction are widely used, it is a bit easy now
+to see physically contiguous pages from fs in I/O. On the other hand, from
+block layer's view, it isn't necessary to store intermediate pages into bvec,
+and it is enough to just store the physicallly contiguous 'segment' in each
+io vector.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/compaction.h |  3 ++-
- include/linux/sched.h      |  4 ++++
- kernel/sched/core.c        |  3 +++
- mm/compaction.c            | 31 +++++++++++++++++++------
- mm/internal.h              |  9 +++++++
- mm/page_alloc.c            | 58 ++++++++++++++++++++++++++++++++++++++++++----
- 6 files changed, 96 insertions(+), 12 deletions(-)
+Also huge pages are being brought to filesystem and swap [2][6], we can
+do IO on a hugepage each time[3], which requires that one bio can transfer
+at least one huge page one time. Turns out it isn't flexiable to change
+BIO_MAX_PAGES simply[3][5]. Multipage bvec can fit in this case very well.
+As we saw, if CONFIG_THP_SWAP is enabled, BIO_MAX_PAGES can be configured
+as much bigger, such as 512, which requires at least two 4K pages for holding
+the bvec table.
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 68250a57aace..b0d530cf46d1 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -95,7 +95,8 @@ extern int sysctl_compact_unevictable_allowed;
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
- 		unsigned int order, unsigned int alloc_flags,
--		const struct alloc_context *ac, enum compact_priority prio);
-+		const struct alloc_context *ac, enum compact_priority prio,
-+		struct page **page);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern enum compact_result compaction_suitable(struct zone *zone, int order,
- 		unsigned int alloc_flags, int classzone_idx);
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 89541d248893..f5ac0cf9cc32 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -47,6 +47,7 @@ struct pid_namespace;
- struct pipe_inode_info;
- struct rcu_node;
- struct reclaim_state;
-+struct capture_control;
- struct robust_list_head;
- struct sched_attr;
- struct sched_param;
-@@ -964,6 +965,9 @@ struct task_struct {
- 
- 	struct io_context		*io_context;
- 
-+#ifdef CONFIG_COMPACTION
-+	struct capture_control		*capture_control;
-+#endif
- 	/* Ptrace state: */
- 	unsigned long			ptrace_message;
- 	kernel_siginfo_t		*last_siginfo;
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index f66920173370..ef478b0daa45 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -2177,6 +2177,9 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
- 	INIT_HLIST_HEAD(&p->preempt_notifiers);
- #endif
- 
-+#ifdef CONFIG_COMPACTION
-+	p->capture_control = NULL;
-+#endif
- 	init_numa_balancing(clone_flags, p);
- }
- 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7f316e1a7275..ae70be023b21 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -2051,7 +2051,8 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
- 	return false;
- }
- 
--static enum compact_result compact_zone(struct compact_control *cc)
-+static enum compact_result
-+compact_zone(struct compact_control *cc, struct capture_control *capc)
- {
- 	enum compact_result ret;
- 	unsigned long start_pfn = cc->zone->zone_start_pfn;
-@@ -2225,6 +2226,11 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 			}
- 		}
- 
-+		/* Stop if a page has been captured */
-+		if (capc && capc->page) {
-+			ret = COMPACT_SUCCESS;
-+			break;
-+		}
- 	}
- 
- out:
-@@ -2258,7 +2264,8 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 
- static enum compact_result compact_zone_order(struct zone *zone, int order,
- 		gfp_t gfp_mask, enum compact_priority prio,
--		unsigned int alloc_flags, int classzone_idx)
-+		unsigned int alloc_flags, int classzone_idx,
-+		struct page **capture)
- {
- 	enum compact_result ret;
- 	struct compact_control cc = {
-@@ -2279,14 +2286,24 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
- 		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY),
- 		.ignore_block_suitable = (prio == MIN_COMPACT_PRIORITY)
- 	};
-+	struct capture_control capc = {
-+		.cc = &cc,
-+		.page = NULL,
-+	};
-+
-+	if (capture)
-+		current->capture_control = &capc;
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
- 
--	ret = compact_zone(&cc);
-+	ret = compact_zone(&cc, &capc);
- 
- 	VM_BUG_ON(!list_empty(&cc.freepages));
- 	VM_BUG_ON(!list_empty(&cc.migratepages));
- 
-+	*capture = capc.page;
-+	current->capture_control = NULL;
-+
- 	return ret;
- }
- 
-@@ -2304,7 +2321,7 @@ int sysctl_extfrag_threshold = 500;
-  */
- enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 		unsigned int alloc_flags, const struct alloc_context *ac,
--		enum compact_priority prio)
-+		enum compact_priority prio, struct page **capture)
- {
- 	int may_perform_io = gfp_mask & __GFP_IO;
- 	struct zoneref *z;
-@@ -2332,7 +2349,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 		}
- 
- 		status = compact_zone_order(zone, order, gfp_mask, prio,
--					alloc_flags, ac_classzone_idx(ac));
-+				alloc_flags, ac_classzone_idx(ac), capture);
- 		rc = max(status, rc);
- 
- 		/* The allocation should succeed, stop compacting */
-@@ -2400,7 +2417,7 @@ static void compact_node(int nid)
- 		INIT_LIST_HEAD(&cc.freepages);
- 		INIT_LIST_HEAD(&cc.migratepages);
- 
--		compact_zone(&cc);
-+		compact_zone(&cc, NULL);
- 
- 		VM_BUG_ON(!list_empty(&cc.freepages));
- 		VM_BUG_ON(!list_empty(&cc.migratepages));
-@@ -2543,7 +2560,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 
- 		if (kthread_should_stop())
- 			return;
--		status = compact_zone(&cc);
-+		status = compact_zone(&cc, NULL);
- 
- 		if (status == COMPACT_SUCCESS) {
- 			compaction_defer_reset(zone, cc.order, false);
-diff --git a/mm/internal.h b/mm/internal.h
-index d028abd8a8f3..6b1e5e313855 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -208,6 +208,15 @@ struct compact_control {
- 	bool rescan;			/* Rescanning the same pageblock */
- };
- 
-+/*
-+ * Used in direct compaction when a page should be taken from the freelists
-+ * immediately when one is created during the free path.
-+ */
-+struct capture_control {
-+	struct compact_control *cc;
-+	struct page *page;
-+};
-+
- unsigned long
- isolate_freepages_range(struct compact_control *cc,
- 			unsigned long start_pfn, unsigned long end_pfn);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 05c9a81d54ed..83ea34d8dbe2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -789,6 +789,41 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
- 	return 0;
- }
- 
-+#ifdef CONFIG_COMPACTION
-+static inline struct capture_control *task_capc(struct zone *zone)
-+{
-+	struct capture_control *capc = current->capture_control;
-+
-+	return capc &&
-+		!(current->flags & PF_KTHREAD) &&
-+		!capc->page &&
-+		capc->cc->zone == zone &&
-+		capc->cc->direct_compaction ? capc : NULL;
-+}
-+
-+static inline bool
-+compaction_capture(struct capture_control *capc, struct page *page, int order)
-+{
-+	if (!capc || order != capc->cc->order)
-+		return false;
-+
-+	capc->page = page;
-+	return true;
-+}
-+
-+#else
-+static inline struct capture_control *task_capc(struct zone *zone)
-+{
-+	return NULL;
-+}
-+
-+static inline bool
-+compaction_capture(struct capture_control *capc, struct page *page, int order)
-+{
-+	return false;
-+}
-+#endif /* CONFIG_COMPACTION */
-+
- /*
-  * Freeing function for a buddy system allocator.
-  *
-@@ -822,6 +857,7 @@ static inline void __free_one_page(struct page *page,
- 	unsigned long uninitialized_var(buddy_pfn);
- 	struct page *buddy;
- 	unsigned int max_order;
-+	struct capture_control *capc = task_capc(zone);
- 
- 	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
- 
-@@ -837,6 +873,12 @@ static inline void __free_one_page(struct page *page,
- 
- continue_merging:
- 	while (order < max_order - 1) {
-+		if (compaction_capture(capc, page, order)) {
-+			if (likely(!is_migrate_isolate(migratetype)))
-+				__mod_zone_freepage_state(zone, -(1 << order),
-+								migratetype);
-+			return;
-+		}
- 		buddy_pfn = __find_buddy_pfn(pfn, order);
- 		buddy = page + (buddy_pfn - pfn);
- 
-@@ -3700,7 +3742,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 		unsigned int alloc_flags, const struct alloc_context *ac,
- 		enum compact_priority prio, enum compact_result *compact_result)
- {
--	struct page *page;
-+	struct page *page = NULL;
- 	unsigned long pflags;
- 	unsigned int noreclaim_flag;
- 
-@@ -3711,13 +3753,15 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	noreclaim_flag = memalloc_noreclaim_save();
- 
- 	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
--									prio);
-+								prio, &page);
- 
- 	memalloc_noreclaim_restore(noreclaim_flag);
- 	psi_memstall_leave(&pflags);
- 
--	if (*compact_result <= COMPACT_INACTIVE)
-+	if (*compact_result <= COMPACT_INACTIVE) {
-+		WARN_ON_ONCE(page);
- 		return NULL;
-+	}
- 
- 	/*
- 	 * At least in one zone compaction wasn't deferred or skipped, so let's
-@@ -3725,7 +3769,13 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	 */
- 	count_vm_event(COMPACTSTALL);
- 
--	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-+	/* Prep a captured page if available */
-+	if (page)
-+		prep_new_page(page, order, gfp_mask, alloc_flags);
-+
-+	/* Try get a page from the freelist if available */
-+	if (!page)
-+		page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
- 
- 	if (page) {
- 		struct zone *zone = page_zone(page);
+With multi-page bvec:
+
+- Inside block layer, both bio splitting and sg map can become more
+efficient than before by just traversing the physically contiguous
+'segment' instead of each page.
+
+- segment handling in block layer can be improved much in future since it
+should be quite easy to convert multipage bvec into segment easily. For
+example, we might just store segment in each bvec directly in future.
+
+- bio size can be increased and it should improve some high-bandwidth IO
+case in theory[4].
+
+- there is opportunity in future to improve memory footprint of bvecs. 
+
+3) how is multi-page bvec implemented in this patchset?
+
+Patch 1 ~ 4 parpares for supporting multi-page bvec. 
+
+Patches 5 ~ 15 implement multipage bvec in block layer:
+
+	- put all tricks into bvec/bio/rq iterators, and as far as
+	drivers and fs use these standard iterators, they are happy
+	with multipage bvec
+
+	- introduce bio_for_each_bvec() to iterate over multipage bvec for splitting
+	bio and mapping sg
+
+	- keep current bio_for_each_segment*() to itereate over singlepage bvec and
+	make sure current users won't be broken; especailly, convert to this
+	new helper prototype in single patch 21 given it is bascially a mechanism
+	conversion
+
+	- deal with iomap & xfs's sub-pagesize io vec in patch 13
+
+	- enalbe multipage bvec in patch 14 
+
+Patch 16 redefines BIO_MAX_PAGES as 256.
+
+Patch 17 documents usages of bio iterator helpers.
+
+Patch 18~19 kills NO_SG_MERGE.
+
+These patches can be found in the following git tree:
+
+	git:  https://github.com/ming1/linux.git  for-4.21-block-mp-bvec-V12
+
+Lots of test(blktest, xfstests, ltp io, ...) have been run with this patchset,
+and not see regression.
+
+Thanks Christoph for reviewing the early version and providing very good
+suggestions, such as: introduce bio_init_with_vec_table(), remove another
+unnecessary helpers for cleanup and so on.
+
+Thanks Chritoph and Omar for reviewing V10/V11/V12, and provides lots of
+helpful comments.
+
+V13:
+	- rebase on v5.0-rc2
+	- address Omar's comment on patch 1 of V12 by using V11's approach
+	- rename one local vairable in patch 15 as suggested by Christoph
+
+V12:
+	- deal with non-cluster by max segment size & segment boundary limit
+	- rename bvec helper's name
+	- revert new change on bvec_iter_advance() in V11
+	- introduce rq_for_each_bvec()
+	- use simpler check on enalbing multi-page bvec
+	- fix Document change
+
+V11:
+	- address most of reviews from Omar and christoph
+	- rename mp_bvec_* as segment_* helpers
+	- remove 'mp' parameter from bvec_iter_advance() and related helpers
+	- cleanup patch on bvec_split_segs() and blk_bio_segment_split(),
+	  remove unnecessary checks
+	- simplify bvec_last_segment()
+	- drop bio_pages_all()
+	- introduce dedicated functions/file for handling non-cluser bio for
+	avoiding checking queue cluster before adding page to bio
+	- introduce bio_try_merge_segment() for simplifying iomap/xfs page
+	  accounting code
+	- Fix Document change
+
+V10:
+	- no any code change, just add more guys and list into patch's CC list,
+	as suggested by Christoph and Dave Chinner
+V9:
+	- fix regression on iomap's sub-pagesize io vec, covered by patch 13
+V8:
+	- remove prepare patches which all are merged to linus tree
+	- rebase on for-4.21/block
+	- address comments on V7
+	- add patches of killing NO_SG_MERGE
+
+V7:
+	- include Christoph and Mike's bio_clone_bioset() patches, which is
+	  actually prepare patches for multipage bvec
+	- address Christoph's comments
+
+V6:
+	- avoid to introduce lots of renaming, follow Jen's suggestion of
+	using the name of chunk for multipage io vector
+	- include Christoph's three prepare patches
+	- decrease stack usage for using bio_for_each_chunk_segment_all()
+	- address Kent's comment
+
+V5:
+	- remove some of prepare patches, which have been merged already
+	- add bio_clone_seg_bioset() to fix DM's bio clone, which
+	is introduced by 18a25da84354c6b (dm: ensure bio submission follows
+	a depth-first tree walk)
+	- rebase on the latest block for-v4.18
+
+V4:
+	- rename bio_for_each_segment*() as bio_for_each_page*(), rename
+	bio_segments() as bio_pages(), rename rq_for_each_segment() as
+	rq_for_each_pages(), because these helpers never return real
+	segment, and they always return single page bvec
+	
+	- introducing segment_for_each_page_all()
+
+	- introduce new bio_for_each_segment*()/rq_for_each_segment()/bio_segments()
+	for returning real multipage segment
+
+	- rewrite segment_last_page()
+
+	- rename bvec iterator helper as suggested by Christoph
+
+	- replace comment with applying bio helpers as suggested by Christoph
+
+	- document usage of bio iterator helpers
+
+	- redefine BIO_MAX_PAGES as 256 to make the biggest bvec table
+	accommodated in 4K page
+
+	- move bio_alloc_pages() into bcache as suggested by Christoph
+
+V3:
+	- rebase on v4.13-rc3 with for-next of block tree
+	- run more xfstests: xfs/ext4 over NVMe, Sata, DM(linear),
+	MD(raid1), and not see regressions triggered
+	- add Reviewed-by on some btrfs patches
+	- remove two MD patches because both are merged to linus tree
+	  already
+
+V2:
+	- bvec table direct access in raid has been cleaned, so NO_MP
+	flag is dropped
+	- rebase on recent Neil Brown's change on bio and bounce code
+	- reorganize the patchset
+
+V1:
+	- against v4.10-rc1 and some cleanup in V0 are in -linus already
+	- handle queue_virt_boundary() in mp bvec change and make NVMe happy
+	- further BTRFS cleanup
+	- remove QUEUE_FLAG_SPLIT_MP
+	- rename for two new helpers of bio_for_each_segment_all()
+	- fix bounce convertion
+	- address comments in V0
+
+[1], http://marc.info/?l=linux-kernel&m=141680246629547&w=2
+[2], https://patchwork.kernel.org/patch/9451523/
+[3], http://marc.info/?t=147735447100001&r=1&w=2
+[4], http://marc.info/?l=linux-mm&m=147745525801433&w=2
+[5], http://marc.info/?t=149569484500007&r=1&w=2
+[6], http://marc.info/?t=149820215300004&r=1&w=2
+
+
+
+
+Christoph Hellwig (1):
+  btrfs: look at bi_size for repair decisions
+
+Ming Lei (18):
+  block: don't use bio->bi_vcnt to figure out segment number
+  block: remove bvec_iter_rewind()
+  block: rename bvec helpers
+  block: introduce multi-page bvec helpers
+  block: introduce bio_for_each_bvec() and rq_for_each_bvec()
+  block: use bio_for_each_bvec() to compute multi-page bvec count
+  block: use bio_for_each_bvec() to map sg
+  block: introduce bvec_last_segment()
+  fs/buffer.c: use bvec iterator to truncate the bio
+  btrfs: use bvec_last_segment to get bio's last page
+  block: loop: pass multi-page bvec to iov_iter
+  bcache: avoid to use bio_for_each_segment_all() in
+    bch_bio_alloc_pages()
+  block: allow bio_for_each_segment_all() to iterate over multi-page
+    bvec
+  block: enable multipage bvecs
+  block: always define BIO_MAX_PAGES as 256
+  block: document usage of bio iterator helpers
+  block: kill QUEUE_FLAG_NO_SG_MERGE
+  block: kill BLK_MQ_F_SG_MERGE
+
+ .clang-format                     |   2 +-
+ Documentation/block/biovecs.txt   |  25 +++++
+ block/bio.c                       |  49 ++++++---
+ block/blk-merge.c                 | 206 +++++++++++++++++++++++++-------------
+ block/blk-mq-debugfs.c            |   2 -
+ block/blk-mq.c                    |   3 -
+ block/bounce.c                    |   6 +-
+ drivers/block/loop.c              |  22 ++--
+ drivers/block/nbd.c               |   2 +-
+ drivers/block/rbd.c               |   2 +-
+ drivers/block/skd_main.c          |   1 -
+ drivers/block/xen-blkfront.c      |   2 +-
+ drivers/md/bcache/btree.c         |   3 +-
+ drivers/md/bcache/util.c          |   6 +-
+ drivers/md/dm-crypt.c             |   3 +-
+ drivers/md/dm-integrity.c         |   2 +-
+ drivers/md/dm-io.c                |   4 +-
+ drivers/md/dm-rq.c                |   2 +-
+ drivers/md/dm-table.c             |  13 ---
+ drivers/md/raid1.c                |   3 +-
+ drivers/mmc/core/queue.c          |   3 +-
+ drivers/nvdimm/blk.c              |   4 +-
+ drivers/nvdimm/btt.c              |   4 +-
+ drivers/scsi/scsi_lib.c           |   2 +-
+ drivers/staging/erofs/data.c      |   3 +-
+ drivers/staging/erofs/unzip_vle.c |   3 +-
+ fs/block_dev.c                    |   6 +-
+ fs/btrfs/compression.c            |   3 +-
+ fs/btrfs/disk-io.c                |   3 +-
+ fs/btrfs/extent_io.c              |  16 +--
+ fs/btrfs/inode.c                  |   6 +-
+ fs/btrfs/raid56.c                 |   3 +-
+ fs/buffer.c                       |   5 +-
+ fs/crypto/bio.c                   |   3 +-
+ fs/direct-io.c                    |   4 +-
+ fs/exofs/ore.c                    |   3 +-
+ fs/exofs/ore_raid.c               |   3 +-
+ fs/ext4/page-io.c                 |   3 +-
+ fs/ext4/readpage.c                |   3 +-
+ fs/f2fs/data.c                    |   9 +-
+ fs/gfs2/lops.c                    |   6 +-
+ fs/gfs2/meta_io.c                 |   3 +-
+ fs/iomap.c                        |  10 +-
+ fs/mpage.c                        |   3 +-
+ fs/xfs/xfs_aops.c                 |   9 +-
+ include/linux/bio.h               |  47 +++++----
+ include/linux/blk-mq.h            |   1 -
+ include/linux/blkdev.h            |   5 +-
+ include/linux/bvec.h              | 104 ++++++++++++++-----
+ include/linux/ceph/messenger.h    |   2 +-
+ lib/iov_iter.c                    |   2 +-
+ net/ceph/messenger.c              |  14 +--
+ 52 files changed, 419 insertions(+), 234 deletions(-)
+
 -- 
-2.16.4
+2.9.5
