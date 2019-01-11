@@ -1,54 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D2A8E0038
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2019 04:07:29 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id p9so4818365pfj.3
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2019 01:07:29 -0800 (PST)
-Received: from zg8tmtu5ljg5lje1ms4xmtka.icoremail.net (zg8tmtu5ljg5lje1ms4xmtka.icoremail.net. [159.89.151.119])
-        by mx.google.com with SMTP id 133si13017824pfw.64.2019.01.09.01.07.27
-        for <linux-mm@kvack.org>;
-        Wed, 09 Jan 2019 01:07:27 -0800 (PST)
-From: Peng Wang <rocking@whu.edu.cn>
-Subject: [PATCH] mm/slub.c: re-randomize random_seq if necessary
-Date: Wed,  9 Jan 2019 17:06:27 +0800
-Message-Id: <20190109090628.1695-1-rocking@whu.edu.cn>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DC458E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:02:11 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id w19so16241235qto.13
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:02:11 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y18si818933qvo.12.2019.01.11.03.02.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jan 2019 03:02:10 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 01/19] btrfs: look at bi_size for repair decisions
+Date: Fri, 11 Jan 2019 19:01:09 +0800
+Message-Id: <20190111110127.21664-2-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peng Wang <rocking@whu.edu.cn>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-calculate_sizes() could be called in several places
-like (red_zone/poison/order/store_user)_store() while
-random_seq remains unchanged.
+From: Christoph Hellwig <hch@lst.de>
 
-If random_seq is not NULL in calculate_sizes(), re-randomize it.
+bio_readpage_error currently uses bi_vcnt to decide if it is worth
+retrying an I/O.  But the vector count is mostly an implementation
+artifact - it really should figure out if there is more than a
+single sector worth retrying.  Use bi_size for that and shift by
+PAGE_SHIFT.  This really should be blocks/sectors, but given that
+btrfs doesn't support a sector size different from the PAGE_SIZE
+using the page size keeps the changes to a minimum.
 
-Signed-off-by: Peng Wang <rocking@whu.edu.cn>
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Reviewed-by: David Sterba <dsterba@suse.com>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/slub.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ fs/btrfs/extent_io.c | 2 +-
+ include/linux/bio.h  | 6 ------
+ 2 files changed, 1 insertion(+), 7 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 1e3d0ec4e200..2a9d18019545 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3583,6 +3583,15 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- 	if (oo_objects(s->oo) > oo_objects(s->max))
- 		s->max = s->oo;
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 52abe4082680..dc8ba3ee515d 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -2350,7 +2350,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
+ 	int read_mode = 0;
+ 	blk_status_t status;
+ 	int ret;
+-	unsigned failed_bio_pages = bio_pages_all(failed_bio);
++	unsigned failed_bio_pages = failed_bio->bi_iter.bi_size >> PAGE_SHIFT;
  
-+#ifdef CONFIG_SLAB_FREELIST_RANDOM
-+	if (unlikely(s->random_seq)) {
-+		kfree(s->random_seq);
-+		s->random_seq = NULL;
-+		if (init_cache_random_seq(s))
-+			return 0;
-+	}
-+#endif
-+
- 	return !!oo_objects(s->oo);
+ 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
+ 
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 7380b094dcca..72b4f7be2106 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -263,12 +263,6 @@ static inline void bio_get_last_bvec(struct bio *bio, struct bio_vec *bv)
+ 		bv->bv_len = iter.bi_bvec_done;
  }
  
+-static inline unsigned bio_pages_all(struct bio *bio)
+-{
+-	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
+-	return bio->bi_vcnt;
+-}
+-
+ static inline struct bio_vec *bio_first_bvec_all(struct bio *bio)
+ {
+ 	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
 -- 
-2.19.1
+2.9.5
