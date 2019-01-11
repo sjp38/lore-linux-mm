@@ -1,146 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C18AC8E00F9
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2019 10:38:03 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id l9so28897303plt.7
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2019 07:38:03 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r17si56369955pgh.299.2019.01.05.07.38.02
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 955848E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:04:06 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id z6so16114396qtj.21
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:04:06 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p8si2509811qki.221.2019.01.11.03.04.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Jan 2019 07:38:02 -0800 (PST)
-Subject: Patch "x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off" has been added to the 4.20-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Sat, 05 Jan 2019 16:32:07 +0100
-Message-ID: <1546702327210248@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+        Fri, 11 Jan 2019 03:04:05 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 09/19] block: introduce bvec_last_segment()
+Date: Fri, 11 Jan 2019 19:01:17 +0800
+Message-Id: <20190111110127.21664-10-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ak@linux.intel.com, bp@suse.de, dave.hansen@intel.com, gregkh@linuxfoundation.org, jkosina@suse.cz, linux-mm@kvack.org, mhocko@suse.com, pasha.tatashin@soleen.com, tglx@linutronix.de, torvalds@linux-foundation.org
-Cc: stable-commits@vger.kernel.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
+BTRFS and guard_bio_eod() need to get the last singlepage segment
+from one multipage bvec, so introduce this helper to make them happy.
 
-This is a note to let you know that I've just added the patch titled
-
-    x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
-
-to the 4.20-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
-and it can be found in the queue-4.20 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 Mon Sep 17 00:00:00 2001
-From: Michal Hocko <mhocko@suse.com>
-Date: Tue, 13 Nov 2018 19:49:10 +0100
-Subject: x86/speculation/l1tf: Drop the swap storage limit restriction when l1tf=off
-
-From: Michal Hocko <mhocko@suse.com>
-
-commit 5b5e4d623ec8a34689df98e42d038a3b594d2ff9 upstream.
-
-Swap storage is restricted to max_swapfile_size (~16TB on x86_64) whenever
-the system is deemed affected by L1TF vulnerability. Even though the limit
-is quite high for most deployments it seems to be too restrictive for
-deployments which are willing to live with the mitigation disabled.
-
-We have a customer to deploy 8x 6,4TB PCIe/NVMe SSD swap devices which is
-clearly out of the limit.
-
-Drop the swap restriction when l1tf=off is specified. It also doesn't make
-much sense to warn about too much memory for the l1tf mitigation when it is
-forcefully disabled by the administrator.
-
-[ tglx: Folded the documentation delta change ]
-
-Fixes: 377eeaa8e11f ("x86/speculation/l1tf: Limit swap file size to MAX_PA/2")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Jiri Kosina <jkosina@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: <linux-mm@kvack.org>
-Cc: stable@vger.kernel.org
-Link: https://lkml.kernel.org/r/20181113184910.26697-1-mhocko@kernel.org
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- Documentation/admin-guide/kernel-parameters.txt |    3 +++
- Documentation/admin-guide/l1tf.rst              |    6 +++++-
- arch/x86/kernel/cpu/bugs.c                      |    3 ++-
- arch/x86/mm/init.c                              |    2 +-
- 4 files changed, 11 insertions(+), 3 deletions(-)
+ include/linux/bvec.h | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2096,6 +2096,9 @@
- 			off
- 				Disables hypervisor mitigations and doesn't
- 				emit any warnings.
-+				It also drops the swap size and available
-+				RAM limit restriction on both hypervisor and
-+				bare metal.
+diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+index d441486db605..ca6e630f88ab 100644
+--- a/include/linux/bvec.h
++++ b/include/linux/bvec.h
+@@ -131,4 +131,26 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
+ 	.bi_bvec_done	= 0,						\
+ }
  
- 			Default is 'flush'.
- 
---- a/Documentation/admin-guide/l1tf.rst
-+++ b/Documentation/admin-guide/l1tf.rst
-@@ -405,6 +405,9 @@ time with the option "l1tf=". The valid
- 
-   off		Disables hypervisor mitigations and doesn't emit any
- 		warnings.
-+		It also drops the swap size and available RAM limit restrictions
-+		on both hypervisor and bare metal.
++/*
++ * Get the last single-page segment from the multi-page bvec and store it
++ * in @seg
++ */
++static inline void bvec_last_segment(const struct bio_vec *bvec,
++				     struct bio_vec *seg)
++{
++	unsigned total = bvec->bv_offset + bvec->bv_len;
++	unsigned last_page = (total - 1) / PAGE_SIZE;
 +
-   ============  =============================================================
- 
- The default is 'flush'. For details about L1D flushing see :ref:`l1d_flush`.
-@@ -576,7 +579,8 @@ Default mitigations
-   The kernel default mitigations for vulnerable processors are:
- 
-   - PTE inversion to protect against malicious user space. This is done
--    unconditionally and cannot be controlled.
-+    unconditionally and cannot be controlled. The swap storage is limited
-+    to ~16TB.
- 
-   - L1D conditional flushing on VMENTER when EPT is enabled for
-     a guest.
---- a/arch/x86/kernel/cpu/bugs.c
-+++ b/arch/x86/kernel/cpu/bugs.c
-@@ -1002,7 +1002,8 @@ static void __init l1tf_select_mitigatio
- #endif
- 
- 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
--	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
-+	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
-+			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
- 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
- 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
- 				half_pa);
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
- 
- 	pages = generic_max_swapfile_size();
- 
--	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
-+	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
- 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
- 		unsigned long long l1tf_limit = l1tf_pfn_limit();
- 		/*
-
-
-Patches currently in stable-queue which might be from mhocko@suse.com are
-
-queue-4.20/x86-speculation-l1tf-drop-the-swap-storage-limit-restriction-when-l1tf-off.patch
++	seg->bv_page = nth_page(bvec->bv_page, last_page);
++
++	/* the whole segment is inside the last page */
++	if (bvec->bv_offset >= last_page * PAGE_SIZE) {
++		seg->bv_offset = bvec->bv_offset % PAGE_SIZE;
++		seg->bv_len = bvec->bv_len;
++	} else {
++		seg->bv_offset = 0;
++		seg->bv_len = total - last_page * PAGE_SIZE;
++	}
++}
++
+ #endif /* __LINUX_BVEC_ITER_H */
+-- 
+2.9.5
