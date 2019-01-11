@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 806468E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 09:37:38 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id i124so8565646pgc.2
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:37:38 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C5D18E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 09:30:35 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id t72so10433185pfi.21
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:30:35 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m3si964663pgc.232.2019.01.11.06.37.37
+        by mx.google.com with ESMTPS id f186si76902478pfb.67.2019.01.11.06.30.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 06:37:37 -0800 (PST)
+        Fri, 11 Jan 2019 06:30:34 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.19 029/148] x86/mm: Fix guard hole handling
-Date: Fri, 11 Jan 2019 15:13:27 +0100
-Message-Id: <20190111131115.468401035@linuxfoundation.org>
-In-Reply-To: <20190111131114.337122649@linuxfoundation.org>
-References: <20190111131114.337122649@linuxfoundation.org>
+Subject: [PATCH 4.14 018/105] x86/mm: Fix guard hole handling
+Date: Fri, 11 Jan 2019 15:13:49 +0100
+Message-Id: <20190111131104.761109114@linuxfoundation.org>
+In-Reply-To: <20190111131102.899065735@linuxfoundation.org>
+References: <20190111131102.899065735@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,7 +23,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Hans van Kranenburg <hans.van.kranenburg@mendix.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Juergen Gross <jgross@suse.com>, bp@alien8.de, hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org, boris.ostrovsky@oracle.com, bhe@redhat.com, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Sasha Levin <sashal@kernel.org>
 
-4.19-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -71,12 +71,12 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  3 files changed, 15 insertions(+), 9 deletions(-)
 
 diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 84bd9bdc1987..88bca456da99 100644
+index 7764617b8f9c..bf6d2692fc60 100644
 --- a/arch/x86/include/asm/pgtable_64_types.h
 +++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -111,6 +111,11 @@ extern unsigned int ptrs_per_p4d;
-  */
- #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
+@@ -94,6 +94,11 @@ typedef struct { pteval_t pte; } pte_t;
+ # define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
+ #endif
  
 +#define GUARD_HOLE_PGD_ENTRY	-256UL
 +#define GUARD_HOLE_SIZE		(16UL << PGDIR_SHIFT)
@@ -85,12 +85,12 @@ index 84bd9bdc1987..88bca456da99 100644
 +
  #define LDT_PGD_ENTRY		-240UL
  #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
- #define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
+ 
 diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index a12afff146d1..073755c89126 100644
+index 2a4849e92831..cf403e057f3f 100644
 --- a/arch/x86/mm/dump_pagetables.c
 +++ b/arch/x86/mm/dump_pagetables.c
-@@ -493,11 +493,11 @@ static inline bool is_hypervisor_range(int idx)
+@@ -465,11 +465,11 @@ static inline bool is_hypervisor_range(int idx)
  {
  #ifdef CONFIG_X86_64
  	/*
@@ -107,10 +107,10 @@ index a12afff146d1..073755c89126 100644
  	return false;
  #endif
 diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index 2c84c6ad8b50..c8f011e07a15 100644
+index b33fa127a613..7631e6130d44 100644
 --- a/arch/x86/xen/mmu_pv.c
 +++ b/arch/x86/xen/mmu_pv.c
-@@ -640,19 +640,20 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
+@@ -614,19 +614,20 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
  			  unsigned long limit)
  {
  	int i, nr, flush = 0;
