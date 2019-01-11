@@ -1,124 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 62E138E0038
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2019 18:33:44 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 74so1316199pfk.12
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2019 15:33:44 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id e6si10479033pgp.504.2019.01.07.15.33.42
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AD2EA8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:06:34 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id q33so15927364qte.23
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:06:34 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j24si2946239qvg.81.2019.01.11.03.06.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jan 2019 15:33:42 -0800 (PST)
-Subject: [PATCH v7 0/3] mm: Randomize free memory
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 07 Jan 2019 15:21:04 -0800
-Message-ID: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        Fri, 11 Jan 2019 03:06:33 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 19/19] block: kill BLK_MQ_F_SG_MERGE
+Date: Fri, 11 Jan 2019 19:01:27 +0800
+Message-Id: <20190111110127.21664-20-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, Mike Rapoport <rppt@linux.ibm.com>, Kees Cook <keescook@chromium.org>mhocko@suse.com, keith.busch@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-Changes since v6 [1]:
-* Simplify the review, drop the autodetect patches from the series. That
-  work simply results in a single call to page_alloc_shuffle(SHUFFLE_ENABLE)
-  injected at the right location during ACPI NUMA initialization / parsing
-  of the HMAT (Heterogeneous Memory Attributes Table). That is purely a
-  follow-on consideration once the base shuffle implementation and
-  definition of page_alloc_shuffle() is accepted. The end result for this
-  series is that the command line parameter "page_alloc.shuffle" is
-  required to enable the randomization.
+QUEUE_FLAG_NO_SG_MERGE has been killed, so kill BLK_MQ_F_SG_MERGE too.
 
-* Fix declaration of page_alloc_shuffle() in the
-  CONFIG_SHUFFLE_PAGE_ALLOCATOR=n case. (0day)
-
-* Rebased on v5.0-rc1
-
-[1]: https://lkml.org/lkml/2018/12/17/1116
-
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
+ block/blk-mq-debugfs.c       | 1 -
+ drivers/block/loop.c         | 2 +-
+ drivers/block/nbd.c          | 2 +-
+ drivers/block/rbd.c          | 2 +-
+ drivers/block/skd_main.c     | 1 -
+ drivers/block/xen-blkfront.c | 2 +-
+ drivers/md/dm-rq.c           | 2 +-
+ drivers/mmc/core/queue.c     | 3 +--
+ drivers/scsi/scsi_lib.c      | 2 +-
+ include/linux/blk-mq.h       | 1 -
+ 10 files changed, 7 insertions(+), 11 deletions(-)
 
-Hi Andrew, please consider this series for -mm only after Michal and Mel
-have had a chance to review and have their concerns addressed.
-
----
-
-Quote Patch 1:
-
-Randomization of the page allocator improves the average utilization of
-a direct-mapped memory-side-cache. Memory side caching is a platform
-capability that Linux has been previously exposed to in HPC
-(high-performance computing) environments on specialty platforms. In
-that instance it was a smaller pool of high-bandwidth-memory relative to
-higher-capacity / lower-bandwidth DRAM. Now, this capability is going to
-be found on general purpose server platforms where DRAM is a cache in
-front of higher latency persistent memory [2].
-
-Robert offered an explanation of the state of the art of Linux
-interactions with memory-side-caches [3], and I copy it here:
-
-    It's been a problem in the HPC space:
-    http://www.nersc.gov/research-and-development/knl-cache-mode-performance-coe/
-
-    A kernel module called zonesort is available to try to help:
-    https://software.intel.com/en-us/articles/xeon-phi-software
-
-    and this abandoned patch series proposed that for the kernel:
-    https://lkml.org/lkml/2017/8/23/195
-
-    Dan's patch series doesn't attempt to ensure buffers won't conflict, but
-    also reduces the chance that the buffers will. This will make performance
-    more consistent, albeit slower than "optimal" (which is near impossible
-    to attain in a general-purpose kernel).  That's better than forcing
-    users to deploy remedies like:
-        "To eliminate this gradual degradation, we have added a Stream
-         measurement to the Node Health Check that follows each job;
-         nodes are rebooted whenever their measured memory bandwidth
-         falls below 300 GB/s."
-
-A replacement for zonesort was merged upstream in commit cc9aec03e58f
-"x86/numa_emulation: Introduce uniform split capability". With this
-numa_emulation capability, memory can be split into cache sized
-("near-memory" sized) numa nodes. A bind operation to such a node, and
-disabling workloads on other nodes, enables full cache performance.
-However, once the workload exceeds the cache size then cache conflicts
-are unavoidable. While HPC environments might be able to tolerate
-time-scheduling of cache sized workloads, for general purpose server
-platforms, the oversubscribed cache case will be the common case.
-
-The worst case scenario is that a server system owner benchmarks a
-workload at boot with an un-contended cache only to see that performance
-degrade over time, even below the average cache performance due to
-excessive conflicts. Randomization clips the peaks and fills in the
-valleys of cache utilization to yield steady average performance.
-
-See patch 1 for more details.
-
-[2]: https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
-[3]: https://lkml.org/lkml/2018/9/22/54
-
----
-
-Dan Williams (3):
-      mm: Shuffle initial free memory to improve memory-side-cache utilization
-      mm: Move buddy list manipulations into helpers
-      mm: Maintain randomization of page free lists
-
-
- include/linux/list.h     |   17 +++
- include/linux/mm.h       |    3 -
- include/linux/mm_types.h |    3 +
- include/linux/mmzone.h   |   65 +++++++++++++
- include/linux/shuffle.h  |   60 ++++++++++++
- init/Kconfig             |   36 +++++++
- mm/Makefile              |    7 +
- mm/compaction.c          |    4 -
- mm/memblock.c            |   10 ++
- mm/memory_hotplug.c      |    3 +
- mm/page_alloc.c          |   82 ++++++++--------
- mm/shuffle.c             |  231 ++++++++++++++++++++++++++++++++++++++++++++++
- 12 files changed, 471 insertions(+), 50 deletions(-)
- create mode 100644 include/linux/shuffle.h
- create mode 100644 mm/shuffle.c
+diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
+index 2f9a11ef5bad..2ba0aa05ce13 100644
+--- a/block/blk-mq-debugfs.c
++++ b/block/blk-mq-debugfs.c
+@@ -250,7 +250,6 @@ static const char *const alloc_policy_name[] = {
+ static const char *const hctx_flag_name[] = {
+ 	HCTX_FLAG_NAME(SHOULD_MERGE),
+ 	HCTX_FLAG_NAME(TAG_SHARED),
+-	HCTX_FLAG_NAME(SG_MERGE),
+ 	HCTX_FLAG_NAME(BLOCKING),
+ 	HCTX_FLAG_NAME(NO_SCHED),
+ };
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index 28dd22c6f83f..e3b9212ec7a1 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -1906,7 +1906,7 @@ static int loop_add(struct loop_device **l, int i)
+ 	lo->tag_set.queue_depth = 128;
+ 	lo->tag_set.numa_node = NUMA_NO_NODE;
+ 	lo->tag_set.cmd_size = sizeof(struct loop_cmd);
+-	lo->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	lo->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	lo->tag_set.driver_data = lo;
+ 
+ 	err = blk_mq_alloc_tag_set(&lo->tag_set);
+diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
+index 08696f5f00bb..999c94de78e5 100644
+--- a/drivers/block/nbd.c
++++ b/drivers/block/nbd.c
+@@ -1570,7 +1570,7 @@ static int nbd_dev_add(int index)
+ 	nbd->tag_set.numa_node = NUMA_NO_NODE;
+ 	nbd->tag_set.cmd_size = sizeof(struct nbd_cmd);
+ 	nbd->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
+-		BLK_MQ_F_SG_MERGE | BLK_MQ_F_BLOCKING;
++		BLK_MQ_F_BLOCKING;
+ 	nbd->tag_set.driver_data = nbd;
+ 
+ 	err = blk_mq_alloc_tag_set(&nbd->tag_set);
+diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
+index 8e5140bbf241..3dfd300b5283 100644
+--- a/drivers/block/rbd.c
++++ b/drivers/block/rbd.c
+@@ -3988,7 +3988,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
+ 	rbd_dev->tag_set.ops = &rbd_mq_ops;
+ 	rbd_dev->tag_set.queue_depth = rbd_dev->opts->queue_depth;
+ 	rbd_dev->tag_set.numa_node = NUMA_NO_NODE;
+-	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	rbd_dev->tag_set.nr_hw_queues = 1;
+ 	rbd_dev->tag_set.cmd_size = sizeof(struct work_struct);
+ 
+diff --git a/drivers/block/skd_main.c b/drivers/block/skd_main.c
+index a10d5736d8f7..a7040f9a1b1b 100644
+--- a/drivers/block/skd_main.c
++++ b/drivers/block/skd_main.c
+@@ -2843,7 +2843,6 @@ static int skd_cons_disk(struct skd_device *skdev)
+ 		skdev->sgs_per_request * sizeof(struct scatterlist);
+ 	skdev->tag_set.numa_node = NUMA_NO_NODE;
+ 	skdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
+-		BLK_MQ_F_SG_MERGE |
+ 		BLK_ALLOC_POLICY_TO_MQ_FLAG(BLK_TAG_ALLOC_FIFO);
+ 	skdev->tag_set.driver_data = skdev;
+ 	rc = blk_mq_alloc_tag_set(&skdev->tag_set);
+diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
+index 0ed4b200fa58..d43a5677ccbc 100644
+--- a/drivers/block/xen-blkfront.c
++++ b/drivers/block/xen-blkfront.c
+@@ -977,7 +977,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
+ 	} else
+ 		info->tag_set.queue_depth = BLK_RING_SIZE(info);
+ 	info->tag_set.numa_node = NUMA_NO_NODE;
+-	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	info->tag_set.cmd_size = sizeof(struct blkif_req);
+ 	info->tag_set.driver_data = info;
+ 
+diff --git a/drivers/md/dm-rq.c b/drivers/md/dm-rq.c
+index 4eb5f8c56535..b2f8eb2365ee 100644
+--- a/drivers/md/dm-rq.c
++++ b/drivers/md/dm-rq.c
+@@ -527,7 +527,7 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
+ 	md->tag_set->ops = &dm_mq_ops;
+ 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
+ 	md->tag_set->numa_node = md->numa_node_id;
+-	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
+ 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
+ 	md->tag_set->driver_data = md;
+ 
+diff --git a/drivers/mmc/core/queue.c b/drivers/mmc/core/queue.c
+index 35cc138b096d..cc19e71c71d4 100644
+--- a/drivers/mmc/core/queue.c
++++ b/drivers/mmc/core/queue.c
+@@ -410,8 +410,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
+ 	else
+ 		mq->tag_set.queue_depth = MMC_QUEUE_DEPTH;
+ 	mq->tag_set.numa_node = NUMA_NO_NODE;
+-	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE |
+-			    BLK_MQ_F_BLOCKING;
++	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
+ 	mq->tag_set.nr_hw_queues = 1;
+ 	mq->tag_set.cmd_size = sizeof(struct mmc_queue_req);
+ 	mq->tag_set.driver_data = mq;
+diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
+index b13cc9288ba0..afad57071cb6 100644
+--- a/drivers/scsi/scsi_lib.c
++++ b/drivers/scsi/scsi_lib.c
+@@ -1899,7 +1899,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
+ 	shost->tag_set.queue_depth = shost->can_queue;
+ 	shost->tag_set.cmd_size = cmd_size;
+ 	shost->tag_set.numa_node = NUMA_NO_NODE;
+-	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
++	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+ 	shost->tag_set.flags |=
+ 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
+ 	shost->tag_set.driver_data = shost;
+diff --git a/include/linux/blk-mq.h b/include/linux/blk-mq.h
+index 0e030f5f76b6..b0c814bcc7e3 100644
+--- a/include/linux/blk-mq.h
++++ b/include/linux/blk-mq.h
+@@ -218,7 +218,6 @@ struct blk_mq_ops {
+ enum {
+ 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
+ 	BLK_MQ_F_TAG_SHARED	= 1 << 1,
+-	BLK_MQ_F_SG_MERGE	= 1 << 2,
+ 	BLK_MQ_F_BLOCKING	= 1 << 5,
+ 	BLK_MQ_F_NO_SCHED	= 1 << 6,
+ 	BLK_MQ_F_ALLOC_POLICY_START_BIT = 8,
+-- 
+2.9.5
