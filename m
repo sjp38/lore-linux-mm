@@ -2,226 +2,143 @@ Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C3BFDC43387
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 05:31:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA9A1C43387
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 05:52:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D75020870
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 05:31:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D75020870
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=cn.fujitsu.com
+	by mail.kernel.org (Postfix) with ESMTP id 6EEBA20874
+	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 05:52:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="edetCLNw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6EEBA20874
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD2458E0002; Fri, 11 Jan 2019 00:31:39 -0500 (EST)
+	id F0EB68E0002; Fri, 11 Jan 2019 00:52:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C81AF8E0001; Fri, 11 Jan 2019 00:31:39 -0500 (EST)
+	id E94E58E0001; Fri, 11 Jan 2019 00:52:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B71EA8E0002; Fri, 11 Jan 2019 00:31:39 -0500 (EST)
+	id D5D6E8E0002; Fri, 11 Jan 2019 00:52:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 75C818E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:31:39 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id ay11so7618436plb.20
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:31:39 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F688E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 00:52:29 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id x21so5572390oto.12
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 21:52:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=fLXPITHtHzJzMIL1TEPPn62lZ9RIO5vg7K946BS7rF8=;
-        b=XPixGcETgFq6PyaeA55ssYsV/BxkfPM+/can1kUIl+6Fx2szJqmVCuThXKyBTmM2nv
-         VOJncXhr8XEGBfm+baEkmfqXUkWx7UBo+jZ98yPmABDjQ4WqMlesvc/5HzFBTjaQ91MA
-         4d3g2vdQ+YLfaly1UxvuF4FL84mvjbkMmha/qlnopSwp9vsNEAN6iLGdsYMbSC2z+5yF
-         hn0//7oTfOSuAhD391Nya8+aNLQTvD3/Yl5q7BkQJXZEMjJJvsGtoOuLeRLFv6TuORrV
-         IBR3+xEah2OtJAq6C8p14a/tk368ngoLuRWENQL1bGhO6+ZyglURkuUfVR/zNmaFHt9a
-         vsQQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of fanc.fnst@cn.fujitsu.com designates 183.91.158.132 as permitted sender) smtp.mailfrom=fanc.fnst@cn.fujitsu.com
-X-Gm-Message-State: AJcUukc+NINCJSqhuh4T90IFS60Rhi4TU3Q6/41CPLWbuXspUpdyr4Bv
-	uMD2MA0M0iX+vYN+nObsd4dn/4c8E9cKYMokutgj7TwuXDpTdcSzJSi1SJfeS2ntQRQcO8tFto/
-	bmLPZphbt8F5AHmoshmpLI6S1/UM47f1qSY5SFTwQCDr0zxxd2Lw+MRLdIvVN1S95MA==
-X-Received: by 2002:a62:36c1:: with SMTP id d184mr13250952pfa.242.1547184699115;
-        Thu, 10 Jan 2019 21:31:39 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6Y6HX50DV6QaybTc322gYYdcuXEcsWM/8l0ezGH8dwS2s/+EVTMJ3/Vh6fGVYFgg9xGi9l
-X-Received: by 2002:a62:36c1:: with SMTP id d184mr13250872pfa.242.1547184697726;
-        Thu, 10 Jan 2019 21:31:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547184697; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to;
+        bh=Dyqw3HCSpJOE3kTzeE08yEllmbgy+rYjF7ROKuO8WI4=;
+        b=ukZlTXvT4736E6cUChYUxtP1C4P75ZfmrwlDgpFmZJTzCyRwqDJl2PYFkbNrZvkWsx
+         OahrHJHuxy+fldUMymXorChR2Ywri67ED2tHyUDvSSrg+7ltYl2iiUR6bQMqjYtntfEI
+         SDhfQphFj5HY/+7g1EIo/ZaXMhpoh6j32IS2cTePg7t1YB0v6GH/LgmrhGACpkCIU6J5
+         KJnOw97uIKQlMYFChRjWv9nZ1OK5N7UNRPb1iQzz+SQ5sYrmLDNhtDfM06Qesg21UaKF
+         uGTJVKLN83wwK45l9PmcU9v1hJXmTzljdmZ8kQ9EUFAcirSuPucI/swUAt2s75BfsFGC
+         jEPQ==
+X-Gm-Message-State: AJcUukeR/3drynefCx8ZZ5tAHaHqSbUU06BUx4xj2NU+4/pbpLqbpMt0
+	3XEP7Dr0nGyusl6qqHz6+V0G2dyeE+pC2VjaZ0C+UPeHeiSnfP7NjYZi3fYe7nNyfvIMg2xNDOC
+	/VuoUksa7ADQwU9edmioqfufVQN0Ekcn+SJ+7VrZPyX1Qk4ThnUGYEaqgPzXcF1ctHLy1FJoeon
+	BWlWJS2L8k2x+qw6qjeW/xz+8JMCe9ZUUSZbh/uojc30SS7VYQ4tvGK8+sCWN2wvFFEnpoz8cQS
+	uIlg1E9kz3bxza1Dv6fJj6CNB4oA4Kdh8HUjBD7zjyfM2z+0Pc9S6yO1rnD0kTbUNXmJFWwiCWU
+	PZe9u8x9xLM4KtjbMS42QmvxOm7c30mAbi7JVUeKMHqr6clkhR3VSQBxcGhMXz6xUP8gZGADB5+
+	9
+X-Received: by 2002:a9d:a2d:: with SMTP id 42mr8143310otg.185.1547185949275;
+        Thu, 10 Jan 2019 21:52:29 -0800 (PST)
+X-Received: by 2002:a9d:a2d:: with SMTP id 42mr8143290otg.185.1547185948492;
+        Thu, 10 Jan 2019 21:52:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547185948; cv=none;
         d=google.com; s=arc-20160816;
-        b=p1tiGeAFBuxGeK70zIsAfR6y9SGV5UH2dEH59VuPTtFIXkuMwp94qDNCZWWiTPIHek
-         KopXqnYF42fXJnNSKJDZyIwaEGKr1zR2Sujz3RamfFiGf3vUJDBFBAV/+HOHnZyYlmCc
-         Ckabc8edM6b74xqQp533te+uVy+zBzwcvKLeoY7UMs16QaUS+PYMpItooMRV7z3D7ZMe
-         dR9kmPEN5jWaO92kFXurnjk2itHLhLXsRAdUtuhzjmgExCO3+PsdtyIWTEJDJddf2CNX
-         nN2ipfyTRnOPdEpTo/lwCFots5khIgbyI2HwvX3ngZOpHxqIddmZzXNI+YMMghJbW2k3
-         CyXA==
+        b=QPEZ+w3Lrn9OIHei/OQpj9iu5/8B/g11R74ljkJh3gD7MZfHrmzUdwU2/yaTOzppzP
+         NApzdv/mlZxEfHusEmfodGCWEql/73osFMihtsO7Rv+P/unTdMiyUfYHKTqRR/iOYvUP
+         MZ1G8Bg0JUaYZDbgp/8be02l2k6UNSAaehUfg1SXordA/q0smPWrKgg/kDTLh0G7U/r4
+         l5i3UCrsAJvFxqm/C8cz56R/3UnBCcx36lH6ipiDpNDF+x4xQwj2NZ3m2TMW02fUa73f
+         3SfUawZ3DB6zEkweuBSTskzRPjVLEnd1gR9oSAfNA0do+tAwMuol5d44HUexEZe+Cq//
+         WM9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=fLXPITHtHzJzMIL1TEPPn62lZ9RIO5vg7K946BS7rF8=;
-        b=MsrCsp//BsB88IaP8J9rEDwEylulpfeP6AEn4h6cD2I1hXIaDzdVzj8W4sOHeMkXQx
-         73rAeITGMbWMu7/36RO0juCYBGhTwv42LVHTEQ3l4Eu4GzP/JoAlnw5XowCDHRJrg36K
-         68w0MzfmbU4+FP+3Pm3qzqwrGdv7lar5BPxkzNY6C3xF+uwcLuh7v0yQNhajKQPYYyyY
-         ivufNLPoRh388dkHG/qkHhIKLfMhCaWXzoECYtDpYiDTdJWVhQt7hBx4fAayeGvTNno9
-         +T7hY4JwsSo9OaEZCSQ4EcKh8Jc9sruZw42fLfKqAgQSOyNmh5bgWT2CPSGvH0AntptN
-         WqIg==
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=Dyqw3HCSpJOE3kTzeE08yEllmbgy+rYjF7ROKuO8WI4=;
+        b=rqlHyA2XrpLbkyXlXNmM1ZxUdMmu2g6Guy/7Gv88dDEChfkp0cd4usEJjhN2kQrluI
+         bhAJmmLFVBjdZ1s3xK981hXwKPL1Xm+oBz2iuNKH7P2/kh1YJ/H4GwVMMTcufiuxCobx
+         eMp2Xh8PO1d3uH1ubWNVX1ZLynBAKLhchvep1S6+PDFKnCkNWeUhohzYOi+4LXChVf9e
+         ZK+YqPOsLwORH4g1LoYKBPj3MqpUZprZnZKEkaBBs919xqpGVLXe51VkToawU/h+gaXt
+         v6i3YTmDsHGgZm3vIDCe5FrN+NjltV8rg1nx49I8cg32/Wm2ESKLwFELcoU3bYx9AQGW
+         pGEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of fanc.fnst@cn.fujitsu.com designates 183.91.158.132 as permitted sender) smtp.mailfrom=fanc.fnst@cn.fujitsu.com
-Received: from heian.cn.fujitsu.com (mail.cn.fujitsu.com. [183.91.158.132])
-        by mx.google.com with ESMTP id c9si5743593pll.439.2019.01.10.21.31.36
-        for <linux-mm@kvack.org>;
-        Thu, 10 Jan 2019 21:31:37 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of fanc.fnst@cn.fujitsu.com designates 183.91.158.132 as permitted sender) client-ip=183.91.158.132;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=edetCLNw;
+       spf=pass (google.com: domain of baptiste.lepers@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=baptiste.lepers@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r11sor9472otd.7.2019.01.10.21.52.28
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 10 Jan 2019 21:52:28 -0800 (PST)
+Received-SPF: pass (google.com: domain of baptiste.lepers@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of fanc.fnst@cn.fujitsu.com designates 183.91.158.132 as permitted sender) smtp.mailfrom=fanc.fnst@cn.fujitsu.com
-X-IronPort-AV: E=Sophos;i="5.56,464,1539619200"; 
-   d="scan'208";a="51768316"
-Received: from unknown (HELO cn.fujitsu.com) ([10.167.33.5])
-  by heian.cn.fujitsu.com with ESMTP; 11 Jan 2019 13:31:35 +0800
-Received: from G08CNEXCHPEKD01.g08.fujitsu.local (unknown [10.167.33.80])
-	by cn.fujitsu.com (Postfix) with ESMTP id 7D8734BAD914;
-	Fri, 11 Jan 2019 13:31:33 +0800 (CST)
-Received: from localhost.localdomain (10.167.225.56) by
- G08CNEXCHPEKD01.g08.fujitsu.local (10.167.33.89) with Microsoft SMTP Server
- (TLS) id 14.3.408.0; Fri, 11 Jan 2019 13:31:32 +0800
-Date: Fri, 11 Jan 2019 13:30:37 +0800
-From: Chao Fan <fanc.fnst@cn.fujitsu.com>
-To: Pingfan Liu <kernelfans@gmail.com>
-CC: <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo
- Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin"
-	<hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski
-	<luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki"
-	<rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu
-	<yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Baoquan He <bhe@redhat.com>,
-	Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Michal Hocko <mhocko@suse.com>, <x86@kernel.org>,
-	<linux-acpi@vger.kernel.org>, <linux-mm@kvack.org>
-Subject: Re: [PATCHv2 2/7] acpi: change the topo of acpi_table_upgrade()
-Message-ID: <20190111053036.GA13263@localhost.localdomain>
-References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
- <1547183577-20309-3-git-send-email-kernelfans@gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=edetCLNw;
+       spf=pass (google.com: domain of baptiste.lepers@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=baptiste.lepers@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=Dyqw3HCSpJOE3kTzeE08yEllmbgy+rYjF7ROKuO8WI4=;
+        b=edetCLNwIi9OUte9bwRp8Fu6kesaxyfuzH738s5y4iBqeBz0hBmRpD73o2wqqro8bs
+         rM6VasJGk1pg0Sm/jmaml8/1WNO5fVqnBPV+Pc+0OT+3jL+D2Al1krllLetNWd5/e/4n
+         jKeTaM4EVOPks1qfrPW1MBFmkBucbJ66YBQMpW3PF2fqnnR50iE6lLE5sbktV1gLf8Cv
+         Hq+8fX8/aDUMw3k1nqGBW3wBTSFQeGgd6aET04PTItg8i3IB4wkSkYirOAAJE3cayQKl
+         rmQwPTFJHRAos5wF9R+cnE/c99gW4rrqct+beZpagwvj0IdaBuE2DVN7Z85vQD+naeLo
+         Ejgg==
+X-Google-Smtp-Source: ALg8bN6plIYg8GtPddHg+I9mdaBY189+breocM8JiUYF7PArdtlZETkfvZ+LsIPhVk1Tt5TQeaBdGwag5V4EV61N38A=
+X-Received: by 2002:a9d:39f7:: with SMTP id y110mr8240286otb.240.1547185948051;
+ Thu, 10 Jan 2019 21:52:28 -0800 (PST)
 MIME-Version: 1.0
+From: Baptiste Lepers <baptiste.lepers@gmail.com>
+Date: Fri, 11 Jan 2019 16:52:17 +1100
+Message-ID: <CABdVr8R2y9B+2zzSAT_Ve=BQCa+F+E9_kVH+C28DGpkeQitiog@mail.gmail.com>
+Subject: Lock overhead in shrink_inactive_list / Slow page reclamation
+To: mgorman@techsingularity.net, akpm@linux-foundation.org, 
+	dhowells@redhat.com, linux-mm@kvack.org, hannes@cmpxchg.org
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-In-Reply-To: <1547183577-20309-3-git-send-email-kernelfans@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Originating-IP: [10.167.225.56]
-X-yoursite-MailScanner-ID: 7D8734BAD914.AD370
-X-yoursite-MailScanner: Found to be clean
-X-yoursite-MailScanner-From: fanc.fnst@cn.fujitsu.com
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111053037.yHEZj8Lv_ENx3DQ1bindd1ianXBCf82MPrvkm52d4W8@z>
 
-On Fri, Jan 11, 2019 at 01:12:52PM +0800, Pingfan Liu wrote:
->The current acpi_table_upgrade() relies on initrd_start, but this var is
->only valid after relocate_initrd(). There is requirement to extract the
->acpi info from initrd before memblock-allocator can work(see [2/4]), hence
->acpi_table_upgrade() need to accept the input param directly.
->
->Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
->Acked-by: "Rafael J. Wysocki" <rjw@rjwysocki.net>
->Cc: Thomas Gleixner <tglx@linutronix.de>
->Cc: Ingo Molnar <mingo@redhat.com>
->Cc: Borislav Petkov <bp@alien8.de>
->Cc: "H. Peter Anvin" <hpa@zytor.com>
->Cc: Dave Hansen <dave.hansen@linux.intel.com>
->Cc: Andy Lutomirski <luto@kernel.org>
->Cc: Peter Zijlstra <peterz@infradead.org>
->Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
->Cc: Len Brown <lenb@kernel.org>
->Cc: Yinghai Lu <yinghai@kernel.org>
->Cc: Tejun Heo <tj@kernel.org>
->Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
->Cc: Baoquan He <bhe@redhat.com>
->Cc: Juergen Gross <jgross@suse.com>
->Cc: Andrew Morton <akpm@linux-foundation.org>
->Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
->Cc: Vlastimil Babka <vbabka@suse.cz>
->Cc: Michal Hocko <mhocko@suse.com>
->Cc: x86@kernel.org
->Cc: linux-acpi@vger.kernel.org
->Cc: linux-mm@kvack.org
->---
-> arch/arm64/kernel/setup.c | 2 +-
-> arch/x86/kernel/setup.c   | 2 +-
-> drivers/acpi/tables.c     | 4 +---
-> include/linux/acpi.h      | 4 ++--
-> 4 files changed, 5 insertions(+), 7 deletions(-)
->
->diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
->index f4fc1e0..bc4b47d 100644
->--- a/arch/arm64/kernel/setup.c
->+++ b/arch/arm64/kernel/setup.c
->@@ -315,7 +315,7 @@ void __init setup_arch(char **cmdline_p)
-> 	paging_init();
-> 	efi_apply_persistent_mem_reservations();
-> 
->-	acpi_table_upgrade();
->+	acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
-> 
-> 	/* Parse the ACPI tables for possible boot-time configuration */
-> 	acpi_boot_table_init();
->diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
->index ac432ae..dc8fc5d 100644
->--- a/arch/x86/kernel/setup.c
->+++ b/arch/x86/kernel/setup.c
->@@ -1172,8 +1172,8 @@ void __init setup_arch(char **cmdline_p)
-> 
-> 	reserve_initrd();
-> 
->-	acpi_table_upgrade();
-> 
-I wonder whether this will cause two blank lines together.
+Hello,
+
+We have a performance issue with the page cache. One of our workload
+spends more than 50% of it's time in the lru_locks called by
+shrink_inactive_list in mm/vmscan.c.
+
+The workload is simple but stresses the page cache a lot: a big file
+is mmaped and multiple threads stream chunks of the file; the chunks
+sizes range from a few KB to a few MB. The file is about 1TB and is
+stored on a very fast SSD (2.6GB/s bandwidth). Our machine has 64GB of
+RAM. We rely on the page cache to cache data, but obviously pages have
+to be reclaimed quite often to put new data. The workload is *read
+only* so we would expect page reclamation to be fast, but it's not. In
+some workloads the page cache only reclaims pages at 500-600MB/s.
+
+We have tried to play with fadvise to speed up page reclamation (e.g.,
+using the DONTNEED flag) but that didn't help.
+
+Increasing the value of SWAP_CLUSTER_MAX to 256UL helped (as suggested
+here https://lkml.org/lkml/2015/7/6/440), but we are still spending
+most of the time waiting for the page cache to reclaim pages.
+Increasing the value to more than 256 doesn't help -- the
+shrink_inactive_list function is never reclaiming more than a few
+hundred pages at a time. (I don't know why, and I'm not sure how to
+profile why this is the case, but I'm willing to spend time to debug
+the issue if you have ideas.)
+
+Any idea of anything else we could try to speed up page reclamation?
 
 Thanks,
-Chao Fan
-
->+	acpi_table_upgrade((void *)initrd_start, initrd_end - initrd_start);
-> 	vsmp_init();
-> 
-> 	io_delay_init();
->diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
->index 61203ee..84e0a79 100644
->--- a/drivers/acpi/tables.c
->+++ b/drivers/acpi/tables.c
->@@ -471,10 +471,8 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
-> 
-> #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
-> 
->-void __init acpi_table_upgrade(void)
->+void __init acpi_table_upgrade(void *data, size_t size)
-> {
->-	void *data = (void *)initrd_start;
->-	size_t size = initrd_end - initrd_start;
-> 	int sig, no, table_nr = 0, total_offset = 0;
-> 	long offset = 0;
-> 	struct acpi_table_header *table;
->diff --git a/include/linux/acpi.h b/include/linux/acpi.h
->index ed80f14..0b6e0b6 100644
->--- a/include/linux/acpi.h
->+++ b/include/linux/acpi.h
->@@ -1254,9 +1254,9 @@ acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
-> #endif
-> 
-> #ifdef CONFIG_ACPI_TABLE_UPGRADE
->-void acpi_table_upgrade(void);
->+void acpi_table_upgrade(void *data, size_t size);
-> #else
->-static inline void acpi_table_upgrade(void) { }
->+static inline void acpi_table_upgrade(void *data, size_t size) { }
-> #endif
-> 
-> #if defined(CONFIG_ACPI) && defined(CONFIG_ACPI_WATCHDOG)
->-- 
->2.7.4
->
->
->
-
+Baptiste.
 
