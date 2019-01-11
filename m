@@ -1,125 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D24A98E0007
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2019 16:10:34 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id l9so6905845plt.7
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 13:10:34 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id g8si23341095pgo.166.2019.01.10.13.10.33
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CE5548E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 06:04:51 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id d31so16264293qtc.4
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 03:04:51 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l23si1010038qkg.227.2019.01.11.03.04.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 13:10:33 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [RFC PATCH v7 06/16] xpfo: add primitives for mapping underlying memory
-Date: Thu, 10 Jan 2019 14:09:38 -0700
-Message-Id: <5deed7a1eb65fc6c66acb8a00d46d63e7f0fd22f.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
+        Fri, 11 Jan 2019 03:04:51 -0800 (PST)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH V13 12/19] block: loop: pass multi-page bvec to iov_iter
+Date: Fri, 11 Jan 2019 19:01:20 +0800
+Message-Id: <20190111110127.21664-13-ming.lei@redhat.com>
+In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
+References: <20190111110127.21664-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Ming Lei <ming.lei@redhat.com>
 
-From: Tycho Andersen <tycho@docker.com>
+iov_iter is implemented on bvec itererator helpers, so it is safe to pass
+multi-page bvec to it, and this way is much more efficient than passing one
+page in each bvec.
 
-In some cases (on arm64 DMA and data cache flushes) we may have unmapped
-the underlying pages needed for something via XPFO. Here are some
-primitives useful for ensuring the underlying memory is mapped/unmapped in
-the face of xpfo.
-
-Signed-off-by: Tycho Andersen <tycho@docker.com>
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Omar Sandoval <osandov@fb.com>
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- include/linux/xpfo.h | 22 ++++++++++++++++++++++
- mm/xpfo.c            | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+)
+ drivers/block/loop.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index e38b823f44e3..2682a00ebbcb 100644
---- a/include/linux/xpfo.h
-+++ b/include/linux/xpfo.h
-@@ -37,6 +37,15 @@ void xpfo_free_pages(struct page *page, int order);
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index b8a0720d3653..28dd22c6f83f 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -511,21 +511,22 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		     loff_t pos, bool rw)
+ {
+ 	struct iov_iter iter;
++	struct req_iterator rq_iter;
+ 	struct bio_vec *bvec;
+ 	struct request *rq = blk_mq_rq_from_pdu(cmd);
+ 	struct bio *bio = rq->bio;
+ 	struct file *file = lo->lo_backing_file;
++	struct bio_vec tmp;
+ 	unsigned int offset;
+-	int segments = 0;
++	int nr_bvec = 0;
+ 	int ret;
  
- bool xpfo_page_is_unmapped(struct page *page);
++	rq_for_each_bvec(tmp, rq, rq_iter)
++		nr_bvec++;
++
+ 	if (rq->bio != rq->biotail) {
+-		struct req_iterator iter;
+-		struct bio_vec tmp;
  
-+#define XPFO_NUM_PAGES(addr, size) \
-+	(PFN_UP((unsigned long) (addr) + (size)) - \
-+		PFN_DOWN((unsigned long) (addr)))
-+
-+void xpfo_temp_map(const void *addr, size_t size, void **mapping,
-+		   size_t mapping_len);
-+void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
-+		     size_t mapping_len);
-+
- #else /* !CONFIG_XPFO */
+-		__rq_for_each_bio(bio, rq)
+-			segments += bio_segments(bio);
+-		bvec = kmalloc_array(segments, sizeof(struct bio_vec),
++		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
+ 				     GFP_NOIO);
+ 		if (!bvec)
+ 			return -EIO;
+@@ -534,10 +535,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		/*
+ 		 * The bios of the request may be started from the middle of
+ 		 * the 'bvec' because of bio splitting, so we can't directly
+-		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_segment
++		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_bvec
+ 		 * API will take care of all details for us.
+ 		 */
+-		rq_for_each_segment(tmp, rq, iter) {
++		rq_for_each_bvec(tmp, rq, rq_iter) {
+ 			*bvec = tmp;
+ 			bvec++;
+ 		}
+@@ -551,11 +552,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		 */
+ 		offset = bio->bi_iter.bi_bvec_done;
+ 		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+-		segments = bio_segments(bio);
+ 	}
+ 	atomic_set(&cmd->ref, 2);
  
- static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-@@ -46,6 +55,19 @@ static inline void xpfo_free_pages(struct page *page, int order) { }
+-	iov_iter_bvec(&iter, rw, bvec, segments, blk_rq_bytes(rq));
++	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
+ 	iter.iov_offset = offset;
  
- static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }
- 
-+#define XPFO_NUM_PAGES(addr, size) 0
-+
-+static inline void xpfo_temp_map(const void *addr, size_t size, void **mapping,
-+				 size_t mapping_len)
-+{
-+}
-+
-+static inline void xpfo_temp_unmap(const void *addr, size_t size,
-+				   void **mapping, size_t mapping_len)
-+{
-+}
-+
-+
- #endif /* CONFIG_XPFO */
- 
- #endif /* _LINUX_XPFO_H */
-diff --git a/mm/xpfo.c b/mm/xpfo.c
-index cdbcbac582d5..f79075bf7d65 100644
---- a/mm/xpfo.c
-+++ b/mm/xpfo.c
-@@ -13,6 +13,7 @@
-  * the Free Software Foundation.
-  */
- 
-+#include <linux/highmem.h>
- #include <linux/mm.h>
- #include <linux/module.h>
- #include <linux/page_ext.h>
-@@ -235,3 +236,32 @@ bool xpfo_page_is_unmapped(struct page *page)
- 	return test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
- }
- EXPORT_SYMBOL(xpfo_page_is_unmapped);
-+
-+void xpfo_temp_map(const void *addr, size_t size, void **mapping,
-+		   size_t mapping_len)
-+{
-+	struct page *page = virt_to_page(addr);
-+	int i, num_pages = mapping_len / sizeof(mapping[0]);
-+
-+	memset(mapping, 0, mapping_len);
-+
-+	for (i = 0; i < num_pages; i++) {
-+		if (page_to_virt(page + i) >= addr + size)
-+			break;
-+
-+		if (xpfo_page_is_unmapped(page + i))
-+			mapping[i] = kmap_atomic(page + i);
-+	}
-+}
-+EXPORT_SYMBOL(xpfo_temp_map);
-+
-+void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
-+		     size_t mapping_len)
-+{
-+	int i, num_pages = mapping_len / sizeof(mapping[0]);
-+
-+	for (i = 0; i < num_pages; i++)
-+		if (mapping[i])
-+			kunmap_atomic(mapping[i]);
-+}
-+EXPORT_SYMBOL(xpfo_temp_unmap);
+ 	cmd->iocb.ki_pos = pos;
 -- 
-2.17.1
+2.9.5
