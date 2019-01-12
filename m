@@ -1,32 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 027DF8E0002
-	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 07:56:03 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id t7so7054713edr.21
-        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 04:56:02 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id la26-v6si1561836ejb.33.2019.01.12.04.56.01
-        for <linux-mm@kvack.org>;
-        Sat, 12 Jan 2019 04:56:01 -0800 (PST)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F01C8E0002
+	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 08:49:33 -0500 (EST)
+Received: by mail-wm1-f72.google.com with SMTP id y74so1486880wmc.0
+        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 05:49:33 -0800 (PST)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id d14si49591016wrg.151.2019.01.12.05.49.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 12 Jan 2019 05:49:31 -0800 (PST)
 Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
 References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
  <20190112121230.GQ6310@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <9dd9a8ef-8db8-891c-79a9-270ab033037c@arm.com>
-Date: Sat, 12 Jan 2019 18:25:48 +0530
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <ddd59fdc-3d8f-4015-e851-e7f099193a1b@c-s.fr>
+Date: Sat, 12 Jan 2019 14:49:29 +0100
 MIME-Version: 1.0
 In-Reply-To: <20190112121230.GQ6310@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, mhocko@suse.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com
+To: Matthew Wilcox <willy@infradead.org>, Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: mark.rutland@arm.com, mhocko@suse.com, linux-sh@vger.kernel.org, peterz@infradead.org, catalin.marinas@arm.com, dave.hansen@linux.intel.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, mingo@redhat.com, vbabka@suse.cz, rientjes@google.com, marc.zyngier@arm.com, rppt@linux.vnet.ibm.com, shakeelb@google.com, kirill@shutemov.name, tglx@linutronix.de, linux-arm-kernel@lists.infradead.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, steve.capper@arm.com, christoffer.dall@arm.com, james.morse@arm.com, aneesh.kumar@linux.ibm.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org
 
 
 
-On 01/12/2019 05:42 PM, Matthew Wilcox wrote:
+Le 12/01/2019 à 13:12, Matthew Wilcox a écrit :
 > On Sat, Jan 12, 2019 at 03:56:38PM +0530, Anshuman Khandual wrote:
 >> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
 >> __GFP_ZERO) and using it for allocating page table pages.
@@ -35,25 +36,35 @@ On 01/12/2019 05:42 PM, Matthew Wilcox wrote:
 > 
 >> +++ b/arch/x86/mm/pgtable.c
 >> @@ -13,19 +13,17 @@ phys_addr_t physical_mask __ro_after_init = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
->>  EXPORT_SYMBOL(physical_mask);
->>  #endif
->>  
+>>   EXPORT_SYMBOL(physical_mask);
+>>   #endif
+>>   
 >> -#define PGALLOC_GFP (GFP_KERNEL_ACCOUNT | __GFP_ZERO)
 >> -
->>  #ifdef CONFIG_HIGHPTE
+>>   #ifdef CONFIG_HIGHPTE
 > 
 > ...
 > 
->>  pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
->>  {
+>>   pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
+>>   {
 >> -	return (pte_t *)__get_free_page(PGALLOC_GFP & ~__GFP_ACCOUNT);
 >> +	return (pte_t *)__get_free_page(GFP_PGTABLE & ~__GFP_ACCOUNT);
->>  }
+>>   }
+
+As far as I can see,
+
+#define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
+
+So what's the difference between:
+
+(GFP_KERNEL_ACCOUNT | __GFP_ZERO) & ~__GFP_ACCOUNT
+
+and
+
+(GFP_KERNEL | __GFP_ZERO) & ~__GFP_ACCOUNT
+
+Christophe
+
 > 
 > I think x86 was the only odd one out here, but you'll need to try again ...
-
-IIUC the user page table pages need __GFP_ACCOUNT not the kernel ones. Hence
-in the above function it clears out __GFP_ACCOUNT for kernel page table page
-allocations but where as by default it has got __GFP_ACCOUNT which would be
-used for user page tables. Instead we can make X86 user allocations add
-__GFP_ACCOUNT (like other archs) to generic GFP_PGTABLE when ever required.
+> 
