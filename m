@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A8C78E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 19:36:53 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id q207so14271461iod.18
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 16:36:53 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 267018E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 19:36:55 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id x12so14571219ioj.2
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 16:36:55 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 71sor4872782itw.15.2019.01.11.16.36.52
+        by mx.google.com with SMTPS id x97sor36138874ita.32.2019.01.11.16.36.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 11 Jan 2019 16:36:52 -0800 (PST)
+        Fri, 11 Jan 2019 16:36:54 -0800 (PST)
 From: Blake Caldwell <blake.caldwell@colorado.edu>
-Subject: [PATCH 1/4] userfaultfd: UFFDIO_REMAP: rmap preparation
-Date: Sat, 12 Jan 2019 00:36:26 +0000
-Message-Id: <97a56d8c0d61846bdfa9fa0f8449238781bd5178.1547251023.git.blake.caldwell@colorado.edu>
+Subject: [PATCH 2/4] userfaultfd: UFFDIO_REMAP uABI
+Date: Sat, 12 Jan 2019 00:36:27 +0000
+Message-Id: <7f79b6d232fd6352d7e9df462944ba52ac1d906f.1547251023.git.blake.caldwell@colorado.edu>
 In-Reply-To: <cover.1547251023.git.blake.caldwell@colorado.edu>
 References: <cover.1547251023.git.blake.caldwell@colorado.edu>
 In-Reply-To: <cover.1547251023.git.blake.caldwell@colorado.edu>
@@ -24,72 +24,71 @@ Cc: rppt@linux.vnet.ibm.com, xemul@virtuozzo.com, akpm@linux-foundation.org, mik
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-As far as the rmap code is concerned, UFFDIO_REMAP only alters the
-page->mapping and page->index. It does it while holding the page
-lock. However page_referenced() is doing rmap walks without taking the
-page lock first, so page_lock_anon_vma_read must be updated to
-re-check that the page->mapping didn't change after we obtained the
-anon_vma read lock.
+This implements the uABI of UFFDIO_REMAP.
 
-UFFDIO_REMAP takes the anon_vma lock for writing before altering the
-page->mapping, so if the page->mapping is still the same after
-obtaining the anon_vma read lock (without the page lock), the rmap
-walks can go ahead safely (and UFFDIO_REMAP will wait the rmap walk to
-complete before proceeding).
-
-UFFDIO_REMAP serializes against itself with the page lock.
-
-All other places taking the anon_vma lock while holding the mmap_sem
-for writing, don't need to check if the page->mapping has changed
-after taking the anon_vma lock, regardless of the page lock, because
-UFFDIO_REMAP holds the mmap_sem for reading.
-
-There's one constraint enforced to allow this simplification: the
-source pages passed to UFFDIO_REMAP must be mapped only in one vma,
-but this constraint is an acceptable tradeoff for UFFDIO_REMAP
-users.
-
-The source addresses passed to UFFDIO_REMAP should be set as
-VM_DONTCOPY with MADV_DONTFORK to avoid any risk of the mapcount of
-the pages increasing if some thread of the process forks() before
-UFFDIO_REMAP run.
+Notably one mode bitflag is also forwarded (and in turn known) by the
+lowlevel remap_pages method.
 
 Acked-by: Pavel Emelyanov <xemul@virtuozzo.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/rmap.c | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ include/uapi/linux/userfaultfd.h | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 0454ecc2..d8f228d 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -510,6 +510,7 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
- 	struct anon_vma *root_anon_vma;
- 	unsigned long anon_mapping;
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+index 48f1a7c..a0d6106 100644
+--- a/include/uapi/linux/userfaultfd.h
++++ b/include/uapi/linux/userfaultfd.h
+@@ -34,7 +34,8 @@
+ #define UFFD_API_RANGE_IOCTLS			\
+ 	((__u64)1 << _UFFDIO_WAKE |		\
+ 	 (__u64)1 << _UFFDIO_COPY |		\
+-	 (__u64)1 << _UFFDIO_ZEROPAGE)
++	 (__u64)1 << _UFFDIO_ZEROPAGE |		\
++	 (__u64)1 << _UFFDIO_REMAP)
+ #define UFFD_API_RANGE_IOCTLS_BASIC		\
+ 	((__u64)1 << _UFFDIO_WAKE |		\
+ 	 (__u64)1 << _UFFDIO_COPY)
+@@ -52,6 +53,7 @@
+ #define _UFFDIO_WAKE			(0x02)
+ #define _UFFDIO_COPY			(0x03)
+ #define _UFFDIO_ZEROPAGE		(0x04)
++#define _UFFDIO_REMAP			(0x05)
+ #define _UFFDIO_API			(0x3F)
  
-+repeat:
- 	rcu_read_lock();
- 	anon_mapping = (unsigned long)READ_ONCE(page->mapping);
- 	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
-@@ -548,6 +549,18 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
- 	rcu_read_unlock();
- 	anon_vma_lock_read(anon_vma);
+ /* userfaultfd ioctl ids */
+@@ -68,6 +70,8 @@
+ 				      struct uffdio_copy)
+ #define UFFDIO_ZEROPAGE		_IOWR(UFFDIO, _UFFDIO_ZEROPAGE,	\
+ 				      struct uffdio_zeropage)
++#define UFFDIO_REMAP		_IOWR(UFFDIO, _UFFDIO_REMAP,	\
++				      struct uffdio_remap)
  
+ /* read() structure */
+ struct uffd_msg {
+@@ -231,4 +235,23 @@ struct uffdio_zeropage {
+ 	__s64 zeropage;
+ };
+ 
++struct uffdio_remap {
++	__u64 dst;
++	__u64 src;
++	__u64 len;
 +	/*
-+	 * Check if UFFDIO_REMAP changed the anon_vma. This is needed
-+	 * because we don't assume the page was locked.
++	 * Especially if used to atomically remove memory from the
++	 * address space the wake on the dst range is not needed.
 +	 */
-+	if (unlikely((unsigned long) READ_ONCE(page->mapping) !=
-+		     anon_mapping)) {
-+		anon_vma_unlock_read(anon_vma);
-+		put_anon_vma(anon_vma);
-+		anon_vma = NULL;
-+		goto repeat;
-+	}
++#define UFFDIO_REMAP_MODE_DONTWAKE		((__u64)1<<0)
++#define UFFDIO_REMAP_MODE_ALLOW_SRC_HOLES	((__u64)1<<1)
++	__u64 mode;
 +
- 	if (atomic_dec_and_test(&anon_vma->refcount)) {
- 		/*
- 		 * Oops, we held the last refcount, release the lock
++	/*
++	 * "remap" is written by the ioctl and must be at the end: the
++	 * copy_from_user will not read the last 8 bytes.
++	 */
++	__s64 remap;
++};
++
+ #endif /* _LINUX_USERFAULTFD_H */
 -- 
 1.8.3.1
