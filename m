@@ -2,337 +2,193 @@ Return-Path: <SRS0=vc3H=PU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD5A3C43444
-	for <linux-mm@archiver.kernel.org>; Sat, 12 Jan 2019 02:38:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 072DCC43387
+	for <linux-mm@archiver.kernel.org>; Sat, 12 Jan 2019 02:58:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 851EE2184B
-	for <linux-mm@archiver.kernel.org>; Sat, 12 Jan 2019 02:38:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ADE9620870
+	for <linux-mm@archiver.kernel.org>; Sat, 12 Jan 2019 02:58:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="M0jEqp3y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 851EE2184B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iLgpakor"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADE9620870
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F10868E0002; Fri, 11 Jan 2019 21:38:49 -0500 (EST)
+	id 4A24F8E0003; Fri, 11 Jan 2019 21:58:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBE6B8E0001; Fri, 11 Jan 2019 21:38:49 -0500 (EST)
+	id 44F838E0001; Fri, 11 Jan 2019 21:58:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB9B98E0002; Fri, 11 Jan 2019 21:38:49 -0500 (EST)
+	id 318698E0003; Fri, 11 Jan 2019 21:58:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AAAC18E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 21:38:49 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id e14so3608619ybf.4
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 18:38:49 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CDDEB8E0001
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 21:58:48 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id y7so5294807wrr.12
+        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 18:58:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=Cs6UTVT1m7o+6bOFBmASgtpU5xNAVif1KVmjIOVij+E=;
-        b=IRG6hlqPL9ICJlBflyEbsm63BCirWDLTUqPuB2YX6fxdLbeyXoWqH/wGZIyfflb+G0
-         zlgFyhwLt847bnxRwl1xQdhVa34vgm2QmHYOwCJOEAZrEmIaRKXRkbQ8bkBTuDk/E3vJ
-         GTn4AHPyMalhdgnfqkz3R14i70K4j9UfoF4Qr2lBagnIouYGzqEgrHsj5kft86vC4K5N
-         SiWuuaI8YQfonseZSq0cG4E+IaIM1R6d9xW5Pcd2v/yQF46VHlAxyvuyMjiHMkxFfcY1
-         BJJmbX2AfxQaN83bXiaCYnPp82FNFfiOncZS+Hef5qR4LQwL4No9y/li9pKmr/lzzjT9
-         5wLQ==
-X-Gm-Message-State: AJcUukc3OourKhA5vZC7jzVZAdrzgOntnyDexNZRdOtHa0OapnOZ3TXI
-	ox86pj7CQgAQFhFYYIealpXoHd4/A7iqHShEZiB+MwuFrmS6giYaxpJoRtJ/0U+bwUocuXXxi6u
-	+JG0zETJ9Il+b/54MmCNY94AD+ZOFdEErIW9UU29F9/rZG4P3zXKKw4ygPahgdAaRDQ==
-X-Received: by 2002:a25:dfc4:: with SMTP id w187mr4289193ybg.231.1547260728304;
-        Fri, 11 Jan 2019 18:38:48 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4Z3sx5TP0tGc4YcwzwyiGBA+KMB0NgNEVT4v/TYADyMELyjkDb+rSha+Wx9fJYIBCcaFPH
-X-Received: by 2002:a25:dfc4:: with SMTP id w187mr4289168ybg.231.1547260727165;
-        Fri, 11 Jan 2019 18:38:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547260727; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=oA0YpQMCdJU1zfIVfz2vDT77FI6zrfK8PmyJGe88nf0=;
+        b=Ef/HikTBF0PX/cXBxXTckfEZE3CO950rV01Iy8vSmkwvhpKAGtlDsc0XlQC9S01cNx
+         dsvRjczSWiBBu/Cq2FwSX9OM9uTWEA/l4m+ZvMH1LjLkeeJf/0BtAWO8kpqCtoiY1w1B
+         pcj4TYGlFoCBMOSB+LP/7D+nxL0hw27hUsjJlzeJ+CFXI0VWDXUjHXTwbjWwen2FsdzN
+         3NUVVsXBWqCgXL3pg46QzcAgOx/eqR2F+wm89gFtGdBtPnuIqC5MWk7Cx53YRb81dVL5
+         2GcROcaPMsVFxaullQfX40qyiIXIhwE8v+c7Wdb1W7WwgnQoI2YH1IyU343Vd8TzIB7y
+         34qw==
+X-Gm-Message-State: AJcUukf6Pmba8h1gyPGSsa3lgPoRzf4x2dkcSoXRl+GyliTSZ9x8gwHv
+	GZeAvMa3Gqewq0YYXHlVlLgiH9GoWTwIxs6ZIQTc+LV2Nnt2QrvWZ+9/KK3/nKc7+ty2FYbTnGv
+	TWkks4CMstf4y2XZt0MYXeYvxQ8yHyWSkpmgRFz3HdTbfTnTUWC42whU98yqpUuTA60m5QlS39F
+	T7cLwdJb2FfnZRYSrbqK98GyZ0P65JkBz3TETxjrmHasCDWjQ3mdYWPZ2KqXOZLvTNjd6o0XN8Y
+	xEZPdReDy6ebZWjs/NJ4+5exiGMmMwiY5r6+pVF5WY8cWguzqUVFrc/CNf/p9XtZHddsglS412/
+	VDIvWJ4xRUPO96tMpnHQ0KYWVQCvtmEctlkM92J8Pr2eY/zud0Dzbp0CKp6eKRxi33s8Rf4Svv6
+	c
+X-Received: by 2002:a5d:63c3:: with SMTP id c3mr15531052wrw.215.1547261928372;
+        Fri, 11 Jan 2019 18:58:48 -0800 (PST)
+X-Received: by 2002:a5d:63c3:: with SMTP id c3mr15531031wrw.215.1547261927514;
+        Fri, 11 Jan 2019 18:58:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547261927; cv=none;
         d=google.com; s=arc-20160816;
-        b=pbI8NL1EHMBH7NaPMhGNLE5w4uY7tA5qCNzyQ8gC/o8B3HgsDekxqSy9PM2g5/QdkP
-         Jutth8pVJUapylSBQZC0a7ye/CvIXozgYleq0rURqF2t5t8WEYzo+OkcaYERvrxTseo8
-         ZeAbBNgIaFY3MfHjcmSmAX5uHW6JecmOEeiGOJJeTyd+hB9W+8hEYrtuDStRCF0zB2Ya
-         N2cPteiBtka0+oLTZRmvkMVk7otGkbGcFYE2fA7wLGGFpDzlDepdQdQLQ3uPAtdYEHXD
-         ox4cG1qQ8IIC/4nznSYIqhUc/jpwf1DxIlzNdQ+gRnlJjQ+IIH/cROz5N+L37RxlUKS9
-         fxzA==
+        b=Jd3SsDm5Vk4KKN5D5AnXXFTVzUld9EMhAghxHKhtJ343E9s38P1MKxfZs1w9Itfmtb
+         F2OnrkuNMVou9SRpxtbxHoSjazsPffajw6APcrFRXSHy9SgfDXltBN6yvrEC/OlvYdwh
+         iOBU5s2KJhOO8ZpnSDEG/XMHTFses8SIUi8VILFTeMIEQ5hJkCKLpG7sAA4QUKhVLFlW
+         HZZQF58KyjRYyPIbTkVrwTfiVG1lyJxNpBgn/mAm0liCCrdgSEVPUo5TaeWs1lL0YfPM
+         HLHG1WG7WJHxykITP7yuY7coTm8/3KaHJIa6Ku1E49FXleHRD2rKh5zUzUJwGn6lEjQm
+         R1eA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=Cs6UTVT1m7o+6bOFBmASgtpU5xNAVif1KVmjIOVij+E=;
-        b=An176FxwlmUMHrJD5uw0kxUra/9M9VIp8AcdB7S2ybPt0f6pF9cALRP54td/3t2TZJ
-         /2e0ak0r9kMiDnCEkWomQNofBitR3XPOQ25LVDZyJmXCD8AyqDYqgdRDi4WoJoZCxved
-         367xWqLR26kylQPx4SlFsCLBkaCIMRsJXYqePSfNmOax72YHsjbbCyUqCuBhLlaL8Jns
-         pr6R3a11DYjXEIfysX98+r4r83OQNB8AI4maLUdiLbW9dOeiIbJtHw7aXdODtmEwARul
-         BVKOsER8hs6pw72tdxDUQJCwokKCPEaDfJvQUgy+mYBKoQ33OdeOXEYd7q8gQzFB2mO0
-         0Dbw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=oA0YpQMCdJU1zfIVfz2vDT77FI6zrfK8PmyJGe88nf0=;
+        b=G7mtxyROAJJN+dnmLPVxbMhmImdllasdYAG7s2OYo9cJC+shrHhkAUfu3C6zL2eEy6
+         62uXm3e1NFXXXJ0ZG7qJspAGk2Ui1CWAzhHlr6VqS8IMSbJqxzYiagXX0mcKu2OvfOP+
+         xVKawwXXUdrrXVquSssiI84URtOX+s6NVAY7M4S3ZYZyiEev5bNmQqXm+TpsJhlYVNsA
+         Szc3PzjnbmK1HlERk3NZKSCJCl6Wle2GZ5qmpQQiltjQfuiQpklbsOWwyAFXrWP9mZ2C
+         WsETgWY8uI52+/InDKET5io6pccC01DMtKG7NLSmDCNPvlgfHA36SUYK/KoDhf9vt1/g
+         k8gQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=M0jEqp3y;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id 203si48109564ywo.294.2019.01.11.18.38.46
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iLgpakor;
+       spf=pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=walken@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r17sor5300680wrv.44.2019.01.11.18.58.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 18:38:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        (Google Transport Security);
+        Fri, 11 Jan 2019 18:58:47 -0800 (PST)
+Received-SPF: pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=M0jEqp3y;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c39531b0000>; Fri, 11 Jan 2019 18:38:19 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Fri, 11 Jan 2019 18:38:45 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Fri, 11 Jan 2019 18:38:45 -0800
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Sat, 12 Jan
- 2019 02:38:45 +0000
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-To: Jerome Glisse <jglisse@redhat.com>
-CC: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave
- Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John
- Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>, <tom@talpey.com>, Al Viro
-	<viro@zeniv.linux.org.uk>, <benve@cisco.com>, Christoph Hellwig
-	<hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro,
- Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>,
-	<mike.marciniszyn@intel.com>, <rcampbell@nvidia.com>, Linux Kernel Mailing
- List <linux-kernel@vger.kernel.org>, linux-fsdevel
-	<linux-fsdevel@vger.kernel.org>
-References: <20181218093017.GB18032@quack2.suse.cz>
- <9f43d124-2386-7bfd-d90b-4d0417f51ccd@nvidia.com>
- <20181219020723.GD4347@redhat.com> <20181219110856.GA18345@quack2.suse.cz>
- <20190103015533.GA15619@redhat.com> <20190103092654.GA31370@quack2.suse.cz>
- <20190103144405.GC3395@redhat.com>
- <a79b259b-3982-b271-025a-0656f70506f4@nvidia.com>
- <20190111165141.GB3190@redhat.com>
- <1b37061c-5598-1b02-2983-80003f1c71f2@nvidia.com>
- <20190112020228.GA5059@redhat.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
-Date: Fri, 11 Jan 2019 18:38:44 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iLgpakor;
+       spf=pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=walken@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=oA0YpQMCdJU1zfIVfz2vDT77FI6zrfK8PmyJGe88nf0=;
+        b=iLgpakorSqfoGh51GzcIxeWq0hiHYjCnbrtcaS9N8pkXYywPrAlJe9Tyiz7J12ZjS7
+         ZM4O1suQFAiFyoe0zMGmOa/gbzDG+a2bjCXFhpX7Bt2OZfP35C7+Z1+eOu+Eq+7yFILW
+         UZCfpqrqASl++Pym/PWkOGDxJjfUS0/kAawW74ehg9mIVx1+oCu/ttNe02xmeS9iFYB/
+         3Ql0apirfHi5TOi87Aw0oxVwffn/WzaT4CWysWjQ9ocQTLb2ksT9pypAj89fdu/CWjXj
+         72MobcQlEe73OIeT4B+OcbWKc6/9oxbeLydbPz0f72L3EPO5vQo2ZNX6ldQctf0Jkl0q
+         wZmg==
+X-Google-Smtp-Source: ALg8bN4K8kdswqFPg8E9VgzjlKUzEkixsQIlYoKhQ+uyxRmx+ztTcv8ihe5tqARyVlUkYDwnHjPoyQCaWf3pD/LyKCA=
+X-Received: by 2002:adf:9246:: with SMTP id 64mr16726152wrj.130.1547261926762;
+ Fri, 11 Jan 2019 18:58:46 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190112020228.GA5059@redhat.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
- HQMAIL101.nvidia.com (172.20.187.10)
+References: <20190111181600.GJ6310@bombadil.infradead.org> <20190111205843.25761-1-cai@lca.pw>
+ <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
+In-Reply-To: <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
+From: Michel Lespinasse <walken@google.com>
+Date: Fri, 11 Jan 2019 18:58:33 -0800
+Message-ID:
+ <CANN689G0zbk7sMbQ+p9NQGQ=NWq-Q0mQOOjeFkLp19YrTfgcLg@mail.gmail.com>
+Subject: Re: [PATCH v2] rbtree: fix the red root
+To: David Lechner <david@lechnology.com>
+Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, esploit@protonmail.ch, 
+	jejb@linux.ibm.com, dgilbert@interlog.com, martin.petersen@oracle.com, 
+	joeypabalinas@gmail.com, linux-mm <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1547260699; bh=Cs6UTVT1m7o+6bOFBmASgtpU5xNAVif1KVmjIOVij+E=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=M0jEqp3y0XQVIuLsrOY2R9adxqLiVXXsRkWwD0AeQVpNllYKUC6XkUssO6HCZeKV1
-	 0CyILvjaJJRZ/dioIg5DUQBJtrd0rmt6rmxfupIowOTqLNgMQXrjpVP0yosUqvcMXg
-	 tA0j2u9SvZVZpeU902MyL5+0chDqoHbd3oQ92IFQaOXGaRZZ1hvjJg1l6rdkRQkwh3
-	 g0KSOvf5VdUyCETv7paDAPhYQhAZtoP7r5O444kVutJ7Crn79JMHwxh6J2nzC+LBKM
-	 Zn/RfDaDVoEKjrmXNRsMeQtWN6MFjSusgIx0VdEpQJeGIN1rnc8bSq3ws+iY/glzpL
-	 R3j+EqjVw6uxA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190112023844.W2pw30A9914YHFhi3EsPalMaa-SYcuDIUcLo2WCCIdI@z>
+Message-ID: <20190112025833.23v80FeufoeeslLmuKkrq3PH6nAKj7OR1bxKIeBqJy8@z>
 
-On 1/11/19 6:02 PM, Jerome Glisse wrote:
-> On Fri, Jan 11, 2019 at 05:04:05PM -0800, John Hubbard wrote:
->> On 1/11/19 8:51 AM, Jerome Glisse wrote:
->>> On Thu, Jan 10, 2019 at 06:59:31PM -0800, John Hubbard wrote:
->>>> On 1/3/19 6:44 AM, Jerome Glisse wrote:
->>>>> On Thu, Jan 03, 2019 at 10:26:54AM +0100, Jan Kara wrote:
->>>>>> On Wed 02-01-19 20:55:33, Jerome Glisse wrote:
->>>>>>> On Wed, Dec 19, 2018 at 12:08:56PM +0100, Jan Kara wrote:
->>>>>>>> On Tue 18-12-18 21:07:24, Jerome Glisse wrote:
->>>>>>>>> On Tue, Dec 18, 2018 at 03:29:34PM -0800, John Hubbard wrote:
->>> [...]
->>
->> Hi Jerome,
->>
->> Looks good, in a conceptual sense. Let me do a brain dump of how I see it,
->> in case anyone spots a disastrous conceptual error (such as the lock_page
->> point), while I'm putting together the revised patchset.
->>
->> I've studied this carefully, and I agree that using mapcount in 
->> this way is viable, *as long* as we use a lock (or a construct that looks just 
->> like one: your "memory barrier, check, retry" is really just a lock) in
->> order to hold off gup() while page_mkclean() is in progress. In other words,
->> nothing that increments mapcount may proceed while page_mkclean() is running.
-> 
-> No, increment to page->_mapcount are fine while page_mkclean() is running.
-> The above solution do work no matter what happens thanks to the memory
-> barrier. By clearing the pin flag first and reading the page->_mapcount
-> after (and doing the reverse in GUP) we know that a racing GUP will either
-> have its pin page clear but the incremented mapcount taken into account by
-> page_mkclean() or page_mkclean() will miss the incremented mapcount but
-> it will also no clear the pin flag set concurrently by any GUP.
-> 
-> Here are all the possible time line:
-> [T1]:
-> GUP on CPU0                      | page_mkclean() on CPU1
->                                  |
-> [G2] atomic_inc(&page->mapcount) |
-> [G3] smp_wmb();                  |
-> [G4] SetPagePin(page);           |
->                                 ...
->                                  | [C1] pined = TestClearPagePin(page);
+On Fri, Jan 11, 2019 at 3:47 PM David Lechner <david@lechnology.com> wrote:
+>
+> On 1/11/19 2:58 PM, Qian Cai wrote:
+> > A GPF was reported,
+> >
+> > kasan: CONFIG_KASAN_INLINE enabled
+> > kasan: GPF could be caused by NULL-ptr deref or user memory access
+> > general protection fault: 0000 [#1] SMP KASAN
+> >          kasan_die_handler.cold.22+0x11/0x31
+> >          notifier_call_chain+0x17b/0x390
+> >          atomic_notifier_call_chain+0xa7/0x1b0
+> >          notify_die+0x1be/0x2e0
+> >          do_general_protection+0x13e/0x330
+> >          general_protection+0x1e/0x30
+> >          rb_insert_color+0x189/0x1480
+> >          create_object+0x785/0xca0
+> >          kmemleak_alloc+0x2f/0x50
+> >          kmem_cache_alloc+0x1b9/0x3c0
+> >          getname_flags+0xdb/0x5d0
+> >          getname+0x1e/0x20
+> >          do_sys_open+0x3a1/0x7d0
+> >          __x64_sys_open+0x7e/0xc0
+> >          do_syscall_64+0x1b3/0x820
+> >          entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> >
+> > It turned out,
+> >
+> > gparent = rb_red_parent(parent);
+> > tmp = gparent->rb_right; <-- GPF was triggered here.
+> >
+> > Apparently, "gparent" is NULL which indicates "parent" is rbtree's root
+> > which is red. Otherwise, it will be treated properly a few lines above.
+> >
+> > /*
+> >   * If there is a black parent, we are done.
+> >   * Otherwise, take some corrective action as,
+> >   * per 4), we don't want a red root or two
+> >   * consecutive red nodes.
+> >   */
+> > if(rb_is_black(parent))
+> >       break;
+> >
+> > Hence, it violates the rule #1 (the root can't be red) and need a fix
+> > up, and also add a regression test for it. This looks like was
+> > introduced by 6d58452dc06 where it no longer always paint the root as
+> > black.
+> >
+> > Fixes: 6d58452dc06 (rbtree: adjust root color in rb_insert_color() only
+> > when necessary)
+> > Reported-by: Esme <esploit@protonmail.ch>
+> > Tested-by: Joey Pabalinas <joeypabalinas@gmail.com>
+> > Signed-off-by: Qian Cai <cai@lca.pw>
+> > ---
+>
+> Tested-by: David Lechner <david@lechnology.com>
+> FWIW, this fixed the following crash for me:
+>
+> Unable to handle kernel NULL pointer dereference at virtual address 00000004
 
-It appears that you're using the "page pin is clear" to indicate that
-page_mkclean() is running. The problem is, that approach leads to toggling
-the PagePin flag, and so an observer (other than gup or page_mkclean) will
-see intervals during which the PagePin flag is clear, when conceptually it
-should be set.
+Just to clarify, do you have a way to reproduce this crash without the fix ?
 
-Jan and other FS people, is it definitely the case that we only have to take
-action (defer, wait, revoke, etc) for gup-pinned pages, in page_mkclean()?
-Because I recall from earlier experiments that there were several places, not 
-just page_mkclean().
+I don't think the fix is correct, because it just silently ignores a
+corrupted rbtree (red root node). But the code that creates this
+situation certainly needs to be fixed - having a reproduceable test
+case would certainly help here.
 
-One more quick question below...
-
->                                  | [C2] smp_mb();
->                                  | [C3] map_and_pin_count =
->                                  |        atomic_read(&page->mapcount)
-> 
-> It is fine because page_mkclean() will read the correct page->mapcount
-> which include the GUP that happens before [C1]
-> 
-> 
-> [T2]:
-> GUP on CPU0                      | page_mkclean() on CPU1
->                                  |
->                                  | [C1] pined = TestClearPagePin(page);
->                                  | [C2] smp_mb();
->                                  | [C3] map_and_pin_count =
->                                  |        atomic_read(&page->mapcount)
->                                 ...
-> [G2] atomic_inc(&page->mapcount) |
-> [G3] smp_wmb();                  |
-> [G4] SetPagePin(page);           |
-> 
-> It is fine because [G4] set the pin flag so it does not matter that [C3]
-> did miss the mapcount increase from the GUP.
-> 
-> 
-> [T3]:
-> GUP on CPU0                      | page_mkclean() on CPU1
-> [G4] SetPagePin(page);           | [C1] pined = TestClearPagePin(page);
-> 
-> No matter which CPU ordering we get ie either:
->     - [G4] is overwritten by [C1] in that case [C3] will see the mapcount
->       that was incremented by [G2] so we will map_count < map_and_pin_count
->       and we will set the pin flag again at the end of page_mkclean()
->     - [C1] is overwritten by [G4] in that case the pin flag is set and thus
->       it does not matter that [C3] also see the mapcount that was incremented
->       by [G2]
-> 
-> 
-> This is totaly race free ie at the end of page_mkclean() the pin flag will
-> be set for all page that are pin and for some page that are no longer pin.
-> What matter is that they are no false negative.
-> 
-> 
->> I especially am intrigued by your idea about a fuzzy count that allows
->> false positives but no false negatives. To do that, we need to put a hard
->> lock protecting the increment operation, but we can be loose (no lock) on
->> decrement. That turns out to be a perfect match for the problem here, because
->> as I recall from my earlier efforts, put_user_page() must *not* take locks--
->> and that's where we just decrement. Sweet! See below.
-> 
-> You do not need lock, lock are easier to think with but they are not always
-> necessary and in this case we do not need any lock. We can happily have any
-> number of concurrent GUP, PUP or pte zapping. Worse case is false positive
-> ie reporting a page as pin while it has just been unpin concurrently by a
-> PUP.
-> 
->> The other idea that you and Dan (and maybe others) pointed out was a debug
->> option, which we'll certainly need in order to safely convert all the call
->> sites. (Mirror the mappings at a different kernel offset, so that put_page()
->> and put_user_page() can verify that the right call was made.)  That will be
->> a separate patchset, as you recommended.
->>
->> I'll even go as far as recommending the page lock itself. I realize that this 
->> adds overhead to gup(), but we *must* hold off page_mkclean(), and I believe
->> that this (below) has similar overhead to the notes above--but is *much* easier
->> to verify correct. (If the page lock is unacceptable due to being so widely used,
->> then I'd recommend using another page bit to do the same thing.)
-> 
-> Please page lock is pointless and it will not work for GUP fast. The above
-> scheme do work and is fine. I spend the day again thinking about all memory
-> ordering and i do not see any issues.
-> 
-
-Why is it that page lock cannot be used for gup fast, btw?
-
-> 
->> (Note that memory barriers will simply be built into the various Set|Clear|Read
->> operations, as is common with a few other page flags.)
->>
->> page_mkclean():
->> ===============
->> lock_page()
->>     page_mkclean()
->>         Count actual mappings
->>             if(mappings == atomic_read(&page->_mapcount))
->>                 ClearPageDmaPinned 
->>
->> gup_fast():
->> ===========
->> for each page {
->>     lock_page() /* gup MUST NOT proceed until page_mkclean and writeback finish */
->>
->>     atomic_inc(&page->_mapcount)
->>     SetPageDmaPinned()
->>
->>     /* details of gup vs gup_fast not shown here... */
->>
->>
->> put_user_page():
->> ================
->>     atomic_dec(&page->_mapcount); /* no locking! */
->>    
->>
->> try_to_unmap() and other consumers of the PageDmaPinned flag:
->> =============================================================
->> lock_page() /* not required, but already done by existing callers */
->>     if(PageDmaPinned) {
->>         ...take appropriate action /* future patchsets */
-> 
-> We can not block try_to_unmap() on pined page. What we want to block is
-> fs using a different page for the same file offset the original pined
-> page was pin (modulo truncate that we should not block). Everything else
-> must keep working as if there was no pin. We can not fix that, driver
-> doing long term GUP and not abiding to mmu notifier are hopelessly broken
-> in front of many regular syscall (mremap, truncate, splice, ...) we can
-> not block those syscall or failing them, doing so would mean breaking
-> applications in a bad way.
-> 
-> The only thing we should do is avoid fs corruption and bug due to
-> dirtying page after fs believe it has been clean.
-> 
-> 
->> page freeing:
->> ============
->> ClearPageDmaPinned() /* It may not have ever had page_mkclean() run on it */
-> 
-> Yeah this need to happen when we sanitize flags of free page.
-> 
-
-
-thanks,
--- 
-John Hubbard
-NVIDIA
+Regarding 6d58452dc06, the reasoning was that this code expects to be
+called after inserting a new (red) leaf into an rbtree that had all of
+its data structure invariants satisfied. So in this context, it should
+not be necessary to always reset the root to black, as this should
+already be the case...
 
