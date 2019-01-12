@@ -1,69 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B66108E0002
-	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 06:16:36 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id b186so1222472wmc.8
-        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 03:16:36 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1011A8E0002
+	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 06:16:38 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id w12so5828910wru.20
+        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 03:16:38 -0800 (PST)
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id a16si15290152wmd.137.2019.01.12.03.16.34
+        by mx.google.com with ESMTPS id p4si45685334wrh.452.2019.01.12.03.16.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 12 Jan 2019 03:16:35 -0800 (PST)
-Message-Id: <cover.1547289808.git.christophe.leroy@c-s.fr>
+        Sat, 12 Jan 2019 03:16:36 -0800 (PST)
+Message-Id: <0c854dd6b110ac2b81ef1681f6e097f59f84af8b.1547289808.git.christophe.leroy@c-s.fr>
+In-Reply-To: <cover.1547289808.git.christophe.leroy@c-s.fr>
+References: <cover.1547289808.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v3 0/3] KASAN for powerpc/32
-Date: Sat, 12 Jan 2019 11:16:33 +0000 (UTC)
+Subject: [PATCH v3 1/3] powerpc/mm: prepare kernel for KAsan on PPC32
+Date: Sat, 12 Jan 2019 11:16:35 +0000 (UTC)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-This serie adds KASAN support to powerpc/32
+In kernel/cputable.c, explicitly use memcpy() in order
+to allow GCC to replace it with __memcpy() when KASAN is
+selected.
 
-Tested on nohash/32 (8xx) and book3s/32 (mpc832x ie 603)
+Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
+enabled"), memset() can be used before activation of the cache,
+so no need to use memset_io() for zeroing the BSS.
 
-Changes in v3:
-- Removed the printk() in kasan_early_init() to avoid build failure (see https://github.com/linuxppc/issues/issues/218)
-- Added necessary changes in asm/book3s/32/pgtable.h to get it work on powerpc 603 family
-- Added a few KASAN_SANITIZE_xxx.o := n to successfully boot on powerpc 603 family
+Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
+---
+ arch/powerpc/kernel/cputable.c | 4 ++--
+ arch/powerpc/kernel/setup_32.c | 6 ++----
+ 2 files changed, 4 insertions(+), 6 deletions(-)
 
-Changes in v2:
-- Rebased.
-- Using __set_pte_at() to build the early table.
-- Worked around and got rid of the patch adding asm/page.h in asm/pgtable-types.h
-    ==> might be fixed independently but not needed for this serie.
-
-For book3s/32 (not 603), it cannot work as is because due to HASHPTE flag, we
-can't use the same pagetable for several PGD entries.
-
-Christophe Leroy (3):
-  powerpc/mm: prepare kernel for KAsan on PPC32
-  powerpc/32: Move early_init() in a separate file
-  powerpc/32: Add KASAN support
-
- arch/powerpc/Kconfig                         |  1 +
- arch/powerpc/include/asm/book3s/32/pgtable.h |  2 +
- arch/powerpc/include/asm/kasan.h             | 24 ++++++++++
- arch/powerpc/include/asm/nohash/32/pgtable.h |  2 +
- arch/powerpc/include/asm/ppc_asm.h           |  5 ++
- arch/powerpc/include/asm/setup.h             |  5 ++
- arch/powerpc/include/asm/string.h            | 14 ++++++
- arch/powerpc/kernel/Makefile                 |  6 ++-
- arch/powerpc/kernel/cputable.c               |  4 +-
- arch/powerpc/kernel/early_32.c               | 36 ++++++++++++++
- arch/powerpc/kernel/prom_init_check.sh       |  1 +
- arch/powerpc/kernel/setup-common.c           |  2 +
- arch/powerpc/kernel/setup_32.c               | 31 ++----------
- arch/powerpc/lib/Makefile                    |  3 ++
- arch/powerpc/lib/copy_32.S                   |  9 ++--
- arch/powerpc/mm/Makefile                     |  3 ++
- arch/powerpc/mm/dump_linuxpagetables.c       |  8 ++++
- arch/powerpc/mm/kasan_init.c                 | 72 ++++++++++++++++++++++++++++
- arch/powerpc/mm/mem.c                        |  4 ++
- 19 files changed, 198 insertions(+), 34 deletions(-)
- create mode 100644 arch/powerpc/include/asm/kasan.h
- create mode 100644 arch/powerpc/kernel/early_32.c
- create mode 100644 arch/powerpc/mm/kasan_init.c
-
+diff --git a/arch/powerpc/kernel/cputable.c b/arch/powerpc/kernel/cputable.c
+index 1eab54bc6ee9..84814c8d1bcb 100644
+--- a/arch/powerpc/kernel/cputable.c
++++ b/arch/powerpc/kernel/cputable.c
+@@ -2147,7 +2147,7 @@ void __init set_cur_cpu_spec(struct cpu_spec *s)
+ 	struct cpu_spec *t = &the_cpu_spec;
+ 
+ 	t = PTRRELOC(t);
+-	*t = *s;
++	memcpy(t, s, sizeof(*t));
+ 
+ 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
+ }
+@@ -2162,7 +2162,7 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
+ 	old = *t;
+ 
+ 	/* Copy everything, then do fixups */
+-	*t = *s;
++	memcpy(t, s, sizeof(*t));
+ 
+ 	/*
+ 	 * If we are overriding a previous value derived from the real
+diff --git a/arch/powerpc/kernel/setup_32.c b/arch/powerpc/kernel/setup_32.c
+index 947f904688b0..5e761eb16a6d 100644
+--- a/arch/powerpc/kernel/setup_32.c
++++ b/arch/powerpc/kernel/setup_32.c
+@@ -73,10 +73,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
+ {
+ 	unsigned long offset = reloc_offset();
+ 
+-	/* First zero the BSS -- use memset_io, some platforms don't have
+-	 * caches on yet */
+-	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0,
+-			__bss_stop - __bss_start);
++	/* First zero the BSS */
++	memset(PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
+ 
+ 	/*
+ 	 * Identify the CPU type and fix up code sections
 -- 
 2.13.3
