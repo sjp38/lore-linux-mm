@@ -1,96 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CDDEB8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 21:58:48 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id y7so5294807wrr.12
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 18:58:48 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r17sor5300680wrv.44.2019.01.11.18.58.47
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B66108E0002
+	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 06:16:36 -0500 (EST)
+Received: by mail-wm1-f72.google.com with SMTP id b186so1222472wmc.8
+        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 03:16:36 -0800 (PST)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id a16si15290152wmd.137.2019.01.12.03.16.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 Jan 2019 18:58:47 -0800 (PST)
-MIME-Version: 1.0
-References: <20190111181600.GJ6310@bombadil.infradead.org> <20190111205843.25761-1-cai@lca.pw>
- <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
-In-Reply-To: <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
-From: Michel Lespinasse <walken@google.com>
-Date: Fri, 11 Jan 2019 18:58:33 -0800
-Message-ID: <CANN689G0zbk7sMbQ+p9NQGQ=NWq-Q0mQOOjeFkLp19YrTfgcLg@mail.gmail.com>
-Subject: Re: [PATCH v2] rbtree: fix the red root
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 12 Jan 2019 03:16:35 -0800 (PST)
+Message-Id: <cover.1547289808.git.christophe.leroy@c-s.fr>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Subject: [PATCH v3 0/3] KASAN for powerpc/32
+Date: Sat, 12 Jan 2019 11:16:33 +0000 (UTC)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Lechner <david@lechnology.com>
-Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, esploit@protonmail.ch, jejb@linux.ibm.com, dgilbert@interlog.com, martin.petersen@oracle.com, joeypabalinas@gmail.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-On Fri, Jan 11, 2019 at 3:47 PM David Lechner <david@lechnology.com> wrote:
->
-> On 1/11/19 2:58 PM, Qian Cai wrote:
-> > A GPF was reported,
-> >
-> > kasan: CONFIG_KASAN_INLINE enabled
-> > kasan: GPF could be caused by NULL-ptr deref or user memory access
-> > general protection fault: 0000 [#1] SMP KASAN
-> >          kasan_die_handler.cold.22+0x11/0x31
-> >          notifier_call_chain+0x17b/0x390
-> >          atomic_notifier_call_chain+0xa7/0x1b0
-> >          notify_die+0x1be/0x2e0
-> >          do_general_protection+0x13e/0x330
-> >          general_protection+0x1e/0x30
-> >          rb_insert_color+0x189/0x1480
-> >          create_object+0x785/0xca0
-> >          kmemleak_alloc+0x2f/0x50
-> >          kmem_cache_alloc+0x1b9/0x3c0
-> >          getname_flags+0xdb/0x5d0
-> >          getname+0x1e/0x20
-> >          do_sys_open+0x3a1/0x7d0
-> >          __x64_sys_open+0x7e/0xc0
-> >          do_syscall_64+0x1b3/0x820
-> >          entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> >
-> > It turned out,
-> >
-> > gparent = rb_red_parent(parent);
-> > tmp = gparent->rb_right; <-- GPF was triggered here.
-> >
-> > Apparently, "gparent" is NULL which indicates "parent" is rbtree's root
-> > which is red. Otherwise, it will be treated properly a few lines above.
-> >
-> > /*
-> >   * If there is a black parent, we are done.
-> >   * Otherwise, take some corrective action as,
-> >   * per 4), we don't want a red root or two
-> >   * consecutive red nodes.
-> >   */
-> > if(rb_is_black(parent))
-> >       break;
-> >
-> > Hence, it violates the rule #1 (the root can't be red) and need a fix
-> > up, and also add a regression test for it. This looks like was
-> > introduced by 6d58452dc06 where it no longer always paint the root as
-> > black.
-> >
-> > Fixes: 6d58452dc06 (rbtree: adjust root color in rb_insert_color() only
-> > when necessary)
-> > Reported-by: Esme <esploit@protonmail.ch>
-> > Tested-by: Joey Pabalinas <joeypabalinas@gmail.com>
-> > Signed-off-by: Qian Cai <cai@lca.pw>
-> > ---
->
-> Tested-by: David Lechner <david@lechnology.com>
-> FWIW, this fixed the following crash for me:
->
-> Unable to handle kernel NULL pointer dereference at virtual address 00000004
+This serie adds KASAN support to powerpc/32
 
-Just to clarify, do you have a way to reproduce this crash without the fix ?
+Tested on nohash/32 (8xx) and book3s/32 (mpc832x ie 603)
 
-I don't think the fix is correct, because it just silently ignores a
-corrupted rbtree (red root node). But the code that creates this
-situation certainly needs to be fixed - having a reproduceable test
-case would certainly help here.
+Changes in v3:
+- Removed the printk() in kasan_early_init() to avoid build failure (see https://github.com/linuxppc/issues/issues/218)
+- Added necessary changes in asm/book3s/32/pgtable.h to get it work on powerpc 603 family
+- Added a few KASAN_SANITIZE_xxx.o := n to successfully boot on powerpc 603 family
 
-Regarding 6d58452dc06, the reasoning was that this code expects to be
-called after inserting a new (red) leaf into an rbtree that had all of
-its data structure invariants satisfied. So in this context, it should
-not be necessary to always reset the root to black, as this should
-already be the case...
+Changes in v2:
+- Rebased.
+- Using __set_pte_at() to build the early table.
+- Worked around and got rid of the patch adding asm/page.h in asm/pgtable-types.h
+    ==> might be fixed independently but not needed for this serie.
+
+For book3s/32 (not 603), it cannot work as is because due to HASHPTE flag, we
+can't use the same pagetable for several PGD entries.
+
+Christophe Leroy (3):
+  powerpc/mm: prepare kernel for KAsan on PPC32
+  powerpc/32: Move early_init() in a separate file
+  powerpc/32: Add KASAN support
+
+ arch/powerpc/Kconfig                         |  1 +
+ arch/powerpc/include/asm/book3s/32/pgtable.h |  2 +
+ arch/powerpc/include/asm/kasan.h             | 24 ++++++++++
+ arch/powerpc/include/asm/nohash/32/pgtable.h |  2 +
+ arch/powerpc/include/asm/ppc_asm.h           |  5 ++
+ arch/powerpc/include/asm/setup.h             |  5 ++
+ arch/powerpc/include/asm/string.h            | 14 ++++++
+ arch/powerpc/kernel/Makefile                 |  6 ++-
+ arch/powerpc/kernel/cputable.c               |  4 +-
+ arch/powerpc/kernel/early_32.c               | 36 ++++++++++++++
+ arch/powerpc/kernel/prom_init_check.sh       |  1 +
+ arch/powerpc/kernel/setup-common.c           |  2 +
+ arch/powerpc/kernel/setup_32.c               | 31 ++----------
+ arch/powerpc/lib/Makefile                    |  3 ++
+ arch/powerpc/lib/copy_32.S                   |  9 ++--
+ arch/powerpc/mm/Makefile                     |  3 ++
+ arch/powerpc/mm/dump_linuxpagetables.c       |  8 ++++
+ arch/powerpc/mm/kasan_init.c                 | 72 ++++++++++++++++++++++++++++
+ arch/powerpc/mm/mem.c                        |  4 ++
+ 19 files changed, 198 insertions(+), 34 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/kasan.h
+ create mode 100644 arch/powerpc/kernel/early_32.c
+ create mode 100644 arch/powerpc/mm/kasan_init.c
+
+-- 
+2.13.3
