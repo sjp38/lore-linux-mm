@@ -1,210 +1,200 @@
-Return-Path: <SRS0=vc3H=PU=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=Nm1P=PV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8951AC43387
-	for <linux-mm@archiver.kernel.org>; Sat, 12 Jan 2019 20:46:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D1E6C43387
+	for <linux-mm@archiver.kernel.org>; Sun, 13 Jan 2019 23:12:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43D7E2084C
-	for <linux-mm@archiver.kernel.org>; Sat, 12 Jan 2019 20:46:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F0CB320663
+	for <linux-mm@archiver.kernel.org>; Sun, 13 Jan 2019 23:12:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="B6mdTEc8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43D7E2084C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="neGgr+TR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0CB320663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8CB38E0003; Sat, 12 Jan 2019 15:46:23 -0500 (EST)
+	id 9352E8E0003; Sun, 13 Jan 2019 18:12:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D3E388E0002; Sat, 12 Jan 2019 15:46:23 -0500 (EST)
+	id 8E3FB8E0002; Sun, 13 Jan 2019 18:12:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C04348E0003; Sat, 12 Jan 2019 15:46:23 -0500 (EST)
+	id 7FB188E0003; Sun, 13 Jan 2019 18:12:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 901D08E0002
-	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 15:46:23 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id b8so9836581ywb.17
-        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 12:46:23 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 531C98E0002
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 18:12:50 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id a3so4982926otl.9
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 15:12:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=S5Ve03vaCXwHxIylHrHXTXq61SQp1ualr/VOmbbPK4M=;
-        b=d9dpWgqLC6PGfVLDXr6SiQmC3FvEjI5PahS2J12ulZOas70GD1M0YtFdzZkwhrVu1V
-         De1ziw8aVgybgZvxJ5bVBGLCRgbCQBOBR5+cTgeGYNNnLQUEyZOV4ZZVWn55fErRzsRV
-         ltSmlMXxUSRmub7e6RSizCfTj86D+B+i95ePIIoYazMW5dxQ/t55Oxd81uVFP4VrHfY8
-         pC0CDUQoujZGs6iK7NFkqd1OhR6grO6sM3MAQCed5R3QtyERrU3O4/madO8hkXsCpMi7
-         pzl68YKOH9fTWkUCHy0zqMosmlL7dHLpfEOHA11HbiNjvkp+/UwS9U54iUC33eXrBAws
-         L57A==
-X-Gm-Message-State: AJcUukeCg0fBumkeIBAcmB5+R5qTrN34uum5g+gcJ9p11iLHJfyOH87T
-	1Hsd7oMz+davtpo6T55UoZSsJ9+3QP4sM+Zky4J5dr4dnTnO+bJoi/Dy3RiSd6MGHoZF5EDL2wG
-	uWncyq8la5AyQbMtYW+yTc9u5ZjmiSGe/7mYZ8KC1j1ku64TaMAG4exRlMKoqrJUmAg==
-X-Received: by 2002:a25:3f46:: with SMTP id m67mr17873389yba.476.1547325983217;
-        Sat, 12 Jan 2019 12:46:23 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7Y8vtmW8qgJKdO+DVdcG2K5OvKnAbMWV8K7VmlmOuw+ijPNQ9/6I4fWdgOctbgQCctmjJW
-X-Received: by 2002:a25:3f46:: with SMTP id m67mr17873370yba.476.1547325982541;
-        Sat, 12 Jan 2019 12:46:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547325982; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=rVGeKOELuMOfy5LTAHKK72fVgmgRLNPAvu1JBzXs4nw=;
+        b=l0Vl48FagxhqTl+vwkaicb9tt5qIdptMTz/CQJaingeBxhKLMQTtMTqNtsklYvfvYZ
+         OUn6+mZ3Oy8r0QKeL3Y7Nj3QPdpxmxpHQVTCnMgoq/sVAJ4RCrmMIttx5FaXCxrnS1uF
+         a8uXA4F2oW91h9wp533r2r7FiPhp3Mrlsy6KRUSa6vulaEbrNE5vNRggwacLVxT66bjr
+         5h6uVaSPB7xDYHxfS27R91MnKWzFPJX7eKN/m9iOmUPiMqbP5FSbBSs0qSdSOo9m71Wp
+         3J+Z2iFYyMaXR2UK54Nl6C/Z6KOGMnLhXQzPR+uXpD18JARkoXX7lvIgAgEr5Ty+gqle
+         JykA==
+X-Gm-Message-State: AJcUukemk/thwCqzeFUXoBRzySdtiVhskeFOtrrxUpDToKk3pDSNepP8
+	xykM4wCXIiY294NdJgBLF8zEMl5JDKIEcFRvS4xMlSDwpgGL6csJ/0lHOmAyffltXpVcpwwgE/P
+	8zFAZxBkpk66lZ05c12t9T3prdol/UEBvsJaSyEk1mpYy2JDP60OTbDLrkyhsBBeA7Zowr/nNzz
+	1ntOWoWXf3hqTTeqmYvd0L8IXbWNJ7Qg5qfsyMHkPzMU1iCjDYQ20nPWcebWgX0yYfgqtc68I7T
+	m3k46HA7KnkUj5sOj4tDNsDdhap5xDLexQ9nNF8XXjWrjbiea883RkX/EQP8I72auXCiKfnaHsm
+	/p32gPqQ0vawAd7leTA30CTiwPzlmrZzbjhGBaZzplZvFjKs2+wwZh0nZA5b/n0wHc6fKYRKZiZ
+	X
+X-Received: by 2002:aca:ab53:: with SMTP id u80mr15310136oie.261.1547421169963;
+        Sun, 13 Jan 2019 15:12:49 -0800 (PST)
+X-Received: by 2002:aca:ab53:: with SMTP id u80mr15310125oie.261.1547421169267;
+        Sun, 13 Jan 2019 15:12:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547421169; cv=none;
         d=google.com; s=arc-20160816;
-        b=L4Fyh0xB/UhPxV6uSKyO2JxkWY9okYWPdHBNavYcPczPVsFTz6sX6yRwZn1uXinS0J
-         S8S7zS73DXZT6134rT7+MxP98eXktWYh0h8Pt4UJ6QH+9vTlXfx807mikuaGZ76D+S35
-         yf3ljX30dmUITCh5HjOZdUN09zVj/42WMOL1WUdKZhqXjgc8pA99UrZRGH53K2P9uZCA
-         ZAyyvMj8V0r5D1//2p069yHPToXIuSOAJLroouPAHHIipvIwpfXb6Ed13FRwdXhOERk+
-         aDBCXQ6TAVsxpY1/zQ2FTe8hrNRGzHqgfYarOybL+y+AsEs/P+F10vNVNXmBqBzaceN6
-         PZTg==
+        b=wmc4EkVIFt4T9j+BF91XQ7Bu/uC+3nkcRh8GdDN/nXQCRODVvLX4NKuhZOp7HQv7/L
+         Op1CvHCNfxiS5C4UevEoRhshj8Wmm1RyXExnkW3mHGYZHkX5OVUVN4PQJODYl0fKjBeN
+         WyuBF2J62+qIFdwE+5M/f07ku4uDB52uk4t+QakobWs4S3LEB/Uh/H1mICtBjUj/qjkg
+         oQbH4M30MHKRVz2dNnqiYIcli8NB2tulqIa4jUIY7ni3nnTHt04xhE8YeqKtqEVsTQsw
+         p/SPhTHhz/jpa3RPk7Z+JZDStcLhEXWVVlkXzMXTLO9y8JrEjywtnlGdzdRN2t+DrRMv
+         K+GQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=S5Ve03vaCXwHxIylHrHXTXq61SQp1ualr/VOmbbPK4M=;
-        b=sgK6EI/dtBnitCfYCukag50y9PMY3kSJ+kvNXndshq4cenjSitmElslIMC1tx88JVj
-         Ff+vzQPwGUMflzohrcIYNCRczgbxjkG7UkCa+NyO87fNmB5uNSXKq7sNLw2SlyIl0HwK
-         +LtpBO4z55w4BAuJ/wd//jrxuYR7ybb6jgE40yLfcqsb25CUA+HYHUHD2zKV/VVvXL+E
-         V16Loi/8oyulJU5duM0gG3ew1lAfCEWvN+4Jp0xoz5cEf5SBGy76k9za7uvRCPsa1NC7
-         BU6ymlCi5ANtCX/2/MiF0N+apQQmMmMbsLp1o92rR6nFFlaPbYTxudr79yl+YVoRLzUH
-         mr0Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=rVGeKOELuMOfy5LTAHKK72fVgmgRLNPAvu1JBzXs4nw=;
+        b=yokf6BgkPb0deBw8NSDks8hZPcFm2zv5xTAT4twMQ5z4EJdf8o4J+LTVB5h0QjEzpI
+         Eb5qtnFzpCjcpOgNJYBmtBHOQkSkj1AfOWN9crSK08gGrtfYG39x3zMj7B28QWjmOC68
+         EHnlh/j3CxGvD6IUMk8hW0kfrZEFiv68UdH08WTnCgV28ns2wBXqRjOczxTyNBTNP10l
+         WkGLtBk36cbY1hlnzq+AMts618gTPo/YfQzvDN1g/nmNAbxlztFakCr9hX7jbVa5ORZH
+         k1RIHqSPloGTR/hwEZ0roFYF5ds4KJsXBNWHIOS5FwK4XOLD5d5vaHvPpMSXCWI5b1mb
+         Glxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=B6mdTEc8;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id f65si49185101ywe.66.2019.01.12.12.46.22
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=neGgr+TR;
+       spf=pass (google.com: domain of baptiste.lepers@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=baptiste.lepers@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a28sor2879276otk.13.2019.01.13.15.12.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 12 Jan 2019 12:46:22 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        (Google Transport Security);
+        Sun, 13 Jan 2019 15:12:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of baptiste.lepers@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=B6mdTEc8;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c3a520f0000>; Sat, 12 Jan 2019 12:46:07 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Sat, 12 Jan 2019 12:46:21 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Sat, 12 Jan 2019 12:46:21 -0800
-Received: from HQMAIL102.nvidia.com (172.18.146.10) by HQMAIL103.nvidia.com
- (172.20.187.11) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Sat, 12 Jan
- 2019 20:46:20 +0000
-Received: from [10.110.48.28] (172.20.13.39) by HQMAIL102.nvidia.com
- (172.18.146.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Sat, 12 Jan
- 2019 20:46:21 +0000
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-To: Jerome Glisse <jglisse@redhat.com>
-CC: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, "Dave
- Chinner" <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>,
-	"John Hubbard" <john.hubbard@gmail.com>, Andrew Morton
-	<akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, <tom@talpey.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, <benve@cisco.com>, Christoph Hellwig
-	<hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro,
- Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>,
-	<mike.marciniszyn@intel.com>, <rcampbell@nvidia.com>, "Linux Kernel Mailing
- List" <linux-kernel@vger.kernel.org>, linux-fsdevel
-	<linux-fsdevel@vger.kernel.org>
-References: <20190103015533.GA15619@redhat.com>
- <20190103092654.GA31370@quack2.suse.cz> <20190103144405.GC3395@redhat.com>
- <a79b259b-3982-b271-025a-0656f70506f4@nvidia.com>
- <20190111165141.GB3190@redhat.com>
- <1b37061c-5598-1b02-2983-80003f1c71f2@nvidia.com>
- <20190112020228.GA5059@redhat.com>
- <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
- <20190112024625.GB5059@redhat.com>
- <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190112032533.GD5059@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <9c80b708-35fa-3264-f114-b4d568939437@nvidia.com>
-Date: Sat, 12 Jan 2019 12:46:20 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=neGgr+TR;
+       spf=pass (google.com: domain of baptiste.lepers@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=baptiste.lepers@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=rVGeKOELuMOfy5LTAHKK72fVgmgRLNPAvu1JBzXs4nw=;
+        b=neGgr+TR9FkdCEFeWHzV4Z0nZ+OHUHvmFaY9ktQc0NugSzvSGLmqvcmsRUf/X07gTX
+         gplKDRkGAIgO2ZQQa9MHy5RNqw338gR6vU4p5e/2lzExpvSS3agv3l1i6hy3tKjLEwWA
+         W5NxRcbA+9qYNvL16efxbw656ctC1MhAtYrj4eMDkIvqwlpNzdRD9b49XdSK/Am+aAZw
+         2BRK4v5pEV5/mO4d6v+MO+TbDxYSVrlepyyPXVSPLbiqebCePqUkS0gxTcH1kipEe05O
+         QiahtkPfptcegGGD7Qi2aOJo8c5alJkMNPlZqM8kbp1nQCpktzGaVekYY1/8B2DtkTQc
+         NPcg==
+X-Google-Smtp-Source: ALg8bN6o0a84HV6dWAoDG61VKVnzzRxUy/b1vz2dXM5ze884a2cdXvR5WRc/ZidpuwoKRqcBY89XLjnmJDuatAsNtRY=
+X-Received: by 2002:a9d:3b65:: with SMTP id z92mr15737265otb.275.1547421168874;
+ Sun, 13 Jan 2019 15:12:48 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190112032533.GD5059@redhat.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL106.nvidia.com (172.18.146.12) To
- HQMAIL102.nvidia.com (172.18.146.10)
+References: <CABdVr8R2y9B+2zzSAT_Ve=BQCa+F+E9_kVH+C28DGpkeQitiog@mail.gmail.com>
+ <20190111135938.GG14956@dhcp22.suse.cz> <20190111175301.csgxlwpbsfecuwug@ca-dmjordan1.us.oracle.com>
+In-Reply-To: <20190111175301.csgxlwpbsfecuwug@ca-dmjordan1.us.oracle.com>
+From: Baptiste Lepers <baptiste.lepers@gmail.com>
+Date: Mon, 14 Jan 2019 10:12:37 +1100
+Message-ID:
+ <CABdVr8T4ccrnRfboehOBfMVG4kHbWwq=ijDOtq3dEbGSXLkyUg@mail.gmail.com>
+Subject: Re: Lock overhead in shrink_inactive_list / Slow page reclamation
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Michal Hocko <mhocko@kernel.org>, mgorman@techsingularity.net, 
+	akpm@linux-foundation.org, dhowells@redhat.com, linux-mm@kvack.org, 
+	hannes@cmpxchg.org
 Content-Type: text/plain; charset="UTF-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1547325967; bh=S5Ve03vaCXwHxIylHrHXTXq61SQp1ualr/VOmbbPK4M=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=B6mdTEc8J4L+vxmPnvh2LMfZg62OITAz3mtChLxLDlNlNg/ULoNQEQKSGyJogwPYI
-	 atHUfrgDu36CWs02kKFr3ogRiYUm5g5XM82JRt+BS9LVW27aCh0Bz5QrzmkJAUukTM
-	 Nk9zhsXdbcZcNII2w1Oq24yK5PXnph07smMyZ/Ifvf2w0VoRJJs+8YWBHZ9n1IH1RU
-	 iYeY+U0lhdSbBXXUUIkuyrjrwdS7+YAstGQflcQgTqtapsQuAWE0cAUgLjVD8ZXKfZ
-	 X38BO8N+KDa0aQvHwFPHmYH+boWy5Ea1lFXjPritx/gmXyZ/uB4ooMnkTzXn60iRhM
-	 4/yj0MtS91d7Q==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190112204620.vZf_wMG2-BhcEjZUsjAqYWO2tvfXNJuFnYHWEPEhvJE@z>
+Message-ID: <20190113231237.zo9HD_89o4p4-fwGAQg5Srub_ElDoTHypSOV4ZgTRqk@z>
 
-On 1/11/19 7:25 PM, Jerome Glisse wrote:
-[...]
->>>> Why is it that page lock cannot be used for gup fast, btw?
->>>
->>> Well it can not happen within the preempt disable section. But after
->>> as a post pass before GUP_fast return and after reenabling preempt then
->>> it is fine like it would be for regular GUP. But locking page for GUP
->>> is also likely to slow down some workload (with direct-IO).
->>>
->>
->> Right, and so to crux of the matter: taking an uncontended page lock involves
->> pretty much the same set of operations that your approach does. (If gup ends up
->> contended with the page lock for other reasons than these paths, that seems
->> surprising.) I'd expect very similar performance.
->>
->> But the page lock approach leads to really dramatically simpler code (and code
->> reviews, let's not forget). Any objection to my going that direction, and keeping
->> this idea as a Plan B? I think the next step will be, once again, to gather some
->> performance metrics, so maybe that will help us decide.
-> 
-> They are already work load that suffer from the page lock so adding more
-> code that need it will only worsen those situations. I guess i will do a
-> patchset with my solution as it is definitly lighter weight that having to
-> take the page lock.
-> 
+On Sat, Jan 12, 2019 at 4:53 AM Daniel Jordan
+<daniel.m.jordan@oracle.com> wrote:
+>
+> On Fri, Jan 11, 2019 at 02:59:38PM +0100, Michal Hocko wrote:
+> > On Fri 11-01-19 16:52:17, Baptiste Lepers wrote:
+> > > Hello,
+> > >
+> > > We have a performance issue with the page cache. One of our workload
+> > > spends more than 50% of it's time in the lru_locks called by
+> > > shrink_inactive_list in mm/vmscan.c.
+> >
+> > Who does contend on the lock? Are there direct reclaimers or is it
+> > solely kswapd with paths that are faulting the new page cache in?
+>
+> Yes, and could you please post your performance data showing the time in
+> lru_lock?  Whatever you have is fine, but using perf with -g would give
+> callstacks and help answer Michal's question about who's contending.
 
-Hi Jerome,
+Thanks for the quick answer.
 
-I expect that you're right, and in any case, having you code up the new 
-synchronization parts is probably a smart idea--you understand it best. To avoid
-duplicating work, may I propose these steps:
+The time spent in the lru_lock is mainly due to direct reclaimers
+(reading an mmaped page that causes some readahead to happen). We have
+tried to play with readahead values, but it doesn't change performance
+a lot. We have disabled swap on the machine, so kwapd doesn't run.
 
-1. I'll post a new RFC, using your mapcount idea, but with a minor variation: 
-using the page lock to synchronize gup() and page_mkclean(). 
+Our programs run in memory cgroups, but I don't think that the issue
+directly comes from cgroups (I might be wrong though).
 
-   a) I'll also include a github path that has enough gup callsite conversions
-   done, to allow performance testing. 
+Here is the callchain that I have using perf report --no-children;
+(Paste here https://pastebin.com/151x4QhR )
 
-   b) And also, you and others have provided a lot of information that I want to
-   turn into nice neat comments and documentation.
+    44.30%  swapper      [kernel.vmlinux]  [k] intel_idle
+    # The machine is idle mainly because it waits in that lru_locks,
+which is the 2nd function in the report:
+    10.98%  testradix    [kernel.vmlinux]  [k] native_queued_spin_lock_slowpath
+               |--10.33%--_raw_spin_lock_irq
+               |          |
+               |           --10.12%--shrink_inactive_list
+               |                     shrink_node_memcg
+               |                     shrink_node
+               |                     do_try_to_free_pages
+               |                     try_to_free_mem_cgroup_pages
+               |                     try_charge
+               |                     mem_cgroup_try_charge
+               |                     __add_to_page_cache_locked
+               |                     add_to_page_cache_lru
+               |                     |
+               |                     |--5.39%--ext4_mpage_readpages
+               |                     |          ext4_readpages
+               |                     |          __do_page_cache_readahead
+               |                     |          |
+               |                     |           --5.37%--ondemand_readahead
+               |                     |
+page_cache_async_readahead
+               |                     |                     filemap_fault
+               |                     |                     ext4_filemap_fault
+               |                     |                     __do_fault
+               |                     |                     handle_pte_fault
+               |                     |                     __handle_mm_fault
+               |                     |                     handle_mm_fault
+               |                     |                     __do_page_fault
+               |                     |                     do_page_fault
+               |                     |                     page_fault
+               |                     |                     |
+               |                     |                     |--4.23%-- <our app>
 
-2. Then your proposed synchronization system would only need to replace probably
-one or two of the patches, instead of duplicating the whole patchset. I dread
-having two large, overlapping patchsets competing, and hope we can avoid that mess.
 
-3. We can run performance tests on both approaches, hopefully finding some test
-cases that will highlight whether page lock is a noticeable problem here.
+Thanks,
 
-Or, the other thing that could happen is someone will jump in here and NAK anything
-involving the page lock, based on long experience, and we'll just go straight to
-your scheme anyway.  I'm sorta expecting that any minute now. :)
+Baptiste.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+
+
+
+
+
+>
+> Happy to help profile and debug offline.
 
