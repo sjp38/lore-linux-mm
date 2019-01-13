@@ -1,94 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 901D08E0002
-	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 15:46:23 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id b8so9836581ywb.17
-        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 12:46:23 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id f65si49185101ywe.66.2019.01.12.12.46.22
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D3C048E0002
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 06:42:43 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id a2so11150987pgt.11
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 03:42:43 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a13si20797596pgb.412.2019.01.13.03.42.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 12 Jan 2019 12:46:22 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-References: <20190103015533.GA15619@redhat.com>
- <20190103092654.GA31370@quack2.suse.cz> <20190103144405.GC3395@redhat.com>
- <a79b259b-3982-b271-025a-0656f70506f4@nvidia.com>
- <20190111165141.GB3190@redhat.com>
- <1b37061c-5598-1b02-2983-80003f1c71f2@nvidia.com>
- <20190112020228.GA5059@redhat.com>
- <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
- <20190112024625.GB5059@redhat.com>
- <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190112032533.GD5059@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <9c80b708-35fa-3264-f114-b4d568939437@nvidia.com>
-Date: Sat, 12 Jan 2019 12:46:20 -0800
+        Sun, 13 Jan 2019 03:42:41 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0DBY9ig072009
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 06:42:40 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2pyxb3sbag-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 06:42:40 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 13 Jan 2019 11:42:38 -0000
+Date: Sun, 13 Jan 2019 13:42:30 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCHv3 13/13] doc/mm: New documentation for memory performance
+References: <20190109174341.19818-1-keith.busch@intel.com>
+ <20190109174341.19818-14-keith.busch@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20190112032533.GD5059@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190109174341.19818-14-keith.busch@intel.com>
+Message-Id: <20190113114230.GB8765@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave
- Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro,
- Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing
- List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Keith Busch <keith.busch@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On 1/11/19 7:25 PM, Jerome Glisse wrote:
-[...]
->>>> Why is it that page lock cannot be used for gup fast, btw?
->>>
->>> Well it can not happen within the preempt disable section. But after
->>> as a post pass before GUP_fast return and after reenabling preempt then
->>> it is fine like it would be for regular GUP. But locking page for GUP
->>> is also likely to slow down some workload (with direct-IO).
->>>
->>
->> Right, and so to crux of the matter: taking an uncontended page lock involves
->> pretty much the same set of operations that your approach does. (If gup ends up
->> contended with the page lock for other reasons than these paths, that seems
->> surprising.) I'd expect very similar performance.
->>
->> But the page lock approach leads to really dramatically simpler code (and code
->> reviews, let's not forget). Any objection to my going that direction, and keeping
->> this idea as a Plan B? I think the next step will be, once again, to gather some
->> performance metrics, so maybe that will help us decide.
+Hi Keith,
+
+On Wed, Jan 09, 2019 at 10:43:41AM -0700, Keith Busch wrote:
+> Platforms may provide system memory where some physical address ranges
+> perform differently than others, or is side cached by the system.
 > 
-> They are already work load that suffer from the page lock so adding more
-> code that need it will only worsen those situations. I guess i will do a
-> patchset with my solution as it is definitly lighter weight that having to
-> take the page lock.
+> Add documentation describing a high level overview of such systems and the
+> perforamnce and caching attributes the kernel provides for applications
+> wishing to query this information.
+> 
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+
+There are a couple of nitpicks below, otherwise
+
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+
+> ---
+>  Documentation/admin-guide/mm/numaperf.rst | 184 ++++++++++++++++++++++++++++++
+>  1 file changed, 184 insertions(+)
+>  create mode 100644 Documentation/admin-guide/mm/numaperf.rst
+> 
+> diff --git a/Documentation/admin-guide/mm/numaperf.rst b/Documentation/admin-guide/mm/numaperf.rst
+> new file mode 100644
+> index 000000000000..b6d99d7e0f57
+> --- /dev/null
+> +++ b/Documentation/admin-guide/mm/numaperf.rst
+> @@ -0,0 +1,184 @@
+> +.. _numaperf:
+> +
+> +=============
+> +NUMA Locality
+> +=============
+> +
+> +Some platforms may have multiple types of memory attached to a single
+> +CPU. These disparate memory ranges share some characteristics, such as
+> +CPU cache coherence, but may have different performance. For example,
+> +different media types and buses affect bandwidth and latency.
+> +
+> +A system supporting such heterogeneous memory by grouping each memory
+> +type under different "nodes" based on similar CPU locality and performance
+> +characteristics.  Some memory may share the same node as a CPU, and others
+> +are provided as memory only nodes. While memory only nodes do not provide
+> +CPUs, they may still be directly accessible, or local, to one or more
+> +compute nodes. The following diagram shows one such example of two compute
+> +noes with local memory and a memory only node for each of compute node:
+
+   nodes
+
+> +
+> + +------------------+     +------------------+
+> + | Compute Node 0   +-----+ Compute Node 1   |
+> + | Local Node0 Mem  |     | Local Node1 Mem  |
+> + +--------+---------+     +--------+---------+
+> +          |                        |
+> + +--------+---------+     +--------+---------+
+> + | Slower Node2 Mem |     | Slower Node3 Mem |
+> + +------------------+     +--------+---------+
+> +
+> +A "memory initiator" is a node containing one or more devices such as
+> +CPUs or separate memory I/O devices that can initiate memory requests. A
+> +"memory target" is a node containing one or more accessible physical
+> +address ranges from one or more memory initiators.
+
+I'd rephrase the last sentence as:
+
+A "memory target" is a node containing one or more physical address ranges
+accessible from one or more memory initiators.
+
+> +
+> +When multiple memory initiators exist, they may not all have the same
+> +performance when accessing a given memory target. Each initiator-target
+> +pair may be organized into different ranked access classes to represent
+> +this relationship. The highest performing initiator to a given target
+> +is considered to be one of that target's local initiators, and given
+> +the highest access class, 0. Any given target may have one or more
+> +local initiators, and any given initiator may have multiple local
+> +memory targets.
+> +
+> +To aid applications matching memory targets with their initiators, the
+> +kernel provide symlinks to each other. The following example lists the
+
+         ^ provides
+
+> +relationship for the class "0" memory intiators and targets, which is
+> +are the class of nodes with the highest performing access relationship::
+
+  ^ "are" is excessive here
+
+> +
+> +	# symlinks -v /sys/devices/system/node/nodeX/class0/
+> +	relative: /sys/devices/system/node/nodeX/class0/targetY -> ../../nodeY
+> +
+> +	# symlinks -v /sys/devices/system/node/nodeY/class0/
+> +	relative: /sys/devices/system/node/nodeY/class0/initiatorX -> ../../nodeX
+> +
+> +The linked nodes will also have their node numbers set in the class's
+> +mem_target and mem_initiator nodelist and nodemap entries. Following
+> +the same example as above may look like the following::
+> +
+> +	# cat /sys/devices/system/node/nodeX/class0/target_nodelist
+> +	Y
+> +
+> +	# cat /sys/devices/system/node/nodeY/class0/initiator_nodelist
+> +	X
+> +
+> +An example showing how this may be used to run a particular task on CPUs
+> +and memory using best class nodes for a particular PCI device can be done
+> +using existing 'numactl' as follows::
+> +
+> +  # NODE=$(cat /sys/devices/pci:0000:00/.../numa_node)
+> +  # numactl --membind=$(cat /sys/devices/node/node${NODE}/class0/target_nodelist) \
+> +      --cpunodebind=$(cat /sys/devices/node/node${NODE}/class0/initiator_nodelist) \
+> +      -- <some-program-to-execute>
+> +
+> +================
+> +NUMA Performance
+> +================
+> +
+> +Applications may wish to consider which node they want their memory to
+> +be allocated from based on the node's performance characteristics. If
+> +the system provides these attributes, the kernel exports them under the
+> +node sysfs hierarchy by appending the attributes directory under the
+> +memory node's class 0 initiators as follows::
+> +
+> +	/sys/devices/system/node/nodeY/class0/
+> +
+> +These attributes apply only to the memory initiator nodes that have the
+> +same class access and are symlink under the class, and are set in the
+> +initiators' nodelist.
+> +
+> +The performance characteristics the kernel provides for the local initiators
+> +are exported are as follows::
+> +
+> +	# tree -P "read*|write*" /sys/devices/system/node/nodeY/class0/
+> +	/sys/devices/system/node/nodeY/class0/
+> +	|-- read_bandwidth
+> +	|-- read_latency
+> +	|-- write_bandwidth
+> +	`-- write_latency
+> +
+> +The bandwidth attributes are provided in MiB/second.
+> +
+> +The latency attributes are provided in nanoseconds.
+> +
+> +==========
+> +NUMA Cache
+> +==========
+> +
+> +System memory may be constructed in a hierarchy of elements with various
+> +performance characteristics in order to provide large address space of
+> +slower performing memory side-cached by a smaller higher performing
+> +memory. The system physical addresses that initiators are aware of
+> +is provided by the last memory level in the hierarchy. The system
+
+   ^ are
+
+> +meanwhile uses higher performing memory to transparently cache access
+> +to progressively slower levels.
+> +
+> +The term "far memory" is used to denote the last level memory in the
+> +hierarchy. Each increasing cache level provides higher performing
+> +initiator access, and the term "near memory" represents the fastest
+> +cache provided by the system.
+> +
+> +This numbering is different than CPU caches where the cache level (ex:
+> +L1, L2, L3) uses a CPU centric view with each increased level is lower
+> +performing. In contrast, the memory cache level is centric to the last
+> +level memory, so the higher numbered cache level denotes memory nearer
+> +to the CPU, and further from far memory.
+> +
+> +The memory side caches are not directly addressable by software. When
+> +software accesses a system address, the system will return it from the
+> +near memory cache if it is present. If it is not present, the system
+> +accesses the next level of memory until there is either a hit in that
+> +cache level, or it reaches far memory.
+> +
+> +An application does not need to know about caching attributes in order
+> +to use the system. Software may optionally query the memory cache
+> +attributes in order to maximize the performance out of such a setup.
+> +If the system provides a way for the kernel to discover this information,
+> +for example with ACPI HMAT (Heterogeneous Memory Attribute Table),
+> +the kernel will append these attributes to the NUMA node memory target.
+> +
+> +When the kernel first registers a memory cache with a node, the kernel
+> +will create the following directory::
+> +
+> +	/sys/devices/system/node/nodeX/side_cache/
+> +
+> +If that directory is not present, the system either does not not provide
+> +a memory side cache, or that information is not accessible to the kernel.
+> +
+> +The attributes for each level of cache is provided under its cache
+> +level index::
+> +
+> +	/sys/devices/system/node/nodeX/side_cache/indexA/
+> +	/sys/devices/system/node/nodeX/side_cache/indexB/
+> +	/sys/devices/system/node/nodeX/side_cache/indexC/
+> +
+> +Each cache level's directory provides its attributes. For example, the
+> +following shows a single cache level and the attributes available for
+> +software to query::
+> +
+> +	# tree sys/devices/system/node/node0/side_cache/
+> +	/sys/devices/system/node/node0/side_cache/
+> +	|-- index1
+> +	|   |-- associativity
+> +	|   |-- level
+> +	|   |-- line_size
+> +	|   |-- size
+> +	|   `-- write_policy
+> +
+> +The "associativity" will be 0 if it is a direct-mapped cache, and non-zero
+> +for any other indexed based, multi-way associativity.
+> +
+> +The "level" is the distance from the far memory, and matches the number
+> +appended to its "index" directory.
+> +
+> +The "line_size" is the number of bytes accessed on a cache miss.
+> +
+> +The "size" is the number of bytes provided by this cache level.
+> +
+> +The "write_policy" will be 0 for write-back, and non-zero for
+> +write-through caching.
+> +
+> +========
+> +See Also
+> +========
+> +.. [1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
+> +       Section 5.2.27
+> -- 
+> 2.14.4
 > 
 
-Hi Jerome,
-
-I expect that you're right, and in any case, having you code up the new 
-synchronization parts is probably a smart idea--you understand it best. To avoid
-duplicating work, may I propose these steps:
-
-1. I'll post a new RFC, using your mapcount idea, but with a minor variation: 
-using the page lock to synchronize gup() and page_mkclean(). 
-
-   a) I'll also include a github path that has enough gup callsite conversions
-   done, to allow performance testing. 
-
-   b) And also, you and others have provided a lot of information that I want to
-   turn into nice neat comments and documentation.
-
-2. Then your proposed synchronization system would only need to replace probably
-one or two of the patches, instead of duplicating the whole patchset. I dread
-having two large, overlapping patchsets competing, and hope we can avoid that mess.
-
-3. We can run performance tests on both approaches, hopefully finding some test
-cases that will highlight whether page lock is a noticeable problem here.
-
-Or, the other thing that could happen is someone will jump in here and NAK anything
-involving the page lock, based on long experience, and we'll just go straight to
-your scheme anyway.  I'm sorta expecting that any minute now. :)
-
-thanks,
 -- 
-John Hubbard
-NVIDIA
+Sincerely yours,
+Mike.
