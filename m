@@ -1,43 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6060F8E0002
-	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 12:36:01 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id m19so8079038edc.6
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 09:36:01 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 29-v6si4759382ejk.274.2019.01.13.09.35.59
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 531C98E0002
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 18:12:50 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id a3so4982926otl.9
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 15:12:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a28sor2879276otk.13.2019.01.13.15.12.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Jan 2019 09:35:59 -0800 (PST)
-Date: Sun, 13 Jan 2019 18:35:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
-Message-ID: <20190113173555.GC1578@dhcp22.suse.cz>
-References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
+        (Google Transport Security);
+        Sun, 13 Jan 2019 15:12:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
+References: <CABdVr8R2y9B+2zzSAT_Ve=BQCa+F+E9_kVH+C28DGpkeQitiog@mail.gmail.com>
+ <20190111135938.GG14956@dhcp22.suse.cz> <20190111175301.csgxlwpbsfecuwug@ca-dmjordan1.us.oracle.com>
+In-Reply-To: <20190111175301.csgxlwpbsfecuwug@ca-dmjordan1.us.oracle.com>
+From: Baptiste Lepers <baptiste.lepers@gmail.com>
+Date: Mon, 14 Jan 2019 10:12:37 +1100
+Message-ID: <CABdVr8T4ccrnRfboehOBfMVG4kHbWwq=ijDOtq3dEbGSXLkyUg@mail.gmail.com>
+Subject: Re: Lock overhead in shrink_inactive_list / Slow page reclamation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Michal Hocko <mhocko@kernel.org>, mgorman@techsingularity.net, akpm@linux-foundation.org, dhowells@redhat.com, linux-mm@kvack.org, hannes@cmpxchg.org
 
-On Sat 12-01-19 15:56:38, Anshuman Khandual wrote:
-> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
-> __GFP_ZERO) and using it for allocating page table pages. This causes some
-> code duplication which can be easily avoided. GFP_KERNEL allocated and
-> cleared out pages (__GFP_ZERO) are required for page tables on any given
-> architecture. This creates a new generic GFP flag flag which can be used
-> for any page table page allocation. Does not cause any functional change.
+On Sat, Jan 12, 2019 at 4:53 AM Daniel Jordan
+<daniel.m.jordan@oracle.com> wrote:
+>
+> On Fri, Jan 11, 2019 at 02:59:38PM +0100, Michal Hocko wrote:
+> > On Fri 11-01-19 16:52:17, Baptiste Lepers wrote:
+> > > Hello,
+> > >
+> > > We have a performance issue with the page cache. One of our workload
+> > > spends more than 50% of it's time in the lru_locks called by
+> > > shrink_inactive_list in mm/vmscan.c.
+> >
+> > Who does contend on the lock? Are there direct reclaimers or is it
+> > solely kswapd with paths that are faulting the new page cache in?
+>
+> Yes, and could you please post your performance data showing the time in
+> lru_lock?  Whatever you have is fine, but using perf with -g would give
+> callstacks and help answer Michal's question about who's contending.
 
-I agree that some unification is due but GFP_PGTABLE is not something to
-expose in generic gfp.h IMHO. It just risks an abuse. I would be looking
-at providing asm-generic implementation and reuse it to remove the code
-duplication. But I haven't tried that to know that it will work out due
-to small/subtle differences between arches.
+Thanks for the quick answer.
 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
--- 
-Michal Hocko
-SUSE Labs
+The time spent in the lru_lock is mainly due to direct reclaimers
+(reading an mmaped page that causes some readahead to happen). We have
+tried to play with readahead values, but it doesn't change performance
+a lot. We have disabled swap on the machine, so kwapd doesn't run.
+
+Our programs run in memory cgroups, but I don't think that the issue
+directly comes from cgroups (I might be wrong though).
+
+Here is the callchain that I have using perf report --no-children;
+(Paste here https://pastebin.com/151x4QhR )
+
+    44.30%  swapper      [kernel.vmlinux]  [k] intel_idle
+    # The machine is idle mainly because it waits in that lru_locks,
+which is the 2nd function in the report:
+    10.98%  testradix    [kernel.vmlinux]  [k] native_queued_spin_lock_slowpath
+               |--10.33%--_raw_spin_lock_irq
+               |          |
+               |           --10.12%--shrink_inactive_list
+               |                     shrink_node_memcg
+               |                     shrink_node
+               |                     do_try_to_free_pages
+               |                     try_to_free_mem_cgroup_pages
+               |                     try_charge
+               |                     mem_cgroup_try_charge
+               |                     __add_to_page_cache_locked
+               |                     add_to_page_cache_lru
+               |                     |
+               |                     |--5.39%--ext4_mpage_readpages
+               |                     |          ext4_readpages
+               |                     |          __do_page_cache_readahead
+               |                     |          |
+               |                     |           --5.37%--ondemand_readahead
+               |                     |
+page_cache_async_readahead
+               |                     |                     filemap_fault
+               |                     |                     ext4_filemap_fault
+               |                     |                     __do_fault
+               |                     |                     handle_pte_fault
+               |                     |                     __handle_mm_fault
+               |                     |                     handle_mm_fault
+               |                     |                     __do_page_fault
+               |                     |                     do_page_fault
+               |                     |                     page_fault
+               |                     |                     |
+               |                     |                     |--4.23%-- <our app>
+
+
+Thanks,
+
+Baptiste.
+
+
+
+
+
+
+>
+> Happy to help profile and debug offline.
