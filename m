@@ -1,69 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3CD8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 18:31:36 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id t205so412128ywa.10
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:31:36 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id p184si1104204ybp.388.2019.01.14.15.31.35
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CE7538E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 18:34:20 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id c84so745668qkb.13
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:34:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e5sor34632502qkj.13.2019.01.14.15.34.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jan 2019 15:31:35 -0800 (PST)
-Subject: Re: [PATCH 9/9] xen/privcmd-buf.c: Convert to use
- vm_insert_range_buggy
-References: <20190111151326.GA2853@jordon-HP-15-Notebook-PC>
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Message-ID: <8b0e0809-8e66-079d-1186-90b3f2df7a38@oracle.com>
-Date: Mon, 14 Jan 2019 18:31:12 -0500
-MIME-Version: 1.0
-In-Reply-To: <20190111151326.GA2853@jordon-HP-15-Notebook-PC>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+        (Google Transport Security);
+        Mon, 14 Jan 2019 15:34:19 -0800 (PST)
+From: Qian Cai <cai@lca.pw>
+Subject: [PATCH v2] page_poison: play nicely with KASAN
+Date: Mon, 14 Jan 2019 18:34:05 -0500
+Message-Id: <20190114233405.67843-1-cai@lca.pw>
+In-Reply-To: <2e46c139-70d3-dc86-28c9-a9f263651b57@virtuozzo.com>
+References: <2e46c139-70d3-dc86-28c9-a9f263651b57@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, jgross@suse.com, linux@armlinux.org.uk, robin.murphy@arm.com
-Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: aryabinin@virtuozzo.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qian Cai <cai@lca.pw>
 
-On 1/11/19 10:13 AM, Souptick Joarder wrote:
-> Convert to use vm_insert_range_buggy() to map range of kernel
-> memory to user vma.
->
-> This driver has ignored vm_pgoff. We could later "fix" these drivers
-> to behave according to the normal vm_pgoff offsetting simply by
-> removing the _buggy suffix on the function name and if that causes
-> regressions, it gives us an easy way to revert.
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> ---
->  drivers/xen/privcmd-buf.c | 8 ++------
->  1 file changed, 2 insertions(+), 6 deletions(-)
->
-> diff --git a/drivers/xen/privcmd-buf.c b/drivers/xen/privcmd-buf.c
-> index de01a6d..a9d7e97 100644
-> --- a/drivers/xen/privcmd-buf.c
-> +++ b/drivers/xen/privcmd-buf.c
-> @@ -166,12 +166,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
->  	if (vma_priv->n_pages != count)
->  		ret = -ENOMEM;
->  	else
-> -		for (i = 0; i < vma_priv->n_pages; i++) {
-> -			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
-> -					     vma_priv->pages[i]);
-> -			if (ret)
-> -				break;
-> -		}
-> +		ret = vm_insert_range_buggy(vma, vma_priv->pages,
-> +						vma_priv->n_pages);
+KASAN does not play well with the page poisoning
+(CONFIG_PAGE_POISONING). It triggers false positives in the allocation
+path,
 
-This can use the non-buggy version. But since the original code was
-indeed buggy in this respect I can submit this as a separate patch later.
+BUG: KASAN: use-after-free in memchr_inv+0x2ea/0x330
+Read of size 8 at addr ffff88881f800000 by task swapper/0
+CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc1+ #54
+Call Trace:
+ dump_stack+0xe0/0x19a
+ print_address_description.cold.2+0x9/0x28b
+ kasan_report.cold.3+0x7a/0xb5
+ __asan_report_load8_noabort+0x19/0x20
+ memchr_inv+0x2ea/0x330
+ kernel_poison_pages+0x103/0x3d5
+ get_page_from_freelist+0x15e7/0x4d90
 
-So
+because KASAN has not yet unpoisoned the shadow page for allocation
+before it checks memchr_inv() but only found a stale poison pattern.
 
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Also, false positives in free path,
 
+BUG: KASAN: slab-out-of-bounds in kernel_poison_pages+0x29e/0x3d5
+Write of size 4096 at addr ffff8888112cc000 by task swapper/0/1
+CPU: 5 PID: 1 Comm: swapper/0 Not tainted 5.0.0-rc1+ #55
+Call Trace:
+ dump_stack+0xe0/0x19a
+ print_address_description.cold.2+0x9/0x28b
+ kasan_report.cold.3+0x7a/0xb5
+ check_memory_region+0x22d/0x250
+ memset+0x28/0x40
+ kernel_poison_pages+0x29e/0x3d5
+ __free_pages_ok+0x75f/0x13e0
 
->  
->  	if (ret)
->  		privcmd_buf_vmapriv_free(vma_priv);
+due to KASAN adds poisoned redzones around slab objects, but the page
+poisoning needs to poison the whole page.
+
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+
+v2: use kasan_disable/enable_current() instead.
+
+ mm/page_alloc.c  | 2 +-
+ mm/page_poison.c | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d295c9bc01a8..906250a9b89c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1945,8 +1945,8 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
+ 
+ 	arch_alloc_page(page, order);
+ 	kernel_map_pages(page, 1 << order, 1);
+-	kernel_poison_pages(page, 1 << order, 1);
+ 	kasan_alloc_pages(page, order);
++	kernel_poison_pages(page, 1 << order, 1);
+ 	set_page_owner(page, order, gfp_flags);
+ }
+ 
+diff --git a/mm/page_poison.c b/mm/page_poison.c
+index f0c15e9017c0..21d4f97cb49b 100644
+--- a/mm/page_poison.c
++++ b/mm/page_poison.c
+@@ -6,6 +6,7 @@
+ #include <linux/page_ext.h>
+ #include <linux/poison.h>
+ #include <linux/ratelimit.h>
++#include <linux/kasan.h>
+ 
+ static bool want_page_poisoning __read_mostly;
+ 
+@@ -40,7 +41,10 @@ static void poison_page(struct page *page)
+ {
+ 	void *addr = kmap_atomic(page);
+ 
++	/* KASAN still think the page is in-use, so skip it. */
++	kasan_disable_current();
+ 	memset(addr, PAGE_POISON, PAGE_SIZE);
++	kasan_enable_current();
+ 	kunmap_atomic(addr);
+ }
+ 
+-- 
+2.17.2 (Apple Git-113)
