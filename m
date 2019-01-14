@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E40518E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 13:02:34 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id 39so140486edq.13
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 10:02:34 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a25si3530987edb.405.2019.01.14.10.02.33
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E4B748E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 13:55:07 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id w68so6348693ith.0
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 10:55:07 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id d10si665774ith.143.2019.01.14.10.55.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jan 2019 10:02:33 -0800 (PST)
-Date: Mon, 14 Jan 2019 19:02:30 +0100
-From: Michal Hocko <mhocko@kernel.org>
+        Mon, 14 Jan 2019 10:55:06 -0800 (PST)
 Subject: Re: [RFC PATCH] mm: align anon mmap for THP
-Message-ID: <20190114180230.GN21345@dhcp22.suse.cz>
 References: <20190111201003.19755-1-mike.kravetz@oracle.com>
  <20190111215506.jmp2s5end2vlzhvb@black.fi.intel.com>
  <ebd57b51-117b-4a3d-21d9-fc0287f437d6@oracle.com>
- <20190114135001.w2wpql53zitellus@kshutemo-mobl1>
- <MWHPR06MB2896ACD09C21B2939959C8A8EE800@MWHPR06MB2896.namprd06.prod.outlook.com>
- <20190114164004.GL21345@dhcp22.suse.cz>
- <MWHPR06MB289605B9E1B4234674CB87E2EE800@MWHPR06MB2896.namprd06.prod.outlook.com>
+ <ad3a53ba-82e2-2dc7-1cd2-feef7def0bc3@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <50c6abdc-b906-d16a-2f8f-8647b3d129aa@oracle.com>
+Date: Mon, 14 Jan 2019 10:54:45 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <MWHPR06MB289605B9E1B4234674CB87E2EE800@MWHPR06MB2896.namprd06.prod.outlook.com>
+In-Reply-To: <ad3a53ba-82e2-2dc7-1cd2-feef7def0bc3@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Harrosh, Boaz" <Boaz.Harrosh@netapp.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Mike Kravetz <mike.kravetz@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Toshi Kani <toshi.kani@hpe.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Steven Sistare <steven.sistare@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux_lkml_grp@oracle.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Toshi Kani <toshi.kani@hpe.com>, Boaz Harrosh <boazh@netapp.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon 14-01-19 16:54:02, Harrosh, Boaz wrote:
-> Michal Hocko <mhocko@kernel.org> wrote:
-[...]
-> >> We run with our own compiled Kernel on various distros, THP is configured
-> >> in but mmap against /dev/shm/ never gives me Huge pages. Does it only
-> >> work with unanimous mmap ? (I think it is mount dependent which is not
-> >> in the application control)
-> >
-> > If you are talking about THP then you have to enable huge pages for the
-> > mapping AFAIR.
+On 1/14/19 7:35 AM, Steven Sistare wrote:
+> On 1/11/2019 6:28 PM, Mike Kravetz wrote:
+>> On 1/11/19 1:55 PM, Kirill A. Shutemov wrote:
+>>> On Fri, Jan 11, 2019 at 08:10:03PM +0000, Mike Kravetz wrote:
+>>>> At LPC last year, Boaz Harrosh asked why he had to 'jump through hoops'
+>>>> to get an address returned by mmap() suitably aligned for THP.  It seems
+>>>> that if mmap is asking for a mapping length greater than huge page
+>>>> size, it should align the returned address to huge page size.
 > 
-> This is exactly what I was looking to achieve but was not able to do. Most probably
-> a stupid omission on my part, but just to show that it is not that trivial and strait
-> out-of-the-man-page way to do it.  (Would love a code snippet if you ever wrote one?)
+> A better heuristic would be to return an aligned address if the length
+> is a multiple of the huge page size.  The gap (if any) between the end of
+> the previous VMA and the start of this VMA would be filled by subsequent
+> smaller mmap requests.  The new behavior would need to become part of the
+> mmap interface definition so apps can rely on it and omit their hoop-jumping
+> code.
 
-Have you tried
-mount -t tmpfs -o huge=always none $MNT_POINT ?
+Yes, the heuristic really should be 'length is a multiple of the huge page
+size'.  As you mention, this would still leave gaps.  I need to look closer
+but this may not be any worse than the trick of mapping an area with rounded
+up length and then unmapping pages at the beginning.
 
-It is true that man pages are silent about this but at least Documentation/admin-guide/mm/transhuge.rst
-has an information. Time to send a patch to man pages I would say.
+When I sent this out, the thought in the back of my mind was that this doesn't
+really matter unless there is some type of alignment guarantee.  Otherwise,
+user space code needs continue employing their code to check/force alignment.
+Making matters somewhat worse is that I do not believe there is C interface to
+query huge page size.  I thought there was discussion about adding one, but I
+can not find it.
+
+> Personally I would like to see a new MAP_ALIGN flag and treat the addr
+> argument as the alignment (like Solaris), but I am told that adding flags
+> is problematic because old kernels accept undefined flag bits from userland
+> without complaint, so their behavior would change.
+
+Well, a flag would clearly define desired behavior.
+
+As others have been mentioned, there are mechanisms in place that allow user
+space code to get the alignment it wants.  However, it is at the expense of
+an additional system call or two.  Perhaps the question is, "Is it worth
+defining new behavior to eliminate this overhead?".
+
+One other thing to consider is that at mmap time, we likely do not know if
+the vma will/can use THP.  We would know if system wide THP configuration
+is set to never or always.  However, I 'think' the default for most distros
+is madvize.  Therefore, it is not until a subsequent madvise call that we
+know THP will be employed.  If the application code will need to make this
+separate madvise call, then perhaps it is not too much to expect that it
+take explicit action to optimally align the mapping.
+
 -- 
-Michal Hocko
-SUSE Labs
+Mike Kravetz
