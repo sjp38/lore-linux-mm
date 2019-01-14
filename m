@@ -1,20 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FD6F8E0002
-	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 22:59:12 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id e1so1372354wmg.0
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 19:59:12 -0800 (PST)
-Received: from mail-40130.protonmail.ch (mail-40130.protonmail.ch. [185.70.40.130])
-        by mx.google.com with ESMTPS id v84si18636518wma.79.2019.01.13.19.59.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Jan 2019 19:59:10 -0800 (PST)
-Date: Mon, 14 Jan 2019 03:59:04 +0000
-From: Esme <esploit@protonmail.ch>
-Reply-To: Esme <esploit@protonmail.ch>
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 55F848E0002
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:52:20 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id e12-v6so5037830ljb.18
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 20:52:20 -0800 (PST)
+Received: from smtp.infotech.no (smtp.infotech.no. [82.134.31.41])
+        by mx.google.com with ESMTP id y127si59516925lfc.121.2019.01.13.20.52.17
+        for <linux-mm@kvack.org>;
+        Sun, 13 Jan 2019 20:52:17 -0800 (PST)
+Reply-To: dgilbert@interlog.com
 Subject: Re: [PATCH v2] rbtree: fix the red root
-Message-ID: <UKsodHRZU8smIdO2MHHL4Yzde_YB4iWX43TaHI1uY2tMo4nii4ucbaw4XC31XIY-Pe4oEovjF62qbkeMsIMTrvT1TdCCP4Fs_fxciAzXYVc=@protonmail.ch>
-In-Reply-To: <c6265fc0-4089-9d1a-ba7c-b267b847747e@interlog.com>
 References: <20190111181600.GJ6310@bombadil.infradead.org>
  <20190111205843.25761-1-cai@lca.pw>
  <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
@@ -23,145 +18,122 @@ References: <20190111181600.GJ6310@bombadil.infradead.org>
  <b1033d96-ebdd-e791-650a-c6564f030ce1@lca.pw>
  <8v11ZOLyufY7NLAHDFApGwXOO_wGjVHtsbw1eiZ__YvI9EZCDe_4FNmlp0E-39lnzGQHhHAczQ6Q6lQPzVU2V6krtkblM8IFwIXPHZCuqGE=@protonmail.ch>
  <c6265fc0-4089-9d1a-ba7c-b267b847747e@interlog.com>
+ <UKsodHRZU8smIdO2MHHL4Yzde_YB4iWX43TaHI1uY2tMo4nii4ucbaw4XC31XIY-Pe4oEovjF62qbkeMsIMTrvT1TdCCP4Fs_fxciAzXYVc=@protonmail.ch>
+From: Douglas Gilbert <dgilbert@interlog.com>
+Message-ID: <ad591828-76e8-324b-6ab8-dc87e4390f64@interlog.com>
+Date: Sun, 13 Jan 2019 23:52:06 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <UKsodHRZU8smIdO2MHHL4Yzde_YB4iWX43TaHI1uY2tMo4nii4ucbaw4XC31XIY-Pe4oEovjF62qbkeMsIMTrvT1TdCCP4Fs_fxciAzXYVc=@protonmail.ch>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "dgilbert@interlog.com" <dgilbert@interlog.com>
+To: Esme <esploit@protonmail.ch>
 Cc: Qian Cai <cai@lca.pw>, David Lechner <david@lechnology.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, "jejb@linux.ibm.com" <jejb@linux.ibm.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "joeypabalinas@gmail.com" <joeypabalinas@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90 Original Me=
-ssage =E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90
-On Sunday, January 13, 2019 10:52 PM, Douglas Gilbert <dgilbert@interlog.co=
-m> wrote:
+On 2019-01-13 10:59 p.m., Esme wrote:
+> ‐‐‐‐‐‐‐ Original Message ‐‐‐‐‐‐‐
+> On Sunday, January 13, 2019 10:52 PM, Douglas Gilbert <dgilbert@interlog.com> wrote:
+> 
+>> On 2019-01-13 10:07 p.m., Esme wrote:
+>>
+>>> ‐‐‐‐‐‐‐ Original Message ‐‐‐‐‐‐‐
+>>> On Sunday, January 13, 2019 9:33 PM, Qian Cai cai@lca.pw wrote:
+>>>
+>>>> On 1/13/19 9:20 PM, David Lechner wrote:
+>>>>
+>>>>> On 1/11/19 8:58 PM, Michel Lespinasse wrote:
+>>>>>
+>>>>>> On Fri, Jan 11, 2019 at 3:47 PM David Lechner david@lechnology.com wrote:
+>>>>>>
+>>>>>>> On 1/11/19 2:58 PM, Qian Cai wrote:
+>>>>>>>
+>>>>>>>> A GPF was reported,
+>>>>>>>> kasan: CONFIG_KASAN_INLINE enabled
+>>>>>>>> kasan: GPF could be caused by NULL-ptr deref or user memory access
+>>>>>>>> general protection fault: 0000 [#1] SMP KASAN
+>>>>>>>>            kasan_die_handler.cold.22+0x11/0x31
+>>>>>>>>            notifier_call_chain+0x17b/0x390
+>>>>>>>>            atomic_notifier_call_chain+0xa7/0x1b0
+>>>>>>>>            notify_die+0x1be/0x2e0
+>>>>>>>>            do_general_protection+0x13e/0x330
+>>>>>>>>            general_protection+0x1e/0x30
+>>>>>>>>            rb_insert_color+0x189/0x1480
+>>>>>>>>            create_object+0x785/0xca0
+>>>>>>>>            kmemleak_alloc+0x2f/0x50
+>>>>>>>>            kmem_cache_alloc+0x1b9/0x3c0
+>>>>>>>>            getname_flags+0xdb/0x5d0
+>>>>>>>>            getname+0x1e/0x20
+>>>>>>>>            do_sys_open+0x3a1/0x7d0
+>>>>>>>>            __x64_sys_open+0x7e/0xc0
+>>>>>>>>            do_syscall_64+0x1b3/0x820
+>>>>>>>>            entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>>>>>>>> It turned out,
+>>>>>>>> gparent = rb_red_parent(parent);
+>>>>>>>> tmp = gparent->rb_right; <-- GPF was triggered here.
+>>>>>>>> Apparently, "gparent" is NULL which indicates "parent" is rbtree's root
+>>>>>>>> which is red. Otherwise, it will be treated properly a few lines above.
+>>>>>>>> /*
+>>>>>>>>     * If there is a black parent, we are done.
+>>>>>>>>     * Otherwise, take some corrective action as,
+>>>>>>>>     * per 4), we don't want a red root or two
+>>>>>>>>     * consecutive red nodes.
+>>>>>>>>     */
+>>>>>>>> if(rb_is_black(parent))
+>>>>>>>>         break;
+>>>>>>>> Hence, it violates the rule #1 (the root can't be red) and need a fix
+>>>>>>>> up, and also add a regression test for it. This looks like was
+>>>>>>>> introduced by 6d58452dc06 where it no longer always paint the root as
+>>>>>>>> black.
+>>>>>>>> Fixes: 6d58452dc06 (rbtree: adjust root color in rb_insert_color() only
+>>>>>>>> when necessary)
+>>>>>>>> Reported-by: Esme esploit@protonmail.ch
+>>>>>>>> Tested-by: Joey Pabalinas joeypabalinas@gmail.com
+>>>>>>>> Signed-off-by: Qian Cai cai@lca.pw
+>>>>>>>
+>>>>>>> Tested-by: David Lechner david@lechnology.com
+>>>>>>> FWIW, this fixed the following crash for me:
+>>>>>>> Unable to handle kernel NULL pointer dereference at virtual address 00000004
+>>>>>>
+>>>>>> Just to clarify, do you have a way to reproduce this crash without the fix ?
+>>>>>
+>>>>> I am starting to suspect that my crash was caused by some new code
+>>>>> in the drm-misc-next tree that might be causing a memory corruption.
+>>>>> It threw me off that the stack trace didn't contain anything related
+>>>>> to drm.
+>>>>> See: https://patchwork.freedesktop.org/patch/276719/
+>>>>
+>>>> It may be useful for those who could reproduce this issue to turn on those
+>>>> memory corruption debug options to narrow down a bit.
+>>>> CONFIG_DEBUG_PAGEALLOC=y
+>>>> CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT=y
+>>>> CONFIG_KASAN=y
+>>>> CONFIG_KASAN_GENERIC=y
+>>>> CONFIG_SLUB_DEBUG_ON=y
+>>>
+>>> I have been on SLAB, I configured SLAB DEBUG with a fresh pull from github. Linux syzkaller 5.0.0-rc2 #9 SMP Sun Jan 13 21:57:40 EST 2019 x86_64
+>>> ...
+>>> In an effort to get a different stack into the kernel, I felt that nothing works better than fork bomb? :)
+>>> Let me know if that helps.
+>>> root@syzkaller:~# gcc -o test3 test3.c
+>>> root@syzkaller:~# while : ; do ./test3 & done
+>>
+>> And is test3 the same multi-threaded program that enters the kernel via
+>> /dev/sg0 and then calls SCSI_IOCTL_SEND_COMMAND which goes to the SCSI
+>> mid-level and thence to the block layer?
+>>
+>> And please remind me, does it also fail on lk 4.20.2 ?
+>>
+>> Doug Gilbert
+> 
+> Yes, the same C repro from the earlier thread.  It was a 4.20.0 kernel where it was first detected.  I can move to 4.20.2 and see if that changes anything.
 
-> On 2019-01-13 10:07 p.m., Esme wrote:
->
-> > =E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90 Origina=
-l Message =E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=90=E2=80=
-=90
-> > On Sunday, January 13, 2019 9:33 PM, Qian Cai cai@lca.pw wrote:
-> >
-> > > On 1/13/19 9:20 PM, David Lechner wrote:
-> > >
-> > > > On 1/11/19 8:58 PM, Michel Lespinasse wrote:
-> > > >
-> > > > > On Fri, Jan 11, 2019 at 3:47 PM David Lechner david@lechnology.co=
-m wrote:
-> > > > >
-> > > > > > On 1/11/19 2:58 PM, Qian Cai wrote:
-> > > > > >
-> > > > > > > A GPF was reported,
-> > > > > > > kasan: CONFIG_KASAN_INLINE enabled
-> > > > > > > kasan: GPF could be caused by NULL-ptr deref or user memory a=
-ccess
-> > > > > > > general protection fault: 0000 [#1] SMP KASAN
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 kasan_=
-die_handler.cold.22+0x11/0x31
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 notifi=
-er_call_chain+0x17b/0x390
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 atomic=
-_notifier_call_chain+0xa7/0x1b0
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 notify=
-_die+0x1be/0x2e0
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 do_gen=
-eral_protection+0x13e/0x330
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 genera=
-l_protection+0x1e/0x30
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 rb_ins=
-ert_color+0x189/0x1480
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 create=
-_object+0x785/0xca0
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 kmemle=
-ak_alloc+0x2f/0x50
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 kmem_c=
-ache_alloc+0x1b9/0x3c0
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 getnam=
-e_flags+0xdb/0x5d0
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 getnam=
-e+0x1e/0x20
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 do_sys=
-_open+0x3a1/0x7d0
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 __x64_=
-sys_open+0x7e/0xc0
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 do_sys=
-call_64+0x1b3/0x820
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 entry_=
-SYSCALL_64_after_hwframe+0x49/0xbe
-> > > > > > > It turned out,
-> > > > > > > gparent =3D rb_red_parent(parent);
-> > > > > > > tmp =3D gparent->rb_right; <-- GPF was triggered here.
-> > > > > > > Apparently, "gparent" is NULL which indicates "parent" is rbt=
-ree's root
-> > > > > > > which is red. Otherwise, it will be treated properly a few li=
-nes above.
-> > > > > > > /*
-> > > > > > > =C2=A0=C2=A0 * If there is a black parent, we are done.
-> > > > > > > =C2=A0=C2=A0 * Otherwise, take some corrective action as,
-> > > > > > > =C2=A0=C2=A0 * per 4), we don't want a red root or two
-> > > > > > > =C2=A0=C2=A0 * consecutive red nodes.
-> > > > > > > =C2=A0=C2=A0 */
-> > > > > > > if(rb_is_black(parent))
-> > > > > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 break;
-> > > > > > > Hence, it violates the rule #1 (the root can't be red) and ne=
-ed a fix
-> > > > > > > up, and also add a regression test for it. This looks like wa=
-s
-> > > > > > > introduced by 6d58452dc06 where it no longer always paint the=
- root as
-> > > > > > > black.
-> > > > > > > Fixes: 6d58452dc06 (rbtree: adjust root color in rb_insert_co=
-lor() only
-> > > > > > > when necessary)
-> > > > > > > Reported-by: Esme esploit@protonmail.ch
-> > > > > > > Tested-by: Joey Pabalinas joeypabalinas@gmail.com
-> > > > > > > Signed-off-by: Qian Cai cai@lca.pw
-> > > > > >
-> > > > > > Tested-by: David Lechner david@lechnology.com
-> > > > > > FWIW, this fixed the following crash for me:
-> > > > > > Unable to handle kernel NULL pointer dereference at virtual add=
-ress 00000004
-> > > > >
-> > > > > Just to clarify, do you have a way to reproduce this crash withou=
-t the fix ?
-> > > >
-> > > > I am starting to suspect that my crash was caused by some new code
-> > > > in the drm-misc-next tree that might be causing a memory corruption=
-.
-> > > > It threw me off that the stack trace didn't contain anything relate=
-d
-> > > > to drm.
-> > > > See: https://patchwork.freedesktop.org/patch/276719/
-> > >
-> > > It may be useful for those who could reproduce this issue to turn on =
-those
-> > > memory corruption debug options to narrow down a bit.
-> > > CONFIG_DEBUG_PAGEALLOC=3Dy
-> > > CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT=3Dy
-> > > CONFIG_KASAN=3Dy
-> > > CONFIG_KASAN_GENERIC=3Dy
-> > > CONFIG_SLUB_DEBUG_ON=3Dy
-> >
-> > I have been on SLAB, I configured SLAB DEBUG with a fresh pull from git=
-hub. Linux syzkaller 5.0.0-rc2 #9 SMP Sun Jan 13 21:57:40 EST 2019 x86_64
-> > ...
-> > In an effort to get a different stack into the kernel, I felt that noth=
-ing works better than fork bomb? :)
-> > Let me know if that helps.
-> > root@syzkaller:~# gcc -o test3 test3.c
-> > root@syzkaller:~# while : ; do ./test3 & done
->
-> And is test3 the same multi-threaded program that enters the kernel via
-> /dev/sg0 and then calls SCSI_IOCTL_SEND_COMMAND which goes to the SCSI
-> mid-level and thence to the block layer?
->
-> And please remind me, does it also fail on lk 4.20.2 ?
->
-> Doug Gilbert
+Hi,
+I don't think there is any need to check lk 4.20.2 (as it would
+be very surprising if it didn't also have this "feature").
 
-Yes, the same C repro from the earlier thread.  It was a 4.20.0 kernel wher=
-e it was first detected.  I can move to 4.20.2 and see if that changes anyt=
-hing.
+More interesting might be: has "test3" been run on lk 4.19 or
+any earlier kernel?
 
-Esme
+Doug Gilbert
