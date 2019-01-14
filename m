@@ -7,189 +7,366 @@ X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54D9DC43387
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 09:35:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 26151C43387
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 13:24:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC63C20659
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 09:35:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C4F2220659
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 13:24:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="cG3zM3rO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC63C20659
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="M0gahmUK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4F2220659
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BAC08E0003; Mon, 14 Jan 2019 04:35:06 -0500 (EST)
+	id 640CA8E0007; Mon, 14 Jan 2019 08:24:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 368528E0002; Mon, 14 Jan 2019 04:35:06 -0500 (EST)
+	id 5EF128E0002; Mon, 14 Jan 2019 08:24:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 259D38E0003; Mon, 14 Jan 2019 04:35:06 -0500 (EST)
+	id 4E00D8E0007; Mon, 14 Jan 2019 08:24:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F313A8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:35:05 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id s5so19299078iom.22
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 01:35:05 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2568E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:24:17 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id s5so19693407iom.22
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 05:24:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Pn0/rZ2B5GkSLOkvstRq19Y+ZB+KVKjQ5D4UTrTEcFQ=;
-        b=cGX65EU0xahjhYuRgC9suyy7fynXWl85qk8vyxHSocFyDptZp1I+kOvXwSEbPzFcFu
-         jJ9IYphX6r9sP2g+KIbMPtC9JBma/UNnoi41wqnDaOpZGBhFguCcDWxPP4jUQW2xI8zC
-         FpFEfL6sac/CE001Papw+IixIZenG2XpnpryPFD1NT/lT9yK02YQ2Isa7iRGyscVA31/
-         jCJnsv+Y1FaPmOhn5KM8VguonLSOQ8pnMpv+5Pa8jcIrf34bx8IFN1cmatWmA0L8nck9
-         oXk24Bu7zWIbE5x9ZQzn6c7mRY2xeJ2Wz9Ry62DKbeXt9rweolP1kjt3KexyBCp0USau
-         2G+A==
-X-Gm-Message-State: AJcUukee774BC4H1uXSlAtEsQOXloyQoWYzg2zMsbCt3TCqFs1v4nr4e
-	IGFSeiejgvPrscOGTqRsiEE/TFEnWBnwNpkg1rWoQu29g9ZWQtv0uJelkKcqMG6K1x4CYrnt7XK
-	5JD2It/RNDZphDF9kHvTwvLG4wmT5C/ix7U1e5Vy0xDiseqK4d0NFeefzWwtA5p3pptQ96xSb8K
-	S2BS87De+kltc8xwWUPc1Nprc7Nrx+w34g0RmawvwZd9qcFvJJxYcpPF7BHbso78vxepTymCFZd
-	sgANqrTcZU702qUIVR/Vv/wax7oYBmgPoF7kdNM2ZDMFXgy/HS465+TzHsusTTkuKvM0gokAaVY
-	4swafp0eMkt27ACo6Zg+mhu0LprUTeNHlW95FEaA2Jvdsib3WEFdfKRlhOuYnzRlnW4w6M/w1gL
-	B
-X-Received: by 2002:a05:660c:74b:: with SMTP id a11mr7294305itl.27.1547458505761;
-        Mon, 14 Jan 2019 01:35:05 -0800 (PST)
-X-Received: by 2002:a05:660c:74b:: with SMTP id a11mr7294286itl.27.1547458504963;
-        Mon, 14 Jan 2019 01:35:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547458504; cv=none;
+        bh=BszPOXukd/CRgTGG7KPUfaCo5gW2bXdM+YoCchVA5ec=;
+        b=gb7v8cTeiXKH/9Ju7A2LoU/lsbWn0UNLBBDID4yc+GJdBkjo2/CsCnHA+u4SxtgA4H
+         lXIhNI5dU9XxVDSY8fCkuVZbTFSYoCNnG1Qzjkjv8kSMQEzvUhXddEsreER/c2b47DHE
+         9t2ql03b44sst2eqMzO1RrSGBoctYVoupqhDe0SVD9XnlMkj/LXZ6cZBzkmLijBfbUJg
+         e17YUmSynkWDLn9LmEHrxCXbgU8uuLx/3BCSDMZySmqU3GeRa4tvNlWg7EIpIzdU+2kV
+         aBKUnL0tEiHv3syyCiY9OLN/XAyq/tJBA1CxKK8VNYx1GwcOtZ+kjrF4IONxNjdQ+eb2
+         2ZXA==
+X-Gm-Message-State: AJcUukda2j8RYAjC2upUB/hfSQb7SULiI+i99phKvySTf0iFVRGSo+QJ
+	XWehMJyi2DDVwvV/8n8RQu/+K+7M3iPX+mJm4c+bK2GaltMkP8CekXow2cJ995l4h2Q24Qz9Z/n
+	baiGtcvf/57vF10ZHeM8PM0KCXS4c+JO1g3/M/gvukLrIzSVGp0C/QA2fVK5Kgu2Q1ZHTuaWzhR
+	eFRr0i1AGWj8XfaAd8f/toZyCq4/h7vYzEOomsVIvkdmIJAcsZ4/5StNsTUDhgGfvviEfQi/NqB
+	W/wMBRi+hO5KfAnyD0YIDX7qPkZ45cBH7194SGQyFS2oec5Z1M8sOktLUew0yf5OYwGI8CRzCv/
+	39ySOjEBlVgYc2h7Y7te3fqDs7ve8Pg0T1NG8yzC2TiMC5SnZj4PaJo4dVROsYpfxVJTcJDMk9k
+	G
+X-Received: by 2002:a24:6e14:: with SMTP id w20mr7826657itc.69.1547472256783;
+        Mon, 14 Jan 2019 05:24:16 -0800 (PST)
+X-Received: by 2002:a24:6e14:: with SMTP id w20mr7826608itc.69.1547472255609;
+        Mon, 14 Jan 2019 05:24:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547472255; cv=none;
         d=google.com; s=arc-20160816;
-        b=n+zZNfK983rVjdFjxlOIk1TlGJr9m1QrmVSQOxFbBmgjcHvX07WMneijx3QqDIpw8v
-         9xz3M8KbVuCIhrWuhMQIowE67xYNupXXHDWWxn1oYOVmRtPrhjxuc+azclUuCHAYhU2u
-         FB5LaP0XJm+8S4NwMhjCzB+cUCkCnlyR0/XZRF3W47RZVm5q/KtHtzd3vjd2r5qVSLeV
-         ItHOB/hqM02k3QCi0PxUeqZOtRmK/guxV48PtycjWEhdKyoGcEAtZlpc3Bfly8tYIOCc
-         1pPKoDAUdihdcsTrZS9a57MTNHAAY5cqVYuD50WPOerIybvkytXgwV6Ocl3NST4OOva1
-         EAag==
+        b=NdQzLt/ZDe5TXlDeLAKTGE8Hg2/VW+tMcNm2n6KMX2e699N9w+P8b58yibHkdeReGH
+         zUtOKF//uyJrwRNBpwqbiySLflHka73nSs0f6XhNyn92Hu13VtVh/Ip/QNVnaOZHihvG
+         qOj845ziRs6rjsdR+eMgN6OEe4cpzd+YEQ+Ha2Ynh3zgiRTRk5FBuNW9PnhHVCVIZ6ca
+         oSqSXgjcfm+2Vm/vSXGv+DM30PejyJhLv6jLe+rQzUufn6WlO9+Y+UKY1zv2t5csf38A
+         cLLOd+5s4Y7tNDyGWo2pT5pqF+M96nw4+71gsKyUTycqM7xSs9D5yOOn6bE9Ws93Ds2b
+         Xgvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=Pn0/rZ2B5GkSLOkvstRq19Y+ZB+KVKjQ5D4UTrTEcFQ=;
-        b=EQIXso5FkSy4Aww1wmLwGjAqNhQ/pE667fljHLuSwjT7mx5HB3ocmKtwN92LzDZnn6
-         I5BRJBzpgUt0jS7LcrnDHCir3N4FKDtXZWACBRVHtsGjYcFkbveknrYkau0ovyqRQcdT
-         OAEIc8UM/TvwVCyyqXiulzs/kgJNTCWL3OKK+fn8JeAwopTB8ZVdLQZ1NOL1ZdlRI+9I
-         MAhFjVXePx2lZ6ZSsovUhbC5SUKqUcc2+nSO4HYLyeMV6P9HHIF9tHE8LiviDULOk0q0
-         QZBPEQ9UZaax4q333EgxGNjnzAQoFpWgRBstig9xy+V4Li8lgOKpfLD2JFBEvRTuC0lV
-         GY3A==
+        bh=BszPOXukd/CRgTGG7KPUfaCo5gW2bXdM+YoCchVA5ec=;
+        b=Y2lljDULxBw9j/8MwIqmb9fqUAuj+7/vH/5YMkngkdQbnKrqOxpmuqEq7Fl55WHXY2
+         HAQUmxZr44ncGeqQpoILIhnPpcPweIH/35o2q6NvAdeeCublcoiRtmvnCWfcDWaTFBqb
+         6buJS+Z3k67GOQduKFDibWXWgf0W653ugYrFPQPwM/MPtvhz+o0jVHya4v0Ovf8Svi6d
+         73oEMBE2YecxLknR45krJ/O+Lxro1RB3MWNeZ2Jio6UCizhv32D1TnNy5NOBe8Xnnbiw
+         1CkOPm6C70luu8+gyHxUWNg/lFbA0WxYAcorGVouPdThNY7uMVrUNWeSoL5Yvdg+zBls
+         IOcQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cG3zM3rO;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=M0gahmUK;
        spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z4sor47489318iol.132.2019.01.14.01.35.04
+        by mx.google.com with SMTPS id l125sor187588iof.41.2019.01.14.05.24.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 01:35:04 -0800 (PST)
+        Mon, 14 Jan 2019 05:24:15 -0800 (PST)
 Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cG3zM3rO;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=M0gahmUK;
        spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=Pn0/rZ2B5GkSLOkvstRq19Y+ZB+KVKjQ5D4UTrTEcFQ=;
-        b=cG3zM3rOJqP9xq8n8LMwEKTXJUQ4xh2O+zaaNyos6gkTdiT0UhD5YRj4zebrVQCK79
-         lTszCU7lJZs+wRyNh/NZEjWDrwgO2XiRVx6xv0Ra/FQU9iclaLSOhmErIuO/HUVBzWr2
-         nP3swD1jtKwthtzn03IXwPV9QFMWMIlVuHp1iQ0d6KMQztjWe8TBkSZdAUMrRjMh6WUN
-         nStPiAZ/dUsrozxjVmfHco6C7wBa+7K1swBrAUHWvFubg/nw/9+fY4NJgHI7e9+NBb5/
-         WSU1YAmgtOKm2strY0meX98AhNuQy8M3JmpV81bLo/b6PGT3C4i+VArU5y5WdeeW+yk+
-         q0SQ==
-X-Google-Smtp-Source: ALg8bN4Izjtfz8Gtik6EdgfSYlWSdQko5wrdsb98M1TQUO3p0k+tlZJCo9+xkTjkJb9IBNvEfs6/1WGPTInaXLkvDLg=
-X-Received: by 2002:a6b:fa01:: with SMTP id p1mr9451772ioh.271.1547458504276;
- Mon, 14 Jan 2019 01:35:04 -0800 (PST)
+        bh=BszPOXukd/CRgTGG7KPUfaCo5gW2bXdM+YoCchVA5ec=;
+        b=M0gahmUK46IwVZQFlJr02IUlbdXcgG1a4pJGRzQQMjkDsPRRluRSpxmipOFZ5HBEeG
+         d9zejSLeM8P2SdMoTI6WtluYNmgHoBUdyrLj/kNHmU85x9776vlb3h03rrXyBpdLIsNj
+         lgq5cPngAjK4gzOpO032GWHUws841Rk3hVRIf+s9igEbrRumdVnmfd+0hlmgwxEKDIht
+         bHa6mq/BNoN6H9tFee0qZGxblEvtQPjVE9jt+C0AULgASGskiihiavAEmwH5mEeJoR5v
+         oiyTSP/TvXfIshXjUIiNZHGxCfRfi4yzvqSylZbJaU3MKr0IyE8XcvzJcvWNFOkX8DMz
+         DvsA==
+X-Google-Smtp-Source: ALg8bN7UJ4bYVPQqImOJGWIZZmUioMOn4hBC6sxvYKeuVEGzryuRUWNTY0nkT7C6Ew5hCHvtCD0eY/cmQbvAFVu6pmA=
+X-Received: by 2002:a6b:fa01:: with SMTP id p1mr9893214ioh.271.1547472254932;
+ Mon, 14 Jan 2019 05:24:14 -0800 (PST)
 MIME-Version: 1.0
-References: <cover.1547289808.git.christophe.leroy@c-s.fr> <0c854dd6b110ac2b81ef1681f6e097f59f84af8b.1547289808.git.christophe.leroy@c-s.fr>
-In-Reply-To: <0c854dd6b110ac2b81ef1681f6e097f59f84af8b.1547289808.git.christophe.leroy@c-s.fr>
+References: <20190111185842.13978-1-aryabinin@virtuozzo.com>
+In-Reply-To: <20190111185842.13978-1-aryabinin@virtuozzo.com>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 14 Jan 2019 10:34:52 +0100
+Date: Mon, 14 Jan 2019 14:24:03 +0100
 Message-ID:
- <CACT4Y+aEsLWqhJmXETNsGtKdbfHDFL1NF8ofv3KwvQPraXdFyw@mail.gmail.com>
-Subject: Re: [PATCH v3 1/3] powerpc/mm: prepare kernel for KAsan on PPC32
-To: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Alexander Potapenko <glider@google.com>, LKML <linux-kernel@vger.kernel.org>, 
-	linuxppc-dev@lists.ozlabs.org, kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux-MM <linux-mm@kvack.org>
+ <CACT4Y+YV+jjcXE1oa=Gf031KAgEy40Nq83x3_nj3TwQpw3b+Ug@mail.gmail.com>
+Subject: Re: [PATCH] kasan: Remove use after scope bugs detection.
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
+	kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, Qian Cai <cai@lca.pw>, 
+	Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Will Deacon <will.deacon@arm.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190114093452.VNIHcTvhQwIw21CfEz06HNKSQnqNYJFrQypt67scznc@z>
+Message-ID: <20190114132403.ws7yGGvttwOSBsR0Dw6RqKbUDr9z9e2scLmEsmYGBS4@z>
 
-On Sat, Jan 12, 2019 at 12:16 PM Christophe Leroy
-<christophe.leroy@c-s.fr> wrote:
-&gt;
-&gt; In kernel/cputable.c, explicitly use memcpy() in order
-&gt; to allow GCC to replace it with __memcpy() when KASAN is
-&gt; selected.
-&gt;
-&gt; Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
-&gt; enabled"), memset() can be used before activation of the cache,
-&gt; so no need to use memset_io() for zeroing the BSS.
-&gt;
-&gt; Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
-&gt; ---
-&gt;  arch/powerpc/kernel/cputable.c | 4 ++--
-&gt;  arch/powerpc/kernel/setup_32.c | 6 ++----
-&gt;  2 files changed, 4 insertions(+), 6 deletions(-)
-&gt;
-&gt; diff --git a/arch/powerpc/kernel/cputable.c
-b/arch/powerpc/kernel/cputable.c
-&gt; index 1eab54bc6ee9..84814c8d1bcb 100644
-&gt; --- a/arch/powerpc/kernel/cputable.c
-&gt; +++ b/arch/powerpc/kernel/cputable.c
-&gt; @@ -2147,7 +2147,7 @@ void __init set_cur_cpu_spec(struct cpu_spec *s)
-&gt;         struct cpu_spec *t = &amp;the_cpu_spec;
-&gt;
-&gt;         t = PTRRELOC(t);
-&gt; -       *t = *s;
-&gt; +       memcpy(t, s, sizeof(*t));
+On Fri, Jan 11, 2019 at 7:58 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>
+> Use after scope bugs detector seems to be almost entirely useless
+> for the linux kernel. It exists over two years, but I've seen only
+> one valid bug so far [1]. And the bug was fixed before it has been
+> reported. There were some other use-after-scope reports, but they
+> were false-positives due to different reasons like incompatibility
+> with structleak plugin.
+>
+> This feature significantly increases stack usage, especially with
+> GCC < 9 version, and causes a 32K stack overflow. It probably
+> adds performance penalty too.
+>
+> Given all that, let's remove use-after-scope detector entirely.
+>
+> While preparing this patch I've noticed that we mistakenly enable
+> use-after-scope detection for clang compiler regardless of
+> CONFIG_KASAN_EXTRA setting. This is also fixed now.
 
-Hi Christophe,
+Hi Andrey,
 
-I understand why you are doing this, but this looks a bit fragile and
-non-scalable. This may not work with the next version of compiler,
-just different than yours version of compiler, clang, etc.
-
-Does using -ffreestanding and/or -fno-builtin-memcpy (-memset) help?
-If it helps, perhaps it makes sense to add these flags to
-KASAN_SANITIZE := n files.
+I am on a fence. On one hand removing bug detection sucks and each
+case of a missed memory corruption leads to a splash of assorted bug
+reports by syzbot. On the other hand everything you said is true.
+Maybe support for CONFIG_VMAP_STACK will enable stacks larger then
+PAGE_ALLOC_COSTLY_ORDER?
 
 
->         *PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
+
+
+> [1] http://lkml.kernel.org/r/<20171129052106.rhgbjhhis53hkgfn@wfg-t540p.sh.intel.com>
+>
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Alexander Potapenko <glider@google.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> ---
+>  arch/arm64/include/asm/memory.h |  4 ----
+>  lib/Kconfig.debug               |  1 -
+>  lib/Kconfig.kasan               | 10 ----------
+>  lib/test_kasan.c                | 24 ------------------------
+>  mm/kasan/generic.c              | 19 -------------------
+>  mm/kasan/generic_report.c       |  3 ---
+>  mm/kasan/kasan.h                |  3 ---
+>  scripts/Makefile.kasan          |  5 -----
+>  scripts/gcc-plugins/Kconfig     |  4 ----
+>  9 files changed, 73 deletions(-)
+>
+> diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+> index e1ec947e7c0c..0e236a99b3ef 100644
+> --- a/arch/arm64/include/asm/memory.h
+> +++ b/arch/arm64/include/asm/memory.h
+> @@ -80,11 +80,7 @@
+>   */
+>  #ifdef CONFIG_KASAN
+>  #define KASAN_SHADOW_SIZE      (UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
+> -#ifdef CONFIG_KASAN_EXTRA
+> -#define KASAN_THREAD_SHIFT     2
+> -#else
+>  #define KASAN_THREAD_SHIFT     1
+> -#endif /* CONFIG_KASAN_EXTRA */
+>  #else
+>  #define KASAN_SHADOW_SIZE      (0)
+>  #define KASAN_THREAD_SHIFT     0
+> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> index d4df5b24d75e..a219f3488ad7 100644
+> --- a/lib/Kconfig.debug
+> +++ b/lib/Kconfig.debug
+> @@ -222,7 +222,6 @@ config ENABLE_MUST_CHECK
+>  config FRAME_WARN
+>         int "Warn for stack frames larger than (needs gcc 4.4)"
+>         range 0 8192
+> -       default 3072 if KASAN_EXTRA
+>         default 2048 if GCC_PLUGIN_LATENT_ENTROPY
+>         default 1280 if (!64BIT && PARISC)
+>         default 1024 if (!64BIT && !PARISC)
+> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+> index d8c474b6691e..67d7d1309c52 100644
+> --- a/lib/Kconfig.kasan
+> +++ b/lib/Kconfig.kasan
+> @@ -78,16 +78,6 @@ config KASAN_SW_TAGS
+>
+>  endchoice
+>
+> -config KASAN_EXTRA
+> -       bool "KASAN: extra checks"
+> -       depends on KASAN_GENERIC && DEBUG_KERNEL && !COMPILE_TEST
+> -       help
+> -         This enables further checks in generic KASAN, for now it only
+> -         includes the address-use-after-scope check that can lead to
+> -         excessive kernel stack usage, frame size warnings and longer
+> -         compile time.
+> -         See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81715
+> -
+>  choice
+>         prompt "Instrumentation type"
+>         depends on KASAN
+> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+> index 51b78405bf24..7de2702621dc 100644
+> --- a/lib/test_kasan.c
+> +++ b/lib/test_kasan.c
+> @@ -480,29 +480,6 @@ static noinline void __init copy_user_test(void)
+>         kfree(kmem);
 >  }
-> @@ -2162,7 +2162,7 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
->         old = *t;
 >
->         /* Copy everything, then do fixups */
-> -       *t = *s;
-> +       memcpy(t, s, sizeof(*t));
->
->         /*
->          * If we are overriding a previous value derived from the real
-> diff --git a/arch/powerpc/kernel/setup_32.c b/arch/powerpc/kernel/setup_32.c
-> index 947f904688b0..5e761eb16a6d 100644
-> --- a/arch/powerpc/kernel/setup_32.c
-> +++ b/arch/powerpc/kernel/setup_32.c
-> @@ -73,10 +73,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
+> -static noinline void __init use_after_scope_test(void)
+> -{
+> -       volatile char *volatile p;
+> -
+> -       pr_info("use-after-scope on int\n");
+> -       {
+> -               int local = 0;
+> -
+> -               p = (char *)&local;
+> -       }
+> -       p[0] = 1;
+> -       p[3] = 1;
+> -
+> -       pr_info("use-after-scope on array\n");
+> -       {
+> -               char local[1024] = {0};
+> -
+> -               p = local;
+> -       }
+> -       p[0] = 1;
+> -       p[1023] = 1;
+> -}
+> -
+>  static noinline void __init kasan_alloca_oob_left(void)
 >  {
->         unsigned long offset = reloc_offset();
+>         volatile int i = 10;
+> @@ -682,7 +659,6 @@ static int __init kmalloc_tests_init(void)
+>         kasan_alloca_oob_right();
+>         ksize_unpoisons_memory();
+>         copy_user_test();
+> -       use_after_scope_test();
+>         kmem_cache_double_free();
+>         kmem_cache_invalid_free();
+>         kasan_memchr();
+> diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
+> index ccb6207276e3..504c79363a34 100644
+> --- a/mm/kasan/generic.c
+> +++ b/mm/kasan/generic.c
+> @@ -275,25 +275,6 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
+>  void __asan_handle_no_return(void) {}
+>  EXPORT_SYMBOL(__asan_handle_no_return);
 >
-> -       /* First zero the BSS -- use memset_io, some platforms don't have
-> -        * caches on yet */
-> -       memset_io((void __iomem *)PTRRELOC(&__bss_start), 0,
-> -                       __bss_stop - __bss_start);
-> +       /* First zero the BSS */
-> +       memset(PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
+> -/* Emitted by compiler to poison large objects when they go out of scope. */
+> -void __asan_poison_stack_memory(const void *addr, size_t size)
+> -{
+> -       /*
+> -        * Addr is KASAN_SHADOW_SCALE_SIZE-aligned and the object is surrounded
+> -        * by redzones, so we simply round up size to simplify logic.
+> -        */
+> -       kasan_poison_shadow(addr, round_up(size, KASAN_SHADOW_SCALE_SIZE),
+> -                           KASAN_USE_AFTER_SCOPE);
+> -}
+> -EXPORT_SYMBOL(__asan_poison_stack_memory);
+> -
+> -/* Emitted by compiler to unpoison large objects when they go into scope. */
+> -void __asan_unpoison_stack_memory(const void *addr, size_t size)
+> -{
+> -       kasan_unpoison_shadow(addr, size);
+> -}
+> -EXPORT_SYMBOL(__asan_unpoison_stack_memory);
+> -
+>  /* Emitted by compiler to poison alloca()ed objects. */
+>  void __asan_alloca_poison(unsigned long addr, size_t size)
+>  {
+> diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
+> index 5e12035888f2..36c645939bc9 100644
+> --- a/mm/kasan/generic_report.c
+> +++ b/mm/kasan/generic_report.c
+> @@ -82,9 +82,6 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+>         case KASAN_KMALLOC_FREE:
+>                 bug_type = "use-after-free";
+>                 break;
+> -       case KASAN_USE_AFTER_SCOPE:
+> -               bug_type = "use-after-scope";
+> -               break;
+>         case KASAN_ALLOCA_LEFT:
+>         case KASAN_ALLOCA_RIGHT:
+>                 bug_type = "alloca-out-of-bounds";
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index ea51b2d898ec..3e0c11f7d7a1 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -34,7 +34,6 @@
+>  #define KASAN_STACK_MID         0xF2
+>  #define KASAN_STACK_RIGHT       0xF3
+>  #define KASAN_STACK_PARTIAL     0xF4
+> -#define KASAN_USE_AFTER_SCOPE   0xF8
 >
->         /*
->          * Identify the CPU type and fix up code sections
+>  /*
+>   * alloca redzone shadow values
+> @@ -187,8 +186,6 @@ void __asan_unregister_globals(struct kasan_global *globals, size_t size);
+>  void __asan_loadN(unsigned long addr, size_t size);
+>  void __asan_storeN(unsigned long addr, size_t size);
+>  void __asan_handle_no_return(void);
+> -void __asan_poison_stack_memory(const void *addr, size_t size);
+> -void __asan_unpoison_stack_memory(const void *addr, size_t size);
+>  void __asan_alloca_poison(unsigned long addr, size_t size);
+>  void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom);
+>
+> diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
+> index 25c259df8ffa..f1fb8e502657 100644
+> --- a/scripts/Makefile.kasan
+> +++ b/scripts/Makefile.kasan
+> @@ -27,14 +27,9 @@ else
+>          $(call cc-param,asan-globals=1) \
+>          $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
+>          $(call cc-param,asan-stack=1) \
+> -        $(call cc-param,asan-use-after-scope=1) \
+>          $(call cc-param,asan-instrument-allocas=1)
+>  endif
+>
+> -ifdef CONFIG_KASAN_EXTRA
+> -CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
+> -endif
+> -
+>  endif # CONFIG_KASAN_GENERIC
+>
+>  ifdef CONFIG_KASAN_SW_TAGS
+> diff --git a/scripts/gcc-plugins/Kconfig b/scripts/gcc-plugins/Kconfig
+> index d45f7f36b859..d9fd9988ef27 100644
+> --- a/scripts/gcc-plugins/Kconfig
+> +++ b/scripts/gcc-plugins/Kconfig
+> @@ -68,10 +68,6 @@ config GCC_PLUGIN_LATENT_ENTROPY
+>
+>  config GCC_PLUGIN_STRUCTLEAK
+>         bool "Force initialization of variables containing userspace addresses"
+> -       # Currently STRUCTLEAK inserts initialization out of live scope of
+> -       # variables from KASAN point of view. This leads to KASAN false
+> -       # positive reports. Prohibit this combination for now.
+> -       depends on !KASAN_EXTRA
+>         help
+>           This plugin zero-initializes any structures containing a
+>           __user attribute. This can prevent some classes of information
 > --
-> 2.13.3
+> 2.19.2
 >
+> --
+> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+> To post to this group, send email to kasan-dev@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/20190111185842.13978-1-aryabinin%40virtuozzo.com.
+> For more options, visit https://groups.google.com/d/optout.
 
