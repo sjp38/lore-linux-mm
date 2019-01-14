@@ -1,51 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 85E378E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 09:03:04 -0500 (EST)
-Received: by mail-ua1-f71.google.com with SMTP id c26so1522501uap.13
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 06:03:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e15sor322585vsa.13.2019.01.14.06.03.03
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E748E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 09:32:54 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id e12so9057668edd.16
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 06:32:54 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h6si2139075edk.66.2019.01.14.06.32.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 14 Jan 2019 06:03:03 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Jan 2019 06:32:52 -0800 (PST)
+Date: Mon, 14 Jan 2019 15:32:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v9] mm/page_alloc.c: memory_hotplug: free pages as higher
+ order
+Message-ID: <20190114143251.GI21345@dhcp22.suse.cz>
+References: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
+ <f65b1b22426855ff261b3af719e58eded576a168.camel@linux.intel.com>
+ <fa3dc06536a8ba980c4434806204017a@codeaurora.org>
 MIME-Version: 1.0
-References: <20190114125903.24845-1-david@redhat.com> <20190114125903.24845-6-david@redhat.com>
-In-Reply-To: <20190114125903.24845-6-david@redhat.com>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Mon, 14 Jan 2019 15:02:50 +0100
-Message-ID: <CAMuHMdWEChb4+tf0m_qN9Mc6Am5T0rZLqAn6QsQ8NdMOCRPySQ@mail.gmail.com>
-Subject: Re: [PATCH v2 5/9] m68k/mm: use __ClearPageReserved()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fa3dc06536a8ba980c4434806204017a@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-riscv@lists.infradead.org, linux-s390 <linux-s390@vger.kernel.org>, linux-mediatek@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: Arun KS <arunks@codeaurora.org>
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>, arunks.linux@gmail.com, akpm@linux-foundation.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-On Mon, Jan 14, 2019 at 1:59 PM David Hildenbrand <david@redhat.com> wrote:
-> The PG_reserved flag is cleared from memory that is part of the kernel
-> image (and therefore marked as PG_reserved). Avoid using PG_reserved
-> directly.
->
-> Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
+On Mon 14-01-19 19:29:39, Arun KS wrote:
+> On 2019-01-10 21:53, Alexander Duyck wrote:
+[...]
+> > Couldn't you just do something like the following:
+> > 		if ((end - start) >= (1UL << (MAX_ORDER - 1))
+> > 			order = MAX_ORDER - 1;
+> > 		else
+> > 			order = __fls(end - start);
+> > 
+> > I would think this would save you a few steps in terms of conversions
+> > and such since you are already working in page frame numbers anyway so
+> > a block of 8 pfns would represent an order 3 page wouldn't it?
+> > 
+> > Also it seems like an alternative to using "end" would be to just track
+> > nr_pages. Then you wouldn't have to do the "end - start" math in a few
+> > spots as long as you remembered to decrement nr_pages by the amount you
+> > increment start by.
+> 
+> Thanks for that. How about this?
+> 
+> static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
+> {
+>         unsigned long end = start + nr_pages;
+>         int order;
+> 
+>         while (nr_pages) {
+>                 if (nr_pages >= (1UL << (MAX_ORDER - 1)))
+>                         order = MAX_ORDER - 1;
+>                 else
+>                         order = __fls(nr_pages);
+> 
+>                 (*online_page_callback)(pfn_to_page(start), order);
+>                 nr_pages -= (1UL << order);
+>                 start += (1UL << order);
+>         }
+>         return end - start;
+> }
 
-Acked-by: Geert Uytterhoeven <geert@linux-m68k.org>
+I find this much less readable so if this is really a big win
+performance wise then make it a separate patch with some nubbers please.
 
-BTW, it's a pity ctags doesn't know where __ClearPageReserved()
-is defined.
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+-- 
+Michal Hocko
+SUSE Labs
