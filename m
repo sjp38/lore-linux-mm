@@ -1,89 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 550238E0002
-	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 21:12:30 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t72so15174674pfi.21
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 18:12:30 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 44si21253607plc.110.2019.01.13.18.12.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Jan 2019 18:12:29 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm, swap: Potential NULL dereference in get_swap_page_of_type()
-References: <20190111095919.GA1757@kadam>
-	<20190111174128.oak64htbntvp7j6y@ca-dmjordan1.us.oracle.com>
-Date: Mon, 14 Jan 2019 10:12:25 +0800
-In-Reply-To: <20190111174128.oak64htbntvp7j6y@ca-dmjordan1.us.oracle.com>
-	(Daniel Jordan's message of "Fri, 11 Jan 2019 09:41:28 -0800")
-Message-ID: <87r2dgm1h2.fsf@yhuang-dev.intel.com>
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7618D8E0002
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:01:07 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id b7so8431688eda.10
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 20:01:07 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c21si1794670edt.291.2019.01.13.20.01.05
+        for <linux-mm@kvack.org>;
+        Sun, 13 Jan 2019 20:01:05 -0800 (PST)
+Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
+References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
+ <20190113173555.GC1578@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <f9f333a5-5533-996a-dc8e-1ff1096c1d19@arm.com>
+Date: Mon, 14 Jan 2019 09:30:55 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20190113173555.GC1578@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Dan Carpenter <dan.carpenter@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Omar Sandoval <osandov@fb.com>, Tejun Heo <tj@kernel.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, andrea.parri@amarulasolutions.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com
 
-Hi, Daniel,
 
-Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-> On Fri, Jan 11, 2019 at 12:59:19PM +0300, Dan Carpenter wrote:
->> Smatch complains that the NULL checks on "si" aren't consistent.  This
->> seems like a real bug because we have not ensured that the type is
->> valid and so "si" can be NULL.
->> 
->> Fixes: ec8acf20afb8 ("swap: add per-partition lock for swapfile")
->> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
->> ---
->>  mm/swapfile.c | 6 +++++-
->>  1 file changed, 5 insertions(+), 1 deletion(-)
->> 
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index f0edf7244256..21e92c757205 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -1048,9 +1048,12 @@ swp_entry_t get_swap_page_of_type(int type)
->>  	struct swap_info_struct *si;
->>  	pgoff_t offset;
->>  
->> +	if (type >= nr_swapfiles)
->> +		goto fail;
->> +
->
-> As long as we're worrying about NULL, I think there should be an smp_rmb here
-> to ensure swap_info[type] isn't NULL in case of an (admittedly unlikely) racing
-> swapon that increments nr_swapfiles.  See smp_wmb in alloc_swap_info and the
-> matching smp_rmb's in the file.  And READ_ONCE's on either side of the barrier
-> per LKMM.
+On 01/13/2019 11:05 PM, Michal Hocko wrote:
+> On Sat 12-01-19 15:56:38, Anshuman Khandual wrote:
+>> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
+>> __GFP_ZERO) and using it for allocating page table pages. This causes some
+>> code duplication which can be easily avoided. GFP_KERNEL allocated and
+>> cleared out pages (__GFP_ZERO) are required for page tables on any given
+>> architecture. This creates a new generic GFP flag flag which can be used
+>> for any page table page allocation. Does not cause any functional change.
+> 
+> I agree that some unification is due but GFP_PGTABLE is not something to
+> expose in generic gfp.h IMHO. It just risks an abuse. I would be looking
 
-I think you are right here.  And smp_rmb() for nr_swapfiles are missing
-in many other places in swapfile.c too (e.g. __swap_info_get(),
-swapdev_block(), etc.).
+Why would you think that it risks an abuse ? It does not create new semantics
+of allocation in the buddy. Its just uses existing GFP_KERNEL allocation which
+is then getting zeroed out. The risks (if any) is exactly same as GFP_KERNEL.
 
-In theory, I think we need to fix this.
+> at providing asm-generic implementation and reuse it to remove the code
 
-Best Regards,
-Huang, Ying
+Does that mean GFP_PGTABLE can be created but not in gfp.h but in some other
+memory related header file ?
 
-> I'm adding Andrea (randomly selected from the many LKMM folks to avoid spamming
-> all) who can correct me if I'm wrong about any of this.
->
->>  	si = swap_info[type];
->>  	spin_lock(&si->lock);
->> -	if (si && (si->flags & SWP_WRITEOK)) {
->> +	if (si->flags & SWP_WRITEOK) {
->>  		atomic_long_dec(&nr_swap_pages);
->>  		/* This is called for allocating swap entry, not cache */
->>  		offset = scan_swap_map(si, 1);
->> @@ -1061,6 +1064,7 @@ swp_entry_t get_swap_page_of_type(int type)
->>  		atomic_long_inc(&nr_swap_pages);
->>  	}
->>  	spin_unlock(&si->lock);
->> +fail:
->>  	return (swp_entry_t) {0};
->>  }
->>  
->> -- 
->> 2.17.1
->> 
+> duplication. But I haven't tried that to know that it will work out due
+> to small/subtle differences between arches.
+
+IIUC from the allocation perspective GFP_ACCOUNT is the only thing which gets
+added with GFP_PGTABLE for user page table for memcg accounting purpose. There
+does not seem to be any other differences unless I am missing something.
