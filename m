@@ -1,79 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C288E8E0002
-	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:14:16 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id v4so8272064edm.18
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 20:14:16 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id j6-v6si2704967ejf.66.2019.01.13.20.14.14
-        for <linux-mm@kvack.org>;
-        Sun, 13 Jan 2019 20:14:15 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 365518E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:01:44 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id t7so8547852edr.21
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:01:44 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w26si2454260edt.407.2019.01.13.23.01.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 13 Jan 2019 23:01:42 -0800 (PST)
+Date: Mon, 14 Jan 2019 08:01:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
+Message-ID: <20190114070137.GB21345@dhcp22.suse.cz>
 References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
- <CALvZod5euX2mW7qgL28YZrTVQ-gYYR83aGKfOyZ9=BEzHwyJOw@mail.gmail.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <5e87d900-9548-1782-6244-6dcf7339139d@arm.com>
-Date: Mon, 14 Jan 2019 09:44:05 +0530
+ <20190113173555.GC1578@dhcp22.suse.cz>
+ <f9f333a5-5533-996a-dc8e-1ff1096c1d19@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod5euX2mW7qgL28YZrTVQ-gYYR83aGKfOyZ9=BEzHwyJOw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f9f333a5-5533-996a-dc8e-1ff1096c1d19@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com
 
-
-
-On 01/12/2019 10:18 PM, Shakeel Butt wrote:
->> --- a/arch/x86/kernel/espfix_64.c
->> +++ b/arch/x86/kernel/espfix_64.c
->> @@ -57,8 +57,6 @@
->>  # error "Need more virtual address space for the ESPFIX hack"
->>  #endif
->>
->> -#define PGALLOC_GFP (GFP_KERNEL | __GFP_ZERO)
->> -
->>  /* This contains the *bottom* address of the espfix stack */
->>  DEFINE_PER_CPU_READ_MOSTLY(unsigned long, espfix_stack);
->>  DEFINE_PER_CPU_READ_MOSTLY(unsigned long, espfix_waddr);
->> @@ -172,7 +170,7 @@ void init_espfix_ap(int cpu)
->>         pud_p = &espfix_pud_page[pud_index(addr)];
->>         pud = *pud_p;
->>         if (!pud_present(pud)) {
->> -               struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
->> +               struct page *page = alloc_pages_node(node, GFP_PGTABLE, 0);
->>
->>                 pmd_p = (pmd_t *)page_address(page);
->>                 pud = __pud(__pa(pmd_p) | (PGTABLE_PROT & ptemask));
->> @@ -184,7 +182,7 @@ void init_espfix_ap(int cpu)
->>         pmd_p = pmd_offset(&pud, addr);
->>         pmd = *pmd_p;
->>         if (!pmd_present(pmd)) {
->> -               struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
->> +               struct page *page = alloc_pages_node(node, GFP_PGTABLE, 0);
->>
->>                 pte_p = (pte_t *)page_address(page);
->>                 pmd = __pmd(__pa(pte_p) | (PGTABLE_PROT & ptemask));
->> diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
->> index 7bd0170..d608b03 100644
->> --- a/arch/x86/mm/pgtable.c
->> +++ b/arch/x86/mm/pgtable.c
->> @@ -13,19 +13,17 @@ phys_addr_t physical_mask __ro_after_init = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
->>  EXPORT_SYMBOL(physical_mask);
->>  #endif
->>
->> -#define PGALLOC_GFP (GFP_KERNEL_ACCOUNT | __GFP_ZERO)
->> -
-> You have silently dropped __GFP_ACCOUNT from all the allocations in this file.
-
-Right, they need to be added back explicitly after GFP_PGTABLE. Matthew had
-pointed this earlier. Will fix it next time around.
-
+On Mon 14-01-19 09:30:55, Anshuman Khandual wrote:
 > 
-> BTW why other archs not using __GFP_ACCOUNT for the user page tables?
 > 
+> On 01/13/2019 11:05 PM, Michal Hocko wrote:
+> > On Sat 12-01-19 15:56:38, Anshuman Khandual wrote:
+> >> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
+> >> __GFP_ZERO) and using it for allocating page table pages. This causes some
+> >> code duplication which can be easily avoided. GFP_KERNEL allocated and
+> >> cleared out pages (__GFP_ZERO) are required for page tables on any given
+> >> architecture. This creates a new generic GFP flag flag which can be used
+> >> for any page table page allocation. Does not cause any functional change.
+> > 
+> > I agree that some unification is due but GFP_PGTABLE is not something to
+> > expose in generic gfp.h IMHO. It just risks an abuse. I would be looking
+> 
+> Why would you think that it risks an abuse ? It does not create new semantics
+> of allocation in the buddy. Its just uses existing GFP_KERNEL allocation which
+> is then getting zeroed out. The risks (if any) is exactly same as GFP_KERNEL.
 
-Some archs do and some dont. User page tables pages should use __GFP_ACCOUNT
-for allocation. I am working on fixing it for arm64.
+Beucase my experience just tells me that people tend to use whatever
+they find and name fits what they think they need.
+
+> > at providing asm-generic implementation and reuse it to remove the code
+> 
+> Does that mean GFP_PGTABLE can be created but not in gfp.h but in some other
+> memory related header file ?
+
+I would just keep it close to its users. If that is a single arch
+generic place then only better. But I suspect some arches have special
+requirements.
+
+> > duplication. But I haven't tried that to know that it will work out due
+> > to small/subtle differences between arches.
+> 
+> IIUC from the allocation perspective GFP_ACCOUNT is the only thing which gets
+> added with GFP_PGTABLE for user page table for memcg accounting purpose. There
+> does not seem to be any other differences unless I am missing something.
+
+It's been some time since I've checked the last time. Some arches were
+using GPF_REPEAT (__GFP_RETRY_MAYFAIL) back then. I have removed most of
+those but some were doing a higher order allocations so they probably
+have stayed.
+-- 
+Michal Hocko
+SUSE Labs
