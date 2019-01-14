@@ -1,87 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 725718E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:19:11 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id t26so12558070pgu.18
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 05:19:11 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id m35si324534pgb.246.2019.01.14.05.19.09
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2568E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:24:17 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id s5so19693407iom.22
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 05:24:17 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l125sor187588iof.41.2019.01.14.05.24.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jan 2019 05:19:09 -0800 (PST)
-Subject: Re: [PATCH v11 00/26] Speculative page faults
-From: Vinayak Menon <vinmenon@codeaurora.org>
-References: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org>
-Message-ID: <5a24109c-7460-4a8e-a439-d2f2646568e6@codeaurora.org>
-Date: Mon, 14 Jan 2019 18:49:04 +0530
+        (Google Transport Security);
+        Mon, 14 Jan 2019 05:24:15 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+References: <20190111185842.13978-1-aryabinin@virtuozzo.com>
+In-Reply-To: <20190111185842.13978-1-aryabinin@virtuozzo.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 14 Jan 2019 14:24:03 +0100
+Message-ID: <CACT4Y+YV+jjcXE1oa=Gf031KAgEy40Nq83x3_nj3TwQpw3b+Ug@mail.gmail.com>
+Subject: Re: [PATCH] kasan: Remove use after scope bugs detection.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ldufour@linux.vnet.ibm.com
-Cc: Linux-MM <linux-mm@kvack.org>, charante@codeaurora.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Qian Cai <cai@lca.pw>, Alexander Potapenko <glider@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 
-On 1/11/2019 9:13 PM, Vinayak Menon wrote:
-> Hi Laurent,
+On Fri, Jan 11, 2019 at 7:58 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 >
-> We are observing an issue with speculative page fault with the following test code on ARM64 (4.14 kernel, 8 cores).
+> Use after scope bugs detector seems to be almost entirely useless
+> for the linux kernel. It exists over two years, but I've seen only
+> one valid bug so far [1]. And the bug was fixed before it has been
+> reported. There were some other use-after-scope reports, but they
+> were false-positives due to different reasons like incompatibility
+> with structleak plugin.
+>
+> This feature significantly increases stack usage, especially with
+> GCC < 9 version, and causes a 32K stack overflow. It probably
+> adds performance penalty too.
+>
+> Given all that, let's remove use-after-scope detector entirely.
+>
+> While preparing this patch I've noticed that we mistakenly enable
+> use-after-scope detection for clang compiler regardless of
+> CONFIG_KASAN_EXTRA setting. This is also fixed now.
+
+Hi Andrey,
+
+I am on a fence. On one hand removing bug detection sucks and each
+case of a missed memory corruption leads to a splash of assorted bug
+reports by syzbot. On the other hand everything you said is true.
+Maybe support for CONFIG_VMAP_STACK will enable stacks larger then
+PAGE_ALLOC_COSTLY_ORDER?
 
 
-With the patch below, we don't hit the issue.
 
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Date: Mon, 14 Jan 2019 16:06:34 +0530
-Subject: [PATCH] mm: flush stale tlb entries on speculative write fault
 
-It is observed that the following scenario results in
-threads A and B of process 1 blocking on pthread_mutex_lock
-forever after few iterations.
-
-CPU 1                   CPU 2                    CPU 3
-Process 1,              Process 1,               Process 1,
-Thread A                Thread B                 Thread C
-
-while (1) {             while (1) {              while(1) {
-pthread_mutex_lock(l)   pthread_mutex_lock(l)    fork
-pthread_mutex_unlock(l) pthread_mutex_unlock(l)  }
-}                       }
-
-When from thread C, copy_one_pte write-protects the parent pte
-(of lock l), stale tlb entries can exist with write permissions
-on one of the CPUs at least. This can create a problem if one
-of the threads A or B hits the write fault. Though dup_mmap calls
-flush_tlb_mm after copy_page_range, since speculative page fault
-does not take mmap_sem it can proceed further fixing a fault soon
-after CPU 3 does ptep_set_wrprotect. But the CPU with stale tlb
-entry can still modify old_page even after it is copied to
-new_page by wp_page_copy, thus causing a corruption.
-
-Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
----
- mm/memory.c | 7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 52080e4..1ea168ff 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4507,6 +4507,13 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
-                return VM_FAULT_RETRY;
-        }
-
-+       /*
-+        * Discard tlb entries created before ptep_set_wrprotect
-+        * in copy_one_pte
-+        */
-+       if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
-+               flush_tlb_page(vmf.vma, address);
-+
-        mem_cgroup_oom_enable();
-        ret = handle_pte_fault(&vmf);
-        mem_cgroup_oom_disable();
---
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+> [1] http://lkml.kernel.org/r/<20171129052106.rhgbjhhis53hkgfn@wfg-t540p.sh.intel.com>
+>
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Alexander Potapenko <glider@google.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> ---
+>  arch/arm64/include/asm/memory.h |  4 ----
+>  lib/Kconfig.debug               |  1 -
+>  lib/Kconfig.kasan               | 10 ----------
+>  lib/test_kasan.c                | 24 ------------------------
+>  mm/kasan/generic.c              | 19 -------------------
+>  mm/kasan/generic_report.c       |  3 ---
+>  mm/kasan/kasan.h                |  3 ---
+>  scripts/Makefile.kasan          |  5 -----
+>  scripts/gcc-plugins/Kconfig     |  4 ----
+>  9 files changed, 73 deletions(-)
+>
+> diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+> index e1ec947e7c0c..0e236a99b3ef 100644
+> --- a/arch/arm64/include/asm/memory.h
+> +++ b/arch/arm64/include/asm/memory.h
+> @@ -80,11 +80,7 @@
+>   */
+>  #ifdef CONFIG_KASAN
+>  #define KASAN_SHADOW_SIZE      (UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
+> -#ifdef CONFIG_KASAN_EXTRA
+> -#define KASAN_THREAD_SHIFT     2
+> -#else
+>  #define KASAN_THREAD_SHIFT     1
+> -#endif /* CONFIG_KASAN_EXTRA */
+>  #else
+>  #define KASAN_SHADOW_SIZE      (0)
+>  #define KASAN_THREAD_SHIFT     0
+> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> index d4df5b24d75e..a219f3488ad7 100644
+> --- a/lib/Kconfig.debug
+> +++ b/lib/Kconfig.debug
+> @@ -222,7 +222,6 @@ config ENABLE_MUST_CHECK
+>  config FRAME_WARN
+>         int "Warn for stack frames larger than (needs gcc 4.4)"
+>         range 0 8192
+> -       default 3072 if KASAN_EXTRA
+>         default 2048 if GCC_PLUGIN_LATENT_ENTROPY
+>         default 1280 if (!64BIT && PARISC)
+>         default 1024 if (!64BIT && !PARISC)
+> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+> index d8c474b6691e..67d7d1309c52 100644
+> --- a/lib/Kconfig.kasan
+> +++ b/lib/Kconfig.kasan
+> @@ -78,16 +78,6 @@ config KASAN_SW_TAGS
+>
+>  endchoice
+>
+> -config KASAN_EXTRA
+> -       bool "KASAN: extra checks"
+> -       depends on KASAN_GENERIC && DEBUG_KERNEL && !COMPILE_TEST
+> -       help
+> -         This enables further checks in generic KASAN, for now it only
+> -         includes the address-use-after-scope check that can lead to
+> -         excessive kernel stack usage, frame size warnings and longer
+> -         compile time.
+> -         See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81715
+> -
+>  choice
+>         prompt "Instrumentation type"
+>         depends on KASAN
+> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+> index 51b78405bf24..7de2702621dc 100644
+> --- a/lib/test_kasan.c
+> +++ b/lib/test_kasan.c
+> @@ -480,29 +480,6 @@ static noinline void __init copy_user_test(void)
+>         kfree(kmem);
+>  }
+>
+> -static noinline void __init use_after_scope_test(void)
+> -{
+> -       volatile char *volatile p;
+> -
+> -       pr_info("use-after-scope on int\n");
+> -       {
+> -               int local = 0;
+> -
+> -               p = (char *)&local;
+> -       }
+> -       p[0] = 1;
+> -       p[3] = 1;
+> -
+> -       pr_info("use-after-scope on array\n");
+> -       {
+> -               char local[1024] = {0};
+> -
+> -               p = local;
+> -       }
+> -       p[0] = 1;
+> -       p[1023] = 1;
+> -}
+> -
+>  static noinline void __init kasan_alloca_oob_left(void)
+>  {
+>         volatile int i = 10;
+> @@ -682,7 +659,6 @@ static int __init kmalloc_tests_init(void)
+>         kasan_alloca_oob_right();
+>         ksize_unpoisons_memory();
+>         copy_user_test();
+> -       use_after_scope_test();
+>         kmem_cache_double_free();
+>         kmem_cache_invalid_free();
+>         kasan_memchr();
+> diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
+> index ccb6207276e3..504c79363a34 100644
+> --- a/mm/kasan/generic.c
+> +++ b/mm/kasan/generic.c
+> @@ -275,25 +275,6 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
+>  void __asan_handle_no_return(void) {}
+>  EXPORT_SYMBOL(__asan_handle_no_return);
+>
+> -/* Emitted by compiler to poison large objects when they go out of scope. */
+> -void __asan_poison_stack_memory(const void *addr, size_t size)
+> -{
+> -       /*
+> -        * Addr is KASAN_SHADOW_SCALE_SIZE-aligned and the object is surrounded
+> -        * by redzones, so we simply round up size to simplify logic.
+> -        */
+> -       kasan_poison_shadow(addr, round_up(size, KASAN_SHADOW_SCALE_SIZE),
+> -                           KASAN_USE_AFTER_SCOPE);
+> -}
+> -EXPORT_SYMBOL(__asan_poison_stack_memory);
+> -
+> -/* Emitted by compiler to unpoison large objects when they go into scope. */
+> -void __asan_unpoison_stack_memory(const void *addr, size_t size)
+> -{
+> -       kasan_unpoison_shadow(addr, size);
+> -}
+> -EXPORT_SYMBOL(__asan_unpoison_stack_memory);
+> -
+>  /* Emitted by compiler to poison alloca()ed objects. */
+>  void __asan_alloca_poison(unsigned long addr, size_t size)
+>  {
+> diff --git a/mm/kasan/generic_report.c b/mm/kasan/generic_report.c
+> index 5e12035888f2..36c645939bc9 100644
+> --- a/mm/kasan/generic_report.c
+> +++ b/mm/kasan/generic_report.c
+> @@ -82,9 +82,6 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+>         case KASAN_KMALLOC_FREE:
+>                 bug_type = "use-after-free";
+>                 break;
+> -       case KASAN_USE_AFTER_SCOPE:
+> -               bug_type = "use-after-scope";
+> -               break;
+>         case KASAN_ALLOCA_LEFT:
+>         case KASAN_ALLOCA_RIGHT:
+>                 bug_type = "alloca-out-of-bounds";
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index ea51b2d898ec..3e0c11f7d7a1 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -34,7 +34,6 @@
+>  #define KASAN_STACK_MID         0xF2
+>  #define KASAN_STACK_RIGHT       0xF3
+>  #define KASAN_STACK_PARTIAL     0xF4
+> -#define KASAN_USE_AFTER_SCOPE   0xF8
+>
+>  /*
+>   * alloca redzone shadow values
+> @@ -187,8 +186,6 @@ void __asan_unregister_globals(struct kasan_global *globals, size_t size);
+>  void __asan_loadN(unsigned long addr, size_t size);
+>  void __asan_storeN(unsigned long addr, size_t size);
+>  void __asan_handle_no_return(void);
+> -void __asan_poison_stack_memory(const void *addr, size_t size);
+> -void __asan_unpoison_stack_memory(const void *addr, size_t size);
+>  void __asan_alloca_poison(unsigned long addr, size_t size);
+>  void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom);
+>
+> diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
+> index 25c259df8ffa..f1fb8e502657 100644
+> --- a/scripts/Makefile.kasan
+> +++ b/scripts/Makefile.kasan
+> @@ -27,14 +27,9 @@ else
+>          $(call cc-param,asan-globals=1) \
+>          $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
+>          $(call cc-param,asan-stack=1) \
+> -        $(call cc-param,asan-use-after-scope=1) \
+>          $(call cc-param,asan-instrument-allocas=1)
+>  endif
+>
+> -ifdef CONFIG_KASAN_EXTRA
+> -CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
+> -endif
+> -
+>  endif # CONFIG_KASAN_GENERIC
+>
+>  ifdef CONFIG_KASAN_SW_TAGS
+> diff --git a/scripts/gcc-plugins/Kconfig b/scripts/gcc-plugins/Kconfig
+> index d45f7f36b859..d9fd9988ef27 100644
+> --- a/scripts/gcc-plugins/Kconfig
+> +++ b/scripts/gcc-plugins/Kconfig
+> @@ -68,10 +68,6 @@ config GCC_PLUGIN_LATENT_ENTROPY
+>
+>  config GCC_PLUGIN_STRUCTLEAK
+>         bool "Force initialization of variables containing userspace addresses"
+> -       # Currently STRUCTLEAK inserts initialization out of live scope of
+> -       # variables from KASAN point of view. This leads to KASAN false
+> -       # positive reports. Prohibit this combination for now.
+> -       depends on !KASAN_EXTRA
+>         help
+>           This plugin zero-initializes any structures containing a
+>           __user attribute. This can prevent some classes of information
+> --
+> 2.19.2
+>
+> --
+> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+> To post to this group, send email to kasan-dev@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/20190111185842.13978-1-aryabinin%40virtuozzo.com.
+> For more options, visit https://groups.google.com/d/optout.
