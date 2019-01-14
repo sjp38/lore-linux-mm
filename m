@@ -1,122 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0211E8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 14:42:29 -0500 (EST)
-Received: by mail-yw1-f70.google.com with SMTP id t17so83505ywc.23
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 11:42:28 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 441478E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id 124so148845ybb.9
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 12:18:21 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a84sor191680ywh.132.2019.01.14.11.42.25
+        by mx.google.com with SMTPS id q64sor266984ywd.173.2019.01.14.12.18.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 11:42:25 -0800 (PST)
-Date: Mon, 14 Jan 2019 14:42:22 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 5/5] psi: introduce psi monitor
-Message-ID: <20190114194222.GA10571@cmpxchg.org>
-References: <20190110220718.261134-1-surenb@google.com>
- <20190110220718.261134-6-surenb@google.com>
- <20190114102137.GB14054@worktop.programming.kicks-ass.net>
- <CAJuCfpGUWs0E9oPUjPTNm=WhPJcE_DBjZCtCiaVu5WXabKRW6A@mail.gmail.com>
+        Mon, 14 Jan 2019 12:18:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJuCfpGUWs0E9oPUjPTNm=WhPJcE_DBjZCtCiaVu5WXabKRW6A@mail.gmail.com>
+References: <20190110174432.82064-1-shakeelb@google.com> <20190111205948.GA4591@cmpxchg.org>
+ <CALvZod7O2CJuhbuLUy9R-E4dTgL4WBg8CayW_AFnCCG6KCDjUA@mail.gmail.com> <20190113183402.GD1578@dhcp22.suse.cz>
+In-Reply-To: <20190113183402.GD1578@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Mon, 14 Jan 2019 12:18:07 -0800
+Message-ID: <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
+Subject: Re: [PATCH v3] memcg: schedule high reclaim for remote memcgs on high_work
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, lizefan@huawei.com, axboe@kernel.dk, dennis@kernel.org, Dennis Zhou <dennisszhou@gmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jan 14, 2019 at 11:30:12AM -0800, Suren Baghdasaryan wrote:
-> On Mon, Jan 14, 2019 at 2:22 AM Peter Zijlstra <peterz@infradead.org> wrote:
+On Sun, Jan 13, 2019 at 10:34 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Fri 11-01-19 14:54:32, Shakeel Butt wrote:
+> > Hi Johannes,
 > >
-> > On Thu, Jan 10, 2019 at 02:07:18PM -0800, Suren Baghdasaryan wrote:
-> > > +/*
-> > > + * psi_update_work represents slowpath accounting part while
-> > > + * psi_group_change represents hotpath part.
-> > > + * There are two potential races between these path:
-> > > + * 1. Changes to group->polling when slowpath checks for new stall, then
-> > > + *    hotpath records new stall and then slowpath resets group->polling
-> > > + *    flag. This leads to the exit from the polling mode while monitored
-> > > + *    states are still changing.
-> > > + * 2. Slowpath overwriting an immediate update scheduled from the hotpath
-> > > + *    with a regular update further in the future and missing the
-> > > + *    immediate update.
-> > > + * Both races are handled with a retry cycle in the slowpath:
-> > > + *
-> > > + *    HOTPATH:                         |    SLOWPATH:
-> > > + *                                     |
-> > > + * A) times[cpu] += delta              | E) delta = times[*]
-> > > + * B) start_poll = (delta[poll_mask] &&|    if delta[poll_mask]:
-> > > + *      cmpxchg(g->polling, 0, 1) == 0)| F)   polling_until = now +
-> > > + *                                     |              grace_period
-> > > + *                                     |    if now > polling_until:
-> > > + *    if start_poll:                   |      if g->polling:
-> > > + * C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
-> > > + *    else if !delayed_work_pending(): | H)     goto SLOWPATH
-> > > + * D)   schedule_delayed_work(PSI_FREQ)|    else:
-> > > + *                                     |      if !g->polling:
-> > > + *                                     | I)     g->polling = polling = 1
-> > > + *                                     | J) if delta && first_pass:
-> > > + *                                     |      next_avg = calculate_averages()
-> > > + *                                     |      if polling:
-> > > + *                                     |        next_poll = poll_triggers()
-> > > + *                                     |    if (delta && first_pass) || polling:
-> > > + *                                     | K)   mod_delayed_work(
-> > > + *                                     |          min(next_avg, next_poll))
-> > > + *                                     |      if !polling:
-> > > + *                                     |        first_pass = false
-> > > + *                                     | L)     goto SLOWPATH
-> > > + *
-> > > + * Race #1 is represented by (EABGD) sequence in which case slowpath
-> > > + * deactivates polling mode because it misses new monitored stall and hotpath
-> > > + * doesn't activate it because at (B) g->polling is not yet reset by slowpath
-> > > + * in (G). This race is handled by the (H) retry, which in the race described
-> > > + * above results in the new sequence of (EABGDHEIK) that reactivates polling
-> > > + * mode.
-> > > + *
-> > > + * Race #2 is represented by polling==false && (JABCK) sequence which
-> > > + * overwrites immediate update scheduled at (C) with a later (next_avg) update
-> > > + * scheduled at (K). This race is handled by the (L) retry which results in the
-> > > + * new sequence of polling==false && (JABCKLEIK) that reactivates polling mode
-> > > + * and reschedules next polling update (next_poll).
-> > > + *
-> > > + * Note that retries can't result in an infinite loop because retry #1 happens
-> > > + * only during polling reactivation and retry #2 happens only on the first
-> > > + * pass. Constant reactivations are impossible because polling will stay active
-> > > + * for at least grace_period. Worst case scenario involves two retries (HEJKLE)
-> > > + */
+> > On Fri, Jan 11, 2019 at 12:59 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > >
+> > > Hi Shakeel,
+> > >
+> > > On Thu, Jan 10, 2019 at 09:44:32AM -0800, Shakeel Butt wrote:
+> > > > If a memcg is over high limit, memory reclaim is scheduled to run on
+> > > > return-to-userland.  However it is assumed that the memcg is the current
+> > > > process's memcg.  With remote memcg charging for kmem or swapping in a
+> > > > page charged to remote memcg, current process can trigger reclaim on
+> > > > remote memcg.  So, schduling reclaim on return-to-userland for remote
+> > > > memcgs will ignore the high reclaim altogether. So, record the memcg
+> > > > needing high reclaim and trigger high reclaim for that memcg on
+> > > > return-to-userland.  However if the memcg is already recorded for high
+> > > > reclaim and the recorded memcg is not the descendant of the the memcg
+> > > > needing high reclaim, punt the high reclaim to the work queue.
+> > >
+> > > The idea behind remote charging is that the thread allocating the
+> > > memory is not responsible for that memory, but a different cgroup
+> > > is. Why would the same thread then have to work off any high excess
+> > > this could produce in that unrelated group?
+> > >
+> > > Say you have a inotify/dnotify listener that is restricted in its
+> > > memory use - now everybody sending notification events from outside
+> > > that listener's group would get throttled on a cgroup over which it
+> > > has no control. That sounds like a recipe for priority inversions.
+> > >
+> > > It seems to me we should only do reclaim-on-return when current is in
+> > > the ill-behaved cgroup, and punt everything else - interrupts and
+> > > remote charges - to the workqueue.
 > >
-> > I'm having a fairly hard time with this. There's a distinct lack of
-> > memory ordering, and a suspicious mixing of atomic ops (cmpxchg) and
-> > regular loads and stores (without READ_ONCE/WRITE_ONCE even).
-> >
-> > Please clarify.
-> 
-> Thanks for the feedback.
-> I do mix atomic and regular loads with g->polling only because the
-> slowpath is the only one that resets it back to 0, so
-> cmpxchg(g->polling, 1, 0) == 1 at (G) would always return 1.
-> Setting g->polling back to 1 at (I) indeed needs an atomic operation
-> but at that point it does not matter whether hotpath or slowpath sets
-> it. In either case we will schedule a polling update.
-> Am I missing anything?
-> 
-> For memory ordering (which Johannes also pointed out) the critical point is:
-> 
-> times[cpu] += delta           | if g->polling:
-> smp_wmb()                     |   g->polling = polling = 0
-> cmpxchg(g->polling, 0, 1)     |   smp_rmb()
->                               |   delta = times[*] (through goto SLOWPATH)
-> 
-> So that hotpath writes to times[] then g->polling and slowpath reads
-> g->polling then times[]. cmpxchg() implies a full barrier, so we can
-> drop smp_wmb(). Something like this:
-> 
-> times[cpu] += delta           | if g->polling:
-> cmpxchg(g->polling, 0, 1)     |   g->polling = polling = 0
->                               |   smp_rmb()
->                               |   delta = times[*] (through goto SLOWPATH)
+> > This is what v1 of this patch was doing but Michal suggested to do
+> > what this version is doing. Michal's argument was that the current is
+> > already charging and maybe reclaiming a remote memcg then why not do
+> > the high excess reclaim as well.
+>
+> Johannes has a good point about the priority inversion problems which I
+> haven't thought about.
+>
+> > Personally I don't have any strong opinion either way. What I actually
+> > wanted was to punt this high reclaim to some process in that remote
+> > memcg. However I didn't explore much on that direction thinking if
+> > that complexity is worth it. Maybe I should at least explore it, so,
+> > we can compare the solutions. What do you think?
+>
+> My question would be whether we really care all that much. Do we know of
+> workloads which would generate a large high limit excess?
+>
 
-delta = times[*] is get_recent_times(), which uses a seqcount and so
-implies the smp_rmb() already as well. So we shouldn't need another
-explicit one. But the comment should point out all the barriers.
+The current semantics of memory.high is that it can be breached under
+extreme conditions. However any workload where memory.high is used and
+a lot of remote memcg charging happens (inotify/dnotify example given
+by Johannes or swapping in tmpfs file or shared memory region) the
+memory.high breach will become common.
+
+Shakeel
