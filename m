@@ -2,145 +2,186 @@ Return-Path: <SRS0=uJng=PW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5D80C43387
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 08:53:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96BC2C43387
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 09:14:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F04420659
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 08:53:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F04420659
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 51E8E20660
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 09:14:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MwN3PaR8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51E8E20660
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 169BF8E0003; Mon, 14 Jan 2019 03:53:50 -0500 (EST)
+	id DB6098E0003; Mon, 14 Jan 2019 04:14:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 117058E0002; Mon, 14 Jan 2019 03:53:50 -0500 (EST)
+	id D3D598E0002; Mon, 14 Jan 2019 04:14:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F21F68E0003; Mon, 14 Jan 2019 03:53:49 -0500 (EST)
+	id C2D338E0003; Mon, 14 Jan 2019 04:14:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B227A8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 03:53:49 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id t7so8661839edr.21
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 00:53:49 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C6E8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:14:01 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id q16so19492214ios.1
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 01:14:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=8PXnpI1n+nt7o+3stMAN9ou5aftK8y+l8P9Y1mAnsr4=;
-        b=K7mD5YiOhrFzc/8Ao1FP2R8eUTxQTj8apdrRMGl74HXP9TZ+OPPUsnYO/kdkv5YmOB
-         9hb9HIeVLcsqwV1BJenPeuFLPMDVzwdrNl3t6JzaLppUe6UsBpb+IvAt1+VBJuV09KZR
-         i5Nup/ZV79cJsgd+q4wjWlrZluxYD0TMiZav8qzQroeL3NgaLaBxUmU6Hv1suhUvu5Og
-         ziRUzrNlmwNVRAtw5M+Ukly5s7buPjcFNh7I4dKIt0ftNC2cEWJIOff4jTlzHpw1gbV2
-         +pBBeX47mzpVcXS+ZTRgEcHsxdM8mpFYQbPDt1ACArsOkzN3iMZlKIk8IX+Da+nwCjUe
-         FKlA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: AJcUukdoXXLxG4hgeDBPO3aVlH+RaRaT3pcuax71nMxHkZT0lW5xU1MY
-	l4vGH5dnic9Q7dZqNYsiSti0cQ0JjVD906V/G6ntJsk9jZJkaH82YkZceTVkQP/WlhtrY/xqr3L
-	oNvNlEBr5GHwv4nl6G/xE2CW++pQJxtRAXOJfWO8ASgWW5zlHN/Zyomt4JzWauSQzUg==
-X-Received: by 2002:a50:903c:: with SMTP id b57mr22876839eda.161.1547456029204;
-        Mon, 14 Jan 2019 00:53:49 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4kXKyfqSbgvRkCxYR9Z15zznv5uZ5+3enCuPfw/wFrbcSNu2COL10Ry6S0cRAZHbCSMu7Q
-X-Received: by 2002:a50:903c:: with SMTP id b57mr22876786eda.161.1547456027952;
-        Mon, 14 Jan 2019 00:53:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547456027; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=pIxlYDDgPHqQ9CK9up+5xb8otdBsHFZQrcLiqj227qI=;
+        b=UU+4d5NGGiwghG9HeteenXzHx8OU3Nx8wg+3ONVcL8PiokRS4pJgD0F7804BPGncwy
+         72T22CScoQVzsCRC9zE2SKjZGol4hGnanUflbtRw8V4IYNn4RWTywUTQGw6NGQ+f0q7g
+         AI9Sahhm2BIAacIt3zglP7njJN+vNkADWieEfj6hhcBZaGByhA7MWI6aYNJDEKImBgyY
+         tqoyLzdea2RuZk5n3eY7TKMePPy4m1Hb5LFpQhVxvSxUXgCWlwH0XL9WSbyPBDYXlwxX
+         KYlEKqeFlQMue1ZLze4E9JCRMfMaz9nAti4amCmNnaAdbfhAKbG7wjffYOdDBL9nUKrn
+         TjYg==
+X-Gm-Message-State: AJcUukeEopzXAtjEbSpxtuN9NXStFoixPyW9GYZI6wNZwpMwFKNtDZd2
+	bFcp4EEE/SCv8DRQyD43LhlXsS/kk3iENCYoFyz1E+qCSHhU0KkGb8fb351IBncAgclPxumMnOc
+	mIHnwyOs7NEMv0YOT8BCFvrJJ+S/f4VVc3upV6s6x/K4SKGAt+/OEfWE2bHoUhi9EJe25pe+dS2
+	r9KldXlsBYHV8T/PtgGVwrg6SJkO4r0Ij5+MdnCMVeoRdXpPQdSkVZLhY4cqnDxY9NKvWfJCw1F
+	ln4eRCZs+EkTU26uOFrK9okpQ64pvT7UXpYYzarogjVq0YuqGSyYFFNhuxpIj/mjpgx5ya76O4K
+	HsOsgPuVf7Gn5//VvOHfGYjW6uZjg/fSFQUPIGV1KGXMIICd+Heqx5dyuD7oBExSkEZFKeu3oOr
+	U
+X-Received: by 2002:a05:660c:4c5:: with SMTP id v5mr7864558itk.104.1547457241338;
+        Mon, 14 Jan 2019 01:14:01 -0800 (PST)
+X-Received: by 2002:a05:660c:4c5:: with SMTP id v5mr7864533itk.104.1547457240437;
+        Mon, 14 Jan 2019 01:14:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547457240; cv=none;
         d=google.com; s=arc-20160816;
-        b=WIc/ju0H2KRax1Bm9qhW/H5oDS+crFKcj/rjFKb7MmOLaC/00QEAtcCsGreEct5xsY
-         yhC7afBXdLu4mAe09R2knU8VcPkpbkdEzrMSv4nxj3W+fhwD2/NqgsxIynWFqBzc+JoT
-         pgFF5pvk/4DqnSpNEZ4mDhr9DkpoJoHrsvouOId82dq1kC2yEWDW6dWKZCRkebxUF/Ad
-         yR1/jSTUYVAHW+e6hBAF1NIBWJkHr62romAjOyr7e/ufYHTs9DBX2SxUDEfYwpeKp1Eb
-         bDkGlSgz/ftNcnlBCCCo/j52R7vwSl72gfheviXLqAzivKsHcQga7KrLUz8d3tEIw5/U
-         rWRw==
+        b=rgTkBohG3qmRrcjLKm3xR4MePidmFO3Q8hPKK2fDGPoiCb/LJ3/m9BsvabCxDRbGYt
+         vrCLimoRClLvz9f8nqj9W6hI7g0mkghxk5nIHYKTj9kICOxnvfaa6fnM03fhSDW7ZiFV
+         r+3IwmM7vV9bFWNjrxqNp3bKzw53Mt/lf3/a0T8Rxgo9vhZhub5KFpHf4PleMufdvMdN
+         dW0qXy1AjXjzSs+1F//XSIWDgCQ2r3MT+LbCcC104ItsYQ66a2Dii3NXCNva58cbM+ZH
+         q0s3xD7Vddy/zZxPzmzDTazzSQO3ZeRqpeQF8/I7RHuSeX56SlGdo4Xtmf4tp7L5wFS9
+         Yy9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=8PXnpI1n+nt7o+3stMAN9ou5aftK8y+l8P9Y1mAnsr4=;
-        b=M41FCqNzbBPwnV/Y5aYgM2jeoof6pG4zbJBlDDxNpPVFhpBCQA4dkM0vbOV1WLFnn/
-         YWJlrqOA0xmhzU/Hbrd8S/zbcKWnd8giS4473sZUSbT+PMaCLQzlDT66hHT/PtESGvh5
-         msrNireTkIbY+OYAMHfxxhonHFGz/tyhmGcH2Euy6D9cJgSnbYIq1E9OXib4rUZ4X1VX
-         rWFfCmm4ZpYvUF1A8nht2G1e2fyJ+40pTCXqiBSj+XiRb/QpWWUUCs7p/7sR9a38W/lC
-         wKqpA8e7dB2fC9bPZ9dkH4Ygjd6wxUMep/pSgdkIx/lur+lyYS7wljXIo+QKtA90wI+m
-         damQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=pIxlYDDgPHqQ9CK9up+5xb8otdBsHFZQrcLiqj227qI=;
+        b=0Oigz385FcD+CsiotPK/OujMI5T6kzfm4YQ4X3kVmOnEWnT9pitRbPdp7sJGNIyDkT
+         76CexoCYaM7679H5OWM/2VCol3s8Niwn6vnjxZCB2Rf1OfKBu6zce/GISMXUnKQR4Sxa
+         9dRWxsYLryTwPLYkbS+aBm323GYIdpH/wEAbMes2KKQooo6ArcqpWTWuBBTlVRTkmIze
+         h3pbTEb4hsM09N0RYfnsr6bqxPUlU0VGJP7nscYECmOSXebdFcvSfdGP1t9BS8VfyCgd
+         dncWmdzoqMe63yOXuKG+86S/Bs5qtZ9pSINphOfGXWr6RWx0wOb7Q1bnoVsZgC/f2Azw
+         UIXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e19-v6si623031ejd.292.2019.01.14.00.53.47
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MwN3PaR8;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x64sor47271743iof.102.2019.01.14.01.14.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jan 2019 00:53:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 14 Jan 2019 01:14:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 278D1AC24;
-	Mon, 14 Jan 2019 08:53:47 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id E0E7E1E157A; Mon, 14 Jan 2019 09:53:46 +0100 (CET)
-From: Jan Kara <jack@suse.cz>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>,
-	<linux-fsdevel@vger.kernel.org>,
-	<linux-mm@kvack.org>,
-	Jan Kara <jack@suse.cz>
-Subject: [PATCH] vfs: Avoid softlockups in drop_pagecache_sb()
-Date: Mon, 14 Jan 2019 09:53:43 +0100
-Message-Id: <20190114085343.15011-1-jack@suse.cz>
-X-Mailer: git-send-email 2.16.4
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MwN3PaR8;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=pIxlYDDgPHqQ9CK9up+5xb8otdBsHFZQrcLiqj227qI=;
+        b=MwN3PaR8w30I5kdZvUms5ZTH3nwICZq9dTAN4QjnKrcqsCkNJLnDKbNjS8MsmPGBlr
+         fgEOK+TxlotTOZ9inRI1NPpRxl1l3crjyFrCy2my731zsyJDvGGbmh4hFPRpHDnRC/bD
+         dJpwonPJCy0Q10vAMOwfU+H5JdqqqjyR399pkR9ou5+kD0l9CDnmsDbb17ldt0WmteV3
+         FzCCM9kxKBavP7qHHBQQ///e/gIXcKLw8t9eVRv6BU8jrhdXprIMz+x4GjkVMYH+GOL8
+         gQuYR1NmR3hSoCN9HX20xuXu3ROaPLlHn3sYcVd4+4d4qTDeZF3gCFDcrQCIlGIsV8u/
+         aebA==
+X-Google-Smtp-Source: ALg8bN4Y4wLB7NmE9fU3NzatGqFg3PqsV2WiWgzvw22LG+vbKmq8sNOClWoHbRl8jCvp8sUF7FehuWDdsVfejKw45Dg=
+X-Received: by 2002:a5e:de01:: with SMTP id e1mr15764932iok.137.1547457239825;
+ Mon, 14 Jan 2019 01:13:59 -0800 (PST)
+MIME-Version: 1.0
+References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+ <1547183577-20309-4-git-send-email-kernelfans@gmail.com> <20190114075113.GB1973@rapoport-lnx>
+ <CAFgQCTtN4CGFz5xf+uci1ow032oQMB5pExHG01EtgrOpqXrJKA@mail.gmail.com> <20190114085037.GC1973@rapoport-lnx>
+In-Reply-To: <20190114085037.GC1973@rapoport-lnx>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Mon, 14 Jan 2019 17:13:48 +0800
+Message-ID:
+ <CAFgQCTtKO445m9rq+cxuX2PqBW4uTNh=62ETFt7zVQGCZ4RaXA@mail.gmail.com>
+Subject: Re: [PATCHv2 3/7] mm/memblock: introduce allocation boundary for
+ tracing purpose
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, 
+	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
+	Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, 
+	Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, 
+	Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, 
+	Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, 
+	linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190114085343.yadRcp5VZa2RXgdRFw-QphE-Uu6_GYE2asK52Fo1m4A@z>
+Message-ID: <20190114091348.DYM48NrQf1gDlZhY6gGyFmZ0FNlAsXqich2bIUy3atY@z>
 
-When superblock has lots of inodes without any pagecache (like is the
-case for /proc), drop_pagecache_sb() will iterate through all of them
-without dropping sb->s_inode_list_lock which can lead to softlockups
-(one of our customers hit this).
+On Mon, Jan 14, 2019 at 4:50 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+>
+> On Mon, Jan 14, 2019 at 04:33:50PM +0800, Pingfan Liu wrote:
+> > On Mon, Jan 14, 2019 at 3:51 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> > >
+> > > Hi Pingfan,
+> > >
+> > > On Fri, Jan 11, 2019 at 01:12:53PM +0800, Pingfan Liu wrote:
+> > > > During boot time, there is requirement to tell whether a series of func
+> > > > call will consume memory or not. For some reason, a temporary memory
+> > > > resource can be loan to those func through memblock allocator, but at a
+> > > > check point, all of the loan memory should be turned back.
+> > > > A typical using style:
+> > > >  -1. find a usable range by memblock_find_in_range(), said, [A,B]
+> > > >  -2. before calling a series of func, memblock_set_current_limit(A,B,true)
+> > > >  -3. call funcs
+> > > >  -4. memblock_find_in_range(A,B,B-A,1), if failed, then some memory is not
+> > > >      turned back.
+> > > >  -5. reset the original limit
+> > > >
+> > > > E.g. in the case of hotmovable memory, some acpi routines should be called,
+> > > > and they are not allowed to own some movable memory. Although at present
+> > > > these functions do not consume memory, but later, if changed without
+> > > > awareness, they may do. With the above method, the allocation can be
+> > > > detected, and pr_warn() to ask people to resolve it.
+> > >
+> > > To ensure there were that a sequence of function calls didn't create new
+> > > memblock allocations you can simply check the number of the reserved
+> > > regions before and after that sequence.
+> > >
+> > Yes, thank you point out it.
+> >
+> > > Still, I'm not sure it would be practical to try tracking what code that's called
+> > > from x86::setup_arch() did memory allocation.
+> > > Probably a better approach is to verify no memory ended up in the movable
+> > > areas after their extents are known.
+> > >
+> > It is a probability problem whether allocated memory sit on hotmovable
+> > memory or not. And if warning based on the verification, then it is
+> > also a probability problem and maybe we will miss it.
+>
+> I'm not sure I'm following you here.
+>
+> After the hotmovable memory configuration is detected it is possible to
+> traverse reserved memblock areas and warn if some of them reside in the
+> hotmovable memory.
+>
+Oh, sorry that I did not explain it accurately. Let use say a machine
+with nodeA/B/C from low to high memory address. With top-down
+allocation by default, at this point, memory will always be allocated
+from nodeC. But it depends on machine whether nodeC is hotmovable or
+not. The verification can pass on a machine with unmovable nodeC , but
+fails on a machine with movable nodeC. It will be a probability issue.
 
-Fix the problem by going to the slow path and doing cond_resched() in
-case the process needs rescheduling.
+Thanks
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/drop_caches.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-Andrew, can you please merge this patch? Thanks!
-
-diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-index 82377017130f..d31b6c72b476 100644
---- a/fs/drop_caches.c
-+++ b/fs/drop_caches.c
-@@ -21,8 +21,13 @@ static void drop_pagecache_sb(struct super_block *sb, void *unused)
- 	spin_lock(&sb->s_inode_list_lock);
- 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
- 		spin_lock(&inode->i_lock);
-+		/*
-+		 * We must skip inodes in unusual state. We may also skip
-+		 * inodes without pages but we deliberately won't in case
-+		 * we need to reschedule to avoid softlockups.
-+		 */
- 		if ((inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW)) ||
--		    (inode->i_mapping->nrpages == 0)) {
-+		    (inode->i_mapping->nrpages == 0 && !need_resched())) {
- 			spin_unlock(&inode->i_lock);
- 			continue;
- 		}
-@@ -30,6 +35,7 @@ static void drop_pagecache_sb(struct super_block *sb, void *unused)
- 		spin_unlock(&inode->i_lock);
- 		spin_unlock(&sb->s_inode_list_lock);
- 
-+		cond_resched();
- 		invalidate_mapping_pages(inode->i_mapping, 0, -1);
- 		iput(toput_inode);
- 		toput_inode = inode;
--- 
-2.16.4
+[...]
 
