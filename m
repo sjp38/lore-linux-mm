@@ -1,97 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 154AF8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 11:41:31 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id 202so12916639pgb.6
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:41:31 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id d90si719093pld.148.2019.01.14.08.41.29
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 196768E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 11:54:07 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id 49so8849949wra.14
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:54:07 -0800 (PST)
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (mail-eopbgr700080.outbound.protection.outlook.com. [40.107.70.80])
+        by mx.google.com with ESMTPS id w129si20814634wmb.25.2019.01.14.08.54.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jan 2019 08:41:29 -0800 (PST)
-Message-ID: <d242b75461b38f4910ed619fabc0f9b52dce7f8b.camel@linux.intel.com>
-Subject: Re: [PATCH v9] mm/page_alloc.c: memory_hotplug: free pages as
- higher order
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Date: Mon, 14 Jan 2019 08:41:29 -0800
-In-Reply-To: <20190114143251.GI21345@dhcp22.suse.cz>
-References: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
-	 <f65b1b22426855ff261b3af719e58eded576a168.camel@linux.intel.com>
-	 <fa3dc06536a8ba980c4434806204017a@codeaurora.org>
-	 <20190114143251.GI21345@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 14 Jan 2019 08:54:05 -0800 (PST)
+From: "Harrosh, Boaz" <Boaz.Harrosh@netapp.com>
+Subject: Re: [RFC PATCH] mm: align anon mmap for THP
+Date: Mon, 14 Jan 2019 16:54:02 +0000
+Message-ID: 
+ <MWHPR06MB289605B9E1B4234674CB87E2EE800@MWHPR06MB2896.namprd06.prod.outlook.com>
+References: <20190111201003.19755-1-mike.kravetz@oracle.com>
+ <20190111215506.jmp2s5end2vlzhvb@black.fi.intel.com>
+ <ebd57b51-117b-4a3d-21d9-fc0287f437d6@oracle.com>
+ <20190114135001.w2wpql53zitellus@kshutemo-mobl1>
+ <MWHPR06MB2896ACD09C21B2939959C8A8EE800@MWHPR06MB2896.namprd06.prod.outlook.com>,<20190114164004.GL21345@dhcp22.suse.cz>
+In-Reply-To: <20190114164004.GL21345@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Arun KS <arunks@codeaurora.org>
-Cc: arunks.linux@gmail.com, akpm@linux-foundation.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Mike Kravetz <mike.kravetz@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Toshi Kani <toshi.kani@hpe.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 2019-01-14 at 15:32 +0100, Michal Hocko wrote:
-> On Mon 14-01-19 19:29:39, Arun KS wrote:
-> > On 2019-01-10 21:53, Alexander Duyck wrote:
-> 
-> [...]
-> > > Couldn't you just do something like the following:
-> > > 		if ((end - start) >= (1UL << (MAX_ORDER - 1))
-> > > 			order = MAX_ORDER - 1;
-> > > 		else
-> > > 			order = __fls(end - start);
-> > > 
-> > > I would think this would save you a few steps in terms of conversions
-> > > and such since you are already working in page frame numbers anyway so
-> > > a block of 8 pfns would represent an order 3 page wouldn't it?
-> > > 
-> > > Also it seems like an alternative to using "end" would be to just track
-> > > nr_pages. Then you wouldn't have to do the "end - start" math in a few
-> > > spots as long as you remembered to decrement nr_pages by the amount you
-> > > increment start by.
-> > 
-> > Thanks for that. How about this?
-> > 
-> > static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
-> > {
-> >         unsigned long end = start + nr_pages;
-> >         int order;
-> > 
-> >         while (nr_pages) {
-> >                 if (nr_pages >= (1UL << (MAX_ORDER - 1)))
-> >                         order = MAX_ORDER - 1;
-> >                 else
-> >                         order = __fls(nr_pages);
-> > 
-> >                 (*online_page_callback)(pfn_to_page(start), order);
-> >                 nr_pages -= (1UL << order);
-> >                 start += (1UL << order);
-> >         }
-> >         return end - start;
-> > }
-> 
-> I find this much less readable so if this is really a big win
-> performance wise then make it a separate patch with some nubbers please.
+Michal Hocko <mhocko@kernel.org> wrote:
 
-I suppose we could look at simplifying this further. Maybe something
-like:
-	unsigned long end = start + nr_pages;
-	int order = MAX_ORDER - 1;
+<>
+> What does prevent you from mapping a larger area and MAP_FIXED,
+> PROT_NONE over it to get the protection?
 
-	while (start < end) {
-		if ((end - start) < (1UL << (MAX_ORDER - 1))
-			order = __fls(end - start));
-		(*online_page_callback)(pfn_to_page(start), order);
-		start += 1UL << order;
-	}
+Yes Thanks I will try. That's good.
 
-	return nr_pages;
+>> > For THP, I believe, kernel already does The Right Thing=99 for most us=
+ers.
+>> > User still may want to get speific range as THP (to avoid false sharin=
+g or
+>> > something).
+>>
+>> I'm an OK Kernel programmer.  But I was not able to create a HugePage ma=
+pping
+>> against /dev/shm/ in a reliable way. I think it only worked on Fedora 28=
+/29
+>> but not on any other distro/version. (MMAP_HUGE)
+>
+> Are you mixing hugetlb rather than THP?
 
-I would argue it probably doesn't get much more readable than this. The
-basic idea is we are chopping off MAX_ORDER - 1 sized chunks and
-setting them online until we have to start working our way down in
-powers of 2.
+Probably. I was looking for the easiest way to get my mmap based memory all=
+ocations
+to be 2M based instead of 4k. to get better IO characteristics across the K=
+ernel.
+But I kept getting the 4k pointers. (Can't really remember all the things I=
+ tried.)
 
-In terms of performance the loop itself isn't going to have that much
-impact. The bigger issue as I saw it was that we were going through and
-converting PFNs to a physical addresses just for the sake of contorting
-things to make them work with get_order when we already have the PFN
-numbers so all we really need to know is the most significant bit for
-the total page count.
+>> We run with our own compiled Kernel on various distros, THP is configure=
+d
+>> in but mmap against /dev/shm/ never gives me Huge pages. Does it only
+>> work with unanimous mmap ? (I think it is mount dependent which is not
+>> in the application control)
+>
+> If you are talking about THP then you have to enable huge pages for the
+> mapping AFAIR.
+
+This is exactly what I was looking to achieve but was not able to do. Most =
+probably
+a stupid omission on my part, but just to show that it is not that trivial =
+and strait
+out-of-the-man-page way to do it.  (Would love a code snippet if you ever w=
+rote one?)
+
+> --
+> Michal Hocko
+> SUSE Labs
+
+Thanks man
+Boaz
