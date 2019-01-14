@@ -1,140 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8318E8E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 18:23:29 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id a2so9365003pgt.11
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2019 15:23:29 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id f13si6872492pln.368.2019.01.11.15.23.28
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8934A8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 10:11:38 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id m128so9674711itd.3
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 07:11:38 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 23sor1519167jal.5.2019.01.14.07.11.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jan 2019 15:23:28 -0800 (PST)
-Subject: Re: [RFC PATCH v7 00/16] Add support for eXclusive Page Frame
- Ownership
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
- <31fe7522-0a59-94c8-663e-049e9ad2bff6@intel.com>
- <7e3b2c4b-51ff-2027-3a53-8c798c2ca588@oracle.com>
- <8ffc77a9-6eae-7287-0ea3-56bfb61758cd@intel.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <783eefa3-9725-34c1-9729-2453274b1736@oracle.com>
-Date: Fri, 11 Jan 2019 16:23:02 -0700
+        (Google Transport Security);
+        Mon, 14 Jan 2019 07:11:37 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <8ffc77a9-6eae-7287-0ea3-56bfb61758cd@intel.com>
-Content-Type: multipart/mixed;
- boundary="------------4D9466AD76737D0389537E8D"
-Content-Language: en-US
+References: <20180720130602.f3d6dc4c943558875a36cb52@linux-foundation.org>
+ <a2df1f24-f649-f5d8-0b2d-66d45b6cb61f@i-love.sakura.ne.jp>
+ <20180806100928.x7anab3c3y5q4ssa@quack2.suse.cz> <e8a23623-feaf-7730-5492-b329cb0daa21@i-love.sakura.ne.jp>
+ <20190102144015.GA23089@quack2.suse.cz> <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
+ <20190102172636.GA29127@quack2.suse.cz> <bf209c90-3624-68cd-c0db-86a91210f873@i-love.sakura.ne.jp>
+ <20190108112425.GC8076@quack2.suse.cz> <CACT4Y+bxUJ-6dLch+orY0AcjrvJhXq1=ELvHciX5M-gd5bdPpA@mail.gmail.com>
+ <20190109133006.GG15397@quack2.suse.cz>
+In-Reply-To: <20190109133006.GG15397@quack2.suse.cz>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 14 Jan 2019 16:11:25 +0100
+Message-ID: <CACT4Y+bTos-xu42v4D_5JCkymjPsEFM3hiYydmnXV4fpV=sRoQ@mail.gmail.com>
+Subject: Re: INFO: task hung in generic_file_write_iter
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andi Kleen <ak@linux.intel.com>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-This is a multi-part message in MIME format.
---------------4D9466AD76737D0389537E8D
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Wed, Jan 9, 2019 at 2:30 PM Jan Kara <jack@suse.cz> wrote:
+>
+> On Tue 08-01-19 12:49:08, Dmitry Vyukov wrote:
+> > On Tue, Jan 8, 2019 at 12:24 PM Jan Kara <jack@suse.cz> wrote:
+> > >
+> > > On Tue 08-01-19 19:04:06, Tetsuo Handa wrote:
+> > > > On 2019/01/03 2:26, Jan Kara wrote:
+> > > > > On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
+> > > > >> On 2019/01/02 23:40, Jan Kara wrote:
+> > > > >>> I had a look into this and the only good explanation for this I have is
+> > > > >>> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
+> > > > >>> If that would happen, we'd get exactly the behavior syzkaller observes
+> > > > >>> because grow_buffers() would populate different page than
+> > > > >>> __find_get_block() then looks up.
+> > > > >>>
+> > > > >>> However I don't see how that's possible since the filesystem has the block
+> > > > >>> device open exclusively and blkdev_bszset() makes sure we also have
+> > > > >>> exclusive access to the block device before changing the block device size.
+> > > > >>> So changing block device block size after filesystem gets access to the
+> > > > >>> device should be impossible.
+> > > > >>>
+> > > > >>> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
+> > > > >>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
+> > > > >>> whether my theory is right or not. Thanks!
+> > > > >>>
+> > > >
+> > > > Got two reports. 'size' is 512 while bdev->bd_inode->i_blkbits is 12.
+> > > >
+> > > > https://syzkaller.appspot.com/text?tag=CrashLog&x=1237c3ab400000
+> > > >
+> > > > [  385.723941][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+> > > > (...snipped...)
+> > > > [  568.159544][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+> > >
+> > > Right, so indeed the block size in the superblock and in the block device
+> > > gets out of sync which explains why we endlessly loop in the buffer cache
+> > > code. The superblock uses blocksize of 512 while the block device thinks
+> > > the set block size is 4096.
+> > >
+> > > And after staring into the code for some time, I finally have a trivial
+> > > reproducer:
+> > >
+> > > truncate -s 1G /tmp/image
+> > > losetup /dev/loop0 /tmp/image
+> > > mkfs.ext4 -b 1024 /dev/loop0
+> > > mount -t ext4 /dev/loop0 /mnt
+> > > losetup -c /dev/loop0
+> > > l /mnt
+> > > <hangs>
+> > >
+> > > And the problem is that LOOP_SET_CAPACITY ioctl ends up reseting block
+> > > device block size to 4096 by calling bd_set_size(). I have to think how to
+> > > best fix this...
+> > >
+> > > Thanks for your help with debugging this!
+> >
+> > Wow! I am very excited.
+> > We have 587 open "task hung" reports, I suspect this explains lots of them.
+> > What would be some pattern that we can use to best-effort distinguish
+> > most manifestations? Skimming through few reports I see "inode_lock",
+> > "get_super", "blkdev_put" as common indicators. Anything else?
+>
+> Well, there will be always looping task with __getblk_gfp() on its stack
+> (which should be visible in the stacktrace generated by the stall
+> detector). Then there can be lots of other processes getting blocked due to
+> locks and other resources held by this task...
 
-On 1/11/19 1:42 PM, Dave Hansen wrote:
->>> The second process could easily have the page's old TLB entry.  It co=
-uld
->>> abuse that entry as long as that CPU doesn't context switch
->>> (switch_mm_irqs_off()) or otherwise flush the TLB entry.
->>
->> That is an interesting scenario. Working through this scenario, physma=
-p
->> TLB entry for a page is flushed on the local processor when the page i=
-s
->> allocated to userspace, in xpfo_alloc_pages(). When the userspace pass=
-es
->> page back into kernel, that page is mapped into kernel space using a v=
-a
->> from kmap pool in xpfo_kmap() which can be different for each new
->> mapping of the same page. The physical page is unmapped from kernel on=
 
->> the way back from kernel to userspace by xpfo_kunmap(). So two process=
-es
->> on different CPUs sharing same physical page might not be seeing the
->> same virtual address for that page while they are in the kernel, as lo=
-ng
->> as it is an address from kmap pool. ret2dir attack relies upon being
->> able to craft a predictable virtual address in the kernel physmap for =
-a
->> physical page and redirect execution to that address. Does that sound =
-right?
->=20
-> All processes share one set of kernel page tables.  Or, did your patche=
-s
-> change that somehow that I missed?
->=20
-> Since they share the page tables, they implicitly share kmap*()
-> mappings.  kmap_atomic() is not *used* by more than one CPU, but the
-> mapping is accessible and at least exists for all processors.
->=20
-> I'm basically assuming that any entry mapped in a shared page table is
-> exploitable on any CPU regardless of where we logically *want* it to be=
-
-> used.
->=20
->=20
-
-Ah, I see what you are saying. Virtual address on one processor is
-visible on the other processor as well and one process could communicate
-that va to the other process in some way so it could be exploited by the
-other process. This va is exploitable only between the kmap and matching
-kunmap but the window exists. I am trying to understand your scenario,
-so I can address it right.
-
---
-Khalid
-
-
-
---------------4D9466AD76737D0389537E8D
-Content-Type: application/pgp-keys;
- name="pEpkey.asc"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment;
- filename="pEpkey.asc"
-
------BEGIN PGP PUBLIC KEY BLOCK-----
-
-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
-+Wrj8Rwom6h21PXZRKnlkis7ibQfE+TxqOI7vg=3D=3D
-=3DnPqY
------END PGP PUBLIC KEY BLOCK-----
-
---------------4D9466AD76737D0389537E8D--
+Once we have a fix, I plan to do a sweep over existing open "task
+hung" reports and dup lots of them onto this one. Probably preferring
+to over-sweep rather then to under-sweep because there are too many of
+them and lots does not seem to be actionable otherwise.
+Tetsuo, do you have comments before I start?
