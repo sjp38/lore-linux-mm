@@ -1,96 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1CF8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:18:01 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id l45so9002346edb.1
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 05:18:01 -0800 (PST)
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id e3si3100669edq.338.2019.01.14.05.17.59
-        for <linux-mm@kvack.org>;
-        Mon, 14 Jan 2019 05:17:59 -0800 (PST)
-Date: Mon, 14 Jan 2019 14:17:56 +0100
-From: Oscar Salvador <osalvador@suse.de>
-Subject: Re: [RFC PATCH 2/4] mm, memory_hotplug: provide a more generic
- restrictions for memory hotplug
-Message-ID: <20190114131742.neivbac3lmsszkzc@d104.suse.de>
-References: <20181116101222.16581-1-osalvador@suse.com>
- <20181116101222.16581-3-osalvador@suse.com>
- <20181123130043.GM8625@dhcp22.suse.cz>
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 725718E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:19:11 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id t26so12558070pgu.18
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 05:19:11 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id m35si324534pgb.246.2019.01.14.05.19.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Jan 2019 05:19:09 -0800 (PST)
+Subject: Re: [PATCH v11 00/26] Speculative page faults
+From: Vinayak Menon <vinmenon@codeaurora.org>
+References: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org>
+Message-ID: <5a24109c-7460-4a8e-a439-d2f2646568e6@codeaurora.org>
+Date: Mon, 14 Jan 2019 18:49:04 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181123130043.GM8625@dhcp22.suse.cz>
+In-Reply-To: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Oscar Salvador <osalvador@suse.com>, linux-mm@kvack.org, david@redhat.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, arunks@codeaurora.org, bhe@redhat.com, dan.j.williams@intel.com, Pavel.Tatashin@microsoft.com, Jonathan.Cameron@huawei.com, jglisse@redhat.com, linux-kernel@vger.kernel.org, Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: ldufour@linux.vnet.ibm.com
+Cc: Linux-MM <linux-mm@kvack.org>, charante@codeaurora.org
 
-On Fri, Nov 23, 2018 at 02:00:43PM +0100, Michal Hocko wrote:
-> One note here as well. In the retrospect the API I have come up
-> with here is quite hackish. Considering the recent discussion about
-> special needs ZONE_DEVICE has for both initialization and struct page
-> allocations with Alexander Duyck I believe we wanted a more abstracted
-> API with allocator and constructor callbacks. This would allow different
-> usecases to fine tune their needs without specialcasing deep in the core
-> hotplug code paths.
+On 1/11/2019 9:13 PM, Vinayak Menon wrote:
+> Hi Laurent,
+>
+> We are observing an issue with speculative page fault with the following test code on ARM64 (4.14 kernel, 8 cores).
 
-Hi all,
 
-so, now that vacation is gone, I wanted to come back to this.
-I kind of get what you mean with this more abstacted API, but I am not really
-sure how we could benefit from it (or maybe I am just short-sighted here).
+With the patch below, we don't hit the issue.
 
-Right now, struct mhp_restrictions would look like:
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Date: Mon, 14 Jan 2019 16:06:34 +0530
+Subject: [PATCH] mm: flush stale tlb entries on speculative write fault
 
-struct mhp_restrictions {
-        unsigned long flags;
-        struct vmem_altmap *altmap;
-};
+It is observed that the following scenario results in
+threads A and B of process 1 blocking on pthread_mutex_lock
+forever after few iterations.
 
-where flags tell us whether we want a memblock device and whether we should
-allocate the memmap array from the hot-added range.
-And altmap is the altmap we would use for it.
+CPU 1                   CPU 2                    CPU 3
+Process 1,              Process 1,               Process 1,
+Thread A                Thread B                 Thread C
 
-Indeed, we could add two callbacks, set_up() and construct() (random naming).
+while (1) {             while (1) {              while(1) {
+pthread_mutex_lock(l)   pthread_mutex_lock(l)    fork
+pthread_mutex_unlock(l) pthread_mutex_unlock(l)  }
+}                       }
 
-When talking about memmap-from-hot_added-range, set_up() could be called
-to construct the altmap, i.e:
+When from thread C, copy_one_pte write-protects the parent pte
+(of lock l), stale tlb entries can exist with write permissions
+on one of the CPUs at least. This can create a problem if one
+of the threads A or B hits the write fault. Though dup_mmap calls
+flush_tlb_mm after copy_page_range, since speculative page fault
+does not take mmap_sem it can proceed further fixing a fault soon
+after CPU 3 does ptep_set_wrprotect. But the CPU with stale tlb
+entry can still modify old_page even after it is copied to
+new_page by wp_page_copy, thus causing a corruption.
 
-<--
-struct vmem_altmap __memblk_altmap;
+Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+---
+ mm/memory.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-__memblk_altmap.base_pfn = phys_start_pfn;
-__memblk_altmap.alloc = 0;
-__memblk_altmap.align = 0;
-__memblk_altmap.free = nr_pages;
--->
+diff --git a/mm/memory.c b/mm/memory.c
+index 52080e4..1ea168ff 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4507,6 +4507,13 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
+                return VM_FAULT_RETRY;
+        }
 
-and construct() would be called at the very end of __add_pages(), which
-basically would be mark_vmemmap_pages().
-
-Now, looking at devm_memremap_pages(ZONE_DEVICE stuff), it does:
-
-hotplug_lock();
- arch_add_memory
-  add_pages
- move_pfn_range_to_zone
-hotplug_lock();
-memmap_init_zone_device
-
-For the ZONE_DEVICE case, move_pfn_range_to_zone() only initializes the pages
-containing the memory mapping, while all the remaining pages all initialized later on
-in memmap_init_zone_device().
-Besides initializing pages, memmap_init_zone_device() also sets page->pgmap field.
-So you could say that memmap_init_zone_device would be the construct part.
-
-Anyway, I am currently working on the patch3 of this series to improve it and make it less
-complex, but it would be great to sort out this API thing.
-
-Maybe Alexander or you, can provide some suggestions/ideas here.
-
-Thanks
-
-Oscar Salvador
--- 
-Oscar Salvador
-SUSE L3
++       /*
++        * Discard tlb entries created before ptep_set_wrprotect
++        * in copy_one_pte
++        */
++       if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
++               flush_tlb_page(vmf.vma, address);
++
+        mem_cgroup_oom_enable();
+        ret = handle_pte_fault(&vmf);
+        mem_cgroup_oom_disable();
+--
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
