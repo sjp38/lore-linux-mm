@@ -1,130 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E7A0C8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 10:53:46 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id z5-v6so5606076ljb.13
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 07:53:46 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j188sor272350lfj.72.2019.01.14.07.53.45
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ECEC88E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 11:15:37 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id d18so16425800pfe.0
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 08:15:37 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id c22si648701pgb.254.2019.01.14.08.15.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 14 Jan 2019 07:53:45 -0800 (PST)
-MIME-Version: 1.0
-References: <20190114125903.24845-1-david@redhat.com> <20190114125903.24845-8-david@redhat.com>
-In-Reply-To: <20190114125903.24845-8-david@redhat.com>
-From: Bhupesh Sharma <bhsharma@redhat.com>
-Date: Mon, 14 Jan 2019 21:22:49 +0530
-Message-ID: <CACi5LpPphoJzfKXPN5kSV42aF27=2ZjqXSVLQjEtMdSN8+6bsA@mail.gmail.com>
-Subject: Re: [PATCH v2 7/9] arm64: kdump: No need to mark crashkernel pages
- manually PG_reserved
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Jan 2019 08:15:36 -0800 (PST)
+Message-ID: <a041b1fa9b8d94f89c544015f8ff88d29343645d.camel@linux.intel.com>
+Subject: Re: [PATCH v9] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Mon, 14 Jan 2019 08:15:35 -0800
+In-Reply-To: <fa3dc06536a8ba980c4434806204017a@codeaurora.org>
+References: <1547098543-26452-1-git-send-email-arunks@codeaurora.org>
+	 <f65b1b22426855ff261b3af719e58eded576a168.camel@linux.intel.com>
+	 <fa3dc06536a8ba980c4434806204017a@codeaurora.org>
 Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-m68k@lists.linux-m68k.org, linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-mediatek@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, James Morse <james.morse@arm.com>, Mark Rutland <mark.rutland@arm.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, Florian Fainelli <f.fainelli@gmail.com>, Stefan Agner <stefan@agner.ch>, Laura Abbott <labbott@redhat.com>, Greg Hackmann <ghackmann@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Kristina Martsenko <kristina.martsenko@arm.com>, CHANDAN VN <chandan.vn@samsung.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>, Logan Gunthorpe <logang@deltatee.com>
+To: Arun KS <arunks@codeaurora.org>
+Cc: arunks.linux@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, getarunks@gmail.com
 
-Hi David,
+On Mon, 2019-01-14 at 19:29 +0530, Arun KS wrote:
+> On 2019-01-10 21:53, Alexander Duyck wrote:
+> > On Thu, 2019-01-10 at 11:05 +0530, Arun KS wrote:
+> > > When freeing pages are done with higher order, time spent on 
+> > > coalescing
+> > > pages by buddy allocator can be reduced.  With section size of 256MB, 
+> > > hot
+> > > add latency of a single section shows improvement from 50-60 ms to 
+> > > less
+> > > than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> > > external providers of online callback to align with the change.
+> > > 
+> > > Signed-off-by: Arun KS <arunks@codeaurora.org>
+> > > Acked-by: Michal Hocko <mhocko@suse.com>
+> > > Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> > 
+> > So I decided to give this one last thorough review and I think I might
+> > have found a few more minor issues, but not anything that is
+> > necessarily a showstopper.
+> > 
+> > Reviewed-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > 
+> > > ---
+> > > Changes since v8:
+> > > - Remove return type change for online_page_callback.
+> > > - Use consistent names for external online_page providers.
+> > > - Fix onlined_pages accounting.
+> > > 
+> > > Changes since v7:
+> > > - Rebased to 5.0-rc1.
+> > > - Fixed onlined_pages accounting.
+> > > - Added comment for return value of online_page_callback.
+> > > - Renamed xen_bring_pgs_online to xen_online_pages.
+> > > 
+> > > Changes since v6:
+> > > - Rebased to 4.20
+> > > - Changelog updated.
+> > > - No improvement seen on arm64, hence removed removal of prefetch.
+> > > 
+> > > Changes since v5:
+> > > - Rebased to 4.20-rc1.
+> > > - Changelog updated.
+> > > 
+> > > Changes since v4:
+> > > - As suggested by Michal Hocko,
+> > > - Simplify logic in online_pages_block() by using get_order().
+> > > - Seperate out removal of prefetch from __free_pages_core().
+> > > 
+> > > Changes since v3:
+> > > - Renamed _free_pages_boot_core -> __free_pages_core.
+> > > - Removed prefetch from __free_pages_core.
+> > > - Removed xen_online_page().
+> > > 
+> > > Changes since v2:
+> > > - Reuse code from __free_pages_boot_core().
+> > > 
+> > > Changes since v1:
+> > > - Removed prefetch().
+> > > 
+> > > Changes since RFC:
+> > > - Rebase.
+> > > - As suggested by Michal Hocko remove pages_per_block.
+> > > - Modifed external providers of online_page_callback.
+> > > 
+> > > v8: https://lore.kernel.org/patchwork/patch/1030332/
+> > > v7: https://lore.kernel.org/patchwork/patch/1028908/
+> > > v6: https://lore.kernel.org/patchwork/patch/1007253/
+> > > v5: https://lore.kernel.org/patchwork/patch/995739/
+> > > v4: https://lore.kernel.org/patchwork/patch/995111/
+> > > v3: https://lore.kernel.org/patchwork/patch/992348/
+> > > v2: https://lore.kernel.org/patchwork/patch/991363/
+> > > v1: https://lore.kernel.org/patchwork/patch/989445/
+> > > RFC: https://lore.kernel.org/patchwork/patch/984754/
+> > > ---
+> > > ---
+> > >  drivers/hv/hv_balloon.c        |  4 ++--
+> > >  drivers/xen/balloon.c          | 15 ++++++++++-----
+> > >  include/linux/memory_hotplug.h |  2 +-
+> > >  mm/internal.h                  |  1 +
+> > >  mm/memory_hotplug.c            | 37 
+> > > +++++++++++++++++++++++++------------
+> > >  mm/page_alloc.c                |  8 ++++----
+> > >  6 files changed, 43 insertions(+), 24 deletions(-)
+> > > 
+> > > diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> > > index 5301fef..55d79f8 100644
+> > > --- a/drivers/hv/hv_balloon.c
+> > > +++ b/drivers/hv/hv_balloon.c
+> > > @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, 
+> > > unsigned long size,
+> > >  	}
+> > >  }
+> > > 
+> > > -static void hv_online_page(struct page *pg)
+> > > +static void hv_online_page(struct page *pg, unsigned int order)
+> > >  {
+> > >  	struct hv_hotadd_state *has;
+> > >  	unsigned long flags;
+> > > @@ -783,7 +783,7 @@ static void hv_online_page(struct page *pg)
+> > >  		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+> > >  			continue;
+> > > 
+> > 
+> > I haven't followed earlier reviews, but do we know for certain the
+> > entire range being onlined will fit within a single hv_hotadd_state? If
+> > nothing else it seems like this check should be updated so that we are
+> > checking to verify that pfn + (1UL << order) is less than or equal to
+> > has->end_pfn.
+> 
+> Good catch. I ll change the check to,
+>           if ((pfn < has->start_pfn) ||
+>                    (pfn + (1UL << order) >= has->end_pfn))
+>                continue;
+> 
+> > 
+> > > -		hv_page_online_one(has, pg);
+> > > +		hv_bring_pgs_online(has, pfn, (1UL << order));
+> > >  		break;
+> > >  	}
+> > >  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
+> > > diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> > > index ceb5048..d107447 100644
+> > > --- a/drivers/xen/balloon.c
+> > > +++ b/drivers/xen/balloon.c
+> > > @@ -369,14 +369,19 @@ static enum bp_state 
+> > > reserve_additional_memory(void)
+> > >  	return BP_ECANCELED;
+> > >  }
+> > > 
+> > > -static void xen_online_page(struct page *page)
+> > > +static void xen_online_page(struct page *page, unsigned int order)
+> > >  {
+> > > -	__online_page_set_limits(page);
+> > > +	unsigned long i, size = (1 << order);
+> > > +	unsigned long start_pfn = page_to_pfn(page);
+> > > +	struct page *p;
+> > > 
+> > > +	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, 
+> > > start_pfn);
+> > >  	mutex_lock(&balloon_mutex);
+> > > -
+> > > -	__balloon_append(page);
+> > > -
+> > > +	for (i = 0; i < size; i++) {
+> > > +		p = pfn_to_page(start_pfn + i);
+> > > +		__online_page_set_limits(p);
+> > > +		__balloon_append(p);
+> > > +	}
+> > >  	mutex_unlock(&balloon_mutex);
+> > >  }
+> > > 
+> > > diff --git a/include/linux/memory_hotplug.h 
+> > > b/include/linux/memory_hotplug.h
+> > > index 07da5c6..e368730 100644
+> > > --- a/include/linux/memory_hotplug.h
+> > > +++ b/include/linux/memory_hotplug.h
+> > > @@ -87,7 +87,7 @@ extern int test_pages_in_a_zone(unsigned long 
+> > > start_pfn, unsigned long end_pfn,
+> > >  	unsigned long *valid_start, unsigned long *valid_end);
+> > >  extern void __offline_isolated_pages(unsigned long, unsigned long);
+> > > 
+> > > -typedef void (*online_page_callback_t)(struct page *page);
+> > > +typedef void (*online_page_callback_t)(struct page *page, unsigned 
+> > > int order);
+> > > 
+> > >  extern int set_online_page_callback(online_page_callback_t callback);
+> > >  extern int restore_online_page_callback(online_page_callback_t 
+> > > callback);
+> > > diff --git a/mm/internal.h b/mm/internal.h
+> > > index f4a7bb0..536bc2a 100644
+> > > --- a/mm/internal.h
+> > > +++ b/mm/internal.h
+> > > @@ -163,6 +163,7 @@ static inline struct page 
+> > > *pageblock_pfn_to_page(unsigned long start_pfn,
+> > >  extern int __isolate_free_page(struct page *page, unsigned int 
+> > > order);
+> > >  extern void memblock_free_pages(struct page *page, unsigned long pfn,
+> > >  					unsigned int order);
+> > > +extern void __free_pages_core(struct page *page, unsigned int order);
+> > >  extern void prep_compound_page(struct page *page, unsigned int 
+> > > order);
+> > >  extern void post_alloc_hook(struct page *page, unsigned int order,
+> > >  					gfp_t gfp_flags);
+> > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > > index b9a667d..77dff24 100644
+> > > --- a/mm/memory_hotplug.c
+> > > +++ b/mm/memory_hotplug.c
+> > > @@ -47,7 +47,7 @@
+> > >   * and restore_online_page_callback() for generic callback restore.
+> > >   */
+> > > 
+> > > -static void generic_online_page(struct page *page);
+> > > +static void generic_online_page(struct page *page, unsigned int 
+> > > order);
+> > > 
+> > >  static online_page_callback_t online_page_callback = 
+> > > generic_online_page;
+> > >  static DEFINE_MUTEX(online_page_callback_lock);
+> > > @@ -656,26 +656,39 @@ void __online_page_free(struct page *page)
+> > >  }
+> > >  EXPORT_SYMBOL_GPL(__online_page_free);
+> > > 
+> > > -static void generic_online_page(struct page *page)
+> > > +static void generic_online_page(struct page *page, unsigned int 
+> > > order)
+> > >  {
+> > > -	__online_page_set_limits(page);
+> > > -	__online_page_increment_counters(page);
+> > > -	__online_page_free(page);
+> > > +	__free_pages_core(page, order);
+> > > +	totalram_pages_add(1UL << order);
+> > > +#ifdef CONFIG_HIGHMEM
+> > > +	if (PageHighMem(page))
+> > > +		totalhigh_pages_add(1UL << order);
+> > > +#endif
+> > > +}
+> > > +
+> > > +static int online_pages_blocks(unsigned long start, unsigned long 
+> > > nr_pages)
+> > > +{
+> > > +	unsigned long end = start + nr_pages;
+> > > +	int order, ret, onlined_pages = 0;
+> > > +
+> > > +	while (start < end) {
+> > > +		order = min(MAX_ORDER - 1,
+> > > +			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
+> > 
+> > So this is mostly just optimization related so you can ignore this
+> > suggestion if you want. I was looking at this and it occurred to me
+> > that I don't think you need to convert this to a physical address do
+> > you?
+> > 
+> > Couldn't you just do something like the following:
+> > 		if ((end - start) >= (1UL << (MAX_ORDER - 1))
+> > 			order = MAX_ORDER - 1;
+> > 		else
+> > 			order = __fls(end - start);
+> > 
+> > I would think this would save you a few steps in terms of conversions
+> > and such since you are already working in page frame numbers anyway so
+> > a block of 8 pfns would represent an order 3 page wouldn't it?
+> > 
+> > Also it seems like an alternative to using "end" would be to just track
+> > nr_pages. Then you wouldn't have to do the "end - start" math in a few
+> > spots as long as you remembered to decrement nr_pages by the amount you
+> > increment start by.
+> 
+> Thanks for that. How about this?
+> 
+> static int online_pages_blocks(unsigned long start, unsigned long 
+> nr_pages)
+> {
+>          unsigned long end = start + nr_pages;
+>          int order;
+> 
+>          while (nr_pages) {
+>                  if (nr_pages >= (1UL << (MAX_ORDER - 1)))
+>                          order = MAX_ORDER - 1;
+>                  else
+>                          order = __fls(nr_pages);
+> 
+>                  (*online_page_callback)(pfn_to_page(start), order);
+>                  nr_pages -= (1UL << order);
+>                  start += (1UL << order);
+>          }
+>          return end - start;
+> }
+> 
+> Regards,
+> Arun
 
-On Mon, Jan 14, 2019 at 6:30 PM David Hildenbrand <david@redhat.com> wrote:
->
-> The crashkernel is reserved via memblock_reserve(). memblock_free_all()
-> will call free_low_memory_core_early(), which will go over all reserved
-> memblocks, marking the pages as PG_reserved.
->
-> So manually marking pages as PG_reserved is not necessary, they are
-> already in the desired state (otherwise they would have been handed over
-> to the buddy as free pages and bad things would happen).
->
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: James Morse <james.morse@arm.com>
-> Cc: Bhupesh Sharma <bhsharma@redhat.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Dave Kleikamp <dave.kleikamp@oracle.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Florian Fainelli <f.fainelli@gmail.com>
-> Cc: Stefan Agner <stefan@agner.ch>
-> Cc: Laura Abbott <labbott@redhat.com>
-> Cc: Greg Hackmann <ghackmann@android.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Kristina Martsenko <kristina.martsenko@arm.com>
-> Cc: CHANDAN VN <chandan.vn@samsung.com>
-> Cc: AKASHI Takahiro <takahiro.akashi@linaro.org>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Reviewed-by: Matthias Brugger <mbrugger@suse.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  arch/arm64/kernel/machine_kexec.c |  2 +-
->  arch/arm64/mm/init.c              | 27 ---------------------------
->  2 files changed, 1 insertion(+), 28 deletions(-)
->
-> diff --git a/arch/arm64/kernel/machine_kexec.c b/arch/arm64/kernel/machine_kexec.c
-> index 6f0587b5e941..66b5d697d943 100644
-> --- a/arch/arm64/kernel/machine_kexec.c
-> +++ b/arch/arm64/kernel/machine_kexec.c
-> @@ -321,7 +321,7 @@ void crash_post_resume(void)
->   * but does not hold any data of loaded kernel image.
->   *
->   * Note that all the pages in crash dump kernel memory have been initially
-> - * marked as Reserved in kexec_reserve_crashkres_pages().
-> + * marked as Reserved as memory was allocated via memblock_reserve().
->   *
->   * In hibernation, the pages which are Reserved and yet "nosave" are excluded
->   * from the hibernation iamge. crash_is_nosave() does thich check for crash
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index 7205a9085b4d..c38976b70069 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -118,35 +118,10 @@ static void __init reserve_crashkernel(void)
->         crashk_res.start = crash_base;
->         crashk_res.end = crash_base + crash_size - 1;
->  }
-> -
-> -static void __init kexec_reserve_crashkres_pages(void)
-> -{
-> -#ifdef CONFIG_HIBERNATION
-> -       phys_addr_t addr;
-> -       struct page *page;
-> -
-> -       if (!crashk_res.end)
-> -               return;
-> -
-> -       /*
-> -        * To reduce the size of hibernation image, all the pages are
-> -        * marked as Reserved initially.
-> -        */
-> -       for (addr = crashk_res.start; addr < (crashk_res.end + 1);
-> -                       addr += PAGE_SIZE) {
-> -               page = phys_to_page(addr);
-> -               SetPageReserved(page);
-> -       }
-> -#endif
-> -}
->  #else
->  static void __init reserve_crashkernel(void)
->  {
->  }
-> -
-> -static void __init kexec_reserve_crashkres_pages(void)
-> -{
-> -}
->  #endif /* CONFIG_KEXEC_CORE */
->
->  #ifdef CONFIG_CRASH_DUMP
-> @@ -586,8 +561,6 @@ void __init mem_init(void)
->         /* this will put all unused low memory onto the freelists */
->         memblock_free_all();
->
-> -       kexec_reserve_crashkres_pages();
-> -
->         mem_init_print_info(NULL);
->
->         /*
-> --
-> 2.17.2
-
-LGTM, so:
-Reviewed-by: Bhupesh Sharma <bhsharma@redhat.com>
+You would still need to return onlined_pages or something similar at
+the end of the function. The problem is end - start should always be 0
+if your loop succeeds. Either that or you could save of nr_pages to
+onlined_pages directly and then return that and the end of the
+function.
