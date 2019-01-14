@@ -1,79 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E4B748E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 13:55:07 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id w68so6348693ith.0
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 10:55:07 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d10si665774ith.143.2019.01.14.10.55.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jan 2019 10:55:06 -0800 (PST)
-Subject: Re: [RFC PATCH] mm: align anon mmap for THP
-References: <20190111201003.19755-1-mike.kravetz@oracle.com>
- <20190111215506.jmp2s5end2vlzhvb@black.fi.intel.com>
- <ebd57b51-117b-4a3d-21d9-fc0287f437d6@oracle.com>
- <ad3a53ba-82e2-2dc7-1cd2-feef7def0bc3@oracle.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <50c6abdc-b906-d16a-2f8f-8647b3d129aa@oracle.com>
-Date: Mon, 14 Jan 2019 10:54:45 -0800
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F2B578E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 14:00:34 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id z10so189583edz.15
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 11:00:34 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i3si4020379edk.411.2019.01.14.11.00.33
+        for <linux-mm@kvack.org>;
+        Mon, 14 Jan 2019 11:00:33 -0800 (PST)
+Date: Mon, 14 Jan 2019 19:00:25 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 3/3] bitops.h: set_mask_bits() to return old value
+Message-ID: <20190114190025.GA29167@fuggles.cambridge.arm.com>
+References: <1547166387-19785-1-git-send-email-vgupta@synopsys.com>
+ <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
-In-Reply-To: <ad3a53ba-82e2-2dc7-1cd2-feef7def0bc3@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1547166387-19785-4-git-send-email-vgupta@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Sistare <steven.sistare@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux_lkml_grp@oracle.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Toshi Kani <toshi.kani@hpe.com>, Boaz Harrosh <boazh@netapp.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Vineet Gupta <vineet.gupta1@synopsys.com>
+Cc: linux-kernel@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-mm@kvack.org, peterz@infradead.org, Miklos Szeredi <mszeredi@redhat.com>, Ingo Molnar <mingo@kernel.org>, Jani Nikula <jani.nikula@intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On 1/14/19 7:35 AM, Steven Sistare wrote:
-> On 1/11/2019 6:28 PM, Mike Kravetz wrote:
->> On 1/11/19 1:55 PM, Kirill A. Shutemov wrote:
->>> On Fri, Jan 11, 2019 at 08:10:03PM +0000, Mike Kravetz wrote:
->>>> At LPC last year, Boaz Harrosh asked why he had to 'jump through hoops'
->>>> to get an address returned by mmap() suitably aligned for THP.  It seems
->>>> that if mmap is asking for a mapping length greater than huge page
->>>> size, it should align the returned address to huge page size.
+On Thu, Jan 10, 2019 at 04:26:27PM -0800, Vineet Gupta wrote:
+> | > Also, set_mask_bits is used in fs quite a bit and we can possibly come up
+> | > with a generic llsc based implementation (w/o the cmpxchg loop)
+> |
+> | May I also suggest changing the return value of set_mask_bits() to old.
+> |
+> | You can compute the new value given old, but you cannot compute the old
+> | value given new, therefore old is the better return value. Also, no
+> | current user seems to use the return value, so changing it is without
+> | risk.
 > 
-> A better heuristic would be to return an aligned address if the length
-> is a multiple of the huge page size.  The gap (if any) between the end of
-> the previous VMA and the start of this VMA would be filled by subsequent
-> smaller mmap requests.  The new behavior would need to become part of the
-> mmap interface definition so apps can rely on it and omit their hoop-jumping
-> code.
+> Link: http://lkml.kernel.org/g/20150807110955.GH16853@twins.programming.kicks-ass.net
+> Suggested-by: Peter Zijlstra <peterz@infradead.org>
+> Cc: Miklos Szeredi <mszeredi@redhat.com>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Jani Nikula <jani.nikula@intel.com>
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+> ---
+>  include/linux/bitops.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/bitops.h b/include/linux/bitops.h
+> index 705f7c442691..602af23b98c7 100644
+> --- a/include/linux/bitops.h
+> +++ b/include/linux/bitops.h
+> @@ -246,7 +246,7 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
+>  		new__ = (old__ & ~mask__) | bits__;		\
+>  	} while (cmpxchg(ptr, old__, new__) != old__);		\
+>  								\
+> -	new__;							\
+> +	old__;							\
+>  })
+>  #endif
 
-Yes, the heuristic really should be 'length is a multiple of the huge page
-size'.  As you mention, this would still leave gaps.  I need to look closer
-but this may not be any worse than the trick of mapping an area with rounded
-up length and then unmapping pages at the beginning.
+Acked-by: Will Deacon <will.deacon@arm.com>
 
-When I sent this out, the thought in the back of my mind was that this doesn't
-really matter unless there is some type of alignment guarantee.  Otherwise,
-user space code needs continue employing their code to check/force alignment.
-Making matters somewhat worse is that I do not believe there is C interface to
-query huge page size.  I thought there was discussion about adding one, but I
-can not find it.
+May also explain why no in-tree users appear to use the return value!
 
-> Personally I would like to see a new MAP_ALIGN flag and treat the addr
-> argument as the alignment (like Solaris), but I am told that adding flags
-> is problematic because old kernels accept undefined flag bits from userland
-> without complaint, so their behavior would change.
-
-Well, a flag would clearly define desired behavior.
-
-As others have been mentioned, there are mechanisms in place that allow user
-space code to get the alignment it wants.  However, it is at the expense of
-an additional system call or two.  Perhaps the question is, "Is it worth
-defining new behavior to eliminate this overhead?".
-
-One other thing to consider is that at mmap time, we likely do not know if
-the vma will/can use THP.  We would know if system wide THP configuration
-is set to never or always.  However, I 'think' the default for most distros
-is madvize.  Therefore, it is not until a subsequent madvise call that we
-know THP will be employed.  If the application code will need to make this
-separate madvise call, then perhaps it is not too much to expect that it
-take explicit action to optimally align the mapping.
-
--- 
-Mike Kravetz
+Will
