@@ -1,139 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 55F848E0002
-	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:52:20 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id e12-v6so5037830ljb.18
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 20:52:20 -0800 (PST)
-Received: from smtp.infotech.no (smtp.infotech.no. [82.134.31.41])
-        by mx.google.com with ESMTP id y127si59516925lfc.121.2019.01.13.20.52.17
-        for <linux-mm@kvack.org>;
-        Sun, 13 Jan 2019 20:52:17 -0800 (PST)
-Reply-To: dgilbert@interlog.com
-Subject: Re: [PATCH v2] rbtree: fix the red root
-References: <20190111181600.GJ6310@bombadil.infradead.org>
- <20190111205843.25761-1-cai@lca.pw>
- <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
- <CANN689G0zbk7sMbQ+p9NQGQ=NWq-Q0mQOOjeFkLp19YrTfgcLg@mail.gmail.com>
- <864d6b85-3336-4040-7c95-7d9615873777@lechnology.com>
- <b1033d96-ebdd-e791-650a-c6564f030ce1@lca.pw>
- <8v11ZOLyufY7NLAHDFApGwXOO_wGjVHtsbw1eiZ__YvI9EZCDe_4FNmlp0E-39lnzGQHhHAczQ6Q6lQPzVU2V6krtkblM8IFwIXPHZCuqGE=@protonmail.ch>
- <c6265fc0-4089-9d1a-ba7c-b267b847747e@interlog.com>
- <UKsodHRZU8smIdO2MHHL4Yzde_YB4iWX43TaHI1uY2tMo4nii4ucbaw4XC31XIY-Pe4oEovjF62qbkeMsIMTrvT1TdCCP4Fs_fxciAzXYVc=@protonmail.ch>
-From: Douglas Gilbert <dgilbert@interlog.com>
-Message-ID: <ad591828-76e8-324b-6ab8-dc87e4390f64@interlog.com>
-Date: Sun, 13 Jan 2019 23:52:06 -0500
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DA6698E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 05:22:34 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 74so15753203pfk.12
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:22:34 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g23si16875pgb.229.2019.01.14.02.22.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 14 Jan 2019 02:22:33 -0800 (PST)
+Date: Mon, 14 Jan 2019 11:21:37 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2 5/5] psi: introduce psi monitor
+Message-ID: <20190114102137.GB14054@worktop.programming.kicks-ass.net>
+References: <20190110220718.261134-1-surenb@google.com>
+ <20190110220718.261134-6-surenb@google.com>
 MIME-Version: 1.0
-In-Reply-To: <UKsodHRZU8smIdO2MHHL4Yzde_YB4iWX43TaHI1uY2tMo4nii4ucbaw4XC31XIY-Pe4oEovjF62qbkeMsIMTrvT1TdCCP4Fs_fxciAzXYVc=@protonmail.ch>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190110220718.261134-6-surenb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Esme <esploit@protonmail.ch>
-Cc: Qian Cai <cai@lca.pw>, David Lechner <david@lechnology.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, "jejb@linux.ibm.com" <jejb@linux.ibm.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "joeypabalinas@gmail.com" <joeypabalinas@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com
 
-On 2019-01-13 10:59 p.m., Esme wrote:
-> ‐‐‐‐‐‐‐ Original Message ‐‐‐‐‐‐‐
-> On Sunday, January 13, 2019 10:52 PM, Douglas Gilbert <dgilbert@interlog.com> wrote:
-> 
->> On 2019-01-13 10:07 p.m., Esme wrote:
->>
->>> ‐‐‐‐‐‐‐ Original Message ‐‐‐‐‐‐‐
->>> On Sunday, January 13, 2019 9:33 PM, Qian Cai cai@lca.pw wrote:
->>>
->>>> On 1/13/19 9:20 PM, David Lechner wrote:
->>>>
->>>>> On 1/11/19 8:58 PM, Michel Lespinasse wrote:
->>>>>
->>>>>> On Fri, Jan 11, 2019 at 3:47 PM David Lechner david@lechnology.com wrote:
->>>>>>
->>>>>>> On 1/11/19 2:58 PM, Qian Cai wrote:
->>>>>>>
->>>>>>>> A GPF was reported,
->>>>>>>> kasan: CONFIG_KASAN_INLINE enabled
->>>>>>>> kasan: GPF could be caused by NULL-ptr deref or user memory access
->>>>>>>> general protection fault: 0000 [#1] SMP KASAN
->>>>>>>>            kasan_die_handler.cold.22+0x11/0x31
->>>>>>>>            notifier_call_chain+0x17b/0x390
->>>>>>>>            atomic_notifier_call_chain+0xa7/0x1b0
->>>>>>>>            notify_die+0x1be/0x2e0
->>>>>>>>            do_general_protection+0x13e/0x330
->>>>>>>>            general_protection+0x1e/0x30
->>>>>>>>            rb_insert_color+0x189/0x1480
->>>>>>>>            create_object+0x785/0xca0
->>>>>>>>            kmemleak_alloc+0x2f/0x50
->>>>>>>>            kmem_cache_alloc+0x1b9/0x3c0
->>>>>>>>            getname_flags+0xdb/0x5d0
->>>>>>>>            getname+0x1e/0x20
->>>>>>>>            do_sys_open+0x3a1/0x7d0
->>>>>>>>            __x64_sys_open+0x7e/0xc0
->>>>>>>>            do_syscall_64+0x1b3/0x820
->>>>>>>>            entry_SYSCALL_64_after_hwframe+0x49/0xbe
->>>>>>>> It turned out,
->>>>>>>> gparent = rb_red_parent(parent);
->>>>>>>> tmp = gparent->rb_right; <-- GPF was triggered here.
->>>>>>>> Apparently, "gparent" is NULL which indicates "parent" is rbtree's root
->>>>>>>> which is red. Otherwise, it will be treated properly a few lines above.
->>>>>>>> /*
->>>>>>>>     * If there is a black parent, we are done.
->>>>>>>>     * Otherwise, take some corrective action as,
->>>>>>>>     * per 4), we don't want a red root or two
->>>>>>>>     * consecutive red nodes.
->>>>>>>>     */
->>>>>>>> if(rb_is_black(parent))
->>>>>>>>         break;
->>>>>>>> Hence, it violates the rule #1 (the root can't be red) and need a fix
->>>>>>>> up, and also add a regression test for it. This looks like was
->>>>>>>> introduced by 6d58452dc06 where it no longer always paint the root as
->>>>>>>> black.
->>>>>>>> Fixes: 6d58452dc06 (rbtree: adjust root color in rb_insert_color() only
->>>>>>>> when necessary)
->>>>>>>> Reported-by: Esme esploit@protonmail.ch
->>>>>>>> Tested-by: Joey Pabalinas joeypabalinas@gmail.com
->>>>>>>> Signed-off-by: Qian Cai cai@lca.pw
->>>>>>>
->>>>>>> Tested-by: David Lechner david@lechnology.com
->>>>>>> FWIW, this fixed the following crash for me:
->>>>>>> Unable to handle kernel NULL pointer dereference at virtual address 00000004
->>>>>>
->>>>>> Just to clarify, do you have a way to reproduce this crash without the fix ?
->>>>>
->>>>> I am starting to suspect that my crash was caused by some new code
->>>>> in the drm-misc-next tree that might be causing a memory corruption.
->>>>> It threw me off that the stack trace didn't contain anything related
->>>>> to drm.
->>>>> See: https://patchwork.freedesktop.org/patch/276719/
->>>>
->>>> It may be useful for those who could reproduce this issue to turn on those
->>>> memory corruption debug options to narrow down a bit.
->>>> CONFIG_DEBUG_PAGEALLOC=y
->>>> CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT=y
->>>> CONFIG_KASAN=y
->>>> CONFIG_KASAN_GENERIC=y
->>>> CONFIG_SLUB_DEBUG_ON=y
->>>
->>> I have been on SLAB, I configured SLAB DEBUG with a fresh pull from github. Linux syzkaller 5.0.0-rc2 #9 SMP Sun Jan 13 21:57:40 EST 2019 x86_64
->>> ...
->>> In an effort to get a different stack into the kernel, I felt that nothing works better than fork bomb? :)
->>> Let me know if that helps.
->>> root@syzkaller:~# gcc -o test3 test3.c
->>> root@syzkaller:~# while : ; do ./test3 & done
->>
->> And is test3 the same multi-threaded program that enters the kernel via
->> /dev/sg0 and then calls SCSI_IOCTL_SEND_COMMAND which goes to the SCSI
->> mid-level and thence to the block layer?
->>
->> And please remind me, does it also fail on lk 4.20.2 ?
->>
->> Doug Gilbert
-> 
-> Yes, the same C repro from the earlier thread.  It was a 4.20.0 kernel where it was first detected.  I can move to 4.20.2 and see if that changes anything.
+On Thu, Jan 10, 2019 at 02:07:18PM -0800, Suren Baghdasaryan wrote:
+> +/*
+> + * psi_update_work represents slowpath accounting part while
+> + * psi_group_change represents hotpath part.
+> + * There are two potential races between these path:
+> + * 1. Changes to group->polling when slowpath checks for new stall, then
+> + *    hotpath records new stall and then slowpath resets group->polling
+> + *    flag. This leads to the exit from the polling mode while monitored
+> + *    states are still changing.
+> + * 2. Slowpath overwriting an immediate update scheduled from the hotpath
+> + *    with a regular update further in the future and missing the
+> + *    immediate update.
+> + * Both races are handled with a retry cycle in the slowpath:
+> + *
+> + *    HOTPATH:                         |    SLOWPATH:
+> + *                                     |
+> + * A) times[cpu] += delta              | E) delta = times[*]
+> + * B) start_poll = (delta[poll_mask] &&|    if delta[poll_mask]:
+> + *      cmpxchg(g->polling, 0, 1) == 0)| F)   polling_until = now +
+> + *                                     |              grace_period
+> + *                                     |    if now > polling_until:
+> + *    if start_poll:                   |      if g->polling:
+> + * C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
+> + *    else if !delayed_work_pending(): | H)     goto SLOWPATH
+> + * D)   schedule_delayed_work(PSI_FREQ)|    else:
+> + *                                     |      if !g->polling:
+> + *                                     | I)     g->polling = polling = 1
+> + *                                     | J) if delta && first_pass:
+> + *                                     |      next_avg = calculate_averages()
+> + *                                     |      if polling:
+> + *                                     |        next_poll = poll_triggers()
+> + *                                     |    if (delta && first_pass) || polling:
+> + *                                     | K)   mod_delayed_work(
+> + *                                     |          min(next_avg, next_poll))
+> + *                                     |      if !polling:
+> + *                                     |        first_pass = false
+> + *                                     | L)     goto SLOWPATH
+> + *
+> + * Race #1 is represented by (EABGD) sequence in which case slowpath
+> + * deactivates polling mode because it misses new monitored stall and hotpath
+> + * doesn't activate it because at (B) g->polling is not yet reset by slowpath
+> + * in (G). This race is handled by the (H) retry, which in the race described
+> + * above results in the new sequence of (EABGDHEIK) that reactivates polling
+> + * mode.
+> + *
+> + * Race #2 is represented by polling==false && (JABCK) sequence which
+> + * overwrites immediate update scheduled at (C) with a later (next_avg) update
+> + * scheduled at (K). This race is handled by the (L) retry which results in the
+> + * new sequence of polling==false && (JABCKLEIK) that reactivates polling mode
+> + * and reschedules next polling update (next_poll).
+> + *
+> + * Note that retries can't result in an infinite loop because retry #1 happens
+> + * only during polling reactivation and retry #2 happens only on the first
+> + * pass. Constant reactivations are impossible because polling will stay active
+> + * for at least grace_period. Worst case scenario involves two retries (HEJKLE)
+> + */
 
-Hi,
-I don't think there is any need to check lk 4.20.2 (as it would
-be very surprising if it didn't also have this "feature").
+I'm having a fairly hard time with this. There's a distinct lack of
+memory ordering, and a suspicious mixing of atomic ops (cmpxchg) and
+regular loads and stores (without READ_ONCE/WRITE_ONCE even).
 
-More interesting might be: has "test3" been run on lk 4.19 or
-any earlier kernel?
+Please clarify.
 
-Doug Gilbert
+(also, you look to have a whole bunch of line-breaks that are really not
+needed; concattenated the line would not be over 80 chars).
