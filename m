@@ -1,490 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6468E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:51:34 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id 202so12234768pgb.6
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:51:34 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id k62si23871095pfc.208.2019.01.13.23.51.31
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C36D08E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 03:24:30 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id f6so1645598wmj.5
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 00:24:30 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o10sor17378824wmf.29.2019.01.14.00.24.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Jan 2019 23:51:31 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0E7lu9U110496
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:51:30 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2q0jtg59q3-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:51:28 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 14 Jan 2019 07:51:26 -0000
-Date: Mon, 14 Jan 2019 09:51:14 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCHv2 3/7] mm/memblock: introduce allocation boundary for
- tracing purpose
-References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
- <1547183577-20309-4-git-send-email-kernelfans@gmail.com>
+        (Google Transport Security);
+        Mon, 14 Jan 2019 00:24:28 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH] x86, numa: always initialize all possible nodes
+Date: Mon, 14 Jan 2019 09:24:16 +0100
+Message-Id: <20190114082416.30939-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1547183577-20309-4-git-send-email-kernelfans@gmail.com>
-Message-Id: <20190114075113.GB1973@rapoport-lnx>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Pingfan Liu <kernelfans@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi Pingfan,
+From: Michal Hocko <mhocko@suse.com>
 
-On Fri, Jan 11, 2019 at 01:12:53PM +0800, Pingfan Liu wrote:
-> During boot time, there is requirement to tell whether a series of func
-> call will consume memory or not. For some reason, a temporary memory
-> resource can be loan to those func through memblock allocator, but at a
-> check point, all of the loan memory should be turned back.
-> A typical using style:
->  -1. find a usable range by memblock_find_in_range(), said, [A,B]
->  -2. before calling a series of func, memblock_set_current_limit(A,B,true)
->  -3. call funcs
->  -4. memblock_find_in_range(A,B,B-A,1), if failed, then some memory is not
->      turned back.
->  -5. reset the original limit
-> 
-> E.g. in the case of hotmovable memory, some acpi routines should be called,
-> and they are not allowed to own some movable memory. Although at present
-> these functions do not consume memory, but later, if changed without
-> awareness, they may do. With the above method, the allocation can be
-> detected, and pr_warn() to ask people to resolve it.
+Pingfan Liu has reported the following splat
+[    5.772742] BUG: unable to handle kernel paging request at 0000000000002088
+[    5.773618] PGD 0 P4D 0
+[    5.773618] Oops: 0000 [#1] SMP NOPTI
+[    5.773618] CPU: 2 PID: 1 Comm: swapper/0 Not tainted 4.20.0-rc1+ #3
+[    5.773618] Hardware name: Dell Inc. PowerEdge R7425/02MJ3T, BIOS 1.4.3 06/29/2018
+[    5.773618] RIP: 0010:__alloc_pages_nodemask+0xe2/0x2a0
+[    5.773618] Code: 00 00 44 89 ea 80 ca 80 41 83 f8 01 44 0f 44 ea 89 da c1 ea 08 83 e2 01 88 54 24 20 48 8b 54 24 08 48 85 d2 0f 85 46 01 00 00 <3b> 77 08 0f 82 3d 01 00 00 48 89 f8 44 89 ea 48 89
+e1 44 89 e6 89
+[    5.773618] RSP: 0018:ffffaa600005fb20 EFLAGS: 00010246
+[    5.773618] RAX: 0000000000000000 RBX: 00000000006012c0 RCX: 0000000000000000
+[    5.773618] RDX: 0000000000000000 RSI: 0000000000000002 RDI: 0000000000002080
+[    5.773618] RBP: 00000000006012c0 R08: 0000000000000000 R09: 0000000000000002
+[    5.773618] R10: 00000000006080c0 R11: 0000000000000002 R12: 0000000000000000
+[    5.773618] R13: 0000000000000001 R14: 0000000000000000 R15: 0000000000000002
+[    5.773618] FS:  0000000000000000(0000) GS:ffff8c69afe00000(0000) knlGS:0000000000000000
+[    5.773618] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    5.773618] CR2: 0000000000002088 CR3: 000000087e00a000 CR4: 00000000003406e0
+[    5.773618] Call Trace:
+[    5.773618]  new_slab+0xa9/0x570
+[    5.773618]  ___slab_alloc+0x375/0x540
+[    5.773618]  ? pinctrl_bind_pins+0x2b/0x2a0
+[    5.773618]  __slab_alloc+0x1c/0x38
+[    5.773618]  __kmalloc_node_track_caller+0xc8/0x270
+[    5.773618]  ? pinctrl_bind_pins+0x2b/0x2a0
+[    5.773618]  devm_kmalloc+0x28/0x60
+[    5.773618]  pinctrl_bind_pins+0x2b/0x2a0
+[    5.773618]  really_probe+0x73/0x420
+[    5.773618]  driver_probe_device+0x115/0x130
+[    5.773618]  __driver_attach+0x103/0x110
+[    5.773618]  ? driver_probe_device+0x130/0x130
+[    5.773618]  bus_for_each_dev+0x67/0xc0
+[    5.773618]  ? klist_add_tail+0x3b/0x70
+[    5.773618]  bus_add_driver+0x41/0x260
+[    5.773618]  ? pcie_port_setup+0x4d/0x4d
+[    5.773618]  driver_register+0x5b/0xe0
+[    5.773618]  ? pcie_port_setup+0x4d/0x4d
+[    5.773618]  do_one_initcall+0x4e/0x1d4
+[    5.773618]  ? init_setup+0x25/0x28
+[    5.773618]  kernel_init_freeable+0x1c1/0x26e
+[    5.773618]  ? loglevel+0x5b/0x5b
+[    5.773618]  ? rest_init+0xb0/0xb0
+[    5.773618]  kernel_init+0xa/0x110
+[    5.773618]  ret_from_fork+0x22/0x40
+[    5.773618] Modules linked in:
+[    5.773618] CR2: 0000000000002088
+[    5.773618] ---[ end trace 1030c9120a03d081 ]---
 
-To ensure there were that a sequence of function calls didn't create new
-memblock allocations you can simply check the number of the reserved
-regions before and after that sequence.
+with his AMD machine with the following topology
+  NUMA node0 CPU(s):     0,8,16,24
+  NUMA node1 CPU(s):     2,10,18,26
+  NUMA node2 CPU(s):     4,12,20,28
+  NUMA node3 CPU(s):     6,14,22,30
+  NUMA node4 CPU(s):     1,9,17,25
+  NUMA node5 CPU(s):     3,11,19,27
+  NUMA node6 CPU(s):     5,13,21,29
+  NUMA node7 CPU(s):     7,15,23,31
 
-Still, I'm not sure it would be practical to try tracking what code that's called
-from x86::setup_arch() did memory allocation.
-Probably a better approach is to verify no memory ended up in the movable
-areas after their extents are known.
+[    0.007418] Early memory node ranges
+[    0.007419]   node   1: [mem 0x0000000000001000-0x000000000008efff]
+[    0.007420]   node   1: [mem 0x0000000000090000-0x000000000009ffff]
+[    0.007422]   node   1: [mem 0x0000000000100000-0x000000005c3d6fff]
+[    0.007422]   node   1: [mem 0x00000000643df000-0x0000000068ff7fff]
+[    0.007423]   node   1: [mem 0x000000006c528000-0x000000006fffffff]
+[    0.007424]   node   1: [mem 0x0000000100000000-0x000000047fffffff]
+[    0.007425]   node   5: [mem 0x0000000480000000-0x000000087effffff]
+
+and nr_cpus set to 4. The underlying reason is tha the device is bound
+to node 2 which doesn't have any memory and init_cpu_to_node only
+initializes memory-less nodes for possible cpus which nr_cpus restrics.
+This in turn means that proper zonelists are not allocated and the page
+allocator blows up.
+
+Fix the issue by reworking how x86 initializes the memory less nodes.
+The current implementation is hacked into the workflow and it doesn't
+allow any flexibility. There is init_memory_less_node called for each
+offline node that has a CPU as already mentioned above. This will make
+sure that we will have a new online node without any memory. Much later
+on we build a zone list for this node and things seem to work, except
+they do not (e.g. due to nr_cpus). Not to mention that it doesn't really
+make much sense to consider an empty node as online because we just
+consider this node whenever we want to iterate nodes to use and empty
+node is obviously not the best candidate. This is all just too fragile.
+
+Reported-by: Pingfan Liu <kernelfans@gmail.com>
+Tested-by: Pingfan Liu <kernelfans@gmail.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+I am sending this as an RFC because I am not sure this is the proper way
+to go myself. I am especially not sure about other architectures
+supporting memoryless nodes (ppc and ia64 AFAICS or are there more?).
+
+I would appreciate a help with those architectures because I couldn't
+really grasp how the memoryless nodes are really initialized there. E.g.
+ppc only seem to call setup_node_data for online nodes but I couldn't
+find any special treatment for nodes without any memory.
+
+Any further help, comments are appreaciated!
+
+ arch/x86/mm/numa.c | 27 +++------------------------
+ mm/page_alloc.c    | 15 +++++++++------
+ 2 files changed, 12 insertions(+), 30 deletions(-)
+
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 1308f5408bf7..b3621ee4dfe8 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -216,8 +216,6 @@ static void __init alloc_node_data(int nid)
  
-> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> Cc: Len Brown <lenb@kernel.org>
-> Cc: Yinghai Lu <yinghai@kernel.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Chao Fan <fanc.fnst@cn.fujitsu.com>
-> Cc: Baoquan He <bhe@redhat.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: x86@kernel.org
-> Cc: linux-acpi@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> ---
->  arch/arm/mm/init.c              |  3 ++-
->  arch/arm/mm/mmu.c               |  4 ++--
->  arch/arm/mm/nommu.c             |  2 +-
->  arch/csky/kernel/setup.c        |  2 +-
->  arch/microblaze/mm/init.c       |  2 +-
->  arch/mips/kernel/setup.c        |  2 +-
->  arch/powerpc/mm/40x_mmu.c       |  6 ++++--
->  arch/powerpc/mm/44x_mmu.c       |  2 +-
->  arch/powerpc/mm/8xx_mmu.c       |  2 +-
->  arch/powerpc/mm/fsl_booke_mmu.c |  5 +++--
->  arch/powerpc/mm/hash_utils_64.c |  4 ++--
->  arch/powerpc/mm/init_32.c       |  2 +-
->  arch/powerpc/mm/pgtable-radix.c |  2 +-
->  arch/powerpc/mm/ppc_mmu_32.c    |  8 ++++++--
->  arch/powerpc/mm/tlb_nohash.c    |  6 ++++--
->  arch/unicore32/mm/mmu.c         |  2 +-
->  arch/x86/kernel/setup.c         |  2 +-
->  arch/xtensa/mm/init.c           |  2 +-
->  include/linux/memblock.h        | 10 +++++++---
->  mm/memblock.c                   | 23 ++++++++++++++++++-----
->  20 files changed, 59 insertions(+), 32 deletions(-)
-> 
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index 32e4845..58a4342 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -93,7 +93,8 @@ __tagtable(ATAG_INITRD2, parse_tag_initrd2);
->  static void __init find_limits(unsigned long *min, unsigned long *max_low,
->  			       unsigned long *max_high)
->  {
-> -	*max_low = PFN_DOWN(memblock_get_current_limit());
-> +	memblock_get_current_limit(NULL, max_low);
-> +	*max_low = PFN_DOWN(*max_low);
->  	*min = PFN_UP(memblock_start_of_DRAM());
->  	*max_high = PFN_DOWN(memblock_end_of_DRAM());
->  }
-> diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
-> index f5cc1cc..9025418 100644
-> --- a/arch/arm/mm/mmu.c
-> +++ b/arch/arm/mm/mmu.c
-> @@ -1240,7 +1240,7 @@ void __init adjust_lowmem_bounds(void)
->  		}
->  	}
-> 
-> -	memblock_set_current_limit(memblock_limit);
-> +	memblock_set_current_limit(0, memblock_limit, false);
->  }
-> 
->  static inline void prepare_page_table(void)
-> @@ -1625,7 +1625,7 @@ void __init paging_init(const struct machine_desc *mdesc)
-> 
->  	prepare_page_table();
->  	map_lowmem();
-> -	memblock_set_current_limit(arm_lowmem_limit);
-> +	memblock_set_current_limit(0, arm_lowmem_limit, false);
->  	dma_contiguous_remap();
->  	early_fixmap_shutdown();
->  	devicemaps_init(mdesc);
-> diff --git a/arch/arm/mm/nommu.c b/arch/arm/mm/nommu.c
-> index 7d67c70..721535c 100644
-> --- a/arch/arm/mm/nommu.c
-> +++ b/arch/arm/mm/nommu.c
-> @@ -138,7 +138,7 @@ void __init adjust_lowmem_bounds(void)
->  	adjust_lowmem_bounds_mpu();
->  	end = memblock_end_of_DRAM();
->  	high_memory = __va(end - 1) + 1;
-> -	memblock_set_current_limit(end);
-> +	memblock_set_current_limit(0, end, false);
->  }
-> 
->  /*
-> diff --git a/arch/csky/kernel/setup.c b/arch/csky/kernel/setup.c
-> index dff8b89..e6f88bf 100644
-> --- a/arch/csky/kernel/setup.c
-> +++ b/arch/csky/kernel/setup.c
-> @@ -100,7 +100,7 @@ static void __init csky_memblock_init(void)
-> 
->  	highend_pfn = max_pfn;
->  #endif
-> -	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
-> +	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
-> 
->  	dma_contiguous_reserve(0);
-> 
-> diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
-> index b17fd8a..cee99da 100644
-> --- a/arch/microblaze/mm/init.c
-> +++ b/arch/microblaze/mm/init.c
-> @@ -353,7 +353,7 @@ asmlinkage void __init mmu_init(void)
->  	/* Shortly after that, the entire linear mapping will be available */
->  	/* This will also cause that unflatten device tree will be allocated
->  	 * inside 768MB limit */
-> -	memblock_set_current_limit(memory_start + lowmem_size - 1);
-> +	memblock_set_current_limit(0, memory_start + lowmem_size - 1, false);
->  }
-> 
->  /* This is only called until mem_init is done. */
-> diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-> index 8c6c48ed..62dabe1 100644
-> --- a/arch/mips/kernel/setup.c
-> +++ b/arch/mips/kernel/setup.c
-> @@ -862,7 +862,7 @@ static void __init arch_mem_init(char **cmdline_p)
->  	 * with memblock_reserve; memblock_alloc* can be used
->  	 * only after this point
->  	 */
-> -	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
-> +	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
-> 
->  #ifdef CONFIG_PROC_VMCORE
->  	if (setup_elfcorehdr && setup_elfcorehdr_size) {
-> diff --git a/arch/powerpc/mm/40x_mmu.c b/arch/powerpc/mm/40x_mmu.c
-> index 61ac468..427bb56 100644
-> --- a/arch/powerpc/mm/40x_mmu.c
-> +++ b/arch/powerpc/mm/40x_mmu.c
-> @@ -141,7 +141,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
->  	 * coverage with normal-sized pages (or other reasons) do not
->  	 * attempt to allocate outside the allowed range.
->  	 */
-> -	memblock_set_current_limit(mapped);
-> +	memblock_set_current_limit(0, mapped, false);
-> 
->  	return mapped;
->  }
-> @@ -155,5 +155,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
->  	BUG_ON(first_memblock_base != 0);
-> 
->  	/* 40x can only access 16MB at the moment (see head_40x.S) */
-> -	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x00800000));
-> +	memblock_set_current_limit(0,
-> +		min_t(u64, first_memblock_size, 0x00800000),
-> +		false);
->  }
-> diff --git a/arch/powerpc/mm/44x_mmu.c b/arch/powerpc/mm/44x_mmu.c
-> index 12d9251..3cf127d 100644
-> --- a/arch/powerpc/mm/44x_mmu.c
-> +++ b/arch/powerpc/mm/44x_mmu.c
-> @@ -225,7 +225,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
-> 
->  	/* 44x has a 256M TLB entry pinned at boot */
->  	size = (min_t(u64, first_memblock_size, PPC_PIN_SIZE));
-> -	memblock_set_current_limit(first_memblock_base + size);
-> +	memblock_set_current_limit(0, first_memblock_base + size, false);
->  }
-> 
->  #ifdef CONFIG_SMP
-> diff --git a/arch/powerpc/mm/8xx_mmu.c b/arch/powerpc/mm/8xx_mmu.c
-> index 01b7f51..c75bca6 100644
-> --- a/arch/powerpc/mm/8xx_mmu.c
-> +++ b/arch/powerpc/mm/8xx_mmu.c
-> @@ -135,7 +135,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
->  	 * attempt to allocate outside the allowed range.
->  	 */
->  	if (mapped)
-> -		memblock_set_current_limit(mapped);
-> +		memblock_set_current_limit(0, mapped, false);
-> 
->  	block_mapped_ram = mapped;
-> 
-> diff --git a/arch/powerpc/mm/fsl_booke_mmu.c b/arch/powerpc/mm/fsl_booke_mmu.c
-> index 080d49b..3be24b8 100644
-> --- a/arch/powerpc/mm/fsl_booke_mmu.c
-> +++ b/arch/powerpc/mm/fsl_booke_mmu.c
-> @@ -252,7 +252,8 @@ void __init adjust_total_lowmem(void)
->  	pr_cont("%lu Mb, residual: %dMb\n", tlbcam_sz(tlbcam_index - 1) >> 20,
->  	        (unsigned int)((total_lowmem - __max_low_memory) >> 20));
-> 
-> -	memblock_set_current_limit(memstart_addr + __max_low_memory);
-> +	memblock_set_current_limit(0,
-> +		memstart_addr + __max_low_memory, false);
->  }
-> 
->  void setup_initial_memory_limit(phys_addr_t first_memblock_base,
-> @@ -261,7 +262,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
->  	phys_addr_t limit = first_memblock_base + first_memblock_size;
-> 
->  	/* 64M mapped initially according to head_fsl_booke.S */
-> -	memblock_set_current_limit(min_t(u64, limit, 0x04000000));
-> +	memblock_set_current_limit(0, min_t(u64, limit, 0x04000000), false);
->  }
-> 
->  #ifdef CONFIG_RELOCATABLE
-> diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-> index 0cc7fbc..30fba80 100644
-> --- a/arch/powerpc/mm/hash_utils_64.c
-> +++ b/arch/powerpc/mm/hash_utils_64.c
-> @@ -925,7 +925,7 @@ static void __init htab_initialize(void)
->  		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
->  				prot, mmu_linear_psize, mmu_kernel_ssize));
->  	}
-> -	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
-> +	memblock_set_current_limit(0, MEMBLOCK_ALLOC_ANYWHERE, false);
-> 
->  	/*
->  	 * If we have a memory_limit and we've allocated TCEs then we need to
-> @@ -1867,7 +1867,7 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
->  			ppc64_rma_size = min_t(u64, ppc64_rma_size, 0x40000000);
-> 
->  		/* Finally limit subsequent allocations */
-> -		memblock_set_current_limit(ppc64_rma_size);
-> +		memblock_set_current_limit(0, ppc64_rma_size, false);
->  	} else {
->  		ppc64_rma_size = ULONG_MAX;
->  	}
-> diff --git a/arch/powerpc/mm/init_32.c b/arch/powerpc/mm/init_32.c
-> index 3e59e5d..863d710 100644
-> --- a/arch/powerpc/mm/init_32.c
-> +++ b/arch/powerpc/mm/init_32.c
-> @@ -183,5 +183,5 @@ void __init MMU_init(void)
->  #endif
-> 
->  	/* Shortly after that, the entire linear mapping will be available */
-> -	memblock_set_current_limit(lowmem_end_addr);
-> +	memblock_set_current_limit(0, lowmem_end_addr, false);
->  }
-> diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
-> index 9311560..8cd5f2d 100644
-> --- a/arch/powerpc/mm/pgtable-radix.c
-> +++ b/arch/powerpc/mm/pgtable-radix.c
-> @@ -603,7 +603,7 @@ void __init radix__early_init_mmu(void)
->  		radix_init_pseries();
->  	}
-> 
-> -	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
-> +	memblock_set_current_limit(0, MEMBLOCK_ALLOC_ANYWHERE, false);
-> 
->  	radix_init_iamr();
->  	radix_init_pgtable();
-> diff --git a/arch/powerpc/mm/ppc_mmu_32.c b/arch/powerpc/mm/ppc_mmu_32.c
-> index f6f575b..80927ad 100644
-> --- a/arch/powerpc/mm/ppc_mmu_32.c
-> +++ b/arch/powerpc/mm/ppc_mmu_32.c
-> @@ -283,7 +283,11 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
-> 
->  	/* 601 can only access 16MB at the moment */
->  	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
-> -		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01000000));
-> +		memblock_set_current_limit(0,
-> +			min_t(u64, first_memblock_size, 0x01000000),
-> +			false);
->  	else /* Anything else has 256M mapped */
-> -		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
-> +		memblock_set_current_limit(0,
-> +			min_t(u64, first_memblock_size, 0x10000000),
-> +			false);
->  }
-> diff --git a/arch/powerpc/mm/tlb_nohash.c b/arch/powerpc/mm/tlb_nohash.c
-> index ae5d568..d074362 100644
-> --- a/arch/powerpc/mm/tlb_nohash.c
-> +++ b/arch/powerpc/mm/tlb_nohash.c
-> @@ -735,7 +735,7 @@ static void __init early_mmu_set_memory_limit(void)
->  		 * reduces the memory available to Linux.  We need to
->  		 * do this because highmem is not supported on 64-bit.
->  		 */
-> -		memblock_enforce_memory_limit(linear_map_top);
-> +		memblock_enforce_memory_limit(0, linear_map_top, false);
->  	}
->  #endif
-> 
-> @@ -792,7 +792,9 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
->  		ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
-> 
->  	/* Finally limit subsequent allocations */
-> -	memblock_set_current_limit(first_memblock_base + ppc64_rma_size);
-> +	memblock_set_current_limit(0,
-> +			first_memblock_base + ppc64_rma_size,
-> +			false);
->  }
->  #else /* ! CONFIG_PPC64 */
->  void __init early_init_mmu(void)
-> diff --git a/arch/unicore32/mm/mmu.c b/arch/unicore32/mm/mmu.c
-> index 040a8c2..6d62529 100644
-> --- a/arch/unicore32/mm/mmu.c
-> +++ b/arch/unicore32/mm/mmu.c
-> @@ -286,7 +286,7 @@ static void __init sanity_check_meminfo(void)
->  	int i, j;
-> 
->  	lowmem_limit = __pa(vmalloc_min - 1) + 1;
-> -	memblock_set_current_limit(lowmem_limit);
-> +	memblock_set_current_limit(0, lowmem_limit, false);
-> 
->  	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
->  		struct membank *bank = &meminfo.bank[j];
-> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-> index dc8fc5d..a0122cd 100644
-> --- a/arch/x86/kernel/setup.c
-> +++ b/arch/x86/kernel/setup.c
-> @@ -1130,7 +1130,7 @@ void __init setup_arch(char **cmdline_p)
->  		memblock_set_bottom_up(true);
->  #endif
->  	init_mem_mapping();
-> -	memblock_set_current_limit(get_max_mapped());
-> +	memblock_set_current_limit(0, get_max_mapped(), false);
-> 
->  	idt_setup_early_pf();
-> 
-> diff --git a/arch/xtensa/mm/init.c b/arch/xtensa/mm/init.c
-> index 30a48bb..b924387 100644
-> --- a/arch/xtensa/mm/init.c
-> +++ b/arch/xtensa/mm/init.c
-> @@ -60,7 +60,7 @@ void __init bootmem_init(void)
->  	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
->  	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
-> 
-> -	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
-> +	memblock_set_current_limit(0, PFN_PHYS(max_low_pfn), false);
->  	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
-> 
->  	memblock_dump_all();
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index aee299a..49676f0 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -88,6 +88,8 @@ struct memblock_type {
->   */
->  struct memblock {
->  	bool bottom_up;  /* is bottom up direction? */
-> +	bool enforce_checking;
-> +	phys_addr_t start_limit;
->  	phys_addr_t current_limit;
->  	struct memblock_type memory;
->  	struct memblock_type reserved;
-> @@ -482,12 +484,14 @@ static inline void memblock_dump_all(void)
->   * memblock_set_current_limit - Set the current allocation limit to allow
->   *                         limiting allocations to what is currently
->   *                         accessible during boot
-> - * @limit: New limit value (physical address)
-> + * [start_limit, end_limit]: New limit value (physical address)
-> + * enforcing: whether check against the limit boundary or not
->   */
-> -void memblock_set_current_limit(phys_addr_t limit);
-> +void memblock_set_current_limit(phys_addr_t start_limit,
-> +	phys_addr_t end_limit, bool enforcing);
-> 
-> 
-> -phys_addr_t memblock_get_current_limit(void);
-> +bool memblock_get_current_limit(phys_addr_t *start, phys_addr_t *end);
-> 
->  /*
->   * pfn conversion functions
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 81ae63c..b792be0 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -116,6 +116,8 @@ struct memblock memblock __initdata_memblock = {
->  #endif
-> 
->  	.bottom_up		= false,
-> +	.enforce_checking	= false,
-> +	.start_limit		= 0,
->  	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
->  };
-> 
-> @@ -261,8 +263,11 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
->  {
->  	phys_addr_t kernel_end, ret;
-> 
-> +	if (unlikely(memblock.enforce_checking)) {
-> +		start = memblock.start_limit;
-> +		end = memblock.current_limit;
->  	/* pump up @end */
-> -	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-> +	} else if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
->  		end = memblock.current_limit;
-> 
->  	/* avoid allocating the first page */
-> @@ -1826,14 +1831,22 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
->  	}
->  }
-> 
-> -void __init_memblock memblock_set_current_limit(phys_addr_t limit)
-> +void __init_memblock memblock_set_current_limit(phys_addr_t start,
-> +	phys_addr_t end, bool enforcing)
->  {
-> -	memblock.current_limit = limit;
-> +	memblock.start_limit = start;
-> +	memblock.current_limit = end;
-> +	memblock.enforce_checking = enforcing;
->  }
-> 
-> -phys_addr_t __init_memblock memblock_get_current_limit(void)
-> +bool __init_memblock memblock_get_current_limit(phys_addr_t *start,
-> +	phys_addr_t *end)
->  {
-> -	return memblock.current_limit;
-> +	if (start)
-> +		*start = memblock.start_limit;
-> +	if (end)
-> +		*end = memblock.current_limit;
-> +	return memblock.enforce_checking;
->  }
-> 
->  static void __init_memblock memblock_dump(struct memblock_type *type)
-> -- 
-> 2.7.4
-> 
-
+ 	node_data[nid] = nd;
+ 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+-
+-	node_set_online(nid);
+ }
+ 
+ /**
+@@ -570,7 +568,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 		return -EINVAL;
+ 
+ 	/* Finally register nodes. */
+-	for_each_node_mask(nid, node_possible_map) {
++	for_each_node_mask(nid, numa_nodes_parsed) {
+ 		u64 start = PFN_PHYS(max_pfn);
+ 		u64 end = 0;
+ 
+@@ -581,9 +579,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 			end = max(mi->blk[i].end, end);
+ 		}
+ 
+-		if (start >= end)
+-			continue;
+-
+ 		/*
+ 		 * Don't confuse VM with a node that doesn't have the
+ 		 * minimum amount of memory:
+@@ -592,6 +587,8 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 			continue;
+ 
+ 		alloc_node_data(nid);
++		if (end)
++			node_set_online(nid);
+ 	}
+ 
+ 	/* Dump memblock with node info and return. */
+@@ -721,21 +718,6 @@ void __init x86_numa_init(void)
+ 	numa_init(dummy_numa_init);
+ }
+ 
+-static void __init init_memory_less_node(int nid)
+-{
+-	unsigned long zones_size[MAX_NR_ZONES] = {0};
+-	unsigned long zholes_size[MAX_NR_ZONES] = {0};
+-
+-	/* Allocate and initialize node data. Memory-less node is now online.*/
+-	alloc_node_data(nid);
+-	free_area_init_node(nid, zones_size, 0, zholes_size);
+-
+-	/*
+-	 * All zonelists will be built later in start_kernel() after per cpu
+-	 * areas are initialized.
+-	 */
+-}
+-
+ /*
+  * Setup early cpu_to_node.
+  *
+@@ -763,9 +745,6 @@ void __init init_cpu_to_node(void)
+ 		if (node == NUMA_NO_NODE)
+ 			continue;
+ 
+-		if (!node_online(node))
+-			init_memory_less_node(node);
+-
+ 		numa_set_node(cpu, node);
+ 	}
+ }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2ec9cc407216..2e097f336126 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5361,10 +5361,11 @@ static void __build_all_zonelists(void *data)
+ 	if (self && !node_online(self->node_id)) {
+ 		build_zonelists(self);
+ 	} else {
+-		for_each_online_node(nid) {
++		for_each_node(nid) {
+ 			pg_data_t *pgdat = NODE_DATA(nid);
+ 
+-			build_zonelists(pgdat);
++			if (pgdat)
++				build_zonelists(pgdat);
+ 		}
+ 
+ #ifdef CONFIG_HAVE_MEMORYLESS_NODES
+@@ -6644,10 +6645,8 @@ static unsigned long __init find_min_pfn_for_node(int nid)
+ 	for_each_mem_pfn_range(i, nid, &start_pfn, NULL, NULL)
+ 		min_pfn = min(min_pfn, start_pfn);
+ 
+-	if (min_pfn == ULONG_MAX) {
+-		pr_warn("Could not find start_pfn for node %d\n", nid);
++	if (min_pfn == ULONG_MAX)
+ 		return 0;
+-	}
+ 
+ 	return min_pfn;
+ }
+@@ -6991,8 +6990,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 	mminit_verify_pageflags_layout();
+ 	setup_nr_node_ids();
+ 	zero_resv_unavail();
+-	for_each_online_node(nid) {
++	for_each_node(nid) {
+ 		pg_data_t *pgdat = NODE_DATA(nid);
++
++		if (!pgdat)
++			continue;
++
+ 		free_area_init_node(nid, NULL,
+ 				find_min_pfn_for_node(nid), NULL);
+ 
 -- 
-Sincerely yours,
-Mike.
+2.20.1
