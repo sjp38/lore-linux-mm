@@ -1,342 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F6428E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:55:04 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id n39so23687543qtn.18
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 01:55:04 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 095DE8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:55:09 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id w15so24169039qtk.19
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 01:55:09 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h123si2357963qkf.66.2019.01.14.01.55.02
+        by mx.google.com with ESMTPS id j187si3295039qkf.235.2019.01.14.01.55.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jan 2019 01:55:03 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0E9nabL102305
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:55:02 -0500
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2q0p2yw64t-1
+        Mon, 14 Jan 2019 01:55:07 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0E9mXCf112000
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:55:07 -0500
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2q0pa8n52m-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:55:02 -0500
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:55:07 -0500
 Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Mon, 14 Jan 2019 09:55:01 -0000
+	Mon, 14 Jan 2019 09:55:06 -0000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH V7 2/4] mm: Update get_user_pages_longterm to migrate pages allocated from CMA region
-Date: Mon, 14 Jan 2019 15:24:35 +0530
+Subject: [PATCH V7 3/4] powerpc/mm/iommu: Allow migration of cma allocated pages during mm_iommu_do_alloc
+Date: Mon, 14 Jan 2019 15:24:36 +0530
 In-Reply-To: <20190114095438.32470-1-aneesh.kumar@linux.ibm.com>
 References: <20190114095438.32470-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Message-Id: <20190114095438.32470-4-aneesh.kumar@linux.ibm.com>
+Message-Id: <20190114095438.32470-5-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>, mpe@ellerman.id.au
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-This patch updates get_user_pages_longterm to migrate pages allocated out
-of CMA region. This makes sure that we don't keep non-movable pages (due to page
-reference count) in the CMA area.
+The current code doesn't do page migration if the page allocated is a compound page.
+With HugeTLB migration support, we can end up allocating hugetlb pages from
+CMA region. Also, THP pages can be allocated from CMA region. This patch updates
+the code to handle compound pages correctly. The patch also switches to a single
+get_user_pages with the right count, instead of doing one get_user_pages per page.
+That avoids reading page table multiple times.
 
-This will be used by ppc64 in a later patch to avoid pinning pages in the CMA
-region. ppc64 uses CMA region for allocation of the hardware page table (hash page
-table) and not able to migrate pages out of CMA region results in page table
-allocation failures.
+Since these page reference updates are long term pin, switch to
+get_user_pages_longterm. That makes sure we fail correctly if the guest RAM
+is backed by DAX pages.
 
-One case where we hit this easy is when a guest using a VFIO passthrough device.
-VFIO locks all the guest's memory and if the guest memory is backed by CMA
-region, it becomes unmovable resulting in fragmenting the CMA and possibly
-preventing other guests from allocation a large enough hash page table.
-
-NOTE: We allocate the new page without using __GFP_THISNODE
+The patch also converts the hpas member of mm_iommu_table_group_mem_t to a union.
+We use the same storage location to store pointers to struct page. We cannot
+update all the code path use struct page *, because we access hpas in real mode
+and we can't do that struct page * to pfn conversion in real mode.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 ---
- include/linux/hugetlb.h |   2 +
- include/linux/mm.h      |   3 +-
- mm/gup.c                | 200 +++++++++++++++++++++++++++++++++++-----
- mm/hugetlb.c            |   4 +-
- 4 files changed, 182 insertions(+), 27 deletions(-)
+ arch/powerpc/mm/mmu_context_iommu.c | 126 +++++++++-------------------
+ 1 file changed, 39 insertions(+), 87 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 087fd5f48c91..1eed0cdaec0e 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -371,6 +371,8 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
- 				nodemask_t *nmask);
- struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
- 				unsigned long address);
-+struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-+				     int nid, nodemask_t *nmask);
- int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
- 			pgoff_t idx);
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe73..20ec56f8e2bb 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1536,7 +1536,8 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
- 		    unsigned int gup_flags, struct page **pages, int *locked);
- long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
- 		    struct page **pages, unsigned int gup_flags);
--#ifdef CONFIG_FS_DAX
-+
-+#if defined(CONFIG_FS_DAX) || defined(CONFIG_CMA)
- long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
- 			    unsigned int gup_flags, struct page **pages,
- 			    struct vm_area_struct **vmas);
-diff --git a/mm/gup.c b/mm/gup.c
-index 05acd7e2eb22..6e8152594e83 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -13,6 +13,9 @@
- #include <linux/sched/signal.h>
- #include <linux/rwsem.h>
- #include <linux/hugetlb.h>
-+#include <linux/migrate.h>
-+#include <linux/mm_inline.h>
-+#include <linux/sched/mm.h>
- 
+diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
+index a712a650a8b6..f11a2f15071f 100644
+--- a/arch/powerpc/mm/mmu_context_iommu.c
++++ b/arch/powerpc/mm/mmu_context_iommu.c
+@@ -21,6 +21,7 @@
+ #include <linux/sizes.h>
  #include <asm/mmu_context.h>
- #include <asm/pgtable.h>
-@@ -1126,7 +1129,167 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
+ #include <asm/pte-walk.h>
++#include <linux/mm_inline.h>
+ 
+ static DEFINE_MUTEX(mem_list_mutex);
+ 
+@@ -34,8 +35,18 @@ struct mm_iommu_table_group_mem_t {
+ 	atomic64_t mapped;
+ 	unsigned int pageshift;
+ 	u64 ua;			/* userspace address */
+-	u64 entries;		/* number of entries in hpas[] */
+-	u64 *hpas;		/* vmalloc'ed */
++	u64 entries;		/* number of entries in hpas/hpages[] */
++	/*
++	 * in mm_iommu_get we temporarily use this to store
++	 * struct page address.
++	 *
++	 * We need to convert ua to hpa in real mode. Make it
++	 * simpler by storing physical address.
++	 */
++	union {
++		struct page **hpages;	/* vmalloc'ed */
++		phys_addr_t *hpas;
++	};
+ #define MM_IOMMU_TABLE_INVALID_HPA	((uint64_t)-1)
+ 	u64 dev_hpa;		/* Device memory base address */
+ };
+@@ -80,64 +91,15 @@ bool mm_iommu_preregistered(struct mm_struct *mm)
  }
- EXPORT_SYMBOL(get_user_pages);
+ EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
  
-+#if defined(CONFIG_FS_DAX) || defined (CONFIG_CMA)
-+
- #ifdef CONFIG_FS_DAX
-+static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
-+{
-+	long i;
-+	struct vm_area_struct *vma_prev = NULL;
-+
-+	for (i = 0; i < nr_pages; i++) {
-+		struct vm_area_struct *vma = vmas[i];
-+
-+		if (vma == vma_prev)
-+			continue;
-+
-+		vma_prev = vma;
-+
-+		if (vma_is_fsdax(vma))
-+			return true;
-+	}
-+	return false;
-+}
-+#else
-+static inline bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
-+{
-+	return false;
-+}
-+#endif
-+
-+#ifdef CONFIG_CMA
-+static struct page *new_non_cma_page(struct page *page, unsigned long private)
-+{
-+	/*
-+	 * We want to make sure we allocate the new page from the same node
-+	 * as the source page.
-+	 */
-+	int nid = page_to_nid(page);
-+	/*
-+	 * Trying to allocate a page for migration. Ignore allocation
-+	 * failure warnings. We don't force __GFP_THISNODE here because
-+	 * this node here is the node where we have CMA reservation and
-+	 * in some case these nodes will have really less non movable
-+	 * allocation memory.
-+	 */
-+	gfp_t gfp_mask = GFP_USER | __GFP_NOWARN;
-+
-+	if (PageHighMem(page))
-+		gfp_mask |= __GFP_HIGHMEM;
-+
-+#ifdef CONFIG_HUGETLB_PAGE
-+	if (PageHuge(page)) {
-+		struct hstate *h = page_hstate(page);
-+		/*
-+		 * We don't want to dequeue from the pool because pool pages will
-+		 * mostly be from the CMA region.
-+		 */
-+		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
-+	}
-+#endif
-+	if (PageTransHuge(page)) {
-+		struct page *thp;
-+		/*
-+		 * ignore allocation failure warnings
-+		 */
-+		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_NOWARN;
-+
-+		/*
-+		 * Remove the movable mask so that we don't allocate from
-+		 * CMA area again.
-+		 */
-+		thp_gfpmask &= ~__GFP_MOVABLE;
-+		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
-+	}
-+
-+	return __alloc_pages_node(nid, gfp_mask, 0);
-+}
-+
-+static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-+					unsigned int gup_flags,
-+					struct page **pages,
-+					struct vm_area_struct **vmas)
-+{
-+	long i;
-+	bool drain_allow = true;
-+	bool migrate_allow = true;
-+	LIST_HEAD(cma_page_list);
-+
-+check_again:
-+	for (i = 0; i < nr_pages; i++) {
-+		/*
-+		 * If we get a page from the CMA zone, since we are going to
-+		 * be pinning these entries, we might as well move them out
-+		 * of the CMA zone if possible.
-+		 */
-+		if (is_migrate_cma_page(pages[i])) {
-+
-+			struct page *head = compound_head(pages[i]);
-+
-+			if (PageHuge(head)) {
-+				isolate_huge_page(head, &cma_page_list);
-+			} else {
-+				if (!PageLRU(head) && drain_allow) {
-+					lru_add_drain_all();
-+					drain_allow = false;
-+				}
-+
-+				if (!isolate_lru_page(head)) {
-+					list_add_tail(&head->lru, &cma_page_list);
-+					mod_node_page_state(page_pgdat(head),
-+							    NR_ISOLATED_ANON +
-+							    page_is_file_cache(head),
-+							    hpage_nr_pages(head));
-+				}
-+			}
-+		}
-+	}
-+
-+	if (!list_empty(&cma_page_list)) {
-+		/*
-+		 * drop the above get_user_pages reference.
-+		 */
-+		for (i = 0; i < nr_pages; i++)
-+			put_page(pages[i]);
-+
-+		if (migrate_pages(&cma_page_list, new_non_cma_page,
-+				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
-+			/*
-+			 * some of the pages failed migration. Do get_user_pages
-+			 * without migration.
-+			 */
-+			migrate_allow = false;
-+
-+			if (!list_empty(&cma_page_list))
-+				putback_movable_pages(&cma_page_list);
-+		}
-+		/*
-+		 * We did migrate all the pages, Try to get the page references again
-+		 * migrating any new CMA pages which we failed to isolate earlier.
-+		 */
-+		nr_pages = get_user_pages(start, nr_pages, gup_flags, pages, vmas);
-+		if ((nr_pages > 0) && migrate_allow) {
-+			drain_allow = true;
-+			goto check_again;
-+		}
-+	}
-+
-+	return nr_pages;
-+}
-+#else
-+static inline long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-+					       unsigned int gup_flags,
-+					       struct page **pages,
-+					       struct vm_area_struct **vmas)
-+{
-+	return nr_pages;
-+}
-+#endif
-+
- /*
-  * This is the same as get_user_pages() in that it assumes we are
-  * operating on the current task's mm, but it goes further to validate
-@@ -1140,11 +1303,11 @@ EXPORT_SYMBOL(get_user_pages);
-  * Contrast this to iov_iter_get_pages() usages which are transient.
-  */
- long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
--		unsigned int gup_flags, struct page **pages,
--		struct vm_area_struct **vmas_arg)
-+			     unsigned int gup_flags, struct page **pages,
-+			     struct vm_area_struct **vmas_arg)
- {
- 	struct vm_area_struct **vmas = vmas_arg;
--	struct vm_area_struct *vma_prev = NULL;
-+	unsigned long flags;
- 	long rc, i;
- 
- 	if (!pages)
-@@ -1157,31 +1320,20 @@ long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
- 			return -ENOMEM;
- 	}
- 
-+	flags = memalloc_nocma_save();
- 	rc = get_user_pages(start, nr_pages, gup_flags, pages, vmas);
-+	memalloc_nocma_restore(flags);
-+	if (rc < 0)
-+		goto out;
- 
--	for (i = 0; i < rc; i++) {
--		struct vm_area_struct *vma = vmas[i];
+-/*
+- * Taken from alloc_migrate_target with changes to remove CMA allocations
+- */
+-struct page *new_iommu_non_cma_page(struct page *page, unsigned long private)
+-{
+-	gfp_t gfp_mask = GFP_USER;
+-	struct page *new_page;
 -
--		if (vma == vma_prev)
--			continue;
+-	if (PageCompound(page))
+-		return NULL;
 -
--		vma_prev = vma;
--
--		if (vma_is_fsdax(vma))
--			break;
--	}
+-	if (PageHighMem(page))
+-		gfp_mask |= __GFP_HIGHMEM;
 -
 -	/*
--	 * Either get_user_pages() failed, or the vma validation
--	 * succeeded, in either case we don't need to put_page() before
--	 * returning.
+-	 * We don't want the allocation to force an OOM if possibe
 -	 */
--	if (i >= rc)
-+	if (check_dax_vmas(vmas, rc)) {
-+		for (i = 0; i < rc; i++)
-+			put_page(pages[i]);
-+		rc = -EOPNOTSUPP;
- 		goto out;
-+	}
- 
--	for (i = 0; i < rc; i++)
--		put_page(pages[i]);
--	rc = -EOPNOTSUPP;
-+	rc = check_and_migrate_cma_pages(start, rc, gup_flags, pages, vmas);
- out:
- 	if (vmas != vmas_arg)
- 		kfree(vmas);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index df2e7dd5ff17..913862771808 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1586,8 +1586,8 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
- 	return page;
- }
- 
--static struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
--		int nid, nodemask_t *nmask)
-+struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-+				     int nid, nodemask_t *nmask)
+-	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
+-	return new_page;
+-}
+-
+-static int mm_iommu_move_page_from_cma(struct page *page)
+-{
+-	int ret = 0;
+-	LIST_HEAD(cma_migrate_pages);
+-
+-	/* Ignore huge pages for now */
+-	if (PageCompound(page))
+-		return -EBUSY;
+-
+-	lru_add_drain();
+-	ret = isolate_lru_page(page);
+-	if (ret)
+-		return ret;
+-
+-	list_add(&page->lru, &cma_migrate_pages);
+-	put_page(page); /* Drop the gup reference */
+-
+-	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
+-				NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE);
+-	if (ret) {
+-		if (!list_empty(&cma_migrate_pages))
+-			putback_movable_pages(&cma_migrate_pages);
+-	}
+-
+-	return 0;
+-}
+-
+ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+-		unsigned long entries, unsigned long dev_hpa,
+-		struct mm_iommu_table_group_mem_t **pmem)
++			      unsigned long entries, unsigned long dev_hpa,
++			      struct mm_iommu_table_group_mem_t **pmem)
  {
- 	struct page *page;
+ 	struct mm_iommu_table_group_mem_t *mem;
+-	long i, j, ret = 0, locked_entries = 0;
++	long i, ret = 0, locked_entries = 0;
+ 	unsigned int pageshift;
+ 	unsigned long flags;
+ 	unsigned long cur_ua;
+-	struct page *page = NULL;
+ 
+ 	mutex_lock(&mem_list_mutex);
+ 
+@@ -187,41 +149,27 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+ 		goto unlock_exit;
+ 	}
+ 
++	down_read(&mm->mmap_sem);
++	ret = get_user_pages_longterm(ua, entries, FOLL_WRITE, mem->hpages, NULL);
++	up_read(&mm->mmap_sem);
++	if (ret != entries) {
++		/* free the reference taken */
++		for (i = 0; i < ret; i++)
++			put_page(mem->hpages[i]);
++
++		vfree(mem->hpas);
++		kfree(mem);
++		ret = -EFAULT;
++		goto unlock_exit;
++	} else {
++		ret = 0;
++	}
++
++	pageshift = PAGE_SHIFT;
+ 	for (i = 0; i < entries; ++i) {
++		struct page *page = mem->hpages[i];
++
+ 		cur_ua = ua + (i << PAGE_SHIFT);
+-		if (1 != get_user_pages_fast(cur_ua,
+-					1/* pages */, 1/* iswrite */, &page)) {
+-			ret = -EFAULT;
+-			for (j = 0; j < i; ++j)
+-				put_page(pfn_to_page(mem->hpas[j] >>
+-						PAGE_SHIFT));
+-			vfree(mem->hpas);
+-			kfree(mem);
+-			goto unlock_exit;
+-		}
+-		/*
+-		 * If we get a page from the CMA zone, since we are going to
+-		 * be pinning these entries, we might as well move them out
+-		 * of the CMA zone if possible. NOTE: faulting in + migration
+-		 * can be expensive. Batching can be considered later
+-		 */
+-		if (is_migrate_cma_page(page)) {
+-			if (mm_iommu_move_page_from_cma(page))
+-				goto populate;
+-			if (1 != get_user_pages_fast(cur_ua,
+-						1/* pages */, 1/* iswrite */,
+-						&page)) {
+-				ret = -EFAULT;
+-				for (j = 0; j < i; ++j)
+-					put_page(pfn_to_page(mem->hpas[j] >>
+-								PAGE_SHIFT));
+-				vfree(mem->hpas);
+-				kfree(mem);
+-				goto unlock_exit;
+-			}
+-		}
+-populate:
+-		pageshift = PAGE_SHIFT;
+ 		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
+ 			pte_t *pte;
+ 			struct page *head = compound_head(page);
+@@ -239,6 +187,10 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+ 			local_irq_restore(flags);
+ 		}
+ 		mem->pageshift = min(mem->pageshift, pageshift);
++		/*
++		 * We don't need struct page reference any more, switch
++		 * to physical address.
++		 */
+ 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
+ 	}
  
 -- 
 2.20.1
