@@ -7,221 +7,176 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75B81C43387
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 19:30:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 389B2C43387
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:18:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24EF72064C
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 19:30:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ED12E2064C
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:18:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="LTdpmr7i"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24EF72064C
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="usVYOPw9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED12E2064C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B70C98E0003; Mon, 14 Jan 2019 14:30:26 -0500 (EST)
+	id 88E198E0003; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B20668E0002; Mon, 14 Jan 2019 14:30:26 -0500 (EST)
+	id 8470E8E0002; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A36678E0003; Mon, 14 Jan 2019 14:30:26 -0500 (EST)
+	id 752548E0003; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D3268E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 14:30:26 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id 51so39762wrb.15
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 11:30:26 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 441478E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id 124so148845ybb.9
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 12:18:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=V7Nld/m9dECZLpYS+KOKxjAa17WRgnctGhf+2cl141w=;
-        b=nUWqrNGyZL8fgxQJDA6yPm2ym791TJn1nMZuhG9yaDJ0NJNtBeZsdOtyU+tj3ydznn
-         jP6TBVHHUjcuHGE+HnT41f/eTGJDUVABetO4nUq757oMe6Xi9UVhVk7s4VweEE6IgJL1
-         yZ/C4BYm9qHdAg54jvzsRyiNApjDlYb3lSc0Q2pSZNuCtZozlumejkwHyPTeMBTsETeB
-         hJUJjl6kc+YnuR7NB0sHPBNUPkM2vTlLNZDgHVypE/Ks6xbrOlcZRvxREQqBdE91c3Vy
-         AWJva0AkpNCLdHpkJikuK7NV3pZWhqKjq/JzKzAWIW5LzPrh4cdtaWXOKGiOphScnrT2
-         tdXQ==
-X-Gm-Message-State: AJcUukeoI6vhofxa/dxSOus7fSGa1DNtsoXbfO8Co4LqyBzfVkq9hJhw
-	HI0jbmqS0yxA92it1NcZYURU6L7MtDErg4Z+og4dWZiZ32XtKqMctAIYeV5ifTkaho7F4sY4C2j
-	5AWuEr+yMhIF6kjzd6P6jIHKEOz8l/2m9ahWF1xSt+pWp386EMn4qEY7P/2ynP7BRJB1wpBjeyD
-	/BB7FnLmmYVOrzH+Nd7cM9CGGHHwDoT4deHsCAF6659wzPCiLGUS6Au+nhYr5nPgqNgyj74SMs+
-	erdCpN5HHNhQWd0gDxGaYsevOjGnDf0PoGVa5O+kqDqWP7c2JHecwyrqarcZsEA/y2yDcOjYpbC
-	t/kaWBarJPIPbawrtsPI/d3Cv6fQCo99CAA92fmPxu4Y4o+YxhQginZyJf5o0/TJ5atDy9GtUvM
-	e
-X-Received: by 2002:a1c:b687:: with SMTP id g129mr492039wmf.59.1547494225855;
-        Mon, 14 Jan 2019 11:30:25 -0800 (PST)
-X-Received: by 2002:a1c:b687:: with SMTP id g129mr491992wmf.59.1547494224816;
-        Mon, 14 Jan 2019 11:30:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547494224; cv=none;
+        bh=ptzNydK5Q1PCEDwfDmjHWSEiaPwMsBePibwbeCNfTt0=;
+        b=mEPKKYJy+68kCY5gvIAFCBU5eM6lbXcDESDhJJWeJC/0OWIA1njcNLn6drKvgMEmgK
+         Mn4fkmbrUvZr/7Q2kTOcLDX8bWC1PgMBrHfnBqh4WT48Od+jsnlM0Lrhb2h4jjsCLNF9
+         F6efnWo91XwF1F6GV+2GH7wR3FVmZd2l7ykD4xgf0wSkxNwbkrhSmfzXqmpfdUmLkOvs
+         3YxOn+34+GI8OmJUuoYLolgq2Nka7K0Ud0yvmMxG+MKx28GkfzyPylnSCyNKYc5Ui6nz
+         r8PeJLgDcyKKIYHst7op6tE5YSVJXqWyZLaGrS5RitUw8nxVm4di/HBFC05DlFDyxV2c
+         gWtw==
+X-Gm-Message-State: AJcUukd+cmIZOFFOX2ueuzcWpAnBsvq9W5N8+SWtx0kCA0TLLrjfN/Dn
+	5KZhPSSuJFkAAhkUJmonerJTrEsHyB3KcO43B1KLRsosGUCCUBKZC+UU9WmbRokJbx9TuIQTYxV
+	kXH71t3dDHQDnjy3gOYT+tYXXs3R0sT08OPRnzfb1WQCEig2jvPFL1Gr1yNKnhQMlwXT77ZT7Cd
+	YrOmb/Jsh1yPsSNiD6viFcMgb63tolSdYPKroFLbLqgMHG58xCSgy0THuIKeC05DbXgBzN/JZgA
+	BxaAZ5mIUpXcgpOM6PjRcWRvR2yJ3kZqaSMTVYXdbum8xVPv/zdBzTiDaVvG4TybB+aajNtLgMm
+	aN6o3GuLujwnIq4wX1H5+2kxEPf8F4LqjgxD7cxLgoPqjO1skV3Qg7rOMd/gFz2CF+PIItU2C0Z
+	0
+X-Received: by 2002:a25:20c6:: with SMTP id g189mr156018ybg.303.1547497100904;
+        Mon, 14 Jan 2019 12:18:20 -0800 (PST)
+X-Received: by 2002:a25:20c6:: with SMTP id g189mr155950ybg.303.1547497099823;
+        Mon, 14 Jan 2019 12:18:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547497099; cv=none;
         d=google.com; s=arc-20160816;
-        b=qZdgpvpZMz6NJtZY2ulidHhNItXMmGypS0yfheme82NL42ZWTbhUEsxFPUhdiaGH1T
-         nuBzmLdyOhagki1neH4hCEuGEUwhnmF40mGlo9s9+QvvyfnaKVKY2mhXDaznfSPhWIkI
-         zUq+eJZoOlQclQ2+QSVlU1pVvhxLmD3uh4LiNolsxA9gt5+022+bi1jqw11BsHaCuH1b
-         LfDrdpF3oA0DQVbtrcrosq4Rii3RX14Y69rxhV3//NmrsApT5mS9doiyQlfV7HZHOUvx
-         ASWmgsux/2GIeKOF4EKuqny3E/kGvFuc2AclLbdUnDH3VO455jTrS0CfSFjw36Un4D5z
-         ZdPA==
+        b=OduLn28xQktPfe9Lry2NVnPfVU4HQM7NVqEVoVLJXPSe2rCnmnwcYoUHsNyHMstRhe
+         FFrelfZq8eMhmnT5rJM+sUTHSdaLRnUPpd0QzUelpQEsvivFoblKUgJoZStEy6JL62Uj
+         N6dnFc5q6CrK7nt91ZQaVOCcRxnLo82/ff+Opw0dYpYDsHZgBKp1Ov+O6tAYTF9DiuEL
+         xP6nC8PzMBxwvWGkvgHeQV5b3HRADelcUQ+kYbBmFPm0eZW5JCMeTKQHz9XSl4VSqH/F
+         ByfRPjQux+tL5+OqJ178gCPk2MzOxnS39qToFnzaqzgfePiRh/cFHs1TY3FTFi1Rzvh1
+         +Djg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=V7Nld/m9dECZLpYS+KOKxjAa17WRgnctGhf+2cl141w=;
-        b=bTBDg7iCQxrTSUyweaZl5UgrdnG/2aXOtag9IBtUNwdM97f+Y47XOKhbsAkxhPr5oQ
-         kHzFuykgqVY8nCfKqhK5VQmMCxk1XHqy9wV4AOKHxCMCAvYbSMR2CI6UcNmBpJqlhN/E
-         jDVDVuGkzUpqVXBhlKvI9dwU9jod7rpwc41ZHe7XqDwrd3qontk8Rrj2JesWbnOGVw6M
-         zhb8csVrf9O5S4ZLKnpqjH2bQboQbqksenUsDR2I8T6nAeSAbhfa3faLamTPCWhsjpSB
-         9PSzSq5r9GnFDq770vLGhlVxrNwYvxTUxJDHSf3i2j8+52uNzRkGcZh7J8yhfvv8vEsZ
-         1JzQ==
+        bh=ptzNydK5Q1PCEDwfDmjHWSEiaPwMsBePibwbeCNfTt0=;
+        b=c3B8e146JnV51uaFFtTWY4K3ySfH1A5WMk7hPtrks2CF8CdLz0j88BdbU0UbxdzF6r
+         dYO785o3wSfnd4ZNb9efdw7vzgEPPFGa1UOBBiMZo4zhsdr+uNw7TCGQTUnOWom3CEqW
+         zMCFB0VVaVTdHTa0pJIg2p7LDGhtlNaipoLQl7/MdeNwyignhT4XwWSdIamlQZn+9nPo
+         9M6ap5QQP0/D+f/BOLREwKZcoaV/dijsbGXJzW/UpolHZ0sQj05bewEcRFdMTyxK/Mpe
+         PjkkDCmSOY8VM0TZKwj7wcO6hbgNcdfy4jdDEIg+HQz08KG60S8cOzR3mowOcjClaATx
+         BB+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=LTdpmr7i;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=usVYOPw9;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r6sor49420335wro.6.2019.01.14.11.30.24
+        by mx.google.com with SMTPS id q64sor266984ywd.173.2019.01.14.12.18.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 11:30:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 14 Jan 2019 12:18:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=LTdpmr7i;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=usVYOPw9;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=V7Nld/m9dECZLpYS+KOKxjAa17WRgnctGhf+2cl141w=;
-        b=LTdpmr7iYb+51Ff7+r2qP/Jw2u8ZRJFk77VCkLCCiA/ANUAVLSsCEHHlNFOKFkEwnD
-         rxV7NnDpIhv7eJ+Y/9f7Iuok4tIdFaSDBWG3QChNJ8RlE2bArnmE+J4ig2eAqeCDIrA3
-         jjQuOc8YmNbAupjvk5iECrrfxoqfba70+VzYHLoB8hFfCP3mS0r34T7J1PWePGNK9iDh
-         t4Gm5BhbYr8c4rOv07T+KyS8HI/q9jrOW9ijC873iQAKVsVgbcHtRN8VCyKQ8Csd3NSm
-         OplHhfMZZn83IGt7jkFnKt2soK1fIUBMXub+E85LXFf1Mn5znpEXQqjmHtygPCW7DB2l
-         OYKw==
-X-Google-Smtp-Source: ALg8bN6zwKZcThH+o+SBsAintWmrcGydROfOrohi8vkW1zna6VHepdzbVgey6gGzGvNUXUo29kRjKBoH/sqTpKlTCv4=
-X-Received: by 2002:adf:de91:: with SMTP id w17mr38740wrl.320.1547494224091;
- Mon, 14 Jan 2019 11:30:24 -0800 (PST)
+        bh=ptzNydK5Q1PCEDwfDmjHWSEiaPwMsBePibwbeCNfTt0=;
+        b=usVYOPw9XXkqwoIO39XNY5sffSx9x1nFMRLmaz3VT+CmOEugT2/St7wyNWeLqm200i
+         sZu5YUrtr1IQCCSXHYrO1AvsGKK4b8QpjIqkrmC+KdgxEKfUNFwpFkvTo2Zz2q4PYsFG
+         WTvHay+dKR8GlcjGluV9AGuRN1j1kok9Nx/aTVWKHcvRT+lLVteAaaBvuuvWhwNL9RQX
+         jSnRwv/++jnfkozDPdam6qVe64rDLMuThn6YbCJ+7vJz6G9v7soosaaY7/Z3ubSkY76D
+         rI91F6ya3blDaf7Yf+TuW3wvr/m3bmuCgN2OToSzw4ZQb99093m/5gM0Mj4sP2wUuq4H
+         49XQ==
+X-Google-Smtp-Source: ALg8bN4FXjn4pOrbWmB91djMJ9IikbMNtEpPDKFVEvbzmJGsLAVkWNPM3aI5oDKuZi4IBJsj36JFv9VgyTMv+q1hed8=
+X-Received: by 2002:a81:60c4:: with SMTP id u187mr169489ywb.345.1547497099231;
+ Mon, 14 Jan 2019 12:18:19 -0800 (PST)
 MIME-Version: 1.0
-References: <20190110220718.261134-1-surenb@google.com> <20190110220718.261134-6-surenb@google.com>
- <20190114102137.GB14054@worktop.programming.kicks-ass.net>
-In-Reply-To: <20190114102137.GB14054@worktop.programming.kicks-ass.net>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Mon, 14 Jan 2019 11:30:12 -0800
+References: <20190110174432.82064-1-shakeelb@google.com> <20190111205948.GA4591@cmpxchg.org>
+ <CALvZod7O2CJuhbuLUy9R-E4dTgL4WBg8CayW_AFnCCG6KCDjUA@mail.gmail.com> <20190113183402.GD1578@dhcp22.suse.cz>
+In-Reply-To: <20190113183402.GD1578@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Mon, 14 Jan 2019 12:18:07 -0800
 Message-ID:
- <CAJuCfpGUWs0E9oPUjPTNm=WhPJcE_DBjZCtCiaVu5WXabKRW6A@mail.gmail.com>
-Subject: Re: [PATCH v2 5/5] psi: introduce psi monitor
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, lizefan@huawei.com, 
-	Johannes Weiner <hannes@cmpxchg.org>, axboe@kernel.dk, dennis@kernel.org, 
-	Dennis Zhou <dennisszhou@gmail.com>, Ingo Molnar <mingo@redhat.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org, 
-	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, 
-	LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
+ <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
+Subject: Re: [PATCH v3] memcg: schedule high reclaim for remote memcgs on high_work
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, 
+	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190114193012.QTg6Lp0Fs96gFV7MQLsYKyH8Tt-Y5Y323l6Qlf3F4RA@z>
+Message-ID: <20190114201807.qhIlFVg0LKi-ksYYJob9mvWk8CivIOI3RbexIaHRCw8@z>
 
-On Mon, Jan 14, 2019 at 2:22 AM Peter Zijlstra <peterz@infradead.org> wrote:
+On Sun, Jan 13, 2019 at 10:34 AM Michal Hocko <mhocko@kernel.org> wrote:
 >
-> On Thu, Jan 10, 2019 at 02:07:18PM -0800, Suren Baghdasaryan wrote:
-> > +/*
-> > + * psi_update_work represents slowpath accounting part while
-> > + * psi_group_change represents hotpath part.
-> > + * There are two potential races between these path:
-> > + * 1. Changes to group->polling when slowpath checks for new stall, then
-> > + *    hotpath records new stall and then slowpath resets group->polling
-> > + *    flag. This leads to the exit from the polling mode while monitored
-> > + *    states are still changing.
-> > + * 2. Slowpath overwriting an immediate update scheduled from the hotpath
-> > + *    with a regular update further in the future and missing the
-> > + *    immediate update.
-> > + * Both races are handled with a retry cycle in the slowpath:
-> > + *
-> > + *    HOTPATH:                         |    SLOWPATH:
-> > + *                                     |
-> > + * A) times[cpu] += delta              | E) delta = times[*]
-> > + * B) start_poll = (delta[poll_mask] &&|    if delta[poll_mask]:
-> > + *      cmpxchg(g->polling, 0, 1) == 0)| F)   polling_until = now +
-> > + *                                     |              grace_period
-> > + *                                     |    if now > polling_until:
-> > + *    if start_poll:                   |      if g->polling:
-> > + * C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
-> > + *    else if !delayed_work_pending(): | H)     goto SLOWPATH
-> > + * D)   schedule_delayed_work(PSI_FREQ)|    else:
-> > + *                                     |      if !g->polling:
-> > + *                                     | I)     g->polling = polling = 1
-> > + *                                     | J) if delta && first_pass:
-> > + *                                     |      next_avg = calculate_averages()
-> > + *                                     |      if polling:
-> > + *                                     |        next_poll = poll_triggers()
-> > + *                                     |    if (delta && first_pass) || polling:
-> > + *                                     | K)   mod_delayed_work(
-> > + *                                     |          min(next_avg, next_poll))
-> > + *                                     |      if !polling:
-> > + *                                     |        first_pass = false
-> > + *                                     | L)     goto SLOWPATH
-> > + *
-> > + * Race #1 is represented by (EABGD) sequence in which case slowpath
-> > + * deactivates polling mode because it misses new monitored stall and hotpath
-> > + * doesn't activate it because at (B) g->polling is not yet reset by slowpath
-> > + * in (G). This race is handled by the (H) retry, which in the race described
-> > + * above results in the new sequence of (EABGDHEIK) that reactivates polling
-> > + * mode.
-> > + *
-> > + * Race #2 is represented by polling==false && (JABCK) sequence which
-> > + * overwrites immediate update scheduled at (C) with a later (next_avg) update
-> > + * scheduled at (K). This race is handled by the (L) retry which results in the
-> > + * new sequence of polling==false && (JABCKLEIK) that reactivates polling mode
-> > + * and reschedules next polling update (next_poll).
-> > + *
-> > + * Note that retries can't result in an infinite loop because retry #1 happens
-> > + * only during polling reactivation and retry #2 happens only on the first
-> > + * pass. Constant reactivations are impossible because polling will stay active
-> > + * for at least grace_period. Worst case scenario involves two retries (HEJKLE)
-> > + */
+> On Fri 11-01-19 14:54:32, Shakeel Butt wrote:
+> > Hi Johannes,
+> >
+> > On Fri, Jan 11, 2019 at 12:59 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > >
+> > > Hi Shakeel,
+> > >
+> > > On Thu, Jan 10, 2019 at 09:44:32AM -0800, Shakeel Butt wrote:
+> > > > If a memcg is over high limit, memory reclaim is scheduled to run on
+> > > > return-to-userland.  However it is assumed that the memcg is the current
+> > > > process's memcg.  With remote memcg charging for kmem or swapping in a
+> > > > page charged to remote memcg, current process can trigger reclaim on
+> > > > remote memcg.  So, schduling reclaim on return-to-userland for remote
+> > > > memcgs will ignore the high reclaim altogether. So, record the memcg
+> > > > needing high reclaim and trigger high reclaim for that memcg on
+> > > > return-to-userland.  However if the memcg is already recorded for high
+> > > > reclaim and the recorded memcg is not the descendant of the the memcg
+> > > > needing high reclaim, punt the high reclaim to the work queue.
+> > >
+> > > The idea behind remote charging is that the thread allocating the
+> > > memory is not responsible for that memory, but a different cgroup
+> > > is. Why would the same thread then have to work off any high excess
+> > > this could produce in that unrelated group?
+> > >
+> > > Say you have a inotify/dnotify listener that is restricted in its
+> > > memory use - now everybody sending notification events from outside
+> > > that listener's group would get throttled on a cgroup over which it
+> > > has no control. That sounds like a recipe for priority inversions.
+> > >
+> > > It seems to me we should only do reclaim-on-return when current is in
+> > > the ill-behaved cgroup, and punt everything else - interrupts and
+> > > remote charges - to the workqueue.
+> >
+> > This is what v1 of this patch was doing but Michal suggested to do
+> > what this version is doing. Michal's argument was that the current is
+> > already charging and maybe reclaiming a remote memcg then why not do
+> > the high excess reclaim as well.
 >
-> I'm having a fairly hard time with this. There's a distinct lack of
-> memory ordering, and a suspicious mixing of atomic ops (cmpxchg) and
-> regular loads and stores (without READ_ONCE/WRITE_ONCE even).
+> Johannes has a good point about the priority inversion problems which I
+> haven't thought about.
 >
-> Please clarify.
-
-Thanks for the feedback.
-I do mix atomic and regular loads with g->polling only because the
-slowpath is the only one that resets it back to 0, so
-cmpxchg(g->polling, 1, 0) == 1 at (G) would always return 1.
-Setting g->polling back to 1 at (I) indeed needs an atomic operation
-but at that point it does not matter whether hotpath or slowpath sets
-it. In either case we will schedule a polling update.
-Am I missing anything?
-
-For memory ordering (which Johannes also pointed out) the critical point is:
-
-times[cpu] += delta           | if g->polling:
-smp_wmb()                     |   g->polling = polling = 0
-cmpxchg(g->polling, 0, 1)     |   smp_rmb()
-                              |   delta = times[*] (through goto SLOWPATH)
-
-So that hotpath writes to times[] then g->polling and slowpath reads
-g->polling then times[]. cmpxchg() implies a full barrier, so we can
-drop smp_wmb(). Something like this:
-
-times[cpu] += delta           | if g->polling:
-cmpxchg(g->polling, 0, 1)     |   g->polling = polling = 0
-                              |   smp_rmb()
-                              |   delta = times[*] (through goto SLOWPATH)
-
-Would that address your concern about ordering?
-
-> (also, you look to have a whole bunch of line-breaks that are really not
-> needed; concattenated the line would not be over 80 chars).
-
-Will try to minimize line-breaks.
-
-
-> --
-> You received this message because you are subscribed to the Google Groups "kernel-team" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kernel-team+unsubscribe@android.com.
+> > Personally I don't have any strong opinion either way. What I actually
+> > wanted was to punt this high reclaim to some process in that remote
+> > memcg. However I didn't explore much on that direction thinking if
+> > that complexity is worth it. Maybe I should at least explore it, so,
+> > we can compare the solutions. What do you think?
 >
+> My question would be whether we really care all that much. Do we know of
+> workloads which would generate a large high limit excess?
+>
+
+The current semantics of memory.high is that it can be breached under
+extreme conditions. However any workload where memory.high is used and
+a lot of remote memcg charging happens (inotify/dnotify example given
+by Johannes or swapping in tmpfs file or shared memory region) the
+memory.high breach will become common.
+
+Shakeel
 
