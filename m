@@ -1,170 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A38D8E0002
-	for <linux-mm@kvack.org>; Sat, 12 Jan 2019 13:15:05 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id w12so6182242wru.20
-        for <linux-mm@kvack.org>; Sat, 12 Jan 2019 10:15:05 -0800 (PST)
-Received: from mo6-p02-ob.smtp.rzone.de (mo6-p02-ob.smtp.rzone.de. [2a01:238:20a:202:5302::6])
-        by mx.google.com with ESMTPS id t203si15944532wmb.136.2019.01.12.10.15.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 12 Jan 2019 10:15:03 -0800 (PST)
-Subject: Re: use generic DMA mapping code in powerpc V4
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-References: <2242B4B2-6311-492E-BFF9-6740E36EC6D4@xenosoft.de>
- <84558d7f-5a7f-5219-0c3a-045e6b4c494f@xenosoft.de>
- <20181213091021.GA2106@lst.de>
- <835bd119-081e-a5ea-1899-189d439c83d6@xenosoft.de>
- <76bc684a-b4d2-1d26-f18d-f5c9ba65978c@xenosoft.de>
- <20181213112511.GA4574@lst.de>
- <e109de27-f4af-147d-dc0e-067c8bafb29b@xenosoft.de>
- <ad5a5a8a-d232-d523-a6f7-e9377fc3857b@xenosoft.de>
- <e60d6ca3-860c-f01d-8860-c5e022ec7179@xenosoft.de>
- <008c981e-bdd2-21a7-f5f7-c57e4850ae9a@xenosoft.de>
- <20190103073622.GA24323@lst.de>
- <71A251A5-FA06-4019-B324-7AED32F7B714@xenosoft.de>
- <1b0c5c21-2761-d3a3-651b-3687bb6ae694@xenosoft.de>
- <3504ee70-02de-049e-6402-2d530bf55a84@xenosoft.de>
- <23284859-bf0a-9cd5-a480-2a7fd7802056@xenosoft.de>
-Message-ID: <075f70e3-7a4a-732f-b501-05a1a8e3c853@xenosoft.de>
-Date: Sat, 12 Jan 2019 19:14:53 +0100
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E7B5C8E0002
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:28:24 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id 39so8548582edq.13
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 20:28:24 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id o1-v6si2683293ejb.330.2019.01.13.20.28.23
+        for <linux-mm@kvack.org>;
+        Sun, 13 Jan 2019 20:28:23 -0800 (PST)
+Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
+References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
+ <20190112121230.GQ6310@bombadil.infradead.org>
+ <ddd59fdc-3d8f-4015-e851-e7f099193a1b@c-s.fr>
+ <20190112154944.GT6310@bombadil.infradead.org>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <48f81a76-2b2d-5060-d9bc-c42d5b5975c3@arm.com>
+Date: Mon, 14 Jan 2019 09:58:14 +0530
 MIME-Version: 1.0
-In-Reply-To: <23284859-bf0a-9cd5-a480-2a7fd7802056@xenosoft.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: de-DE
+In-Reply-To: <20190112154944.GT6310@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
-
-Next step: 4558b6e1ddf3dcf5a86d6a5d16c2ac1600c7df39 (swiotlb: remove 
-swiotlb_dma_supported)
-
-git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
-
-git checkout 4558b6e1ddf3dcf5a86d6a5d16c2ac1600c7df39
-
-Output:
-
-You are in 'detached HEAD' state. You can look around, make experimental
-changes and commit them, and you can discard any commits you make in this
-state without impacting any branches by performing another checkout.
-
-If you want to create a new branch to retain commits you create, you may
-do so (now or later) by using -b with the checkout command again. Example:
-
-   git checkout -b <new-branch-name>
-
-HEAD is now at 4558b6e... swiotlb: remove swiotlb_dma_supported
-
-----
-
-Link to the Git: 
-http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
-
-Results: PASEMI onboard ethernet (X1000) works and the X5000 (P5020 
-board) boots. I also successfully tested sound, hardware 3D 
-acceleration, Bluetooth, network, booting with a label etc. The uImages 
-work also in a virtual e5500 quad-core QEMU machine.
-
--- Christian
+To: Matthew Wilcox <willy@infradead.org>, Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: mark.rutland@arm.com, mhocko@suse.com, linux-sh@vger.kernel.org, peterz@infradead.org, catalin.marinas@arm.com, dave.hansen@linux.intel.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, mingo@redhat.com, vbabka@suse.cz, rientjes@google.com, marc.zyngier@arm.com, rppt@linux.vnet.ibm.com, shakeelb@google.com, kirill@shutemov.name, tglx@linutronix.de, linux-arm-kernel@lists.infradead.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, steve.capper@arm.com, christoffer.dall@arm.com, james.morse@arm.com, aneesh.kumar@linux.ibm.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org
 
 
-On 11 January 2019 at 03:10AM, Christian Zigotzky wrote:
-> Next step: 891dcc1072f1fa27a83da920d88daff6ca08fc02 (powerpc/dma: 
-> remove dma_nommu_dma_supported)
->
-> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
->
-> git checkout 891dcc1072f1fa27a83da920d88daff6ca08fc02
->
-> Output:
->
-> Note: checking out '891dcc1072f1fa27a83da920d88daff6ca08fc02'.
->
-> You are in 'detached HEAD' state. You can look around, make experimental
-> changes and commit them, and you can discard any commits you make in this
-> state without impacting any branches by performing another checkout.
->
-> If you want to create a new branch to retain commits you create, you may
-> do so (now or later) by using -b with the checkout command again. 
-> Example:
->
-> git checkout -b <new-branch-name>
->
-> HEAD is now at 891dcc1... powerpc/dma: remove dma_nommu_dma_supported
->
-> ---
->
-> Link to the Git: 
-> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
->
-> Results: PASEMI onboard ethernet works and the X5000 (P5020 board) 
-> boots. I also successfully tested sound, hardware 3D acceleration, 
-> Bluetooth, network, booting with a label etc. The uImages work also in 
-> a virtual e5500 quad-core QEMU machine.
->
-> -- Christian
->
->
-> On 09 January 2019 at 10:31AM, Christian Zigotzky wrote:
->> Next step: a64e18ba191ba9102fb174f27d707485ffd9389c (powerpc/dma: 
->> remove dma_nommu_get_required_mask)
+
+On 01/12/2019 09:19 PM, Matthew Wilcox wrote:
+> On Sat, Jan 12, 2019 at 02:49:29PM +0100, Christophe Leroy wrote:
+>> As far as I can see,
 >>
->> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
+>> #define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
 >>
->> git checkout a64e18ba191ba9102fb174f27d707485ffd9389c
+>> So what's the difference between:
 >>
->> Link to the Git: 
->> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
+>> (GFP_KERNEL_ACCOUNT | __GFP_ZERO) & ~__GFP_ACCOUNT
 >>
->> Results: PASEMI onboard ethernet works and the X5000 (P5020 board) 
->> boots. I also successfully tested sound, hardware 3D acceleration, 
->> Bluetooth, network, booting with a label etc. The uImages work also 
->> in a virtual e5500 quad-core QEMU machine.
+>> and
 >>
->> -- Christian
->>
->>
->> On 05 January 2019 at 5:03PM, Christian Zigotzky wrote:
->>> Next step: c446404b041130fbd9d1772d184f24715cf2362f (powerpc/dma: 
->>> remove dma_nommu_mmap_coherent)
->>>
->>> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
->>>
->>> git checkout c446404b041130fbd9d1772d184f24715cf2362f
->>>
->>> Output:
->>>
->>> Note: checking out 'c446404b041130fbd9d1772d184f24715cf2362f'.
->>>
->>> You are in 'detached HEAD' state. You can look around, make 
->>> experimental
->>> changes and commit them, and you can discard any commits you make in 
->>> this
->>> state without impacting any branches by performing another checkout.
->>>
->>> If you want to create a new branch to retain commits you create, you 
->>> may
->>> do so (now or later) by using -b with the checkout command again. 
->>> Example:
->>>
->>>   git checkout -b <new-branch-name>
->>>
->>> HEAD is now at c446404... powerpc/dma: remove dma_nommu_mmap_coherent
->>>
->>> -----
->>>
->>> Link to the Git: 
->>> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
->>>
->>> Result: PASEMI onboard ethernet works and the X5000 (P5020 board) 
->>> boots.
->>>
->>> -- Christian
->>>
->>
->>
->
->
+>> (GFP_KERNEL | __GFP_ZERO) & ~__GFP_ACCOUNT
+> 
+> Nothing.  But there's a huge difference in the other parts of that same
+> file where GFP_ACCOUNT is _not_ used.
+> 
+> I think this unification is too small to bother with.  Something I've
+> had on my todo list for some time and have not done anything about
+> is to actually unify all of the architecture pte/pmd/... allocations.
+> There are tricks some architectures use that others would benefit from.
+
+Sure. Could you please elaborate on this ?
+
+Invariably all kernel pgtable page allocations should use GFP_PGTABLE and
+all user page table allocation should use (GFP_PGTABLE | __GFP_ACCOUNT).
+Ideally there should be default generic functions user_pgtable_gfp() or
+kernel_pgtable_gfp() returning these values. Overrides can be provided if
+an arch still wants some more control.
