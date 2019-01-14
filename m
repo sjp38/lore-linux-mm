@@ -1,46 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 192688E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:53:21 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id g188so12301688pgc.22
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 01:53:21 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b89si19398449pfj.207.2019.01.14.01.53.19
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E26398E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:54:51 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id z6so23968322qtj.21
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 01:54:51 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l13si2641803qtq.121.2019.01.14.01.54.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 14 Jan 2019 01:53:19 -0800 (PST)
-Date: Mon, 14 Jan 2019 01:53:15 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [rpmsg PATCH v2 1/1] rpmsg: virtio_rpmsg_bus: fix unexpected
- huge vmap mappings
-Message-ID: <20190114095315.GA24495@infradead.org>
-References: <1545812449-32455-1-git-send-email-fugang.duan@nxp.com>
- <CAKv+Gu-zfTZAZfiQt1iUn9otqeDkJP-y-siuBUrWUR-Kq=BsVQ@mail.gmail.com>
- <20181226145048.GA24307@infradead.org>
- <VI1PR0402MB3600AC833D6F29ECC34C8D4CFFB60@VI1PR0402MB3600.eurprd04.prod.outlook.com>
- <20181227121901.GA20892@infradead.org>
- <VI1PR0402MB3600799A06B6BFE5EBF8837FFFB70@VI1PR0402MB3600.eurprd04.prod.outlook.com>
- <VI1PR0402MB36000BD05AF4B242E13D9D05FF840@VI1PR0402MB3600.eurprd04.prod.outlook.com>
- <20190110140726.GA6223@infradead.org>
- <VI1PR0402MB3600E7160A2921A8D3DCA055FF850@VI1PR0402MB3600.eurprd04.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Jan 2019 01:54:50 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0E9mhlb011886
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:54:50 -0500
+Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2q0kw2t31v-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 04:54:50 -0500
+Received: from localhost
+	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Mon, 14 Jan 2019 09:54:49 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH V7 0/4] mm/kvm/vfio/ppc64: Migrate compound pages out of CMA region
+Date: Mon, 14 Jan 2019 15:24:32 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <VI1PR0402MB3600E7160A2921A8D3DCA055FF850@VI1PR0402MB3600.eurprd04.prod.outlook.com>
+Content-Transfer-Encoding: 8bit
+Message-Id: <20190114095438.32470-1-aneesh.kumar@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Duan <fugang.duan@nxp.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "bjorn.andersson@linaro.org" <bjorn.andersson@linaro.org>, "ohad@wizery.com" <ohad@wizery.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Robin Murphy <robin.murphy@arm.com>, "linux-remoteproc@vger.kernel.org" <linux-remoteproc@vger.kernel.org>, "anup@brainfault.org" <anup@brainfault.org>, "loic.pallardy@st.com" <loic.pallardy@st.com>, dl-linux-imx <linux-imx@nxp.com>, Richard Zhu <hongxing.zhu@nxp.com>, Jason Liu <jason.hui.liu@nxp.com>, Peng Fan <peng.fan@nxp.com>
+To: akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 
-On Fri, Jan 11, 2019 at 01:28:46AM +0000, Andy Duan wrote:
-> As NXP i.MX8 platform requirement that M4 only access the fixed memory region, so do
-> You have any suggestion to fix the issue and satisfy the requirement ? Or do you have plan
-> To fix the root cause ?
+ppc64 use CMA area for the allocation of guest page table (hash page table). We won't
+be able to start guest if we fail to allocate hash page table. We have observed
+hash table allocation failure because we failed to migrate pages out of CMA region
+because they were pinned. This happen when we are using VFIO. VFIO on ppc64 pins
+the entire guest RAM. If the guest RAM pages get allocated out of CMA region, we
+won't be able to migrate those pages. The pages are also pinned for the lifetime of the
+guest.
 
-I think the answer is to use RESERVEDMEM_OF_DECLARE without the DMA
-coherent boilerplate code.
+Currently we support migration of non-compound pages. With THP and with the addition of
+ hugetlb migration we can end up allocating compound pages from CMA region. This
+patch series add support for migrating compound pages. 
 
-For the initial prototype just do it inside the driver, although I'd
-like to eventually factor this out into common code, especially if my
-proposal for more general availability of DMA_ATTR_NON_CONSISTENT goes
-ahead.
+Changes from V6:
+* use get_user_pages_longterm instead of get_user_pages_cma_migrate()
+
+Changes from V5:
+* Add PF_MEMALLOC_NOCMA
+* remote __GFP_THISNODE when allocating target page for migration
+
+Changes from V4:
+* use __GFP_NOWARN when allocating pages to avoid page allocation failure warnings.
+
+Changes from V3:
+* Move the hugetlb check before transhuge check
+* Use compound head page when isolating hugetlb page
+
+
+Aneesh Kumar K.V (4):
+  mm/cma: Add PF flag to force non cma alloc
+  mm: Update get_user_pages_longterm to migrate pages allocated from CMA
+    region
+  powerpc/mm/iommu: Allow migration of cma allocated pages during
+    mm_iommu_do_alloc
+  powerpc/mm/iommu: Allow large IOMMU page size only for hugetlb backing
+
+ arch/powerpc/mm/mmu_context_iommu.c | 146 ++++++--------------
+ include/linux/hugetlb.h             |   2 +
+ include/linux/mm.h                  |   3 +-
+ include/linux/sched.h               |   1 +
+ include/linux/sched/mm.h            |  48 +++++--
+ mm/gup.c                            | 200 ++++++++++++++++++++++++----
+ mm/hugetlb.c                        |   4 +-
+ 7 files changed, 267 insertions(+), 137 deletions(-)
+
+-- 
+2.20.1
