@@ -7,176 +7,247 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 389B2C43387
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:18:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32C9AC43387
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:48:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED12E2064C
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:18:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B65D8206B7
+	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:48:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="usVYOPw9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED12E2064C
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="A2pDQgPM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B65D8206B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88E198E0003; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
+	id 14AC48E0003; Mon, 14 Jan 2019 15:48:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8470E8E0002; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
+	id 0FB098E0002; Mon, 14 Jan 2019 15:48:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 752548E0003; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
+	id 0106E8E0003; Mon, 14 Jan 2019 15:48:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 441478E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:18:21 -0500 (EST)
-Received: by mail-yb1-f199.google.com with SMTP id 124so148845ybb.9
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 12:18:21 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DE2F8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:48:02 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id p12so110357wrt.17
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 12:48:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ptzNydK5Q1PCEDwfDmjHWSEiaPwMsBePibwbeCNfTt0=;
-        b=mEPKKYJy+68kCY5gvIAFCBU5eM6lbXcDESDhJJWeJC/0OWIA1njcNLn6drKvgMEmgK
-         Mn4fkmbrUvZr/7Q2kTOcLDX8bWC1PgMBrHfnBqh4WT48Od+jsnlM0Lrhb2h4jjsCLNF9
-         F6efnWo91XwF1F6GV+2GH7wR3FVmZd2l7ykD4xgf0wSkxNwbkrhSmfzXqmpfdUmLkOvs
-         3YxOn+34+GI8OmJUuoYLolgq2Nka7K0Ud0yvmMxG+MKx28GkfzyPylnSCyNKYc5Ui6nz
-         r8PeJLgDcyKKIYHst7op6tE5YSVJXqWyZLaGrS5RitUw8nxVm4di/HBFC05DlFDyxV2c
-         gWtw==
-X-Gm-Message-State: AJcUukd+cmIZOFFOX2ueuzcWpAnBsvq9W5N8+SWtx0kCA0TLLrjfN/Dn
-	5KZhPSSuJFkAAhkUJmonerJTrEsHyB3KcO43B1KLRsosGUCCUBKZC+UU9WmbRokJbx9TuIQTYxV
-	kXH71t3dDHQDnjy3gOYT+tYXXs3R0sT08OPRnzfb1WQCEig2jvPFL1Gr1yNKnhQMlwXT77ZT7Cd
-	YrOmb/Jsh1yPsSNiD6viFcMgb63tolSdYPKroFLbLqgMHG58xCSgy0THuIKeC05DbXgBzN/JZgA
-	BxaAZ5mIUpXcgpOM6PjRcWRvR2yJ3kZqaSMTVYXdbum8xVPv/zdBzTiDaVvG4TybB+aajNtLgMm
-	aN6o3GuLujwnIq4wX1H5+2kxEPf8F4LqjgxD7cxLgoPqjO1skV3Qg7rOMd/gFz2CF+PIItU2C0Z
-	0
-X-Received: by 2002:a25:20c6:: with SMTP id g189mr156018ybg.303.1547497100904;
-        Mon, 14 Jan 2019 12:18:20 -0800 (PST)
-X-Received: by 2002:a25:20c6:: with SMTP id g189mr155950ybg.303.1547497099823;
-        Mon, 14 Jan 2019 12:18:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547497099; cv=none;
+        bh=jwW1KirWJa3Otm0mdb+FxZ3AFbnGbcDi8Iugc6Rltwo=;
+        b=DgvDxHZJZYhg+yKEkZzAD4TxXepuNn8cnrRPCDuIbx3yo/CedRBrsuph370li3rxsj
+         v82jB9D0RbnZ6YfAsGefAIxDmncIv15DrL+UdCRfKVNHqZPzeSTB5J38img+QhIHI4z+
+         0TjfaIYiYqg0D5jRdA7vn9ddQe0IKm1kHKYhVOWQPTMiWx+xYulNNmTCmea4EQkgW8u2
+         Vm+GPQ16eTCYFpozte+1/OMp6rxGm5GNdT0dE7xZLXcogRoEbHlL/xYEjKqfPMctdgb6
+         JSgBcYyfBNmrTK3QKqY8SnOd437bJnjaeNTXzaQebqv1rQTGcYLEBWyUPJ05E9I1BJrd
+         51iQ==
+X-Gm-Message-State: AJcUukcF5G5V2RXYim+g+NqbRv8h61c03oC6oRg5RcULAQuS5Em00fQ6
+	XvVRadnVI03NST0LXoJLfEcPE/twvjt60PMzK3dJbVfenuWtsZi75KJN2uJoXVgY8IFmypuj9JR
+	58O+JFqwfSIzy3t5ZFmCHMzdCqDxe+YlN/QpP5QOoWAmix1WOqh4Ja3dCDegT8nUQ0pO/kb4BEv
+	MEI9iEf3KidXJllB8IcFIrLbY0zgFc0DUtpgBvdeJpSdXRa/NQrWJizJ7hgpo8ZZF3EBuGYavET
+	UlZdJEN8CEvTjVzQtZ70CaXyDZUftxoRACUQIF7ApbpG/ACx+u8/N65hOEtnWJOOXpx1eDW6Y/X
+	gHxT8icoG0uXj2q7lh8Ta3bLJRet/+Na4sgSqs0tcfdT/pvjX9zN5Mc+kfqEO3QCgQsafmggkfx
+	E
+X-Received: by 2002:a1c:6442:: with SMTP id y63mr645834wmb.143.1547498882051;
+        Mon, 14 Jan 2019 12:48:02 -0800 (PST)
+X-Received: by 2002:a1c:6442:: with SMTP id y63mr645793wmb.143.1547498880865;
+        Mon, 14 Jan 2019 12:48:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547498880; cv=none;
         d=google.com; s=arc-20160816;
-        b=OduLn28xQktPfe9Lry2NVnPfVU4HQM7NVqEVoVLJXPSe2rCnmnwcYoUHsNyHMstRhe
-         FFrelfZq8eMhmnT5rJM+sUTHSdaLRnUPpd0QzUelpQEsvivFoblKUgJoZStEy6JL62Uj
-         N6dnFc5q6CrK7nt91ZQaVOCcRxnLo82/ff+Opw0dYpYDsHZgBKp1Ov+O6tAYTF9DiuEL
-         xP6nC8PzMBxwvWGkvgHeQV5b3HRADelcUQ+kYbBmFPm0eZW5JCMeTKQHz9XSl4VSqH/F
-         ByfRPjQux+tL5+OqJ178gCPk2MzOxnS39qToFnzaqzgfePiRh/cFHs1TY3FTFi1Rzvh1
-         +Djg==
+        b=qFEsh95RUC3ZrD4k3yPzbXucWAIoZxL/+kfYf7aZol+MrZayTwNQ0tTdYD4W8SoMAh
+         0IzwcYWB0pgxoF5MIQwKwkInH2TNfbeT8YxXdrdwufJWtkXmI4seTU3OfpVDwbEVp7ea
+         AhshNIC6DMxDZ0uvNOQXEgsYEXXP4Q8HSiN6hrglIbONPDY0maKCLjwpvgswU/glmqsC
+         vpDSTGwAkvfLW6V80W8ZFdEFsyc5V87wwK7LQRNdLWnNi+2HVjfN6elIKsWz9I01rBw9
+         Zz1kVHp+8CixpE+0sBx3Cc/6/ZL+9MZdbrb6pLJZCgks6kxkO6bAdkdQg2+IYCzcP7Tk
+         uJGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=ptzNydK5Q1PCEDwfDmjHWSEiaPwMsBePibwbeCNfTt0=;
-        b=c3B8e146JnV51uaFFtTWY4K3ySfH1A5WMk7hPtrks2CF8CdLz0j88BdbU0UbxdzF6r
-         dYO785o3wSfnd4ZNb9efdw7vzgEPPFGa1UOBBiMZo4zhsdr+uNw7TCGQTUnOWom3CEqW
-         zMCFB0VVaVTdHTa0pJIg2p7LDGhtlNaipoLQl7/MdeNwyignhT4XwWSdIamlQZn+9nPo
-         9M6ap5QQP0/D+f/BOLREwKZcoaV/dijsbGXJzW/UpolHZ0sQj05bewEcRFdMTyxK/Mpe
-         PjkkDCmSOY8VM0TZKwj7wcO6hbgNcdfy4jdDEIg+HQz08KG60S8cOzR3mowOcjClaATx
-         BB+w==
+        bh=jwW1KirWJa3Otm0mdb+FxZ3AFbnGbcDi8Iugc6Rltwo=;
+        b=fEivzkeMOwItu6YzDNJKniJnA5SgvBSeDywvD5mwaxzSHi78/L9vH4LHKtF6RCJbYq
+         waum9m2kZn7hadZBhpXm2bhUKh75PtBQpCqjO2V8FO218LW1ZaQpHEZjck6JuVu/l1p8
+         dzLYv0X/53HkuwHy9BnfrLgZ1hKYUWmfbpgBgWXmiD0z9WgtvZX3NXjmBW+JdRr1HkgV
+         D2Ap153xrK77OzHG6q1JT3sLYiNLcp+Z9r9PsH33K7WuAGBJS+UDL3q1NekgE+noKjUd
+         OxdpEKVIAlH8o2GTIjQdrMaulwD3LmEBawqLL1g+uJDx/3PMbd1cWdkIpyIcnJr5alwO
+         9xpg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=usVYOPw9;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=A2pDQgPM;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q64sor266984ywd.173.2019.01.14.12.18.19
+        by mx.google.com with SMTPS id q186sor19359863wme.15.2019.01.14.12.48.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 12:18:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 14 Jan 2019 12:48:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=usVYOPw9;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=A2pDQgPM;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=ptzNydK5Q1PCEDwfDmjHWSEiaPwMsBePibwbeCNfTt0=;
-        b=usVYOPw9XXkqwoIO39XNY5sffSx9x1nFMRLmaz3VT+CmOEugT2/St7wyNWeLqm200i
-         sZu5YUrtr1IQCCSXHYrO1AvsGKK4b8QpjIqkrmC+KdgxEKfUNFwpFkvTo2Zz2q4PYsFG
-         WTvHay+dKR8GlcjGluV9AGuRN1j1kok9Nx/aTVWKHcvRT+lLVteAaaBvuuvWhwNL9RQX
-         jSnRwv/++jnfkozDPdam6qVe64rDLMuThn6YbCJ+7vJz6G9v7soosaaY7/Z3ubSkY76D
-         rI91F6ya3blDaf7Yf+TuW3wvr/m3bmuCgN2OToSzw4ZQb99093m/5gM0Mj4sP2wUuq4H
-         49XQ==
-X-Google-Smtp-Source: ALg8bN4FXjn4pOrbWmB91djMJ9IikbMNtEpPDKFVEvbzmJGsLAVkWNPM3aI5oDKuZi4IBJsj36JFv9VgyTMv+q1hed8=
-X-Received: by 2002:a81:60c4:: with SMTP id u187mr169489ywb.345.1547497099231;
- Mon, 14 Jan 2019 12:18:19 -0800 (PST)
+        bh=jwW1KirWJa3Otm0mdb+FxZ3AFbnGbcDi8Iugc6Rltwo=;
+        b=A2pDQgPMfi8xEcPmWoQZ2vTIY4giMrEqTxyGbkzbS3KIpKn4Rzshn3bvn+6sjPR4v/
+         z3eeTNO9KIL13+ffxR2gzEQ6VTGx2Qoefby8azX1xOvMmP1uqyVMPFpL5OBzd/aHEHiG
+         gx/yvd/XHBODmMQ73oi3WtAGNEhSTdeQSF0uJWHEHIaqeThB2Vc1CMPdWBarjpe/2Op1
+         FnIgnpfClFuK1z7GZIKdpc+2vIwVQrXeSYp4uL6yiI4/MRtFXHeyNuhQHreQFcK57G0f
+         z1+JznRXHIrhESLyl/fpth4COZ/LcDv2W0XMR+hBn5T5ug+ZzV329WtQ4EHSmGk27xid
+         r6sA==
+X-Google-Smtp-Source: ALg8bN7iurn1V/oAb9TPOfzDB1cZrLk7Mb7Ob0iavv3WLprDDiWHghw3bxnNBUClL+Yo6cWdjUkw7edud95FQv0DClc=
+X-Received: by 2002:a1c:e910:: with SMTP id q16mr717314wmc.68.1547498879880;
+ Mon, 14 Jan 2019 12:47:59 -0800 (PST)
 MIME-Version: 1.0
-References: <20190110174432.82064-1-shakeelb@google.com> <20190111205948.GA4591@cmpxchg.org>
- <CALvZod7O2CJuhbuLUy9R-E4dTgL4WBg8CayW_AFnCCG6KCDjUA@mail.gmail.com> <20190113183402.GD1578@dhcp22.suse.cz>
-In-Reply-To: <20190113183402.GD1578@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Mon, 14 Jan 2019 12:18:07 -0800
+References: <20190110220718.261134-1-surenb@google.com> <20190110220718.261134-6-surenb@google.com>
+ <20190114102137.GB14054@worktop.programming.kicks-ass.net>
+ <CAJuCfpGUWs0E9oPUjPTNm=WhPJcE_DBjZCtCiaVu5WXabKRW6A@mail.gmail.com> <20190114194222.GA10571@cmpxchg.org>
+In-Reply-To: <20190114194222.GA10571@cmpxchg.org>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Mon, 14 Jan 2019 12:47:48 -0800
 Message-ID:
- <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
-Subject: Re: [PATCH v3] memcg: schedule high reclaim for remote memcgs on high_work
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+ <CAJuCfpF+eZFxCuB4QtQDOeDFYRg1LBiAKkF6QZxRk-FenkNu7w@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] psi: introduce psi monitor
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Tejun Heo <tj@kernel.org>, lizefan@huawei.com, axboe@kernel.dk, dennis@kernel.org, 
+	Dennis Zhou <dennisszhou@gmail.com>, Ingo Molnar <mingo@redhat.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org, 
+	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, 
+	LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190114201807.qhIlFVg0LKi-ksYYJob9mvWk8CivIOI3RbexIaHRCw8@z>
+Message-ID: <20190114204748.549WTeGR0sCYG7MlG4js954oPSx3_CTgS1cGkL6XQ_E@z>
 
-On Sun, Jan 13, 2019 at 10:34 AM Michal Hocko <mhocko@kernel.org> wrote:
+On Mon, Jan 14, 2019 at 11:42 AM Johannes Weiner <hannes@cmpxchg.org> wrote:
 >
-> On Fri 11-01-19 14:54:32, Shakeel Butt wrote:
-> > Hi Johannes,
+> On Mon, Jan 14, 2019 at 11:30:12AM -0800, Suren Baghdasaryan wrote:
+> > On Mon, Jan 14, 2019 at 2:22 AM Peter Zijlstra <peterz@infradead.org> wrote:
+> > >
+> > > On Thu, Jan 10, 2019 at 02:07:18PM -0800, Suren Baghdasaryan wrote:
+> > > > +/*
+> > > > + * psi_update_work represents slowpath accounting part while
+> > > > + * psi_group_change represents hotpath part.
+> > > > + * There are two potential races between these path:
+> > > > + * 1. Changes to group->polling when slowpath checks for new stall, then
+> > > > + *    hotpath records new stall and then slowpath resets group->polling
+> > > > + *    flag. This leads to the exit from the polling mode while monitored
+> > > > + *    states are still changing.
+> > > > + * 2. Slowpath overwriting an immediate update scheduled from the hotpath
+> > > > + *    with a regular update further in the future and missing the
+> > > > + *    immediate update.
+> > > > + * Both races are handled with a retry cycle in the slowpath:
+> > > > + *
+> > > > + *    HOTPATH:                         |    SLOWPATH:
+> > > > + *                                     |
+> > > > + * A) times[cpu] += delta              | E) delta = times[*]
+> > > > + * B) start_poll = (delta[poll_mask] &&|    if delta[poll_mask]:
+> > > > + *      cmpxchg(g->polling, 0, 1) == 0)| F)   polling_until = now +
+> > > > + *                                     |              grace_period
+> > > > + *                                     |    if now > polling_until:
+> > > > + *    if start_poll:                   |      if g->polling:
+> > > > + * C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
+> > > > + *    else if !delayed_work_pending(): | H)     goto SLOWPATH
+> > > > + * D)   schedule_delayed_work(PSI_FREQ)|    else:
+> > > > + *                                     |      if !g->polling:
+> > > > + *                                     | I)     g->polling = polling = 1
+> > > > + *                                     | J) if delta && first_pass:
+> > > > + *                                     |      next_avg = calculate_averages()
+> > > > + *                                     |      if polling:
+> > > > + *                                     |        next_poll = poll_triggers()
+> > > > + *                                     |    if (delta && first_pass) || polling:
+> > > > + *                                     | K)   mod_delayed_work(
+> > > > + *                                     |          min(next_avg, next_poll))
+> > > > + *                                     |      if !polling:
+> > > > + *                                     |        first_pass = false
+> > > > + *                                     | L)     goto SLOWPATH
+> > > > + *
+> > > > + * Race #1 is represented by (EABGD) sequence in which case slowpath
+> > > > + * deactivates polling mode because it misses new monitored stall and hotpath
+> > > > + * doesn't activate it because at (B) g->polling is not yet reset by slowpath
+> > > > + * in (G). This race is handled by the (H) retry, which in the race described
+> > > > + * above results in the new sequence of (EABGDHEIK) that reactivates polling
+> > > > + * mode.
+> > > > + *
+> > > > + * Race #2 is represented by polling==false && (JABCK) sequence which
+> > > > + * overwrites immediate update scheduled at (C) with a later (next_avg) update
+> > > > + * scheduled at (K). This race is handled by the (L) retry which results in the
+> > > > + * new sequence of polling==false && (JABCKLEIK) that reactivates polling mode
+> > > > + * and reschedules next polling update (next_poll).
+> > > > + *
+> > > > + * Note that retries can't result in an infinite loop because retry #1 happens
+> > > > + * only during polling reactivation and retry #2 happens only on the first
+> > > > + * pass. Constant reactivations are impossible because polling will stay active
+> > > > + * for at least grace_period. Worst case scenario involves two retries (HEJKLE)
+> > > > + */
+> > >
+> > > I'm having a fairly hard time with this. There's a distinct lack of
+> > > memory ordering, and a suspicious mixing of atomic ops (cmpxchg) and
+> > > regular loads and stores (without READ_ONCE/WRITE_ONCE even).
+> > >
+> > > Please clarify.
 > >
-> > On Fri, Jan 11, 2019 at 12:59 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > >
-> > > Hi Shakeel,
-> > >
-> > > On Thu, Jan 10, 2019 at 09:44:32AM -0800, Shakeel Butt wrote:
-> > > > If a memcg is over high limit, memory reclaim is scheduled to run on
-> > > > return-to-userland.  However it is assumed that the memcg is the current
-> > > > process's memcg.  With remote memcg charging for kmem or swapping in a
-> > > > page charged to remote memcg, current process can trigger reclaim on
-> > > > remote memcg.  So, schduling reclaim on return-to-userland for remote
-> > > > memcgs will ignore the high reclaim altogether. So, record the memcg
-> > > > needing high reclaim and trigger high reclaim for that memcg on
-> > > > return-to-userland.  However if the memcg is already recorded for high
-> > > > reclaim and the recorded memcg is not the descendant of the the memcg
-> > > > needing high reclaim, punt the high reclaim to the work queue.
-> > >
-> > > The idea behind remote charging is that the thread allocating the
-> > > memory is not responsible for that memory, but a different cgroup
-> > > is. Why would the same thread then have to work off any high excess
-> > > this could produce in that unrelated group?
-> > >
-> > > Say you have a inotify/dnotify listener that is restricted in its
-> > > memory use - now everybody sending notification events from outside
-> > > that listener's group would get throttled on a cgroup over which it
-> > > has no control. That sounds like a recipe for priority inversions.
-> > >
-> > > It seems to me we should only do reclaim-on-return when current is in
-> > > the ill-behaved cgroup, and punt everything else - interrupts and
-> > > remote charges - to the workqueue.
+> > Thanks for the feedback.
+> > I do mix atomic and regular loads with g->polling only because the
+> > slowpath is the only one that resets it back to 0, so
+> > cmpxchg(g->polling, 1, 0) == 1 at (G) would always return 1.
+> > Setting g->polling back to 1 at (I) indeed needs an atomic operation
+> > but at that point it does not matter whether hotpath or slowpath sets
+> > it. In either case we will schedule a polling update.
+> > Am I missing anything?
 > >
-> > This is what v1 of this patch was doing but Michal suggested to do
-> > what this version is doing. Michal's argument was that the current is
-> > already charging and maybe reclaiming a remote memcg then why not do
-> > the high excess reclaim as well.
+> > For memory ordering (which Johannes also pointed out) the critical point is:
+> >
+> > times[cpu] += delta           | if g->polling:
+> > smp_wmb()                     |   g->polling = polling = 0
+> > cmpxchg(g->polling, 0, 1)     |   smp_rmb()
+> >                               |   delta = times[*] (through goto SLOWPATH)
+> >
+> > So that hotpath writes to times[] then g->polling and slowpath reads
+> > g->polling then times[]. cmpxchg() implies a full barrier, so we can
+> > drop smp_wmb(). Something like this:
+> >
+> > times[cpu] += delta           | if g->polling:
+> > cmpxchg(g->polling, 0, 1)     |   g->polling = polling = 0
+> >                               |   smp_rmb()
+> >                               |   delta = times[*] (through goto SLOWPATH)
 >
-> Johannes has a good point about the priority inversion problems which I
-> haven't thought about.
->
-> > Personally I don't have any strong opinion either way. What I actually
-> > wanted was to punt this high reclaim to some process in that remote
-> > memcg. However I didn't explore much on that direction thinking if
-> > that complexity is worth it. Maybe I should at least explore it, so,
-> > we can compare the solutions. What do you think?
->
-> My question would be whether we really care all that much. Do we know of
-> workloads which would generate a large high limit excess?
->
+> delta = times[*] is get_recent_times(), which uses a seqcount and so
+> implies the smp_rmb() already as well. So we shouldn't need another
+> explicit one. But the comment should point out all the barriers.
 
-The current semantics of memory.high is that it can be breached under
-extreme conditions. However any workload where memory.high is used and
-a lot of remote memcg charging happens (inotify/dnotify example given
-by Johannes or swapping in tmpfs file or shared memory region) the
-memory.high breach will become common.
+Got it, thanks!
+How about changing the comment this way:
 
-Shakeel
+   HOTPATH:                         |    SLOWPATH:
+                                    |
+A) times[cpu] += delta              | E) delta = times[*]
+   smp_wmb()                        |    if delta[poll_mask]:
+B) start_poll = (delta[poll_mask] &&| F)   polling_until = now + grace_period
+     cmpxchg(g->polling, 0, 1) == 0)|    if now > polling_until:
+   if start_poll:                   |      if g->polling:
+C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
+   else if !delayed_work_pending(): |        smp_rmb()
+D)   schedule_delayed_work(PSI_FREQ)| H)     goto SLOWPATH
+                                    |    else:
+                                    |      if !g->polling:
+                                    | I)     g->polling = polling = 1
+                                    | J) if delta && first_pass:
+                                    |      next_avg = calculate_averages()
+                                    |      if polling:
+                                    |        next_poll = poll_triggers()
+                                    |    if (delta && first_pass) || polling:
+                                    | K)   mod_delayed_work(
+                                    |          min(next_avg, next_poll))
+                                    |      if !polling:
+                                    |        first_pass = false
+                                    | L)     goto SLOWPATH
+
+And maybe adding a comment about implied memory barriers in cmpxchg()
+and in seqlock.
+Would that be enough?
 
