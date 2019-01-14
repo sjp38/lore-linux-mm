@@ -1,72 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 365518E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:01:44 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id t7so8547852edr.21
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:01:44 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id D25758E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 02:06:04 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id m19so8565014edc.6
+        for <linux-mm@kvack.org>; Sun, 13 Jan 2019 23:06:04 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w26si2454260edt.407.2019.01.13.23.01.42
+        by mx.google.com with ESMTPS id j5si2302931edp.436.2019.01.13.23.06.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Jan 2019 23:01:42 -0800 (PST)
-Date: Mon, 14 Jan 2019 08:01:37 +0100
+        Sun, 13 Jan 2019 23:06:03 -0800 (PST)
+Date: Mon, 14 Jan 2019 08:06:00 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
-Message-ID: <20190114070137.GB21345@dhcp22.suse.cz>
-References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
- <20190113173555.GC1578@dhcp22.suse.cz>
- <f9f333a5-5533-996a-dc8e-1ff1096c1d19@arm.com>
+Subject: Re: Lock overhead in shrink_inactive_list / Slow page reclamation
+Message-ID: <20190114070600.GC21345@dhcp22.suse.cz>
+References: <CABdVr8R2y9B+2zzSAT_Ve=BQCa+F+E9_kVH+C28DGpkeQitiog@mail.gmail.com>
+ <20190111135938.GG14956@dhcp22.suse.cz>
+ <20190111175301.csgxlwpbsfecuwug@ca-dmjordan1.us.oracle.com>
+ <CABdVr8T4ccrnRfboehOBfMVG4kHbWwq=ijDOtq3dEbGSXLkyUg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f9f333a5-5533-996a-dc8e-1ff1096c1d19@arm.com>
+In-Reply-To: <CABdVr8T4ccrnRfboehOBfMVG4kHbWwq=ijDOtq3dEbGSXLkyUg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com
+To: Baptiste Lepers <baptiste.lepers@gmail.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, mgorman@techsingularity.net, akpm@linux-foundation.org, dhowells@redhat.com, linux-mm@kvack.org, hannes@cmpxchg.org
 
-On Mon 14-01-19 09:30:55, Anshuman Khandual wrote:
+On Mon 14-01-19 10:12:37, Baptiste Lepers wrote:
+> On Sat, Jan 12, 2019 at 4:53 AM Daniel Jordan
+> <daniel.m.jordan@oracle.com> wrote:
+> >
+> > On Fri, Jan 11, 2019 at 02:59:38PM +0100, Michal Hocko wrote:
+> > > On Fri 11-01-19 16:52:17, Baptiste Lepers wrote:
+> > > > Hello,
+> > > >
+> > > > We have a performance issue with the page cache. One of our workload
+> > > > spends more than 50% of it's time in the lru_locks called by
+> > > > shrink_inactive_list in mm/vmscan.c.
+> > >
+> > > Who does contend on the lock? Are there direct reclaimers or is it
+> > > solely kswapd with paths that are faulting the new page cache in?
+> >
+> > Yes, and could you please post your performance data showing the time in
+> > lru_lock?  Whatever you have is fine, but using perf with -g would give
+> > callstacks and help answer Michal's question about who's contending.
 > 
+> Thanks for the quick answer.
 > 
-> On 01/13/2019 11:05 PM, Michal Hocko wrote:
-> > On Sat 12-01-19 15:56:38, Anshuman Khandual wrote:
-> >> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
-> >> __GFP_ZERO) and using it for allocating page table pages. This causes some
-> >> code duplication which can be easily avoided. GFP_KERNEL allocated and
-> >> cleared out pages (__GFP_ZERO) are required for page tables on any given
-> >> architecture. This creates a new generic GFP flag flag which can be used
-> >> for any page table page allocation. Does not cause any functional change.
-> > 
-> > I agree that some unification is due but GFP_PGTABLE is not something to
-> > expose in generic gfp.h IMHO. It just risks an abuse. I would be looking
+> The time spent in the lru_lock is mainly due to direct reclaimers
+> (reading an mmaped page that causes some readahead to happen). We have
+> tried to play with readahead values, but it doesn't change performance
+> a lot. We have disabled swap on the machine, so kwapd doesn't run.
+
+kswapd runs even without swap storage.
+
+> Our programs run in memory cgroups, but I don't think that the issue
+> directly comes from cgroups (I might be wrong though).
+
+Do you use hard/high limit on those cgroups. Because those would be a
+source of the reclaim.
+
+> Here is the callchain that I have using perf report --no-children;
+> (Paste here https://pastebin.com/151x4QhR )
 > 
-> Why would you think that it risks an abuse ? It does not create new semantics
-> of allocation in the buddy. Its just uses existing GFP_KERNEL allocation which
-> is then getting zeroed out. The risks (if any) is exactly same as GFP_KERNEL.
+>     44.30%  swapper      [kernel.vmlinux]  [k] intel_idle
+>     # The machine is idle mainly because it waits in that lru_locks,
+> which is the 2nd function in the report:
+>     10.98%  testradix    [kernel.vmlinux]  [k] native_queued_spin_lock_slowpath
+>                |--10.33%--_raw_spin_lock_irq
+>                |          |
+>                |           --10.12%--shrink_inactive_list
+>                |                     shrink_node_memcg
+>                |                     shrink_node
+>                |                     do_try_to_free_pages
+>                |                     try_to_free_mem_cgroup_pages
+>                |                     try_charge
+>                |                     mem_cgroup_try_charge
 
-Beucase my experience just tells me that people tend to use whatever
-they find and name fits what they think they need.
+And here it shows this is indeed the case. You are hitting the hard
+limit and that causes direct reclaim to shrink the memcg.
 
-> > at providing asm-generic implementation and reuse it to remove the code
-> 
-> Does that mean GFP_PGTABLE can be created but not in gfp.h but in some other
-> memory related header file ?
-
-I would just keep it close to its users. If that is a single arch
-generic place then only better. But I suspect some arches have special
-requirements.
-
-> > duplication. But I haven't tried that to know that it will work out due
-> > to small/subtle differences between arches.
-> 
-> IIUC from the allocation perspective GFP_ACCOUNT is the only thing which gets
-> added with GFP_PGTABLE for user page table for memcg accounting purpose. There
-> does not seem to be any other differences unless I am missing something.
-
-It's been some time since I've checked the last time. Some arches were
-using GPF_REPEAT (__GFP_RETRY_MAYFAIL) back then. I have removed most of
-those but some were doing a higher order allocations so they probably
-have stayed.
+If you do not really need a strong isolation between cgroups then I
+would suggest to not set the hard limit and rely on the global memory
+reclaim to do the background reclaim which is less aggressive and more
+pro-active.
 -- 
 Michal Hocko
 SUSE Labs
