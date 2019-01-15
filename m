@@ -1,70 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B55508E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 00:31:23 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id p79so1338161qki.15
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 21:31:23 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v18sor86608493qtp.42.2019.01.14.21.31.22
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 036F88E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 02:25:56 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id o21so770652edq.4
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:25:55 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h2-v6si229880ejq.203.2019.01.14.23.25.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 14 Jan 2019 21:31:22 -0800 (PST)
-Subject: Re: [PATCH v2] rbtree: fix the red root
-References: <20190111181600.GJ6310@bombadil.infradead.org>
- <20190111205843.25761-1-cai@lca.pw>
- <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
- <CANN689G0zbk7sMbQ+p9NQGQ=NWq-Q0mQOOjeFkLp19YrTfgcLg@mail.gmail.com>
- <864d6b85-3336-4040-7c95-7d9615873777@lechnology.com>
- <b1033d96-ebdd-e791-650a-c6564f030ce1@lca.pw>
- <8v11ZOLyufY7NLAHDFApGwXOO_wGjVHtsbw1eiZ__YvI9EZCDe_4FNmlp0E-39lnzGQHhHAczQ6Q6lQPzVU2V6krtkblM8IFwIXPHZCuqGE=@protonmail.ch>
- <c6265fc0-4089-9d1a-ba7c-b267b847747e@interlog.com>
- <UKsodHRZU8smIdO2MHHL4Yzde_YB4iWX43TaHI1uY2tMo4nii4ucbaw4XC31XIY-Pe4oEovjF62qbkeMsIMTrvT1TdCCP4Fs_fxciAzXYVc=@protonmail.ch>
- <ad591828-76e8-324b-6ab8-dc87e4390f64@interlog.com>
- <GBn2paWQ0Uy0COgTeJsgmC18Faw0x_yNIog8gpuC5TJ4kCn_IUH1EnHJW0mQeo3Qy5MMcpMzyw9Yer3lxyWYgtk5TJx8I3sJK4oVlIJh38s=@protonmail.ch>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <dac115ca-d6ed-dfc0-161a-8e51a7f93e00@lca.pw>
-Date: Tue, 15 Jan 2019 00:31:20 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Jan 2019 23:25:53 -0800 (PST)
+Date: Tue, 15 Jan 2019 08:25:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] memcg: schedule high reclaim for remote memcgs on
+ high_work
+Message-ID: <20190115072551.GO21345@dhcp22.suse.cz>
+References: <20190110174432.82064-1-shakeelb@google.com>
+ <20190111205948.GA4591@cmpxchg.org>
+ <CALvZod7O2CJuhbuLUy9R-E4dTgL4WBg8CayW_AFnCCG6KCDjUA@mail.gmail.com>
+ <20190113183402.GD1578@dhcp22.suse.cz>
+ <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <GBn2paWQ0Uy0COgTeJsgmC18Faw0x_yNIog8gpuC5TJ4kCn_IUH1EnHJW0mQeo3Qy5MMcpMzyw9Yer3lxyWYgtk5TJx8I3sJK4oVlIJh38s=@protonmail.ch>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Esme <esploit@protonmail.ch>, "dgilbert@interlog.com" <dgilbert@interlog.com>
-Cc: David Lechner <david@lechnology.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, "jejb@linux.ibm.com" <jejb@linux.ibm.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "joeypabalinas@gmail.com" <joeypabalinas@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Mon 14-01-19 12:18:07, Shakeel Butt wrote:
+> On Sun, Jan 13, 2019 at 10:34 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Fri 11-01-19 14:54:32, Shakeel Butt wrote:
+> > > Hi Johannes,
+> > >
+> > > On Fri, Jan 11, 2019 at 12:59 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > >
+> > > > Hi Shakeel,
+> > > >
+> > > > On Thu, Jan 10, 2019 at 09:44:32AM -0800, Shakeel Butt wrote:
+> > > > > If a memcg is over high limit, memory reclaim is scheduled to run on
+> > > > > return-to-userland.  However it is assumed that the memcg is the current
+> > > > > process's memcg.  With remote memcg charging for kmem or swapping in a
+> > > > > page charged to remote memcg, current process can trigger reclaim on
+> > > > > remote memcg.  So, schduling reclaim on return-to-userland for remote
+> > > > > memcgs will ignore the high reclaim altogether. So, record the memcg
+> > > > > needing high reclaim and trigger high reclaim for that memcg on
+> > > > > return-to-userland.  However if the memcg is already recorded for high
+> > > > > reclaim and the recorded memcg is not the descendant of the the memcg
+> > > > > needing high reclaim, punt the high reclaim to the work queue.
+> > > >
+> > > > The idea behind remote charging is that the thread allocating the
+> > > > memory is not responsible for that memory, but a different cgroup
+> > > > is. Why would the same thread then have to work off any high excess
+> > > > this could produce in that unrelated group?
+> > > >
+> > > > Say you have a inotify/dnotify listener that is restricted in its
+> > > > memory use - now everybody sending notification events from outside
+> > > > that listener's group would get throttled on a cgroup over which it
+> > > > has no control. That sounds like a recipe for priority inversions.
+> > > >
+> > > > It seems to me we should only do reclaim-on-return when current is in
+> > > > the ill-behaved cgroup, and punt everything else - interrupts and
+> > > > remote charges - to the workqueue.
+> > >
+> > > This is what v1 of this patch was doing but Michal suggested to do
+> > > what this version is doing. Michal's argument was that the current is
+> > > already charging and maybe reclaiming a remote memcg then why not do
+> > > the high excess reclaim as well.
+> >
+> > Johannes has a good point about the priority inversion problems which I
+> > haven't thought about.
+> >
+> > > Personally I don't have any strong opinion either way. What I actually
+> > > wanted was to punt this high reclaim to some process in that remote
+> > > memcg. However I didn't explore much on that direction thinking if
+> > > that complexity is worth it. Maybe I should at least explore it, so,
+> > > we can compare the solutions. What do you think?
+> >
+> > My question would be whether we really care all that much. Do we know of
+> > workloads which would generate a large high limit excess?
+> >
+> 
+> The current semantics of memory.high is that it can be breached under
+> extreme conditions. However any workload where memory.high is used and
+> a lot of remote memcg charging happens (inotify/dnotify example given
+> by Johannes or swapping in tmpfs file or shared memory region) the
+> memory.high breach will become common.
 
-> [  114.913404] Padding 000000006913c65d: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.915437] Padding 000000002d53f25c: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.917390] Padding 0000000078f7d621: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.919402] Padding 0000000063547658: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.921414] Padding 000000001a301f4e: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.923364] Padding 0000000046589d24: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.925340] Padding 0000000008fb13da: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.927291] Padding 00000000ae5cc298: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.929239] Padding 00000000d49cc239: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.931177] Padding 00000000d66ad6f5: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.933110] Padding 00000000069ad671: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.934986] Padding 00000000ffaf648c: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.936895] Padding 00000000c96d1b58: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.938848] Padding 00000000768e4920: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.940965] Padding 000000000d06b43c: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.942890] Padding 00000000af5ae9fa: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.944790] Padding 000000006b526f1e: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-> [  114.946727] Padding 000000009c8dffe3: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-
-Another testing angle,
-
-It might be something is doing __GFP_ZERO and overwriting those slabs. This also
-matched the red root corruption, since RB_RED is bit 0.
-
-One thing to try is to enable page_owner=on in the command-line, and then obtain
-sorted_page_owner.txt before and after running the reproducer.
-
-$ cd tools/vm
-$ make page_owner_sort
-
-$ cat /sys/kernel/debug/page_owner > page_owner_full.txt
-$ grep -v ^PFN page_owner_full.txt > page_owner.txt
-$ ./page_owner_sort page_owner.txt sorted_page_owner.txt
+This is exactly what I am asking about. Is this something that can
+happen easily? Remote charges on themselves should be rare, no?
+-- 
+Michal Hocko
+SUSE Labs
