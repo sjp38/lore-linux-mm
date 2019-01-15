@@ -2,111 +2,111 @@ Return-Path: <SRS0=hkLx=PX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64D7FC43387
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:28:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1DC4C43387
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:38:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1945020868
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:28:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 55C5F20859
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:38:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iTLHNNJp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1945020868
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mU/O8YQC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55C5F20859
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A1DEB8E0004; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
+	id 029638E0003; Tue, 15 Jan 2019 02:38:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A2EA8E0002; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
+	id F1BC48E0002; Tue, 15 Jan 2019 02:38:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 893418E0004; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
+	id E0C248E0003; Tue, 15 Jan 2019 02:38:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D6DA8E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id r65so1323485iod.12
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:28:32 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id B55A18E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 02:38:45 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id d63so1375784iog.4
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:38:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Ti0B2+GOH1sUCCI3lKmEIHaxROwkZe+iQSCsCALUxmw=;
-        b=CR0/VsTL8h5qZ4HWHP5KbmByA6tqQm9vTL6qM06ckICbSv+Y3EwMFx5f6YPSLPXO9i
-         dqYh4jrQ+LeDknoTab3jybvjgV/aqK3iDfuHQ2Q+JkPRQZpv9IUeIZWttCkuiqq3Oe4x
-         LJjwUbmHOF8gIZwmLNO4E0sgdRL96555dV+iPE4pVfaT6DTfdB38bhxQFosjfHASD+JR
-         l9j/68OStNbeTAhiCRFrUfuKtl3RiQ17Uf/uuDmiurV0mNTPEYtfmiAIdEUK5Rw27q6m
-         8LyLNPEucqb7QmKAjrs1+c75nQWWdnTqhelgdQri/W8alMzygz+1GVtjloP01c4aIs9H
-         dJlA==
-X-Gm-Message-State: AJcUukcZ32ESmVln2R8+5L14VeONkKrNHjVFoChhVCLKUNochSfg0aWw
-	5Yqx0m88Z9pXoU+4EXRtt4tU4MCqv5HtVICrRRly2scHfVaPtrQ+SQNGS6qRG9UdilzsJ7q5Lnp
-	x1uKqtn3yOiYVJhdU/L1r0k45G6UJz3OP4WzPErYWvsLAg6ZLFDt1qS5FO8JoDatur7YQDgw/Tk
-	a2IYhgqi5p6zqFsOEWGMV/sdS4fFTW/g/OMWqZ940G/1CqaXOfoJOzV8QiMNCc2/C79gyRW5QO/
-	g+uZN7gUtdAzgqGYvwnRa6iMGBUbF9wWjB05J0WnZ6dAD7qfbBH+fP/buteZpmDU9cVAiGyklkd
-	DxSlHxGpys+NKT3d/LaCGAyb9yznc9tpT/NEgT26whkZ3qstkefFtquMlLmjlwBwgEIVZUTBGqH
-	p
-X-Received: by 2002:a5d:948e:: with SMTP id v14mr1173174ioj.191.1547537312124;
-        Mon, 14 Jan 2019 23:28:32 -0800 (PST)
-X-Received: by 2002:a5d:948e:: with SMTP id v14mr1173155ioj.191.1547537311493;
-        Mon, 14 Jan 2019 23:28:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547537311; cv=none;
+        bh=lVehsSeMWUU3jkTxsZPIrdSDz5kPYi5V6dHdpqfENcA=;
+        b=JAvq1JFQ3J+AaeDBJk91crpS3U3Vf7wA64d6o5CA5h6WhHsd/YJfAVhAresR/iASgg
+         pwtvejNFrLwEYeEtVWyAFIB22M5w/wgCQcityfjwZKTGEezXw9NatE4LsH8jY0b7/bry
+         2NXIUXn0Ktx8LxGA0jZXG4LDa/fYwW7jWUqfC4LXMgFulV8eqZ1c+3a0OXRTZfhChUMk
+         pYOXxrxWTYeZzET00AiZPHmRj0ALb78504mG0toqpZ8UFWyYPAbOO+u4ZIr7E8QK2Pvh
+         15hnBsh+xXu4m3yQkv8MRcmKJhX7v2FM9X73O5QFNOzo4ws6W4aPj1Xy7eO8Sc5z2Z6j
+         HWKA==
+X-Gm-Message-State: AJcUukcxMpmEgtfGAK5FQTWLcHIY8KJ2A+KqcS+o8nUecmWDlS2O2UQP
+	eJQyD9kWSuREvjSO6tQjY82c+Pe2hQ/pt19WNz5xRL+x6Vr1lWXD0zD8HLeUnh/f0f5PTjmD/Qz
+	XJvl/bmAxQtPyZNYLw6l37i4JVV4J7fJGZijiChMphZuhNB1vYZCXgbY9XMdcGY1e51ByYhiSKa
+	AclLiUL1azERlKhdZU978GrQiKZZZ/nBMAQQgNjvYfGwLhiX3O0L5jXPQ2hrnNVOFqdMGFbgLkg
+	N2pKEjDtrngvYUQ0h90Q7D5sgPcdi9PK+kGfi7yL0Yjt/AnuoeYpnr9UymPQ5A+RJCO5SRLJ9pr
+	MtagZuq08u9aCTAi6GE5dxrSaX/a2Oco6fei4ay4ldvhY7nNQO9ek5G1WXXfAk+fzdD+qywFVGg
+	b
+X-Received: by 2002:a24:3752:: with SMTP id r79mr1492337itr.121.1547537925480;
+        Mon, 14 Jan 2019 23:38:45 -0800 (PST)
+X-Received: by 2002:a24:3752:: with SMTP id r79mr1492320itr.121.1547537924696;
+        Mon, 14 Jan 2019 23:38:44 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547537924; cv=none;
         d=google.com; s=arc-20160816;
-        b=kP8hiUwBflG7BdgAL/QtDSgysX4zAv0xA+bEHGVoT6x8E16HCZale5kTxJ9NNgW7fv
-         tQWmCHyK6Kgw9XcHYZZlrxEr/53bUjxHxV/tSE7+KGbUuHbKcqY8q2SVNYIxiVPDTGVQ
-         sdRcQ9yJjCaesTgquQnSH13pju9Qup5D2tAgmmLgP4xbkQjMfBkP4DaBHl2fYM5czQZY
-         9uxcfP4n++7c83eRbwwG1LdQ2JUtwYHZZqhH4xNvXGmnq4RoDzB7Wo+dbcQpZDl3RlD9
-         yd9AftY5Te+bD1svXv01qPfAZ8BQA2uUN34Hpr0bY/uFTSosMUzUovBGU8xS/D1bZrgk
-         0N5A==
+        b=lF9Cb6mo0undGHRM4CxgVjYX3zQuIbXfBWIr/DD/3VGBEfpbYs4BZaNPkXvbSZ/RDY
+         JZo/i0+0eZXFE52jOWDNnUV1OYUgB36RWvYqby1oqPBznrqxU+WBFegzNR6OYbrzSOwv
+         RDyjYg3e700v6RL2pHHaAVydwFTtXM7uYxUpUu1gotUdYCy7uJeGqh9nBLCwTSVJDFmx
+         RA2g7wcWovUtcrdRzzyJxAiBljeQ2NSlJCCcxHG089LI7/5Dm/2A9YBCLYGOVOvBm57z
+         IXQ1kmnJIwMUEs8JE34MdQubPaDO7wbsLWwM3FRW6kL1M/IgmJhN5BYXr9klIjGPwnSO
+         PlMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=Ti0B2+GOH1sUCCI3lKmEIHaxROwkZe+iQSCsCALUxmw=;
-        b=Jo9dFHzFKCeETdEiwKo/GFULZEVABR9FplDe/siBTGmhl/LsNvBMEOgWcHgmXQ9+zz
-         hBxPqfOasDsZLBtkxZoVT6s31+ECGG5QpXcAq0D0FURFQ0RJ6u8A8t2Nu89cGBOKIXgT
-         VG21LseRLrH5MdShn7EB3ULd8WLVtjm0fZe3evWSs96J/99L3cGuEONgsB8YB677AkIY
-         Gv10YJ8eFdoQTERBCbgbI8R2vbkMUVxBZhyCqseZgK6om+WIMQHrqHpzPa7Q8zHy18l7
-         AOH5O/M+9mO0n+dbDl8LZlowIrFtNvnxG/8WJQMgRaDtEZHM+B4OrjU9OKKkl9so8r5D
-         6i9w==
+        bh=lVehsSeMWUU3jkTxsZPIrdSDz5kPYi5V6dHdpqfENcA=;
+        b=vdhqxYmcVrXMlLPktH1eFWbcBcqxQcgijiOEg/bz4zlTt5AVdtCx0mGW7856YnPreN
+         2YHb7LLq6y3so2bd3RdhP+X70WCfAWUKUdTgMNcMuyV8Q1EHQ7fcxta3YR2QVs77vZA/
+         RX84VxZCLM048ADeXNSfbQSC71wdcLxJC8lH6QnQxHW7BB6J4sI5mhEN93XsJCMm9LhX
+         3a8ksnGPGe32U9sI+ZvwsmHzKkbLtHNbyKMFBmsaWGB0grpaBsCodZcm6jOERtAVfVDZ
+         aJeUaacYwiwhZ2TPh7tAhcZghz35Ef93FXbO7DZGeFH2D0v0mOJSMi+wib2+78YM676z
+         BkGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iTLHNNJp;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="mU/O8YQC";
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v192sor3949259itb.17.2019.01.14.23.28.31
+        by mx.google.com with SMTPS id i21sor1331810ioh.73.2019.01.14.23.38.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 23:28:31 -0800 (PST)
+        Mon, 14 Jan 2019 23:38:44 -0800 (PST)
 Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iTLHNNJp;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="mU/O8YQC";
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=Ti0B2+GOH1sUCCI3lKmEIHaxROwkZe+iQSCsCALUxmw=;
-        b=iTLHNNJpov1e6c5j8dhFlI+XgtoGgIqdyCEc4w6GCepOHFHUsg5pNNpynFwlwvb8H7
-         mCvbJ97rjNZSKJFNK0vyZoldc8/zD/kqIBjNz21JZ/WIPGAlUYke1Nx+JlS1ouE57sy1
-         Q4afFRXT0TAZXtStU74WDQnikYgCVu8V/FtYg5/18q7VhRNsWYXeQUQixTRMg8VVOvrZ
-         t8I1lcXx3JwEBA/plyK6aD9bn3N7WT7ewacLoyyZ4gFpEyp941PZgsYusHgBGwHToJoV
-         OSmsrFuMwLzwfWOOHm6f3yErYmDMTqiySnD2YRpPhvYpS1Im0WN8LwUY0pnhpPleA0Ei
-         qLFQ==
-X-Google-Smtp-Source: ALg8bN6DTPPimR34oteI/ijt0sww/halUd6Z0r/NZkQw1Wxqsp7JOKTv6I7qSU4QjHuryU7zvHEybRq8MDNlWOWXqxo=
-X-Received: by 2002:a24:414c:: with SMTP id x73mr1674837ita.129.1547537311236;
- Mon, 14 Jan 2019 23:28:31 -0800 (PST)
+        bh=lVehsSeMWUU3jkTxsZPIrdSDz5kPYi5V6dHdpqfENcA=;
+        b=mU/O8YQCDCXkh1/jmyk2APkT52zILHjHehkY+lUIOM3mBlCmm1A+gbSQuSGnhijgBL
+         zzuu4SH4zZ3rU90KKhQrAYkcRNogpzp2LzgbpxSFIv6xFfRokvtR4DR7VOtnVS1+VRcB
+         fzncpIZggKL9GqtXA0EO2l+nzIYKSFfxYJ0kISupD60wtWXAsvLg1SlXjuTjdpEKvL0y
+         oZwYdoViinuxpaX5LCcXsl5DM5QGR4ocvwuV0tikJqr9ntyt4Mk9/Js5DWkvFTMij1ss
+         3pQ9h8amEBzEIJK98cIatCBi3guVvFmcbcM0KYPHGhj2SZARhQnpqWho4AhBIqIxCV2n
+         PePQ==
+X-Google-Smtp-Source: ALg8bN7OGtN1JqEKvyXJgs4JoqOsGxp9q81rPmOCUPwNb81kL7oXPQzVsG/lBRT6XC0tu9hkN3Vn4MG31Wb2VWuOo8Y=
+X-Received: by 2002:a6b:39c6:: with SMTP id g189mr1168813ioa.255.1547537924450;
+ Mon, 14 Jan 2019 23:38:44 -0800 (PST)
 MIME-Version: 1.0
 References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
- <1547183577-20309-3-git-send-email-kernelfans@gmail.com> <a5fe4d86-3551-7da8-caca-fdd497ace99f@intel.com>
-In-Reply-To: <a5fe4d86-3551-7da8-caca-fdd497ace99f@intel.com>
+ <1547183577-20309-7-git-send-email-kernelfans@gmail.com> <fff8c6b6-7344-7ecb-b1a8-3c49af34c892@intel.com>
+In-Reply-To: <fff8c6b6-7344-7ecb-b1a8-3c49af34c892@intel.com>
 From: Pingfan Liu <kernelfans@gmail.com>
-Date: Tue, 15 Jan 2019 15:28:19 +0800
+Date: Tue, 15 Jan 2019 15:38:33 +0800
 Message-ID:
- <CAFgQCTsMo9+8m9jxUK5Eax44rsY+a3TBpb4HsUrScJW3OQ18Kw@mail.gmail.com>
-Subject: Re: [PATCHv2 2/7] acpi: change the topo of acpi_table_upgrade()
+ <CAFgQCTsZOeBb8dUaq5LLfwzTObK5tT47h5U_BkfgtPDYLW9CqA@mail.gmail.com>
+Subject: Re: [PATCHv2 6/7] x86/mm: remove bottom-up allocation style for x86_64
 To: Dave Hansen <dave.hansen@intel.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, 
 	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
@@ -123,56 +123,65 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190115072819.r7dA4k84VgBOXJNnSPvSjafXXrDCcB4iac8HQoQ-MKM@z>
+Message-ID: <20190115073833.s03nCJqtK2NGAki9cBGxTbEEzSayU7tHFw1h-YlMhZs@z>
 
-On Tue, Jan 15, 2019 at 7:12 AM Dave Hansen <dave.hansen@intel.com> wrote:
+On Tue, Jan 15, 2019 at 7:27 AM Dave Hansen <dave.hansen@intel.com> wrote:
 >
 > On 1/10/19 9:12 PM, Pingfan Liu wrote:
-> > The current acpi_table_upgrade() relies on initrd_start, but this var is
+> > Although kaslr-kernel can avoid to stain the movable node. [1]
 >
-> "var" meaning variable?
+> Can you explain what staining is, or perhaps try to use some more
+> standard nomenclature?  There are exactly 0 instances of the word
+> "stain" in arch/x86/ or mm/.
 >
-> Could you please go back and try to ensure you spell out all the words
-> you are intending to write?  I think "topo" probably means "topology",
-> but it's a really odd word to use for changing the arguments of a
-> function, so I'm not sure.
->
-> There are a couple more of these in this set.
->
-Yes. I will do it and fix them in next version.
+I mean that KASLR may randomly choose some positions for base address,
+which are located in movable node.
 
-> > only valid after relocate_initrd(). There is requirement to extract the
-> > acpi info from initrd before memblock-allocator can work(see [2/4]), hence
-> > acpi_table_upgrade() need to accept the input param directly.
+> > But the
+> > pgtable can still stain the movable node. That is a probability problem,
+> > although low, but exist. This patch tries to make it certainty by
+> > allocating pgtable on unmovable node, instead of following kernel end.
 >
-> "[2/4]"
+> Anyway, can you read my suggested summary in the earlier patch and see
+> if it fits or if I missed anything?  This description is really hard to
+> read.
 >
-> It looks like you quickly resent this set without updating the patch
-> descriptions.
->
-> > diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
-> > index 61203ee..84e0a79 100644
-> > --- a/drivers/acpi/tables.c
-> > +++ b/drivers/acpi/tables.c
-> > @@ -471,10 +471,8 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
-> >
-> >  #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
-> >
-> > -void __init acpi_table_upgrade(void)
-> > +void __init acpi_table_upgrade(void *data, size_t size)
+Your summary in the reply to [PATCH 0/7] express the things clearly. I
+will use them to update the commit log
+
+> ...> +#ifdef CONFIG_X86_32
+> > +
+> > +static unsigned long min_pfn_mapped;
+> > +
+> >  static unsigned long __init get_new_step_size(unsigned long step_size)
 > >  {
-> > -     void *data = (void *)initrd_start;
-> > -     size_t size = initrd_end - initrd_start;
-> >       int sig, no, table_nr = 0, total_offset = 0;
-> >       long offset = 0;
-> >       struct acpi_table_header *table;
+> >       /*
+> > @@ -653,6 +655,32 @@ static void __init memory_map_bottom_up(unsigned long map_start,
+> >       }
+> >  }
+> >
+> > +static unsigned long __init init_range_memory_mapping32(
+> > +     unsigned long r_start, unsigned long r_end)
+> > +{
 >
-> I know you are just replacing some existing variables, but we have a
-> slightly higher standard for naming when you actually have to specify
-> arguments to a function.  Can you please give these proper names?
+> Why is this returning a value which is not used?
 >
-OK, I will change it to acpi_table_upgrade(void *initrd, size_t size).
+> Did you compile this?  Didn't you get a warning that you're not
+> returning a value from a function returning non-void?
+>
+It should be void. I will fix it in next version
 
-Thanks,
+> Also, I'd much rather see something like this written:
+>
+> static __init
+> unsigned long init_range_memory_mapping32(unsigned long r_start,
+>                                           unsigned long r_end)
+>
+> than what you have above.  But, if you get rid of the 'unsigned long',
+> it will look much more sane in the first place.
+
+Yes. Thank for your kindly review.
+
+Best Regards,
 Pingfan
 
