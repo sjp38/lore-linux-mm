@@ -1,179 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 225418E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 03:34:16 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id m19so831743edc.6
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 00:34:16 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 79F948E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 04:29:56 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id l45so897815edb.1
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 01:29:56 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r18-v6si2764035ejz.304.2019.01.15.00.34.14
+        by mx.google.com with ESMTPS id x47si9683814edb.265.2019.01.15.01.29.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 00:34:14 -0800 (PST)
-Date: Tue, 15 Jan 2019 09:34:12 +0100
+        Tue, 15 Jan 2019 01:29:54 -0800 (PST)
+Date: Tue, 15 Jan 2019 10:29:52 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190115083412.GD29524@quack2.suse.cz>
-References: <a79b259b-3982-b271-025a-0656f70506f4@nvidia.com>
- <20190111165141.GB3190@redhat.com>
- <1b37061c-5598-1b02-2983-80003f1c71f2@nvidia.com>
- <20190112020228.GA5059@redhat.com>
- <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
- <20190112024625.GB5059@redhat.com>
- <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190114145447.GJ13316@quack2.suse.cz>
- <20190114172124.GA3702@redhat.com>
- <fdece7f8-7e4f-f679-821f-1d05ed748c15@nvidia.com>
+Subject: Re: INFO: task hung in generic_file_write_iter
+Message-ID: <20190115092952.GF29524@quack2.suse.cz>
+References: <e8a23623-feaf-7730-5492-b329cb0daa21@i-love.sakura.ne.jp>
+ <20190102144015.GA23089@quack2.suse.cz>
+ <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
+ <20190102172636.GA29127@quack2.suse.cz>
+ <bf209c90-3624-68cd-c0db-86a91210f873@i-love.sakura.ne.jp>
+ <20190108112425.GC8076@quack2.suse.cz>
+ <CACT4Y+bxUJ-6dLch+orY0AcjrvJhXq1=ELvHciX5M-gd5bdPpA@mail.gmail.com>
+ <20190109133006.GG15397@quack2.suse.cz>
+ <CACT4Y+bTos-xu42v4D_5JCkymjPsEFM3hiYydmnXV4fpV=sRoQ@mail.gmail.com>
+ <CACT4Y+ZWQdzUPPwb8_KtMSwrjb_209TcN5hbUzNbUKN7dmx6oA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fdece7f8-7e4f-f679-821f-1d05ed748c15@nvidia.com>
+In-Reply-To: <CACT4Y+ZWQdzUPPwb8_KtMSwrjb_209TcN5hbUzNbUKN7dmx6oA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andi Kleen <ak@linux.intel.com>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Mon 14-01-19 11:09:20, John Hubbard wrote:
-> On 1/14/19 9:21 AM, Jerome Glisse wrote:
-> >>
-> >> Also there is one more idea I had how to record number of pins in the page:
-> >>
-> >> #define PAGE_PIN_BIAS	1024
-> >>
-> >> get_page_pin()
-> >> 	atomic_add(&page->_refcount, PAGE_PIN_BIAS);
-> >>
-> >> put_page_pin();
-> >> 	atomic_add(&page->_refcount, -PAGE_PIN_BIAS);
-> >>
-> >> page_pinned(page)
-> >> 	(atomic_read(&page->_refcount) - page_mapcount(page)) > PAGE_PIN_BIAS
-> >>
-> >> This is pretty trivial scheme. It still gives us 22-bits for page pins
-> >> which should be plenty (but we should check for that and bail with error if
-> >> it would overflow). Also there will be no false negatives and false
-> >> positives only if there are more than 1024 non-page-table references to the
-> >> page which I expect to be rare (we might want to also subtract
-> >> hpage_nr_pages() for radix tree references to avoid excessive false
-> >> positives for huge pages although at this point I don't think they would
-> >> matter). Thoughts?
-> > 
-> > Racing PUP are as likely to cause issues:
-> > 
-> > CPU0                        | CPU1       | CPU2
-> >                             |            |
-> >                             | PUP()      |
-> >     page_pinned(page)       |            |
-> >       (page_count(page) -   |            |
-> >        page_mapcount(page)) |            |
-> >                             |            | GUP()
-> > 
-> > So here the refcount snap-shot does not include the second GUP and
-> > we can have a false negative ie the page_pinned() will return false
-> > because of the PUP happening just before on CPU1 despite the racing
-> > GUP on CPU2 just after.
-> > 
-> > I believe only either lock or memory ordering with barrier can
-> > guarantee that we do not miss GUP ie no false negative. Still the
-> > bias idea might be usefull as with it we should not need a flag.
-> > 
-> > So to make the above safe it would still need the page write back
-> > double check that i described so that GUP back-off if it raced with
-> > page_mkclean,clear_page_dirty_for_io and the fs write page call back
-> > which call test_set_page_writeback() (yes it is very unlikely but
-> > might still happen).
-> > 
-> > 
-> > I still need to ponder some more on all the races.
-> > 
+On Mon 14-01-19 16:13:08, Dmitry Vyukov wrote:
+> On Mon, Jan 14, 2019 at 4:11 PM Dmitry Vyukov <dvyukov@google.com> wrote:
+> >
+> > On Wed, Jan 9, 2019 at 2:30 PM Jan Kara <jack@suse.cz> wrote:
+> > >
+> > > On Tue 08-01-19 12:49:08, Dmitry Vyukov wrote:
+> > > > On Tue, Jan 8, 2019 at 12:24 PM Jan Kara <jack@suse.cz> wrote:
+> > > > >
+> > > > > On Tue 08-01-19 19:04:06, Tetsuo Handa wrote:
+> > > > > > On 2019/01/03 2:26, Jan Kara wrote:
+> > > > > > > On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
+> > > > > > >> On 2019/01/02 23:40, Jan Kara wrote:
+> > > > > > >>> I had a look into this and the only good explanation for this I have is
+> > > > > > >>> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
+> > > > > > >>> If that would happen, we'd get exactly the behavior syzkaller observes
+> > > > > > >>> because grow_buffers() would populate different page than
+> > > > > > >>> __find_get_block() then looks up.
+> > > > > > >>>
+> > > > > > >>> However I don't see how that's possible since the filesystem has the block
+> > > > > > >>> device open exclusively and blkdev_bszset() makes sure we also have
+> > > > > > >>> exclusive access to the block device before changing the block device size.
+> > > > > > >>> So changing block device block size after filesystem gets access to the
+> > > > > > >>> device should be impossible.
+> > > > > > >>>
+> > > > > > >>> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
+> > > > > > >>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
+> > > > > > >>> whether my theory is right or not. Thanks!
+> > > > > > >>>
+> > > > > >
+> > > > > > Got two reports. 'size' is 512 while bdev->bd_inode->i_blkbits is 12.
+> > > > > >
+> > > > > > https://syzkaller.appspot.com/text?tag=CrashLog&x=1237c3ab400000
+> > > > > >
+> > > > > > [  385.723941][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+> > > > > > (...snipped...)
+> > > > > > [  568.159544][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
+> > > > >
+> > > > > Right, so indeed the block size in the superblock and in the block device
+> > > > > gets out of sync which explains why we endlessly loop in the buffer cache
+> > > > > code. The superblock uses blocksize of 512 while the block device thinks
+> > > > > the set block size is 4096.
+> > > > >
+> > > > > And after staring into the code for some time, I finally have a trivial
+> > > > > reproducer:
+> > > > >
+> > > > > truncate -s 1G /tmp/image
+> > > > > losetup /dev/loop0 /tmp/image
+> > > > > mkfs.ext4 -b 1024 /dev/loop0
+> > > > > mount -t ext4 /dev/loop0 /mnt
+> > > > > losetup -c /dev/loop0
+> > > > > l /mnt
+> > > > > <hangs>
+> > > > >
+> > > > > And the problem is that LOOP_SET_CAPACITY ioctl ends up reseting block
+> > > > > device block size to 4096 by calling bd_set_size(). I have to think how to
+> > > > > best fix this...
+> > > > >
+> > > > > Thanks for your help with debugging this!
+> > > >
+> > > > Wow! I am very excited.
+> > > > We have 587 open "task hung" reports, I suspect this explains lots of them.
+> > > > What would be some pattern that we can use to best-effort distinguish
+> > > > most manifestations? Skimming through few reports I see "inode_lock",
+> > > > "get_super", "blkdev_put" as common indicators. Anything else?
+> > >
+> > > Well, there will be always looping task with __getblk_gfp() on its stack
+> > > (which should be visible in the stacktrace generated by the stall
+> > > detector). Then there can be lots of other processes getting blocked due to
+> > > locks and other resources held by this task...
+> >
+> >
+> > Once we have a fix, I plan to do a sweep over existing open "task
+
+I have submitted the fix yesterday to linux-block ([PATCH 0/2] blkdev: Fix
+livelock when loop device updates capacity).
+
+> > hung" reports and dup lots of them onto this one. Probably preferring
+> > to over-sweep rather then to under-sweep because there are too many of
+> > them and lots does not seem to be actionable otherwise.
+> > Tetsuo, do you have comments before I start?
 > 
-> Tentatively, so far I prefer the _mapcount scheme, because it seems more
-> accurate to add mapcounts than to overload the _refcount field. And the 
-> implementation is going to be cleaner. And we've already figured out the
-> races.
+> Also, is it possible to add some kind of WARNING for this condition?
+> Taking into account how much effort it too to debug, looks like a
+> useful check. Or did I ask this already...
 
-I think there's no difference WRT the races when using _mapcount or _count
-bias to identify page pins. In fact the difference between what I suggested
-and what you did are just that you update _count instead of _mapcount and
-you can drop the rmap walk code and the page flag.
+There are two things we could do:
 
-There are two reasons why I like using _count bias more:
+1) Warn if we loop in __getblk_slow() more than couple of times (looping
+once is normal, looping twice can happen easily due to races).
 
-1) I'm still not 100% convinced that some page_mapped() or page_mapcount()
-check that starts to be true due to page being unmapped but pinned does not
-confuse some code with bad consequences. The fact that the kernel boots
-indicates that there's no common check that would get confused but full
-audit of page_mapped() and page_mapcount() checks is needed to confirm
-there isn't some cornercase missed and that is tedious. There are
-definitely places that e.g. assert that page_mapcount() == 0 after all page
-tables are unmapped and that is not necessarily true after your changes.
+2) Warn & bail if block size passed to __getblk_slow() does not match the
+block device block size.
 
-2) If the page gets pinned, we will report it as pinned until the next
-page_mkclean() call. That can be quite a long time after page has been
-really unpinned. In particular if the page was never dirtied (e.g. because
-it was gup'ed only for read but there can be other reasons), it may never
-happen that page_mkclean() is called and we won't be able to ever reclaim
-such page. So we would have to also add some mechanism to eventually get
-such pages cleaned up and that involves rmap walk for each such page which
-is not quite cheap.
-
-> For example, the following already survives a basic boot to graphics mode.
-> It requires a bunch of callsite conversions, and a page flag (neither of which
-> is shown here), and may also have "a few" gross conceptual errors, but take a 
-> peek:
-
-Thanks for writing this down! Some comments inline.
-
-> +/*
-> + * Manages the PG_gup_pinned flag.
-> + *
-> + * Note that page->_mapcount counting part of managing that flag, because the
-> + * _mapcount is used to determine if PG_gup_pinned can be cleared, in
-> + * page_mkclean().
-> + */
-> +static void track_gup_page(struct page *page)
-> +{
-> +	page = compound_head(page);
-> +
-> +	lock_page(page);
-> +
-> +	wait_on_page_writeback(page);
-
-^^ I'd use wait_for_stable_page() here. That is the standard waiting
-mechanism to use before you allow page modification.
-
-> +
-> +	atomic_inc(&page->_mapcount);
-> +	SetPageGupPinned(page);
-> +
-> +	unlock_page(page);
-> +}
-> +
-> +/*
-> + * A variant of track_gup_page() that returns -EBUSY, instead of waiting.
-> + */
-> +static int track_gup_page_atomic(struct page *page)
-> +{
-> +	page = compound_head(page);
-> +
-> +	if (PageWriteback(page) || !trylock_page(page))
-> +		return -EBUSY;
-> +
-> +	if (PageWriteback(page)) {
-> +		unlock_page(page);
-> +		return -EBUSY;
-> +	}
-
-Here you'd need some helper that would return whether
-wait_for_stable_page() is going to wait. Like would_wait_for_stable_page()
-but maybe you can come up with a better name.
-
-> +	atomic_inc(&page->_mapcount);
-> +	SetPageGupPinned(page);
-> +
-> +	unlock_page(page);
-> +	return 0;
-> +}
-> +
+I'll write the patch.
 
 								Honza
 -- 
