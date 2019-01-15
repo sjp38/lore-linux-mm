@@ -1,90 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E8E628E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 08:56:42 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id w12so1051876wru.20
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 05:56:42 -0800 (PST)
-Received: from mo6-p02-ob.smtp.rzone.de (mo6-p02-ob.smtp.rzone.de. [2a01:238:20a:202:5302::1])
-        by mx.google.com with ESMTPS id 59si52746994wrg.24.2019.01.15.05.56.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 05:56:40 -0800 (PST)
-Subject: Re: use generic DMA mapping code in powerpc V4
-References: <008c981e-bdd2-21a7-f5f7-c57e4850ae9a@xenosoft.de>
- <20190103073622.GA24323@lst.de>
- <71A251A5-FA06-4019-B324-7AED32F7B714@xenosoft.de>
- <1b0c5c21-2761-d3a3-651b-3687bb6ae694@xenosoft.de>
- <3504ee70-02de-049e-6402-2d530bf55a84@xenosoft.de>
- <23284859-bf0a-9cd5-a480-2a7fd7802056@xenosoft.de>
- <075f70e3-7a4a-732f-b501-05a1a8e3c853@xenosoft.de>
- <b04d08ea-61f9-3212-b9a3-ad79e3b8bd05@xenosoft.de>
- <21f72a6a-9095-7034-f169-95e876228b2a@xenosoft.de>
- <27148ac2-2a92-5536-d886-2c0971ab43d9@xenosoft.de>
- <20190115133558.GA29225@lst.de>
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-Message-ID: <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de>
-Date: Tue, 15 Jan 2019 14:56:34 +0100
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D59098E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:11:37 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e12so1159736edd.16
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 06:11:37 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 65si2563751edk.21.2019.01.15.06.11.35
+        for <linux-mm@kvack.org>;
+        Tue, 15 Jan 2019 06:11:35 -0800 (PST)
+Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
+References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
+ <20190113173555.GC1578@dhcp22.suse.cz>
+ <f9f333a5-5533-996a-dc8e-1ff1096c1d19@arm.com>
+ <20190114070137.GB21345@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <a81dd27a-b7d1-ddad-e104-4ce51699ac3d@arm.com>
+Date: Tue, 15 Jan 2019 19:41:24 +0530
 MIME-Version: 1.0
-In-Reply-To: <20190115133558.GA29225@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: de-DE
+In-Reply-To: <20190114070137.GB21345@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com
 
-On 15 January 2019 at 2:35PM, Christoph Hellwig wrote:
-> On Tue, Jan 15, 2019 at 11:55:25AM +0100, Christian Zigotzky wrote:
->> Next step: 21074ef03c0816ae158721a78cabe9035938dddd (powerpc/dma: use the
->> generic direct mapping bypass)
+
+
+On 01/14/2019 12:31 PM, Michal Hocko wrote:
+> On Mon 14-01-19 09:30:55, Anshuman Khandual wrote:
 >>
->> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
 >>
->> git checkout 21074ef03c0816ae158721a78cabe9035938dddd
+>> On 01/13/2019 11:05 PM, Michal Hocko wrote:
+>>> On Sat 12-01-19 15:56:38, Anshuman Khandual wrote:
+>>>> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
+>>>> __GFP_ZERO) and using it for allocating page table pages. This causes some
+>>>> code duplication which can be easily avoided. GFP_KERNEL allocated and
+>>>> cleared out pages (__GFP_ZERO) are required for page tables on any given
+>>>> architecture. This creates a new generic GFP flag flag which can be used
+>>>> for any page table page allocation. Does not cause any functional change.
+>>>
+>>> I agree that some unification is due but GFP_PGTABLE is not something to
+>>> expose in generic gfp.h IMHO. It just risks an abuse. I would be looking
 >>
->> I was able to compile the kernel for the AmigaOne X1000 (Nemo board with PA
->> Semi PA6T-1682M SoC). It boots but the PA Semi onboard ethernet doesn't
->> work.
-> Thanks.  But we are exactly missing the steps that are relevant.  I've
-> pushed a fixed up powerpc-dma.6 tree, which will only change starting from
-> the first commit that didn't link.
->
-> The first commit that changed from the old one is this one:
->
-> http://git.infradead.org/users/hch/misc.git/commitdiff/257002094bc5935dd63207a380d9698ab81f0775
->
-> which was that one that your compile failed on first.
->
-> Thanks again for all your work!
->
-Thank you! I tried the commit 240d7ecd7f6fa62e074e8a835e620047954f0b28 
-(powerpc/dma: use the dma-direct allocator for coherent platforms) again.
+>> Why would you think that it risks an abuse ? It does not create new semantics
+>> of allocation in the buddy. Its just uses existing GFP_KERNEL allocation which
+>> is then getting zeroed out. The risks (if any) is exactly same as GFP_KERNEL.
+> 
+> Beucase my experience just tells me that people tend to use whatever
+> they find and name fits what they think they need.
+> 
+>>> at providing asm-generic implementation and reuse it to remove the code
+>>
+>> Does that mean GFP_PGTABLE can be created but not in gfp.h but in some other
+>> memory related header file ?
+> 
+> I would just keep it close to its users. If that is a single arch
+> generic place then only better. But I suspect some arches have special
+> requirements.
 
-git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
+We can move the definition into include/asm-generic/pgtable.h which can be
+used by all archs. If there any special requirements those can be added on
+this generic and common minimum allocation flag. The minimum required flag
+should not be duplicated every where.
 
-git checkout 240d7ecd7f6fa62e074e8a835e620047954f0b28
+> 
+>>> duplication. But I haven't tried that to know that it will work out due
+>>> to small/subtle differences between arches.
+>>
+>> IIUC from the allocation perspective GFP_ACCOUNT is the only thing which gets
+>> added with GFP_PGTABLE for user page table for memcg accounting purpose. There
+>> does not seem to be any other differences unless I am missing something.
+> 
+> It's been some time since I've checked the last time. Some arches were
+> using GPF_REPEAT (__GFP_RETRY_MAYFAIL) back then. I have removed most of
+> those but some were doing a higher order allocations so they probably
+> have stayed.
 
-I modified the 'dma.c' patch because of the undefined references to 
-'__dma_nommu_free_coherent' and '__dma_nommu_alloc_coherent':
+A simple grep shows that still there are some places which use the flag
+__GFP_RETRY_MAYFAIL. But that can be added on GFP_PGTABLE for these archs.
 
----
-
-@@ -163,8 +99,13 @@ static inline void dma_nommu_sync_single(struct 
-device *dev,
-  #endif
-
-  const struct dma_map_ops dma_nommu_ops = {
-+       .alloc                          = dma_direct_alloc,
-+       .free                           = dma_direct_free,
-         .map_sg                         = dma_nommu_map_sg,
-         .unmap_sg                       = dma_nommu_unmap_sg,
-         .dma_supported                  = dma_direct_supported,
-
----
-
-The X1000 boots and the PASEMI onboard ethernet works! X5000 (P5020 
-board): U-Boot loads the kernel and the dtb file. Then the kernel starts 
-but it doesn't find any hard disks (partitions).
-
--- Christian
+arch/nds32/include/asm/pgalloc.h:           (pte_t *) __get_free_page(GFP_KERNEL | __GFP_RETRY_MAYFAIL |
+arch/nds32/include/asm/pgalloc.h:       pte = alloc_pages(GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO, 0);
+arch/powerpc/include/asm/book3s/64/pgalloc.h:   page = alloc_pages(pgtable_gfp_flags(mm, PGALLOC_GFP | __GFP_RETRY_MAYFAIL),
+arch/powerpc/kvm/book3s_64_mmu_hv.c:            hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_RETRY_MAYFAIL
+arch/riscv/include/asm/pgalloc.h:               GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);
+arch/riscv/include/asm/pgalloc.h:               GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);
+arch/riscv/include/asm/pgalloc.h:       pte = alloc_page(GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);
+arch/sparc/kernel/mdesc.c:      base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
