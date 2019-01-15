@@ -2,134 +2,200 @@ Return-Path: <SRS0=hkLx=PX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B742AC43387
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 18:36:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CA5FAC43387
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 19:38:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7713720657
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 18:36:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7713720657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 617FE20656
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 19:38:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="FzAXW+YI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 617FE20656
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05CD48E0003; Tue, 15 Jan 2019 13:36:17 -0500 (EST)
+	id B51E18E0003; Tue, 15 Jan 2019 14:38:36 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00B718E0002; Tue, 15 Jan 2019 13:36:16 -0500 (EST)
+	id B01098E0002; Tue, 15 Jan 2019 14:38:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8B2F8E0003; Tue, 15 Jan 2019 13:36:16 -0500 (EST)
+	id A179D8E0003; Tue, 15 Jan 2019 14:38:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C16488E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 13:36:16 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id d93so1397796otb.12
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 10:36:16 -0800 (PST)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E5E8E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 14:38:36 -0500 (EST)
+Received: by mail-yb1-f200.google.com with SMTP id y6so1784035ybb.11
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 11:38:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=6whWxQj1PvY5/IZ0ONf2GRXd2Bc5qbpQtwcWDSqd98E=;
-        b=VH3lruY8BeQg2O9xpW26fnb+Lx7dLUog4CT9v20Q0o7yrHt23jX1OLq65lzdN9J9vZ
-         ABFwrJK8RAQkeuwHgGSVndFlyK7n37hvKTrzWm2HstMQrEP3QxaruedP/gitKwIbgfpS
-         s1nfNKcGUb1M2+3ybR6DCQAIudeSCpBgKhU+FxeZmf5adjHgfysfl8/4wJdvHoJ3wz6v
-         BFCzRXHReLNz32t3udBeCzVzr6Y6kiXjhX3q6vSBhzrgKe4VbFQhMPnSiimnQcPXjSke
-         UP5y0eE79kFndHKsKZRwMZYz8L5hSv9m/Xe2cZUmVZueaQgpXiXzZcaJcd7DAQOwgjnk
-         LjBw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukdP79PlXxWqjsq24Zklit7OGKmjiKZAa3FRSJcu7tBk3SloYa6s
-	0pa0Tk65KO8KatZZwqjoTU37akTYY2tvL4I9KY2MO6VdylaO1UpeLrR7qF3CYKSN/O8SP5CVPMl
-	sjfW3Qe3PmUUWTIOpY0NC4+G3rvdZrc6ODvXVz+Up33kAw1QpxtJDNbAkaAZh4iPgA3sO6/aPEf
-	2Ux8bnEYcWugpJ069LbgE5LqWuJJ9g/3c6hG31J8f+7o/BwxOws9RyJ6TY1Fktd8EqRhoOfh1wK
-	3VeBZ4EWAURIL4EHBCaUaQzWdMJ8rvLfzJFLFDmWB8OeCtMh1fFIIFsehjLe/lz0h0NjOLyXiZZ
-	/zZZLoZ7aybqy1t5FuttdQxcsspZWEOMU3JvI8mk2KK9ZqvvCaIVvTtvKQTQrS5k58bnqKNzEQ=
-	=
-X-Received: by 2002:aca:5a88:: with SMTP id o130mr2784961oib.275.1547577376425;
-        Tue, 15 Jan 2019 10:36:16 -0800 (PST)
-X-Received: by 2002:aca:5a88:: with SMTP id o130mr2784919oib.275.1547577375280;
-        Tue, 15 Jan 2019 10:36:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547577375; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=2cLRbj6ZrwUgB3ed0j9nxtSpZlKaYfrBPTp259N8B/A=;
+        b=mhk2ZJ+svUOOX9nuQvAnn0WVVOoqJVwGtzQOY7nGkoEPj6CnRu5xIK0fqdC94HfCcV
+         3/lLMEyKOJzs1fHQw1JwqpH9iBGY0EktACHp5KWGYVOd6RbDr8L79kkPq4/4i+QmxvdG
+         2KfYkKrFTcqgSMcSdIvSq7beRhT7olCFE9Xnd6g34Fc1CKMKf3E9tvyDZkQeeuF65rUZ
+         renbj5FSpTQZSvkz8vkvYoGohTCAW/ssUBoEe9z4SEAXLD/tQLK8HbWiTPxZaAjepA08
+         MeHRsVgwPE4P4VQlubba/cHcp/UrXoDZY+veJ330Qx1BEYA3mronuKduRcAhO/mspDKG
+         ceKw==
+X-Gm-Message-State: AJcUukdIClCZBISfDEI7CTYpstgftSAyQh//2L8l7FWiwABmQ/eFpzHX
+	mRsUYkolziQF1zO8NR0DyKj8mirFjwQy9RKTvI2T2DXPz54uvSpEYVraVAPs2PRk5PgIabRF0n7
+	NoH+0E0/A0vscSQ5D2Qid2jHp9bf2g0NEWbghuXar/q8RyhboW79oVQdIlJ+3BtKMpNOJIJaPwy
+	CkR4j6w29vV0l7+ouDZn5yZINUkVoq3HzZ/hd/qeIzQYKv4G6De90lyKff8Jg9s/bWy5NGoMRLM
+	TK3D2Es8zulKQNRlYH5qS6Jn1WkWjgdm6QcJTlVkvfYqkZOQ1/79okBxDlLcnAzx4r3vAHpcxSQ
+	ivpmIC69XCXylhWxC8ldgzT6njq21gC2JRZrTF/goy713lnjzqpQEbN15UYYZdthIFKiiwPtk56
+	F
+X-Received: by 2002:a25:5755:: with SMTP id l82mr4785005ybb.138.1547581116067;
+        Tue, 15 Jan 2019 11:38:36 -0800 (PST)
+X-Received: by 2002:a25:5755:: with SMTP id l82mr4784949ybb.138.1547581115053;
+        Tue, 15 Jan 2019 11:38:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547581115; cv=none;
         d=google.com; s=arc-20160816;
-        b=MKEFlNussQtLneRvlQ72MWA7779gXq07a3GMlTGtocv8p20yOO+SbBnqypqtBt9Y6l
-         Kvv2V0EsVDTNnxoXu7q5LzBx4mESoImDLM5sw9Rlg/f/C/Yw1dmv9hJQPnoDIOAEr3qc
-         yR427BJn+MJFIwrIhFaVGM04EYiu1IcunCuNpUpiYCjI7l5qiMVSwyB19l75YEXgq4SR
-         Mu9pLA9nrn0D/R1gAuSTleEQkvgXMQVwi69w+P5YVGiSJb984wXTpn8aQ9YAu8yM3TM+
-         9mJyK7py02+QYrFRS/tT+20QGo12tcaDYk5nW4k3RdDfrRacK7l789TJQUWavgtx85y9
-         b3IA==
+        b=i+hKzZcrM2haF1CdQMrfe/GtTw2Bshr0sCn0LRDW2PZqKxQgvy5BVVf4fYb/1/6hlF
+         wpJK1KUsOF1E0F9VLvuFnFBCOTGXfcp/rScPGBtu3NIu7XtySikirheVHAic0kARtOQ4
+         BlnEMrO88l9ZOWsusslOli8b7RG/RKXKDLKV3bTRDQXdc+Wqv8NICkEPCSHTIi+lY2S+
+         JA9+UOUhiR1Qc5PQ+O56/grknk44FTprwasrOL6kRj4y9C5dOXUluNldwv0Vp4oS7Gc3
+         I5a2XnckKaYJ2ir3c3vrdoCG5opTF9vKKE/7Ix/juJpD+eh+gT8puKYqdBuZHu+m1l61
+         7T5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=6whWxQj1PvY5/IZ0ONf2GRXd2Bc5qbpQtwcWDSqd98E=;
-        b=x2ZWjSNCZB1jgOmmWB9E2ODUW4tKn8m2JTSn9aWaOuJELJ/96H2ncF1xs0h4O0ElS0
-         3By2cxwjSatsN17UZODnZmBU9DMFbkWA4cR4W/FtTBvuaU7Fl81lVFkgPzGRcHVBZgoC
-         vQ9omx6B2rMaoi0M1+H1jX4LU7Chq3eOlIl1ZDQcidoo2n0qcefAQj7EGT1B0hRcYwEs
-         CCPYFaNxkTwKuQAJ111CbQylCnrCjmROvc2u3M8++rKtLQgJs++0Yl5XAJs00nmavzL/
-         hbFVaVfFoFOUGYbEYoBuv9987watdp6mypZKDl1Jw7yShJlJPahFaiM3F3qJSczP2u6c
-         AFvA==
+         :mime-version:dkim-signature;
+        bh=2cLRbj6ZrwUgB3ed0j9nxtSpZlKaYfrBPTp259N8B/A=;
+        b=wg48kjkYTkLzQKNvcLJXQfX2udapNGshv+UiatyB/0OtsRMfz4veiIA2UrkAVOvng7
+         TAYovVYKf1pOrGWBtVw9LUnELDlwOKZmvv6AwGHHeBVbr0RBMvA69rW7L0GZeXkdUKig
+         RJYsKzaNYGh91NzqIONYToUkJsOOCo8jsVjsO9E+C/k32vuXNjWz9q8DJYkoErlrh97v
+         dxp1YYBhspU22qvX1uwbZKn6WfEWsQ55MKo87VuFIun6BKq1BDl5Xhr3/p2uzsYY2UhN
+         pY7Ndbv5DmVcT1IlD8A7CPI1f0E/snBzQeUmvqBPLndWE+rM7X8oaFXTYXAPdX5ge5ih
+         NtGw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w23sor2526800otm.189.2019.01.15.10.36.15
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FzAXW+YI;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x137sor600057ywg.141.2019.01.15.11.38.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 15 Jan 2019 10:36:15 -0800 (PST)
-Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Tue, 15 Jan 2019 11:38:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: ALg8bN7DseTTxUHUENdb528u6E1TBRIwSxqG5pbAKxMPUMw2+g6sVORGUH2S/S3Y5FxtVxtpmEw/tPK3vzccvQVv4Bg=
-X-Received: by 2002:a9d:7f0d:: with SMTP id j13mr2996913otq.119.1547577374860;
- Tue, 15 Jan 2019 10:36:14 -0800 (PST)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FzAXW+YI;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=2cLRbj6ZrwUgB3ed0j9nxtSpZlKaYfrBPTp259N8B/A=;
+        b=FzAXW+YIbjj8DpDu2MDZ0WqKcbXJ3SWF4P4UCqbL6HqTDOHlIVL0/XhJBDCgyPXCFc
+         FbspV0nhzHZO8u/Ui72yv8BpC0PyJ7HV+HDf66IyeE+1MbtLTIflaluazaHmr553ae2V
+         tjAp+4at4o5/IaXTAG1yJwNSn6mW7LZAOVJBfXG4Gacb1DLDnuZmUOn4WiDULexO6/GH
+         9igeGGjyTkTLX4hN5Jl3Ad/adMcbKzeZOIxv7YbGYHl7ARq1k0DKmo7G8q+kR0Glzlq4
+         pRcRQN+AHiqpTofCYLOpEk3zar28MiDfsBNDsd1eI9MqGjbAlTW8DGTTe+jJ9YP1XpUj
+         aHxQ==
+X-Google-Smtp-Source: ALg8bN7Vxx2AeMbVykY9japellF7+ir8UaUpIcIPYA19UNwpNQo4G0nfXJhT8X3UW1MwgOkVr3qIxdIScB5X9LFw4ns=
+X-Received: by 2002:a81:ee07:: with SMTP id l7mr4491703ywm.489.1547581114321;
+ Tue, 15 Jan 2019 11:38:34 -0800 (PST)
 MIME-Version: 1.0
-References: <20190109174341.19818-1-keith.busch@intel.com> <20190109174341.19818-4-keith.busch@intel.com>
- <CAJZ5v0jk7ML21zxGwf9GaGNK8tP1LAs6Rd9NTK5O9HbzYeyPLA@mail.gmail.com> <20190115170741.GB27730@localhost.localdomain>
-In-Reply-To: <20190115170741.GB27730@localhost.localdomain>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Tue, 15 Jan 2019 19:36:03 +0100
+References: <20190110174432.82064-1-shakeelb@google.com> <20190111205948.GA4591@cmpxchg.org>
+ <CALvZod7O2CJuhbuLUy9R-E4dTgL4WBg8CayW_AFnCCG6KCDjUA@mail.gmail.com>
+ <20190113183402.GD1578@dhcp22.suse.cz> <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
+ <20190115072551.GO21345@dhcp22.suse.cz>
+In-Reply-To: <20190115072551.GO21345@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 15 Jan 2019 11:38:23 -0800
 Message-ID:
- <CAJZ5v0iZ_i9vOPJgn69T=f8KE=fFm1vQt2AuEaNDGpn3E_cL3g@mail.gmail.com>
-Subject: Re: [PATCHv3 03/13] acpi/hmat: Parse and report heterogeneous memory
-To: Keith Busch <keith.busch@intel.com>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	"Hansen, Dave" <dave.hansen@intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>
+ <CALvZod6U+OGZJ1mcSG++Q5CJtEjLbr3pwvLRBbkpbZbqf6YSsA@mail.gmail.com>
+Subject: Re: [PATCH v3] memcg: schedule high reclaim for remote memcgs on high_work
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, 
+	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190115183603.umjLYML84PqxwnS-ytSsPuzeY8F1xZW-oLR1yfi5LVI@z>
+Message-ID: <20190115193823.bIAU9Y9Ea9D7UScTPj8YVEBRiF_Wl5UcJsfD4rHBdIg@z>
 
-On Tue, Jan 15, 2019 at 6:09 PM Keith Busch <keith.busch@intel.com> wrote:
+On Mon, Jan 14, 2019 at 11:25 PM Michal Hocko <mhocko@kernel.org> wrote:
 >
-> On Thu, Jan 10, 2019 at 07:42:46AM -0800, Rafael J. Wysocki wrote:
-> > On Wed, Jan 9, 2019 at 6:47 PM Keith Busch <keith.busch@intel.com> wrote:
+> On Mon 14-01-19 12:18:07, Shakeel Butt wrote:
+> > On Sun, Jan 13, 2019 at 10:34 AM Michal Hocko <mhocko@kernel.org> wrote:
 > > >
-> > > Systems may provide different memory types and export this information
-> > > in the ACPI Heterogeneous Memory Attribute Table (HMAT). Parse these
-> > > tables provided by the platform and report the memory access and caching
-> > > attributes.
+> > > On Fri 11-01-19 14:54:32, Shakeel Butt wrote:
+> > > > Hi Johannes,
+> > > >
+> > > > On Fri, Jan 11, 2019 at 12:59 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > > >
+> > > > > Hi Shakeel,
+> > > > >
+> > > > > On Thu, Jan 10, 2019 at 09:44:32AM -0800, Shakeel Butt wrote:
+> > > > > > If a memcg is over high limit, memory reclaim is scheduled to run on
+> > > > > > return-to-userland.  However it is assumed that the memcg is the current
+> > > > > > process's memcg.  With remote memcg charging for kmem or swapping in a
+> > > > > > page charged to remote memcg, current process can trigger reclaim on
+> > > > > > remote memcg.  So, schduling reclaim on return-to-userland for remote
+> > > > > > memcgs will ignore the high reclaim altogether. So, record the memcg
+> > > > > > needing high reclaim and trigger high reclaim for that memcg on
+> > > > > > return-to-userland.  However if the memcg is already recorded for high
+> > > > > > reclaim and the recorded memcg is not the descendant of the the memcg
+> > > > > > needing high reclaim, punt the high reclaim to the work queue.
+> > > > >
+> > > > > The idea behind remote charging is that the thread allocating the
+> > > > > memory is not responsible for that memory, but a different cgroup
+> > > > > is. Why would the same thread then have to work off any high excess
+> > > > > this could produce in that unrelated group?
+> > > > >
+> > > > > Say you have a inotify/dnotify listener that is restricted in its
+> > > > > memory use - now everybody sending notification events from outside
+> > > > > that listener's group would get throttled on a cgroup over which it
+> > > > > has no control. That sounds like a recipe for priority inversions.
+> > > > >
+> > > > > It seems to me we should only do reclaim-on-return when current is in
+> > > > > the ill-behaved cgroup, and punt everything else - interrupts and
+> > > > > remote charges - to the workqueue.
+> > > >
+> > > > This is what v1 of this patch was doing but Michal suggested to do
+> > > > what this version is doing. Michal's argument was that the current is
+> > > > already charging and maybe reclaiming a remote memcg then why not do
+> > > > the high excess reclaim as well.
 > > >
-> > > Signed-off-by: Keith Busch <keith.busch@intel.com>
+> > > Johannes has a good point about the priority inversion problems which I
+> > > haven't thought about.
+> > >
+> > > > Personally I don't have any strong opinion either way. What I actually
+> > > > wanted was to punt this high reclaim to some process in that remote
+> > > > memcg. However I didn't explore much on that direction thinking if
+> > > > that complexity is worth it. Maybe I should at least explore it, so,
+> > > > we can compare the solutions. What do you think?
+> > >
+> > > My question would be whether we really care all that much. Do we know of
+> > > workloads which would generate a large high limit excess?
+> > >
 > >
-> > While this is generally fine by me, it's another piece of code going
-> > under drivers/acpi/ just because it happens to use ACPI to extract
-> > some information from the platform firmware.
-> >
-> > Isn't there any better place for it?
+> > The current semantics of memory.high is that it can be breached under
+> > extreme conditions. However any workload where memory.high is used and
+> > a lot of remote memcg charging happens (inotify/dnotify example given
+> > by Johannes or swapping in tmpfs file or shared memory region) the
+> > memory.high breach will become common.
 >
-> I've tried to abstract the user visible parts outside any particular
-> firmware implementation, but HMAT parsing is an ACPI specific feature,
-> so I thought ACPI was a good home for this part. I'm open to suggestions
-> if there's a better place. Either under in another existing subsystem,
-> or create a new one under drivers/hmat/?
+> This is exactly what I am asking about. Is this something that can
+> happen easily? Remote charges on themselves should be rare, no?
+>
 
-Well, there is drivers/acpi/nfit for the NVDIMM-related things, so
-maybe there could be drivers/acpi/mm/ containing nfit/ and hmat.c (and
-maybe some other mm-related things)?
+At the moment, for kmem we can do remote charging for fanotify,
+inotify and buffer_head and for anon pages we can do remote charging
+on swap in. Now based on the workload's cgroup setup the remote
+charging can be very frequent or rare.
+
+At Google, remote charging is very frequent but since we are still on
+cgroup-v1 and do not use memory.high, the issue this patch is fixing
+is not observed. However for the adoption of cgroup-v2, this fix is
+needed.
+
+Shakeel
 
