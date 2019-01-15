@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3968E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 11:44:52 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id r15so1289439ota.0
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 08:44:52 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e39sor2603785otb.132.2019.01.15.08.44.50
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BE668E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:02:16 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c34so1323241edb.8
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:02:16 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g25si1767596edr.258.2019.01.15.09.02.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 15 Jan 2019 08:44:51 -0800 (PST)
-From: Olof Johansson <olof@lixom.net>
-Subject: [PATCH] mm: Make CONFIG_FRAME_VECTOR a visible option
-Date: Tue, 15 Jan 2019 08:44:35 -0800
-Message-Id: <20190115164435.8423-1-olof@lixom.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Jan 2019 09:02:14 -0800 (PST)
+Date: Tue, 15 Jan 2019 18:02:13 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm, memory_hotplug: __offline_pages fix wrong locking
+Message-ID: <20190115170213.GA26069@quack2.suse.cz>
+References: <20190115120307.22768-1-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190115120307.22768-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Olof Johansson <olof@lixom.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Oscar Salvador <OSalvador@suse.com>, Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-CONFIG_FRAME_VECTOR was made an option to avoid including the bloat on
-platforms that try to keep footprint down, which makes sense.
+On Tue 15-01-19 13:03:07, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Jan has noticed that we do double unlock on some failure paths when
+> offlining a page range. This is indeed the case when test_pages_in_a_zone
+> respp. start_isolate_page_range fail. This was an omission when forward
+> porting the debugging patch from an older kernel.
+> 
+> Fix the issue by dropping mem_hotplug_done from the failure condition
+> and keeping the single unlock in the catch all failure path.
+> 
+> Reported-by: Jan Kara <jack@suse.cz>
+> Fixes: 7960509329c2 ("mm, memory_hotplug: print reason for the offlining failure")
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-The problem with this is external modules that aren't built in-tree.
-Since they don't have in-tree Kconfig, whether they can be loaded now
-depends on whether your kernel config enabled some completely unrelated
-driver that happened to select it. That's a weird and unpredictable
-situation, and makes for some awkward requirements for the standalone
-modules.
+The patch looks good to me so feel free to add:
 
-For these reasons, give someone the option to manually enable this when
-configuring the kernel.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Signed-off-by: Olof Johansson <olof@lixom.net>
----
- mm/Kconfig | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+Also it fixes the test that previously crashed for me so you can add:
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 25c71eb8a7dbd..0d80d06d3715b 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -731,7 +731,10 @@ config DEVICE_PUBLIC
- 	  the CPU
- 
- config FRAME_VECTOR
--	bool
-+	bool "Frame vector helper functions"
-+	help
-+	  Provide some helper functions for frame vectors, to be used
-+	  by drivers who operate on userspace memory for DMA.
- 
- config ARCH_USES_HIGH_VMA_FLAGS
- 	bool
+Tested-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+
+> ---
+>  mm/memory_hotplug.c | 2 --
+>  1 file changed, 2 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index b9a667d36c55..faeeaccc5fae 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1576,7 +1576,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  	   we assume this for now. .*/
+>  	if (!test_pages_in_a_zone(start_pfn, end_pfn, &valid_start,
+>  				  &valid_end)) {
+> -		mem_hotplug_done();
+>  		ret = -EINVAL;
+>  		reason = "multizone range";
+>  		goto failed_removal;
+> @@ -1591,7 +1590,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  				       MIGRATE_MOVABLE,
+>  				       SKIP_HWPOISON | REPORT_FAILURE);
+>  	if (ret) {
+> -		mem_hotplug_done();
+>  		reason = "failure to isolate range";
+>  		goto failed_removal;
+>  	}
+> -- 
+> 2.20.1
+> 
 -- 
-2.11.0
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
