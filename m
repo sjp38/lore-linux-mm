@@ -1,133 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 79F948E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 04:29:56 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id l45so897815edb.1
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 01:29:56 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x47si9683814edb.265.2019.01.15.01.29.54
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 710168E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 05:17:43 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id m128so2272271itd.3
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 02:17:43 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id u65si1779412itu.61.2019.01.15.02.17.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 01:29:54 -0800 (PST)
-Date: Tue, 15 Jan 2019 10:29:52 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: INFO: task hung in generic_file_write_iter
-Message-ID: <20190115092952.GF29524@quack2.suse.cz>
-References: <e8a23623-feaf-7730-5492-b329cb0daa21@i-love.sakura.ne.jp>
- <20190102144015.GA23089@quack2.suse.cz>
- <275523c6-f750-44c2-a8a4-f3825eeab788@i-love.sakura.ne.jp>
- <20190102172636.GA29127@quack2.suse.cz>
- <bf209c90-3624-68cd-c0db-86a91210f873@i-love.sakura.ne.jp>
- <20190108112425.GC8076@quack2.suse.cz>
- <CACT4Y+bxUJ-6dLch+orY0AcjrvJhXq1=ELvHciX5M-gd5bdPpA@mail.gmail.com>
- <20190109133006.GG15397@quack2.suse.cz>
- <CACT4Y+bTos-xu42v4D_5JCkymjPsEFM3hiYydmnXV4fpV=sRoQ@mail.gmail.com>
- <CACT4Y+ZWQdzUPPwb8_KtMSwrjb_209TcN5hbUzNbUKN7dmx6oA@mail.gmail.com>
+        Tue, 15 Jan 2019 02:17:42 -0800 (PST)
+Subject: [PATCH v2] memcg: killed threads should not invoke memcg OOM killer
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+References: <1545819215-10892-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <f6d97ad3-ab04-f5e2-4822-96eac6ab45da@i-love.sakura.ne.jp>
+ <20190107114139.GF31793@dhcp22.suse.cz>
+ <b0c4748e-f024-4d5c-a233-63c269660004@i-love.sakura.ne.jp>
+ <20190107133720.GH31793@dhcp22.suse.cz>
+ <935ae77c-9663-c3a4-c73a-fa69f9a3065f@i-love.sakura.ne.jp>
+Message-ID: <01370f70-e1f6-ebe4-b95e-0df21a0bc15e@i-love.sakura.ne.jp>
+Date: Tue, 15 Jan 2019 19:17:27 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+ZWQdzUPPwb8_KtMSwrjb_209TcN5hbUzNbUKN7dmx6oA@mail.gmail.com>
+In-Reply-To: <935ae77c-9663-c3a4-c73a-fa69f9a3065f@i-love.sakura.ne.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+9933e4476f365f5d5a1b@syzkaller.appspotmail.com>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andi Kleen <ak@linux.intel.com>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, tim.c.chen@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Kirill Tkhai <ktkhai@virtuozzo.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon 14-01-19 16:13:08, Dmitry Vyukov wrote:
-> On Mon, Jan 14, 2019 at 4:11 PM Dmitry Vyukov <dvyukov@google.com> wrote:
-> >
-> > On Wed, Jan 9, 2019 at 2:30 PM Jan Kara <jack@suse.cz> wrote:
-> > >
-> > > On Tue 08-01-19 12:49:08, Dmitry Vyukov wrote:
-> > > > On Tue, Jan 8, 2019 at 12:24 PM Jan Kara <jack@suse.cz> wrote:
-> > > > >
-> > > > > On Tue 08-01-19 19:04:06, Tetsuo Handa wrote:
-> > > > > > On 2019/01/03 2:26, Jan Kara wrote:
-> > > > > > > On Thu 03-01-19 01:07:25, Tetsuo Handa wrote:
-> > > > > > >> On 2019/01/02 23:40, Jan Kara wrote:
-> > > > > > >>> I had a look into this and the only good explanation for this I have is
-> > > > > > >>> that sb->s_blocksize is different from (1 << sb->s_bdev->bd_inode->i_blkbits).
-> > > > > > >>> If that would happen, we'd get exactly the behavior syzkaller observes
-> > > > > > >>> because grow_buffers() would populate different page than
-> > > > > > >>> __find_get_block() then looks up.
-> > > > > > >>>
-> > > > > > >>> However I don't see how that's possible since the filesystem has the block
-> > > > > > >>> device open exclusively and blkdev_bszset() makes sure we also have
-> > > > > > >>> exclusive access to the block device before changing the block device size.
-> > > > > > >>> So changing block device block size after filesystem gets access to the
-> > > > > > >>> device should be impossible.
-> > > > > > >>>
-> > > > > > >>> Anyway, could you perhaps add to your debug patch a dump of 'size' passed
-> > > > > > >>> to __getblk_slow() and bdev->bd_inode->i_blkbits? That should tell us
-> > > > > > >>> whether my theory is right or not. Thanks!
-> > > > > > >>>
-> > > > > >
-> > > > > > Got two reports. 'size' is 512 while bdev->bd_inode->i_blkbits is 12.
-> > > > > >
-> > > > > > https://syzkaller.appspot.com/text?tag=CrashLog&x=1237c3ab400000
-> > > > > >
-> > > > > > [  385.723941][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-> > > > > > (...snipped...)
-> > > > > > [  568.159544][  T439] kworker/u4:3(439): getblk(): executed=9 bh_count=0 bh_state=0 bdev_super_blocksize=512 size=512 bdev_super_blocksize_bits=9 bdev_inode_blkbits=12
-> > > > >
-> > > > > Right, so indeed the block size in the superblock and in the block device
-> > > > > gets out of sync which explains why we endlessly loop in the buffer cache
-> > > > > code. The superblock uses blocksize of 512 while the block device thinks
-> > > > > the set block size is 4096.
-> > > > >
-> > > > > And after staring into the code for some time, I finally have a trivial
-> > > > > reproducer:
-> > > > >
-> > > > > truncate -s 1G /tmp/image
-> > > > > losetup /dev/loop0 /tmp/image
-> > > > > mkfs.ext4 -b 1024 /dev/loop0
-> > > > > mount -t ext4 /dev/loop0 /mnt
-> > > > > losetup -c /dev/loop0
-> > > > > l /mnt
-> > > > > <hangs>
-> > > > >
-> > > > > And the problem is that LOOP_SET_CAPACITY ioctl ends up reseting block
-> > > > > device block size to 4096 by calling bd_set_size(). I have to think how to
-> > > > > best fix this...
-> > > > >
-> > > > > Thanks for your help with debugging this!
-> > > >
-> > > > Wow! I am very excited.
-> > > > We have 587 open "task hung" reports, I suspect this explains lots of them.
-> > > > What would be some pattern that we can use to best-effort distinguish
-> > > > most manifestations? Skimming through few reports I see "inode_lock",
-> > > > "get_super", "blkdev_put" as common indicators. Anything else?
-> > >
-> > > Well, there will be always looping task with __getblk_gfp() on its stack
-> > > (which should be visible in the stacktrace generated by the stall
-> > > detector). Then there can be lots of other processes getting blocked due to
-> > > locks and other resources held by this task...
-> >
-> >
-> > Once we have a fix, I plan to do a sweep over existing open "task
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-I have submitted the fix yesterday to linux-block ([PATCH 0/2] blkdev: Fix
-livelock when loop device updates capacity).
+If $N > $M, a single process with $N threads in a memcg group can easily
+kill all $M processes in that memcg group, for mem_cgroup_out_of_memory()
+does not check if current thread needs to invoke the memcg OOM killer.
 
-> > hung" reports and dup lots of them onto this one. Probably preferring
-> > to over-sweep rather then to under-sweep because there are too many of
-> > them and lots does not seem to be actionable otherwise.
-> > Tetsuo, do you have comments before I start?
-> 
-> Also, is it possible to add some kind of WARNING for this condition?
-> Taking into account how much effort it too to debug, looks like a
-> useful check. Or did I ask this already...
+  T1@P1     |T2...$N@P1|P2...$M   |OOM reaper
+  ----------+----------+----------+----------
+                        # all sleeping
+  try_charge()
+    mem_cgroup_out_of_memory()
+      mutex_lock(oom_lock)
+             try_charge()
+               mem_cgroup_out_of_memory()
+                 mutex_lock(oom_lock)
+      out_of_memory()
+        select_bad_process()
+        oom_kill_process(P1)
+        wake_oom_reaper()
+                                   oom_reap_task() # ignores P1
+      mutex_unlock(oom_lock)
+                 out_of_memory()
+                   select_bad_process(P2...$M)
+                        # all killed by T2...$N@P1
+                   wake_oom_reaper()
+                                   oom_reap_task() # ignores P2...$M
+                 mutex_unlock(oom_lock)
 
-There are two things we could do:
+We don't need to invoke the memcg OOM killer if current thread was killed
+when waiting for oom_lock, for mem_cgroup_oom_synchronize(true) can count
+on try_charge() when mem_cgroup_oom_synchronize(true) can not make forward
+progress because try_charge() allows already killed/exiting threads to
+make forward progress, and memory_max_write() can bail out upon signals.
 
-1) Warn if we loop in __getblk_slow() more than couple of times (looping
-once is normal, looping twice can happen easily due to races).
+At first Michal thought that fatal signal check is racy compared to
+tsk_is_oom_victim() check. But an experiment showed that trying to call
+mark_oom_victim() on all killed thread groups is more racy than fatal
+signal check due to task_will_free_mem(current) path in out_of_memory().
 
-2) Warn & bail if block size passed to __getblk_slow() does not match the
-block device block size.
+Therefore, this patch changes mem_cgroup_out_of_memory() to bail out upon
+should_force_charge() == T rather than upon fatal_signal_pending() == T,
+for should_force_charge() == T && signal_pending(current) == F at
+memory_max_write() can't happen because current thread won't call
+memory_max_write() after getting PF_EXITING.
 
-I'll write the patch.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/memcontrol.c | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
 
-								Honza
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index af7f18b..79a7d2a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -248,6 +248,12 @@ enum res_type {
+ 	     iter != NULL;				\
+ 	     iter = mem_cgroup_iter(NULL, iter, NULL))
+ 
++static inline bool should_force_charge(void)
++{
++	return tsk_is_oom_victim(current) || fatal_signal_pending(current) ||
++		(current->flags & PF_EXITING);
++}
++
+ /* Some nice accessors for the vmpressure. */
+ struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg)
+ {
+@@ -1389,8 +1395,13 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	};
+ 	bool ret;
+ 
+-	mutex_lock(&oom_lock);
+-	ret = out_of_memory(&oc);
++	if (mutex_lock_killable(&oom_lock))
++		return true;
++	/*
++	 * A few threads which were not waiting at mutex_lock_killable() can
++	 * fail to bail out. Therefore, check again after holding oom_lock.
++	 */
++	ret = should_force_charge() || out_of_memory(&oc);
+ 	mutex_unlock(&oom_lock);
+ 	return ret;
+ }
+@@ -2209,9 +2220,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * bypass the last charges so that they can exit quickly and
+ 	 * free their memory.
+ 	 */
+-	if (unlikely(tsk_is_oom_victim(current) ||
+-		     fatal_signal_pending(current) ||
+-		     current->flags & PF_EXITING))
++	if (unlikely(should_force_charge()))
+ 		goto force;
+ 
+ 	/*
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+1.8.3.1
