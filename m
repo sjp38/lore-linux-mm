@@ -1,152 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CF418E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 15:29:04 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id u17so2379787pgn.17
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:29:04 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id q8si4611545pli.284.2019.01.15.12.29.02
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D8F38E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 15:29:24 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 74so2820151pfk.12
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:29:24 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id m198si4239688pga.98.2019.01.15.12.29.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 12:29:02 -0800 (PST)
-Date: Tue, 15 Jan 2019 12:28:59 -0800
+        Tue, 15 Jan 2019 12:29:22 -0800 (PST)
+Date: Tue, 15 Jan 2019 12:29:19 -0800
 From: Ira Weiny <ira.weiny@intel.com>
-Subject: Re: [PATCH 2/6] mic/scif: do not use mmap_sem
-Message-ID: <20190115202858.GB4343@iweiny-mobl2.amr.corp.intel.com>
+Subject: Re: [PATCH 3/6] drivers/IB,qib: do not use mmap_sem
+Message-ID: <20190115202918.GC4343@iweiny-mobl2.amr.corp.intel.com>
 References: <20190115181300.27547-1-dave@stgolabs.net>
- <20190115181300.27547-3-dave@stgolabs.net>
+ <20190115181300.27547-4-dave@stgolabs.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190115181300.27547-3-dave@stgolabs.net>
+In-Reply-To: <20190115181300.27547-4-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: akpm@linux-foundation.org, dledford@redhat.com, jgg@mellanox.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, sudeep.dutt@intel.com, ashutosh.dixit@intel.com, Davidlohr Bueso <dbueso@suse.de>
+Cc: akpm@linux-foundation.org, dledford@redhat.com, jgg@mellanox.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, dennis.dalessandro@intel.com, mike.marciniszyn@intel.com, Davidlohr Bueso <dbueso@suse.de>
 
-On Tue, Jan 15, 2019 at 10:12:56AM -0800, Davidlohr Bueso wrote:
+On Tue, Jan 15, 2019 at 10:12:57AM -0800, Davidlohr Bueso wrote:
 > The driver uses mmap_sem for both pinned_vm accounting and
 > get_user_pages(). By using gup_fast() and letting the mm handle
 > the lock if needed, we can no longer rely on the semaphore and
-> simplify the whole thing.
+> simplify the whole thing as the pinning is decoupled from the lock.
 > 
-> Cc: sudeep.dutt@intel.com
-> Cc: ashutosh.dixit@intel.com
+> This also fixes a bug that __qib_get_user_pages was not taking into
+> account the current value of pinned_vm.
+> 
+> Cc: dennis.dalessandro@intel.com
+> Cc: mike.marciniszyn@intel.com
 > Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 
 Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 
 > ---
->  drivers/misc/mic/scif/scif_rma.c | 36 +++++++++++-------------------------
->  1 file changed, 11 insertions(+), 25 deletions(-)
+>  drivers/infiniband/hw/qib/qib_user_pages.c | 67 ++++++++++--------------------
+>  1 file changed, 22 insertions(+), 45 deletions(-)
 > 
-> diff --git a/drivers/misc/mic/scif/scif_rma.c b/drivers/misc/mic/scif/scif_rma.c
-> index a92b4d6f099c..445529ce2ad7 100644
-> --- a/drivers/misc/mic/scif/scif_rma.c
-> +++ b/drivers/misc/mic/scif/scif_rma.c
-> @@ -272,21 +272,12 @@ static inline void __scif_release_mm(struct mm_struct *mm)
+> diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
+> index 981795b23b73..4b7a5be782e6 100644
+> --- a/drivers/infiniband/hw/qib/qib_user_pages.c
+> +++ b/drivers/infiniband/hw/qib/qib_user_pages.c
+> @@ -49,43 +49,6 @@ static void __qib_release_user_pages(struct page **p, size_t num_pages,
+>  	}
+>  }
 >  
->  static inline int
->  __scif_dec_pinned_vm_lock(struct mm_struct *mm,
-> -			  int nr_pages, bool try_lock)
-> +			  int nr_pages)
->  {
->  	if (!mm || !nr_pages || !scif_ulimit_check)
->  		return 0;
-> -	if (try_lock) {
-> -		if (!down_write_trylock(&mm->mmap_sem)) {
-> -			dev_err(scif_info.mdev.this_device,
-> -				"%s %d err\n", __func__, __LINE__);
-> -			return -1;
-> -		}
-> -	} else {
-> -		down_write(&mm->mmap_sem);
+> -/*
+> - * Call with current->mm->mmap_sem held.
+> - */
+> -static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
+> -				struct page **p)
+> -{
+> -	unsigned long lock_limit;
+> -	size_t got;
+> -	int ret;
+> -
+> -	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> -
+> -	if (num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
+> -		ret = -ENOMEM;
+> -		goto bail;
 > -	}
-> +
->  	atomic_long_sub(nr_pages, &mm->pinned_vm);
-> -	up_write(&mm->mmap_sem);
->  	return 0;
+> -
+> -	for (got = 0; got < num_pages; got += ret) {
+> -		ret = get_user_pages(start_page + got * PAGE_SIZE,
+> -				     num_pages - got,
+> -				     FOLL_WRITE | FOLL_FORCE,
+> -				     p + got, NULL);
+> -		if (ret < 0)
+> -			goto bail_release;
+> -	}
+> -
+> -	atomic_long_add(num_pages, &current->mm->pinned_vm);
+> -
+> -	ret = 0;
+> -	goto bail;
+> -
+> -bail_release:
+> -	__qib_release_user_pages(p, got, 0);
+> -bail:
+> -	return ret;
+> -}
+> -
+>  /**
+>   * qib_map_page - a safety wrapper around pci_map_page()
+>   *
+> @@ -137,26 +100,40 @@ int qib_map_page(struct pci_dev *hwdev, struct page *page, dma_addr_t *daddr)
+>  int qib_get_user_pages(unsigned long start_page, size_t num_pages,
+>  		       struct page **p)
+>  {
+> +	unsigned long locked, lock_limit;
+> +	size_t got;
+>  	int ret;
+>  
+> -	down_write(&current->mm->mmap_sem);
+> +	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> +	locked = atomic_long_add_return(num_pages, &current->mm->pinned_vm);
+>  
+> -	ret = __qib_get_user_pages(start_page, num_pages, p);
+> +	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
+> +		ret = -ENOMEM;
+> +		goto bail;
+> +	}
+>  
+> -	up_write(&current->mm->mmap_sem);
+> +	for (got = 0; got < num_pages; got += ret) {
+> +		ret = get_user_pages_fast(start_page + got * PAGE_SIZE,
+> +				     num_pages - got,
+> +				     FOLL_WRITE | FOLL_FORCE,
+> +				     p + got);
+> +		if (ret < 0)
+> +			goto bail_release;
+> +	}
+>  
+> +	return 0;
+> +bail_release:
+> +	__qib_release_user_pages(p, got, 0);
+> +bail:
+> +	atomic_long_sub(num_pages, &current->mm->pinned_vm);
+>  	return ret;
 >  }
 >  
-> @@ -298,16 +289,16 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
->  	if (!mm || !nr_pages || !scif_ulimit_check)
->  		return 0;
+>  void qib_release_user_pages(struct page **p, size_t num_pages)
+>  {
+> -	if (current->mm) /* during close after signal, mm can be NULL */
+> -		down_write(&current->mm->mmap_sem);
+> -
+>  	__qib_release_user_pages(p, num_pages, 1);
 >  
-> -	locked = nr_pages;
-> -	locked += atomic_long_read(&mm->pinned_vm);
->  	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> +	locked = atomic_long_add_return(nr_pages, &mm->pinned_vm);
-> +
->  	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
-> +		atomic_long_sub(nr_pages, &mm->pinned_vm);
->  		dev_err(scif_info.mdev.this_device,
->  			"locked(%lu) > lock_limit(%lu)\n",
->  			locked, lock_limit);
->  		return -ENOMEM;
+> -	if (current->mm) {
+> +	if (current->mm) { /* during close after signal, mm can be NULL */
+>  		atomic_long_sub(num_pages, &current->mm->pinned_vm);
+> -		up_write(&current->mm->mmap_sem);
 >  	}
-> -	atomic_long_set(&mm->pinned_vm, locked);
->  	return 0;
 >  }
->  
-> @@ -326,7 +317,7 @@ int scif_destroy_window(struct scif_endpt *ep, struct scif_window *window)
->  
->  	might_sleep();
->  	if (!window->temp && window->mm) {
-> -		__scif_dec_pinned_vm_lock(window->mm, window->nr_pages, 0);
-> +		__scif_dec_pinned_vm_lock(window->mm, window->nr_pages);
->  		__scif_release_mm(window->mm);
->  		window->mm = NULL;
->  	}
-> @@ -737,7 +728,7 @@ int scif_unregister_window(struct scif_window *window)
->  					    ep->rma_info.dma_chan);
->  		} else {
->  			if (!__scif_dec_pinned_vm_lock(window->mm,
-> -						       window->nr_pages, 1)) {
-> +						       window->nr_pages)) {
->  				__scif_release_mm(window->mm);
->  				window->mm = NULL;
->  			}
-> @@ -1385,28 +1376,23 @@ int __scif_pin_pages(void *addr, size_t len, int *out_prot,
->  		prot |= SCIF_PROT_WRITE;
->  retry:
->  		mm = current->mm;
-> -		down_write(&mm->mmap_sem);
->  		if (ulimit) {
->  			err = __scif_check_inc_pinned_vm(mm, nr_pages);
->  			if (err) {
-> -				up_write(&mm->mmap_sem);
->  				pinned_pages->nr_pages = 0;
->  				goto error_unmap;
->  			}
->  		}
->  
-> -		pinned_pages->nr_pages = get_user_pages(
-> +		pinned_pages->nr_pages = get_user_pages_fast(
->  				(u64)addr,
->  				nr_pages,
->  				(prot & SCIF_PROT_WRITE) ? FOLL_WRITE : 0,
-> -				pinned_pages->pages,
-> -				NULL);
-> -		up_write(&mm->mmap_sem);
-> +				pinned_pages->pages);
->  		if (nr_pages != pinned_pages->nr_pages) {
->  			if (try_upgrade) {
->  				if (ulimit)
-> -					__scif_dec_pinned_vm_lock(mm,
-> -								  nr_pages, 0);
-> +					__scif_dec_pinned_vm_lock(mm, nr_pages);
->  				/* Roll back any pinned pages */
->  				for (i = 0; i < pinned_pages->nr_pages; i++) {
->  					if (pinned_pages->pages[i])
-> @@ -1433,7 +1419,7 @@ int __scif_pin_pages(void *addr, size_t len, int *out_prot,
->  	return err;
->  dec_pinned:
->  	if (ulimit)
-> -		__scif_dec_pinned_vm_lock(mm, nr_pages, 0);
-> +		__scif_dec_pinned_vm_lock(mm, nr_pages);
->  	/* Something went wrong! Rollback */
->  error_unmap:
->  	pinned_pages->nr_pages = nr_pages;
 > -- 
 > 2.16.4
 > 
