@@ -1,117 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 36FE78E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 22:45:05 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id t72so939189pfi.21
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 19:45:05 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h66sor3240881plb.46.2019.01.14.19.45.03
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A826E8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id v188so1705827ita.0
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 20:43:04 -0800 (PST)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id y7sor1182722ioa.135.2019.01.14.20.43.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 19:45:03 -0800 (PST)
-Subject: Re: [PATCH V13 00/19] block: support multi-page bvec
-References: <20190111110127.21664-1-ming.lei@redhat.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <49d610a4-0c2b-f7e7-6505-9dde59343b75@kernel.dk>
-Date: Mon, 14 Jan 2019 20:44:59 -0700
+        Mon, 14 Jan 2019 20:43:03 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190111110127.21664-1-ming.lei@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Date: Mon, 14 Jan 2019 20:43:03 -0800
+Message-ID: <000000000000f49537057f77cb00@google.com>
+Subject: KASAN: use-after-scope Read in corrupted
+From: syzbot <syzbot+bd36b7dd9330f67037ab@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: akpm@linux-foundation.org, cai@lca.pw, crecklin@redhat.com, keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On 1/11/19 4:01 AM, Ming Lei wrote:
-> Hi,
-> 
-> This patchset brings multi-page bvec into block layer:
-> 
-> 1) what is multi-page bvec?
-> 
-> Multipage bvecs means that one 'struct bio_bvec' can hold multiple pages
-> which are physically contiguous instead of one single page used in linux
-> kernel for long time.
-> 
-> 2) why is multi-page bvec introduced?
-> 
-> Kent proposed the idea[1] first. 
-> 
-> As system's RAM becomes much bigger than before, and huge page, transparent
-> huge page and memory compaction are widely used, it is a bit easy now
-> to see physically contiguous pages from fs in I/O. On the other hand, from
-> block layer's view, it isn't necessary to store intermediate pages into bvec,
-> and it is enough to just store the physicallly contiguous 'segment' in each
-> io vector.
-> 
-> Also huge pages are being brought to filesystem and swap [2][6], we can
-> do IO on a hugepage each time[3], which requires that one bio can transfer
-> at least one huge page one time. Turns out it isn't flexiable to change
-> BIO_MAX_PAGES simply[3][5]. Multipage bvec can fit in this case very well.
-> As we saw, if CONFIG_THP_SWAP is enabled, BIO_MAX_PAGES can be configured
-> as much bigger, such as 512, which requires at least two 4K pages for holding
-> the bvec table.
-> 
-> With multi-page bvec:
-> 
-> - Inside block layer, both bio splitting and sg map can become more
-> efficient than before by just traversing the physically contiguous
-> 'segment' instead of each page.
-> 
-> - segment handling in block layer can be improved much in future since it
-> should be quite easy to convert multipage bvec into segment easily. For
-> example, we might just store segment in each bvec directly in future.
-> 
-> - bio size can be increased and it should improve some high-bandwidth IO
-> case in theory[4].
-> 
-> - there is opportunity in future to improve memory footprint of bvecs. 
-> 
-> 3) how is multi-page bvec implemented in this patchset?
-> 
-> Patch 1 ~ 4 parpares for supporting multi-page bvec. 
-> 
-> Patches 5 ~ 15 implement multipage bvec in block layer:
-> 
-> 	- put all tricks into bvec/bio/rq iterators, and as far as
-> 	drivers and fs use these standard iterators, they are happy
-> 	with multipage bvec
-> 
-> 	- introduce bio_for_each_bvec() to iterate over multipage bvec for splitting
-> 	bio and mapping sg
-> 
-> 	- keep current bio_for_each_segment*() to itereate over singlepage bvec and
-> 	make sure current users won't be broken; especailly, convert to this
-> 	new helper prototype in single patch 21 given it is bascially a mechanism
-> 	conversion
-> 
-> 	- deal with iomap & xfs's sub-pagesize io vec in patch 13
-> 
-> 	- enalbe multipage bvec in patch 14 
-> 
-> Patch 16 redefines BIO_MAX_PAGES as 256.
-> 
-> Patch 17 documents usages of bio iterator helpers.
-> 
-> Patch 18~19 kills NO_SG_MERGE.
-> 
-> These patches can be found in the following git tree:
-> 
-> 	git:  https://github.com/ming1/linux.git  for-4.21-block-mp-bvec-V12
-> 
-> Lots of test(blktest, xfstests, ltp io, ...) have been run with this patchset,
-> and not see regression.
-> 
-> Thanks Christoph for reviewing the early version and providing very good
-> suggestions, such as: introduce bio_init_with_vec_table(), remove another
-> unnecessary helpers for cleanup and so on.
-> 
-> Thanks Chritoph and Omar for reviewing V10/V11/V12, and provides lots of
-> helpful comments.
-
-Thanks for persisting in this endeavor, Ming, I've applied this for 5.1.
-
--- 
-Jens Axboe
+SGVsbG8sDQoNCnN5emJvdCBmb3VuZCB0aGUgZm9sbG93aW5nIGNyYXNoIG9uOg0KDQpIRUFEIGNv
+bW1pdDogICAgMWJkYmUyMjc0OTIwIE1lcmdlIHRhZyAndmZpby12NS4wLXJjMicgb2YgZ2l0Oi8v
+Z2l0aHViLmNvbS4uDQpnaXQgdHJlZTogICAgICAgdXBzdHJlYW0NCmNvbnNvbGUgb3V0cHV0OiBo
+dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L2xvZy50eHQ/eD0xNTE5ZDM5ZjQwMDAwMA0K
+a2VybmVsIGNvbmZpZzogIGh0dHBzOi8vc3l6a2FsbGVyLmFwcHNwb3QuY29tL3gvLmNvbmZpZz94
+PWVkZjFjMzAzMTA5N2MzMDQNCmRhc2hib2FyZCBsaW5rOiBodHRwczovL3N5emthbGxlci5hcHBz
+cG90LmNvbS9idWc/ZXh0aWQ9YmQzNmI3ZGQ5MzMwZjY3MDM3YWINCmNvbXBpbGVyOiAgICAgICBn
+Y2MgKEdDQykgOS4wLjAgMjAxODEyMzEgKGV4cGVyaW1lbnRhbCkNCnN5eiByZXBybzogICAgICBo
+dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L3JlcHJvLnN5ej94PTEwZmNlMTRmNDAwMDAw
+DQpDIHJlcHJvZHVjZXI6ICAgaHR0cHM6Ly9zeXprYWxsZXIuYXBwc3BvdC5jb20veC9yZXByby5j
+P3g9MTEwYjIwMTc0MDAwMDANCg0KSU1QT1JUQU5UOiBpZiB5b3UgZml4IHRoZSBidWcsIHBsZWFz
+ZSBhZGQgdGhlIGZvbGxvd2luZyB0YWcgdG8gdGhlIGNvbW1pdDoNClJlcG9ydGVkLWJ5OiBzeXpi
+b3QrYmQzNmI3ZGQ5MzMwZjY3MDM3YWJAc3l6a2FsbGVyLmFwcHNwb3RtYWlsLmNvbQ0KDQo9PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT0NCkJVRzogS0FTQU46IHVzZS1hZnRlci1zY29wZSBpbiBkZWJ1Z19sb2NrZGVwX3JjdV9l
+bmFibGVkLnBhcnQuMCsweDUwLzB4NjAgIA0Ka2VybmVsL3JjdS91cGRhdGUuYzoyNDkNClJlYWQg
+b2Ygc2l6ZSA0IGF0IGFkZHIgZmZmZjg4ODBhOTQ1ZWFiYyBieSB0YXNrICANCmA577+977+977+9
+77+977+977+9I++/vSgVEO+/ve+/ve+/ve+/ve+/vTzvv73vv73vv73vv73vv70QGmvvv73vv73v
+v73vv73vv73vv73vv71F77+977+977+977+977+9Pjlo77+977+977+977+977+977+977+977+9
+QS8tMjEyMjE4ODYzNA0KDQpDUFU6IDAgUElEOiAtMjEyMjE4ODYzNCBDb21tOiDvv73vv71F77+9
+77+977+977+977+977+977+977+977+977+977+977+977+9TzLvv70gTm90IHRhaW50ZWQgNS4w
+LjAtcmMxKyAgDQojMTkNCkhhcmR3YXJlIG5hbWU6IEdvb2dsZSBHb29nbGUgQ29tcHV0ZSBFbmdp
+bmUvR29vZ2xlIENvbXB1dGUgRW5naW5lLCBCSU9TICANCkdvb2dsZSAwMS8wMS8yMDExDQotLS0t
+LS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0tLS0tLS0NCkJhZCBvciBtaXNzaW5nIHVzZXJjb3B5
+IHdoaXRlbGlzdD8gS2VybmVsIG1lbW9yeSBvdmVyd3JpdGUgYXR0ZW1wdCBkZXRlY3RlZCAgDQp0
+byBTTEFCIG9iamVjdCAndGFza19zdHJ1Y3QnIChvZmZzZXQgMTM0NCwgc2l6ZSA4KSENCldBUk5J
+Tkc6IENQVTogMCBQSUQ6IC0xNDU1MDM2Mjg4IGF0IG1tL3VzZXJjb3B5LmM6NzggIA0KdXNlcmNv
+cHlfd2FybisweGViLzB4MTEwIG1tL3VzZXJjb3B5LmM6NzgNCktlcm5lbCBwYW5pYyAtIG5vdCBz
+eW5jaW5nOiBwYW5pY19vbl93YXJuIHNldCAuLi4NCkNQVTogMCBQSUQ6IC0xNDU1MDM2Mjg4IENv
+bW06IO+/ve+/vUXvv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv71PMu+/vSBO
+b3QgdGFpbnRlZCA1LjAuMC1yYzErICANCiMxOQ0KSGFyZHdhcmUgbmFtZTogR29vZ2xlIEdvb2ds
+ZSBDb21wdXRlIEVuZ2luZS9Hb29nbGUgQ29tcHV0ZSBFbmdpbmUsIEJJT1MgIA0KR29vZ2xlIDAx
+LzAxLzIwMTENCkNhbGwgVHJhY2U6DQpLZXJuZWwgT2Zmc2V0OiBkaXNhYmxlZA0KUmVib290aW5n
+IGluIDg2NDAwIHNlY29uZHMuLg0KDQoNCi0tLQ0KVGhpcyBidWcgaXMgZ2VuZXJhdGVkIGJ5IGEg
+Ym90LiBJdCBtYXkgY29udGFpbiBlcnJvcnMuDQpTZWUgaHR0cHM6Ly9nb28uZ2wvdHBzbUVKIGZv
+ciBtb3JlIGluZm9ybWF0aW9uIGFib3V0IHN5emJvdC4NCnN5emJvdCBlbmdpbmVlcnMgY2FuIGJl
+IHJlYWNoZWQgYXQgc3l6a2FsbGVyQGdvb2dsZWdyb3Vwcy5jb20uDQoNCnN5emJvdCB3aWxsIGtl
+ZXAgdHJhY2sgb2YgdGhpcyBidWcgcmVwb3J0LiBTZWU6DQpodHRwczovL2dvby5nbC90cHNtRUoj
+YnVnLXN0YXR1cy10cmFja2luZyBmb3IgaG93IHRvIGNvbW11bmljYXRlIHdpdGggIA0Kc3l6Ym90
+Lg0Kc3l6Ym90IGNhbiB0ZXN0IHBhdGNoZXMgZm9yIHRoaXMgYnVnLCBmb3IgZGV0YWlscyBzZWU6
+DQpodHRwczovL2dvby5nbC90cHNtRUojdGVzdGluZy1wYXRjaGVzDQo=
