@@ -1,201 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D498E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 03:07:37 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id 129so570774wmy.7
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 00:07:37 -0800 (PST)
-Received: from mo6-p02-ob.smtp.rzone.de (mo6-p02-ob.smtp.rzone.de. [2a01:238:20a:202:5302::10])
-        by mx.google.com with ESMTPS id d11si50908267wrq.145.2019.01.15.00.07.35
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 179588E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 03:24:58 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id a9so1212319pla.2
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 00:24:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p3sor4047489plk.32.2019.01.15.00.24.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 00:07:35 -0800 (PST)
-Subject: Re: use generic DMA mapping code in powerpc V4
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-References: <2242B4B2-6311-492E-BFF9-6740E36EC6D4@xenosoft.de>
- <84558d7f-5a7f-5219-0c3a-045e6b4c494f@xenosoft.de>
- <20181213091021.GA2106@lst.de>
- <835bd119-081e-a5ea-1899-189d439c83d6@xenosoft.de>
- <76bc684a-b4d2-1d26-f18d-f5c9ba65978c@xenosoft.de>
- <20181213112511.GA4574@lst.de>
- <e109de27-f4af-147d-dc0e-067c8bafb29b@xenosoft.de>
- <ad5a5a8a-d232-d523-a6f7-e9377fc3857b@xenosoft.de>
- <e60d6ca3-860c-f01d-8860-c5e022ec7179@xenosoft.de>
- <008c981e-bdd2-21a7-f5f7-c57e4850ae9a@xenosoft.de>
- <20190103073622.GA24323@lst.de>
- <71A251A5-FA06-4019-B324-7AED32F7B714@xenosoft.de>
- <1b0c5c21-2761-d3a3-651b-3687bb6ae694@xenosoft.de>
- <3504ee70-02de-049e-6402-2d530bf55a84@xenosoft.de>
- <23284859-bf0a-9cd5-a480-2a7fd7802056@xenosoft.de>
- <075f70e3-7a4a-732f-b501-05a1a8e3c853@xenosoft.de>
-Message-ID: <b04d08ea-61f9-3212-b9a3-ad79e3b8bd05@xenosoft.de>
-Date: Tue, 15 Jan 2019 09:07:28 +0100
+        (Google Transport Security);
+        Tue, 15 Jan 2019 00:24:56 -0800 (PST)
+Date: Tue, 15 Jan 2019 11:24:50 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH] mm: align anon mmap for THP
+Message-ID: <20190115082450.stl6vlrgbvikbwzq@kshutemo-mobl1>
+References: <20190111201003.19755-1-mike.kravetz@oracle.com>
+ <20190111215506.jmp2s5end2vlzhvb@black.fi.intel.com>
+ <ebd57b51-117b-4a3d-21d9-fc0287f437d6@oracle.com>
+ <ad3a53ba-82e2-2dc7-1cd2-feef7def0bc3@oracle.com>
+ <50c6abdc-b906-d16a-2f8f-8647b3d129aa@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <075f70e3-7a4a-732f-b501-05a1a8e3c853@xenosoft.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: de-DE
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50c6abdc-b906-d16a-2f8f-8647b3d129aa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Steven Sistare <steven.sistare@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux_lkml_grp@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Toshi Kani <toshi.kani@hpe.com>, Boaz Harrosh <boazh@netapp.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Next step: 240d7ecd7f6fa62e074e8a835e620047954f0b28 (powerpc/dma: use 
-the dma-direct allocator for coherent platforms)
+On Mon, Jan 14, 2019 at 10:54:45AM -0800, Mike Kravetz wrote:
+> On 1/14/19 7:35 AM, Steven Sistare wrote:
+> > On 1/11/2019 6:28 PM, Mike Kravetz wrote:
+> >> On 1/11/19 1:55 PM, Kirill A. Shutemov wrote:
+> >>> On Fri, Jan 11, 2019 at 08:10:03PM +0000, Mike Kravetz wrote:
+> >>>> At LPC last year, Boaz Harrosh asked why he had to 'jump through hoops'
+> >>>> to get an address returned by mmap() suitably aligned for THP.  It seems
+> >>>> that if mmap is asking for a mapping length greater than huge page
+> >>>> size, it should align the returned address to huge page size.
+> > 
+> > A better heuristic would be to return an aligned address if the length
+> > is a multiple of the huge page size.  The gap (if any) between the end of
+> > the previous VMA and the start of this VMA would be filled by subsequent
+> > smaller mmap requests.  The new behavior would need to become part of the
+> > mmap interface definition so apps can rely on it and omit their hoop-jumping
+> > code.
+> 
+> Yes, the heuristic really should be 'length is a multiple of the huge page
+> size'.  As you mention, this would still leave gaps.  I need to look closer
+> but this may not be any worse than the trick of mapping an area with rounded
+> up length and then unmapping pages at the beginning.
 
-git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
+The question why is it any better. Virtual address space is generally
+cheap, additional VMA maybe more signficiant due to find_vma() overhead.
 
-git checkout 240d7ecd7f6fa62e074e8a835e620047954f0b28
+And you don't *need* to unmap anything. Just use alinged pointer.
 
-Link to the Git: 
-http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
+> 
+> When I sent this out, the thought in the back of my mind was that this doesn't
+> really matter unless there is some type of alignment guarantee.  Otherwise,
+> user space code needs continue employing their code to check/force alignment.
+> Making matters somewhat worse is that I do not believe there is C interface to
+> query huge page size.  I thought there was discussion about adding one, but I
+> can not find it.
 
-env LANG=C make CROSS_COMPILE=powerpc-linux-gnu- ARCH=powerpc zImage
-
-Error message:
-
-arch/powerpc/kernel/dma.o:(.data.rel.ro+0x0): undefined reference to 
-`__dma_nommu_alloc_coherent'
-arch/powerpc/kernel/dma.o:(.data.rel.ro+0x8): undefined reference to 
-`__dma_nommu_free_coherent'
-Makefile:1027: recipe for target 'vmlinux' failed
-make: *** [vmlinux] Error 1
-
--- Christian
+We have posix_memalign(3).
 
 
-On 12 January 2019 at 7:14PM, Christian Zigotzky wrote:
-> Next step: 4558b6e1ddf3dcf5a86d6a5d16c2ac1600c7df39 (swiotlb: remove 
-> swiotlb_dma_supported)
->
-> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
->
-> git checkout 4558b6e1ddf3dcf5a86d6a5d16c2ac1600c7df39
->
-> Output:
->
-> You are in 'detached HEAD' state. You can look around, make experimental
-> changes and commit them, and you can discard any commits you make in this
-> state without impacting any branches by performing another checkout.
->
-> If you want to create a new branch to retain commits you create, you may
-> do so (now or later) by using -b with the checkout command again. 
-> Example:
->
->   git checkout -b <new-branch-name>
->
-> HEAD is now at 4558b6e... swiotlb: remove swiotlb_dma_supported
->
-> ----
->
-> Link to the Git: 
-> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
->
-> Results: PASEMI onboard ethernet (X1000) works and the X5000 (P5020 
-> board) boots. I also successfully tested sound, hardware 3D 
-> acceleration, Bluetooth, network, booting with a label etc. The 
-> uImages work also in a virtual e5500 quad-core QEMU machine.
->
-> -- Christian
->
->
-> On 11 January 2019 at 03:10AM, Christian Zigotzky wrote:
->> Next step: 891dcc1072f1fa27a83da920d88daff6ca08fc02 (powerpc/dma: 
->> remove dma_nommu_dma_supported)
->>
->> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
->>
->> git checkout 891dcc1072f1fa27a83da920d88daff6ca08fc02
->>
->> Output:
->>
->> Note: checking out '891dcc1072f1fa27a83da920d88daff6ca08fc02'.
->>
->> You are in 'detached HEAD' state. You can look around, make experimental
->> changes and commit them, and you can discard any commits you make in 
->> this
->> state without impacting any branches by performing another checkout.
->>
->> If you want to create a new branch to retain commits you create, you may
->> do so (now or later) by using -b with the checkout command again. 
->> Example:
->>
->> git checkout -b <new-branch-name>
->>
->> HEAD is now at 891dcc1... powerpc/dma: remove dma_nommu_dma_supported
->>
->> ---
->>
->> Link to the Git: 
->> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
->>
->> Results: PASEMI onboard ethernet works and the X5000 (P5020 board) 
->> boots. I also successfully tested sound, hardware 3D acceleration, 
->> Bluetooth, network, booting with a label etc. The uImages work also 
->> in a virtual e5500 quad-core QEMU machine.
->>
->> -- Christian
->>
->>
->> On 09 January 2019 at 10:31AM, Christian Zigotzky wrote:
->>> Next step: a64e18ba191ba9102fb174f27d707485ffd9389c (powerpc/dma: 
->>> remove dma_nommu_get_required_mask)
->>>
->>> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
->>>
->>> git checkout a64e18ba191ba9102fb174f27d707485ffd9389c
->>>
->>> Link to the Git: 
->>> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
->>>
->>> Results: PASEMI onboard ethernet works and the X5000 (P5020 board) 
->>> boots. I also successfully tested sound, hardware 3D acceleration, 
->>> Bluetooth, network, booting with a label etc. The uImages work also 
->>> in a virtual e5500 quad-core QEMU machine.
->>>
->>> -- Christian
->>>
->>>
->>> On 05 January 2019 at 5:03PM, Christian Zigotzky wrote:
->>>> Next step: c446404b041130fbd9d1772d184f24715cf2362f (powerpc/dma: 
->>>> remove dma_nommu_mmap_coherent)
->>>>
->>>> git clone git://git.infradead.org/users/hch/misc.git -b 
->>>> powerpc-dma.6 a
->>>>
->>>> git checkout c446404b041130fbd9d1772d184f24715cf2362f
->>>>
->>>> Output:
->>>>
->>>> Note: checking out 'c446404b041130fbd9d1772d184f24715cf2362f'.
->>>>
->>>> You are in 'detached HEAD' state. You can look around, make 
->>>> experimental
->>>> changes and commit them, and you can discard any commits you make 
->>>> in this
->>>> state without impacting any branches by performing another checkout.
->>>>
->>>> If you want to create a new branch to retain commits you create, 
->>>> you may
->>>> do so (now or later) by using -b with the checkout command again. 
->>>> Example:
->>>>
->>>>   git checkout -b <new-branch-name>
->>>>
->>>> HEAD is now at c446404... powerpc/dma: remove dma_nommu_mmap_coherent
->>>>
->>>> -----
->>>>
->>>> Link to the Git: 
->>>> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
->>>>
->>>> Result: PASEMI onboard ethernet works and the X5000 (P5020 board) 
->>>> boots.
->>>>
->>>> -- Christian
->>>>
->>>
->>>
->>
->>
->
->
+-- 
+ Kirill A. Shutemov
