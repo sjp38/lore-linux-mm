@@ -1,253 +1,146 @@
-Return-Path: <SRS0=uJng=PW=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=hkLx=PX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32C9AC43387
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:48:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0434C43387
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 04:43:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B65D8206B7
-	for <linux-mm@archiver.kernel.org>; Mon, 14 Jan 2019 20:48:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="A2pDQgPM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B65D8206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 9B84E20651
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 04:43:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B84E20651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 14AC48E0003; Mon, 14 Jan 2019 15:48:03 -0500 (EST)
+	id E66E88E0003; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0FB098E0002; Mon, 14 Jan 2019 15:48:03 -0500 (EST)
+	id E159F8E0002; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0106E8E0003; Mon, 14 Jan 2019 15:48:02 -0500 (EST)
+	id D061E8E0003; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DE2F8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:48:02 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id p12so110357wrt.17
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 12:48:02 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A826E8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id v188so1705827ita.0
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 20:43:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=jwW1KirWJa3Otm0mdb+FxZ3AFbnGbcDi8Iugc6Rltwo=;
-        b=DgvDxHZJZYhg+yKEkZzAD4TxXepuNn8cnrRPCDuIbx3yo/CedRBrsuph370li3rxsj
-         v82jB9D0RbnZ6YfAsGefAIxDmncIv15DrL+UdCRfKVNHqZPzeSTB5J38img+QhIHI4z+
-         0TjfaIYiYqg0D5jRdA7vn9ddQe0IKm1kHKYhVOWQPTMiWx+xYulNNmTCmea4EQkgW8u2
-         Vm+GPQ16eTCYFpozte+1/OMp6rxGm5GNdT0dE7xZLXcogRoEbHlL/xYEjKqfPMctdgb6
-         JSgBcYyfBNmrTK3QKqY8SnOd437bJnjaeNTXzaQebqv1rQTGcYLEBWyUPJ05E9I1BJrd
-         51iQ==
-X-Gm-Message-State: AJcUukcF5G5V2RXYim+g+NqbRv8h61c03oC6oRg5RcULAQuS5Em00fQ6
-	XvVRadnVI03NST0LXoJLfEcPE/twvjt60PMzK3dJbVfenuWtsZi75KJN2uJoXVgY8IFmypuj9JR
-	58O+JFqwfSIzy3t5ZFmCHMzdCqDxe+YlN/QpP5QOoWAmix1WOqh4Ja3dCDegT8nUQ0pO/kb4BEv
-	MEI9iEf3KidXJllB8IcFIrLbY0zgFc0DUtpgBvdeJpSdXRa/NQrWJizJ7hgpo8ZZF3EBuGYavET
-	UlZdJEN8CEvTjVzQtZ70CaXyDZUftxoRACUQIF7ApbpG/ACx+u8/N65hOEtnWJOOXpx1eDW6Y/X
-	gHxT8icoG0uXj2q7lh8Ta3bLJRet/+Na4sgSqs0tcfdT/pvjX9zN5Mc+kfqEO3QCgQsafmggkfx
-	E
-X-Received: by 2002:a1c:6442:: with SMTP id y63mr645834wmb.143.1547498882051;
-        Mon, 14 Jan 2019 12:48:02 -0800 (PST)
-X-Received: by 2002:a1c:6442:: with SMTP id y63mr645793wmb.143.1547498880865;
-        Mon, 14 Jan 2019 12:48:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547498880; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:message-id:subject:from:to:content-transfer-encoding;
+        bh=+ZN2k/FAzbBiH8bFl9sH6z6FpVTp2oha0mwreEMwqrA=;
+        b=rWGol3Pl/6xPl+wILgWLT7tz4AP6uVIQwfpS3ipGshO6/AxQ4GAJt3n2IGBGDI3q1K
+         xAlrgLBu1FGqWLEvUZSFPGnzw7KoKqPs3MlLBOWwWmdjI78KiaYIlFDDrjw/VqCyxO0H
+         4jzX8fwrezWnR4PSQXiQ5X1kzTwwxJmCOOhZKGzRWmOW1k2RYWs4sD+SDctDr9aqrm0E
+         2RtFG1fDVVJYhroELTdm9BMI2GF5I0ThIebDXzsJz5td5nTXUpM0+aX7YdZzUpWezqLi
+         c4IZ9S3U18rxmW9zhKJlZ9FF9FNyQ5kUhV6YHChBunrXh+2o51G65XcOan/pq1TQewBl
+         yorg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=312Q9XAkbAH4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: AJcUuke60It85rsrNeSvmV0mGkvGD/1peZ7e+c+YfK6WA5n0t+frbIqf
+	vN6GfYqPNpNE2ych7tzJxmDsxwGmgI6fiMehi2T2Xnovs836AcRe8DBdf1ZSQ6BQvquoU0QYick
+	hHHenetWriDm30oXT9rB3A16dIjub6MBijZkWEiIROiH0KVsXcjWXLvlfsfqe5SDtcWoFpc9Sh/
+	LdWLQRmUtR8jy2q2crBrYdOUdT31wtwMaWJn+/u2EMxx6VpcJXNx5PhTVsigBrGqICHCrcxbiVu
+	BJsj9hOxidrmBn8Mz5LLjkqB5iNPVgilwi4DT9aBSVEIlgIpll5F4Hl/B6+9WAYYIz7Flo7bxsU
+	hQwqFcqGbykQWC7DQCxaGFKYYDKAe42Q5VTOdnN477FV8ddS/4ayVMu0VpLtZLM3Fm1x+OoYdg=
+	=
+X-Received: by 2002:a6b:3809:: with SMTP id f9mr1050983ioa.305.1547527384341;
+        Mon, 14 Jan 2019 20:43:04 -0800 (PST)
+X-Received: by 2002:a6b:3809:: with SMTP id f9mr1050970ioa.305.1547527383566;
+        Mon, 14 Jan 2019 20:43:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547527383; cv=none;
         d=google.com; s=arc-20160816;
-        b=qFEsh95RUC3ZrD4k3yPzbXucWAIoZxL/+kfYf7aZol+MrZayTwNQ0tTdYD4W8SoMAh
-         0IzwcYWB0pgxoF5MIQwKwkInH2TNfbeT8YxXdrdwufJWtkXmI4seTU3OfpVDwbEVp7ea
-         AhshNIC6DMxDZ0uvNOQXEgsYEXXP4Q8HSiN6hrglIbONPDY0maKCLjwpvgswU/glmqsC
-         vpDSTGwAkvfLW6V80W8ZFdEFsyc5V87wwK7LQRNdLWnNi+2HVjfN6elIKsWz9I01rBw9
-         Zz1kVHp+8CixpE+0sBx3Cc/6/ZL+9MZdbrb6pLJZCgks6kxkO6bAdkdQg2+IYCzcP7Tk
-         uJGA==
+        b=epvwF3eT4gGUVzn07Z59cn+nouNXr1eIdixHeD3XzM0VHIuBlj0XL0zhBymWM5aUX6
+         M29hyUX5mUh7rIEkOESwzVZXnl15PjHXtviLNVZHkbiGJgl2wIA9qsRVI/GXEG748tLK
+         wLJ7ohF+uLkJu6et4SSmn7Wa6xvEC4mjoDkDcuYJvOKPEkinps+xkFmUGGVqHgX98ban
+         LTHGKYDBOQpk3CLfK1TJQK/R0e8y4Vj7kfx5kfWj3ZcdIK6XUFsaeVHpSlmsXyD6N2dK
+         PPexPmORRmD/vM+Ie8IHmC/zXJb/R/GQkhPOFd5cLXeERwOzebG9jDb4FY2AM2sQT9YQ
+         Nybw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=jwW1KirWJa3Otm0mdb+FxZ3AFbnGbcDi8Iugc6Rltwo=;
-        b=fEivzkeMOwItu6YzDNJKniJnA5SgvBSeDywvD5mwaxzSHi78/L9vH4LHKtF6RCJbYq
-         waum9m2kZn7hadZBhpXm2bhUKh75PtBQpCqjO2V8FO218LW1ZaQpHEZjck6JuVu/l1p8
-         dzLYv0X/53HkuwHy9BnfrLgZ1hKYUWmfbpgBgWXmiD0z9WgtvZX3NXjmBW+JdRr1HkgV
-         D2Ap153xrK77OzHG6q1JT3sLYiNLcp+Z9r9PsH33K7WuAGBJS+UDL3q1NekgE+noKjUd
-         OxdpEKVIAlH8o2GTIjQdrMaulwD3LmEBawqLL1g+uJDx/3PMbd1cWdkIpyIcnJr5alwO
-         9xpg==
+        h=content-transfer-encoding:to:from:subject:message-id:date
+         :mime-version;
+        bh=+ZN2k/FAzbBiH8bFl9sH6z6FpVTp2oha0mwreEMwqrA=;
+        b=XMWFmJsc92OKM8P8jUvnaoK7nr86RKNvcFbbYjbMs4/P4xNgIQq06gteQ4oFOVNnZ7
+         7BMQNVJ9zUbPZJKjO4GIu+l6MM7ZjwR+P3iP11mdJk065TJFTSTvvA++dEQWqRoGyRRW
+         2CEN7RmJwrqIMg2e/87xj1Kn+3MPSqEhCmNvXKxJpUAJmTdl1YO75XwtjV0cRfWpEbRT
+         iJSf3z2Bvsu4bq0GXCmF9Op8RYWfB4QiQ/b9HdZEtJ4jApThnMW0B97Av0dWcQGWaUy7
+         56O92n5d95QI5R3QxGmE3WSNVgQNt7CSLSsCAGN5kfm9YIgnpymyLlz5eXmbf3mfGIt9
+         rr1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=A2pDQgPM;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q186sor19359863wme.15.2019.01.14.12.48.00
+       spf=pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=312Q9XAkbAH4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id y7sor1182722ioa.135.2019.01.14.20.43.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 12:48:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 14 Jan 2019 20:43:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=A2pDQgPM;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=jwW1KirWJa3Otm0mdb+FxZ3AFbnGbcDi8Iugc6Rltwo=;
-        b=A2pDQgPMfi8xEcPmWoQZ2vTIY4giMrEqTxyGbkzbS3KIpKn4Rzshn3bvn+6sjPR4v/
-         z3eeTNO9KIL13+ffxR2gzEQ6VTGx2Qoefby8azX1xOvMmP1uqyVMPFpL5OBzd/aHEHiG
-         gx/yvd/XHBODmMQ73oi3WtAGNEhSTdeQSF0uJWHEHIaqeThB2Vc1CMPdWBarjpe/2Op1
-         FnIgnpfClFuK1z7GZIKdpc+2vIwVQrXeSYp4uL6yiI4/MRtFXHeyNuhQHreQFcK57G0f
-         z1+JznRXHIrhESLyl/fpth4COZ/LcDv2W0XMR+hBn5T5ug+ZzV329WtQ4EHSmGk27xid
-         r6sA==
-X-Google-Smtp-Source: ALg8bN7iurn1V/oAb9TPOfzDB1cZrLk7Mb7Ob0iavv3WLprDDiWHghw3bxnNBUClL+Yo6cWdjUkw7edud95FQv0DClc=
-X-Received: by 2002:a1c:e910:: with SMTP id q16mr717314wmc.68.1547498879880;
- Mon, 14 Jan 2019 12:47:59 -0800 (PST)
+       spf=pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=312Q9XAkbAH4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: ALg8bN5IJ8jBC/pJ7LLxE8gvsIqAvivcDUoZPQNVLC3bMdmo9hsIUszlSm+1zKbyLpjO6IZ6O46ya5d0nk8RUY4iucPnWKjgYVqN
 MIME-Version: 1.0
-References: <20190110220718.261134-1-surenb@google.com> <20190110220718.261134-6-surenb@google.com>
- <20190114102137.GB14054@worktop.programming.kicks-ass.net>
- <CAJuCfpGUWs0E9oPUjPTNm=WhPJcE_DBjZCtCiaVu5WXabKRW6A@mail.gmail.com> <20190114194222.GA10571@cmpxchg.org>
-In-Reply-To: <20190114194222.GA10571@cmpxchg.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Mon, 14 Jan 2019 12:47:48 -0800
-Message-ID:
- <CAJuCfpF+eZFxCuB4QtQDOeDFYRg1LBiAKkF6QZxRk-FenkNu7w@mail.gmail.com>
-Subject: Re: [PATCH v2 5/5] psi: introduce psi monitor
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	Tejun Heo <tj@kernel.org>, lizefan@huawei.com, axboe@kernel.dk, dennis@kernel.org, 
-	Dennis Zhou <dennisszhou@gmail.com>, Ingo Molnar <mingo@redhat.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org, 
-	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, 
-	LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
-Content-Type: text/plain; charset="UTF-8"
+X-Received: by 2002:a6b:680a:: with SMTP id d10mr1058562ioc.35.1547527383190;
+ Mon, 14 Jan 2019 20:43:03 -0800 (PST)
+Date: Mon, 14 Jan 2019 20:43:03 -0800
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <000000000000f49537057f77cb00@google.com>
+Subject: KASAN: use-after-scope Read in corrupted
+From: syzbot <syzbot+bd36b7dd9330f67037ab@syzkaller.appspotmail.com>
+To: akpm@linux-foundation.org, cai@lca.pw, crecklin@redhat.com, 
+	keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	syzkaller-bugs@googlegroups.com
+Content-Type: text/plain; charset="UTF-8"; delsp="yes"; format="flowed"
+Content-Transfer-Encoding: base64
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190114204748.549WTeGR0sCYG7MlG4js954oPSx3_CTgS1cGkL6XQ_E@z>
+Message-ID: <20190115044303.Jt6JGb3KFN7xL4OW95r3zEWvVXLGggC7ZX93_pyNCIg@z>
 
-On Mon, Jan 14, 2019 at 11:42 AM Johannes Weiner <hannes@cmpxchg.org> wrote:
->
-> On Mon, Jan 14, 2019 at 11:30:12AM -0800, Suren Baghdasaryan wrote:
-> > On Mon, Jan 14, 2019 at 2:22 AM Peter Zijlstra <peterz@infradead.org> wrote:
-> > >
-> > > On Thu, Jan 10, 2019 at 02:07:18PM -0800, Suren Baghdasaryan wrote:
-> > > > +/*
-> > > > + * psi_update_work represents slowpath accounting part while
-> > > > + * psi_group_change represents hotpath part.
-> > > > + * There are two potential races between these path:
-> > > > + * 1. Changes to group->polling when slowpath checks for new stall, then
-> > > > + *    hotpath records new stall and then slowpath resets group->polling
-> > > > + *    flag. This leads to the exit from the polling mode while monitored
-> > > > + *    states are still changing.
-> > > > + * 2. Slowpath overwriting an immediate update scheduled from the hotpath
-> > > > + *    with a regular update further in the future and missing the
-> > > > + *    immediate update.
-> > > > + * Both races are handled with a retry cycle in the slowpath:
-> > > > + *
-> > > > + *    HOTPATH:                         |    SLOWPATH:
-> > > > + *                                     |
-> > > > + * A) times[cpu] += delta              | E) delta = times[*]
-> > > > + * B) start_poll = (delta[poll_mask] &&|    if delta[poll_mask]:
-> > > > + *      cmpxchg(g->polling, 0, 1) == 0)| F)   polling_until = now +
-> > > > + *                                     |              grace_period
-> > > > + *                                     |    if now > polling_until:
-> > > > + *    if start_poll:                   |      if g->polling:
-> > > > + * C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
-> > > > + *    else if !delayed_work_pending(): | H)     goto SLOWPATH
-> > > > + * D)   schedule_delayed_work(PSI_FREQ)|    else:
-> > > > + *                                     |      if !g->polling:
-> > > > + *                                     | I)     g->polling = polling = 1
-> > > > + *                                     | J) if delta && first_pass:
-> > > > + *                                     |      next_avg = calculate_averages()
-> > > > + *                                     |      if polling:
-> > > > + *                                     |        next_poll = poll_triggers()
-> > > > + *                                     |    if (delta && first_pass) || polling:
-> > > > + *                                     | K)   mod_delayed_work(
-> > > > + *                                     |          min(next_avg, next_poll))
-> > > > + *                                     |      if !polling:
-> > > > + *                                     |        first_pass = false
-> > > > + *                                     | L)     goto SLOWPATH
-> > > > + *
-> > > > + * Race #1 is represented by (EABGD) sequence in which case slowpath
-> > > > + * deactivates polling mode because it misses new monitored stall and hotpath
-> > > > + * doesn't activate it because at (B) g->polling is not yet reset by slowpath
-> > > > + * in (G). This race is handled by the (H) retry, which in the race described
-> > > > + * above results in the new sequence of (EABGDHEIK) that reactivates polling
-> > > > + * mode.
-> > > > + *
-> > > > + * Race #2 is represented by polling==false && (JABCK) sequence which
-> > > > + * overwrites immediate update scheduled at (C) with a later (next_avg) update
-> > > > + * scheduled at (K). This race is handled by the (L) retry which results in the
-> > > > + * new sequence of polling==false && (JABCKLEIK) that reactivates polling mode
-> > > > + * and reschedules next polling update (next_poll).
-> > > > + *
-> > > > + * Note that retries can't result in an infinite loop because retry #1 happens
-> > > > + * only during polling reactivation and retry #2 happens only on the first
-> > > > + * pass. Constant reactivations are impossible because polling will stay active
-> > > > + * for at least grace_period. Worst case scenario involves two retries (HEJKLE)
-> > > > + */
-> > >
-> > > I'm having a fairly hard time with this. There's a distinct lack of
-> > > memory ordering, and a suspicious mixing of atomic ops (cmpxchg) and
-> > > regular loads and stores (without READ_ONCE/WRITE_ONCE even).
-> > >
-> > > Please clarify.
-> >
-> > Thanks for the feedback.
-> > I do mix atomic and regular loads with g->polling only because the
-> > slowpath is the only one that resets it back to 0, so
-> > cmpxchg(g->polling, 1, 0) == 1 at (G) would always return 1.
-> > Setting g->polling back to 1 at (I) indeed needs an atomic operation
-> > but at that point it does not matter whether hotpath or slowpath sets
-> > it. In either case we will schedule a polling update.
-> > Am I missing anything?
-> >
-> > For memory ordering (which Johannes also pointed out) the critical point is:
-> >
-> > times[cpu] += delta           | if g->polling:
-> > smp_wmb()                     |   g->polling = polling = 0
-> > cmpxchg(g->polling, 0, 1)     |   smp_rmb()
-> >                               |   delta = times[*] (through goto SLOWPATH)
-> >
-> > So that hotpath writes to times[] then g->polling and slowpath reads
-> > g->polling then times[]. cmpxchg() implies a full barrier, so we can
-> > drop smp_wmb(). Something like this:
-> >
-> > times[cpu] += delta           | if g->polling:
-> > cmpxchg(g->polling, 0, 1)     |   g->polling = polling = 0
-> >                               |   smp_rmb()
-> >                               |   delta = times[*] (through goto SLOWPATH)
->
-> delta = times[*] is get_recent_times(), which uses a seqcount and so
-> implies the smp_rmb() already as well. So we shouldn't need another
-> explicit one. But the comment should point out all the barriers.
-
-Got it, thanks!
-How about changing the comment this way:
-
-   HOTPATH:                         |    SLOWPATH:
-                                    |
-A) times[cpu] += delta              | E) delta = times[*]
-   smp_wmb()                        |    if delta[poll_mask]:
-B) start_poll = (delta[poll_mask] &&| F)   polling_until = now + grace_period
-     cmpxchg(g->polling, 0, 1) == 0)|    if now > polling_until:
-   if start_poll:                   |      if g->polling:
-C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
-   else if !delayed_work_pending(): |        smp_rmb()
-D)   schedule_delayed_work(PSI_FREQ)| H)     goto SLOWPATH
-                                    |    else:
-                                    |      if !g->polling:
-                                    | I)     g->polling = polling = 1
-                                    | J) if delta && first_pass:
-                                    |      next_avg = calculate_averages()
-                                    |      if polling:
-                                    |        next_poll = poll_triggers()
-                                    |    if (delta && first_pass) || polling:
-                                    | K)   mod_delayed_work(
-                                    |          min(next_avg, next_poll))
-                                    |      if !polling:
-                                    |        first_pass = false
-                                    | L)     goto SLOWPATH
-
-And maybe adding a comment about implied memory barriers in cmpxchg()
-and in seqlock.
-Would that be enough?
+SGVsbG8sDQoNCnN5emJvdCBmb3VuZCB0aGUgZm9sbG93aW5nIGNyYXNoIG9uOg0KDQpIRUFEIGNv
+bW1pdDogICAgMWJkYmUyMjc0OTIwIE1lcmdlIHRhZyAndmZpby12NS4wLXJjMicgb2YgZ2l0Oi8v
+Z2l0aHViLmNvbS4uDQpnaXQgdHJlZTogICAgICAgdXBzdHJlYW0NCmNvbnNvbGUgb3V0cHV0OiBo
+dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L2xvZy50eHQ/eD0xNTE5ZDM5ZjQwMDAwMA0K
+a2VybmVsIGNvbmZpZzogIGh0dHBzOi8vc3l6a2FsbGVyLmFwcHNwb3QuY29tL3gvLmNvbmZpZz94
+PWVkZjFjMzAzMTA5N2MzMDQNCmRhc2hib2FyZCBsaW5rOiBodHRwczovL3N5emthbGxlci5hcHBz
+cG90LmNvbS9idWc/ZXh0aWQ9YmQzNmI3ZGQ5MzMwZjY3MDM3YWINCmNvbXBpbGVyOiAgICAgICBn
+Y2MgKEdDQykgOS4wLjAgMjAxODEyMzEgKGV4cGVyaW1lbnRhbCkNCnN5eiByZXBybzogICAgICBo
+dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L3JlcHJvLnN5ej94PTEwZmNlMTRmNDAwMDAw
+DQpDIHJlcHJvZHVjZXI6ICAgaHR0cHM6Ly9zeXprYWxsZXIuYXBwc3BvdC5jb20veC9yZXByby5j
+P3g9MTEwYjIwMTc0MDAwMDANCg0KSU1QT1JUQU5UOiBpZiB5b3UgZml4IHRoZSBidWcsIHBsZWFz
+ZSBhZGQgdGhlIGZvbGxvd2luZyB0YWcgdG8gdGhlIGNvbW1pdDoNClJlcG9ydGVkLWJ5OiBzeXpi
+b3QrYmQzNmI3ZGQ5MzMwZjY3MDM3YWJAc3l6a2FsbGVyLmFwcHNwb3RtYWlsLmNvbQ0KDQo9PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT0NCkJVRzogS0FTQU46IHVzZS1hZnRlci1zY29wZSBpbiBkZWJ1Z19sb2NrZGVwX3JjdV9l
+bmFibGVkLnBhcnQuMCsweDUwLzB4NjAgIA0Ka2VybmVsL3JjdS91cGRhdGUuYzoyNDkNClJlYWQg
+b2Ygc2l6ZSA0IGF0IGFkZHIgZmZmZjg4ODBhOTQ1ZWFiYyBieSB0YXNrICANCmA577+977+977+9
+77+977+977+9I++/vSgVEO+/ve+/ve+/ve+/ve+/vTzvv73vv73vv73vv73vv70QGmvvv73vv73v
+v73vv73vv73vv73vv71F77+977+977+977+977+9Pjlo77+977+977+977+977+977+977+977+9
+QS8tMjEyMjE4ODYzNA0KDQpDUFU6IDAgUElEOiAtMjEyMjE4ODYzNCBDb21tOiDvv73vv71F77+9
+77+977+977+977+977+977+977+977+977+977+977+977+9TzLvv70gTm90IHRhaW50ZWQgNS4w
+LjAtcmMxKyAgDQojMTkNCkhhcmR3YXJlIG5hbWU6IEdvb2dsZSBHb29nbGUgQ29tcHV0ZSBFbmdp
+bmUvR29vZ2xlIENvbXB1dGUgRW5naW5lLCBCSU9TICANCkdvb2dsZSAwMS8wMS8yMDExDQotLS0t
+LS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0tLS0tLS0NCkJhZCBvciBtaXNzaW5nIHVzZXJjb3B5
+IHdoaXRlbGlzdD8gS2VybmVsIG1lbW9yeSBvdmVyd3JpdGUgYXR0ZW1wdCBkZXRlY3RlZCAgDQp0
+byBTTEFCIG9iamVjdCAndGFza19zdHJ1Y3QnIChvZmZzZXQgMTM0NCwgc2l6ZSA4KSENCldBUk5J
+Tkc6IENQVTogMCBQSUQ6IC0xNDU1MDM2Mjg4IGF0IG1tL3VzZXJjb3B5LmM6NzggIA0KdXNlcmNv
+cHlfd2FybisweGViLzB4MTEwIG1tL3VzZXJjb3B5LmM6NzgNCktlcm5lbCBwYW5pYyAtIG5vdCBz
+eW5jaW5nOiBwYW5pY19vbl93YXJuIHNldCAuLi4NCkNQVTogMCBQSUQ6IC0xNDU1MDM2Mjg4IENv
+bW06IO+/ve+/vUXvv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv71PMu+/vSBO
+b3QgdGFpbnRlZCA1LjAuMC1yYzErICANCiMxOQ0KSGFyZHdhcmUgbmFtZTogR29vZ2xlIEdvb2ds
+ZSBDb21wdXRlIEVuZ2luZS9Hb29nbGUgQ29tcHV0ZSBFbmdpbmUsIEJJT1MgIA0KR29vZ2xlIDAx
+LzAxLzIwMTENCkNhbGwgVHJhY2U6DQpLZXJuZWwgT2Zmc2V0OiBkaXNhYmxlZA0KUmVib290aW5n
+IGluIDg2NDAwIHNlY29uZHMuLg0KDQoNCi0tLQ0KVGhpcyBidWcgaXMgZ2VuZXJhdGVkIGJ5IGEg
+Ym90LiBJdCBtYXkgY29udGFpbiBlcnJvcnMuDQpTZWUgaHR0cHM6Ly9nb28uZ2wvdHBzbUVKIGZv
+ciBtb3JlIGluZm9ybWF0aW9uIGFib3V0IHN5emJvdC4NCnN5emJvdCBlbmdpbmVlcnMgY2FuIGJl
+IHJlYWNoZWQgYXQgc3l6a2FsbGVyQGdvb2dsZWdyb3Vwcy5jb20uDQoNCnN5emJvdCB3aWxsIGtl
+ZXAgdHJhY2sgb2YgdGhpcyBidWcgcmVwb3J0LiBTZWU6DQpodHRwczovL2dvby5nbC90cHNtRUoj
+YnVnLXN0YXR1cy10cmFja2luZyBmb3IgaG93IHRvIGNvbW11bmljYXRlIHdpdGggIA0Kc3l6Ym90
+Lg0Kc3l6Ym90IGNhbiB0ZXN0IHBhdGNoZXMgZm9yIHRoaXMgYnVnLCBmb3IgZGV0YWlscyBzZWU6
+DQpodHRwczovL2dvby5nbC90cHNtRUojdGVzdGluZy1wYXRjaGVzDQo=
 
