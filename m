@@ -2,209 +2,177 @@ Return-Path: <SRS0=hkLx=PX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49321C43387
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:26:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64D7FC43387
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:28:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00B8520656
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:26:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1945020868
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:28:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ravfEcEV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00B8520656
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iTLHNNJp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1945020868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E42F8E0004; Tue, 15 Jan 2019 02:26:04 -0500 (EST)
+	id A1DEB8E0004; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 893F08E0002; Tue, 15 Jan 2019 02:26:04 -0500 (EST)
+	id 9A2EA8E0002; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7AA6A8E0004; Tue, 15 Jan 2019 02:26:04 -0500 (EST)
+	id 893418E0004; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 55DD88E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 02:26:04 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id x12so1365138ioj.2
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:26:04 -0800 (PST)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D6DA8E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 02:28:32 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id r65so1323485iod.12
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:28:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=XJlg7UDv823W51FZR5L9hQOxxuEOpYTa3DBA12ck1aU=;
-        b=X7t+X3OUxNP51R95VTldzT0/mw7gy5i2MnaFVeKAfdikqa6hpo7HDcVko0kSGzdCVR
-         NlwS/8upYga40tTfkA7X6fTqUnZKFAO1qvyCwU2D/O+l4af0sRizx63fiVdFsplSdGHD
-         Z+xR4C/GTaYtrRPpCC+lBFOoDD/cDhUdn4mDXggxjHID70fOSuh4WoavlqDanG4KvtlK
-         uFBb7mvQcWIhkQ553HLbR6woYNlPzmf1d1MchCYLeajoC4XGYL5rGB0y2kHR6kmxbW8I
-         5vz2tK/QnDw0VQAQ4NF3HkeN3Fttee0m+kiWUrwSBFGKPFDOfVb2eZB48pAfC9YFns2r
-         cSgw==
-X-Gm-Message-State: AJcUukeLbEaHehA12PcfD0G5Rd1e3gdnftoFe3ZVciUExQH2kV/FtL7G
-	TsTre5NZ8CCGB36jiri8ZBhkCCOKafrB7XvzAU4jHVw6bXtNFdpAYYEkkaLjSf2lWRKEyjyYZl3
-	sx2BW+aEgQ7LjutZJY9DOFAhAIitnmVEQxFbU27ufc90PvRFeuuSqtzBXwRG9rOnbqEVZkVRChi
-	EP1vil+i9fKYyLGRWZYccsTHILafkCGEAfTvZ9bH8lK3Q+z3YliLR9UFhEpeGJNvMWP+PS6LBAw
-	3qXBktUcyLtqNuhjxI3pbvF3ZRzWbkRl7lkrRT47jTPWu/me7iUG8RPIu1R8m7pexPXjc2w2y7x
-	slFwZTQPEG+NhIDMbziSgCDSo80sa+/ojwpEAh3ZJlLGaPAoe1pIpvm2eyBOXr9SF2QHNvVpEpc
-	U
-X-Received: by 2002:a24:4843:: with SMTP id p64mr1723328ita.119.1547537164048;
-        Mon, 14 Jan 2019 23:26:04 -0800 (PST)
-X-Received: by 2002:a24:4843:: with SMTP id p64mr1723310ita.119.1547537163022;
-        Mon, 14 Jan 2019 23:26:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547537163; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Ti0B2+GOH1sUCCI3lKmEIHaxROwkZe+iQSCsCALUxmw=;
+        b=CR0/VsTL8h5qZ4HWHP5KbmByA6tqQm9vTL6qM06ckICbSv+Y3EwMFx5f6YPSLPXO9i
+         dqYh4jrQ+LeDknoTab3jybvjgV/aqK3iDfuHQ2Q+JkPRQZpv9IUeIZWttCkuiqq3Oe4x
+         LJjwUbmHOF8gIZwmLNO4E0sgdRL96555dV+iPE4pVfaT6DTfdB38bhxQFosjfHASD+JR
+         l9j/68OStNbeTAhiCRFrUfuKtl3RiQ17Uf/uuDmiurV0mNTPEYtfmiAIdEUK5Rw27q6m
+         8LyLNPEucqb7QmKAjrs1+c75nQWWdnTqhelgdQri/W8alMzygz+1GVtjloP01c4aIs9H
+         dJlA==
+X-Gm-Message-State: AJcUukcZ32ESmVln2R8+5L14VeONkKrNHjVFoChhVCLKUNochSfg0aWw
+	5Yqx0m88Z9pXoU+4EXRtt4tU4MCqv5HtVICrRRly2scHfVaPtrQ+SQNGS6qRG9UdilzsJ7q5Lnp
+	x1uKqtn3yOiYVJhdU/L1r0k45G6UJz3OP4WzPErYWvsLAg6ZLFDt1qS5FO8JoDatur7YQDgw/Tk
+	a2IYhgqi5p6zqFsOEWGMV/sdS4fFTW/g/OMWqZ940G/1CqaXOfoJOzV8QiMNCc2/C79gyRW5QO/
+	g+uZN7gUtdAzgqGYvwnRa6iMGBUbF9wWjB05J0WnZ6dAD7qfbBH+fP/buteZpmDU9cVAiGyklkd
+	DxSlHxGpys+NKT3d/LaCGAyb9yznc9tpT/NEgT26whkZ3qstkefFtquMlLmjlwBwgEIVZUTBGqH
+	p
+X-Received: by 2002:a5d:948e:: with SMTP id v14mr1173174ioj.191.1547537312124;
+        Mon, 14 Jan 2019 23:28:32 -0800 (PST)
+X-Received: by 2002:a5d:948e:: with SMTP id v14mr1173155ioj.191.1547537311493;
+        Mon, 14 Jan 2019 23:28:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547537311; cv=none;
         d=google.com; s=arc-20160816;
-        b=iVyong9Am34eZ17nHh3ndW7CJmN8aa+8keW3PJ5V04ZpoS9rWS1JqQqkgwj/sdtBxq
-         Eh6irrv6fu0smdTESoTg8yBb0VbzsiyZSGd6IffTx+E/sB2pNwbE+uw8Rmi3mxjbOmwE
-         x9lca5mXtfCTYu0VewainchWMbOZYFu7Q9mPVDrs8q52pm04DnLuLvsXyBpBWSXS1Aue
-         RuxxlejaUw9vvgnoINex1+0+vb/0xhbALdej/EjUQVLQZ1gmvARPsavuFK2Y6QN53s0J
-         FxpvKri/6svxsjD79NL2UiguXNnDA7WIt03Wsq6uupho2XvIsTquSXFP6RmJHs02qroq
-         0ZSg==
+        b=kP8hiUwBflG7BdgAL/QtDSgysX4zAv0xA+bEHGVoT6x8E16HCZale5kTxJ9NNgW7fv
+         tQWmCHyK6Kgw9XcHYZZlrxEr/53bUjxHxV/tSE7+KGbUuHbKcqY8q2SVNYIxiVPDTGVQ
+         sdRcQ9yJjCaesTgquQnSH13pju9Qup5D2tAgmmLgP4xbkQjMfBkP4DaBHl2fYM5czQZY
+         9uxcfP4n++7c83eRbwwG1LdQ2JUtwYHZZqhH4xNvXGmnq4RoDzB7Wo+dbcQpZDl3RlD9
+         yd9AftY5Te+bD1svXv01qPfAZ8BQA2uUN34Hpr0bY/uFTSosMUzUovBGU8xS/D1bZrgk
+         0N5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=XJlg7UDv823W51FZR5L9hQOxxuEOpYTa3DBA12ck1aU=;
-        b=RtUq8IzqDG52nNQ+OTHd0ew7pCkefyCqcRPvb6ZBXoem8CcGbxQUQkz1aa8UOCOZFR
-         dEiBTwhwUfkQp/mivOj+K5nhMzbxCIUUUXTrY0+ff9GXpCCXZyae/gD3FQfLUEVDoVD1
-         4JWj0bKUMVnbYmZJ615g4IJnBPnDhnroF/rgLTFMPtmumall29jObtGseAyZsE13AvL0
-         XhLb4Imwc3A6lF4S7ecKlc/egeD39L63Tt51KnVbXBwCAyWYAUyto0rSb3QAzqishNbB
-         Sk6d1MxAsN/NEQRp4WkcMhFNXZr66kpPuCRt9LVHH4skTq06JrJwJTEtnmRKijhA1+Dg
-         VvAw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Ti0B2+GOH1sUCCI3lKmEIHaxROwkZe+iQSCsCALUxmw=;
+        b=Jo9dFHzFKCeETdEiwKo/GFULZEVABR9FplDe/siBTGmhl/LsNvBMEOgWcHgmXQ9+zz
+         hBxPqfOasDsZLBtkxZoVT6s31+ECGG5QpXcAq0D0FURFQ0RJ6u8A8t2Nu89cGBOKIXgT
+         VG21LseRLrH5MdShn7EB3ULd8WLVtjm0fZe3evWSs96J/99L3cGuEONgsB8YB677AkIY
+         Gv10YJ8eFdoQTERBCbgbI8R2vbkMUVxBZhyCqseZgK6om+WIMQHrqHpzPa7Q8zHy18l7
+         AOH5O/M+9mO0n+dbDl8LZlowIrFtNvnxG/8WJQMgRaDtEZHM+B4OrjU9OKKkl9so8r5D
+         6i9w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ravfEcEV;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iTLHNNJp;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j79sor5854057jad.11.2019.01.14.23.26.02
+        by mx.google.com with SMTPS id v192sor3949259itb.17.2019.01.14.23.28.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 23:26:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 14 Jan 2019 23:28:31 -0800 (PST)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ravfEcEV;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iTLHNNJp;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=XJlg7UDv823W51FZR5L9hQOxxuEOpYTa3DBA12ck1aU=;
-        b=ravfEcEVjc1PWtNHe5JFNQpvrDPHkP7/913XlgPu4Lo65Qpi7M4y+0Hx3zbCAuRd5c
-         gljum53+MwHk9zKIYmQK0HswGkN2GpeEbz6rtYRyXOW49f7BvDuoKRsDFYhoqCCmtwH/
-         YYuAwOpTXEt1nJhXZJEQu7XFyvXtBLPXhEiRDtXbIEFlQaNDt5glkBT1a6GqwWyV7SFf
-         4f8/u4z1IHe9LslaLQZtxWuToviE2IWbrktRxtDs47zq8oEqrcYq5jxsm0uKuFA5dL7z
-         zrA8b2uoDFGiTEIXhQHFNSGSXgYtyscjVtrFuhLiehdFZTbyrpSbIyi+Y3SFhvdDWOTD
-         qs2g==
-X-Google-Smtp-Source: ALg8bN6YwqPFj4vZ8gQa/IMFGLXOomw5FoQoxDAjYLZwlX4XMCYOudW9/yWBmkcSKEQtLmarYinnVvK17onysjZsjuk=
-X-Received: by 2002:a02:ac8c:: with SMTP id x12mr1237735jan.72.1547537162534;
- Mon, 14 Jan 2019 23:26:02 -0800 (PST)
+         :cc;
+        bh=Ti0B2+GOH1sUCCI3lKmEIHaxROwkZe+iQSCsCALUxmw=;
+        b=iTLHNNJpov1e6c5j8dhFlI+XgtoGgIqdyCEc4w6GCepOHFHUsg5pNNpynFwlwvb8H7
+         mCvbJ97rjNZSKJFNK0vyZoldc8/zD/kqIBjNz21JZ/WIPGAlUYke1Nx+JlS1ouE57sy1
+         Q4afFRXT0TAZXtStU74WDQnikYgCVu8V/FtYg5/18q7VhRNsWYXeQUQixTRMg8VVOvrZ
+         t8I1lcXx3JwEBA/plyK6aD9bn3N7WT7ewacLoyyZ4gFpEyp941PZgsYusHgBGwHToJoV
+         OSmsrFuMwLzwfWOOHm6f3yErYmDMTqiySnD2YRpPhvYpS1Im0WN8LwUY0pnhpPleA0Ei
+         qLFQ==
+X-Google-Smtp-Source: ALg8bN6DTPPimR34oteI/ijt0sww/halUd6Z0r/NZkQw1Wxqsp7JOKTv6I7qSU4QjHuryU7zvHEybRq8MDNlWOWXqxo=
+X-Received: by 2002:a24:414c:: with SMTP id x73mr1674837ita.129.1547537311236;
+ Mon, 14 Jan 2019 23:28:31 -0800 (PST)
 MIME-Version: 1.0
-References: <000000000000f49537057f77cb00@google.com>
-In-Reply-To: <000000000000f49537057f77cb00@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 15 Jan 2019 08:25:51 +0100
+References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+ <1547183577-20309-3-git-send-email-kernelfans@gmail.com> <a5fe4d86-3551-7da8-caca-fdd497ace99f@intel.com>
+In-Reply-To: <a5fe4d86-3551-7da8-caca-fdd497ace99f@intel.com>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Tue, 15 Jan 2019 15:28:19 +0800
 Message-ID:
- <CACT4Y+Zj0h69KdTKD8N7bcpJF4AMyDK0WGEQ8uueL5Nf3DC1YQ@mail.gmail.com>
-Subject: Re: KASAN: use-after-scope Read in corrupted
-To: syzbot <syzbot+bd36b7dd9330f67037ab@syzkaller.appspotmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Qian Cai <cai@lca.pw>, 
-	Chris von Recklinghausen <crecklin@redhat.com>, Kees Cook <keescook@chromium.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>
+ <CAFgQCTsMo9+8m9jxUK5Eax44rsY+a3TBpb4HsUrScJW3OQ18Kw@mail.gmail.com>
+Subject: Re: [PATCHv2 2/7] acpi: change the topo of acpi_table_upgrade()
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, 
+	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
+	Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, 
+	Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, 
+	Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Chao Fan <fanc.fnst@cn.fujitsu.com>, 
+	Baoquan He <bhe@redhat.com>, Juergen Gross <jgross@suse.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, x86@kernel.org, 
+	linux-acpi@vger.kernel.org, linux-mm@kvack.org
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190115072551.jgLungiMMW_Wc2EuqewqLxf66gYKzGIZmKdRvnxuLwA@z>
+Message-ID: <20190115072819.r7dA4k84VgBOXJNnSPvSjafXXrDCcB4iac8HQoQ-MKM@z>
 
-On Tue, Jan 15, 2019 at 5:43 AM syzbot
-<syzbot+bd36b7dd9330f67037ab@syzkaller.appspotmail.com> wrote:
+On Tue, Jan 15, 2019 at 7:12 AM Dave Hansen <dave.hansen@intel.com> wrote:
 >
-> Hello,
+> On 1/10/19 9:12 PM, Pingfan Liu wrote:
+> > The current acpi_table_upgrade() relies on initrd_start, but this var is
 >
-> syzbot found the following crash on:
+> "var" meaning variable?
 >
-> HEAD commit:    1bdbe2274920 Merge tag 'vfio-v5.0-rc2' of git://github.co=
-m..
-> git tree:       upstream
-> console output: https://syzkaller.appspot.com/x/log.txt?x=3D1519d39f40000=
-0
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=3Dedf1c3031097c=
-304
-> dashboard link: https://syzkaller.appspot.com/bug?extid=3Dbd36b7dd9330f67=
-037ab
-> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=3D10fce14f400=
-000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=3D110b201740000=
-0
+> Could you please go back and try to ensure you spell out all the words
+> you are intending to write?  I think "topo" probably means "topology",
+> but it's a really odd word to use for changing the arguments of a
+> function, so I'm not sure.
+>
+> There are a couple more of these in this set.
+>
+Yes. I will do it and fix them in next version.
 
-Based on the reproducer this is:
+> > only valid after relocate_initrd(). There is requirement to extract the
+> > acpi info from initrd before memblock-allocator can work(see [2/4]), hence
+> > acpi_table_upgrade() need to accept the input param directly.
+>
+> "[2/4]"
+>
+> It looks like you quickly resent this set without updating the patch
+> descriptions.
+>
+> > diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+> > index 61203ee..84e0a79 100644
+> > --- a/drivers/acpi/tables.c
+> > +++ b/drivers/acpi/tables.c
+> > @@ -471,10 +471,8 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
+> >
+> >  #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
+> >
+> > -void __init acpi_table_upgrade(void)
+> > +void __init acpi_table_upgrade(void *data, size_t size)
+> >  {
+> > -     void *data = (void *)initrd_start;
+> > -     size_t size = initrd_end - initrd_start;
+> >       int sig, no, table_nr = 0, total_offset = 0;
+> >       long offset = 0;
+> >       struct acpi_table_header *table;
+>
+> I know you are just replacing some existing variables, but we have a
+> slightly higher standard for naming when you actually have to specify
+> arguments to a function.  Can you please give these proper names?
+>
+OK, I will change it to acpi_table_upgrade(void *initrd, size_t size).
 
-#syz dup: kernel panic: stack is corrupted in udp4_lib_lookup2
-
-
-> IMPORTANT: if you fix the bug, please add the following tag to the commit=
-:
-> Reported-by: syzbot+bd36b7dd9330f67037ab@syzkaller.appspotmail.com
->
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> BUG: KASAN: use-after-scope in debug_lockdep_rcu_enabled.part.0+0x50/0x60
-> kernel/rcu/update.c:249
-> Read of size 4 at addr ffff8880a945eabc by task
-> `9=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD#=EF=BF=BD(  =EF=
-=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD<=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=
-=BF=BD=EF=BF=BD  k=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=
-=BF=BDE=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD>9h=EF=BF=BD=EF=BF=BD=
-=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BDA/-2122188634
->
-> CPU: 0 PID: -2122188634 Comm: =EF=BF=BD=EF=BF=BDE=EF=BF=BD=EF=BF=BD=EF=BF=
-=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=
-=EF=BF=BD=EF=BF=BDO2=EF=BF=BD Not tainted 5.0.0-rc1+
-> #19
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> ------------[ cut here ]------------
-> Bad or missing usercopy whitelist? Kernel memory overwrite attempt detect=
-ed
-> to SLAB object 'task_struct' (offset 1344, size 8)!
-> WARNING: CPU: 0 PID: -1455036288 at mm/usercopy.c:78
-> usercopy_warn+0xeb/0x110 mm/usercopy.c:78
-> Kernel panic - not syncing: panic_on_warn set ...
-> CPU: 0 PID: -1455036288 Comm: =EF=BF=BD=EF=BF=BDE=EF=BF=BD=EF=BF=BD=EF=BF=
-=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=EF=BF=BD=
-=EF=BF=BD=EF=BF=BDO2=EF=BF=BD Not tainted 5.0.0-rc1+
-> #19
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> Call Trace:
-> Kernel Offset: disabled
-> Rebooting in 86400 seconds..
->
->
-> ---
-> This bug is generated by a bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for more information about syzbot.
-> syzbot engineers can be reached at syzkaller@googlegroups.com.
->
-> syzbot will keep track of this bug report. See:
-> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
-> syzbot.
-> syzbot can test patches for this bug, for details see:
-> https://goo.gl/tpsmEJ#testing-patches
->
-> --
-> You received this message because you are subscribed to the Google Groups=
- "syzkaller-bugs" group.
-> To unsubscribe from this group and stop receiving emails from it, send an=
- email to syzkaller-bugs+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgi=
-d/syzkaller-bugs/000000000000f49537057f77cb00%40google.com.
-> For more options, visit https://groups.google.com/d/optout.
+Thanks,
+Pingfan
 
