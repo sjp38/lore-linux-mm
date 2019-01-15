@@ -1,91 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D59098E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:11:37 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id e12so1159736edd.16
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 06:11:37 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 65si2563751edk.21.2019.01.15.06.11.35
-        for <linux-mm@kvack.org>;
-        Tue, 15 Jan 2019 06:11:35 -0800 (PST)
-Subject: Re: [PATCH] mm: Introduce GFP_PGTABLE
-References: <1547288798-10243-1-git-send-email-anshuman.khandual@arm.com>
- <20190113173555.GC1578@dhcp22.suse.cz>
- <f9f333a5-5533-996a-dc8e-1ff1096c1d19@arm.com>
- <20190114070137.GB21345@dhcp22.suse.cz>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <a81dd27a-b7d1-ddad-e104-4ce51699ac3d@arm.com>
-Date: Tue, 15 Jan 2019 19:41:24 +0530
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2C18E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:50:08 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id u20so2568317qtk.6
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 06:50:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g65sor22938035qkd.1.2019.01.15.06.50.07
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 15 Jan 2019 06:50:08 -0800 (PST)
+Date: Tue, 15 Jan 2019 09:50:05 -0500
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [PATCH v4 2/2] selftests/memfd: Add tests for
+ F_SEAL_FUTURE_WRITE seal
+Message-ID: <20190115145005.GC36681@google.com>
+References: <20190112203816.85534-1-joel@joelfernandes.org>
+ <20190112203816.85534-3-joel@joelfernandes.org>
+ <f9ffb7f8-1ff8-3bec-ce79-f9322d8715dc@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190114070137.GB21345@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f9ffb7f8-1ff8-3bec-ce79-f9322d8715dc@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com
+To: shuah <shuah@kernel.org>
+Cc: linux-kernel@vger.kernel.org, dancol@google.com, minchan@kernel.org, Jann Horn <jannh@google.com>, John Stultz <john.stultz@linaro.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Hugh Dickins <hughd@google.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, linux-api@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-
-
-On 01/14/2019 12:31 PM, Michal Hocko wrote:
-> On Mon 14-01-19 09:30:55, Anshuman Khandual wrote:
->>
->>
->> On 01/13/2019 11:05 PM, Michal Hocko wrote:
->>> On Sat 12-01-19 15:56:38, Anshuman Khandual wrote:
->>>> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
->>>> __GFP_ZERO) and using it for allocating page table pages. This causes some
->>>> code duplication which can be easily avoided. GFP_KERNEL allocated and
->>>> cleared out pages (__GFP_ZERO) are required for page tables on any given
->>>> architecture. This creates a new generic GFP flag flag which can be used
->>>> for any page table page allocation. Does not cause any functional change.
->>>
->>> I agree that some unification is due but GFP_PGTABLE is not something to
->>> expose in generic gfp.h IMHO. It just risks an abuse. I would be looking
->>
->> Why would you think that it risks an abuse ? It does not create new semantics
->> of allocation in the buddy. Its just uses existing GFP_KERNEL allocation which
->> is then getting zeroed out. The risks (if any) is exactly same as GFP_KERNEL.
+On Mon, Jan 14, 2019 at 06:39:59PM -0700, shuah wrote:
+> On 1/12/19 1:38 PM, Joel Fernandes wrote:
+> > From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+> > 
+> > Add tests to verify sealing memfds with the F_SEAL_FUTURE_WRITE works as
+> > expected.
+> > 
+> > Cc: dancol@google.com
+> > Cc: minchan@kernel.org
+> > Cc: Jann Horn <jannh@google.com>
+> > Cc: John Stultz <john.stultz@linaro.org>
+> > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> > ---
 > 
-> Beucase my experience just tells me that people tend to use whatever
-> they find and name fits what they think they need.
+> Looks good to me. For selftest part of the series:
 > 
->>> at providing asm-generic implementation and reuse it to remove the code
->>
->> Does that mean GFP_PGTABLE can be created but not in gfp.h but in some other
->> memory related header file ?
-> 
-> I would just keep it close to its users. If that is a single arch
-> generic place then only better. But I suspect some arches have special
-> requirements.
+> Reviewed-by: Shuah Khan <shuah@kernel.org>
 
-We can move the definition into include/asm-generic/pgtable.h which can be
-used by all archs. If there any special requirements those can be added on
-this generic and common minimum allocation flag. The minimum required flag
-should not be duplicated every where.
+Thanks!
 
-> 
->>> duplication. But I haven't tried that to know that it will work out due
->>> to small/subtle differences between arches.
->>
->> IIUC from the allocation perspective GFP_ACCOUNT is the only thing which gets
->> added with GFP_PGTABLE for user page table for memcg accounting purpose. There
->> does not seem to be any other differences unless I am missing something.
-> 
-> It's been some time since I've checked the last time. Some arches were
-> using GPF_REPEAT (__GFP_RETRY_MAYFAIL) back then. I have removed most of
-> those but some were doing a higher order allocations so they probably
-> have stayed.
+John, could you provide your Reviewed-by again for patch 1/2 ? I had dropped
+it since the patch had some more changes.
 
-A simple grep shows that still there are some places which use the flag
-__GFP_RETRY_MAYFAIL. But that can be added on GFP_PGTABLE for these archs.
+thanks,
 
-arch/nds32/include/asm/pgalloc.h:           (pte_t *) __get_free_page(GFP_KERNEL | __GFP_RETRY_MAYFAIL |
-arch/nds32/include/asm/pgalloc.h:       pte = alloc_pages(GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO, 0);
-arch/powerpc/include/asm/book3s/64/pgalloc.h:   page = alloc_pages(pgtable_gfp_flags(mm, PGALLOC_GFP | __GFP_RETRY_MAYFAIL),
-arch/powerpc/kvm/book3s_64_mmu_hv.c:            hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_RETRY_MAYFAIL
-arch/riscv/include/asm/pgalloc.h:               GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);
-arch/riscv/include/asm/pgalloc.h:               GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);
-arch/riscv/include/asm/pgalloc.h:       pte = alloc_page(GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);
-arch/sparc/kernel/mdesc.c:      base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+ - Joel
