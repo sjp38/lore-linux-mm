@@ -1,153 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DE2F8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 15:48:02 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id p12so110357wrt.17
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 12:48:02 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B55508E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 00:31:23 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id p79so1338161qki.15
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 21:31:23 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q186sor19359863wme.15.2019.01.14.12.48.00
+        by mx.google.com with SMTPS id v18sor86608493qtp.42.2019.01.14.21.31.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 12:48:00 -0800 (PST)
+        Mon, 14 Jan 2019 21:31:22 -0800 (PST)
+Subject: Re: [PATCH v2] rbtree: fix the red root
+References: <20190111181600.GJ6310@bombadil.infradead.org>
+ <20190111205843.25761-1-cai@lca.pw>
+ <a783f23d-77ab-a7d3-39d1-4008d90094c3@lechnology.com>
+ <CANN689G0zbk7sMbQ+p9NQGQ=NWq-Q0mQOOjeFkLp19YrTfgcLg@mail.gmail.com>
+ <864d6b85-3336-4040-7c95-7d9615873777@lechnology.com>
+ <b1033d96-ebdd-e791-650a-c6564f030ce1@lca.pw>
+ <8v11ZOLyufY7NLAHDFApGwXOO_wGjVHtsbw1eiZ__YvI9EZCDe_4FNmlp0E-39lnzGQHhHAczQ6Q6lQPzVU2V6krtkblM8IFwIXPHZCuqGE=@protonmail.ch>
+ <c6265fc0-4089-9d1a-ba7c-b267b847747e@interlog.com>
+ <UKsodHRZU8smIdO2MHHL4Yzde_YB4iWX43TaHI1uY2tMo4nii4ucbaw4XC31XIY-Pe4oEovjF62qbkeMsIMTrvT1TdCCP4Fs_fxciAzXYVc=@protonmail.ch>
+ <ad591828-76e8-324b-6ab8-dc87e4390f64@interlog.com>
+ <GBn2paWQ0Uy0COgTeJsgmC18Faw0x_yNIog8gpuC5TJ4kCn_IUH1EnHJW0mQeo3Qy5MMcpMzyw9Yer3lxyWYgtk5TJx8I3sJK4oVlIJh38s=@protonmail.ch>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <dac115ca-d6ed-dfc0-161a-8e51a7f93e00@lca.pw>
+Date: Tue, 15 Jan 2019 00:31:20 -0500
 MIME-Version: 1.0
-References: <20190110220718.261134-1-surenb@google.com> <20190110220718.261134-6-surenb@google.com>
- <20190114102137.GB14054@worktop.programming.kicks-ass.net>
- <CAJuCfpGUWs0E9oPUjPTNm=WhPJcE_DBjZCtCiaVu5WXabKRW6A@mail.gmail.com> <20190114194222.GA10571@cmpxchg.org>
-In-Reply-To: <20190114194222.GA10571@cmpxchg.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Mon, 14 Jan 2019 12:47:48 -0800
-Message-ID: <CAJuCfpF+eZFxCuB4QtQDOeDFYRg1LBiAKkF6QZxRk-FenkNu7w@mail.gmail.com>
-Subject: Re: [PATCH v2 5/5] psi: introduce psi monitor
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <GBn2paWQ0Uy0COgTeJsgmC18Faw0x_yNIog8gpuC5TJ4kCn_IUH1EnHJW0mQeo3Qy5MMcpMzyw9Yer3lxyWYgtk5TJx8I3sJK4oVlIJh38s=@protonmail.ch>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, lizefan@huawei.com, axboe@kernel.dk, dennis@kernel.org, Dennis Zhou <dennisszhou@gmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org, linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
+To: Esme <esploit@protonmail.ch>, "dgilbert@interlog.com" <dgilbert@interlog.com>
+Cc: David Lechner <david@lechnology.com>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, "jejb@linux.ibm.com" <jejb@linux.ibm.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "joeypabalinas@gmail.com" <joeypabalinas@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jan 14, 2019 at 11:42 AM Johannes Weiner <hannes@cmpxchg.org> wrote:
->
-> On Mon, Jan 14, 2019 at 11:30:12AM -0800, Suren Baghdasaryan wrote:
-> > On Mon, Jan 14, 2019 at 2:22 AM Peter Zijlstra <peterz@infradead.org> wrote:
-> > >
-> > > On Thu, Jan 10, 2019 at 02:07:18PM -0800, Suren Baghdasaryan wrote:
-> > > > +/*
-> > > > + * psi_update_work represents slowpath accounting part while
-> > > > + * psi_group_change represents hotpath part.
-> > > > + * There are two potential races between these path:
-> > > > + * 1. Changes to group->polling when slowpath checks for new stall, then
-> > > > + *    hotpath records new stall and then slowpath resets group->polling
-> > > > + *    flag. This leads to the exit from the polling mode while monitored
-> > > > + *    states are still changing.
-> > > > + * 2. Slowpath overwriting an immediate update scheduled from the hotpath
-> > > > + *    with a regular update further in the future and missing the
-> > > > + *    immediate update.
-> > > > + * Both races are handled with a retry cycle in the slowpath:
-> > > > + *
-> > > > + *    HOTPATH:                         |    SLOWPATH:
-> > > > + *                                     |
-> > > > + * A) times[cpu] += delta              | E) delta = times[*]
-> > > > + * B) start_poll = (delta[poll_mask] &&|    if delta[poll_mask]:
-> > > > + *      cmpxchg(g->polling, 0, 1) == 0)| F)   polling_until = now +
-> > > > + *                                     |              grace_period
-> > > > + *                                     |    if now > polling_until:
-> > > > + *    if start_poll:                   |      if g->polling:
-> > > > + * C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
-> > > > + *    else if !delayed_work_pending(): | H)     goto SLOWPATH
-> > > > + * D)   schedule_delayed_work(PSI_FREQ)|    else:
-> > > > + *                                     |      if !g->polling:
-> > > > + *                                     | I)     g->polling = polling = 1
-> > > > + *                                     | J) if delta && first_pass:
-> > > > + *                                     |      next_avg = calculate_averages()
-> > > > + *                                     |      if polling:
-> > > > + *                                     |        next_poll = poll_triggers()
-> > > > + *                                     |    if (delta && first_pass) || polling:
-> > > > + *                                     | K)   mod_delayed_work(
-> > > > + *                                     |          min(next_avg, next_poll))
-> > > > + *                                     |      if !polling:
-> > > > + *                                     |        first_pass = false
-> > > > + *                                     | L)     goto SLOWPATH
-> > > > + *
-> > > > + * Race #1 is represented by (EABGD) sequence in which case slowpath
-> > > > + * deactivates polling mode because it misses new monitored stall and hotpath
-> > > > + * doesn't activate it because at (B) g->polling is not yet reset by slowpath
-> > > > + * in (G). This race is handled by the (H) retry, which in the race described
-> > > > + * above results in the new sequence of (EABGDHEIK) that reactivates polling
-> > > > + * mode.
-> > > > + *
-> > > > + * Race #2 is represented by polling==false && (JABCK) sequence which
-> > > > + * overwrites immediate update scheduled at (C) with a later (next_avg) update
-> > > > + * scheduled at (K). This race is handled by the (L) retry which results in the
-> > > > + * new sequence of polling==false && (JABCKLEIK) that reactivates polling mode
-> > > > + * and reschedules next polling update (next_poll).
-> > > > + *
-> > > > + * Note that retries can't result in an infinite loop because retry #1 happens
-> > > > + * only during polling reactivation and retry #2 happens only on the first
-> > > > + * pass. Constant reactivations are impossible because polling will stay active
-> > > > + * for at least grace_period. Worst case scenario involves two retries (HEJKLE)
-> > > > + */
-> > >
-> > > I'm having a fairly hard time with this. There's a distinct lack of
-> > > memory ordering, and a suspicious mixing of atomic ops (cmpxchg) and
-> > > regular loads and stores (without READ_ONCE/WRITE_ONCE even).
-> > >
-> > > Please clarify.
-> >
-> > Thanks for the feedback.
-> > I do mix atomic and regular loads with g->polling only because the
-> > slowpath is the only one that resets it back to 0, so
-> > cmpxchg(g->polling, 1, 0) == 1 at (G) would always return 1.
-> > Setting g->polling back to 1 at (I) indeed needs an atomic operation
-> > but at that point it does not matter whether hotpath or slowpath sets
-> > it. In either case we will schedule a polling update.
-> > Am I missing anything?
-> >
-> > For memory ordering (which Johannes also pointed out) the critical point is:
-> >
-> > times[cpu] += delta           | if g->polling:
-> > smp_wmb()                     |   g->polling = polling = 0
-> > cmpxchg(g->polling, 0, 1)     |   smp_rmb()
-> >                               |   delta = times[*] (through goto SLOWPATH)
-> >
-> > So that hotpath writes to times[] then g->polling and slowpath reads
-> > g->polling then times[]. cmpxchg() implies a full barrier, so we can
-> > drop smp_wmb(). Something like this:
-> >
-> > times[cpu] += delta           | if g->polling:
-> > cmpxchg(g->polling, 0, 1)     |   g->polling = polling = 0
-> >                               |   smp_rmb()
-> >                               |   delta = times[*] (through goto SLOWPATH)
->
-> delta = times[*] is get_recent_times(), which uses a seqcount and so
-> implies the smp_rmb() already as well. So we shouldn't need another
-> explicit one. But the comment should point out all the barriers.
 
-Got it, thanks!
-How about changing the comment this way:
+> [  114.913404] Padding 000000006913c65d: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.915437] Padding 000000002d53f25c: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.917390] Padding 0000000078f7d621: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.919402] Padding 0000000063547658: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.921414] Padding 000000001a301f4e: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.923364] Padding 0000000046589d24: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.925340] Padding 0000000008fb13da: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.927291] Padding 00000000ae5cc298: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.929239] Padding 00000000d49cc239: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.931177] Padding 00000000d66ad6f5: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.933110] Padding 00000000069ad671: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.934986] Padding 00000000ffaf648c: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.936895] Padding 00000000c96d1b58: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.938848] Padding 00000000768e4920: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.940965] Padding 000000000d06b43c: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.942890] Padding 00000000af5ae9fa: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.944790] Padding 000000006b526f1e: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  114.946727] Padding 000000009c8dffe3: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
 
-   HOTPATH:                         |    SLOWPATH:
-                                    |
-A) times[cpu] += delta              | E) delta = times[*]
-   smp_wmb()                        |    if delta[poll_mask]:
-B) start_poll = (delta[poll_mask] &&| F)   polling_until = now + grace_period
-     cmpxchg(g->polling, 0, 1) == 0)|    if now > polling_until:
-   if start_poll:                   |      if g->polling:
-C)   mod_delayed_work(1)            | G)     g->polling = polling = 0
-   else if !delayed_work_pending(): |        smp_rmb()
-D)   schedule_delayed_work(PSI_FREQ)| H)     goto SLOWPATH
-                                    |    else:
-                                    |      if !g->polling:
-                                    | I)     g->polling = polling = 1
-                                    | J) if delta && first_pass:
-                                    |      next_avg = calculate_averages()
-                                    |      if polling:
-                                    |        next_poll = poll_triggers()
-                                    |    if (delta && first_pass) || polling:
-                                    | K)   mod_delayed_work(
-                                    |          min(next_avg, next_poll))
-                                    |      if !polling:
-                                    |        first_pass = false
-                                    | L)     goto SLOWPATH
+Another testing angle,
 
-And maybe adding a comment about implied memory barriers in cmpxchg()
-and in seqlock.
-Would that be enough?
+It might be something is doing __GFP_ZERO and overwriting those slabs. This also
+matched the red root corruption, since RB_RED is bit 0.
+
+One thing to try is to enable page_owner=on in the command-line, and then obtain
+sorted_page_owner.txt before and after running the reproducer.
+
+$ cd tools/vm
+$ make page_owner_sort
+
+$ cat /sys/kernel/debug/page_owner > page_owner_full.txt
+$ grep -v ^PFN page_owner_full.txt > page_owner.txt
+$ ./page_owner_sort page_owner.txt sorted_page_owner.txt
