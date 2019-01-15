@@ -2,147 +2,220 @@ Return-Path: <SRS0=hkLx=PX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B2831C43387
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 17:17:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCB1BC43612
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 17:34:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DDE120657
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 17:17:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lixom-net.20150623.gappssmtp.com header.i=@lixom-net.20150623.gappssmtp.com header.b="Lz8/VpBQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DDE120657
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lixom.net
+	by mail.kernel.org (Postfix) with ESMTP id 85DC620656
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 17:34:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85DC620656
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F3CA68E0005; Tue, 15 Jan 2019 12:17:42 -0500 (EST)
+	id 1EA6B8E0008; Tue, 15 Jan 2019 12:34:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEC518E0002; Tue, 15 Jan 2019 12:17:42 -0500 (EST)
+	id 19A458E0002; Tue, 15 Jan 2019 12:34:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DDC378E0005; Tue, 15 Jan 2019 12:17:42 -0500 (EST)
+	id 0B1248E0008; Tue, 15 Jan 2019 12:34:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B3B5B8E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:17:42 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id f24so2490027ioh.21
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:17:42 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1108E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:34:39 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id c14so2019298pls.21
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:34:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=OyTWDGjB04njMwsJJg++MJFclcQB0WwiuSGTWP72bao=;
-        b=rT24fcqKXIwbMdCKLPlQQk/yYw0KY0tzKj3D8DA5AHuUoOfFE3B4ZDI4O6nkiHs++t
-         d4dYoS6BVgefvdVxmPgGmZxskVa/yHPwdf6+hdCwGR+1t6oROuQkwmSdefiPWCKQ+Qfs
-         D5uJxytKowFiDnzquoFzkYM4qswUAHvLOYnNuf7AcuOcTd4RYsogdbmroYzG89e0/4aA
-         M/W+UQpSgjC0AVjMPCnNM1g7bEbNAaT1ixvVBbFoN/YseEG/8mLMMgrte9wrokr5KnpK
-         f7QeF9x/R2aYwuoPSR9/61WPPnmDIFz7LRufZogx/2Q0a/0GDQZHRZj9DQy5bv6TBJOk
-         RRxA==
-X-Gm-Message-State: AJcUukdclCcewBVyvjflKsjgo7oZBiFOntmKCpmCzbrpiaFuMHLexZbC
-	CnLjAFzxXser4ik8kKPetAeN00gj/F7RFeE/zHL5cifrRJZGLfs5YH0Iq+qaU7FJiSPOcNo5D5t
-	VfYuy1gJbaSLnVVZPzG2O/yZKQICdJ7Asvybn1sLmblrGwbXMOGNSAMcHmGzRrBGyGq43M1dnTS
-	8g4V9grkxJWiGdtDZWkN19624NtAV1MyMq/xoQ8EcRfkW5s6g6tVn8gUSoLUpaEyEKQECE6L49w
-	lVsR7ByUwdbfLernpQ3FsH8ydf0fuWf0H7ag5olZIwZlN8lN7yw8SXcaWX1pjRJhdB908Tpqhiw
-	Ai+A18rTOnn73ls7HzbTHh5mrZ2xOXk1SYrV5zrsQIdJl/YcpqZHPoK6IRB37N3NAAFckyd5PiG
-	x
-X-Received: by 2002:a5e:a708:: with SMTP id b8mr2577752iod.126.1547572662519;
-        Tue, 15 Jan 2019 09:17:42 -0800 (PST)
-X-Received: by 2002:a5e:a708:: with SMTP id b8mr2577726iod.126.1547572661876;
-        Tue, 15 Jan 2019 09:17:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547572661; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=0c7evrTAwq9ca1jWD7AsAP7FXRUT/laZLINdYKwSZyk=;
+        b=K4yT4si5550WZXrl9BUt+absfZ+454qX1PLzJQQlnCgXhuMjgrpnz9h96NaF8Wvdu3
+         Zexrdu6IxfSWvNPsCEtNzaVtTmW8d8Lv+ALHVB1WHSyq+9EUFU6hpYDCvgiW9ZAi2bgm
+         K6kgGbZdpKPuHb+v+RAVDIlD4v33qBEQdUwoTLHxOxSv+7qz4fg/W1tkqTzOBf8nB8ao
+         6j5oWJS877iplMrnFo9Rxvk/WvrKW1D4asd2QGrfClYy9d0Wua0HJ5hnkX2eHxpV4qWJ
+         /5WMyJWlm8nYtXUQy8lLyiyMYRyQEHkSmoIwwUtPTWqYSBANoBtu0Wp0RGz49tCJaxPz
+         g1yA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukdvw4Oc1DBhs6WB1F6brvvqtVJ8I5zhPb5wyGQ7/86YdNubSLq6
+	De2CJcf/dkryjx2hovG/Z9f1gg0OnDpbBsonEWaJAGjIoHp0wr3CokTqy7YsnTln3IPNZgN0bgd
+	Gveif6HSdgkq39EcutCllHKcPmg1boGnyX83EMEoen0fTvXqiZiqLAWeUSuYUWYftXg==
+X-Received: by 2002:a63:6ac5:: with SMTP id f188mr4808172pgc.165.1547573679352;
+        Tue, 15 Jan 2019 09:34:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6tRtMtk9laBISeZv2QQ7DrpYncremjdLXWElbn+h8VPhMnGDYWVrtVMgA4yCz2nRmCXYRB
+X-Received: by 2002:a63:6ac5:: with SMTP id f188mr4808106pgc.165.1547573678433;
+        Tue, 15 Jan 2019 09:34:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547573678; cv=none;
         d=google.com; s=arc-20160816;
-        b=YkZ4GZaG933bUVuZMccX8pc563ZJkQFZLT84GG85Fxn/bbIHkZ27A55Pmilz/qo45O
-         ZS253i9fLh4jv3OYm+kB/JKtEo6K79fpcrauGrxlT7CWJrAzk/msaepyREBKO344S6m2
-         deJAg3WcCLJnJWhPJYMsZS0L7BZ2coqzhdXtms/HdpDl0kAvLW6LGHhn2By9JINqd/2Q
-         B/Lq2mPTyequl0XexAtriOVE2UpJ2ZYu8ofu5A05WP5Qrmosa0KAEj3IxVGtKXkroJ9d
-         KO52GtSrAlPp1eKlG2Er3FsaKTqh+0+kbgJAemCgRySCcmorfskALJLWwLsBsUzm7jOX
-         9Ceg==
+        b=QC504gJbCDV56l4TSfaKUD1vCtC/L/cwNJ54Rd73FpCgoyGSTV1Cwd15mXhEIKIwG1
+         bD52+voo/5dmEh96tDuhsBFMNPZWnilyIXcDV70oymq0Y3WVgeHxerD5y4WKuOPdC9d8
+         GLdjFGJqYbUItftSxj1PLun+JNBVMVFrkXWe8uCdF2dCc/NZtAgmEua3nQ/9uD1y8j63
+         qAwzTLl1VcaNu3P78H2GZ5dSf2+p/K6n2oCCMKxMauDLXBjE5tGQpi6ZxZFrZT7r2B18
+         hV4n08KIz5kQf2ry8KVE5tLoB/JH8hVWFnSttaawbfFl8Het1VRklCjJeur36U99Nuys
+         ooDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=OyTWDGjB04njMwsJJg++MJFclcQB0WwiuSGTWP72bao=;
-        b=rWU6wG5zuqeUQUiWdu7VV9/cYW+HxRKECrs/3MCB++F1fLDmPLloCy0tz/QpczREQ6
-         nxKCMeaZ3me4TS/Lp1+Utq1fBlrco/h093qe0Jli9oPjvczWm/UzDs2d65vlVc+DH14X
-         ag1u20+4OEkvxdydKWlZxNKlYd2yKyd1wenmomcQWzMAadc6sHQzxTHP6UTatnaO02LV
-         y6ZjPMbS1LcoqqkYvymZxk132vR1ayIyuBapvMQKV7irQpWWHXCW3DM908oieC2sfJtY
-         7qzaSSmTUyxKWKewDUbTLfB2GNE2F4nD5QG/fiTwBq8rKzsMMfLH9IoPxMug7CMmrxOD
-         Jc9g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=0c7evrTAwq9ca1jWD7AsAP7FXRUT/laZLINdYKwSZyk=;
+        b=SxxxkWVUZJyyotrO6HoZbtx6oq/e8qdH0YDQrqrbjfo/wufjKHWNWDxSQfLYJB8YVC
+         GZwNCO7Fnr8AtFePYwQntIiy24hPv4Jef6wPICeXRtUhssVYZuEKAZB3FZRJRJ3O8m7e
+         3sxpNeop1MPs9O5rrBjLeZm/KTW/AXkp5x+yO3ZjcUV0Pgre8gZcmLFKZFi628TiRm+2
+         W4UGAHhn41Y8P42BxpT3lvhp9HClpaFWGXkIFUmMMRxZOuib/ju7hJD/AtKASW7JY9Db
+         E7UZiHZ5IlPVc0wUhgeVXxiaMcKtfWJYZKAIbBthW1GC6p8qcPZITqxrYHfzCpOp0zEL
+         DtNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lixom-net.20150623.gappssmtp.com header.s=20150623 header.b="Lz8/VpBQ";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of olof@lixom.net) smtp.mailfrom=olof@lixom.net
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x16sor2000402iol.120.2019.01.15.09.17.41
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id u184si3652568pgd.262.2019.01.15.09.34.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 15 Jan 2019 09:17:41 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of olof@lixom.net) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Jan 2019 09:34:38 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lixom-net.20150623.gappssmtp.com header.s=20150623 header.b="Lz8/VpBQ";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of olof@lixom.net) smtp.mailfrom=olof@lixom.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lixom-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=OyTWDGjB04njMwsJJg++MJFclcQB0WwiuSGTWP72bao=;
-        b=Lz8/VpBQBg9euPlPuE3cH1KxMTOGd5Rv1KU30bRzWfQOgpwAWL4UmW9ioOyUm22N6P
-         ZLjksmvypvb0QuQe5TlvppW0ws6ereoHPJm3+CtmmFBo2hygTe3M+fOS7fYixDal8+wB
-         g8HPWZtWJwsTKKPb+eO5tKXi+1AtJD1Tq+7tIoJrNNEZH6auJ4QmIhrcxHJBPIFg8Qk2
-         n942cAdmSPaZZTIU0PJMVLWTNDVjAjrVWXKbqU1LowvHfhzmeOCa8W9YIDUqHlEgG0k9
-         mM4BCog/mblnuF2+BFAnWtIrHaptDAi123wS2RG+phIi+h7/TQNiOqFTbsESuR+rUNVh
-         3G5Q==
-X-Google-Smtp-Source: ALg8bN6+NkI4MSEtHcJA5JExc6UAEsP+8T2ckmtM7ADijpiq1c3056xWHNsqJfLW60/Xd6baPbF/C8nYFc88HBLV04I=
-X-Received: by 2002:a5e:c107:: with SMTP id v7mr2805592iol.155.1547572661412;
- Tue, 15 Jan 2019 09:17:41 -0800 (PST)
-MIME-Version: 1.0
-References: <20190115164435.8423-1-olof@lixom.net> <20190115170510.GA4274@infradead.org>
-In-Reply-To: <20190115170510.GA4274@infradead.org>
-From: Olof Johansson <olof@lixom.net>
-Date: Tue, 15 Jan 2019 09:17:30 -0800
-Message-ID:
- <CAOesGMg4hd8z=2FVDTYMiuKzHnobNLnncV37j77BA+gQGg=heg@mail.gmail.com>
-Subject: Re: [PATCH] mm: Make CONFIG_FRAME_VECTOR a visible option
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 15 Jan 2019 09:34:37 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,481,1539673200"; 
+   d="scan'208";a="127980887"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga001.jf.intel.com with ESMTP; 15 Jan 2019 09:34:37 -0800
+Message-ID: <9bc20a9f2f5d6a99afa61ad68d827090553c09fe.camel@linux.intel.com>
+Subject: Re: [PATCH v10] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, 
+ akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz,
+ osalvador@suse.de,  linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: getarunks@gmail.com
+Date: Tue, 15 Jan 2019 09:34:37 -0800
+In-Reply-To: <1547571068-18902-1-git-send-email-arunks@codeaurora.org>
+References: <1547571068-18902-1-git-send-email-arunks@codeaurora.org>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190115171730.bem8DZ6oRqZLGZFdqsN8sqR7WUZ7F5apN0CiuROg5zo@z>
+Message-ID: <20190115173437.Z5mckxC2mDZtjfH1M8V5OlDc7XzezrU_uGPFHw9Ab4A@z>
 
-On Tue, Jan 15, 2019 at 9:05 AM Christoph Hellwig <hch@infradead.org> wrote:
->
-> On Tue, Jan 15, 2019 at 08:44:35AM -0800, Olof Johansson wrote:
-> > CONFIG_FRAME_VECTOR was made an option to avoid including the bloat on
-> > platforms that try to keep footprint down, which makes sense.
-> >
-> > The problem with this is external modules that aren't built in-tree.
-> > Since they don't have in-tree Kconfig, whether they can be loaded now
-> > depends on whether your kernel config enabled some completely unrelated
-> > driver that happened to select it. That's a weird and unpredictable
-> > situation, and makes for some awkward requirements for the standalone
-> > modules.
-> >
-> > For these reasons, give someone the option to manually enable this when
-> > configuring the kernel.
->
-> NAK, we should not confuse kernel users for stuff that is out of tree.
+On Tue, 2019-01-15 at 22:21 +0530, Arun KS wrote:
+> When freeing pages are done with higher order, time spent on coalescing
+> pages by buddy allocator can be reduced.  With section size of 256MB, hot
+> add latency of a single section shows improvement from 50-60 ms to less
+> than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> external providers of online callback to align with the change.
+> 
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> Reviewed-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+> Changes since v9:
+> - Fix condition check in hv_ballon driver.
+> 
+> Changes since v8:
+> - Remove return type change for online_page_callback.
+> - Use consistent names for external online_page providers.
+> - Fix onlined_pages accounting.
+> 
+> Changes since v7:
+> - Rebased to 5.0-rc1.
+> - Fixed onlined_pages accounting.
+> - Added comment for return value of online_page_callback.
+> - Renamed xen_bring_pgs_online to xen_online_pages.
+> 
+> Changes since v6:
+> - Rebased to 4.20
+> - Changelog updated.
+> - No improvement seen on arm64, hence removed removal of prefetch.
+> 
+> Changes since v5:
+> - Rebased to 4.20-rc1.
+> - Changelog updated.
+> 
+> Changes since v4:
+> - As suggested by Michal Hocko,
+> - Simplify logic in online_pages_block() by using get_order().
+> - Seperate out removal of prefetch from __free_pages_core().
+> 
+> Changes since v3:
+> - Renamed _free_pages_boot_core -> __free_pages_core.
+> - Removed prefetch from __free_pages_core.
+> - Removed xen_online_page().
+> 
+> Changes since v2:
+> - Reuse code from __free_pages_boot_core().
+> 
+> Changes since v1:
+> - Removed prefetch().
+> 
+> Changes since RFC:
+> - Rebase.
+> - As suggested by Michal Hocko remove pages_per_block.
+> - Modifed external providers of online_page_callback.
+> 
+> v9: https://lore.kernel.org/patchwork/patch/1030806/
+> v8: https://lore.kernel.org/patchwork/patch/1030332/
+> v7: https://lore.kernel.org/patchwork/patch/1028908/
+> v6: https://lore.kernel.org/patchwork/patch/1007253/
+> v5: https://lore.kernel.org/patchwork/patch/995739/
+> v4: https://lore.kernel.org/patchwork/patch/995111/
+> v3: https://lore.kernel.org/patchwork/patch/992348/
+> v2: https://lore.kernel.org/patchwork/patch/991363/
+> v1: https://lore.kernel.org/patchwork/patch/989445/
+> RFC: https://lore.kernel.org/patchwork/patch/984754/
+> ---
+>  drivers/hv/hv_balloon.c        |  4 ++--
+>  drivers/xen/balloon.c          | 15 ++++++++++-----
+>  include/linux/memory_hotplug.h |  2 +-
+>  mm/internal.h                  |  1 +
+>  mm/memory_hotplug.c            | 37 +++++++++++++++++++++++++------------
+>  mm/page_alloc.c                |  8 ++++----
+>  6 files changed, 45 insertions(+), 25 deletions(-)
+> 
+> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> index 5301fef..2ced9a7 100644
+> --- a/drivers/hv/hv_balloon.c
+> +++ b/drivers/hv/hv_balloon.c
+> @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+>  	}
+>  }
+>  
+> -static void hv_online_page(struct page *pg)
+> +static void hv_online_page(struct page *pg, unsigned int order)
+>  {
+>  	struct hv_hotadd_state *has;
+>  	unsigned long flags;
+> @@ -780,10 +780,11 @@ static void hv_online_page(struct page *pg)
+>  	spin_lock_irqsave(&dm_device.ha_lock, flags);
+>  	list_for_each_entry(has, &dm_device.ha_region_list, list) {
+>  		/* The page belongs to a different HAS. */
+> -		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+> +		if ((pfn < has->start_pfn) ||
+> +				(pfn + (1UL << order) >= has->end_pfn))
 
-I'd argue it's *more* confusing to expect users to know about and
-enable some random V4L driver to get this exported kernel API included
-or not. Happy to add "If in doubt, say 'n' here" help text, like we do
-for many many other kernel config options.
+This check should be ">" has->end_pfn, not ">=".
 
-In this particular case, a module (under early development and not yet
-ready to upstream, but will be) worked with a random distro kernel
-that enables the kitchen sink of drivers, but not with a more slimmed
-down kernel config. Having to enable a driver you'll never use, just
-to enable some generic exported helpers, is just backwards.
+>  			continue;
+>  
+> -		hv_page_online_one(has, pg);
+> +		hv_bring_pgs_online(has, pfn, (1UL << order));
 
+Also the parenthesis around "1UL << order" are unnecessary.
+>  		break;
+>  	}
+>  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 
--Olof
+The rest of this looks fine to me.
 
