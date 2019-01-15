@@ -1,70 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EEE8A8E0006
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 13:13:31 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id q64so2531173pfa.18
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 10:13:31 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 682918E0006
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 13:13:41 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id f69so2571626pff.5
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 10:13:41 -0800 (PST)
 Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id v75si3889866pfd.157.2019.01.15.10.13.30
+        by mx.google.com with ESMTPS id u186si3679201pgd.131.2019.01.15.10.13.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 10:13:30 -0800 (PST)
+        Tue, 15 Jan 2019 10:13:40 -0800 (PST)
 From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: [PATCH 4/6] drivers/IB,hfi1: do not se mmap_sem
-Date: Tue, 15 Jan 2019 10:12:58 -0800
-Message-Id: <20190115181300.27547-5-dave@stgolabs.net>
+Subject: [PATCH 5/6] drivers/IB,usnic: reduce scope of mmap_sem
+Date: Tue, 15 Jan 2019 10:12:59 -0800
+Message-Id: <20190115181300.27547-6-dave@stgolabs.net>
 In-Reply-To: <20190115181300.27547-1-dave@stgolabs.net>
 References: <20190115181300.27547-1-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: dledford@redhat.com, jgg@mellanox.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, dave@stgolabs.net, mike.marciniszyn@intel.com, dennis.dalessandro@intel.com, Davidlohr Bueso <dbueso@suse.de>
+Cc: dledford@redhat.com, jgg@mellanox.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, dave@stgolabs.net, benve@cisco.com, neescoba@cisco.com, pkaustub@cisco.com, Davidlohr Bueso <dbueso@suse.de>
 
-This driver already uses gup_fast() and thus we can just drop
-the mmap_sem protection around the pinned_vm counter. Note that
-the window between when hfi1_can_pin_pages() is called and the
-actual counter is incremented remains the same as mmap_sem was
-_only_ used for when ->pinned_vm was touched.
+usnic_uiom_get_pages() uses gup_longterm() so we cannot really
+get rid of mmap_sem altogether in the driver, but we can get
+rid of some complexity that mmap_sem brings with only pinned_vm.
+We can get rid of the wq altogether as we no longer need to
+defer work to unpin pages as the counter is now atomic.
 
-Cc: mike.marciniszyn@intel.com
-Cc: dennis.dalessandro@intel.com
+Cc: benve@cisco.com
+Cc: neescoba@cisco.com
+Cc: pkaustub@cisco.com
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- drivers/infiniband/hw/hfi1/user_pages.c | 6 ------
- 1 file changed, 6 deletions(-)
+ drivers/infiniband/hw/usnic/usnic_ib_main.c |  2 --
+ drivers/infiniband/hw/usnic/usnic_uiom.c    | 54 +++--------------------------
+ drivers/infiniband/hw/usnic/usnic_uiom.h    |  1 -
+ 3 files changed, 4 insertions(+), 53 deletions(-)
 
-diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-index df86a596d746..f0c6f219f575 100644
---- a/drivers/infiniband/hw/hfi1/user_pages.c
-+++ b/drivers/infiniband/hw/hfi1/user_pages.c
-@@ -91,9 +91,7 @@ bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
- 	/* Convert to number of pages */
- 	size = DIV_ROUND_UP(size, PAGE_SIZE);
+diff --git a/drivers/infiniband/hw/usnic/usnic_ib_main.c b/drivers/infiniband/hw/usnic/usnic_ib_main.c
+index b2323a52a0dd..64bc4fda36bf 100644
+--- a/drivers/infiniband/hw/usnic/usnic_ib_main.c
++++ b/drivers/infiniband/hw/usnic/usnic_ib_main.c
+@@ -691,7 +691,6 @@ static int __init usnic_ib_init(void)
+ out_pci_unreg:
+ 	pci_unregister_driver(&usnic_ib_pci_driver);
+ out_umem_fini:
+-	usnic_uiom_fini();
  
--	down_read(&mm->mmap_sem);
- 	pinned = atomic_long_read(&mm->pinned_vm);
--	up_read(&mm->mmap_sem);
- 
- 	/* First, check the absolute limit against all pinned pages. */
- 	if (pinned + npages >= ulimit && !can_lock)
-@@ -111,9 +109,7 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
- 	if (ret < 0)
- 		return ret;
- 
--	down_write(&mm->mmap_sem);
- 	atomic_long_add(ret, &mm->pinned_vm);
--	up_write(&mm->mmap_sem);
- 
- 	return ret;
+ 	return err;
  }
-@@ -130,8 +126,6 @@ void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+@@ -704,7 +703,6 @@ static void __exit usnic_ib_destroy(void)
+ 	unregister_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
+ 	unregister_netdevice_notifier(&usnic_ib_netdevice_notifier);
+ 	pci_unregister_driver(&usnic_ib_pci_driver);
+-	usnic_uiom_fini();
+ }
+ 
+ MODULE_DESCRIPTION("Cisco VIC (usNIC) Verbs Driver");
+diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
+index 22c40c432b9e..555d7bc93e72 100644
+--- a/drivers/infiniband/hw/usnic/usnic_uiom.c
++++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
+@@ -47,8 +47,6 @@
+ #include "usnic_uiom.h"
+ #include "usnic_uiom_interval_tree.h"
+ 
+-static struct workqueue_struct *usnic_uiom_wq;
+-
+ #define USNIC_UIOM_PAGE_CHUNK						\
+ 	((PAGE_SIZE - offsetof(struct usnic_uiom_chunk, page_list))	/\
+ 	((void *) &((struct usnic_uiom_chunk *) 0)->page_list[1] -	\
+@@ -129,7 +127,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
+ 	uiomr->owning_mm = mm = current->mm;
+ 	down_write(&mm->mmap_sem);
+ 
+-	locked = npages + atomic_long_read(&current->mm->pinned_vm);
++	locked = atomic_long_add_return(npages, &current->mm->pinned_vm);
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+ 
+ 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+@@ -185,12 +183,11 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
  	}
  
- 	if (mm) { /* during close after signal, mm can be NULL */
--		down_write(&mm->mmap_sem);
- 		atomic_long_sub(npages, &mm->pinned_vm);
--		up_write(&mm->mmap_sem);
- 	}
+ out:
+-	if (ret < 0)
++	if (ret < 0) {
+ 		usnic_uiom_put_pages(chunk_list, 0);
+-	else {
+-		atomic_long_set(&mm->pinned_vm, locked);
++		atomic_long_sub(npages, &current->mm->pinned_vm);
++	} else
+ 		mmgrab(uiomr->owning_mm);
+-	}
+ 
+ 	up_write(&mm->mmap_sem);
+ 	free_page((unsigned long) page_list);
+@@ -436,43 +433,12 @@ static inline size_t usnic_uiom_num_pages(struct usnic_uiom_reg *uiomr)
+ 	return PAGE_ALIGN(uiomr->length + uiomr->offset) >> PAGE_SHIFT;
  }
+ 
+-static void usnic_uiom_release_defer(struct work_struct *work)
+-{
+-	struct usnic_uiom_reg *uiomr =
+-		container_of(work, struct usnic_uiom_reg, work);
+-
+-	down_write(&uiomr->owning_mm->mmap_sem);
+-	atomic_long_sub(usnic_uiom_num_pages(uiomr), &uiomr->owning_mm->pinned_vm);
+-	up_write(&uiomr->owning_mm->mmap_sem);
+-
+-	__usnic_uiom_release_tail(uiomr);
+-}
+-
+ void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr,
+ 			    struct ib_ucontext *context)
+ {
+ 	__usnic_uiom_reg_release(uiomr->pd, uiomr, 1);
+ 
+-	/*
+-	 * We may be called with the mm's mmap_sem already held.  This
+-	 * can happen when a userspace munmap() is the call that drops
+-	 * the last reference to our file and calls our release
+-	 * method.  If there are memory regions to destroy, we'll end
+-	 * up here and not be able to take the mmap_sem.  In that case
+-	 * we defer the vm_locked accounting to a workqueue.
+-	 */
+-	if (context->closing) {
+-		if (!down_write_trylock(&uiomr->owning_mm->mmap_sem)) {
+-			INIT_WORK(&uiomr->work, usnic_uiom_release_defer);
+-			queue_work(usnic_uiom_wq, &uiomr->work);
+-			return;
+-		}
+-	} else {
+-		down_write(&uiomr->owning_mm->mmap_sem);
+-	}
+ 	atomic_long_sub(usnic_uiom_num_pages(uiomr), &uiomr->owning_mm->pinned_vm);
+-	up_write(&uiomr->owning_mm->mmap_sem);
+-
+ 	__usnic_uiom_release_tail(uiomr);
+ }
+ 
+@@ -601,17 +567,5 @@ int usnic_uiom_init(char *drv_name)
+ 		return -EPERM;
+ 	}
+ 
+-	usnic_uiom_wq = create_workqueue(drv_name);
+-	if (!usnic_uiom_wq) {
+-		usnic_err("Unable to alloc wq for drv %s\n", drv_name);
+-		return -ENOMEM;
+-	}
+-
+ 	return 0;
+ }
+-
+-void usnic_uiom_fini(void)
+-{
+-	flush_workqueue(usnic_uiom_wq);
+-	destroy_workqueue(usnic_uiom_wq);
+-}
+diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.h b/drivers/infiniband/hw/usnic/usnic_uiom.h
+index b86a9731071b..c88cfa087e3a 100644
+--- a/drivers/infiniband/hw/usnic/usnic_uiom.h
++++ b/drivers/infiniband/hw/usnic/usnic_uiom.h
+@@ -93,5 +93,4 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
+ void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr,
+ 			    struct ib_ucontext *ucontext);
+ int usnic_uiom_init(char *drv_name);
+-void usnic_uiom_fini(void);
+ #endif /* USNIC_UIOM_H_ */
 -- 
 2.16.4
