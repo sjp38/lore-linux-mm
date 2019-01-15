@@ -1,114 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 11AD48E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:25:39 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id 144so1282498wme.5
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:25:39 -0800 (PST)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id 186si22196642wmc.128.2019.01.15.09.25.37
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1108E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:34:39 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id c14so2019298pls.21
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:34:39 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id u184si3652568pgd.262.2019.01.15.09.34.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 09:25:37 -0800 (PST)
-Subject: Re: [PATCH v3 1/3] powerpc/mm: prepare kernel for KAsan on PPC32
-References: <cover.1547289808.git.christophe.leroy@c-s.fr>
- <0c854dd6b110ac2b81ef1681f6e097f59f84af8b.1547289808.git.christophe.leroy@c-s.fr>
- <CACT4Y+aEsLWqhJmXETNsGtKdbfHDFL1NF8ofv3KwvQPraXdFyw@mail.gmail.com>
- <801c7d58-417d-1e65-68a0-b8cf02f9f956@c-s.fr>
- <CACT4Y+ZdA-w5OeebZg3PYPB+BX5wDxw_DxNe2==VJfbpy2eJ7A@mail.gmail.com>
- <330696c0-90c6-27de-5eb3-4da2159fdfbc@virtuozzo.com>
- <CACT4Y+ajgTdDyFFWCp0oRSPKZh9ercDpq3pAq2-ZSx7ouAvZYQ@mail.gmail.com>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <301f5826-64ab-1cf4-7e7e-cd026de77bca@c-s.fr>
-Date: Tue, 15 Jan 2019 18:25:35 +0100
-MIME-Version: 1.0
-In-Reply-To: <CACT4Y+ajgTdDyFFWCp0oRSPKZh9ercDpq3pAq2-ZSx7ouAvZYQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+        Tue, 15 Jan 2019 09:34:38 -0800 (PST)
+Message-ID: <9bc20a9f2f5d6a99afa61ad68d827090553c09fe.camel@linux.intel.com>
+Subject: Re: [PATCH v10] mm/page_alloc.c: memory_hotplug: free pages as
+ higher order
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Date: Tue, 15 Jan 2019 09:34:37 -0800
+In-Reply-To: <1547571068-18902-1-git-send-email-arunks@codeaurora.org>
+References: <1547571068-18902-1-git-send-email-arunks@codeaurora.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Alexander Potapenko <glider@google.com>, LKML <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: Arun KS <arunks@codeaurora.org>, arunks.linux@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, osalvador@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: getarunks@gmail.com
 
-
-
-Le 15/01/2019 à 18:10, Dmitry Vyukov a écrit :
-> On Tue, Jan 15, 2019 at 6:06 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>
->>
->>
->> On 1/15/19 2:14 PM, Dmitry Vyukov wrote:
->>> On Tue, Jan 15, 2019 at 8:27 AM Christophe Leroy
->>> <christophe.leroy@c-s.fr> wrote:
->>>> On 01/14/2019 09:34 AM, Dmitry Vyukov wrote:
->>>>> On Sat, Jan 12, 2019 at 12:16 PM Christophe Leroy
->>>>> <christophe.leroy@c-s.fr> wrote:
->>>>> &gt;
->>>>> &gt; In kernel/cputable.c, explicitly use memcpy() in order
->>>>> &gt; to allow GCC to replace it with __memcpy() when KASAN is
->>>>> &gt; selected.
->>>>> &gt;
->>>>> &gt; Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
->>>>> &gt; enabled"), memset() can be used before activation of the cache,
->>>>> &gt; so no need to use memset_io() for zeroing the BSS.
->>>>> &gt;
->>>>> &gt; Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
->>>>> &gt; ---
->>>>> &gt;  arch/powerpc/kernel/cputable.c | 4 ++--
->>>>> &gt;  arch/powerpc/kernel/setup_32.c | 6 ++----
->>>>> &gt;  2 files changed, 4 insertions(+), 6 deletions(-)
->>>>> &gt;
->>>>> &gt; diff --git a/arch/powerpc/kernel/cputable.c
->>>>> b/arch/powerpc/kernel/cputable.c
->>>>> &gt; index 1eab54bc6ee9..84814c8d1bcb 100644
->>>>> &gt; --- a/arch/powerpc/kernel/cputable.c
->>>>> &gt; +++ b/arch/powerpc/kernel/cputable.c
->>>>> &gt; @@ -2147,7 +2147,7 @@ void __init set_cur_cpu_spec(struct cpu_spec *s)
->>>>> &gt;         struct cpu_spec *t = &amp;the_cpu_spec;
->>>>> &gt;
->>>>> &gt;         t = PTRRELOC(t);
->>>>> &gt; -       *t = *s;
->>>>> &gt; +       memcpy(t, s, sizeof(*t));
->>>>>
->>>>> Hi Christophe,
->>>>>
->>>>> I understand why you are doing this, but this looks a bit fragile and
->>>>> non-scalable. This may not work with the next version of compiler,
->>>>> just different than yours version of compiler, clang, etc.
->>>>
->>>> My felling would be that this change makes it more solid.
->>>>
->>>> My understanding is that when you do *t = *s, the compiler can use
->>>> whatever way it wants to do the copy.
->>>> When you do memcpy(), you ensure it will do it that way and not another
->>>> way, don't you ?
->>>
->>> It makes this single line more deterministic wrt code-gen (though,
->>> strictly saying compiler can turn memcpy back into inlines
->>> instructions, it knows memcpy semantics anyway).
->>> But the problem I meant is that the set of places that are subject to
->>> this problem is not deterministic. So if we go with this solution,
->>> after this change it's in the status "works on your machine" and we
->>> either need to commit to not using struct copies and zeroing
->>> throughout kernel code or potentially have a long tail of other
->>> similar cases, and since they can be triggered by another compiler
->>> version, we may need to backport these changes to previous releases
->>> too. Whereas if we would go with compiler flags, it would prevent the
->>> problem in all current and future places and with other past/future
->>> versions of compilers.
->>>
->>
->> The patch will work for any compiler. The point of this patch is to make
->> memcpy() visible to the preprocessor which will replace it with __memcpy().
+On Tue, 2019-01-15 at 22:21 +0530, Arun KS wrote:
+> When freeing pages are done with higher order, time spent on coalescing
+> pages by buddy allocator can be reduced.  With section size of 256MB, hot
+> add latency of a single section shows improvement from 50-60 ms to less
+> than 1 ms, hence improving the hot add latency by 60 times.  Modify
+> external providers of online callback to align with the change.
 > 
-> For this single line, yes. But it does not mean that KASAN will work.
+> Signed-off-by: Arun KS <arunks@codeaurora.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+> Reviewed-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+> Changes since v9:
+> - Fix condition check in hv_ballon driver.
 > 
->> After preprocessor's work, compiler will see just __memcpy() call here.
+> Changes since v8:
+> - Remove return type change for online_page_callback.
+> - Use consistent names for external online_page providers.
+> - Fix onlined_pages accounting.
+> 
+> Changes since v7:
+> - Rebased to 5.0-rc1.
+> - Fixed onlined_pages accounting.
+> - Added comment for return value of online_page_callback.
+> - Renamed xen_bring_pgs_online to xen_online_pages.
+> 
+> Changes since v6:
+> - Rebased to 4.20
+> - Changelog updated.
+> - No improvement seen on arm64, hence removed removal of prefetch.
+> 
+> Changes since v5:
+> - Rebased to 4.20-rc1.
+> - Changelog updated.
+> 
+> Changes since v4:
+> - As suggested by Michal Hocko,
+> - Simplify logic in online_pages_block() by using get_order().
+> - Seperate out removal of prefetch from __free_pages_core().
+> 
+> Changes since v3:
+> - Renamed _free_pages_boot_core -> __free_pages_core.
+> - Removed prefetch from __free_pages_core.
+> - Removed xen_online_page().
+> 
+> Changes since v2:
+> - Reuse code from __free_pages_boot_core().
+> 
+> Changes since v1:
+> - Removed prefetch().
+> 
+> Changes since RFC:
+> - Rebase.
+> - As suggested by Michal Hocko remove pages_per_block.
+> - Modifed external providers of online_page_callback.
+> 
+> v9: https://lore.kernel.org/patchwork/patch/1030806/
+> v8: https://lore.kernel.org/patchwork/patch/1030332/
+> v7: https://lore.kernel.org/patchwork/patch/1028908/
+> v6: https://lore.kernel.org/patchwork/patch/1007253/
+> v5: https://lore.kernel.org/patchwork/patch/995739/
+> v4: https://lore.kernel.org/patchwork/patch/995111/
+> v3: https://lore.kernel.org/patchwork/patch/992348/
+> v2: https://lore.kernel.org/patchwork/patch/991363/
+> v1: https://lore.kernel.org/patchwork/patch/989445/
+> RFC: https://lore.kernel.org/patchwork/patch/984754/
+> ---
+>  drivers/hv/hv_balloon.c        |  4 ++--
+>  drivers/xen/balloon.c          | 15 ++++++++++-----
+>  include/linux/memory_hotplug.h |  2 +-
+>  mm/internal.h                  |  1 +
+>  mm/memory_hotplug.c            | 37 +++++++++++++++++++++++++------------
+>  mm/page_alloc.c                |  8 ++++----
+>  6 files changed, 45 insertions(+), 25 deletions(-)
+> 
+> diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
+> index 5301fef..2ced9a7 100644
+> --- a/drivers/hv/hv_balloon.c
+> +++ b/drivers/hv/hv_balloon.c
+> @@ -771,7 +771,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
+>  	}
+>  }
+>  
+> -static void hv_online_page(struct page *pg)
+> +static void hv_online_page(struct page *pg, unsigned int order)
+>  {
+>  	struct hv_hotadd_state *has;
+>  	unsigned long flags;
+> @@ -780,10 +780,11 @@ static void hv_online_page(struct page *pg)
+>  	spin_lock_irqsave(&dm_device.ha_lock, flags);
+>  	list_for_each_entry(has, &dm_device.ha_region_list, list) {
+>  		/* The page belongs to a different HAS. */
+> -		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+> +		if ((pfn < has->start_pfn) ||
+> +				(pfn + (1UL << order) >= has->end_pfn))
 
-This problem can affect any arch I believe. Maybe the 'solution' would 
-be to run a generic script similar to 
-arch/powerpc/kernel/prom_init_check.sh on all objects compiled with 
-KASAN_SANITIZE_object.o := n don't include any reference to memcpy() 
-memset() or memmove() ?
+This check should be ">" has->end_pfn, not ">=".
 
-Christophe
+>  			continue;
+>  
+> -		hv_page_online_one(has, pg);
+> +		hv_bring_pgs_online(has, pfn, (1UL << order));
+
+Also the parenthesis around "1UL << order" are unnecessary.
+>  		break;
+>  	}
+>  	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
+
+The rest of this looks fine to me.
