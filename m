@@ -1,70 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D2ED18E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:24:59 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id t22-v6so909213lji.14
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:24:59 -0800 (PST)
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id m25-v6si3096358ljb.153.2019.01.15.09.24.58
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 11AD48E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:25:39 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id 144so1282498wme.5
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:25:39 -0800 (PST)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id 186si22196642wmc.128.2019.01.15.09.25.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 09:24:58 -0800 (PST)
-Subject: Re: [PATCH v2] page_poison: play nicely with KASAN
-References: <2e46c139-70d3-dc86-28c9-a9f263651b57@virtuozzo.com>
- <20190114233405.67843-1-cai@lca.pw>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <3a2aefb4-f108-5354-ddb9-7a35d8e0b3f2@virtuozzo.com>
-Date: Tue, 15 Jan 2019 20:25:20 +0300
+        Tue, 15 Jan 2019 09:25:37 -0800 (PST)
+Subject: Re: [PATCH v3 1/3] powerpc/mm: prepare kernel for KAsan on PPC32
+References: <cover.1547289808.git.christophe.leroy@c-s.fr>
+ <0c854dd6b110ac2b81ef1681f6e097f59f84af8b.1547289808.git.christophe.leroy@c-s.fr>
+ <CACT4Y+aEsLWqhJmXETNsGtKdbfHDFL1NF8ofv3KwvQPraXdFyw@mail.gmail.com>
+ <801c7d58-417d-1e65-68a0-b8cf02f9f956@c-s.fr>
+ <CACT4Y+ZdA-w5OeebZg3PYPB+BX5wDxw_DxNe2==VJfbpy2eJ7A@mail.gmail.com>
+ <330696c0-90c6-27de-5eb3-4da2159fdfbc@virtuozzo.com>
+ <CACT4Y+ajgTdDyFFWCp0oRSPKZh9ercDpq3pAq2-ZSx7ouAvZYQ@mail.gmail.com>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <301f5826-64ab-1cf4-7e7e-cd026de77bca@c-s.fr>
+Date: Tue, 15 Jan 2019 18:25:35 +0100
 MIME-Version: 1.0
-In-Reply-To: <20190114233405.67843-1-cai@lca.pw>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CACT4Y+ajgTdDyFFWCp0oRSPKZh9ercDpq3pAq2-ZSx7ouAvZYQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Alexander Potapenko <glider@google.com>, LKML <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
 
 
-On 1/15/19 2:34 AM, Qian Cai wrote:
-> KASAN does not play well with the page poisoning
-> (CONFIG_PAGE_POISONING). It triggers false positives in the allocation
-> path,
+Le 15/01/2019 à 18:10, Dmitry Vyukov a écrit :
+> On Tue, Jan 15, 2019 at 6:06 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>>
+>>
+>>
+>> On 1/15/19 2:14 PM, Dmitry Vyukov wrote:
+>>> On Tue, Jan 15, 2019 at 8:27 AM Christophe Leroy
+>>> <christophe.leroy@c-s.fr> wrote:
+>>>> On 01/14/2019 09:34 AM, Dmitry Vyukov wrote:
+>>>>> On Sat, Jan 12, 2019 at 12:16 PM Christophe Leroy
+>>>>> <christophe.leroy@c-s.fr> wrote:
+>>>>> &gt;
+>>>>> &gt; In kernel/cputable.c, explicitly use memcpy() in order
+>>>>> &gt; to allow GCC to replace it with __memcpy() when KASAN is
+>>>>> &gt; selected.
+>>>>> &gt;
+>>>>> &gt; Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
+>>>>> &gt; enabled"), memset() can be used before activation of the cache,
+>>>>> &gt; so no need to use memset_io() for zeroing the BSS.
+>>>>> &gt;
+>>>>> &gt; Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
+>>>>> &gt; ---
+>>>>> &gt;  arch/powerpc/kernel/cputable.c | 4 ++--
+>>>>> &gt;  arch/powerpc/kernel/setup_32.c | 6 ++----
+>>>>> &gt;  2 files changed, 4 insertions(+), 6 deletions(-)
+>>>>> &gt;
+>>>>> &gt; diff --git a/arch/powerpc/kernel/cputable.c
+>>>>> b/arch/powerpc/kernel/cputable.c
+>>>>> &gt; index 1eab54bc6ee9..84814c8d1bcb 100644
+>>>>> &gt; --- a/arch/powerpc/kernel/cputable.c
+>>>>> &gt; +++ b/arch/powerpc/kernel/cputable.c
+>>>>> &gt; @@ -2147,7 +2147,7 @@ void __init set_cur_cpu_spec(struct cpu_spec *s)
+>>>>> &gt;         struct cpu_spec *t = &amp;the_cpu_spec;
+>>>>> &gt;
+>>>>> &gt;         t = PTRRELOC(t);
+>>>>> &gt; -       *t = *s;
+>>>>> &gt; +       memcpy(t, s, sizeof(*t));
+>>>>>
+>>>>> Hi Christophe,
+>>>>>
+>>>>> I understand why you are doing this, but this looks a bit fragile and
+>>>>> non-scalable. This may not work with the next version of compiler,
+>>>>> just different than yours version of compiler, clang, etc.
+>>>>
+>>>> My felling would be that this change makes it more solid.
+>>>>
+>>>> My understanding is that when you do *t = *s, the compiler can use
+>>>> whatever way it wants to do the copy.
+>>>> When you do memcpy(), you ensure it will do it that way and not another
+>>>> way, don't you ?
+>>>
+>>> It makes this single line more deterministic wrt code-gen (though,
+>>> strictly saying compiler can turn memcpy back into inlines
+>>> instructions, it knows memcpy semantics anyway).
+>>> But the problem I meant is that the set of places that are subject to
+>>> this problem is not deterministic. So if we go with this solution,
+>>> after this change it's in the status "works on your machine" and we
+>>> either need to commit to not using struct copies and zeroing
+>>> throughout kernel code or potentially have a long tail of other
+>>> similar cases, and since they can be triggered by another compiler
+>>> version, we may need to backport these changes to previous releases
+>>> too. Whereas if we would go with compiler flags, it would prevent the
+>>> problem in all current and future places and with other past/future
+>>> versions of compilers.
+>>>
+>>
+>> The patch will work for any compiler. The point of this patch is to make
+>> memcpy() visible to the preprocessor which will replace it with __memcpy().
 > 
-> BUG: KASAN: use-after-free in memchr_inv+0x2ea/0x330
-> Read of size 8 at addr ffff88881f800000 by task swapper/0
-> CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc1+ #54
-> Call Trace:
->  dump_stack+0xe0/0x19a
->  print_address_description.cold.2+0x9/0x28b
->  kasan_report.cold.3+0x7a/0xb5
->  __asan_report_load8_noabort+0x19/0x20
->  memchr_inv+0x2ea/0x330
->  kernel_poison_pages+0x103/0x3d5
->  get_page_from_freelist+0x15e7/0x4d90
+> For this single line, yes. But it does not mean that KASAN will work.
 > 
-> because KASAN has not yet unpoisoned the shadow page for allocation
-> before it checks memchr_inv() but only found a stale poison pattern.
-> 
-> Also, false positives in free path,
-> 
-> BUG: KASAN: slab-out-of-bounds in kernel_poison_pages+0x29e/0x3d5
-> Write of size 4096 at addr ffff8888112cc000 by task swapper/0/1
-> CPU: 5 PID: 1 Comm: swapper/0 Not tainted 5.0.0-rc1+ #55
-> Call Trace:
->  dump_stack+0xe0/0x19a
->  print_address_description.cold.2+0x9/0x28b
->  kasan_report.cold.3+0x7a/0xb5
->  check_memory_region+0x22d/0x250
->  memset+0x28/0x40
->  kernel_poison_pages+0x29e/0x3d5
->  __free_pages_ok+0x75f/0x13e0
-> 
-> due to KASAN adds poisoned redzones around slab objects, but the page
-> poisoning needs to poison the whole page.
-> 
-> Signed-off-by: Qian Cai <cai@lca.pw>
-> ---
-> 
-Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>> After preprocessor's work, compiler will see just __memcpy() call here.
+
+This problem can affect any arch I believe. Maybe the 'solution' would 
+be to run a generic script similar to 
+arch/powerpc/kernel/prom_init_check.sh on all objects compiled with 
+KASAN_SANITIZE_object.o := n don't include any reference to memcpy() 
+memset() or memmove() ?
+
+Christophe
