@@ -2,145 +2,188 @@ Return-Path: <SRS0=hkLx=PX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0434C43387
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 04:43:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46513C43444
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 04:50:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9B84E20651
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 04:43:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B84E20651
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 063BC20651
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 04:50:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mVtcuV0E"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 063BC20651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E66E88E0003; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
+	id 97F938E0003; Mon, 14 Jan 2019 23:50:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E159F8E0002; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
+	id 906F48E0002; Mon, 14 Jan 2019 23:50:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D061E8E0003; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
+	id 7A95C8E0003; Mon, 14 Jan 2019 23:50:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A826E8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:43:04 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id v188so1705827ita.0
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 20:43:04 -0800 (PST)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0804D8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:50:11 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id e12-v6so375368ljb.18
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 20:50:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:message-id:subject:from:to:content-transfer-encoding;
-        bh=+ZN2k/FAzbBiH8bFl9sH6z6FpVTp2oha0mwreEMwqrA=;
-        b=rWGol3Pl/6xPl+wILgWLT7tz4AP6uVIQwfpS3ipGshO6/AxQ4GAJt3n2IGBGDI3q1K
-         xAlrgLBu1FGqWLEvUZSFPGnzw7KoKqPs3MlLBOWwWmdjI78KiaYIlFDDrjw/VqCyxO0H
-         4jzX8fwrezWnR4PSQXiQ5X1kzTwwxJmCOOhZKGzRWmOW1k2RYWs4sD+SDctDr9aqrm0E
-         2RtFG1fDVVJYhroELTdm9BMI2GF5I0ThIebDXzsJz5td5nTXUpM0+aX7YdZzUpWezqLi
-         c4IZ9S3U18rxmW9zhKJlZ9FF9FNyQ5kUhV6YHChBunrXh+2o51G65XcOan/pq1TQewBl
-         yorg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=312Q9XAkbAH4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: AJcUuke60It85rsrNeSvmV0mGkvGD/1peZ7e+c+YfK6WA5n0t+frbIqf
-	vN6GfYqPNpNE2ych7tzJxmDsxwGmgI6fiMehi2T2Xnovs836AcRe8DBdf1ZSQ6BQvquoU0QYick
-	hHHenetWriDm30oXT9rB3A16dIjub6MBijZkWEiIROiH0KVsXcjWXLvlfsfqe5SDtcWoFpc9Sh/
-	LdWLQRmUtR8jy2q2crBrYdOUdT31wtwMaWJn+/u2EMxx6VpcJXNx5PhTVsigBrGqICHCrcxbiVu
-	BJsj9hOxidrmBn8Mz5LLjkqB5iNPVgilwi4DT9aBSVEIlgIpll5F4Hl/B6+9WAYYIz7Flo7bxsU
-	hQwqFcqGbykQWC7DQCxaGFKYYDKAe42Q5VTOdnN477FV8ddS/4ayVMu0VpLtZLM3Fm1x+OoYdg=
-	=
-X-Received: by 2002:a6b:3809:: with SMTP id f9mr1050983ioa.305.1547527384341;
-        Mon, 14 Jan 2019 20:43:04 -0800 (PST)
-X-Received: by 2002:a6b:3809:: with SMTP id f9mr1050970ioa.305.1547527383566;
-        Mon, 14 Jan 2019 20:43:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547527383; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=3TXiWK8V2OmVXxJRMbWQxDG/DyuoOV26hjhztUIr7v0=;
+        b=RfYStl2Y8vgi3nRrdZyatTYZ80mGv82ElYTzvqZDLNotRtQFALE/K5XmBOw+73k43z
+         nyxYuqZrqnVuYcRizRI+oGUSWnujv7ISm6b7oydOldr0TQyu06hAyVG5PmrZfuxl118G
+         FXcrfltt80Lbj+daa+THmsk3qMnTTyLQfhCFb1dhWmnUK9ozmouo8rDuTVtpFR6DEOXo
+         zFQMb5IpjcUWxpsHngSopMDoYm0R+HC60wraXMpGPXA7VW30bMMSuReF0Q/So9LFvqh2
+         8lwiH/FqLJyDEzMrvJlOeeCfjserPXU/C6Y7PQDfDCiWXHeRKU0UzpSVuwVMO03joUuv
+         dC/Q==
+X-Gm-Message-State: AJcUukcDQnb1I2rkbR3Qxykxl12HoznCxfAeibbK8Q7TmtwDjRHKXjzk
+	mxH5sJ9CkB0nsBYJFqWb9USngr4mF/oDG1BONiSenjzxfiGb2CvsdqJLQ3v5kbhYVXaKeuE0kyU
+	6j19buY23u6iHW454I4DUv1BNdy4Elv+t6AOimciJmPGKLxDznVKcDjBZyaxOdfBJYUVvK1nLDu
+	cqFXJGyrc6zqxMcy+1XMgno9Ugv9ew4FODf49kRRigaMNVid43oi6SKdG6p2fiQgCv/eVhiPpJC
+	gniyaY3pZcRGh52bDVVahGj3JDhKOlXokGlzBV+a9FvZZrzI+pRblk3+cdLT5CETLlCJt8uevWp
+	dlVUoaiOVE+IAR8CLkWJ603WV1ZjgZDqUH+D/FUcvcVaFYHnJ2kJAjKRyAgvR7ICcbDtTXWWlNp
+	x
+X-Received: by 2002:a2e:5747:: with SMTP id r7-v6mr1303123ljd.141.1547527810098;
+        Mon, 14 Jan 2019 20:50:10 -0800 (PST)
+X-Received: by 2002:a2e:5747:: with SMTP id r7-v6mr1303079ljd.141.1547527808984;
+        Mon, 14 Jan 2019 20:50:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547527808; cv=none;
         d=google.com; s=arc-20160816;
-        b=epvwF3eT4gGUVzn07Z59cn+nouNXr1eIdixHeD3XzM0VHIuBlj0XL0zhBymWM5aUX6
-         M29hyUX5mUh7rIEkOESwzVZXnl15PjHXtviLNVZHkbiGJgl2wIA9qsRVI/GXEG748tLK
-         wLJ7ohF+uLkJu6et4SSmn7Wa6xvEC4mjoDkDcuYJvOKPEkinps+xkFmUGGVqHgX98ban
-         LTHGKYDBOQpk3CLfK1TJQK/R0e8y4Vj7kfx5kfWj3ZcdIK6XUFsaeVHpSlmsXyD6N2dK
-         PPexPmORRmD/vM+Ie8IHmC/zXJb/R/GQkhPOFd5cLXeERwOzebG9jDb4FY2AM2sQT9YQ
-         Nybw==
+        b=e8OFuHhFGWsJ4sO5N4l6U6NAlltKo5R/FR35GnmsYIUEqh+4yFOesTC21aqCH6vWlr
+         1kgdysNpB3c6uz6TXCDTmlKE69alO4LsIpP6sgRBs6TzQddhLd+KMRa6LkrRhhZBXO12
+         jPJCtvdegKHpVYhNQu37UPINHYMzsqvKdnPLRQlxRaDpFZaXzPx80nHoNkW22IUv8o3U
+         jYQS/7knBqjXvxBri6VqkLJx721jEFDn/FpUEFxL55aBGSpjhBgJwpTwJeewaacTYEXF
+         s4Mh2OOUN7QWG1wPX3y9tc4Ug7MdcIP95cJgBp3wW8SeityShHUZG4aG6FkHZeSmdmM5
+         WQDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:to:from:subject:message-id:date
-         :mime-version;
-        bh=+ZN2k/FAzbBiH8bFl9sH6z6FpVTp2oha0mwreEMwqrA=;
-        b=XMWFmJsc92OKM8P8jUvnaoK7nr86RKNvcFbbYjbMs4/P4xNgIQq06gteQ4oFOVNnZ7
-         7BMQNVJ9zUbPZJKjO4GIu+l6MM7ZjwR+P3iP11mdJk065TJFTSTvvA++dEQWqRoGyRRW
-         2CEN7RmJwrqIMg2e/87xj1Kn+3MPSqEhCmNvXKxJpUAJmTdl1YO75XwtjV0cRfWpEbRT
-         iJSf3z2Bvsu4bq0GXCmF9Op8RYWfB4QiQ/b9HdZEtJ4jApThnMW0B97Av0dWcQGWaUy7
-         56O92n5d95QI5R3QxGmE3WSNVgQNt7CSLSsCAGN5kfm9YIgnpymyLlz5eXmbf3mfGIt9
-         rr1A==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=3TXiWK8V2OmVXxJRMbWQxDG/DyuoOV26hjhztUIr7v0=;
+        b=Zi8qQ12D2p3g2POtiI/pafm+LIOah+EgLN6NlfVzsGQm4Xz5RJv0EbcIAHDw43zvaQ
+         IzrtF3O1gIJSpijcEareHRjyN9OvSEuNmmkLbIn99i9+HTNTboiUfKt4xOPP8ONQV4aT
+         SC29+2vwkHEa8mSbn/42TOMQ+A3WyZJBSPZcTXRFEO+pGvQi4r0wOR0UwtlyZbJMKq9K
+         9ohTNoQsRvVPlLOD1N8IkOxQ3VncoXtZkeehFmCfiEJ9WqNcadsCbNqt/G0SY3mpLFi1
+         8lZM4Yu5OmUc0Z5W2DR31dE8qnxlgVKVMa3DtgTqWXvpHtNgFerFAPA9NxCcoUKg9cAO
+         9rVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=312Q9XAkbAH4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id y7sor1182722ioa.135.2019.01.14.20.43.03
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mVtcuV0E;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o4sor761449lfl.63.2019.01.14.20.50.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 20:43:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        Mon, 14 Jan 2019 20:50:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 312q9xakbah4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=312Q9XAkbAH4u01mcnngtcrrkf.iqqingwugteqpvgpv.eqo@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: ALg8bN5IJ8jBC/pJ7LLxE8gvsIqAvivcDUoZPQNVLC3bMdmo9hsIUszlSm+1zKbyLpjO6IZ6O46ya5d0nk8RUY4iucPnWKjgYVqN
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mVtcuV0E;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=3TXiWK8V2OmVXxJRMbWQxDG/DyuoOV26hjhztUIr7v0=;
+        b=mVtcuV0EWzi7waFPQ8kYoJPyXBr+5pYoBCie6M0hgYyXy7vhQ5az3gqJxtEbxr3nn2
+         j9ilWv71hMMplMbZtgb43pPMZXzFr7wx5xRxPS8DNzutWYmyB9EbCwsRsuXMufbg0xyR
+         /YEVGqozNiko6lxpg06VLAT4fpTuQZmDYLb+sIUstV44HcikXtqaXUTSG9GTURBiUSNA
+         8BYjInM+97RsYzeR70yuKV67ybVWP0xN7Rx/tFxF+bbrHmJYj33wSR5ZPzMHcXDr0m+1
+         2a6FY+nVTaxr2WZQJEJ4B4b10N7sCID+uDbgcnuZjxWcfRn319/fRSQvaJDYttnRfiRL
+         kkxQ==
+X-Google-Smtp-Source: ALg8bN6CfyMOSVhkOI4qCOcQDPjp0RDL1herZsjnUL9YRVIr0xZF45WD6Af2cKMyoaJD7PVQHHuyEJcBRGlu746vPaQ=
+X-Received: by 2002:a19:ee08:: with SMTP id g8mr1378271lfb.72.1547527808437;
+ Mon, 14 Jan 2019 20:50:08 -0800 (PST)
 MIME-Version: 1.0
-X-Received: by 2002:a6b:680a:: with SMTP id d10mr1058562ioc.35.1547527383190;
- Mon, 14 Jan 2019 20:43:03 -0800 (PST)
-Date: Mon, 14 Jan 2019 20:43:03 -0800
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <000000000000f49537057f77cb00@google.com>
-Subject: KASAN: use-after-scope Read in corrupted
-From: syzbot <syzbot+bd36b7dd9330f67037ab@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, cai@lca.pw, crecklin@redhat.com, 
-	keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	syzkaller-bugs@googlegroups.com
-Content-Type: text/plain; charset="UTF-8"; delsp="yes"; format="flowed"
-Content-Transfer-Encoding: base64
+References: <20190111151235.GA2836@jordon-HP-15-Notebook-PC> <f6eef305-daf3-dad8-96e3-d2f93d169fd4@oracle.com>
+In-Reply-To: <f6eef305-daf3-dad8-96e3-d2f93d169fd4@oracle.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Tue, 15 Jan 2019 10:19:55 +0530
+Message-ID:
+ <CAFqt6zYFR5FHXTLsSQ2DKgZDQtuNB2jZWK6ZLUAscG9vMnSk3Q@mail.gmail.com>
+Subject: Re: [PATCH 8/9] xen/gntdev.c: Convert to use vm_insert_range
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, Juergen Gross <jgross@suse.com>, 
+	Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
+	xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, 
+	Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190115044303.Jt6JGb3KFN7xL4OW95r3zEWvVXLGggC7ZX93_pyNCIg@z>
+Message-ID: <20190115044955.0DLZ53VVoCcFu3v6xZ6rII1SqtpllnuswnlKn9bDwaU@z>
 
-SGVsbG8sDQoNCnN5emJvdCBmb3VuZCB0aGUgZm9sbG93aW5nIGNyYXNoIG9uOg0KDQpIRUFEIGNv
-bW1pdDogICAgMWJkYmUyMjc0OTIwIE1lcmdlIHRhZyAndmZpby12NS4wLXJjMicgb2YgZ2l0Oi8v
-Z2l0aHViLmNvbS4uDQpnaXQgdHJlZTogICAgICAgdXBzdHJlYW0NCmNvbnNvbGUgb3V0cHV0OiBo
-dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L2xvZy50eHQ/eD0xNTE5ZDM5ZjQwMDAwMA0K
-a2VybmVsIGNvbmZpZzogIGh0dHBzOi8vc3l6a2FsbGVyLmFwcHNwb3QuY29tL3gvLmNvbmZpZz94
-PWVkZjFjMzAzMTA5N2MzMDQNCmRhc2hib2FyZCBsaW5rOiBodHRwczovL3N5emthbGxlci5hcHBz
-cG90LmNvbS9idWc/ZXh0aWQ9YmQzNmI3ZGQ5MzMwZjY3MDM3YWINCmNvbXBpbGVyOiAgICAgICBn
-Y2MgKEdDQykgOS4wLjAgMjAxODEyMzEgKGV4cGVyaW1lbnRhbCkNCnN5eiByZXBybzogICAgICBo
-dHRwczovL3N5emthbGxlci5hcHBzcG90LmNvbS94L3JlcHJvLnN5ej94PTEwZmNlMTRmNDAwMDAw
-DQpDIHJlcHJvZHVjZXI6ICAgaHR0cHM6Ly9zeXprYWxsZXIuYXBwc3BvdC5jb20veC9yZXByby5j
-P3g9MTEwYjIwMTc0MDAwMDANCg0KSU1QT1JUQU5UOiBpZiB5b3UgZml4IHRoZSBidWcsIHBsZWFz
-ZSBhZGQgdGhlIGZvbGxvd2luZyB0YWcgdG8gdGhlIGNvbW1pdDoNClJlcG9ydGVkLWJ5OiBzeXpi
-b3QrYmQzNmI3ZGQ5MzMwZjY3MDM3YWJAc3l6a2FsbGVyLmFwcHNwb3RtYWlsLmNvbQ0KDQo9PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT0NCkJVRzogS0FTQU46IHVzZS1hZnRlci1zY29wZSBpbiBkZWJ1Z19sb2NrZGVwX3JjdV9l
-bmFibGVkLnBhcnQuMCsweDUwLzB4NjAgIA0Ka2VybmVsL3JjdS91cGRhdGUuYzoyNDkNClJlYWQg
-b2Ygc2l6ZSA0IGF0IGFkZHIgZmZmZjg4ODBhOTQ1ZWFiYyBieSB0YXNrICANCmA577+977+977+9
-77+977+977+9I++/vSgVEO+/ve+/ve+/ve+/ve+/vTzvv73vv73vv73vv73vv70QGmvvv73vv73v
-v73vv73vv73vv73vv71F77+977+977+977+977+9Pjlo77+977+977+977+977+977+977+977+9
-QS8tMjEyMjE4ODYzNA0KDQpDUFU6IDAgUElEOiAtMjEyMjE4ODYzNCBDb21tOiDvv73vv71F77+9
-77+977+977+977+977+977+977+977+977+977+977+977+9TzLvv70gTm90IHRhaW50ZWQgNS4w
-LjAtcmMxKyAgDQojMTkNCkhhcmR3YXJlIG5hbWU6IEdvb2dsZSBHb29nbGUgQ29tcHV0ZSBFbmdp
-bmUvR29vZ2xlIENvbXB1dGUgRW5naW5lLCBCSU9TICANCkdvb2dsZSAwMS8wMS8yMDExDQotLS0t
-LS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0tLS0tLS0NCkJhZCBvciBtaXNzaW5nIHVzZXJjb3B5
-IHdoaXRlbGlzdD8gS2VybmVsIG1lbW9yeSBvdmVyd3JpdGUgYXR0ZW1wdCBkZXRlY3RlZCAgDQp0
-byBTTEFCIG9iamVjdCAndGFza19zdHJ1Y3QnIChvZmZzZXQgMTM0NCwgc2l6ZSA4KSENCldBUk5J
-Tkc6IENQVTogMCBQSUQ6IC0xNDU1MDM2Mjg4IGF0IG1tL3VzZXJjb3B5LmM6NzggIA0KdXNlcmNv
-cHlfd2FybisweGViLzB4MTEwIG1tL3VzZXJjb3B5LmM6NzgNCktlcm5lbCBwYW5pYyAtIG5vdCBz
-eW5jaW5nOiBwYW5pY19vbl93YXJuIHNldCAuLi4NCkNQVTogMCBQSUQ6IC0xNDU1MDM2Mjg4IENv
-bW06IO+/ve+/vUXvv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv73vv71PMu+/vSBO
-b3QgdGFpbnRlZCA1LjAuMC1yYzErICANCiMxOQ0KSGFyZHdhcmUgbmFtZTogR29vZ2xlIEdvb2ds
-ZSBDb21wdXRlIEVuZ2luZS9Hb29nbGUgQ29tcHV0ZSBFbmdpbmUsIEJJT1MgIA0KR29vZ2xlIDAx
-LzAxLzIwMTENCkNhbGwgVHJhY2U6DQpLZXJuZWwgT2Zmc2V0OiBkaXNhYmxlZA0KUmVib290aW5n
-IGluIDg2NDAwIHNlY29uZHMuLg0KDQoNCi0tLQ0KVGhpcyBidWcgaXMgZ2VuZXJhdGVkIGJ5IGEg
-Ym90LiBJdCBtYXkgY29udGFpbiBlcnJvcnMuDQpTZWUgaHR0cHM6Ly9nb28uZ2wvdHBzbUVKIGZv
-ciBtb3JlIGluZm9ybWF0aW9uIGFib3V0IHN5emJvdC4NCnN5emJvdCBlbmdpbmVlcnMgY2FuIGJl
-IHJlYWNoZWQgYXQgc3l6a2FsbGVyQGdvb2dsZWdyb3Vwcy5jb20uDQoNCnN5emJvdCB3aWxsIGtl
-ZXAgdHJhY2sgb2YgdGhpcyBidWcgcmVwb3J0LiBTZWU6DQpodHRwczovL2dvby5nbC90cHNtRUoj
-YnVnLXN0YXR1cy10cmFja2luZyBmb3IgaG93IHRvIGNvbW11bmljYXRlIHdpdGggIA0Kc3l6Ym90
-Lg0Kc3l6Ym90IGNhbiB0ZXN0IHBhdGNoZXMgZm9yIHRoaXMgYnVnLCBmb3IgZGV0YWlscyBzZWU6
-DQpodHRwczovL2dvby5nbC90cHNtRUojdGVzdGluZy1wYXRjaGVzDQo=
+On Tue, Jan 15, 2019 at 4:58 AM Boris Ostrovsky
+<boris.ostrovsky@oracle.com> wrote:
+>
+> On 1/11/19 10:12 AM, Souptick Joarder wrote:
+> > Convert to use vm_insert_range() to map range of kernel
+> > memory to user vma.
+> >
+> > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>
+> Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+>
+> (although it would be good to mention in the commit that you are also
+> replacing count with vma_pages(vma), and why)
+
+The original code was using count ( *count = vma_pages(vma)* )
+which is same as this patch. Do I need capture it change log ?
+
+>
+>
+> > ---
+> >  drivers/xen/gntdev.c | 16 ++++++----------
+> >  1 file changed, 6 insertions(+), 10 deletions(-)
+> >
+> > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> > index b0b02a5..ca4acee 100644
+> > --- a/drivers/xen/gntdev.c
+> > +++ b/drivers/xen/gntdev.c
+> > @@ -1082,18 +1082,17 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
+> >  {
+> >       struct gntdev_priv *priv = flip->private_data;
+> >       int index = vma->vm_pgoff;
+> > -     int count = vma_pages(vma);
+> >       struct gntdev_grant_map *map;
+> > -     int i, err = -EINVAL;
+> > +     int err = -EINVAL;
+> >
+> >       if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
+> >               return -EINVAL;
+> >
+> >       pr_debug("map %d+%d at %lx (pgoff %lx)\n",
+> > -                     index, count, vma->vm_start, vma->vm_pgoff);
+> > +                     index, vma_pages(vma), vma->vm_start, vma->vm_pgoff);
+> >
+> >       mutex_lock(&priv->lock);
+> > -     map = gntdev_find_map_index(priv, index, count);
+> > +     map = gntdev_find_map_index(priv, index, vma_pages(vma));
+> >       if (!map)
+> >               goto unlock_out;
+> >       if (use_ptemod && map->vma)
+> > @@ -1145,12 +1144,9 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
+> >               goto out_put_map;
+> >
+> >       if (!use_ptemod) {
+> > -             for (i = 0; i < count; i++) {
+> > -                     err = vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
+> > -                             map->pages[i]);
+> > -                     if (err)
+> > -                             goto out_put_map;
+> > -             }
+> > +             err = vm_insert_range(vma, map->pages, map->count);
+> > +             if (err)
+> > +                     goto out_put_map;
+> >       } else {
+> >  #ifdef CONFIG_X86
+> >               /*
+>
 
