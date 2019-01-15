@@ -4,111 +4,111 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E259EC43387
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 06:06:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68927C43387
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:06:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7CCCA2085A
-	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 06:06:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 23F0820883
+	for <linux-mm@archiver.kernel.org>; Tue, 15 Jan 2019 07:06:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="NWUP1IuV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CCCA2085A
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jeOEIrMp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23F0820883
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CEF618E0003; Tue, 15 Jan 2019 01:06:31 -0500 (EST)
+	id AC82A8E0003; Tue, 15 Jan 2019 02:06:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9E9E8E0002; Tue, 15 Jan 2019 01:06:31 -0500 (EST)
+	id A76AA8E0002; Tue, 15 Jan 2019 02:06:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B8D1E8E0003; Tue, 15 Jan 2019 01:06:31 -0500 (EST)
+	id 98D7B8E0003; Tue, 15 Jan 2019 02:06:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 922FC8E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 01:06:31 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id m128so1840161itd.3
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 22:06:31 -0800 (PST)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 70D638E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 02:06:23 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id q18so1316794ioj.5
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 23:06:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=04LD5tnaL6HygrCedJCCK4XNsXVpKMg/caDZ85xc/Og=;
-        b=QQjn819pGzLoUePuzMWcLnTIYqFX1K5kNVzw3D1ZO8vDpO0HOD4llLANGSW4VYMzxM
-         yt/ArASViC1hXiCM0rM9qGpUQqz2ZVB6YLvhGZkwto8PAN4oHzZiOk9MWfI7pQqbGPrO
-         h4l2IYHql2FOWGVwlTNuEMNIed/w/lPhyrl9DabmecW6C+XgCvQQuTs13h6o85wU9qP/
-         sSn1uNh8JdaUZsx0YqsRPJhUFqVZ0okq6EezVuNObZX13bPuByVp+TvOoSsMvLyWPT38
-         dAWcf/DEHNmHHVWC+LnZWFFLAEqfWwo4n0NpVGTRH9gNzhbl5dHTrr4POmp30+a6pHtb
-         +80Q==
-X-Gm-Message-State: AJcUukdrDvQZQA+oFtXwi2L7dbozvGPZm5wL1d1DSC0abMX6MRLJ9xhn
-	JGB6cdC+yk2afv0zY1Gl+CHyKue0tt9CRuXtdcxWoTU+ujrJWA4gltyY0c79oZm/Cawvk89G5Nk
-	36JuRqqMp6BiBhOfsQ0LZq0/ZLGUyYtIi745rYbaDPvP5d4NnQ/pbVIHFKMomTTcGZQdXASK2VI
-	kD4PAJSAi+JlYladAXarKq5fdS2edJPtZagLgHdvy7eBeLPxw6Q/NfgB7+U+Nq/0INsG/ufxMfK
-	vZw30ZCAdDlnxYDCfWi3hIosKQfish+CFzdU5ap06LeiWNEhqjylBQEGUDYaDgzBKleHEVz5elP
-	KEYQrECOq+bvLx1p062IlYrd7a0c1CNcYwRoCsw/IytUkojprjj+WErOiRl6KkoyvUvc8n4Wunm
-	Z
-X-Received: by 2002:a6b:9089:: with SMTP id s131mr1286373iod.242.1547532391301;
-        Mon, 14 Jan 2019 22:06:31 -0800 (PST)
-X-Received: by 2002:a6b:9089:: with SMTP id s131mr1286358iod.242.1547532390464;
-        Mon, 14 Jan 2019 22:06:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547532390; cv=none;
+        bh=vBxTO+ik6S90VjvwhhQyOAyNkKinjn9P/JvduBA/t5Y=;
+        b=PAfmiqY3qNPVQzeQLJOPrK4UopWVNCFR+q00IckQmWj5ui7FkXyuR90w62dYiXsGVo
+         e3OVqR1jk58AiSI1i1lUwC6tHJU/fXJLRSwIQKM0xYl662yYIvhKvc2/F7Zg9hXdqkZR
+         bhb2Y2YPHItiPbddu2u2e6HUNIIicW53jQq9uBlVqPq0DFEoMOIVgZWpN9CDrrWfPkS4
+         k3w197qScVl5iIdN52K+6rmFNksDXV/8agbv1LK4ygdLiH6PMZcjfkYhnVKJg/GVazyO
+         rVh8gd0f2f7YfL1hXHEfoK+lr1TzrF5CSYzEvIGVcnmBjBVulPJTQXfk4eRO5uhgO2M7
+         sc9Q==
+X-Gm-Message-State: AJcUukepn4kj2A+1R6KPuRob2Z59NvGwG6tZBOTB69r3SVBHDZuwWvhH
+	en/FkBGUt8du5hxYSrXVpDCrTmzq9mzllvTA1UaciRxgEy277R9jfIvEjlaqbIWzTSKeeo6QdD7
+	7CZFACFn4iz8O7bd3ojKZEl2NGiIj0MPeSMdO4Z/YTfe7BgI4zEcp30P1jgLMCUkvj+zuu82NUn
+	0PTCOleCr9kr/rnkPk6saJjbYnMhDyhneLsvNVffk9hjdxghNVCuUS+ujscDI427wz/YhqdirUP
+	J3ssTb55REAT0lId0sXSNtsTlSqOS2rC/aZgWb/wi7k6a2MgdYl7WjKeBdDC4rKw8GtKy5umhQP
+	NeOzkS8rQV9MZg0g91riu2ZQHrNlc0MJBdd7tNKdOqIYpxqPoiKqBxETpEz8Oa5KGI0q7927KEF
+	z
+X-Received: by 2002:a05:660c:12c7:: with SMTP id k7mr1654267itd.148.1547535983163;
+        Mon, 14 Jan 2019 23:06:23 -0800 (PST)
+X-Received: by 2002:a05:660c:12c7:: with SMTP id k7mr1654250itd.148.1547535982445;
+        Mon, 14 Jan 2019 23:06:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547535982; cv=none;
         d=google.com; s=arc-20160816;
-        b=sYnQ5VrRLfP4oqVWmS3j/dI2f1jEFbQPrPZGkQSb2uHlMqzMfsbrKX+Wk7ubz6Id2K
-         BKnciOcX5MLWFVAFI2mJwKAZCOjqY/fyO0nYzvwrgr3QVgnsS+JNvLqkoIFCRhiUY9Rg
-         Q9cVLYW5GKb6DT55N14O1W3LQwe+zhgloHguqL3puon1FfkIGLrrbWduByEDOExNEE06
-         rLvys/i7polsouWTHLy1UumV0qZ+GRpOPkBITQAGMWoVp+cDBxmlXfIpZRnaFw/c7jlf
-         It0f0LBlfM2ECw3r7sULFgV4Bi/EKzHGns1usVh2LPEGpWRhuw5fkRZiYIyI7NdWOVFW
-         5IKQ==
+        b=KGiR765PJN15TGiW6MlDQzJDtUpUUdnk5gdtnA1OPtQGad8pbxVSAvDogT50n2G9vb
+         jndOG+pXZNdUxeiWdMJ6OLA0+wHvhtXnVysLbK590uXZJJBHwX3yYQoatHZ4fe7RQc4Y
+         q4LDoxmUplKdk71eBHhOWMsEbz6vhJWRoyFiJXJcKNPJfEVM/UndPSX9IJnC/9gb6ukl
+         RJTWONuik6iRJwNHQ0g3Yqa4B/EXxOQ941pFfcnh2RB69s3MMpIEli5FsK9xhFU3RXwx
+         VogxyIHn9A2qZGztNIuUGBuJQ8zJ0itUWtIxCa94wIRJUVSYMdnGgXx9hjbWq92GKb8k
+         hz6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=04LD5tnaL6HygrCedJCCK4XNsXVpKMg/caDZ85xc/Og=;
-        b=biCb4VWtiaxp1kjJxJfk5xrC8f0/lCtA1nYt/4BhA+1s6YCwGXFt4HKIua/ZeOrRzR
-         lghqVjjAIUDLPD7zni3JRKInUza/um4f+vMdUdoyKTi7Q0u17zFjk3MHRQh+AE6zeeU4
-         2e8DxeBKtNtFdKVKrjmw2Tt+wacjF2Kd3MijFNVePlNzIcBsSMxUc/8YrRwCdDQ8cnBZ
-         e5u+Bl3lGEzayRt45gYnbZP6qn+CK4BKgX6LMYkTw/fnYdlGgAVvcBIYTjflBQNWh77K
-         c1TueIynCAss9kmLwBnc/egBAILrW6njWT+PvpnkLl0qL/N2yunL+QV1/z6+LQ6fNweX
-         FrIw==
+        bh=vBxTO+ik6S90VjvwhhQyOAyNkKinjn9P/JvduBA/t5Y=;
+        b=N9BSyA+WAYee53AZ16Kq0fKMQEzrTPYL0yFhf6CnbWkkfYlhQKRvs13cIHURvPf/rL
+         NCjpQAZT8A7FNrgzwSu4lIk/v77WCgQQQFnMmGPy+WOli9193eqpDeLUJ8grp8bvQlMz
+         mYGXIaCt3BRzXwEaslFAjXxlo0k1h5M0WqTpIMIlMPFLuJtuwKwbk+yiApUFXlahyTXO
+         WePyzW9/W71fmR1ZXpgs2lGA28UN+jpDgoO9ONl5yqF1E55xlVI7S4EdWqswTWGpyq5T
+         300+o3T/OzYtb3V6ai4FwL1z085dV/5p/ZggZJMxqfTDhcsS41vBIIuWCasLgsYiuxn5
+         ElBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NWUP1IuV;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jeOEIrMp;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 62sor1108925ioc.95.2019.01.14.22.06.30
+        by mx.google.com with SMTPS id d142sor4228719itc.16.2019.01.14.23.06.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 14 Jan 2019 22:06:30 -0800 (PST)
+        Mon, 14 Jan 2019 23:06:22 -0800 (PST)
 Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NWUP1IuV;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jeOEIrMp;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=04LD5tnaL6HygrCedJCCK4XNsXVpKMg/caDZ85xc/Og=;
-        b=NWUP1IuVIPMrmG00smSS107/8BQbtcDtO7L0kLleNwzqAmebAjWUUCV2JWrJOJIkHo
-         7tmpA2T6MIhdW67zkU0exiB4cx4C1OzcP18u0BOXHTr+tc4pH/EHE8T8KVIUO+B6zAmY
-         eAOBN6A9x6ZhrMarPobF/GI/f+4ATL/IOG8ANGIkakBrh/1VIYBYiw+AVMCAS7s5WCPU
-         X2p3TBWR/iTblrn5HzJ9mNxOIBxc/JjTlLVFDnjpI7FJFrDOksssuBWvqBfn6C/rfdhV
-         x76H/IVlYcS0s1bp5UG3aAhIGpHO7B1U0cy7A4aG1H2MSp5QJj+ri/tnpOsOyWewWgvy
-         cC/g==
-X-Google-Smtp-Source: ALg8bN48jzf4aeD7b0DSZB3vH55RXm3TPmU/PlMMWm8l+Aw0vxaA7CGhidBrJuem97ZNEopmz+DwktVb1+3ouzXdRUM=
-X-Received: by 2002:a6b:39c6:: with SMTP id g189mr1049006ioa.255.1547532390132;
- Mon, 14 Jan 2019 22:06:30 -0800 (PST)
+        bh=vBxTO+ik6S90VjvwhhQyOAyNkKinjn9P/JvduBA/t5Y=;
+        b=jeOEIrMpgXi3/B7EW3lgvfCoRqTBFVzmSrBIFt2tpkk7CsLQC3esSVpvE24X0hK4uB
+         osXXGM7O5q6Yu2NWuL6D/ZZ77ErZREpHtlOsSYWeisH5EGVdQ4CXm96ZKK54ibyXBy5N
+         MPwG4FR9UT821u6+5z+QP70w3L7rtVYdT5LrwkWNMYeSKkH/lRplKQA2yfk2m9lhU/qk
+         zGoOpERnzuOf9XOAkLe9KQGPCuOd98lgGz0Jb6mQQRW9Ot54eyTc5J2t01YluhmiVns5
+         gUIE+OUsCABCvScUTdpBOaV2mqvTn1b5w4P7TMu9mrbacZReD2PS2NHVofzR58dR/MlV
+         Dp8A==
+X-Google-Smtp-Source: ALg8bN6nciu4jZVlb6o0NjOSQGyRSzWVuL2vBfcarEjVevsygaYd+FFSzu/F/XJJlih/Jj0QBVK449+HgxJ5/dlokAQ=
+X-Received: by 2002:a24:3282:: with SMTP id j124mr1700100ita.173.1547535982120;
+ Mon, 14 Jan 2019 23:06:22 -0800 (PST)
 MIME-Version: 1.0
-References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com> <fe88d6ff-00e1-b65d-f411-64b03227bd17@intel.com>
-In-Reply-To: <fe88d6ff-00e1-b65d-f411-64b03227bd17@intel.com>
+References: <1547183577-20309-1-git-send-email-kernelfans@gmail.com>
+ <1547183577-20309-2-git-send-email-kernelfans@gmail.com> <96233c0c-940d-8d7c-b3be-d8863c026996@intel.com>
+In-Reply-To: <96233c0c-940d-8d7c-b3be-d8863c026996@intel.com>
 From: Pingfan Liu <kernelfans@gmail.com>
-Date: Tue, 15 Jan 2019 14:06:18 +0800
+Date: Tue, 15 Jan 2019 15:06:10 +0800
 Message-ID:
- <CAFgQCTtsw9xj3M85HU2GBk5iPSF4h_H43do-rfpXMo8svmgoJg@mail.gmail.com>
-Subject: Re: [PATCHv2 0/7] x86_64/mm: remove bottom-up allocation style by
- pushing forward the parsing of mem hotplug info
+ <CAFgQCTsV13JSH_S2kSQGeUa3K0s_n4LeGqhrHwBEW9DWeCWgcA@mail.gmail.com>
+Subject: Re: [PATCHv2 1/7] x86/mm: concentrate the code to memblock allocator enabled
 To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, 
+Cc: LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, 
 	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
 	Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, 
 	Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, 
@@ -123,98 +123,43 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190115060618.QOrjGXNFWoD_nmq_5uGCCKoOsu_ze9lLac4-jp3k9b0@z>
+Message-ID: <20190115070610.jPUvg7F6WrEew3jGV3XIkEKCZu-Zlugrcvhh1nafLPo@z>
 
-On Tue, Jan 15, 2019 at 7:02 AM Dave Hansen <dave.hansen@intel.com> wrote:
+On Tue, Jan 15, 2019 at 7:07 AM Dave Hansen <dave.hansen@intel.com> wrote:
 >
 > On 1/10/19 9:12 PM, Pingfan Liu wrote:
-> > Background
-> > When kaslr kernel can be guaranteed to sit inside unmovable node
-> > after [1].
+> > This patch identifies the point where memblock alloc start. It has no
+> > functional.
 >
-> What does this "[1]" refer to?
+> It has no functional ... what?  Effects?
 >
-https://lore.kernel.org/patchwork/patch/1029376/
+During re-organize the code, it takes me a long time to figure out why
+memblock_set_bottom_up(true) is added here, and how far can it be
+deferred. And finally, I realize that it only takes effect after
+e820__memblock_setup(), the point where memblock allocator can work.
+So I concentrate the related code, and hope this patch can classify
+this truth.
 
-> Also, can you clarify your terminology here a bit.  By "kaslr kernel",
-> do you mean the base address?
+> > -     memblock_set_current_limit(ISA_END_ADDRESS);
+> > -     e820__memblock_setup();
+> > -
+> >       reserve_bios_regions();
+> >
+> >       if (efi_enabled(EFI_MEMMAP)) {
+> > @@ -1113,6 +1087,8 @@ void __init setup_arch(char **cmdline_p)
+> >               efi_reserve_boot_services();
+> >       }
+> >
+> > +     memblock_set_current_limit(0, ISA_END_ADDRESS, false);
+> > +     e820__memblock_setup();
 >
-It should be the randomization of load address. Googled, and found out
-that it is "base address".
+> It looks like you changed the arguments passed to
+> memblock_set_current_limit().  How can this even compile?  Did you mean
+> that this patch is not functional?
+>
+Sorry that during rebasing, merge trivial fix by mistake. I will build
+against each patch.
 
-> > But if kaslr kernel is located near the end of the movable node,
-> > then bottom-up allocator may create pagetable which crosses the boundary
-> > between unmovable node and movable node.
->
-> Again, I'm confused.  Do you literally mean a single page table page?  I
-> think you mean the page tables, but it would be nice to clarify this,
-> and also explicitly state which page tables these are.
->
-It should be page table pages. The page table is built by init_mem_mapping().
-
-> >  It is a probability issue,
-> > two factors include -1. how big the gap between kernel end and
-> > unmovable node's end.  -2. how many memory does the system own.
-> > Alternative way to fix this issue is by increasing the gap by
-> > boot/compressed/kaslr*.
->
-> Oh, you mean the KASLR code in arch/x86/boot/compressed/kaslr*.[ch]?
->
-Sorry, and yes, code in arch/x86/boot/compressed/kaslr_64.c and kaslr.c
-
-> It took me a minute to figure out you were talking about filenames.
->
-> > But taking the scenario of PB level memory, the pagetable will take
-> > server MB even if using 1GB page, different page attr and fragment
-> > will make things worse. So it is hard to decide how much should the
-> > gap increase.
-> I'm not following this.  If we move the image around, we leave holes.
-> Why do we need page table pages allocated to cover these holes?
->
-I means in arch/x86/boot/compressed/kaslr.c, store_slot_info() {
-slot_area.num = (region->size - image_size) /CONFIG_PHYSICAL_ALIGN + 1
-}.  Let us denote the size of page table as "X", then the formula is
-changed to slot_area.num = (region->size - image_size -X)
-/CONFIG_PHYSICAL_ALIGN + 1. And it is hard to decide X due to the
-above factors.
-
-> > The following figure show the defection of current bottom-up style:
-> >   [startA, endA][startB, "kaslr kernel verly close to" endB][startC, endC]
->
-> "defection"?
->
-Oh, defect.
-
-> > If nodeA,B is unmovable, while nodeC is movable, then init_mem_mapping()
-> > can generate pgtable on nodeC, which stain movable node.
->
-> Let me see if I can summarize this:
-> 1. The kernel ASLR decompression code picks a spot to place the kernel
->    image in physical memory.
-> 2. Some page tables are dynamically allocated near (after) this spot.
-> 3. Sometimes, based on the random ASLR location, these page tables fall
->    over into the "movable node" area.  Being unmovable allocations, this
->    is not cool.
-> 4. To fix this (on 64-bit at least), we stop allocating page tables
->    based on the location of the kernel image.  Instead, we allocate
->    using the memblock allocator itself, which knows how to avoid the
->    movable node.
->
-Yes, you get my idea exactly. Thanks for your help to summary it. Hard
-for me to express it clearly in English.
-
-> > This patch makes it certainty instead of a probablity problem. It achieves
-> > this by pushing forward the parsing of mem hotplug info ahead of init_mem_mapping().
->
-> What does memory hotplug have to do with this?  I thought this was all
-> about early boot.
-
-Put the info about memory hot plugable to memblock allocator,
-initmem_init()->...->acpi_numa_memory_affinity_init(), where
-memblock_mark_hotplug() does it. Later when memory allocator works, in
-__next_mem_range(), it will check this info by
-memblock_is_hotpluggable().
-
-Thanks and regards,
+Best regards,
 Pingfan
 
