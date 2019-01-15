@@ -1,118 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E707E8E0002
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 14:01:04 -0500 (EST)
-Received: by mail-yw1-f70.google.com with SMTP id f10so25792ywc.21
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 11:01:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 23sor229667ywq.112.2019.01.14.11.01.03
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E947B8E0002
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2019 19:23:34 -0500 (EST)
+Received: by mail-yb1-f200.google.com with SMTP id r9so436284ybp.16
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2019 16:23:34 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id k11si1167380ybd.76.2019.01.14.16.23.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 14 Jan 2019 11:01:03 -0800 (PST)
-Date: Mon, 14 Jan 2019 14:01:00 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC v3 PATCH 0/5] mm: memcontrol: do memory reclaim when
- offlining
-Message-ID: <20190114190100.GA8745@cmpxchg.org>
-References: <1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190109193247.GA16319@cmpxchg.org>
- <d92912c7-511e-2ab5-39a6-38af3209fcaf@linux.alibaba.com>
- <20190109212334.GA18978@cmpxchg.org>
- <9de4bb4a-6bb7-e13a-0d9a-c1306e1b3e60@linux.alibaba.com>
- <20190109225143.GA22252@cmpxchg.org>
- <99843dad-608d-10cc-c28f-e5e63a793361@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Jan 2019 16:23:33 -0800 (PST)
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: [PATCH] mm, swap: bounds check swap_info accesses to avoid NULL derefs
+Date: Mon, 14 Jan 2019 19:23:05 -0500
+Message-Id: <20190115002305.15402-1-daniel.m.jordan@oracle.com>
+In-Reply-To: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
+References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <99843dad-608d-10cc-c28f-e5e63a793361@linux.alibaba.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@suse.com, shakeelb@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: dan.carpenter@oracle.com, andrea.parri@amarulasolutions.com, shli@kernel.org, ying.huang@intel.com, dave.hansen@linux.intel.com, sfr@canb.auug.org.au, osandov@fb.com, tj@kernel.org, ak@linux.intel.com, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, paulmck@linux.ibm.com, stern@rowland.harvard.edu, peterz@infradead.org, will.deacon@arm.com, daniel.m.jordan@oracle.com
 
-On Wed, Jan 09, 2019 at 05:47:41PM -0800, Yang Shi wrote:
-> On 1/9/19 2:51 PM, Johannes Weiner wrote:
-> > On Wed, Jan 09, 2019 at 02:09:20PM -0800, Yang Shi wrote:
-> > > On 1/9/19 1:23 PM, Johannes Weiner wrote:
-> > > > On Wed, Jan 09, 2019 at 12:36:11PM -0800, Yang Shi wrote:
-> > > > > As I mentioned above, if we know some page caches from some memcgs
-> > > > > are referenced one-off and unlikely shared, why just keep them
-> > > > > around to increase memory pressure?
-> > > > It's just not clear to me that your scenarios are generic enough to
-> > > > justify adding two interfaces that we have to maintain forever, and
-> > > > that they couldn't be solved with existing mechanisms.
-> > > > 
-> > > > Please explain:
-> > > > 
-> > > > - Unmapped clean page cache isn't expensive to reclaim, certainly
-> > > >     cheaper than the IO involved in new application startup. How could
-> > > >     recycling clean cache be a prohibitive part of workload warmup?
-> > > It is nothing about recycling. Those page caches might be referenced by
-> > > memcg just once, then nobody touch them until memory pressure is hit. And,
-> > > they might be not accessed again at any time soon.
-> > I meant recycling the page frames, not the cache in them. So the new
-> > workload as it starts up needs to take those pages from the LRU list
-> > instead of just the allocator freelist. While that's obviously not the
-> > same cost, it's not clear why the difference would be prohibitive to
-> > application startup especially since app startup tends to be dominated
-> > by things like IO to fault in executables etc.
-> 
-> I'm a little bit confused here. Even though those page frames are not
-> reclaimed by force_empty, they would be reclaimed by kswapd later when
-> memory pressure is hit. For some usecases, they may prefer get recycled
-> before kswapd kick them out LRU, but for some usecases avoiding memory
-> pressure might outpace page frame recycling.
+Dan Carpenter reports a potential NULL dereference in
+get_swap_page_of_type:
 
-I understand that, but you're not providing data for the "may prefer"
-part. You haven't shown that any proactive reclaim actually matters
-and is a significant net improvement to a real workload in a real
-hardware environment, and that the usecase is generic and widespread
-enough to warrant an entirely new kernel interface.
+  Smatch complains that the NULL checks on "si" aren't consistent.  This
+  seems like a real bug because we have not ensured that the type is
+  valid and so "si" can be NULL.
 
-> > > > - Why you couldn't set memory.high or memory.max to 0 after the
-> > > >     application quits and before you call rmdir on the cgroup
-> > > I recall I explained this in the review email for the first version. Set
-> > > memory.high or memory.max to 0 would trigger direct reclaim which may stall
-> > > the offline of memcg. But, we have "restarting the same name job" logic in
-> > > our usecase (I'm not quite sure why they do so). Basically, it means to
-> > > create memcg with the exact same name right after the old one is deleted,
-> > > but may have different limit or other settings. The creation has to wait for
-> > > rmdir is done.
-> > This really needs a fix on your end. We cannot add new cgroup control
-> > files because you cannot handle a delayed release in the cgroupfs
-> > namespace while you're reclaiming associated memory. A simple serial
-> > number would fix this.
-> > 
-> > Whether others have asked for this knob or not, these patches should
-> > come with a solid case in the cover letter and changelogs that explain
-> > why this ABI is necessary to solve a generic cgroup usecase. But it
-> > sounds to me that setting the limit to 0 once the group is empty would
-> > meet the functional requirement (use fork() if you don't want to wait)
-> > of what you are trying to do.
-> 
-> Do you mean do something like the below:
-> 
-> echo 0 > cg1/memory.max &
-> rmdir cg1 &
-> mkdir cg1 &
->
-> But, the latency is still there, even though memcg creation (mkdir) can be
-> done very fast by using fork(), the latency would delay afterwards
-> operations, i.e. attaching tasks (echo PID > cg1/cgroup.procs). When we
-> calculating the time consumption of the container deployment, we would count
-> from mkdir to the job is actually launched.
+Add the missing check for NULL, taking care to use a read barrier to
+ensure CPU1 observes CPU0's updates in the correct order:
 
-I'm saying that the same-name requirement is your problem, not the
-kernel's. It's not unreasonable for the kernel to say that as long as
-you want to do something with the cgroup, such as forcibly emptying
-out the left-over cache, that the group name stays in the namespace.
+        CPU0                           CPU1
+        alloc_swap_info()              if (type >= nr_swapfiles)
+          swap_info[type] = p              /* handle invalid entry */
+          smp_wmb()                    smp_rmb()
+          ++nr_swapfiles               p = swap_info[type]
 
-Requiring the same exact cgroup name for another instance of the same
-job sounds like a bogus requirement. Surely you can use serial numbers
-to denote subsequent invocations of the same job and handle that from
-whatever job management software you're using:
+Without smp_rmb, CPU1 might observe CPU0's write to nr_swapfiles before
+CPU0's write to swap_info[type] and read NULL from swap_info[type].
 
-	( echo 0 > job1345-1/memory.max; rmdir job12345-1 ) &
-	mkdir job12345-2
+Ying Huang noticed that other places don't order these reads properly.
+Introduce swap_type_to_swap_info to encourage correct usage.
 
-See, completely decoupled.
+Use READ_ONCE and WRITE_ONCE to follow the Linux Kernel Memory Model
+(see tools/memory-model/Documentation/explanation.txt).
+
+This ordering need not be enforced in places where swap_lock is held
+(e.g. si_swapinfo) because swap_lock serializes updates to nr_swapfiles
+and the swap_info array.
+
+This is a theoretical problem, no actual reports of it exist.
+
+Fixes: ec8acf20afb8 ("swap: add per-partition lock for swapfile")
+Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
+Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Alan Stern <stern@rowland.harvard.edu>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Omar Sandoval <osandov@fb.com>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Will Deacon <will.deacon@arm.com>
+
+---
+
+I'd appreciate it if someone more familiar with memory barriers could
+check this over.  Thanks.
+
+Probably no need for stable, this is all theoretical.
+
+Against linux-mmotm tag v5.0-rc1-mmotm-2019-01-09-13-40
+
+ mm/swapfile.c | 43 +++++++++++++++++++++++++++----------------
+ 1 file changed, 27 insertions(+), 16 deletions(-)
+
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index f0edf7244256..dad52fc67045 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -99,6 +99,15 @@ static atomic_t proc_poll_event = ATOMIC_INIT(0);
+ 
+ atomic_t nr_rotate_swap = ATOMIC_INIT(0);
+ 
++static struct swap_info_struct *swap_type_to_swap_info(int type)
++{
++	if (type >= READ_ONCE(nr_swapfiles))
++		return NULL;
++
++	smp_rmb();	/* Pairs with smp_wmb in alloc_swap_info. */
++	return READ_ONCE(swap_info[type]);
++}
++
+ static inline unsigned char swap_count(unsigned char ent)
+ {
+ 	return ent & ~SWAP_HAS_CACHE;	/* may include COUNT_CONTINUED flag */
+@@ -1045,12 +1054,14 @@ int get_swap_pages(int n_goal, swp_entry_t swp_entries[], int entry_size)
+ /* The only caller of this function is now suspend routine */
+ swp_entry_t get_swap_page_of_type(int type)
+ {
+-	struct swap_info_struct *si;
++	struct swap_info_struct *si = swap_type_to_swap_info(type);
+ 	pgoff_t offset;
+ 
+-	si = swap_info[type];
++	if (!si)
++		goto fail;
++
+ 	spin_lock(&si->lock);
+-	if (si && (si->flags & SWP_WRITEOK)) {
++	if (si->flags & SWP_WRITEOK) {
+ 		atomic_long_dec(&nr_swap_pages);
+ 		/* This is called for allocating swap entry, not cache */
+ 		offset = scan_swap_map(si, 1);
+@@ -1061,6 +1072,7 @@ swp_entry_t get_swap_page_of_type(int type)
+ 		atomic_long_inc(&nr_swap_pages);
+ 	}
+ 	spin_unlock(&si->lock);
++fail:
+ 	return (swp_entry_t) {0};
+ }
+ 
+@@ -1072,9 +1084,9 @@ static struct swap_info_struct *__swap_info_get(swp_entry_t entry)
+ 	if (!entry.val)
+ 		goto out;
+ 	type = swp_type(entry);
+-	if (type >= nr_swapfiles)
++	p = swap_type_to_swap_info(type);
++	if (!p)
+ 		goto bad_nofile;
+-	p = swap_info[type];
+ 	if (!(p->flags & SWP_USED))
+ 		goto bad_device;
+ 	offset = swp_offset(entry);
+@@ -1212,9 +1224,9 @@ struct swap_info_struct *get_swap_device(swp_entry_t entry)
+ 	if (!entry.val)
+ 		goto out;
+ 	type = swp_type(entry);
+-	if (type >= nr_swapfiles)
++	si = swap_type_to_swap_info(type);
++	if (!si)
+ 		goto bad_nofile;
+-	si = swap_info[type];
+ 
+ 	preempt_disable();
+ 	if (!(si->flags & SWP_VALID))
+@@ -1765,10 +1777,9 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
+ sector_t swapdev_block(int type, pgoff_t offset)
+ {
+ 	struct block_device *bdev;
++	struct swap_info_struct *si = swap_type_to_swap_info(type);
+ 
+-	if ((unsigned int)type >= nr_swapfiles)
+-		return 0;
+-	if (!(swap_info[type]->flags & SWP_WRITEOK))
++	if (!si || !(si->flags & SWP_WRITEOK))
+ 		return 0;
+ 	return map_swap_entry(swp_entry(type, offset), &bdev);
+ }
+@@ -2799,9 +2810,9 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
+ 	if (!l)
+ 		return SEQ_START_TOKEN;
+ 
+-	for (type = 0; type < nr_swapfiles; type++) {
++	for (type = 0; type < READ_ONCE(nr_swapfiles); type++) {
+ 		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
+-		si = swap_info[type];
++		si = READ_ONCE(swap_info[type]);
+ 		if (!(si->flags & SWP_USED) || !si->swap_map)
+ 			continue;
+ 		if (!--l)
+@@ -2821,9 +2832,9 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
+ 	else
+ 		type = si->type + 1;
+ 
+-	for (; type < nr_swapfiles; type++) {
++	for (; type < READ_ONCE(nr_swapfiles); type++) {
+ 		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
+-		si = swap_info[type];
++		si = READ_ONCE(swap_info[type]);
+ 		if (!(si->flags & SWP_USED) || !si->swap_map)
+ 			continue;
+ 		++*pos;
+@@ -2930,14 +2941,14 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 	}
+ 	if (type >= nr_swapfiles) {
+ 		p->type = type;
+-		swap_info[type] = p;
++		WRITE_ONCE(swap_info[type], p);
+ 		/*
+ 		 * Write swap_info[type] before nr_swapfiles, in case a
+ 		 * racing procfs swap_start() or swap_next() is reading them.
+ 		 * (We never shrink nr_swapfiles, we never free this entry.)
+ 		 */
+ 		smp_wmb();
+-		nr_swapfiles++;
++		WRITE_ONCE(nr_swapfiles, nr_swapfiles + 1);
+ 	} else {
+ 		kvfree(p);
+ 		p = swap_info[type];
+-- 
+2.20.0
