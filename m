@@ -1,54 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DD2C18E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 09:50:08 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id u20so2568317qtk.6
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 06:50:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g65sor22938035qkd.1.2019.01.15.06.50.07
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 05C088E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 10:17:36 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id o6so1007660wmf.0
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 07:17:35 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 6si52962968wrr.52.2019.01.15.07.17.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 15 Jan 2019 06:50:08 -0800 (PST)
-Date: Tue, 15 Jan 2019 09:50:05 -0500
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [PATCH v4 2/2] selftests/memfd: Add tests for
- F_SEAL_FUTURE_WRITE seal
-Message-ID: <20190115145005.GC36681@google.com>
-References: <20190112203816.85534-1-joel@joelfernandes.org>
- <20190112203816.85534-3-joel@joelfernandes.org>
- <f9ffb7f8-1ff8-3bec-ce79-f9322d8715dc@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Jan 2019 07:17:33 -0800 (PST)
+Date: Tue, 15 Jan 2019 16:17:32 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: use generic DMA mapping code in powerpc V4
+Message-ID: <20190115151732.GA2325@lst.de>
+References: <71A251A5-FA06-4019-B324-7AED32F7B714@xenosoft.de> <1b0c5c21-2761-d3a3-651b-3687bb6ae694@xenosoft.de> <3504ee70-02de-049e-6402-2d530bf55a84@xenosoft.de> <23284859-bf0a-9cd5-a480-2a7fd7802056@xenosoft.de> <075f70e3-7a4a-732f-b501-05a1a8e3c853@xenosoft.de> <b04d08ea-61f9-3212-b9a3-ad79e3b8bd05@xenosoft.de> <21f72a6a-9095-7034-f169-95e876228b2a@xenosoft.de> <27148ac2-2a92-5536-d886-2c0971ab43d9@xenosoft.de> <20190115133558.GA29225@lst.de> <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f9ffb7f8-1ff8-3bec-ce79-f9322d8715dc@kernel.org>
+In-Reply-To: <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: shuah <shuah@kernel.org>
-Cc: linux-kernel@vger.kernel.org, dancol@google.com, minchan@kernel.org, Jann Horn <jannh@google.com>, John Stultz <john.stultz@linaro.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Hugh Dickins <hughd@google.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@kernel.org>, linux-api@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-mm@kvack.org, =?iso-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, Matthew Wilcox <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Christian Zigotzky <chzigotzky@xenosoft.de>
+Cc: Christoph Hellwig <hch@lst.de>, linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-On Mon, Jan 14, 2019 at 06:39:59PM -0700, shuah wrote:
-> On 1/12/19 1:38 PM, Joel Fernandes wrote:
-> > From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-> > 
-> > Add tests to verify sealing memfds with the F_SEAL_FUTURE_WRITE works as
-> > expected.
-> > 
-> > Cc: dancol@google.com
-> > Cc: minchan@kernel.org
-> > Cc: Jann Horn <jannh@google.com>
-> > Cc: John Stultz <john.stultz@linaro.org>
-> > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
-> > ---
-> 
-> Looks good to me. For selftest part of the series:
-> 
-> Reviewed-by: Shuah Khan <shuah@kernel.org>
+On Tue, Jan 15, 2019 at 02:56:34PM +0100, Christian Zigotzky wrote:
+> On 15 January 2019 at 2:35PM, Christoph Hellwig wrote:
+>> On Tue, Jan 15, 2019 at 11:55:25AM +0100, Christian Zigotzky wrote:
+>>> Next step: 21074ef03c0816ae158721a78cabe9035938dddd (powerpc/dma: use the
+>>> generic direct mapping bypass)
+>>>
+>>> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
+>>>
+>>> git checkout 21074ef03c0816ae158721a78cabe9035938dddd
+>>>
+>>> I was able to compile the kernel for the AmigaOne X1000 (Nemo board with PA
+>>> Semi PA6T-1682M SoC). It boots but the PA Semi onboard ethernet doesn't
+>>> work.
+>> Thanks.  But we are exactly missing the steps that are relevant.  I've
+>> pushed a fixed up powerpc-dma.6 tree, which will only change starting from
+>> the first commit that didn't link.
+>>
+>> The first commit that changed from the old one is this one:
+>>
+>> http://git.infradead.org/users/hch/misc.git/commitdiff/257002094bc5935dd63207a380d9698ab81f0775
+>>
+>> which was that one that your compile failed on first.
+>>
+>> Thanks again for all your work!
+>>
+> Thank you! I tried the commit 240d7ecd7f6fa62e074e8a835e620047954f0b28 
+> (powerpc/dma: use the dma-direct allocator for coherent platforms) again.
+>
+> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
+>
+> git checkout 240d7ecd7f6fa62e074e8a835e620047954f0b28
+>
+> I modified the 'dma.c' patch because of the undefined references to 
+> '__dma_nommu_free_coherent' and '__dma_nommu_alloc_coherent':
 
-Thanks!
-
-John, could you provide your Reviewed-by again for patch 1/2 ? I had dropped
-it since the patch had some more changes.
-
-thanks,
-
- - Joel
+So 257002094bc5935dd63207a380d9698ab81f0775 above is the fixed version
+for the commit - this switched the ifdef in dma.c around that I had
+inverted.  Can you try that one instead?  And then move on with the
+commits after it in the updated powerpc-dma.6 branch - they are
+identical to the original branch except for carrying this fix forward.
