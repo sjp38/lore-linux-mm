@@ -1,70 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7480C8E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 13:13:27 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id m16so2182264pgd.0
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 10:13:27 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id b21si1758966pfb.89.2019.01.15.10.13.25
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC658E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 15:30:25 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id g13so2348709plo.10
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 12:30:25 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id 187si4041288pfb.41.2019.01.15.12.30.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 10:13:26 -0800 (PST)
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: [PATCH -next 0/6] mm: make pinned_vm atomic and simplify users
-Date: Tue, 15 Jan 2019 10:12:54 -0800
-Message-Id: <20190115181300.27547-1-dave@stgolabs.net>
+        Tue, 15 Jan 2019 12:30:24 -0800 (PST)
+Date: Tue, 15 Jan 2019 12:30:21 -0800
+From: Ira Weiny <ira.weiny@intel.com>
+Subject: Re: [PATCH 6/6] drivers/IB,core: reduce scope of mmap_sem
+Message-ID: <20190115203020.GF4343@iweiny-mobl2.amr.corp.intel.com>
+References: <20190115181300.27547-1-dave@stgolabs.net>
+ <20190115181300.27547-7-dave@stgolabs.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190115181300.27547-7-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dledford@redhat.com, jgg@mellanox.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, dave@stgolabs.net
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, dledford@redhat.com, jgg@mellanox.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, Davidlohr Bueso <dbueso@suse.de>
 
-Hi,
+On Tue, Jan 15, 2019 at 10:13:00AM -0800, Davidlohr Bueso wrote:
+> ib_umem_get() uses gup_longterm() and relies on the lock to
+> stabilze the vma_list, so we cannot really get rid of mmap_sem
+> altogether, but now that the counter is atomic, we can get of
+> some complexity that mmap_sem brings with only pinned_vm.
+> 
+> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+>
 
-The following patches aim to provide cleanups to users that pin pages
-(mostly infiniband) by converting the counter to atomic -- note that
-Daniel Jordan also has patches[1] for the locked_vm counterpart and vfio.
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 
-Apart from removing a source of mmap_sem writer, we benefit in that
-we can get rid of a lot of code that defers work when the lock cannot
-be acquired, as well as drivers avoiding mmap_sem altogether by also
-converting gup to gup_fast() and letting the mm handle it. Users
-that do the gup_longterm() remain of course under at least reader mmap_sem.
-
-Everything has been compile-tested _only_ so I hope I didn't do anything
-too stupid. Please consider for v5.1.
-
-On a similar topic and potential follow up, it would be nice to resurrect
-Peter's VM_PINNED idea in that the broken semantics that occurred after
-bc3e53f682 ("mm: distinguish between mlocked and pinned pages") are still
-present. Also encapsulating internal mm logic via mm[un]pin() instead of
-drivers having to know about internals and playing nice with compaction are
-all wins.
-
-Thanks!
-
-[1] https://lkml.org/lkml/2018/11/5/854
-
-Davidlohr Bueso (6):
-  mm: make mm->pinned_vm an atomic counter
-  mic/scif: do not use mmap_sem
-  drivers/IB,qib: do not use mmap_sem
-  drivers/IB,hfi1: do not se mmap_sem
-  drivers/IB,usnic: reduce scope of mmap_sem
-  drivers/IB,core: reduce scope of mmap_sem
-
- drivers/infiniband/core/umem.c              | 47 +++-----------------
- drivers/infiniband/hw/hfi1/user_pages.c     | 12 ++---
- drivers/infiniband/hw/qib/qib_user_pages.c  | 69 ++++++++++-------------------
- drivers/infiniband/hw/usnic/usnic_ib_main.c |  2 -
- drivers/infiniband/hw/usnic/usnic_uiom.c    | 56 +++--------------------
- drivers/infiniband/hw/usnic/usnic_uiom.h    |  1 -
- drivers/misc/mic/scif/scif_rma.c            | 38 +++++-----------
- fs/proc/task_mmu.c                          |  2 +-
- include/linux/mm_types.h                    |  2 +-
- kernel/events/core.c                        |  8 ++--
- kernel/fork.c                               |  2 +-
- mm/debug.c                                  |  3 +-
- 12 files changed, 57 insertions(+), 185 deletions(-)
-
--- 
-2.16.4
+> ---
+>  drivers/infiniband/core/umem.c | 41 ++---------------------------------------
+>  1 file changed, 2 insertions(+), 39 deletions(-)
+> 
+> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+> index bf556215aa7e..baa2412bf6fb 100644
+> --- a/drivers/infiniband/core/umem.c
+> +++ b/drivers/infiniband/core/umem.c
+> @@ -160,15 +160,12 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+>  
+>  	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+>  
+> -	down_write(&mm->mmap_sem);
+> -	new_pinned = atomic_long_read(&mm->pinned_vm) + npages;
+> +	new_pinned = atomic_long_add_return(npages, &mm->pinned_vm);
+>  	if (new_pinned > lock_limit && !capable(CAP_IPC_LOCK)) {
+> -		up_write(&mm->mmap_sem);
+> +		atomic_long_sub(npages, &mm->pinned_vm);
+>  		ret = -ENOMEM;
+>  		goto out;
+>  	}
+> -	atomic_long_set(&mm->pinned_vm, new_pinned);
+> -	up_write(&mm->mmap_sem);
+>  
+>  	cur_base = addr & PAGE_MASK;
+>  
+> @@ -228,9 +225,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+>  umem_release:
+>  	__ib_umem_release(context->device, umem, 0);
+>  vma:
+> -	down_write(&mm->mmap_sem);
+>  	atomic_long_sub(ib_umem_num_pages(umem), &mm->pinned_vm);
+> -	up_write(&mm->mmap_sem);
+>  out:
+>  	if (vma_list)
+>  		free_page((unsigned long) vma_list);
+> @@ -253,25 +248,12 @@ static void __ib_umem_release_tail(struct ib_umem *umem)
+>  		kfree(umem);
+>  }
+>  
+> -static void ib_umem_release_defer(struct work_struct *work)
+> -{
+> -	struct ib_umem *umem = container_of(work, struct ib_umem, work);
+> -
+> -	down_write(&umem->owning_mm->mmap_sem);
+> -	atomic_long_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
+> -	up_write(&umem->owning_mm->mmap_sem);
+> -
+> -	__ib_umem_release_tail(umem);
+> -}
+> -
+>  /**
+>   * ib_umem_release - release memory pinned with ib_umem_get
+>   * @umem: umem struct to release
+>   */
+>  void ib_umem_release(struct ib_umem *umem)
+>  {
+> -	struct ib_ucontext *context = umem->context;
+> -
+>  	if (umem->is_odp) {
+>  		ib_umem_odp_release(to_ib_umem_odp(umem));
+>  		__ib_umem_release_tail(umem);
+> @@ -280,26 +262,7 @@ void ib_umem_release(struct ib_umem *umem)
+>  
+>  	__ib_umem_release(umem->context->device, umem, 1);
+>  
+> -	/*
+> -	 * We may be called with the mm's mmap_sem already held.  This
+> -	 * can happen when a userspace munmap() is the call that drops
+> -	 * the last reference to our file and calls our release
+> -	 * method.  If there are memory regions to destroy, we'll end
+> -	 * up here and not be able to take the mmap_sem.  In that case
+> -	 * we defer the vm_locked accounting a workqueue.
+> -	 */
+> -	if (context->closing) {
+> -		if (!down_write_trylock(&umem->owning_mm->mmap_sem)) {
+> -			INIT_WORK(&umem->work, ib_umem_release_defer);
+> -			queue_work(ib_wq, &umem->work);
+> -			return;
+> -		}
+> -	} else {
+> -		down_write(&umem->owning_mm->mmap_sem);
+> -	}
+>  	atomic_long_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
+> -	up_write(&umem->owning_mm->mmap_sem);
+> -
+>  	__ib_umem_release_tail(umem);
+>  }
+>  EXPORT_SYMBOL(ib_umem_release);
+> -- 
+> 2.16.4
+> 
