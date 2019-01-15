@@ -1,109 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0058E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:51:29 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id t10so5477481plo.13
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 22:51:29 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id k72si799769pge.310.2019.01.16.22.51.27
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E5E8E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 14:38:36 -0500 (EST)
+Received: by mail-yb1-f200.google.com with SMTP id y6so1784035ybb.11
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 11:38:36 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x137sor600057ywg.141.2019.01.15.11.38.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 22:51:27 -0800 (PST)
-Date: Thu, 17 Jan 2019 15:51:22 +0900
-From: Masami Hiramatsu <mhiramat@kernel.org>
-Subject: Re: [PATCH 09/17] x86/kprobes: Instruction pages initialization
- enhancements
-Message-Id: <20190117155122.46058c707d6d07237ad913d0@kernel.org>
-In-Reply-To: <20190117003259.23141-10-rick.p.edgecombe@intel.com>
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
-	<20190117003259.23141-10-rick.p.edgecombe@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 15 Jan 2019 11:38:35 -0800 (PST)
+MIME-Version: 1.0
+References: <20190110174432.82064-1-shakeelb@google.com> <20190111205948.GA4591@cmpxchg.org>
+ <CALvZod7O2CJuhbuLUy9R-E4dTgL4WBg8CayW_AFnCCG6KCDjUA@mail.gmail.com>
+ <20190113183402.GD1578@dhcp22.suse.cz> <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
+ <20190115072551.GO21345@dhcp22.suse.cz>
+In-Reply-To: <20190115072551.GO21345@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 15 Jan 2019 11:38:23 -0800
+Message-ID: <CALvZod6U+OGZJ1mcSG++Q5CJtEjLbr3pwvLRBbkpbZbqf6YSsA@mail.gmail.com>
+Subject: Re: [PATCH v3] memcg: schedule high reclaim for remote memcgs on high_work
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, Nadav Amit <namit@vmware.com>, Masami Hiramatsu <mhiramat@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 16 Jan 2019 16:32:51 -0800
-Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
+On Mon, Jan 14, 2019 at 11:25 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Mon 14-01-19 12:18:07, Shakeel Butt wrote:
+> > On Sun, Jan 13, 2019 at 10:34 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Fri 11-01-19 14:54:32, Shakeel Butt wrote:
+> > > > Hi Johannes,
+> > > >
+> > > > On Fri, Jan 11, 2019 at 12:59 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > > >
+> > > > > Hi Shakeel,
+> > > > >
+> > > > > On Thu, Jan 10, 2019 at 09:44:32AM -0800, Shakeel Butt wrote:
+> > > > > > If a memcg is over high limit, memory reclaim is scheduled to run on
+> > > > > > return-to-userland.  However it is assumed that the memcg is the current
+> > > > > > process's memcg.  With remote memcg charging for kmem or swapping in a
+> > > > > > page charged to remote memcg, current process can trigger reclaim on
+> > > > > > remote memcg.  So, schduling reclaim on return-to-userland for remote
+> > > > > > memcgs will ignore the high reclaim altogether. So, record the memcg
+> > > > > > needing high reclaim and trigger high reclaim for that memcg on
+> > > > > > return-to-userland.  However if the memcg is already recorded for high
+> > > > > > reclaim and the recorded memcg is not the descendant of the the memcg
+> > > > > > needing high reclaim, punt the high reclaim to the work queue.
+> > > > >
+> > > > > The idea behind remote charging is that the thread allocating the
+> > > > > memory is not responsible for that memory, but a different cgroup
+> > > > > is. Why would the same thread then have to work off any high excess
+> > > > > this could produce in that unrelated group?
+> > > > >
+> > > > > Say you have a inotify/dnotify listener that is restricted in its
+> > > > > memory use - now everybody sending notification events from outside
+> > > > > that listener's group would get throttled on a cgroup over which it
+> > > > > has no control. That sounds like a recipe for priority inversions.
+> > > > >
+> > > > > It seems to me we should only do reclaim-on-return when current is in
+> > > > > the ill-behaved cgroup, and punt everything else - interrupts and
+> > > > > remote charges - to the workqueue.
+> > > >
+> > > > This is what v1 of this patch was doing but Michal suggested to do
+> > > > what this version is doing. Michal's argument was that the current is
+> > > > already charging and maybe reclaiming a remote memcg then why not do
+> > > > the high excess reclaim as well.
+> > >
+> > > Johannes has a good point about the priority inversion problems which I
+> > > haven't thought about.
+> > >
+> > > > Personally I don't have any strong opinion either way. What I actually
+> > > > wanted was to punt this high reclaim to some process in that remote
+> > > > memcg. However I didn't explore much on that direction thinking if
+> > > > that complexity is worth it. Maybe I should at least explore it, so,
+> > > > we can compare the solutions. What do you think?
+> > >
+> > > My question would be whether we really care all that much. Do we know of
+> > > workloads which would generate a large high limit excess?
+> > >
+> >
+> > The current semantics of memory.high is that it can be breached under
+> > extreme conditions. However any workload where memory.high is used and
+> > a lot of remote memcg charging happens (inotify/dnotify example given
+> > by Johannes or swapping in tmpfs file or shared memory region) the
+> > memory.high breach will become common.
+>
+> This is exactly what I am asking about. Is this something that can
+> happen easily? Remote charges on themselves should be rare, no?
+>
 
-> From: Nadav Amit <namit@vmware.com>
-> 
-> This patch is a preparatory patch for a following patch that makes
-> module allocated pages non-executable. The patch sets the page as
-> executable after allocation.
-> 
-> In the future, we may get better protection of executables. For example,
-> by using hypercalls to request the hypervisor to protect VM executable
-> pages from modifications using nested page-tables. This would allow
-> us to ensure the executable has not changed between allocation and
-> its write-protection.
-> 
-> While at it, do some small cleanup of what appears to be unnecessary
-> masking.
-> 
+At the moment, for kmem we can do remote charging for fanotify,
+inotify and buffer_head and for anon pages we can do remote charging
+on swap in. Now based on the workload's cgroup setup the remote
+charging can be very frequent or rare.
 
-OK, then this should be done.
+At Google, remote charging is very frequent but since we are still on
+cgroup-v1 and do not use memory.high, the issue this patch is fixing
+is not observed. However for the adoption of cgroup-v2, this fix is
+needed.
 
-Acked-by: Masami Hiramatsu <mhiramat@kernel.org>
-
-Thank you!
-
-
-> Cc: Masami Hiramatsu <mhiramat@kernel.org>
-> Signed-off-by: Nadav Amit <namit@vmware.com>
-> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
-> ---
->  arch/x86/kernel/kprobes/core.c | 24 ++++++++++++++++++++----
->  1 file changed, 20 insertions(+), 4 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
-> index 4ba75afba527..fac692e36833 100644
-> --- a/arch/x86/kernel/kprobes/core.c
-> +++ b/arch/x86/kernel/kprobes/core.c
-> @@ -431,8 +431,20 @@ void *alloc_insn_page(void)
->  	void *page;
->  
->  	page = module_alloc(PAGE_SIZE);
-> -	if (page)
-> -		set_memory_ro((unsigned long)page & PAGE_MASK, 1);
-> +	if (page == NULL)
-> +		return NULL;
-> +
-> +	/*
-> +	 * First make the page read-only, and then only then make it executable
-> +	 * to prevent it from being W+X in between.
-> +	 */
-> +	set_memory_ro((unsigned long)page, 1);
-> +
-> +	/*
-> +	 * TODO: Once additional kernel code protection mechanisms are set, ensure
-> +	 * that the page was not maliciously altered and it is still zeroed.
-> +	 */
-> +	set_memory_x((unsigned long)page, 1);
->  
->  	return page;
->  }
-> @@ -440,8 +452,12 @@ void *alloc_insn_page(void)
->  /* Recover page to RW mode before releasing it */
->  void free_insn_page(void *page)
->  {
-> -	set_memory_nx((unsigned long)page & PAGE_MASK, 1);
-> -	set_memory_rw((unsigned long)page & PAGE_MASK, 1);
-> +	/*
-> +	 * First make the page non-executable, and then only then make it
-> +	 * writable to prevent it from being W+X in between.
-> +	 */
-> +	set_memory_nx((unsigned long)page, 1);
-> +	set_memory_rw((unsigned long)page, 1);
->  	module_memfree(page);
->  }
->  
-> -- 
-> 2.17.1
-> 
-
-
--- 
-Masami Hiramatsu <mhiramat@kernel.org>
+Shakeel
