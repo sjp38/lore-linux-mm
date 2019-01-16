@@ -1,137 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BAACC8E0004
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 13:25:42 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id r16so4392966pgr.15
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:25:42 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id t77si6728408pgb.51.2019.01.16.10.25.41
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7E48E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:40:50 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id p3so4667246plk.9
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 13:40:50 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id v184si6726901pgd.295.2019.01.16.13.40.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 10:25:41 -0800 (PST)
-Subject: [PATCH 2/4] mm/memory-hotplug: allow memory resources to be children
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 16 Jan 2019 10:19:02 -0800
+        Wed, 16 Jan 2019 13:40:49 -0800 (PST)
+Subject: Re: [PATCH 4/4] dax: "Hotplug" persistent memory for use like normal
+ RAM
 References: <20190116181859.D1504459@viggo.jf.intel.com>
-In-Reply-To: <20190116181859.D1504459@viggo.jf.intel.com>
-Message-Id: <20190116181902.670EEBC3@viggo.jf.intel.com>
+ <20190116181905.12E102B4@viggo.jf.intel.com>
+ <CAErSpo55j7odYf-B-KSoogabD9Qqt605oUGYe6td9wZdYNq_Hg@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <98ab9bc8-8a17-297c-da7c-2e6b5a03ef24@intel.com>
+Date: Wed, 16 Jan 2019 13:40:48 -0800
+MIME-Version: 1.0
+In-Reply-To: <CAErSpo55j7odYf-B-KSoogabD9Qqt605oUGYe6td9wZdYNq_Hg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@sr71.net
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com, baiyaowei@cmss.chinamobile.com, tiwai@suse.de
+To: Bjorn Helgaas <bhelgaas@google.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: dave@sr71.net, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, linux-nvdimm@lists.01.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, baiyaowei@cmss.chinamobile.com, Takashi Iwai <tiwai@suse.de>
 
+On 1/16/19 1:16 PM, Bjorn Helgaas wrote:
+> On Wed, Jan 16, 2019 at 12:25 PM Dave Hansen
+> <dave.hansen@linux.intel.com> wrote:
+>> From: Dave Hansen <dave.hansen@linux.intel.com>
+>> Currently, a persistent memory region is "owned" by a device driver,
+>> either the "Direct DAX" or "Filesystem DAX" drivers.  These drivers
+>> allow applications to explicitly use persistent memory, generally
+>> by being modified to use special, new libraries.
+> 
+> Is there any documentation about exactly what persistent memory is?
+> In Documentation/, I see references to pstore and pmem, which sound
+> sort of similar, but maybe not quite the same?
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+One instance of persistent memory is nonvolatile DIMMS.  They're
+described in great detail here: Documentation/nvdimm/nvdimm.txt
 
-The mm/resource.c code is used to manage the physical address
-space.  We can view the current resource configuration in
-/proc/iomem.  An example of this is at the bottom of this
-description.
+>> +config DEV_DAX_KMEM
+>> +       def_bool y
+> 
+> Is "y" the right default here?  I periodically see Linus complain
+> about new things defaulting to "on", but I admit I haven't paid enough
+> attention to know whether that would apply here.
+> 
+>> +       depends on DEV_DAX_PMEM   # Needs DEV_DAX_PMEM infrastructure
+>> +       depends on MEMORY_HOTPLUG # for add_memory() and friends
 
-The nvdimm subsystem "owns" the physical address resources which
-map to persistent memory and has resources inserted for them as
-"Persistent Memory".  We want to use this persistent memory, but
-as volatile memory, just like RAM.  The best way to do this is
-to leave the existing resource in place, but add a "System RAM"
-resource underneath it. This clearly communicates the ownership
-relationship of this memory.
+Well, it doesn't default to "on for everyone".  It inherits the state of
+DEV_DAX_PMEM so it's only foisted on folks who have already opted in to
+generic pmem support.
 
-The request_resource_conflict() API only deals with the
-top-level resources.  Replace it with __request_region() which
-will search for !IORESOURCE_BUSY areas lower in the resource
-tree than the top level.
+>> +int dev_dax_kmem_probe(struct device *dev)
+>> +{
+>> +       struct dev_dax *dev_dax = to_dev_dax(dev);
+>> +       struct resource *res = &dev_dax->region->res;
+>> +       resource_size_t kmem_start;
+>> +       resource_size_t kmem_size;
+>> +       struct resource *new_res;
+>> +       int numa_node;
+>> +       int rc;
+>> +
+>> +       /* Hotplug starting at the beginning of the next block: */
+>> +       kmem_start = ALIGN(res->start, memory_block_size_bytes());
+>> +
+>> +       kmem_size = resource_size(res);
+>> +       /* Adjust the size down to compensate for moving up kmem_start: */
+>> +        kmem_size -= kmem_start - res->start;
+>> +       /* Align the size down to cover only complete blocks: */
+>> +       kmem_size &= ~(memory_block_size_bytes() - 1);
+>> +
+>> +       new_res = devm_request_mem_region(dev, kmem_start, kmem_size,
+>> +                                         dev_name(dev));
+>> +
+>> +       if (!new_res) {
+>> +               printk("could not reserve region %016llx -> %016llx\n",
+>> +                               kmem_start, kmem_start+kmem_size);
+> 
+> 1) It'd be nice to have some sort of module tag in the output that
+> ties it to this driver.
 
-We also rework the old error message a bit since we do not get
-the conflicting entry back: only an indication that we *had* a
-conflict.
+Good point.  That should probably be a dev_printk().
 
-We *could* also simply truncate the existing top-level
-"Persistent Memory" resource and take over the released address
-space.  But, this means that if we ever decide to hot-unplug the
-"RAM" and give it back, we need to recreate the original setup,
-which may mean going back to the BIOS tables.
+> 2) It might be nice to print the range in the same format as %pR,
+> i.e., "[mem %#010x-%#010x]" with the end included (start + size -1 ).
 
-This should have no real effect on the existing collision
-detection because the areas that truly conflict should be marked
-IORESOURCE_BUSY.
+Sure, that sounds like a sane thing to do as well.
 
-00000000-00000fff : Reserved
-00001000-0009fbff : System RAM
-0009fc00-0009ffff : Reserved
-000a0000-000bffff : PCI Bus 0000:00
-000c0000-000c97ff : Video ROM
-000c9800-000ca5ff : Adapter ROM
-000f0000-000fffff : Reserved
-  000f0000-000fffff : System ROM
-00100000-9fffffff : System RAM
-  01000000-01e071d0 : Kernel code
-  01e071d1-027dfdff : Kernel data
-  02dc6000-0305dfff : Kernel bss
-a0000000-afffffff : Persistent Memory (legacy)
-  a0000000-a7ffffff : System RAM
-b0000000-bffdffff : System RAM
-bffe0000-bfffffff : Reserved
-c0000000-febfffff : PCI Bus 0000:00
+>> +               return -EBUSY;
+>> +       }
+>> +
+>> +       /*
+>> +        * Set flags appropriate for System RAM.  Leave ..._BUSY clear
+>> +        * so that add_memory() can add a child resource.
+>> +        */
+>> +       new_res->flags = IORESOURCE_SYSTEM_RAM;
+> 
+> IIUC, new_res->flags was set to "IORESOURCE_MEM | ..." in the
+> devm_request_mem_region() path.  I think you should keep at least
+> IORESOURCE_MEM so the iomem_resource tree stays consistent.
+> 
+>> +       new_res->name = dev_name(dev);
+>> +
+>> +       numa_node = dev_dax->target_node;
+>> +       if (numa_node < 0) {
+>> +               pr_warn_once("bad numa_node: %d, forcing to 0\n", numa_node);
+> 
+> It'd be nice to again have a module tag and an indication of what
+> range is affected, e.g., %pR of new_res.
+> 
+> You don't save the new_res pointer anywhere, which I guess you intend
+> for now since there's no remove or anything else to do with this
+> resource?  I thought maybe devm_request_mem_region() would implicitly
+> save it, but it doesn't; it only saves the parent (iomem_resource, the
+> start (kmem_start), and the size (kmem_size)).
 
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Jiang <dave.jiang@intel.com>
-Cc: Ross Zwisler <zwisler@kernel.org>
-Cc: Vishal Verma <vishal.l.verma@intel.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: linux-nvdimm@lists.01.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>
+Yeah, that's the intention: removal is currently not supported.  I'll
+add a comment to clarify.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
+>> +               numa_node = 0;
+>> +       }
+>> +
+>> +       rc = add_memory(numa_node, new_res->start, resource_size(new_res));
+>> +       if (rc)
+>> +               return rc;
+>> +
+>> +       return 0;
+> 
+> Doesn't this mean "return rc" or even just "return add_memory(...)"?
 
- b/mm/memory_hotplug.c |   31 ++++++++++++++-----------------
- 1 file changed, 14 insertions(+), 17 deletions(-)
-
-diff -puN mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child mm/memory_hotplug.c
---- a/mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child	2018-12-20 11:48:42.317771933 -0800
-+++ b/mm/memory_hotplug.c	2018-12-20 11:48:42.322771933 -0800
-@@ -98,24 +98,21 @@ void mem_hotplug_done(void)
- /* add this memory to iomem resource */
- static struct resource *register_memory_resource(u64 start, u64 size)
- {
--	struct resource *res, *conflict;
--	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
--	if (!res)
--		return ERR_PTR(-ENOMEM);
-+	struct resource *res;
-+	unsigned long flags =  IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
-+	char *resource_name = "System RAM";
- 
--	res->name = "System RAM";
--	res->start = start;
--	res->end = start + size - 1;
--	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
--	conflict =  request_resource_conflict(&iomem_resource, res);
--	if (conflict) {
--		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
--			pr_debug("Device unaddressable memory block "
--				 "memory hotplug at %#010llx !\n",
--				 (unsigned long long)start);
--		}
--		pr_debug("System RAM resource %pR cannot be added\n", res);
--		kfree(res);
-+	/*
-+	 * Request ownership of the new memory range.  This might be
-+	 * a child of an existing resource that was present but
-+	 * not marked as busy.
-+	 */
-+	res = __request_region(&iomem_resource, start, size,
-+			       resource_name, flags);
-+
-+	if (!res) {
-+		pr_debug("Unable to reserve System RAM region: %016llx->%016llx\n",
-+				start, start + size);
- 		return ERR_PTR(-EEXIST);
- 	}
- 	return res;
-_
+Yeah, all of those are equivalent.  I guess I just prefer the explicit
+error handling path.
