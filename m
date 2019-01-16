@@ -1,163 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AAD88E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:31:35 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id j5so5535469qtk.11
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 05:31:35 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 52si3497399qvr.211.2019.01.16.05.31.33
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5CE8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:18:38 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 68so4881376pfr.6
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:18:38 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g12si6575142pll.428.2019.01.16.07.18.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 05:31:34 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0GDOaqa063978
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:31:33 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2q23br6mrm-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:31:33 -0500
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 16 Jan 2019 13:31:26 -0000
-Subject: Re: [PATCH v11 00/26] Speculative page faults
-References: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org>
- <5a24109c-7460-4a8e-a439-d2f2646568e6@codeaurora.org>
- <9ae5496f-7a51-e7b7-0061-5b68354a7945@linux.vnet.ibm.com>
- <47efe258-8953-293b-296b-fe41dd0fbf98@codeaurora.org>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 16 Jan 2019 14:31:21 +0100
+        Wed, 16 Jan 2019 07:18:37 -0800 (PST)
+Received: from mail-qt1-f177.google.com (mail-qt1-f177.google.com [209.85.160.177])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0D33C20873
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:18:37 +0000 (UTC)
+Received: by mail-qt1-f177.google.com with SMTP id n32so7460407qte.11
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:18:37 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <47efe258-8953-293b-296b-fe41dd0fbf98@codeaurora.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-Message-Id: <7504ec6e-0764-769e-eaca-006fcc8ee38b@linux.vnet.ibm.com>
+References: <1547646261-32535-1-git-send-email-rppt@linux.ibm.com> <1547646261-32535-20-git-send-email-rppt@linux.ibm.com>
+In-Reply-To: <1547646261-32535-20-git-send-email-rppt@linux.ibm.com>
+From: Rob Herring <robh+dt@kernel.org>
+Date: Wed, 16 Jan 2019 09:18:24 -0600
+Message-ID: <CAL_JsqJv=+SQwmbwuw1C5Rv9sFHhk4SiP=Z_cKJu3HG5kdwhrg@mail.gmail.com>
+Subject: Re: [PATCH 19/21] treewide: add checks for the return value of memblock_alloc*()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: Linux-MM <linux-mm@kvack.org>, charante@codeaurora.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, "moderated list:ARM/FREESCALE IMX / MXC ARM ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, SH-Linux <linux-sh@vger.kernel.org>, arcml <linux-snps-arc@lists.infradead.org>, linux-um@lists.infradead.org, Linux USB List <linux-usb@vger.kernel.org>, linux-xtensa@linux-xtensa.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Openrisc <openrisc@lists.librecores.org>, sparclinux@vger.kernel.org, "moderated list:H8/300 ARCHITECTURE" <uclinux-h8-devel@lists.sourceforge.jp>, x86@kernel.org, xen-devel@lists.xenproject.org
 
-Le 16/01/2019 à 12:41, Vinayak Menon a écrit :
-> 
-> On 1/15/2019 1:54 PM, Laurent Dufour wrote:
->> Le 14/01/2019 à 14:19, Vinayak Menon a écrit :
->>> On 1/11/2019 9:13 PM, Vinayak Menon wrote:
->>>> Hi Laurent,
->>>>
->>>> We are observing an issue with speculative page fault with the following test code on ARM64 (4.14 kernel, 8 cores).
->>>
->>>
->>> With the patch below, we don't hit the issue.
->>>
->>> From: Vinayak Menon <vinmenon@codeaurora.org>
->>> Date: Mon, 14 Jan 2019 16:06:34 +0530
->>> Subject: [PATCH] mm: flush stale tlb entries on speculative write fault
->>>
->>> It is observed that the following scenario results in
->>> threads A and B of process 1 blocking on pthread_mutex_lock
->>> forever after few iterations.
->>>
->>> CPU 1                   CPU 2                    CPU 3
->>> Process 1,              Process 1,               Process 1,
->>> Thread A                Thread B                 Thread C
->>>
->>> while (1) {             while (1) {              while(1) {
->>> pthread_mutex_lock(l)   pthread_mutex_lock(l)    fork
->>> pthread_mutex_unlock(l) pthread_mutex_unlock(l)  }
->>> }                       }
->>>
->>> When from thread C, copy_one_pte write-protects the parent pte
->>> (of lock l), stale tlb entries can exist with write permissions
->>> on one of the CPUs at least. This can create a problem if one
->>> of the threads A or B hits the write fault. Though dup_mmap calls
->>> flush_tlb_mm after copy_page_range, since speculative page fault
->>> does not take mmap_sem it can proceed further fixing a fault soon
->>> after CPU 3 does ptep_set_wrprotect. But the CPU with stale tlb
->>> entry can still modify old_page even after it is copied to
->>> new_page by wp_page_copy, thus causing a corruption.
->>
->> Nice catch and thanks for your investigation!
->>
->> There is a real synchronization issue here between copy_page_range() and the speculative page fault handler. I didn't get it on PowerVM since the TLB are flushed when arch_exit_lazy_mode() is called in copy_page_range() but now, I can get it when running on x86_64.
->>
->>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
->>> ---
->>>    mm/memory.c | 7 +++++++
->>>    1 file changed, 7 insertions(+)
->>>
->>> diff --git a/mm/memory.c b/mm/memory.c
->>> index 52080e4..1ea168ff 100644
->>> --- a/mm/memory.c
->>> +++ b/mm/memory.c
->>> @@ -4507,6 +4507,13 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
->>>                   return VM_FAULT_RETRY;
->>>           }
->>>
->>> +       /*
->>> +        * Discard tlb entries created before ptep_set_wrprotect
->>> +        * in copy_one_pte
->>> +        */
->>> +       if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
->>> +               flush_tlb_page(vmf.vma, address);
->>> +
->>>           mem_cgroup_oom_enable();
->>>           ret = handle_pte_fault(&vmf);
->>>           mem_cgroup_oom_disable();
->>
->> Your patch is fixing the race but I'm wondering about the cost of these tlb flushes. Here we are flushing on a per page basis (architecture like x86_64 are smarter and flush more pages) but there is a request to flush a range of tlb entries each time a cow page is newly touched. I think there could be some bad impact here.
->>
->> Another option would be to flush the range in copy_pte_range() before unlocking the page table lock. This will flush entries flush_tlb_mm() would later handle in dup_mmap() but that will be called once per fork per cow VMA.
-> 
-> 
-> But wouldn't this cause an unnecessary impact if most of the COW pages remain untouched (which I assume would be the usual case) and thus do not create a fault ?
+On Wed, Jan 16, 2019 at 7:46 AM Mike Rapoport <rppt@linux.ibm.com> wrote:
+>
+> Add check for the return value of memblock_alloc*() functions and call
+> panic() in case of error.
+> The panic message repeats the one used by panicing memblock allocators with
+> adjustment of parameters to include only relevant ones.
+>
+> The replacement was mostly automated with semantic patches like the one
+> below with manual massaging of format strings.
+>
+> @@
+> expression ptr, size, align;
+> @@
+> ptr = memblock_alloc(size, align);
+> + if (!ptr)
+> +       panic("%s: Failed to allocate %lu bytes align=0x%lx\n", __func__,
+> size, align);
+>
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> ---
+>  arch/alpha/kernel/core_cia.c              |  3 +++
+>  arch/alpha/kernel/core_marvel.c           |  6 ++++++
+>  arch/alpha/kernel/pci-noop.c              | 11 ++++++++++-
+>  arch/alpha/kernel/pci.c                   | 11 ++++++++++-
+>  arch/alpha/kernel/pci_iommu.c             | 12 ++++++++++++
+>  arch/arc/mm/highmem.c                     |  4 ++++
+>  arch/arm/kernel/setup.c                   |  6 ++++++
+>  arch/arm/mm/mmu.c                         | 14 +++++++++++++-
+>  arch/arm64/kernel/setup.c                 |  9 ++++++---
+>  arch/arm64/mm/kasan_init.c                | 10 ++++++++++
+>  arch/c6x/mm/dma-coherent.c                |  4 ++++
+>  arch/c6x/mm/init.c                        |  3 +++
+>  arch/csky/mm/highmem.c                    |  5 +++++
+>  arch/h8300/mm/init.c                      |  3 +++
+>  arch/m68k/atari/stram.c                   |  4 ++++
+>  arch/m68k/mm/init.c                       |  3 +++
+>  arch/m68k/mm/mcfmmu.c                     |  6 ++++++
+>  arch/m68k/mm/motorola.c                   |  9 +++++++++
+>  arch/m68k/mm/sun3mmu.c                    |  6 ++++++
+>  arch/m68k/sun3/sun3dvma.c                 |  3 +++
+>  arch/microblaze/mm/init.c                 |  8 ++++++--
+>  arch/mips/cavium-octeon/dma-octeon.c      |  3 +++
+>  arch/mips/kernel/setup.c                  |  3 +++
+>  arch/mips/kernel/traps.c                  |  3 +++
+>  arch/mips/mm/init.c                       |  5 +++++
+>  arch/nds32/mm/init.c                      | 12 ++++++++++++
+>  arch/openrisc/mm/ioremap.c                |  8 ++++++--
+>  arch/powerpc/kernel/dt_cpu_ftrs.c         |  5 +++++
+>  arch/powerpc/kernel/pci_32.c              |  3 +++
+>  arch/powerpc/kernel/setup-common.c        |  3 +++
+>  arch/powerpc/kernel/setup_64.c            |  4 ++++
+>  arch/powerpc/lib/alloc.c                  |  3 +++
+>  arch/powerpc/mm/hash_utils_64.c           |  3 +++
+>  arch/powerpc/mm/mmu_context_nohash.c      |  9 +++++++++
+>  arch/powerpc/mm/pgtable-book3e.c          | 12 ++++++++++--
+>  arch/powerpc/mm/pgtable-book3s64.c        |  3 +++
+>  arch/powerpc/mm/pgtable-radix.c           |  9 ++++++++-
+>  arch/powerpc/mm/ppc_mmu_32.c              |  3 +++
+>  arch/powerpc/platforms/pasemi/iommu.c     |  3 +++
+>  arch/powerpc/platforms/powermac/nvram.c   |  3 +++
+>  arch/powerpc/platforms/powernv/opal.c     |  3 +++
+>  arch/powerpc/platforms/powernv/pci-ioda.c |  8 ++++++++
+>  arch/powerpc/platforms/ps3/setup.c        |  3 +++
+>  arch/powerpc/sysdev/msi_bitmap.c          |  3 +++
+>  arch/s390/kernel/setup.c                  | 13 +++++++++++++
+>  arch/s390/kernel/smp.c                    |  5 ++++-
+>  arch/s390/kernel/topology.c               |  6 ++++++
+>  arch/s390/numa/mode_emu.c                 |  3 +++
+>  arch/s390/numa/numa.c                     |  6 +++++-
+>  arch/s390/numa/toptree.c                  |  8 ++++++--
+>  arch/sh/mm/init.c                         |  6 ++++++
+>  arch/sh/mm/numa.c                         |  4 ++++
+>  arch/um/drivers/net_kern.c                |  3 +++
+>  arch/um/drivers/vector_kern.c             |  3 +++
+>  arch/um/kernel/initrd.c                   |  2 ++
+>  arch/um/kernel/mem.c                      | 16 ++++++++++++++++
+>  arch/unicore32/kernel/setup.c             |  4 ++++
+>  arch/unicore32/mm/mmu.c                   | 15 +++++++++++++--
+>  arch/x86/kernel/acpi/boot.c               |  3 +++
+>  arch/x86/kernel/apic/io_apic.c            |  5 +++++
+>  arch/x86/kernel/e820.c                    |  3 +++
+>  arch/x86/platform/olpc/olpc_dt.c          |  3 +++
+>  arch/x86/xen/p2m.c                        | 11 +++++++++--
+>  arch/xtensa/mm/kasan_init.c               |  4 ++++
+>  arch/xtensa/mm/mmu.c                      |  3 +++
+>  drivers/clk/ti/clk.c                      |  3 +++
+>  drivers/macintosh/smu.c                   |  3 +++
+>  drivers/of/fdt.c                          |  8 +++++++-
+>  drivers/of/unittest.c                     |  8 +++++++-
 
-I think this should be less costly to do it per vma at the time of the 
-fork instead of per page hit once the fork has been done, since this 
-will happen in both the forked task and the forking one (the COW pages 
-are concerning the both sides of the fork).
+Acked-by: Rob Herring <robh@kernel.org>
 
->>
->> I tried the attached patch which seems to fix the issue on x86_64. Could you please give it a try on arm64 ?
->>
-> 
-> Your patch works fine on arm64 with a minor change. Thanks Laurent.
-
-Yup my mistake !
-I tried to shrink the patch after testing it, sounds that I shrunk it 
-far too much...
-
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 52080e4..4767095 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1087,6 +1087,7 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->          spinlock_t *src_ptl, *dst_ptl;
->          int progress = 0;
->          int rss[NR_MM_COUNTERS];
-> +       unsigned long orig_addr = addr;
->          swp_entry_t entry = (swp_entry_t){0};
-> 
->   again:
-> @@ -1125,6 +1126,15 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->          } while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
-> 
->          arch_leave_lazy_mmu_mode();
-> +
-> +       /*
-> +        * Prevent the page fault handler to copy the page while stale tlb entry
-> +        * are still not flushed.
-> +        */
-> +       if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT) &&
-> +               is_cow_mapping(vma->vm_flags))
-> +                       flush_tlb_range(vma, orig_addr, end);
-> +
->          spin_unlock(src_ptl);
->          pte_unmap(orig_src_pte);
->          add_mm_rss_vec(dst_mm, rss);
-> 
-> Thanks,
-> 
-> Vinayak
-> 
+>  drivers/xen/swiotlb-xen.c                 |  7 +++++--
+>  kernel/power/snapshot.c                   |  3 +++
+>  lib/cpumask.c                             |  3 +++
+>  mm/kasan/init.c                           | 10 ++++++++--
+>  mm/sparse.c                               | 19 +++++++++++++++++--
+>  74 files changed, 415 insertions(+), 29 deletions(-)
