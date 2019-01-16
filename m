@@ -1,74 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 662118E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 00:50:08 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id z5-v6so1310159ljb.13
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:50:08 -0800 (PST)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D41A88E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 00:58:55 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id v24-v6so1310762ljj.10
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:58:55 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n10sor1790435lfe.49.2019.01.15.21.50.06
+        by mx.google.com with SMTPS id g1-v6sor4017832ljg.10.2019.01.15.21.58.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 15 Jan 2019 21:50:06 -0800 (PST)
+        Tue, 15 Jan 2019 21:58:54 -0800 (PST)
 Received: from mail-lf1-f45.google.com (mail-lf1-f45.google.com. [209.85.167.45])
-        by smtp.gmail.com with ESMTPSA id r69sm1014983lfi.15.2019.01.15.21.50.03
+        by smtp.gmail.com with ESMTPSA id b21sm986000lfi.7.2019.01.15.21.58.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 21:50:04 -0800 (PST)
-Received: by mail-lf1-f45.google.com with SMTP id z13so3889877lfe.11
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:50:03 -0800 (PST)
+        Tue, 15 Jan 2019 21:58:51 -0800 (PST)
+Received: by mail-lf1-f45.google.com with SMTP id u18so3895757lff.10
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:58:50 -0800 (PST)
 MIME-Version: 1.0
-References: <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
+ <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
  <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <20190111020340.GM27534@dastard> <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
- <20190111040434.GN27534@dastard> <CAHk-=wh-kegfnPC_dmw0A72Sdk4B9tvce-cOR=jEfHDU1-4Eew@mail.gmail.com>
- <20190111073606.GP27534@dastard> <CAHk-=wj+xyz_GKjgKpU6SF3qeqouGmRoR8uFxzg_c1VpeGEJMw@mail.gmail.com>
- <20190115234510.GA6173@dastard> <CAHk-=wjc2inOae8+9-DK4jFK78-7ZpNR=TEyZg0Dj57SYwP-ng@mail.gmail.com>
-In-Reply-To: <CAHk-=wjc2inOae8+9-DK4jFK78-7ZpNR=TEyZg0Dj57SYwP-ng@mail.gmail.com>
+ <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
+ <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net> <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
+ <20190116054613.GA11670@nautica>
+In-Reply-To: <20190116054613.GA11670@nautica>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 16 Jan 2019 17:49:46 +1200
-Message-ID: <CAHk-=wje=2Pndo+xZ5fLJ9VCoo6NYLV_a9D8mxpuSTFdz3eGMg@mail.gmail.com>
+Date: Wed, 16 Jan 2019 17:58:32 +1200
+Message-ID: <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
 Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Dominique Martinet <asmadeus@codewreck.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Jan 16, 2019 at 4:54 PM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+On Wed, Jan 16, 2019 at 5:46 PM Dominique Martinet
+<asmadeus@codewreck.org> wrote:
 >
-> On Wed, Jan 16, 2019 at 11:45 AM Dave Chinner <david@fromorbit.com> wrote:
-> >
-> > I'm assuming that you can invalidate the page cache reliably by a
-> > means that does not repeated require probing to detect invalidation
-> > has occurred. I've mentioned one method in this discussion
-> > already...
->
-> Yes. And it was made clear to you that it was a bug in xfs dio and
-> what the right thing to do was.
+> "Being owner or has cap" (whichever cap) is probably OK.
+> On the other hand, writeability check makes more sense in general -
+> could we somehow check if the user has write access to the file instead
+> of checking if it currently is opened read-write?
 
-Side note: I actually think we *do* the right thing. Even for xfs. I
-couldn't find the alleged place that invalidates the page cache on dio
-reads.
+That's likely the best option. We could say "is it open for write, or
+_could_ we open it for writing?"
 
-The *generic* dio code only does it for writes (which is correct and
-fine). And maybe xfs has some extra invalidation, but I don't see it.
+It's a slightly annoying special case, and I'd have preferred to avoid
+it, but it doesn't sound *compilcated*.
 
-So I actually hope your "you can use direct-io read to do directed
-invalidating of the page cache" isn't true. I admittedly did *not* try
-to delve very deeply into it, but the invalidates I found looked
-correct. The generic code does it for writes, and at least ext4 does
-the "writeback and wait" for reads.
+I'm on the road, but I did send out this:
 
-There *does* seem to be a 'invalidate_inode_pages2_range()' call in
-iomap_dio_rw(). That has a *comment* that says it only is for writes,
-but it looks to me like it would trigger for reads too.
+    https://lore.kernel.org/lkml/CAHk-=wif_9nvNHJiyxHzJ80_WUb0P7CXNBvXkjZz-r1u0ozp7g@mail.gmail.com/
 
-Just a plain bug/oversight? Or me misreading things.
+originally. The "let's try to only do the mmap residency" was the
+optimistic "maybe we can just get rid of this complexity entirely"
+version..
 
-So yes, maybe xfs does that "invalidate on read", but it really seems
-to be just a bug. If the xfs people insist on keeping the bug, fine
-(looks like gfs2 and xfs are the only users), but it seems kind of
-sad.
+Anybody willing to test the above patch instead? And replace the
 
-             Linus
+   || capable(CAP_SYS_ADMIN)
+
+check with something like
+
+   || inode_permission(inode, MAY_WRITE) == 0
+
+instead?
+
+(This is obviously after you've reverted the "only check mmap
+residency" patch..)
+
+            Linus
