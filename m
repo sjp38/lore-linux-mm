@@ -1,77 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E5908E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:33:12 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id q11so3191066otl.23
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 05:33:12 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id z7si3144375oth.246.2019.01.16.05.33.10
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A269F8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:36:48 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id y35so2399370edb.5
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 05:36:48 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i19si1686848edr.271.2019.01.16.05.36.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 05:33:11 -0800 (PST)
-Subject: Re: [PATCH] mm, oom: Tolerate processes sharing mm with different
- view of oom_score_adj.
-References: <1547636121-9229-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20190116110937.GI24149@dhcp22.suse.cz>
- <88e10029-f3d9-5bb5-be46-a3547c54de28@I-love.SAKURA.ne.jp>
- <20190116121915.GJ24149@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <6118fa8a-7344-b4b2-36ce-d77d495fba69@i-love.sakura.ne.jp>
-Date: Wed, 16 Jan 2019 22:32:50 +0900
+        Wed, 16 Jan 2019 05:36:47 -0800 (PST)
+Date: Wed, 16 Jan 2019 14:36:45 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V2] mm: Introduce GFP_PGTABLE
+Message-ID: <20190116133645.GO24149@dhcp22.suse.cz>
+References: <1547619692-7946-1-git-send-email-anshuman.khandual@arm.com>
+ <20190116065703.GE24149@dhcp22.suse.cz>
+ <20190116123018.GF6310@bombadil.infradead.org>
+ <20190116124431.GK24149@dhcp22.suse.cz>
+ <d074a7aa-9582-b95a-dce0-d95ac3d3c949@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190116121915.GJ24149@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d074a7aa-9582-b95a-dce0-d95ac3d3c949@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Yong-Taek Lee <ytk.lee@samsung.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-riscv@lists.infradead.org, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com, palmer@sifive.com, greentime@andestech.com
 
-On 2019/01/16 21:19, Michal Hocko wrote:
-> On Wed 16-01-19 20:30:25, Tetsuo Handa wrote:
->> On 2019/01/16 20:09, Michal Hocko wrote:
->>> On Wed 16-01-19 19:55:21, Tetsuo Handa wrote:
->>>> This patch reverts both commit 44a70adec910d692 ("mm, oom_adj: make sure
->>>> processes sharing mm have same view of oom_score_adj") and commit
->>>> 97fd49c2355ffded ("mm, oom: kill all tasks sharing the mm") in order to
->>>> close a race and reduce the latency at __set_oom_adj(), and reduces the
->>>> warning at __oom_kill_process() in order to minimize the latency.
->>>>
->>>> Commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE after oom_reaper managed
->>>> to unmap the address space") introduced the worst case mentioned in
->>>> 44a70adec910d692. But since the OOM killer skips mm with MMF_OOM_SKIP set,
->>>> only administrators can trigger the worst case.
->>>>
->>>> Since 44a70adec910d692 did not take latency into account, we can hold RCU
->>>> for minutes and trigger RCU stall warnings by calling printk() on many
->>>> thousands of thread groups. Even without calling printk(), the latency is
->>>> mentioned by Yong-Taek Lee [1]. And I noticed that 44a70adec910d692 is
->>>> racy, and trying to fix the race will require a global lock which is too
->>>> costly for rare events.
->>>>
->>>> If the worst case in 44a70adec910d692 happens, it is an administrator's
->>>> request. Therefore, tolerate the worst case and speed up __set_oom_adj().
->>>
->>> I really do not think we care about latency. I consider the overal API
->>> sanity much more important. Besides that the original report you are
->>> referring to was never exaplained/shown to represent real world usecase.
->>> oom_score_adj is not really a an interface to be tweaked in hot paths.
->>
->> I do care about the latency. Holding RCU for more than 2 minutes is insane.
+On Wed 16-01-19 18:57:13, Anshuman Khandual wrote:
 > 
-> Creating 8k threads could be considered insane as well. But more
-> seriously. I absolutely do not insist on holding a single RCU section
-> for the whole operation. But that doesn't really mean that we want to
-> revert these changes. for_each_process is by far not only called from
-> this path.
+> 
+> On 01/16/2019 06:14 PM, Michal Hocko wrote:
+> > On Wed 16-01-19 04:30:18, Matthew Wilcox wrote:
+> >> On Wed, Jan 16, 2019 at 07:57:03AM +0100, Michal Hocko wrote:
+> >>> On Wed 16-01-19 11:51:32, Anshuman Khandual wrote:
+> >>>> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
+> >>>> __GFP_ZERO) and using it for allocating page table pages. This causes some
+> >>>> code duplication which can be easily avoided. GFP_KERNEL allocated and
+> >>>> cleared out pages (__GFP_ZERO) are required for page tables on any given
+> >>>> architecture. This creates a new generic GFP flag flag which can be used
+> >>>> for any page table page allocation. Does not cause any functional change.
+> >>>>
+> >>>> GFP_PGTABLE is being added into include/asm-generic/pgtable.h which is the
+> >>>> generic page tabe header just to prevent it's potential misuse as a general
+> >>>> allocation flag if included in include/linux/gfp.h.
+> >>>
+> >>> I haven't reviewed the patch yet but I am wondering whether this is
+> >>> really worth it without going all the way down to unify the common code
+> >>> and remove much more code duplication. Or is this not possible for some
+> >>> reason?
+> >>
+> >> Exactly what I suggested doing in response to v1.
+> >>
+> >> Also, the approach taken here is crazy.  x86 has a feature that no other
+> >> architecture has bothered to implement yet -- accounting page tables
+> >> to the process.  Yet instead of spreading that goodness to all other
+> >> architectures, Anshuman has gone to more effort to avoid doing that.
+> > 
+> > Yes, I believe the only reason this is x86 only is that each arch would
+> > have to be tweaked separately. So a cleanup in _that_ regard would be
+> > helpful. There is no real reason to have ptes accounted only for x86.
+> > There might be some exceptions but well, our asm-generic allows to opt
+> > in for generic implementation or override it with a special one. The
+> > later should be an exception rather than the rule.
+> 
+> Fair enough. So we seem to have agreement over __GFP_ACCOUNT for user page
+> tables but not for the kernel. But should we accommodate __GFP_RETRY_MAYFAIL
+> or drop them altogether (including multi order allocation requests) ?
 
-Unlike check_hung_uninterruptible_tasks() where failing to resume after
-breaking RCU section is tolerable, failing to resume after breaking RCU
-section for __set_oom_adj() is not tolerable; it leaves the possibility
-of different oom_score_adj. Unless it is inevitable (e.g. SysRq-t), I think
-that calling printk() on each thread from RCU section is a poor choice.
+__GFP_RETRY_MAYFAIL is a leftover from __GFP_REPEAT times and from my
+recollection it was pointless there. Or do we have any pte allocations
+which are costly high order or that would rather fail than OOM kill and
+retry.
 
-What if thousands of threads concurrently called __set_oom_adj() when
-each __set_oom_adj() call involves printk() on thousands of threads
-which can take more than 2 minutes? How long will it take to complete?
+Really there is no reason to preserve some code just because it is
+written that way.
+
+Anyway, as Mathew already pointed out. There is no real reason to
+convert all arches at once. If you carve out a common implementation and
+make it arch generic then you can go once arch at the time a reuse the
+generic implementation. If there are still some arches which differ only
+by __GFP_RETRY_MAYFAIL then talk to respective maintainers and ask them
+what is the underlying reason.
+
+See how that is a completely different and much more efficient way than
+trying to make GFP_PGTABLE special and keep the code around?
+
+-- 
+Michal Hocko
+SUSE Labs
