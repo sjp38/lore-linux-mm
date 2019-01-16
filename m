@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 01EEB8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:39:49 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id l45so2353301edb.1
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 04:39:48 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b3si1379338ede.42.2019.01.16.04.39.47
-        for <linux-mm@kvack.org>;
-        Wed, 16 Jan 2019 04:39:47 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3314E8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:44:40 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c34so2290190edb.8
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 04:44:40 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cu1-v6si1227495ejb.313.2019.01.16.04.44.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Jan 2019 04:44:38 -0800 (PST)
+Date: Wed, 16 Jan 2019 13:44:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH V2] mm: Introduce GFP_PGTABLE
+Message-ID: <20190116124431.GK24149@dhcp22.suse.cz>
 References: <1547619692-7946-1-git-send-email-anshuman.khandual@arm.com>
- <bc49c0d1-b46c-f03a-baf9-445c417fae8f@c-s.fr>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <f71d23c6-57ee-1ceb-39a1-395a2f24a870@arm.com>
-Date: Wed, 16 Jan 2019 18:09:34 +0530
+ <20190116065703.GE24149@dhcp22.suse.cz>
+ <20190116123018.GF6310@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <bc49c0d1-b46c-f03a-baf9-445c417fae8f@c-s.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190116123018.GF6310@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe Leroy <christophe.leroy@c-s.fr>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-riscv@lists.infradead.org
-Cc: mark.rutland@arm.com, mhocko@suse.com, peterz@infradead.org, catalin.marinas@arm.com, dave.hansen@linux.intel.com, will.deacon@arm.com, aneesh.kumar@linux.ibm.com, linux@armlinux.org.uk, mingo@redhat.com, rientjes@google.com, palmer@sifive.com, greentime@andestech.com, marc.zyngier@arm.com, rppt@linux.vnet.ibm.com, shakeelb@google.com, kirill@shutemov.name, tglx@linutronix.de, vbabka@suse.cz, ard.biesheuvel@linaro.org, steve.capper@arm.com, christoffer.dall@arm.com, james.morse@arm.com, robin.murphy@arm.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-riscv@lists.infradead.org, linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com, mpe@ellerman.id.au, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, peterz@infradead.org, christoffer.dall@arm.com, marc.zyngier@arm.com, kirill@shutemov.name, rppt@linux.vnet.ibm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, steve.capper@arm.com, james.morse@arm.com, robin.murphy@arm.com, aneesh.kumar@linux.ibm.com, vbabka@suse.cz, shakeelb@google.com, rientjes@google.com, palmer@sifive.com, greentime@andestech.com
 
-
-
-On 01/16/2019 12:40 PM, Christophe Leroy wrote:
+On Wed 16-01-19 04:30:18, Matthew Wilcox wrote:
+> On Wed, Jan 16, 2019 at 07:57:03AM +0100, Michal Hocko wrote:
+> > On Wed 16-01-19 11:51:32, Anshuman Khandual wrote:
+> > > All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
+> > > __GFP_ZERO) and using it for allocating page table pages. This causes some
+> > > code duplication which can be easily avoided. GFP_KERNEL allocated and
+> > > cleared out pages (__GFP_ZERO) are required for page tables on any given
+> > > architecture. This creates a new generic GFP flag flag which can be used
+> > > for any page table page allocation. Does not cause any functional change.
+> > > 
+> > > GFP_PGTABLE is being added into include/asm-generic/pgtable.h which is the
+> > > generic page tabe header just to prevent it's potential misuse as a general
+> > > allocation flag if included in include/linux/gfp.h.
+> > 
+> > I haven't reviewed the patch yet but I am wondering whether this is
+> > really worth it without going all the way down to unify the common code
+> > and remove much more code duplication. Or is this not possible for some
+> > reason?
 > 
+> Exactly what I suggested doing in response to v1.
 > 
-> Le 16/01/2019 à 07:21, Anshuman Khandual a écrit :
->> All architectures have been defining their own PGALLOC_GFP as (GFP_KERNEL |
->> __GFP_ZERO) and using it for allocating page table pages. This causes some
->> code duplication which can be easily avoided. GFP_KERNEL allocated and
->> cleared out pages (__GFP_ZERO) are required for page tables on any given
->> architecture. This creates a new generic GFP flag flag which can be used
->> for any page table page allocation. Does not cause any functional change.
->>
->> GFP_PGTABLE is being added into include/asm-generic/pgtable.h which is the
->> generic page tabe header just to prevent it's potential misuse as a general
->> allocation flag if included in include/linux/gfp.h.
->>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> ---
->> Build tested on arm, arm64, powerpc, powerpc64le and x86.
->> Boot tested on arm64 and x86.
->>
->> Changes in V2:
->>
->> - Moved GFP_PGTABLE into include/asm-generic/pgtable.h
->> - On X86 added __GFP_ACCOUNT into GFP_PGTABLE at various places
->> - Replaced possible flags on riscv and nds32 with GFP_PGTABLE
-> 
-> Could also replace the flags in arch/powerpc/include/asm/nohash/64/pgalloc.h with GFP_PGTABLE in pte_alloc_one_kernel() and pte_alloc_one()
+> Also, the approach taken here is crazy.  x86 has a feature that no other
+> architecture has bothered to implement yet -- accounting page tables
+> to the process.  Yet instead of spreading that goodness to all other
+> architectures, Anshuman has gone to more effort to avoid doing that.
 
-Sure will do.
+Yes, I believe the only reason this is x86 only is that each arch would
+have to be tweaked separately. So a cleanup in _that_ regard would be
+helpful. There is no real reason to have ptes accounted only for x86.
+There might be some exceptions but well, our asm-generic allows to opt
+in for generic implementation or override it with a special one. The
+later should be an exception rather than the rule.
+-- 
+Michal Hocko
+SUSE Labs
