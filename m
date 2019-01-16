@@ -1,183 +1,247 @@
-Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=bSwl=PY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46EB6C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 21:14:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F2DEC43387
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 09:33:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06DD521900
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 21:14:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pFLKKDiO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06DD521900
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D3F9520840
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 09:33:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3F9520840
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 936B88E0003; Mon, 18 Feb 2019 16:14:38 -0500 (EST)
+	id 5AB6E8E0003; Wed, 16 Jan 2019 04:33:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E3A78E0002; Mon, 18 Feb 2019 16:14:38 -0500 (EST)
+	id 5819A8E0002; Wed, 16 Jan 2019 04:33:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D36E8E0003; Mon, 18 Feb 2019 16:14:38 -0500 (EST)
+	id 470ED8E0003; Wed, 16 Jan 2019 04:33:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 39C8A8E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 16:14:38 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id y2so13366718plr.8
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:14:38 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6D28E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 04:33:16 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id w4so2811246otj.2
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 01:33:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc
-         :subject:in-reply-to:references:message-id;
-        bh=eoDF//MAOx0SYGCby4nSIyVisNwGzr4z2uZZnM4yBds=;
-        b=AzzBSzbwWaDUG8M/beIzr5CGQim2qEukRHx4BO3s1hE2hbWK42VN7YSN6UJSKoxj+q
-         9CHMB0cZZ8Xuclp2CKuuoYtAOTqM5mgoP8+coy1CCaWtcyxMDEbeQyLhUcDZG3GYTOjm
-         gVBTJ3CU7iNIUFpDjc6SLfoNozSIPy4itagVO7vn0qUPtiACE+z1ycS8L00HbA2LnYeH
-         sqz+2cEXXQHw4/spbrs+2qHon/43ZN2sAkUUCAStlNrkQznurw7griw5saMj0DFEyTA9
-         kuWENwvDqsGZkzu69QPqnDnktXQ5AvMKsJp6gcAZZD8RiDS62mYkdNxL9+ptbBZMl3eo
-         im8A==
-X-Gm-Message-State: AHQUAuZhXErs4+Sfsjt1XukUdWWZII33+4sHN6AQHxyIFpLNRv+xdoOb
-	VFiXjfPpuHvKgcXSvX/PLj1UdvwgSlxRTEkUc3rvCzWWRkUwDoCSxAKWqAbEZVcHNpCX/ka7AOf
-	Jz5WlaBw5H39YhN0WOIKG9GSyo9XDhsgMML4jVtv+xscjG/k1kmYpHIs4o3gHze/m5A==
-X-Received: by 2002:a62:2a4b:: with SMTP id q72mr25885775pfq.61.1550524477798;
-        Mon, 18 Feb 2019 13:14:37 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZP0ueRqP4lf8nuXzv0eW+1eZJr/Pbz8LQ3Ju+0elJSA+cxCoNGcCqNPaD+xWdvX0oCZCVi
-X-Received: by 2002:a62:2a4b:: with SMTP id q72mr25885716pfq.61.1550524476887;
-        Mon, 18 Feb 2019 13:14:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550524476; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=+9MEesuIzPiKW7yRd6viT+xrQDda+KW+dkLlt8DKEw8=;
+        b=Yapj/+5lJ4BT9c/Lz4/YUd43k6nAnTgn16+qR34+XyHHDg/fGafBzZpzAbDg5j7dBc
+         81xh9G7N2Eg5Mg6vhd1NSSiyqBqwxHi7MIcHzXNrpqkI0YApJKsKRcJGK6VWTnTaQDnW
+         P38PSRTZ0DYjLfmHuG0AyV5R+I2Vh1CA0agQF/nbo+5ItObbiLpFkX+yshaRNDTJcl07
+         IsZwgzy4zFtEnQncU0UH8xrTXDvRyrK34QYtmYOlJreM6e7jxGbddZcNyQC9s4S0ZVOT
+         UUtW2t4rWoe3nHX7FsiNczJIuTWYLiGUR23mQPVnqVwJ7pwONtfVzLyi0/zmqlPCg9II
+         uJaA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+X-Gm-Message-State: AJcUukepzfWazwfWxKiu6Q9CCxuMeiKWjiD1cxZEdGw+mcnWfLF+I0BS
+	IuMN4G0gmRW6O1z0JXYuGrX5jKHMLKHfzFwihidURYQLz2A7FltcKxSmirmyjCPd5BX/ug+jZl0
+	V4eI0WJwKIw0Dg7UIyuh5HG1tmQaoy1XCfL9ZtkvfgsDUaQn93JBPrs2NVA8WgQcl7Q==
+X-Received: by 2002:a9d:37e1:: with SMTP id x88mr4826306otb.85.1547631195829;
+        Wed, 16 Jan 2019 01:33:15 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7fz5ig6gcnFg7M7gMYidhjy9cK065qX5XsFKRYiNDDqz3p3iDPc7hdm+/QVSYDwNbXoccy
+X-Received: by 2002:a9d:37e1:: with SMTP id x88mr4826280otb.85.1547631194857;
+        Wed, 16 Jan 2019 01:33:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547631194; cv=none;
         d=google.com; s=arc-20160816;
-        b=XhhD6BnEWe4JMYnRkEyHSi2ImmKMPJz/Sn4sJwFY2szEPSEutxKmUsu8rkqbglJcuk
-         ohLpPI2KYT73hJdCn7LMUSepTddZPbWKZU//4eYoVo1YQZWMdw/F67nziTZDMLb/jGEy
-         FE11R3uNJIkKd/xGKiSg4ji4uvd1ja7rduiggf5SadKX4xVppnAG6CQuiIF2U+xG8W6D
-         gge2cJ69rzDZg7iU8MNA+M1xeNC48PRFznTyhSQxTmxNkOxKsXPk8z6ftBjNvhp/31S7
-         Dzryr/3GP7UQBrSQ2aEGlsOWwC9hA/K1VHYQSSQEUs5o5m9dGN3txkaIAl36CH99Gzw4
-         uv3Q==
+        b=Bizg9AznujBCwYPQZ1gXGGYvMNXBSBqjN3ebLGhU7BRQJAi11kUD1OD4LFbVfVJSDD
+         fdo4cuqfbZtqKlNL9jHM7CtiQZX0yP5uGcopzRL+GMe01WhPH0cCI515kEWETJ5IDYuI
+         J/tWUrm+56xW3X1r8SCx/X8NSdEnTSo6qeyN6Wt0AbxsQZMbBd0Ay7ECEZx2Btt8I+ta
+         wa+nnPBGdgbrxV8XJqCqrXQACOEZWJDhX0BRzI85kmdjkayjJFcA/3uWiT0cN6vLq0O1
+         YbzZqDbFEtWpFBfuK8VYoNUfDp4mUt78vIE+DkvNhWzme1wQXtzg+CNpYtCMQYBUJc1Q
+         tV5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:subject:cc:cc:cc:to:to:to:from
-         :date:dkim-signature;
-        bh=eoDF//MAOx0SYGCby4nSIyVisNwGzr4z2uZZnM4yBds=;
-        b=gOPKNykOM6rkgLnBhB3qx7nhqp2DUTjuU9r33ZOVzFpYeT7q331UuDCiRvejc3EgOI
-         qIpSmdrhaji2BeQ+W83cdaaEKw3AyBP+rzXxnjLcZS9Ts7AwSdTx1lhAkA7+AqrtFCpE
-         smUEd03MLE2mns07rtSMX8koe7+QtVXsuavJBzujrXMTWts9tZ/IZIGzbTkAQdpgCQTJ
-         WakyQ2TyS+c0hsAfoMlgHWaeUq5weJgmDn0r9REjYl1pQ6P1/F0lxYgxDtAccrlVCk03
-         T6FJLbx9RogxM0BK7h0lJyCmNuWZCWiJ5bJfbl5+8uZF+d5qPUbc8OIOyJUZEO6JYAul
-         mIIg==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=+9MEesuIzPiKW7yRd6viT+xrQDda+KW+dkLlt8DKEw8=;
+        b=GTsA8W4xnIVpbicPf6T9opLtHCyDp0x8DzM/njYLyVRxlZZ30qamguGdxvzocpl8BH
+         6B7jD5angcAcF/Uv9OGO7hBMl6j9wodgOKcAvWojH6Gf/3NLC7D0ITr6i6CpQBViioFi
+         nnRZz8dPZaPJNrEHv6/wCBwgL/08Hy6EkgSJ3+prEy+vvg6e/y4eQMa/sUMs2/bOuB3K
+         eYseT/xjhP/OSVAkBDG6wMbuVqQjP+qHcEclSxuDFJ9wB+cU/sNra2/970mgGZGwWh95
+         8Vi5kepIR5c1fBM2nbdgORe7b01JjRbVFvq4CjyapXsQfcjDx0icxYDMmKJ8tGV7ikmf
+         n+DA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=pFLKKDiO;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q6si13994266pgq.442.2019.02.18.13.14.36
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id t25si3014795oth.275.2019.01.16.01.33.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 13:14:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 16 Jan 2019 01:33:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) client-ip=114.179.232.161;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=pFLKKDiO;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [23.100.24.84])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 5656021900;
-	Mon, 18 Feb 2019 21:14:36 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550524476;
-	bh=jErfl/TWNCyPZbjdyaVAUeYNsbEH/3N3G2dJ1zXexg4=;
-	h=Date:From:To:To:To:Cc:Cc:Cc:Subject:In-Reply-To:References:From;
-	b=pFLKKDiOI/fJAPBuierQ29dDh4mveF07V1E+X2pEd6f4KDwiGa33IQ+l6R1DDAl1T
-	 pssAWgKxKVsgrTr+QVEcOnOS7bwP36aICMNdtTYrDsljolhXVkck21AVWo+cc2wjn9
-	 GWwGkCIBHHhT0c4Hr3xPre/Py94FukX0mmUBaSCI=
-Date: Mon, 18 Feb 2019 21:14:35 +0000
-From: Sasha Levin <sashal@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-To:   Mike Kravetz <mike.kravetz@oracle.com>
-To:     linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc:     Michal Hocko <mhocko@kernel.org>,
-Cc: <stable@vger.kernel.org>
-Cc: stable@vger.kernel.org
-Subject: Re: [PATCH] huegtlbfs: fix races and page leaks during migration
-In-Reply-To: <20190212221400.3512-1-mike.kravetz@oracle.com>
-References: <20190212221400.3512-1-mike.kravetz@oracle.com>
-Message-Id: <20190218211436.5656021900@mail.kernel.org>
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from mailgate01.nec.co.jp ([114.179.233.122])
+	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x0G9X4BV021404
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Wed, 16 Jan 2019 18:33:04 +0900
+Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
+	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x0G9X45g021398;
+	Wed, 16 Jan 2019 18:33:04 +0900
+Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
+	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x0G9WWcY000507;
+	Wed, 16 Jan 2019 18:33:04 +0900
+Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.152] [10.38.151.152]) by mail01b.kamome.nec.co.jp with ESMTP id BT-MMP-1507344; Wed, 16 Jan 2019 18:30:47 +0900
+Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
+ BPXC24GP.gisp.nec.co.jp ([10.38.151.152]) with mapi id 14.03.0319.002; Wed,
+ 16 Jan 2019 18:30:47 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Dan Williams <dan.j.williams@intel.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>
+CC: Jane Chu <jane.chu@oracle.com>, linux-nvdimm <linux-nvdimm@lists.01.org>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: [PATCH] mm: hwpoison: use do_send_sig_info() instead of force_sig()
+ (Re: PMEM error-handling forces SIGKILL causes kernel panic)
+Thread-Topic: [PATCH] mm: hwpoison: use do_send_sig_info() instead of
+ force_sig() (Re: PMEM error-handling forces SIGKILL causes kernel panic)
+Thread-Index: AQHUrX4o7Slk8dv5sk2r4phfic2oGA==
+Date: Wed, 16 Jan 2019 09:30:46 +0000
+Message-ID: <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
+References: <e3c4c0e0-1434-4353-b893-2973c04e7ff7@oracle.com>
+ <CAPcyv4j67n6H7hD6haXJqysbaauci4usuuj5c+JQ7VQBGngO1Q@mail.gmail.com>
+ <20190111081401.GA5080@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20190111081401.GA5080@hori1.linux.bs1.fc.nec.co.jp>
+Accept-Language: en-US, ja-JP
+Content-Language: ja-JP
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.51.8.80]
+Content-Type: text/plain; charset="UTF-8"
+Content-ID: <BD3F5D9C9DFE744584823ED995CFB4AB@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-TM-AS-MML: disable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
+Message-ID: <20190116093046.Sk51uHsImk990fHMlLWWHELQmAkTQxE2ChFUeT_lx2k@z>
 
-Hi,
+[ CCed Andrew and linux-mm ]
 
-[This is an automated email]
+On Fri, Jan 11, 2019 at 08:14:02AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(B =
+=1B$BD>Li=1B(B) wrote:
+> Hi Dan, Jane,
+>=20
+> Thanks for the report.
+>=20
+> On Wed, Jan 09, 2019 at 03:49:32PM -0800, Dan Williams wrote:
+> > [ switch to text mail, add lkml and Naoya ]
+> >=20
+> > On Wed, Jan 9, 2019 at 12:19 PM Jane Chu <jane.chu@oracle.com> wrote:
+> ...
+> > > 3. The hardware consists the latest revision CPU and Intel NVDIMM, we=
+ suspected
+> > >    the CPU faulty because it generated MCE over PMEM UE in a unlikely=
+ high
+> > >    rate for any reasonable NVDIMM (like a few per 24hours).
+> > >
+> > > After swapping the CPU, the problem stopped reproducing.
+> > >
+> > > But one could argue that perhaps the faulty CPU exposed a small race =
+window
+> > > from collect_procs() to unmap_mapping_range() and to kill_procs(), he=
+nce
+> > > caught the kernel  PMEM error handler off guard.
+> >=20
+> > There's definitely a race, and the implementation is buggy as can be
+> > seen in __exit_signal:
+> >=20
+> >         sighand =3D rcu_dereference_check(tsk->sighand,
+> >                                         lockdep_tasklist_lock_is_held()=
+);
+> >         spin_lock(&sighand->siglock);
+> >=20
+> > ...the memory-failure path needs to hold the proper locks before it
+> > can assume that de-referencing tsk->sighand is valid.
+> >=20
+> > > Also note, the same workload on the same faulty CPU were run on Linux=
+ prior to
+> > > the 4.19 PMEM error handling and did not encounter kernel crash, prob=
+ably because
+> > > the prior HWPOISON handler did not force SIGKILL?
+> >=20
+> > Before 4.19 this test should result in a machine-check reboot, not
+> > much better than a kernel crash.
+> >=20
+> > > Should we not to force the SIGKILL, or find a way to close the race w=
+indow?
+> >=20
+> > The race should be closed by holding the proper tasklist and rcu read l=
+ock(s).
+>=20
+> This reasoning and proposal sound right to me. I'm trying to reproduce
+> this race (for non-pmem case,) but no luck for now. I'll investigate more=
+.
 
-This commit has been processed because it contains a "Fixes:" tag,
-fixing commit: bcc54222309c mm: hugetlb: introduce page_huge_active.
+I wrote/tested a patch for this issue.
+I think that switching signal API effectively does proper locking.
 
-The bot has tested the following trees: v4.20.8, v4.19.21, v4.14.99, v4.9.156, v4.4.174, v3.18.134.
-
-v4.20.8: Build OK!
-v4.19.21: Build OK!
-v4.14.99: Failed to apply! Possible dependencies:
-    5b7a1d406062 ("mm, hugetlbfs: rename address to haddr in hugetlb_cow()")
-
-v4.9.156: Failed to apply! Possible dependencies:
-    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
-    369cd2121be4 ("userfaultfd: hugetlbfs: userfaultfd_huge_must_wait for hugepmd ranges")
-    5b7a1d406062 ("mm, hugetlbfs: rename address to haddr in hugetlb_cow()")
-    7868a2087ec1 ("mm/hugetlb: add size parameter to huge_pte_offset()")
-    82b0f8c39a38 ("mm: join struct fault_env and vm_fault")
-    8fb5debc5fcd ("userfaultfd: hugetlbfs: add hugetlb_mcopy_atomic_pte for userfaultfd support")
-    953c66c2b22a ("mm: THP page cache support for ppc64")
-    fd60775aea80 ("mm, thp: avoid unlikely branches for split_huge_pmd")
-
-v4.4.174: Failed to apply! Possible dependencies:
-    09cbfeaf1a5a ("mm, fs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros")
-    0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
-    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
-    2a28900be206 ("udf: Export superblock magic to userspace")
-    4420cfd3f51c ("staging: lustre: format properly all comment blocks for LNet core")
-    48b4800a1c6a ("zsmalloc: page migration support")
-    5057dcd0f1aa ("virtio_balloon: export 'available' memory to balloon statistics")
-    52db400fcd50 ("pmem, dax: clean up clear_pmem()")
-    5b7a487cf32d ("f2fs: add customized migrate_page callback")
-    5fd88337d209 ("staging: lustre: fix all conditional comparison to zero in LNet layer")
-    a188222b6ed2 ("net: Rename NETIF_F_ALL_CSUM to NETIF_F_CSUM_MASK")
-    b1123ea6d3b3 ("mm: balloon: use general non-lru movable page feature")
-    b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
-    bda807d44454 ("mm: migrate: support non-lru movable page migration")
-    c8b8e32d700f ("direct-io: eliminate the offset argument to ->direct_IO")
-    d1a5f2b4d8a1 ("block: use DAX for partition table reads")
-    e10624f8c097 ("pmem: fail io-requests to known bad blocks")
-
-v3.18.134: Failed to apply! Possible dependencies:
-    0722b1011a5f ("f2fs: set page private for inmemory pages for truncation")
-    1601839e9e5b ("f2fs: fix to release count of meta page in ->invalidatepage")
-    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
-    31a3268839c1 ("f2fs: cleanup if-statement of phase in gc_data_segment")
-    34ba94bac938 ("f2fs: do not make dirty any inmemory pages")
-    34d67debe02b ("f2fs: add infra struct and helper for inline dir")
-    4634d71ed190 ("f2fs: fix missing kmem_cache_free")
-    487261f39bcd ("f2fs: merge {invalidate,release}page for meta/node/data pages")
-    5b7a487cf32d ("f2fs: add customized migrate_page callback")
-    67298804f344 ("f2fs: introduce struct inode_management to wrap inner fields")
-    769ec6e5b7d4 ("f2fs: call radix_tree_preload before radix_tree_insert")
-    7dda2af83b2b ("f2fs: more fast lookup for gc_inode list")
-    8b26ef98da33 ("f2fs: use rw_semaphore for nat entry lock")
-    8c402946f074 ("f2fs: introduce the number of inode entries")
-    9be32d72becc ("f2fs: do retry operations with cond_resched")
-    9e4ded3f309e ("f2fs: activate f2fs_trace_pid")
-    d5053a34a9cc ("f2fs: introduce -o fastboot for reducing booting time only")
-    e5e7ea3c86e5 ("f2fs: control the memory footprint used by ino entries")
-    f68daeebba5a ("f2fs: keep PagePrivate during releasepage")
-
-
-How should we proceed with this patch?
-
---
 Thanks,
-Sasha
+Naoya Horiguchi
+---
+From 16dbf6105ff4831f73276d79d5df238ab467de76 Mon Sep 17 00:00:00 2001
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Wed, 16 Jan 2019 16:59:27 +0900
+Subject: [PATCH] mm: hwpoison: use do_send_sig_info() instead of force_sig(=
+)
+
+Currently memory_failure() is racy against process's exiting,
+which results in kernel crash by null pointer dereference.
+
+The root cause is that memory_failure() uses force_sig() to forcibly
+kill asynchronous (meaning not in the current context) processes.  As
+discussed in thread https://lkml.org/lkml/2010/6/8/236 years ago for
+OOM fixes, this is not a right thing to do.  OOM solves this issue by
+using do_send_sig_info() as done in commit d2d393099de2 ("signal:
+oom_kill_task: use SEND_SIG_FORCED instead of force_sig()"), so this
+patch is suggesting to do the same for hwpoison.  do_send_sig_info()
+properly accesses to siglock with lock_task_sighand(), so is free from
+the reported race.
+
+I confirmed that the reported bug reproduces with inserting some delay
+in kill_procs(), and it never reproduces with this patch.
+
+Note that memory_failure() can send another type of signal using
+force_sig_mceerr(), and the reported race shouldn't happen on it
+because force_sig_mceerr() is called only for synchronous processes
+(i.e. BUS_MCEERR_AR happens only when some process accesses to the
+corrupted memory.)
+
+Reported-by: Jane Chu <jane.chu@oracle.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: stable@vger.kernel.org
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory-failure.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 7c72f2a95785..831be5ff5f4d 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -372,7 +372,8 @@ static void kill_procs(struct list_head *to_kill, int f=
+orcekill, bool fail,
+ 			if (fail || tk->addr_valid =3D=3D 0) {
+ 				pr_err("Memory failure: %#lx: forcibly killing %s:%d because of failur=
+e to unmap corrupted page\n",
+ 				       pfn, tk->tsk->comm, tk->tsk->pid);
+-				force_sig(SIGKILL, tk->tsk);
++				do_send_sig_info(SIGKILL, SEND_SIG_PRIV,
++						 tk->tsk, PIDTYPE_PID);
+ 			}
+=20
+ 			/*
+--=20
+2.7.5
+
 
