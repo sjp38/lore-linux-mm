@@ -6,105 +6,105 @@ X-Spam-Status: No, score=-4.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3518FC43387
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 15:16:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E9449C43387
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 15:18:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E626720675
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 15:16:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 95D2520657
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 15:18:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="cz/mxUOt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E626720675
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pGpZhbYx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95D2520657
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7DD468E0006; Wed, 16 Jan 2019 10:16:00 -0500 (EST)
+	id 25E2C8E0004; Wed, 16 Jan 2019 10:18:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 78C6E8E0002; Wed, 16 Jan 2019 10:16:00 -0500 (EST)
+	id 20C238E0002; Wed, 16 Jan 2019 10:18:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A3C38E0006; Wed, 16 Jan 2019 10:16:00 -0500 (EST)
+	id 0AF998E0004; Wed, 16 Jan 2019 10:18:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2C18E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:16:00 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id v2so4001961plg.6
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:16:00 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5CE8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:18:38 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 68so4881376pfr.6
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:18:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=YQNeNEPB7cCk0rtvx5bb0DlYo5/NXbjHBFkyIlg5MyU=;
-        b=n/ObOO9+4jc91FGM0ZqFpB/m4sapAZIK5n6+ihNA5gdRRhVMhSB5eKVgK1GKaC44G7
-         edzpRzuO0PInF7f3XFVrx53ArQs0r4FQSWUpjB4GD78CDcZWLwgWA5g57ekeS40NExA2
-         wRBkvntlPorjUlOtrlSYW+TrqryyVfh9405y8sGJ0LwIBdNdS1MwvyNjAZ/HPUx2cO0N
-         F56fbj2DgzmDkv/ATetIKIsy4BDT8nCYVHSgJ2Iv5MJu8Z/xFAIiEIYUwU3HGXffwlUw
-         ObYYnqGuYCXP/C7j4oEMWRz0W4nuvwjlQUwYnsDNjlCKgXw7FikJpWwvBOdsUx3+BuRM
-         ZrPA==
-X-Gm-Message-State: AJcUukerF2A++4FIcpkXp5rMaCvwxfSl43wl1eDi3DytWkd4daDXauWf
-	S/4jn0SIwTpFFOJfaQ6LHmsioUbXRlNJjIxq/hvrTVFMJ4cPKOSI9QLvPRWadpMhEEYXXjMydg8
-	V1MtmA8e/2+MYvS5GyacIBZ9PgbKtIrT8CZWhFslI71fwWEk/WBtPWOG77UTsNBiOGQ==
-X-Received: by 2002:a63:e156:: with SMTP id h22mr9318330pgk.255.1547651759508;
-        Wed, 16 Jan 2019 07:15:59 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5lXQGCFW/seIDoq1nPbdy66k7RHDffnLd7D0UNPPMkkEMP+Xd3gyMu1ZpxwpiTCIR5i+Fa
-X-Received: by 2002:a63:e156:: with SMTP id h22mr9318249pgk.255.1547651758361;
-        Wed, 16 Jan 2019 07:15:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547651758; cv=none;
+        bh=rqBr1ZOdeWPp7+fYxcWyxlFNS/RxUrI2luwWGSK1Z5Q=;
+        b=GZHbRPyKHza0hGDvn4/fToKkuiV2vQxePp2np864vvmlUf8iA4+NBo0RhTUEbh+Ciw
+         23Nq46GwV0zdE+mmN8iwbgF8RJ90utmv0AiW3YgTU2T6XzvgDC/C5Eb79xieeuaNsld5
+         jtwyE0rRbeFm/ti2VKPAHlvx/t98fuBy/4Ngo7GHiP70skSzeX5viQOOKXDQ/5+/FRw9
+         bIyq+MQaw9QPKiKmiu94ByXcaoZpz0RPMekFDuUb8/URF2hEojf+rEkgQ+1jMVTj3pf2
+         kzpJSLr607T9o6fxawUh+gO41c2p7FOcWorMgUUkMDnNW4bxonQXcDZB2aeQEtiV+pBK
+         v7pA==
+X-Gm-Message-State: AJcUukf/Rjn0HTnfr8qgDqanfh3dbA/QEUyhU79LmwsKAt4PteyV3Xma
+	8qH7mrAQrZXfDNohrIsJPowqgfQsWE032kMv5k4zaDNn3h3JqBPdCo6j1ZzjMWbkoTg0e7fXjMz
+	A7gRoziy4wEMhMiNn/K1HwK6QxXBVUpgZxEnoI6F4GO3PT5jHISGReeLpqensjmkuuQ==
+X-Received: by 2002:a17:902:3f81:: with SMTP id a1mr10313422pld.258.1547651918425;
+        Wed, 16 Jan 2019 07:18:38 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5+/R+PuhGQuvxmsdXQapsylVUIiq6y5fGHdSt6l73lYBeBlms6i/i5wINQLbR74dt0a9dR
+X-Received: by 2002:a17:902:3f81:: with SMTP id a1mr10313347pld.258.1547651917520;
+        Wed, 16 Jan 2019 07:18:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547651917; cv=none;
         d=google.com; s=arc-20160816;
-        b=G+BjKyg/zn9JhvWTlwrgV1eMsIdDGb1hZin+vZi/solC7hmeZ1I7bOUYxcL8rIQ2va
-         utJs5w/el+8FPwkzkCZYVwZkzRc68t7tRssmwfjkwWaXoyEp8MSf79ZlvCoyg4LWGPgw
-         HXg3iADEU3/ELwo1K7AAa8mw1RXgCm/WG4PzrhAHORaNvxb+V0xdO1crR7XXVKS5Hdv8
-         R2vU56mlI8Hddhgb2Y2KhfdUiRpIejOczqXn1H0bWMGwXz4aVz3KsBUtFI89hHR5chA1
-         BG6rT4DtORkfZho7nI9sKJqlL4An/IEV2riXu0apD7UZqyNiWh2clbEQ5rZuARBvoG3D
-         +Blw==
+        b=q0LiZed3QcElI6+mSz6UusmCa351Zqj+VN0naoBpzaPbKyYqzku1FbLr5k5ITkS5mg
+         /UsAKYm89NoUHV8Ts+svZL74NRCQOq5dSHgtfcEQ0f5Sd74GfUj2GFB4qb2jea9jB5Wb
+         0s9xdLLYEKT/KzkfTYcsqWiOJhb42da+SyRCrpdonUQrjXjr37mIkuOW4fhzn74v9OWT
+         GGRZFkA8KE2p7OxUw08VGhtvAg733GGsxdhEPnxnypa6v6cMdR7j0a3GzwFwFMYdFCNa
+         SLwYmeYdXtpBc1J9//VoeRSUmaXuJMkIFQh2R39/Glg8dTRj4+iVegn5fTs5FRs/D1j8
+         8zsQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=YQNeNEPB7cCk0rtvx5bb0DlYo5/NXbjHBFkyIlg5MyU=;
-        b=Fg+8HYCGmXIAdA6lFAKgyzNeOw+Z+NzgJ3ePPqwpPmNHm6IMLhNOqf2qLYh3xV22KW
-         9dtWlSBkIRXnHLEUZX5P5p9+4jQIYz1wfKRrgFbvP8rt9KpivR0YoAEfOtmNh6qTMbHH
-         1Q1220pxMIRnM7k05IKmr80XAc1zMRlAKKkVH8O21CC5Vwo6JjwiaLlcdygn8+AEWN86
-         +Unl7HIkFsBJ8jbzOw5NG4DTdpWX0JrGFk7OB/rb/xxzwMxi0Go+w9jJsPRhIYffs8ym
-         gKMemtpv1KXk/aETuLNZYwlWA0OCfcFgj4PzJ1KlodvGDI/sNVIdAFR/seTSxkx8PTJi
-         L7Sw==
+        bh=rqBr1ZOdeWPp7+fYxcWyxlFNS/RxUrI2luwWGSK1Z5Q=;
+        b=pDeF3nMlD6sRcKATif45rryv4OGyLDSFb6AbNxmbBTi92HDzmG1i/kKFfljYRbB6mB
+         +91dR/wbPbTxk+NEN30kN6hJga7jcvbL5HwjM5u4ssTgW5zjHXi4Hh5Yf5UmGWalEW56
+         1E7WW+9CJn84uufTJ8wc6U7axdM8x8jS5ge9BEpT8xfK4y81OyQ42tMebOWOLYs0QbNY
+         tKZlG6BTriq4UtnJ+SOxArlxohQiGCeVBGU0rVqHrJKd/LDeFDnMXuC1cOkm84CWmIl2
+         QvybaIIiT20I7bY/wSLIVEyNI5enIQvFEeGAE27w1eXMwOWvTuui0o8heCMXmKJV0LN6
+         CaEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="cz/mxUOt";
+       dkim=pass header.i=@kernel.org header.s=default header.b=pGpZhbYx;
        spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x9si6326963pll.131.2019.01.16.07.15.58
+        by mx.google.com with ESMTPS id g12si6575142pll.428.2019.01.16.07.18.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 07:15:58 -0800 (PST)
+        Wed, 16 Jan 2019 07:18:37 -0800 (PST)
 Received-SPF: pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="cz/mxUOt";
+       dkim=pass header.i=@kernel.org header.s=default header.b=pGpZhbYx;
        spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-qk1-f179.google.com (mail-qk1-f179.google.com [209.85.222.179])
+Received: from mail-qt1-f177.google.com (mail-qt1-f177.google.com [209.85.160.177])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C7BC8214C6
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:15:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0D33C20873
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:18:37 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1547651757;
-	bh=FhtIDYW+wCB2HQTzHX9fQ0IjelhfkG3XvKPLXhG6y4I=;
+	s=default; t=1547651917;
+	bh=b4Eql+8wNKqBmh8BvWalk13WRrshCh12iUx8UsuWK8E=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=cz/mxUOt5OPnW7gLDOlDXsidNDxUeirqp6gmfNlKRRpsmh39V120d3h0URx45MOLt
-	 DcV1s5ZwrPOb5SF0FG3BFDcMuL1jE6ByFG6CHSa/1yAGt6BVMPzeP2TKkcMQmFpGmV
-	 OjdU5HmwWicT6qUQ+YNcMKL0fWY75CX8xRFTxFWM=
-Received: by mail-qk1-f179.google.com with SMTP id a1so3940059qkc.5
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:15:57 -0800 (PST)
-X-Received: by 2002:a37:7682:: with SMTP id r124mr6995371qkc.79.1547651756813;
- Wed, 16 Jan 2019 07:15:56 -0800 (PST)
+	b=pGpZhbYxHtMwTO9dI0h366yRg+LAD2wNIytXd9Or8lLZMueCmrAGXVKvlpAwTQgbw
+	 rXua/KxbeyHuTIJrfkJKBBEpsBy5u3yOgSKWwnfRKE2es62irDaRyHZuhGk3sTbP0m
+	 Xyxm48InvedRZ4XFYn+dmOso3aoQp59Wh0ocuj4E=
+Received: by mail-qt1-f177.google.com with SMTP id n32so7460407qte.11
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:18:37 -0800 (PST)
+X-Received: by 2002:aed:3ecf:: with SMTP id o15mr7523514qtf.26.1547651916185;
+ Wed, 16 Jan 2019 07:18:36 -0800 (PST)
 MIME-Version: 1.0
-References: <1547646261-32535-1-git-send-email-rppt@linux.ibm.com> <1547646261-32535-9-git-send-email-rppt@linux.ibm.com>
-In-Reply-To: <1547646261-32535-9-git-send-email-rppt@linux.ibm.com>
+References: <1547646261-32535-1-git-send-email-rppt@linux.ibm.com> <1547646261-32535-20-git-send-email-rppt@linux.ibm.com>
+In-Reply-To: <1547646261-32535-20-git-send-email-rppt@linux.ibm.com>
 From: Rob Herring <robh+dt@kernel.org>
-Date: Wed, 16 Jan 2019 09:15:45 -0600
-X-Gmail-Original-Message-ID: <CAL_Jsq+7=yiOYS0Nq7euXK4qghjAu9-mzruW0Jt1N146gK+DCQ@mail.gmail.com>
+Date: Wed, 16 Jan 2019 09:18:24 -0600
+X-Gmail-Original-Message-ID: <CAL_JsqJv=+SQwmbwuw1C5Rv9sFHhk4SiP=Z_cKJu3HG5kdwhrg@mail.gmail.com>
 Message-ID:
- <CAL_Jsq+7=yiOYS0Nq7euXK4qghjAu9-mzruW0Jt1N146gK+DCQ@mail.gmail.com>
-Subject: Re: [PATCH 08/21] memblock: drop __memblock_alloc_base()
+ <CAL_JsqJv=+SQwmbwuw1C5Rv9sFHhk4SiP=Z_cKJu3HG5kdwhrg@mail.gmail.com>
+Subject: Re: [PATCH 19/21] treewide: add checks for the return value of memblock_alloc*()
 To: Mike Rapoport <rppt@linux.ibm.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, 
 	Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, 
@@ -136,24 +136,104 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190116151545.Kpiq5EroF1cdTQIAuKUN_jeRyLdxDhwFvEqQO0Zudj0@z>
+Message-ID: <20190116151824.ogXAT55qyTDtNynwg1iZ1-Ry3fglZM1pZoDmOZeJviI@z>
 
-On Wed, Jan 16, 2019 at 7:45 AM Mike Rapoport <rppt@linux.ibm.com> wrote:
+On Wed, Jan 16, 2019 at 7:46 AM Mike Rapoport <rppt@linux.ibm.com> wrote:
 >
-> The __memblock_alloc_base() function tries to allocate a memory up to the
-> limit specified by its max_addr parameter. Depending on the value of this
-> parameter, the __memblock_alloc_base() can is replaced with the appropriate
-> memblock_phys_alloc*() variant.
+> Add check for the return value of memblock_alloc*() functions and call
+> panic() in case of error.
+> The panic message repeats the one used by panicing memblock allocators with
+> adjustment of parameters to include only relevant ones.
+>
+> The replacement was mostly automated with semantic patches like the one
+> below with manual massaging of format strings.
+>
+> @@
+> expression ptr, size, align;
+> @@
+> ptr = memblock_alloc(size, align);
+> + if (!ptr)
+> +       panic("%s: Failed to allocate %lu bytes align=0x%lx\n", __func__,
+> size, align);
 >
 > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 > ---
->  arch/sh/kernel/machine_kexec.c |  3 ++-
->  arch/x86/kernel/e820.c         |  2 +-
->  arch/x86/mm/numa.c             | 12 ++++--------
->  drivers/of/of_reserved_mem.c   |  7 ++-----
->  include/linux/memblock.h       |  2 --
->  mm/memblock.c                  |  9 ++-------
->  6 files changed, 11 insertions(+), 24 deletions(-)
+>  arch/alpha/kernel/core_cia.c              |  3 +++
+>  arch/alpha/kernel/core_marvel.c           |  6 ++++++
+>  arch/alpha/kernel/pci-noop.c              | 11 ++++++++++-
+>  arch/alpha/kernel/pci.c                   | 11 ++++++++++-
+>  arch/alpha/kernel/pci_iommu.c             | 12 ++++++++++++
+>  arch/arc/mm/highmem.c                     |  4 ++++
+>  arch/arm/kernel/setup.c                   |  6 ++++++
+>  arch/arm/mm/mmu.c                         | 14 +++++++++++++-
+>  arch/arm64/kernel/setup.c                 |  9 ++++++---
+>  arch/arm64/mm/kasan_init.c                | 10 ++++++++++
+>  arch/c6x/mm/dma-coherent.c                |  4 ++++
+>  arch/c6x/mm/init.c                        |  3 +++
+>  arch/csky/mm/highmem.c                    |  5 +++++
+>  arch/h8300/mm/init.c                      |  3 +++
+>  arch/m68k/atari/stram.c                   |  4 ++++
+>  arch/m68k/mm/init.c                       |  3 +++
+>  arch/m68k/mm/mcfmmu.c                     |  6 ++++++
+>  arch/m68k/mm/motorola.c                   |  9 +++++++++
+>  arch/m68k/mm/sun3mmu.c                    |  6 ++++++
+>  arch/m68k/sun3/sun3dvma.c                 |  3 +++
+>  arch/microblaze/mm/init.c                 |  8 ++++++--
+>  arch/mips/cavium-octeon/dma-octeon.c      |  3 +++
+>  arch/mips/kernel/setup.c                  |  3 +++
+>  arch/mips/kernel/traps.c                  |  3 +++
+>  arch/mips/mm/init.c                       |  5 +++++
+>  arch/nds32/mm/init.c                      | 12 ++++++++++++
+>  arch/openrisc/mm/ioremap.c                |  8 ++++++--
+>  arch/powerpc/kernel/dt_cpu_ftrs.c         |  5 +++++
+>  arch/powerpc/kernel/pci_32.c              |  3 +++
+>  arch/powerpc/kernel/setup-common.c        |  3 +++
+>  arch/powerpc/kernel/setup_64.c            |  4 ++++
+>  arch/powerpc/lib/alloc.c                  |  3 +++
+>  arch/powerpc/mm/hash_utils_64.c           |  3 +++
+>  arch/powerpc/mm/mmu_context_nohash.c      |  9 +++++++++
+>  arch/powerpc/mm/pgtable-book3e.c          | 12 ++++++++++--
+>  arch/powerpc/mm/pgtable-book3s64.c        |  3 +++
+>  arch/powerpc/mm/pgtable-radix.c           |  9 ++++++++-
+>  arch/powerpc/mm/ppc_mmu_32.c              |  3 +++
+>  arch/powerpc/platforms/pasemi/iommu.c     |  3 +++
+>  arch/powerpc/platforms/powermac/nvram.c   |  3 +++
+>  arch/powerpc/platforms/powernv/opal.c     |  3 +++
+>  arch/powerpc/platforms/powernv/pci-ioda.c |  8 ++++++++
+>  arch/powerpc/platforms/ps3/setup.c        |  3 +++
+>  arch/powerpc/sysdev/msi_bitmap.c          |  3 +++
+>  arch/s390/kernel/setup.c                  | 13 +++++++++++++
+>  arch/s390/kernel/smp.c                    |  5 ++++-
+>  arch/s390/kernel/topology.c               |  6 ++++++
+>  arch/s390/numa/mode_emu.c                 |  3 +++
+>  arch/s390/numa/numa.c                     |  6 +++++-
+>  arch/s390/numa/toptree.c                  |  8 ++++++--
+>  arch/sh/mm/init.c                         |  6 ++++++
+>  arch/sh/mm/numa.c                         |  4 ++++
+>  arch/um/drivers/net_kern.c                |  3 +++
+>  arch/um/drivers/vector_kern.c             |  3 +++
+>  arch/um/kernel/initrd.c                   |  2 ++
+>  arch/um/kernel/mem.c                      | 16 ++++++++++++++++
+>  arch/unicore32/kernel/setup.c             |  4 ++++
+>  arch/unicore32/mm/mmu.c                   | 15 +++++++++++++--
+>  arch/x86/kernel/acpi/boot.c               |  3 +++
+>  arch/x86/kernel/apic/io_apic.c            |  5 +++++
+>  arch/x86/kernel/e820.c                    |  3 +++
+>  arch/x86/platform/olpc/olpc_dt.c          |  3 +++
+>  arch/x86/xen/p2m.c                        | 11 +++++++++--
+>  arch/xtensa/mm/kasan_init.c               |  4 ++++
+>  arch/xtensa/mm/mmu.c                      |  3 +++
+>  drivers/clk/ti/clk.c                      |  3 +++
+>  drivers/macintosh/smu.c                   |  3 +++
+>  drivers/of/fdt.c                          |  8 +++++++-
+>  drivers/of/unittest.c                     |  8 +++++++-
 
 Acked-by: Rob Herring <robh@kernel.org>
+
+>  drivers/xen/swiotlb-xen.c                 |  7 +++++--
+>  kernel/power/snapshot.c                   |  3 +++
+>  lib/cpumask.c                             |  3 +++
+>  mm/kasan/init.c                           | 10 ++++++++--
+>  mm/sparse.c                               | 19 +++++++++++++++++--
+>  74 files changed, 415 insertions(+), 29 deletions(-)
 
