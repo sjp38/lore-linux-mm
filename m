@@ -1,114 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BCA78E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 01:34:47 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id d6so2321855wrm.19
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 22:34:47 -0800 (PST)
-Received: from nautica.notk.org (ipv6.notk.org. [2001:41d0:1:7a93::1])
-        by mx.google.com with ESMTPS id f3si23989375wrp.49.2019.01.15.22.34.46
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 258368E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 02:02:22 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c3so2040445eda.3
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 23:02:22 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r23-v6si280465ejb.173.2019.01.15.23.02.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 22:34:46 -0800 (PST)
-Date: Wed, 16 Jan 2019 07:34:30 +0100
-From: Dominique Martinet <asmadeus@codewreck.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Message-ID: <20190116063430.GA22938@nautica>
-References: <20190110070355.GJ27534@dastard>
- <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica>
- <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com>
- <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
- <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
- <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
- <20190116054613.GA11670@nautica>
- <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
+        Tue, 15 Jan 2019 23:02:20 -0800 (PST)
+Date: Wed, 16 Jan 2019 08:02:18 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] memcg: schedule high reclaim for remote memcgs on
+ high_work
+Message-ID: <20190116070218.GF24149@dhcp22.suse.cz>
+References: <20190110174432.82064-1-shakeelb@google.com>
+ <20190111205948.GA4591@cmpxchg.org>
+ <CALvZod7O2CJuhbuLUy9R-E4dTgL4WBg8CayW_AFnCCG6KCDjUA@mail.gmail.com>
+ <20190113183402.GD1578@dhcp22.suse.cz>
+ <CALvZod6paX4_vtgP8AJm5PmW_zA_ecLLP2qTvQz8rRyKticgDg@mail.gmail.com>
+ <20190115072551.GO21345@dhcp22.suse.cz>
+ <CALvZod6U+OGZJ1mcSG++Q5CJtEjLbr3pwvLRBbkpbZbqf6YSsA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BOKacYhQ+x31HxR3"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
+In-Reply-To: <CALvZod6U+OGZJ1mcSG++Q5CJtEjLbr3pwvLRBbkpbZbqf6YSsA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
---BOKacYhQ+x31HxR3
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-
-Linus Torvalds wrote on Wed, Jan 16, 2019:
-> Anybody willing to test the above patch instead? And replace the
+On Tue 15-01-19 11:38:23, Shakeel Butt wrote:
+> On Mon, Jan 14, 2019 at 11:25 PM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Mon 14-01-19 12:18:07, Shakeel Butt wrote:
+> > > On Sun, Jan 13, 2019 at 10:34 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > On Fri 11-01-19 14:54:32, Shakeel Butt wrote:
+> > > > > Hi Johannes,
+> > > > >
+> > > > > On Fri, Jan 11, 2019 at 12:59 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > > > >
+> > > > > > Hi Shakeel,
+> > > > > >
+> > > > > > On Thu, Jan 10, 2019 at 09:44:32AM -0800, Shakeel Butt wrote:
+> > > > > > > If a memcg is over high limit, memory reclaim is scheduled to run on
+> > > > > > > return-to-userland.  However it is assumed that the memcg is the current
+> > > > > > > process's memcg.  With remote memcg charging for kmem or swapping in a
+> > > > > > > page charged to remote memcg, current process can trigger reclaim on
+> > > > > > > remote memcg.  So, schduling reclaim on return-to-userland for remote
+> > > > > > > memcgs will ignore the high reclaim altogether. So, record the memcg
+> > > > > > > needing high reclaim and trigger high reclaim for that memcg on
+> > > > > > > return-to-userland.  However if the memcg is already recorded for high
+> > > > > > > reclaim and the recorded memcg is not the descendant of the the memcg
+> > > > > > > needing high reclaim, punt the high reclaim to the work queue.
+> > > > > >
+> > > > > > The idea behind remote charging is that the thread allocating the
+> > > > > > memory is not responsible for that memory, but a different cgroup
+> > > > > > is. Why would the same thread then have to work off any high excess
+> > > > > > this could produce in that unrelated group?
+> > > > > >
+> > > > > > Say you have a inotify/dnotify listener that is restricted in its
+> > > > > > memory use - now everybody sending notification events from outside
+> > > > > > that listener's group would get throttled on a cgroup over which it
+> > > > > > has no control. That sounds like a recipe for priority inversions.
+> > > > > >
+> > > > > > It seems to me we should only do reclaim-on-return when current is in
+> > > > > > the ill-behaved cgroup, and punt everything else - interrupts and
+> > > > > > remote charges - to the workqueue.
+> > > > >
+> > > > > This is what v1 of this patch was doing but Michal suggested to do
+> > > > > what this version is doing. Michal's argument was that the current is
+> > > > > already charging and maybe reclaiming a remote memcg then why not do
+> > > > > the high excess reclaim as well.
+> > > >
+> > > > Johannes has a good point about the priority inversion problems which I
+> > > > haven't thought about.
+> > > >
+> > > > > Personally I don't have any strong opinion either way. What I actually
+> > > > > wanted was to punt this high reclaim to some process in that remote
+> > > > > memcg. However I didn't explore much on that direction thinking if
+> > > > > that complexity is worth it. Maybe I should at least explore it, so,
+> > > > > we can compare the solutions. What do you think?
+> > > >
+> > > > My question would be whether we really care all that much. Do we know of
+> > > > workloads which would generate a large high limit excess?
+> > > >
+> > >
+> > > The current semantics of memory.high is that it can be breached under
+> > > extreme conditions. However any workload where memory.high is used and
+> > > a lot of remote memcg charging happens (inotify/dnotify example given
+> > > by Johannes or swapping in tmpfs file or shared memory region) the
+> > > memory.high breach will become common.
+> >
+> > This is exactly what I am asking about. Is this something that can
+> > happen easily? Remote charges on themselves should be rare, no?
+> >
 > 
->    || capable(CAP_SYS_ADMIN)
+> At the moment, for kmem we can do remote charging for fanotify,
+> inotify and buffer_head and for anon pages we can do remote charging
+> on swap in. Now based on the workload's cgroup setup the remote
+> charging can be very frequent or rare.
 > 
-> check with something like
-> 
->    || inode_permission(inode, MAY_WRITE) == 0
-> 
-> instead?
-> 
-> (This is obviously after you've reverted the "only check mmap
-> residency" patch..)
+> At Google, remote charging is very frequent but since we are still on
+> cgroup-v1 and do not use memory.high, the issue this patch is fixing
+> is not observed. However for the adoption of cgroup-v2, this fix is
+> needed.
 
-That seems to work on an x86_64 vm.
+Adding some numbers into the changelog would be really valuable to judge
+the urgency and the scale of the problem. If we are going via kworker
+then it is also important to evaluate what kind of effect on the system
+this has.  How big of the excess can we get? Why don't those memcgs
+resolve the excess by themselves on the first direct charge? Is it
+possible that kworkers simply swamp the system with many parallel memcgs
+with remote charges?
 
-I've tested with the attached patch:
- - root can lookup pages on any file I tried;
- - user can lookup page on file it owns, assuming it can write to it
-(e.g. it won't work on a 0400 file you own)
- - user cannot lookup pages on e.g. /lib64/libc-2.28.so
-
-There is a difference with your previous patch though, that used to list
-no page in core when it didn't know; this patch lists pages as in core
-when it refuses to tell. I don't think that's very important, though.
-
-If anything, the 0400 user-owner file might be a problem in some edge
-case (e.g. if you're preloading git directories, many objects are 0444);
-should we *also* check ownership?...
-
+In other words we need deeper analysis of the problem and the solution.
 -- 
-Dominique
-
---BOKacYhQ+x31HxR3
-Content-Type: text/x-diff; charset=utf-8
-Content-Disposition: attachment; filename="mincore.diff"
-
- mm/mincore.c | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
-
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 218099b5ed31..11ed7064f4eb 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -169,6 +169,13 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	return 0;
- }
- 
-+static inline bool can_do_mincore(struct vm_area_struct *vma)
-+{
-+	return vma_is_anonymous(vma)
-+		|| (vma->vm_file && (vma->vm_file->f_mode & FMODE_WRITE))
-+		|| inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
-+}
-+
- /*
-  * Do a chunk of "sys_mincore()". We've already checked
-  * all the arguments, we hold the mmap semaphore: we should
-@@ -189,8 +196,13 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
- 	vma = find_vma(current->mm, addr);
- 	if (!vma || addr < vma->vm_start)
- 		return -ENOMEM;
--	mincore_walk.mm = vma->vm_mm;
- 	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
-+	if (!can_do_mincore(vma)) {
-+		unsigned long pages = (end - addr) >> PAGE_SHIFT;
-+		memset(vec, 1, pages);
-+		return pages;
-+	}
-+	mincore_walk.mm = vma->vm_mm;
- 	err = walk_page_range(addr, end, &mincore_walk);
- 	if (err < 0)
- 		return err;
-
---BOKacYhQ+x31HxR3--
+Michal Hocko
+SUSE Labs
