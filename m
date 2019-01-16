@@ -1,71 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 236F88E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:29:44 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id y74so958648wmc.0
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:29:44 -0800 (PST)
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80041.outbound.protection.outlook.com. [40.107.8.41])
-        by mx.google.com with ESMTPS id m6si34519478wrp.29.2019.01.16.09.29.42
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 82B0E8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:56:11 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id p4so5236777iod.17
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:56:11 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id i42si4031461jaf.71.2019.01.16.09.56.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 16 Jan 2019 09:29:42 -0800 (PST)
-From: Jason Gunthorpe <jgg@mellanox.com>
-Subject: Re: [PATCH 6/6] drivers/IB,core: reduce scope of mmap_sem
-Date: Wed, 16 Jan 2019 17:29:40 +0000
-Message-ID: <20190116172933.GI3758@mellanox.com>
-References: <20190115181300.27547-1-dave@stgolabs.net>
- <20190115181300.27547-7-dave@stgolabs.net>
- <20190115205311.GD22031@mellanox.com>
- <20190115211207.GD6310@bombadil.infradead.org>
- <20190115211722.GA3758@mellanox.com>
- <20190116160026.iyg7pwmzy5o35h5l@linux-r8p5>
- <20190116170252.GG3758@mellanox.com>
- <20190116170612.GK6310@bombadil.infradead.org>
-In-Reply-To: <20190116170612.GK6310@bombadil.infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <249B23343316074B83215D657D982139@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Jan 2019 09:56:10 -0800 (PST)
+Subject: Re: [PATCH] mm: hwpoison: use do_send_sig_info() instead of
+ force_sig() (Re: PMEM error-handling forces SIGKILL causes kernel panic)
+References: <e3c4c0e0-1434-4353-b893-2973c04e7ff7@oracle.com>
+ <CAPcyv4j67n6H7hD6haXJqysbaauci4usuuj5c+JQ7VQBGngO1Q@mail.gmail.com>
+ <20190111081401.GA5080@hori1.linux.bs1.fc.nec.co.jp>
+ <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
+From: Jane Chu <jane.chu@oracle.com>
+Message-ID: <97e179e1-8a3a-5acb-78c1-a4b06b33db4c@oracle.com>
+Date: Wed, 16 Jan 2019 09:56:02 -0800
 MIME-Version: 1.0
+In-Reply-To: <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: multipart/alternative;
+ boundary="------------26820907F7F7D3317A5CD494"
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dledford@redhat.com" <dledford@redhat.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Davidlohr Bueso <dbueso@suse.de>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 16, 2019 at 09:06:12AM -0800, Matthew Wilcox wrote:
-> On Wed, Jan 16, 2019 at 05:02:59PM +0000, Jason Gunthorpe wrote:
-> > On Wed, Jan 16, 2019 at 08:00:26AM -0800, Davidlohr Bueso wrote:
-> > > On Tue, 15 Jan 2019, Jason Gunthorpe wrote:
-> > >=20
-> > > > On Tue, Jan 15, 2019 at 01:12:07PM -0800, Matthew Wilcox wrote:
-> > > > > On Tue, Jan 15, 2019 at 08:53:16PM +0000, Jason Gunthorpe wrote:
-> > > > > > > -	new_pinned =3D atomic_long_read(&mm->pinned_vm) + npages;
-> > > > > > > +	new_pinned =3D atomic_long_add_return(npages, &mm->pinned_v=
-m);
-> > > > > > >  	if (new_pinned > lock_limit && !capable(CAP_IPC_LOCK)) {
-> > > > > >
-> > > > > > I thought a patch had been made for this to use check_overflow.=
-..
-> > > > >=20
-> > > > > That got removed again by patch 1 ...
-> > > >=20
-> > > > Well, that sure needs a lot more explanation. :(
-> > >=20
-> > > What if we just make the counter atomic64?
-> >=20
-> > That could work.
->=20
-> atomic_long, perhaps?  No need to use 64-bits on 32-bit architectures.
+This is a multi-part message in MIME format.
+--------------26820907F7F7D3317A5CD494
+Content-Type: text/plain; charset=iso-2022-jp; format=flowed; delsp=yes
+Content-Transfer-Encoding: 7bit
 
-Well, there is, the point is to protect from user triggered overflow..
+Hi, Naoya,
 
-Say I'm on 32 bit and try to mlock 2G from 100 threads in parallel, I
-can't allow the atomic_inc to wrap.
+On 1/16/2019 1:30 AM, Naoya Horiguchi wrote:
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 7c72f2a95785..831be5ff5f4d 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -372,7 +372,8 @@ static void kill_procs(struct list_head *to_kill, int forcekill, bool fail,
+>   			if (fail || tk->addr_valid == 0) {
+>   				pr_err("Memory failure: %#lx: forcibly killing %s:%d because of failure to unmap corrupted page\n",
+>   				       pfn, tk->tsk->comm, tk->tsk->pid);
+> -				force_sig(SIGKILL, tk->tsk);
+> +				do_send_sig_info(SIGKILL, SEND_SIG_PRIV,
+> +						 tk->tsk, PIDTYPE_PID);
+>   			}
+>   
 
-A 64 bit value works OK because I can't create enough threads to push
-a 64 bit value into wrapping with at most a 32 bit add.
+Since we don't care the return from do_send_sig_info(), would you mind to
+prefix it with (void) ?
 
-If you want to use a 32 bit, then I think the algo needs to use a compare
-and swap loop with the check_overflow.
+thanks!
+-jane
 
-Jason
+
+--------------26820907F7F7D3317A5CD494
+Content-Type: text/html; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;
+      charset=ISO-2022-JP">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <pre>Hi, Naoya,
+</pre>
+    <div class="moz-cite-prefix">On 1/16/2019 1:30 AM, Naoya Horiguchi
+      wrote:<br>
+    </div>
+    <blockquote type="cite"
+      cite="mid:20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp">
+      <pre class="moz-quote-pre" wrap="">diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 7c72f2a95785..831be5ff5f4d 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -372,7 +372,8 @@ static void kill_procs(struct list_head *to_kill, int forcekill, bool fail,
+ 			if (fail || tk-&gt;addr_valid == 0) {
+ 				pr_err("Memory failure: %#lx: forcibly killing %s:%d because of failure to unmap corrupted page\n",
+ 				       pfn, tk-&gt;tsk-&gt;comm, tk-&gt;tsk-&gt;pid);
+-				force_sig(SIGKILL, tk-&gt;tsk);
++				do_send_sig_info(SIGKILL, SEND_SIG_PRIV,
++						 tk-&gt;tsk, PIDTYPE_PID);
+ 			}
+ </pre>
+    </blockquote>
+    <pre>Since we don't care the return from do_send_sig_info(), would you mind to 
+prefix it with (void) ?
+
+thanks!
+-jane
+</pre>
+  </body>
+</html>
+
+--------------26820907F7F7D3317A5CD494--
