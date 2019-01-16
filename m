@@ -1,235 +1,382 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 293958E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 20:28:56 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id d35so4233648qtd.20
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 17:28:56 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 53sor89777999qtp.10.2019.01.15.17.28.54
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E9D8E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 20:56:19 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id 41so4213417qto.17
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 17:56:19 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x11si1723767qtb.89.2019.01.15.17.56.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 15 Jan 2019 17:28:54 -0800 (PST)
-Subject: Re: [RFC PATCH v7 00/16] Add support for eXclusive Page Frame
- Ownership
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <b7672a88-459e-53f0-5f99-f4b5ccb0a2dd@redhat.com>
-Date: Tue, 15 Jan 2019 17:28:43 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Jan 2019 17:56:18 -0800 (PST)
+Date: Tue, 15 Jan 2019 20:56:11 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Message-ID: <20190116015610.GH3696@redhat.com>
+References: <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
+ <20190112024625.GB5059@redhat.com>
+ <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
+ <20190114145447.GJ13316@quack2.suse.cz>
+ <20190114172124.GA3702@redhat.com>
+ <20190115080759.GC29524@quack2.suse.cz>
+ <20190115171557.GB3696@redhat.com>
+ <752839e6-6cb3-a6aa-94cb-63d3d4265934@nvidia.com>
+ <20190115221205.GD3696@redhat.com>
+ <99110c19-3168-f6a9-fbde-0a0e57f67279@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <cover.1547153058.git.khalid.aziz@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <99110c19-3168-f6a9-fbde-0a0e57f67279@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On 1/10/19 1:09 PM, Khalid Aziz wrote:
-> I am continuing to build on the work Juerg, Tycho and Julian have done
-> on XPFO. After the last round of updates, we were seeing very
-> significant performance penalties when stale TLB entries were flushed
-> actively after an XPFO TLB update. Benchmark for measuring performance
-> is kernel build using parallel make. To get full protection from
-> ret2dir attackes, we must flush stale TLB entries. Performance
-> penalty from flushing stale TLB entries goes up as the number of
-> cores goes up. On a desktop class machine with only 4 cores,
-> enabling TLB flush for stale entries causes system time for "make
-> -j4" to go up by a factor of 2.614x but on a larger machine with 96
-> cores, system time with "make -j60" goes up by a factor of 26.366x!
-> I have been working on reducing this performance penalty.
+On Tue, Jan 15, 2019 at 04:44:41PM -0800, John Hubbard wrote:
+> On 1/15/19 2:12 PM, Jerome Glisse wrote:
+> > On Tue, Jan 15, 2019 at 01:56:51PM -0800, John Hubbard wrote:
+> >> On 1/15/19 9:15 AM, Jerome Glisse wrote:
+> >>> On Tue, Jan 15, 2019 at 09:07:59AM +0100, Jan Kara wrote:
+> >>>> On Mon 14-01-19 12:21:25, Jerome Glisse wrote:
+> >>>>> On Mon, Jan 14, 2019 at 03:54:47PM +0100, Jan Kara wrote:
+> >>>>>> On Fri 11-01-19 19:06:08, John Hubbard wrote:
+> >>>>>>> On 1/11/19 6:46 PM, Jerome Glisse wrote:
+> >>>>>>>> On Fri, Jan 11, 2019 at 06:38:44PM -0800, John Hubbard wrote:
+> >>>>>>>> [...]
+> >>>>>>>>
+> >>>>>>>>>>> The other idea that you and Dan (and maybe others) pointed out was a debug
+> >>>>>>>>>>> option, which we'll certainly need in order to safely convert all the call
+> >>>>>>>>>>> sites. (Mirror the mappings at a different kernel offset, so that put_page()
+> >>>>>>>>>>> and put_user_page() can verify that the right call was made.)  That will be
+> >>>>>>>>>>> a separate patchset, as you recommended.
+> >>>>>>>>>>>
+> >>>>>>>>>>> I'll even go as far as recommending the page lock itself. I realize that this 
+> >>>>>>>>>>> adds overhead to gup(), but we *must* hold off page_mkclean(), and I believe
+> >>>>>>>>>>> that this (below) has similar overhead to the notes above--but is *much* easier
+> >>>>>>>>>>> to verify correct. (If the page lock is unacceptable due to being so widely used,
+> >>>>>>>>>>> then I'd recommend using another page bit to do the same thing.)
+> >>>>>>>>>>
+> >>>>>>>>>> Please page lock is pointless and it will not work for GUP fast. The above
+> >>>>>>>>>> scheme do work and is fine. I spend the day again thinking about all memory
+> >>>>>>>>>> ordering and i do not see any issues.
+> >>>>>>>>>>
+> >>>>>>>>>
+> >>>>>>>>> Why is it that page lock cannot be used for gup fast, btw?
+> >>>>>>>>
+> >>>>>>>> Well it can not happen within the preempt disable section. But after
+> >>>>>>>> as a post pass before GUP_fast return and after reenabling preempt then
+> >>>>>>>> it is fine like it would be for regular GUP. But locking page for GUP
+> >>>>>>>> is also likely to slow down some workload (with direct-IO).
+> >>>>>>>>
+> >>>>>>>
+> >>>>>>> Right, and so to crux of the matter: taking an uncontended page lock
+> >>>>>>> involves pretty much the same set of operations that your approach does.
+> >>>>>>> (If gup ends up contended with the page lock for other reasons than these
+> >>>>>>> paths, that seems surprising.) I'd expect very similar performance.
+> >>>>>>>
+> >>>>>>> But the page lock approach leads to really dramatically simpler code (and
+> >>>>>>> code reviews, let's not forget). Any objection to my going that
+> >>>>>>> direction, and keeping this idea as a Plan B? I think the next step will
+> >>>>>>> be, once again, to gather some performance metrics, so maybe that will
+> >>>>>>> help us decide.
+> >>>>>>
+> >>>>>> FWIW I agree that using page lock for protecting page pinning (and thus
+> >>>>>> avoid races with page_mkclean()) looks simpler to me as well and I'm not
+> >>>>>> convinced there will be measurable difference to the more complex scheme
+> >>>>>> with barriers Jerome suggests unless that page lock contended. Jerome is
+> >>>>>> right that you cannot just do lock_page() in gup_fast() path. There you
+> >>>>>> have to do trylock_page() and if that fails just bail out to the slow gup
+> >>>>>> path.
+> >>>>>>
+> >>>>>> Regarding places other than page_mkclean() that need to check pinned state:
+> >>>>>> Definitely page migration will want to check whether the page is pinned or
+> >>>>>> not so that it can deal differently with short-term page references vs
+> >>>>>> longer-term pins.
+> >>>>>>
+> >>>>>> Also there is one more idea I had how to record number of pins in the page:
+> >>>>>>
+> >>>>>> #define PAGE_PIN_BIAS	1024
+> >>>>>>
+> >>>>>> get_page_pin()
+> >>>>>> 	atomic_add(&page->_refcount, PAGE_PIN_BIAS);
+> >>>>>>
+> >>>>>> put_page_pin();
+> >>>>>> 	atomic_add(&page->_refcount, -PAGE_PIN_BIAS);
+> >>>>>>
+> >>>>>> page_pinned(page)
+> >>>>>> 	(atomic_read(&page->_refcount) - page_mapcount(page)) > PAGE_PIN_BIAS
+> >>>>>>
+> >>>>>> This is pretty trivial scheme. It still gives us 22-bits for page pins
+> >>>>>> which should be plenty (but we should check for that and bail with error if
+> >>>>>> it would overflow). Also there will be no false negatives and false
+> >>>>>> positives only if there are more than 1024 non-page-table references to the
+> >>>>>> page which I expect to be rare (we might want to also subtract
+> >>>>>> hpage_nr_pages() for radix tree references to avoid excessive false
+> >>>>>> positives for huge pages although at this point I don't think they would
+> >>>>>> matter). Thoughts?
+> >>>>>
+> >>>>> Racing PUP are as likely to cause issues:
+> >>>>>
+> >>>>> CPU0                        | CPU1       | CPU2
+> >>>>>                             |            |
+> >>>>>                             | PUP()      |
+> >>>>>     page_pinned(page)       |            |
+> >>>>>       (page_count(page) -   |            |
+> >>>>>        page_mapcount(page)) |            |
+> >>>>>                             |            | GUP()
+> >>>>>
+> >>>>> So here the refcount snap-shot does not include the second GUP and
+> >>>>> we can have a false negative ie the page_pinned() will return false
+> >>>>> because of the PUP happening just before on CPU1 despite the racing
+> >>>>> GUP on CPU2 just after.
+> >>>>>
+> >>>>> I believe only either lock or memory ordering with barrier can
+> >>>>> guarantee that we do not miss GUP ie no false negative. Still the
+> >>>>> bias idea might be usefull as with it we should not need a flag.
+> >>>>
+> >>>> Right. We need similar synchronization (i.e., page lock or careful checks
+> >>>> with memory barriers) if we want to get a reliable page pin information.
+> >>>>
+> >>>>> So to make the above safe it would still need the page write back
+> >>>>> double check that i described so that GUP back-off if it raced with
+> >>>>> page_mkclean,clear_page_dirty_for_io and the fs write page call back
+> >>>>> which call test_set_page_writeback() (yes it is very unlikely but
+> >>>>> might still happen).
+> >>>>
+> >>>> Agreed. So with page lock it would actually look like:
+> >>>>
+> >>>> get_page_pin()
+> >>>> 	lock_page(page);
+> >>>> 	wait_for_stable_page();
+> >>>> 	atomic_add(&page->_refcount, PAGE_PIN_BIAS);
+> >>>> 	unlock_page(page);
+> >>>>
+> >>>> And if we perform page_pinned() check under page lock, then if
+> >>>> page_pinned() returned false, we are sure page is not and will not be
+> >>>> pinned until we drop the page lock (and also until page writeback is
+> >>>> completed if needed).
+> >>>>
+> >>
+> >> OK. Avoiding a new page flag, *and* avoiding the _mapcount auditing and
+> >> compensation steps, is a pretty major selling point. And if we do the above
+> >> locking, that does look correct to me. I wasn't able to visualize the
+> >> locking you had in mind, until just now (above), but now it is clear, 
+> >> thanks for spelling it out.
+> >>
+> >>>
+> >>> So i still can't see anything wrong with that idea, i had similar
+> >>> one in the past and diss-missed and i can't remember why :( But
+> >>> thinking over and over i do not see any issue beside refcount wrap
+> >>> around. Which is something that can happens today thought i don't
+> >>> think it can be use in an evil way and we can catch it and be
+> >>> loud about it.
+> >>>
+> >>> So i think the following would be bullet proof:
+> >>>
+> >>>
+> >>> get_page_pin()
+> >>>     atomic_add(&page->_refcount, PAGE_PIN_BIAS);
+> >>>     smp_wmb();
+> >>>     if (PageWriteback(page)) {
+> >>>         // back off
+> >>>         atomic_add(&page->_refcount, -PAGE_PIN_BIAS);
+> >>>         // re-enable preempt if in fast
+> >>>         wait_on_page_writeback(page);
+> >>>         goto retry;
+> >>>     }
+> >>>
+> >>> put_page_pin();
+> >>> 	atomic_add(&page->_refcount, -PAGE_PIN_BIAS);
+> >>>
+> >>> page_pinned(page)
+> >>> 	(atomic_read(&page->_refcount) - page_mapcount(page)) > PAGE_PIN_BIAS
+> >>>
+> >>> test_set_page_writeback()
+> >>>     ...
+> >>>     wb = TestSetPageWriteback(page)
+> >>
+> >> Minor point, but using PageWriteback for synchronization may rule out using
+> >> wait_for_stable_page(), because wait_for_stable_page() might not actually 
+> >> wait_on_page_writeback. Jan pointed out in the other thread, that we should
+> >> prefer wait_for_stable_page(). 
+> > 
+> > Yes, but wait_for_stable_page() has no page flag so nothing we can
+> > synchronize against. So my advice would be:
+> >     if (PageWriteback(page)) {
+> >         wait_for_stable_page(page);
+> >         if (PageWriteback(page))
+> >             wait_for_write_back(page);
+> >     }
+> > 
+> > wait_for_stable_page() can optimize out the wait_for_write_back()
+> > if it is safe to do so. So we can improve the above slightly too.
+> > 
+> >>
+> >>>     smp_mb();
+> >>>     if (page_pinned(page)) {
+> >>>         // report page as pinned to caller of test_set_page_writeback()
+> >>>     }
+> >>>     ...
+> >>>
+> >>> This is text book memory barrier. Either get_page_pin() see racing
+> >>> test_set_page_writeback() or test_set_page_writeback() see racing GUP
+> >>>
+> >>>
+> >>
+> >> This approach is probably workable, but again, it's more complex and comes
+> >> without any lockdep support. Maybe it's faster, maybe not. Therefore, I want 
+> >> to use it as either "do this after everything is up and running and stable", 
+> >> or else as Plan B, if there is some performance implication from the page lock.
+> >>
+> >> Simple and correct first, then performance optimization, *if* necessary.
+> > 
+> > I do not like taking page lock while they are no good reasons to do so.
 > 
-> I implemented a solution to reduce performance penalty and
-> that has had large impact. When XPFO code flushes stale TLB entries,
-> it does so for all CPUs on the system which may include CPUs that
-> may not have any matching TLB entries or may never be scheduled to
-> run the userspace task causing TLB flush. Problem is made worse by
-> the fact that if number of entries being flushed exceeds
-> tlb_single_page_flush_ceiling, it results in a full TLB flush on
-> every CPU. A rogue process can launch a ret2dir attack only from a
-> CPU that has dual mapping for its pages in physmap in its TLB. We
-> can hence defer TLB flush on a CPU until a process that would have
-> caused a TLB flush is scheduled on that CPU. I have added a cpumask
-> to task_struct which is then used to post pending TLB flush on CPUs
-> other than the one a process is running on. This cpumask is checked
-> when a process migrates to a new CPU and TLB is flushed at that
-> time. I measured system time for parallel make with unmodified 4.20
-> kernel, 4.20 with XPFO patches before this optimization and then
-> again after applying this optimization. Here are the results:
+> There actually are very good reasons to do so! These include:
 > 
-> Hardware: 96-core Intel Xeon Platinum 8160 CPU @ 2.10GHz, 768 GB RAM
-> make -j60 all
-> 
-> 4.20				915.183s
-> 4.20+XPFO			24129.354s	26.366x
-> 4.20+XPFO+Deferred flush	1216.987s	 1.330xx
-> 
-> 
-> Hardware: 4-core Intel Core i5-3550 CPU @ 3.30GHz, 8G RAM
-> make -j4 all
-> 
-> 4.20				607.671s
-> 4.20+XPFO			1588.646s	2.614x
-> 4.20+XPFO+Deferred flush	794.473s	1.307xx
-> 
-> 30+% overhead is still very high and there is room for improvement.
-> Dave Hansen had suggested batch updating TLB entries and Tycho had
-> created an initial implementation but I have not been able to get
-> that to work correctly. I am still working on it and I suspect we
-> will see a noticeable improvement in performance with that. In the
-> code I added, I post a pending full TLB flush to all other CPUs even
-> when number of TLB entries being flushed on current CPU does not
-> exceed tlb_single_page_flush_ceiling. There has to be a better way
-> to do this. I just haven't found an efficient way to implemented
-> delayed limited TLB flush on other CPUs.
-> 
-> I am not entirely sure if switch_mm_irqs_off() is indeed the right
-> place to perform the pending TLB flush for a CPU. Any feedback on
-> that will be very helpful. Delaying full TLB flushes on other CPUs
-> seems to help tremendously, so if there is a better way to implement
-> the same thing than what I have done in patch 16, I am open to
-> ideas.
-> 
-> Performance with this patch set is good enough to use these as
-> starting point for further refinement before we merge it into main
-> kernel, hence RFC.
-> 
-> Since not flushing stale TLB entries creates a false sense of
-> security, I would recommend making TLB flush mandatory and eliminate
-> the "xpfotlbflush" kernel parameter (patch "mm, x86: omit TLB
-> flushing by default for XPFO page table modifications").
-> 
-> What remains to be done beyond this patch series:
-> 
-> 1. Performance improvements
-> 2. Remove xpfotlbflush parameter
-> 3. Re-evaluate the patch "arm64/mm: Add support for XPFO to swiotlb"
->     from Juerg. I dropped it for now since swiotlb code for ARM has
->     changed a lot in 4.20.
-> 4. Extend the patch "xpfo, mm: Defer TLB flushes for non-current
->     CPUs" to other architectures besides x86.
-> 
-> 
-> ---------------------------------------------------------
-> 
-> Juerg Haefliger (5):
->    mm, x86: Add support for eXclusive Page Frame Ownership (XPFO)
->    swiotlb: Map the buffer if it was unmapped by XPFO
->    arm64/mm: Add support for XPFO
->    arm64/mm, xpfo: temporarily map dcache regions
->    lkdtm: Add test for XPFO
-> 
-> Julian Stecklina (4):
->    mm, x86: omit TLB flushing by default for XPFO page table
->      modifications
->    xpfo, mm: remove dependency on CONFIG_PAGE_EXTENSION
->    xpfo, mm: optimize spinlock usage in xpfo_kunmap
->    EXPERIMENTAL: xpfo, mm: optimize spin lock usage in xpfo_kmap
-> 
-> Khalid Aziz (2):
->    xpfo, mm: Fix hang when booting with "xpfotlbflush"
->    xpfo, mm: Defer TLB flushes for non-current CPUs (x86 only)
-> 
-> Tycho Andersen (5):
->    mm: add MAP_HUGETLB support to vm_mmap
->    x86: always set IF before oopsing from page fault
->    xpfo: add primitives for mapping underlying memory
->    arm64/mm: disable section/contiguous mappings if XPFO is enabled
->    mm: add a user_virt_to_phys symbol
-> 
->   .../admin-guide/kernel-parameters.txt         |   2 +
->   arch/arm64/Kconfig                            |   1 +
->   arch/arm64/mm/Makefile                        |   2 +
->   arch/arm64/mm/flush.c                         |   7 +
->   arch/arm64/mm/mmu.c                           |   2 +-
->   arch/arm64/mm/xpfo.c                          |  58 ++++
->   arch/x86/Kconfig                              |   1 +
->   arch/x86/include/asm/pgtable.h                |  26 ++
->   arch/x86/include/asm/tlbflush.h               |   1 +
->   arch/x86/mm/Makefile                          |   2 +
->   arch/x86/mm/fault.c                           |  10 +
->   arch/x86/mm/pageattr.c                        |  23 +-
->   arch/x86/mm/tlb.c                             |  27 ++
->   arch/x86/mm/xpfo.c                            | 171 ++++++++++++
->   drivers/misc/lkdtm/Makefile                   |   1 +
->   drivers/misc/lkdtm/core.c                     |   3 +
->   drivers/misc/lkdtm/lkdtm.h                    |   5 +
->   drivers/misc/lkdtm/xpfo.c                     | 194 ++++++++++++++
->   include/linux/highmem.h                       |  15 +-
->   include/linux/mm.h                            |   2 +
->   include/linux/mm_types.h                      |   8 +
->   include/linux/page-flags.h                    |  13 +
->   include/linux/sched.h                         |   9 +
->   include/linux/xpfo.h                          |  90 +++++++
->   include/trace/events/mmflags.h                |  10 +-
->   kernel/dma/swiotlb.c                          |   3 +-
->   mm/Makefile                                   |   1 +
->   mm/mmap.c                                     |  19 +-
->   mm/page_alloc.c                               |   3 +
->   mm/util.c                                     |  32 +++
->   mm/xpfo.c                                     | 247 ++++++++++++++++++
->   security/Kconfig                              |  29 ++
->   32 files changed, 974 insertions(+), 43 deletions(-)
->   create mode 100644 arch/arm64/mm/xpfo.c
->   create mode 100644 arch/x86/mm/xpfo.c
->   create mode 100644 drivers/misc/lkdtm/xpfo.c
->   create mode 100644 include/linux/xpfo.h
->   create mode 100644 mm/xpfo.c
-> 
+> 1) Simpler code that is less likely to have subtle bugs in the initial 
+>    implementations.
 
-So this seems to blow up immediately on my arm64 box with a config
-based on Fedora:
+It is not simpler, memory barrier is 1 line of code ...
 
-[   11.008243] Unable to handle kernel paging request at virtual address ffff8003f8602f9b
-[   11.016133] Mem abort info:
-[   11.018926]   ESR = 0x96000007
-[   11.021967]   Exception class = DABT (current EL), IL = 32 bits
-[   11.027858]   SET = 0, FnV = 0
-[   11.030904]   EA = 0, S1PTW = 0
-[   11.034030] Data abort info:
-[   11.036896]   ISV = 0, ISS = 0x00000007
-[   11.040718]   CM = 0, WnR = 0
-[   11.043672] swapper pgtable: 4k pages, 48-bit VAs, pgdp = (____ptrval____)
-[   11.050523] [ffff8003f8602f9b] pgd=00000043ffff7803, pud=00000043fe113803, pmd=00000043fc376803, pte=00e80043f8602f13
-[   11.061094] Internal error: Oops: 96000007 [#3] SMP
-[   11.065948] Modules linked in: xfs libcrc32c sdhci_of_arasan sdhci_pltfm sdhci i2c_xgene_slimpro cqhci gpio_dwapb xhci_plat_hcd gpio_xgene_sb gpio_keys
-[   11.079454] CPU: 3 PID: 577 Comm: systemd-getty-g Tainted: G      D           4.20.0-xpfo+ #9
-[   11.087936] Hardware name: www.apm.com American Megatrends/American Megatrends, BIOS 3.07.06 20/03/2015
-[   11.097285] pstate: 00400005 (nzcv daif +PAN -UAO)
-[   11.102057] pc : __memcpy+0x20/0x180
-[   11.105616] lr : __access_remote_vm+0x7c/0x1f0
-[   11.110036] sp : ffff000011cb3c20
-[   11.113333] x29: ffff000011cb3c20 x28: ffff8003f8602000
-[   11.118619] x27: 0000000000000f9b x26: 0000000000001000
-[   11.123904] x25: 000083ffffffffff x24: cccccccccccccccd
-[   11.129189] x23: ffff8003d7c53000 x22: 0000000000000044
-[   11.134474] x21: 0000fffff0591f9b x20: 0000000000000044
-[   11.139759] x19: 0000000000000044 x18: 0000000000000000
-[   11.145044] x17: 0000000000000002 x16: 0000000000000000
-[   11.150329] x15: 0000000000000000 x14: 0000000000000000
-[   11.155614] x13: 0000000000000000 x12: 0000000000000000
-[   11.160899] x11: 0000000000000000 x10: 0000000000000000
-[   11.166184] x9 : 0000000000000000 x8 : 0000000000000000
-[   11.171469] x7 : 0000000000000000 x6 : ffff8003d7c53000
-[   11.176754] x5 : 00e00043f8602fd3 x4 : 0000000000000005
-[   11.182038] x3 : 00000003f8602000 x2 : 000000000000003f
-[   11.187323] x1 : ffff8003f8602f9b x0 : ffff8003d7c53000
-[   11.192609] Process systemd-getty-g (pid: 577, stack limit = 0x(____ptrval____))
-[   11.199967] Call trace:
-[   11.202400]  __memcpy+0x20/0x180
-[   11.205611]  access_remote_vm+0x4c/0x60
-[   11.209428]  environ_read+0x12c/0x260
-[   11.213071]  __vfs_read+0x48/0x158
-[   11.216454]  vfs_read+0x94/0x150
-[   11.219665]  ksys_read+0x54/0xb0
-[   11.222875]  __arm64_sys_read+0x24/0x30
-[   11.226691]  el0_svc_handler+0x94/0x110
-[   11.230508]  el0_svc+0x8/0xc
-[   11.233375] Code: f2400c84 540001c0 cb040042 36000064 (38401423)
-[   11.239439] ---[ end trace 4132d3416fb70591 ]---
+> 
+> 2) Pre-existing, known locking constructs that include instrumentation and
+>    visibility.
 
-I'll see if I get some time tomorrow to dig into this unless
-someone spots a problem sooner.
+Like i said i don't think page lock benefit from those at it is
+very struct page specific. I need to check what is available but
+you definitly do not get all the bell and whistle you get with
+regular lock.
 
-Thanks,
-Laura
+> 
+> 3) ...and all of the other goodness that comes from smaller and simpler code.
+> 
+> I'm not saying that those reasons necessarily prevail here, but it's not
+> fair to say "there are no good reasons". Less code is still worth something,
+> even in the kernel.
+
+Again memory barrier is just one line of code, i do not see lock as
+something simpler than that.
+
+> 
+> > The above is textbook memory barrier as explain in Documentations/
+> > Forcing page lock for GUP will inevitably slow down some workload and
+> 
+> Such as?
+> 
+> Here's the thing: if a workload is taking the page lock for some
+> reason, and also competing with GUP, that's actually something that I worry
+> about: what is changing in page state, while we're setting up GUP? Either
+> we audit for that, or we let runtime locking rules (taking the page lock)
+> keep us out of trouble in the first place.
+> 
+> In other words, if there is a performance hit, it might very likely be
+> due to a required synchronization that is taking place.
+
+You need to take the page lock for several thing, top of my mind: insert a
+mapping, migrate, truncate, swapping, reverse map, mlock, cgroup, madvise,
+... so if GUP now also need it then you force synchronization with all
+that for direct-IO.
+
+You do not need to synchronize with most of the above as they do not care
+about GUP. In fact only write back path need synchronization i can not
+think of anything else that would need to synchronize with GUP.
+
+> > report for such can takes time to trickle down to mailing list and it
+> > can takes time for people to actualy figure out that this are the GUP
+> > changes that introduce such regression.
+> > 
+> > So if we could minimize performance regression with something like
+> > memory barrier we should definitly do that.
+> 
+> We do not yet know that the more complex memory barrier approach is actually
+> faster. That's worth repeating.
+
+I would be surprise if a memory barrier was slower than a lock. Lock
+can contends, memory barrier do not contend. Lock require atomic
+operation and thus implied barrier so lock should translate into some-
+thing slower than a memory barrier alone.
+
+
+> > Also i do not think that page lock has lock dep (as it is not using
+> > any of the usual locking function) but that's just my memory of that
+> > code.
+> > 
+> 
+> Lock page is pretty thoroughly instrumented. It uses wait_on_page_bit_common(),
+> which in turn uses spin locks and more.
+
+It does not gives you all the bell and whistle you get with spinlock
+debug. The spinlock taken in wait_on_page_bit_common() is for the
+waitqueue the page belongs to so you only get debuging on that not
+on the individual page lock bit. So i do not think there is anything
+that would help debugging page lock like double unlock or dead lock.
+
+
+> The more I think about this, the more I want actual performance data to 
+> justify anything involving the more complicated custom locking. So I think
+> it's best to build the page lock based version, do some benchmarks, and see
+> where we stand.
+
+This is not custom locking, we do employ memory barrier in several
+places already. Memory barrier is something quite common in the kernel
+and we should favor it when there is no need for a lock.
+
+Memory barrier never contend so you know you will never have lock
+contention ... so memory barrier can only be faster than anything
+with lock. The contrary would surprise me.
+
+Using lock and believing it will be as fast as memory barrier is
+is hopping that you will never contend on that lock. So i would
+rather get proof that GUP will never contend on page lock.
+
+
+To make it clear.
+
+Lock code:
+    GUP()
+        ...
+        lock_page(page);
+        if (PageWriteback(page)) {
+            unlock_page(page);
+            wait_stable_page(page);
+            goto retry;
+        }
+        atomic_add(page->refcount, PAGE_PIN_BIAS);
+        unlock_page(page);
+
+    test_set_page_writeback()
+        bool pinned = false;
+        ...
+        pinned = page_is_pin(page); // could be after TestSetPageWriteback
+        TestSetPageWriteback(page);
+        ...
+        return pinned;
+
+Memory barrier:
+    GUP()
+        ...
+        atomic_add(page->refcount, PAGE_PIN_BIAS);
+        smp_mb();
+        if (PageWriteback(page)) {
+            atomic_add(page->refcount, -PAGE_PIN_BIAS);
+            wait_stable_page(page);
+            goto retry;
+        }
+
+    test_set_page_writeback()
+        bool pinned = false;
+        ...
+        TestSetPageWriteback(page);
+        smp_wmb();
+        pinned = page_is_pin(page);
+        ...
+        return pinned;
+
+
+One is not more complex than the other. One can contend, the other
+will _never_ contend.
+
+Cheers,
+Jérôme
