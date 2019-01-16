@@ -1,70 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D0F8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 11:12:30 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id q62so4157761pgq.9
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:12:30 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j5si6859986pfg.254.2019.01.16.08.12.28
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A5FD88E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 11:15:40 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id 39so2612743edq.13
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:15:40 -0800 (PST)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id b54si1191222ede.267.2019.01.16.08.15.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 08:12:28 -0800 (PST)
-Date: Wed, 16 Jan 2019 17:12:24 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
-Message-ID: <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
-References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com> <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com> <20190110122442.GA21216@nautica>
- <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com> <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com> <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
- <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com> <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
+        Wed, 16 Jan 2019 08:15:39 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id C3C651C291B
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:15:38 +0000 (GMT)
+Date: Wed, 16 Jan 2019 16:15:37 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 12/25] mm, compaction: Keep migration source private to a
+ single compaction instance
+Message-ID: <20190116161537.GG27437@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190104125011.16071-13-mgorman@techsingularity.net>
+ <0d02b611-85a7-b161-1310-883c4b1594f8@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <0d02b611-85a7-b161-1310-883c4b1594f8@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-On Wed, 16 Jan 2019, Linus Torvalds wrote:
+On Wed, Jan 16, 2019 at 04:45:59PM +0100, Vlastimil Babka wrote:
+> On 1/4/19 1:49 PM, Mel Gorman wrote:
+> > Due to either a fast search of the free list or a linear scan, it is
+> > possible for multiple compaction instances to pick the same pageblock
+> > for migration.  This is lucky for one scanner and increased scanning for
+> > all the others. It also allows a race between requests on which first
+> > allocates the resulting free block.
+> > 
+> > This patch tests and updates the pageblock skip for the migration scanner
+> > carefully. When isolating a block, it will check and skip if the block is
+> > already in use. Once the zone lock is acquired, it will be rechecked so
+> > that only one scanner can set the pageblock skip for exclusive use. Any
+> > scanner contending will continue with a linear scan. The skip bit is
+> > still set if no pages can be isolated in a range.
+> 
+> Also the skip bit will remain set even if pages *could* be isolated,
 
-> > "Being owner or has cap" (whichever cap) is probably OK. On the other 
-> > hand, writeability check makes more sense in general - could we 
-> > somehow check if the user has write access to the file instead of 
-> > checking if it currently is opened read-write?
-> 
-> That's likely the best option. We could say "is it open for write, or
-> _could_ we open it for writing?"
-> 
-> It's a slightly annoying special case, and I'd have preferred to avoid
-> it, but it doesn't sound *compilcated*.
-> 
-> I'm on the road, but I did send out this:
-> 
->     https://lore.kernel.org/lkml/CAHk-=wif_9nvNHJiyxHzJ80_WUb0P7CXNBvXkjZz-r1u0ozp7g@mail.gmail.com/
-> 
-> originally. The "let's try to only do the mmap residency" was the
-> optimistic "maybe we can just get rid of this complexity entirely"
-> version..
-> 
-> Anybody willing to test the above patch instead? And replace the
-> 
->    || capable(CAP_SYS_ADMIN)
-> 
-> check with something like
-> 
->    || inode_permission(inode, MAY_WRITE) == 0
-> 
-> instead?
-> 
-> (This is obviously after you've reverted the "only check mmap
-> residency" patch..)
+That's the point -- the pageblock is scanned by one compaction instance
+and skipped by others.
 
-So that seems to deal with mincore() in a reasonable way indeed.
+> AFAICS there's no clearing after a block was finished with
+> nr_isolated>0. Is it intended?
 
-It doesn't unfortunately really solve the preadv2(RWF_NOWAIT), nor does it 
-provide any good answer what to do about it, does it?
+Yes, defer to a full reset later when the compaction scanners meet.
+Tracing really indicated we spent a stupid amount of time scanning,
+rescanning and competing for pageblocks within short intervals.
 
-Thanks,
+> > Migration scan rates are reduced by 52%.
+> 
+> Wonder how much of that is due to not clearing as pointed out above.
+> Also interesting how free scanned was reduced so disproportionally.
+> 
+
+The amount of free scanning is related to the amount of migration
+scanning. If migration sources are scanning, rescanning and competing
+for the same pageblocks, it can result in unnecessary free scanning too.
+It doesn't fully explain the drop but I didn't specifically try to quantify
+it either as the free scanner is altered further in later patches.
 
 -- 
-Jiri Kosina
+Mel Gorman
 SUSE Labs
