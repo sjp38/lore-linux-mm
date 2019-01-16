@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 793738E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:46:06 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id y2so3840319plr.8
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 05:46:06 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C678F8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:46:12 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id y8so3881945pgq.12
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 05:46:12 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q32si6030487pgm.410.2019.01.16.05.46.05
+        by mx.google.com with ESMTPS id d19si6938168pfd.196.2019.01.16.05.46.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 05:46:05 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0GDedqv031587
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:46:04 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2q25eu0xct-1
+        Wed, 16 Jan 2019 05:46:11 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id x0GDehME127563
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:46:11 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q23ejpuvc-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:46:04 -0500
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:46:10 -0500
 Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 16 Jan 2019 13:46:01 -0000
+	Wed, 16 Jan 2019 13:46:07 -0000
 From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 17/21] init/main: add checks for the return value of memblock_alloc*()
-Date: Wed, 16 Jan 2019 15:44:17 +0200
+Subject: [PATCH 18/21] swiotlb: add checks for the return value of memblock_alloc*()
+Date: Wed, 16 Jan 2019 15:44:18 +0200
 In-Reply-To: <1547646261-32535-1-git-send-email-rppt@linux.ibm.com>
 References: <1547646261-32535-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1547646261-32535-18-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1547646261-32535-19-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -39,54 +39,45 @@ size calculations with a local variable.
 
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- init/main.c | 26 ++++++++++++++++++++------
- 1 file changed, 20 insertions(+), 6 deletions(-)
+ kernel/dma/swiotlb.c | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
 
-diff --git a/init/main.c b/init/main.c
-index a56f65a..d58a365 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -373,12 +373,20 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
-  */
- static void __init setup_command_line(char *command_line)
+diff --git a/kernel/dma/swiotlb.c b/kernel/dma/swiotlb.c
+index d636177..e78835c8 100644
+--- a/kernel/dma/swiotlb.c
++++ b/kernel/dma/swiotlb.c
+@@ -191,6 +191,7 @@ void __init swiotlb_update_mem_attributes(void)
+ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
  {
--	saved_command_line =
--		memblock_alloc(strlen(boot_command_line) + 1, SMP_CACHE_BYTES);
--	initcall_command_line =
--		memblock_alloc(strlen(boot_command_line) + 1, SMP_CACHE_BYTES);
--	static_command_line = memblock_alloc(strlen(command_line) + 1,
--					     SMP_CACHE_BYTES);
-+	size_t len = strlen(boot_command_line) + 1;
+ 	unsigned long i, bytes;
++	size_t alloc_size;
+ 
+ 	bytes = nslabs << IO_TLB_SHIFT;
+ 
+@@ -203,12 +204,18 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
+ 	 * to find contiguous free memory regions of size up to IO_TLB_SEGSIZE
+ 	 * between io_tlb_start and io_tlb_end.
+ 	 */
+-	io_tlb_list = memblock_alloc(
+-				PAGE_ALIGN(io_tlb_nslabs * sizeof(int)),
+-				PAGE_SIZE);
+-	io_tlb_orig_addr = memblock_alloc(
+-				PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t)),
+-				PAGE_SIZE);
++	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(int));
++	io_tlb_list = memblock_alloc(alloc_size, PAGE_SIZE);
++	if (!io_tlb_list)
++		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
++		      __func__, alloc_size, PAGE_SIZE);
 +
-+	saved_command_line = memblock_alloc(len, SMP_CACHE_BYTES);
-+	if (!saved_command_line)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
++	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t));
++	io_tlb_orig_addr = memblock_alloc(alloc_size, PAGE_SIZE);
++	if (!io_tlb_orig_addr)
++		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
++		      __func__, alloc_size, PAGE_SIZE);
 +
-+	initcall_command_line =	memblock_alloc(len, SMP_CACHE_BYTES);
-+	if (!initcall_command_line)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
-+
-+	static_command_line = memblock_alloc(len, SMP_CACHE_BYTES);
-+	if (!static_command_line)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
-+
- 	strcpy(saved_command_line, boot_command_line);
- 	strcpy(static_command_line, command_line);
- }
-@@ -773,8 +781,14 @@ static int __init initcall_blacklist(char *str)
- 			pr_debug("blacklisting initcall %s\n", str_entry);
- 			entry = memblock_alloc(sizeof(*entry),
- 					       SMP_CACHE_BYTES);
-+			if (!entry)
-+				panic("%s: Failed to allocate %zu bytes\n",
-+				      __func__, sizeof(*entry));
- 			entry->buf = memblock_alloc(strlen(str_entry) + 1,
- 						    SMP_CACHE_BYTES);
-+			if (!entry->buf)
-+				panic("%s: Failed to allocate %zu bytes\n",
-+				      __func__, strlen(str_entry) + 1);
- 			strcpy(entry->buf, str_entry);
- 			list_add(&entry->next, &blacklisted_initcalls);
- 		}
+ 	for (i = 0; i < io_tlb_nslabs; i++) {
+ 		io_tlb_list[i] = IO_TLB_SEGSIZE - OFFSET(i, IO_TLB_SEGSIZE);
+ 		io_tlb_orig_addr[i] = INVALID_PHYS_ADDR;
 -- 
 2.7.4
