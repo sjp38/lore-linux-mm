@@ -1,100 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 82B0E8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:56:11 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id p4so5236777iod.17
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:56:11 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id i42si4031461jaf.71.2019.01.16.09.56.10
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F40BE8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 13:25:31 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id q207so5303592iod.18
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:25:31 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id p24si217196iol.125.2019.01.16.10.25.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 09:56:10 -0800 (PST)
-Subject: Re: [PATCH] mm: hwpoison: use do_send_sig_info() instead of
- force_sig() (Re: PMEM error-handling forces SIGKILL causes kernel panic)
-References: <e3c4c0e0-1434-4353-b893-2973c04e7ff7@oracle.com>
- <CAPcyv4j67n6H7hD6haXJqysbaauci4usuuj5c+JQ7VQBGngO1Q@mail.gmail.com>
- <20190111081401.GA5080@hori1.linux.bs1.fc.nec.co.jp>
- <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
-From: Jane Chu <jane.chu@oracle.com>
-Message-ID: <97e179e1-8a3a-5acb-78c1-a4b06b33db4c@oracle.com>
-Date: Wed, 16 Jan 2019 09:56:02 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 16 Jan 2019 10:25:30 -0800 (PST)
+From: Logan Gunthorpe <logang@deltatee.com>
+Date: Wed, 16 Jan 2019 11:25:22 -0700
+Message-Id: <20190116182523.19446-6-logang@deltatee.com>
+In-Reply-To: <20190116182523.19446-1-logang@deltatee.com>
+References: <20190116182523.19446-1-logang@deltatee.com>
 MIME-Version: 1.0
-In-Reply-To: <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: multipart/alternative;
- boundary="------------26820907F7F7D3317A5CD494"
-Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Subject: [PATCH v25 5/6] ntb: ntb_hw_intel: use io-64-nonatomic instead of in-driver hacks
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-ntb@googlegroups.com, linux-crypto@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, =?UTF-8?q?Horia=20Geant=C4=83?= <horia.geanta@nxp.com>, Logan Gunthorpe <logang@deltatee.com>
 
-This is a multi-part message in MIME format.
---------------26820907F7F7D3317A5CD494
-Content-Type: text/plain; charset=iso-2022-jp; format=flowed; delsp=yes
-Content-Transfer-Encoding: 7bit
+Now that ioread64 and iowrite64 are available in io-64-nonatomic,
+we can remove the hack at the top of ntb_hw_intel.c and replace it
+with an include.
 
-Hi, Naoya,
+Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
+Reviewed-by: Andy Shevchenko <andy.shevchenko@gmail.com>
+Acked-by: Dave Jiang <dave.jiang@intel.com>
+Acked-by: Allen Hubbe <Allen.Hubbe@dell.com>
+Acked-by: Jon Mason <jdmason@kudzu.us>
+---
+ drivers/ntb/hw/intel/ntb_hw_intel.h | 30 +----------------------------
+ 1 file changed, 1 insertion(+), 29 deletions(-)
 
-On 1/16/2019 1:30 AM, Naoya Horiguchi wrote:
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 7c72f2a95785..831be5ff5f4d 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -372,7 +372,8 @@ static void kill_procs(struct list_head *to_kill, int forcekill, bool fail,
->   			if (fail || tk->addr_valid == 0) {
->   				pr_err("Memory failure: %#lx: forcibly killing %s:%d because of failure to unmap corrupted page\n",
->   				       pfn, tk->tsk->comm, tk->tsk->pid);
-> -				force_sig(SIGKILL, tk->tsk);
-> +				do_send_sig_info(SIGKILL, SEND_SIG_PRIV,
-> +						 tk->tsk, PIDTYPE_PID);
->   			}
->   
-
-Since we don't care the return from do_send_sig_info(), would you mind to
-prefix it with (void) ?
-
-thanks!
--jane
-
-
---------------26820907F7F7D3317A5CD494
-Content-Type: text/html; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-
-<html>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html;
-      charset=ISO-2022-JP">
-  </head>
-  <body text="#000000" bgcolor="#FFFFFF">
-    <pre>Hi, Naoya,
-</pre>
-    <div class="moz-cite-prefix">On 1/16/2019 1:30 AM, Naoya Horiguchi
-      wrote:<br>
-    </div>
-    <blockquote type="cite"
-      cite="mid:20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp">
-      <pre class="moz-quote-pre" wrap="">diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 7c72f2a95785..831be5ff5f4d 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -372,7 +372,8 @@ static void kill_procs(struct list_head *to_kill, int forcekill, bool fail,
- 			if (fail || tk-&gt;addr_valid == 0) {
- 				pr_err("Memory failure: %#lx: forcibly killing %s:%d because of failure to unmap corrupted page\n",
- 				       pfn, tk-&gt;tsk-&gt;comm, tk-&gt;tsk-&gt;pid);
--				force_sig(SIGKILL, tk-&gt;tsk);
-+				do_send_sig_info(SIGKILL, SEND_SIG_PRIV,
-+						 tk-&gt;tsk, PIDTYPE_PID);
- 			}
- </pre>
-    </blockquote>
-    <pre>Since we don't care the return from do_send_sig_info(), would you mind to 
-prefix it with (void) ?
-
-thanks!
--jane
-</pre>
-  </body>
-</html>
-
---------------26820907F7F7D3317A5CD494--
+diff --git a/drivers/ntb/hw/intel/ntb_hw_intel.h b/drivers/ntb/hw/intel/ntb_hw_intel.h
+index c49ff8970ce3..e071e28bca3f 100644
+--- a/drivers/ntb/hw/intel/ntb_hw_intel.h
++++ b/drivers/ntb/hw/intel/ntb_hw_intel.h
+@@ -53,6 +53,7 @@
+ 
+ #include <linux/ntb.h>
+ #include <linux/pci.h>
++#include <linux/io-64-nonatomic-lo-hi.h>
+ 
+ /* PCI device IDs */
+ #define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF	0x3725
+@@ -218,33 +219,4 @@ static inline int pdev_is_gen3(struct pci_dev *pdev)
+ 	return 0;
+ }
+ 
+-#ifndef ioread64
+-#ifdef readq
+-#define ioread64 readq
+-#else
+-#define ioread64 _ioread64
+-static inline u64 _ioread64(void __iomem *mmio)
+-{
+-	u64 low, high;
+-
+-	low = ioread32(mmio);
+-	high = ioread32(mmio + sizeof(u32));
+-	return low | (high << 32);
+-}
+-#endif
+-#endif
+-
+-#ifndef iowrite64
+-#ifdef writeq
+-#define iowrite64 writeq
+-#else
+-#define iowrite64 _iowrite64
+-static inline void _iowrite64(u64 val, void __iomem *mmio)
+-{
+-	iowrite32(val, mmio);
+-	iowrite32(val >> 32, mmio + sizeof(u32));
+-}
+-#endif
+-#endif
+-
+ #endif
+-- 
+2.19.0
