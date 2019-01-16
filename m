@@ -1,262 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E7E28E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:23:09 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id v12so4518331plp.16
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:23:09 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i96si7280168plb.188.2019.01.16.12.23.07
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DBD18E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:38:36 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id f193so1781246wme.8
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:38:36 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n203sor15950886wma.16.2019.01.16.12.38.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 12:23:07 -0800 (PST)
-Date: Wed, 16 Jan 2019 21:23:04 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
-Message-ID: <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm>
-References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com> <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com> <20190110122442.GA21216@nautica>
- <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com> <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com> <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
- <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com> <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com> <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
- <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 16 Jan 2019 12:38:34 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="1678380546-457690195-1547670185=:6626"
+References: <20190116181859.D1504459@viggo.jf.intel.com> <20190116181901.CAF85066@viggo.jf.intel.com>
+In-Reply-To: <20190116181901.CAF85066@viggo.jf.intel.com>
+From: Bjorn Helgaas <bhelgaas@google.com>
+Date: Wed, 16 Jan 2019 14:38:21 -0600
+Message-ID: <CAErSpo63av+jnkSY-V_ZNKy1LDX7rGZ6rK1bWbTf3fgrhXqrwQ@mail.gmail.com>
+Subject: Re: [PATCH 1/4] mm/resource: return real error codes from walk failures
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: dave@sr71.net, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, linux-nvdimm@lists.01.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, baiyaowei@cmss.chinamobile.com, Takashi Iwai <tiwai@suse.de>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Wed, Jan 16, 2019 at 12:25 PM Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+>
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> walk_system_ram_range() can return an error code either becuase *it*
+> failed, or because the 'func' that it calls returned an error.  The
+> memory hotplug does the following:
+>
+>         ret = walk_system_ram_range(..., func);
+>         if (ret)
+>                 return ret;
+>
+> and 'ret' makes it out to userspace, eventually.  The problem is,
+> walk_system_ram_range() failues that result from *it* failing (as
+> opposed to 'func') return -1.  That leads to a very odd -EPERM (-1)
+> return code out to userspace.
+>
+> Make walk_system_ram_range() return -EINVAL for internal failures to
+> keep userspace less confused.
+>
+> This return code is compatible with all the callers that I audited.
+>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dave Jiang <dave.jiang@intel.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Vishal Verma <vishal.l.verma@intel.com>
+> Cc: Tom Lendacky <thomas.lendacky@amd.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: linux-nvdimm@lists.01.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Fengguang Wu <fengguang.wu@intel.com>
+>
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> ---
+>
+>  b/kernel/resource.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff -puN kernel/resource.c~memory-hotplug-walk_system_ram_range-returns-neg-1 kernel/resource.c
+> --- a/kernel/resource.c~memory-hotplug-walk_system_ram_range-returns-neg-1      2018-12-20 11:48:41.810771934 -0800
+> +++ b/kernel/resource.c 2018-12-20 11:48:41.814771934 -0800
+> @@ -375,7 +375,7 @@ static int __walk_iomem_res_desc(resourc
+>                                  int (*func)(struct resource *, void *))
+>  {
+>         struct resource res;
+> -       int ret = -1;
+> +       int ret = -EINVAL;
+>
+>         while (start < end &&
+>                !find_next_iomem_res(start, end, flags, desc, first_lvl, &res)) {
+> @@ -453,7 +453,7 @@ int walk_system_ram_range(unsigned long
+>         unsigned long flags;
+>         struct resource res;
+>         unsigned long pfn, end_pfn;
+> -       int ret = -1;
+> +       int ret = -EINVAL;
 
---1678380546-457690195-1547670185=:6626
-Content-Type: text/plain; charset=US-ASCII
+Don't you want a similar change in the powerpc version in arch/powerpc/mm/mem.c?
 
-On Thu, 17 Jan 2019, Linus Torvalds wrote:
-
-> > So that seems to deal with mincore() in a reasonable way indeed.
-> >
-> > It doesn't unfortunately really solve the preadv2(RWF_NOWAIT), nor does it
-> > provide any good answer what to do about it, does it?
-> 
-> As I suggested earlier in the thread, the fix for RWF_NOWAIT might be
-> to just move the test down to after readahead.
-
-So I've done some basic smoke testing (~2 hours of LTP+xfstests) on the 
-kernel with the three topmost patches from
-
-	https://git.kernel.org/pub/scm/linux/kernel/git/jikos/jikos.git/log/?h=pagecache-sidechannel
-
-applied (also attaching to this mail), and no obvious breakage popped up.
-
-So if noone sees any principal problem there, I'll happily submit it with 
-proper attribution etc.
-
-Thanks,
-
--- 
-Jiri Kosina
-SUSE Labs
-
---1678380546-457690195-1547670185=:6626
-Content-Type: text/x-patch; name=0001-Revert-Change-mincore-to-count-mapped-pages-rather-t.patch
-Content-Transfer-Encoding: BASE64
-Content-ID: <nycvar.YFH.7.76.1901162123040.6626@cbobk.fhfr.pm>
-Content-Description: 
-Content-Disposition: attachment; filename=0001-Revert-Change-mincore-to-count-mapped-pages-rather-t.patch
-
-RnJvbSBjYmY5MzgxZWVkNjc2NmNmZjViMDVmOWQ5NDhjMWQyMjVjYjNkNzhi
-IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
-PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjA6
-NTE6MzEgKzAxMDANClN1YmplY3Q6IFtQQVRDSCAxLzNdIFJldmVydCAiQ2hh
-bmdlIG1pbmNvcmUoKSB0byBjb3VudCAibWFwcGVkIiBwYWdlcyByYXRoZXIN
-CiB0aGFuICJjYWNoZWQiIHBhZ2VzIg0KDQpUaGlzIHJldmVydHMgY29tbWl0
-IDU3NDgyM2JmYWI4MmQ5ZDhmYTQ3ZjQyMjc3ODA0M2ZiYjRiNGY1MGUuDQoN
-CkFub3RoZXIgYXByb2FjaCAoY2hlY2tpbmcgZmlsZSBhY2Nlc3MgcGVybWlz
-c2lvbnMgaW4gb3JkZXIgdG8gZGVjaWRlDQp3aGF0IG1pbmNvcmUoKSBzaG91
-bGQgcmV0dXJuIGluIG9yZGVyIG5vdCB0byBsZWFrIGRhdGEpIHdpbGwgYmUg
-aW1wbGVtZW50ZWQNCmluc3RlYWQuDQoNClNpZ25lZC1vZmYtYnk6IEppcmkg
-S29zaW5hIDxqa29zaW5hQHN1c2UuY3o+DQotLS0NCiBtbS9taW5jb3JlLmMg
-fCA5NCArKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKystLS0tLS0tLS0NCiAxIGZpbGUgY2hhbmdlZCwgODEgaW5z
-ZXJ0aW9ucygrKSwgMTMgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9t
-bS9taW5jb3JlLmMgYi9tbS9taW5jb3JlLmMNCmluZGV4IGYwZjkxNDYxYTlm
-NC4uMjE4MDk5YjVlZDMxIDEwMDY0NA0KLS0tIGEvbW0vbWluY29yZS5jDQor
-KysgYi9tbS9taW5jb3JlLmMNCkBAIC00MiwxNCArNDIsNzIgQEAgc3RhdGlj
-IGludCBtaW5jb3JlX2h1Z2V0bGIocHRlX3QgKnB0ZSwgdW5zaWduZWQgbG9u
-ZyBobWFzaywgdW5zaWduZWQgbG9uZyBhZGRyLA0KIAlyZXR1cm4gMDsNCiB9
-DQogDQotc3RhdGljIGludCBtaW5jb3JlX3VubWFwcGVkX3JhbmdlKHVuc2ln
-bmVkIGxvbmcgYWRkciwgdW5zaWduZWQgbG9uZyBlbmQsDQotCQkJCSAgIHN0
-cnVjdCBtbV93YWxrICp3YWxrKQ0KKy8qDQorICogTGF0ZXIgd2UgY2FuIGdl
-dCBtb3JlIHBpY2t5IGFib3V0IHdoYXQgImluIGNvcmUiIG1lYW5zIHByZWNp
-c2VseS4NCisgKiBGb3Igbm93LCBzaW1wbHkgY2hlY2sgdG8gc2VlIGlmIHRo
-ZSBwYWdlIGlzIGluIHRoZSBwYWdlIGNhY2hlLA0KKyAqIGFuZCBpcyB1cCB0
-byBkYXRlOyBpLmUuIHRoYXQgbm8gcGFnZS1pbiBvcGVyYXRpb24gd291bGQg
-YmUgcmVxdWlyZWQNCisgKiBhdCB0aGlzIHRpbWUgaWYgYW4gYXBwbGljYXRp
-b24gd2VyZSB0byBtYXAgYW5kIGFjY2VzcyB0aGlzIHBhZ2UuDQorICovDQor
-c3RhdGljIHVuc2lnbmVkIGNoYXIgbWluY29yZV9wYWdlKHN0cnVjdCBhZGRy
-ZXNzX3NwYWNlICptYXBwaW5nLCBwZ29mZl90IHBnb2ZmKQ0KK3sNCisJdW5z
-aWduZWQgY2hhciBwcmVzZW50ID0gMDsNCisJc3RydWN0IHBhZ2UgKnBhZ2U7
-DQorDQorCS8qDQorCSAqIFdoZW4gdG1wZnMgc3dhcHMgb3V0IGEgcGFnZSBm
-cm9tIGEgZmlsZSwgYW55IHByb2Nlc3MgbWFwcGluZyB0aGF0DQorCSAqIGZp
-bGUgd2lsbCBub3QgZ2V0IGEgc3dwX2VudHJ5X3QgaW4gaXRzIHB0ZSwgYnV0
-IHJhdGhlciBpdCBpcyBsaWtlDQorCSAqIGFueSBvdGhlciBmaWxlIG1hcHBp
-bmcgKGllLiBtYXJrZWQgIXByZXNlbnQgYW5kIGZhdWx0ZWQgaW4gd2l0aA0K
-KwkgKiB0bXBmcydzIC5mYXVsdCkuIFNvIHN3YXBwZWQgb3V0IHRtcGZzIG1h
-cHBpbmdzIGFyZSB0ZXN0ZWQgaGVyZS4NCisJICovDQorI2lmZGVmIENPTkZJ
-R19TV0FQDQorCWlmIChzaG1lbV9tYXBwaW5nKG1hcHBpbmcpKSB7DQorCQlw
-YWdlID0gZmluZF9nZXRfZW50cnkobWFwcGluZywgcGdvZmYpOw0KKwkJLyoN
-CisJCSAqIHNobWVtL3RtcGZzIG1heSByZXR1cm4gc3dhcDogYWNjb3VudCBm
-b3Igc3dhcGNhY2hlDQorCQkgKiBwYWdlIHRvby4NCisJCSAqLw0KKwkJaWYg
-KHhhX2lzX3ZhbHVlKHBhZ2UpKSB7DQorCQkJc3dwX2VudHJ5X3Qgc3dwID0g
-cmFkaXhfdG9fc3dwX2VudHJ5KHBhZ2UpOw0KKwkJCXBhZ2UgPSBmaW5kX2dl
-dF9wYWdlKHN3YXBfYWRkcmVzc19zcGFjZShzd3ApLA0KKwkJCQkJICAgICBz
-d3Bfb2Zmc2V0KHN3cCkpOw0KKwkJfQ0KKwl9IGVsc2UNCisJCXBhZ2UgPSBm
-aW5kX2dldF9wYWdlKG1hcHBpbmcsIHBnb2ZmKTsNCisjZWxzZQ0KKwlwYWdl
-ID0gZmluZF9nZXRfcGFnZShtYXBwaW5nLCBwZ29mZik7DQorI2VuZGlmDQor
-CWlmIChwYWdlKSB7DQorCQlwcmVzZW50ID0gUGFnZVVwdG9kYXRlKHBhZ2Up
-Ow0KKwkJcHV0X3BhZ2UocGFnZSk7DQorCX0NCisNCisJcmV0dXJuIHByZXNl
-bnQ7DQorfQ0KKw0KK3N0YXRpYyBpbnQgX19taW5jb3JlX3VubWFwcGVkX3Jh
-bmdlKHVuc2lnbmVkIGxvbmcgYWRkciwgdW5zaWduZWQgbG9uZyBlbmQsDQor
-CQkJCXN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hLCB1bnNpZ25lZCBjaGFy
-ICp2ZWMpDQogew0KLQl1bnNpZ25lZCBjaGFyICp2ZWMgPSB3YWxrLT5wcml2
-YXRlOw0KIAl1bnNpZ25lZCBsb25nIG5yID0gKGVuZCAtIGFkZHIpID4+IFBB
-R0VfU0hJRlQ7DQorCWludCBpOw0KIA0KLQltZW1zZXQodmVjLCAwLCBucik7
-DQotCXdhbGstPnByaXZhdGUgKz0gbnI7DQorCWlmICh2bWEtPnZtX2ZpbGUp
-IHsNCisJCXBnb2ZmX3QgcGdvZmY7DQorDQorCQlwZ29mZiA9IGxpbmVhcl9w
-YWdlX2luZGV4KHZtYSwgYWRkcik7DQorCQlmb3IgKGkgPSAwOyBpIDwgbnI7
-IGkrKywgcGdvZmYrKykNCisJCQl2ZWNbaV0gPSBtaW5jb3JlX3BhZ2Uodm1h
-LT52bV9maWxlLT5mX21hcHBpbmcsIHBnb2ZmKTsNCisJfSBlbHNlIHsNCisJ
-CWZvciAoaSA9IDA7IGkgPCBucjsgaSsrKQ0KKwkJCXZlY1tpXSA9IDA7DQor
-CX0NCisJcmV0dXJuIG5yOw0KK30NCisNCitzdGF0aWMgaW50IG1pbmNvcmVf
-dW5tYXBwZWRfcmFuZ2UodW5zaWduZWQgbG9uZyBhZGRyLCB1bnNpZ25lZCBs
-b25nIGVuZCwNCisJCQkJICAgc3RydWN0IG1tX3dhbGsgKndhbGspDQorew0K
-Kwl3YWxrLT5wcml2YXRlICs9IF9fbWluY29yZV91bm1hcHBlZF9yYW5nZShh
-ZGRyLCBlbmQsDQorCQkJCQkJICB3YWxrLT52bWEsIHdhbGstPnByaXZhdGUp
-Ow0KIAlyZXR1cm4gMDsNCiB9DQogDQpAQCAtNjksOSArMTI3LDggQEAgc3Rh
-dGljIGludCBtaW5jb3JlX3B0ZV9yYW5nZShwbWRfdCAqcG1kLCB1bnNpZ25l
-ZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLA0KIAkJZ290byBvdXQ7
-DQogCX0NCiANCi0JLyogV2UnbGwgY29uc2lkZXIgYSBUSFAgcGFnZSB1bmRl
-ciBjb25zdHJ1Y3Rpb24gdG8gYmUgdGhlcmUgKi8NCiAJaWYgKHBtZF90cmFu
-c191bnN0YWJsZShwbWQpKSB7DQotCQltZW1zZXQodmVjLCAxLCBucik7DQor
-CQlfX21pbmNvcmVfdW5tYXBwZWRfcmFuZ2UoYWRkciwgZW5kLCB2bWEsIHZl
-Yyk7DQogCQlnb3RvIG91dDsNCiAJfQ0KIA0KQEAgLTgwLDE3ICsxMzcsMjgg
-QEAgc3RhdGljIGludCBtaW5jb3JlX3B0ZV9yYW5nZShwbWRfdCAqcG1kLCB1
-bnNpZ25lZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLA0KIAkJcHRl
-X3QgcHRlID0gKnB0ZXA7DQogDQogCQlpZiAocHRlX25vbmUocHRlKSkNCi0J
-CQkqdmVjID0gMDsNCisJCQlfX21pbmNvcmVfdW5tYXBwZWRfcmFuZ2UoYWRk
-ciwgYWRkciArIFBBR0VfU0laRSwNCisJCQkJCQkgdm1hLCB2ZWMpOw0KIAkJ
-ZWxzZSBpZiAocHRlX3ByZXNlbnQocHRlKSkNCiAJCQkqdmVjID0gMTsNCiAJ
-CWVsc2UgeyAvKiBwdGUgaXMgYSBzd2FwIGVudHJ5ICovDQogCQkJc3dwX2Vu
-dHJ5X3QgZW50cnkgPSBwdGVfdG9fc3dwX2VudHJ5KHB0ZSk7DQogDQotCQkJ
-LyoNCi0JCQkgKiBtaWdyYXRpb24gb3IgaHdwb2lzb24gZW50cmllcyBhcmUg
-YWx3YXlzDQotCQkJICogdXB0b2RhdGUNCi0JCQkgKi8NCi0JCQkqdmVjID0g
-ISFub25fc3dhcF9lbnRyeShlbnRyeSk7DQorCQkJaWYgKG5vbl9zd2FwX2Vu
-dHJ5KGVudHJ5KSkgew0KKwkJCQkvKg0KKwkJCQkgKiBtaWdyYXRpb24gb3Ig
-aHdwb2lzb24gZW50cmllcyBhcmUgYWx3YXlzDQorCQkJCSAqIHVwdG9kYXRl
-DQorCQkJCSAqLw0KKwkJCQkqdmVjID0gMTsNCisJCQl9IGVsc2Ugew0KKyNp
-ZmRlZiBDT05GSUdfU1dBUA0KKwkJCQkqdmVjID0gbWluY29yZV9wYWdlKHN3
-YXBfYWRkcmVzc19zcGFjZShlbnRyeSksDQorCQkJCQkJICAgIHN3cF9vZmZz
-ZXQoZW50cnkpKTsNCisjZWxzZQ0KKwkJCQlXQVJOX09OKDEpOw0KKwkJCQkq
-dmVjID0gMTsNCisjZW5kaWYNCisJCQl9DQogCQl9DQogCQl2ZWMrKzsNCiAJ
-fQ0KLS0gDQoyLjEyLjMNCg0K
-
---1678380546-457690195-1547670185=:6626
-Content-Type: text/x-patch; name=0002-mm-mincore-make-mincore-more-conservative.patch
-Content-Transfer-Encoding: BASE64
-Content-ID: <nycvar.YFH.7.76.1901162123041.6626@cbobk.fhfr.pm>
-Content-Description: 
-Content-Disposition: attachment; filename=0002-mm-mincore-make-mincore-more-conservative.patch
-
-RnJvbSBjYTAyYTAyNmY0MGRmYWViYzI5YzI5ZWRkOWM5OTJhMGZmMTAwNzVl
-IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
-PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjA6
-NTM6MTcgKzAxMDANClN1YmplY3Q6IFtQQVRDSCAyLzNdIG1tL21pbmNvcmU6
-IG1ha2UgbWluY29yZSgpIG1vcmUgY29uc2VydmF0aXZlDQoNClRoZSBzZW1h
-bnRpY3Mgb2Ygd2hhdCBtaW5jb3JlKCkgY29uc2lkZXJzIHRvIGJlIHJlc2lk
-ZW50IGlzIG5vdCBjb21wbGV0ZWx5DQpjbGVhcmFyLCBidXQgTGludXggaGFz
-IGFsd2F5cyAoc2luY2UgMi4zLjUyLCB3aGljaCBpcyB3aGVuIG1pbmNvcmUo
-KSB3YXMNCmluaXRpYWxseSBkb25lKSB0cmVhdGVkIGl0IGFzICJwYWdlIGlz
-IGF2YWlsYWJsZSBpbiBwYWdlIGNhY2hlIi4NCg0KVGhhdCdzIHBvdGVudGlh
-bGx5IGEgcHJvYmxlbSwgYXMgdGhhdCBbaW5dZGlyZWN0bHkgZXhwb3NlcyBt
-ZXRhLWluZm9ybWF0aW9uDQphYm91dCBwYWdlY2FjaGUgLyBtZW1vcnkgbWFw
-cGluZyBzdGF0ZSBldmVuIGFib3V0IG1lbW9yeSBub3Qgc3RyaWN0bHkgYmVs
-b25naW5nDQp0byB0aGUgcHJvY2VzcyBleGVjdXRpbmcgdGhlIHN5c2NhbGws
-IG9wZW5pbmcgcG9zc2liaWxpdGllcyBmb3Igc2lkZWNoYW5uZWwNCmF0dGFj
-a3MuDQoNCkNoYW5nZSB0aGUgc2VtYW50aWNzIG9mIG1pbmNvcmUoKSBzbyB0
-aGF0IGl0IG9ubHkgcmV2ZWFscyBwYWdlY2FjaGUgaW5mb3JtYXRpb24NCmZv
-ciBub24tYW5vbnltb3VzIG1hcHBpbmdzIHRoYXQgYmVsb2cgdG8gZmlsZXMg
-dGhhdCB0aGUgY2FsbGluZyBwcm9jZXNzIGNvdWxkDQooaWYgaXQgdHJpZWQg
-dG8pIHN1Y2Nlc3NmdWxseSBvcGVuIGZvciB3cml0aW5nLg0KDQpPcmlnaW5h
-bGx5LWJ5OiBMaW51cyBUb3J2YWxkcyA8dG9ydmFsZHNAbGludXgtZm91bmRh
-dGlvbi5vcmc+DQpPcmlnaW5hbGx5LWJ5OiBEb21pbmlxdWUgTWFydGluZXQg
-PGFzbWFkZXVzQGNvZGV3cmVjay5vcmc+DQpTaWduZWQtb2ZmLWJ5OiBKaXJp
-IEtvc2luYSA8amtvc2luYUBzdXNlLmN6Pg0KLS0tDQogbW0vbWluY29yZS5j
-IHwgMTQgKysrKysrKysrKysrKy0NCiAxIGZpbGUgY2hhbmdlZCwgMTMgaW5z
-ZXJ0aW9ucygrKSwgMSBkZWxldGlvbigtKQ0KDQpkaWZmIC0tZ2l0IGEvbW0v
-bWluY29yZS5jIGIvbW0vbWluY29yZS5jDQppbmRleCAyMTgwOTliNWVkMzEu
-LjExZWQ3MDY0ZjRlYiAxMDA2NDQNCi0tLSBhL21tL21pbmNvcmUuYw0KKysr
-IGIvbW0vbWluY29yZS5jDQpAQCAtMTY5LDYgKzE2OSwxMyBAQCBzdGF0aWMg
-aW50IG1pbmNvcmVfcHRlX3JhbmdlKHBtZF90ICpwbWQsIHVuc2lnbmVkIGxv
-bmcgYWRkciwgdW5zaWduZWQgbG9uZyBlbmQsDQogCXJldHVybiAwOw0KIH0N
-CiANCitzdGF0aWMgaW5saW5lIGJvb2wgY2FuX2RvX21pbmNvcmUoc3RydWN0
-IHZtX2FyZWFfc3RydWN0ICp2bWEpDQorew0KKwlyZXR1cm4gdm1hX2lzX2Fu
-b255bW91cyh2bWEpDQorCQl8fCAodm1hLT52bV9maWxlICYmICh2bWEtPnZt
-X2ZpbGUtPmZfbW9kZSAmIEZNT0RFX1dSSVRFKSkNCisJCXx8IGlub2RlX3Bl
-cm1pc3Npb24oZmlsZV9pbm9kZSh2bWEtPnZtX2ZpbGUpLCBNQVlfV1JJVEUp
-ID09IDA7DQorfQ0KKw0KIC8qDQogICogRG8gYSBjaHVuayBvZiAic3lzX21p
-bmNvcmUoKSIuIFdlJ3ZlIGFscmVhZHkgY2hlY2tlZA0KICAqIGFsbCB0aGUg
-YXJndW1lbnRzLCB3ZSBob2xkIHRoZSBtbWFwIHNlbWFwaG9yZTogd2Ugc2hv
-dWxkDQpAQCAtMTg5LDggKzE5NiwxMyBAQCBzdGF0aWMgbG9uZyBkb19taW5j
-b3JlKHVuc2lnbmVkIGxvbmcgYWRkciwgdW5zaWduZWQgbG9uZyBwYWdlcywg
-dW5zaWduZWQgY2hhciAqdg0KIAl2bWEgPSBmaW5kX3ZtYShjdXJyZW50LT5t
-bSwgYWRkcik7DQogCWlmICghdm1hIHx8IGFkZHIgPCB2bWEtPnZtX3N0YXJ0
-KQ0KIAkJcmV0dXJuIC1FTk9NRU07DQotCW1pbmNvcmVfd2Fsay5tbSA9IHZt
-YS0+dm1fbW07DQogCWVuZCA9IG1pbih2bWEtPnZtX2VuZCwgYWRkciArIChw
-YWdlcyA8PCBQQUdFX1NISUZUKSk7DQorCWlmICghY2FuX2RvX21pbmNvcmUo
-dm1hKSkgew0KKwkJdW5zaWduZWQgbG9uZyBwYWdlcyA9IChlbmQgLSBhZGRy
-KSA+PiBQQUdFX1NISUZUOw0KKwkJbWVtc2V0KHZlYywgMSwgcGFnZXMpOw0K
-KwkJcmV0dXJuIHBhZ2VzOw0KKwl9DQorCW1pbmNvcmVfd2Fsay5tbSA9IHZt
-YS0+dm1fbW07DQogCWVyciA9IHdhbGtfcGFnZV9yYW5nZShhZGRyLCBlbmQs
-ICZtaW5jb3JlX3dhbGspOw0KIAlpZiAoZXJyIDwgMCkNCiAJCXJldHVybiBl
-cnI7DQotLSANCjIuMTIuMw0KDQo=
-
---1678380546-457690195-1547670185=:6626
-Content-Type: text/x-patch; name=0003-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
-Content-Transfer-Encoding: BASE64
-Content-ID: <nycvar.YFH.7.76.1901162123042.6626@cbobk.fhfr.pm>
-Content-Description: 
-Content-Disposition: attachment; filename=0003-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
-
-RnJvbSBlNzc2NWYzMTdhZmIxOTNhZGI0YmEwMGQ4MTI1MTY4NjE5MWNiZjRi
-IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
-PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjE6
-MDY6NTggKzAxMDANClN1YmplY3Q6IFtQQVRDSCAzLzNdIG1tL2ZpbGVtYXA6
-IGluaXRpYXRlIHJlYWRhaGVhZCBldmVuIGlmIElPQ0JfTk9XQUlUIGlzIHNl
-dA0KIGZvciB0aGUgSS9PDQoNCnByZWFkdjIoUldGX05PV0FJVCkgY2FuIGJl
-IHVzZWQgdG8gb3BlbiBhIHNpZGUtY2hhbm5lbCB0byBwYWdlY2FjaGUgY29u
-dGVudHMsIGFzDQppdCByZXZlYWxzIG1ldGFkYXRhIGFib3V0IHJlc2lkZW5j
-eSBvZiBwYWdlcyBpbiBwYWdlY2FjaGUuDQoNCklmIHByZWFkdjIoUldGX05P
-V0FJVCkgcmV0dXJucyBpbW1lZGlhdGVseSwgaXQgcHJvdmlkZXMgYSBjbGVh
-ciAicGFnZSBub3QNCnJlc2lkZW50IiBpbmZvcm1hdGlvbiwgYW5kIHZpY2Ug
-dmVyc2EuDQoNCkNsb3NlIHRoYXQgc2lkZWNoYW5uZWwgYnkgYWx3YXlzIGlu
-aXRpYXRpbmcgcmVhZGFoZWFkIG9uIHRoZSBjYWNoZSBpZiB3ZQ0KZW5jb3Vu
-dGVyIGEgY2FjaGUgbWlzcyBmb3IgcHJlYWR2MihSV0ZfTk9XQUlUKTsgd2l0
-aCB0aGF0IGluIHBsYWNlLCBwcm9iaW5nDQp0aGUgcGFnZWNhY2hlIHJlc2lk
-ZW5jeSBpdHNlbGYgd2lsbCBhY3R1YWxseSBwb3B1bGF0ZSB0aGUgY2FjaGUs
-IG1ha2luZyB0aGUNCnNpZGVjaGFubmVsIHVzZWxlc3MuDQoNCk9yaWdpbmFs
-bHktYnk6IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51eC1mb3VuZGF0
-aW9uLm9yZz4NClNpZ25lZC1vZmYtYnk6IEppcmkgS29zaW5hIDxqa29zaW5h
-QHN1c2UuY3o+DQotLS0NCiBtbS9maWxlbWFwLmMgfCAyIC0tDQogMSBmaWxl
-IGNoYW5nZWQsIDIgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9m
-aWxlbWFwLmMgYi9tbS9maWxlbWFwLmMNCmluZGV4IDlmNWUzMjNlODgzZS4u
-N2JjZGQzNmU2MjlkIDEwMDY0NA0KLS0tIGEvbW0vZmlsZW1hcC5jDQorKysg
-Yi9tbS9maWxlbWFwLmMNCkBAIC0yMDc1LDggKzIwNzUsNiBAQCBzdGF0aWMg
-c3NpemVfdCBnZW5lcmljX2ZpbGVfYnVmZmVyZWRfcmVhZChzdHJ1Y3Qga2lv
-Y2IgKmlvY2IsDQogDQogCQlwYWdlID0gZmluZF9nZXRfcGFnZShtYXBwaW5n
-LCBpbmRleCk7DQogCQlpZiAoIXBhZ2UpIHsNCi0JCQlpZiAoaW9jYi0+a2lf
-ZmxhZ3MgJiBJT0NCX05PV0FJVCkNCi0JCQkJZ290byB3b3VsZF9ibG9jazsN
-CiAJCQlwYWdlX2NhY2hlX3N5bmNfcmVhZGFoZWFkKG1hcHBpbmcsDQogCQkJ
-CQlyYSwgZmlscCwNCiAJCQkJCWluZGV4LCBsYXN0X2luZGV4IC0gaW5kZXgp
-Ow0KLS0gDQoyLjEyLjMNCg0K
-
---1678380546-457690195-1547670185=:6626--
+>
+>         start = (u64) start_pfn << PAGE_SHIFT;
+>         end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
+> _
