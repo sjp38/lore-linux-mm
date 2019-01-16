@@ -1,108 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2354C8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:59:38 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id p9so5233385pfj.3
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:59:38 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 133568E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:59:39 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 75so5207514pfq.8
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:59:39 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y8si6735247plr.92.2019.01.16.09.59.36
+        by mx.google.com with ESMTPS id y8si6735247plr.92.2019.01.16.09.59.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 09:59:36 -0800 (PST)
+        Wed, 16 Jan 2019 09:59:37 -0800 (PST)
 From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv4 00/13] Heterogeneuos memory node attributes
-Date: Wed, 16 Jan 2019 10:57:51 -0700
-Message-Id: <20190116175804.30196-1-keith.busch@intel.com>
+Subject: [PATCHv4 02/13] acpi: Add HMAT to generic parsing tables
+Date: Wed, 16 Jan 2019 10:57:53 -0700
+Message-Id: <20190116175804.30196-3-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-1-keith.busch@intel.com>
+References: <20190116175804.30196-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-The series seems quite calm now. I've received some approvals of the
-on the proposal, and heard no objections on the new core interfaces.
+The Heterogeneous Memory Attribute Table (HMAT) header has different
+field lengths than the existing parsing uses. Add the HMAT type to the
+parsing rules so it may be generically parsed.
 
-Please let me know if there is anyone or group of people I should request
-and wait for a review. And if anyone reading this would like additional
-time as well before I post a potentially subsequent version, please let
-me know.
+Cc: Dan Williams <dan.j.williams@intel.com>
+Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Signed-off-by: Keith Busch <keith.busch@intel.com>
+---
+ drivers/acpi/tables.c | 9 +++++++++
+ include/linux/acpi.h  | 1 +
+ 2 files changed, 10 insertions(+)
 
-I also wanted to inquire on upstream strategy if/when all desired
-reviews are received. The series is spanning a few subsystems, so I'm
-not sure who's tree is the best candidate. I could see an argument for
-driver-core, acpi, or mm as possible paths. Please let me know if there's
-a more appropriate option or any other gating concerns.
-
-== Changes from v3 ==
-
-  I've fixed the documentation issues that have been raised for v3 
-
-  Moved the hmat files according to Rafael's recommendation
-
-  Added received Reviewed-by's
-
-Otherwise this v4 is much the same as v3.
-
-== Background ==
-
-Platforms may provide multiple types of cpu attached system memory. The
-memory ranges for each type may have different characteristics that
-applications may wish to know about when considering what node they want
-their memory allocated from. 
-
-It had previously been difficult to describe these setups as memory
-rangers were generally lumped into the NUMA node of the CPUs. New
-platform attributes have been created and in use today that describe
-the more complex memory hierarchies that can be created.
-
-This series' objective is to provide the attributes from such systems
-that are useful for applications to know about, and readily usable with
-existing tools and libraries.
-
-Keith Busch (13):
-  acpi: Create subtable parsing infrastructure
-  acpi: Add HMAT to generic parsing tables
-  acpi/hmat: Parse and report heterogeneous memory
-  node: Link memory nodes to their compute nodes
-  Documentation/ABI: Add new node sysfs attributes
-  acpi/hmat: Register processor domain to its memory
-  node: Add heterogenous memory access attributes
-  Documentation/ABI: Add node performance attributes
-  acpi/hmat: Register performance attributes
-  node: Add memory caching attributes
-  Documentation/ABI: Add node cache attributes
-  acpi/hmat: Register memory side cache attributes
-  doc/mm: New documentation for memory performance
-
- Documentation/ABI/stable/sysfs-devices-node   |  87 +++++-
- Documentation/admin-guide/mm/numaperf.rst     | 184 +++++++++++++
- arch/arm64/kernel/acpi_numa.c                 |   2 +-
- arch/arm64/kernel/smp.c                       |   4 +-
- arch/ia64/kernel/acpi.c                       |  12 +-
- arch/x86/kernel/acpi/boot.c                   |  36 +--
- drivers/acpi/Kconfig                          |   1 +
- drivers/acpi/Makefile                         |   1 +
- drivers/acpi/hmat/Kconfig                     |   9 +
- drivers/acpi/hmat/Makefile                    |   1 +
- drivers/acpi/hmat/hmat.c                      | 375 ++++++++++++++++++++++++++
- drivers/acpi/numa.c                           |  16 +-
- drivers/acpi/scan.c                           |   4 +-
- drivers/acpi/tables.c                         |  76 +++++-
- drivers/base/Kconfig                          |   8 +
- drivers/base/node.c                           | 317 +++++++++++++++++++++-
- drivers/irqchip/irq-gic-v2m.c                 |   2 +-
- drivers/irqchip/irq-gic-v3-its-pci-msi.c      |   2 +-
- drivers/irqchip/irq-gic-v3-its-platform-msi.c |   2 +-
- drivers/irqchip/irq-gic-v3-its.c              |   6 +-
- drivers/irqchip/irq-gic-v3.c                  |  10 +-
- drivers/irqchip/irq-gic.c                     |   4 +-
- drivers/mailbox/pcc.c                         |   2 +-
- include/linux/acpi.h                          |   6 +-
- include/linux/node.h                          |  70 ++++-
- 25 files changed, 1172 insertions(+), 65 deletions(-)
- create mode 100644 Documentation/admin-guide/mm/numaperf.rst
- create mode 100644 drivers/acpi/hmat/Kconfig
- create mode 100644 drivers/acpi/hmat/Makefile
- create mode 100644 drivers/acpi/hmat/hmat.c
-
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index 967e1168becf..d9911cd55edc 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -51,6 +51,7 @@ static int acpi_apic_instance __initdata;
+ 
+ enum acpi_subtable_type {
+ 	ACPI_SUBTABLE_COMMON,
++	ACPI_SUBTABLE_HMAT,
+ };
+ 
+ struct acpi_subtable_entry {
+@@ -232,6 +233,8 @@ acpi_get_entry_type(struct acpi_subtable_entry *entry)
+ 	switch (entry->type) {
+ 	case ACPI_SUBTABLE_COMMON:
+ 		return entry->hdr->common.type;
++	case ACPI_SUBTABLE_HMAT:
++		return entry->hdr->hmat.type;
+ 	}
+ 	return 0;
+ }
+@@ -242,6 +245,8 @@ acpi_get_entry_length(struct acpi_subtable_entry *entry)
+ 	switch (entry->type) {
+ 	case ACPI_SUBTABLE_COMMON:
+ 		return entry->hdr->common.length;
++	case ACPI_SUBTABLE_HMAT:
++		return entry->hdr->hmat.length;
+ 	}
+ 	return 0;
+ }
+@@ -252,6 +257,8 @@ acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
+ 	switch (entry->type) {
+ 	case ACPI_SUBTABLE_COMMON:
+ 		return sizeof(entry->hdr->common);
++	case ACPI_SUBTABLE_HMAT:
++		return sizeof(entry->hdr->hmat);
+ 	}
+ 	return 0;
+ }
+@@ -259,6 +266,8 @@ acpi_get_subtable_header_length(struct acpi_subtable_entry *entry)
+ static enum acpi_subtable_type __init
+ acpi_get_subtable_type(char *id)
+ {
++	if (strncmp(id, ACPI_SIG_HMAT, 4) == 0)
++		return ACPI_SUBTABLE_HMAT;
+ 	return ACPI_SUBTABLE_COMMON;
+ }
+ 
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 7c3c4ebaded6..53f93dff171c 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -143,6 +143,7 @@ enum acpi_address_range_id {
+ /* Table Handlers */
+ union acpi_subtable_headers {
+ 	struct acpi_subtable_header common;
++	struct acpi_hmat_structure hmat;
+ };
+ 
+ typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
 -- 
 2.14.4
