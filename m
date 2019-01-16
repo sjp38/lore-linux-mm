@@ -1,67 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5410A8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:48:58 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id 18-v6so1697780ljn.8
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:48:58 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k14-v6sor5268841lji.4.2019.01.16.09.48.55
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 16 Jan 2019 09:48:56 -0800 (PST)
-Received: from mail-lf1-f51.google.com (mail-lf1-f51.google.com. [209.85.167.51])
-        by smtp.gmail.com with ESMTPSA id d24-v6sm1126543ljg.2.2019.01.16.09.48.51
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2354C8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:59:38 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id p9so5233385pfj.3
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:59:38 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id y8si6735247plr.92.2019.01.16.09.59.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 09:48:52 -0800 (PST)
-Received: by mail-lf1-f51.google.com with SMTP id n18so5590665lfh.6
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:48:51 -0800 (PST)
-MIME-Version: 1.0
-References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
- <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net> <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
- <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
- <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
-In-Reply-To: <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 17 Jan 2019 05:48:33 +1200
-Message-ID: <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 16 Jan 2019 09:59:36 -0800 (PST)
+From: Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv4 00/13] Heterogeneuos memory node attributes
+Date: Wed, 16 Jan 2019 10:57:51 -0700
+Message-Id: <20190116175804.30196-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-On Thu, Jan 17, 2019 at 4:12 AM Jiri Kosina <jikos@kernel.org> wrote:
->
-> So that seems to deal with mincore() in a reasonable way indeed.
->
-> It doesn't unfortunately really solve the preadv2(RWF_NOWAIT), nor does it
-> provide any good answer what to do about it, does it?
+The series seems quite calm now. I've received some approvals of the
+on the proposal, and heard no objections on the new core interfaces.
 
-As I suggested earlier in the thread, the fix for RWF_NOWAIT might be
-to just move the test down to after readahead.
+Please let me know if there is anyone or group of people I should request
+and wait for a review. And if anyone reading this would like additional
+time as well before I post a potentially subsequent version, please let
+me know.
 
-We could/should be smarter than this,but it *might* be as simple as just
+I also wanted to inquire on upstream strategy if/when all desired
+reviews are received. The series is spanning a few subsystems, so I'm
+not sure who's tree is the best candidate. I could see an argument for
+driver-core, acpi, or mm as possible paths. Please let me know if there's
+a more appropriate option or any other gating concerns.
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9f5e323e883e..7bcdd36e629d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2075,8 +2075,6 @@ static ssize_t generic_file_buffered_read(
+== Changes from v3 ==
 
-                page = find_get_page(mapping, index);
-                if (!page) {
--                       if (iocb->ki_flags & IOCB_NOWAIT)
--                               goto would_block;
-                        page_cache_sync_readahead(mapping,
-                                        ra, filp,
-                                        index, last_index - index);
+  I've fixed the documentation issues that have been raised for v3 
 
-which starts readahead even if IOCB_NOWAIT is set and will then test
-IOCB_NOWAIT _later_ and not actually wait for it.
+  Moved the hmat files according to Rafael's recommendation
 
-            Linus
+  Added received Reviewed-by's
+
+Otherwise this v4 is much the same as v3.
+
+== Background ==
+
+Platforms may provide multiple types of cpu attached system memory. The
+memory ranges for each type may have different characteristics that
+applications may wish to know about when considering what node they want
+their memory allocated from. 
+
+It had previously been difficult to describe these setups as memory
+rangers were generally lumped into the NUMA node of the CPUs. New
+platform attributes have been created and in use today that describe
+the more complex memory hierarchies that can be created.
+
+This series' objective is to provide the attributes from such systems
+that are useful for applications to know about, and readily usable with
+existing tools and libraries.
+
+Keith Busch (13):
+  acpi: Create subtable parsing infrastructure
+  acpi: Add HMAT to generic parsing tables
+  acpi/hmat: Parse and report heterogeneous memory
+  node: Link memory nodes to their compute nodes
+  Documentation/ABI: Add new node sysfs attributes
+  acpi/hmat: Register processor domain to its memory
+  node: Add heterogenous memory access attributes
+  Documentation/ABI: Add node performance attributes
+  acpi/hmat: Register performance attributes
+  node: Add memory caching attributes
+  Documentation/ABI: Add node cache attributes
+  acpi/hmat: Register memory side cache attributes
+  doc/mm: New documentation for memory performance
+
+ Documentation/ABI/stable/sysfs-devices-node   |  87 +++++-
+ Documentation/admin-guide/mm/numaperf.rst     | 184 +++++++++++++
+ arch/arm64/kernel/acpi_numa.c                 |   2 +-
+ arch/arm64/kernel/smp.c                       |   4 +-
+ arch/ia64/kernel/acpi.c                       |  12 +-
+ arch/x86/kernel/acpi/boot.c                   |  36 +--
+ drivers/acpi/Kconfig                          |   1 +
+ drivers/acpi/Makefile                         |   1 +
+ drivers/acpi/hmat/Kconfig                     |   9 +
+ drivers/acpi/hmat/Makefile                    |   1 +
+ drivers/acpi/hmat/hmat.c                      | 375 ++++++++++++++++++++++++++
+ drivers/acpi/numa.c                           |  16 +-
+ drivers/acpi/scan.c                           |   4 +-
+ drivers/acpi/tables.c                         |  76 +++++-
+ drivers/base/Kconfig                          |   8 +
+ drivers/base/node.c                           | 317 +++++++++++++++++++++-
+ drivers/irqchip/irq-gic-v2m.c                 |   2 +-
+ drivers/irqchip/irq-gic-v3-its-pci-msi.c      |   2 +-
+ drivers/irqchip/irq-gic-v3-its-platform-msi.c |   2 +-
+ drivers/irqchip/irq-gic-v3-its.c              |   6 +-
+ drivers/irqchip/irq-gic-v3.c                  |  10 +-
+ drivers/irqchip/irq-gic.c                     |   4 +-
+ drivers/mailbox/pcc.c                         |   2 +-
+ include/linux/acpi.h                          |   6 +-
+ include/linux/node.h                          |  70 ++++-
+ 25 files changed, 1172 insertions(+), 65 deletions(-)
+ create mode 100644 Documentation/admin-guide/mm/numaperf.rst
+ create mode 100644 drivers/acpi/hmat/Kconfig
+ create mode 100644 drivers/acpi/hmat/Makefile
+ create mode 100644 drivers/acpi/hmat/hmat.c
+
+-- 
+2.14.4
