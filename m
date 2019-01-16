@@ -1,92 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E83658E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:46:01 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c3so2587800eda.3
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:46:01 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D9D0F8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 11:12:30 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id q62so4157761pgq.9
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:12:30 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r53si1189324eda.218.2019.01.16.07.45.59
+        by mx.google.com with ESMTPS id j5si6859986pfg.254.2019.01.16.08.12.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 07:46:00 -0800 (PST)
-Subject: Re: [PATCH 12/25] mm, compaction: Keep migration source private to a
- single compaction instance
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
- <20190104125011.16071-13-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0d02b611-85a7-b161-1310-883c4b1594f8@suse.cz>
-Date: Wed, 16 Jan 2019 16:45:59 +0100
+        Wed, 16 Jan 2019 08:12:28 -0800 (PST)
+Date: Wed, 16 Jan 2019 17:12:24 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+In-Reply-To: <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
+Message-ID: <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
+References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com> <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com> <20190110122442.GA21216@nautica>
+ <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com> <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com> <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
+ <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com> <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190104125011.16071-13-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On 1/4/19 1:49 PM, Mel Gorman wrote:
-> Due to either a fast search of the free list or a linear scan, it is
-> possible for multiple compaction instances to pick the same pageblock
-> for migration.  This is lucky for one scanner and increased scanning for
-> all the others. It also allows a race between requests on which first
-> allocates the resulting free block.
+On Wed, 16 Jan 2019, Linus Torvalds wrote:
+
+> > "Being owner or has cap" (whichever cap) is probably OK. On the other 
+> > hand, writeability check makes more sense in general - could we 
+> > somehow check if the user has write access to the file instead of 
+> > checking if it currently is opened read-write?
 > 
-> This patch tests and updates the pageblock skip for the migration scanner
-> carefully. When isolating a block, it will check and skip if the block is
-> already in use. Once the zone lock is acquired, it will be rechecked so
-> that only one scanner can set the pageblock skip for exclusive use. Any
-> scanner contending will continue with a linear scan. The skip bit is
-> still set if no pages can be isolated in a range.
-
-Also the skip bit will remain set even if pages *could* be isolated,
-AFAICS there's no clearing after a block was finished with
-nr_isolated>0. Is it intended? Note even previously it wasn't ideal,
-because when pageblock was visited multiple times due to
-COMPACT_CLUSTER_MAX, it would be marked with skip bit if the last visit
-failed to isolate, even if the previous visits didn't.
-
-> While this may result
-> in redundant scanning, it avoids unnecessarily acquiring the zone lock
-> when there are no suitable migration sources.
-
-
-
-> 1-socket thpscale
->                                         4.20.0                 4.20.0
->                                  findmig-v2r15          isolmig-v2r15
-> Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-> Amean     fault-both-3      3505.69 (   0.00%)     3066.68 *  12.52%*
-> Amean     fault-both-5      5794.13 (   0.00%)     4298.49 *  25.81%*
-> Amean     fault-both-7      7663.09 (   0.00%)     5986.99 *  21.87%*
-> Amean     fault-both-12    10983.36 (   0.00%)     9324.85 (  15.10%)
-> Amean     fault-both-18    13602.71 (   0.00%)    13350.05 (   1.86%)
-> Amean     fault-both-24    16145.77 (   0.00%)    13491.77 *  16.44%*
-> Amean     fault-both-30    19753.82 (   0.00%)    15630.86 *  20.87%*
-> Amean     fault-both-32    20616.16 (   0.00%)    17428.50 *  15.46%*
+> That's likely the best option. We could say "is it open for write, or
+> _could_ we open it for writing?"
 > 
-> This is the first patch that shows a significant reduction in latency as
-> multiple compaction scanners do not operate on the same blocks. There is
-> a small increase in the success rate
+> It's a slightly annoying special case, and I'd have preferred to avoid
+> it, but it doesn't sound *compilcated*.
 > 
->                                4.20.0-rc6             4.20.0-rc6
->                              findmig-v1r4           isolmig-v1r4
-> Percentage huge-3        90.58 (   0.00%)       95.84 (   5.81%)
-> Percentage huge-5        91.34 (   0.00%)       94.19 (   3.12%)
-> Percentage huge-7        92.21 (   0.00%)       93.78 (   1.71%)
-> Percentage huge-12       92.48 (   0.00%)       94.33 (   2.00%)
-> Percentage huge-18       91.65 (   0.00%)       94.15 (   2.72%)
-> Percentage huge-24       90.23 (   0.00%)       94.23 (   4.43%)
-> Percentage huge-30       90.17 (   0.00%)       95.17 (   5.54%)
-> Percentage huge-32       89.72 (   0.00%)       93.59 (   4.32%)
+> I'm on the road, but I did send out this:
 > 
-> Compaction migrate scanned    54168306    25516488
-> Compaction free scanned      800530954    87603321
+>     https://lore.kernel.org/lkml/CAHk-=wif_9nvNHJiyxHzJ80_WUb0P7CXNBvXkjZz-r1u0ozp7g@mail.gmail.com/
 > 
-> Migration scan rates are reduced by 52%.
+> originally. The "let's try to only do the mmap residency" was the
+> optimistic "maybe we can just get rid of this complexity entirely"
+> version..
+> 
+> Anybody willing to test the above patch instead? And replace the
+> 
+>    || capable(CAP_SYS_ADMIN)
+> 
+> check with something like
+> 
+>    || inode_permission(inode, MAY_WRITE) == 0
+> 
+> instead?
+> 
+> (This is obviously after you've reverted the "only check mmap
+> residency" patch..)
 
-Wonder how much of that is due to not clearing as pointed out above.
-Also interesting how free scanned was reduced so disproportionally.
+So that seems to deal with mincore() in a reasonable way indeed.
 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+It doesn't unfortunately really solve the preadv2(RWF_NOWAIT), nor does it 
+provide any good answer what to do about it, does it?
+
+Thanks,
+
+-- 
+Jiri Kosina
+SUSE Labs
