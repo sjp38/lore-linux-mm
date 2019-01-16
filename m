@@ -1,107 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FF878E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:23:19 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id w15so4332269qtk.19
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 18:23:19 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g11si6918592qth.320.2019.01.15.18.23.18
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 585798E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 02:06:17 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id t7so1995052edr.21
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 23:06:17 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r19si5241406edl.68.2019.01.15.23.06.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 18:23:18 -0800 (PST)
-Date: Tue, 15 Jan 2019 21:23:12 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190116022312.GJ3696@redhat.com>
-References: <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190114145447.GJ13316@quack2.suse.cz>
- <20190114172124.GA3702@redhat.com>
- <20190115080759.GC29524@quack2.suse.cz>
- <20190115171557.GB3696@redhat.com>
- <752839e6-6cb3-a6aa-94cb-63d3d4265934@nvidia.com>
- <20190115221205.GD3696@redhat.com>
- <99110c19-3168-f6a9-fbde-0a0e57f67279@nvidia.com>
- <20190116015610.GH3696@redhat.com>
- <CAPcyv4h2hX_CJ=Ffzip4YzryOX0NPo9yy+yDsSPnyp20xat94Q@mail.gmail.com>
+        Tue, 15 Jan 2019 23:06:16 -0800 (PST)
+Date: Wed, 16 Jan 2019 08:06:14 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: memory cgroup pagecache and inode problem
+Message-ID: <20190116070614.GG24149@dhcp22.suse.cz>
+References: <15614FDC-198E-449B-BFAF-B00D6EF61155@bytedance.com>
+ <97A4C2CA-97BA-46DB-964A-E44410BB1730@bytedance.com>
+ <CAHbLzkouWtCQ3OVEK1FaJoG5ZbSkzsqmcAqmsb-TbuaO2myccQ@mail.gmail.com>
+ <ADF3C74C-BE96-495F-911F-77DDF3368912@bytedance.com>
+ <CAHbLzkpbVjtx+uxb1sq-wjBAAv_My6kq4c4bwqRKAmOTZ9dR8g@mail.gmail.com>
+ <E2306860-760C-4EB2-92E3-057694971D69@bytedance.com>
+ <CAHbLzkrE887hR_2o_1zJkBcReDt-KzezUE4Jug8zULdV7g17-w@mail.gmail.com>
+ <9B56B884-8FDD-4BB5-A6CA-AD7F84397039@bytedance.com>
+ <CAHbLzkpHst6bA=eVjoHRFuCuOfo8kKnCPE7Tg4voaJ_kwruVqw@mail.gmail.com>
+ <C7C72217-D4AF-474C-A98E-975E389BC85C@bytedance.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4h2hX_CJ=Ffzip4YzryOX0NPo9yy+yDsSPnyp20xat94Q@mail.gmail.com>
+In-Reply-To: <C7C72217-D4AF-474C-A98E-975E389BC85C@bytedance.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Fam Zheng <zhengfeiran@bytedance.com>
+Cc: Yang Shi <shy828301@gmail.com>, cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>, tj@kernel.org, Johannes Weiner <hannes@cmpxchg.org>, lizefan@huawei.com, Vladimir Davydov <vdavydov.dev@gmail.com>, duanxiongchun@bytedance.com, =?utf-8?B?5byg5rC46IKD?= <zhangyongsu@bytedance.com>, liuxiaozhou@bytedance.com
 
-On Tue, Jan 15, 2019 at 06:01:09PM -0800, Dan Williams wrote:
-> On Tue, Jan 15, 2019 at 5:56 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> > On Tue, Jan 15, 2019 at 04:44:41PM -0800, John Hubbard wrote:
-> [..]
-> > To make it clear.
-> >
-> > Lock code:
-> >     GUP()
-> >         ...
-> >         lock_page(page);
-> >         if (PageWriteback(page)) {
-> >             unlock_page(page);
-> >             wait_stable_page(page);
-> >             goto retry;
-> >         }
-> >         atomic_add(page->refcount, PAGE_PIN_BIAS);
-> >         unlock_page(page);
-> >
-> >     test_set_page_writeback()
-> >         bool pinned = false;
-> >         ...
-> >         pinned = page_is_pin(page); // could be after TestSetPageWriteback
-> >         TestSetPageWriteback(page);
-> >         ...
-> >         return pinned;
-> >
-> > Memory barrier:
-> >     GUP()
-> >         ...
-> >         atomic_add(page->refcount, PAGE_PIN_BIAS);
-> >         smp_mb();
-> >         if (PageWriteback(page)) {
-> >             atomic_add(page->refcount, -PAGE_PIN_BIAS);
-> >             wait_stable_page(page);
-> >             goto retry;
-> >         }
-> >
-> >     test_set_page_writeback()
-> >         bool pinned = false;
-> >         ...
-> >         TestSetPageWriteback(page);
-> >         smp_wmb();
-> >         pinned = page_is_pin(page);
-> >         ...
-> >         return pinned;
-> >
-> >
-> > One is not more complex than the other. One can contend, the other
-> > will _never_ contend.
+On Wed 16-01-19 11:52:08, Fam Zheng wrote:
+[...]
+> > This is what force_empty is supposed to do.  But, as your test shows
+> > some page cache may still remain after force_empty, then cause offline
+> > memcgs accumulated.  I haven't figured out what happened.  You may try
+> > what Michal suggested.
 > 
-> The complexity is in the validation of lockless algorithms. It's
-> easier to reason about locks than barriers for the long term
-> maintainability of this code. I'm with Jan and John on wanting to
-> explore lock_page() before a barrier-based scheme.
+> None of the existing patches helped so far, but we suspect that the
+> pages cannot be locked at the force_empty moment. We have being
+> working on a â€œretryâ€ patch which does solve the problem. Weâ€™ll
+> do more tracing (to have a better understanding of the issue) and post
+> the findings and/or the patch later. Thanks.
 
-How is the above hard to validate ? Either GUP see racing
-test_set_page_writeback because it test write back after
-incrementing the refcount, or test_set_page_writeback sees
-GUP because it checks for pin after setting the write back
-bits.
-
-So if GUP see !PageWriteback() then test_set_page_writeback
-see page_pin(page) as true. If test_set_page_writeback sees
-page_pin(page) as false then GUP did see PageWriteback() as
-true.
-
-You _never_ have !PageWriteback() in GUP and !page_pin() in
-test_set_page_writeback() if they are both racing. This is
-an impossible scenario because of memory barrier.
-
-Cheers,
-Jérôme
+Just for the record. There was a patch to remove
+MEM_CGROUP_RECLAIM_RETRIES restriction in the path. I cannot find the
+link right now but that is something we certainly can do. The context is
+interruptible by signal and it from my experience any retry count can
+lead to unexpected failures. But I guess you really want to check
+vmscan tracepoints to see why you cannot reclaim pages on memcg LRUs
+first.
+-- 
+Michal Hocko
+SUSE Labs
