@@ -1,113 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BF2C8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:17:06 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id d18so4900531pfe.0
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:17:06 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id c125si6713962pfa.216.2019.01.16.07.17.05
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 672798E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:44:02 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c18so2474572edt.23
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 07:44:02 -0800 (PST)
+Received: from outbound-smtp26.blacknight.com (outbound-smtp26.blacknight.com. [81.17.249.194])
+        by mx.google.com with ESMTPS id a27si8140699edj.394.2019.01.16.07.44.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 07:17:05 -0800 (PST)
-Subject: Re: [RFC PATCH v7 00/16] Add support for eXclusive Page Frame
- Ownership
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
- <ciirm8o98gzm4z.fsf@u54ee758033e858cfa736.ant.amazon.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <2e274b82-75a7-63b9-d7db-b81132114089@oracle.com>
-Date: Wed, 16 Jan 2019 08:16:47 -0700
+        Wed, 16 Jan 2019 07:44:00 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp26.blacknight.com (Postfix) with ESMTPS id 748C4B879A
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:44:00 +0000 (GMT)
+Date: Wed, 16 Jan 2019 15:43:58 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 11/25] mm, compaction: Use free lists to quickly locate a
+ migration source
+Message-ID: <20190116154358.GF27437@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190104125011.16071-12-mgorman@techsingularity.net>
+ <f1e0e977-d901-776d-9a6a-799735ebd3bf@suse.cz>
+ <20190116143308.GE27437@techsingularity.net>
+ <d232eb5a-065f-742f-35e3-b06cfdfbeb69@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <ciirm8o98gzm4z.fsf@u54ee758033e858cfa736.ant.amazon.com>
-Content-Type: multipart/mixed;
- boundary="------------1F66028AF58B3FA1222C73F6"
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <d232eb5a-065f-742f-35e3-b06cfdfbeb69@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julian Stecklina <jsteckli@amazon.de>
-Cc: juergh@gmail.com, tycho@tycho.ws, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-This is a multi-part message in MIME format.
---------------1F66028AF58B3FA1222C73F6
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Wed, Jan 16, 2019 at 04:00:22PM +0100, Vlastimil Babka wrote:
+> On 1/16/19 3:33 PM, Mel Gorman wrote:
+> >>> +				break;
+> >>> +			}
+> >>> +
+> >>> +			/*
+> >>> +			 * If low PFNs are being found and discarded then
+> >>> +			 * limit the scan as fast searching is finding
+> >>> +			 * poor candidates.
+> >>> +			 */
+> >>
+> >> I wonder about the "low PFNs are being found and discarded" part. Maybe
+> >> I'm missing it, but I don't see them being discarded above, this seems
+> >> to be the first check against cc->migrate_pfn. With the min() part in
+> >> update_fast_start_pfn(), does it mean we can actually go back and rescan
+> >> (or skip thanks to skip bits, anyway) again pageblocks that we already
+> >> scanned?
+> >>
+> > 
+> > Extremely poor phrasing. My mind was thinking in terms of discarding
+> > unsuitable candidates as they were below the migration scanner and it
+> > did not translate properly.
+> > 
+> > Based on your feedback, how does the following untested diff look?
+> 
+> IMHO better. Meanwhile I noticed that the next patch removes the
+> set_pageblock_skip() so maybe it's needless churn to introduce the
+> fast_find_block, but I'll check more closely.
+> 
 
-On 1/16/19 7:56 AM, Julian Stecklina wrote:
-> Khalid Aziz <khalid.aziz@oracle.com> writes:
->=20
->> I am continuing to build on the work Juerg, Tycho and Julian have done=
+Indeed but the patches should standalone and preserve bisection as best
+as possible so while it's weird looking, I'll add the logic and just take
+it back out again in the next patch. Merging the patches together would
+be lead to a tricky review!
 
->> on XPFO.
->=20
-> Awesome!
->=20
->> A rogue process can launch a ret2dir attack only from a CPU that has
->> dual mapping for its pages in physmap in its TLB. We can hence defer
->> TLB flush on a CPU until a process that would have caused a TLB flush
->> is scheduled on that CPU.
->=20
-> Assuming the attacker already has the ability to execute arbitrary code=
+> The new comment about pfns below cc->migrate_pfn is better but I still
+> wonder if it would be better to really skip over those candidates (they
+> are still called unsuitable) and not go backwards with cc->migrate_pfn.
+> But if you think the pageblock skip bits and halving of limit minimizes
+> pointless rescan sufficiently, then fine.
 
-> in userspace, they can just create a second process and thus avoid the
-> TLB flush. Am I getting this wrong?
+I'll check if it works out better to ensure they are really skipped.
 
-No, you got it right. The patch I wrote closes the security hole when
-attack is launched from the same process but still leaves a window open
-when attack is launched from another process. I am working on figuring
-out how to close that hole while keeping the performance the same as it
-is now. Synchronous TLB flush across all cores is the most secure but
-performance impact is horrendous.
-
---
-Khalid
-
-
---------------1F66028AF58B3FA1222C73F6
-Content-Type: application/pgp-keys;
- name="pEpkey.asc"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment;
- filename="pEpkey.asc"
-
------BEGIN PGP PUBLIC KEY BLOCK-----
-
-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
-+Wrj8Rwom6h21PXZRKnlkis7ibQfE+TxqOI7vg=3D=3D
-=3DnPqY
------END PGP PUBLIC KEY BLOCK-----
-
---------------1F66028AF58B3FA1222C73F6--
+-- 
+Mel Gorman
+SUSE Labs
