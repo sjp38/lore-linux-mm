@@ -2,154 +2,229 @@ Return-Path: <SRS0=bSwl=PY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA948C43612
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 16:12:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3175C43387
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 16:56:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B407920675
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 16:12:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B407920675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 6778C205C9
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 16:56:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="1fohCox4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6778C205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 431D68E0003; Wed, 16 Jan 2019 11:12:31 -0500 (EST)
+	id 0688A8E0003; Wed, 16 Jan 2019 11:56:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E0338E0002; Wed, 16 Jan 2019 11:12:31 -0500 (EST)
+	id 03E7D8E0002; Wed, 16 Jan 2019 11:56:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2827F8E0003; Wed, 16 Jan 2019 11:12:31 -0500 (EST)
+	id E6F058E0003; Wed, 16 Jan 2019 11:56:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D0F8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 11:12:30 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id q62so4157761pgq.9
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:12:30 -0800 (PST)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B9C4D8E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 11:56:05 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id w128so1920383oie.20
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 08:56:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=uPRXlDclQzo4Oa6N/pVmeZlRDqbRuhOouJ5A1bsVJZk=;
-        b=iNoYNYOjOUTQs+SatNPXNYnDsLtPcOjy5KFkCIJy01CnnBJQdYrM3FNeYY12xYQVEZ
-         7ovRh27nepgGwWgyZwIqtVfTGjwjeHWS1qpoBdg7gUl17RovjgE601ULBBfYuwcL4mez
-         UEEpGK7oLZU7uTKB+3sFJNO6UrTLKPgjG5y0oU/vvlO45yJ7XNsme1GZz0To9GPOY/Pc
-         Fm8v1nhvo51E+db46hv4dPZDBy4QyovSef/MHHmpz3NqfTDin6adpttETsFZ5HlQxb5k
-         Kqsnv7VvxEQz3GgO8mblNmiLYlX3bHDRViUiXx2A0OnUXR7ktnjtD0Bb7Z3wlsTOjk/f
-         JkEg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUuket174QoqWQq03r1D4FLcClOoHmoeVrcvY46RVMIm84SQjKUAIS
-	RWTlXnAkrVaKsamfhgyYCPszbx1nQxJFTyylAvVlnmbyRlFlSSA72zAP15fnjr2Y8sVXIRrnQKc
-	EDL5WoiaEdpDI03w5peQGdAcgIh4yMfsg3quNFAkzjHpc76wlAmfhEQWewYGH+Ko=
-X-Received: by 2002:a17:902:2ec1:: with SMTP id r59mr10746800plb.254.1547655150142;
-        Wed, 16 Jan 2019 08:12:30 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5IDlOi4UO8Dn0zgIwoyL3smt6PubVywDSs4cJu1qUE9JfkXeXd+SFGBR5h1k08ksf/kt8N
-X-Received: by 2002:a17:902:2ec1:: with SMTP id r59mr10746702plb.254.1547655149000;
-        Wed, 16 Jan 2019 08:12:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547655148; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=AOAiEL+/8C4L4IM8a4sTEPSnKDCXeMhX5DoT7rtynYE=;
+        b=hiL4pKBKjGQLk64U18/nysubbP16ZERGd5Zbm1WgPfzPqOFU9atJjxzODTNIZt33fv
+         neOJMu8qfdLfygrAbpEBviiWIoyyOikdcrdWgVijLEwXlNVV3aTQXVXug3Ov5jUt884z
+         KF08mme5bws4wtU7ulxl4l++6M4WK0m7A1iHEwD1UgMu1iQeNLw3P3ZU5Khiix52071K
+         /ClkaRntjNgcHTTqcpBNgW0yCUyHNk6+TQEGU9jPtj8u0SIofGzJY3gG64qtG2/Ej86E
+         2XJ2zZWj9U8TSEDmJ7KKElGksUR854s+am88mfPEZKPl2jiCRZUM37Ge4pO9mjRmrfS4
+         k1ig==
+X-Gm-Message-State: AJcUukdy41oyjSZx0HJEay6MucJBVr6043NWKEnhDVppKrd0l/DKxrFm
+	KRIkT2kp3RA1FqdBP4esmWZVQAQ6TTXDHOSbFs52n7cwopRsOpjr+O4J2c2jNBXlQvz2a+SuCvD
+	E6bG28LM3MMMFwCAkpAcOoJ2YYc2qhv6A+s+h0Guvli02JtNB4mqWHMmKErfwket7c6hcWVey1g
+	E2FAwt+nutis1kUBa06+2SQwFd8omPqI19SaQ2mfIwG6RQjWAfkKaV4yGCiKSovH+d7Qdyk9JZl
+	HNsp/gDCKy4trh5HASpJAPH8D6ghye0mRLzNYobeQeaGhMs/Ry7dfa6W91xUj2uCIc1yOQwqa9I
+	k/my5xvUgKidjG73ViAjxdcFGrYWQ7KpURcRy4mXEQ58CJ63jP+OiaoIZblVldgbFJI7acX5HH1
+	S
+X-Received: by 2002:a9d:c06:: with SMTP id 6mr6514921otr.326.1547657765327;
+        Wed, 16 Jan 2019 08:56:05 -0800 (PST)
+X-Received: by 2002:a9d:c06:: with SMTP id 6mr6514881otr.326.1547657764523;
+        Wed, 16 Jan 2019 08:56:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547657764; cv=none;
         d=google.com; s=arc-20160816;
-        b=dPgM4HZkY3xchfzA+f0HwxsS5tXQ5kwwCqFO16b7ctkL5vffSuNwZfc4cnVTgK3Iy4
-         fnMwvI3cOSOj4Y1zN8if7RAWTvdxYcTufh6Pq6LKZmoEWyAMlYkI3jTapRuCLHp6yaMw
-         BZ8RZTG/jE/e5tR9XRzH2fjY5ksBORqnKEnPB3UjKIKEfwQRGLBiIKZNkgGFgXex/hH3
-         rhHCUJ7452YJdC7KNEnQftXHVM37kYX+pyGACimSDKIQWI2W7qJ0bbTfT/pHa1E8fZ0M
-         2boobQ2IBiIZZe0h4iAdPUGbeccg++HVhgkjEnRKbZdnjUVTtCifm5hySqo0iH4edaP9
-         z4Og==
+        b=aCygKcPw8XWS9ktWG3QVu1MkDjoSi9dZgG7/FGjoLsBlTsPwcTG+8GKGaL1OrkOOE0
+         U7yaZtCVdM9iRWE2fBh182SpNEnOCzw55+es1z0PI6U1MVCKHsX8o4M93MbxD4j/tl4q
+         rMjb8bBaBt8K6wRdIf0CWGwgUxeYxJzNnOzJIOYquvJBEXXBtudTdELQuOGUvEx1luod
+         wVjehJgxEF7qZYH/AFoOz9ccGGjC/RywBiRFEYCAYKPM7sUvpWl1tjEG87PCofz1uiSm
+         6Ofx6oDrb5N2xBvwNt4rqlVd2PUcdg8BcrjeZ7eFEWI5TJlxPwjHn3fQjFOUrpMS/I9w
+         kEQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=uPRXlDclQzo4Oa6N/pVmeZlRDqbRuhOouJ5A1bsVJZk=;
-        b=SDhVuo0bXsjfaIWaZskBFWfFkhEPBDdZefWivo31eYRw7jPClig+WwQGatHiTf3BCs
-         AhzF6lJlzKnD4KoNAhHEcfW8K6ippsMNHvNnvKJQVcbfgtgLJLepiK8zF7oK7iFTkoJV
-         baSanAV6Z8U/K0fMj96qBARqHupz8eRTqG8KWZuiugahTZwpJ0dbw/Mlhm25Ei7iQXIf
-         X6GhPE2JuMtVCI8JLG5H/tntXD8AbOF0fVXbtEHJ64ndHKBlOHJzn3gDtELBNnUQq4BH
-         ypoMVfNOzfpIKfbASEFwA7BNkZl75Wsa1pJiW139R4o5Cavx3Gz5mR2FAHpN45XQL44e
-         cjUg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=AOAiEL+/8C4L4IM8a4sTEPSnKDCXeMhX5DoT7rtynYE=;
+        b=rMp4s9CVUT2WvcXMBXeLI11R4ml/tnWZbu+Qgr4/4tJUsUsXE3DZPiBa/OT+dL6nMv
+         Qu9GZ3aLeJsUXLPnmwfl3naHiIY1EoknsPpWsPPwkSKzeNwEfLrBpvWtyubyav2xmJt5
+         Chuh6HRu6nC5CZ+SXPhSyzilkKgDiu3WlSGzomXgnU74y28ZRPKkK86BbrkDGR3Yukxg
+         W40LC/NmPtzafkRZGCqecj6O6fqNvcOOf8O5f3an9BhoLVDpvpdkYDExDZx44XzvoltH
+         NXhgz+o6feKhggCGsG7fYtjSPSZ/uR+f8qW9WXk5q7UVPJkHXk/588YlqgjxPH4EEBLM
+         +oZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j5si6859986pfg.254.2019.01.16.08.12.28
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=1fohCox4;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u18sor4653165otq.164.2019.01.16.08.56.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 08:12:28 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 16 Jan 2019 08:56:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay1.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9553FADC5;
-	Wed, 16 Jan 2019 16:12:26 +0000 (UTC)
-Date: Wed, 16 Jan 2019 17:12:24 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-cc: Dominique Martinet <asmadeus@codewreck.org>, 
-    Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, 
-    Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
-    Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-    Greg KH <gregkh@linuxfoundation.org>, 
-    Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, 
-    Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, 
-    Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
-Message-ID: <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
-References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com> <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com> <20190110122442.GA21216@nautica>
- <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com> <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com> <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
- <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com> <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
-User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=1fohCox4;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=AOAiEL+/8C4L4IM8a4sTEPSnKDCXeMhX5DoT7rtynYE=;
+        b=1fohCox49WptNDKFo+AllzPtWzec91m1mOEYaAsgXNjWJ5CrmaNa9SXb+GU646gyK6
+         xGBSgpag4ZWSTEcrNG9m7s3X3LpcCMV3xbRiNCDnkwLO2R6TRY3Kh+DggzVmEEJqkjHJ
+         TqfvzS03YrEFTp4dz0CNRTv+naEgefc2iCMmLuLVfA518QJ29tTQX+5WkXzMbnSS/8B/
+         le/MvXWhdGVuRm9JPOXDOBcJPWMi/LmDtHTNad9kPi8PfuxPUKEorXa7JvmxMsm+rRHl
+         MH0lTAKlt/kWuxwvW3nq7KYwnRasqnF8HngMz7KMuJaRReyplTiWix/Uco4cCeFI/jtG
+         1m2Q==
+X-Google-Smtp-Source: ALg8bN5y5OaMHKHunRJ8UPAnFsJvM/MFVlI1THG04lITO1eS6slbD+jeGnS78UFz2u+u9ZNDtte+pMBriGuVYDlLquk=
+X-Received: by 2002:a9d:6a50:: with SMTP id h16mr5837069otn.95.1547657763252;
+ Wed, 16 Jan 2019 08:56:03 -0800 (PST)
 MIME-Version: 1.0
+References: <e3c4c0e0-1434-4353-b893-2973c04e7ff7@oracle.com>
+ <CAPcyv4j67n6H7hD6haXJqysbaauci4usuuj5c+JQ7VQBGngO1Q@mail.gmail.com>
+ <20190111081401.GA5080@hori1.linux.bs1.fc.nec.co.jp> <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 16 Jan 2019 08:55:52 -0800
+Message-ID:
+ <CAPcyv4jnHqDp7s1SdqHePms2Z-8d0zk-+6meqKeMQUNArxHb_w@mail.gmail.com>
+Subject: Re: [PATCH] mm: hwpoison: use do_send_sig_info() instead of
+ force_sig() (Re: PMEM error-handling forces SIGKILL causes kernel panic)
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	Jane Chu <jane.chu@oracle.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190116161224.wtz4bp-Be8B8-uCzEd_VOSI0zGYuGRV2b2G983VDtP8@z>
+Message-ID: <20190116165552.JYXbFJi462EzBM2op1YHAEq-wkS6uYtIZO0fo0z3rBw@z>
 
-On Wed, 16 Jan 2019, Linus Torvalds wrote:
+On Wed, Jan 16, 2019 at 1:33 AM Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+>
+> [ CCed Andrew and linux-mm ]
+>
+> On Fri, Jan 11, 2019 at 08:14:02AM +0000, Horiguchi Naoya(=E5=A0=80=E5=8F=
+=A3 =E7=9B=B4=E4=B9=9F) wrote:
+> > Hi Dan, Jane,
+> >
+> > Thanks for the report.
+> >
+> > On Wed, Jan 09, 2019 at 03:49:32PM -0800, Dan Williams wrote:
+> > > [ switch to text mail, add lkml and Naoya ]
+> > >
+> > > On Wed, Jan 9, 2019 at 12:19 PM Jane Chu <jane.chu@oracle.com> wrote:
+> > ...
+> > > > 3. The hardware consists the latest revision CPU and Intel NVDIMM, =
+we suspected
+> > > >    the CPU faulty because it generated MCE over PMEM UE in a unlike=
+ly high
+> > > >    rate for any reasonable NVDIMM (like a few per 24hours).
+> > > >
+> > > > After swapping the CPU, the problem stopped reproducing.
+> > > >
+> > > > But one could argue that perhaps the faulty CPU exposed a small rac=
+e window
+> > > > from collect_procs() to unmap_mapping_range() and to kill_procs(), =
+hence
+> > > > caught the kernel  PMEM error handler off guard.
+> > >
+> > > There's definitely a race, and the implementation is buggy as can be
+> > > seen in __exit_signal:
+> > >
+> > >         sighand =3D rcu_dereference_check(tsk->sighand,
+> > >                                         lockdep_tasklist_lock_is_held=
+());
+> > >         spin_lock(&sighand->siglock);
+> > >
+> > > ...the memory-failure path needs to hold the proper locks before it
+> > > can assume that de-referencing tsk->sighand is valid.
+> > >
+> > > > Also note, the same workload on the same faulty CPU were run on Lin=
+ux prior to
+> > > > the 4.19 PMEM error handling and did not encounter kernel crash, pr=
+obably because
+> > > > the prior HWPOISON handler did not force SIGKILL?
+> > >
+> > > Before 4.19 this test should result in a machine-check reboot, not
+> > > much better than a kernel crash.
+> > >
+> > > > Should we not to force the SIGKILL, or find a way to close the race=
+ window?
+> > >
+> > > The race should be closed by holding the proper tasklist and rcu read=
+ lock(s).
+> >
+> > This reasoning and proposal sound right to me. I'm trying to reproduce
+> > this race (for non-pmem case,) but no luck for now. I'll investigate mo=
+re.
+>
+> I wrote/tested a patch for this issue.
+> I think that switching signal API effectively does proper locking.
+>
+> Thanks,
+> Naoya Horiguchi
+> ---
+> From 16dbf6105ff4831f73276d79d5df238ab467de76 Mon Sep 17 00:00:00 2001
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Wed, 16 Jan 2019 16:59:27 +0900
+> Subject: [PATCH] mm: hwpoison: use do_send_sig_info() instead of force_si=
+g()
+>
+> Currently memory_failure() is racy against process's exiting,
+> which results in kernel crash by null pointer dereference.
+>
+> The root cause is that memory_failure() uses force_sig() to forcibly
+> kill asynchronous (meaning not in the current context) processes.  As
+> discussed in thread https://lkml.org/lkml/2010/6/8/236 years ago for
+> OOM fixes, this is not a right thing to do.  OOM solves this issue by
+> using do_send_sig_info() as done in commit d2d393099de2 ("signal:
+> oom_kill_task: use SEND_SIG_FORCED instead of force_sig()"), so this
+> patch is suggesting to do the same for hwpoison.  do_send_sig_info()
+> properly accesses to siglock with lock_task_sighand(), so is free from
+> the reported race.
+>
+> I confirmed that the reported bug reproduces with inserting some delay
+> in kill_procs(), and it never reproduces with this patch.
+>
+> Note that memory_failure() can send another type of signal using
+> force_sig_mceerr(), and the reported race shouldn't happen on it
+> because force_sig_mceerr() is called only for synchronous processes
+> (i.e. BUS_MCEERR_AR happens only when some process accesses to the
+> corrupted memory.)
+>
+> Reported-by: Jane Chu <jane.chu@oracle.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
 
-> > "Being owner or has cap" (whichever cap) is probably OK. On the other 
-> > hand, writeability check makes more sense in general - could we 
-> > somehow check if the user has write access to the file instead of 
-> > checking if it currently is opened read-write?
-> 
-> That's likely the best option. We could say "is it open for write, or
-> _could_ we open it for writing?"
-> 
-> It's a slightly annoying special case, and I'd have preferred to avoid
-> it, but it doesn't sound *compilcated*.
-> 
-> I'm on the road, but I did send out this:
-> 
->     https://lore.kernel.org/lkml/CAHk-=wif_9nvNHJiyxHzJ80_WUb0P7CXNBvXkjZz-r1u0ozp7g@mail.gmail.com/
-> 
-> originally. The "let's try to only do the mmap residency" was the
-> optimistic "maybe we can just get rid of this complexity entirely"
-> version..
-> 
-> Anybody willing to test the above patch instead? And replace the
-> 
->    || capable(CAP_SYS_ADMIN)
-> 
-> check with something like
-> 
->    || inode_permission(inode, MAY_WRITE) == 0
-> 
-> instead?
-> 
-> (This is obviously after you've reverted the "only check mmap
-> residency" patch..)
+Looks good to me.
 
-So that seems to deal with mincore() in a reasonable way indeed.
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
-It doesn't unfortunately really solve the preadv2(RWF_NOWAIT), nor does it 
-provide any good answer what to do about it, does it?
-
-Thanks,
-
--- 
-Jiri Kosina
-SUSE Labs
+...but it would still be good to get a Tested-by from Jane.
 
