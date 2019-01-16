@@ -1,272 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A5E9F8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:59:39 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id g188so4310077pgc.22
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 09:59:39 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y8si6735247plr.92.2019.01.16.09.59.37
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BAACC8E0004
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 13:25:42 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r16so4392966pgr.15
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:25:42 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id t77si6728408pgb.51.2019.01.16.10.25.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 09:59:38 -0800 (PST)
-From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv4 03/13] acpi/hmat: Parse and report heterogeneous memory
-Date: Wed, 16 Jan 2019 10:57:54 -0700
-Message-Id: <20190116175804.30196-4-keith.busch@intel.com>
-In-Reply-To: <20190116175804.30196-1-keith.busch@intel.com>
-References: <20190116175804.30196-1-keith.busch@intel.com>
+        Wed, 16 Jan 2019 10:25:41 -0800 (PST)
+Subject: [PATCH 2/4] mm/memory-hotplug: allow memory resources to be children
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Wed, 16 Jan 2019 10:19:02 -0800
+References: <20190116181859.D1504459@viggo.jf.intel.com>
+In-Reply-To: <20190116181859.D1504459@viggo.jf.intel.com>
+Message-Id: <20190116181902.670EEBC3@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
+To: dave@sr71.net
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com, baiyaowei@cmss.chinamobile.com, tiwai@suse.de
 
-Systems may provide different memory types and export this information
-in the ACPI Heterogeneous Memory Attribute Table (HMAT). Parse these
-tables provided by the platform and report the memory access and caching
-attributes.
 
-Signed-off-by: Keith Busch <keith.busch@intel.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+The mm/resource.c code is used to manage the physical address
+space.  We can view the current resource configuration in
+/proc/iomem.  An example of this is at the bottom of this
+description.
+
+The nvdimm subsystem "owns" the physical address resources which
+map to persistent memory and has resources inserted for them as
+"Persistent Memory".  We want to use this persistent memory, but
+as volatile memory, just like RAM.  The best way to do this is
+to leave the existing resource in place, but add a "System RAM"
+resource underneath it. This clearly communicates the ownership
+relationship of this memory.
+
+The request_resource_conflict() API only deals with the
+top-level resources.  Replace it with __request_region() which
+will search for !IORESOURCE_BUSY areas lower in the resource
+tree than the top level.
+
+We also rework the old error message a bit since we do not get
+the conflicting entry back: only an indication that we *had* a
+conflict.
+
+We *could* also simply truncate the existing top-level
+"Persistent Memory" resource and take over the released address
+space.  But, this means that if we ever decide to hot-unplug the
+"RAM" and give it back, we need to recreate the original setup,
+which may mean going back to the BIOS tables.
+
+This should have no real effect on the existing collision
+detection because the areas that truly conflict should be marked
+IORESOURCE_BUSY.
+
+00000000-00000fff : Reserved
+00001000-0009fbff : System RAM
+0009fc00-0009ffff : Reserved
+000a0000-000bffff : PCI Bus 0000:00
+000c0000-000c97ff : Video ROM
+000c9800-000ca5ff : Adapter ROM
+000f0000-000fffff : Reserved
+  000f0000-000fffff : System ROM
+00100000-9fffffff : System RAM
+  01000000-01e071d0 : Kernel code
+  01e071d1-027dfdff : Kernel data
+  02dc6000-0305dfff : Kernel bss
+a0000000-afffffff : Persistent Memory (legacy)
+  a0000000-a7ffffff : System RAM
+b0000000-bffdffff : System RAM
+bffe0000-bfffffff : Reserved
+c0000000-febfffff : PCI Bus 0000:00
+
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Jiang <dave.jiang@intel.com>
+Cc: Ross Zwisler <zwisler@kernel.org>
+Cc: Vishal Verma <vishal.l.verma@intel.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: linux-nvdimm@lists.01.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- drivers/acpi/Kconfig       |   1 +
- drivers/acpi/Makefile      |   1 +
- drivers/acpi/hmat/Kconfig  |   8 ++
- drivers/acpi/hmat/Makefile |   1 +
- drivers/acpi/hmat/hmat.c   | 180 +++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 191 insertions(+)
- create mode 100644 drivers/acpi/hmat/Kconfig
- create mode 100644 drivers/acpi/hmat/Makefile
- create mode 100644 drivers/acpi/hmat/hmat.c
 
-diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
-index 90ff0a47c12e..b377f970adfd 100644
---- a/drivers/acpi/Kconfig
-+++ b/drivers/acpi/Kconfig
-@@ -465,6 +465,7 @@ config ACPI_REDUCED_HARDWARE_ONLY
- 	  If you are unsure what to do, do not enable this option.
+ b/mm/memory_hotplug.c |   31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)
+
+diff -puN mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child mm/memory_hotplug.c
+--- a/mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child	2018-12-20 11:48:42.317771933 -0800
++++ b/mm/memory_hotplug.c	2018-12-20 11:48:42.322771933 -0800
+@@ -98,24 +98,21 @@ void mem_hotplug_done(void)
+ /* add this memory to iomem resource */
+ static struct resource *register_memory_resource(u64 start, u64 size)
+ {
+-	struct resource *res, *conflict;
+-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+-	if (!res)
+-		return ERR_PTR(-ENOMEM);
++	struct resource *res;
++	unsigned long flags =  IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
++	char *resource_name = "System RAM";
  
- source "drivers/acpi/nfit/Kconfig"
-+source "drivers/acpi/hmat/Kconfig"
- 
- source "drivers/acpi/apei/Kconfig"
- source "drivers/acpi/dptf/Kconfig"
-diff --git a/drivers/acpi/Makefile b/drivers/acpi/Makefile
-index 7c6afc111d76..bff8fbe5a6ab 100644
---- a/drivers/acpi/Makefile
-+++ b/drivers/acpi/Makefile
-@@ -79,6 +79,7 @@ obj-$(CONFIG_ACPI_PROCESSOR)	+= processor.o
- obj-$(CONFIG_ACPI)		+= container.o
- obj-$(CONFIG_ACPI_THERMAL)	+= thermal.o
- obj-$(CONFIG_ACPI_NFIT)		+= nfit/
-+obj-$(CONFIG_ACPI_HMAT)		+= hmat/
- obj-$(CONFIG_ACPI)		+= acpi_memhotplug.o
- obj-$(CONFIG_ACPI_HOTPLUG_IOAPIC) += ioapic.o
- obj-$(CONFIG_ACPI_BATTERY)	+= battery.o
-diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
-new file mode 100644
-index 000000000000..a4034d37a311
---- /dev/null
-+++ b/drivers/acpi/hmat/Kconfig
-@@ -0,0 +1,8 @@
-+# SPDX-License-Identifier: GPL-2.0
-+config ACPI_HMAT
-+	bool "ACPI Heterogeneous Memory Attribute Table Support"
-+	depends on ACPI_NUMA
-+	help
-+	 Parses representation of the ACPI Heterogeneous Memory Attributes
-+	 Table (HMAT) and set the memory node relationships and access
-+	 attributes.
-diff --git a/drivers/acpi/hmat/Makefile b/drivers/acpi/hmat/Makefile
-new file mode 100644
-index 000000000000..e909051d3d00
---- /dev/null
-+++ b/drivers/acpi/hmat/Makefile
-@@ -0,0 +1 @@
-+obj-$(CONFIG_ACPI_HMAT) := hmat.o
-diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-new file mode 100644
-index 000000000000..833a783868d5
---- /dev/null
-+++ b/drivers/acpi/hmat/hmat.c
-@@ -0,0 +1,180 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Heterogeneous Memory Attributes Table (HMAT) representation
-+ *
-+ * Copyright (c) 2018, Intel Corporation.
-+ */
+-	res->name = "System RAM";
+-	res->start = start;
+-	res->end = start + size - 1;
+-	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+-	conflict =  request_resource_conflict(&iomem_resource, res);
+-	if (conflict) {
+-		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
+-			pr_debug("Device unaddressable memory block "
+-				 "memory hotplug at %#010llx !\n",
+-				 (unsigned long long)start);
+-		}
+-		pr_debug("System RAM resource %pR cannot be added\n", res);
+-		kfree(res);
++	/*
++	 * Request ownership of the new memory range.  This might be
++	 * a child of an existing resource that was present but
++	 * not marked as busy.
++	 */
++	res = __request_region(&iomem_resource, start, size,
++			       resource_name, flags);
 +
-+#include <acpi/acpi_numa.h>
-+#include <linux/acpi.h>
-+#include <linux/bitops.h>
-+#include <linux/cpu.h>
-+#include <linux/device.h>
-+#include <linux/init.h>
-+#include <linux/list.h>
-+#include <linux/module.h>
-+#include <linux/node.h>
-+#include <linux/slab.h>
-+#include <linux/sysfs.h>
-+
-+static __init const char *hmat_data_type(u8 type)
-+{
-+	switch (type) {
-+	case ACPI_HMAT_ACCESS_LATENCY:
-+		return "Access Latency";
-+	case ACPI_HMAT_READ_LATENCY:
-+		return "Read Latency";
-+	case ACPI_HMAT_WRITE_LATENCY:
-+		return "Write Latency";
-+	case ACPI_HMAT_ACCESS_BANDWIDTH:
-+		return "Access Bandwidth";
-+	case ACPI_HMAT_READ_BANDWIDTH:
-+		return "Read Bandwidth";
-+	case ACPI_HMAT_WRITE_BANDWIDTH:
-+		return "Write Bandwidth";
-+	default:
-+		return "Reserved";
-+	};
-+}
-+
-+static __init const char *hmat_data_type_suffix(u8 type)
-+{
-+	switch (type) {
-+	case ACPI_HMAT_ACCESS_LATENCY:
-+	case ACPI_HMAT_READ_LATENCY:
-+	case ACPI_HMAT_WRITE_LATENCY:
-+		return " nsec";
-+	case ACPI_HMAT_ACCESS_BANDWIDTH:
-+	case ACPI_HMAT_READ_BANDWIDTH:
-+	case ACPI_HMAT_WRITE_BANDWIDTH:
-+		return " MB/s";
-+	default:
-+		return "";
-+	};
-+}
-+
-+static __init int hmat_parse_locality(union acpi_subtable_headers *header,
-+				      const unsigned long end)
-+{
-+	struct acpi_hmat_locality *loc = (void *)header;
-+	unsigned int init, targ, total_size, ipds, tpds;
-+	u32 *inits, *targs, value;
-+	u16 *entries;
-+	u8 type;
-+
-+	if (loc->header.length < sizeof(*loc)) {
-+		pr_err("HMAT: Unexpected locality header length: %d\n",
-+			loc->header.length);
-+		return -EINVAL;
-+	}
-+
-+	type = loc->data_type;
-+	ipds = loc->number_of_initiator_Pds;
-+	tpds = loc->number_of_target_Pds;
-+	total_size = sizeof(*loc) + sizeof(*entries) * ipds * tpds +
-+		     sizeof(*inits) * ipds + sizeof(*targs) * tpds;
-+	if (loc->header.length < total_size) {
-+		pr_err("HMAT: Unexpected locality header length:%d, minimum required:%d\n",
-+			loc->header.length, total_size);
-+		return -EINVAL;
-+	}
-+
-+	pr_info("HMAT: Locality: Flags:%02x Type:%s Initiator Domains:%d Target Domains:%d Base:%lld\n",
-+		loc->flags, hmat_data_type(type), ipds, tpds,
-+		loc->entry_base_unit);
-+
-+	inits = (u32 *)(loc + 1);
-+	targs = &inits[ipds];
-+	entries = (u16 *)(&targs[tpds]);
-+	for (targ = 0; targ < tpds; targ++) {
-+		for (init = 0; init < ipds; init++) {
-+			value = entries[init * tpds + targ];
-+			value = (value * loc->entry_base_unit) / 10;
-+			pr_info("  Initiator-Target[%d-%d]:%d%s\n",
-+				inits[init], targs[targ], value,
-+				hmat_data_type_suffix(type));
-+		}
-+	}
-+	return 0;
-+}
-+
-+static __init int hmat_parse_cache(union acpi_subtable_headers *header,
-+				   const unsigned long end)
-+{
-+	struct acpi_hmat_cache *cache = (void *)header;
-+	u32 attrs;
-+
-+	if (cache->header.length < sizeof(*cache)) {
-+		pr_err("HMAT: Unexpected cache header length: %d\n",
-+			cache->header.length);
-+		return -EINVAL;
-+	}
-+
-+	attrs = cache->cache_attributes;
-+	pr_info("HMAT: Cache: Domain:%d Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
-+		cache->memory_PD, cache->cache_size, attrs,
-+		cache->number_of_SMBIOShandles);
-+
-+	return 0;
-+}
-+
-+static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
-+					   const unsigned long end)
-+{
-+	struct acpi_hmat_address_range *spa = (void *)header;
-+
-+	if (spa->header.length != sizeof(*spa)) {
-+		pr_err("HMAT: Unexpected address range header length: %d\n",
-+			spa->header.length);
-+		return -EINVAL;
-+	}
-+	pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
-+		spa->physical_address_base, spa->physical_address_length,
-+		spa->flags, spa->processor_PD, spa->memory_PD);
-+	return 0;
-+}
-+
-+static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
-+				      const unsigned long end)
-+{
-+	struct acpi_hmat_structure *hdr = (void *)header;
-+
-+	if (!hdr)
-+		return -EINVAL;
-+
-+	switch (hdr->type) {
-+	case ACPI_HMAT_TYPE_ADDRESS_RANGE:
-+		return hmat_parse_address_range(header, end);
-+	case ACPI_HMAT_TYPE_LOCALITY:
-+		return hmat_parse_locality(header, end);
-+	case ACPI_HMAT_TYPE_CACHE:
-+		return hmat_parse_cache(header, end);
-+	default:
-+		return -EINVAL;
-+	}
-+}
-+
-+static __init int hmat_init(void)
-+{
-+	struct acpi_table_header *tbl;
-+	enum acpi_hmat_type i;
-+	acpi_status status;
-+
-+	if (srat_disabled())
-+		return 0;
-+
-+	status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
-+	if (ACPI_FAILURE(status))
-+		return 0;
-+
-+	for (i = ACPI_HMAT_TYPE_ADDRESS_RANGE; i < ACPI_HMAT_TYPE_RESERVED; i++) {
-+		if (acpi_table_parse_entries(ACPI_SIG_HMAT,
-+					     sizeof(struct acpi_table_hmat), i,
-+					     hmat_parse_subtable, 0) < 0)
-+			goto out_put;
-+	}
-+out_put:
-+	acpi_put_table(tbl);
-+	return 0;
-+}
-+subsys_initcall(hmat_init);
--- 
-2.14.4
++	if (!res) {
++		pr_debug("Unable to reserve System RAM region: %016llx->%016llx\n",
++				start, start + size);
+ 		return ERR_PTR(-EEXIST);
+ 	}
+ 	return res;
+_
