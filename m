@@ -1,107 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5708E0002
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 23:35:00 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id q62so3109632pgq.9
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 20:35:00 -0800 (PST)
-Received: from ipmail03.adl6.internode.on.net (ipmail03.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id m14si5079744pgd.326.2019.01.15.20.34.58
-        for <linux-mm@kvack.org>;
-        Tue, 15 Jan 2019 20:34:59 -0800 (PST)
-Date: Wed, 16 Jan 2019 15:34:55 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190116043455.GP4205@dastard>
-References: <20190114145447.GJ13316@quack2.suse.cz>
- <20190114172124.GA3702@redhat.com>
- <20190115080759.GC29524@quack2.suse.cz>
- <20190115171557.GB3696@redhat.com>
- <752839e6-6cb3-a6aa-94cb-63d3d4265934@nvidia.com>
- <20190115221205.GD3696@redhat.com>
- <99110c19-3168-f6a9-fbde-0a0e57f67279@nvidia.com>
- <20190116015610.GH3696@redhat.com>
- <CAPcyv4h2hX_CJ=Ffzip4YzryOX0NPo9yy+yDsSPnyp20xat94Q@mail.gmail.com>
- <20190116022312.GJ3696@redhat.com>
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 14C2C8E0002
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2019 23:55:12 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id v24-v6so1277290ljj.10
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 20:55:12 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v6-v6sor3713338ljh.37.2019.01.15.20.55.09
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 15 Jan 2019 20:55:09 -0800 (PST)
+Received: from mail-lf1-f48.google.com (mail-lf1-f48.google.com. [209.85.167.48])
+        by smtp.gmail.com with ESMTPSA id z64sm946035lff.39.2019.01.15.20.55.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Jan 2019 20:55:07 -0800 (PST)
+Received: by mail-lf1-f48.google.com with SMTP id v5so3829616lfe.7
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 20:55:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190116022312.GJ3696@redhat.com>
+References: <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+ <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
+ <20190111020340.GM27534@dastard> <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
+ <20190111040434.GN27534@dastard> <CAHk-=wh-kegfnPC_dmw0A72Sdk4B9tvce-cOR=jEfHDU1-4Eew@mail.gmail.com>
+ <20190111073606.GP27534@dastard> <CAHk-=wj+xyz_GKjgKpU6SF3qeqouGmRoR8uFxzg_c1VpeGEJMw@mail.gmail.com>
+ <20190115234510.GA6173@dastard>
+In-Reply-To: <20190115234510.GA6173@dastard>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 16 Jan 2019 16:54:49 +1200
+Message-ID: <CAHk-=wjc2inOae8+9-DK4jFK78-7ZpNR=TEyZg0Dj57SYwP-ng@mail.gmail.com>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Dominique Martinet <asmadeus@codewreck.org>, Jiri Kosina <jikos@kernel.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Tue, Jan 15, 2019 at 09:23:12PM -0500, Jerome Glisse wrote:
-> On Tue, Jan 15, 2019 at 06:01:09PM -0800, Dan Williams wrote:
-> > On Tue, Jan 15, 2019 at 5:56 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> > > On Tue, Jan 15, 2019 at 04:44:41PM -0800, John Hubbard wrote:
-> > [..]
-> > > To make it clear.
-> > >
-> > > Lock code:
-> > >     GUP()
-> > >         ...
-> > >         lock_page(page);
-> > >         if (PageWriteback(page)) {
-> > >             unlock_page(page);
-> > >             wait_stable_page(page);
-> > >             goto retry;
-> > >         }
-> > >         atomic_add(page->refcount, PAGE_PIN_BIAS);
-> > >         unlock_page(page);
-> > >
-> > >     test_set_page_writeback()
-> > >         bool pinned = false;
-> > >         ...
-> > >         pinned = page_is_pin(page); // could be after TestSetPageWriteback
-> > >         TestSetPageWriteback(page);
-> > >         ...
-> > >         return pinned;
-> > >
-> > > Memory barrier:
-> > >     GUP()
-> > >         ...
-> > >         atomic_add(page->refcount, PAGE_PIN_BIAS);
-> > >         smp_mb();
-> > >         if (PageWriteback(page)) {
-> > >             atomic_add(page->refcount, -PAGE_PIN_BIAS);
-> > >             wait_stable_page(page);
-> > >             goto retry;
-> > >         }
-> > >
-> > >     test_set_page_writeback()
-> > >         bool pinned = false;
-> > >         ...
-> > >         TestSetPageWriteback(page);
-> > >         smp_wmb();
-> > >         pinned = page_is_pin(page);
-> > >         ...
-> > >         return pinned;
-> > >
-> > >
-> > > One is not more complex than the other. One can contend, the other
-> > > will _never_ contend.
-> > 
-> > The complexity is in the validation of lockless algorithms. It's
-> > easier to reason about locks than barriers for the long term
-> > maintainability of this code. I'm with Jan and John on wanting to
-> > explore lock_page() before a barrier-based scheme.
-> 
-> How is the above hard to validate ?
+On Wed, Jan 16, 2019 at 11:45 AM Dave Chinner <david@fromorbit.com> wrote:
+>
+> I'm assuming that you can invalidate the page cache reliably by a
+> means that does not repeated require probing to detect invalidation
+> has occurred. I've mentioned one method in this discussion
+> already...
 
-Well, if you think it's so easy, then please write the test cases so
-we can add them to fstests and make sure that we don't break it in
-future.
+Yes. And it was made clear to you that it was a bug in xfs dio and
+what the right thing to do was.
 
-If you can't write filesystem test cases that exercise these race
-conditions reliably, then the answer to your question is "it is
-extremely hard to validate" and the correct thing to do is to start
-with the simple lock_page() based algorithm.
+And you ignored that, and claimed it was a feature.
 
-Premature optimisation in code this complex is something we really,
-really need to avoid.
+Why do you then bother arguing this thing? We absolutely agree that
+xfs has an information leak. If you don't care, just _say_ so. Don't
+try to argue against other people who are trying to fix things.
 
--Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+We can easily just say "ok, xfs people don't care", and ignore the xfs
+invalidation issue. That's fine.
+
+But don't try to make it a big deal for other filesystems that _don't_
+have the bug. I even pointed out how ext4 does the page cache flushing
+correcrly. You pooh-poohed it.
+
+You can't have it both ways.
+
+Either you care or you don't. If you don't care (and so far everything
+you said seems to imply you don't), then why are you even discussing
+this? Just admit you don't care, and we're done.
+
+                  Linus
