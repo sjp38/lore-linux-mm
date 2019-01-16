@@ -2,294 +2,347 @@ Return-Path: <SRS0=bSwl=PY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA2B0C43387
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 18:26:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37C9FC43387
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 20:23:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7486A206C2
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 18:26:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7486A206C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id AE59A20840
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 20:23:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE59A20840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 68D738E0017; Wed, 16 Jan 2019 13:25:46 -0500 (EST)
+	id 1524C8E0003; Wed, 16 Jan 2019 15:23:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6680A8E0004; Wed, 16 Jan 2019 13:25:46 -0500 (EST)
+	id 0DB688E0002; Wed, 16 Jan 2019 15:23:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 50D7E8E0017; Wed, 16 Jan 2019 13:25:46 -0500 (EST)
+	id EBFAA8E0003; Wed, 16 Jan 2019 15:23:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F05298E0004
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 13:25:45 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id q63so5262773pfi.19
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 10:25:45 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E7E28E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:23:09 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id v12so4518331plp.16
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 12:23:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :from:date:references:in-reply-to:message-id;
-        bh=zigwy9nXqDX3uU3GGBYYlKvactAnm1EGulzF+98tmsg=;
-        b=s42OYGMaAX/eKX5eRQPjVlcynph1QimF7koLVcDe4fxTMC4W3c3y4hMFFlkdLMlcO1
-         RBCtRwVaCyKyRlHXXMPZM9fKM4KbuQ+uoMuXgdRCWXi81suvxoj2XHxzClRFCASzkN2a
-         qudCET9lT4CULQ+c62V3IzxFviCCYbkbao/jziRqouKwyCSq7WTiWm7nznlXYFBpQ6Yn
-         kHVK1JIu+ESaiV9KXYDfJVmk9XoPBz5S/QLBKiipkW1nnhMi4KnqxHKrQH0r0NwoMI0m
-         IAYfHU4Vcp/5lVgaZpGS3dhGC1I15PxLhs19/dMUAytKse7psSqbZurYskq/gGTOEXKM
-         TKvA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUuke6MBnmQJE2BOBl9oNl9FOD43sslJdNyuZu70dKr/SQG9Iqe+5W
-	gUt8MQR5z6g5Uy0z9vV/4jTNPcc3cNsimevwSwrh8czQgSX+m3Eb1/uFBBEuQOpWr7wtGhFpZ3/
-	kyJDjQhm8AKtZonnwfCN+nY/6qqbc566avErVwUVzo22QcOCWLueiKWKVNsttQMdfAQ==
-X-Received: by 2002:a17:902:7296:: with SMTP id d22mr11411410pll.265.1547663145625;
-        Wed, 16 Jan 2019 10:25:45 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7nQLAxtMtu7Vy6Bu9+olAJx//+4cGwrdaDvsPUab3hGnGoCFzZxbAmFtCHEXq99LDQTfe6
-X-Received: by 2002:a17:902:7296:: with SMTP id d22mr11411351pll.265.1547663144722;
-        Wed, 16 Jan 2019 10:25:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547663144; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=v+ipKpMo6M8q2+RSB2xA7fA9fwIbuwTu9IiAK056aPo=;
+        b=ZbmkTz9KPOz5wrQJ1VPj3gLIcB9DBgRePSjyzDuFJ4egYLQChU5/UgQma7UE36VbRL
+         L94AIPrqMUEpntaRe5R1Bp86yynI3xKLIPJhJHtsygoiyNQFnY+HI/smWk44xO87lid/
+         6uQc8oDtbdl/WHJu69i5v5DeIwDh73B/JZ/kKu94I2VWDWKav3mNC5YV1iZyMjggkTFk
+         2sEI0HPeUoQZx7EzA0owHjpB9kPN8DVYENsnmftxVW1m0fjmkqR7nOVM6ZhsAoWneIeH
+         cVBJJn0lbbeL82sLB89+SvH7Xlc4OFLKy/NUdF+zcGtcer+wSWa1U5SkCd/jysSyauF7
+         tjTg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukc6+w5y/CGEaIbW+qmbQsLfq9t16ret6xmGywceMyABzlWer+y3
+	YFED3c01GMZhRmTF1ElNEkPACIZLwzuCmRJthU+WeMBb+2G1nVGmTvA7nHOj9yaQcvQ4H5BTWnA
+	25Rw64v1T4YH3urcYWAjBthSNUemr1sugwrPISd2UrY0eYIor7u5VQYCKHUcEhWE=
+X-Received: by 2002:a17:902:583:: with SMTP id f3mr12002972plf.202.1547670188843;
+        Wed, 16 Jan 2019 12:23:08 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6hqVRe0Rvv0lRYU2b3KjF61HSeY+96AwW3vRUTslj3bVg9t+uCjvyqrV2X8b2mkOM6E+9A
+X-Received: by 2002:a17:902:583:: with SMTP id f3mr12002891plf.202.1547670187868;
+        Wed, 16 Jan 2019 12:23:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547670187; cv=none;
         d=google.com; s=arc-20160816;
-        b=k/V9RkjysvE1qJtJpMBHNSe9TX/n7T3w5xqUgc4CD5NKR20StONZEVxhXqgBB0qC0I
-         rwl2E8Pp79wKgUYym6ZHaQyu1uc5pYvfWvcLH1VxxPcksecfk0mKBMeSWKq4DGmAMFa5
-         8myC3nJqPf8OyDPuo9/jhB6mA0o807AXHN/rqoUbis00COy65Ncyl3Vi/f0S9ymCTZ+8
-         FDv1NMbKKq4EQvdq9aOuBQTLbZvSUM5kWRF6HQFfdg+3BQRhOn8JTEWf4NlAuz0MBod7
-         GzKTEo2e9QIfdI2AwV07Uvd6GLR1YC/b7UJq8dASB8iGYI6giJW6PfhWNIw32hKu9qLj
-         sTyQ==
+        b=q2TCmXcspMgpNBDVh0HeSAs8VPaV8srfittaLD1zYaMIa3WnJ6QrAy4OFJaYqYcv9l
+         BaWAEzqpvgb/kGwJi03CZ6xATvmTneEmX/1GXezsPRTJfB1rXfikUGIOGHh/AeYwf9m3
+         VzXcHsci8i00me5cPnELI9BEjXsAzniwIh06VxMQDuidJN9JPhUXGrjPkHSMYCJpNRBh
+         YkslNutNDuroqWlG0hRC8C33WG3LCve2A3JbNfrfh14Vlx0M5/qx2oDbvS11LUqxNrXt
+         pzg1nqZ6KlmXgngfrLrGBQ7EwHIfjCzqiaSLWSxk7g0HOlun8lSTh+7igArGJgb6uYRv
+         2ymg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:in-reply-to:references:date:from:cc:to:subject;
-        bh=zigwy9nXqDX3uU3GGBYYlKvactAnm1EGulzF+98tmsg=;
-        b=xrc3Fr8lEyzqrVUX6sWRsNErXMz+yS3rMKCYl0hI0M8aeCz1jEsnylcwvime6fSVzR
-         xqvmdJc0FsDfewdNjnJPHfrn5eZA9jeUXmCwQzg/aTcdq8tMX4lK7jKRWnPxsm4zXFS7
-         53/YrI6OKEafPvTSVfR85pc86eyy8T+V+OTENJX0BemkU/xyABr72kyNMAN+GdoecIbv
-         PbUQcThHchWTiBtTZs6RxCny42Ubh1SpPZXjsSB+yjehtUdbimhTPgiipBAWvgXNnvcu
-         pY8zCjB/8z1OSq53Sr/gUAeqhCWaL6s5spMat/7S4BLNhbUaIreIPQVLjrYrZlqxQN++
-         P2CQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=v+ipKpMo6M8q2+RSB2xA7fA9fwIbuwTu9IiAK056aPo=;
+        b=WDHpq/0h0PZ4/2LXdGjKxxWwoHGfreRd3M7omb+NvQOvoICzQJNiRJKiAhZ8F2FqEs
+         tUfvSabXWDKlfrXDiw/JyAj3SdbfkOfVTvSBazlMg4n4vV4BBkgB2ZK6LfcuBa6gMYYA
+         7HFqD200ZGMzCtVt7tdlmRqxzcBhBjZVIgRY7PBgXNj8z96JcnJJrn/EEtDRYv8pl0uL
+         T28FfI0xzVTJ34eZsGcc2yW0hOPDS52J+uUzuIjdJiPGvC0GdAUDpavKZByG+eLFKohc
+         Ozbv23PzNSxxPe2pumznHDgO1VrVHWu2G1IhkMBOqATx6EXZojsy/6LgspPJZJvWYZoY
+         nVrQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id e6si1674985pgd.428.2019.01.16.10.25.44
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i96si7280168plb.188.2019.01.16.12.23.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 10:25:44 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Wed, 16 Jan 2019 12:23:07 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 16 Jan 2019 10:25:42 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,487,1539673200"; 
-   d="scan'208";a="108759249"
-Received: from viggo.jf.intel.com (HELO localhost.localdomain) ([10.54.77.144])
-  by orsmga006.jf.intel.com with ESMTP; 16 Jan 2019 10:25:43 -0800
-Subject: [PATCH 4/4] dax: "Hotplug" persistent memory for use like normal RAM
-To: dave@sr71.net
-Cc: Dave Hansen <dave.hansen@linux.intel.com>,dan.j.williams@intel.com,dave.jiang@intel.com,zwisler@kernel.org,vishal.l.verma@intel.com,thomas.lendacky@amd.com,akpm@linux-foundation.org,mhocko@suse.com,linux-nvdimm@lists.01.org,linux-kernel@vger.kernel.org,linux-mm@kvack.org,ying.huang@intel.com,fengguang.wu@intel.com,bp@suse.de,bhelgaas@google.com,baiyaowei@cmss.chinamobile.com,tiwai@suse.de
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 16 Jan 2019 10:19:05 -0800
-References: <20190116181859.D1504459@viggo.jf.intel.com>
-In-Reply-To: <20190116181859.D1504459@viggo.jf.intel.com>
-Message-Id: <20190116181905.12E102B4@viggo.jf.intel.com>
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay1.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id AC756ADD7;
+	Wed, 16 Jan 2019 20:23:05 +0000 (UTC)
+Date: Wed, 16 Jan 2019 21:23:04 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+cc: Dominique Martinet <asmadeus@codewreck.org>, 
+    Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, 
+    Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
+    Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+    Greg KH <gregkh@linuxfoundation.org>, 
+    Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, 
+    Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, 
+    Linux API <linux-api@vger.kernel.org>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+In-Reply-To: <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
+Message-ID: <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm>
+References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com> <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com> <20190110122442.GA21216@nautica>
+ <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com> <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com> <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
+ <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com> <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com> <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
+ <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
+User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="1678380546-457690195-1547670185=:6626"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190116181905.fy-YgM4uwNcH0HfU4eMkPob0AbB02DErgOrdsNG-fZc@z>
+Message-ID: <20190116202304.Z5SPXY5F8jmn9jXeqvqFQsw3vY3Hgng-mLqOAsWBGnc@z>
 
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+--1678380546-457690195-1547670185=:6626
+Content-Type: text/plain; charset=US-ASCII
 
-Currently, a persistent memory region is "owned" by a device driver,
-either the "Direct DAX" or "Filesystem DAX" drivers.  These drivers
-allow applications to explicitly use persistent memory, generally
-by being modified to use special, new libraries.
+On Thu, 17 Jan 2019, Linus Torvalds wrote:
 
-However, this limits persistent memory use to applications which
-*have* been modified.  To make it more broadly usable, this driver
-"hotplugs" memory into the kernel, to be managed ad used just like
-normal RAM would be.
+> > So that seems to deal with mincore() in a reasonable way indeed.
+> >
+> > It doesn't unfortunately really solve the preadv2(RWF_NOWAIT), nor does it
+> > provide any good answer what to do about it, does it?
+> 
+> As I suggested earlier in the thread, the fix for RWF_NOWAIT might be
+> to just move the test down to after readahead.
 
-To make this work, management software must remove the device from
-being controlled by the "Device DAX" infrastructure:
+So I've done some basic smoke testing (~2 hours of LTP+xfstests) on the 
+kernel with the three topmost patches from
 
-	echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
-	echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+	https://git.kernel.org/pub/scm/linux/kernel/git/jikos/jikos.git/log/?h=pagecache-sidechannel
 
-and then bind it to this new driver:
+applied (also attaching to this mail), and no obvious breakage popped up.
 
-	echo -n dax0.0 > /sys/bus/dax/drivers/kmem/new_id
-	echo -n dax0.0 > /sys/bus/dax/drivers/kmem/bind
+So if noone sees any principal problem there, I'll happily submit it with 
+proper attribution etc.
 
-After this, there will be a number of new memory sections visible
-in sysfs that can be onlined, or that may get onlined by existing
-udev-initiated memory hotplug rules.
+Thanks,
 
-Note: this inherits any existing NUMA information for the newly-
-added memory from the persistent memory device that came from the
-firmware.  On Intel platforms, the firmware has guarantees that
-require each socket's persistent memory to be in a separate
-memory-only NUMA node.  That means that this patch is not expected
-to create NUMA nodes, but will simply hotplug memory into existing
-nodes.
+-- 
+Jiri Kosina
+SUSE Labs
 
-There is currently some metadata at the beginning of pmem regions.
-The section-size memory hotplug restrictions, plus this small
-reserved area can cause the "loss" of a section or two of capacity.
-This should be fixable in follow-on patches.  But, as a first step,
-losing 256MB of memory (worst case) out of hundreds of gigabytes
-is a good tradeoff vs. the required code to fix this up precisely.
+--1678380546-457690195-1547670185=:6626
+Content-Type: text/x-patch; name=0001-Revert-Change-mincore-to-count-mapped-pages-rather-t.patch
+Content-Transfer-Encoding: BASE64
+Content-ID: <nycvar.YFH.7.76.1901162123040.6626@cbobk.fhfr.pm>
+Content-Description: 
+Content-Disposition: attachment; filename=0001-Revert-Change-mincore-to-count-mapped-pages-rather-t.patch
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Jiang <dave.jiang@intel.com>
-Cc: Ross Zwisler <zwisler@kernel.org>
-Cc: Vishal Verma <vishal.l.verma@intel.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: linux-nvdimm@lists.01.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Bjorn Helgaas <bhelgaas@google.com>
-Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Cc: Takashi Iwai <tiwai@suse.de>
----
+RnJvbSBjYmY5MzgxZWVkNjc2NmNmZjViMDVmOWQ5NDhjMWQyMjVjYjNkNzhi
+IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
+PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjA6
+NTE6MzEgKzAxMDANClN1YmplY3Q6IFtQQVRDSCAxLzNdIFJldmVydCAiQ2hh
+bmdlIG1pbmNvcmUoKSB0byBjb3VudCAibWFwcGVkIiBwYWdlcyByYXRoZXIN
+CiB0aGFuICJjYWNoZWQiIHBhZ2VzIg0KDQpUaGlzIHJldmVydHMgY29tbWl0
+IDU3NDgyM2JmYWI4MmQ5ZDhmYTQ3ZjQyMjc3ODA0M2ZiYjRiNGY1MGUuDQoN
+CkFub3RoZXIgYXByb2FjaCAoY2hlY2tpbmcgZmlsZSBhY2Nlc3MgcGVybWlz
+c2lvbnMgaW4gb3JkZXIgdG8gZGVjaWRlDQp3aGF0IG1pbmNvcmUoKSBzaG91
+bGQgcmV0dXJuIGluIG9yZGVyIG5vdCB0byBsZWFrIGRhdGEpIHdpbGwgYmUg
+aW1wbGVtZW50ZWQNCmluc3RlYWQuDQoNClNpZ25lZC1vZmYtYnk6IEppcmkg
+S29zaW5hIDxqa29zaW5hQHN1c2UuY3o+DQotLS0NCiBtbS9taW5jb3JlLmMg
+fCA5NCArKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
+KysrKysrKysrKystLS0tLS0tLS0NCiAxIGZpbGUgY2hhbmdlZCwgODEgaW5z
+ZXJ0aW9ucygrKSwgMTMgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9t
+bS9taW5jb3JlLmMgYi9tbS9taW5jb3JlLmMNCmluZGV4IGYwZjkxNDYxYTlm
+NC4uMjE4MDk5YjVlZDMxIDEwMDY0NA0KLS0tIGEvbW0vbWluY29yZS5jDQor
+KysgYi9tbS9taW5jb3JlLmMNCkBAIC00MiwxNCArNDIsNzIgQEAgc3RhdGlj
+IGludCBtaW5jb3JlX2h1Z2V0bGIocHRlX3QgKnB0ZSwgdW5zaWduZWQgbG9u
+ZyBobWFzaywgdW5zaWduZWQgbG9uZyBhZGRyLA0KIAlyZXR1cm4gMDsNCiB9
+DQogDQotc3RhdGljIGludCBtaW5jb3JlX3VubWFwcGVkX3JhbmdlKHVuc2ln
+bmVkIGxvbmcgYWRkciwgdW5zaWduZWQgbG9uZyBlbmQsDQotCQkJCSAgIHN0
+cnVjdCBtbV93YWxrICp3YWxrKQ0KKy8qDQorICogTGF0ZXIgd2UgY2FuIGdl
+dCBtb3JlIHBpY2t5IGFib3V0IHdoYXQgImluIGNvcmUiIG1lYW5zIHByZWNp
+c2VseS4NCisgKiBGb3Igbm93LCBzaW1wbHkgY2hlY2sgdG8gc2VlIGlmIHRo
+ZSBwYWdlIGlzIGluIHRoZSBwYWdlIGNhY2hlLA0KKyAqIGFuZCBpcyB1cCB0
+byBkYXRlOyBpLmUuIHRoYXQgbm8gcGFnZS1pbiBvcGVyYXRpb24gd291bGQg
+YmUgcmVxdWlyZWQNCisgKiBhdCB0aGlzIHRpbWUgaWYgYW4gYXBwbGljYXRp
+b24gd2VyZSB0byBtYXAgYW5kIGFjY2VzcyB0aGlzIHBhZ2UuDQorICovDQor
+c3RhdGljIHVuc2lnbmVkIGNoYXIgbWluY29yZV9wYWdlKHN0cnVjdCBhZGRy
+ZXNzX3NwYWNlICptYXBwaW5nLCBwZ29mZl90IHBnb2ZmKQ0KK3sNCisJdW5z
+aWduZWQgY2hhciBwcmVzZW50ID0gMDsNCisJc3RydWN0IHBhZ2UgKnBhZ2U7
+DQorDQorCS8qDQorCSAqIFdoZW4gdG1wZnMgc3dhcHMgb3V0IGEgcGFnZSBm
+cm9tIGEgZmlsZSwgYW55IHByb2Nlc3MgbWFwcGluZyB0aGF0DQorCSAqIGZp
+bGUgd2lsbCBub3QgZ2V0IGEgc3dwX2VudHJ5X3QgaW4gaXRzIHB0ZSwgYnV0
+IHJhdGhlciBpdCBpcyBsaWtlDQorCSAqIGFueSBvdGhlciBmaWxlIG1hcHBp
+bmcgKGllLiBtYXJrZWQgIXByZXNlbnQgYW5kIGZhdWx0ZWQgaW4gd2l0aA0K
+KwkgKiB0bXBmcydzIC5mYXVsdCkuIFNvIHN3YXBwZWQgb3V0IHRtcGZzIG1h
+cHBpbmdzIGFyZSB0ZXN0ZWQgaGVyZS4NCisJICovDQorI2lmZGVmIENPTkZJ
+R19TV0FQDQorCWlmIChzaG1lbV9tYXBwaW5nKG1hcHBpbmcpKSB7DQorCQlw
+YWdlID0gZmluZF9nZXRfZW50cnkobWFwcGluZywgcGdvZmYpOw0KKwkJLyoN
+CisJCSAqIHNobWVtL3RtcGZzIG1heSByZXR1cm4gc3dhcDogYWNjb3VudCBm
+b3Igc3dhcGNhY2hlDQorCQkgKiBwYWdlIHRvby4NCisJCSAqLw0KKwkJaWYg
+KHhhX2lzX3ZhbHVlKHBhZ2UpKSB7DQorCQkJc3dwX2VudHJ5X3Qgc3dwID0g
+cmFkaXhfdG9fc3dwX2VudHJ5KHBhZ2UpOw0KKwkJCXBhZ2UgPSBmaW5kX2dl
+dF9wYWdlKHN3YXBfYWRkcmVzc19zcGFjZShzd3ApLA0KKwkJCQkJICAgICBz
+d3Bfb2Zmc2V0KHN3cCkpOw0KKwkJfQ0KKwl9IGVsc2UNCisJCXBhZ2UgPSBm
+aW5kX2dldF9wYWdlKG1hcHBpbmcsIHBnb2ZmKTsNCisjZWxzZQ0KKwlwYWdl
+ID0gZmluZF9nZXRfcGFnZShtYXBwaW5nLCBwZ29mZik7DQorI2VuZGlmDQor
+CWlmIChwYWdlKSB7DQorCQlwcmVzZW50ID0gUGFnZVVwdG9kYXRlKHBhZ2Up
+Ow0KKwkJcHV0X3BhZ2UocGFnZSk7DQorCX0NCisNCisJcmV0dXJuIHByZXNl
+bnQ7DQorfQ0KKw0KK3N0YXRpYyBpbnQgX19taW5jb3JlX3VubWFwcGVkX3Jh
+bmdlKHVuc2lnbmVkIGxvbmcgYWRkciwgdW5zaWduZWQgbG9uZyBlbmQsDQor
+CQkJCXN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hLCB1bnNpZ25lZCBjaGFy
+ICp2ZWMpDQogew0KLQl1bnNpZ25lZCBjaGFyICp2ZWMgPSB3YWxrLT5wcml2
+YXRlOw0KIAl1bnNpZ25lZCBsb25nIG5yID0gKGVuZCAtIGFkZHIpID4+IFBB
+R0VfU0hJRlQ7DQorCWludCBpOw0KIA0KLQltZW1zZXQodmVjLCAwLCBucik7
+DQotCXdhbGstPnByaXZhdGUgKz0gbnI7DQorCWlmICh2bWEtPnZtX2ZpbGUp
+IHsNCisJCXBnb2ZmX3QgcGdvZmY7DQorDQorCQlwZ29mZiA9IGxpbmVhcl9w
+YWdlX2luZGV4KHZtYSwgYWRkcik7DQorCQlmb3IgKGkgPSAwOyBpIDwgbnI7
+IGkrKywgcGdvZmYrKykNCisJCQl2ZWNbaV0gPSBtaW5jb3JlX3BhZ2Uodm1h
+LT52bV9maWxlLT5mX21hcHBpbmcsIHBnb2ZmKTsNCisJfSBlbHNlIHsNCisJ
+CWZvciAoaSA9IDA7IGkgPCBucjsgaSsrKQ0KKwkJCXZlY1tpXSA9IDA7DQor
+CX0NCisJcmV0dXJuIG5yOw0KK30NCisNCitzdGF0aWMgaW50IG1pbmNvcmVf
+dW5tYXBwZWRfcmFuZ2UodW5zaWduZWQgbG9uZyBhZGRyLCB1bnNpZ25lZCBs
+b25nIGVuZCwNCisJCQkJICAgc3RydWN0IG1tX3dhbGsgKndhbGspDQorew0K
+Kwl3YWxrLT5wcml2YXRlICs9IF9fbWluY29yZV91bm1hcHBlZF9yYW5nZShh
+ZGRyLCBlbmQsDQorCQkJCQkJICB3YWxrLT52bWEsIHdhbGstPnByaXZhdGUp
+Ow0KIAlyZXR1cm4gMDsNCiB9DQogDQpAQCAtNjksOSArMTI3LDggQEAgc3Rh
+dGljIGludCBtaW5jb3JlX3B0ZV9yYW5nZShwbWRfdCAqcG1kLCB1bnNpZ25l
+ZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLA0KIAkJZ290byBvdXQ7
+DQogCX0NCiANCi0JLyogV2UnbGwgY29uc2lkZXIgYSBUSFAgcGFnZSB1bmRl
+ciBjb25zdHJ1Y3Rpb24gdG8gYmUgdGhlcmUgKi8NCiAJaWYgKHBtZF90cmFu
+c191bnN0YWJsZShwbWQpKSB7DQotCQltZW1zZXQodmVjLCAxLCBucik7DQor
+CQlfX21pbmNvcmVfdW5tYXBwZWRfcmFuZ2UoYWRkciwgZW5kLCB2bWEsIHZl
+Yyk7DQogCQlnb3RvIG91dDsNCiAJfQ0KIA0KQEAgLTgwLDE3ICsxMzcsMjgg
+QEAgc3RhdGljIGludCBtaW5jb3JlX3B0ZV9yYW5nZShwbWRfdCAqcG1kLCB1
+bnNpZ25lZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLA0KIAkJcHRl
+X3QgcHRlID0gKnB0ZXA7DQogDQogCQlpZiAocHRlX25vbmUocHRlKSkNCi0J
+CQkqdmVjID0gMDsNCisJCQlfX21pbmNvcmVfdW5tYXBwZWRfcmFuZ2UoYWRk
+ciwgYWRkciArIFBBR0VfU0laRSwNCisJCQkJCQkgdm1hLCB2ZWMpOw0KIAkJ
+ZWxzZSBpZiAocHRlX3ByZXNlbnQocHRlKSkNCiAJCQkqdmVjID0gMTsNCiAJ
+CWVsc2UgeyAvKiBwdGUgaXMgYSBzd2FwIGVudHJ5ICovDQogCQkJc3dwX2Vu
+dHJ5X3QgZW50cnkgPSBwdGVfdG9fc3dwX2VudHJ5KHB0ZSk7DQogDQotCQkJ
+LyoNCi0JCQkgKiBtaWdyYXRpb24gb3IgaHdwb2lzb24gZW50cmllcyBhcmUg
+YWx3YXlzDQotCQkJICogdXB0b2RhdGUNCi0JCQkgKi8NCi0JCQkqdmVjID0g
+ISFub25fc3dhcF9lbnRyeShlbnRyeSk7DQorCQkJaWYgKG5vbl9zd2FwX2Vu
+dHJ5KGVudHJ5KSkgew0KKwkJCQkvKg0KKwkJCQkgKiBtaWdyYXRpb24gb3Ig
+aHdwb2lzb24gZW50cmllcyBhcmUgYWx3YXlzDQorCQkJCSAqIHVwdG9kYXRl
+DQorCQkJCSAqLw0KKwkJCQkqdmVjID0gMTsNCisJCQl9IGVsc2Ugew0KKyNp
+ZmRlZiBDT05GSUdfU1dBUA0KKwkJCQkqdmVjID0gbWluY29yZV9wYWdlKHN3
+YXBfYWRkcmVzc19zcGFjZShlbnRyeSksDQorCQkJCQkJICAgIHN3cF9vZmZz
+ZXQoZW50cnkpKTsNCisjZWxzZQ0KKwkJCQlXQVJOX09OKDEpOw0KKwkJCQkq
+dmVjID0gMTsNCisjZW5kaWYNCisJCQl9DQogCQl9DQogCQl2ZWMrKzsNCiAJ
+fQ0KLS0gDQoyLjEyLjMNCg0K
 
- b/drivers/dax/Kconfig  |    5 ++
- b/drivers/dax/Makefile |    1 
- b/drivers/dax/kmem.c   |   93 +++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 99 insertions(+)
+--1678380546-457690195-1547670185=:6626
+Content-Type: text/x-patch; name=0002-mm-mincore-make-mincore-more-conservative.patch
+Content-Transfer-Encoding: BASE64
+Content-ID: <nycvar.YFH.7.76.1901162123041.6626@cbobk.fhfr.pm>
+Content-Description: 
+Content-Disposition: attachment; filename=0002-mm-mincore-make-mincore-more-conservative.patch
 
-diff -puN drivers/dax/Kconfig~dax-kmem-try-4 drivers/dax/Kconfig
---- a/drivers/dax/Kconfig~dax-kmem-try-4	2019-01-08 09:54:44.051694874 -0800
-+++ b/drivers/dax/Kconfig	2019-01-08 09:54:44.056694874 -0800
-@@ -32,6 +32,11 @@ config DEV_DAX_PMEM
- 
- 	  Say M if unsure
- 
-+config DEV_DAX_KMEM
-+	def_bool y
-+	depends on DEV_DAX_PMEM   # Needs DEV_DAX_PMEM infrastructure
-+	depends on MEMORY_HOTPLUG # for add_memory() and friends
-+
- config DEV_DAX_PMEM_COMPAT
- 	tristate "PMEM DAX: support the deprecated /sys/class/dax interface"
- 	depends on DEV_DAX_PMEM
-diff -puN /dev/null drivers/dax/kmem.c
---- /dev/null	2018-12-03 08:41:47.355756491 -0800
-+++ b/drivers/dax/kmem.c	2019-01-08 09:54:44.056694874 -0800
-@@ -0,0 +1,93 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/* Copyright(c) 2016-2018 Intel Corporation. All rights reserved. */
-+#include <linux/memremap.h>
-+#include <linux/pagemap.h>
-+#include <linux/memory.h>
-+#include <linux/module.h>
-+#include <linux/device.h>
-+#include <linux/pfn_t.h>
-+#include <linux/slab.h>
-+#include <linux/dax.h>
-+#include <linux/fs.h>
-+#include <linux/mm.h>
-+#include <linux/mman.h>
-+#include "dax-private.h"
-+#include "bus.h"
-+
-+int dev_dax_kmem_probe(struct device *dev)
-+{
-+	struct dev_dax *dev_dax = to_dev_dax(dev);
-+	struct resource *res = &dev_dax->region->res;
-+	resource_size_t kmem_start;
-+	resource_size_t kmem_size;
-+	struct resource *new_res;
-+	int numa_node;
-+	int rc;
-+
-+	/* Hotplug starting at the beginning of the next block: */
-+	kmem_start = ALIGN(res->start, memory_block_size_bytes());
-+
-+	kmem_size = resource_size(res);
-+	/* Adjust the size down to compensate for moving up kmem_start: */
-+        kmem_size -= kmem_start - res->start;
-+	/* Align the size down to cover only complete blocks: */
-+	kmem_size &= ~(memory_block_size_bytes() - 1);
-+
-+	new_res = devm_request_mem_region(dev, kmem_start, kmem_size,
-+					  dev_name(dev));
-+
-+	if (!new_res) {
-+		printk("could not reserve region %016llx -> %016llx\n",
-+				kmem_start, kmem_start+kmem_size);
-+		return -EBUSY;
-+	}
-+
-+	/*
-+	 * Set flags appropriate for System RAM.  Leave ..._BUSY clear
-+	 * so that add_memory() can add a child resource.
-+	 */
-+	new_res->flags = IORESOURCE_SYSTEM_RAM;
-+	new_res->name = dev_name(dev);
-+
-+	numa_node = dev_dax->target_node;
-+	if (numa_node < 0) {
-+		pr_warn_once("bad numa_node: %d, forcing to 0\n", numa_node);
-+		numa_node = 0;
-+	}
-+
-+	rc = add_memory(numa_node, new_res->start, resource_size(new_res));
-+	if (rc)
-+		return rc;
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(dev_dax_kmem_probe);
-+
-+static int dev_dax_kmem_remove(struct device *dev)
-+{
-+	/* Assume that hot-remove will fail for now */
-+	return -EBUSY;
-+}
-+
-+static struct dax_device_driver device_dax_kmem_driver = {
-+	.drv = {
-+		.probe = dev_dax_kmem_probe,
-+		.remove = dev_dax_kmem_remove,
-+	},
-+};
-+
-+static int __init dax_kmem_init(void)
-+{
-+	return dax_driver_register(&device_dax_kmem_driver);
-+}
-+
-+static void __exit dax_kmem_exit(void)
-+{
-+	dax_driver_unregister(&device_dax_kmem_driver);
-+}
-+
-+MODULE_AUTHOR("Intel Corporation");
-+MODULE_LICENSE("GPL v2");
-+module_init(dax_kmem_init);
-+module_exit(dax_kmem_exit);
-+MODULE_ALIAS_DAX_DEVICE(0);
-diff -puN drivers/dax/Makefile~dax-kmem-try-4 drivers/dax/Makefile
---- a/drivers/dax/Makefile~dax-kmem-try-4	2019-01-08 09:54:44.053694874 -0800
-+++ b/drivers/dax/Makefile	2019-01-08 09:54:44.056694874 -0800
-@@ -1,6 +1,7 @@
- # SPDX-License-Identifier: GPL-2.0
- obj-$(CONFIG_DAX) += dax.o
- obj-$(CONFIG_DEV_DAX) += device_dax.o
-+obj-$(CONFIG_DEV_DAX_KMEM) += kmem.o
- 
- dax-y := super.o
- dax-y += bus.o
-_
+RnJvbSBjYTAyYTAyNmY0MGRmYWViYzI5YzI5ZWRkOWM5OTJhMGZmMTAwNzVl
+IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
+PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjA6
+NTM6MTcgKzAxMDANClN1YmplY3Q6IFtQQVRDSCAyLzNdIG1tL21pbmNvcmU6
+IG1ha2UgbWluY29yZSgpIG1vcmUgY29uc2VydmF0aXZlDQoNClRoZSBzZW1h
+bnRpY3Mgb2Ygd2hhdCBtaW5jb3JlKCkgY29uc2lkZXJzIHRvIGJlIHJlc2lk
+ZW50IGlzIG5vdCBjb21wbGV0ZWx5DQpjbGVhcmFyLCBidXQgTGludXggaGFz
+IGFsd2F5cyAoc2luY2UgMi4zLjUyLCB3aGljaCBpcyB3aGVuIG1pbmNvcmUo
+KSB3YXMNCmluaXRpYWxseSBkb25lKSB0cmVhdGVkIGl0IGFzICJwYWdlIGlz
+IGF2YWlsYWJsZSBpbiBwYWdlIGNhY2hlIi4NCg0KVGhhdCdzIHBvdGVudGlh
+bGx5IGEgcHJvYmxlbSwgYXMgdGhhdCBbaW5dZGlyZWN0bHkgZXhwb3NlcyBt
+ZXRhLWluZm9ybWF0aW9uDQphYm91dCBwYWdlY2FjaGUgLyBtZW1vcnkgbWFw
+cGluZyBzdGF0ZSBldmVuIGFib3V0IG1lbW9yeSBub3Qgc3RyaWN0bHkgYmVs
+b25naW5nDQp0byB0aGUgcHJvY2VzcyBleGVjdXRpbmcgdGhlIHN5c2NhbGws
+IG9wZW5pbmcgcG9zc2liaWxpdGllcyBmb3Igc2lkZWNoYW5uZWwNCmF0dGFj
+a3MuDQoNCkNoYW5nZSB0aGUgc2VtYW50aWNzIG9mIG1pbmNvcmUoKSBzbyB0
+aGF0IGl0IG9ubHkgcmV2ZWFscyBwYWdlY2FjaGUgaW5mb3JtYXRpb24NCmZv
+ciBub24tYW5vbnltb3VzIG1hcHBpbmdzIHRoYXQgYmVsb2cgdG8gZmlsZXMg
+dGhhdCB0aGUgY2FsbGluZyBwcm9jZXNzIGNvdWxkDQooaWYgaXQgdHJpZWQg
+dG8pIHN1Y2Nlc3NmdWxseSBvcGVuIGZvciB3cml0aW5nLg0KDQpPcmlnaW5h
+bGx5LWJ5OiBMaW51cyBUb3J2YWxkcyA8dG9ydmFsZHNAbGludXgtZm91bmRh
+dGlvbi5vcmc+DQpPcmlnaW5hbGx5LWJ5OiBEb21pbmlxdWUgTWFydGluZXQg
+PGFzbWFkZXVzQGNvZGV3cmVjay5vcmc+DQpTaWduZWQtb2ZmLWJ5OiBKaXJp
+IEtvc2luYSA8amtvc2luYUBzdXNlLmN6Pg0KLS0tDQogbW0vbWluY29yZS5j
+IHwgMTQgKysrKysrKysrKysrKy0NCiAxIGZpbGUgY2hhbmdlZCwgMTMgaW5z
+ZXJ0aW9ucygrKSwgMSBkZWxldGlvbigtKQ0KDQpkaWZmIC0tZ2l0IGEvbW0v
+bWluY29yZS5jIGIvbW0vbWluY29yZS5jDQppbmRleCAyMTgwOTliNWVkMzEu
+LjExZWQ3MDY0ZjRlYiAxMDA2NDQNCi0tLSBhL21tL21pbmNvcmUuYw0KKysr
+IGIvbW0vbWluY29yZS5jDQpAQCAtMTY5LDYgKzE2OSwxMyBAQCBzdGF0aWMg
+aW50IG1pbmNvcmVfcHRlX3JhbmdlKHBtZF90ICpwbWQsIHVuc2lnbmVkIGxv
+bmcgYWRkciwgdW5zaWduZWQgbG9uZyBlbmQsDQogCXJldHVybiAwOw0KIH0N
+CiANCitzdGF0aWMgaW5saW5lIGJvb2wgY2FuX2RvX21pbmNvcmUoc3RydWN0
+IHZtX2FyZWFfc3RydWN0ICp2bWEpDQorew0KKwlyZXR1cm4gdm1hX2lzX2Fu
+b255bW91cyh2bWEpDQorCQl8fCAodm1hLT52bV9maWxlICYmICh2bWEtPnZt
+X2ZpbGUtPmZfbW9kZSAmIEZNT0RFX1dSSVRFKSkNCisJCXx8IGlub2RlX3Bl
+cm1pc3Npb24oZmlsZV9pbm9kZSh2bWEtPnZtX2ZpbGUpLCBNQVlfV1JJVEUp
+ID09IDA7DQorfQ0KKw0KIC8qDQogICogRG8gYSBjaHVuayBvZiAic3lzX21p
+bmNvcmUoKSIuIFdlJ3ZlIGFscmVhZHkgY2hlY2tlZA0KICAqIGFsbCB0aGUg
+YXJndW1lbnRzLCB3ZSBob2xkIHRoZSBtbWFwIHNlbWFwaG9yZTogd2Ugc2hv
+dWxkDQpAQCAtMTg5LDggKzE5NiwxMyBAQCBzdGF0aWMgbG9uZyBkb19taW5j
+b3JlKHVuc2lnbmVkIGxvbmcgYWRkciwgdW5zaWduZWQgbG9uZyBwYWdlcywg
+dW5zaWduZWQgY2hhciAqdg0KIAl2bWEgPSBmaW5kX3ZtYShjdXJyZW50LT5t
+bSwgYWRkcik7DQogCWlmICghdm1hIHx8IGFkZHIgPCB2bWEtPnZtX3N0YXJ0
+KQ0KIAkJcmV0dXJuIC1FTk9NRU07DQotCW1pbmNvcmVfd2Fsay5tbSA9IHZt
+YS0+dm1fbW07DQogCWVuZCA9IG1pbih2bWEtPnZtX2VuZCwgYWRkciArIChw
+YWdlcyA8PCBQQUdFX1NISUZUKSk7DQorCWlmICghY2FuX2RvX21pbmNvcmUo
+dm1hKSkgew0KKwkJdW5zaWduZWQgbG9uZyBwYWdlcyA9IChlbmQgLSBhZGRy
+KSA+PiBQQUdFX1NISUZUOw0KKwkJbWVtc2V0KHZlYywgMSwgcGFnZXMpOw0K
+KwkJcmV0dXJuIHBhZ2VzOw0KKwl9DQorCW1pbmNvcmVfd2Fsay5tbSA9IHZt
+YS0+dm1fbW07DQogCWVyciA9IHdhbGtfcGFnZV9yYW5nZShhZGRyLCBlbmQs
+ICZtaW5jb3JlX3dhbGspOw0KIAlpZiAoZXJyIDwgMCkNCiAJCXJldHVybiBl
+cnI7DQotLSANCjIuMTIuMw0KDQo=
+
+--1678380546-457690195-1547670185=:6626
+Content-Type: text/x-patch; name=0003-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
+Content-Transfer-Encoding: BASE64
+Content-ID: <nycvar.YFH.7.76.1901162123042.6626@cbobk.fhfr.pm>
+Content-Description: 
+Content-Disposition: attachment; filename=0003-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
+
+RnJvbSBlNzc2NWYzMTdhZmIxOTNhZGI0YmEwMGQ4MTI1MTY4NjE5MWNiZjRi
+IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
+PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjE6
+MDY6NTggKzAxMDANClN1YmplY3Q6IFtQQVRDSCAzLzNdIG1tL2ZpbGVtYXA6
+IGluaXRpYXRlIHJlYWRhaGVhZCBldmVuIGlmIElPQ0JfTk9XQUlUIGlzIHNl
+dA0KIGZvciB0aGUgSS9PDQoNCnByZWFkdjIoUldGX05PV0FJVCkgY2FuIGJl
+IHVzZWQgdG8gb3BlbiBhIHNpZGUtY2hhbm5lbCB0byBwYWdlY2FjaGUgY29u
+dGVudHMsIGFzDQppdCByZXZlYWxzIG1ldGFkYXRhIGFib3V0IHJlc2lkZW5j
+eSBvZiBwYWdlcyBpbiBwYWdlY2FjaGUuDQoNCklmIHByZWFkdjIoUldGX05P
+V0FJVCkgcmV0dXJucyBpbW1lZGlhdGVseSwgaXQgcHJvdmlkZXMgYSBjbGVh
+ciAicGFnZSBub3QNCnJlc2lkZW50IiBpbmZvcm1hdGlvbiwgYW5kIHZpY2Ug
+dmVyc2EuDQoNCkNsb3NlIHRoYXQgc2lkZWNoYW5uZWwgYnkgYWx3YXlzIGlu
+aXRpYXRpbmcgcmVhZGFoZWFkIG9uIHRoZSBjYWNoZSBpZiB3ZQ0KZW5jb3Vu
+dGVyIGEgY2FjaGUgbWlzcyBmb3IgcHJlYWR2MihSV0ZfTk9XQUlUKTsgd2l0
+aCB0aGF0IGluIHBsYWNlLCBwcm9iaW5nDQp0aGUgcGFnZWNhY2hlIHJlc2lk
+ZW5jeSBpdHNlbGYgd2lsbCBhY3R1YWxseSBwb3B1bGF0ZSB0aGUgY2FjaGUs
+IG1ha2luZyB0aGUNCnNpZGVjaGFubmVsIHVzZWxlc3MuDQoNCk9yaWdpbmFs
+bHktYnk6IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51eC1mb3VuZGF0
+aW9uLm9yZz4NClNpZ25lZC1vZmYtYnk6IEppcmkgS29zaW5hIDxqa29zaW5h
+QHN1c2UuY3o+DQotLS0NCiBtbS9maWxlbWFwLmMgfCAyIC0tDQogMSBmaWxl
+IGNoYW5nZWQsIDIgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9m
+aWxlbWFwLmMgYi9tbS9maWxlbWFwLmMNCmluZGV4IDlmNWUzMjNlODgzZS4u
+N2JjZGQzNmU2MjlkIDEwMDY0NA0KLS0tIGEvbW0vZmlsZW1hcC5jDQorKysg
+Yi9tbS9maWxlbWFwLmMNCkBAIC0yMDc1LDggKzIwNzUsNiBAQCBzdGF0aWMg
+c3NpemVfdCBnZW5lcmljX2ZpbGVfYnVmZmVyZWRfcmVhZChzdHJ1Y3Qga2lv
+Y2IgKmlvY2IsDQogDQogCQlwYWdlID0gZmluZF9nZXRfcGFnZShtYXBwaW5n
+LCBpbmRleCk7DQogCQlpZiAoIXBhZ2UpIHsNCi0JCQlpZiAoaW9jYi0+a2lf
+ZmxhZ3MgJiBJT0NCX05PV0FJVCkNCi0JCQkJZ290byB3b3VsZF9ibG9jazsN
+CiAJCQlwYWdlX2NhY2hlX3N5bmNfcmVhZGFoZWFkKG1hcHBpbmcsDQogCQkJ
+CQlyYSwgZmlscCwNCiAJCQkJCWluZGV4LCBsYXN0X2luZGV4IC0gaW5kZXgp
+Ow0KLS0gDQoyLjEyLjMNCg0K
+
+--1678380546-457690195-1547670185=:6626--
 
