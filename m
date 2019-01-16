@@ -6,120 +6,117 @@ X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DAA7C43612
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 05:34:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5F36C43387
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 05:50:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CD9442082F
-	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 05:34:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5C51220840
+	for <linux-mm@archiver.kernel.org>; Wed, 16 Jan 2019 05:50:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="dMA7vAKe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD9442082F
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Cm8s3Ol6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C51220840
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B1018E0003; Wed, 16 Jan 2019 00:34:23 -0500 (EST)
+	id E42BF8E0005; Wed, 16 Jan 2019 00:50:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 635FB8E0002; Wed, 16 Jan 2019 00:34:23 -0500 (EST)
+	id DF1E98E0002; Wed, 16 Jan 2019 00:50:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D8C68E0003; Wed, 16 Jan 2019 00:34:23 -0500 (EST)
+	id D08198E0005; Wed, 16 Jan 2019 00:50:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D25B98E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 00:34:22 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id v74-v6so1299496lje.6
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:34:22 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 662118E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 00:50:08 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id z5-v6so1310159ljb.13
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:50:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=LDxDttklbhpkSSFdds0eF04wkYvET9AjjK+yF2ZuPzE=;
-        b=Ca6NW6vuhNksHa8nO1taoE87b86ANZfauwJSjyLOP265wu6z0YXauM5SViTiqVkfzZ
-         D/Zezfn1Scu/la9w8t3hJQ58zU3nAsPwKkWTi9DPt6K5gbMppZojaeZHWC15u/AHsmPA
-         7SppfH9NxQawNXZ8/jVR5Hp83Wfh81mftaqZ5C3KK6Ah/2GnP8PY9/WyT7xoVwTNq2lL
-         TvTrai7TLkgJFMTtNVK63iYZykG+B/nquReYUo+iZ1uz1AZ//z31tbhPCcLEcA3bownQ
-         pIHBqjyNmtvy76vCulLhSRtVpa+y0IfTo84xTnhvqVD8VardzZrAQABMbsJTFKfK9sHS
-         I3bw==
-X-Gm-Message-State: AJcUukfveSpu66agJXmkRw08B+OBxx+rn7FySLslqqIB3Tac2aF3ip4c
-	UsCI9MLhryy61/jtbfCwUttvqAeH+Ujx8s2K3FH3gyL1Vqyk2qGsli8RXAdCVf3CsbNefI/t4gv
-	OhzlDc5DbiJTCxQKKUd95/wi0mZskJbZgbvx5iP4NnV6Yr+Ha2ej7MF5QRjfZPmrGM7YojtPKki
-	TR0wDcabJJgbnJ1mjAWPHiAyGKnadiCab7hcKOshDdh8l8ZU3fBVtyTErsAjOiucZ0Z/IN6rHs8
-	0T21WRjtc5S+HtkjD/reJ8bzEXhsfHCVEqZjpHDFYcQUOWTAr3o6fnf4SYT/WETgoeAkQtR0zKv
-	e3naqcwMeGQwrEeHe1efc1Uvm20dsMeSUvI3N5x670jDUVpRVsaoZdFtCssfxo7BfisHd2uJLrC
-	m
-X-Received: by 2002:a2e:6595:: with SMTP id e21-v6mr5520217ljf.123.1547616862052;
-        Tue, 15 Jan 2019 21:34:22 -0800 (PST)
-X-Received: by 2002:a2e:6595:: with SMTP id e21-v6mr5520172ljf.123.1547616861006;
-        Tue, 15 Jan 2019 21:34:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547616861; cv=none;
+        bh=VZ1+S4udBrUGqA2qKTo5GfQAEHGyi6IpM7GyhEi/87Q=;
+        b=qjBHDBJmS0Fy4HT2wZrmUk1fx7712MTlz4+CCE0AFG3zWSLKkvoTKALOc6CgNzjsla
+         EjyLAgzQ/axCwhawcWWkWY4osOd5fwlOkPeOWSxxchlCWK3EWNr6n2eWXxK+bjACiZgj
+         /Pf8/654xOtzY7baxR8bHvG3uMr2uL4HfTvkqXwY2d6+/FsW0SQ/xi2lAPcfxFetLX2l
+         Ymf8cu9W7/lGl87S/FTUGM0YubUNM7yt+gVsl2Mt91lRR63DxCv94NB9vKhzY7aOsOb1
+         EekIS8edyXgnX3RInQaGwNGfrC1vQkypoLvtxyyOMIm/vC3snbrM2gSjpS7jHjbYtnbY
+         aEsg==
+X-Gm-Message-State: AJcUukejd2Q+VCZk3sXx5GwEiWrtAsSHPO1GSYFlfviJZeP0dXrYISIC
+	OmAzy7oOtk6heWzfy0dQ4dnP44BN5Bdll2/9GGWKl6JEmMQUCvPxHLPpPV0Vxky9jcX4fcmIuCI
+	0cBYd485/SBehQc9oE8ZV7qTHwgMx+eETJBhx1onkgGdIRV48RzcLO/vJRFdFfXSwoTv44PrlUY
+	J1qRb1KILmcgGUpiQNntRU2KvgxBzwxDRzcys60m3lsxmJvqmTegAq7xQjIhbKbe/D/msGIc2QK
+	KukGPxmhYaoRRubjQGHADj99mYln+B8A4VEG1SJt4ouOcDJ+dIWqLFanZyNJcBVcFnFAnGzUWMh
+	0I7EfQcK2RO0BVvhPMHjoQVDTMdeVrICmlaHT+IsJW8Pe6IOLK7QnNI+dqPR58D7b33wLb8mRDa
+	D
+X-Received: by 2002:a2e:484:: with SMTP id a4-v6mr5274786ljf.27.1547617807766;
+        Tue, 15 Jan 2019 21:50:07 -0800 (PST)
+X-Received: by 2002:a2e:484:: with SMTP id a4-v6mr5274740ljf.27.1547617806799;
+        Tue, 15 Jan 2019 21:50:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547617806; cv=none;
         d=google.com; s=arc-20160816;
-        b=BcbHzIJHucyPWBmQ91i+KiTkzWdHDIFNQL+wib0Jj6Q/VBqUvnYdMEKGgpYG+QEwm8
-         DLeEtgG9CQnMXMfJZOcDtRht60g0HTxTDFd0se70bhTBahE9YJH+7CPQoVCvY2SASePA
-         soq77Ct8hm8nM8hXbUTbQ9e0f+iuppc4F/Z+idRzkSAMTtsasYI9fVV6iEvA3u7W0OWj
-         cdRiZzgFwxoi9ko/+lSCHayLALfbD5Ra9CLhf1jYegNIxl26Tj/w7qHgh3Lt2/SBjlYC
-         lV1tlAFCOXaLzRRD80kRBCQUqtWDSP7wfYUJSW/Dv0VK9/6RMXy+Bra//asRhdErsDrg
-         DWpQ==
+        b=vzS8E3iHECH3PMF3QWaBiznkMB2gZ8gDYaxrLtKgXg72c2P1uLGJjCWqZjCnbf2OBL
+         Afil+E+HP6VjKyPkPX15d8M6iPq9tePg7RUVPk4Zvf8Z3qo3eMLm1PigWG0oPVV6/K7R
+         c8/KPKArJFF7HkHMZWK8ARZYyEjv4TGwJ9C3HxOFrVE2dwl4kJuj/Pyi5bSF67fH1PEf
+         dmGCjvx9sTQbkEbeWt0dqPKhkxlyFM34af/oUXwtIEQs2NHJjzKrmG503rlHs9igN/Gu
+         K8YfmdLuotio7toqBAG19hDJPJG7j6cFVsREAvXWeB9OCezdXS1QYcA51vTatXeS17yD
+         H3cw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=LDxDttklbhpkSSFdds0eF04wkYvET9AjjK+yF2ZuPzE=;
-        b=dSuCobe26/N3lSZjULqDO5TP3sz3BZ8wCFPRI60uy5BkJxBSI6udPIeAI/u9b/hQVo
-         J3gh+AlGPNj+QYK77b2sWGcCP2XJuv7WXyr1esrvLjyESRtN81v6ieTuYWL+IQwAbWDe
-         qLuy/rz2qpojdcQwZm4BYPJX02JlRUq79DHvTOt0VtCSg5tU/513x8yzaJBsfaKJltST
-         eDiiJ1tWWo/+OE1e9kwAtKswxtjwgtpyD9RufU9ZmbPw1WplRR6JK+eHsbz9/nyM4pDQ
-         390KZnL3p0IcDJtn0EpfoPrYLtTlGf5nNTa4D5OBf0AggpFkMF7jShWbEHcLqkEW5shF
-         PD7w==
+        bh=VZ1+S4udBrUGqA2qKTo5GfQAEHGyi6IpM7GyhEi/87Q=;
+        b=zUz2pUuDUNpM6pbyZIcGzDMedithMSdgM9hwEedEmFYINnbJCQ9KlCGP9LGIvhtXjF
+         oGTZLamxTTfK0p5s0sVE5lxH/QizO0QUgMADsEfH8lfZ5e6knpJ/Y2O0D9Z+/jT2mQxC
+         jCpJc5qWa5dMG2+8cckYOEBWrIqpuiZpFLmDzP+b30NnFb2xIbEh/ST483Eb9rEQ+pnM
+         La9TcrVa49c3+h2fzaWhoXolv2sFbmBKaKIjOZIfi47EHalr4Sw3Im+kM96tzyTeTpBe
+         m8Qzum06mCbYuOvmMNLRy5jOKAe37bgSNODgzcFxudcE+yaMZp4H+TgEziqdA/XISTl3
+         d9/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=dMA7vAKe;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Cm8s3Ol6;
        spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e11-v6sor3836703ljg.24.2019.01.15.21.34.20
+        by mx.google.com with SMTPS id n10sor1790435lfe.49.2019.01.15.21.50.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 15 Jan 2019 21:34:20 -0800 (PST)
+        Tue, 15 Jan 2019 21:50:06 -0800 (PST)
 Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=dMA7vAKe;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Cm8s3Ol6;
        spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=linux-foundation.org; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=LDxDttklbhpkSSFdds0eF04wkYvET9AjjK+yF2ZuPzE=;
-        b=dMA7vAKe4Uxo13jLl7fuE02FkWSO9VLEtIiC20q6ryh7qGuilSEBxz0+EQjqTdCvH1
-         dfnnNIrDVHLAmspi+kEutDaiSBDCjQXDDZeWLIuw36P0qGup094crertM7FqgpCuwxbz
-         NTB7xxRsm9w7aa4NUnH42wRZALAPuidJQR0qw=
-X-Google-Smtp-Source: ALg8bN5DHgumFjynaOJSMlLax0mbQIzxdhZC910XxOWJaS2F7cpZSpBIqQWSBwH5Yi+EmQyoOiOnWg==
-X-Received: by 2002:a2e:8156:: with SMTP id t22-v6mr5178525ljg.32.1547616859731;
-        Tue, 15 Jan 2019 21:34:19 -0800 (PST)
-Received: from mail-lj1-f174.google.com (mail-lj1-f174.google.com. [209.85.208.174])
-        by smtp.gmail.com with ESMTPSA id o25sm959180lfd.29.2019.01.15.21.34.18
+        bh=VZ1+S4udBrUGqA2qKTo5GfQAEHGyi6IpM7GyhEi/87Q=;
+        b=Cm8s3Ol69OXV+2VWR7fkXnsX1n+j4dzdhPWdlz+bQiLV2defpBkGRVFg2h3wehxX/B
+         m22hjZI3XvFBpyA+dLrVT89Aow6fflPmxfHCQP4AbP8oZLi4pChb1R0mNyMz920VsOlR
+         MEg/wP8hNUn4G/821olrUDpO5emm1o1mNr/E4=
+X-Google-Smtp-Source: ALg8bN6e3n6flu0mxN2/sxjFoS7s0vg8UDSyZ7N4UD/X0jNgrFuwskiRl5s3sJCSpUiNZomnEt3vwQ==
+X-Received: by 2002:a19:c70a:: with SMTP id x10mr5398306lff.88.1547617805365;
+        Tue, 15 Jan 2019 21:50:05 -0800 (PST)
+Received: from mail-lf1-f45.google.com (mail-lf1-f45.google.com. [209.85.167.45])
+        by smtp.gmail.com with ESMTPSA id r69sm1014983lfi.15.2019.01.15.21.50.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jan 2019 21:34:18 -0800 (PST)
-Received: by mail-lj1-f174.google.com with SMTP id v15-v6so4317153ljh.13
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:34:18 -0800 (PST)
-X-Received: by 2002:a2e:9c7:: with SMTP id 190-v6mr4899089ljj.120.1547616858160;
- Tue, 15 Jan 2019 21:34:18 -0800 (PST)
+        Tue, 15 Jan 2019 21:50:04 -0800 (PST)
+Received: by mail-lf1-f45.google.com with SMTP id z13so3889877lfe.11
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2019 21:50:03 -0800 (PST)
+X-Received: by 2002:a19:7006:: with SMTP id h6mr5627124lfc.147.1547617803433;
+ Tue, 15 Jan 2019 21:50:03 -0800 (PST)
 MIME-Version: 1.0
-References: <20190108044336.GB27534@dastard> <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com>
- <20190109022430.GE27534@dastard> <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
- <20190109043906.GF27534@dastard> <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
- <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+References: <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
  <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
- <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
-In-Reply-To: <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
+ <20190111020340.GM27534@dastard> <CAHk-=wgLgAzs42=W0tPrTVpu7H7fQ=BP5gXKnoNxMxh9=9uXag@mail.gmail.com>
+ <20190111040434.GN27534@dastard> <CAHk-=wh-kegfnPC_dmw0A72Sdk4B9tvce-cOR=jEfHDU1-4Eew@mail.gmail.com>
+ <20190111073606.GP27534@dastard> <CAHk-=wj+xyz_GKjgKpU6SF3qeqouGmRoR8uFxzg_c1VpeGEJMw@mail.gmail.com>
+ <20190115234510.GA6173@dastard> <CAHk-=wjc2inOae8+9-DK4jFK78-7ZpNR=TEyZg0Dj57SYwP-ng@mail.gmail.com>
+In-Reply-To: <CAHk-=wjc2inOae8+9-DK4jFK78-7ZpNR=TEyZg0Dj57SYwP-ng@mail.gmail.com>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 16 Jan 2019 17:34:01 +1200
-X-Gmail-Original-Message-ID: <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
+Date: Wed, 16 Jan 2019 17:49:46 +1200
+X-Gmail-Original-Message-ID: <CAHk-=wje=2Pndo+xZ5fLJ9VCoo6NYLV_a9D8mxpuSTFdz3eGMg@mail.gmail.com>
 Message-ID:
- <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
+ <CAHk-=wje=2Pndo+xZ5fLJ9VCoo6NYLV_a9D8mxpuSTFdz3eGMg@mail.gmail.com>
 Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Josh Snyder <joshs@netflix.com>, Dominique Martinet <asmadeus@codewreck.org>, 
-	Dave Chinner <david@fromorbit.com>, Jiri Kosina <jikos@kernel.org>, 
+To: Dave Chinner <david@fromorbit.com>
+Cc: Dominique Martinet <asmadeus@codewreck.org>, Jiri Kosina <jikos@kernel.org>, 
 	Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, 
 	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
 	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
@@ -130,27 +127,44 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190116053401.AXEg5clKz7SbYfvUIZbOtNAaybY5GQksCam6vxMkDYM@z>
+Message-ID: <20190116054946.CqBXLcVr9jwYVavTUGRBROg-glGpvs7rzl_iK6FScxo@z>
 
-On Wed, Jan 16, 2019 at 5:25 PM Andy Lutomirski <luto@amacapital.net> wrote:
+On Wed, Jan 16, 2019 at 4:54 PM Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> Something like CAP_DAC_READ_SEARCH might not be crazy.
+> On Wed, Jan 16, 2019 at 11:45 AM Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > I'm assuming that you can invalidate the page cache reliably by a
+> > means that does not repeated require probing to detect invalidation
+> > has occurred. I've mentioned one method in this discussion
+> > already...
+>
+> Yes. And it was made clear to you that it was a bug in xfs dio and
+> what the right thing to do was.
 
-I agree that it would work. In fact' it's what Jiri's patch basically
-did. Except Jiri used CAP_SYS_ADMIN instead.
+Side note: I actually think we *do* the right thing. Even for xfs. I
+couldn't find the alleged place that invalidates the page cache on dio
+reads.
 
-But that then basically limits it to root (or root-like with
-capability masks), which is quite likely to not work in practice all
-that well. That's why I wanted to find alternatives.
+The *generic* dio code only does it for writes (which is correct and
+fine). And maybe xfs has some extra invalidation, but I don't see it.
 
-*Very* few people want to run their databases as root.
+So I actually hope your "you can use direct-io read to do directed
+invalidating of the page cache" isn't true. I admittedly did *not* try
+to delve very deeply into it, but the invalidates I found looked
+correct. The generic code does it for writes, and at least ext4 does
+the "writeback and wait" for reads.
 
-Jiri's original patch kind of acknowledged that by making the new test
-be conditional, and off by default. So then it's a "only do this for
-lockdown mode, because normal people won't find it acceptable".
+There *does* seem to be a 'invalidate_inode_pages2_range()' call in
+iomap_dio_rw(). That has a *comment* that says it only is for writes,
+but it looks to me like it would trigger for reads too.
 
-And I'm not a huge fan of that approach. If you don't protect normal
-people, then what's the point, really?
+Just a plain bug/oversight? Or me misreading things.
 
-              Linus
+So yes, maybe xfs does that "invalidate on read", but it really seems
+to be just a bug. If the xfs people insist on keeping the bug, fine
+(looks like gfs2 and xfs are the only users), but it seems kind of
+sad.
+
+             Linus
 
