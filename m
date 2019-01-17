@@ -1,172 +1,56 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D2448E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 17:39:22 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id q63so8455182pfi.19
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 14:39:22 -0800 (PST)
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730081.outbound.protection.outlook.com. [40.107.73.81])
-        by mx.google.com with ESMTPS id p10si2761105pgi.549.2019.01.17.14.39.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 17 Jan 2019 14:39:20 -0800 (PST)
-From: Nadav Amit <namit@vmware.com>
-Subject: Re: [PATCH 01/17] Fix "x86/alternatives: Lockdep-enforce text_mutex
- in text_poke*()"
-Date: Thu, 17 Jan 2019 22:39:15 +0000
-Message-ID: <8817DE5F-BCF4-4F6A-A496-E0DB6889D86E@vmware.com>
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-2-rick.p.edgecombe@intel.com>
- <20190117154701.78aa8e9d0130716e0d9ac026@kernel.org>
- <F3B332DA-4637-4A3B-93F9-C7903C1D9FF9@zytor.com>
-In-Reply-To: <F3B332DA-4637-4A3B-93F9-C7903C1D9FF9@zytor.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <D15D5A09441E2E45B1C3866169288B31@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Subject: Re: [PATCH 0/4] Allow persistent memory to be used like normal RAM
+References: <20190116181859.D1504459@viggo.jf.intel.com>
+ <x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <360f77dc-fe8e-c7c4-84a0-852ef3c4a152@sr71.net>
+Date: Thu, 17 Jan 2019 14:43:56 -0800
 MIME-Version: 1.0
-Sender: owner-linux-mm@kvack.org
+In-Reply-To: <x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+To: Jeff Moyer <jmoyer@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: thomas.lendacky@amd.com, mhocko@suse.com, linux-nvdimm@lists.01.org, tiwai@suse.de, ying.huang@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bp@suse.de, baiyaowei@cmss.chinamobile.com, zwisler@kernel.org, bhelgaas@google.com, fengguang.wu@intel.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Masami Hiramatsu <mhiramat@kernel.org>, Rick Edgecombe <rick.p.edgecombe@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Damian Tometzki <linux_dti@icloud.com>, linux-integrity <linux-integrity@vger.kernel.org>, LSM List <linux-security-module@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>
 
-PiBPbiBKYW4gMTcsIDIwMTksIGF0IDE6MTUgUE0sIGhwYUB6eXRvci5jb20gd3JvdGU6DQo+IA0K
-PiBPbiBKYW51YXJ5IDE2LCAyMDE5IDEwOjQ3OjAxIFBNIFBTVCwgTWFzYW1pIEhpcmFtYXRzdSA8
-bWhpcmFtYXRAa2VybmVsLm9yZz4gd3JvdGU6DQo+PiBPbiBXZWQsIDE2IEphbiAyMDE5IDE2OjMy
-OjQzIC0wODAwDQo+PiBSaWNrIEVkZ2Vjb21iZSA8cmljay5wLmVkZ2Vjb21iZUBpbnRlbC5jb20+
-IHdyb3RlOg0KPj4gDQo+Pj4gRnJvbTogTmFkYXYgQW1pdCA8bmFtaXRAdm13YXJlLmNvbT4NCj4+
-PiANCj4+PiB0ZXh0X211dGV4IGlzIGN1cnJlbnRseSBleHBlY3RlZCB0byBiZSBoZWxkIGJlZm9y
-ZSB0ZXh0X3Bva2UoKSBpcw0KPj4+IGNhbGxlZCwgYnV0IHdlIGtnZGIgZG9lcyBub3QgdGFrZSB0
-aGUgbXV0ZXgsIGFuZCBpbnN0ZWFkICpzdXBwb3NlZGx5Kg0KPj4+IGVuc3VyZXMgdGhlIGxvY2sg
-aXMgbm90IHRha2VuIGFuZCB3aWxsIG5vdCBiZSBhY3F1aXJlZCBieSBhbnkgb3RoZXINCj4+IGNv
-cmUNCj4+PiB3aGlsZSB0ZXh0X3Bva2UoKSBpcyBydW5uaW5nLg0KPj4+IA0KPj4+IFRoZSByZWFz
-b24gZm9yIHRoZSAic3VwcG9zZWRseSIgY29tbWVudCBpcyB0aGF0IGl0IGlzIG5vdCBlbnRpcmVs
-eQ0KPj4gY2xlYXINCj4+PiB0aGF0IHRoaXMgd291bGQgYmUgdGhlIGNhc2UgaWYgZ2RiX2RvX3Jv
-dW5kdXAgaXMgemVyby4NCj4+PiANCj4+PiBUaGlzIHBhdGNoIGNyZWF0ZXMgdHdvIHdyYXBwZXIg
-ZnVuY3Rpb25zLCB0ZXh0X3Bva2UoKSBhbmQNCj4+PiB0ZXh0X3Bva2Vfa2dkYigpIHdoaWNoIGRv
-IG9yIGRvIG5vdCBydW4gdGhlIGxvY2tkZXAgYXNzZXJ0aW9uDQo+Pj4gcmVzcGVjdGl2ZWx5Lg0K
-Pj4+IA0KPj4+IFdoaWxlIHdlIGFyZSBhdCBpdCwgY2hhbmdlIHRoZSByZXR1cm4gY29kZSBvZiB0
-ZXh0X3Bva2UoKSB0bw0KPj4gc29tZXRoaW5nDQo+Pj4gbWVhbmluZ2Z1bC4gT25lIGRheSwgY2Fs
-bGVycyBtaWdodCBhY3R1YWxseSByZXNwZWN0IGl0IGFuZCB0aGUNCj4+IGV4aXN0aW5nDQo+Pj4g
-QlVHX09OKCkgd2hlbiBwYXRjaGluZyBmYWlscyBjb3VsZCBiZSByZW1vdmVkLiBGb3Iga2dkYiwg
-dGhlIHJldHVybg0KPj4+IHZhbHVlIGNhbiBhY3R1YWxseSBiZSB1c2VkLg0KPj4gDQo+PiBMb29r
-cyBnb29kIHRvIG1lLg0KPj4gDQo+PiBSZXZpZXdlZC1ieTogTWFzYW1pIEhpcmFtYXRzdSA8bWhp
-cmFtYXRAa2VybmVsLm9yZz4NCj4+IA0KPj4gVGhhbmsgeW91LA0KPj4gDQo+Pj4gQ2M6IEFuZHkg
-THV0b21pcnNraSA8bHV0b0BrZXJuZWwub3JnPg0KPj4+IENjOiBLZWVzIENvb2sgPGtlZXNjb29r
-QGNocm9taXVtLm9yZz4NCj4+PiBDYzogRGF2ZSBIYW5zZW4gPGRhdmUuaGFuc2VuQGludGVsLmNv
-bT4NCj4+PiBDYzogTWFzYW1pIEhpcmFtYXRzdSA8bWhpcmFtYXRAa2VybmVsLm9yZz4NCj4+PiBG
-aXhlczogOTIyMmY2MDY1MDZjICgieDg2L2FsdGVybmF0aXZlczogTG9ja2RlcC1lbmZvcmNlIHRl
-eHRfbXV0ZXggaW4NCj4+IHRleHRfcG9rZSooKSIpDQo+Pj4gU3VnZ2VzdGVkLWJ5OiBQZXRlciBa
-aWpsc3RyYSA8cGV0ZXJ6QGluZnJhZGVhZC5vcmc+DQo+Pj4gQWNrZWQtYnk6IEppcmkgS29zaW5h
-IDxqa29zaW5hQHN1c2UuY3o+DQo+Pj4gU2lnbmVkLW9mZi1ieTogTmFkYXYgQW1pdCA8bmFtaXRA
-dm13YXJlLmNvbT4NCj4+PiBTaWduZWQtb2ZmLWJ5OiBSaWNrIEVkZ2Vjb21iZSA8cmljay5wLmVk
-Z2Vjb21iZUBpbnRlbC5jb20+DQo+Pj4gLS0tDQo+Pj4gYXJjaC94ODYvaW5jbHVkZS9hc20vdGV4
-dC1wYXRjaGluZy5oIHwgIDEgKw0KPj4+IGFyY2gveDg2L2tlcm5lbC9hbHRlcm5hdGl2ZS5jICAg
-ICAgICB8IDUyDQo+PiArKysrKysrKysrKysrKysrKysrKy0tLS0tLS0tDQo+Pj4gYXJjaC94ODYv
-a2VybmVsL2tnZGIuYyAgICAgICAgICAgICAgIHwgMTEgKysrLS0tDQo+Pj4gMyBmaWxlcyBjaGFu
-Z2VkLCA0NSBpbnNlcnRpb25zKCspLCAxOSBkZWxldGlvbnMoLSkNCj4+PiANCj4+PiBkaWZmIC0t
-Z2l0IGEvYXJjaC94ODYvaW5jbHVkZS9hc20vdGV4dC1wYXRjaGluZy5oDQo+PiBiL2FyY2gveDg2
-L2luY2x1ZGUvYXNtL3RleHQtcGF0Y2hpbmcuaA0KPj4+IGluZGV4IGU4NWZmNjVjNDNjMy4uZjhm
-YzhlODZjZjAxIDEwMDY0NA0KPj4+IC0tLSBhL2FyY2gveDg2L2luY2x1ZGUvYXNtL3RleHQtcGF0
-Y2hpbmcuaA0KPj4+ICsrKyBiL2FyY2gveDg2L2luY2x1ZGUvYXNtL3RleHQtcGF0Y2hpbmcuaA0K
-Pj4+IEBAIC0zNSw2ICszNSw3IEBAIGV4dGVybiB2b2lkICp0ZXh0X3Bva2VfZWFybHkodm9pZCAq
-YWRkciwgY29uc3Qgdm9pZA0KPj4gKm9wY29kZSwgc2l6ZV90IGxlbik7DQo+Pj4gICogaW5jb25z
-aXN0ZW50IGluc3RydWN0aW9uIHdoaWxlIHlvdSBwYXRjaC4NCj4+PiAgKi8NCj4+PiBleHRlcm4g
-dm9pZCAqdGV4dF9wb2tlKHZvaWQgKmFkZHIsIGNvbnN0IHZvaWQgKm9wY29kZSwgc2l6ZV90IGxl
-bik7DQo+Pj4gK2V4dGVybiB2b2lkICp0ZXh0X3Bva2Vfa2dkYih2b2lkICphZGRyLCBjb25zdCB2
-b2lkICpvcGNvZGUsIHNpemVfdA0KPj4gbGVuKTsNCj4+PiBleHRlcm4gaW50IHBva2VfaW50M19o
-YW5kbGVyKHN0cnVjdCBwdF9yZWdzICpyZWdzKTsNCj4+PiBleHRlcm4gdm9pZCAqdGV4dF9wb2tl
-X2JwKHZvaWQgKmFkZHIsIGNvbnN0IHZvaWQgKm9wY29kZSwgc2l6ZV90DQo+PiBsZW4sIHZvaWQg
-KmhhbmRsZXIpOw0KPj4+IGV4dGVybiBpbnQgYWZ0ZXJfYm9vdG1lbTsNCj4+PiBkaWZmIC0tZ2l0
-IGEvYXJjaC94ODYva2VybmVsL2FsdGVybmF0aXZlLmMNCj4+IGIvYXJjaC94ODYva2VybmVsL2Fs
-dGVybmF0aXZlLmMNCj4+PiBpbmRleCBlYmVhYzQ4N2EyMGMuLmM2YTNhMTBhMmZkNSAxMDA2NDQN
-Cj4+PiAtLS0gYS9hcmNoL3g4Ni9rZXJuZWwvYWx0ZXJuYXRpdmUuYw0KPj4+ICsrKyBiL2FyY2gv
-eDg2L2tlcm5lbC9hbHRlcm5hdGl2ZS5jDQo+Pj4gQEAgLTY3OCwxOCArNjc4LDcgQEAgdm9pZCAq
-X19pbml0X29yX21vZHVsZSB0ZXh0X3Bva2VfZWFybHkodm9pZA0KPj4gKmFkZHIsIGNvbnN0IHZv
-aWQgKm9wY29kZSwNCj4+PiByZXR1cm4gYWRkcjsNCj4+PiB9DQo+Pj4gDQo+Pj4gLS8qKg0KPj4+
-IC0gKiB0ZXh0X3Bva2UgLSBVcGRhdGUgaW5zdHJ1Y3Rpb25zIG9uIGEgbGl2ZSBrZXJuZWwNCj4+
-PiAtICogQGFkZHI6IGFkZHJlc3MgdG8gbW9kaWZ5DQo+Pj4gLSAqIEBvcGNvZGU6IHNvdXJjZSBv
-ZiB0aGUgY29weQ0KPj4+IC0gKiBAbGVuOiBsZW5ndGggdG8gY29weQ0KPj4+IC0gKg0KPj4+IC0g
-KiBPbmx5IGF0b21pYyB0ZXh0IHBva2Uvc2V0IHNob3VsZCBiZSBhbGxvd2VkIHdoZW4gbm90IGRv
-aW5nIGVhcmx5DQo+PiBwYXRjaGluZy4NCj4+PiAtICogSXQgbWVhbnMgdGhlIHNpemUgbXVzdCBi
-ZSB3cml0YWJsZSBhdG9taWNhbGx5IGFuZCB0aGUgYWRkcmVzcw0KPj4gbXVzdCBiZSBhbGlnbmVk
-DQo+Pj4gLSAqIGluIGEgd2F5IHRoYXQgcGVybWl0cyBhbiBhdG9taWMgd3JpdGUuIEl0IGFsc28g
-bWFrZXMgc3VyZSB3ZSBmaXQNCj4+IG9uIGEgc2luZ2xlDQo+Pj4gLSAqIHBhZ2UuDQo+Pj4gLSAq
-Lw0KPj4+IC12b2lkICp0ZXh0X3Bva2Uodm9pZCAqYWRkciwgY29uc3Qgdm9pZCAqb3Bjb2RlLCBz
-aXplX3QgbGVuKQ0KPj4+ICtzdGF0aWMgdm9pZCAqX190ZXh0X3Bva2Uodm9pZCAqYWRkciwgY29u
-c3Qgdm9pZCAqb3Bjb2RlLCBzaXplX3QgbGVuKQ0KPj4+IHsNCj4+PiAJdW5zaWduZWQgbG9uZyBm
-bGFnczsNCj4+PiAJY2hhciAqdmFkZHI7DQo+Pj4gQEAgLTcwMiw4ICs2OTEsNiBAQCB2b2lkICp0
-ZXh0X3Bva2Uodm9pZCAqYWRkciwgY29uc3Qgdm9pZCAqb3Bjb2RlLA0KPj4gc2l6ZV90IGxlbikN
-Cj4+PiAgKi8NCj4+PiAJQlVHX09OKCFhZnRlcl9ib290bWVtKTsNCj4+PiANCj4+PiAtCWxvY2tk
-ZXBfYXNzZXJ0X2hlbGQoJnRleHRfbXV0ZXgpOw0KPj4+IC0NCj4+PiAJaWYgKCFjb3JlX2tlcm5l
-bF90ZXh0KCh1bnNpZ25lZCBsb25nKWFkZHIpKSB7DQo+Pj4gCQlwYWdlc1swXSA9IHZtYWxsb2Nf
-dG9fcGFnZShhZGRyKTsNCj4+PiAJCXBhZ2VzWzFdID0gdm1hbGxvY190b19wYWdlKGFkZHIgKyBQ
-QUdFX1NJWkUpOw0KPj4+IEBAIC03MzIsNiArNzE5LDQzIEBAIHZvaWQgKnRleHRfcG9rZSh2b2lk
-ICphZGRyLCBjb25zdCB2b2lkICpvcGNvZGUsDQo+PiBzaXplX3QgbGVuKQ0KPj4+IHJldHVybiBh
-ZGRyOw0KPj4+IH0NCj4+PiANCj4+PiArLyoqDQo+Pj4gKyAqIHRleHRfcG9rZSAtIFVwZGF0ZSBp
-bnN0cnVjdGlvbnMgb24gYSBsaXZlIGtlcm5lbA0KPj4+ICsgKiBAYWRkcjogYWRkcmVzcyB0byBt
-b2RpZnkNCj4+PiArICogQG9wY29kZTogc291cmNlIG9mIHRoZSBjb3B5DQo+Pj4gKyAqIEBsZW46
-IGxlbmd0aCB0byBjb3B5DQo+Pj4gKyAqDQo+Pj4gKyAqIE9ubHkgYXRvbWljIHRleHQgcG9rZS9z
-ZXQgc2hvdWxkIGJlIGFsbG93ZWQgd2hlbiBub3QgZG9pbmcgZWFybHkNCj4+IHBhdGNoaW5nLg0K
-Pj4+ICsgKiBJdCBtZWFucyB0aGUgc2l6ZSBtdXN0IGJlIHdyaXRhYmxlIGF0b21pY2FsbHkgYW5k
-IHRoZSBhZGRyZXNzDQo+PiBtdXN0IGJlIGFsaWduZWQNCj4+PiArICogaW4gYSB3YXkgdGhhdCBw
-ZXJtaXRzIGFuIGF0b21pYyB3cml0ZS4gSXQgYWxzbyBtYWtlcyBzdXJlIHdlIGZpdA0KPj4gb24g
-YSBzaW5nbGUNCj4+PiArICogcGFnZS4NCj4+PiArICovDQo+Pj4gK3ZvaWQgKnRleHRfcG9rZSh2
-b2lkICphZGRyLCBjb25zdCB2b2lkICpvcGNvZGUsIHNpemVfdCBsZW4pDQo+Pj4gK3sNCj4+PiAr
-CWxvY2tkZXBfYXNzZXJ0X2hlbGQoJnRleHRfbXV0ZXgpOw0KPj4+ICsNCj4+PiArCXJldHVybiBf
-X3RleHRfcG9rZShhZGRyLCBvcGNvZGUsIGxlbik7DQo+Pj4gK30NCj4+PiArDQo+Pj4gKy8qKg0K
-Pj4+ICsgKiB0ZXh0X3Bva2Vfa2dkYiAtIFVwZGF0ZSBpbnN0cnVjdGlvbnMgb24gYSBsaXZlIGtl
-cm5lbCBieSBrZ2RiDQo+Pj4gKyAqIEBhZGRyOiBhZGRyZXNzIHRvIG1vZGlmeQ0KPj4+ICsgKiBA
-b3Bjb2RlOiBzb3VyY2Ugb2YgdGhlIGNvcHkNCj4+PiArICogQGxlbjogbGVuZ3RoIHRvIGNvcHkN
-Cj4+PiArICoNCj4+PiArICogT25seSBhdG9taWMgdGV4dCBwb2tlL3NldCBzaG91bGQgYmUgYWxs
-b3dlZCB3aGVuIG5vdCBkb2luZyBlYXJseQ0KPj4gcGF0Y2hpbmcuDQo+Pj4gKyAqIEl0IG1lYW5z
-IHRoZSBzaXplIG11c3QgYmUgd3JpdGFibGUgYXRvbWljYWxseSBhbmQgdGhlIGFkZHJlc3MNCj4+
-IG11c3QgYmUgYWxpZ25lZA0KPj4+ICsgKiBpbiBhIHdheSB0aGF0IHBlcm1pdHMgYW4gYXRvbWlj
-IHdyaXRlLiBJdCBhbHNvIG1ha2VzIHN1cmUgd2UgZml0DQo+PiBvbiBhIHNpbmdsZQ0KPj4+ICsg
-KiBwYWdlLg0KPj4+ICsgKg0KPj4+ICsgKiBDb250ZXh0OiBzaG91bGQgb25seSBiZSB1c2VkIGJ5
-IGtnZGIsIHdoaWNoIGVuc3VyZXMgbm8gb3RoZXIgY29yZQ0KPj4gaXMgcnVubmluZywNCj4+PiAr
-ICoJICAgIGRlc3BpdGUgdGhlIGZhY3QgaXQgZG9lcyBub3QgaG9sZCB0aGUgdGV4dF9tdXRleC4N
-Cj4+PiArICovDQo+Pj4gK3ZvaWQgKnRleHRfcG9rZV9rZ2RiKHZvaWQgKmFkZHIsIGNvbnN0IHZv
-aWQgKm9wY29kZSwgc2l6ZV90IGxlbikNCj4+PiArew0KPj4+ICsJcmV0dXJuIF9fdGV4dF9wb2tl
-KGFkZHIsIG9wY29kZSwgbGVuKTsNCj4+PiArfQ0KPj4+ICsNCj4+PiBzdGF0aWMgdm9pZCBkb19z
-eW5jX2NvcmUodm9pZCAqaW5mbykNCj4+PiB7DQo+Pj4gCXN5bmNfY29yZSgpOw0KPj4+IGRpZmYg
-LS1naXQgYS9hcmNoL3g4Ni9rZXJuZWwva2dkYi5jIGIvYXJjaC94ODYva2VybmVsL2tnZGIuYw0K
-Pj4+IGluZGV4IDVkYjA4NDI1MDYzZS4uMTQ2MTU0NGNiYThiIDEwMDY0NA0KPj4+IC0tLSBhL2Fy
-Y2gveDg2L2tlcm5lbC9rZ2RiLmMNCj4+PiArKysgYi9hcmNoL3g4Ni9rZXJuZWwva2dkYi5jDQo+
-Pj4gQEAgLTc1OCwxMyArNzU4LDEzIEBAIGludCBrZ2RiX2FyY2hfc2V0X2JyZWFrcG9pbnQoc3Ry
-dWN0IGtnZGJfYmtwdA0KPj4gKmJwdCkNCj4+PiBpZiAoIWVycikNCj4+PiAJCXJldHVybiBlcnI7
-DQo+Pj4gCS8qDQo+Pj4gLQkgKiBJdCBpcyBzYWZlIHRvIGNhbGwgdGV4dF9wb2tlKCkgYmVjYXVz
-ZSBub3JtYWwga2VybmVsIGV4ZWN1dGlvbg0KPj4+ICsJICogSXQgaXMgc2FmZSB0byBjYWxsIHRl
-eHRfcG9rZV9rZ2RiKCkgYmVjYXVzZSBub3JtYWwga2VybmVsDQo+PiBleGVjdXRpb24NCj4+PiAg
-KiBpcyBzdG9wcGVkIG9uIGFsbCBjb3Jlcywgc28gbG9uZyBhcyB0aGUgdGV4dF9tdXRleCBpcyBu
-b3QNCj4+IGxvY2tlZC4NCj4+PiAgKi8NCj4+PiAJaWYgKG11dGV4X2lzX2xvY2tlZCgmdGV4dF9t
-dXRleCkpDQo+Pj4gCQlyZXR1cm4gLUVCVVNZOw0KPj4+IC0JdGV4dF9wb2tlKCh2b2lkICopYnB0
-LT5icHRfYWRkciwgYXJjaF9rZ2RiX29wcy5nZGJfYnB0X2luc3RyLA0KPj4+IC0JCSAgQlJFQUtf
-SU5TVFJfU0laRSk7DQo+Pj4gKwl0ZXh0X3Bva2Vfa2dkYigodm9pZCAqKWJwdC0+YnB0X2FkZHIs
-IGFyY2hfa2dkYl9vcHMuZ2RiX2JwdF9pbnN0ciwNCj4+PiArCQkgICAgICAgQlJFQUtfSU5TVFJf
-U0laRSk7DQo+Pj4gCWVyciA9IHByb2JlX2tlcm5lbF9yZWFkKG9wYywgKGNoYXIgKilicHQtPmJw
-dF9hZGRyLA0KPj4gQlJFQUtfSU5TVFJfU0laRSk7DQo+Pj4gaWYgKGVycikNCj4+PiAJCXJldHVy
-biBlcnI7DQo+Pj4gQEAgLTc4MywxMiArNzgzLDEzIEBAIGludCBrZ2RiX2FyY2hfcmVtb3ZlX2Jy
-ZWFrcG9pbnQoc3RydWN0DQo+PiBrZ2RiX2JrcHQgKmJwdCkNCj4+PiBpZiAoYnB0LT50eXBlICE9
-IEJQX1BPS0VfQlJFQUtQT0lOVCkNCj4+PiAJCWdvdG8ga25sX3dyaXRlOw0KPj4+IAkvKg0KPj4+
-IC0JICogSXQgaXMgc2FmZSB0byBjYWxsIHRleHRfcG9rZSgpIGJlY2F1c2Ugbm9ybWFsIGtlcm5l
-bCBleGVjdXRpb24NCj4+PiArCSAqIEl0IGlzIHNhZmUgdG8gY2FsbCB0ZXh0X3Bva2Vfa2dkYigp
-IGJlY2F1c2Ugbm9ybWFsIGtlcm5lbA0KPj4gZXhlY3V0aW9uDQo+Pj4gICogaXMgc3RvcHBlZCBv
-biBhbGwgY29yZXMsIHNvIGxvbmcgYXMgdGhlIHRleHRfbXV0ZXggaXMgbm90DQo+PiBsb2NrZWQu
-DQo+Pj4gICovDQo+Pj4gCWlmIChtdXRleF9pc19sb2NrZWQoJnRleHRfbXV0ZXgpKQ0KPj4+IAkJ
-Z290byBrbmxfd3JpdGU7DQo+Pj4gLQl0ZXh0X3Bva2UoKHZvaWQgKilicHQtPmJwdF9hZGRyLCBi
-cHQtPnNhdmVkX2luc3RyLA0KPj4gQlJFQUtfSU5TVFJfU0laRSk7DQo+Pj4gKwl0ZXh0X3Bva2Vf
-a2dkYigodm9pZCAqKWJwdC0+YnB0X2FkZHIsIGJwdC0+c2F2ZWRfaW5zdHIsDQo+Pj4gKwkJICAg
-ICAgIEJSRUFLX0lOU1RSX1NJWkUpOw0KPj4+IAllcnIgPSBwcm9iZV9rZXJuZWxfcmVhZChvcGMs
-IChjaGFyICopYnB0LT5icHRfYWRkciwNCj4+IEJSRUFLX0lOU1RSX1NJWkUpOw0KPj4+IGlmIChl
-cnIgfHwgbWVtY21wKG9wYywgYnB0LT5zYXZlZF9pbnN0ciwgQlJFQUtfSU5TVFJfU0laRSkpDQo+
-Pj4gCQlnb3RvIGtubF93cml0ZTsNCj4+PiAtLSANCj4+PiAyLjE3LjENCj4gDQo+IElmIHlvdSBh
-cmUgcmVvcmdhbml6aW5nIHRoaXMgY29kZSwgcGxlYXNlIGRvIHNvIHNvIHRoYXQgdGhlIGNhbGxl
-ciBkb2VzbuKAmXQNCj4gaGF2ZSB0byB3b3JyeSBhYm91dCBpZiBpdCBzaG91bGQgY2FsbCB0ZXh0
-X3Bva2VfYnAoKSBvciB0ZXh0X3Bva2VfZWFybHkoKS4NCj4gUmlnaHQgbm93IHRoZSBjYWxsZXIg
-aGFkIHRvIGtub3cgdGhhdCwgd2hpY2ggbWFrZXMgbm8gc2Vuc2UuDQoNCkRpZCB5b3UgbG9vayBh
-dCAiWzExLzE3XSB4ODYvanVtcC1sYWJlbDogcmVtb3ZlIHN1cHBvcnQgZm9yIGN1c3RvbSBwb2tl
-cuKAnT8NCg0KaHR0cHM6Ly9sb3JlLmtlcm5lbC5vcmcvcGF0Y2h3b3JrL3BhdGNoLzEwMzI4NTcv
-DQoNCklmIHRoaXMgaXMgbm90IHdoYXQgeW91IHJlZ2FyZCwgcGxlYXNlIGJlIG1vcmUgY29uY3Jl
-dGUuIHRleHRfcG9rZV9lYXJseSgpDQppcyBzdGlsbCB1c2VkIGRpcmVjdGx5IG9uIGluaXQgYW5k
-IHdoaWxlIG1vZHVsZXMgYXJlIGxvYWRlZCwgd2hpY2ggbWlnaHQgbm90DQpiZSBncmVhdCwgYnV0
-IGlzIG91dHNpZGUgb2YgdGhlIHNjb3BlIG9mIHRoaXMgcGF0Y2gtc2V0Lg0KDQo=
+On 1/17/19 8:29 AM, Jeff Moyer wrote:
+>> Persistent memory is cool.  But, currently, you have to rewrite
+>> your applications to use it.  Wouldn't it be cool if you could
+>> just have it show up in your system like normal RAM and get to
+>> it like a slow blob of memory?  Well... have I got the patch
+>> series for you!
+> So, isn't that what memory mode is for?
+>   https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
+> 
+> Why do we need this code in the kernel?
+
+So, my bad for not mentioning memory mode.  This patch set existed
+before we could talk about it publicly, so it simply ignores its
+existence.  It's a pretty glaring omissions at this point, sorry.
+
+I'll add this to the patches, but here are a few reasons you might want
+this instead of memory mode:
+1. Memory mode is all-or-nothing.  Either 100% of your persistent memory
+   is used for memory mode, or nothing is.  With this set, you can
+   (theoretically) have very granular (128MB) assignment of PMEM to
+   either volatile or persistent uses.  We have a few practical matters
+   to fix to get us down to that 128MB value, but we can get there.
+2. The capacity of memory mode is the size of your persistent memory.
+   DRAM capacity is "lost" because it is used for cache.  With this,
+   you get PMEM+DRAM capacity for memory.
+3. DRAM acts as a cache with memory mode, and caches can lead to
+   unpredictable latencies.  Since memory mode is all-or-nothing, your
+   entire memory space is exposed to these unpredictable latencies.
+   This solution lets you guarantee DRAM latencies if you need them.
+4. The new "tier" of memory is exposed to software.  That means that you
+   can build tiered applications or infrastructure.  A cloud provider
+   could sell cheaper VMs that use more PMEM and more expensive ones
+   that use DRAM.  That's impossible with memory mode.
+
+Don't take this as criticism of memory mode.  Memory mode is awesome,
+and doesn't strictly require *any* software changes (we have software
+changes proposed for optimizing it though).  It has tons of other
+advantages over *this* approach.  Basically, they are complementary
+enough that we think both can live side-by-side.
