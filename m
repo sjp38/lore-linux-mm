@@ -1,106 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6858F8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 16:43:59 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id m3so8356312pfj.14
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 13:43:59 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p2sor4166185pgn.83.2019.01.17.13.43.57
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2175B8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 17:16:51 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id p4so7060790pgj.21
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 14:16:51 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id i2si2649835pgl.153.2019.01.17.14.16.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 17 Jan 2019 13:43:58 -0800 (PST)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [PATCH 06/17] x86/alternative: use temporary mm for text poking
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <CALCETrXQ6uxzB3JvO14sEyMA21RcWCbwicL4nUdPBG8KAunxwg@mail.gmail.com>
-Date: Thu, 17 Jan 2019 13:43:54 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <B8C39C5A-A669-4F80-9BAE-7C11A4379ECF@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Jan 2019 14:16:49 -0800 (PST)
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Subject: Re: [PATCH 14/17] mm: Make hibernate handle unmapped pages
+Date: Thu, 17 Jan 2019 22:16:47 +0000
+Message-ID: <b224d88d91a5c45c44e176ea06dea558a8939ccf.camel@intel.com>
 References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-7-rick.p.edgecombe@intel.com>
- <CALCETrUMAsXoZogEJg7ssv0CO56vzBV2C7VotmWcwNM7iH9Wqw@mail.gmail.com>
- <CALCETrXQ6uxzB3JvO14sEyMA21RcWCbwicL4nUdPBG8KAunxwg@mail.gmail.com>
+	 <20190117003259.23141-15-rick.p.edgecombe@intel.com>
+	 <20190117093950.GA17930@amd>
+In-Reply-To: <20190117093950.GA17930@amd>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D73C986B5765A64C9EB296CBE671BE1A@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity <linux-integrity@vger.kernel.org>, LSM List <linux-security-module@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>
+To: "pavel@ucw.cz" <pavel@ucw.cz>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-integrity@vger.kernel.org" <linux-integrity@vger.kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "mingo@redhat.com" <mingo@redhat.com>, "linux_dti@icloud.com" <linux_dti@icloud.com>, "luto@kernel.org" <luto@kernel.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "bp@alien8.de" <bp@alien8.de>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "rjw@rjwysocki.net" <rjw@rjwysocki.net>
 
-> On Jan 17, 2019, at 12:47 PM, Andy Lutomirski <luto@kernel.org> wrote:
->=20
-> On Thu, Jan 17, 2019 at 12:27 PM Andy Lutomirski <luto@kernel.org> =
-wrote:
->> On Wed, Jan 16, 2019 at 4:33 PM Rick Edgecombe
->> <rick.p.edgecombe@intel.com> wrote:
->>> From: Nadav Amit <namit@vmware.com>
->>>=20
->>> text_poke() can potentially compromise the security as it sets =
-temporary
->>> PTEs in the fixmap. These PTEs might be used to rewrite the kernel =
-code
->>> from other cores accidentally or maliciously, if an attacker gains =
-the
->>> ability to write onto kernel memory.
->>=20
->> i think this may be sufficient, but barely.
->>=20
->>> +       pte_clear(poking_mm, poking_addr, ptep);
->>> +
->>> +       /*
->>> +        * __flush_tlb_one_user() performs a redundant TLB flush =
-when PTI is on,
->>> +        * as it also flushes the corresponding "user" address =
-spaces, which
->>> +        * does not exist.
->>> +        *
->>> +        * Poking, however, is already very inefficient since it =
-does not try to
->>> +        * batch updates, so we ignore this problem for the time =
-being.
->>> +        *
->>> +        * Since the PTEs do not exist in other kernel =
-address-spaces, we do
->>> +        * not use __flush_tlb_one_kernel(), which when PTI is on =
-would cause
->>> +        * more unwarranted TLB flushes.
->>> +        *
->>> +        * There is a slight anomaly here: the PTE is a =
-supervisor-only and
->>> +        * (potentially) global and we use __flush_tlb_one_user() =
-but this
->>> +        * should be fine.
->>> +        */
->>> +       __flush_tlb_one_user(poking_addr);
->>> +       if (cross_page_boundary) {
->>> +               pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + =
-1);
->>> +               __flush_tlb_one_user(poking_addr + PAGE_SIZE);
->>> +       }
->>=20
->> In principle, another CPU could still have the old translation.  Your
->> mutex probably makes this impossible, but it makes me nervous.
->> Ideally you'd use flush_tlb_mm_range(), but I guess you can't do that
->> with IRQs off.  Hmm.  I think you should add an inc_mm_tlb_gen() =
-here.
->> Arguably, if you did that, you could omit the flushes, but maybe
->> that's silly.
->>=20
->> If we start getting new users of use_temporary_mm(), we should give
->> some serious thought to the SMP semantics.
->>=20
->> Also, you're using PAGE_KERNEL.  Please tell me that the global bit
->> isn't set in there.
->=20
-> Much better solution: do unuse_temporary_mm() and *then*
-> flush_tlb_mm_range().  This is entirely non-sketchy and should be just
-> about optimal, too.
-
-This solution sounds nice and clean. The fact the global-bit was set =
-didn=E2=80=99t
-matter before (since __flush_tlb_one_user would get rid of it no matter
-what), but would matter now, so I=E2=80=99ll change it too.
-
-Thanks!
-
-Nadav
+T24gVGh1LCAyMDE5LTAxLTE3IGF0IDEwOjM5ICswMTAwLCBQYXZlbCBNYWNoZWsgd3JvdGU6DQo+
+IEhpIQ0KPiANCj4gPiBGb3IgYXJjaGl0ZWN0dXJlcyB3aXRoIENPTkZJR19BUkNIX0hBU19TRVRf
+QUxJQVMsIHBhZ2VzIGNhbiBiZSB1bm1hcHBlZA0KPiA+IGJyaWVmbHkgb24gdGhlIGRpcmVjdG1h
+cCwgZXZlbiB3aGVuIENPTkZJR19ERUJVR19QQUdFQUxMT0MgaXMgbm90DQo+ID4gY29uZmlndXJl
+ZC4NCj4gPiBTbyB0aGlzIGNoYW5nZXMga2VybmVsX21hcF9wYWdlcyBhbmQga2VybmVsX3BhZ2Vf
+cHJlc2VudCB0byBiZSBkZWZpbmVkIHdoZW4NCj4gPiBDT05GSUdfQVJDSF9IQVNfU0VUX0FMSUFT
+IGlzIGRlZmluZWQgYXMgd2VsbC4gSXQgYWxzbyBjaGFuZ2VzIHBsYWNlcw0KPiA+IChwYWdlX2Fs
+bG9jLmMpIHdoZXJlIHRob3NlIGZ1bmN0aW9ucyBhcmUgYXNzdW1lZCB0byBvbmx5IGJlIGltcGxl
+bWVudGVkIHdoZW4NCj4gPiBDT05GSUdfREVCVUdfUEFHRUFMTE9DIGlzIGRlZmluZWQuDQo+IA0K
+PiBXaGljaCBhcmNoaXRlY3R1cmVzIGFyZSB0aGF0Pw0KPiANCj4gU2hvdWxkIHRoaXMgYmUgbWVy
+Z2VkIHRvIHRoZSBwYXRjaCB3aGVyZSBIQVNfU0VUX0FMSUFTIGlzIGludHJvZHVjZWQ/IFdlDQo+
+IGRvbid0IHdhbnQgYnJva2VuIGhpYmVybmF0aW9uIGluIGJldHdlZW4uLi4uDQpUaGFua3MgZm9y
+IHRha2luZyBhIGxvb2suIEl0IHdhcyBhZGRlZCBmb3IgeDg2IGZvciBwYXRjaCAxMyBpbiB0aGlz
+IHBhdGNoc2V0IGFuZA0KdGhlcmUgd2FzIGludGVyZXN0IGV4cHJlc3NlZCBmb3IgYWRkaW5nIGZv
+ciBhcm02NC4gSWYgeW91IGRpZG4ndCBnZXQgdGhlIHdob2xlDQpzZXQgYW5kIHdhbnQgdG8gc2Vl
+IGxldCBtZSBrbm93IGFuZCBJIGNhbiBzZW5kIGl0Lg0KDQo+IA0KPiA+IC0jaWZkZWYgQ09ORklH
+X0RFQlVHX1BBR0VBTExPQw0KPiA+ICBleHRlcm4gYm9vbCBfZGVidWdfcGFnZWFsbG9jX2VuYWJs
+ZWQ7DQo+ID4gLWV4dGVybiB2b2lkIF9fa2VybmVsX21hcF9wYWdlcyhzdHJ1Y3QgcGFnZSAqcGFn
+ZSwgaW50IG51bXBhZ2VzLCBpbnQNCj4gPiBlbmFibGUpOw0KPiA+ICANCj4gPiAgc3RhdGljIGlu
+bGluZSBib29sIGRlYnVnX3BhZ2VhbGxvY19lbmFibGVkKHZvaWQpDQo+ID4gIHsNCj4gPiAtCXJl
+dHVybiBfZGVidWdfcGFnZWFsbG9jX2VuYWJsZWQ7DQo+ID4gKwlyZXR1cm4gSVNfRU5BQkxFRChD
+T05GSUdfREVCVUdfUEFHRUFMTE9DKSAmJiBfZGVidWdfcGFnZWFsbG9jX2VuYWJsZWQ7DQo+ID4g
+IH0NCj4gDQo+IFRoaXMgd2lsbCBicmVhayBidWlsZCBBRkFJQ1QuIF9kZWJ1Z19wYWdlYWxsb2Nf
+ZW5hYmxlZCB2YXJpYWJsZSBkb2VzDQo+IG5vdCBleGlzdCBpbiAhQ09ORklHX0RFQlVHX1BBR0VB
+TExPQyBjYXNlLg0KPiANCj4gCQkJCQkJCQkJUGF2ZWwNCkFmdGVyIGFkZGluZyBpbiB0aGUgQ09O
+RklHX0FSQ0hfSEFTX1NFVF9BTElBUyBjb25kaXRpb24gdG8gdGhlIGlmZGVmcyBpbiB0aGlzDQph
+cmVhIGl0IGxvb2tlZCBhIGxpdHRsZSBoYXJkIHRvIHJlYWQgdG8gbWUsIHNvIEkgbW92ZWQgZGVi
+dWdfcGFnZWFsbG9jX2VuYWJsZWQNCmFuZCBleHRlcm4gYm9vbCBfZGVidWdfcGFnZWFsbG9jX2Vu
+YWJsZWQgb3V0c2lkZSB0byBtYWtlIGl0IGVhc2llci4gSSB0aGluayB5b3UNCmFyZSByaWdodCwg
+dGhlIGFjdHVhbCBub24tZXh0ZXJuIHZhcmlhYmxlIGNhbiBub3QgYmUgdGhlcmUsIGJ1dCB0aGUg
+cmVmZXJlbmNlDQpoZXJlIGdldHMgb3B0aW1pemVkIG91dCBpbiB0aGF0IGNhc2UuDQoNCkp1c3Qg
+ZG91YmxlIGNoZWNrZWQgYW5kIGl0IGJ1aWxkcyBmb3IgYm90aCBDT05GSUdfREVCVUdfUEFHRUFM
+TE9DPW4gYW5kDQpDT05GSUdfREVCVUdfUEFHRUFMTE9DPXkgZm9yIG1lLg0KDQpUaGFua3MsDQoN
+ClJpY2sNCg==
