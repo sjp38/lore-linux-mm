@@ -1,128 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C88748E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 14:35:19 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id e68so6662900plb.3
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:35:19 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id l129si2671378pfl.284.2019.01.17.11.35.17
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4678E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 14:39:13 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id z10so4075400edz.15
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:39:13 -0800 (PST)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id b54si3087261ede.267.2019.01.17.11.39.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 11:35:18 -0800 (PST)
-Date: Thu, 17 Jan 2019 12:34:03 -0700
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCH 0/4] Allow persistent memory to be used like normal RAM
-Message-ID: <20190117193403.GD31543@localhost.localdomain>
-References: <20190116181859.D1504459@viggo.jf.intel.com>
- <x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
- <20190117164736.GC31543@localhost.localdomain>
- <x49pnsv8am1.fsf@segfault.boston.devel.redhat.com>
+        Thu, 17 Jan 2019 11:39:11 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 6EE111C2C51
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 19:39:11 +0000 (GMT)
+Date: Thu, 17 Jan 2019 19:39:09 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 20/25] mm, compaction: Reduce unnecessary skipping of
+ migration target scanner
+Message-ID: <20190117193909.GO27437@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190104125011.16071-21-mgorman@techsingularity.net>
+ <8e310c2a-5f2e-ee99-24c5-10a71972699a@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <x49pnsv8am1.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <8e310c2a-5f2e-ee99-24c5-10a71972699a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, thomas.lendacky@amd.com, fengguang.wu@intel.com, dave@sr71.net, linux-nvdimm@lists.01.org, tiwai@suse.de, zwisler@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, baiyaowei@cmss.chinamobile.com, ying.huang@intel.com, bhelgaas@google.com, akpm@linux-foundation.org, bp@suse.de
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-On Thu, Jan 17, 2019 at 12:20:06PM -0500, Jeff Moyer wrote:
-> Keith Busch <keith.busch@intel.com> writes:
-> > On Thu, Jan 17, 2019 at 11:29:10AM -0500, Jeff Moyer wrote:
-> >> Dave Hansen <dave.hansen@linux.intel.com> writes:
-> >> > Persistent memory is cool.  But, currently, you have to rewrite
-> >> > your applications to use it.  Wouldn't it be cool if you could
-> >> > just have it show up in your system like normal RAM and get to
-> >> > it like a slow blob of memory?  Well... have I got the patch
-> >> > series for you!
-> >> 
-> >> So, isn't that what memory mode is for?
-> >>   https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
-> >> 
-> >> Why do we need this code in the kernel?
-> >
-> > I don't think those are the same thing. The "memory mode" in the link
-> > refers to platforms that sequester DRAM to side cache memory access, where
-> > this series doesn't have that platform dependency nor hides faster DRAM.
+On Thu, Jan 17, 2019 at 06:58:30PM +0100, Vlastimil Babka wrote:
+> On 1/4/19 1:50 PM, Mel Gorman wrote:
+> > The fast isolation of pages can move the scanner faster than is necessary
+> > depending on the contents of the free list. This patch will only allow
+> > the fast isolation to initialise the scanner and advance it slowly. The
+> > primary means of moving the scanner forward is via the linear scanner
+> > to reduce the likelihood the migration source/target scanners meet
+> > prematurely triggering a rescan.
 > 
-> OK, so you are making two arguments, here.  1) platforms may not support
-> memory mode, and 2) this series allows for performance differentiated
-> memory (even though applications may not modified to make use of
-> that...).
+> Maybe I've seen enough code today and need to stop, but AFAICS the description
+> here doesn't match the actual code changes? What I see are some cleanups, and a
+> change in free scanner that will set pageblock skip bit after a pageblock has
+> been scanned, even if there were pages isolated, while previously it would set
+> the skip bit only if nothing was isolated.
 > 
-> With this patch set, an unmodified application would either use:
-> 
-> 1) whatever memory it happened to get
-> 2) only the faster dram (via numactl --membind=)
-> 3) only the slower pmem (again, via numactl --membind1)
-> 4) preferentially one or the other (numactl --preferred=)
 
-Yes, numactl and mbind are good ways for unmodified applications
-to use these different memory types when they're available.
+The first three hunks could have been split out but it wouldn't help
+overall. Maybe a changelog rewrite will help;
 
-Tangentially related, I have another series[1] that provides supplementary
-information that can be used to help make these decisions for platforms
-that provide HMAT (heterogeneous memory attribute tables).
+mm, compaction: Reduce premature advancement of the migration target scanner
 
-> The other options are:
-> - as mentioned above, memory mode, which uses DRAM as a cache for the
->   slower persistent memory.  Note that it isn't all or nothing--you can
->   configure your system with both memory mode and appdirect.  The
->   limitation, of course, is that your platform has to support this.
->
->   This seems like the obvious solution if you want to make use of the
->   larger pmem capacity as regular volatile memory (and your platform
->   supports it).  But maybe there is some other limitation that motivated
->   this work?
+The fast isolation of free pages allows the cached PFN of the free
+scanner to advance faster than necessary depending on the contents
+of the free list. The key is that fast_isolate_freepages() can update
+zone->compact_cached_free_pfn via isolate_freepages_block().  When the
+fast search fails, the linear scan can start from a point that has skipped
+valid migration targets, particularly pageblocks with just low-order
+free pages. This can cause the migration source/target scanners to meet
+prematurely causing a reset.
 
-The hardware supported implementation is one way it may be used, and it's
-up side is that accessing the cached memory is transparent to the OS and
-applications. They can use memory unaware that this is happening, so it
-has a low barrier for applications to make use of the large available
-address space.
+This patch starts by avoiding an update of the pageblock skip information
+and cached PFN from isolate_freepages_block() and puts the responsibility
+of updating that information in the callers. The fast scanner will update
+the cached PFN if and only if it finds a block that is higher than the
+existing cached PFN and sets the skip if the pageblock is full or nearly
+full. The linear scanner will update skipped information and the cached
+PFN only when a block is completely scanned. The total impact is that
+the free scanner advances more slowly as it is primarily driven by the
+linear scanner instead of the fast search.
 
-There are some minimal things software may do that improve this mode,
-as Dan mentioned in his reply [2], but it is still usable even without
-such optimizations.
+Does that help?
 
-On the downside, a reboot would be required if you want to change the
-memory configuration at a later time, like you decide more or less DRAM
-as cache is needed. This series has runtime hot pluggable capabilities.
-
-It's also possible the customer may know better which applications require
-more hot vs cold data, but the memory mode caching doesn't give them as
-much control since the faster memory is hidden.
-
-> - libmemkind or pmdk.  These options typically* require application
->   modifications, but allow those applications to actively decide which
->   data lives in fast versus slow media.
-> 
->   This seems like the obvious answer for applications that care about
->   access latency.
-> 
-> * you could override the system malloc, but some libraries/application
->   stacks already do that, so it isn't a universal solution.
-> 
-> Listing something like this in the headers of these patch series would
-> considerably reduce the head-scratching for reviewers.
-> 
-> Keith, you seem to be implying that there are platforms that won't
-> support memory mode.  Do you also have some insight into how customers
-> want to use this, beyond my speculation?  It's really frustrating to see
-> patch sets like this go by without any real use cases provided.
-
-Right, most NFIT reporting platforms today don't have memory mode, and
-the kernel currently only supports the persistent DAX mode with these.
-This series adds another option for those platforms.
-
-I think numactl as you mentioned is the first consideration for how
-customers may make use. Dave or Dan might have other use cases in mind.
-Just thinking out loud, if we wanted an in-kernel use case, it may be
-interesting to make slower memory a swap tier so the host can manage
-the cache rather than the hardware.
-
-[1]
-https://lore.kernel.org/patchwork/cover/1032688/
-
-[2]
-https://lore.kernel.org/lkml/154767945660.1983228.12167020940431682725.stgit@dwillia2-desk3.amr.corp.intel.com/
+-- 
+Mel Gorman
+SUSE Labs
