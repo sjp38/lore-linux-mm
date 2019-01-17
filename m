@@ -6,142 +6,155 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 170CAC43387
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 16:51:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C2F4C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 16:56:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF5AF205C9
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 16:51:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CD18E20652
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 16:56:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="XDmMmTRI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF5AF205C9
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="cns3pxBj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD18E20652
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5AA358E0008; Thu, 17 Jan 2019 11:51:10 -0500 (EST)
+	id 5CDB68E0008; Thu, 17 Jan 2019 11:56:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 557D78E0002; Thu, 17 Jan 2019 11:51:10 -0500 (EST)
+	id 57B078E0002; Thu, 17 Jan 2019 11:56:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45AA58E0008; Thu, 17 Jan 2019 11:51:10 -0500 (EST)
+	id 46B4B8E0008; Thu, 17 Jan 2019 11:56:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 167A08E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:51:10 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id d7so3623639oif.5
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 08:51:10 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A96B8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:56:21 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id k76so3618051oih.13
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 08:56:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=eeqNNNSjGfrb/VOAvSUOR6b42db+Jqg9XHBp+kCWRWk=;
-        b=VrOdZnL7IZ2NYf3FQtdQapwE/6V+jRt1AJM/bVuh8Ow4G7bisV5SDAARHlJy+YZOvq
-         RaUBJuUT1rAh+NKFKXM7mwNPhBtitS9usLFCw7Y8yIqwMVT6vUxCcOHAKY00Xygx3CYk
-         3eeC1Q1FJR8+YrixVqYpVDYKYYhsvYDfEPSBj1xnyYeEoHeQloN9f9d5etZ3uzP+A0nk
-         s3B43vUQROt01wOgSGWHQrwUyZ0GwWDNqrNtXb66oPPzAbOsrbkycKrWMZ4RZG4yL0Fq
-         sYdsLSCIkUdgdLveCnxqPpfSAAyjVDrIati08Vl5PCHrE5J+NwJWXfnWF7+2QuPCzB0P
-         rlYg==
-X-Gm-Message-State: AJcUukczwn3isGOfSfNzDyIw8dLnOMQnILSF069FWEWmXGcH1IoEqtZI
-	KExeNnPTsymCRIjkrrJd9FvfKZ7piF4bbzSxItuGFqFIUW5f/3Z4hxYkSs5lsBk7wZZ+QSzSA5F
-	EITSl6yqVjqU0k7OqnwkwVYTFWioPbzWMV8B3TJTB8XBGCNlHdq1KXJlDfoluKdn8YSv4bMfAJS
-	LlGYvB6/myPg233D5RTvUJndNncrSV7AmP7Wr+VBWf1a8Z6a1DuMun3m9iSqYUEy9h5B2OSpTYH
-	3el7BcrD0BW0X0G3id5occ4fblhap/q+sW+NGpvJIH2c8K/+xShZpyQR055KW4CapGT8lyc4DvX
-	4j1sqBIXOQOGK/IUWsZvQT8cydXc2M7YY5COiYTouFpKK2zVCB0f9i3gJ15t1sQRe5LMwwzy/ry
-	r
-X-Received: by 2002:a9d:6191:: with SMTP id g17mr9474511otk.56.1547743869617;
-        Thu, 17 Jan 2019 08:51:09 -0800 (PST)
-X-Received: by 2002:a9d:6191:: with SMTP id g17mr9474481otk.56.1547743868783;
-        Thu, 17 Jan 2019 08:51:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547743868; cv=none;
+        bh=Rn9rsZuCSSjzYYPQ+62CJKuWjWxIhG5kt5EwxvzV0zY=;
+        b=PY8+xVAPNj9is4NLKv4YQHnN6uj2gIVeQIzo9qKhKNkkFLO+ivJryFtmO1UVdxrad6
+         3PMsDo7yNyGHDZSoXQwn09TcUm7+eEW7j9ktqjnEwPbx0s0zMd9WorrvezXdBHx3Bpqr
+         V9FnVtrKCo75hJuvYGtiAipouhvuZNZsUCwKVFJQ3GYiYLFuaDhyHqpMhJq19TVqsIHi
+         ecZxXw4LCBpNWlIH7WYPPx+nnLVrIQe9nRZskC3qafFNccQGY5St7lqRgi6845rXroX5
+         6sqo+WsQzJM4EbOV0IOl799ABKNYmG8rUbG1zpNNrE7fNyoNBWwz/X+bpkv9tYeqz2w0
+         eQ7Q==
+X-Gm-Message-State: AJcUukc+jzdC85/I3cwopoZp20CkVueKA8l6g9Tq82UsHp6c/n0kWoTe
+	LT5M2AIkhkdT//egPzmmveNLt080PTxdQ6Rmbd/OlLPwR+E0tBo+kDCqn4TQ1yr8H9tg+42+yQW
+	HUrGQuPixXUw+5RCocpe/lA4bqR6n3HOMpvQv7UYy1PTeR5Gcw+ZOtsxtqxhEyph9a3E540qMJQ
+	TbHI9xa1CJzbEsQiDRntto/uiahYBBl068EBc9+drTkrr0YUCMMRO+/P6dc/KmsJQB9Mn8WgXhV
+	KvrwtVS3wVaCLi+VRQa3BScx3mkYldyPm5DwdMZhC9nKwqP05i6ollJ8vKiysWGaRSpuQratJ+5
+	yf2B5d5KuZ+JVN0H43JE4WcjwNT3U82ufpJcxp8b9vdgGMHLDIJFvABSYe8a0C7t4GiQwtz0N81
+	b
+X-Received: by 2002:a9d:398a:: with SMTP id y10mr9369281otb.122.1547744180847;
+        Thu, 17 Jan 2019 08:56:20 -0800 (PST)
+X-Received: by 2002:a9d:398a:: with SMTP id y10mr9369251otb.122.1547744179960;
+        Thu, 17 Jan 2019 08:56:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547744179; cv=none;
         d=google.com; s=arc-20160816;
-        b=tuYKd7PFSj1q+jfF5n6pe32f9nkWmGJkT/NIf08wF8yhJlyDXhO1NaFgxtj0m0JOal
-         nB3fFLpHbIgbwjUWT3+E2O3+lzELQfSh0mIbvCGDVrjLupTxOGE4gIXPX1xmPBB/+bDi
-         wVcoQiXqSYQ33O67sps0teMp1GNOWmzRLhHCqt2lp4VQqjkvZlbkpB2FyAqx/zPREwjG
-         YzoXirRmN7i1Lwt5+E92RbdcH37H+uLM6osIMd2SBbtwI3DRPlbpcAXwfe0UoY8x/lBH
-         ZLhtZqTstW4He0uW7BlUo2cX79hU5i3mXLNGgsKp4FmTDF5Qrfl43RblV0PrkWPIPEUg
-         kT5g==
+        b=iNyfytpUgnMHCf4RFNNNK9meTLU31kOIBq6+3p7N1Wyr8YimXK7nV+QNEl+KKleiFE
+         jv4l4V6+M0MIWEeScsczA/inGohizOBmsZ+kMUHBp4XRddcw3iXE99TsxESqwJbckYKq
+         /zi+TTDewTp8RY6Xp8SDfyl+a1BUjg2kt96LqbJJs4fZ64ngq7Ivo6+k6ZB4fvkGa+G/
+         NCzL/qkoFHVxpFBdYqdekSdQbz4JO1NWaguAfk+iU4k/Ir5WZ9u4OwA35fhL5TO2IJNb
+         CUVzPSjZ3IuTIwMW/mnopCIjPbIelgPAie5jRgMHEQmiUKDklypb4rYnLuvg9Xf5b4jm
+         Q2ew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=eeqNNNSjGfrb/VOAvSUOR6b42db+Jqg9XHBp+kCWRWk=;
-        b=WO/EzcNQwBYWznT838a1049/XcYVRjZBFm20ZeCJon9cgDtByWwxBTdh86IOCe4Z5r
-         eeDZrPaO1oRoZXFN5RWFPzYMS6l1yOesyhJfVu4UC7c+ra/iT/OY5ezXY85VJYyTbYLP
-         R+T/nu8MubwJKorw9AD/h79tyYNTctueSYWAQ0k09/slOFU1IUV5RpOuTmvaAM+jSjEh
-         bfokUFvafukJpTDEPOmlZmfiHPtgJ+n8yuOJ/auZTYUmbw/zdtQX8Jq/j7TlFoIch3Ts
-         qpFP4+6n7WjvCSti2nqnt930JlwAA3RIKcoLI4CeHCbdAAlfnpGkrpH104ssMn/E1+4Z
-         lk8g==
+        bh=Rn9rsZuCSSjzYYPQ+62CJKuWjWxIhG5kt5EwxvzV0zY=;
+        b=V+aIDHCN8U3f1BEXRUDAkTdHWhq9wMl2FgES8xItouaA67rS3Wt3dqR5lIPsJf+7W2
+         9BZaMukRpZPWFruXsQMz8P4aoIL5PwYmMC72rKheo6ddr6s3zq2wmQXicPyhywQWGQlK
+         BQFQa6YkRQGWQP7q6RviO8NOYF8Xc/cW463hefzVp4nLEKuJqXlwSFWUJ5p/FIsWnERR
+         gqBqmTDCmSXusB+eVwrbYNZ2JVWGIYMM5AGofcE0o/vzdZKlXptCnPq+S3AWFwYftsJs
+         lP5kLzjYZIwmDNqnI9q/y8sRP2okJSIgh5Wg5+l0ytioE4u69wvRXHLZB78ke1DIJ+dQ
+         qptQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=XDmMmTRI;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=cns3pxBj;
        spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z79sor944928oia.97.2019.01.17.08.51.08
+        by mx.google.com with SMTPS id 4sor1119286otr.58.2019.01.17.08.56.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 17 Jan 2019 08:51:08 -0800 (PST)
+        Thu, 17 Jan 2019 08:56:19 -0800 (PST)
 Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=XDmMmTRI;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=cns3pxBj;
        spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=eeqNNNSjGfrb/VOAvSUOR6b42db+Jqg9XHBp+kCWRWk=;
-        b=XDmMmTRIBB5vKWP6TrUwQCEHemONZ8D/s0D83Xpx/UVBf9cANGrt0DX50SHJ9AGymu
-         HGb+gf7w0IPrP41Y1j69q32oQnM1pvz89kwP3E/1/8xqNps7J5ibJPJ1dEso3eGhxQSD
-         uZmCIpOfTK8l9dfeWt+Lryevm4UKRmUTz7h97P7SlCQD6vinUE2fUhhgVng/6w739Zfp
-         Va3bxvf1ta0DfOAnb/GD6tnWwXaj8JFYUtcalUHgaeUCbhZmoeHYX8O7+zSRPw3lHhY4
-         WJXtIfp+GcvstcMA8ht+i0wW4eTQKWaDy3h/WWczw6uMXUP4+iOlnLScTvXwjiM6b/lF
-         64ZA==
-X-Google-Smtp-Source: ALg8bN5MbqsOaTEFby+rDYnDy2cAuiqqwg7op/akn51pGzRtGj2Cio9wpi3j/48ESGJDtvGyDnPXPzS9B6yq0EDd9sg=
-X-Received: by 2002:aca:d905:: with SMTP id q5mr5249519oig.0.1547743868290;
- Thu, 17 Jan 2019 08:51:08 -0800 (PST)
+        bh=Rn9rsZuCSSjzYYPQ+62CJKuWjWxIhG5kt5EwxvzV0zY=;
+        b=cns3pxBjqz2aeJW7ho3ts/fvTC5/fMjksg2ZBn3RDRN6Ce1LFr/eaNkkar5bCU2hD1
+         AZTk8cC+zT9/gltc0y5w/xZH+fVckPgARXuwzx8/wGYnNNwcVBTYcGJcbrlCU9QoDODs
+         OyLNR01z65fZ28+2QODVrb3NJ0PROp31Z30Oe4WEBUJaaCdonumn5bmrcBUF4/zDgV9c
+         r2c7HwTUMf69pHmtSNr072Q6DiaLgp82NRO+Xnst8ocjX3vYAm1Gd72BlSqVptP538FK
+         i9eMT6OKkSrShBWJ5zc9k4+rdybJnRVKJgDvlzSUqMPnwNFhYoQffmolStM0WYg57Spt
+         7Jog==
+X-Google-Smtp-Source: ALg8bN5kBBgKK8xzyu7fcYVTWd5irm9JOMtTRrCCpfXvQofB7v7nUulz8yc18vhIDbNF+9CMOfZAkNghbfqL+ruYv40=
+X-Received: by 2002:a9d:5cc2:: with SMTP id r2mr9245443oti.367.1547744179510;
+ Thu, 17 Jan 2019 08:56:19 -0800 (PST)
 MIME-Version: 1.0
-References: <20190116181859.D1504459@viggo.jf.intel.com> <x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
-In-Reply-To: <x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
+References: <20190116181859.D1504459@viggo.jf.intel.com> <20190116181905.12E102B4@viggo.jf.intel.com>
+ <5A90DA2E42F8AE43BC4A093BF06788482571FCB1@SHSMSX103.ccr.corp.intel.com>
+In-Reply-To: <5A90DA2E42F8AE43BC4A093BF06788482571FCB1@SHSMSX103.ccr.corp.intel.com>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 17 Jan 2019 08:50:57 -0800
+Date: Thu, 17 Jan 2019 08:56:08 -0800
 Message-ID:
- <CAPcyv4je0XXWjej+xM4+gidryQH=p_sevD=eL6w8f-vDQzMm3w@mail.gmail.com>
-Subject: Re: [PATCH 0/4] Allow persistent memory to be used like normal RAM
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, 
-	Fengguang Wu <fengguang.wu@intel.com>, Dave Hansen <dave@sr71.net>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, Takashi Iwai <tiwai@suse.de>, 
-	Ross Zwisler <zwisler@kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>
+ <CAPcyv4heNGQf4NHYrMzUdBRw2n3tE08bMaVKzgYrPYVaVDWE9Q@mail.gmail.com>
+Subject: Re: [PATCH 4/4] dax: "Hotplug" persistent memory for use like normal RAM
+To: "Du, Fan" <fan.du@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, "dave@sr71.net" <dave@sr71.net>, 
+	"thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "mhocko@suse.com" <mhocko@suse.com>, 
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "tiwai@suse.de" <tiwai@suse.de>, 
+	"zwisler@kernel.org" <zwisler@kernel.org>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"Wu, Fengguang" <fengguang.wu@intel.com>, 
+	"baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>, "Huang, Ying" <ying.huang@intel.com>, 
+	"bhelgaas@google.com" <bhelgaas@google.com>, 
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "bp@suse.de" <bp@suse.de>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190117165057.krLBtRleAucfc0Upgtg04W4MH0eeaE9pCVzREYxy1kQ@z>
+Message-ID: <20190117165608.n1eFOkGkYFoWfJWbUb8bxS8w-4_iLNicYhItFlHzAUQ@z>
 
-On Thu, Jan 17, 2019 at 8:29 AM Jeff Moyer <jmoyer@redhat.com> wrote:
+On Wed, Jan 16, 2019 at 9:21 PM Du, Fan <fan.du@intel.com> wrote:
+[..]
+> >From: Dave Hansen <dave.hansen@linux.intel.com>
+> >
+> >Currently, a persistent memory region is "owned" by a device driver,
+> >either the "Direct DAX" or "Filesystem DAX" drivers.  These drivers
+> >allow applications to explicitly use persistent memory, generally
+> >by being modified to use special, new libraries.
+> >
+> >However, this limits persistent memory use to applications which
+> >*have* been modified.  To make it more broadly usable, this driver
+> >"hotplugs" memory into the kernel, to be managed ad used just like
+> >normal RAM would be.
+> >
+> >To make this work, management software must remove the device from
+> >being controlled by the "Device DAX" infrastructure:
+> >
+> >       echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
+> >       echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+> >
+> >and then bind it to this new driver:
+> >
+> >       echo -n dax0.0 > /sys/bus/dax/drivers/kmem/new_id
+> >       echo -n dax0.0 > /sys/bus/dax/drivers/kmem/bind
 >
-> Dave Hansen <dave.hansen@linux.intel.com> writes:
+> Is there any plan to introduce additional mode, e.g. "kmem" in the userspace
+> ndctl tool to do the configuration?
 >
-> > Persistent memory is cool.  But, currently, you have to rewrite
-> > your applications to use it.  Wouldn't it be cool if you could
-> > just have it show up in your system like normal RAM and get to
-> > it like a slow blob of memory?  Well... have I got the patch
-> > series for you!
->
-> So, isn't that what memory mode is for?
->   https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
 
-That's a hardware cache that privately manages DRAM in front of PMEM.
-It benefits from some help from software [1].
-
-> Why do we need this code in the kernel?
-
-This goes further and enables software managed allocation decisions
-with the full DRAM + PMEM address space.
-
-[1]: https://lore.kernel.org/lkml/154767945660.1983228.12167020940431682725.stgit@dwillia2-desk3.amr.corp.intel.com/
+Yes, but not to ndctl. The daxctl tool will grow a helper for this.
+The policy of what device-dax instances should be hotplugged at system
+init will be managed by a persistent configuration file and udev
+rules.
 
