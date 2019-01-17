@@ -1,100 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B1AC98E0003
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 19:33:38 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id r13so5003872pgb.7
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:33:38 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id y10si7582915plt.406.2019.01.16.16.33.37
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 306708E0005
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 19:33:39 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id g12so4907677pll.22
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:33:39 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id m3si7883258pld.331.2019.01.16.16.33.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Jan 2019 16:33:37 -0800 (PST)
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH 03/17] x86/mm: temporary mm struct
-Date: Wed, 16 Jan 2019 16:32:45 -0800
-Message-Id: <20190117003259.23141-4-rick.p.edgecombe@intel.com>
+Subject: [PATCH 13/17] Add set_alias_ function and x86 implementation
+Date: Wed, 16 Jan 2019 16:32:55 -0800
+Message-Id: <20190117003259.23141-14-rick.p.edgecombe@intel.com>
 In-Reply-To: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
 References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-From: Andy Lutomirski <luto@kernel.org>
+This adds two new functions set_alias_default_noflush and set_alias_nv_noflush
+for setting the alias mapping for the page to its default valid permissions
+and to an invalid state that cannot be cached in a TLB, respectively. These
+functions to not flush the TLB.
 
-Sometimes we want to set a temporary page-table entries (PTEs) in one of
-the cores, without allowing other cores to use - even speculatively -
-these mappings. There are two benefits for doing so:
+Note, __kernel_map_pages does something similar but flushes the TLB and doesn't
+reset the permission bits to default on all architectures.
 
-(1) Security: if sensitive PTEs are set, temporary mm prevents their use
-in other cores. This hardens the security as it prevents exploding a
-dangling pointer to overwrite sensitive data using the sensitive PTE.
+There is also an ARCH config ARCH_HAS_SET_ALIAS for specifying whether these
+have an actual implementation or a default empty one.
 
-(2) Avoiding TLB shootdowns: the PTEs do not need to be flushed in
-remote page-tables.
-
-To do so a temporary mm_struct can be used. Mappings which are private
-for this mm can be set in the userspace part of the address-space.
-During the whole time in which the temporary mm is loaded, interrupts
-must be disabled.
-
-The first use-case for temporary PTEs, which will follow, is for poking
-the kernel text.
-
-[ Commit message was written by Nadav ]
-
-Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
-Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/mmu_context.h | 32 ++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ arch/Kconfig                      |  4 ++++
+ arch/x86/Kconfig                  |  1 +
+ arch/x86/include/asm/set_memory.h |  3 +++
+ arch/x86/mm/pageattr.c            | 14 +++++++++++---
+ include/linux/set_memory.h        | 10 ++++++++++
+ 5 files changed, 29 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 0ca50611e8ce..0141b7fa6d01 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -338,4 +338,36 @@ static inline unsigned long __get_current_cr3_fast(void)
- 	return cr3;
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 4cfb6de48f79..4ef9db190f2d 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -249,6 +249,10 @@ config ARCH_HAS_FORTIFY_SOURCE
+ config ARCH_HAS_SET_MEMORY
+ 	bool
+ 
++# Select if arch has all set_alias_nv/default() functions
++config ARCH_HAS_SET_ALIAS
++	bool
++
+ # Select if arch init_task must go in the __init_task_data section
+ config ARCH_TASK_STRUCT_ON_STACK
+        bool
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 15af091611e2..14ad28769256 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -66,6 +66,7 @@ config X86
+ 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
+ 	select ARCH_HAS_UACCESS_MCSAFE		if X86_64 && X86_MCE
+ 	select ARCH_HAS_SET_MEMORY
++	select ARCH_HAS_SET_ALIAS
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
+diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
+index 07a25753e85c..2ef4e4222df1 100644
+--- a/arch/x86/include/asm/set_memory.h
++++ b/arch/x86/include/asm/set_memory.h
+@@ -85,6 +85,9 @@ int set_pages_nx(struct page *page, int numpages);
+ int set_pages_ro(struct page *page, int numpages);
+ int set_pages_rw(struct page *page, int numpages);
+ 
++int set_alias_nv_noflush(struct page *page);
++int set_alias_default_noflush(struct page *page);
++
+ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 4f8972311a77..3a51915a1410 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -2209,8 +2209,6 @@ int set_pages_rw(struct page *page, int numpages)
+ 	return set_memory_rw(addr, numpages);
  }
  
-+typedef struct {
-+	struct mm_struct *prev;
-+} temporary_mm_state_t;
-+
-+/*
-+ * Using a temporary mm allows to set temporary mappings that are not accessible
-+ * by other cores. Such mappings are needed to perform sensitive memory writes
-+ * that override the kernel memory protections (e.g., W^X), without exposing the
-+ * temporary page-table mappings that are required for these write operations to
-+ * other cores.
-+ *
-+ * Context: The temporary mm needs to be used exclusively by a single core. To
-+ *          harden security IRQs must be disabled while the temporary mm is
-+ *          loaded, thereby preventing interrupt handler bugs from override the
-+ *          kernel memory protection.
-+ */
-+static inline temporary_mm_state_t use_temporary_mm(struct mm_struct *mm)
+-#ifdef CONFIG_DEBUG_PAGEALLOC
+-
+ static int __set_pages_p(struct page *page, int numpages)
+ {
+ 	unsigned long tempaddr = (unsigned long) page_address(page);
+@@ -2249,6 +2247,17 @@ static int __set_pages_np(struct page *page, int numpages)
+ 	return __change_page_attr_set_clr(&cpa, 0);
+ }
+ 
++int set_alias_nv_noflush(struct page *page)
 +{
-+	temporary_mm_state_t state;
-+
-+	lockdep_assert_irqs_disabled();
-+	state.prev = this_cpu_read(cpu_tlbstate.loaded_mm);
-+	switch_mm_irqs_off(NULL, mm, current);
-+	return state;
++	return __set_pages_np(page, 1);
 +}
 +
-+static inline void unuse_temporary_mm(temporary_mm_state_t prev)
++int set_alias_default_noflush(struct page *page)
 +{
-+	lockdep_assert_irqs_disabled();
-+	switch_mm_irqs_off(NULL, prev.prev, current);
++	return __set_pages_p(page, 1);
 +}
 +
- #endif /* _ASM_X86_MMU_CONTEXT_H */
++#ifdef CONFIG_DEBUG_PAGEALLOC
+ void __kernel_map_pages(struct page *page, int numpages, int enable)
+ {
+ 	if (PageHighMem(page))
+@@ -2282,7 +2291,6 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
+ }
+ 
+ #ifdef CONFIG_HIBERNATION
+-
+ bool kernel_page_present(struct page *page)
+ {
+ 	unsigned int level;
+diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
+index 2a986d282a97..d19481ac6a8f 100644
+--- a/include/linux/set_memory.h
++++ b/include/linux/set_memory.h
+@@ -10,6 +10,16 @@
+ 
+ #ifdef CONFIG_ARCH_HAS_SET_MEMORY
+ #include <asm/set_memory.h>
++#ifndef CONFIG_ARCH_HAS_SET_ALIAS
++static inline int set_alias_nv_noflush(struct page *page)
++{
++	return 0;
++}
++static inline int set_alias_default_noflush(struct page *page)
++{
++	return 0;
++}
++#endif
+ #else
+ static inline int set_memory_ro(unsigned long addr, int numpages) { return 0; }
+ static inline int set_memory_rw(unsigned long addr, int numpages) { return 0; }
 -- 
 2.17.1
