@@ -1,66 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D81F8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 18:39:54 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id p131so2462508oia.21
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:39:54 -0800 (PST)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id o3si3680979oia.31.2019.01.16.15.39.52
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0808E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 19:33:38 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id a2so5000489pgt.11
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:33:38 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y10si7582915plt.406.2019.01.16.16.33.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 15:39:53 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: hwpoison: use do_send_sig_info() instead of
- force_sig() (Re: PMEM error-handling forces SIGKILL causes kernel panic)
-Date: Wed, 16 Jan 2019 23:32:07 +0000
-Message-ID: <20190116233207.GA5868@hori1.linux.bs1.fc.nec.co.jp>
-References: <e3c4c0e0-1434-4353-b893-2973c04e7ff7@oracle.com>
- <CAPcyv4j67n6H7hD6haXJqysbaauci4usuuj5c+JQ7VQBGngO1Q@mail.gmail.com>
- <20190111081401.GA5080@hori1.linux.bs1.fc.nec.co.jp>
- <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
- <97e179e1-8a3a-5acb-78c1-a4b06b33db4c@oracle.com>
-In-Reply-To: <97e179e1-8a3a-5acb-78c1-a4b06b33db4c@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <68BC388A3267A242ADFC5973F8C41A59@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Wed, 16 Jan 2019 16:33:37 -0800 (PST)
+From: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Subject: [PATCH 00/17] Merge text_poke fixes and executable lockdowns
+Date: Wed, 16 Jan 2019 16:32:42 -0800
+Message-Id: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jane Chu <jane.chu@oracle.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-Hi Jane,
+This patchset improves several overlapping issues around stale TLB
+entries and W^X violations. It is combined from a slightly tweaked
+"x86/alternative: text_poke() enhancements v7" [1] and a next version of
+the "Don’t leave executable TLB entries to freed pages v2" [2]
+patchsets that were conflicting.
 
-On Wed, Jan 16, 2019 at 09:56:02AM -0800, Jane Chu wrote:
-> Hi, Naoya,
->=20
-> On 1/16/2019 1:30 AM, Naoya Horiguchi wrote:
->=20
->     diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->     index 7c72f2a95785..831be5ff5f4d 100644
->     --- a/mm/memory-failure.c
->     +++ b/mm/memory-failure.c
->     @@ -372,7 +372,8 @@ static void kill_procs(struct list_head *to_kill,=
- int forcekill, bool fail,
->                             if (fail || tk->addr_valid =3D=3D 0) {
->                                     pr_err("Memory failure: %#lx: forcibl=
-y killing %s:%d because of failure to unmap corrupted page\n",
->                                            pfn, tk->tsk->comm, tk->tsk->p=
-id);
->     -                               force_sig(SIGKILL, tk->tsk);
->     +                               do_send_sig_info(SIGKILL, SEND_SIG_PR=
-IV,
->     +                                                tk->tsk, PIDTYPE_PID=
-);
->                             }
->=20
->=20
-> Since we don't care the return from do_send_sig_info(), would you mind to
-> prefix it with (void) ?
+The related issues that this fixes:
+1. Fixmap PTEs that are used for patching are available for access from
+   other cores and might be exploited. They are not even flushed from
+   the TLB in remote cores, so the risk is even higher. Address this
+   issue by introducing a temporary mm that is only used during
+   patching. Unfortunately, due to init ordering, fixmap is still used
+   during boot-time patching. Future patches can eliminate the need for
+   it.
+2. Missing lockdep assertion to ensure text_mutex is taken. It is
+   actually not always taken, so fix the instances that were found not
+   to take the lock (although they should be safe even without taking
+   the lock).
+3. Module_alloc returning memory that is RWX until a module is finished
+   loading.
+4. Sometimes when memory is freed via the module subsystem, an
+   executable permissioned TLB entry can remain to a freed page. If the
+   page is re-used to back an address that will receive data from
+   userspace, it can result in user data being mapped as executable in
+   the kernel. The root of this behavior is vfree lazily flushing the
+   TLB, but not lazily freeing the underlying pages.
 
-Sorry, I'm not sure about the benefit to do casting the return value
-just being ignored, so personally I'd like keeping the code simple.
-Do you have some in mind?
+The new changes from "Don’t leave executable TLB entries to freed pages
+v2":
+ - Add support for case of hibernate trying to save an unmapped page
+   on the directmap. (Ard Biesheuvel)
+ - No week arch breakout for vfree-ing special memory (Andy Lutomirski)
+ - Avoid changing deferred free code by moving modules init free to work
+   queue (Andy Lutomirski)
+ - Plug in new flag for kprobes and ftrace
+ - More arch generic names for set_pages functions (Ard Biesheuvel)
+ - Fix for TLB not always flushing the directmap (Nadav Amit)
+ 
+New changes from from "x86/alternative: text_poke() enhancements v7"
+ - Fix build failure on CONFIG_RANDOMIZE_BASE=n (Rick)
+ - Remove text_poke usage from ftrace (Nadav)
+ 
+[1] https://lkml.org/lkml/2018/12/5/200
+[2] https://lkml.org/lkml/2018/12/11/1571
 
-- Naoya=
+Andy Lutomirski (1):
+  x86/mm: temporary mm struct
+
+Nadav Amit (12):
+  Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+  x86/jump_label: Use text_poke_early() during early init
+  fork: provide a function for copying init_mm
+  x86/alternative: initializing temporary mm for patching
+  x86/alternative: use temporary mm for text poking
+  x86/kgdb: avoid redundant comparison of patched code
+  x86/ftrace: set trampoline pages as executable
+  x86/kprobes: Instruction pages initialization enhancements
+  x86: avoid W^X being broken during modules loading
+  x86/jump-label: remove support for custom poker
+  x86/alternative: Remove the return value of text_poke_*()
+  module: Prevent module removal racing with text_poke()
+
+Rick Edgecombe (4):
+  Add set_alias_ function and x86 implementation
+  mm: Make hibernate handle unmapped pages
+  vmalloc: New flags for safe vfree on special perms
+  Plug in new special vfree flag
+
+ arch/Kconfig                         |   4 +
+ arch/x86/Kconfig                     |   1 +
+ arch/x86/include/asm/fixmap.h        |   2 -
+ arch/x86/include/asm/mmu_context.h   |  32 +++++
+ arch/x86/include/asm/pgtable.h       |   3 +
+ arch/x86/include/asm/set_memory.h    |   3 +
+ arch/x86/include/asm/text-patching.h |   7 +-
+ arch/x86/kernel/alternative.c        | 197 ++++++++++++++++++++-------
+ arch/x86/kernel/ftrace.c             |  15 +-
+ arch/x86/kernel/jump_label.c         |  19 ++-
+ arch/x86/kernel/kgdb.c               |  25 +---
+ arch/x86/kernel/kprobes/core.c       |  19 ++-
+ arch/x86/kernel/module.c             |   2 +-
+ arch/x86/mm/init_64.c                |  36 +++++
+ arch/x86/mm/pageattr.c               |  16 ++-
+ arch/x86/xen/mmu_pv.c                |   2 -
+ include/linux/filter.h               |  18 +--
+ include/linux/mm.h                   |  18 +--
+ include/linux/sched/task.h           |   1 +
+ include/linux/set_memory.h           |  10 ++
+ include/linux/vmalloc.h              |  13 ++
+ init/main.c                          |   3 +
+ kernel/bpf/core.c                    |   1 -
+ kernel/fork.c                        |  24 +++-
+ kernel/module.c                      |  87 ++++++------
+ mm/page_alloc.c                      |   6 +-
+ mm/vmalloc.c                         | 122 ++++++++++++++---
+ 27 files changed, 497 insertions(+), 189 deletions(-)
+
+-- 
+2.17.1
