@@ -2,175 +2,176 @@ Return-Path: <SRS0=SJ39=PZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE1ABC43612
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 17:20:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07360C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 17:42:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9180A20851
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 17:20:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9180A20851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C4CD820652
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 17:42:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4CD820652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1EAD08E000B; Thu, 17 Jan 2019 12:20:13 -0500 (EST)
+	id 5F8038E000D; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 172338E0002; Thu, 17 Jan 2019 12:20:13 -0500 (EST)
+	id 5A6718E0002; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 013958E000B; Thu, 17 Jan 2019 12:20:12 -0500 (EST)
+	id 4BD418E000D; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C4FFF8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:20:12 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id u20so9682083qtk.6
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:20:12 -0800 (PST)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DF2A8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id r131so3635405oia.7
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:42:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=Nz3Z7thQCVhQrXLgFx8SbhFu06+rZQUBfHpodnBBGfQ=;
-        b=mB5pfYpFVrvvgWBkUi6CCkcjgUaTFlG+OINMh58q5O48s06wz90qx1p2Xso3tYWgIa
-         5pFJX6RfyThtezEDPYlDK0Wdr1Qw3APTPOBpEaekL8PrOWUg1jL/n9SfF7GMPwGUWJeA
-         RkTSkAULWCy2UU7FVJp+FObly1Ll17PMhQIuLQw/hg7zwccKUXu0RAzweNIrxCVE5/ZR
-         heh+AI+9eViua4+t9XruTFyiq9tI8hmc1VpJP9lXUBhHGdPDJcsbT+NEge3+iTDNdKMM
-         +r2YUSdMbP/IFt3iNsVbUfch5VpvaXx6Az0V+cMuL1PWbQq3XQgXUvIuMLFHeky4nCxS
-         tmEg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukcKpgBnALxfX9ngwwXr6fC5IV2ekBBv/SOMDTUpu54vW5qwYxtv
-	thp5ockF3amLvPx4XIbaHmMeY/ORpv1F8eFmGPRcOUfUhEztN1gphJchOqmner6WlS20cm+bvSo
-	KSk4y18ZjU8XER21pTFTObTvEApadLOFVcm0oz6zQFzhDdtV0fQmyV3s2+RZM0LAGEA==
-X-Received: by 2002:a37:9906:: with SMTP id b6mr11707522qke.208.1547745612544;
-        Thu, 17 Jan 2019 09:20:12 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN53XqC0M8lj9INz9YOYKM6R5sPe3aABPCdHVJHKKvGUd5D7qw1jTnodSx1caBmeMWqMVvtw
-X-Received: by 2002:a37:9906:: with SMTP id b6mr11707479qke.208.1547745611903;
-        Thu, 17 Jan 2019 09:20:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547745611; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=4l33NxMborqisvl0/5peQNrXL5/jqVOWTyG/TbJwZME=;
+        b=XLkFIJouPvB+VD3M+RanPQVuRxmHgOW1ASsN0oNie3pOMgeQOoCAX8/iHLmmFDlknM
+         9Dz/TGJKUcm5sZ4e/R9L2ApZNuk+3JW/Y9X828x+Ztbb3pbRyRJZMaTL2faLnXUTsxbZ
+         iTvhwuo6rq8pakGwk+f232uTytO5sKNPHAJQZAX7uqq/YKEwqYhEA2pqKtwq87N7XFl3
+         BXL+Q2eId1lAOmTzIEvX/j+3hMNucsitDec8niAlVoYYmaocW8VZqdxZVyLOqrpOz1FA
+         w9voavmVPiWK+1q9XnOUShoW4XF3XQ50q1VlejLgIZgfSsJaLVcTni01iOccxfYdBSDt
+         UHDA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukdiwviWSFJC762jCzG8Bj6yPx3PfUYDML2OqRhJ1KjdPwER7H2y
+	x2zgQuNni1Jx8OjDX9TGMOHALs0pmP6QDt55Z6VQRo016OlIdPZ7jNbXeusnWbYybd+3BLBdtZe
+	QcafA5Xr4JTHkNG4wp8ZvGYX6r6v7GQuHPH+Ax6ubgZYavvGb6hYga0RjwLCbndmbuBpvZAYa8N
+	8hra9HK36SzKiLGZ2G6G5iW5ByjDkr+HObSxknc4ZSCKGSuf2FCKDKF3BAZUU2K2k62g59FPiBZ
+	vkph3jwOOT/aPhS9g1Sm1MfFmVzTTvup693Og8Amd3mOlHdg8AtEiDpiY2GXAZ9PRaOHshY1Ago
+	KWkIcMN4/4ESKhdBppZsM3W6BcaaPX9tbhQu7jJywmD/QSKajG1XwDjmhx7b19mhrgwIQ6v4RA=
+	=
+X-Received: by 2002:a9d:2184:: with SMTP id s4mr10008654otb.46.1547746960827;
+        Thu, 17 Jan 2019 09:42:40 -0800 (PST)
+X-Received: by 2002:a9d:2184:: with SMTP id s4mr10008631otb.46.1547746960192;
+        Thu, 17 Jan 2019 09:42:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547746960; cv=none;
         d=google.com; s=arc-20160816;
-        b=ERoWuTODLug7NwY+hA18ojCu6j69FN2/j/gWQO12hudJF2reuwrGTedOMEmjEGVdr/
-         eSqS1bMhLVrdwApZ31KjX65uuttkj/Dy5KVaOvw/KBNi7ytVQQnaQPH9Zue5WuRvtMPW
-         rB29o2EbTdTEXFwymXZXZcpx12tfzfEVC8+DSXw4zRHveOgf3XeCtrDIkrMfpV/RMIbj
-         gq6F9jLUhVidXdoLPC+cz7U/7MqzZmfbmC/XBU+vmlKfW9KPfln+OglH9udswR8xDWLz
-         fvk4BcrKNddyMKyilBgTSHKBYkyj1YImk9snTJM4uUw499ZQMjOA0K/Urf0skuQWdx0f
-         zBDQ==
+        b=PGMSJuPQdOJ2qBtjMgSzkFKuOvZdWG493JhmyiLwFJspJANWnW3AFYU5h8eZf1YR0l
+         J0gRFKnQsm1zUjRQZSORyMoRZbGT0h1HsgcueH6guzYUwshAtCoHJXm9oj3OEvvq4eO9
+         QssSPiErvIWSKXV2Wv1u43ODC7iJUEL1ajHzd8MrdOBP7D1gMIceUKjO4MF5cHmh45jl
+         EjUY0FWxvV215ecOItky3djEdua206ED6TFsLzngCDMy7/JNQQSAyA/580nAyQ0GZPKS
+         j2LfAMHb8EXhtqNFKGz7mJH3nyzwJtul2oHwk+lcZryuPCdoUR8qwLnu2yF+nakkSZvd
+         tGkQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=Nz3Z7thQCVhQrXLgFx8SbhFu06+rZQUBfHpodnBBGfQ=;
-        b=I4HoOaknX9C1o1cmPQhCuTYk5DpNiC3QvQ90JNx6gVzyCy9Zeqf3Tmf7zknke49/da
-         8+MYESD8JyqZDA1K6BGhuoFL4lEyjYyeUFmo0bJpaaaGk1V/xax9IctcT+4E8dsXrcsr
-         BxnXhar1V8MleivmDBx3WmUV3e67BklabUEnQKok8TxQj31M6MH25keZw8WI87pgZB8M
-         KSmYQXuGsB1ynqQaOdsZSG3yjZ2G8L1/N1xuGlcjW8cIA3Wme+bNSRcQjYevXKSq5tX4
-         EfP19HQii/+5Xk3eSwVWEfDheT54U3iLGNZ1by3kcz7XuUOQCmNdu8G0dx+Wx6Soxr1c
-         JFYQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=4l33NxMborqisvl0/5peQNrXL5/jqVOWTyG/TbJwZME=;
+        b=1E7Fkqns1UCKrsElKZ1RHFPe+hLgttEdRXS9L9cEN+S2xD0+xOEAdEeNiQlCppQIaw
+         bqNIMjgf2Cbf27ZOeIU+3D6QVA1plNj1FmlEOT8V7e9f9jHXygn2PxEglw226CUeQpBR
+         Gz97xTCeGdoFtzvL7feSepLJ7Otn1NkhIw6FIogcG54hvayrJCGyL+FYBqRz+yc5fAt8
+         lUkQ1+gQvDxdc08jmU+ESeCvR1yruemq7/ZMPRLbxAzAtDLpb6kkpinADjnF5VkYWuHX
+         7YGS/idusspXS75ZYX4pBr2JnOEQcKPwbugb9KGMh2TtEDOP1dH2qU9H0z1d9MM7bcZH
+         FAJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o44si808697qtc.134.2019.01.17.09.20.11
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f14sor1273415oib.5.2019.01.17.09.42.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 09:20:11 -0800 (PST)
-Received-SPF: pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 17 Jan 2019 09:42:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 553A681DED;
-	Thu, 17 Jan 2019 17:20:10 +0000 (UTC)
-Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A702B61B63;
-	Thu, 17 Jan 2019 17:20:07 +0000 (UTC)
-From: Jeff Moyer <jmoyer@redhat.com>
-To: Keith Busch <keith.busch@intel.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>,  thomas.lendacky@amd.com,  fengguang.wu@intel.com,  dave@sr71.net,  linux-nvdimm@lists.01.org,  tiwai@suse.de,  zwisler@kernel.org,  linux-kernel@vger.kernel.org,  linux-mm@kvack.org,  mhocko@suse.com,  baiyaowei@cmss.chinamobile.com,  ying.huang@intel.com,  bhelgaas@google.com,  akpm@linux-foundation.org,  bp@suse.de
-Subject: Re: [PATCH 0/4] Allow persistent memory to be used like normal RAM
-References: <20190116181859.D1504459@viggo.jf.intel.com>
-	<x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
-	<20190117164736.GC31543@localhost.localdomain>
-X-PGP-KeyID: 1F78E1B4
-X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
-Date: Thu, 17 Jan 2019 12:20:06 -0500
-In-Reply-To: <20190117164736.GC31543@localhost.localdomain> (Keith Busch's
-	message of "Thu, 17 Jan 2019 09:47:37 -0700")
-Message-ID: <x49pnsv8am1.fsf@segfault.boston.devel.redhat.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: ALg8bN7ZCZU/M8Gzd8tnGaTDyfYGJojPLIitPj6v3VkC0twTsbGW6IJGM7rdOn0kPv0Uyd6CHY/HLFmXvHO4LC8BfTc=
+X-Received: by 2002:aca:195:: with SMTP id 143mr5537206oib.322.1547746959614;
+ Thu, 17 Jan 2019 09:42:39 -0800 (PST)
 MIME-Version: 1.0
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-13-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-13-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 17 Jan 2019 18:42:28 +0100
+Message-ID:
+ <CAJZ5v0gu0zcyZtHv4mDioS6j4WMsz_59bYdzuGtOPXfKVNOX+g@mail.gmail.com>
+Subject: Re: [PATCHv4 12/13] acpi/hmat: Register memory side cache attributes
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, 
+	Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 17 Jan 2019 17:20:11 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190117172006.Ngpd1XuatYS80SAUPr9xAWLfbn-5wYHoo-9-KARExLA@z>
+Message-ID: <20190117174228.mHhmVZJQTqlsNuP3pqZH3eqpzPHNyvGtdCgvyV6JEn0@z>
 
-Keith Busch <keith.busch@intel.com> writes:
-
-> On Thu, Jan 17, 2019 at 11:29:10AM -0500, Jeff Moyer wrote:
->> Dave Hansen <dave.hansen@linux.intel.com> writes:
->> > Persistent memory is cool.  But, currently, you have to rewrite
->> > your applications to use it.  Wouldn't it be cool if you could
->> > just have it show up in your system like normal RAM and get to
->> > it like a slow blob of memory?  Well... have I got the patch
->> > series for you!
->> 
->> So, isn't that what memory mode is for?
->>   https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
->> 
->> Why do we need this code in the kernel?
+On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
 >
-> I don't think those are the same thing. The "memory mode" in the link
-> refers to platforms that sequester DRAM to side cache memory access, where
-> this series doesn't have that platform dependency nor hides faster DRAM.
+> Register memory side cache attributes with the memory's node if HMAT
+> provides the side cache iniformation table.
+>
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  drivers/acpi/hmat/hmat.c | 32 ++++++++++++++++++++++++++++++++
+>  1 file changed, 32 insertions(+)
+>
+> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
+> index 45e20dc677f9..9efdd0a63a79 100644
+> --- a/drivers/acpi/hmat/hmat.c
+> +++ b/drivers/acpi/hmat/hmat.c
+> @@ -206,6 +206,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+>                                    const unsigned long end)
+>  {
+>         struct acpi_hmat_cache *cache = (void *)header;
+> +       struct node_cache_attrs cache_attrs;
+>         u32 attrs;
+>
+>         if (cache->header.length < sizeof(*cache)) {
+> @@ -219,6 +220,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+>                 cache->memory_PD, cache->cache_size, attrs,
+>                 cache->number_of_SMBIOShandles);
+>
+> +       cache_attrs.size = cache->cache_size;
+> +       cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
+> +       cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
+> +
+> +       switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
+> +       case ACPI_HMAT_CA_DIRECT_MAPPED:
+> +               cache_attrs.associativity = NODE_CACHE_DIRECT_MAP;
+> +               break;
+> +       case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
+> +               cache_attrs.associativity = NODE_CACHE_INDEXED;
+> +               break;
+> +       case ACPI_HMAT_CA_NONE:
+> +       default:
 
-OK, so you are making two arguments, here.  1) platforms may not support
-memory mode, and 2) this series allows for performance differentiated
-memory (even though applications may not modified to make use of
-that...).
+This looks slightly odd as "default" covers the other case as well.
+Maybe say what other case is covered by "default" in particular in a
+comment?
 
-With this patch set, an unmodified application would either use:
+> +               cache_attrs.associativity = NODE_CACHE_OTHER;
+> +               break;
+> +       }
+> +
+> +       switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
+> +       case ACPI_HMAT_CP_WB:
+> +               cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
+> +               break;
+> +       case ACPI_HMAT_CP_WT:
+> +               cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
+> +               break;
+> +       case ACPI_HMAT_CP_NONE:
+> +       default:
 
-1) whatever memory it happened to get
-2) only the faster dram (via numactl --membind=)
-3) only the slower pmem (again, via numactl --membind1)
-4) preferentially one or the other (numactl --preferred=)
+And analogously here.
 
-The other options are:
-- as mentioned above, memory mode, which uses DRAM as a cache for the
-  slower persistent memory.  Note that it isn't all or nothing--you can
-  configure your system with both memory mode and appdirect.  The
-  limitation, of course, is that your platform has to support this.
-
-  This seems like the obvious solution if you want to make use of the
-  larger pmem capacity as regular volatile memory (and your platform
-  supports it).  But maybe there is some other limitation that motivated
-  this work?
-
-- libmemkind or pmdk.  These options typically* require application
-  modifications, but allow those applications to actively decide which
-  data lives in fast versus slow media.
-
-  This seems like the obvious answer for applications that care about
-  access latency.
-
-* you could override the system malloc, but some libraries/application
-  stacks already do that, so it isn't a universal solution.
-
-Listing something like this in the headers of these patch series would
-considerably reduce the head-scratching for reviewers.
-
-Keith, you seem to be implying that there are platforms that won't
-support memory mode.  Do you also have some insight into how customers
-want to use this, beyond my speculation?  It's really frustrating to see
-patch sets like this go by without any real use cases provided.
-
-Cheers,
-Jeff
+> +               cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
+> +               break;
+> +       }
+> +
+> +       node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
+>         return 0;
+>  }
+>
+> --
 
