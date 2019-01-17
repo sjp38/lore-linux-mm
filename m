@@ -1,188 +1,50 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Logan Gunthorpe <logang@deltatee.com>
-Date: Wed, 16 Jan 2019 11:25:19 -0700
-Message-Id: <20190116182523.19446-3-logang@deltatee.com>
-In-Reply-To: <20190116182523.19446-1-logang@deltatee.com>
-References: <20190116182523.19446-1-logang@deltatee.com>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EC538E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 02:06:19 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id s71so6656269pfi.22
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 23:06:19 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id l23si768483pgh.533.2019.01.16.23.06.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Jan 2019 23:06:18 -0800 (PST)
+Date: Thu, 17 Jan 2019 15:06:03 +0800
+From: Guo Ren <guoren@kernel.org>
+Subject: Re: [PATCH 19/21] treewide: add checks for the return value of
+ memblock_alloc*()
+Message-ID: <20190117070602.GA31839@guoren-Inspiron-7460>
+References: <1547646261-32535-1-git-send-email-rppt@linux.ibm.com>
+ <1547646261-32535-20-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Subject: [PATCH v25 2/6] parisc: iomap: introduce io{read|write}64
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-ntb@googlegroups.com, linux-crypto@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andy Shevchenko <andy.shevchenko@gmail.com>, =?UTF-8?q?Horia=20Geant=C4=83?= <horia.geanta@nxp.com>, Logan Gunthorpe <logang@deltatee.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1547646261-32535-20-git-send-email-rppt@linux.ibm.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org
 
-Add support for io{read|write}64() functions in parisc architecture.
-These are pretty straightforward copies of similar functions which
-make use of readq and writeq.
+On Wed, Jan 16, 2019 at 03:44:19PM +0200, Mike Rapoport wrote:
+>  arch/csky/mm/highmem.c                    |  5 +++++
+...
+> diff --git a/arch/csky/mm/highmem.c b/arch/csky/mm/highmem.c
+> index 53b1bfa..3317b774 100644
+> --- a/arch/csky/mm/highmem.c
+> +++ b/arch/csky/mm/highmem.c
+> @@ -141,6 +141,11 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
+>  			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
+>  				if (pmd_none(*pmd)) {
+>  					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
+> +					if (!pte)
+> +						panic("%s: Failed to allocate %lu bytes align=%lx\n",
+> +						      __func__, PAGE_SIZE,
+> +						      PAGE_SIZE);
+> +
+>  					set_pmd(pmd, __pmd(__pa(pte)));
+>  					BUG_ON(pte != pte_offset_kernel(pmd, 0));
+>  				}
 
-Also, indicate that the lo_hi and hi_lo variants of these functions
-are not provided by this architecture.
+Looks good for me and panic is ok.
 
-Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
-Reviewed-by: Andy Shevchenko <andy.shevchenko@gmail.com>
-Acked-by: Helge Deller <deller@gmx.de>
-Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Philippe Ombredanne <pombredanne@nexb.com>
-Cc: Kate Stewart <kstewart@linuxfoundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
----
- arch/parisc/include/asm/io.h |  9 +++++
- arch/parisc/lib/iomap.c      | 64 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+)
-
-diff --git a/arch/parisc/include/asm/io.h b/arch/parisc/include/asm/io.h
-index afe493b23d04..30a8315d5c07 100644
---- a/arch/parisc/include/asm/io.h
-+++ b/arch/parisc/include/asm/io.h
-@@ -311,6 +311,15 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
-  * value for either 32 or 64 bit mode */
- #define F_EXTEND(x) ((unsigned long)((x) | (0xffffffff00000000ULL)))
- 
-+#define ioread64 ioread64
-+#define ioread64be ioread64be
-+#define iowrite64 iowrite64
-+#define iowrite64be iowrite64be
-+extern u64 ioread64(void __iomem *addr);
-+extern u64 ioread64be(void __iomem *addr);
-+extern void iowrite64(u64 val, void __iomem *addr);
-+extern void iowrite64be(u64 val, void __iomem *addr);
-+
- #include <asm-generic/iomap.h>
- 
- /*
-diff --git a/arch/parisc/lib/iomap.c b/arch/parisc/lib/iomap.c
-index 4b19e6e64fb7..0195aec657e2 100644
---- a/arch/parisc/lib/iomap.c
-+++ b/arch/parisc/lib/iomap.c
-@@ -48,11 +48,15 @@ struct iomap_ops {
- 	unsigned int (*read16be)(void __iomem *);
- 	unsigned int (*read32)(void __iomem *);
- 	unsigned int (*read32be)(void __iomem *);
-+	u64 (*read64)(void __iomem *);
-+	u64 (*read64be)(void __iomem *);
- 	void (*write8)(u8, void __iomem *);
- 	void (*write16)(u16, void __iomem *);
- 	void (*write16be)(u16, void __iomem *);
- 	void (*write32)(u32, void __iomem *);
- 	void (*write32be)(u32, void __iomem *);
-+	void (*write64)(u64, void __iomem *);
-+	void (*write64be)(u64, void __iomem *);
- 	void (*read8r)(void __iomem *, void *, unsigned long);
- 	void (*read16r)(void __iomem *, void *, unsigned long);
- 	void (*read32r)(void __iomem *, void *, unsigned long);
-@@ -171,6 +175,16 @@ static unsigned int iomem_read32be(void __iomem *addr)
- 	return __raw_readl(addr);
- }
- 
-+static u64 iomem_read64(void __iomem *addr)
-+{
-+	return readq(addr);
-+}
-+
-+static u64 iomem_read64be(void __iomem *addr)
-+{
-+	return __raw_readq(addr);
-+}
-+
- static void iomem_write8(u8 datum, void __iomem *addr)
- {
- 	writeb(datum, addr);
-@@ -196,6 +210,16 @@ static void iomem_write32be(u32 datum, void __iomem *addr)
- 	__raw_writel(datum, addr);
- }
- 
-+static void iomem_write64(u64 datum, void __iomem *addr)
-+{
-+	writel(datum, addr);
-+}
-+
-+static void iomem_write64be(u64 datum, void __iomem *addr)
-+{
-+	__raw_writel(datum, addr);
-+}
-+
- static void iomem_read8r(void __iomem *addr, void *dst, unsigned long count)
- {
- 	while (count--) {
-@@ -250,11 +274,15 @@ static const struct iomap_ops iomem_ops = {
- 	.read16be = iomem_read16be,
- 	.read32 = iomem_read32,
- 	.read32be = iomem_read32be,
-+	.read64 = iomem_read64,
-+	.read64be = iomem_read64be,
- 	.write8 = iomem_write8,
- 	.write16 = iomem_write16,
- 	.write16be = iomem_write16be,
- 	.write32 = iomem_write32,
- 	.write32be = iomem_write32be,
-+	.write64 = iomem_write64,
-+	.write64be = iomem_write64be,
- 	.read8r = iomem_read8r,
- 	.read16r = iomem_read16r,
- 	.read32r = iomem_read32r,
-@@ -304,6 +332,20 @@ unsigned int ioread32be(void __iomem *addr)
- 	return *((u32 *)addr);
- }
- 
-+u64 ioread64(void __iomem *addr)
-+{
-+	if (unlikely(INDIRECT_ADDR(addr)))
-+		return iomap_ops[ADDR_TO_REGION(addr)]->read64(addr);
-+	return le64_to_cpup((u64 *)addr);
-+}
-+
-+u64 ioread64be(void __iomem *addr)
-+{
-+	if (unlikely(INDIRECT_ADDR(addr)))
-+		return iomap_ops[ADDR_TO_REGION(addr)]->read64be(addr);
-+	return *((u64 *)addr);
-+}
-+
- void iowrite8(u8 datum, void __iomem *addr)
- {
- 	if (unlikely(INDIRECT_ADDR(addr))) {
-@@ -349,6 +391,24 @@ void iowrite32be(u32 datum, void __iomem *addr)
- 	}
- }
- 
-+void iowrite64(u64 datum, void __iomem *addr)
-+{
-+	if (unlikely(INDIRECT_ADDR(addr))) {
-+		iomap_ops[ADDR_TO_REGION(addr)]->write64(datum, addr);
-+	} else {
-+		*((u64 *)addr) = cpu_to_le64(datum);
-+	}
-+}
-+
-+void iowrite64be(u64 datum, void __iomem *addr)
-+{
-+	if (unlikely(INDIRECT_ADDR(addr))) {
-+		iomap_ops[ADDR_TO_REGION(addr)]->write64be(datum, addr);
-+	} else {
-+		*((u64 *)addr) = datum;
-+	}
-+}
-+
- /* Repeating interfaces */
- 
- void ioread8_rep(void __iomem *addr, void *dst, unsigned long count)
-@@ -449,11 +509,15 @@ EXPORT_SYMBOL(ioread16);
- EXPORT_SYMBOL(ioread16be);
- EXPORT_SYMBOL(ioread32);
- EXPORT_SYMBOL(ioread32be);
-+EXPORT_SYMBOL(ioread64);
-+EXPORT_SYMBOL(ioread64be);
- EXPORT_SYMBOL(iowrite8);
- EXPORT_SYMBOL(iowrite16);
- EXPORT_SYMBOL(iowrite16be);
- EXPORT_SYMBOL(iowrite32);
- EXPORT_SYMBOL(iowrite32be);
-+EXPORT_SYMBOL(iowrite64);
-+EXPORT_SYMBOL(iowrite64be);
- EXPORT_SYMBOL(ioread8_rep);
- EXPORT_SYMBOL(ioread16_rep);
- EXPORT_SYMBOL(ioread32_rep);
--- 
-2.19.0
+Reviewed-by: Guo Ren <ren_guo@c-sky.com>
