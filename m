@@ -1,113 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2B28E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:51:20 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c53so3904587edc.9
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:51:20 -0800 (PST)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
-        by mx.google.com with ESMTPS id k43si681038eda.389.2019.01.17.07.51.19
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 13BB68E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:52:05 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id m19so3863885edc.6
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:52:05 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y7si6031857edl.148.2019.01.17.07.52.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 07:51:19 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id CE8971C2DE5
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 15:51:18 +0000 (GMT)
-Date: Thu, 17 Jan 2019 15:51:17 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 13/25] mm, compaction: Use free lists to quickly locate a
- migration target
-Message-ID: <20190117155117.GI27437@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
- <20190104125011.16071-14-mgorman@techsingularity.net>
- <f9ba4f25-b0b1-8323-f2a8-a4dd639a1882@suse.cz>
+        Thu, 17 Jan 2019 07:52:03 -0800 (PST)
+Date: Thu, 17 Jan 2019 16:51:59 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: Tolerate processes sharing mm with different
+ view of oom_score_adj.
+Message-ID: <20190117155159.GA4087@dhcp22.suse.cz>
+References: <1547636121-9229-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20190116110937.GI24149@dhcp22.suse.cz>
+ <88e10029-f3d9-5bb5-be46-a3547c54de28@I-love.SAKURA.ne.jp>
+ <20190116121915.GJ24149@dhcp22.suse.cz>
+ <6118fa8a-7344-b4b2-36ce-d77d495fba69@i-love.sakura.ne.jp>
+ <20190116134131.GP24149@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f9ba4f25-b0b1-8323-f2a8-a4dd639a1882@suse.cz>
+In-Reply-To: <20190116134131.GP24149@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Yong-Taek Lee <ytk.lee@samsung.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, Jan 17, 2019 at 03:36:08PM +0100, Vlastimil Babka wrote:
-> >  /* Reorder the free list to reduce repeated future searches */
-> >  static void
-> > -move_freelist_tail(struct list_head *freelist, struct page *freepage)
-> > +move_freelist_head(struct list_head *freelist, struct page *freepage)
-> >  {
-> >  	LIST_HEAD(sublist);
-> >  
-> > @@ -1147,6 +1147,193 @@ move_freelist_tail(struct list_head *freelist, struct page *freepage)
-> >  	}
-> >  }
+[I am mostly offline for the rest of the week]
+
+On Wed 16-01-19 14:41:31, Michal Hocko wrote:
+> On Wed 16-01-19 22:32:50, Tetsuo Handa wrote:
+> > On 2019/01/16 21:19, Michal Hocko wrote:
+> > > On Wed 16-01-19 20:30:25, Tetsuo Handa wrote:
+> > >> On 2019/01/16 20:09, Michal Hocko wrote:
+> > >>> On Wed 16-01-19 19:55:21, Tetsuo Handa wrote:
+> > >>>> This patch reverts both commit 44a70adec910d692 ("mm, oom_adj: make sure
+> > >>>> processes sharing mm have same view of oom_score_adj") and commit
+> > >>>> 97fd49c2355ffded ("mm, oom: kill all tasks sharing the mm") in order to
+> > >>>> close a race and reduce the latency at __set_oom_adj(), and reduces the
+> > >>>> warning at __oom_kill_process() in order to minimize the latency.
+> > >>>>
+> > >>>> Commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE after oom_reaper managed
+> > >>>> to unmap the address space") introduced the worst case mentioned in
+> > >>>> 44a70adec910d692. But since the OOM killer skips mm with MMF_OOM_SKIP set,
+> > >>>> only administrators can trigger the worst case.
+> > >>>>
+> > >>>> Since 44a70adec910d692 did not take latency into account, we can hold RCU
+> > >>>> for minutes and trigger RCU stall warnings by calling printk() on many
+> > >>>> thousands of thread groups. Even without calling printk(), the latency is
+> > >>>> mentioned by Yong-Taek Lee [1]. And I noticed that 44a70adec910d692 is
+> > >>>> racy, and trying to fix the race will require a global lock which is too
+> > >>>> costly for rare events.
+> > >>>>
+> > >>>> If the worst case in 44a70adec910d692 happens, it is an administrator's
+> > >>>> request. Therefore, tolerate the worst case and speed up __set_oom_adj().
+> > >>>
+> > >>> I really do not think we care about latency. I consider the overal API
+> > >>> sanity much more important. Besides that the original report you are
+> > >>> referring to was never exaplained/shown to represent real world usecase.
+> > >>> oom_score_adj is not really a an interface to be tweaked in hot paths.
+> > >>
+> > >> I do care about the latency. Holding RCU for more than 2 minutes is insane.
+> > > 
+> > > Creating 8k threads could be considered insane as well. But more
+> > > seriously. I absolutely do not insist on holding a single RCU section
+> > > for the whole operation. But that doesn't really mean that we want to
+> > > revert these changes. for_each_process is by far not only called from
+> > > this path.
+> > 
+> > Unlike check_hung_uninterruptible_tasks() where failing to resume after
+> > breaking RCU section is tolerable, failing to resume after breaking RCU
+> > section for __set_oom_adj() is not tolerable; it leaves the possibility
+> > of different oom_score_adj.
 > 
-> Hmm this hunk appears to simply rename move_freelist_tail() to
-> move_freelist_head(), but fast_find_migrateblock() is unchanged, so it now calls
-> the new version below.
-> 
+> Then make sure that no threads are really missed. Really I fail to see
+> what you are actually arguing about. for_each_process is expensive. No
+> question about that. If you can replace it for this specific and odd
+> usecase then go ahead. But there is absolutely zero reason to have a
+> broken oom_score_adj semantic just because somebody might have thousands
+> of threads and want to update the score faster.
 
-Rebase screwup. I'll fix it up and retest
+Btw. the current implementation annoyance is caused by the fact
+that the oom_score_adj is per signal_struct rather than mm_struct. The
+reason is that we really need:
+	if (!vfork()) {
+		set_oom_score_adj()
+		exec()
+	}
+to work properly. One way around that is to special case oom_score_adj
+for tasks in vfork and store their shadow value into the task_struct.
+The shadow value would get transfered over to the mm struct once a new
+one is allocated. So something very coarsly like
 
-> <SNIP>
-> BTW it would be nice to
-> document both of the functions what they are doing on the high level :) The one
-> above was a bit tricky to decode to me, as it seems to be moving the initial
-> part of list to the tail, to effectively move the latter part of the list
-> (including freepage) to the head.
-> 
+short tsk_get_oom_score_adj(struct task_struct *tsk)
+{
+	if (tsk->oom_score_adj != OOM_SCORE_ADJ_INVALID)
+		return tsk->oom_score_adj;
 
-I'll include a blurb.
+	return tsk->signal->oom_score_adj;
+}
 
-> > +	/*
-> > +	 * If starting the scan, use a deeper search and use the highest
-> > +	 * PFN found if a suitable one is not found.
-> > +	 */
-> > +	if (cc->free_pfn == pageblock_start_pfn(zone_end_pfn(cc->zone) - 1)) {
-> > +		limit = pageblock_nr_pages >> 1;
-> > +		scan_start = true;
-> > +	}
-> > +
-> > +	/*
-> > +	 * Preferred point is in the top quarter of the scan space but take
-> > +	 * a pfn from the top half if the search is problematic.
-> > +	 */
-> > +	distance = (cc->free_pfn - cc->migrate_pfn);
-> > +	low_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 2));
-> > +	min_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 1));
-> > +
-> > +	if (WARN_ON_ONCE(min_pfn > low_pfn))
-> > +		low_pfn = min_pfn;
-> > +
-> > +	for (order = cc->order - 1;
-> > +	     order >= 0 && !page;
-> > +	     order--) {
-> > +		struct free_area *area = &cc->zone->free_area[order];
-> > +		struct list_head *freelist;
-> > +		struct page *freepage;
-> > +		unsigned long flags;
-> > +
-> > +		if (!area->nr_free)
-> > +			continue;
-> > +
-> > +		spin_lock_irqsave(&cc->zone->lock, flags);
-> > +		freelist = &area->free_list[MIGRATE_MOVABLE];
-> > +		list_for_each_entry_reverse(freepage, freelist, lru) {
-> > +			unsigned long pfn;
-> > +
-> > +			order_scanned++;
-> > +			nr_scanned++;
-> 
-> Seems order_scanned is supposed to be reset to 0 for each new order? Otherwise
-> it's equivalent to nr_scanned...
-> 
+use this helper instead of direct oom_score_adj usage. Then we need to
+special case the setting in __set_oom_adj and dup_mm to copy the value
+over instead of copy_signal.
 
-Yes, it was meant to be. Not sure at what point I broke that and failed
-to spot it afterwards. As you note elsewhere, the code structure doesn't
-make sense if it wasn't been set to 0. Instead of doing a shorter search
-at each order, it would simply check one page for each lower order.
-
-Thanks!
+I think this is doable.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
