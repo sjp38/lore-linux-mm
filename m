@@ -2,187 +2,138 @@ Return-Path: <SRS0=SJ39=PZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28B13C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 20:47:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D839DC43387
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 21:57:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7D7F20851
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 20:47:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="1v/yNJqB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7D7F20851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 727CC20859
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 21:57:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 727CC20859
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BFD18E0004; Thu, 17 Jan 2019 15:47:53 -0500 (EST)
+	id CB32C8E000F; Thu, 17 Jan 2019 16:57:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36DFE8E0002; Thu, 17 Jan 2019 15:47:53 -0500 (EST)
+	id C635B8E0002; Thu, 17 Jan 2019 16:57:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 285048E0004; Thu, 17 Jan 2019 15:47:53 -0500 (EST)
+	id B525E8E000F; Thu, 17 Jan 2019 16:57:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DB6A18E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 15:47:52 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id o17so6923165pgi.14
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:47:52 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EAD48E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 16:57:22 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id z6so10408132qtj.21
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 13:57:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=xTOYNcdZ1AfYRoSOgFWyoZ4zslXICLkJkJfxISpksD8=;
-        b=Yy/UfC9UxgO+paIWmkNbQIAZTzSA6KMWlnJfaWNGzQPHOh9qczLOiHLKUBluGEAyLJ
-         Dq4EuRrhFk2fJi20DxEjXqmSQ6qYHtzexKnr0o0+tMO3XOaLMRgHAss5y15DSJLBuG6A
-         MUNy1i2nKq+ujFVcC0AlTLAXwQlv1YPzy5qd5usd5qmXpqef17d4LUaUjlm2l4p2L38p
-         Cu07URu3d6PVGC4BFdsT3BYd/wuz11Q5wsIQRgLq6FcLjc0hq3nLjhjqpN4TjaLvce0M
-         wakw3LV1/GjQNx2b1H6ueT5ieNDfPwb87EK2+YP+WqwvPOpubjDzd1SPT+I+BG4OjhDN
-         6HJA==
-X-Gm-Message-State: AJcUukerAUvfloD9K4CTmAwe13R037fMKwsPPS/e6PeYe17wUTjwHRzx
-	fo+mkajq/UgOd7kpXgykDcoHIh3m5JQWlrkrUntUmXlq7cBmyzk5ZWplvd2n+5osu+k3xZcwmy6
-	izAD4iNdkj6IZzW3UvS4sX9QTgiROqh90avHMYMtdWYix4gbMz2mt59PXlULTiBT2Gg==
-X-Received: by 2002:a62:7086:: with SMTP id l128mr16394756pfc.68.1547758072542;
-        Thu, 17 Jan 2019 12:47:52 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7rRwzGHyCTVYF6omuylgDZK3M1ZQwkI/76EH6JjJfnvanza+KsOSWMxnU5YhKOW4Ve3NER
-X-Received: by 2002:a62:7086:: with SMTP id l128mr16394707pfc.68.1547758071429;
-        Thu, 17 Jan 2019 12:47:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547758071; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=yID1VjSwUJ3rwmXIhP+rRft52nSsW6OpmvtouVrsmbc=;
+        b=cdDXqHiIsTCiweQWED/50kStf2xrnM4Ov3BoThLyjMdmOVpR0XPrPYpmiWEgow2Xlt
+         bpsEI/dGGq/DuY90X8lvvy0PVXzQs2UaYlz5NOvUhDp78wfg9RnTCR1zLmQr2eLtrgmf
+         CEeYJSypgKy5ye35/sSK4BBIVk+ZYASVfZE9JvmfljVT1j7D5vtD09xtCCjSmMpTlCLE
+         idmBP0+rro95dzFa7ii6CakUlBgT3CVHprkarqywDS2nhPIS4n0rUALGPxPlasTAbSrb
+         iNmeOzJHj8l3cCp3WJW7CNK/lJVl9jTli30h4kRMUlcbih+tEKxz2E+X37ipQgj4F8NG
+         KKfw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukeeBEzDH8K7RV/Yqhk1bJoaxbELjwHEln17K6iyQvRV5tei0U/X
+	DixEDM38XckCdyDId/XW1YZSUJBnOZSbe6MHy6bCkOF8j/fMvwjIYWWkUktzK7ZOFxpNfS9vMnl
+	VCNuTsTfl86BrQSp8CAxbP8OM9SWMq3bmLBLzL2exd3KpEEp5SgTWfXzPWtmBu9mPmg==
+X-Received: by 2002:ad4:5307:: with SMTP id y7mr13328269qvr.9.1547762242322;
+        Thu, 17 Jan 2019 13:57:22 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN60jnZobReSLENe5EhLQUZm0FAPZTquI66EQB0eawGLfvXNvpZYYsiQS/84fGHyJfUvFGkU
+X-Received: by 2002:ad4:5307:: with SMTP id y7mr13328239qvr.9.1547762241767;
+        Thu, 17 Jan 2019 13:57:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547762241; cv=none;
         d=google.com; s=arc-20160816;
-        b=GH/33mldUc0jrz4+dSj9Ln58KWxYVt531s/pgSUzNDhsDQjC56+bfPxOTOohOd+qCZ
-         QD7iv56kKSeN4z0XA6NXe2d9xCxXkAguoCSWlf4WqEotNEnWr0uKgIWVY2baIrWsxPMs
-         C7klKSouQ4pmGSvZAs8lRI5tZEn2xDC/NPjmW1DoyJ4QY4SSJUL83mf80QaZgwWikvV9
-         FY1mLcC9O4BgTy2gOD8hZ2jr1ldNN+7Hf+lw3bpjmOJelnijYTJP4WO9r8/K8vceUYZf
-         GVvTJhmky1D+I4K5kj6w1gXgB6LQS0Dt/yKHSRw45S94XjnjRkDMwTdRNi36X07DeUXA
-         pzkw==
+        b=OUSZVz1EnhDc6R0yVJ9CBHEw9pBjXDXAaf/Byq5q8HUtvU/mk4tw/ItLzk0ztkA4pz
+         BPh/ms5Gz/AnulHjkXXxP1ffeklOZr5dW3j4jSi9JHqj1kyuF01JssepbaOvKX2/q1s9
+         gpR0/bJx8VJNOdyO94pTW2YqFnfMyDR7qEHmb9+oQLbm05oElADZVdrCoul7/5fYYGNE
+         gNCoenKA48/3HkjeLRkWTPodO/zbBQZ09o9zz0nYjKcpNKgTfJxtXuNafw2sOc9wyjg3
+         noMCf+VLV90MS5IKwQwGYrLisiYs3T1SLfynqcUOE1WaG68CF3IUV/U3lITvQ4FdhUNC
+         htKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=xTOYNcdZ1AfYRoSOgFWyoZ4zslXICLkJkJfxISpksD8=;
-        b=S/J09ySYwIA/2JN3X2d0ZMszJSb2V/N5ArSKVDenuwvJuPAXtdKWayXUiZ/7O2vAlg
-         nchrYmh5n31lffkaHtCSUoWRDp6C5jboOxvfquk0h1UiAMA6G3D9Ye/LnojwOq1J7qYc
-         J56z75gsftCzd5De5PpHQ7i6VlDtNM5ZG1TxkqbhCHSE8zN2W7k9GRTW9P3VobqtNaV9
-         it16JMImPMzBOs/onPexViAwmvJXKiHWmDI5OPPYimCqjbk+Hkum2t9jpkc9CdG0uymb
-         3HY+xUiviTn8CvSfWaxYRwVDAFwwgV6cKDLqSYnMIxr2xyKewD9qYoqLIAv+aLdntv5N
-         FtRA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=yID1VjSwUJ3rwmXIhP+rRft52nSsW6OpmvtouVrsmbc=;
+        b=kX+fB+i9JhV9CnuspqhdvAKpihMrsW0MYFZVpben3b7I+tX0aTyriawK4EMJ7SYTFp
+         DnnfII9s5ZbCcMJCPIfoOuHGT4pg4r24ggUGpe4FwS8fK1cIkHCEM58ZfdzLuxs8sbI3
+         PBnlUGBWhoiBan3l05aJrxXO+MlsT/n26XOgOfAL+yJw44Jkk9NnWLs3grjsMHwRdTe1
+         xZ8bW8+w//c2vcwS2UvYR19/9h0fHGLDinO1SvpKEkVwfynsgo/oBsk75saX1ZkgpctS
+         pRe0yz9cXE91GEhFLvtmVV2/JtYT7nwov6DgU/cFQB4m0KXsSUClc8w516o895YfbMMz
+         qSaQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="1v/yNJqB";
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s191si2523886pfs.53.2019.01.17.12.47.51
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a123si6317145qkd.182.2019.01.17.13.57.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 12:47:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 17 Jan 2019 13:57:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="1v/yNJqB";
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f49.google.com (mail-wm1-f49.google.com [209.85.128.49])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 71B8A2146F
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 20:47:50 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1547758070;
-	bh=n8JMekFCbtwr62FzDCJJoj5l06UUzHpxnzcg5AUI7TM=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=1v/yNJqBMgzweIaFgEWtP2lvGXeclrXJB1t0pXSbhZgFbyyQjphalnJPKjN1b7XGp
-	 8qNqL7JXfylXL1R7pc0XXdlb1KZGx/cZBFV5Up9Dgj4W8zDq2uH0g8kHugPIVJxxv3
-	 zqQmR8daNSixtMx2XuYELmKrlF860GrbRVCRB0Yo=
-Received: by mail-wm1-f49.google.com with SMTP id p6so2495826wmc.1
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:47:50 -0800 (PST)
-X-Received: by 2002:a1c:b1d5:: with SMTP id a204mr13844935wmf.32.1547758068833;
- Thu, 17 Jan 2019 12:47:48 -0800 (PST)
+	by mx1.redhat.com (Postfix) with ESMTPS id A727AA7875;
+	Thu, 17 Jan 2019 21:57:20 +0000 (UTC)
+Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id BDA6061B6C;
+	Thu, 17 Jan 2019 21:57:18 +0000 (UTC)
+From: Jeff Moyer <jmoyer@redhat.com>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>,  thomas.lendacky@amd.com,  fengguang.wu@intel.com,  dave@sr71.net,  linux-nvdimm@lists.01.org,  tiwai@suse.de,  zwisler@kernel.org,  linux-kernel@vger.kernel.org,  linux-mm@kvack.org,  mhocko@suse.com,  baiyaowei@cmss.chinamobile.com,  ying.huang@intel.com,  bhelgaas@google.com,  akpm@linux-foundation.org,  bp@suse.de
+Subject: Re: [PATCH 0/4] Allow persistent memory to be used like normal RAM
+References: <20190116181859.D1504459@viggo.jf.intel.com>
+	<x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
+	<20190117164736.GC31543@localhost.localdomain>
+	<x49pnsv8am1.fsf@segfault.boston.devel.redhat.com>
+	<20190117193403.GD31543@localhost.localdomain>
+X-PGP-KeyID: 1F78E1B4
+X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
+Date: Thu, 17 Jan 2019 16:57:17 -0500
+In-Reply-To: <20190117193403.GD31543@localhost.localdomain> (Keith Busch's
+	message of "Thu, 17 Jan 2019 12:34:03 -0700")
+Message-ID: <x49ef9b6j7m.fsf@segfault.boston.devel.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-7-rick.p.edgecombe@intel.com> <CALCETrUMAsXoZogEJg7ssv0CO56vzBV2C7VotmWcwNM7iH9Wqw@mail.gmail.com>
-In-Reply-To: <CALCETrUMAsXoZogEJg7ssv0CO56vzBV2C7VotmWcwNM7iH9Wqw@mail.gmail.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 17 Jan 2019 12:47:37 -0800
-X-Gmail-Original-Message-ID: <CALCETrXQ6uxzB3JvO14sEyMA21RcWCbwicL4nUdPBG8KAunxwg@mail.gmail.com>
-Message-ID:
- <CALCETrXQ6uxzB3JvO14sEyMA21RcWCbwicL4nUdPBG8KAunxwg@mail.gmail.com>
-Subject: Re: [PATCH 06/17] x86/alternative: use temporary mm for text poking
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Ingo Molnar <mingo@redhat.com>, 
-	LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, 
-	Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, 
-	linux-integrity <linux-integrity@vger.kernel.org>, 
-	LSM List <linux-security-module@vger.kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
-	Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
-	Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, 
-	Nadav Amit <namit@vmware.com>, Kees Cook <keescook@chromium.org>, 
-	Dave Hansen <dave.hansen@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>
 Content-Type: text/plain; charset="UTF-8"
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 17 Jan 2019 21:57:21 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190117204737.HcnslBgCHMJ09htWQ-UUrErwghAI4gx2EniwsZDmDFM@z>
+Message-ID: <20190117215717.FuuGcw_btVIeNzf95gs4WLztDQOV1JMcwjqINQBisvg@z>
 
-On Thu, Jan 17, 2019 at 12:27 PM Andy Lutomirski <luto@kernel.org> wrote:
->
-> On Wed, Jan 16, 2019 at 4:33 PM Rick Edgecombe
-> <rick.p.edgecombe@intel.com> wrote:
-> >
-> > From: Nadav Amit <namit@vmware.com>
-> >
-> > text_poke() can potentially compromise the security as it sets temporary
-> > PTEs in the fixmap. These PTEs might be used to rewrite the kernel code
-> > from other cores accidentally or maliciously, if an attacker gains the
-> > ability to write onto kernel memory.
->
-> i think this may be sufficient, but barely.
->
-> > +       pte_clear(poking_mm, poking_addr, ptep);
-> > +
-> > +       /*
-> > +        * __flush_tlb_one_user() performs a redundant TLB flush when PTI is on,
-> > +        * as it also flushes the corresponding "user" address spaces, which
-> > +        * does not exist.
-> > +        *
-> > +        * Poking, however, is already very inefficient since it does not try to
-> > +        * batch updates, so we ignore this problem for the time being.
-> > +        *
-> > +        * Since the PTEs do not exist in other kernel address-spaces, we do
-> > +        * not use __flush_tlb_one_kernel(), which when PTI is on would cause
-> > +        * more unwarranted TLB flushes.
-> > +        *
-> > +        * There is a slight anomaly here: the PTE is a supervisor-only and
-> > +        * (potentially) global and we use __flush_tlb_one_user() but this
-> > +        * should be fine.
-> > +        */
-> > +       __flush_tlb_one_user(poking_addr);
-> > +       if (cross_page_boundary) {
-> > +               pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
-> > +               __flush_tlb_one_user(poking_addr + PAGE_SIZE);
-> > +       }
->
-> In principle, another CPU could still have the old translation.  Your
-> mutex probably makes this impossible, but it makes me nervous.
-> Ideally you'd use flush_tlb_mm_range(), but I guess you can't do that
-> with IRQs off.  Hmm.  I think you should add an inc_mm_tlb_gen() here.
-> Arguably, if you did that, you could omit the flushes, but maybe
-> that's silly.
->
-> If we start getting new users of use_temporary_mm(), we should give
-> some serious thought to the SMP semantics.
->
-> Also, you're using PAGE_KERNEL.  Please tell me that the global bit
-> isn't set in there.
->
+Keith Busch <keith.busch@intel.com> writes:
 
-Much better solution: do unuse_temporary_mm() and *then*
-flush_tlb_mm_range().  This is entirely non-sketchy and should be just
-about optimal, too.
+>> Keith, you seem to be implying that there are platforms that won't
+>> support memory mode.  Do you also have some insight into how customers
+>> want to use this, beyond my speculation?  It's really frustrating to see
+>> patch sets like this go by without any real use cases provided.
+>
+> Right, most NFIT reporting platforms today don't have memory mode, and
+> the kernel currently only supports the persistent DAX mode with these.
+> This series adds another option for those platforms.
 
---Andy
+All NFIT reporting platforms today are shipping NVDIMM-Ns, where it
+makes absolutely no sense to use them as regular DRAM.  I don't think
+that's a good argument to make.
+
+> I think numactl as you mentioned is the first consideration for how
+> customers may make use. Dave or Dan might have other use cases in mind.
+
+Well, it sure looks like this took a lot of work, so I thought there
+were known use cases or users asking for this functionality.
+
+Cheers,
+Jeff
 
