@@ -1,205 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B04528E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 19:18:21 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id j125so6831107qke.12
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:18:21 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h54sor92394070qth.8.2019.01.16.16.18.20
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B1AC98E0003
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 19:33:38 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r13so5003872pgb.7
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:33:38 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y10si7582915plt.406.2019.01.16.16.33.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 16 Jan 2019 16:18:20 -0800 (PST)
-Subject: Re: [RFC PATCH v7 14/16] EXPERIMENTAL: xpfo, mm: optimize spin lock
- usage in xpfo_kmap
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
- <7e8e17f519ae87a91fc6cbb57b8b27094c96305c.1547153058.git.khalid.aziz@oracle.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <b2ffc4fd-e449-b6da-7070-4f182d44dd5b@redhat.com>
-Date: Wed, 16 Jan 2019 16:18:14 -0800
-MIME-Version: 1.0
-In-Reply-To: <7e8e17f519ae87a91fc6cbb57b8b27094c96305c.1547153058.git.khalid.aziz@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Jan 2019 16:33:37 -0800 (PST)
+From: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Subject: [PATCH 03/17] x86/mm: temporary mm struct
+Date: Wed, 16 Jan 2019 16:32:45 -0800
+Message-Id: <20190117003259.23141-4-rick.p.edgecombe@intel.com>
+In-Reply-To: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
+References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, "Vasileios P . Kemerlis" <vpk@cs.columbia.edu>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>, Marco Benatto <marco.antonio.780@gmail.com>, David Woodhouse <dwmw2@infradead.org>
+To: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-On 1/10/19 1:09 PM, Khalid Aziz wrote:
-> From: Julian Stecklina <jsteckli@amazon.de>
-> 
-> We can reduce spin lock usage in xpfo_kmap to the 0->1 transition of
-> the mapcount. This means that xpfo_kmap() can now race and that we
-> get spurious page faults.
-> 
-> The page fault handler helps the system make forward progress by
-> fixing the page table instead of allowing repeated page faults until
-> the right xpfo_kmap went through.
-> 
-> Model-checked with up to 4 concurrent callers with Spin.
-> 
+From: Andy Lutomirski <luto@kernel.org>
 
-This needs the spurious check for arm64 as well. This at
-least gets me booting but could probably use more review:
+Sometimes we want to set a temporary page-table entries (PTEs) in one of
+the cores, without allowing other cores to use - even speculatively -
+these mappings. There are two benefits for doing so:
 
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 7d9571f4ae3d..8f425848cbb9 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -32,6 +32,7 @@
-  #include <linux/perf_event.h>
-  #include <linux/preempt.h>
-  #include <linux/hugetlb.h>
-+#include <linux/xpfo.h>
-  
-  #include <asm/bug.h>
-  #include <asm/cmpxchg.h>
-@@ -289,6 +290,9 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
-         if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
-                 return;
-  
-+       if (xpfo_spurious_fault(addr))
-+               return;
+(1) Security: if sensitive PTEs are set, temporary mm prevents their use
+in other cores. This hardens the security as it prevents exploding a
+dangling pointer to overwrite sensitive data using the sensitive PTE.
+
+(2) Avoiding TLB shootdowns: the PTEs do not need to be flushed in
+remote page-tables.
+
+To do so a temporary mm_struct can be used. Mappings which are private
+for this mm can be set in the userspace part of the address-space.
+During the whole time in which the temporary mm is loaded, interrupts
+must be disabled.
+
+The first use-case for temporary PTEs, which will follow, is for poking
+the kernel text.
+
+[ Commit message was written by Nadav ]
+
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
+Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Signed-off-by: Nadav Amit <namit@vmware.com>
+Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+---
+ arch/x86/include/asm/mmu_context.h | 32 ++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 0ca50611e8ce..0141b7fa6d01 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -338,4 +338,36 @@ static inline unsigned long __get_current_cr3_fast(void)
+ 	return cr3;
+ }
+ 
++typedef struct {
++	struct mm_struct *prev;
++} temporary_mm_state_t;
 +
-         if (is_el1_permission_fault(addr, esr, regs)) {
-                 if (esr & ESR_ELx_WNR)
-                         msg = "write to read-only memory";
-
-
-> Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
-> Cc: x86@kernel.org
-> Cc: kernel-hardening@lists.openwall.com
-> Cc: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
-> Cc: Juerg Haefliger <juerg.haefliger@canonical.com>
-> Cc: Tycho Andersen <tycho@docker.com>
-> Cc: Marco Benatto <marco.antonio.780@gmail.com>
-> Cc: David Woodhouse <dwmw2@infradead.org>
-> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
-> ---
->   arch/x86/mm/fault.c  |  4 ++++
->   include/linux/xpfo.h |  4 ++++
->   mm/xpfo.c            | 50 +++++++++++++++++++++++++++++++++++++-------
->   3 files changed, 51 insertions(+), 7 deletions(-)
-> 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index ba51652fbd33..207081dcd572 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -18,6 +18,7 @@
->   #include <linux/uaccess.h>		/* faulthandler_disabled()	*/
->   #include <linux/efi.h>			/* efi_recover_from_page_fault()*/
->   #include <linux/mm_types.h>
-> +#include <linux/xpfo.h>
->   
->   #include <asm/cpufeature.h>		/* boot_cpu_has, ...		*/
->   #include <asm/traps.h>			/* dotraplinkage, ...		*/
-> @@ -1218,6 +1219,9 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
->   	if (kprobes_fault(regs))
->   		return;
->   
-> +	if (xpfo_spurious_fault(address))
-> +		return;
-> +
->   	/*
->   	 * Note, despite being a "bad area", there are quite a few
->   	 * acceptable reasons to get here, such as erratum fixups
-> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-> index ea5188882f49..58dd243637d2 100644
-> --- a/include/linux/xpfo.h
-> +++ b/include/linux/xpfo.h
-> @@ -54,6 +54,8 @@ bool xpfo_enabled(void);
->   
->   phys_addr_t user_virt_to_phys(unsigned long addr);
->   
-> +bool xpfo_spurious_fault(unsigned long addr);
-> +
->   #else /* !CONFIG_XPFO */
->   
->   static inline void xpfo_init_single_page(struct page *page) { }
-> @@ -81,6 +83,8 @@ static inline bool xpfo_enabled(void) { return false; }
->   
->   static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
->   
-> +static inline bool xpfo_spurious_fault(unsigned long addr) { return false; }
-> +
->   #endif /* CONFIG_XPFO */
->   
->   #endif /* _LINUX_XPFO_H */
-> diff --git a/mm/xpfo.c b/mm/xpfo.c
-> index dbf20efb0499..85079377c91d 100644
-> --- a/mm/xpfo.c
-> +++ b/mm/xpfo.c
-> @@ -119,6 +119,16 @@ void xpfo_free_pages(struct page *page, int order)
->   	}
->   }
->   
-> +static void xpfo_do_map(void *kaddr, struct page *page)
-> +{
-> +	spin_lock(&page->xpfo_lock);
-> +	if (PageXpfoUnmapped(page)) {
-> +		set_kpte(kaddr, page, PAGE_KERNEL);
-> +		ClearPageXpfoUnmapped(page);
-> +	}
-> +	spin_unlock(&page->xpfo_lock);
-> +}
-> +
->   void xpfo_kmap(void *kaddr, struct page *page)
->   {
->   	if (!static_branch_unlikely(&xpfo_inited))
-> @@ -127,17 +137,12 @@ void xpfo_kmap(void *kaddr, struct page *page)
->   	if (!PageXpfoUser(page))
->   		return;
->   
-> -	spin_lock(&page->xpfo_lock);
-> -
->   	/*
->   	 * The page was previously allocated to user space, so map it back
->   	 * into the kernel. No TLB flush required.
->   	 */
-> -	if ((atomic_inc_return(&page->xpfo_mapcount) == 1) &&
-> -	    TestClearPageXpfoUnmapped(page))
-> -		set_kpte(kaddr, page, PAGE_KERNEL);
-> -
-> -	spin_unlock(&page->xpfo_lock);
-> +	if (atomic_inc_return(&page->xpfo_mapcount) == 1)
-> +		xpfo_do_map(kaddr, page);
->   }
->   EXPORT_SYMBOL(xpfo_kmap);
->   
-> @@ -204,3 +209,34 @@ void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
->   			kunmap_atomic(mapping[i]);
->   }
->   EXPORT_SYMBOL(xpfo_temp_unmap);
-> +
-> +bool xpfo_spurious_fault(unsigned long addr)
-> +{
-> +	struct page *page;
-> +	bool spurious;
-> +	int mapcount;
-> +
-> +	if (!static_branch_unlikely(&xpfo_inited))
-> +		return false;
-> +
-> +	/* XXX Is this sufficient to guard against calling virt_to_page() on a
-> +	 * virtual address that has no corresponding struct page? */
-> +	if (!virt_addr_valid(addr))
-> +		return false;
-> +
-> +	page = virt_to_page(addr);
-> +	mapcount = atomic_read(&page->xpfo_mapcount);
-> +	spurious = PageXpfoUser(page) && mapcount;
-> +
-> +	/* Guarantee forward progress in case xpfo_kmap() raced. */
-> +	if (spurious && PageXpfoUnmapped(page)) {
-> +		xpfo_do_map((void *)(addr & PAGE_MASK), page);
-> +	}
-> +
-> +	if (unlikely(!spurious))
-> +		printk("XPFO non-spurious fault %lx user=%d unmapped=%d mapcount=%d\n",
-> +			addr, PageXpfoUser(page), PageXpfoUnmapped(page),
-> +			mapcount);
-> +
-> +	return spurious;
-> +}
-> 
++/*
++ * Using a temporary mm allows to set temporary mappings that are not accessible
++ * by other cores. Such mappings are needed to perform sensitive memory writes
++ * that override the kernel memory protections (e.g., W^X), without exposing the
++ * temporary page-table mappings that are required for these write operations to
++ * other cores.
++ *
++ * Context: The temporary mm needs to be used exclusively by a single core. To
++ *          harden security IRQs must be disabled while the temporary mm is
++ *          loaded, thereby preventing interrupt handler bugs from override the
++ *          kernel memory protection.
++ */
++static inline temporary_mm_state_t use_temporary_mm(struct mm_struct *mm)
++{
++	temporary_mm_state_t state;
++
++	lockdep_assert_irqs_disabled();
++	state.prev = this_cpu_read(cpu_tlbstate.loaded_mm);
++	switch_mm_irqs_off(NULL, mm, current);
++	return state;
++}
++
++static inline void unuse_temporary_mm(temporary_mm_state_t prev)
++{
++	lockdep_assert_irqs_disabled();
++	switch_mm_irqs_off(NULL, prev.prev, current);
++}
++
+ #endif /* _ASM_X86_MMU_CONTEXT_H */
+-- 
+2.17.1
