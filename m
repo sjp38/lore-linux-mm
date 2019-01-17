@@ -1,130 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BE4B8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 00:42:29 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id x14so4603524ywg.18
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 21:42:29 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id y1si696855ywe.310.2019.01.16.21.42.27
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 379248E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:47:08 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id v12so5463126plp.16
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 22:47:08 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x1si836055pfn.111.2019.01.16.22.47.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 21:42:27 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-References: <20190111165141.GB3190@redhat.com>
- <1b37061c-5598-1b02-2983-80003f1c71f2@nvidia.com>
- <20190112020228.GA5059@redhat.com>
- <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
- <20190112024625.GB5059@redhat.com>
- <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190114145447.GJ13316@quack2.suse.cz> <20190114172124.GA3702@redhat.com>
- <20190115080759.GC29524@quack2.suse.cz>
- <20190116113819.GD26069@quack2.suse.cz> <20190116130813.GA3617@redhat.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <5c6dc6ed-4c8d-bce7-df02-ee8b7785b265@nvidia.com>
-Date: Wed, 16 Jan 2019 21:42:25 -0800
-MIME-Version: 1.0
-In-Reply-To: <20190116130813.GA3617@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
+        Wed, 16 Jan 2019 22:47:06 -0800 (PST)
+Date: Thu, 17 Jan 2019 15:47:01 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH 01/17] Fix
+ "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+Message-Id: <20190117154701.78aa8e9d0130716e0d9ac026@kernel.org>
+In-Reply-To: <20190117003259.23141-2-rick.p.edgecombe@intel.com>
+References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
+	<20190117003259.23141-2-rick.p.edgecombe@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, Nadav Amit <namit@vmware.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>
 
-On 1/16/19 5:08 AM, Jerome Glisse wrote:
-> On Wed, Jan 16, 2019 at 12:38:19PM +0100, Jan Kara wrote:
->> On Tue 15-01-19 09:07:59, Jan Kara wrote:
->>> Agreed. So with page lock it would actually look like:
->>>
->>> get_page_pin()
->>> 	lock_page(page);
->>> 	wait_for_stable_page();
->>> 	atomic_add(&page->_refcount, PAGE_PIN_BIAS);
->>> 	unlock_page(page);
->>>
->>> And if we perform page_pinned() check under page lock, then if
->>> page_pinned() returned false, we are sure page is not and will not be
->>> pinned until we drop the page lock (and also until page writeback is
->>> completed if needed).
->>
->> After some more though, why do we even need wait_for_stable_page() and
->> lock_page() in get_page_pin()?
->>
->> During writepage page_mkclean() will write protect all page tables. So
->> there can be no new writeable GUP pins until we unlock the page as all such
->> GUPs will have to first go through fault and ->page_mkwrite() handler. And
->> that will wait on page lock and do wait_for_stable_page() for us anyway.
->> Am I just confused?
+On Wed, 16 Jan 2019 16:32:43 -0800
+Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
+
+> From: Nadav Amit <namit@vmware.com>
 > 
-> Yeah with page lock it should synchronize on the pte but you still
-> need to check for writeback iirc the page is unlocked after file
-> system has queue up the write and thus the page can be unlock with
-> write back pending (and PageWriteback() == trye) and i am not sure
-> that in that states we can safely let anyone write to that page. I
-> am assuming that in some case the block device also expect stable
-> page content (RAID stuff).
+> text_mutex is currently expected to be held before text_poke() is
+> called, but we kgdb does not take the mutex, and instead *supposedly*
+> ensures the lock is not taken and will not be acquired by any other core
+> while text_poke() is running.
 > 
-> So the PageWriteback() test is not only for racing page_mkclean()/
-> test_set_page_writeback() and GUP but also for pending write back.
+> The reason for the "supposedly" comment is that it is not entirely clear
+> that this would be the case if gdb_do_roundup is zero.
+> 
+> This patch creates two wrapper functions, text_poke() and
+> text_poke_kgdb() which do or do not run the lockdep assertion
+> respectively.
+> 
+> While we are at it, change the return code of text_poke() to something
+> meaningful. One day, callers might actually respect it and the existing
+> BUG_ON() when patching fails could be removed. For kgdb, the return
+> value can actually be used.
 
+Looks good to me.
 
-That was how I thought it worked too: page_mkclean and a few other things
-like page migration take the page lock, but writeback takes the lock, 
-queues it up, then drops the lock, and writeback actually happens outside
-that lock. 
+Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
 
-So on the GUP end, some combination of taking the page lock, and 
-wait_on_page_writeback(), is required in order to flush out the writebacks.
-I think I just rephrased what Jerome said, actually. :)
-
+Thank you,
 
 > 
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Masami Hiramatsu <mhiramat@kernel.org>
+> Fixes: 9222f606506c ("x86/alternatives: Lockdep-enforce text_mutex in text_poke*()")
+> Suggested-by: Peter Zijlstra <peterz@infradead.org>
+> Acked-by: Jiri Kosina <jkosina@suse.cz>
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+> ---
+>  arch/x86/include/asm/text-patching.h |  1 +
+>  arch/x86/kernel/alternative.c        | 52 ++++++++++++++++++++--------
+>  arch/x86/kernel/kgdb.c               | 11 +++---
+>  3 files changed, 45 insertions(+), 19 deletions(-)
 > 
->> That actually touches on another question I wanted to get opinions on. GUP
->> can be for read and GUP can be for write (that is one of GUP flags).
->> Filesystems with page cache generally have issues only with GUP for write
->> as it can currently corrupt data, unexpectedly dirty page etc.. DAX & memory
->> hotplug have issues with both (DAX cannot truncate page pinned in any way,
->> memory hotplug will just loop in kernel until the page gets unpinned). So
->> we probably want to track both types of GUP pins and page-cache based
->> filesystems will take the hit even if they don't have to for read-pins?
-> 
-> Yes the distinction between read and write would be nice. With the map
-> count solution you can only increment the mapcount for GUP(write=true).
-> With pin bias the issue is that a big number of read pin can trigger
-> false positive ie you would do:
->     GUP(vaddr, write)
->         ...
->         if (write)
->             atomic_add(page->refcount, PAGE_PIN_BIAS)
->         else
->             atomic_inc(page->refcount)
-> 
->     PUP(page, write)
->         if (write)
->             atomic_add(page->refcount, -PAGE_PIN_BIAS)
->         else
->             atomic_dec(page->refcount)
-> 
-> I am guessing false positive because of too many read GUP is ok as
-> it should be unlikely and when it happens then we take the hit.
+> diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
+> index e85ff65c43c3..f8fc8e86cf01 100644
+> --- a/arch/x86/include/asm/text-patching.h
+> +++ b/arch/x86/include/asm/text-patching.h
+> @@ -35,6 +35,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
+>   * inconsistent instruction while you patch.
+>   */
+>  extern void *text_poke(void *addr, const void *opcode, size_t len);
+> +extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
+>  extern int poke_int3_handler(struct pt_regs *regs);
+>  extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
+>  extern int after_bootmem;
+> diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+> index ebeac487a20c..c6a3a10a2fd5 100644
+> --- a/arch/x86/kernel/alternative.c
+> +++ b/arch/x86/kernel/alternative.c
+> @@ -678,18 +678,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
+>  	return addr;
+>  }
+>  
+> -/**
+> - * text_poke - Update instructions on a live kernel
+> - * @addr: address to modify
+> - * @opcode: source of the copy
+> - * @len: length to copy
+> - *
+> - * Only atomic text poke/set should be allowed when not doing early patching.
+> - * It means the size must be writable atomically and the address must be aligned
+> - * in a way that permits an atomic write. It also makes sure we fit on a single
+> - * page.
+> - */
+> -void *text_poke(void *addr, const void *opcode, size_t len)
+> +static void *__text_poke(void *addr, const void *opcode, size_t len)
+>  {
+>  	unsigned long flags;
+>  	char *vaddr;
+> @@ -702,8 +691,6 @@ void *text_poke(void *addr, const void *opcode, size_t len)
+>  	 */
+>  	BUG_ON(!after_bootmem);
+>  
+> -	lockdep_assert_held(&text_mutex);
+> -
+>  	if (!core_kernel_text((unsigned long)addr)) {
+>  		pages[0] = vmalloc_to_page(addr);
+>  		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
+> @@ -732,6 +719,43 @@ void *text_poke(void *addr, const void *opcode, size_t len)
+>  	return addr;
+>  }
+>  
+> +/**
+> + * text_poke - Update instructions on a live kernel
+> + * @addr: address to modify
+> + * @opcode: source of the copy
+> + * @len: length to copy
+> + *
+> + * Only atomic text poke/set should be allowed when not doing early patching.
+> + * It means the size must be writable atomically and the address must be aligned
+> + * in a way that permits an atomic write. It also makes sure we fit on a single
+> + * page.
+> + */
+> +void *text_poke(void *addr, const void *opcode, size_t len)
+> +{
+> +	lockdep_assert_held(&text_mutex);
+> +
+> +	return __text_poke(addr, opcode, len);
+> +}
+> +
+> +/**
+> + * text_poke_kgdb - Update instructions on a live kernel by kgdb
+> + * @addr: address to modify
+> + * @opcode: source of the copy
+> + * @len: length to copy
+> + *
+> + * Only atomic text poke/set should be allowed when not doing early patching.
+> + * It means the size must be writable atomically and the address must be aligned
+> + * in a way that permits an atomic write. It also makes sure we fit on a single
+> + * page.
+> + *
+> + * Context: should only be used by kgdb, which ensures no other core is running,
+> + *	    despite the fact it does not hold the text_mutex.
+> + */
+> +void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
+> +{
+> +	return __text_poke(addr, opcode, len);
+> +}
+> +
+>  static void do_sync_core(void *info)
+>  {
+>  	sync_core();
+> diff --git a/arch/x86/kernel/kgdb.c b/arch/x86/kernel/kgdb.c
+> index 5db08425063e..1461544cba8b 100644
+> --- a/arch/x86/kernel/kgdb.c
+> +++ b/arch/x86/kernel/kgdb.c
+> @@ -758,13 +758,13 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
+>  	if (!err)
+>  		return err;
+>  	/*
+> -	 * It is safe to call text_poke() because normal kernel execution
+> +	 * It is safe to call text_poke_kgdb() because normal kernel execution
+>  	 * is stopped on all cores, so long as the text_mutex is not locked.
+>  	 */
+>  	if (mutex_is_locked(&text_mutex))
+>  		return -EBUSY;
+> -	text_poke((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
+> -		  BREAK_INSTR_SIZE);
+> +	text_poke_kgdb((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
+> +		       BREAK_INSTR_SIZE);
+>  	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
+>  	if (err)
+>  		return err;
+> @@ -783,12 +783,13 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
+>  	if (bpt->type != BP_POKE_BREAKPOINT)
+>  		goto knl_write;
+>  	/*
+> -	 * It is safe to call text_poke() because normal kernel execution
+> +	 * It is safe to call text_poke_kgdb() because normal kernel execution
+>  	 * is stopped on all cores, so long as the text_mutex is not locked.
+>  	 */
+>  	if (mutex_is_locked(&text_mutex))
+>  		goto knl_write;
+> -	text_poke((void *)bpt->bpt_addr, bpt->saved_instr, BREAK_INSTR_SIZE);
+> +	text_poke_kgdb((void *)bpt->bpt_addr, bpt->saved_instr,
+> +		       BREAK_INSTR_SIZE);
+>  	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
+>  	if (err || memcmp(opc, bpt->saved_instr, BREAK_INSTR_SIZE))
+>  		goto knl_write;
+> -- 
+> 2.17.1
 > 
 
-I'm also intrigued by the point that read-only GUP is harmless, and we 
-could just focus on the writeable case.
 
-However, I'm rather worried about actually attempting it, because remember
-that so far, each call site does no special tracking of each struct page. 
-It just remembers that it needs to do a put_page(), not whether or
-not that particular page was set up with writeable or read-only GUP. I mean,
-sure, they often call set_page_dirty before put_page, indicating that it might
-have been a writeable GUP call, but it seems sketchy to rely on that.
-
-So actually doing this could go from merely lots of work, to K*(lots_of_work)...
-
-
-thanks,
 -- 
-John Hubbard
-NVIDIA
+Masami Hiramatsu <mhiramat@kernel.org>
