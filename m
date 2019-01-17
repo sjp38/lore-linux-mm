@@ -1,64 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 97BC28E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:37:44 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id b3so3991777edi.0
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:37:44 -0800 (PST)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id p26-v6si774403eji.30.2019.01.17.09.37.43
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DF2A8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id r131so3635405oia.7
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:42:41 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f14sor1273415oib.5.2019.01.17.09.42.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 09:37:43 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id CBF161C3047
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 17:37:42 +0000 (GMT)
-Date: Thu, 17 Jan 2019 17:37:41 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 17/25] mm, compaction: Keep cached migration PFNs synced
- for unusable pageblocks
-Message-ID: <20190117173741.GM27437@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
- <20190104125011.16071-18-mgorman@techsingularity.net>
- <2e384ff6-a4fd-5047-428d-b90cfa95be2e@suse.cz>
+        (Google Transport Security);
+        Thu, 17 Jan 2019 09:42:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <2e384ff6-a4fd-5047-428d-b90cfa95be2e@suse.cz>
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-13-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-13-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 17 Jan 2019 18:42:28 +0100
+Message-ID: <CAJZ5v0gu0zcyZtHv4mDioS6j4WMsz_59bYdzuGtOPXfKVNOX+g@mail.gmail.com>
+Subject: Re: [PATCHv4 12/13] acpi/hmat: Register memory side cache attributes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Jan 17, 2019 at 06:17:28PM +0100, Vlastimil Babka wrote:
-> On 1/4/19 1:50 PM, Mel Gorman wrote:
-> > Migrate has separate cached PFNs for ASYNC and SYNC* migration on the
-> > basis that some migrations will fail in ASYNC mode. However, if the cached
-> > PFNs match at the start of scanning and pageblocks are skipped due to
-> > having no isolation candidates, then the sync state does not matter.
-> > This patch keeps matching cached PFNs in sync until a pageblock with
-> > isolation candidates is found.
-> > 
-> > The actual benefit is marginal given that the sync scanner following the
-> > async scanner will often skip a number of pageblocks but it's useless
-> > work. Any benefit depends heavily on whether the scanners restarted
-> > recently so overall the reduction in scan rates is a mere 2.8% which
-> > is borderline noise.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> My easlier suggestion to check more thoroughly if pages can be migrated (which
-> depends on the mode) before isolating them wouldn't play nice with this :)
-> 
+On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+>
+> Register memory side cache attributes with the memory's node if HMAT
+> provides the side cache iniformation table.
+>
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  drivers/acpi/hmat/hmat.c | 32 ++++++++++++++++++++++++++++++++
+>  1 file changed, 32 insertions(+)
+>
+> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
+> index 45e20dc677f9..9efdd0a63a79 100644
+> --- a/drivers/acpi/hmat/hmat.c
+> +++ b/drivers/acpi/hmat/hmat.c
+> @@ -206,6 +206,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+>                                    const unsigned long end)
+>  {
+>         struct acpi_hmat_cache *cache = (void *)header;
+> +       struct node_cache_attrs cache_attrs;
+>         u32 attrs;
+>
+>         if (cache->header.length < sizeof(*cache)) {
+> @@ -219,6 +220,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+>                 cache->memory_PD, cache->cache_size, attrs,
+>                 cache->number_of_SMBIOShandles);
+>
+> +       cache_attrs.size = cache->cache_size;
+> +       cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
+> +       cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
+> +
+> +       switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
+> +       case ACPI_HMAT_CA_DIRECT_MAPPED:
+> +               cache_attrs.associativity = NODE_CACHE_DIRECT_MAP;
+> +               break;
+> +       case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
+> +               cache_attrs.associativity = NODE_CACHE_INDEXED;
+> +               break;
+> +       case ACPI_HMAT_CA_NONE:
+> +       default:
 
-No, unfortunately it wouldn't. I did find though that sync_light often
-ran very quickly after async when compaction was having trouble
-succeeding. The time window was short enough that states like
-Dirty/Writeback were highly unlikely to be cleared. It might have played
-nice when fragmentation was very low but any benefit then would be very
-difficult to detect.
+This looks slightly odd as "default" covers the other case as well.
+Maybe say what other case is covered by "default" in particular in a
+comment?
 
--- 
-Mel Gorman
-SUSE Labs
+> +               cache_attrs.associativity = NODE_CACHE_OTHER;
+> +               break;
+> +       }
+> +
+> +       switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
+> +       case ACPI_HMAT_CP_WB:
+> +               cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
+> +               break;
+> +       case ACPI_HMAT_CP_WT:
+> +               cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
+> +               break;
+> +       case ACPI_HMAT_CP_NONE:
+> +       default:
+
+And analogously here.
+
+> +               cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
+> +               break;
+> +       }
+> +
+> +       node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
+>         return 0;
+>  }
+>
+> --
