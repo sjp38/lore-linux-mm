@@ -1,52 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 083118E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 04:45:07 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id t205so4850081ywa.10
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:45:07 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id e192si287549ybc.346.2019.01.17.01.45.05
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CCAA8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 04:54:39 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id i55so3477570ede.14
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:54:39 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n15si1919143edb.101.2019.01.17.01.54.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 01:45:06 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [PATCH] mm: hwpoison: use do_send_sig_info() instead of
- force_sig() (Re: PMEM error-handling forces SIGKILL causes kernel panic)
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <6fa27824-d86d-f642-db7c-a13faaac527d@oracle.com>
-Date: Thu, 17 Jan 2019 02:44:58 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <00575D78-10FE-4A05-9BAB-5A2992AB401D@oracle.com>
-References: <e3c4c0e0-1434-4353-b893-2973c04e7ff7@oracle.com>
- <CAPcyv4j67n6H7hD6haXJqysbaauci4usuuj5c+JQ7VQBGngO1Q@mail.gmail.com>
- <20190111081401.GA5080@hori1.linux.bs1.fc.nec.co.jp>
- <20190116093046.GA29835@hori1.linux.bs1.fc.nec.co.jp>
- <97e179e1-8a3a-5acb-78c1-a4b06b33db4c@oracle.com>
- <20190116233207.GA5868@hori1.linux.bs1.fc.nec.co.jp>
- <6fa27824-d86d-f642-db7c-a13faaac527d@oracle.com>
+        Thu, 17 Jan 2019 01:54:37 -0800 (PST)
+Date: Thu, 17 Jan 2019 10:52:03 +0100
+From: Cyril Hrubis <chrubis@suse.cz>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Message-ID: <20190117095203.GA23942@rei.lan>
+References: <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
+ <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net>
+ <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
+ <20190116054613.GA11670@nautica>
+ <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
+ <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm>
+ <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
+ <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm>
+ <20190116213708.GN6310@bombadil.infradead.org>
+ <nycvar.YFH.7.76.1901162238310.6626@cbobk.fhfr.pm>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YFH.7.76.1901162238310.6626@cbobk.fhfr.pm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jane Chu <jane.chu@oracle.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+
+Hi!
+> > Your patch 3/3 just removes the test.  Am I right in thinking that it
+> > doesn't need to be *moved* because the existing test after !PageUptodate
+> > catches it?
+> 
+> Exactly. It just initiates read-ahead for IOCB_NOWAIT cases as well, and 
+> if it's actually set, it'll be handled by the !PageUpdtodate case.
+> 
+> > Of course, there aren't any tests for RWF_NOWAIT in xfstests.  Are there 
+> > any in LTP?
+> 
+> Not in the released version AFAIK. I've asked the LTP maintainer (in our 
+> internal bugzilla) to take care of this thread a few days ago, but not 
+> sure what came out of it. Adding him (Cyril) to CC.
+
+So far not much, I've looked over our mincore() tests and noted down how
+to improve them here:
+
+https://github.com/linux-test-project/ltp/issues/461
+
+We do plan to test the final mincore() fix:
+
+https://github.com/linux-test-project/ltp/issues/460
+
+And we do have RWF_NOWAIT tests on our TODO for some time as well:
+
+https://github.com/linux-test-project/ltp/issues/286
+
+I guess I can raise priority for that one so that we have basic
+functional tests in a week or so. Also if anyone has some RWF_NOWAIT
+tests already it would be nice if these could be shared with us.
 
 
+[A bit off topic rant]
 
-> On Jan 16, 2019, at 6:07 PM, Jane Chu <jane.chu@oracle.com> wrote:
->=20
-> It's just coding style I'm used to, no big deal.
-> Up to you to decide. :)
+I've been telling kernel developers for years that if they have a test
+code they used when developing a kernel feature that they should share
+it with us (LTP community) and we will turn these into automated tests
+and maintain them for free. LTP is also used in many QA departements
+around the word so such tests will end up executed in different
+environments also for free. Sadly this does not happen much and there
+are only few exceptions so far. But maybe I wasn't shouting loudly
+enough.
 
-Personally I like a (void) cast as it's pretty long-standing syntactic =
-sugar to cast a call that returns a value we don't care about to (void) =
-to show we know it returns a value and we don't care.
-
-Without it, it may suggest we either didn't know it returned a value or =
-that we neglected to check the return value.
-
-However, in current use elsewhere (e.g. in send_sig_all() and =
-__oom_kill_process()), no such (void) cast is added, so it seems better =
-to match current usage elsewhere in the kernel.
-
-Reviewed-by: William Kucharski <william.kucharski@oracle.com>
+-- 
+Cyril Hrubis
+chrubis@suse.cz
