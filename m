@@ -1,113 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE8B8E0047
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 00:22:45 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id p24so5384285qtl.2
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 21:22:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v30si1965989qtd.97.2019.01.23.21.22.44
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F3C8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 06:41:33 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id g76so3228181oib.19
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 03:41:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u16sor639452oiv.13.2019.01.17.03.41.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 21:22:44 -0800 (PST)
-Date: Thu, 24 Jan 2019 13:22:36 +0800
-From: Peter Xu <peterx@redhat.com>
-Subject: Re: [PATCH RFC 13/24] mm: merge parameters for change_protection()
-Message-ID: <20190124052236.GF18231@xz-x1>
-References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-14-peterx@redhat.com>
- <20190121135444.GC3344@redhat.com>
+        (Google Transport Security);
+        Thu, 17 Jan 2019 03:41:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190121135444.GC3344@redhat.com>
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-6-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-6-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 17 Jan 2019 12:41:19 +0100
+Message-ID: <CAJZ5v0jmkyrNBHzqHsOuWjLXF34tq83VnEhdBWrdFqxyiXC=cw@mail.gmail.com>
+Subject: Re: [PATCHv4 05/13] Documentation/ABI: Add new node sysfs attributes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Mon, Jan 21, 2019 at 08:54:46AM -0500, Jerome Glisse wrote:
-> On Mon, Jan 21, 2019 at 03:57:11PM +0800, Peter Xu wrote:
-> > change_protection() was used by either the NUMA or mprotect() code,
-> > there's one parameter for each of the callers (dirty_accountable and
-> > prot_numa).  Further, these parameters are passed along the calls:
-> > 
-> >   - change_protection_range()
-> >   - change_p4d_range()
-> >   - change_pud_range()
-> >   - change_pmd_range()
-> >   - ...
-> > 
-> > Now we introduce a flag for change_protect() and all these helpers to
-> > replace these parameters.  Then we can avoid passing multiple parameters
-> > multiple times along the way.
-> > 
-> > More importantly, it'll greatly simplify the work if we want to
-> > introduce any new parameters to change_protection().  In the follow up
-> > patches, a new parameter for userfaultfd write protection will be
-> > introduced.
-> > 
-> > No functional change at all.
-> 
-> There is one change i could spot and also something that looks wrong.
-> 
-> > 
-> > Signed-off-by: Peter Xu <peterx@redhat.com>
-> > ---
-> 
-> [...]
-> 
-> > @@ -428,8 +431,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
-> >  	dirty_accountable = vma_wants_writenotify(vma, vma->vm_page_prot);
-> >  	vma_set_page_prot(vma);
-> >  
-> > -	change_protection(vma, start, end, vma->vm_page_prot,
-> > -			  dirty_accountable, 0);
-> > +	change_protection(vma, start, end, vma->vm_page_prot, MM_CP_DIRTY_ACCT);
-> 
-> Here you unconditionaly see the DIRTY_ACCT flag instead it should be
-> something like:
-> 
->     s/dirty_accountable/cp_flags
->     if (vma_wants_writenotify(vma, vma->vm_page_prot))
->         cp_flags = MM_CP_DIRTY_ACCT;
->     else
->         cp_flags = 0;
-> 
->     change_protection(vma, start, end, vma->vm_page_prot, cp_flags);
-> 
-> Or any equivalent construct.
+On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+>
+> Add entries for memory initiator and target node class attributes.
+>
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
 
-Oops, thanks for spotting this... it was definitely wrong.  I'll fix.
+I would recommend combining this with the previous patch, as the way
+it is now I need to look at two patches at the time. :-)
 
-> 
-> >  	/*
-> >  	 * Private VM_LOCKED VMA becoming writable: trigger COW to avoid major
-> > diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> > index 005291b9b62f..23d4bbd117ee 100644
-> > --- a/mm/userfaultfd.c
-> > +++ b/mm/userfaultfd.c
-> > @@ -674,7 +674,7 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
-> >  		newprot = vm_get_page_prot(dst_vma->vm_flags);
-> >  
-> >  	change_protection(dst_vma, start, start + len, newprot,
-> > -				!enable_wp, 0);
-> > +			  enable_wp ? 0 : MM_CP_DIRTY_ACCT);
-> 
-> We had a discussion in the past on that, i have not look at other
-> patches but this seems wrong to me. MM_CP_DIRTY_ACCT is an
-> optimization to keep a pte with write permission if it is dirty
-> while my understanding is that you want to set write flag for pte
-> unconditionaly.
-> 
-> So maybe this patch that adds flag should be earlier in the serie
-> so that you can add a flag to do that before introducing the UFD
-> mwriteprotect_range() function.
+> ---
+>  Documentation/ABI/stable/sysfs-devices-node | 25 ++++++++++++++++++++++++-
+>  1 file changed, 24 insertions(+), 1 deletion(-)
+>
+> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> index 3e90e1f3bf0a..a9c47b4b0eee 100644
+> --- a/Documentation/ABI/stable/sysfs-devices-node
+> +++ b/Documentation/ABI/stable/sysfs-devices-node
+> @@ -90,4 +90,27 @@ Date:                December 2009
+>  Contact:       Lee Schermerhorn <lee.schermerhorn@hp.com>
+>  Description:
+>                 The node's huge page size control/query attributes.
+> -               See Documentation/admin-guide/mm/hugetlbpage.rst
+> \ No newline at end of file
+> +               See Documentation/admin-guide/mm/hugetlbpage.rst
+> +
+> +What:          /sys/devices/system/node/nodeX/classY/
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               The node's relationship to other nodes for access class "Y".
+> +
+> +What:          /sys/devices/system/node/nodeX/classY/initiator_nodelist
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               The node list of memory initiators that have class "Y" access
+> +               to this node's memory. CPUs and other memory initiators in
+> +               nodes not in the list accessing this node's memory may have
+> +               different performance.
 
-I agree.  I'm going to move the UFFDIO_WRITEPROTECT patch to the last
-so I'll rearrange this part too so these lines will be removed in my
-next version.
+This does not follow the general "one value per file" rule of sysfs (I
+know that there are other sysfs files with more than one value in
+them, but it is better to follow this rule as long as that makes
+sense).
 
-Thanks!
+> +
+> +What:          /sys/devices/system/node/nodeX/classY/target_nodelist
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               The node list of memory targets that this initiator node has
+> +               class "Y" access. Memory accesses from this node to nodes not
+> +               in this list may have differet performance.
+> --
 
--- 
-Peter Xu
+Same here.
+
+And if you follow the recommendation given in the previous message
+(add "initiators" and "targets" subdirs under "classX"), you won't
+even need the two files above.
+
+And, of course, the symlinks part needs to be documented as well.  I
+guess you can follow the
+Documentation/ABI/testing/sysfs-devices-power_resources_D0 with that.
