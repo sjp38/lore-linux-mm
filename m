@@ -1,82 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 164C98E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:09:45 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id n22so4938726otq.8
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:09:45 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a143sor915193oii.66.2019.01.17.07.09.44
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1368E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:15:22 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id a9so6240713pla.2
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:15:22 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id 91si1910942ply.222.2019.01.17.07.15.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 17 Jan 2019 07:09:44 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Jan 2019 07:15:21 -0800 (PST)
+Subject: Re: [RFC PATCH v7 14/16] EXPERIMENTAL: xpfo, mm: optimize spin lock
+ usage in xpfo_kmap
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+ <7e8e17f519ae87a91fc6cbb57b8b27094c96305c.1547153058.git.khalid.aziz@oracle.com>
+ <b2ffc4fd-e449-b6da-7070-4f182d44dd5b@redhat.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <1b46e0a5-476b-1eaa-3376-6848caf9e7ab@oracle.com>
+Date: Thu, 17 Jan 2019 08:14:41 -0700
 MIME-Version: 1.0
-References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-9-keith.busch@intel.com>
-In-Reply-To: <20190116175804.30196-9-keith.busch@intel.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Thu, 17 Jan 2019 16:09:32 +0100
-Message-ID: <CAJZ5v0iV8qt3_1BP_4fPN77CC7yLXT4QMW=q+jWdts+e5rf8dg@mail.gmail.com>
-Subject: Re: [PATCHv4 08/13] Documentation/ABI: Add node performance attributes
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <b2ffc4fd-e449-b6da-7070-4f182d44dd5b@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Keith Busch <keith.busch@intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Laura Abbott <labbott@redhat.com>, juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, "Vasileios P . Kemerlis" <vpk@cs.columbia.edu>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>, Marco Benatto <marco.antonio.780@gmail.com>, David Woodhouse <dwmw2@infradead.org>
 
-On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
->
-> Add descriptions for memory class initiator performance access attributes.
-
-Again, I would combine this with the previous patch.
-
-> Signed-off-by: Keith Busch <keith.busch@intel.com>
-> ---
->  Documentation/ABI/stable/sysfs-devices-node | 28 ++++++++++++++++++++++++++++
->  1 file changed, 28 insertions(+)
->
-> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-> index a9c47b4b0eee..2217557f29d3 100644
-> --- a/Documentation/ABI/stable/sysfs-devices-node
-> +++ b/Documentation/ABI/stable/sysfs-devices-node
-> @@ -114,3 +114,31 @@ Description:
->                 The node list of memory targets that this initiator node has
->                 class "Y" access. Memory accesses from this node to nodes not
->                 in this list may have differet performance.
+On 1/16/19 5:18 PM, Laura Abbott wrote:
+> On 1/10/19 1:09 PM, Khalid Aziz wrote:
+>> From: Julian Stecklina <jsteckli@amazon.de>
+>>
+>> We can reduce spin lock usage in xpfo_kmap to the 0->1 transition of
+>> the mapcount. This means that xpfo_kmap() can now race and that we
+>> get spurious page faults.
+>>
+>> The page fault handler helps the system make forward progress by
+>> fixing the page table instead of allowing repeated page faults until
+>> the right xpfo_kmap went through.
+>>
+>> Model-checked with up to 4 concurrent callers with Spin.
+>>
+> 
+> This needs the spurious check for arm64 as well. This at
+> least gets me booting but could probably use more review:
+> 
+> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+> index 7d9571f4ae3d..8f425848cbb9 100644
+> --- a/arch/arm64/mm/fault.c
+> +++ b/arch/arm64/mm/fault.c
+> @@ -32,6 +32,7 @@
+>  #include <linux/perf_event.h>
+>  #include <linux/preempt.h>
+>  #include <linux/hugetlb.h>
+> +#include <linux/xpfo.h>
+>  
+>  #include <asm/bug.h>
+>  #include <asm/cmpxchg.h>
+> @@ -289,6 +290,9 @@ static void __do_kernel_fault(unsigned long addr,
+> unsigned int esr,
+>         if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
+>                 return;
+>  
+> +       if (xpfo_spurious_fault(addr))
+> +               return;
 > +
-> +What:          /sys/devices/system/node/nodeX/classY/read_bandwidth
-> +Date:          December 2018
-> +Contact:       Keith Busch <keith.busch@intel.com>
-> +Description:
-> +               This node's read bandwidth in MB/s available to memory
-> +               initiators in nodes found in this class's initiators_nodelist.
-> +
-> +What:          /sys/devices/system/node/nodeX/classY/read_latency
-> +Date:          December 2018
-> +Contact:       Keith Busch <keith.busch@intel.com>
-> +Description:
-> +               This node's read latency in nanoseconds available to memory
-> +               initiators in nodes found in this class's initiators_nodelist.
+>         if (is_el1_permission_fault(addr, esr, regs)) {
+>                 if (esr & ESR_ELx_WNR)
+>                         msg = "write to read-only memory";
+> 
+> 
 
-I'm not sure if the term "read latency" is sufficient here.  Is this
-the latency between sending a request and getting a response or
-between sending the request and when the data actually becomes
-available?
+That makes sense. Thanks for debugging this. I will add this to patch 14
+("EXPERIMENTAL: xpfo, mm: optimize spin lock usage in xpfo_kmap").
 
-Moreover, is it the worst-case latency or the average latency?
-
-> +
-> +What:          /sys/devices/system/node/nodeX/classY/write_bandwidth
-> +Date:          December 2018
-> +Contact:       Keith Busch <keith.busch@intel.com>
-> +Description:
-> +               This node's write bandwidth in MB/s available to memory
-> +               initiators in nodes found in this class's initiators_nodelist.
-> +
-> +What:          /sys/devices/system/node/nodeX/classY/write_latency
-> +Date:          December 2018
-> +Contact:       Keith Busch <keith.busch@intel.com>
-> +Description:
-> +               This node's write latency in nanoseconds available to memory
-> +               initiators in nodes found in this class's initiators_nodelist.
-> --
-
-Same questions as for the read latency apply here.
+Thanks,
+Khalid
