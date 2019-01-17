@@ -1,88 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 09BED8E0002
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 18:38:57 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id v64so6919846qka.5
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 15:38:57 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r29si5599302qtr.290.2019.01.16.15.38.55
+	by kanga.kvack.org (Postfix) with ESMTP id B04528E0002
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2019 19:18:21 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id j125so6831107qke.12
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2019 16:18:21 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h54sor92394070qth.8.2019.01.16.16.18.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Jan 2019 15:38:55 -0800 (PST)
-Date: Wed, 16 Jan 2019 18:38:50 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 2/4] mm/memory-hotplug: allow memory resources to be
- children
-Message-ID: <20190116233849.GE3617@redhat.com>
-References: <20190116181859.D1504459@viggo.jf.intel.com>
- <20190116181902.670EEBC3@viggo.jf.intel.com>
- <20190116191635.GD3617@redhat.com>
- <2b52778d-f120-eec7-3e7a-3a9c182170f0@intel.com>
+        (Google Transport Security);
+        Wed, 16 Jan 2019 16:18:20 -0800 (PST)
+Subject: Re: [RFC PATCH v7 14/16] EXPERIMENTAL: xpfo, mm: optimize spin lock
+ usage in xpfo_kmap
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+ <7e8e17f519ae87a91fc6cbb57b8b27094c96305c.1547153058.git.khalid.aziz@oracle.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <b2ffc4fd-e449-b6da-7070-4f182d44dd5b@redhat.com>
+Date: Wed, 16 Jan 2019 16:18:14 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2b52778d-f120-eec7-3e7a-3a9c182170f0@intel.com>
+In-Reply-To: <7e8e17f519ae87a91fc6cbb57b8b27094c96305c.1547153058.git.khalid.aziz@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, dave@sr71.net, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com, baiyaowei@cmss.chinamobile.com, tiwai@suse.de
+To: Khalid Aziz <khalid.aziz@oracle.com>, juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
+Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, "Vasileios P . Kemerlis" <vpk@cs.columbia.edu>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>, Marco Benatto <marco.antonio.780@gmail.com>, David Woodhouse <dwmw2@infradead.org>
 
-On Wed, Jan 16, 2019 at 03:01:39PM -0800, Dave Hansen wrote:
-> On 1/16/19 11:16 AM, Jerome Glisse wrote:
-> >> We also rework the old error message a bit since we do not get
-> >> the conflicting entry back: only an indication that we *had* a
-> >> conflict.
-> > We should keep the device private check (moving it in __request_region)
-> > as device private can try to register un-use physical address (un-use
-> > at time of device private registration) that latter can block valid
-> > physical address the error message you are removing report such event.
+On 1/10/19 1:09 PM, Khalid Aziz wrote:
+> From: Julian Stecklina <jsteckli@amazon.de>
 > 
-> If a resource can't support having a child, shouldn't it just be marked
-> IORESOURCE_BUSY, rather than trying to somehow special-case
-> IORES_DESC_DEVICE_PRIVATE_MEMORY behavior?
+> We can reduce spin lock usage in xpfo_kmap to the 0->1 transition of
+> the mapcount. This means that xpfo_kmap() can now race and that we
+> get spurious page faults.
+> 
+> The page fault handler helps the system make forward progress by
+> fixing the page table instead of allowing repeated page faults until
+> the right xpfo_kmap went through.
+> 
+> Model-checked with up to 4 concurrent callers with Spin.
+> 
 
-So the thing about IORES_DESC_DEVICE_PRIVATE_MEMORY is that they
-are not necessarily link to any real resource ie they can just be
-random range of physical address that at the time of registration
-had no resource.
+This needs the spurious check for arm64 as well. This at
+least gets me booting but could probably use more review:
 
-Now you can latter hotplug some memory that would conflict with
-this IORES_DESC_DEVICE_PRIVATE_MEMORY and if that happens we want
-to tell that to the user ie:
-    "Sorry we registered some fake memory at fake physical address
-     and now you have hotplug something that conflict with that."
+diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+index 7d9571f4ae3d..8f425848cbb9 100644
+--- a/arch/arm64/mm/fault.c
++++ b/arch/arm64/mm/fault.c
+@@ -32,6 +32,7 @@
+  #include <linux/perf_event.h>
+  #include <linux/preempt.h>
+  #include <linux/hugetlb.h>
++#include <linux/xpfo.h>
+  
+  #include <asm/bug.h>
+  #include <asm/cmpxchg.h>
+@@ -289,6 +290,9 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
+         if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
+                 return;
+  
++       if (xpfo_spurious_fault(addr))
++               return;
++
+         if (is_el1_permission_fault(addr, esr, regs)) {
+                 if (esr & ESR_ELx_WNR)
+                         msg = "write to read-only memory";
 
 
-Why no existing resource ? Well it depends on the platform. In some
-case memory for HMM is just not accessible by the CPU _at_ all so
-there is obviously no physical address from CPU point of view for
-this kind of memory. The other case is PCIE and BAR size. If we
-have PCIE bar resizing working everywhere we could potentialy
-use the resized PCIE bar (thought i think some device have bug on
-that front so i need to check device side too). So when HMM was
-design without the PCIE resize and with totaly un-accessible memory
-the only option was to pick some unuse physical address range as
-anyway memory we are hotpluging is not CPU accessible.
-
-It has been on my TODO to try to find a better way to reserve a
-physical range but this is highly platform specific. I need to
-investigate if i can report to ACPI on x86 that i want to make
-sure the system never assign some physical address range.
-
-Checking PCIE bar resize is also on my TODO (on device side as
-i think some device are just buggy there and won't accept BAR
-bigger than 256MB and freakout if you try).
-
-So right now i would rather that we keep properly reporting this
-hazard so that at least we know it failed because of that. This
-also include making sure that we can not register private memory
-as a child of an un-busy resource that does exist but might not
-have yet been claim by its rightful owner.
-
-Existing code make sure of that, with your change this is a case
-that i would not be able to stop. Well i would have to hot unplug
-and try a different physical address i guess.
-
-Cheers,
-Jérôme
+> Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
+> Cc: x86@kernel.org
+> Cc: kernel-hardening@lists.openwall.com
+> Cc: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
+> Cc: Juerg Haefliger <juerg.haefliger@canonical.com>
+> Cc: Tycho Andersen <tycho@docker.com>
+> Cc: Marco Benatto <marco.antonio.780@gmail.com>
+> Cc: David Woodhouse <dwmw2@infradead.org>
+> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+> ---
+>   arch/x86/mm/fault.c  |  4 ++++
+>   include/linux/xpfo.h |  4 ++++
+>   mm/xpfo.c            | 50 +++++++++++++++++++++++++++++++++++++-------
+>   3 files changed, 51 insertions(+), 7 deletions(-)
+> 
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index ba51652fbd33..207081dcd572 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -18,6 +18,7 @@
+>   #include <linux/uaccess.h>		/* faulthandler_disabled()	*/
+>   #include <linux/efi.h>			/* efi_recover_from_page_fault()*/
+>   #include <linux/mm_types.h>
+> +#include <linux/xpfo.h>
+>   
+>   #include <asm/cpufeature.h>		/* boot_cpu_has, ...		*/
+>   #include <asm/traps.h>			/* dotraplinkage, ...		*/
+> @@ -1218,6 +1219,9 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
+>   	if (kprobes_fault(regs))
+>   		return;
+>   
+> +	if (xpfo_spurious_fault(address))
+> +		return;
+> +
+>   	/*
+>   	 * Note, despite being a "bad area", there are quite a few
+>   	 * acceptable reasons to get here, such as erratum fixups
+> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+> index ea5188882f49..58dd243637d2 100644
+> --- a/include/linux/xpfo.h
+> +++ b/include/linux/xpfo.h
+> @@ -54,6 +54,8 @@ bool xpfo_enabled(void);
+>   
+>   phys_addr_t user_virt_to_phys(unsigned long addr);
+>   
+> +bool xpfo_spurious_fault(unsigned long addr);
+> +
+>   #else /* !CONFIG_XPFO */
+>   
+>   static inline void xpfo_init_single_page(struct page *page) { }
+> @@ -81,6 +83,8 @@ static inline bool xpfo_enabled(void) { return false; }
+>   
+>   static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
+>   
+> +static inline bool xpfo_spurious_fault(unsigned long addr) { return false; }
+> +
+>   #endif /* CONFIG_XPFO */
+>   
+>   #endif /* _LINUX_XPFO_H */
+> diff --git a/mm/xpfo.c b/mm/xpfo.c
+> index dbf20efb0499..85079377c91d 100644
+> --- a/mm/xpfo.c
+> +++ b/mm/xpfo.c
+> @@ -119,6 +119,16 @@ void xpfo_free_pages(struct page *page, int order)
+>   	}
+>   }
+>   
+> +static void xpfo_do_map(void *kaddr, struct page *page)
+> +{
+> +	spin_lock(&page->xpfo_lock);
+> +	if (PageXpfoUnmapped(page)) {
+> +		set_kpte(kaddr, page, PAGE_KERNEL);
+> +		ClearPageXpfoUnmapped(page);
+> +	}
+> +	spin_unlock(&page->xpfo_lock);
+> +}
+> +
+>   void xpfo_kmap(void *kaddr, struct page *page)
+>   {
+>   	if (!static_branch_unlikely(&xpfo_inited))
+> @@ -127,17 +137,12 @@ void xpfo_kmap(void *kaddr, struct page *page)
+>   	if (!PageXpfoUser(page))
+>   		return;
+>   
+> -	spin_lock(&page->xpfo_lock);
+> -
+>   	/*
+>   	 * The page was previously allocated to user space, so map it back
+>   	 * into the kernel. No TLB flush required.
+>   	 */
+> -	if ((atomic_inc_return(&page->xpfo_mapcount) == 1) &&
+> -	    TestClearPageXpfoUnmapped(page))
+> -		set_kpte(kaddr, page, PAGE_KERNEL);
+> -
+> -	spin_unlock(&page->xpfo_lock);
+> +	if (atomic_inc_return(&page->xpfo_mapcount) == 1)
+> +		xpfo_do_map(kaddr, page);
+>   }
+>   EXPORT_SYMBOL(xpfo_kmap);
+>   
+> @@ -204,3 +209,34 @@ void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
+>   			kunmap_atomic(mapping[i]);
+>   }
+>   EXPORT_SYMBOL(xpfo_temp_unmap);
+> +
+> +bool xpfo_spurious_fault(unsigned long addr)
+> +{
+> +	struct page *page;
+> +	bool spurious;
+> +	int mapcount;
+> +
+> +	if (!static_branch_unlikely(&xpfo_inited))
+> +		return false;
+> +
+> +	/* XXX Is this sufficient to guard against calling virt_to_page() on a
+> +	 * virtual address that has no corresponding struct page? */
+> +	if (!virt_addr_valid(addr))
+> +		return false;
+> +
+> +	page = virt_to_page(addr);
+> +	mapcount = atomic_read(&page->xpfo_mapcount);
+> +	spurious = PageXpfoUser(page) && mapcount;
+> +
+> +	/* Guarantee forward progress in case xpfo_kmap() raced. */
+> +	if (spurious && PageXpfoUnmapped(page)) {
+> +		xpfo_do_map((void *)(addr & PAGE_MASK), page);
+> +	}
+> +
+> +	if (unlikely(!spurious))
+> +		printk("XPFO non-spurious fault %lx user=%d unmapped=%d mapcount=%d\n",
+> +			addr, PageXpfoUser(page), PageXpfoUnmapped(page),
+> +			mapcount);
+> +
+> +	return spurious;
+> +}
+> 
