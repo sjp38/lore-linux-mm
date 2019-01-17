@@ -2,277 +2,277 @@ Return-Path: <SRS0=SJ39=PZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 298C0C43444
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 18:19:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D883EC43387
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 18:50:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D712320856
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 18:19:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D712320856
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 8327F20855
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 18:50:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RoRqjXGr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8327F20855
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 73CE88E000F; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
+	id 158098E000A; Thu, 17 Jan 2019 13:50:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6EAF58E0002; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
+	id 107D18E0002; Thu, 17 Jan 2019 13:50:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D9E88E000F; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
+	id F12208E000A; Thu, 17 Jan 2019 13:50:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 339B68E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
-Received: by mail-vk1-f200.google.com with SMTP id t192so2447999vkt.9
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:19:02 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B0A3F8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 13:50:58 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 82so8014835pfs.20
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:50:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=95/IjRJgbqL/Z53OgDhzw0PV51EaRnPojSlYATVmyF4=;
-        b=f/J1uhageQ8SdPBmSKj9cLRslp3NSonGSp8CkZCj7/JbMmv3EJH1vftnVRyQBE+Vtf
-         i2Pl9V0dIMcthyZRMe4qR1071mkx4JW6sbArIog+KG9ghLFnH++whMoLafI1ZYGFJYyB
-         KmZ97a7HdD/jvcUXDFN08vsh5fisV1j3xb70x31UKCl2CEtZWFXgSYCUUxi5LYPeYqka
-         Saz5zR5l2JZVOgMX78ZTM9FzbMev22jyk5Io1rujXlU94KcM9T/KJjOt5yQGrhcgKRuH
-         wObLvsuuC7Qid+KbsWAG8aDqCxl3Ciof6SmFaI1Q601BpqQ5w1ZjwOwiepBFxSGXE4VS
-         EHhA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: AJcUukd3CNuLtz+aKQmBdEaoKTc44rxJHLmG5a7xkAYYRMglm7sUItMf
-	dPIuDfJRC8pcqKvpcv73BZqMcFwvOVkGk/NHhsD1uLNH5m64bVkMXs3Bn7a+07TI7/qdcBsrRy1
-	T9BhtjfcVlZSu+5WqOJY6EfaAq03j3MUL+/Xzm4yBBCaFqGTlj3xePYkhIHQelASO7A==
-X-Received: by 2002:ab0:69ca:: with SMTP id u10mr5887746uaq.57.1547749141675;
-        Thu, 17 Jan 2019 10:19:01 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5lDBj3zYt+jI05GdRI2qsOtNLaTigos+UvpphOcbYSZSYySCJRNLhBs1b3aUGc8hR9lKl0
-X-Received: by 2002:ab0:69ca:: with SMTP id u10mr5887709uaq.57.1547749140426;
-        Thu, 17 Jan 2019 10:19:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547749140; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=McQ88YxcSDnbdtBufVrVV81bzj3cbbzoO4YJHuXaIKI=;
+        b=eY0aZtMr2Zmigv3TvFP0h12e8pgaFlfGFuISRNrPnPwMuGY3+UGMieBl9b8P+yn36M
+         SEBIjylO4eBarroIz7550751pjDSAOkk2CAlNzEllTqmr7LfYL+ib8C9SREvSe/VHKkN
+         7SkPUYnecqYU8MqK5rsSsoMR8O4xGqnIlz4Pi7kFFTGWFiog9udaYukVgm8dGPzkaYWx
+         PkFmNIPYAYTVFsGneCiyF3hE3vMJf868jDJeh5IOKcoEOC2wGZCx+fpyzWB//VPgTy2U
+         GAbvsEc7zbvCjMKuVfR0uwY9gysykABA3s0SKeFnMC1plpn49AqUt5QpcSuGxCQtEUtD
+         6VJQ==
+X-Gm-Message-State: AJcUukdDObvlGNPQFBnJX7GHH/ad0aEUkMQ3VygcEyaz1npkchGKw1Gx
+	mN/9VP/1l3Z9JaZe6rCIhr+C+cyrsq0FPBs3uE8aRZYxU6WHMtTqUUmIVtOkggdX5RNLnSUlB9S
+	JvE0IyjEdZPT1dHvxQ0PKmRizxnzRrtX/aQRVa4NZb8PHszLynBOZBVK4YsdaMzLsODEpxn/V23
+	/x9zjCTqByYqk0KeJoQ+MXpLsjddRxJEUXfNX1mDj03Z9d65khDjVA2LRqqpilfCnkRbvuAJRXA
+	g4G5MgjmAVb6cvOQ9REZg17SDAjla35Ktb5YL9c4UVVS/R3Z8fZfVslXw+xzZDSlU5gj7ErePbH
+	oFl3tr4TdG/I07HZT0luWpDldWiuZItUIMA3NHvdslzRByU7xqgdIi44PSKXT6Max+74JPwpWsU
+	K
+X-Received: by 2002:a63:e80e:: with SMTP id s14mr14566630pgh.30.1547751058331;
+        Thu, 17 Jan 2019 10:50:58 -0800 (PST)
+X-Received: by 2002:a63:e80e:: with SMTP id s14mr14566587pgh.30.1547751057417;
+        Thu, 17 Jan 2019 10:50:57 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547751057; cv=none;
         d=google.com; s=arc-20160816;
-        b=KL4fA5mUqWSK0sqz9NK2BmyMOEgpozK5EXQpMIXW8lnTLqB/n6hiaIEDRaxyVy0bvl
-         x9G7ppHrRH/UWWGujH9uiGA3Yv8lukytxdLdDYsDhq2vxDNzA5jekIxLWH8f7sge6ZOu
-         FmaBGUnm6GoXU/yTHhfGQhv+IDohuUz9vsVsg0Xbl3VCaZR7s8h882GNCzLq4C9HtoZN
-         E2bg2tLldoBzwTAVMH++ASY42jZ3DxFek8ZqSMTVWaVjPST9/dxlWXYLg1m7aJvzhUn3
-         tGqXtYHZGRKsVtNDejiN838NvwA9nfwRIeUqx+AN9x38Uz3eiq0gD3aLBxk8d/GIOHX3
-         MNdw==
+        b=EmwI3hqxTVVgiJFl+9dfCgqF0YAumCeUAOgU6KTHeokPdCNKPvXDsIHk/jFZCe9Q1u
+         8DEipP2CG9AOPCzgYxYyT94G4Ik9Dy68LTPIVOvYgrEpLUKXT3XBvXtFdNK1+Vd52QlS
+         x8VBOeIqlSAG+pLxy6oxhn9779guDxPoEFgmcfU8NHBTYOA7pliv3xHldRnCpAnCoCbB
+         D95xB90Dd1ElqxKr1j/Juor0i7M/w+zbko3cwscNYCQg0P3gfDTb6k/cmojlwEI5BR4T
+         Uk7yQZOMFF690THphJhv1Z+pNasESenGp+1IHhFxmdQbfOV9xeBqmJmKe8M5TYHtW5HD
+         m+cA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=95/IjRJgbqL/Z53OgDhzw0PV51EaRnPojSlYATVmyF4=;
-        b=xPy9HivcUuPBmcl+1W1hGR9P6DZNtCa+CpZ2yMvk2KztWxTbDMpd5sP/t/4L6+q++f
-         hcq63wc5C4dsjqtzMEHSHoRqX/K2KnNKKqDh30Lac+u1lpSKqJ5+JOPhww0RM/deCiWb
-         Xrx6Py3DrYWUMdbXQy2dIeNqWc7J6BR5SlJVON/eHIRIjmhzsZkcPgHJ/re6D/FjUali
-         zEzXVBbBei1sl46xMGKStUM/wW3tY6c00/MkwfwUXPWDhxI+CSPNMDhsJWXSAzyjvuXh
-         xWmiPEKoX2NygeimF/EHgUAClg2DeVvmdsP2ut0BNK3PvUtz8+hSg54Tr7qx7bHg42qE
-         0QiA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=McQ88YxcSDnbdtBufVrVV81bzj3cbbzoO4YJHuXaIKI=;
+        b=qg3FHxSkdmj7FnvnYS4uMxhijzs70VzQyJiQRC83txbNPwLeOv5oUwIu/moKikkCmi
+         sgGxueZEtecEQVIM+mKWJrcx67DQhaNBnx3+BxQTP1ZoBAtlo5kYi3eFSFsA++zFGfiY
+         lCz0W/bjla6/jO/bqJI4QvyfqeRpRXNkKffQRipSbwTRig57eA4VL0Iu+X1AHsnKNsJS
+         s+rAimfbezTcTXiLn9ge/Od992e9yAR8FpWdM3O6mR3xqwmRyteTrdc9CmImHyCWs33r
+         1fqUmFXt+8+A5FeBgu6BPDcKSHps+pFLVXcBxyOzKiGW+9MjEXXsCN/PmihqrTC/R+bs
+         qBUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id q11si1993225vsc.45.2019.01.17.10.18.59
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RoRqjXGr;
+       spf=pass (google.com: domain of osalvador.vilardaga@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=osalvador.vilardaga@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s36sor3461838pld.52.2019.01.17.10.50.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 10:19:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
+        (Google Transport Security);
+        Thu, 17 Jan 2019 10:50:57 -0800 (PST)
+Received-SPF: pass (google.com: domain of osalvador.vilardaga@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.58])
-	by Forcepoint Email with ESMTP id 715B813F35C265A352D9;
-	Fri, 18 Jan 2019 02:18:56 +0800 (CST)
-Received: from localhost (10.202.226.61) by DGGEMS408-HUB.china.huawei.com
- (10.3.19.208) with Microsoft SMTP Server id 14.3.408.0; Fri, 18 Jan 2019
- 02:18:49 +0800
-Date: Thu, 17 Jan 2019 18:18:35 +0000
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-To: Keith Busch <keith.busch@intel.com>
-CC: <linux-kernel@vger.kernel.org>, <linux-acpi@vger.kernel.org>,
-	<linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
-	"Dan Williams" <dan.j.williams@intel.com>, <linuxarm@huawei.com>
-Subject: Re: [PATCHv4 00/13] Heterogeneuos memory node attributes
-Message-ID: <20190117181835.000034ab@huawei.com>
-In-Reply-To: <20190116175804.30196-1-keith.busch@intel.com>
-References: <20190116175804.30196-1-keith.busch@intel.com>
-Organization: Huawei
-X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RoRqjXGr;
+       spf=pass (google.com: domain of osalvador.vilardaga@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=osalvador.vilardaga@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=McQ88YxcSDnbdtBufVrVV81bzj3cbbzoO4YJHuXaIKI=;
+        b=RoRqjXGrVRIGM40WtDWjrgA2BN3o7TaBMlMUV3qHrTG5H89YApRG5/uJ1HhQi0gL6m
+         TEcxmc3PXsd/tYBCq5dfo03FoUWzOJ2NI46Vrk1j1Y2Wotb13XLEm6HS7WuTweZYfKni
+         UW7hkOsIB1xJ540lLoNBK9523diJajXKpzWpkccTEPi66q8Npj5H592eNzycc/wy1eC6
+         PDxMJI7zFG/TiTHghOh6pjnnjCw14HC9uBSgfmmWiM+MajY6L+N3OK+6DfDsl/OFimHu
+         l0+TAEPAWZ6zJ8j09xQ3oK8ajM2fbu0QvSrNSBfQgJuYWHiBDIUNKEWmE1ITwX1z9u4V
+         vCiQ==
+X-Google-Smtp-Source: ALg8bN4xld/qYNtfROcc8y9yzWKiFO+9ZTZpU886hY9Seq92/Mq4/fvC0/nIrF0ug9lgCCs1D4LhzBk9TpqMcWCfv0g=
+X-Received: by 2002:a17:902:b18b:: with SMTP id s11mr16051508plr.56.1547751056958;
+ Thu, 17 Jan 2019 10:50:56 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.202.226.61]
-X-CFilter-Loop: Reflected
+References: <51e79597-21ef-3073-9036-cfc33291f395@lca.pw>
+In-Reply-To: <51e79597-21ef-3073-9036-cfc33291f395@lca.pw>
+From: Oscar Salvador <osalvador.vilardaga@gmail.com>
+Date: Thu, 17 Jan 2019 19:50:44 +0100
+Message-ID:
+ <CAOXBz7iFz-K-u-K0+YR15OwzMNArOnUJ7PytQ9+2Pm_0WK8=Mg@mail.gmail.com>
+Subject: Re: kmemleak scan crash due to invalid PFNs
+To: Qian Cai <cai@lca.pw>
+Cc: Oscar Salvador <osalvador@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, 
+	linux kernel <linux-kernel@vger.kernel.org>
+Content-Type: multipart/alternative; boundary="000000000000f3679e057fabdf20"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190117181835.0YBa8tV7SKP82LYRbHIdcp7RkZNWzAar7eZNkE6_UzM@z>
+Message-ID: <20190117185044.4eHib4nCFygkuXoqc-neRn4SJvdcycNUn3NuBoYNb8A@z>
 
-On Wed, 16 Jan 2019 10:57:51 -0700
-Keith Busch <keith.busch@intel.com> wrote:
+--000000000000f3679e057fabdf20
+Content-Type: text/plain; charset="UTF-8"
 
-> The series seems quite calm now. I've received some approvals of the
-> on the proposal, and heard no objections on the new core interfaces.
-> 
-> Please let me know if there is anyone or group of people I should request
-> and wait for a review. And if anyone reading this would like additional
-> time as well before I post a potentially subsequent version, please let
-> me know.
-> 
-> I also wanted to inquire on upstream strategy if/when all desired
-> reviews are received. The series is spanning a few subsystems, so I'm
-> not sure who's tree is the best candidate. I could see an argument for
-> driver-core, acpi, or mm as possible paths. Please let me know if there's
-> a more appropriate option or any other gating concerns.
-> 
-> == Changes from v3 ==
-> 
->   I've fixed the documentation issues that have been raised for v3 
-> 
->   Moved the hmat files according to Rafael's recommendation
-> 
->   Added received Reviewed-by's
-> 
-> Otherwise this v4 is much the same as v3.
-> 
-> == Background ==
-> 
-> Platforms may provide multiple types of cpu attached system memory. The
-> memory ranges for each type may have different characteristics that
-> applications may wish to know about when considering what node they want
-> their memory allocated from. 
-> 
-> It had previously been difficult to describe these setups as memory
-> rangers were generally lumped into the NUMA node of the CPUs. New
-> platform attributes have been created and in use today that describe
-> the more complex memory hierarchies that can be created.
-> 
-> This series' objective is to provide the attributes from such systems
-> that are useful for applications to know about, and readily usable with
-> existing tools and libraries.
-> 
+On Thu, 17 Jan 2019, 18:36 Qian Cai <cai@lca.pw wrote:
 
-Hi Keith, 
+> On an arm64 ThunderX2 server, the first kmemleak scan would crash with
+> CONFIG_DEBUG_VM_PGFLAGS=y due to page_to_nid() found a pfn that is not
+> directly
+> mapped. Hence, the page->flags is not initialized.
+>
+> Reverted 9f1eb38e0e113 (mm, kmemleak: little optimization while scanning)
+> fixed
+> the problem.
+>
 
-I've been having a play with various hand constructed HMAT tables to allow
-me to try breaking them in all sorts of ways.
+Thanks for reporting it.
+I will take a look later.
 
-Mostly working as expected.
 
-Two places I am so far unsure on...
+> [  102.195320] Unable to handle kernel NULL pointer dereference at virtual
+> address 0000000000000006
+> [  102.204113] Mem abort info:
+> [  102.206921]   ESR = 0x96000005
+> [  102.209997]   Exception class = DABT (current EL), IL = 32 bits
+> [  102.215926]   SET = 0, FnV = 0
+> [  102.218993]   EA = 0, S1PTW = 0
+> [  102.222150] Data abort info:
+> [  102.225047]   ISV = 0, ISS = 0x00000005
+> [  102.228887]   CM = 0, WnR = 0
+> [  102.231866] user pgtable: 64k pages, 48-bit VAs, pgdp = (____ptrval____)
+> [  102.238572] [0000000000000006] pgd=0000000000000000,
+> pud=0000000000000000
+> [  102.245448] Internal error: Oops: 96000005 [#1] SMP
+> [  102.264062] CPU: 60 PID: 1408 Comm: kmemleak Not tainted 5.0.0-rc2+ #8
+> [  102.280403] pstate: 60400009 (nZCv daif +PAN -UAO)
+> [  102.280409] pc : page_mapping+0x24/0x144
+> [  102.280415] lr : __dump_page+0x34/0x3dc
+> [  102.292923] sp : ffff00003a5cfd10
+> [  102.296229] x29: ffff00003a5cfd10 x28: 000000000000802f
+> [  102.301533] x27: 0000000000000000 x26: 0000000000277d00
+> [  102.306835] x25: ffff000010791f56 x24: ffff7fe000000000
+> [  102.312138] x23: ffff000010772f8b x22: ffff00001125f670
+> [  102.317442] x21: ffff000011311000 x20: ffff000010772f8b
+> [  102.322747] x19: fffffffffffffffe x18: 0000000000000000
+> [  102.328049] x17: 0000000000000000 x16: 0000000000000000
+> [  102.333352] x15: 0000000000000000 x14: ffff802698b19600
+> [  102.338654] x13: ffff802698b1a200 x12: ffff802698b16f00
+> [  102.343956] x11: ffff802698b1a400 x10: 0000000000001400
+> [  102.349260] x9 : 0000000000000001 x8 : ffff00001121a000
+> [  102.354563] x7 : 0000000000000000 x6 : ffff0000102c53b8
+> [  102.359868] x5 : 0000000000000000 x4 : 0000000000000003
+> [  102.365173] x3 : 0000000000000100 x2 : 0000000000000000
+> [  102.370476] x1 : ffff000010772f8b x0 : ffffffffffffffff
+> [  102.375782] Process kmemleak (pid: 1408, stack limit =
+> 0x(____ptrval____))
+> [  102.382648] Call trace:
+> [  102.385091]  page_mapping+0x24/0x144
+> [  102.388659]  __dump_page+0x34/0x3dc
+> [  102.392140]  dump_page+0x28/0x4c
+> [  102.395363]  kmemleak_scan+0x4ac/0x680
+> [  102.399106]  kmemleak_scan_thread+0xb4/0xdc
+> [  102.403285]  kthread+0x12c/0x13c
+> [  102.406509]  ret_from_fork+0x10/0x18
+> [  102.410080] Code: d503201f f9400660 36000040 d1000413 (f9400661)
+> [  102.416357] ---[ end trace 4d4bd7f573490c8e ]---
+> [  102.420966] Kernel panic - not syncing: Fatal exception
+> [  102.426293] SMP: stopping secondary CPUs
+> [  102.431830] Kernel Offset: disabled
+> [  102.435311] CPU features: 0x002,20000c38
+> [  102.439223] Memory Limit: none
+> [  102.442384] ---[ end Kernel panic - not syncing: Fatal exception ]---
+>
+>
 
-1. Concept of 'best' is not implemented in a consistent fashion.
+--000000000000f3679e057fabdf20
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-I don't agree with the logic to match on 'best' because it can give some counter
-intuitive sets of target nodes.
+<div dir=3D"auto"><div><br><br><div class=3D"gmail_quote"><div dir=3D"ltr">=
+On Thu, 17 Jan 2019, 18:36 Qian Cai &lt;<a href=3D"mailto:cai@lca.pw">cai@l=
+ca.pw</a> wrote:<br></div><blockquote class=3D"gmail_quote" style=3D"margin=
+:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">On an arm64 Thunde=
+rX2 server, the first kmemleak scan would crash with<br>
+CONFIG_DEBUG_VM_PGFLAGS=3Dy due to page_to_nid() found a pfn that is not di=
+rectly<br>
+mapped. Hence, the page-&gt;flags is not initialized.<br>
+<br>
+Reverted 9f1eb38e0e113 (mm, kmemleak: little optimization while scanning) f=
+ixed<br>
+the problem.<br></blockquote></div></div><div dir=3D"auto"><br></div><div d=
+ir=3D"auto">Thanks for reporting it.</div><div dir=3D"auto">I will take a l=
+ook later.</div><div dir=3D"auto"><br></div><div dir=3D"auto"><div class=3D=
+"gmail_quote"><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;=
+border-left:1px #ccc solid;padding-left:1ex">
+<br>
+[=C2=A0 102.195320] Unable to handle kernel NULL pointer dereference at vir=
+tual<br>
+address 0000000000000006<br>
+[=C2=A0 102.204113] Mem abort info:<br>
+[=C2=A0 102.206921]=C2=A0 =C2=A0ESR =3D 0x96000005<br>
+[=C2=A0 102.209997]=C2=A0 =C2=A0Exception class =3D DABT (current EL), IL =
+=3D 32 bits<br>
+[=C2=A0 102.215926]=C2=A0 =C2=A0SET =3D 0, FnV =3D 0<br>
+[=C2=A0 102.218993]=C2=A0 =C2=A0EA =3D 0, S1PTW =3D 0<br>
+[=C2=A0 102.222150] Data abort info:<br>
+[=C2=A0 102.225047]=C2=A0 =C2=A0ISV =3D 0, ISS =3D 0x00000005<br>
+[=C2=A0 102.228887]=C2=A0 =C2=A0CM =3D 0, WnR =3D 0<br>
+[=C2=A0 102.231866] user pgtable: 64k pages, 48-bit VAs, pgdp =3D (____ptrv=
+al____)<br>
+[=C2=A0 102.238572] [0000000000000006] pgd=3D0000000000000000, pud=3D000000=
+0000000000<br>
+[=C2=A0 102.245448] Internal error: Oops: 96000005 [#1] SMP<br>
+[=C2=A0 102.264062] CPU: 60 PID: 1408 Comm: kmemleak Not tainted 5.0.0-rc2+=
+ #8<br>
+[=C2=A0 102.280403] pstate: 60400009 (nZCv daif +PAN -UAO)<br>
+[=C2=A0 102.280409] pc : page_mapping+0x24/0x144<br>
+[=C2=A0 102.280415] lr : __dump_page+0x34/0x3dc<br>
+[=C2=A0 102.292923] sp : ffff00003a5cfd10<br>
+[=C2=A0 102.296229] x29: ffff00003a5cfd10 x28: 000000000000802f<br>
+[=C2=A0 102.301533] x27: 0000000000000000 x26: 0000000000277d00<br>
+[=C2=A0 102.306835] x25: ffff000010791f56 x24: ffff7fe000000000<br>
+[=C2=A0 102.312138] x23: ffff000010772f8b x22: ffff00001125f670<br>
+[=C2=A0 102.317442] x21: ffff000011311000 x20: ffff000010772f8b<br>
+[=C2=A0 102.322747] x19: fffffffffffffffe x18: 0000000000000000<br>
+[=C2=A0 102.328049] x17: 0000000000000000 x16: 0000000000000000<br>
+[=C2=A0 102.333352] x15: 0000000000000000 x14: ffff802698b19600<br>
+[=C2=A0 102.338654] x13: ffff802698b1a200 x12: ffff802698b16f00<br>
+[=C2=A0 102.343956] x11: ffff802698b1a400 x10: 0000000000001400<br>
+[=C2=A0 102.349260] x9 : 0000000000000001 x8 : ffff00001121a000<br>
+[=C2=A0 102.354563] x7 : 0000000000000000 x6 : ffff0000102c53b8<br>
+[=C2=A0 102.359868] x5 : 0000000000000000 x4 : 0000000000000003<br>
+[=C2=A0 102.365173] x3 : 0000000000000100 x2 : 0000000000000000<br>
+[=C2=A0 102.370476] x1 : ffff000010772f8b x0 : ffffffffffffffff<br>
+[=C2=A0 102.375782] Process kmemleak (pid: 1408, stack limit =3D 0x(____ptr=
+val____))<br>
+[=C2=A0 102.382648] Call trace:<br>
+[=C2=A0 102.385091]=C2=A0 page_mapping+0x24/0x144<br>
+[=C2=A0 102.388659]=C2=A0 __dump_page+0x34/0x3dc<br>
+[=C2=A0 102.392140]=C2=A0 dump_page+0x28/0x4c<br>
+[=C2=A0 102.395363]=C2=A0 kmemleak_scan+0x4ac/0x680<br>
+[=C2=A0 102.399106]=C2=A0 kmemleak_scan_thread+0xb4/0xdc<br>
+[=C2=A0 102.403285]=C2=A0 kthread+0x12c/0x13c<br>
+[=C2=A0 102.406509]=C2=A0 ret_from_fork+0x10/0x18<br>
+[=C2=A0 102.410080] Code: d503201f f9400660 36000040 d1000413 (f9400661)<br=
+>
+[=C2=A0 102.416357] ---[ end trace 4d4bd7f573490c8e ]---<br>
+[=C2=A0 102.420966] Kernel panic - not syncing: Fatal exception<br>
+[=C2=A0 102.426293] SMP: stopping secondary CPUs<br>
+[=C2=A0 102.431830] Kernel Offset: disabled<br>
+[=C2=A0 102.435311] CPU features: 0x002,20000c38<br>
+[=C2=A0 102.439223] Memory Limit: none<br>
+[=C2=A0 102.442384] ---[ end Kernel panic - not syncing: Fatal exception ]-=
+--<br>
+<br>
+</blockquote></div></div></div>
 
-For my simple test case we have both the latency and bandwidth specified (using
-access as I'm lazy and it saves typing).
-
-Rather that matching when both are the best value, we match when _any_ of the
-measurements is the 'best' for the type of measurement.
-
-A simple system with a high bandwidth interconnect between two SoCs
-might well have identical bandwidths to memory connected to each node, but
-much worse latency to the remote one.  Another simple case would be DDR and
-SCM on roughly the same memory controller.  Bandwidths likely to be equal,
-latencies very different.
-
-Right now we get both nodes in the list of 'best' ones because the bandwidths
-are equal which is far from ideal.  It also means we are presenting one value
-for both latency and bandwidth, misrepresenting the ones where it doesn't apply.
-
-If we aren't going to specify that both must be "best", then I think we should
-separate the bandwidth and latency classes, requiring userspace to check
-both if they want the best combination of latency and bandwidth. I'm also
-happy enough (having not thought about it much) to have one class where the 'best'
-is the value sorted first on best latency and then on best bandwidth.
-
-2. Handling of memory only nodes - that might have a device attached - _PXM
-
-This is a common situation in CCIX for example where you have an accelerator
-with coherent memory homed at it. Looks like a pci device in a domain with
-the memory.   Right now you can't actually do this as _PXM is processed
-for pci devices, but we'll get that fixed (broken threadripper firmwares
-meant it got reverted last cycle).
-
-In my case I have 4 nodes with cpu and memory (0,1,2,3) and 2 memory only (4,5)
-Memory only are longer latency and lower bandwidth.
-
-Now
-ls /sys/bus/nodes/devices/node0/class0/
-...
-
-initiator0
-target0
-target4
-target5
-
-read_bandwidth = 15000
-read_latency = 10000
-
-These two values (and their paired write values) are correct for initiator0 to target0
-but completely wrong for initiator0 to target4 or target5.
-
-This occurs because we loop over the targets looking for the best values and add
-set the relevant bit in t->p_nodes based on that.  These memory only nodes have
-a best value that happens to be equal from all the initiators.  The issue is it
-isn't the one reported in the node0/class0.
-
-Also if we look in
-/sys/bus/nodes/devices/node4/class0 there are no targets listed (there are the expected
-4 initiators 0-3).
-
-I'm not sure what the intended behavior would be in this case.
-
-I'll run some more tests tomorrow.
-
-Jonathan
-
-> Keith Busch (13):
->   acpi: Create subtable parsing infrastructure
->   acpi: Add HMAT to generic parsing tables
->   acpi/hmat: Parse and report heterogeneous memory
->   node: Link memory nodes to their compute nodes
->   Documentation/ABI: Add new node sysfs attributes
->   acpi/hmat: Register processor domain to its memory
->   node: Add heterogenous memory access attributes
->   Documentation/ABI: Add node performance attributes
->   acpi/hmat: Register performance attributes
->   node: Add memory caching attributes
->   Documentation/ABI: Add node cache attributes
->   acpi/hmat: Register memory side cache attributes
->   doc/mm: New documentation for memory performance
-> 
->  Documentation/ABI/stable/sysfs-devices-node   |  87 +++++-
->  Documentation/admin-guide/mm/numaperf.rst     | 184 +++++++++++++
->  arch/arm64/kernel/acpi_numa.c                 |   2 +-
->  arch/arm64/kernel/smp.c                       |   4 +-
->  arch/ia64/kernel/acpi.c                       |  12 +-
->  arch/x86/kernel/acpi/boot.c                   |  36 +--
->  drivers/acpi/Kconfig                          |   1 +
->  drivers/acpi/Makefile                         |   1 +
->  drivers/acpi/hmat/Kconfig                     |   9 +
->  drivers/acpi/hmat/Makefile                    |   1 +
->  drivers/acpi/hmat/hmat.c                      | 375 ++++++++++++++++++++++++++
->  drivers/acpi/numa.c                           |  16 +-
->  drivers/acpi/scan.c                           |   4 +-
->  drivers/acpi/tables.c                         |  76 +++++-
->  drivers/base/Kconfig                          |   8 +
->  drivers/base/node.c                           | 317 +++++++++++++++++++++-
->  drivers/irqchip/irq-gic-v2m.c                 |   2 +-
->  drivers/irqchip/irq-gic-v3-its-pci-msi.c      |   2 +-
->  drivers/irqchip/irq-gic-v3-its-platform-msi.c |   2 +-
->  drivers/irqchip/irq-gic-v3-its.c              |   6 +-
->  drivers/irqchip/irq-gic-v3.c                  |  10 +-
->  drivers/irqchip/irq-gic.c                     |   4 +-
->  drivers/mailbox/pcc.c                         |   2 +-
->  include/linux/acpi.h                          |   6 +-
->  include/linux/node.h                          |  70 ++++-
->  25 files changed, 1172 insertions(+), 65 deletions(-)
->  create mode 100644 Documentation/admin-guide/mm/numaperf.rst
->  create mode 100644 drivers/acpi/hmat/Kconfig
->  create mode 100644 drivers/acpi/hmat/Makefile
->  create mode 100644 drivers/acpi/hmat/hmat.c
-> 
-
+--000000000000f3679e057fabdf20--
 
