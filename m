@@ -2,176 +2,277 @@ Return-Path: <SRS0=SJ39=PZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 07360C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 17:42:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 298C0C43444
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 18:19:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4CD820652
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 17:42:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4CD820652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D712320856
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 18:19:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D712320856
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F8038E000D; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
+	id 73CE88E000F; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A6718E0002; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
+	id 6EAF58E0002; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4BD418E000D; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
+	id 5D9E88E000F; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DF2A8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:42:41 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id r131so3635405oia.7
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:42:41 -0800 (PST)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 339B68E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 13:19:02 -0500 (EST)
+Received: by mail-vk1-f200.google.com with SMTP id t192so2447999vkt.9
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:19:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=4l33NxMborqisvl0/5peQNrXL5/jqVOWTyG/TbJwZME=;
-        b=XLkFIJouPvB+VD3M+RanPQVuRxmHgOW1ASsN0oNie3pOMgeQOoCAX8/iHLmmFDlknM
-         9Dz/TGJKUcm5sZ4e/R9L2ApZNuk+3JW/Y9X828x+Ztbb3pbRyRJZMaTL2faLnXUTsxbZ
-         iTvhwuo6rq8pakGwk+f232uTytO5sKNPHAJQZAX7uqq/YKEwqYhEA2pqKtwq87N7XFl3
-         BXL+Q2eId1lAOmTzIEvX/j+3hMNucsitDec8niAlVoYYmaocW8VZqdxZVyLOqrpOz1FA
-         w9voavmVPiWK+1q9XnOUShoW4XF3XQ50q1VlejLgIZgfSsJaLVcTni01iOccxfYdBSDt
-         UHDA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukdiwviWSFJC762jCzG8Bj6yPx3PfUYDML2OqRhJ1KjdPwER7H2y
-	x2zgQuNni1Jx8OjDX9TGMOHALs0pmP6QDt55Z6VQRo016OlIdPZ7jNbXeusnWbYybd+3BLBdtZe
-	QcafA5Xr4JTHkNG4wp8ZvGYX6r6v7GQuHPH+Ax6ubgZYavvGb6hYga0RjwLCbndmbuBpvZAYa8N
-	8hra9HK36SzKiLGZ2G6G5iW5ByjDkr+HObSxknc4ZSCKGSuf2FCKDKF3BAZUU2K2k62g59FPiBZ
-	vkph3jwOOT/aPhS9g1Sm1MfFmVzTTvup693Og8Amd3mOlHdg8AtEiDpiY2GXAZ9PRaOHshY1Ago
-	KWkIcMN4/4ESKhdBppZsM3W6BcaaPX9tbhQu7jJywmD/QSKajG1XwDjmhx7b19mhrgwIQ6v4RA=
-	=
-X-Received: by 2002:a9d:2184:: with SMTP id s4mr10008654otb.46.1547746960827;
-        Thu, 17 Jan 2019 09:42:40 -0800 (PST)
-X-Received: by 2002:a9d:2184:: with SMTP id s4mr10008631otb.46.1547746960192;
-        Thu, 17 Jan 2019 09:42:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547746960; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=95/IjRJgbqL/Z53OgDhzw0PV51EaRnPojSlYATVmyF4=;
+        b=f/J1uhageQ8SdPBmSKj9cLRslp3NSonGSp8CkZCj7/JbMmv3EJH1vftnVRyQBE+Vtf
+         i2Pl9V0dIMcthyZRMe4qR1071mkx4JW6sbArIog+KG9ghLFnH++whMoLafI1ZYGFJYyB
+         KmZ97a7HdD/jvcUXDFN08vsh5fisV1j3xb70x31UKCl2CEtZWFXgSYCUUxi5LYPeYqka
+         Saz5zR5l2JZVOgMX78ZTM9FzbMev22jyk5Io1rujXlU94KcM9T/KJjOt5yQGrhcgKRuH
+         wObLvsuuC7Qid+KbsWAG8aDqCxl3Ciof6SmFaI1Q601BpqQ5w1ZjwOwiepBFxSGXE4VS
+         EHhA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AJcUukd3CNuLtz+aKQmBdEaoKTc44rxJHLmG5a7xkAYYRMglm7sUItMf
+	dPIuDfJRC8pcqKvpcv73BZqMcFwvOVkGk/NHhsD1uLNH5m64bVkMXs3Bn7a+07TI7/qdcBsrRy1
+	T9BhtjfcVlZSu+5WqOJY6EfaAq03j3MUL+/Xzm4yBBCaFqGTlj3xePYkhIHQelASO7A==
+X-Received: by 2002:ab0:69ca:: with SMTP id u10mr5887746uaq.57.1547749141675;
+        Thu, 17 Jan 2019 10:19:01 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5lDBj3zYt+jI05GdRI2qsOtNLaTigos+UvpphOcbYSZSYySCJRNLhBs1b3aUGc8hR9lKl0
+X-Received: by 2002:ab0:69ca:: with SMTP id u10mr5887709uaq.57.1547749140426;
+        Thu, 17 Jan 2019 10:19:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547749140; cv=none;
         d=google.com; s=arc-20160816;
-        b=PGMSJuPQdOJ2qBtjMgSzkFKuOvZdWG493JhmyiLwFJspJANWnW3AFYU5h8eZf1YR0l
-         J0gRFKnQsm1zUjRQZSORyMoRZbGT0h1HsgcueH6guzYUwshAtCoHJXm9oj3OEvvq4eO9
-         QssSPiErvIWSKXV2Wv1u43ODC7iJUEL1ajHzd8MrdOBP7D1gMIceUKjO4MF5cHmh45jl
-         EjUY0FWxvV215ecOItky3djEdua206ED6TFsLzngCDMy7/JNQQSAyA/580nAyQ0GZPKS
-         j2LfAMHb8EXhtqNFKGz7mJH3nyzwJtul2oHwk+lcZryuPCdoUR8qwLnu2yF+nakkSZvd
-         tGkQ==
+        b=KL4fA5mUqWSK0sqz9NK2BmyMOEgpozK5EXQpMIXW8lnTLqB/n6hiaIEDRaxyVy0bvl
+         x9G7ppHrRH/UWWGujH9uiGA3Yv8lukytxdLdDYsDhq2vxDNzA5jekIxLWH8f7sge6ZOu
+         FmaBGUnm6GoXU/yTHhfGQhv+IDohuUz9vsVsg0Xbl3VCaZR7s8h882GNCzLq4C9HtoZN
+         E2bg2tLldoBzwTAVMH++ASY42jZ3DxFek8ZqSMTVWaVjPST9/dxlWXYLg1m7aJvzhUn3
+         tGqXtYHZGRKsVtNDejiN838NvwA9nfwRIeUqx+AN9x38Uz3eiq0gD3aLBxk8d/GIOHX3
+         MNdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=4l33NxMborqisvl0/5peQNrXL5/jqVOWTyG/TbJwZME=;
-        b=1E7Fkqns1UCKrsElKZ1RHFPe+hLgttEdRXS9L9cEN+S2xD0+xOEAdEeNiQlCppQIaw
-         bqNIMjgf2Cbf27ZOeIU+3D6QVA1plNj1FmlEOT8V7e9f9jHXygn2PxEglw226CUeQpBR
-         Gz97xTCeGdoFtzvL7feSepLJ7Otn1NkhIw6FIogcG54hvayrJCGyL+FYBqRz+yc5fAt8
-         lUkQ1+gQvDxdc08jmU+ESeCvR1yruemq7/ZMPRLbxAzAtDLpb6kkpinADjnF5VkYWuHX
-         7YGS/idusspXS75ZYX4pBr2JnOEQcKPwbugb9KGMh2TtEDOP1dH2qU9H0z1d9MM7bcZH
-         FAJQ==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=95/IjRJgbqL/Z53OgDhzw0PV51EaRnPojSlYATVmyF4=;
+        b=xPy9HivcUuPBmcl+1W1hGR9P6DZNtCa+CpZ2yMvk2KztWxTbDMpd5sP/t/4L6+q++f
+         hcq63wc5C4dsjqtzMEHSHoRqX/K2KnNKKqDh30Lac+u1lpSKqJ5+JOPhww0RM/deCiWb
+         Xrx6Py3DrYWUMdbXQy2dIeNqWc7J6BR5SlJVON/eHIRIjmhzsZkcPgHJ/re6D/FjUali
+         zEzXVBbBei1sl46xMGKStUM/wW3tY6c00/MkwfwUXPWDhxI+CSPNMDhsJWXSAzyjvuXh
+         xWmiPEKoX2NygeimF/EHgUAClg2DeVvmdsP2ut0BNK3PvUtz8+hSg54Tr7qx7bHg42qE
+         0QiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f14sor1273415oib.5.2019.01.17.09.42.40
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id q11si1993225vsc.45.2019.01.17.10.18.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 17 Jan 2019 09:42:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Jan 2019 10:19:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: ALg8bN7ZCZU/M8Gzd8tnGaTDyfYGJojPLIitPj6v3VkC0twTsbGW6IJGM7rdOn0kPv0Uyd6CHY/HLFmXvHO4LC8BfTc=
-X-Received: by 2002:aca:195:: with SMTP id 143mr5537206oib.322.1547746959614;
- Thu, 17 Jan 2019 09:42:39 -0800 (PST)
-MIME-Version: 1.0
-References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-13-keith.busch@intel.com>
-In-Reply-To: <20190116175804.30196-13-keith.busch@intel.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Thu, 17 Jan 2019 18:42:28 +0100
-Message-ID:
- <CAJZ5v0gu0zcyZtHv4mDioS6j4WMsz_59bYdzuGtOPXfKVNOX+g@mail.gmail.com>
-Subject: Re: [PATCHv4 12/13] acpi/hmat: Register memory side cache attributes
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 715B813F35C265A352D9;
+	Fri, 18 Jan 2019 02:18:56 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS408-HUB.china.huawei.com
+ (10.3.19.208) with Microsoft SMTP Server id 14.3.408.0; Fri, 18 Jan 2019
+ 02:18:49 +0800
+Date: Thu, 17 Jan 2019 18:18:35 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
 To: Keith Busch <keith.busch@intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>
+CC: <linux-kernel@vger.kernel.org>, <linux-acpi@vger.kernel.org>,
+	<linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
+	"Dan Williams" <dan.j.williams@intel.com>, <linuxarm@huawei.com>
+Subject: Re: [PATCHv4 00/13] Heterogeneuos memory node attributes
+Message-ID: <20190117181835.000034ab@huawei.com>
+In-Reply-To: <20190116175804.30196-1-keith.busch@intel.com>
+References: <20190116175804.30196-1-keith.busch@intel.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
+MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190117174228.mHhmVZJQTqlsNuP3pqZH3eqpzPHNyvGtdCgvyV6JEn0@z>
+Message-ID: <20190117181835.0YBa8tV7SKP82LYRbHIdcp7RkZNWzAar7eZNkE6_UzM@z>
 
-On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
->
-> Register memory side cache attributes with the memory's node if HMAT
-> provides the side cache iniformation table.
->
-> Signed-off-by: Keith Busch <keith.busch@intel.com>
-> ---
->  drivers/acpi/hmat/hmat.c | 32 ++++++++++++++++++++++++++++++++
->  1 file changed, 32 insertions(+)
->
-> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-> index 45e20dc677f9..9efdd0a63a79 100644
-> --- a/drivers/acpi/hmat/hmat.c
-> +++ b/drivers/acpi/hmat/hmat.c
-> @@ -206,6 +206,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
->                                    const unsigned long end)
->  {
->         struct acpi_hmat_cache *cache = (void *)header;
-> +       struct node_cache_attrs cache_attrs;
->         u32 attrs;
->
->         if (cache->header.length < sizeof(*cache)) {
-> @@ -219,6 +220,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
->                 cache->memory_PD, cache->cache_size, attrs,
->                 cache->number_of_SMBIOShandles);
->
-> +       cache_attrs.size = cache->cache_size;
-> +       cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
-> +       cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
-> +
-> +       switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
-> +       case ACPI_HMAT_CA_DIRECT_MAPPED:
-> +               cache_attrs.associativity = NODE_CACHE_DIRECT_MAP;
-> +               break;
-> +       case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
-> +               cache_attrs.associativity = NODE_CACHE_INDEXED;
-> +               break;
-> +       case ACPI_HMAT_CA_NONE:
-> +       default:
+On Wed, 16 Jan 2019 10:57:51 -0700
+Keith Busch <keith.busch@intel.com> wrote:
 
-This looks slightly odd as "default" covers the other case as well.
-Maybe say what other case is covered by "default" in particular in a
-comment?
+> The series seems quite calm now. I've received some approvals of the
+> on the proposal, and heard no objections on the new core interfaces.
+> 
+> Please let me know if there is anyone or group of people I should request
+> and wait for a review. And if anyone reading this would like additional
+> time as well before I post a potentially subsequent version, please let
+> me know.
+> 
+> I also wanted to inquire on upstream strategy if/when all desired
+> reviews are received. The series is spanning a few subsystems, so I'm
+> not sure who's tree is the best candidate. I could see an argument for
+> driver-core, acpi, or mm as possible paths. Please let me know if there's
+> a more appropriate option or any other gating concerns.
+> 
+> == Changes from v3 ==
+> 
+>   I've fixed the documentation issues that have been raised for v3 
+> 
+>   Moved the hmat files according to Rafael's recommendation
+> 
+>   Added received Reviewed-by's
+> 
+> Otherwise this v4 is much the same as v3.
+> 
+> == Background ==
+> 
+> Platforms may provide multiple types of cpu attached system memory. The
+> memory ranges for each type may have different characteristics that
+> applications may wish to know about when considering what node they want
+> their memory allocated from. 
+> 
+> It had previously been difficult to describe these setups as memory
+> rangers were generally lumped into the NUMA node of the CPUs. New
+> platform attributes have been created and in use today that describe
+> the more complex memory hierarchies that can be created.
+> 
+> This series' objective is to provide the attributes from such systems
+> that are useful for applications to know about, and readily usable with
+> existing tools and libraries.
+> 
 
-> +               cache_attrs.associativity = NODE_CACHE_OTHER;
-> +               break;
-> +       }
-> +
-> +       switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
-> +       case ACPI_HMAT_CP_WB:
-> +               cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
-> +               break;
-> +       case ACPI_HMAT_CP_WT:
-> +               cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
-> +               break;
-> +       case ACPI_HMAT_CP_NONE:
-> +       default:
+Hi Keith, 
 
-And analogously here.
+I've been having a play with various hand constructed HMAT tables to allow
+me to try breaking them in all sorts of ways.
 
-> +               cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
-> +               break;
-> +       }
-> +
-> +       node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
->         return 0;
->  }
->
-> --
+Mostly working as expected.
+
+Two places I am so far unsure on...
+
+1. Concept of 'best' is not implemented in a consistent fashion.
+
+I don't agree with the logic to match on 'best' because it can give some counter
+intuitive sets of target nodes.
+
+For my simple test case we have both the latency and bandwidth specified (using
+access as I'm lazy and it saves typing).
+
+Rather that matching when both are the best value, we match when _any_ of the
+measurements is the 'best' for the type of measurement.
+
+A simple system with a high bandwidth interconnect between two SoCs
+might well have identical bandwidths to memory connected to each node, but
+much worse latency to the remote one.  Another simple case would be DDR and
+SCM on roughly the same memory controller.  Bandwidths likely to be equal,
+latencies very different.
+
+Right now we get both nodes in the list of 'best' ones because the bandwidths
+are equal which is far from ideal.  It also means we are presenting one value
+for both latency and bandwidth, misrepresenting the ones where it doesn't apply.
+
+If we aren't going to specify that both must be "best", then I think we should
+separate the bandwidth and latency classes, requiring userspace to check
+both if they want the best combination of latency and bandwidth. I'm also
+happy enough (having not thought about it much) to have one class where the 'best'
+is the value sorted first on best latency and then on best bandwidth.
+
+2. Handling of memory only nodes - that might have a device attached - _PXM
+
+This is a common situation in CCIX for example where you have an accelerator
+with coherent memory homed at it. Looks like a pci device in a domain with
+the memory.   Right now you can't actually do this as _PXM is processed
+for pci devices, but we'll get that fixed (broken threadripper firmwares
+meant it got reverted last cycle).
+
+In my case I have 4 nodes with cpu and memory (0,1,2,3) and 2 memory only (4,5)
+Memory only are longer latency and lower bandwidth.
+
+Now
+ls /sys/bus/nodes/devices/node0/class0/
+...
+
+initiator0
+target0
+target4
+target5
+
+read_bandwidth = 15000
+read_latency = 10000
+
+These two values (and their paired write values) are correct for initiator0 to target0
+but completely wrong for initiator0 to target4 or target5.
+
+This occurs because we loop over the targets looking for the best values and add
+set the relevant bit in t->p_nodes based on that.  These memory only nodes have
+a best value that happens to be equal from all the initiators.  The issue is it
+isn't the one reported in the node0/class0.
+
+Also if we look in
+/sys/bus/nodes/devices/node4/class0 there are no targets listed (there are the expected
+4 initiators 0-3).
+
+I'm not sure what the intended behavior would be in this case.
+
+I'll run some more tests tomorrow.
+
+Jonathan
+
+> Keith Busch (13):
+>   acpi: Create subtable parsing infrastructure
+>   acpi: Add HMAT to generic parsing tables
+>   acpi/hmat: Parse and report heterogeneous memory
+>   node: Link memory nodes to their compute nodes
+>   Documentation/ABI: Add new node sysfs attributes
+>   acpi/hmat: Register processor domain to its memory
+>   node: Add heterogenous memory access attributes
+>   Documentation/ABI: Add node performance attributes
+>   acpi/hmat: Register performance attributes
+>   node: Add memory caching attributes
+>   Documentation/ABI: Add node cache attributes
+>   acpi/hmat: Register memory side cache attributes
+>   doc/mm: New documentation for memory performance
+> 
+>  Documentation/ABI/stable/sysfs-devices-node   |  87 +++++-
+>  Documentation/admin-guide/mm/numaperf.rst     | 184 +++++++++++++
+>  arch/arm64/kernel/acpi_numa.c                 |   2 +-
+>  arch/arm64/kernel/smp.c                       |   4 +-
+>  arch/ia64/kernel/acpi.c                       |  12 +-
+>  arch/x86/kernel/acpi/boot.c                   |  36 +--
+>  drivers/acpi/Kconfig                          |   1 +
+>  drivers/acpi/Makefile                         |   1 +
+>  drivers/acpi/hmat/Kconfig                     |   9 +
+>  drivers/acpi/hmat/Makefile                    |   1 +
+>  drivers/acpi/hmat/hmat.c                      | 375 ++++++++++++++++++++++++++
+>  drivers/acpi/numa.c                           |  16 +-
+>  drivers/acpi/scan.c                           |   4 +-
+>  drivers/acpi/tables.c                         |  76 +++++-
+>  drivers/base/Kconfig                          |   8 +
+>  drivers/base/node.c                           | 317 +++++++++++++++++++++-
+>  drivers/irqchip/irq-gic-v2m.c                 |   2 +-
+>  drivers/irqchip/irq-gic-v3-its-pci-msi.c      |   2 +-
+>  drivers/irqchip/irq-gic-v3-its-platform-msi.c |   2 +-
+>  drivers/irqchip/irq-gic-v3-its.c              |   6 +-
+>  drivers/irqchip/irq-gic-v3.c                  |  10 +-
+>  drivers/irqchip/irq-gic.c                     |   4 +-
+>  drivers/mailbox/pcc.c                         |   2 +-
+>  include/linux/acpi.h                          |   6 +-
+>  include/linux/node.h                          |  70 ++++-
+>  25 files changed, 1172 insertions(+), 65 deletions(-)
+>  create mode 100644 Documentation/admin-guide/mm/numaperf.rst
+>  create mode 100644 drivers/acpi/hmat/Kconfig
+>  create mode 100644 drivers/acpi/hmat/Makefile
+>  create mode 100644 drivers/acpi/hmat/hmat.c
+> 
+
 
