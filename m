@@ -1,297 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A9C4E8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:36:13 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id f31so3718151edf.17
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 06:36:13 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g16-v6si2551756ejf.225.2019.01.17.06.36.11
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB188E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:03:56 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id o13so4987250otl.20
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:03:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 32sor877304otc.45.2019.01.17.07.03.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 06:36:11 -0800 (PST)
-Subject: Re: [PATCH 13/25] mm, compaction: Use free lists to quickly locate a
- migration target
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
- <20190104125011.16071-14-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f9ba4f25-b0b1-8323-f2a8-a4dd639a1882@suse.cz>
-Date: Thu, 17 Jan 2019 15:36:08 +0100
+        (Google Transport Security);
+        Thu, 17 Jan 2019 07:03:54 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190104125011.16071-14-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-8-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-8-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 17 Jan 2019 16:03:42 +0100
+Message-ID: <CAJZ5v0jCEdhKndgZgJ=SdHgFBM1Bcxusm_crYzAOTZDx3s=PdQ@mail.gmail.com>
+Subject: Re: [PATCHv4 07/13] node: Add heterogenous memory access attributes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On 1/4/19 1:49 PM, Mel Gorman wrote:
-> Similar to the migration scanner, this patch uses the free lists to quickly
-> locate a migration target. The search is different in that lower orders
-> will be searched for a suitable high PFN if necessary but the search
-> is still bound. This is justified on the grounds that the free scanner
-> typically scans linearly much more than the migration scanner.
-> 
-> If a free page is found, it is isolated and compaction continues if enough
-> pages were isolated. For SYNC* scanning, the full pageblock is scanned
-> for any remaining free pages so that is can be marked for skipping in
-> the near future.
-> 
-> 1-socket thpfioscale
->                                         4.20.0                 4.20.0
->                                  isolmig-v2r15         findfree-v2r15
-> Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-> Amean     fault-both-3      3066.68 (   0.00%)     2884.51 (   5.94%)
-> Amean     fault-both-5      4298.49 (   0.00%)     4419.70 (  -2.82%)
-> Amean     fault-both-7      5986.99 (   0.00%)     6039.04 (  -0.87%)
-> Amean     fault-both-12     9324.85 (   0.00%)     9992.34 (  -7.16%)
-> Amean     fault-both-18    13350.05 (   0.00%)    12690.05 (   4.94%)
-> Amean     fault-both-24    13491.77 (   0.00%)    14393.93 (  -6.69%)
-> Amean     fault-both-30    15630.86 (   0.00%)    16894.08 (  -8.08%)
-> Amean     fault-both-32    17428.50 (   0.00%)    17813.68 (  -2.21%)
-> 
-> The impact on latency is variable but the search is optimistic and
-> sensitive to the exact system state. Success rates are similar but
-> the major impact is to the rate of scanning
-> 
->                             4.20.0-rc6  4.20.0-rc6
->                           isolmig-v1r4findfree-v1r8
-> Compaction migrate scanned    25516488    28324352
-> Compaction free scanned       87603321    56131065
-> 
-> The free scan rates are reduced by 35%. The 2-socket reductions for the
-> free scanner are more dramatic which is a likely reflection that the
-> machine has more memory.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+ On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+>
+> Heterogeneous memory systems provide memory nodes with different latency
+> and bandwidth performance attributes. Provide a new kernel interface for
+> subsystems to register the attributes under the memory target node's
+> initiator access class. If the system provides this information, applications
+> may query these attributes when deciding which node to request memory.
+>
+> The following example shows the new sysfs hierarchy for a node exporting
+> performance attributes:
+>
+>   # tree -P "read*|write*" /sys/devices/system/node/nodeY/classZ/
+>   /sys/devices/system/node/nodeY/classZ/
+>   |-- read_bandwidth
+>   |-- read_latency
+>   |-- write_bandwidth
+>   `-- write_latency
+>
+> The bandwidth is exported as MB/s and latency is reported in nanoseconds.
+> Memory accesses from an initiator node that is not one of the memory's
+> class "Z" initiator nodes may encounter different performance than
+> reported here. When a subsystem makes use of this interface, initiators
+> of a lower class number, "Z", have better performance relative to higher
+> class numbers. When provided, class 0 is the highest performing access
+> class.
+>
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
 > ---
->  mm/compaction.c | 203 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
->  1 file changed, 198 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 24e3a9db4b70..9438f0564ed5 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1136,7 +1136,7 @@ static inline bool compact_scanners_met(struct compact_control *cc)
->  
->  /* Reorder the free list to reduce repeated future searches */
->  static void
-> -move_freelist_tail(struct list_head *freelist, struct page *freepage)
-> +move_freelist_head(struct list_head *freelist, struct page *freepage)
->  {
->  	LIST_HEAD(sublist);
->  
-> @@ -1147,6 +1147,193 @@ move_freelist_tail(struct list_head *freelist, struct page *freepage)
->  	}
+>  drivers/base/Kconfig |  8 ++++++++
+>  drivers/base/node.c  | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/node.h | 25 +++++++++++++++++++++++++
+>  3 files changed, 81 insertions(+)
+>
+> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+> index 3e63a900b330..6014980238e8 100644
+> --- a/drivers/base/Kconfig
+> +++ b/drivers/base/Kconfig
+> @@ -149,6 +149,14 @@ config DEBUG_TEST_DRIVER_REMOVE
+>           unusable. You should say N here unless you are explicitly looking to
+>           test this functionality.
+>
+> +config HMEM_REPORTING
+> +       bool
+> +       default y
+> +       depends on NUMA
+> +       help
+> +         Enable reporting for heterogenous memory access attributes under
+> +         their non-uniform memory nodes.
+
+Why would anyone ever want to say "no" to this?
+
+Distros will set it anyway.
+
+> +
+>  source "drivers/base/test/Kconfig"
+>
+>  config SYS_HYPERVISOR
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 1da5072116ab..1e909f61e8b1 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -66,6 +66,9 @@ struct node_class_nodes {
+>         unsigned                class;
+>         nodemask_t              initiator_nodes;
+>         nodemask_t              target_nodes;
+> +#ifdef CONFIG_HMEM_REPORTING
+> +       struct node_hmem_attrs  hmem_attrs;
+> +#endif
+>  };
+>  #define to_class_nodes(dev) container_of(dev, struct node_class_nodes, dev)
+>
+> @@ -145,6 +148,51 @@ static struct node_class_nodes *node_init_node_class(struct device *parent,
+>         return NULL;
 >  }
-
-Hmm this hunk appears to simply rename move_freelist_tail() to
-move_freelist_head(), but fast_find_migrateblock() is unchanged, so it now calls
-the new version below.
-
-> +static void
-> +move_freelist_tail(struct list_head *freelist, struct page *freepage)
-> +{
-> +	LIST_HEAD(sublist);
+>
+> +#ifdef CONFIG_HMEM_REPORTING
+> +#define ACCESS_ATTR(name)                                                 \
+> +static ssize_t name##_show(struct device *dev,                            \
+> +                          struct device_attribute *attr,                  \
+> +                          char *buf)                                      \
+> +{                                                                         \
+> +       return sprintf(buf, "%u\n", to_class_nodes(dev)->hmem_attrs.name); \
+> +}                                                                         \
+> +static DEVICE_ATTR_RO(name);
 > +
-> +	if (!list_is_last(freelist, &freepage->lru)) {
-> +		list_cut_before(&sublist, freelist, &freepage->lru);
-> +		if (!list_empty(&sublist))
-> +			list_splice_tail(&sublist, freelist);
-> +	}
+> +ACCESS_ATTR(read_bandwidth)
+> +ACCESS_ATTR(read_latency)
+> +ACCESS_ATTR(write_bandwidth)
+> +ACCESS_ATTR(write_latency)
+> +
+> +static struct attribute *access_attrs[] = {
+> +       &dev_attr_read_bandwidth.attr,
+> +       &dev_attr_read_latency.attr,
+> +       &dev_attr_write_bandwidth.attr,
+> +       &dev_attr_write_latency.attr,
+> +       NULL,
+> +};
+> +ATTRIBUTE_GROUPS(access);
+> +
+
+Kerneldoc?
+
+And who is going to call this?
+
+> +void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+> +                        unsigned class)
+> +{
+> +       struct node_class_nodes *c;
+> +       struct node *node;
+> +
+> +       if (WARN_ON_ONCE(!node_online(nid)))
+> +               return;
+> +
+> +       node = node_devices[nid];
+> +       c = node_init_node_class(&node->dev, &node->class_list, class);
+> +       if (!c)
+> +               return;
+> +
+> +       c->hmem_attrs = *hmem_attrs;
+> +       if (sysfs_create_groups(&c->dev.kobj, access_groups))
+> +               pr_info("failed to add performance attribute group to node %d\n",
+> +                       nid);
+> +}
+> +#endif
+> +
+>  #define K(x) ((x) << (PAGE_SHIFT - 10))
+>  static ssize_t node_read_meminfo(struct device *dev,
+>                         struct device_attribute *attr, char *buf)
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index 8e3666c12ef2..e22940a593c2 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -20,6 +20,31 @@
+>  #include <linux/list.h>
+>  #include <linux/workqueue.h>
+>
+> +#ifdef CONFIG_HMEM_REPORTING
+> +/**
+> + * struct node_hmem_attrs - heterogeneous memory performance attributes
+> + *
+> + * @read_bandwidth:    Read bandwidth in MB/s
+> + * @write_bandwidth:   Write bandwidth in MB/s
+> + * @read_latency:      Read latency in nanoseconds
+> + * @write_latency:     Write latency in nanoseconds
+> + */
+> +struct node_hmem_attrs {
+> +       unsigned int read_bandwidth;
+> +       unsigned int write_bandwidth;
+> +       unsigned int read_latency;
+> +       unsigned int write_latency;
+> +};
+> +void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+> +                        unsigned class);
+> +#else
+> +static inline void node_set_perf_attrs(unsigned int nid,
+> +                                      struct node_hmem_attrs *hmem_attrs,
+> +                                      unsigned class)
+> +{
 > +}
 
-And this differs in using list_cut_before() instead of list_cut_position(). I'm
-assuming that move_freelist_tail() was supposed to be unchanged, and
-move_freelist_head() different, but it's the opposite. BTW it would be nice to
-document both of the functions what they are doing on the high level :) The one
-above was a bit tricky to decode to me, as it seems to be moving the initial
-part of list to the tail, to effectively move the latter part of the list
-(including freepage) to the head.
+Have you tried to compile this with CONFIG_HMEM_REPORTING unset?
 
-> +static void
-> +fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long nr_isolated)
-> +{
-> +	unsigned long start_pfn, end_pfn;
-> +	struct page *page = pfn_to_page(pfn);
+> +#endif
 > +
-> +	/* Do not search around if there are enough pages already */
-> +	if (cc->nr_freepages >= cc->nr_migratepages)
-> +		return;
-> +
-> +	/* Minimise scanning during async compaction */
-> +	if (cc->direct_compaction && cc->mode == MIGRATE_ASYNC)
-> +		return;
-> +
-> +	/* Pageblock boundaries */
-> +	start_pfn = pageblock_start_pfn(pfn);
-> +	end_pfn = min(start_pfn + pageblock_nr_pages, zone_end_pfn(cc->zone));
-> +
-> +	/* Scan before */
-> +	if (start_pfn != pfn) {
-> +		isolate_freepages_block(cc, &start_pfn, pfn, &cc->freepages, false);
-> +		if (cc->nr_freepages >= cc->nr_migratepages)
-> +			return;
-> +	}
-> +
-> +	/* Scan after */
-> +	start_pfn = pfn + nr_isolated;
-> +	if (start_pfn != end_pfn)
-> +		isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, false);
-> +
-> +	/* Skip this pageblock in the future as it's full or nearly full */
-> +	if (cc->nr_freepages < cc->nr_migratepages)
-> +		set_pageblock_skip(page);
-> +}
-> +
-> +static unsigned long
-> +fast_isolate_freepages(struct compact_control *cc)
-> +{
-> +	unsigned int limit = min(1U, freelist_scan_limit(cc) >> 1);
-> +	unsigned int order_scanned = 0, nr_scanned = 0;
-> +	unsigned long low_pfn, min_pfn, high_pfn = 0, highest = 0;
-> +	unsigned long nr_isolated = 0;
-> +	unsigned long distance;
-> +	struct page *page = NULL;
-> +	bool scan_start = false;
-> +	int order;
-> +
-> +	/*
-> +	 * If starting the scan, use a deeper search and use the highest
-> +	 * PFN found if a suitable one is not found.
-> +	 */
-> +	if (cc->free_pfn == pageblock_start_pfn(zone_end_pfn(cc->zone) - 1)) {
-> +		limit = pageblock_nr_pages >> 1;
-> +		scan_start = true;
-> +	}
-> +
-> +	/*
-> +	 * Preferred point is in the top quarter of the scan space but take
-> +	 * a pfn from the top half if the search is problematic.
-> +	 */
-> +	distance = (cc->free_pfn - cc->migrate_pfn);
-> +	low_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 2));
-> +	min_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 1));
-> +
-> +	if (WARN_ON_ONCE(min_pfn > low_pfn))
-> +		low_pfn = min_pfn;
-> +
-> +	for (order = cc->order - 1;
-> +	     order >= 0 && !page;
-> +	     order--) {
-> +		struct free_area *area = &cc->zone->free_area[order];
-> +		struct list_head *freelist;
-> +		struct page *freepage;
-> +		unsigned long flags;
-> +
-> +		if (!area->nr_free)
-> +			continue;
-> +
-> +		spin_lock_irqsave(&cc->zone->lock, flags);
-> +		freelist = &area->free_list[MIGRATE_MOVABLE];
-> +		list_for_each_entry_reverse(freepage, freelist, lru) {
-> +			unsigned long pfn;
-> +
-> +			order_scanned++;
-> +			nr_scanned++;
-
-Seems order_scanned is supposed to be reset to 0 for each new order? Otherwise
-it's equivalent to nr_scanned...
-
-> +			pfn = page_to_pfn(freepage);
-> +
-> +			if (pfn >= highest)
-> +				highest = pageblock_start_pfn(pfn);
-> +
-> +			if (pfn >= low_pfn) {
-> +				cc->fast_search_fail = 0;
-> +				page = freepage;
-> +				break;
-> +			}
-> +
-> +			if (pfn >= min_pfn && pfn > high_pfn) {
-> +				high_pfn = pfn;
-> +
-> +				/* Shorten the scan if a candidate is found */
-> +				limit >>= 1;
-> +			}
-> +
-> +			if (order_scanned >= limit)
-> +				break;
-> +		}
-> +
-> +		/* Use a minimum pfn if a preferred one was not found */
-> +		if (!page && high_pfn) {
-> +			page = pfn_to_page(high_pfn);
-> +
-> +			/* Update freepage for the list reorder below */
-> +			freepage = page;
-> +		}
-> +
-> +		/* Reorder to so a future search skips recent pages */
-> +		move_freelist_head(freelist, freepage);
-> +
-> +		/* Isolate the page if available */
-> +		if (page) {
-> +			if (__isolate_free_page(page, order)) {
-> +				set_page_private(page, order);
-> +				nr_isolated = 1 << order;
-> +				cc->nr_freepages += nr_isolated;
-> +				list_add_tail(&page->lru, &cc->freepages);
-> +				count_compact_events(COMPACTISOLATED, nr_isolated);
-> +			} else {
-> +				/* If isolation fails, abort the search */
-> +				order = -1;
-> +				page = NULL;
-> +			}
-> +		}
-> +
-> +		spin_unlock_irqrestore(&cc->zone->lock, flags);
-> +
-> +		/*
-> +		 * Smaller scan on next order so the total scan ig related
-> +		 * to freelist_scan_limit.
-> +		 */
-> +		if (order_scanned >= limit)
-
-... and this also indicates order_scanned is supposed to be reset.
-
-> +			limit = min(1U, limit >> 1);
-> +	}
-> +
-> +	if (!page) {
-> +		cc->fast_search_fail++;
-> +		if (scan_start) {
-> +			/*
-> +			 * Use the highest PFN found above min. If one was
-> +			 * not found, be pessemistic for direct compaction
-> +			 * and use the min mark.
-> +			 */
-> +			if (highest) {
-> +				page = pfn_to_page(highest);
-> +				cc->free_pfn = highest;
-> +			} else {
-> +				if (cc->direct_compaction) {
-> +					page = pfn_to_page(min_pfn);
-> +					cc->free_pfn = min_pfn;
-> +				}
-> +			}
-> +		}
-> +	}
-> +
-> +	if (highest && highest > cc->zone->compact_cached_free_pfn)
-> +		cc->zone->compact_cached_free_pfn = highest;
-> +
-> +	cc->total_free_scanned += nr_scanned;
-> +	if (!page)
-> +		return cc->free_pfn;
-> +
-> +	low_pfn = page_to_pfn(page);
-> +	fast_isolate_around(cc, low_pfn, nr_isolated);
-> +	return low_pfn;
-> +}
-> +
->  /*
->   * Based on information in the current compact_control, find blocks
->   * suitable for isolating free pages from and then isolate them.
+>  struct node {
+>         struct device   dev;
+>         struct list_head class_list;
+> --
