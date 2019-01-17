@@ -1,46 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DB4948E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:45:51 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id y88so7635690pfi.9
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:45:51 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id h19si1803960pgb.231.2019.01.17.07.45.50
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ED2B28E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:51:20 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c53so3904587edc.9
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:51:20 -0800 (PST)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.106])
+        by mx.google.com with ESMTPS id k43si681038eda.389.2019.01.17.07.51.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 07:45:50 -0800 (PST)
-Date: Thu, 17 Jan 2019 08:44:37 -0700
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCHv4 00/13] Heterogeneuos memory node attributes
-Message-ID: <20190117154436.GB31543@localhost.localdomain>
-References: <20190116175804.30196-1-keith.busch@intel.com>
- <20190117125821.GF26056@350D>
+        Thu, 17 Jan 2019 07:51:19 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id CE8971C2DE5
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 15:51:18 +0000 (GMT)
+Date: Thu, 17 Jan 2019 15:51:17 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 13/25] mm, compaction: Use free lists to quickly locate a
+ migration target
+Message-ID: <20190117155117.GI27437@techsingularity.net>
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190104125011.16071-14-mgorman@techsingularity.net>
+ <f9ba4f25-b0b1-8323-f2a8-a4dd639a1882@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20190117125821.GF26056@350D>
+In-Reply-To: <f9ba4f25-b0b1-8323-f2a8-a4dd639a1882@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-On Thu, Jan 17, 2019 at 11:58:21PM +1100, Balbir Singh wrote:
-> On Wed, Jan 16, 2019 at 10:57:51AM -0700, Keith Busch wrote:
-> > It had previously been difficult to describe these setups as memory
-> > rangers were generally lumped into the NUMA node of the CPUs. New
-> > platform attributes have been created and in use today that describe
-> > the more complex memory hierarchies that can be created.
-> > 
+On Thu, Jan 17, 2019 at 03:36:08PM +0100, Vlastimil Babka wrote:
+> >  /* Reorder the free list to reduce repeated future searches */
+> >  static void
+> > -move_freelist_tail(struct list_head *freelist, struct page *freepage)
+> > +move_freelist_head(struct list_head *freelist, struct page *freepage)
+> >  {
+> >  	LIST_HEAD(sublist);
+> >  
+> > @@ -1147,6 +1147,193 @@ move_freelist_tail(struct list_head *freelist, struct page *freepage)
+> >  	}
+> >  }
 > 
-> Could you please expand on this text -- how are these attributes
-> exposed/consumed by both the kernel and user space?
+> Hmm this hunk appears to simply rename move_freelist_tail() to
+> move_freelist_head(), but fast_find_migrateblock() is unchanged, so it now calls
+> the new version below.
 > 
-> > This series' objective is to provide the attributes from such systems
-> > that are useful for applications to know about, and readily usable with
-> > existing tools and libraries.
-> 
-> I presume these tools and libraries are numactl and mbind()?
 
-Yes, and numactl is used the examples provided in both changelogs and
-documentation in this series. Do you want to see those in the cover
-letter as well?
+Rebase screwup. I'll fix it up and retest
+
+> <SNIP>
+> BTW it would be nice to
+> document both of the functions what they are doing on the high level :) The one
+> above was a bit tricky to decode to me, as it seems to be moving the initial
+> part of list to the tail, to effectively move the latter part of the list
+> (including freepage) to the head.
+> 
+
+I'll include a blurb.
+
+> > +	/*
+> > +	 * If starting the scan, use a deeper search and use the highest
+> > +	 * PFN found if a suitable one is not found.
+> > +	 */
+> > +	if (cc->free_pfn == pageblock_start_pfn(zone_end_pfn(cc->zone) - 1)) {
+> > +		limit = pageblock_nr_pages >> 1;
+> > +		scan_start = true;
+> > +	}
+> > +
+> > +	/*
+> > +	 * Preferred point is in the top quarter of the scan space but take
+> > +	 * a pfn from the top half if the search is problematic.
+> > +	 */
+> > +	distance = (cc->free_pfn - cc->migrate_pfn);
+> > +	low_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 2));
+> > +	min_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 1));
+> > +
+> > +	if (WARN_ON_ONCE(min_pfn > low_pfn))
+> > +		low_pfn = min_pfn;
+> > +
+> > +	for (order = cc->order - 1;
+> > +	     order >= 0 && !page;
+> > +	     order--) {
+> > +		struct free_area *area = &cc->zone->free_area[order];
+> > +		struct list_head *freelist;
+> > +		struct page *freepage;
+> > +		unsigned long flags;
+> > +
+> > +		if (!area->nr_free)
+> > +			continue;
+> > +
+> > +		spin_lock_irqsave(&cc->zone->lock, flags);
+> > +		freelist = &area->free_list[MIGRATE_MOVABLE];
+> > +		list_for_each_entry_reverse(freepage, freelist, lru) {
+> > +			unsigned long pfn;
+> > +
+> > +			order_scanned++;
+> > +			nr_scanned++;
+> 
+> Seems order_scanned is supposed to be reset to 0 for each new order? Otherwise
+> it's equivalent to nr_scanned...
+> 
+
+Yes, it was meant to be. Not sure at what point I broke that and failed
+to spot it afterwards. As you note elsewhere, the code structure doesn't
+make sense if it wasn't been set to 0. Instead of doing a shorter search
+at each order, it would simply check one page for each lower order.
+
+Thanks!
+
+-- 
+Mel Gorman
+SUSE Labs
