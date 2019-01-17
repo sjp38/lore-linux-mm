@@ -1,150 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 108008E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:51:52 -0500 (EST)
-Received: by mail-vs1-f72.google.com with SMTP id g79so4419560vsd.6
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:51:52 -0800 (PST)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id t8si390703vsn.443.2019.01.17.07.51.50
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 36D378E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:36:17 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id w18so9610288qts.8
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:36:17 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z58sor95909476qtb.47.2019.01.17.09.36.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 07:51:50 -0800 (PST)
-Message-ID: <5C40A48F.6070306@huawei.com>
-Date: Thu, 17 Jan 2019 23:51:43 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (Google Transport Security);
+        Thu, 17 Jan 2019 09:36:16 -0800 (PST)
+From: Qian Cai <cai@lca.pw>
+Subject: kmemleak scan crash due to invalid PFNs
+Message-ID: <51e79597-21ef-3073-9036-cfc33291f395@lca.pw>
+Date: Thu, 17 Jan 2019 12:36:14 -0500
 MIME-Version: 1.0
-Subject: Re: [PATCH v11 00/26] Speculative page faults
-References: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org> <5a24109c-7460-4a8e-a439-d2f2646568e6@codeaurora.org> <9ae5496f-7a51-e7b7-0061-5b68354a7945@linux.vnet.ibm.com> <e104a6dc-931b-944c-9555-dc1c001a57e0@codeaurora.org>
-In-Reply-To: <e104a6dc-931b-944c-9555-dc1c001a57e0@codeaurora.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Linux-MM <linux-mm@kvack.org>, charante@codeaurora.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
+To: osalvador@suse.de, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>
 
-On 2019/1/16 19:41, Vinayak Menon wrote:
-> On 1/15/2019 1:54 PM, Laurent Dufour wrote:
->> Le 14/01/2019 à 14:19, Vinayak Menon a écrit :
->>> On 1/11/2019 9:13 PM, Vinayak Menon wrote:
->>>> Hi Laurent,
->>>>
->>>> We are observing an issue with speculative page fault with the following test code on ARM64 (4.14 kernel, 8 cores).
->>>
->>> With the patch below, we don't hit the issue.
->>>
->>> From: Vinayak Menon <vinmenon@codeaurora.org>
->>> Date: Mon, 14 Jan 2019 16:06:34 +0530
->>> Subject: [PATCH] mm: flush stale tlb entries on speculative write fault
->>>
->>> It is observed that the following scenario results in
->>> threads A and B of process 1 blocking on pthread_mutex_lock
->>> forever after few iterations.
->>>
->>> CPU 1                   CPU 2                    CPU 3
->>> Process 1,              Process 1,               Process 1,
->>> Thread A                Thread B                 Thread C
->>>
->>> while (1) {             while (1) {              while(1) {
->>> pthread_mutex_lock(l)   pthread_mutex_lock(l)    fork
->>> pthread_mutex_unlock(l) pthread_mutex_unlock(l)  }
->>> }                       }
->>>
->>> When from thread C, copy_one_pte write-protects the parent pte
->>> (of lock l), stale tlb entries can exist with write permissions
->>> on one of the CPUs at least. This can create a problem if one
->>> of the threads A or B hits the write fault. Though dup_mmap calls
->>> flush_tlb_mm after copy_page_range, since speculative page fault
->>> does not take mmap_sem it can proceed further fixing a fault soon
->>> after CPU 3 does ptep_set_wrprotect. But the CPU with stale tlb
->>> entry can still modify old_page even after it is copied to
->>> new_page by wp_page_copy, thus causing a corruption.
->> Nice catch and thanks for your investigation!
->>
->> There is a real synchronization issue here between copy_page_range() and the speculative page fault handler. I didn't get it on PowerVM since the TLB are flushed when arch_exit_lazy_mode() is called in copy_page_range() but now, I can get it when running on x86_64.
->>
->>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
->>> ---
->>>   mm/memory.c | 7 +++++++
->>>   1 file changed, 7 insertions(+)
->>>
->>> diff --git a/mm/memory.c b/mm/memory.c
->>> index 52080e4..1ea168ff 100644
->>> --- a/mm/memory.c
->>> +++ b/mm/memory.c
->>> @@ -4507,6 +4507,13 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
->>>                  return VM_FAULT_RETRY;
->>>          }
->>>
->>> +       /*
->>> +        * Discard tlb entries created before ptep_set_wrprotect
->>> +        * in copy_one_pte
->>> +        */
->>> +       if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
->>> +               flush_tlb_page(vmf.vma, address);
->>> +
->>>          mem_cgroup_oom_enable();
->>>          ret = handle_pte_fault(&vmf);
->>>          mem_cgroup_oom_disable();
->> Your patch is fixing the race but I'm wondering about the cost of these tlb flushes. Here we are flushing on a per page basis (architecture like x86_64 are smarter and flush more pages) but there is a request to flush a range of tlb entries each time a cow page is newly touched. I think there could be some bad impact here.
->>
->> Another option would be to flush the range in copy_pte_range() before unlocking the page table lock. This will flush entries flush_tlb_mm() would later handle in dup_mmap() but that will be called once per fork per cow VMA.
->
-> But wouldn't this cause an unnecessary impact if most of the COW pages remain untouched (which I assume would be the usual case) and thus do not create a fault ?
->
->
->> I tried the attached patch which seems to fix the issue on x86_64. Could you please give it a try on arm64 ?
->>
-> Your patch works fine on arm64 with a minor change. Thanks Laurent.
-Hi, Vinayak and Laurent
+On an arm64 ThunderX2 server, the first kmemleak scan would crash with
+CONFIG_DEBUG_VM_PGFLAGS=y due to page_to_nid() found a pfn that is not directly
+mapped. Hence, the page->flags is not initialized.
 
-I think the below change will impact the performance significantly. Becuase most of process has many
-vmas with cow flags. Flush the tlb in advance is not the better way to avoid the issue and it will
-call the flush_tlb_mm  later.
+Reverted 9f1eb38e0e113 (mm, kmemleak: little optimization while scanning) fixed
+the problem.
 
-I think we can try the following way to do.
-
-vm_write_begin(vma)
-copy_pte_range
-vm_write_end(vma)
-
-The speculative page fault will return to grap the mmap_sem to run the nromal path.
-Any thought?
-
-Thanks,
-zhong jiang
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 52080e4..4767095 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1087,6 +1087,7 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->         spinlock_t *src_ptl, *dst_ptl;
->         int progress = 0;
->         int rss[NR_MM_COUNTERS];
-> +       unsigned long orig_addr = addr;
->         swp_entry_t entry = (swp_entry_t){0};
->
->  again:
-> @@ -1125,6 +1126,15 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->         } while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
->
->         arch_leave_lazy_mmu_mode();
-> +
-> +       /*
-> +        * Prevent the page fault handler to copy the page while stale tlb entry
-> +        * are still not flushed.
-> +        */
-> +       if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT) &&
-> +               is_cow_mapping(vma->vm_flags))
-> +                       flush_tlb_range(vma, orig_addr, end);
-> +
->         spin_unlock(src_ptl);
->         pte_unmap(orig_src_pte);
->         add_mm_rss_vec(dst_mm, rss);
->
-> Thanks,
->
-> Vinayak
->
->
->
+[  102.195320] Unable to handle kernel NULL pointer dereference at virtual
+address 0000000000000006
+[  102.204113] Mem abort info:
+[  102.206921]   ESR = 0x96000005
+[  102.209997]   Exception class = DABT (current EL), IL = 32 bits
+[  102.215926]   SET = 0, FnV = 0
+[  102.218993]   EA = 0, S1PTW = 0
+[  102.222150] Data abort info:
+[  102.225047]   ISV = 0, ISS = 0x00000005
+[  102.228887]   CM = 0, WnR = 0
+[  102.231866] user pgtable: 64k pages, 48-bit VAs, pgdp = (____ptrval____)
+[  102.238572] [0000000000000006] pgd=0000000000000000, pud=0000000000000000
+[  102.245448] Internal error: Oops: 96000005 [#1] SMP
+[  102.264062] CPU: 60 PID: 1408 Comm: kmemleak Not tainted 5.0.0-rc2+ #8
+[  102.280403] pstate: 60400009 (nZCv daif +PAN -UAO)
+[  102.280409] pc : page_mapping+0x24/0x144
+[  102.280415] lr : __dump_page+0x34/0x3dc
+[  102.292923] sp : ffff00003a5cfd10
+[  102.296229] x29: ffff00003a5cfd10 x28: 000000000000802f
+[  102.301533] x27: 0000000000000000 x26: 0000000000277d00
+[  102.306835] x25: ffff000010791f56 x24: ffff7fe000000000
+[  102.312138] x23: ffff000010772f8b x22: ffff00001125f670
+[  102.317442] x21: ffff000011311000 x20: ffff000010772f8b
+[  102.322747] x19: fffffffffffffffe x18: 0000000000000000
+[  102.328049] x17: 0000000000000000 x16: 0000000000000000
+[  102.333352] x15: 0000000000000000 x14: ffff802698b19600
+[  102.338654] x13: ffff802698b1a200 x12: ffff802698b16f00
+[  102.343956] x11: ffff802698b1a400 x10: 0000000000001400
+[  102.349260] x9 : 0000000000000001 x8 : ffff00001121a000
+[  102.354563] x7 : 0000000000000000 x6 : ffff0000102c53b8
+[  102.359868] x5 : 0000000000000000 x4 : 0000000000000003
+[  102.365173] x3 : 0000000000000100 x2 : 0000000000000000
+[  102.370476] x1 : ffff000010772f8b x0 : ffffffffffffffff
+[  102.375782] Process kmemleak (pid: 1408, stack limit = 0x(____ptrval____))
+[  102.382648] Call trace:
+[  102.385091]  page_mapping+0x24/0x144
+[  102.388659]  __dump_page+0x34/0x3dc
+[  102.392140]  dump_page+0x28/0x4c
+[  102.395363]  kmemleak_scan+0x4ac/0x680
+[  102.399106]  kmemleak_scan_thread+0xb4/0xdc
+[  102.403285]  kthread+0x12c/0x13c
+[  102.406509]  ret_from_fork+0x10/0x18
+[  102.410080] Code: d503201f f9400660 36000040 d1000413 (f9400661)
+[  102.416357] ---[ end trace 4d4bd7f573490c8e ]---
+[  102.420966] Kernel panic - not syncing: Fatal exception
+[  102.426293] SMP: stopping secondary CPUs
+[  102.431830] Kernel Offset: disabled
+[  102.435311] CPU features: 0x002,20000c38
+[  102.439223] Memory Limit: none
+[  102.442384] ---[ end Kernel panic - not syncing: Fatal exception ]---
