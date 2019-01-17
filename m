@@ -1,80 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF69D8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:41:55 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id v2so6269668plg.6
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:41:55 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 61si2014118plz.117.2019.01.17.07.41.54
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DB4948E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:45:51 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id y88so7635690pfi.9
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:45:51 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id h19si1803960pgb.231.2019.01.17.07.45.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 07:41:54 -0800 (PST)
-Date: Thu, 17 Jan 2019 16:41:51 +0100
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCHv4 07/13] node: Add heterogenous memory access attributes
-Message-ID: <20190117154151.GA3970@kroah.com>
+        Thu, 17 Jan 2019 07:45:50 -0800 (PST)
+Date: Thu, 17 Jan 2019 08:44:37 -0700
+From: Keith Busch <keith.busch@intel.com>
+Subject: Re: [PATCHv4 00/13] Heterogeneuos memory node attributes
+Message-ID: <20190117154436.GB31543@localhost.localdomain>
 References: <20190116175804.30196-1-keith.busch@intel.com>
- <20190116175804.30196-8-keith.busch@intel.com>
- <CAJZ5v0jCEdhKndgZgJ=SdHgFBM1Bcxusm_crYzAOTZDx3s=PdQ@mail.gmail.com>
+ <20190117125821.GF26056@350D>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJZ5v0jCEdhKndgZgJ=SdHgFBM1Bcxusm_crYzAOTZDx3s=PdQ@mail.gmail.com>
+In-Reply-To: <20190117125821.GF26056@350D>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Keith Busch <keith.busch@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Jan 17, 2019 at 04:03:42PM +0100, Rafael J. Wysocki wrote:
->  On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
-> >
-> > Heterogeneous memory systems provide memory nodes with different latency
-> > and bandwidth performance attributes. Provide a new kernel interface for
-> > subsystems to register the attributes under the memory target node's
-> > initiator access class. If the system provides this information, applications
-> > may query these attributes when deciding which node to request memory.
-> >
-> > The following example shows the new sysfs hierarchy for a node exporting
-> > performance attributes:
-> >
-> >   # tree -P "read*|write*" /sys/devices/system/node/nodeY/classZ/
-> >   /sys/devices/system/node/nodeY/classZ/
-> >   |-- read_bandwidth
-> >   |-- read_latency
-> >   |-- write_bandwidth
-> >   `-- write_latency
-> >
-> > The bandwidth is exported as MB/s and latency is reported in nanoseconds.
-> > Memory accesses from an initiator node that is not one of the memory's
-> > class "Z" initiator nodes may encounter different performance than
-> > reported here. When a subsystem makes use of this interface, initiators
-> > of a lower class number, "Z", have better performance relative to higher
-> > class numbers. When provided, class 0 is the highest performing access
-> > class.
-> >
-> > Signed-off-by: Keith Busch <keith.busch@intel.com>
-> > ---
-> >  drivers/base/Kconfig |  8 ++++++++
-> >  drivers/base/node.c  | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
-> >  include/linux/node.h | 25 +++++++++++++++++++++++++
-> >  3 files changed, 81 insertions(+)
-> >
-> > diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-> > index 3e63a900b330..6014980238e8 100644
-> > --- a/drivers/base/Kconfig
-> > +++ b/drivers/base/Kconfig
-> > @@ -149,6 +149,14 @@ config DEBUG_TEST_DRIVER_REMOVE
-> >           unusable. You should say N here unless you are explicitly looking to
-> >           test this functionality.
-> >
-> > +config HMEM_REPORTING
-> > +       bool
-> > +       default y
+On Thu, Jan 17, 2019 at 11:58:21PM +1100, Balbir Singh wrote:
+> On Wed, Jan 16, 2019 at 10:57:51AM -0700, Keith Busch wrote:
+> > It had previously been difficult to describe these setups as memory
+> > rangers were generally lumped into the NUMA node of the CPUs. New
+> > platform attributes have been created and in use today that describe
+> > the more complex memory hierarchies that can be created.
+> > 
+> 
+> Could you please expand on this text -- how are these attributes
+> exposed/consumed by both the kernel and user space?
+> 
+> > This series' objective is to provide the attributes from such systems
+> > that are useful for applications to know about, and readily usable with
+> > existing tools and libraries.
+> 
+> I presume these tools and libraries are numactl and mbind()?
 
-default y is only if the machine will not boot without it.  Please never
-make a new option y unless you really really have to have it on all
-machines in the world.
-
-Hint, not here.
-
-greg k-h
+Yes, and numactl is used the examples provided in both changelogs and
+documentation in this series. Do you want to see those in the cover
+letter as well?
