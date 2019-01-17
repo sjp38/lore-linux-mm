@@ -1,129 +1,309 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D3A78E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 05:40:33 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id h85so3181168oib.9
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 02:40:33 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id t4si620858otj.108.2019.01.17.02.40.31
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D0758E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 06:01:06 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id m52so4766961otc.13
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 03:01:06 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i62sor588163oia.56.2019.01.17.03.01.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 02:40:31 -0800 (PST)
-Subject: Re: [PATCH] mm, oom: Tolerate processes sharing mm with different
- view of oom_score_adj.
-References: <1547636121-9229-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20190116110937.GI24149@dhcp22.suse.cz>
- <88e10029-f3d9-5bb5-be46-a3547c54de28@I-love.SAKURA.ne.jp>
- <20190116121915.GJ24149@dhcp22.suse.cz>
- <6118fa8a-7344-b4b2-36ce-d77d495fba69@i-love.sakura.ne.jp>
- <20190116134131.GP24149@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <97fce864-6f75-bca5-14bc-12c9f890e740@i-love.sakura.ne.jp>
-Date: Thu, 17 Jan 2019 19:40:12 +0900
+        (Google Transport Security);
+        Thu, 17 Jan 2019 03:01:05 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190116134131.GP24149@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-4-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-4-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 17 Jan 2019 12:00:53 +0100
+Message-ID: <CAJZ5v0hEg3V7FoE6arwTTodVQ4uUZNLpwdOpjzh7PjqB3jguGw@mail.gmail.com>
+Subject: Re: [PATCHv4 03/13] acpi/hmat: Parse and report heterogeneous memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Yong-Taek Lee <ytk.lee@samsung.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On 2019/01/16 22:41, Michal Hocko wrote:
->>>> I do care about the latency. Holding RCU for more than 2 minutes is insane.
->>>
->>> Creating 8k threads could be considered insane as well. But more
->>> seriously. I absolutely do not insist on holding a single RCU section
->>> for the whole operation. But that doesn't really mean that we want to
->>> revert these changes. for_each_process is by far not only called from
->>> this path.
->>
->> Unlike check_hung_uninterruptible_tasks() where failing to resume after
->> breaking RCU section is tolerable, failing to resume after breaking RCU
->> section for __set_oom_adj() is not tolerable; it leaves the possibility
->> of different oom_score_adj.
-> 
-> Then make sure that no threads are really missed. Really I fail to see
-> what you are actually arguing about.
+On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+>
+> Systems may provide different memory types and export this information
+> in the ACPI Heterogeneous Memory Attribute Table (HMAT). Parse these
+> tables provided by the platform and report the memory access and caching
+> attributes.
+>
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  drivers/acpi/Kconfig       |   1 +
+>  drivers/acpi/Makefile      |   1 +
+>  drivers/acpi/hmat/Kconfig  |   8 ++
+>  drivers/acpi/hmat/Makefile |   1 +
+>  drivers/acpi/hmat/hmat.c   | 180 +++++++++++++++++++++++++++++++++++++++++++++
+>  5 files changed, 191 insertions(+)
+>  create mode 100644 drivers/acpi/hmat/Kconfig
+>  create mode 100644 drivers/acpi/hmat/Makefile
+>  create mode 100644 drivers/acpi/hmat/hmat.c
+>
+> diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
+> index 90ff0a47c12e..b377f970adfd 100644
+> --- a/drivers/acpi/Kconfig
+> +++ b/drivers/acpi/Kconfig
+> @@ -465,6 +465,7 @@ config ACPI_REDUCED_HARDWARE_ONLY
+>           If you are unsure what to do, do not enable this option.
+>
+>  source "drivers/acpi/nfit/Kconfig"
+> +source "drivers/acpi/hmat/Kconfig"
+>
+>  source "drivers/acpi/apei/Kconfig"
+>  source "drivers/acpi/dptf/Kconfig"
+> diff --git a/drivers/acpi/Makefile b/drivers/acpi/Makefile
+> index 7c6afc111d76..bff8fbe5a6ab 100644
+> --- a/drivers/acpi/Makefile
+> +++ b/drivers/acpi/Makefile
+> @@ -79,6 +79,7 @@ obj-$(CONFIG_ACPI_PROCESSOR)  += processor.o
+>  obj-$(CONFIG_ACPI)             += container.o
+>  obj-$(CONFIG_ACPI_THERMAL)     += thermal.o
+>  obj-$(CONFIG_ACPI_NFIT)                += nfit/
+> +obj-$(CONFIG_ACPI_HMAT)                += hmat/
 
-Impossible unless we hold the global rw_semaphore for read during
-copy_process()/do_exit() while hold the global rw_semaphore for write
-during __set_oom_adj(). We won't accept such giant lock in order to close
-the __set_oom_adj() race.
+Yes, I prefer it to go into a separate directory.
 
->                                      for_each_process is expensive. No
-> question about that.
+Who do you want to maintain it, me or Dan?
 
-I'm saying that printk() is far more expensive. Current __set_oom_adj() code
-allows wasting CPU by printing pointless message
+>  obj-$(CONFIG_ACPI)             += acpi_memhotplug.o
+>  obj-$(CONFIG_ACPI_HOTPLUG_IOAPIC) += ioapic.o
+>  obj-$(CONFIG_ACPI_BATTERY)     += battery.o
+> diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
+> new file mode 100644
+> index 000000000000..a4034d37a311
+> --- /dev/null
+> +++ b/drivers/acpi/hmat/Kconfig
+> @@ -0,0 +1,8 @@
+> +# SPDX-License-Identifier: GPL-2.0
+> +config ACPI_HMAT
+> +       bool "ACPI Heterogeneous Memory Attribute Table Support"
+> +       depends on ACPI_NUMA
+> +       help
+> +        Parses representation of the ACPI Heterogeneous Memory Attributes
+> +        Table (HMAT) and set the memory node relationships and access
+> +        attributes.
 
-  [ 1270.265958][ T8549] updating oom_score_adj for 30876 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.265959][ T8549] updating oom_score_adj for 30877 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.265961][ T8549] updating oom_score_adj for 30878 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.265964][ T8549] updating oom_score_adj for 30879 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.389516][ T8549] updating oom_score_adj for 30880 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.395223][ T8549] updating oom_score_adj for 30881 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.400871][ T8549] updating oom_score_adj for 30882 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.406757][ T8549] updating oom_score_adj for 30883 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
-  [ 1270.412509][ T8549] updating oom_score_adj for 30884 (a.out) from 0 to 0 because it shares mm with 8549 (a.out). Report if this is unexpected.
+What about:
 
-for _longer than one month_ ('2 minutes for one __set_oom_adj() call' x '32000
-thread groups concurrently do "echo 0 > /proc/self/oom_score_adj"' = 44 days
-to complete). This is nothing but a DoS attack vector.
+"If set, this option causes the kernel to set the memory NUMA node
+relationships and access attributes in accordance with ACPI HMAT
+(Heterogeneous Memory Attributes Table)."
 
->                      If you can replace it for this specific and odd
-> usecase then go ahead. But there is absolutely zero reason to have a
-> broken oom_score_adj semantic just because somebody might have thousands
-> of threads and want to update the score faster.
-> 
->> Unless it is inevitable (e.g. SysRq-t), I think
->> that calling printk() on each thread from RCU section is a poor choice.
->>
->> What if thousands of threads concurrently called __set_oom_adj() when
->> each __set_oom_adj() call involves printk() on thousands of threads
->> which can take more than 2 minutes? How long will it take to complete?
-> 
-> I really do not mind removing printk if that is what really bothers
-> users. The primary purpose of this printk was to catch users who
-> wouldn't expect this change. There were exactly zero.
-> 
+> diff --git a/drivers/acpi/hmat/Makefile b/drivers/acpi/hmat/Makefile
+> new file mode 100644
+> index 000000000000..e909051d3d00
+> --- /dev/null
+> +++ b/drivers/acpi/hmat/Makefile
+> @@ -0,0 +1 @@
+> +obj-$(CONFIG_ACPI_HMAT) := hmat.o
+> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
+> new file mode 100644
+> index 000000000000..833a783868d5
+> --- /dev/null
+> +++ b/drivers/acpi/hmat/hmat.c
+> @@ -0,0 +1,180 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * Heterogeneous Memory Attributes Table (HMAT) representation
+> + *
+> + * Copyright (c) 2018, Intel Corporation.
 
-This printk() is pointless. There is no need to flood like above. Once is enough.
-What is bad, it says "Report if this is unexpected." rather than "Report if you saw
-this message.". If the user thinks that 'Oh, what a nifty caretaker. I need to do
-"echo 0 > /proc/self/oom_score_adj" for only once.', that user won't report it.
+Can you put a comment describing the code somewhat in here?
 
-And I estimate that we will need to wait for several more years to make sure that
-all users upgrade their kernels to Linux 4.8+ which has __set_oom_adj() code. So far
-"exactly zero" does not mean "changing oom_score_adj semantics is allowable". (But
-so far "exactly zero" might suggest that there is absolutely no "CLONE_VM without
-CLONE_SIGNAHD" user at all and thus preserving __oom_score_adj() code makes no sense.)
+> + */
+> +
+> +#include <acpi/acpi_numa.h>
+> +#include <linux/acpi.h>
+> +#include <linux/bitops.h>
+> +#include <linux/cpu.h>
+> +#include <linux/device.h>
+> +#include <linux/init.h>
+> +#include <linux/list.h>
+> +#include <linux/module.h>
+> +#include <linux/node.h>
+> +#include <linux/slab.h>
+> +#include <linux/sysfs.h>
 
+Are all of the headers above really necessary to build the code?
 
+> +
+> +static __init const char *hmat_data_type(u8 type)
+> +{
+> +       switch (type) {
+> +       case ACPI_HMAT_ACCESS_LATENCY:
+> +               return "Access Latency";
+> +       case ACPI_HMAT_READ_LATENCY:
+> +               return "Read Latency";
+> +       case ACPI_HMAT_WRITE_LATENCY:
+> +               return "Write Latency";
+> +       case ACPI_HMAT_ACCESS_BANDWIDTH:
+> +               return "Access Bandwidth";
+> +       case ACPI_HMAT_READ_BANDWIDTH:
+> +               return "Read Bandwidth";
+> +       case ACPI_HMAT_WRITE_BANDWIDTH:
+> +               return "Write Bandwidth";
+> +       default:
+> +               return "Reserved";
+> +       };
+> +}
+> +
+> +static __init const char *hmat_data_type_suffix(u8 type)
+> +{
+> +       switch (type) {
+> +       case ACPI_HMAT_ACCESS_LATENCY:
+> +       case ACPI_HMAT_READ_LATENCY:
+> +       case ACPI_HMAT_WRITE_LATENCY:
+> +               return " nsec";
+> +       case ACPI_HMAT_ACCESS_BANDWIDTH:
+> +       case ACPI_HMAT_READ_BANDWIDTH:
+> +       case ACPI_HMAT_WRITE_BANDWIDTH:
+> +               return " MB/s";
+> +       default:
+> +               return "";
+> +       };
+> +}
+> +
+> +static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+> +                                     const unsigned long end)
+> +{
+> +       struct acpi_hmat_locality *loc = (void *)header;
+> +       unsigned int init, targ, total_size, ipds, tpds;
+> +       u32 *inits, *targs, value;
+> +       u16 *entries;
+> +       u8 type;
+> +
+> +       if (loc->header.length < sizeof(*loc)) {
+> +               pr_err("HMAT: Unexpected locality header length: %d\n",
+> +                       loc->header.length);
 
-Given that said, I think that querying "CLONE_VM without CLONE_SIGNAHD" users at
-copy_process() for the reason of that combination can improve the code.
+Why pr_err()?  Is the error really high-prio?
 
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1732,6 +1732,15 @@ static __latent_entropy struct task_struct *copy_process(
- 	}
- 
- 	/*
-+	 * Shared VM without signal handlers leads to complicated OOM-killer
-+	 * handling. Let's ask such users why they want such combination.
-+	 */
-+	if ((clone_flags & CLONE_VM) && !(clone_flags & CLONE_SIGHAND))
-+		pr_warn_once("***** %s(%d) is trying to create a thread sharing memory without signal handlers. Please be sure to report to linux-mm@kvack.org the reason why you want to use this combination. Otherwise, this combination will be forbidden in future kernels in order to simplify OOM-killer handling. *****\n",
-+			     current->comm, task_pid_nr(current));
-+
-+
-+	/*
- 	 * Force any signals received before this point to be delivered
- 	 * before the fork happens.  Collect up signals sent to multiple
- 	 * processes that happen during the fork and delay them so that
+Same below.
 
-If we waited enough period and there is no user, we can forbid that combination
-and eliminate OOM handling code for "CLONE_VM without CLONE_SIGNAHD" which is
-forcing current __set_oom_adj() code.
+> +               return -EINVAL;
+> +       }
+> +
+> +       type = loc->data_type;
+> +       ipds = loc->number_of_initiator_Pds;
+> +       tpds = loc->number_of_target_Pds;
+> +       total_size = sizeof(*loc) + sizeof(*entries) * ipds * tpds +
+> +                    sizeof(*inits) * ipds + sizeof(*targs) * tpds;
+> +       if (loc->header.length < total_size) {
+> +               pr_err("HMAT: Unexpected locality header length:%d, minimum required:%d\n",
+> +                       loc->header.length, total_size);
+> +               return -EINVAL;
+> +       }
+> +
+> +       pr_info("HMAT: Locality: Flags:%02x Type:%s Initiator Domains:%d Target Domains:%d Base:%lld\n",
+> +               loc->flags, hmat_data_type(type), ipds, tpds,
+> +               loc->entry_base_unit);
+> +
+> +       inits = (u32 *)(loc + 1);
+> +       targs = &inits[ipds];
+> +       entries = (u16 *)(&targs[tpds]);
+> +       for (targ = 0; targ < tpds; targ++) {
+> +               for (init = 0; init < ipds; init++) {
+> +                       value = entries[init * tpds + targ];
+> +                       value = (value * loc->entry_base_unit) / 10;
+> +                       pr_info("  Initiator-Target[%d-%d]:%d%s\n",
+> +                               inits[init], targs[targ], value,
+> +                               hmat_data_type_suffix(type));
+> +               }
+> +       }
+> +       return 0;
+> +}
+
+The format and meaning of what is printed into the log should be
+documented somewhere IMO.
+
+Of course, that applies to the functions below as well.
+
+> +
+> +static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+> +                                  const unsigned long end)
+> +{
+> +       struct acpi_hmat_cache *cache = (void *)header;
+> +       u32 attrs;
+> +
+> +       if (cache->header.length < sizeof(*cache)) {
+> +               pr_err("HMAT: Unexpected cache header length: %d\n",
+> +                       cache->header.length);
+> +               return -EINVAL;
+> +       }
+> +
+> +       attrs = cache->cache_attributes;
+> +       pr_info("HMAT: Cache: Domain:%d Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
+> +               cache->memory_PD, cache->cache_size, attrs,
+> +               cache->number_of_SMBIOShandles);
+> +
+> +       return 0;
+> +}
+> +
+> +static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
+> +                                          const unsigned long end)
+> +{
+> +       struct acpi_hmat_address_range *spa = (void *)header;
+> +
+> +       if (spa->header.length != sizeof(*spa)) {
+> +               pr_err("HMAT: Unexpected address range header length: %d\n",
+> +                       spa->header.length);
+> +               return -EINVAL;
+> +       }
+> +       pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
+> +               spa->physical_address_base, spa->physical_address_length,
+> +               spa->flags, spa->processor_PD, spa->memory_PD);
+> +       return 0;
+> +}
+> +
+> +static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
+> +                                     const unsigned long end)
+> +{
+> +       struct acpi_hmat_structure *hdr = (void *)header;
+> +
+> +       if (!hdr)
+> +               return -EINVAL;
+> +
+> +       switch (hdr->type) {
+> +       case ACPI_HMAT_TYPE_ADDRESS_RANGE:
+> +               return hmat_parse_address_range(header, end);
+> +       case ACPI_HMAT_TYPE_LOCALITY:
+> +               return hmat_parse_locality(header, end);
+> +       case ACPI_HMAT_TYPE_CACHE:
+> +               return hmat_parse_cache(header, end);
+> +       default:
+> +               return -EINVAL;
+> +       }
+> +}
+> +
+> +static __init int hmat_init(void)
+> +{
+> +       struct acpi_table_header *tbl;
+> +       enum acpi_hmat_type i;
+> +       acpi_status status;
+> +
+> +       if (srat_disabled())
+> +               return 0;
+> +
+> +       status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
+> +       if (ACPI_FAILURE(status))
+> +               return 0;
+> +
+> +       for (i = ACPI_HMAT_TYPE_ADDRESS_RANGE; i < ACPI_HMAT_TYPE_RESERVED; i++) {
+> +               if (acpi_table_parse_entries(ACPI_SIG_HMAT,
+> +                                            sizeof(struct acpi_table_hmat), i,
+> +                                            hmat_parse_subtable, 0) < 0)
+> +                       goto out_put;
+> +       }
+> +out_put:
+> +       acpi_put_table(tbl);
+> +       return 0;
+> +}
+> +subsys_initcall(hmat_init);
+> --
+
+It looks like this particular patch only causes some extra messages to
+be printed into the log, no attributes setting etc yet.
+
+I would like the changelog to mention that.
