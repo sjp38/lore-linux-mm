@@ -1,92 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 70E7D8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:00:43 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id m19so3873253edc.6
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 08:00:43 -0800 (PST)
-Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
-        by mx.google.com with ESMTPS id w5si1263442edr.322.2019.01.17.08.00.41
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AD75C8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:25:43 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id u63so3512505oie.17
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 08:25:43 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m110sor1082525otc.176.2019.01.17.08.25.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 08:00:41 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 7B5A6B89B1
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 16:00:41 +0000 (GMT)
-Date: Thu, 17 Jan 2019 16:00:39 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 14/25] mm, compaction: Avoid rescanning the same
- pageblock multiple times
-Message-ID: <20190117160039.GJ27437@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
- <20190104125011.16071-15-mgorman@techsingularity.net>
- <67b95fef-6f9a-a91f-c1b2-1c3fbc9330ca@suse.cz>
+        (Google Transport Security);
+        Thu, 17 Jan 2019 08:25:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <67b95fef-6f9a-a91f-c1b2-1c3fbc9330ca@suse.cz>
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-12-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-12-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 17 Jan 2019 17:25:30 +0100
+Message-ID: <CAJZ5v0hYx_fG6UW+MXfLtdBAyWc_qi4A0h5xVTpTSAbo4ntz7g@mail.gmail.com>
+Subject: Re: [PATCHv4 11/13] Documentation/ABI: Add node cache attributes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Jan 17, 2019 at 04:16:54PM +0100, Vlastimil Babka wrote:
-> On 1/4/19 1:50 PM, Mel Gorman wrote:
-> > Pageblocks are marked for skip when no pages are isolated after a scan.
-> > However, it's possible to hit corner cases where the migration scanner
-> > gets stuck near the boundary between the source and target scanner. Due
-> > to pages being migrated in blocks of COMPACT_CLUSTER_MAX, pages that
-> > are migrated can be reallocated before the pageblock is complete. The
-> > pageblock is not necessarily skipped so it can be rescanned multiple
-> > times. Similarly, a pageblock with some dirty/writeback pages may fail
-> > to isolate and be rescanned until writeback completes which is wasteful.
-> 
->      ^ migrate? If we failed to isolate, then it wouldn't bump nr_isolated.
-> Wonder if we could do better checks and not isolate pages that cannot be at the
-> moment migrated anyway.
-> 
+On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+>
+> Add the attributes for the system memory side caches.
 
-Potentially but it would be considered a layering violation. There may be
-per-fs reasons why a page cannot migrate and no matter how well we check,
-there will be race conditions.
+I really would combine this with the previous one.
 
-> > The fault latency reduction is large and while the THP allocation
-> > success rate is only slightly higher, it's already high at this
-> > point of the series.
-> > 
-> > Compaction migrate scanned    60718343.00    31772603.00
-> > Compaction free scanned      933061894.00    63267928.00
-> 
-> Hm I thought the order of magnitude difference between migrate and free scanned
-> was already gone at this point as reported in the previous 2 patches.
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  Documentation/ABI/stable/sysfs-devices-node | 34 +++++++++++++++++++++++++++++
+>  1 file changed, 34 insertions(+)
+>
+> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> index 2217557f29d3..613d51fb52a3 100644
+> --- a/Documentation/ABI/stable/sysfs-devices-node
+> +++ b/Documentation/ABI/stable/sysfs-devices-node
+> @@ -142,3 +142,37 @@ Contact:   Keith Busch <keith.busch@intel.com>
+>  Description:
+>                 This node's write latency in nanoseconds available to memory
+>                 initiators in nodes found in this class's initiators_nodelist.
+> +
+> +What:          /sys/devices/system/node/nodeX/side_cache/indexY/associativity
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               The caches associativity: 0 for direct mapped, non-zero if
+> +               indexed.
+> +
+> +What:          /sys/devices/system/node/nodeX/side_cache/indexY/level
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               This cache's level in the memory hierarchy. Matches 'Y' in the
+> +               directory name.
+> +
+> +What:          /sys/devices/system/node/nodeX/side_cache/indexY/line_size
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               The number of bytes accessed from the next cache level on a
+> +               cache miss.
+> +
+> +What:          /sys/devices/system/node/nodeX/side_cache/indexY/size
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               The size of this memory side cache in bytes.
+> +
+> +What:          /sys/devices/system/node/nodeX/side_cache/indexY/write_policy
+> +Date:          December 2018
+> +Contact:       Keith Busch <keith.busch@intel.com>
+> +Description:
+> +               The cache write policy: 0 for write-back, 1 for write-through,
+> +               2 for other or unknown.
+> --
 
-There are corner cases that mean there can be large differences for a
-single run. In some cases it doesn't matter but this one might have been
-unlucky. It's something that occurs less as the series progresses.
-
-> Or is this
-> from different system/configuration?
-
-I don't *think* so. While I had multiple machines running tests, I'm
-pretty sure I wrote the changelogs based on one machine and only checked
-the others had nothing strange.
-
-> Anyway, encouraging result. I would expect
-> that after "Keep migration source private to a single compaction instance" sets
-> the skip bits much more early and aggressively, the rescans would not happen
-> anymore thanks to those, even if cached pfns were not updated.
-> 
-
-Yes and no. The corner case where the scanner gets stuck rescanning one
-pageblock can happen when the fast search fails. In that case, the
-linear scanner needs to get to the end of a pageblock and if it fails,
-it'll simply rescan like a lunatic. This happened specifically for pages
-under writeback for me.
-
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-
-Thanks
-
--- 
-Mel Gorman
-SUSE Labs
+It would be good to document the meaning of indexY itself too.
