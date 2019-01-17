@@ -1,141 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC20E8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:21:14 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id z11so8771113qkf.19
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:21:14 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u4si2016372qvn.70.2019.01.17.07.21.13
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 167A08E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:51:10 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id d7so3623639oif.5
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 08:51:10 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z79sor944928oia.97.2019.01.17.08.51.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 07:21:13 -0800 (PST)
-Date: Thu, 17 Jan 2019 10:21:08 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190117152108.GB3550@redhat.com>
-References: <20190112020228.GA5059@redhat.com>
- <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
- <20190112024625.GB5059@redhat.com>
- <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190114145447.GJ13316@quack2.suse.cz>
- <20190114172124.GA3702@redhat.com>
- <20190115080759.GC29524@quack2.suse.cz>
- <20190116113819.GD26069@quack2.suse.cz>
- <20190116130813.GA3617@redhat.com>
- <5c6dc6ed-4c8d-bce7-df02-ee8b7785b265@nvidia.com>
+        (Google Transport Security);
+        Thu, 17 Jan 2019 08:51:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5c6dc6ed-4c8d-bce7-df02-ee8b7785b265@nvidia.com>
+References: <20190116181859.D1504459@viggo.jf.intel.com> <x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <x49sgxr9rjd.fsf@segfault.boston.devel.redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 17 Jan 2019 08:50:57 -0800
+Message-ID: <CAPcyv4je0XXWjej+xM4+gidryQH=p_sevD=eL6w8f-vDQzMm3w@mail.gmail.com>
+Subject: Re: [PATCH 0/4] Allow persistent memory to be used like normal RAM
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Tom Lendacky <thomas.lendacky@amd.com>, Fengguang Wu <fengguang.wu@intel.com>, Dave Hansen <dave@sr71.net>, linux-nvdimm <linux-nvdimm@lists.01.org>, Takashi Iwai <tiwai@suse.de>, Ross Zwisler <zwisler@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, "Huang, Ying" <ying.huang@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>
 
-On Wed, Jan 16, 2019 at 09:42:25PM -0800, John Hubbard wrote:
-> On 1/16/19 5:08 AM, Jerome Glisse wrote:
-> > On Wed, Jan 16, 2019 at 12:38:19PM +0100, Jan Kara wrote:
-> >> On Tue 15-01-19 09:07:59, Jan Kara wrote:
-> >>> Agreed. So with page lock it would actually look like:
-> >>>
-> >>> get_page_pin()
-> >>> 	lock_page(page);
-> >>> 	wait_for_stable_page();
-> >>> 	atomic_add(&page->_refcount, PAGE_PIN_BIAS);
-> >>> 	unlock_page(page);
-> >>>
-> >>> And if we perform page_pinned() check under page lock, then if
-> >>> page_pinned() returned false, we are sure page is not and will not be
-> >>> pinned until we drop the page lock (and also until page writeback is
-> >>> completed if needed).
-> >>
-> >> After some more though, why do we even need wait_for_stable_page() and
-> >> lock_page() in get_page_pin()?
-> >>
-> >> During writepage page_mkclean() will write protect all page tables. So
-> >> there can be no new writeable GUP pins until we unlock the page as all such
-> >> GUPs will have to first go through fault and ->page_mkwrite() handler. And
-> >> that will wait on page lock and do wait_for_stable_page() for us anyway.
-> >> Am I just confused?
-> > 
-> > Yeah with page lock it should synchronize on the pte but you still
-> > need to check for writeback iirc the page is unlocked after file
-> > system has queue up the write and thus the page can be unlock with
-> > write back pending (and PageWriteback() == trye) and i am not sure
-> > that in that states we can safely let anyone write to that page. I
-> > am assuming that in some case the block device also expect stable
-> > page content (RAID stuff).
-> > 
-> > So the PageWriteback() test is not only for racing page_mkclean()/
-> > test_set_page_writeback() and GUP but also for pending write back.
-> 
-> 
-> That was how I thought it worked too: page_mkclean and a few other things
-> like page migration take the page lock, but writeback takes the lock, 
-> queues it up, then drops the lock, and writeback actually happens outside
-> that lock. 
-> 
-> So on the GUP end, some combination of taking the page lock, and 
-> wait_on_page_writeback(), is required in order to flush out the writebacks.
-> I think I just rephrased what Jerome said, actually. :)
-> 
-> 
-> > 
-> > 
-> >> That actually touches on another question I wanted to get opinions on. GUP
-> >> can be for read and GUP can be for write (that is one of GUP flags).
-> >> Filesystems with page cache generally have issues only with GUP for write
-> >> as it can currently corrupt data, unexpectedly dirty page etc.. DAX & memory
-> >> hotplug have issues with both (DAX cannot truncate page pinned in any way,
-> >> memory hotplug will just loop in kernel until the page gets unpinned). So
-> >> we probably want to track both types of GUP pins and page-cache based
-> >> filesystems will take the hit even if they don't have to for read-pins?
-> > 
-> > Yes the distinction between read and write would be nice. With the map
-> > count solution you can only increment the mapcount for GUP(write=true).
-> > With pin bias the issue is that a big number of read pin can trigger
-> > false positive ie you would do:
-> >     GUP(vaddr, write)
-> >         ...
-> >         if (write)
-> >             atomic_add(page->refcount, PAGE_PIN_BIAS)
-> >         else
-> >             atomic_inc(page->refcount)
-> > 
-> >     PUP(page, write)
-> >         if (write)
-> >             atomic_add(page->refcount, -PAGE_PIN_BIAS)
-> >         else
-> >             atomic_dec(page->refcount)
-> > 
-> > I am guessing false positive because of too many read GUP is ok as
-> > it should be unlikely and when it happens then we take the hit.
-> > 
-> 
-> I'm also intrigued by the point that read-only GUP is harmless, and we 
-> could just focus on the writeable case.
+On Thu, Jan 17, 2019 at 8:29 AM Jeff Moyer <jmoyer@redhat.com> wrote:
+>
+> Dave Hansen <dave.hansen@linux.intel.com> writes:
+>
+> > Persistent memory is cool.  But, currently, you have to rewrite
+> > your applications to use it.  Wouldn't it be cool if you could
+> > just have it show up in your system like normal RAM and get to
+> > it like a slow blob of memory?  Well... have I got the patch
+> > series for you!
+>
+> So, isn't that what memory mode is for?
+>   https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
 
-For filesystem anybody that just look at the page is fine, as it would
-not change its content thus the page would stay stable.
+That's a hardware cache that privately manages DRAM in front of PMEM.
+It benefits from some help from software [1].
 
-> 
-> However, I'm rather worried about actually attempting it, because remember
-> that so far, each call site does no special tracking of each struct page. 
-> It just remembers that it needs to do a put_page(), not whether or
-> not that particular page was set up with writeable or read-only GUP. I mean,
-> sure, they often call set_page_dirty before put_page, indicating that it might
-> have been a writeable GUP call, but it seems sketchy to rely on that.
-> 
-> So actually doing this could go from merely lots of work, to K*(lots_of_work)...
+> Why do we need this code in the kernel?
 
-I did a quick scan and most of the GUP user know wether they did a write
-GUP or not by the time they do put_page for instance all device knows
-that because they use that very information for the dma_page_unmap()
+This goes further and enables software managed allocation decisions
+with the full DRAM + PMEM address space.
 
-So wether the GUP was write or read only is available at the time of PUP.
-
-If you do not feel comfortable you can leave it out for now.
-
-Cheers,
-Jérôme
+[1]: https://lore.kernel.org/lkml/154767945660.1983228.12167020940431682725.stgit@dwillia2-desk3.amr.corp.intel.com/
