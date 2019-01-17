@@ -6,91 +6,91 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CF9BC43387
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 12:11:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48C92C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 15:03:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 32DA720855
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 12:11:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32DA720855
+	by mail.kernel.org (Postfix) with ESMTP id 0309220851
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 15:03:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0309220851
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B36228E0004; Thu, 17 Jan 2019 07:11:16 -0500 (EST)
+	id 7F3C48E0008; Thu, 17 Jan 2019 10:03:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE5DB8E0002; Thu, 17 Jan 2019 07:11:16 -0500 (EST)
+	id 7A2C18E0002; Thu, 17 Jan 2019 10:03:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9FC068E0004; Thu, 17 Jan 2019 07:11:16 -0500 (EST)
+	id 6937D8E0008; Thu, 17 Jan 2019 10:03:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF318E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:11:16 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id b27so4826760otk.6
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 04:11:16 -0800 (PST)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB188E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:03:56 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id o13so4987250otl.20
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:03:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:mime-version
          :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=AxIgu+ssdyh4k+fK0G2jre2kzjLfEgitJPwARRAUwho=;
-        b=QKZQChpJXPJsWbTu3ShVJEo5Il7yGuZmy2h7PmalddjkHA/nOV79RtzWrbp5YBBFwa
-         O1w0l7pkCflZT+WqLDaAX1NiWWa1XjJw7lvsFgczr145h+hPJRBuxokDLMsslrJhbFXS
-         I76lZr+f/pHo7R7gZnNIlKZQDNZA3xHCufEn+NPgM0aKz1qtkReuSUtbiZHXJ770CX9r
-         +MMUH/NEUCpzxiWJL0IrDQLPcX6shEgX7J2X+dYOV68RJuDsnGt1BZtcgY6TcYcL6d6b
-         4d2nf6BopaXJSGj4fdsayqu41bUNPGKeQzDBZYDZUZHqs2UK8RR/Kii1nEP4KW1cdLlO
-         mDPA==
+        bh=ImmjeuQSWzKdTrfcGU94mMd1ytB0FuoOXUAqrxnIWfY=;
+        b=OOfxyLJSl7YUfGVEtaYe9OLyvB1LM40d4ZWpJPydCWeu4W93RSetohOYjrVgPlI89y
+         RCxjoLfLwoTs9MDBbktnJz43qimRPUE3CmB7rHD7o8yMRJ6M0Qyw4C4ikD0nxuD4Zivw
+         QkNo9TSYnT0e07rORzRNjz1o9PtovskyBVOgNllM1e92cOnoy2wZgogZRAvhsORdEQ30
+         9xmurg1J4TxEPRyBAJjyWVjt4NyE4BcOcE604+fE6IQsMTTIQgLizdrSYKO027U6tFgr
+         uNgnJqCLFOHBoVfe99W4xqNH7+NEYXsYKBMOJdAe2SUAiH1jsUbdeePh0YE5oAcS/0Q/
+         q70w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukeym8Yo6FFAWk/ZcA9v8rBAMiBJae2OyHaNq5j5rF/FN7CvensP
-	XMjgb1NVgdoXoCfmbBgEYDE0DbzRqEkMC6Q8p1cI8vzkPOeNL9ezFOOOk+h2tJWtGiwSgUJtec/
-	WoG41pHUBWmevcUmNUvUomJ2Hz1OpeQjOSDeRnpuM0CL3H0+1vd8OIMIir6efecVzgZu7bdAZoV
-	TI/ohtVaVT7s8YlXbmtEd47Dy0ygg5HpMnYo/XtWx3PJNAlxYg6EYf4l5BKVJFZ/SRp+E/BVkKh
-	ijj6aHtvwNSKIrehtsvNBqABFCeq/du9YOZSMLzu6OItlm9jD9bZzF4SA5rvGZ2o3vHBv3rwRnJ
-	Sy7XVU3PWiiT/hrvwsvZVn27PSxUAlv84BIA5mMEmD/5vt+RxM3xqRoZoYvv5lnMFKfg/skCJA=
+X-Gm-Message-State: AJcUukfZcF8eXOU3MvKTFp9EL4qp4R4PiF2Gd6jLhiVK2J7rIjaSjdUx
+	YZeUzlM7nx52v+56n9XvoKcUIPwgK4aA8R59rTZkZXSAiWSHmBsSPmER32Ml+tBCYrK+heQpYWn
+	Y7uM5U1Ns6gJ5XCxwv8pCOAREwNBPfxYOK5F9pXyyZ/NvLnUX/6kBUhwRQS18Dh6kSrTWQCRtPx
+	qIgDia5MkTA6ygeZui53RRMhgo3cWm1GaigUU00V/Mrkt/xY4+fj2fBejiqbGw6Yn9VV4ihIR0Y
+	URrVK4sL+BEm+6nXUxoXesJa1VLluWOPGzn7GMmRFHpm0CrpGxmlJA69vTLR+Y/2UxSKYN5cWov
+	YJXPzkdA70mM9wFcfJYcfIJWWL/FZ1n7E4wJKJQU0cN/QxZEf8tOJ6lrZJJaNXiSgbnVm9ah0g=
 	=
-X-Received: by 2002:aca:6c8b:: with SMTP id h133mr7690460oic.33.1547727076120;
-        Thu, 17 Jan 2019 04:11:16 -0800 (PST)
-X-Received: by 2002:aca:6c8b:: with SMTP id h133mr7690416oic.33.1547727074934;
-        Thu, 17 Jan 2019 04:11:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547727074; cv=none;
+X-Received: by 2002:a9d:7749:: with SMTP id t9mr9442208otl.342.1547737435957;
+        Thu, 17 Jan 2019 07:03:55 -0800 (PST)
+X-Received: by 2002:a9d:7749:: with SMTP id t9mr9442160otl.342.1547737435004;
+        Thu, 17 Jan 2019 07:03:55 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547737434; cv=none;
         d=google.com; s=arc-20160816;
-        b=fuT8q6GJcEGNS1zBwrpNVcf17hMHpg0SacxFCKj2X5Xio6JxEvd6vXSw7pSJ3AAb4W
-         iLyMI79UD8z2MkUKUQEe0SACZGUlyE7gDWvwGSK62IyPboAkKpkr8tQpi6Ng1cpc45gy
-         ne04N1rk4FE37LqLLFijWZ1U2hBBcMYxdmnlJ7f/Ir3qf2xAyqlNFuUioQDdHlKgldg8
-         PNI2ks+Ese/gRuBqSEVqtTk4lmNvywz0YY1rz/IAp/wPrh1r3ie7yiheEbwnZ/xN52xe
-         y9mXgdiJxokuT/p26SHJwYeCnHtqCj3dqhjq0zLHBmKZBjt4q6PeKNwTRFmaN7qDxbgu
-         5qEg==
+        b=Nx10WrFFxExlVuBydp4j3ZaYaEY2g5v2Iu1Obs5ClBrEI8PdQ79ZrljwIwki5lWfOw
+         +Gp7p9y9bLv3OgS4Sze1sIkhpDB3YWTDCvNcVVkZ0ktNUBEKoxQTrrRtx0wx1Vit+NAP
+         V8z/AFrhlAHuXJRG3oA12Uhb7r2XABpXzfuPOK04nZbCORFVXZoz+KvlBx0hDQNzysMd
+         y4QLmB4yzlRe8LR2eA9Qh7xl2oqaFLa/OA+Re8ajQGhxMeRZ40i/6QIeCH4+5MpwyiFc
+         SDGSQxmodEGjuMgPfWOMJlYoiBQmW4qS84tPJW6kApU6BZR7Bc0eAdf2yoYxQ7y5Q+rj
+         8HZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version;
-        bh=AxIgu+ssdyh4k+fK0G2jre2kzjLfEgitJPwARRAUwho=;
-        b=E2LMlxgNOTQH/0WKXp8iO1vHW3cUSN2KPuUQ/hZRYhsX7tulKlghM8VG/OHsuBJ3Z1
-         mYsYe4kWqK2FDfBspDQBhUdVzqryWUTrBigtHmVE/Qa5AKyFjSZgI4fkuN1msLkqeRRT
-         zTxwifb7qR1K+4Fu+qQj7on6f8JFlc1zU9p6unq//HXFsnK/mTFE6jFrIPGFWFZwblWL
-         zCrWjGDRStyoYyzNQNbsvNWXBoMh0QI7OkSllMQTGUdeCQVfuC5NYPrITyrTgfrIWCxn
-         pWdusmTJhS7fR94Jn7eOtQfIThGCS/MHKqjWi1W+HFe8X2ckodUgGOudBaU1AH3UdgRs
-         sMHQ==
+        bh=ImmjeuQSWzKdTrfcGU94mMd1ytB0FuoOXUAqrxnIWfY=;
+        b=u06hl/HSIRvaVSvyJnxbWiLJ7r/TLqLuf9NfaYk5D5kgcJlSp/R+3ILtdRB3ai7RCe
+         UV0uXG7STtZnNZJPlrn2ss4m/SLn73Ade0lH06x0quYfi6RrGrMyKRLTgJ/VRFF0AuK7
+         Ok27zk7PhAX1WflOqnirhyHgeIRslbk0V+79u0nGSAnKx9dJYjPI97m/NDGHpAjq21+9
+         RSBhZrjXSxKS4eisK4rgERVYjbLsa2hH2vrKl9tjYArEFggm/UK9EUCoPEZRk3KzxEho
+         O1prI/Mqb2HoeeQItUmNxSLqwzUiahi8yNSb7X5ztmmLEH2ILqgRIv5cLeWvTe4E3Ion
+         t4tw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z89sor654156otb.62.2019.01.17.04.11.14
+        by mx.google.com with SMTPS id 32sor877304otc.45.2019.01.17.07.03.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 17 Jan 2019 04:11:14 -0800 (PST)
+        Thu, 17 Jan 2019 07:03:54 -0800 (PST)
 Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: ALg8bN42LWfRv9IR+uyfT8y7WNn0BxMdPheEVAtGpE0LNzCZmCMDXGt44ZumSNsxxPhHTkpfbSqWnTmE4rC2gLfD6HI=
-X-Received: by 2002:a9d:5f06:: with SMTP id f6mr8865291oti.258.1547727074395;
- Thu, 17 Jan 2019 04:11:14 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7jX+BTJkN1ysdHmVzQW7RKZo2FZagZv6x6ZHHs+gWAiSY+25vg/U1G/qnPbjaDmUiAb1Vv7VmVgXiiStYD2Jo=
+X-Received: by 2002:a9d:5f06:: with SMTP id f6mr9284156oti.258.1547737434324;
+ Thu, 17 Jan 2019 07:03:54 -0800 (PST)
 MIME-Version: 1.0
-References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-7-keith.busch@intel.com>
-In-Reply-To: <20190116175804.30196-7-keith.busch@intel.com>
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-8-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-8-keith.busch@intel.com>
 From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Thu, 17 Jan 2019 13:11:02 +0100
+Date: Thu, 17 Jan 2019 16:03:42 +0100
 Message-ID:
- <CAJZ5v0jg24sNVQiA1AvVwP-uCCq1Uo9rxkAERyb_zDL_W8AATA@mail.gmail.com>
-Subject: Re: [PATCHv4 06/13] acpi/hmat: Register processor domain to its memory
+ <CAJZ5v0jCEdhKndgZgJ=SdHgFBM1Bcxusm_crYzAOTZDx3s=PdQ@mail.gmail.com>
+Subject: Re: [PATCHv4 07/13] node: Add heterogenous memory access attributes
 To: Keith Busch <keith.busch@intel.com>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
 	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
@@ -103,270 +103,174 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190117121102.h6UKXW0juNJ_uXjJ1zrHW2FHheX0OiNZcqvj-2jtja0@z>
+Message-ID: <20190117150342.8ydwm-Xdyiz5hZAiLO_3VM6vzg8gfmRw_yyaCbAlmOg@z>
 
-    On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+ On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
 >
-> If the HMAT Subsystem Address Range provides a valid processor proximity
-> domain for a memory domain, or a processor domain with the highest
-> performing access exists, register the memory target with that initiator
-> so this relationship will be visible under the node's sysfs directory.
+> Heterogeneous memory systems provide memory nodes with different latency
+> and bandwidth performance attributes. Provide a new kernel interface for
+> subsystems to register the attributes under the memory target node's
+> initiator access class. If the system provides this information, applications
+> may query these attributes when deciding which node to request memory.
 >
-> Since HMAT requires valid address ranges have an equivalent SRAT entry,
-> verify each memory target satisfies this requirement.
-
-What exactly will happen after this patch?
-
-There will be some new directories under
-/sys/devices/system/node/nodeX/ if all goes well.  Anything else?
-
+> The following example shows the new sysfs hierarchy for a node exporting
+> performance attributes:
+>
+>   # tree -P "read*|write*" /sys/devices/system/node/nodeY/classZ/
+>   /sys/devices/system/node/nodeY/classZ/
+>   |-- read_bandwidth
+>   |-- read_latency
+>   |-- write_bandwidth
+>   `-- write_latency
+>
+> The bandwidth is exported as MB/s and latency is reported in nanoseconds.
+> Memory accesses from an initiator node that is not one of the memory's
+> class "Z" initiator nodes may encounter different performance than
+> reported here. When a subsystem makes use of this interface, initiators
+> of a lower class number, "Z", have better performance relative to higher
+> class numbers. When provided, class 0 is the highest performing access
+> class.
+>
 > Signed-off-by: Keith Busch <keith.busch@intel.com>
 > ---
->  drivers/acpi/hmat/hmat.c | 143 ++++++++++++++++++++++++++++++++++++++++++++---
->  1 file changed, 136 insertions(+), 7 deletions(-)
+>  drivers/base/Kconfig |  8 ++++++++
+>  drivers/base/node.c  | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/node.h | 25 +++++++++++++++++++++++++
+>  3 files changed, 81 insertions(+)
 >
-> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-> index 833a783868d5..efb33c74d1a3 100644
-> --- a/drivers/acpi/hmat/hmat.c
-> +++ b/drivers/acpi/hmat/hmat.c
-> @@ -17,6 +17,43 @@
->  #include <linux/slab.h>
->  #include <linux/sysfs.h>
+> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+> index 3e63a900b330..6014980238e8 100644
+> --- a/drivers/base/Kconfig
+> +++ b/drivers/base/Kconfig
+> @@ -149,6 +149,14 @@ config DEBUG_TEST_DRIVER_REMOVE
+>           unusable. You should say N here unless you are explicitly looking to
+>           test this functionality.
 >
-> +static LIST_HEAD(targets);
+> +config HMEM_REPORTING
+> +       bool
+> +       default y
+> +       depends on NUMA
+> +       help
+> +         Enable reporting for heterogenous memory access attributes under
+> +         their non-uniform memory nodes.
+
+Why would anyone ever want to say "no" to this?
+
+Distros will set it anyway.
+
 > +
-
-A kerneldoc documenting the struct type here, please.
-
-> +struct memory_target {
-> +       struct list_head node;
-> +       unsigned int memory_pxm;
-> +       unsigned long p_nodes[BITS_TO_LONGS(MAX_NUMNODES)];
+>  source "drivers/base/test/Kconfig"
+>
+>  config SYS_HYPERVISOR
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 1da5072116ab..1e909f61e8b1 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -66,6 +66,9 @@ struct node_class_nodes {
+>         unsigned                class;
+>         nodemask_t              initiator_nodes;
+>         nodemask_t              target_nodes;
+> +#ifdef CONFIG_HMEM_REPORTING
+> +       struct node_hmem_attrs  hmem_attrs;
+> +#endif
+>  };
+>  #define to_class_nodes(dev) container_of(dev, struct node_class_nodes, dev)
+>
+> @@ -145,6 +148,51 @@ static struct node_class_nodes *node_init_node_class(struct device *parent,
+>         return NULL;
+>  }
+>
+> +#ifdef CONFIG_HMEM_REPORTING
+> +#define ACCESS_ATTR(name)                                                 \
+> +static ssize_t name##_show(struct device *dev,                            \
+> +                          struct device_attribute *attr,                  \
+> +                          char *buf)                                      \
+> +{                                                                         \
+> +       return sprintf(buf, "%u\n", to_class_nodes(dev)->hmem_attrs.name); \
+> +}                                                                         \
+> +static DEVICE_ATTR_RO(name);
+> +
+> +ACCESS_ATTR(read_bandwidth)
+> +ACCESS_ATTR(read_latency)
+> +ACCESS_ATTR(write_bandwidth)
+> +ACCESS_ATTR(write_latency)
+> +
+> +static struct attribute *access_attrs[] = {
+> +       &dev_attr_read_bandwidth.attr,
+> +       &dev_attr_read_latency.attr,
+> +       &dev_attr_write_bandwidth.attr,
+> +       &dev_attr_write_latency.attr,
+> +       NULL,
 > +};
+> +ATTRIBUTE_GROUPS(access);
 > +
-> +static __init struct memory_target *find_mem_target(unsigned int m)
 
-Why don't you call the arg mem_pxm like below?
+Kerneldoc?
 
+And who is going to call this?
+
+> +void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+> +                        unsigned class)
 > +{
-> +       struct memory_target *t;
+> +       struct node_class_nodes *c;
+> +       struct node *node;
 > +
-> +       list_for_each_entry(t, &targets, node)
-> +               if (t->memory_pxm == m)
-> +                       return t;
-> +       return NULL;
-> +}
-> +
-> +static __init void alloc_memory_target(unsigned int mem_pxm)
-> +{
-> +       struct memory_target *t;
-> +
-> +       if (pxm_to_node(mem_pxm) == NUMA_NO_NODE)
+> +       if (WARN_ON_ONCE(!node_online(nid)))
 > +               return;
 > +
-> +       t = find_mem_target(mem_pxm);
-> +       if (t)
+> +       node = node_devices[nid];
+> +       c = node_init_node_class(&node->dev, &node->class_list, class);
+> +       if (!c)
 > +               return;
 > +
-> +       t = kzalloc(sizeof(*t), GFP_KERNEL);
-> +       if (!t)
-> +               return;
-> +
-> +       t->memory_pxm = mem_pxm;
-> +       list_add_tail(&t->node, &targets);
+> +       c->hmem_attrs = *hmem_attrs;
+> +       if (sysfs_create_groups(&c->dev.kobj, access_groups))
+> +               pr_info("failed to add performance attribute group to node %d\n",
+> +                       nid);
 > +}
+> +#endif
 > +
->  static __init const char *hmat_data_type(u8 type)
->  {
->         switch (type) {
-> @@ -53,11 +90,30 @@ static __init const char *hmat_data_type_suffix(u8 type)
->         };
->  }
+>  #define K(x) ((x) << (PAGE_SHIFT - 10))
+>  static ssize_t node_read_meminfo(struct device *dev,
+>                         struct device_attribute *attr, char *buf)
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index 8e3666c12ef2..e22940a593c2 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -20,6 +20,31 @@
+>  #include <linux/list.h>
+>  #include <linux/workqueue.h>
 >
-> +static __init void hmat_update_access(u8 type, u32 value, u32 *best)
-
-I guess that you pass a pointer to avoid unnecessary updates, right?
-
-But that causes you to dereference that pointer quite often.  It might
-be better to pass the current value of 'best' and return an updated
-one (which may be the same as the passed one, of course).
-
+> +#ifdef CONFIG_HMEM_REPORTING
+> +/**
+> + * struct node_hmem_attrs - heterogeneous memory performance attributes
+> + *
+> + * @read_bandwidth:    Read bandwidth in MB/s
+> + * @write_bandwidth:   Write bandwidth in MB/s
+> + * @read_latency:      Read latency in nanoseconds
+> + * @write_latency:     Write latency in nanoseconds
+> + */
+> +struct node_hmem_attrs {
+> +       unsigned int read_bandwidth;
+> +       unsigned int write_bandwidth;
+> +       unsigned int read_latency;
+> +       unsigned int write_latency;
+> +};
+> +void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+> +                        unsigned class);
+> +#else
+> +static inline void node_set_perf_attrs(unsigned int nid,
+> +                                      struct node_hmem_attrs *hmem_attrs,
+> +                                      unsigned class)
 > +{
-> +       switch (type) {
-> +       case ACPI_HMAT_ACCESS_LATENCY:
-> +       case ACPI_HMAT_READ_LATENCY:
-> +       case ACPI_HMAT_WRITE_LATENCY:
-> +               if (!*best || *best > value)
-> +                       *best = value;
-> +               break;
-> +       case ACPI_HMAT_ACCESS_BANDWIDTH:
-> +       case ACPI_HMAT_READ_BANDWIDTH:
-> +       case ACPI_HMAT_WRITE_BANDWIDTH:
-> +               if (!*best || *best < value)
-> +                       *best = value;
-> +               break;
-> +       }
 > +}
-> +
->  static __init int hmat_parse_locality(union acpi_subtable_headers *header,
->                                       const unsigned long end)
->  {
-> +       struct memory_target *t;
 
-I would call this variable mem_target.  't' is too easy to overlook
-IMO.  [Same below]
+Have you tried to compile this with CONFIG_HMEM_REPORTING unset?
 
->         struct acpi_hmat_locality *loc = (void *)header;
-> -       unsigned int init, targ, total_size, ipds, tpds;
-> +       unsigned int init, targ, pass, p_node, total_size, ipds, tpds;
->         u32 *inits, *targs, value;
->         u16 *entries;
->         u8 type;
-> @@ -87,12 +143,28 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
->         targs = &inits[ipds];
->         entries = (u16 *)(&targs[tpds]);
->         for (targ = 0; targ < tpds; targ++) {
-> -               for (init = 0; init < ipds; init++) {
-> -                       value = entries[init * tpds + targ];
-> -                       value = (value * loc->entry_base_unit) / 10;
-> -                       pr_info("  Initiator-Target[%d-%d]:%d%s\n",
-> -                               inits[init], targs[targ], value,
-> -                               hmat_data_type_suffix(type));
-> +               u32 best = 0;
+> +#endif
 > +
-> +               t = find_mem_target(targs[targ]);
-> +               for (pass = 0; pass < 2; pass++) {
-> +                       for (init = 0; init < ipds; init++) {
-> +                               value = entries[init * tpds + targ];
-> +                               value = (value * loc->entry_base_unit) / 10;
-> +
-> +                               if (!pass) {
-> +                                       hmat_update_access(type, value, &best);
-> +                                       pr_info("  Initiator-Target[%d-%d]:%d%s\n",
-> +                                               inits[init], targs[targ], value,
-> +                                               hmat_data_type_suffix(type));
-> +                                       continue;
-> +                               }
-> +
-> +                               if (!t)
-> +                                       continue;
-> +                               p_node = pxm_to_node(inits[init]);
-> +                               if (p_node != NUMA_NO_NODE && value == best)
-> +                                       set_bit(p_node, t->p_nodes);
-> +                       }
->                 }
->         }
->         return 0;
-> @@ -122,6 +194,7 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
->                                            const unsigned long end)
->  {
->         struct acpi_hmat_address_range *spa = (void *)header;
-> +       struct memory_target *t = NULL;
->
->         if (spa->header.length != sizeof(*spa)) {
->                 pr_err("HMAT: Unexpected address range header length: %d\n",
-> @@ -131,6 +204,23 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
->         pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
->                 spa->physical_address_base, spa->physical_address_length,
->                 spa->flags, spa->processor_PD, spa->memory_PD);
-> +
-> +       if (spa->flags & ACPI_HMAT_MEMORY_PD_VALID) {
-> +               t = find_mem_target(spa->memory_PD);
-> +               if (!t) {
-> +                       pr_warn("HMAT: Memory Domain missing from SRAT\n");
-
-Again, I'm wondering about the log level here.  I "warning" really adequate?
-
-> +                       return -EINVAL;
-> +               }
-> +       }
-> +       if (t && spa->flags & ACPI_HMAT_PROCESSOR_PD_VALID) {
-> +               int p_node = pxm_to_node(spa->processor_PD);
-> +
-> +               if (p_node == NUMA_NO_NODE) {
-> +                       pr_warn("HMAT: Invalid Processor Domain\n");
-
-Same here.
-
-> +                       return -EINVAL;
-> +               }
-> +               set_bit(p_node, t->p_nodes);
-> +       }
->         return 0;
->  }
->
-> @@ -154,6 +244,33 @@ static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
->         }
->  }
->
-> +static __init int srat_parse_mem_affinity(union acpi_subtable_headers *header,
-> +                                         const unsigned long end)
-> +{
-> +       struct acpi_srat_mem_affinity *ma = (void *)header;
-> +
-> +       if (!ma)
-> +               return -EINVAL;
-> +       if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
-> +               return 0;
-> +       alloc_memory_target(ma->proximity_domain);
-> +       return 0;
-> +}
-> +
-> +static __init void hmat_register_targets(void)
-> +{
-> +       struct memory_target *t, *next;
-> +       unsigned m, p;
-> +
-> +       list_for_each_entry_safe(t, next, &targets, node) {
-> +               list_del(&t->node);
-> +               m = pxm_to_node(t->memory_pxm);
-> +               for_each_set_bit(p, t->p_nodes, MAX_NUMNODES)
-> +                       register_memory_node_under_compute_node(m, p, 0);
-> +               kfree(t);
-> +       }
-> +}
-> +
->  static __init int hmat_init(void)
->  {
->         struct acpi_table_header *tbl;
-> @@ -163,6 +280,17 @@ static __init int hmat_init(void)
->         if (srat_disabled())
->                 return 0;
->
-> +       status = acpi_get_table(ACPI_SIG_SRAT, 0, &tbl);
-> +       if (ACPI_FAILURE(status))
-> +               return 0;
-> +
-> +       if (acpi_table_parse_entries(ACPI_SIG_SRAT,
-> +                               sizeof(struct acpi_table_srat),
-> +                               ACPI_SRAT_TYPE_MEMORY_AFFINITY,
-> +                               srat_parse_mem_affinity, 0) < 0)
-
-Can you do
-
-ret = acpi_table_parse_entries(ACPI_SIG_SRAT, sizeof(struct acpi_table_srat),
-                               ACPI_SRAT_TYPE_MEMORY_AFFINITY,
-srat_parse_mem_affinity, 0);
-if (ret < 0)
-        goto out_put;
-
-here instead?  The current one is barely readable.
-
-Also please add a comment to explain what it means if this returns an error.
-
-> +               goto out_put;
-> +       acpi_put_table(tbl);
-> +
->         status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
->         if (ACPI_FAILURE(status))
->                 return 0;
-> @@ -173,6 +301,7 @@ static __init int hmat_init(void)
->                                              hmat_parse_subtable, 0) < 0)
->                         goto out_put;
->         }
-> +       hmat_register_targets();
->  out_put:
->         acpi_put_table(tbl);
->         return 0;
+>  struct node {
+>         struct device   dev;
+>         struct list_head class_list;
 > --
 
