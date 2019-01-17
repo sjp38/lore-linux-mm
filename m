@@ -1,76 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E4678E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 14:39:13 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id z10so4075400edz.15
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:39:13 -0800 (PST)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id b54si3087261ede.267.2019.01.17.11.39.11
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E4E948E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 14:49:05 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id r16so6811516pgr.15
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:49:05 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id t64si2495897pgd.202.2019.01.17.11.49.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 11:39:11 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 6EE111C2C51
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 19:39:11 +0000 (GMT)
-Date: Thu, 17 Jan 2019 19:39:09 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 20/25] mm, compaction: Reduce unnecessary skipping of
- migration target scanner
-Message-ID: <20190117193909.GO27437@techsingularity.net>
-References: <20190104125011.16071-1-mgorman@techsingularity.net>
- <20190104125011.16071-21-mgorman@techsingularity.net>
- <8e310c2a-5f2e-ee99-24c5-10a71972699a@suse.cz>
+        Thu, 17 Jan 2019 11:49:04 -0800 (PST)
+Date: Thu, 17 Jan 2019 12:47:51 -0700
+From: Keith Busch <keith.busch@intel.com>
+Subject: Re: [PATCHv4 00/13] Heterogeneuos memory node attributes
+Message-ID: <20190117194751.GE31543@localhost.localdomain>
+References: <20190116175804.30196-1-keith.busch@intel.com>
+ <20190117181835.000034ab@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8e310c2a-5f2e-ee99-24c5-10a71972699a@suse.cz>
+In-Reply-To: <20190117181835.000034ab@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>, "linuxarm@huawei.com" <linuxarm@huawei.com>
 
-On Thu, Jan 17, 2019 at 06:58:30PM +0100, Vlastimil Babka wrote:
-> On 1/4/19 1:50 PM, Mel Gorman wrote:
-> > The fast isolation of pages can move the scanner faster than is necessary
-> > depending on the contents of the free list. This patch will only allow
-> > the fast isolation to initialise the scanner and advance it slowly. The
-> > primary means of moving the scanner forward is via the linear scanner
-> > to reduce the likelihood the migration source/target scanners meet
-> > prematurely triggering a rescan.
+On Thu, Jan 17, 2019 at 10:18:35AM -0800, Jonathan Cameron wrote:
+> I've been having a play with various hand constructed HMAT tables to allow
+> me to try breaking them in all sorts of ways.
 > 
-> Maybe I've seen enough code today and need to stop, but AFAICS the description
-> here doesn't match the actual code changes? What I see are some cleanups, and a
-> change in free scanner that will set pageblock skip bit after a pageblock has
-> been scanned, even if there were pages isolated, while previously it would set
-> the skip bit only if nothing was isolated.
+> Mostly working as expected.
 > 
+> Two places I am so far unsure on...
+> 
+> 1. Concept of 'best' is not implemented in a consistent fashion.
+> 
+> I don't agree with the logic to match on 'best' because it can give some counter
+> intuitive sets of target nodes.
+> 
+> For my simple test case we have both the latency and bandwidth specified (using
+> access as I'm lazy and it saves typing).
+> 
+> Rather that matching when both are the best value, we match when _any_ of the
+> measurements is the 'best' for the type of measurement.
+> 
+> A simple system with a high bandwidth interconnect between two SoCs
+> might well have identical bandwidths to memory connected to each node, but
+> much worse latency to the remote one.  Another simple case would be DDR and
+> SCM on roughly the same memory controller.  Bandwidths likely to be equal,
+> latencies very different.
+> 
+> Right now we get both nodes in the list of 'best' ones because the bandwidths
+> are equal which is far from ideal.  It also means we are presenting one value
+> for both latency and bandwidth, misrepresenting the ones where it doesn't apply.
+> 
+> If we aren't going to specify that both must be "best", then I think we should
+> separate the bandwidth and latency classes, requiring userspace to check
+> both if they want the best combination of latency and bandwidth. I'm also
+> happy enough (having not thought about it much) to have one class where the 'best'
+> is the value sorted first on best latency and then on best bandwidth.
 
-The first three hunks could have been split out but it wouldn't help
-overall. Maybe a changelog rewrite will help;
+Okay, I see what you mean. I must admit my test environment doesn't have
+nodes with the same bandwith but different latency, so we may get the
+wrong information with the HMAT parsing in this series. I'll look into
+fixing that and consider your sugggestions.
+ 
+> 2. Handling of memory only nodes - that might have a device attached - _PXM
+> 
+> This is a common situation in CCIX for example where you have an accelerator
+> with coherent memory homed at it. Looks like a pci device in a domain with
+> the memory.   Right now you can't actually do this as _PXM is processed
+> for pci devices, but we'll get that fixed (broken threadripper firmwares
+> meant it got reverted last cycle).
+> 
+> In my case I have 4 nodes with cpu and memory (0,1,2,3) and 2 memory only (4,5)
+> Memory only are longer latency and lower bandwidth.
+> 
+> Now
+> ls /sys/bus/nodes/devices/node0/class0/
+> ...
+> 
+> initiator0
+> target0
+> target4
+> target5
+> 
+> read_bandwidth = 15000
+> read_latency = 10000
+> 
+> These two values (and their paired write values) are correct for initiator0 to target0
+> but completely wrong for initiator0 to target4 or target5.
 
-mm, compaction: Reduce premature advancement of the migration target scanner
+Hm, this wasn't intended to tell us performance for the initiator's
+targets. The performance data here is when you access node0's memory
+target from a node in its initiator_list, or one of the simlinked
+initiatorX's.
 
-The fast isolation of free pages allows the cached PFN of the free
-scanner to advance faster than necessary depending on the contents
-of the free list. The key is that fast_isolate_freepages() can update
-zone->compact_cached_free_pfn via isolate_freepages_block().  When the
-fast search fails, the linear scan can start from a point that has skipped
-valid migration targets, particularly pageblocks with just low-order
-free pages. This can cause the migration source/target scanners to meet
-prematurely causing a reset.
+If you want to see the performance attributes for accessing
+initiator0->target4, you can check:
 
-This patch starts by avoiding an update of the pageblock skip information
-and cached PFN from isolate_freepages_block() and puts the responsibility
-of updating that information in the callers. The fast scanner will update
-the cached PFN if and only if it finds a block that is higher than the
-existing cached PFN and sets the skip if the pageblock is full or nearly
-full. The linear scanner will update skipped information and the cached
-PFN only when a block is completely scanned. The total impact is that
-the free scanner advances more slowly as it is primarily driven by the
-linear scanner instead of the fast search.
+  /sys/devices/system/node/node0/class0/target4/class0/read_bandwidth
 
-Does that help?
+> This occurs because we loop over the targets looking for the best values and add
+> set the relevant bit in t->p_nodes based on that.  These memory only nodes have
+> a best value that happens to be equal from all the initiators.  The issue is it
+> isn't the one reported in the node0/class0.
+>
+> Also if we look in
+> /sys/bus/nodes/devices/node4/class0 there are no targets listed (there are the expected
+> 4 initiators 0-3).
+> 
+> I'm not sure what the intended behavior would be in this case.
 
--- 
-Mel Gorman
-SUSE Labs
+You mentioned that node 4 is a memory-only node, so it can't have any
+targets, right?
