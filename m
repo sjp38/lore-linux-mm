@@ -2,233 +2,381 @@ Return-Path: <SRS0=SJ39=PZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9C36C43387
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 15:51:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65EC1C43387
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 16:00:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A76AA20855
-	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 15:51:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A76AA20855
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 038B9205C9
+	for <linux-mm@archiver.kernel.org>; Thu, 17 Jan 2019 16:00:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 038B9205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4C2BA8E000A; Thu, 17 Jan 2019 10:51:52 -0500 (EST)
+	id 7A3B08E0008; Thu, 17 Jan 2019 11:00:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 49A528E0002; Thu, 17 Jan 2019 10:51:52 -0500 (EST)
+	id 7520F8E0002; Thu, 17 Jan 2019 11:00:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 389FF8E000A; Thu, 17 Jan 2019 10:51:52 -0500 (EST)
+	id 668B68E0008; Thu, 17 Jan 2019 11:00:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 108008E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 10:51:52 -0500 (EST)
-Received: by mail-vs1-f72.google.com with SMTP id g79so4419560vsd.6
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 07:51:52 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B74B8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:00:37 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id r15so5098616ota.0
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 08:00:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=3qaNAmU6evFJ+KEl134h9W/WxdkVS1/zYL0nrow/i9U=;
-        b=VLvPsW68VAfyiU6+naUreZpXs8DqKQeNr0U0ocV9FUE37TBmupkAUojiO9yNT80Ui0
-         XIczecnyiI/+5AnE6TItWxOFQdOfQ35bdG9XXRE/kVXtaBcYMFvlJJP2WFC+iKsp+YMB
-         1oT3Y0i7ujzYRSPiMGTjfY5QXiJtnXMcTyq1Anlz+NGbaT/87tE0sWVXPvtzfy/E3v4+
-         zeJEj2ep38Rln9gZAUBefnzeTtY8+lICO73cUJ+aKUE/+/ZqAQ3w3EroAofsYz+D0lID
-         fRSz7omrGfK9Z11BI06dDRTwAibpWF8XCJhujzIVBEsvHJqStc4GaqrigDtcZqSzQxhA
-         EpUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: AJcUukfeTioX4pCEIgxSYOVTWir4MdvVmQM/Wn5r/Yv7VjFrIowEHuh3
-	ynmokRDg25/uBLJ1jgVoT0HEiUKSHHICi6jnphKsFTgh14crFJ0JXpI6J2NlT2bjjh8scKZHhOH
-	8OFHAUe4xV8YjziVdPfddlObd0W6ktDGLrc5t6Yznybhn6Rc2BabqvYSE0qKA/wo9zw==
-X-Received: by 2002:a67:334a:: with SMTP id z71mr6378612vsz.40.1547740311748;
-        Thu, 17 Jan 2019 07:51:51 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5yx9YJO8AyfPNrv5PtBr6nJmSkZXez+t4rKdrWdYFzndvaiV8ETOlBJd0YXTl9kfpKNSnq
-X-Received: by 2002:a67:334a:: with SMTP id z71mr6378586vsz.40.1547740310789;
-        Thu, 17 Jan 2019 07:51:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547740310; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=rdu7kyWzYlUBD6Mskt8hw39fAw2nqx6mvnISETdM2jg=;
+        b=knvNMw+hHxJLBdKhsqxR0Id6dLUamrldFxFqapw2StrWx5Kn+9CW19zYWrtzBRPrQu
+         G3oiqzhFdEfw8jSQb4fdyGUtKfDHJsrbPrnhtbmsqDdjAVJ4xFbijzoecxpwUExOodqZ
+         JDJEW5pUMu5Ey+1Q6bwSEP1SRp3H8JMU2LE0jouuKzTu055uYeK0saoo/SLf7guyIFaQ
+         cayz8s8BnR05sojHE/2R2axGZ+F6tmREVq7TnDNgI+YHuNPw+gHl9T48rVGnMJaEg99W
+         85CakPGC+ZZxJWix0hkV8DMcWZwzLS5TzwzGPgmJsoGzWHr1k1Kulh9/1TcEYDfDLLfH
+         1VeQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukcDYoJgmAgpDMBMaswQLF4GmT/RPELgbN0DWrEIrJ4asGM/GYBd
+	4dycUh4gfaycVE8LQOFdb7ObTqJqkWyLx78krvbU0mlWYZGN75Umf5ihg2Um/x0Ep7f/1b3Zp+s
+	Rb3EDeqxAxPIerLyMC8BjBtbs3s6rqU7ux1hJ0rkZb4CdQbYJzCVuQ0QjVliMwYjs8AjTPC3FhV
+	2fNkyu6amXvoS6jJaBJ5p2kmvHTaIBc9rSBqmc371/3Cor9GW1Lz18R+lJ/UKpsL3Q0+mX53igY
+	CIlT4exQ7DqqY9WznfuE2uezew6xJbUscbHAsizvixwor6Ys+by1CbSzUQg0mUhN0pQ9Lc/pfC0
+	27bjWg51gnv0GjgiusagH+XMKMPKE44T5Fv0zjP5h9IHeZZIajv3Y8ulfMyIB/f4acOOuVUoLg=
+	=
+X-Received: by 2002:aca:3904:: with SMTP id g4mr1057662oia.24.1547740836823;
+        Thu, 17 Jan 2019 08:00:36 -0800 (PST)
+X-Received: by 2002:aca:3904:: with SMTP id g4mr1057602oia.24.1547740835571;
+        Thu, 17 Jan 2019 08:00:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547740835; cv=none;
         d=google.com; s=arc-20160816;
-        b=yGsFXeWj6r+H/31/mHfr8DC8nrS2d0nbG+sAgAPZypqWNzOQgfVaXsZrUWDTOFti/N
-         vaywzpzvRsiH/7f1lkpNBer/Slyghlg5XMaitWdKuBWuYbJtwlX7BPVil+fwD29x1kj3
-         JhBMNSkoHlDt5IihXZ8HgpbBg8iQiXyaDBwgMoFhaLKF1ePDNFOsnNmdXFWaRYixibVt
-         DiIED2LscXK0wDhFxzfhVmTMtu/thoCWKdFdfqbxn9YjGpCe1Iuz3L9uPkw/y3UkWshs
-         bYMdYIufXQSnm8U9ljYZiZ0VLxLk0T2CcW7fhJueKG7cVigkwvZHT6YfmJU0XN7LOFL1
-         ZuTw==
+        b=qiRXf33VY6H8qGP9pNqCTgDcUvOjVj0afLY9+0bGeD5/3hFRMgNnfCikn1qkghY5c+
+         CS5RV3uyraCenT7Eyk3lB7ymwu5gor8in2kRVl3brejsMVkCBDZKPU0onIeLAH5o6G1o
+         EGK3FngvnEdsE/BK22tnJThmNB39S3rMVo4aGMdSQntOnfg4TmxOEjuyjsj19uJB2ktu
+         PtU2dEv6vljp1c04FBLijTVscYWPVwmpFZwo17dNK3M6BnYC+buahFuHXOZIpPJYpfLG
+         sVtOnsMrpjCGHSkb74hhse9A+wMeIcGcydVvouXS3PU7+/h/A1gEnArYEdIyMPb+1u3i
+         SM7w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=3qaNAmU6evFJ+KEl134h9W/WxdkVS1/zYL0nrow/i9U=;
-        b=UbsL59IKTmQx0yrQ/oGjA8VOnp0bX/MzoddE4g+ex9m323IkZATokCbpuwcgkBH5MA
-         exhn0stPfB5pqsNzlavdsxcnzrWtOn2okGqi13CxNs9fnQblhd/6m0qL7fFtjuNzATpm
-         D1iVVLZyNNfH7o9JP3qVOjaaPQbKysudEiQGb+DvBmXxYzbU7Ehl7aJuYlEwcTA0jMhw
-         CDZrkCUo413FdUE9ZEjqjMAOpspeqXto6vWfSxIQUUaqnVwK6/tQsa9UdSdmpazl/dLT
-         NcWya38ZR/6PFgizJfH+CokAtfSIrgv/ETLym+FpgFdgsSULhtr5I+BJUnyDJV7iNtpO
-         qTeg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=rdu7kyWzYlUBD6Mskt8hw39fAw2nqx6mvnISETdM2jg=;
+        b=jwYkaevJ9nHIZotElqhjPpRHQklHTnHQNgfAPJHod/cZnPu2sJD5LGMIT2yNLN0SBP
+         /BVfzlOxnkMJ/DXBFYXN9DOzxOju6f/vJ2mVywXZBFFeRDnIyvt+45Yp8RILgadTcdxg
+         BojM7sJhwiMEY8a+cXb8MYXtev+8ugrpB3ssfBAQdVLlCOXQqQ2ZAR+YlwC4LmetOUao
+         L2Ah59mlbtDkK4SxhFCfprANGiAGUNbHPYspubilMohvs/BG327OCxkfjn6xAIUrhhCV
+         Y3rihd9m8sKoHvLDilFtEG9KUP8Duehnxp/D++iG0z2ODHuz+xhi3Y3TeHPlQzy6GWfd
+         TpHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id t8si390703vsn.443.2019.01.17.07.51.50
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d62sor986710oif.70.2019.01.17.08.00.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 07:51:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        (Google Transport Security);
+        Thu, 17 Jan 2019 08:00:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS403-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id 5482CA5566F563353FE2;
-	Thu, 17 Jan 2019 23:51:45 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS403-HUB.china.huawei.com
- (10.3.19.203) with Microsoft SMTP Server id 14.3.408.0; Thu, 17 Jan 2019
- 23:51:44 +0800
-Message-ID: <5C40A48F.6070306@huawei.com>
-Date: Thu, 17 Jan 2019 23:51:43 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: ALg8bN5rxl9TkrG3mdMdexpWwg9jwTp3PTSfBUUlka/v5e8S62QOftTBtAbd9WNCisJH459t4ro18K14jCgIKQGCk00=
+X-Received: by 2002:aca:368a:: with SMTP id d132mr1877295oia.193.1547740834934;
+ Thu, 17 Jan 2019 08:00:34 -0800 (PST)
 MIME-Version: 1.0
-To: Vinayak Menon <vinmenon@codeaurora.org>, Laurent Dufour
-	<ldufour@linux.vnet.ibm.com>
-CC: Linux-MM <linux-mm@kvack.org>, <charante@codeaurora.org>, Ganesh Mahendran
-	<opensource.ganesh@gmail.com>
-Subject: Re: [PATCH v11 00/26] Speculative page faults
-References: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org> <5a24109c-7460-4a8e-a439-d2f2646568e6@codeaurora.org> <9ae5496f-7a51-e7b7-0061-5b68354a7945@linux.vnet.ibm.com> <e104a6dc-931b-944c-9555-dc1c001a57e0@codeaurora.org>
-In-Reply-To: <e104a6dc-931b-944c-9555-dc1c001a57e0@codeaurora.org>
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-11-keith.busch@intel.com>
+In-Reply-To: <20190116175804.30196-11-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 17 Jan 2019 17:00:23 +0100
+Message-ID:
+ <CAJZ5v0ieQGgaL4jrCFxx-NydTwqP=oaPP4O0RnG-FCKMKF-1bQ@mail.gmail.com>
+Subject: Re: [PATCHv4 10/13] node: Add memory caching attributes
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, 
+	Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190117155143.ZfpF7oKR3WfX_d-frH-VdLctpHqAzkVgJG2j2rTB_UM@z>
+Message-ID: <20190117160023.S5N4dNPjlAmS0NwOgSulxKEpAWBnKhujcvRHE4O-Sgg@z>
 
-On 2019/1/16 19:41, Vinayak Menon wrote:
-> On 1/15/2019 1:54 PM, Laurent Dufour wrote:
->> Le 14/01/2019 à 14:19, Vinayak Menon a écrit :
->>> On 1/11/2019 9:13 PM, Vinayak Menon wrote:
->>>> Hi Laurent,
->>>>
->>>> We are observing an issue with speculative page fault with the following test code on ARM64 (4.14 kernel, 8 cores).
->>>
->>> With the patch below, we don't hit the issue.
->>>
->>> From: Vinayak Menon <vinmenon@codeaurora.org>
->>> Date: Mon, 14 Jan 2019 16:06:34 +0530
->>> Subject: [PATCH] mm: flush stale tlb entries on speculative write fault
->>>
->>> It is observed that the following scenario results in
->>> threads A and B of process 1 blocking on pthread_mutex_lock
->>> forever after few iterations.
->>>
->>> CPU 1                   CPU 2                    CPU 3
->>> Process 1,              Process 1,               Process 1,
->>> Thread A                Thread B                 Thread C
->>>
->>> while (1) {             while (1) {              while(1) {
->>> pthread_mutex_lock(l)   pthread_mutex_lock(l)    fork
->>> pthread_mutex_unlock(l) pthread_mutex_unlock(l)  }
->>> }                       }
->>>
->>> When from thread C, copy_one_pte write-protects the parent pte
->>> (of lock l), stale tlb entries can exist with write permissions
->>> on one of the CPUs at least. This can create a problem if one
->>> of the threads A or B hits the write fault. Though dup_mmap calls
->>> flush_tlb_mm after copy_page_range, since speculative page fault
->>> does not take mmap_sem it can proceed further fixing a fault soon
->>> after CPU 3 does ptep_set_wrprotect. But the CPU with stale tlb
->>> entry can still modify old_page even after it is copied to
->>> new_page by wp_page_copy, thus causing a corruption.
->> Nice catch and thanks for your investigation!
->>
->> There is a real synchronization issue here between copy_page_range() and the speculative page fault handler. I didn't get it on PowerVM since the TLB are flushed when arch_exit_lazy_mode() is called in copy_page_range() but now, I can get it when running on x86_64.
->>
->>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
->>> ---
->>>   mm/memory.c | 7 +++++++
->>>   1 file changed, 7 insertions(+)
->>>
->>> diff --git a/mm/memory.c b/mm/memory.c
->>> index 52080e4..1ea168ff 100644
->>> --- a/mm/memory.c
->>> +++ b/mm/memory.c
->>> @@ -4507,6 +4507,13 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
->>>                  return VM_FAULT_RETRY;
->>>          }
->>>
->>> +       /*
->>> +        * Discard tlb entries created before ptep_set_wrprotect
->>> +        * in copy_one_pte
->>> +        */
->>> +       if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
->>> +               flush_tlb_page(vmf.vma, address);
->>> +
->>>          mem_cgroup_oom_enable();
->>>          ret = handle_pte_fault(&vmf);
->>>          mem_cgroup_oom_disable();
->> Your patch is fixing the race but I'm wondering about the cost of these tlb flushes. Here we are flushing on a per page basis (architecture like x86_64 are smarter and flush more pages) but there is a request to flush a range of tlb entries each time a cow page is newly touched. I think there could be some bad impact here.
->>
->> Another option would be to flush the range in copy_pte_range() before unlocking the page table lock. This will flush entries flush_tlb_mm() would later handle in dup_mmap() but that will be called once per fork per cow VMA.
+On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
 >
-> But wouldn't this cause an unnecessary impact if most of the COW pages remain untouched (which I assume would be the usual case) and thus do not create a fault ?
+> System memory may have side caches to help improve access speed to
+> frequently requested address ranges. While the system provided cache is
+> transparent to the software accessing these memory ranges, applications
+> can optimize their own access based on cache attributes.
 >
+> Provide a new API for the kernel to register these memory side caches
+> under the memory node that provides it.
 >
->> I tried the attached patch which seems to fix the issue on x86_64. Could you please give it a try on arm64 ?
->>
-> Your patch works fine on arm64 with a minor change. Thanks Laurent.
-Hi, Vinayak and Laurent
-
-I think the below change will impact the performance significantly. Becuase most of process has many
-vmas with cow flags. Flush the tlb in advance is not the better way to avoid the issue and it will
-call the flush_tlb_mm  later.
-
-I think we can try the following way to do.
-
-vm_write_begin(vma)
-copy_pte_range
-vm_write_end(vma)
-
-The speculative page fault will return to grap the mmap_sem to run the nromal path.
-Any thought?
-
-Thanks,
-zhong jiang
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 52080e4..4767095 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1087,6 +1087,7 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->         spinlock_t *src_ptl, *dst_ptl;
->         int progress = 0;
->         int rss[NR_MM_COUNTERS];
-> +       unsigned long orig_addr = addr;
->         swp_entry_t entry = (swp_entry_t){0};
+> The new sysfs representation is modeled from the existing cpu cacheinfo
+> attributes, as seen from /sys/devices/system/cpu/cpuX/side_cache/.
+> Unlike CPU cacheinfo, though, the node cache level is reported from
+> the view of the memory. A higher number is nearer to the CPU, while
+> lower levels are closer to the backing memory. Also unlike CPU cache,
+> it is assumed the system will handle flushing any dirty cached memory
+> to the last level on a power failure if the range is persistent memory.
 >
->  again:
-> @@ -1125,6 +1126,15 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->         } while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
+> The attributes we export are the cache size, the line size, associativity,
+> and write back policy.
 >
->         arch_leave_lazy_mmu_mode();
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  drivers/base/node.c  | 142 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/node.h |  39 ++++++++++++++
+>  2 files changed, 181 insertions(+)
+>
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 1e909f61e8b1..7ff3ed566d7d 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -191,6 +191,146 @@ void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+>                 pr_info("failed to add performance attribute group to node %d\n",
+>                         nid);
+>  }
 > +
-> +       /*
-> +        * Prevent the page fault handler to copy the page while stale tlb entry
-> +        * are still not flushed.
-> +        */
-> +       if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT) &&
-> +               is_cow_mapping(vma->vm_flags))
-> +                       flush_tlb_range(vma, orig_addr, end);
+> +struct node_cache_info {
+> +       struct device dev;
+> +       struct list_head node;
+> +       struct node_cache_attrs cache_attrs;
+> +};
+> +#define to_cache_info(device) container_of(device, struct node_cache_info, dev)
 > +
->         spin_unlock(src_ptl);
->         pte_unmap(orig_src_pte);
->         add_mm_rss_vec(dst_mm, rss);
->
-> Thanks,
->
-> Vinayak
->
->
->
+> +#define CACHE_ATTR(name, fmt)                                          \
+> +static ssize_t name##_show(struct device *dev,                         \
+> +                          struct device_attribute *attr,               \
+> +                          char *buf)                                   \
+> +{                                                                      \
+> +       return sprintf(buf, fmt "\n", to_cache_info(dev)->cache_attrs.name);\
+> +}                                                                      \
+> +DEVICE_ATTR_RO(name);
+> +
+> +CACHE_ATTR(size, "%llu")
+> +CACHE_ATTR(level, "%u")
+> +CACHE_ATTR(line_size, "%u")
+> +CACHE_ATTR(associativity, "%u")
+> +CACHE_ATTR(write_policy, "%u")
+> +
+> +static struct attribute *cache_attrs[] = {
+> +       &dev_attr_level.attr,
+> +       &dev_attr_associativity.attr,
+> +       &dev_attr_size.attr,
+> +       &dev_attr_line_size.attr,
+> +       &dev_attr_write_policy.attr,
+> +       NULL,
+> +};
+> +ATTRIBUTE_GROUPS(cache);
+> +
+> +static void node_cache_release(struct device *dev)
+> +{
+> +       kfree(dev);
+> +}
+> +
+> +static void node_cacheinfo_release(struct device *dev)
+> +{
+> +       struct node_cache_info *info = to_cache_info(dev);
+> +       kfree(info);
+> +}
+> +
+> +static void node_init_cache_dev(struct node *node)
+> +{
+> +       struct device *dev;
+> +
+> +       dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+> +       if (!dev)
+> +               return;
+> +
+> +       dev->parent = &node->dev;
+> +       dev->release = node_cache_release;
+> +       if (dev_set_name(dev, "side_cache"))
+> +               goto free_dev;
+> +
+> +       if (device_register(dev))
+> +               goto free_name;
+> +
+> +       pm_runtime_no_callbacks(dev);
+> +       node->cache_dev = dev;
+> +       return;
 
+I would add an empty line here.
+
+> +free_name:
+> +       kfree_const(dev->kobj.name);
+> +free_dev:
+> +       kfree(dev);
+> +}
+> +
+> +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
+> +{
+> +       struct node_cache_info *info;
+> +       struct device *dev;
+> +       struct node *node;
+> +
+> +       if (!node_online(nid) || !node_devices[nid])
+> +               return;
+> +
+> +       node = node_devices[nid];
+> +       list_for_each_entry(info, &node->cache_attrs, node) {
+> +               if (info->cache_attrs.level == cache_attrs->level) {
+> +                       dev_warn(&node->dev,
+> +                               "attempt to add duplicate cache level:%d\n",
+> +                               cache_attrs->level);
+
+I'd suggest using dev_dbg() for this and I'm not even sure if printing
+the message is worth the effort.
+
+Firmware will probably give you duplicates and users cannot do much
+about fixing that anyway.
+
+> +                       return;
+> +               }
+> +       }
+> +
+> +       if (!node->cache_dev)
+> +               node_init_cache_dev(node);
+> +       if (!node->cache_dev)
+> +               return;
+> +
+> +       info = kzalloc(sizeof(*info), GFP_KERNEL);
+> +       if (!info)
+> +               return;
+> +
+> +       dev = &info->dev;
+> +       dev->parent = node->cache_dev;
+> +       dev->release = node_cacheinfo_release;
+> +       dev->groups = cache_groups;
+> +       if (dev_set_name(dev, "index%d", cache_attrs->level))
+> +               goto free_cache;
+> +
+> +       info->cache_attrs = *cache_attrs;
+> +       if (device_register(dev)) {
+> +               dev_warn(&node->dev, "failed to add cache level:%d\n",
+> +                        cache_attrs->level);
+> +               goto free_name;
+> +       }
+> +       pm_runtime_no_callbacks(dev);
+> +       list_add_tail(&info->node, &node->cache_attrs);
+> +       return;
+
+Again, I'd add an empty line here.
+
+> +free_name:
+> +       kfree_const(dev->kobj.name);
+> +free_cache:
+> +       kfree(info);
+> +}
+> +
+> +static void node_remove_caches(struct node *node)
+> +{
+> +       struct node_cache_info *info, *next;
+> +
+> +       if (!node->cache_dev)
+> +               return;
+> +
+> +       list_for_each_entry_safe(info, next, &node->cache_attrs, node) {
+> +               list_del(&info->node);
+> +               device_unregister(&info->dev);
+> +       }
+> +       device_unregister(node->cache_dev);
+> +}
+> +
+> +static void node_init_caches(unsigned int nid)
+> +{
+> +       INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
+> +}
+> +#else
+> +static void node_init_caches(unsigned int nid) { }
+> +static void node_remove_caches(struct node *node) { }
+>  #endif
+>
+>  #define K(x) ((x) << (PAGE_SHIFT - 10))
+> @@ -475,6 +615,7 @@ void unregister_node(struct node *node)
+>  {
+>         hugetlb_unregister_node(node);          /* no-op, if memoryless node */
+>         node_remove_classes(node);
+> +       node_remove_caches(node);
+>         device_unregister(&node->dev);
+>  }
+>
+> @@ -755,6 +896,7 @@ int __register_one_node(int nid)
+>         INIT_LIST_HEAD(&node_devices[nid]->class_list);
+>         /* initialize work queue for memory hot plug */
+>         init_node_hugetlb_work(nid);
+> +       node_init_caches(nid);
+>
+>         return error;
+>  }
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index e22940a593c2..8cdf2b2808e4 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -37,12 +37,47 @@ struct node_hmem_attrs {
+>  };
+>  void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+>                          unsigned class);
+> +
+> +enum cache_associativity {
+> +       NODE_CACHE_DIRECT_MAP,
+> +       NODE_CACHE_INDEXED,
+> +       NODE_CACHE_OTHER,
+> +};
+> +
+> +enum cache_write_policy {
+> +       NODE_CACHE_WRITE_BACK,
+> +       NODE_CACHE_WRITE_THROUGH,
+> +       NODE_CACHE_WRITE_OTHER,
+> +};
+> +
+> +/**
+> + * struct node_cache_attrs - system memory caching attributes
+> + *
+> + * @associativity:     The ways memory blocks may be placed in cache
+> + * @write_policy:      Write back or write through policy
+> + * @size:              Total size of cache in bytes
+> + * @line_size:         Number of bytes fetched on a cache miss
+> + * @level:             Represents the cache hierarchy level
+> + */
+> +struct node_cache_attrs {
+> +       enum cache_associativity associativity;
+> +       enum cache_write_policy write_policy;
+> +       u64 size;
+> +       u16 line_size;
+> +       u8  level;
+> +};
+> +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
+>  #else
+>  static inline void node_set_perf_attrs(unsigned int nid,
+>                                        struct node_hmem_attrs *hmem_attrs,
+>                                        unsigned class)
+>  {
+>  }
+> +
+> +static inline void node_add_cache(unsigned int nid,
+> +                                 struct node_cache_attrs *cache_attrs)
+> +{
+> +}
+
+And does this really build with CONFIG_HMEM_REPORTING unset?
+
+>  #endif
+>
+>  struct node {
+> @@ -51,6 +86,10 @@ struct node {
+>  #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+>         struct work_struct      node_work;
+>  #endif
+> +#ifdef CONFIG_HMEM_REPORTING
+> +       struct list_head cache_attrs;
+> +       struct device *cache_dev;
+> +#endif
+>  };
+>
+>  struct memory_block;
+> --
 
