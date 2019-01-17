@@ -1,89 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DB6A18E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 15:47:52 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id o17so6923165pgi.14
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:47:52 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s191si2523886pfs.53.2019.01.17.12.47.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 12:47:51 -0800 (PST)
-Received: from mail-wm1-f49.google.com (mail-wm1-f49.google.com [209.85.128.49])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 71B8A2146F
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 20:47:50 +0000 (UTC)
-Received: by mail-wm1-f49.google.com with SMTP id p6so2495826wmc.1
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:47:50 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 206258E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 16:06:32 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id e89so8260066pfb.17
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 13:06:32 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id v16si2662992pgg.290.2019.01.17.13.06.29
+        for <linux-mm@kvack.org>;
+        Thu, 17 Jan 2019 13:06:30 -0800 (PST)
+Date: Fri, 18 Jan 2019 08:06:10 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Message-ID: <20190117210610.GW4205@dastard>
+References: <20190108044336.GB27534@dastard>
+ <CAHk-=wjvzEFQcTGJFh9cyV_MPQftNrjOLon8YMMxaX0G1TLqkg@mail.gmail.com>
+ <20190109022430.GE27534@dastard>
+ <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
+ <20190109043906.GF27534@dastard>
+ <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
+ <20190110004424.GH27534@dastard>
+ <nycvar.YFH.7.76.1901110836110.6626@cbobk.fhfr.pm>
+ <20190117022244.GV4205@dastard>
+ <nycvar.YFH.7.76.1901170917490.6626@cbobk.fhfr.pm>
 MIME-Version: 1.0
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-7-rick.p.edgecombe@intel.com> <CALCETrUMAsXoZogEJg7ssv0CO56vzBV2C7VotmWcwNM7iH9Wqw@mail.gmail.com>
-In-Reply-To: <CALCETrUMAsXoZogEJg7ssv0CO56vzBV2C7VotmWcwNM7iH9Wqw@mail.gmail.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 17 Jan 2019 12:47:37 -0800
-Message-ID: <CALCETrXQ6uxzB3JvO14sEyMA21RcWCbwicL4nUdPBG8KAunxwg@mail.gmail.com>
-Subject: Re: [PATCH 06/17] x86/alternative: use temporary mm for text poking
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YFH.7.76.1901170917490.6626@cbobk.fhfr.pm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity <linux-integrity@vger.kernel.org>, LSM List <linux-security-module@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>, Nadav Amit <namit@vmware.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Thu, Jan 17, 2019 at 12:27 PM Andy Lutomirski <luto@kernel.org> wrote:
->
-> On Wed, Jan 16, 2019 at 4:33 PM Rick Edgecombe
-> <rick.p.edgecombe@intel.com> wrote:
-> >
-> > From: Nadav Amit <namit@vmware.com>
-> >
-> > text_poke() can potentially compromise the security as it sets temporary
-> > PTEs in the fixmap. These PTEs might be used to rewrite the kernel code
-> > from other cores accidentally or maliciously, if an attacker gains the
-> > ability to write onto kernel memory.
->
-> i think this may be sufficient, but barely.
->
-> > +       pte_clear(poking_mm, poking_addr, ptep);
-> > +
-> > +       /*
-> > +        * __flush_tlb_one_user() performs a redundant TLB flush when PTI is on,
-> > +        * as it also flushes the corresponding "user" address spaces, which
-> > +        * does not exist.
-> > +        *
-> > +        * Poking, however, is already very inefficient since it does not try to
-> > +        * batch updates, so we ignore this problem for the time being.
-> > +        *
-> > +        * Since the PTEs do not exist in other kernel address-spaces, we do
-> > +        * not use __flush_tlb_one_kernel(), which when PTI is on would cause
-> > +        * more unwarranted TLB flushes.
-> > +        *
-> > +        * There is a slight anomaly here: the PTE is a supervisor-only and
-> > +        * (potentially) global and we use __flush_tlb_one_user() but this
-> > +        * should be fine.
-> > +        */
-> > +       __flush_tlb_one_user(poking_addr);
-> > +       if (cross_page_boundary) {
-> > +               pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
-> > +               __flush_tlb_one_user(poking_addr + PAGE_SIZE);
-> > +       }
->
-> In principle, another CPU could still have the old translation.  Your
-> mutex probably makes this impossible, but it makes me nervous.
-> Ideally you'd use flush_tlb_mm_range(), but I guess you can't do that
-> with IRQs off.  Hmm.  I think you should add an inc_mm_tlb_gen() here.
-> Arguably, if you did that, you could omit the flushes, but maybe
-> that's silly.
->
-> If we start getting new users of use_temporary_mm(), we should give
-> some serious thought to the SMP semantics.
->
-> Also, you're using PAGE_KERNEL.  Please tell me that the global bit
-> isn't set in there.
->
+On Thu, Jan 17, 2019 at 09:18:41AM +0100, Jiri Kosina wrote:
+> On Thu, 17 Jan 2019, Dave Chinner wrote:
+> 
+> > > > commit e837eac23662afae603aaaef7c94bc839c1b8f67
+> > > > Author: Steve Lord <lord@sgi.com>
+> > > > Date:   Mon Mar 5 16:47:52 2001 +0000
+> > > > 
+> > > >     Add bounds checking for direct I/O, do the cache invalidation for
+> > > >     data coherency on direct I/O.
+> > > 
+> > > Out of curiosity, which repository is this from please? Even google 
+> > > doesn't seem to know about this SHA.
+> > 
+> > because oss.sgi.com is no longer with us, it's fallen out of all the
+> > search engines.  It was from the "archive/xfs-import.git" tree on
+> > oss.sgi.com:
+> > 
+> > https://web.archive.org/web/20120326044237/http://oss.sgi.com:80/cgi-bin/gitweb.cgi
+> > 
+> > but archive.org doesn't have a copy of the git tree. It contained
+> > the XFS history right back to the first Irix commit in 1993. Some of
+> > us still have copies of it sitting around....
+> 
+> For cases like this, would it be worth pushing it to git.kernel.org as an 
+> frozen historical reference archive?
 
-Much better solution: do unuse_temporary_mm() and *then*
-flush_tlb_mm_range().  This is entirely non-sketchy and should be just
-about optimal, too.
+I'm not sure we should be putting code from Irix on kernel.org. I
+uploaded a copy to github a few months ago so XFS devs could easily
+reference relevant commits in email. The reasons we decided not to
+upload it to kernel.org should be clear from the readme...
 
---Andy
+https://github.com/dchinner/xfs-history
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
