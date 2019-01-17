@@ -1,129 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BBF388E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 04:30:50 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id v4so3366729edm.18
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:30:50 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 94si2072837edl.165.2019.01.17.01.30.49
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8BC8E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 04:39:53 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id p12so4560346wrt.17
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:39:53 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id u14si25858787wmu.50.2019.01.17.01.39.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 01:30:49 -0800 (PST)
-Date: Thu, 17 Jan 2019 10:30:47 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190117093047.GB9378@quack2.suse.cz>
-References: <1b37061c-5598-1b02-2983-80003f1c71f2@nvidia.com>
- <20190112020228.GA5059@redhat.com>
- <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
- <20190112024625.GB5059@redhat.com>
- <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190114145447.GJ13316@quack2.suse.cz>
- <20190114172124.GA3702@redhat.com>
- <20190115080759.GC29524@quack2.suse.cz>
- <20190116113819.GD26069@quack2.suse.cz>
- <20190116130813.GA3617@redhat.com>
+        Thu, 17 Jan 2019 01:39:52 -0800 (PST)
+Date: Thu, 17 Jan 2019 10:39:50 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 14/17] mm: Make hibernate handle unmapped pages
+Message-ID: <20190117093950.GA17930@amd>
+References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
+ <20190117003259.23141-15-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="jRHKVT23PllUwdXP"
 Content-Disposition: inline
-In-Reply-To: <20190116130813.GA3617@redhat.com>
+In-Reply-To: <20190117003259.23141-15-rick.p.edgecombe@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, "Rafael J. Wysocki" <rjw@rjwysocki.net>
 
-On Wed 16-01-19 08:08:14, Jerome Glisse wrote:
-> On Wed, Jan 16, 2019 at 12:38:19PM +0100, Jan Kara wrote:
-> > On Tue 15-01-19 09:07:59, Jan Kara wrote:
-> > > Agreed. So with page lock it would actually look like:
-> > > 
-> > > get_page_pin()
-> > > 	lock_page(page);
-> > > 	wait_for_stable_page();
-> > > 	atomic_add(&page->_refcount, PAGE_PIN_BIAS);
-> > > 	unlock_page(page);
-> > > 
-> > > And if we perform page_pinned() check under page lock, then if
-> > > page_pinned() returned false, we are sure page is not and will not be
-> > > pinned until we drop the page lock (and also until page writeback is
-> > > completed if needed).
-> > 
-> > After some more though, why do we even need wait_for_stable_page() and
-> > lock_page() in get_page_pin()?
-> > 
-> > During writepage page_mkclean() will write protect all page tables. So
-> > there can be no new writeable GUP pins until we unlock the page as all such
-> > GUPs will have to first go through fault and ->page_mkwrite() handler. And
-> > that will wait on page lock and do wait_for_stable_page() for us anyway.
-> > Am I just confused?
-> 
-> Yeah with page lock it should synchronize on the pte but you still
-> need to check for writeback iirc the page is unlocked after file
-> system has queue up the write and thus the page can be unlock with
-> write back pending (and PageWriteback() == trye) and i am not sure
-> that in that states we can safely let anyone write to that page. I
-> am assuming that in some case the block device also expect stable
-> page content (RAID stuff).
-> 
-> So the PageWriteback() test is not only for racing page_mkclean()/
-> test_set_page_writeback() and GUP but also for pending write back.
 
-But this is prevented by wait_for_stable_page() that is already present in
-->page_mkwrite() handlers. Look:
+--jRHKVT23PllUwdXP
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-->writepage()
-  /* Page is locked here */
-  clear_page_dirty_for_io(page)
-    page_mkclean(page)
-      -> page tables get writeprotected
-    /* The following line will be added by our patches */
-    if (page_pinned(page)) -> bounce
-    TestClearPageDirty(page)
-  set_page_writeback(page);
-  unlock_page(page);
-  ...submit_io...
+Hi!
 
-IRQ
-  - IO completion
-  end_page_writeback()
+> For architectures with CONFIG_ARCH_HAS_SET_ALIAS, pages can be unmapped
+> briefly on the directmap, even when CONFIG_DEBUG_PAGEALLOC is not configu=
+red.
+> So this changes kernel_map_pages and kernel_page_present to be defined wh=
+en
+> CONFIG_ARCH_HAS_SET_ALIAS is defined as well. It also changes places
+> (page_alloc.c) where those functions are assumed to only be implemented w=
+hen
+> CONFIG_DEBUG_PAGEALLOC is defined.
 
-So if GUP happens before page_mkclean() writeprotects corresponding PTE
-(and these two actions are synchronized on the PTE lock), page_pinned()
-will see the increment and report the page as pinned.
+Which architectures are that?
 
-If GUP happens after page_mkclean() writeprotects corresponding PTE, it
-will fault:
-  handle_mm_fault()
-    do_wp_page()
-      wp_page_shared()
-        do_page_mkwrite()
-          ->page_mkwrite() - that is block_page_mkwrite() or
-	    iomap_page_mkwrite() or whatever filesystem provides
-	  lock_page(page)
-          ... prepare page ...
-	  wait_for_stable_page(page) -> this blocks until IO completes
-	    if someone cares about pages not being modified while under IO.
+Should this be merged to the patch where HAS_SET_ALIAS is introduced? We
+don't want broken hibernation in between....
 
-> > That actually touches on another question I wanted to get opinions on. GUP
-> > can be for read and GUP can be for write (that is one of GUP flags).
-> > Filesystems with page cache generally have issues only with GUP for write
-> > as it can currently corrupt data, unexpectedly dirty page etc.. DAX & memory
-> > hotplug have issues with both (DAX cannot truncate page pinned in any way,
-> > memory hotplug will just loop in kernel until the page gets unpinned). So
-> > we probably want to track both types of GUP pins and page-cache based
-> > filesystems will take the hit even if they don't have to for read-pins?
-> 
-> Yes the distinction between read and write would be nice. With the map
-> count solution you can only increment the mapcount for GUP(write=true).
 
-Well, but if we track only pins for write, DAX or memory hotplug will not
-be able to use this mechanism. So at this point I'm more leaning towards
-tracking all pins. It will cost some performance needlessly for read pins
-and filesystems using page cache when bouncing such pages but it's not like
-writeback of pinned pages is some performance critical operation... But I
-wanted to spell this out so that people are aware of this.
+> -#ifdef CONFIG_DEBUG_PAGEALLOC
+>  extern bool _debug_pagealloc_enabled;
+> -extern void __kernel_map_pages(struct page *page, int numpages, int enab=
+le);
+> =20
+>  static inline bool debug_pagealloc_enabled(void)
+>  {
+> -	return _debug_pagealloc_enabled;
+> +	return IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) && _debug_pagealloc_enabled;
+>  }
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+This will break build AFAICT. _debug_pagealloc_enabled variable does
+not exist in !CONFIG_DEBUG_PAGEALLOC case.
+
+									Pavel
+
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--jRHKVT23PllUwdXP
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlxATWYACgkQMOfwapXb+vLhEwCfboaaFJileFziF32t0acTiuuz
+dewAn0oneo6RWHmnu+B3dnprdMW4dCOy
+=4kpb
+-----END PGP SIGNATURE-----
+
+--jRHKVT23PllUwdXP--
