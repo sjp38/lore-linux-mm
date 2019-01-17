@@ -1,85 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8BC8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 04:39:53 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id p12so4560346wrt.17
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:39:53 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id u14si25858787wmu.50.2019.01.17.01.39.52
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F33338E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 04:40:38 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id i55so3463363ede.14
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 01:40:38 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l24si582322edr.135.2019.01.17.01.40.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 01:39:52 -0800 (PST)
-Date: Thu, 17 Jan 2019 10:39:50 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 14/17] mm: Make hibernate handle unmapped pages
-Message-ID: <20190117093950.GA17930@amd>
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-15-rick.p.edgecombe@intel.com>
+        Thu, 17 Jan 2019 01:40:37 -0800 (PST)
+Subject: Re: [PATCH 12/25] mm, compaction: Keep migration source private to a
+ single compaction instance
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190104125011.16071-13-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f0f6e34d-8ba0-e394-c91f-3c1d13972969@suse.cz>
+Date: Thu, 17 Jan 2019 10:40:36 +0100
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="jRHKVT23PllUwdXP"
-Content-Disposition: inline
-In-Reply-To: <20190117003259.23141-15-rick.p.edgecombe@intel.com>
+In-Reply-To: <20190104125011.16071-13-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-
---jRHKVT23PllUwdXP
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-Hi!
-
-> For architectures with CONFIG_ARCH_HAS_SET_ALIAS, pages can be unmapped
-> briefly on the directmap, even when CONFIG_DEBUG_PAGEALLOC is not configu=
-red.
-> So this changes kernel_map_pages and kernel_page_present to be defined wh=
-en
-> CONFIG_ARCH_HAS_SET_ALIAS is defined as well. It also changes places
-> (page_alloc.c) where those functions are assumed to only be implemented w=
-hen
-> CONFIG_DEBUG_PAGEALLOC is defined.
-
-Which architectures are that?
-
-Should this be merged to the patch where HAS_SET_ALIAS is introduced? We
-don't want broken hibernation in between....
-
-
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
->  extern bool _debug_pagealloc_enabled;
-> -extern void __kernel_map_pages(struct page *page, int numpages, int enab=
-le);
-> =20
->  static inline bool debug_pagealloc_enabled(void)
->  {
-> -	return _debug_pagealloc_enabled;
-> +	return IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) && _debug_pagealloc_enabled;
->  }
-
-This will break build AFAICT. _debug_pagealloc_enabled variable does
-not exist in !CONFIG_DEBUG_PAGEALLOC case.
-
-									Pavel
-
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---jRHKVT23PllUwdXP
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlxATWYACgkQMOfwapXb+vLhEwCfboaaFJileFziF32t0acTiuuz
-dewAn0oneo6RWHmnu+B3dnprdMW4dCOy
-=4kpb
------END PGP SIGNATURE-----
-
---jRHKVT23PllUwdXP--
+On 1/4/19 1:49 PM, Mel Gorman wrote:
+> Due to either a fast search of the free list or a linear scan, it is
+> possible for multiple compaction instances to pick the same pageblock
+> for migration.  This is lucky for one scanner and increased scanning for
+> all the others. It also allows a race between requests on which first
+> allocates the resulting free block.
+> 
+> This patch tests and updates the pageblock skip for the migration scanner
+> carefully. When isolating a block, it will check and skip if the block is
+> already in use. Once the zone lock is acquired, it will be rechecked so
+> that only one scanner can set the pageblock skip for exclusive use. Any
+> scanner contending will continue with a linear scan. The skip bit is
+> still set if no pages can be isolated in a range. While this may result
+> in redundant scanning, it avoids unnecessarily acquiring the zone lock
+> when there are no suitable migration sources.
+> 
+> 1-socket thpscale
+>                                         4.20.0                 4.20.0
+>                                  findmig-v2r15          isolmig-v2r15
+> Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
+> Amean     fault-both-3      3505.69 (   0.00%)     3066.68 *  12.52%*
+> Amean     fault-both-5      5794.13 (   0.00%)     4298.49 *  25.81%*
+> Amean     fault-both-7      7663.09 (   0.00%)     5986.99 *  21.87%*
+> Amean     fault-both-12    10983.36 (   0.00%)     9324.85 (  15.10%)
+> Amean     fault-both-18    13602.71 (   0.00%)    13350.05 (   1.86%)
+> Amean     fault-both-24    16145.77 (   0.00%)    13491.77 *  16.44%*
+> Amean     fault-both-30    19753.82 (   0.00%)    15630.86 *  20.87%*
+> Amean     fault-both-32    20616.16 (   0.00%)    17428.50 *  15.46%*
+> 
+> This is the first patch that shows a significant reduction in latency as
+> multiple compaction scanners do not operate on the same blocks. There is
+> a small increase in the success rate
+> 
+>                                4.20.0-rc6             4.20.0-rc6
+>                              findmig-v1r4           isolmig-v1r4
+> Percentage huge-3        90.58 (   0.00%)       95.84 (   5.81%)
+> Percentage huge-5        91.34 (   0.00%)       94.19 (   3.12%)
+> Percentage huge-7        92.21 (   0.00%)       93.78 (   1.71%)
+> Percentage huge-12       92.48 (   0.00%)       94.33 (   2.00%)
+> Percentage huge-18       91.65 (   0.00%)       94.15 (   2.72%)
+> Percentage huge-24       90.23 (   0.00%)       94.23 (   4.43%)
+> Percentage huge-30       90.17 (   0.00%)       95.17 (   5.54%)
+> Percentage huge-32       89.72 (   0.00%)       93.59 (   4.32%)
+> 
+> Compaction migrate scanned    54168306    25516488
+> Compaction free scanned      800530954    87603321
+> 
+> Migration scan rates are reduced by 52%.
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
