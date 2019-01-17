@@ -1,58 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A96B8E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 11:56:21 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id k76so3618051oih.13
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 08:56:21 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 4sor1119286otr.58.2019.01.17.08.56.19
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D5AC68E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 12:01:21 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c34so3850987edb.8
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 09:01:21 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2-v6si3603583ejc.189.2019.01.17.09.01.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 17 Jan 2019 08:56:19 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Jan 2019 09:01:20 -0800 (PST)
+Subject: Re: [PATCH 16/25] mm, compaction: Check early for huge pages
+ encountered by the migration scanner
+References: <20190104125011.16071-1-mgorman@techsingularity.net>
+ <20190104125011.16071-17-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <724b7599-8300-15b5-2675-eecab2450f45@suse.cz>
+Date: Thu, 17 Jan 2019 18:01:18 +0100
 MIME-Version: 1.0
-References: <20190116181859.D1504459@viggo.jf.intel.com> <20190116181905.12E102B4@viggo.jf.intel.com>
- <5A90DA2E42F8AE43BC4A093BF06788482571FCB1@SHSMSX103.ccr.corp.intel.com>
-In-Reply-To: <5A90DA2E42F8AE43BC4A093BF06788482571FCB1@SHSMSX103.ccr.corp.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 17 Jan 2019 08:56:08 -0800
-Message-ID: <CAPcyv4heNGQf4NHYrMzUdBRw2n3tE08bMaVKzgYrPYVaVDWE9Q@mail.gmail.com>
-Subject: Re: [PATCH 4/4] dax: "Hotplug" persistent memory for use like normal RAM
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190104125011.16071-17-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Du, Fan" <fan.du@intel.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, "dave@sr71.net" <dave@sr71.net>, "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "mhocko@suse.com" <mhocko@suse.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "tiwai@suse.de" <tiwai@suse.de>, "zwisler@kernel.org" <zwisler@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, "baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>, "Huang, Ying" <ying.huang@intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "bp@suse.de" <bp@suse.de>
+To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 16, 2019 at 9:21 PM Du, Fan <fan.du@intel.com> wrote:
-[..]
-> >From: Dave Hansen <dave.hansen@linux.intel.com>
-> >
-> >Currently, a persistent memory region is "owned" by a device driver,
-> >either the "Direct DAX" or "Filesystem DAX" drivers.  These drivers
-> >allow applications to explicitly use persistent memory, generally
-> >by being modified to use special, new libraries.
-> >
-> >However, this limits persistent memory use to applications which
-> >*have* been modified.  To make it more broadly usable, this driver
-> >"hotplugs" memory into the kernel, to be managed ad used just like
-> >normal RAM would be.
-> >
-> >To make this work, management software must remove the device from
-> >being controlled by the "Device DAX" infrastructure:
-> >
-> >       echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
-> >       echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
-> >
-> >and then bind it to this new driver:
-> >
-> >       echo -n dax0.0 > /sys/bus/dax/drivers/kmem/new_id
-> >       echo -n dax0.0 > /sys/bus/dax/drivers/kmem/bind
->
-> Is there any plan to introduce additional mode, e.g. "kmem" in the userspace
-> ndctl tool to do the configuration?
->
+On 1/4/19 1:50 PM, Mel Gorman wrote:
+> When scanning for sources or targets, PageCompound is checked for huge
+> pages as they can be skipped quickly but it happens relatively late after
+> a lot of setup and checking. This patch short-cuts the check to make it
+> earlier. It might still change when the lock is acquired but this has
+> less overhead overall. The free scanner advances but the migration scanner
+> does not. Typically the free scanner encounters more movable blocks that
+> change state over the lifetime of the system and also tends to scan more
+> aggressively as it's actively filling its portion of the physical address
+> space with data. This could change in the future but for the moment,
+> this worked better in practice and incurred fewer scan restarts.
+> 
+> The impact on latency and allocation success rates is marginal but the
+> free scan rates are reduced by 32% and system CPU usage is reduced by
+> 2.6%. The 2-socket results are not materially different.
 
-Yes, but not to ndctl. The daxctl tool will grow a helper for this.
-The policy of what device-dax instances should be hotplugged at system
-init will be managed by a persistent configuration file and udev
-rules.
+Hmm, interesting that adjusting migrate scanner affected free scanner. Oh well.
+
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Nit below.
+
+> ---
+>  mm/compaction.c | 16 ++++++++++++----
+>  1 file changed, 12 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 608d274f9880..921720f7a416 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1071,6 +1071,9 @@ static bool suitable_migration_source(struct compact_control *cc,
+>  {
+>  	int block_mt;
+>  
+> +	if (pageblock_skip_persistent(page))
+> +		return false;
+> +
+>  	if ((cc->mode != MIGRATE_ASYNC) || !cc->direct_compaction)
+>  		return true;
+>  
+> @@ -1693,12 +1696,17 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  			continue;
+>  
+>  		/*
+> -		 * For async compaction, also only scan in MOVABLE blocks.
+> -		 * Async compaction is optimistic to see if the minimum amount
+> -		 * of work satisfies the allocation.
+> +		 * For async compaction, also only scan in MOVABLE blocks
+> +		 * without huge pages. Async compaction is optimistic to see
+> +		 * if the minimum amount of work satisfies the allocation.
+> +		 * The cached PFN is updated as it's possible that all
+> +		 * remaining blocks between source and target are suitable
+
+								  ^ unsuitable?
+
+> +		 * and the compaction scanners fail to meet.
+>  		 */
+> -		if (!suitable_migration_source(cc, page))
+> +		if (!suitable_migration_source(cc, page)) {
+> +			update_cached_migrate(cc, block_end_pfn);
+>  			continue;
+> +		}
+>  
+>  		/* Perform the isolation */
+>  		low_pfn = isolate_migratepages_block(cc, low_pfn,
+> 
