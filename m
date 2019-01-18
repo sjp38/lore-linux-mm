@@ -1,60 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D12088E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 18:58:49 -0500 (EST)
-Received: by mail-yb1-f200.google.com with SMTP id y6so4937543ybb.11
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 15:58:49 -0800 (PST)
-Received: from mail.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id j124si2117634ywf.336.2019.01.17.15.58.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 17 Jan 2019 15:58:46 -0800 (PST)
-Subject: Re: [PATCH 17/17] module: Prevent module removal racing with
- text_poke()
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-18-rick.p.edgecombe@intel.com>
- <20190117165422.d33d1af83db8716e24960a3c@kernel.org>
-From: "H. Peter Anvin" <hpa@zytor.com>
-Message-ID: <e865e051-be79-adce-7275-72abf2173bdb@zytor.com>
-Date: Thu, 17 Jan 2019 15:58:31 -0800
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C0278E0002
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 19:16:14 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id f69so8676808pff.5
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 16:16:14 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id h5si2910774pgk.249.2019.01.17.16.16.11
+        for <linux-mm@kvack.org>;
+        Thu, 17 Jan 2019 16:16:12 -0800 (PST)
+Date: Fri, 18 Jan 2019 11:16:08 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Message-ID: <20190118001608.GX4205@dastard>
+References: <294bdcfa-5bf9-9c09-9d43-875e8375e264@nvidia.com>
+ <20190112024625.GB5059@redhat.com>
+ <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
+ <20190114145447.GJ13316@quack2.suse.cz>
+ <20190114172124.GA3702@redhat.com>
+ <20190115080759.GC29524@quack2.suse.cz>
+ <20190116113819.GD26069@quack2.suse.cz>
+ <20190116130813.GA3617@redhat.com>
+ <5c6dc6ed-4c8d-bce7-df02-ee8b7785b265@nvidia.com>
+ <20190117152108.GB3550@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190117165422.d33d1af83db8716e24960a3c@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190117152108.GB3550@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masami Hiramatsu <mhiramat@kernel.org>, Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org, akpm@linux-foundation.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org, kristen@linux.intel.com, deneen.t.dock@intel.com, Nadav Amit <namit@vmware.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On 1/16/19 11:54 PM, Masami Hiramatsu wrote:
-> On Wed, 16 Jan 2019 16:32:59 -0800
-> Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
+On Thu, Jan 17, 2019 at 10:21:08AM -0500, Jerome Glisse wrote:
+> On Wed, Jan 16, 2019 at 09:42:25PM -0800, John Hubbard wrote:
+> > On 1/16/19 5:08 AM, Jerome Glisse wrote:
+> > > On Wed, Jan 16, 2019 at 12:38:19PM +0100, Jan Kara wrote:
+> > >> That actually touches on another question I wanted to get opinions on. GUP
+> > >> can be for read and GUP can be for write (that is one of GUP flags).
+> > >> Filesystems with page cache generally have issues only with GUP for write
+> > >> as it can currently corrupt data, unexpectedly dirty page etc.. DAX & memory
+> > >> hotplug have issues with both (DAX cannot truncate page pinned in any way,
+> > >> memory hotplug will just loop in kernel until the page gets unpinned). So
+> > >> we probably want to track both types of GUP pins and page-cache based
+> > >> filesystems will take the hit even if they don't have to for read-pins?
+> > > 
+> > > Yes the distinction between read and write would be nice. With the map
+> > > count solution you can only increment the mapcount for GUP(write=true).
+> > > With pin bias the issue is that a big number of read pin can trigger
+> > > false positive ie you would do:
+> > >     GUP(vaddr, write)
+> > >         ...
+> > >         if (write)
+> > >             atomic_add(page->refcount, PAGE_PIN_BIAS)
+> > >         else
+> > >             atomic_inc(page->refcount)
+> > > 
+> > >     PUP(page, write)
+> > >         if (write)
+> > >             atomic_add(page->refcount, -PAGE_PIN_BIAS)
+> > >         else
+> > >             atomic_dec(page->refcount)
+> > > 
+> > > I am guessing false positive because of too many read GUP is ok as
+> > > it should be unlikely and when it happens then we take the hit.
+> > > 
+> > 
+> > I'm also intrigued by the point that read-only GUP is harmless, and we 
+> > could just focus on the writeable case.
 > 
->> From: Nadav Amit <namit@vmware.com>
->>
->> It seems dangerous to allow code modifications to take place
->> concurrently with module unloading. So take the text_mutex while the
->> memory of the module is freed.
-> 
-> At that point, since the module itself is removed from module list,
-> it seems no actual harm. Or would you have any concern?
-> 
+> For filesystem anybody that just look at the page is fine, as it would
+> not change its content thus the page would stay stable.
 
-The issue isn't the module list, but rather when it is safe to free the
-contents, so we don't clobber anything. We absolutely need to enforce
-that we can't text_poke() something that might have already been freed.
+Other processes can access and dirty the page cache page while there
+is a GUP reference.  It's unclear to me whether that changes what
+GUP needs to do here, but we can't assume a page referenced for
+read-only GUP will be clean and unchanging for the duration of the
+GUP reference. It may even be dirty at the time of the read-only
+GUP pin...
 
-That being said, we *also* really would prefer to enforce that we can't
-text_poke() memory that doesn't actually contain code; as far as I can
-tell we don't currently do that check.
+Cheers,
 
-This, again, is a good use for a separate mm context. We can enforce
-that that context will only ever contain valid page mappings for actual
-code pages.
-
-(Note: in my proposed algorithm, with a separate mm, replace INVLPG with
-switching CR3 if we have to do a rollback or roll forward in the
-breakpoint handler.)
-
-	-hpa
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
