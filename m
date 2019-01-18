@@ -1,93 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F29C88E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 21:00:00 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id m37so10976766qte.10
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 18:00:00 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i2si7293984qvg.76.2019.01.17.17.59.59
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F1D988E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 00:20:44 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id q63so9186539pfi.19
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 21:20:44 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id q14si3827824pgf.47.2019.01.17.21.20.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jan 2019 17:59:59 -0800 (PST)
-Date: Thu, 17 Jan 2019 20:59:52 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
-Message-ID: <20190118015952.GB21931@redhat.com>
-References: <20190112024625.GB5059@redhat.com>
- <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
- <20190114145447.GJ13316@quack2.suse.cz>
- <20190114172124.GA3702@redhat.com>
- <20190115080759.GC29524@quack2.suse.cz>
- <20190116113819.GD26069@quack2.suse.cz>
- <20190116130813.GA3617@redhat.com>
- <5c6dc6ed-4c8d-bce7-df02-ee8b7785b265@nvidia.com>
- <20190117152108.GB3550@redhat.com>
- <20190118001608.GX4205@dastard>
+        Thu, 17 Jan 2019 21:20:43 -0800 (PST)
+Message-Id: <201901180520.x0I5KYTi096127@www262.sakura.ne.jp>
+Subject: Re: INFO: rcu detected stall in =?ISO-2022-JP?B?bmRpc2NfYWxsb2Nfc2ti?=
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190118001608.GX4205@dastard>
+Date: Fri, 18 Jan 2019 14:20:34 +0900
+References: <ea2bc542-38b2-8218-9eb7-4c4a05da36ea@i-love.sakura.ne.jp> <CACT4Y+Yy-bF07F7F8DoFY8=4LtLURRn1WsZzNZ9LN+N=vn7Tpw@mail.gmail.com>
+In-Reply-To: <CACT4Y+Yy-bF07F7F8DoFY8=4LtLURRn1WsZzNZ9LN+N=vn7Tpw@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzbot <syzbot+ea7d9cb314b4ab49a18a@syzkaller.appspotmail.com>, David Miller <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, LKML <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Linux-MM <linux-mm@kvack.org>, Shakeel Butt <shakeelb@google.com>
 
-On Fri, Jan 18, 2019 at 11:16:08AM +1100, Dave Chinner wrote:
-> On Thu, Jan 17, 2019 at 10:21:08AM -0500, Jerome Glisse wrote:
-> > On Wed, Jan 16, 2019 at 09:42:25PM -0800, John Hubbard wrote:
-> > > On 1/16/19 5:08 AM, Jerome Glisse wrote:
-> > > > On Wed, Jan 16, 2019 at 12:38:19PM +0100, Jan Kara wrote:
-> > > >> That actually touches on another question I wanted to get opinions on. GUP
-> > > >> can be for read and GUP can be for write (that is one of GUP flags).
-> > > >> Filesystems with page cache generally have issues only with GUP for write
-> > > >> as it can currently corrupt data, unexpectedly dirty page etc.. DAX & memory
-> > > >> hotplug have issues with both (DAX cannot truncate page pinned in any way,
-> > > >> memory hotplug will just loop in kernel until the page gets unpinned). So
-> > > >> we probably want to track both types of GUP pins and page-cache based
-> > > >> filesystems will take the hit even if they don't have to for read-pins?
-> > > > 
-> > > > Yes the distinction between read and write would be nice. With the map
-> > > > count solution you can only increment the mapcount for GUP(write=true).
-> > > > With pin bias the issue is that a big number of read pin can trigger
-> > > > false positive ie you would do:
-> > > >     GUP(vaddr, write)
-> > > >         ...
-> > > >         if (write)
-> > > >             atomic_add(page->refcount, PAGE_PIN_BIAS)
-> > > >         else
-> > > >             atomic_inc(page->refcount)
-> > > > 
-> > > >     PUP(page, write)
-> > > >         if (write)
-> > > >             atomic_add(page->refcount, -PAGE_PIN_BIAS)
-> > > >         else
-> > > >             atomic_dec(page->refcount)
-> > > > 
-> > > > I am guessing false positive because of too many read GUP is ok as
-> > > > it should be unlikely and when it happens then we take the hit.
-> > > > 
-> > > 
-> > > I'm also intrigued by the point that read-only GUP is harmless, and we 
-> > > could just focus on the writeable case.
-> > 
-> > For filesystem anybody that just look at the page is fine, as it would
-> > not change its content thus the page would stay stable.
+Dmitry Vyukov wrote:
+> On Sun, Jan 6, 2019 at 2:47 PM Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> >
+> > On 2019/01/06 22:24, Dmitry Vyukov wrote:
+> > >> A report at 2019/01/05 10:08 from "no output from test machine (2)"
+> > >> ( https://syzkaller.appspot.com/text?tag=CrashLog&x=1700726f400000 )
+> > >> says that there are flood of memory allocation failure messages.
+> > >> Since continuous memory allocation failure messages itself is not
+> > >> recognized as a crash, we might be misunderstanding that this problem
+> > >> is not occurring recently. It will be nice if we can run testcases
+> > >> which are executed on bpf-next tree.
+> > >
+> > > What exactly do you mean by running test cases on bpf-next tree?
+> > > syzbot tests bpf-next, so it executes lots of test cases on that tree.
+> > > One can also ask for patch testing on bpf-next tree to test a specific
+> > > test case.
+> >
+> > syzbot ran "some tests" before getting this report, but we can't find from
+> > this report what the "some tests" are. If we could record all tests executed
+> > in syzbot environments before getting this report, we could rerun the tests
+> > (with manually examining where the source of memory consumption is) in local
+> > environments.
 > 
-> Other processes can access and dirty the page cache page while there
-> is a GUP reference.  It's unclear to me whether that changes what
-> GUP needs to do here, but we can't assume a page referenced for
-> read-only GUP will be clean and unchanging for the duration of the
-> GUP reference. It may even be dirty at the time of the read-only
-> GUP pin...
-> 
+> Filed https://github.com/google/syzkaller/issues/917 for this.
 
-Yes and it is fine, GUP read only user do not assume that the page
-is read only for everyone, it just means that the GUP user swear
-it will only read from the page, not write to it.
+Thanks. Here is what I would suggest.
 
-So for GUP read only we do not need to synchronize with anything
-writting to the page.
+Let syz-fuzzer write to /dev/kmsg . But don't directly write syz-program lines.
+Instead, just write the hash value of syz-program lines, and allow downloading
+syz-program lines from external URL. Also, use the first 12 characters of the
+hash value as comm name executing that syz-program lines. An example of console
+output would look something like below.
 
-Cheers,
-Jérôme
+
+  [$(uptime)][$(caller_info)] executing program #0123456789abcdef0123456789abcdef
+  [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_0123456789abcdef0123456789abcdef_are_here)
+  [$(uptime)][$(caller_info)] executing program #456789abcdef0123456789abcdef0123
+  [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
+  [$(uptime)][$(caller_info)] executing program #89abcdef0123456789abcdef01234567
+  [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_89abcdef0123456789abcdef01234567_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
+  [$(uptime)][$(caller_info)] BUG: unable to handle kernel paging request at $(address)
+  [$(uptime)][$(caller_info)] CPU: $(cpu) PID: $(pid) Comm: syz#89abcdef0123 Not tainted $(version) #$(build)
+  [$(uptime)][$(caller_info)] $(backtrace_of_caller_info_is_here)
+  [$(uptime)][$(caller_info)] Kernel panic - not syncing: Fatal exception
+
+Then, we can build CrashLog by picking up all "executing program #" lines and
+"latest lines up to available space" from console output like below.
+
+  [$(uptime)][$(caller_info)] executing program #0123456789abcdef0123456789abcdef
+  [$(uptime)][$(caller_info)] executing program #456789abcdef0123456789abcdef0123
+  [$(uptime)][$(caller_info)] executing program #89abcdef0123456789abcdef01234567
+  [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_89abcdef0123456789abcdef01234567_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
+  [$(uptime)][$(caller_info)] BUG: unable to handle kernel paging request at $(address)
+  [$(uptime)][$(caller_info)] CPU: $(cpu) PID: $(pid) Comm: syz89abcdef0123 Not tainted $(version) #$(build)
+  [$(uptime)][$(caller_info)] $(backtrace_of_caller_info_is_here)
+  [$(uptime)][$(caller_info)] Kernel panic - not syncing: Fatal exception
+
+Then, we can understand that a crash happened when executing 89abcdef0123 and
+download 89abcdef0123456789abcdef01234567 for analysis. Also, we can download
+0123456789abcdef0123456789abcdef and 456789abcdef0123456789abcdef0123 as needed.
+
+Honestly, since lines which follows "$(date) executing program $(num):" line can
+become so long, it is difficult to find where previous/next kernel messages are.
+If only one-liner "executing program #" output is used, it is easy to find
+previous/next kernel messages.
+
+The program referenced by "executing program #" would be made downloadable via
+Web server or git repository. Maybe "executing program https://$server/$hash"
+for the former case. But repeating "https://$server/" part would be redundant.
+
+The question for me is, whether sysbot can detect hash collision with different
+syz-program lines before writing the hash value to /dev/kmsg, and retry by modifying
+syz-program lines in order to get a new hash value until collision is avoided.
+If it is difficult, simpler choice like current Unix time and PID could be used
+instead...
