@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A8ED8E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 12:53:51 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id i55so5264060ede.14
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 09:53:51 -0800 (PST)
-Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id k13si3535974edl.377.2019.01.18.09.53.49
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A798C8E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 12:54:01 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id o21so5274435edq.4
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 09:54:01 -0800 (PST)
+Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
+        by mx.google.com with ESMTPS id 25si2894796edv.63.2019.01.18.09.53.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 09:53:49 -0800 (PST)
-Received: from mail.blacknight.com (unknown [81.17.254.16])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 2B06B1C35C8
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 17:53:49 +0000 (GMT)
+        Fri, 18 Jan 2019 09:53:59 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 49873B87ED
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 17:53:59 +0000 (GMT)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 12/22] mm, compaction: Avoid rescanning the same pageblock multiple times
-Date: Fri, 18 Jan 2019 17:51:26 +0000
-Message-Id: <20190118175136.31341-13-mgorman@techsingularity.net>
+Subject: [PATCH 13/22] mm, compaction: Finish pageblock scanning on contention
+Date: Fri, 18 Jan 2019 17:51:27 +0000
+Message-Id: <20190118175136.31341-14-mgorman@techsingularity.net>
 In-Reply-To: <20190118175136.31341-1-mgorman@techsingularity.net>
 References: <20190118175136.31341-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,131 +23,256 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Pageblocks are marked for skip when no pages are isolated after a scan.
-However, it's possible to hit corner cases where the migration scanner
-gets stuck near the boundary between the source and target scanner. Due
-to pages being migrated in blocks of COMPACT_CLUSTER_MAX, pages that
-are migrated can be reallocated before the pageblock is complete. The
-pageblock is not necessarily skipped so it can be rescanned multiple
-times. Similarly, a pageblock with some dirty/writeback pages may fail
-to migrate and be rescanned until writeback completes which is wasteful.
+Async migration aborts on spinlock contention but contention can be high
+when there are multiple compaction attempts and kswapd is active. The
+consequence is that the migration scanners move forward uselessly while
+still contending on locks for longer while leaving suitable migration
+sources behind.
 
-This patch tracks if a pageblock is being rescanned. If so, then the entire
-pageblock will be migrated as one operation. This narrows the race window
-during which pages can be reallocated during migration. Secondly, if there
-are pages that cannot be isolated then the pageblock will still be fully
-scanned and marked for skipping. On the second rescan, the pageblock skip
-is set and the migration scanner makes progress.
+This patch will acquire the lock but track when contention occurs. When
+it does, the current pageblock will finish as compaction may succeed for
+that block and then abort. This will have a variable impact on latency as
+in some cases useless scanning is avoided (reduces latency) but a lock
+will be contended (increase latency) or a single contended pageblock is
+scanned that would otherwise have been skipped (increase latency).
 
                                      5.0.0-rc1              5.0.0-rc1
-                                findfree-v3r16         norescan-v3r16
+                                norescan-v3r16    finishcontend-v3r16
 Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
-Amean     fault-both-3      3200.68 (   0.00%)     3002.07 (   6.21%)
-Amean     fault-both-5      4847.75 (   0.00%)     4684.47 (   3.37%)
-Amean     fault-both-7      6658.92 (   0.00%)     6815.54 (  -2.35%)
-Amean     fault-both-12    11077.62 (   0.00%)    10864.02 (   1.93%)
-Amean     fault-both-18    12403.97 (   0.00%)    12247.52 (   1.26%)
-Amean     fault-both-24    15607.10 (   0.00%)    15683.99 (  -0.49%)
-Amean     fault-both-30    18752.27 (   0.00%)    18620.02 (   0.71%)
-Amean     fault-both-32    21207.54 (   0.00%)    19250.28 *   9.23%*
+Amean     fault-both-3      3002.07 (   0.00%)     3153.17 (  -5.03%)
+Amean     fault-both-5      4684.47 (   0.00%)     4280.52 (   8.62%)
+Amean     fault-both-7      6815.54 (   0.00%)     5811.50 *  14.73%*
+Amean     fault-both-12    10864.02 (   0.00%)     9276.85 (  14.61%)
+Amean     fault-both-18    12247.52 (   0.00%)    11032.67 (   9.92%)
+Amean     fault-both-24    15683.99 (   0.00%)    14285.70 (   8.92%)
+Amean     fault-both-30    18620.02 (   0.00%)    16293.76 *  12.49%*
+Amean     fault-both-32    19250.28 (   0.00%)    16721.02 *  13.14%*
 
                                 5.0.0-rc1              5.0.0-rc1
-                           findfree-v3r16         norescan-v3r16
-Percentage huge-3        96.86 (   0.00%)       95.00 (  -1.91%)
-Percentage huge-5        93.72 (   0.00%)       94.22 (   0.53%)
-Percentage huge-7        94.31 (   0.00%)       92.35 (  -2.08%)
-Percentage huge-12       92.66 (   0.00%)       91.90 (  -0.82%)
-Percentage huge-18       91.51 (   0.00%)       89.58 (  -2.11%)
-Percentage huge-24       90.50 (   0.00%)       90.03 (  -0.52%)
-Percentage huge-30       91.57 (   0.00%)       89.14 (  -2.65%)
-Percentage huge-32       91.00 (   0.00%)       90.58 (  -0.46%)
+                           norescan-v3r16    finishcontend-v3r16
+Percentage huge-1         0.00 (   0.00%)        0.00 (   0.00%)
+Percentage huge-3        95.00 (   0.00%)       96.82 (   1.92%)
+Percentage huge-5        94.22 (   0.00%)       95.40 (   1.26%)
+Percentage huge-7        92.35 (   0.00%)       95.92 (   3.86%)
+Percentage huge-12       91.90 (   0.00%)       96.73 (   5.25%)
+Percentage huge-18       89.58 (   0.00%)       96.77 (   8.03%)
+Percentage huge-24       90.03 (   0.00%)       96.05 (   6.69%)
+Percentage huge-30       89.14 (   0.00%)       96.81 (   8.60%)
+Percentage huge-32       90.58 (   0.00%)       97.41 (   7.54%)
 
-Negligible difference but this was likely a case when the specific corner
-case was not hit. A previous run of the same patch based on an earlier
-iteration of the series showed large differences where migration rates
-could be halved when the corner case was hit.
+There is a variable impact that is mostly good on latency while allocation
+success rates are slightly higher. System CPU usage is reduced by about
+10% but scan rate impact is mixed
 
-The specific corner case where migration scan rates go through the roof
-was due to a dirty/writeback pageblock located at the boundary of the
-migration/free scanner did not happen in this case. When it does happen,
-the scan rates multipled by massive margins.
+Compaction migrate scanned    27997659.00    20148867
+Compaction free scanned      120782791.00   118324914
 
+Migration scan rates are reduced 28% which is expected as a pageblock
+is used by the async scanner instead of skipped. The impact on the free
+scanner is known to be variable.  Overall the primary justification for
+this patch is that completing scanning of a pageblock is very important
+for later patches.
+
+[yuehaibing@huawei.com: Fix unused variable warning]
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 32 ++++++++++++++++++++++++++------
- mm/internal.h   |  1 +
- 2 files changed, 27 insertions(+), 6 deletions(-)
+ mm/compaction.c | 90 ++++++++++++++++++++++-----------------------------------
+ 1 file changed, 34 insertions(+), 56 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 19fea4a7b3f4..a31fea7b3f96 100644
+index a31fea7b3f96..b261c0bfac24 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -949,8 +949,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		cc->nr_migratepages++;
- 		nr_isolated++;
+@@ -382,24 +382,25 @@ static bool test_and_set_skip(struct compact_control *cc, struct page *page,
  
--		/* Avoid isolating too much */
--		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
-+		/*
-+		 * Avoid isolating too much unless this block is being
-+		 * rescanned (e.g. dirty/writeback pages, parallel allocation).
-+		 */
-+		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX && !cc->rescan) {
+ /*
+  * Compaction requires the taking of some coarse locks that are potentially
+- * very heavily contended. For async compaction, back out if the lock cannot
+- * be taken immediately. For sync compaction, spin on the lock if needed.
++ * very heavily contended. For async compaction, trylock and record if the
++ * lock is contended. The lock will still be acquired but compaction will
++ * abort when the current block is finished regardless of success rate.
++ * Sync compaction acquires the lock.
+  *
+- * Returns true if the lock is held
+- * Returns false if the lock is not held and compaction should abort
++ * Always returns true which makes it easier to track lock state in callers.
+  */
+-static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
++static bool compact_lock_irqsave(spinlock_t *lock, unsigned long *flags,
+ 						struct compact_control *cc)
+ {
+-	if (cc->mode == MIGRATE_ASYNC) {
+-		if (!spin_trylock_irqsave(lock, *flags)) {
+-			cc->contended = true;
+-			return false;
+-		}
+-	} else {
+-		spin_lock_irqsave(lock, *flags);
++	/* Track if the lock is contended in async mode */
++	if (cc->mode == MIGRATE_ASYNC && !cc->contended) {
++		if (spin_trylock_irqsave(lock, *flags))
++			return true;
++
++		cc->contended = true;
+ 	}
+ 
++	spin_lock_irqsave(lock, *flags);
+ 	return true;
+ }
+ 
+@@ -432,10 +433,8 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
+ 	}
+ 
+ 	if (need_resched()) {
+-		if (cc->mode == MIGRATE_ASYNC) {
++		if (cc->mode == MIGRATE_ASYNC)
+ 			cc->contended = true;
+-			return true;
+-		}
+ 		cond_resched();
+ 	}
+ 
+@@ -455,10 +454,8 @@ static inline bool compact_should_abort(struct compact_control *cc)
+ {
+ 	/* async compaction aborts if contended */
+ 	if (need_resched()) {
+-		if (cc->mode == MIGRATE_ASYNC) {
++		if (cc->mode == MIGRATE_ASYNC)
+ 			cc->contended = true;
+-			return true;
+-		}
+ 
+ 		cond_resched();
+ 	}
+@@ -535,18 +532,8 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 		 * recheck as well.
+ 		 */
+ 		if (!locked) {
+-			/*
+-			 * The zone lock must be held to isolate freepages.
+-			 * Unfortunately this is a very coarse lock and can be
+-			 * heavily contended if there are parallel allocations
+-			 * or parallel compactions. For async compaction do not
+-			 * spin on the lock and we acquire the lock as late as
+-			 * possible.
+-			 */
+-			locked = compact_trylock_irqsave(&cc->zone->lock,
++			locked = compact_lock_irqsave(&cc->zone->lock,
+ 								&flags, cc);
+-			if (!locked)
+-				break;
+ 
+ 			/* Recheck this is a buddy page under lock */
+ 			if (!PageBuddy(page))
+@@ -900,15 +887,9 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/* If we already hold the lock, we can skip some rechecking */
+ 		if (!locked) {
+-			locked = compact_trylock_irqsave(zone_lru_lock(zone),
++			locked = compact_lock_irqsave(zone_lru_lock(zone),
+ 								&flags, cc);
+ 
+-			/* Allow future scanning if the lock is contended */
+-			if (!locked) {
+-				clear_pageblock_skip(page);
+-				break;
+-			}
+-
+ 			/* Try get exclusive access under lock */
+ 			if (!skip_updated) {
+ 				skip_updated = true;
+@@ -951,9 +932,12 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/*
+ 		 * Avoid isolating too much unless this block is being
+-		 * rescanned (e.g. dirty/writeback pages, parallel allocation).
++		 * rescanned (e.g. dirty/writeback pages, parallel allocation)
++		 * or a lock is contended. For contention, isolate quickly to
++		 * potentially remove one source of contention.
+ 		 */
+-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX && !cc->rescan) {
++		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX &&
++		    !cc->rescan && !cc->contended) {
  			++low_pfn;
  			break;
  		}
-@@ -997,11 +1000,14 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+@@ -1416,12 +1400,8 @@ static void isolate_freepages(struct compact_control *cc)
+ 		isolate_freepages_block(cc, &isolate_start_pfn, block_end_pfn,
+ 					freelist, false);
  
- 	/*
--	 * Updated the cached scanner pfn if the pageblock was scanned
--	 * without isolating a page. The pageblock may not be marked
--	 * skipped already if there were no LRU pages in the block.
-+	 * Updated the cached scanner pfn once the pageblock has been scanned
-+	 * Pages will either be migrated in which case there is no point
-+	 * scanning in the near future or migration failed in which case the
-+	 * failure reason may persist. The block is marked for skipping if
-+	 * there were no pages isolated in the block or if the block is
-+	 * rescanned twice in a row.
- 	 */
--	if (low_pfn == end_pfn && !nr_isolated) {
-+	if (low_pfn == end_pfn && (!nr_isolated || cc->rescan)) {
- 		if (valid_page && !skip_updated)
- 			set_pageblock_skip(valid_page);
- 		update_cached_migrate(cc, low_pfn);
-@@ -2033,6 +2039,20 @@ static enum compact_result compact_zone(struct compact_control *cc)
- 		int err;
- 		unsigned long start_pfn = cc->migrate_pfn;
+-		/*
+-		 * If we isolated enough freepages, or aborted due to lock
+-		 * contention, terminate.
+-		 */
+-		if ((cc->nr_freepages >= cc->nr_migratepages)
+-							|| cc->contended) {
++		/* Are enough freepages isolated? */
++		if (cc->nr_freepages >= cc->nr_migratepages) {
+ 			if (isolate_start_pfn >= block_end_pfn) {
+ 				/*
+ 				 * Restart at previous pageblock if more
+@@ -1463,13 +1443,8 @@ static struct page *compaction_alloc(struct page *migratepage,
+ 	struct compact_control *cc = (struct compact_control *)data;
+ 	struct page *freepage;
  
-+		/*
-+		 * Avoid multiple rescans which can happen if a page cannot be
-+		 * isolated (dirty/writeback in async mode) or if the migrated
-+		 * pages are being allocated before the pageblock is cleared.
-+		 * The first rescan will capture the entire pageblock for
-+		 * migration. If it fails, it'll be marked skip and scanning
-+		 * will proceed as normal.
-+		 */
-+		cc->rescan = false;
-+		if (pageblock_start_pfn(last_migrated_pfn) ==
-+		    pageblock_start_pfn(start_pfn)) {
-+			cc->rescan = true;
-+		}
+-	/*
+-	 * Isolate free pages if necessary, and if we are not aborting due to
+-	 * contention.
+-	 */
+ 	if (list_empty(&cc->freepages)) {
+-		if (!cc->contended)
+-			isolate_freepages(cc);
++		isolate_freepages(cc);
+ 
+ 		if (list_empty(&cc->freepages))
+ 			return NULL;
+@@ -1731,7 +1706,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 		low_pfn = isolate_migratepages_block(cc, low_pfn,
+ 						block_end_pfn, isolate_mode);
+ 
+-		if (!low_pfn || cc->contended)
++		if (!low_pfn)
+ 			return ISOLATE_ABORT;
+ 
+ 		/*
+@@ -1761,9 +1736,7 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ {
+ 	unsigned int order;
+ 	const int migratetype = cc->migratetype;
+-
+-	if (cc->contended || fatal_signal_pending(current))
+-		return COMPACT_CONTENDED;
++	int ret;
+ 
+ 	/* Compaction run completes if the migrate and free scanner meet */
+ 	if (compact_scanners_met(cc)) {
+@@ -1798,6 +1771,7 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ 		return COMPACT_CONTINUE;
+ 
+ 	/* Direct compactor: Is a suitable page free? */
++	ret = COMPACT_NO_SUITABLE_PAGE;
+ 	for (order = cc->order; order < MAX_ORDER; order++) {
+ 		struct free_area *area = &cc->zone->free_area[order];
+ 		bool can_steal;
+@@ -1837,11 +1811,15 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ 				return COMPACT_SUCCESS;
+ 			}
+ 
+-			return COMPACT_CONTINUE;
++			ret = COMPACT_CONTINUE;
++			break;
+ 		}
+ 	}
+ 
+-	return COMPACT_NO_SUITABLE_PAGE;
++	if (cc->contended || fatal_signal_pending(current))
++		ret = COMPACT_CONTENDED;
 +
- 		switch (isolate_migratepages(cc->zone, cc)) {
- 		case ISOLATE_ABORT:
- 			ret = COMPACT_CONTENDED;
-diff --git a/mm/internal.h b/mm/internal.h
-index 983cb975545f..d5b999e5eb5f 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -205,6 +205,7 @@ struct compact_control {
- 	bool direct_compaction;		/* False from kcompactd or /proc/... */
- 	bool whole_zone;		/* Whole zone should/has been scanned */
- 	bool contended;			/* Signal lock or sched contention */
-+	bool rescan;			/* Rescanning the same pageblock */
- };
++	return ret;
+ }
  
- unsigned long
+ static enum compact_result compact_finished(struct compact_control *cc)
 -- 
 2.16.4
