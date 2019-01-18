@@ -1,80 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0818E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 06:03:45 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id f69so9843360pff.5
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 03:03:45 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id h36si4327015pgm.200.2019.01.18.03.03.44
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B06838E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 06:10:33 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id y74so320002wmc.0
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 03:10:33 -0800 (PST)
+Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::7])
+        by mx.google.com with ESMTPS id a124si26702005wmf.38.2019.01.18.03.10.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 03:03:44 -0800 (PST)
-Subject: Re: Need help: how to locate failure from irq_chip subsystem
-References: <CAOuPNLj4QzNDt0npZn2LhZTFgDNJ1CsWPw3=wvUuxnGtQW308g@mail.gmail.com>
- <bceb32be-d508-c2a4-fa81-ab8b90323d3f@codeaurora.org>
- <CAOuPNLiNtPFksCuZF_vL6+YuLG0i0umzQhMCyEN69h9tySn2Vw@mail.gmail.com>
-From: Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
-Message-ID: <57ff3437-47b5-fe92-d576-084ce26aa5d8@codeaurora.org>
-Date: Fri, 18 Jan 2019 16:33:38 +0530
+        Fri, 18 Jan 2019 03:10:32 -0800 (PST)
+Subject: Re: use generic DMA mapping code in powerpc V4
+References: <3504ee70-02de-049e-6402-2d530bf55a84@xenosoft.de>
+ <23284859-bf0a-9cd5-a480-2a7fd7802056@xenosoft.de>
+ <075f70e3-7a4a-732f-b501-05a1a8e3c853@xenosoft.de>
+ <b04d08ea-61f9-3212-b9a3-ad79e3b8bd05@xenosoft.de>
+ <21f72a6a-9095-7034-f169-95e876228b2a@xenosoft.de>
+ <27148ac2-2a92-5536-d886-2c0971ab43d9@xenosoft.de>
+ <20190115133558.GA29225@lst.de>
+ <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de>
+ <20190115151732.GA2325@lst.de>
+ <e9345547-4dc6-747a-29ec-6375dc8bfe83@xenosoft.de>
+ <20190118083539.GA30479@lst.de>
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+Message-ID: <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de>
+Date: Fri, 18 Jan 2019 12:10:26 +0100
 MIME-Version: 1.0
-In-Reply-To: <CAOuPNLiNtPFksCuZF_vL6+YuLG0i0umzQhMCyEN69h9tySn2Vw@mail.gmail.com>
+In-Reply-To: <20190118083539.GA30479@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Content-Language: de-DE
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Agarwal <pintu.ping@gmail.com>
-Cc: open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-mm@kvack.org, linux-pm@vger.kernel.org, kernelnewbies@kernelnewbies.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-On 1/18/2019 4:18 PM, Pintu Agarwal wrote:
-> On Fri, Jan 18, 2019 at 3:54 PM Sai Prakash Ranjan
-> <saiprakash.ranjan@codeaurora.org> wrote:
->>
->> Hi Pintu-san,
->>
->> On 1/18/2019 3:38 PM, Pintu Agarwal wrote:
->>> Hi All,
->>>
->>> Currently, I am trying to debug a boot up crash on some qualcomm
->>> snapdragon arm64 board with kernel 4.9.
->>> I could find the cause of the failure, but I am unable to locate from
->>> which subsystem/drivers this is getting triggered.
->>> If you have any ideas or suggestions to locate the issue, please let me know.
->>>
->>> This is the snapshot of crash logs:
->>> [    6.907065] Unable to handle kernel NULL pointer dereference at
->>> virtual address 00000000
->>> [    6.973938] PC is at 0x0
->>> [    6.976503] LR is at __ipipe_ack_fasteoi_irq+0x28/0x38
->>> [    7.151078] Process qmp_aop (pid: 24, stack limit = 0xfffffffbedc18000)
->>> [    7.242668] [<          (null)>]           (null)
->>> [    7.247416] [<ffffff9469f8d2e0>] __ipipe_dispatch_irq+0x78/0x340
->>> [    7.253469] [<ffffff9469e81564>] __ipipe_grab_irq+0x5c/0xd0
->>> [    7.341538] [<ffffff9469e81d68>] gic_handle_irq+0xc0/0x154
->>>
->>> [    6.288581] [PINTU]: __ipipe_ack_fasteoi_irq - called
->>> [    6.293698] [PINTU]: __ipipe_ack_fasteoi_irq:
->>> desc->irq_data.chip->irq_hold is NULL
->>>
->>> When I check, I found that the irq_hold implementation is missing in
->>> one of the irq_chip driver (expected by ipipe), which I am supposed to
->>> implement.
->>>
->>> But I am unable to locate which irq_chip driver.
->>> If there are any good techniques to locate this in kernel, please help.
->>>
->>
->> Could you please tell which QCOM SoC this board is based on?
->>
-> 
-> Snapdragon 845 with kernel 4.9.x
-> I want to know from which subsystem it is triggered:drivers/soc/qcom/
-> 
+For which commit?
 
-Irqchip driver is "drivers/irqchip/irq-gic-v3.c". The kernel you are 
-using is msm-4.9 I suppose or some other kernel?
+-- Christian
 
-- Sai
--- 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a member
-of Code Aurora Forum, hosted by The Linux Foundation
+On 18 January 2019 at 09:35AM, Christoph Hellwig wrote:
+> Hi Christian,
+>
+> can you check if the debug printks in this patch trigger?
+>
+> diff --git a/kernel/dma/direct.c b/kernel/dma/direct.c
+> index 355d16acee6d..e46c9b64ec0d 100644
+> --- a/kernel/dma/direct.c
+> +++ b/kernel/dma/direct.c
+> @@ -118,8 +118,11 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
+>   			page = NULL;
+>   		}
+>   	}
+> -	if (!page)
+> +	if (!page) {
+>   		page = alloc_pages_node(dev_to_node(dev), gfp, page_order);
+> +		if (!page)
+> +			pr_warn("failed to allocate memory with gfp 0x%x\n", gfp);
+> +	}
+>   
+>   	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
+>   		__free_pages(page, page_order);
+> @@ -139,6 +142,10 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
+>   		}
+>   	}
+>   
+> +	if (!page) {
+> +		pr_warn("failed to allocate DMA memory!\n");
+> +		dump_stack();
+> +	}
+>   	return page;
+>   }
+>   
+>
