@@ -1,133 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C18448E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 08:44:10 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id c34so4879698edb.8
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 05:44:10 -0800 (PST)
-Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
-        by mx.google.com with ESMTPS id gv13-v6si2149371ejb.271.2019.01.18.05.44.09
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3347E8E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 08:51:03 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id v4so4871803edm.18
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 05:51:03 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 6si4378990edo.295.2019.01.18.05.51.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 05:44:09 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id EA924B8AA5
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 13:44:08 +0000 (GMT)
-Date: Fri, 18 Jan 2019 13:44:07 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 22/25] mm, compaction: Sample pageblocks for free pages
-Message-ID: <20190118134407.GP27437@techsingularity.net>
+        Fri, 18 Jan 2019 05:51:01 -0800 (PST)
+Subject: Re: [PATCH 25/25] mm, compaction: Do not direct compact remote memory
 References: <20190104125011.16071-1-mgorman@techsingularity.net>
- <20190104125011.16071-23-mgorman@techsingularity.net>
- <4e4529b5-c723-45cd-bdc9-068121d59859@suse.cz>
+ <20190104125011.16071-26-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <84a7b23a-1cb7-b888-4245-6b1e829f472b@suse.cz>
+Date: Fri, 18 Jan 2019 14:51:00 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4e4529b5-c723-45cd-bdc9-068121d59859@suse.cz>
+In-Reply-To: <20190104125011.16071-26-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, ying.huang@intel.com, kirill@shutemov.name, Andrew Morton <akpm@linux-foundation.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
 
-On Fri, Jan 18, 2019 at 11:38:38AM +0100, Vlastimil Babka wrote:
-> On 1/4/19 1:50 PM, Mel Gorman wrote:
-> > Once fast searching finishes, there is a possibility that the linear
-> > scanner is scanning full blocks found by the fast scanner earlier. This
-> > patch uses an adaptive stride to sample pageblocks for free pages. The
-> > more consecutive full pageblocks encountered, the larger the stride until
-> > a pageblock with free pages is found. The scanners might meet slightly
-> > sooner but it is an acceptable risk given that the search of the free
-> > lists may still encounter the pages and adjust the cached PFN of the free
-> > scanner accordingly.
-> > 
-> > In terms of latency and success rates, the impact is not obvious but the
-> > free scan rate is reduced by 87% on a 1-socket machine and 92% on a
-> > 2-socket machine. It's also the first time in the series where the number
-> > of pages scanned by the migration scanner is greater than the free scanner
-> > due to the increased search efficiency.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On 1/4/19 1:50 PM, Mel Gorman wrote:
+> Remote compaction is expensive and possibly counter-productive. Locality
+> is expected to often have better performance characteristics than remote
+> high-order pages. For small allocations, it's expected that locality is
+> generally required or fallbacks are possible. For larger allocations such
+> as THP, they are forbidden at the time of writing but if __GFP_THISNODE
+> is ever removed, then it would still be preferable to fallback to small
+> local base pages over remote THP in the general case. kcompactd is still
+> woken via kswapd so compaction happens eventually.
 > 
-> OK, I admit this is quite counterintuitive to me. I would have expected
-> this change to result in meeting scanners much more sooner, while
-> missing many free pages (especially when starting with stride 32 for
-> async compaction). I would have expected that pageblocks that we already
-> depleted are marked for skipping, while freeing pages by reclaim
-> scatters them randomly in the remaining ones, and this will then miss
-> many. But you have benchmarking data so I won't object :)
+> While this patch potentially has both positive and negative effects,
+> it is best to avoid the possibility of remote compaction given the cost
+> relative to any potential benefit.
 > 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-So, it comes down to probabilities to some extent which we cannot
-really calculate because they are a function of the reference string
-for allocations and frees in combination with compaction activity both
-of which depend on the workload.
+Generally agree with the intent, but what if there's e.g. high-order (but not
+costly) kernel allocation on behalf of user process on cpu belonging to a
+movable node, where the only non-movable node is node 0. It will have to keep
+reclaiming until a large enough page is formed, or wait for kcompactd?
+So maybe do this only for costly orders?
 
-Fundamentally, the key is that compaction typically moves data from lower
-addresses to higher addresses. The longer compaction is running, the more
-packed the higher addresses become until there are no free pages. When
-the fast search fails and the linear search starts, it has to proceed
-through a large number of pageblocks that have been tightly packed one
-page at a time. However, the location of the free pages doesn't change
-very much so the locationwhere compaction finds a target and when the
-scanners meet doesn't change by very much at all.
+Also I think compaction_zonelist_suitable() should be also updated, or we might
+be promising the reclaim-compact loop e.g. that we will compact after enough
+reclaim, but then we won't.
 
-Now, with sampling, some candidates might be missed depending on the
-size of the stride and the scanners meet fractionally sooner but the
-difference is very marginal. The difference is that we skip over heavily
-packed pageblocks much quicker.
-
-Does that help the counterintuitive nature of the patch?
-
-> > ---
-> >  mm/compaction.c | 27 +++++++++++++++++++++------
-> >  1 file changed, 21 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 652e249168b1..cc532e81a7b7 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -441,6 +441,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
-> >  				unsigned long *start_pfn,
-> >  				unsigned long end_pfn,
-> >  				struct list_head *freelist,
-> > +				unsigned int stride,
-> >  				bool strict)
-> >  {
-> >  	int nr_scanned = 0, total_isolated = 0;
-> > @@ -450,10 +451,14 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
-> >  	unsigned long blockpfn = *start_pfn;
-> >  	unsigned int order;
-> >  
-> > +	/* Strict mode is for isolation, speed is secondary */
-> > +	if (strict)
-> > +		stride = 1;
+> ---
+>  mm/compaction.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
 > 
-> Why not just call this from strict context with stride 1, instead of
-> passing 0 and then changing it to 1.
-
-No particular reason other than I wanted to make it clear that strict
-mode shouldn't play games with stride. I can change it if you prefer.
-
-> > @@ -1412,6 +1420,13 @@ static void isolate_freepages(struct compact_control *cc)
-> >  			 */
-> >  			break;
-> >  		}
-> > +
-> > +		/* Adjust stride depending on isolation */
-> > +		if (nr_isolated) {
-> > +			stride = 1;
-> > +			continue;
-> > +		}
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index ae70be023b21..cc17f0c01811 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -2348,6 +2348,16 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  			continue;
+>  		}
+>  
+> +		/*
+> +		 * Do not compact remote memory. It's expensive and high-order
+> +		 * small allocations are expected to prefer or require local
+> +		 * memory. Similarly, larger requests such as THP can fallback
+> +		 * to base pages in preference to remote huge pages if
+> +		 * __GFP_THISNODE is not specified
+> +		 */
+> +		if (zone_to_nid(zone) != zone_to_nid(ac->preferred_zoneref->zone))
+> +			continue;
+> +
+>  		status = compact_zone_order(zone, order, gfp_mask, prio,
+>  				alloc_flags, ac_classzone_idx(ac), capture);
+>  		rc = max(status, rc);
 > 
-> If we hit a free page with a large stride, wouldn't it make sense to
-> reset it to 1 immediately in the same pageblock, and possibly also start
-> over from its beginning, if the assumption is that free pages appear
-> close together?
-> 
-
-I felt that the likely benefit would be marginal and without additional
-complexity, we end up scanning the same pageblock twice. I didn't think
-the marginal upside was worth it.
-
--- 
-Mel Gorman
-SUSE Labs
