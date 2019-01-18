@@ -1,50 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6843A8E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 10:20:47 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id b24so8314385pls.11
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 07:20:47 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id w75si4970168pfd.55.2019.01.18.07.20.45
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AFBC8E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 12:53:00 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id d41so5132626eda.12
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 09:53:00 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id h13si7559633edf.24.2019.01.18.09.52.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 07:20:46 -0800 (PST)
-Subject: Re: [PATCH 4/4] dax: "Hotplug" persistent memory for use like normal
- RAM
-References: <20190116181859.D1504459@viggo.jf.intel.com>
- <20190116181905.12E102B4@viggo.jf.intel.com>
- <5ef5d5e9-9d35-fb84-b69e-7456dcf4c241@linux.intel.com>
- <1e9377c6-11a0-3bbd-763d-d9347bd556cf@intel.com>
- <74c01a55-1a47-d649-a32a-ea597c24ab4a@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <49681805-b521-71c9-23c0-9bb35d25ba58@intel.com>
-Date: Fri, 18 Jan 2019 07:20:43 -0800
-MIME-Version: 1.0
-In-Reply-To: <74c01a55-1a47-d649-a32a-ea597c24ab4a@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        Fri, 18 Jan 2019 09:52:58 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 579DF1C35A9
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 17:52:58 +0000 (GMT)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 07/22] mm, compaction: Always finish scanning of a full pageblock
+Date: Fri, 18 Jan 2019 17:51:21 +0000
+Message-Id: <20190118175136.31341-8-mgorman@techsingularity.net>
+In-Reply-To: <20190118175136.31341-1-mgorman@techsingularity.net>
+References: <20190118175136.31341-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yanmin Zhang <yanmin_zhang@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, dave@sr71.net
-Cc: dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com, baiyaowei@cmss.chinamobile.com, tiwai@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On 1/17/19 11:47 PM, Yanmin Zhang wrote:
-> a chance for kernel to allocate PMEM as DMA buffer.
-> Some super speed devices like 10Giga NIC, USB (SSIC connecting modem),
-> might not work well if DMA buffer is in PMEM as it's slower than DRAM.
-> 
-> Should your patchset consider it?
+When compaction is finishing, it uses a flag to ensure the pageblock
+is complete but it makes sense to always complete migration of a
+pageblock. Minimally, skip information is based on a pageblock and
+partially scanned pageblocks may incur more scanning in the future. The
+pageblock skip handling also becomes more strict later in the series and
+the hint is more useful if a complete pageblock was always scanned.
 
-No, I don't think so.
+The potentially impacts latency as more scanning is done but it's not a
+consistent win or loss as the scanning is not always a high percentage
+of the pageblock and sometimes it is offset by future reductions
+in scanning. Hence, the results are not presented this time due to a
+misleading mix of gains/losses without any clear pattern. However, full
+scanning of the pageblock is important for later patches.
 
-They can DMA to persistent memory whether this patch set exists or not.
- So, if the hardware falls over, that's a separate problem.
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/compaction.c | 19 ++++++++-----------
+ mm/internal.h   |  1 -
+ 2 files changed, 8 insertions(+), 12 deletions(-)
 
-If an app wants memory that performs in a particular way, then I would
-suggest those app find the NUMA nodes on the system that match their
-needs with these patches:
-
-> http://lkml.kernel.org/r/20190116175804.30196-1-keith.busch@intel.com
-
-and use the existing NUMA APIs to select that memory.
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 32a88b49f973..3d11c209614a 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1331,16 +1331,14 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ 	if (is_via_compact_memory(cc->order))
+ 		return COMPACT_CONTINUE;
+ 
+-	if (cc->finishing_block) {
+-		/*
+-		 * We have finished the pageblock, but better check again that
+-		 * we really succeeded.
+-		 */
+-		if (IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages))
+-			cc->finishing_block = false;
+-		else
+-			return COMPACT_CONTINUE;
+-	}
++	/*
++	 * Always finish scanning a pageblock to reduce the possibility of
++	 * fallbacks in the future. This is particularly important when
++	 * migration source is unmovable/reclaimable but it's not worth
++	 * special casing.
++	 */
++	if (!IS_ALIGNED(cc->migrate_pfn, pageblock_nr_pages))
++		return COMPACT_CONTINUE;
+ 
+ 	/* Direct compactor: Is a suitable page free? */
+ 	for (order = cc->order; order < MAX_ORDER; order++) {
+@@ -1382,7 +1380,6 @@ static enum compact_result __compact_finished(struct compact_control *cc)
+ 				return COMPACT_SUCCESS;
+ 			}
+ 
+-			cc->finishing_block = true;
+ 			return COMPACT_CONTINUE;
+ 		}
+ 	}
+diff --git a/mm/internal.h b/mm/internal.h
+index f40d06d70683..9b32f4cab0ae 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -203,7 +203,6 @@ struct compact_control {
+ 	bool direct_compaction;		/* False from kcompactd or /proc/... */
+ 	bool whole_zone;		/* Whole zone should/has been scanned */
+ 	bool contended;			/* Signal lock or sched contention */
+-	bool finishing_block;		/* Finishing current pageblock */
+ };
+ 
+ unsigned long
+-- 
+2.16.4
