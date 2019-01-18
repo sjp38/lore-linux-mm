@@ -1,43 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B8FD98E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 06:20:22 -0500 (EST)
-Received: by mail-vs1-f70.google.com with SMTP id w22so5721884vsj.15
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 03:20:22 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b19sor2530773uak.40.2019.01.18.03.20.21
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 908588E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 06:28:44 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id v16so6495571wru.8
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 03:28:44 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id a8si66228031wrg.342.2019.01.18.03.28.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 18 Jan 2019 03:20:21 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Jan 2019 03:28:43 -0800 (PST)
+Date: Fri, 18 Jan 2019 12:28:42 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: use generic DMA mapping code in powerpc V4
+Message-ID: <20190118112842.GA9115@lst.de>
+References: <075f70e3-7a4a-732f-b501-05a1a8e3c853@xenosoft.de> <b04d08ea-61f9-3212-b9a3-ad79e3b8bd05@xenosoft.de> <21f72a6a-9095-7034-f169-95e876228b2a@xenosoft.de> <27148ac2-2a92-5536-d886-2c0971ab43d9@xenosoft.de> <20190115133558.GA29225@lst.de> <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de> <20190115151732.GA2325@lst.de> <e9345547-4dc6-747a-29ec-6375dc8bfe83@xenosoft.de> <20190118083539.GA30479@lst.de> <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de>
 MIME-Version: 1.0
-References: <CAOuPNLj4QzNDt0npZn2LhZTFgDNJ1CsWPw3=wvUuxnGtQW308g@mail.gmail.com>
- <bceb32be-d508-c2a4-fa81-ab8b90323d3f@codeaurora.org> <CAOuPNLiNtPFksCuZF_vL6+YuLG0i0umzQhMCyEN69h9tySn2Vw@mail.gmail.com>
- <57ff3437-47b5-fe92-d576-084ce26aa5d8@codeaurora.org>
-In-Reply-To: <57ff3437-47b5-fe92-d576-084ce26aa5d8@codeaurora.org>
-From: Pintu Agarwal <pintu.ping@gmail.com>
-Date: Fri, 18 Jan 2019 16:50:10 +0530
-Message-ID: <CAOuPNLjjd67FnjaHbJj_auD-EWnbc+6sc+hcT_HE6fjeKhEQrw@mail.gmail.com>
-Subject: Re: Need help: how to locate failure from irq_chip subsystem
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
-Cc: open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-mm@kvack.org, linux-pm@vger.kernel.org, kernelnewbies@kernelnewbies.org
+To: Christian Zigotzky <chzigotzky@xenosoft.de>
+Cc: Christoph Hellwig <hch@lst.de>, linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-> >> Could you please tell which QCOM SoC this board is based on?
-> >>
-> >
-> > Snapdragon 845 with kernel 4.9.x
-> > I want to know from which subsystem it is triggered:drivers/soc/qcom/
-> >
->
-> Irqchip driver is "drivers/irqchip/irq-gic-v3.c". The kernel you are
-> using is msm-4.9 I suppose or some other kernel?
->
-Yes, I am using customized version of msm-4.9 kernel based on Android.
-And yes the irqchip driver is: irq-gic-v3, which I can see from config.
+On Fri, Jan 18, 2019 at 12:10:26PM +0100, Christian Zigotzky wrote:
+> For which commit?
 
-But, what I wanted to know is, how to find out which driver module
-(hopefully under: /drivers/soc/qcom/) that register with this
-irq_chip, is getting triggered at the time of crash ?
-So, that I can implement irq_hold function for it, which is the cause of crash.
+On top of 257002094bc5935dd63207a380d9698ab81f0775, that is the first
+one you identified as breaking the detection of the SATA disks.
