@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D0C28E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 12:53:41 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id b7so5259311eda.10
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 09:53:41 -0800 (PST)
-Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
-        by mx.google.com with ESMTPS id h13-v6si4521001eja.107.2019.01.18.09.53.39
+	by kanga.kvack.org (Postfix) with ESMTP id 3A8ED8E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 12:53:51 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id i55so5264060ede.14
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 09:53:51 -0800 (PST)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id k13si3535974edl.377.2019.01.18.09.53.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 09:53:39 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id F3E431C35B5
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 17:53:38 +0000 (GMT)
+        Fri, 18 Jan 2019 09:53:49 -0800 (PST)
+Received: from mail.blacknight.com (unknown [81.17.254.16])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 2B06B1C35C8
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 17:53:49 +0000 (GMT)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 11/22] mm, compaction: Use free lists to quickly locate a migration target
-Date: Fri, 18 Jan 2019 17:51:25 +0000
-Message-Id: <20190118175136.31341-12-mgorman@techsingularity.net>
+Subject: [PATCH 12/22] mm, compaction: Avoid rescanning the same pageblock multiple times
+Date: Fri, 18 Jan 2019 17:51:26 +0000
+Message-Id: <20190118175136.31341-13-mgorman@techsingularity.net>
 In-Reply-To: <20190118175136.31341-1-mgorman@techsingularity.net>
 References: <20190118175136.31341-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,312 +23,131 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Similar to the migration scanner, this patch uses the free lists to quickly
-locate a migration target. The search is different in that lower orders
-will be searched for a suitable high PFN if necessary but the search
-is still bound. This is justified on the grounds that the free scanner
-typically scans linearly much more than the migration scanner.
+Pageblocks are marked for skip when no pages are isolated after a scan.
+However, it's possible to hit corner cases where the migration scanner
+gets stuck near the boundary between the source and target scanner. Due
+to pages being migrated in blocks of COMPACT_CLUSTER_MAX, pages that
+are migrated can be reallocated before the pageblock is complete. The
+pageblock is not necessarily skipped so it can be rescanned multiple
+times. Similarly, a pageblock with some dirty/writeback pages may fail
+to migrate and be rescanned until writeback completes which is wasteful.
 
-If a free page is found, it is isolated and compaction continues if enough
-pages were isolated. For SYNC* scanning, the full pageblock is scanned
-for any remaining free pages so that is can be marked for skipping in
-the near future.
+This patch tracks if a pageblock is being rescanned. If so, then the entire
+pageblock will be migrated as one operation. This narrows the race window
+during which pages can be reallocated during migration. Secondly, if there
+are pages that cannot be isolated then the pageblock will still be fully
+scanned and marked for skipping. On the second rescan, the pageblock skip
+is set and the migration scanner makes progress.
 
-1-socket thpfioscale
                                      5.0.0-rc1              5.0.0-rc1
-                                 isolmig-v3r15         findfree-v3r16
-Amean     fault-both-3      3024.41 (   0.00%)     3200.68 (  -5.83%)
-Amean     fault-both-5      4749.30 (   0.00%)     4847.75 (  -2.07%)
-Amean     fault-both-7      6454.95 (   0.00%)     6658.92 (  -3.16%)
-Amean     fault-both-12    10324.83 (   0.00%)    11077.62 (  -7.29%)
-Amean     fault-both-18    12896.82 (   0.00%)    12403.97 (   3.82%)
-Amean     fault-both-24    13470.60 (   0.00%)    15607.10 * -15.86%*
-Amean     fault-both-30    17143.99 (   0.00%)    18752.27 (  -9.38%)
-Amean     fault-both-32    17743.91 (   0.00%)    21207.54 * -19.52%*
+                                findfree-v3r16         norescan-v3r16
+Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
+Amean     fault-both-3      3200.68 (   0.00%)     3002.07 (   6.21%)
+Amean     fault-both-5      4847.75 (   0.00%)     4684.47 (   3.37%)
+Amean     fault-both-7      6658.92 (   0.00%)     6815.54 (  -2.35%)
+Amean     fault-both-12    11077.62 (   0.00%)    10864.02 (   1.93%)
+Amean     fault-both-18    12403.97 (   0.00%)    12247.52 (   1.26%)
+Amean     fault-both-24    15607.10 (   0.00%)    15683.99 (  -0.49%)
+Amean     fault-both-30    18752.27 (   0.00%)    18620.02 (   0.71%)
+Amean     fault-both-32    21207.54 (   0.00%)    19250.28 *   9.23%*
 
-The impact on latency is variable but the search is optimistic and
-sensitive to the exact system state. Success rates are similar but
-the major impact is to the rate of scanning
+                                5.0.0-rc1              5.0.0-rc1
+                           findfree-v3r16         norescan-v3r16
+Percentage huge-3        96.86 (   0.00%)       95.00 (  -1.91%)
+Percentage huge-5        93.72 (   0.00%)       94.22 (   0.53%)
+Percentage huge-7        94.31 (   0.00%)       92.35 (  -2.08%)
+Percentage huge-12       92.66 (   0.00%)       91.90 (  -0.82%)
+Percentage huge-18       91.51 (   0.00%)       89.58 (  -2.11%)
+Percentage huge-24       90.50 (   0.00%)       90.03 (  -0.52%)
+Percentage huge-30       91.57 (   0.00%)       89.14 (  -2.65%)
+Percentage huge-32       91.00 (   0.00%)       90.58 (  -0.46%)
 
-                                5.0.0-rc1      5.0.0-rc1
-                            isolmig-v3r15 findfree-v3r16
-Compaction migrate scanned    25646769          29507205
-Compaction free scanned      201558184         100359571
+Negligible difference but this was likely a case when the specific corner
+case was not hit. A previous run of the same patch based on an earlier
+iteration of the series showed large differences where migration rates
+could be halved when the corner case was hit.
 
-The free scan rates are reduced by 50%. The 2-socket reductions for the
-free scanner are more dramatic which is a likely reflection that the
-machine has more memory.
+The specific corner case where migration scan rates go through the roof
+was due to a dirty/writeback pageblock located at the boundary of the
+migration/free scanner did not happen in this case. When it does happen,
+the scan rates multipled by massive margins.
 
-[dan.carpenter@oracle.com: Fix static checker warning]
-[vbabka@suse.cz: Correct number of pages scanned for lower orders]
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 218 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 213 insertions(+), 5 deletions(-)
+ mm/compaction.c | 32 ++++++++++++++++++++++++++------
+ mm/internal.h   |  1 +
+ 2 files changed, 27 insertions(+), 6 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 7c4c9cce7907..19fea4a7b3f4 100644
+index 19fea4a7b3f4..a31fea7b3f96 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1124,7 +1124,29 @@ static inline bool compact_scanners_met(struct compact_control *cc)
- 		<= (cc->migrate_pfn >> pageblock_order);
- }
+@@ -949,8 +949,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		cc->nr_migratepages++;
+ 		nr_isolated++;
  
--/* Reorder the free list to reduce repeated future searches */
-+/*
-+ * Used when scanning for a suitable migration target which scans freelists
-+ * in reverse. Reorders the list such as the unscanned pages are scanned
-+ * first on the next iteration of the free scanner
-+ */
-+static void
-+move_freelist_head(struct list_head *freelist, struct page *freepage)
-+{
-+	LIST_HEAD(sublist);
-+
-+	if (!list_is_last(freelist, &freepage->lru)) {
-+		list_cut_before(&sublist, freelist, &freepage->lru);
-+		if (!list_empty(&sublist))
-+			list_splice_tail(&sublist, freelist);
-+	}
-+}
-+
-+/*
-+ * Similar to move_freelist_head except used by the migration scanner
-+ * when scanning forward. It's possible for these list operations to
-+ * move against each other if they search the free list exactly in
-+ * lockstep.
-+ */
- static void
- move_freelist_tail(struct list_head *freelist, struct page *freepage)
- {
-@@ -1137,6 +1159,186 @@ move_freelist_tail(struct list_head *freelist, struct page *freepage)
- 	}
- }
- 
-+static void
-+fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long nr_isolated)
-+{
-+	unsigned long start_pfn, end_pfn;
-+	struct page *page = pfn_to_page(pfn);
-+
-+	/* Do not search around if there are enough pages already */
-+	if (cc->nr_freepages >= cc->nr_migratepages)
-+		return;
-+
-+	/* Minimise scanning during async compaction */
-+	if (cc->direct_compaction && cc->mode == MIGRATE_ASYNC)
-+		return;
-+
-+	/* Pageblock boundaries */
-+	start_pfn = pageblock_start_pfn(pfn);
-+	end_pfn = min(start_pfn + pageblock_nr_pages, zone_end_pfn(cc->zone));
-+
-+	/* Scan before */
-+	if (start_pfn != pfn) {
-+		isolate_freepages_block(cc, &start_pfn, pfn, &cc->freepages, false);
-+		if (cc->nr_freepages >= cc->nr_migratepages)
-+			return;
-+	}
-+
-+	/* Scan after */
-+	start_pfn = pfn + nr_isolated;
-+	if (start_pfn != end_pfn)
-+		isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, false);
-+
-+	/* Skip this pageblock in the future as it's full or nearly full */
-+	if (cc->nr_freepages < cc->nr_migratepages)
-+		set_pageblock_skip(page);
-+}
-+
-+static unsigned long
-+fast_isolate_freepages(struct compact_control *cc)
-+{
-+	unsigned int limit = min(1U, freelist_scan_limit(cc) >> 1);
-+	unsigned int nr_scanned = 0;
-+	unsigned long low_pfn, min_pfn, high_pfn = 0, highest = 0;
-+	unsigned long nr_isolated = 0;
-+	unsigned long distance;
-+	struct page *page = NULL;
-+	bool scan_start = false;
-+	int order;
-+
-+	/* Full compaction passes in a negative order */
-+	if (cc->order <= 0)
-+		return cc->free_pfn;
-+
-+	/*
-+	 * If starting the scan, use a deeper search and use the highest
-+	 * PFN found if a suitable one is not found.
-+	 */
-+	if (cc->free_pfn == pageblock_start_pfn(zone_end_pfn(cc->zone) - 1)) {
-+		limit = pageblock_nr_pages >> 1;
-+		scan_start = true;
-+	}
-+
-+	/*
-+	 * Preferred point is in the top quarter of the scan space but take
-+	 * a pfn from the top half if the search is problematic.
-+	 */
-+	distance = (cc->free_pfn - cc->migrate_pfn);
-+	low_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 2));
-+	min_pfn = pageblock_start_pfn(cc->free_pfn - (distance >> 1));
-+
-+	if (WARN_ON_ONCE(min_pfn > low_pfn))
-+		low_pfn = min_pfn;
-+
-+	for (order = cc->order - 1;
-+	     order >= 0 && !page;
-+	     order--) {
-+		struct free_area *area = &cc->zone->free_area[order];
-+		struct list_head *freelist;
-+		struct page *freepage;
-+		unsigned long flags;
-+		unsigned int order_scanned = 0;
-+
-+		if (!area->nr_free)
-+			continue;
-+
-+		spin_lock_irqsave(&cc->zone->lock, flags);
-+		freelist = &area->free_list[MIGRATE_MOVABLE];
-+		list_for_each_entry_reverse(freepage, freelist, lru) {
-+			unsigned long pfn;
-+
-+			order_scanned++;
-+			nr_scanned++;
-+			pfn = page_to_pfn(freepage);
-+
-+			if (pfn >= highest)
-+				highest = pageblock_start_pfn(pfn);
-+
-+			if (pfn >= low_pfn) {
-+				cc->fast_search_fail = 0;
-+				page = freepage;
-+				break;
-+			}
-+
-+			if (pfn >= min_pfn && pfn > high_pfn) {
-+				high_pfn = pfn;
-+
-+				/* Shorten the scan if a candidate is found */
-+				limit >>= 1;
-+			}
-+
-+			if (order_scanned >= limit)
-+				break;
-+		}
-+
-+		/* Use a minimum pfn if a preferred one was not found */
-+		if (!page && high_pfn) {
-+			page = pfn_to_page(high_pfn);
-+
-+			/* Update freepage for the list reorder below */
-+			freepage = page;
-+		}
-+
-+		/* Reorder to so a future search skips recent pages */
-+		move_freelist_head(freelist, freepage);
-+
-+		/* Isolate the page if available */
-+		if (page) {
-+			if (__isolate_free_page(page, order)) {
-+				set_page_private(page, order);
-+				nr_isolated = 1 << order;
-+				cc->nr_freepages += nr_isolated;
-+				list_add_tail(&page->lru, &cc->freepages);
-+				count_compact_events(COMPACTISOLATED, nr_isolated);
-+			} else {
-+				/* If isolation fails, abort the search */
-+				order = -1;
-+				page = NULL;
-+			}
-+		}
-+
-+		spin_unlock_irqrestore(&cc->zone->lock, flags);
-+
+-		/* Avoid isolating too much */
+-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
 +		/*
-+		 * Smaller scan on next order so the total scan ig related
-+		 * to freelist_scan_limit.
++		 * Avoid isolating too much unless this block is being
++		 * rescanned (e.g. dirty/writeback pages, parallel allocation).
 +		 */
-+		if (order_scanned >= limit)
-+			limit = min(1U, limit >> 1);
-+	}
-+
-+	if (!page) {
-+		cc->fast_search_fail++;
-+		if (scan_start) {
-+			/*
-+			 * Use the highest PFN found above min. If one was
-+			 * not found, be pessemistic for direct compaction
-+			 * and use the min mark.
-+			 */
-+			if (highest) {
-+				page = pfn_to_page(highest);
-+				cc->free_pfn = highest;
-+			} else {
-+				if (cc->direct_compaction) {
-+					page = pfn_to_page(min_pfn);
-+					cc->free_pfn = min_pfn;
-+				}
-+			}
-+		}
-+	}
-+
-+	if (highest && highest > cc->zone->compact_cached_free_pfn)
-+		cc->zone->compact_cached_free_pfn = highest;
-+
-+	cc->total_free_scanned += nr_scanned;
-+	if (!page)
-+		return cc->free_pfn;
-+
-+	low_pfn = page_to_pfn(page);
-+	fast_isolate_around(cc, low_pfn, nr_isolated);
-+	return low_pfn;
-+}
-+
- /*
-  * Based on information in the current compact_control, find blocks
-  * suitable for isolating free pages from and then isolate them.
-@@ -1151,6 +1353,11 @@ static void isolate_freepages(struct compact_control *cc)
- 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
- 	struct list_head *freelist = &cc->freepages;
- 
-+	/* Try a small search of the free lists for a candidate */
-+	isolate_start_pfn = fast_isolate_freepages(cc);
-+	if (cc->nr_freepages)
-+		goto splitmap;
-+
- 	/*
- 	 * Initialise the free scanner. The starting point is where we last
- 	 * successfully isolated from, zone-cached value, or the end of the
-@@ -1163,7 +1370,7 @@ static void isolate_freepages(struct compact_control *cc)
- 	 * is using.
- 	 */
- 	isolate_start_pfn = cc->free_pfn;
--	block_start_pfn = pageblock_start_pfn(cc->free_pfn);
-+	block_start_pfn = pageblock_start_pfn(isolate_start_pfn);
- 	block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
- 						zone_end_pfn(zone));
- 	low_pfn = pageblock_end_pfn(cc->migrate_pfn);
-@@ -1227,9 +1434,6 @@ static void isolate_freepages(struct compact_control *cc)
++		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX && !cc->rescan) {
+ 			++low_pfn;
+ 			break;
  		}
- 	}
+@@ -997,11 +1000,14 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
  
--	/* __isolate_free_page() does not map the pages */
--	split_map_pages(freelist);
--
  	/*
- 	 * Record where the free scanner will restart next time. Either we
- 	 * broke from the loop and set isolate_start_pfn based on the last
-@@ -1237,6 +1441,10 @@ static void isolate_freepages(struct compact_control *cc)
- 	 * and the loop terminated due to isolate_start_pfn < low_pfn
+-	 * Updated the cached scanner pfn if the pageblock was scanned
+-	 * without isolating a page. The pageblock may not be marked
+-	 * skipped already if there were no LRU pages in the block.
++	 * Updated the cached scanner pfn once the pageblock has been scanned
++	 * Pages will either be migrated in which case there is no point
++	 * scanning in the near future or migration failed in which case the
++	 * failure reason may persist. The block is marked for skipping if
++	 * there were no pages isolated in the block or if the block is
++	 * rescanned twice in a row.
  	 */
- 	cc->free_pfn = isolate_start_pfn;
-+
-+splitmap:
-+	/* __isolate_free_page() does not map the pages */
-+	split_map_pages(freelist);
- }
+-	if (low_pfn == end_pfn && !nr_isolated) {
++	if (low_pfn == end_pfn && (!nr_isolated || cc->rescan)) {
+ 		if (valid_page && !skip_updated)
+ 			set_pageblock_skip(valid_page);
+ 		update_cached_migrate(cc, low_pfn);
+@@ -2033,6 +2039,20 @@ static enum compact_result compact_zone(struct compact_control *cc)
+ 		int err;
+ 		unsigned long start_pfn = cc->migrate_pfn;
  
- /*
++		/*
++		 * Avoid multiple rescans which can happen if a page cannot be
++		 * isolated (dirty/writeback in async mode) or if the migrated
++		 * pages are being allocated before the pageblock is cleared.
++		 * The first rescan will capture the entire pageblock for
++		 * migration. If it fails, it'll be marked skip and scanning
++		 * will proceed as normal.
++		 */
++		cc->rescan = false;
++		if (pageblock_start_pfn(last_migrated_pfn) ==
++		    pageblock_start_pfn(start_pfn)) {
++			cc->rescan = true;
++		}
++
+ 		switch (isolate_migratepages(cc->zone, cc)) {
+ 		case ISOLATE_ABORT:
+ 			ret = COMPACT_CONTENDED;
+diff --git a/mm/internal.h b/mm/internal.h
+index 983cb975545f..d5b999e5eb5f 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -205,6 +205,7 @@ struct compact_control {
+ 	bool direct_compaction;		/* False from kcompactd or /proc/... */
+ 	bool whole_zone;		/* Whole zone should/has been scanned */
+ 	bool contended;			/* Signal lock or sched contention */
++	bool rescan;			/* Rescanning the same pageblock */
+ };
+ 
+ unsigned long
 -- 
 2.16.4
