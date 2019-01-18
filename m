@@ -1,100 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A178E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 03:16:12 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id m4so6419866wrr.4
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 00:16:12 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id j142si26111916wmj.106.2019.01.18.00.16.10
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AD368E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 03:23:41 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id y2so7734439plr.8
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 00:23:41 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id r11si4143780pli.175.2019.01.18.00.23.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 00:16:10 -0800 (PST)
-Date: Fri, 18 Jan 2019 09:16:09 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 14/17] mm: Make hibernate handle unmapped pages
-Message-ID: <20190118081609.GA10712@amd>
+        Fri, 18 Jan 2019 00:23:40 -0800 (PST)
+Date: Fri, 18 Jan 2019 17:23:34 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH 17/17] module: Prevent module removal racing with
+ text_poke()
+Message-Id: <20190118172334.d7b1bcd580c3f6c4ed388160@kernel.org>
+In-Reply-To: <B48C6E93-AD57-4FF8-BBE8-887A5E965793@vmware.com>
 References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-15-rick.p.edgecombe@intel.com>
- <20190117093950.GA17930@amd>
- <b224d88d91a5c45c44e176ea06dea558a8939ccf.camel@intel.com>
- <20190117234111.GA27661@amd>
- <3c12f9b3328ee32d04a6ed3990fdf0cd3cb27532.camel@intel.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="17pEHd4RhPHOinZp"
-Content-Disposition: inline
-In-Reply-To: <3c12f9b3328ee32d04a6ed3990fdf0cd3cb27532.camel@intel.com>
+	<20190117003259.23141-18-rick.p.edgecombe@intel.com>
+	<20190117165422.d33d1af83db8716e24960a3c@kernel.org>
+	<B48C6E93-AD57-4FF8-BBE8-887A5E965793@vmware.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "Dock, Deneen T" <deneen.t.dock@intel.com>, "linux-integrity@vger.kernel.org" <linux-integrity@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "linux-security-module@vger.kernel.org" <linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "mingo@redhat.com" <mingo@redhat.com>, "linux_dti@icloud.com" <linux_dti@icloud.com>, "luto@kernel.org" <luto@kernel.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "bp@alien8.de" <bp@alien8.de>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "rjw@rjwysocki.net" <rjw@rjwysocki.net>
+To: Nadav Amit <namit@vmware.com>
+Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Damian Tometzki <linux_dti@icloud.com>, linux-integrity <linux-integrity@vger.kernel.org>, LSM List <linux-security-module@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "deneen.t.dock@intel.com" <deneen.t.dock@intel.com>
 
+On Thu, 17 Jan 2019 18:07:03 +0000
+Nadav Amit <namit@vmware.com> wrote:
 
---17pEHd4RhPHOinZp
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> > On Jan 16, 2019, at 11:54 PM, Masami Hiramatsu <mhiramat@kernel.org> wrote:
+> > 
+> > On Wed, 16 Jan 2019 16:32:59 -0800
+> > Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
+> > 
+> >> From: Nadav Amit <namit@vmware.com>
+> >> 
+> >> It seems dangerous to allow code modifications to take place
+> >> concurrently with module unloading. So take the text_mutex while the
+> >> memory of the module is freed.
+> > 
+> > At that point, since the module itself is removed from module list,
+> > it seems no actual harm. Or would you have any concern?
+> 
+> So it appears that you are right and all the users of text_poke() and
+> text_poke_bp() do install module notifiers, and remove the module from their
+> internal data structure when they are done (*). As long as they prevent
+> text_poke*() to be called concurrently (e.g., using jump_label_lock()),
+> everything is fine.
+> 
+> Having said that, the question is whether you “trust” text_poke*() users to
+> do so. text_poke() description does not day explicitly that you need to
+> prevent modules from being removed.
+> 
+> What do you say?
 
-On Thu 2019-01-17 23:48:30, Edgecombe, Rick P wrote:
-> On Fri, 2019-01-18 at 00:41 +0100, Pavel Machek wrote:
-> > Hi!
-> >=20
-> > > > > For architectures with CONFIG_ARCH_HAS_SET_ALIAS, pages can be un=
-mapped
-> > > > > briefly on the directmap, even when CONFIG_DEBUG_PAGEALLOC is not
-> > > > > configured.
-> > > > > So this changes kernel_map_pages and kernel_page_present to be de=
-fined
-> > > > > when
-> > > > > CONFIG_ARCH_HAS_SET_ALIAS is defined as well. It also changes pla=
-ces
-> > > > > (page_alloc.c) where those functions are assumed to only be imple=
-mented
-> > > > > when
-> > > > > CONFIG_DEBUG_PAGEALLOC is defined.
-> > > >=20
-> > > > Which architectures are that?
-> > > >=20
-> > > > Should this be merged to the patch where HAS_SET_ALIAS is introduce=
-d? We
-> > > > don't want broken hibernation in between....
-> > >=20
-> > > Thanks for taking a look. It was added for x86 for patch 13 in this p=
-atchset
-> > > and
-> > > there was interest expressed for adding for arm64. If you didn't get =
-the
-> > > whole
-> > > set and want to see let me know and I can send it.
-> >=20
-> > I googled in in the meantime.
-> >=20
-> > Anyway, if something is broken between patch 13 and 14, then they
-> > should be same patch.
-> Great. It should be ok because the new functions are not used anywhere un=
-til
-> after this patch.
+I agreed, but in that case, this is just a fool proof. I think we should
+prevent this kind of bug by review, and should comment it on text_poke(),
+instead of locking text_mutex.
 
-Ok, that makes sense.
+What I thought was even if we take text_mutex here, such user can modify
+the (released) module code right after we exit this section.
 
-Acked-by: Pavel Machek <pavel@ucw.cz>
-									Pavel
+Maybe we'd better make text_poke() more smart?
 
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
+> (*) I am not sure about kgdb, but it probably does not matter much
 
---17pEHd4RhPHOinZp
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+I think we don't need to care about kgdb. It is a tool which should be able
+to shoot your feet and we can not prevent it. Only expert can avoid it. :)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+Thank you,
 
-iEYEARECAAYFAlxBi0kACgkQMOfwapXb+vKV/QCdFLyEDo+ouJctFO52d/hTAxAP
-oF0AoIpc7mH97WDF7SfB+pCr3f0ec1vR
-=niXa
------END PGP SIGNATURE-----
-
---17pEHd4RhPHOinZp--
+-- 
+Masami Hiramatsu <mhiramat@kernel.org>
