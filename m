@@ -1,106 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A1A998E0002
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2019 21:16:54 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id w185so10404992qka.9
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2019 18:16:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w190sor48924830qkw.68.2019.01.17.18.16.53
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A55B8E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 11:32:27 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id v2so8451184plg.6
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 08:32:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y78sor7888678pfk.45.2019.01.18.08.32.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 17 Jan 2019 18:16:53 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-Subject: [PATCH] mm/hotplug: invalid PFNs from pfn_to_online_page()
-Date: Thu, 17 Jan 2019 21:16:50 -0500
-Message-Id: <20190118021650.93222-1-cai@lca.pw>
-In-Reply-To: <51e79597-21ef-3073-9036-cfc33291f395@lca.pw>
-References: <51e79597-21ef-3073-9036-cfc33291f395@lca.pw>
+        Fri, 18 Jan 2019 08:32:25 -0800 (PST)
+From: Jens Axboe <axboe@kernel.dk>
+Subject: LSF/MM 2019: Call for Proposals
+Message-ID: <51b4b263-a0f2-113d-7bdc-f7960b540929@kernel.dk>
+Date: Fri, 18 Jan 2019 09:32:22 -0700
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: osalvador@suse.de, catalin.marinas@arm.com, mhocko@kernel.org, vbabka@suse.cz, linux-mm@kvack.org, Qian Cai <cai@lca.pw>
+To: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, IDE/ATA development list <linux-ide@vger.kernel.org>, linux-scsi <linux-scsi@vger.kernel.org>, "linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-On an arm64 ThunderX2 server, the first kmemleak scan would crash [1]
-with CONFIG_DEBUG_VM_PGFLAGS=y due to page_to_nid() found a pfn that is
-not directly mapped (MEMBLOCK_NOMAP). Hence, the page->flags is
-uninitialized.
+Hi,
 
-This is due to the commit 9f1eb38e0e11 ("mm, kmemleak: little
-optimization while scanning") starts to use pfn_to_online_page() instead
-of pfn_valid(). However, in the CONFIG_MEMORY_HOTPLUG=y case,
-pfn_to_online_page() does not call memblock_is_map_memory() while
-pfn_valid() does.
+The annual Linux Storage, Filesystem and Memory Management (LSF/MM)
+Summit for 2019 will be held from April 30 - May 2 at the Sheraton
+Puerto Rico Hotel & Casino Lodges in San Juan, Puerto Rico. LSF/MM is an
+invitation-only technical workshop to map out improvements to the Linux
+storage, filesystem and memory management subsystems that will make
+their way into the mainline kernel within the coming years.
 
-[1]
-[  102.195320] Unable to handle kernel NULL pointer dereference at virtual address 0000000000000006
-[  102.204113] Mem abort info:
-[  102.206921]   ESR = 0x96000005
-[  102.209997]   Exception class = DABT (current EL), IL = 32 bits
-[  102.215926]   SET = 0, FnV = 0
-[  102.218993]   EA = 0, S1PTW = 0
-[  102.222150] Data abort info:
-[  102.225047]   ISV = 0, ISS = 0x00000005
-[  102.228887]   CM = 0, WnR = 0
-[  102.231866] user pgtable: 64k pages, 48-bit VAs, pgdp = (____ptrval____)
-[  102.238572] [0000000000000006] pgd=0000000000000000, pud=0000000000000000
-[  102.245448] Internal error: Oops: 96000005 [#1] SMP
-[  102.264062] CPU: 60 PID: 1408 Comm: kmemleak Not tainted 5.0.0-rc2+ #8
-[  102.280403] pstate: 60400009 (nZCv daif +PAN -UAO)
-[  102.280409] pc : page_mapping+0x24/0x144
-[  102.280415] lr : __dump_page+0x34/0x3dc
-[  102.292923] sp : ffff00003a5cfd10
-[  102.296229] x29: ffff00003a5cfd10 x28: 000000000000802f
-[  102.301533] x27: 0000000000000000 x26: 0000000000277d00
-[  102.306835] x25: ffff000010791f56 x24: ffff7fe000000000
-[  102.312138] x23: ffff000010772f8b x22: ffff00001125f670
-[  102.317442] x21: ffff000011311000 x20: ffff000010772f8b
-[  102.322747] x19: fffffffffffffffe x18: 0000000000000000
-[  102.328049] x17: 0000000000000000 x16: 0000000000000000
-[  102.333352] x15: 0000000000000000 x14: ffff802698b19600
-[  102.338654] x13: ffff802698b1a200 x12: ffff802698b16f00
-[  102.343956] x11: ffff802698b1a400 x10: 0000000000001400
-[  102.349260] x9 : 0000000000000001 x8 : ffff00001121a000
-[  102.354563] x7 : 0000000000000000 x6 : ffff0000102c53b8
-[  102.359868] x5 : 0000000000000000 x4 : 0000000000000003
-[  102.365173] x3 : 0000000000000100 x2 : 0000000000000000
-[  102.370476] x1 : ffff000010772f8b x0 : ffffffffffffffff
-[  102.375782] Process kmemleak (pid: 1408, stack limit = 0x(____ptrval____))
-[  102.382648] Call trace:
-[  102.385091]  page_mapping+0x24/0x144
-[  102.388659]  __dump_page+0x34/0x3dc
-[  102.392140]  dump_page+0x28/0x4c
-[  102.395363]  kmemleak_scan+0x4ac/0x680
-[  102.399106]  kmemleak_scan_thread+0xb4/0xdc
-[  102.403285]  kthread+0x12c/0x13c
-[  102.406509]  ret_from_fork+0x10/0x18
-[  102.410080] Code: d503201f f9400660 36000040 d1000413 (f9400661)
-[  102.416357] ---[ end trace 4d4bd7f573490c8e ]---
-[  102.420966] Kernel panic - not syncing: Fatal exception
-[  102.426293] SMP: stopping secondary CPUs
-[  102.431830] Kernel Offset: disabled
-[  102.435311] CPU features: 0x002,20000c38
-[  102.439223] Memory Limit: none
-[  102.442384] ---[ end Kernel panic - not syncing: Fatal exception ]---
+https://events.linuxfoundation.org/events/linux-storage-filesystem-mm-summit-2019/
 
-Fixes: 2d070eab2e82 ("mm: consider zone which is not fully populated to
-have holes")
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- include/linux/memory_hotplug.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+LSF/MM 2019 will be a three day, stand-alone conference with three
+subsystem-specific tracks, cross-track discussions, as well as BoF and
+hacking sessions.
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 07da5c6c5ba0..b8b36e6ac43b 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -26,7 +26,7 @@ struct vmem_altmap;
- 	struct page *___page = NULL;			\
- 	unsigned long ___nr = pfn_to_section_nr(pfn);	\
- 							\
--	if (___nr < NR_MEM_SECTIONS && online_section_nr(___nr))\
-+	if (online_section_nr(___nr) && pfn_valid(pfn))	\
- 		___page = pfn_to_page(pfn);		\
- 	___page;					\
- })
+On behalf of the committee I am issuing a call for agenda proposals
+that are suitable for cross-track discussion as well as technical
+subjects for the breakout sessions.
+
+If advance notice is required for visa applications then please point
+that out in your proposal or request to attend, and submit the topic
+as soon as possible.
+
+1) Proposals for agenda topics should be sent before February 15th,
+2019 to:
+
+	lsf-pc@lists.linux-foundation.org
+
+and CC the mailing lists that are relevant for the topic in question:
+
+	FS:	linux-fsdevel@vger.kernel.org
+	MM:	linux-mm@kvack.org
+	Block:	linux-block@vger.kernel.org
+	ATA:	linux-ide@vger.kernel.org
+	SCSI:	linux-scsi@vger.kernel.org
+	NVMe:	linux-nvme@lists.infradead.org
+
+Please tag your proposal with [LSF/MM TOPIC] to make it easier to
+track. In addition, please make sure to start a new thread for each
+topic rather than following up to an existing one. Agenda topics and
+attendees will be selected by the program committee, but the final
+agenda will be formed by consensus of the attendees on the day.
+
+2) Requests to attend the summit for those that are not proposing a
+topic should be sent to:
+
+	lsf-pc@lists.linux-foundation.org
+
+Please summarize what expertise you will bring to the meeting, and
+what you would like to discuss. Please also tag your email with
+[LSF/MM ATTEND] and send it as a new thread so there is less chance of
+it getting lost.
+
+We will try to cap attendance at around 25-30 per track to facilitate
+discussions although the final numbers will depend on the room sizes
+at the venue.
+
+For discussion leaders, slides and visualizations are encouraged to
+outline the subject matter and focus the discussions. Please refrain
+from lengthy presentations and talks; the sessions are supposed to be
+interactive, inclusive discussions.
+
+There will be no recording or audio bridge. However, we expect that
+written minutes will be published as we did in previous years:
+
+2018: https://lwn.net/Articles/lsfmm2018/
+
+2017: https://lwn.net/Articles/lsfmm2017/
+
+2016: https://lwn.net/Articles/lsfmm2016/
+
+2015: https://lwn.net/Articles/lsfmm2015/
+
+2014: http://lwn.net/Articles/LSFMM2014/
+
+2013: http://lwn.net/Articles/548089/
+
+3) If you have feedback on last year's meeting that we can use to
+improve this year's, please also send that to:
+
+	lsf-pc@lists.linux-foundation.org
+
+Thank you on behalf of the program committee:
+
+	Anna Schumaker (Filesystems)
+	Josef Bacik (Filesystems)
+	Martin K. Petersen (Storage)
+	Jens Axboe (Storage)
+	Michal Hocko (MM)
+	Rik van Riel (MM)
+	Johannes Weiner (MM)
+
 -- 
-2.17.2 (Apple Git-113)
+Jens Axboe
