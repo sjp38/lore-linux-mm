@@ -1,82 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BB088E0002
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 07:46:53 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id y1so6584368wrd.7
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 04:46:53 -0800 (PST)
-Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::2])
-        by mx.google.com with ESMTPS id o145si26742189wme.188.2019.01.18.04.46.51
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B96E8E0002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2019 07:55:02 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id e17so6723523wrw.13
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 04:55:02 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id c12si42557516wri.0.2019.01.18.04.55.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 04:46:51 -0800 (PST)
+        Fri, 18 Jan 2019 04:55:01 -0800 (PST)
+Date: Fri, 18 Jan 2019 13:55:00 +0100
+From: Christoph Hellwig <hch@lst.de>
 Subject: Re: use generic DMA mapping code in powerpc V4
-References: <21f72a6a-9095-7034-f169-95e876228b2a@xenosoft.de>
- <27148ac2-2a92-5536-d886-2c0971ab43d9@xenosoft.de>
- <20190115133558.GA29225@lst.de>
- <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de>
- <20190115151732.GA2325@lst.de>
- <e9345547-4dc6-747a-29ec-6375dc8bfe83@xenosoft.de>
- <20190118083539.GA30479@lst.de>
- <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de>
- <20190118112842.GA9115@lst.de>
- <a2ca0118-5915-8b1c-7cfa-71cb4b43eaa6@xenosoft.de>
- <20190118121810.GA13327@lst.de>
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-Message-ID: <eceebeda-0e18-00f6-06e7-def2eb0aa961@xenosoft.de>
-Date: Fri, 18 Jan 2019 13:46:46 +0100
+Message-ID: <20190118125500.GA15657@lst.de>
+References: <20190115133558.GA29225@lst.de> <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de> <20190115151732.GA2325@lst.de> <e9345547-4dc6-747a-29ec-6375dc8bfe83@xenosoft.de> <20190118083539.GA30479@lst.de> <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de> <20190118112842.GA9115@lst.de> <a2ca0118-5915-8b1c-7cfa-71cb4b43eaa6@xenosoft.de> <20190118121810.GA13327@lst.de> <eceebeda-0e18-00f6-06e7-def2eb0aa961@xenosoft.de>
 MIME-Version: 1.0
-In-Reply-To: <20190118121810.GA13327@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: de-DE
+Content-Type: multipart/mixed; boundary="xB0nW4MQa6jZONgY"
+Content-Disposition: inline
+In-Reply-To: <eceebeda-0e18-00f6-06e7-def2eb0aa961@xenosoft.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
+To: Christian Zigotzky <chzigotzky@xenosoft.de>
+Cc: Christoph Hellwig <hch@lst.de>, linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-Sorry, it's not possible to patch 
-'257002094bc5935dd63207a380d9698ab81f0775' with your patch. I also tried 
-it manually but without any success.
 
--- Christian
+--xB0nW4MQa6jZONgY
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-On 18 January 2019 at 1:18PM, Christoph Hellwig wrote:
-> On Fri, Jan 18, 2019 at 01:07:54PM +0100, Christian Zigotzky wrote:
->> git clone git://git.infradead.org/users/hch/misc.git -b powerpc-dma.6 a
->>
->> git checkout 257002094bc5935dd63207a380d9698ab81f0775
->>
->>
->> I get the following error message with your patch:
-> Hmm.  Did I attached the wrong patch?  Here is the one I want and just
-> applied to that revision:
->
-> diff --git a/kernel/dma/direct.c b/kernel/dma/direct.c
-> index 355d16acee6d..e46c9b64ec0d 100644
-> --- a/kernel/dma/direct.c
-> +++ b/kernel/dma/direct.c
-> @@ -118,8 +118,11 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
->   			page = NULL;
->   		}
->   	}
-> -	if (!page)
-> +	if (!page) {
->   		page = alloc_pages_node(dev_to_node(dev), gfp, page_order);
-> +		if (!page)
-> +			pr_warn("failed to allocate memory with gfp 0x%x\n", gfp);
-> +	}
->   
->   	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
->   		__free_pages(page, page_order);
-> @@ -139,6 +142,10 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
->   		}
->   	}
->   
-> +	if (!page) {
-> +		pr_warn("failed to allocate DMA memory!\n");
-> +		dump_stack();
-> +	}
->   	return page;
->   }
->   
->
+On Fri, Jan 18, 2019 at 01:46:46PM +0100, Christian Zigotzky wrote:
+> Sorry, it's not possible to patch 
+> '257002094bc5935dd63207a380d9698ab81f0775' with your patch. I also tried it 
+> manually but without any success.
+
+Weird:
+
+hch@carbon:~/work/linux$ git checkout 257002094bc5935dd63207a380d9698ab81f0775
+HEAD is now at 257002094bc5 powerpc/dma: use the dma-direct allocator for coherent platforms
+hch@carbon:~/work/linux$ patch -p1 < dbg.diff 
+patching file kernel/dma/direct.c
+
+I've pushed the result to
+
+git://git.infradead.org/users/hch/misc.git
+
+as a new powerpc-dma.6-debug branch
+
+--xB0nW4MQa6jZONgY
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="dbg.diff"
+
+diff --git a/kernel/dma/direct.c b/kernel/dma/direct.c
+index 355d16acee6d..e46c9b64ec0d 100644
+--- a/kernel/dma/direct.c
++++ b/kernel/dma/direct.c
+@@ -118,8 +118,11 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
+ 			page = NULL;
+ 		}
+ 	}
+-	if (!page)
++	if (!page) {
+ 		page = alloc_pages_node(dev_to_node(dev), gfp, page_order);
++		if (!page)
++			pr_warn("failed to allocate memory with gfp 0x%x\n", gfp);
++	}
+ 
+ 	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
+ 		__free_pages(page, page_order);
+@@ -139,6 +142,10 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
+ 		}
+ 	}
+ 
++	if (!page) {
++		pr_warn("failed to allocate DMA memory!\n");
++		dump_stack();
++	}
+ 	return page;
+ }
+ 
+
+--xB0nW4MQa6jZONgY--
