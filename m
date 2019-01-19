@@ -1,68 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 947888E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 16:10:23 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id k133so11466758ite.4
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:10:23 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id s4si7514630ith.26.2019.01.21.13.10.22
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 06C7C8E0002
+	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 06:52:59 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id v24so8021945wrd.23
+        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 03:52:58 -0800 (PST)
+Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::12])
+        by mx.google.com with ESMTPS id 21si20976380wmw.118.2019.01.19.03.52.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 13:10:22 -0800 (PST)
-Subject: Re: [PATCH v2 2/2] mm, oom: remove 'prefer children over parent'
- heuristic
-References: <20190121185033.161015-1-shakeelb@google.com>
- <20190121185033.161015-2-shakeelb@google.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <323023c0-0bb8-f8c4-4359-61a9550bb1e0@i-love.sakura.ne.jp>
-Date: Tue, 22 Jan 2019 06:10:07 +0900
+        Sat, 19 Jan 2019 03:52:57 -0800 (PST)
+Subject: Re: use generic DMA mapping code in powerpc V4
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+References: <20190115133558.GA29225@lst.de>
+ <685f0c06-af1b-0bec-ac03-f9bf1f7a2b35@xenosoft.de>
+ <20190115151732.GA2325@lst.de>
+ <e9345547-4dc6-747a-29ec-6375dc8bfe83@xenosoft.de>
+ <20190118083539.GA30479@lst.de>
+ <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de>
+ <20190118112842.GA9115@lst.de>
+ <a2ca0118-5915-8b1c-7cfa-71cb4b43eaa6@xenosoft.de>
+ <20190118121810.GA13327@lst.de>
+ <eceebeda-0e18-00f6-06e7-def2eb0aa961@xenosoft.de>
+ <20190118125500.GA15657@lst.de>
+ <e11e61b1-6468-122e-fc2b-3b3f857186bb@xenosoft.de>
+ <f39d4fc6-7e4e-9132-c03f-59f1b52260e0@xenosoft.de>
+Message-ID: <b9e5e081-a3cc-2625-4e08-2d55c2ba224b@xenosoft.de>
+Date: Sat, 19 Jan 2019 12:52:52 +0100
 MIME-Version: 1.0
-In-Reply-To: <20190121185033.161015-2-shakeelb@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <f39d4fc6-7e4e-9132-c03f-59f1b52260e0@xenosoft.de>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: de-DE
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-On 2019/01/22 3:50, Shakeel Butt wrote:
->>From the start of the git history of Linux, the kernel after selecting
-> the worst process to be oom-killed, prefer to kill its child (if the
-> child does not share mm with the parent). Later it was changed to prefer
-> to kill a child who is worst. If the parent is still the worst then the
-> parent will be killed.
-> 
-> This heuristic assumes that the children did less work than their parent
-> and by killing one of them, the work lost will be less. However this is
-> very workload dependent. If there is a workload which can benefit from
-> this heuristic, can use oom_score_adj to prefer children to be killed
-> before the parent.
-> 
-> The select_bad_process() has already selected the worst process in the
-> system/memcg. There is no need to recheck the badness of its children
-> and hoping to find a worse candidate. That's a lot of unneeded racy
-> work. Also the heuristic is dangerous because it make fork bomb like
-> workloads to recover much later because we constantly pick and kill
-> processes which are not memory hogs. So, let's remove this whole
-> heuristic.
-> 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Cc: Roman Gushchin <guro@fb.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> 
+Hi Christoph,
+
+I have found a small workaround. If I add 'mem=3500M' to the boot 
+arguments then it detects the SATA hard disk and boots without any problems.
+
+X5000> setenv bootargs root=/dev/sda2 console=ttyS0,115200 mem=3500M
+
+Cheers,
+Christian
+
+
+On 19 January 2019 at 12:40PM, Christian Zigotzky wrote:
+> Hi Christoph,
+>
+> I bought a USB null modem RS-232 serial cable today so I was able to 
+> get some SATA error messages.
+>
+> Error messages:
+>
+> [   13.468538] fsl-sata ffe220000.sata: Sata FSL Platform/CSB Driver init
+> [   13.475106] fsl-sata ffe220000.sata: failed to start port 0 
+> (errno=-12)
+> [   13.481736] fsl-sata ffe221000.sata: Sata FSL Platform/CSB Driver init
+> [   13.488267] fsl-sata ffe221000.sata: failed to start port 0 
+> (errno=-12)
+>
 > ---
-> Changelog since v1:
-> - Improved commit message based on mhocko's comment.
-> - Replaced 'p' with 'victim'.
-> - Removed extra pr_err message.
-
-But this version omits printing one of "Out of memory (oom_kill_allocating_task)",
-"Out of memory" and "Memory cgroup out of memory" message which is unexpected.
-We want to propagate that message to __oom_kill_process() ? ;-)
+>
+> errno=-12 = Out of memory
+>
+> Please find attached the complete serial log.
+>
+> Cheers,
+> Christian
+>
+>
+> On 18 January 2019 at 4:06PM, Christian Zigotzky wrote:
+>> Hello Christoph,
+>>
+>> I was able to compile 257002094bc5935dd63207a380d9698ab81f0775 from 
+>> your Git powerpc-dma.6-debug today.
+>>
+>> Unfortunately I don't see any error messages (kernel ring buffer) and 
+>> I don't have a RS232 serial null modem cable to get them.
+>>
+>> Cheers,
+>> Christian
+>>
+>>
+>
