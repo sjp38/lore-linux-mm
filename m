@@ -1,88 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E5CE8E0001
-	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 08:30:42 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id b14so8491986itd.1
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 05:30:42 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 23sor24563116jal.5.2019.01.20.05.30.40
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EF9F78E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 18:16:13 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id z6so19119465qtj.21
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 15:16:13 -0800 (PST)
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id l15sor107011993qtr.63.2019.01.20.15.16.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 20 Jan 2019 05:30:40 -0800 (PST)
-MIME-Version: 1.0
-References: <ea2bc542-38b2-8218-9eb7-4c4a05da36ea@i-love.sakura.ne.jp>
- <CACT4Y+Yy-bF07F7F8DoFY8=4LtLURRn1WsZzNZ9LN+N=vn7Tpw@mail.gmail.com>
- <201901180520.x0I5KYTi096127@www262.sakura.ne.jp> <CACT4Y+acvQXPLHFSbNYAEma6Rqx6QCp_kqjsbAF8M9og4KA3CA@mail.gmail.com>
- <d90cc533-607e-fe40-9b02-a6cac7b7b534@i-love.sakura.ne.jp>
-In-Reply-To: <d90cc533-607e-fe40-9b02-a6cac7b7b534@i-love.sakura.ne.jp>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sun, 20 Jan 2019 14:30:29 +0100
-Message-ID: <CACT4Y+b=5_p=eTgKobApkZZTAVeRxrn3dEempFHampFjrGX0Pw@mail.gmail.com>
-Subject: Re: INFO: rcu detected stall in ndisc_alloc_skb
+        Sun, 20 Jan 2019 15:16:12 -0800 (PST)
+Date: Sun, 20 Jan 2019 15:15:51 -0800
+In-Reply-To: <CAHbLzkoRGk9nE6URO9xJKaAQ+8HDPJQosJuPyR1iYuaUBroDMg@mail.gmail.com>
+Message-Id: <20190120231551.213847-1-shakeelb@google.com>
+Mime-Version: 1.0
+References: <CAHbLzkoRGk9nE6URO9xJKaAQ+8HDPJQosJuPyR1iYuaUBroDMg@mail.gmail.com>
+Subject: memory cgroup pagecache and inode problem
+From: Shakeel Butt <shakeelb@google.com>
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: syzbot <syzbot+ea7d9cb314b4ab49a18a@syzkaller.appspotmail.com>, David Miller <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, LKML <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Linux-MM <linux-mm@kvack.org>, Shakeel Butt <shakeelb@google.com>, syzkaller <syzkaller@googlegroups.com>
+To: Yang Shi <shy828301@gmail.com>, Fam Zheng <zhengfeiran@bytedance.com>
+Cc: cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>, tj@kernel.org, Johannes Weiner <hannes@cmpxchg.org>, lizefan@huawei.com, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, duanxiongchun@bytedance.com, =?UTF-8?q?=E5=BC=A0=E6=B0=B8=E8=82=83?= <zhangyongsu@bytedance.com>, liuxiaozhou@bytedance.com, Shakeel Butt <shakeelb@google.com>
 
-On Sat, Jan 19, 2019 at 2:10 PM Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
->
-> On 2019/01/19 21:16, Dmitry Vyukov wrote:
-> >> The question for me is, whether sysbot can detect hash collision with different
-> >> syz-program lines before writing the hash value to /dev/kmsg, and retry by modifying
-> >> syz-program lines in order to get a new hash value until collision is avoided.
-> >> If it is difficult, simpler choice like current Unix time and PID could be used
-> >> instead...
+On Wed, Jan 16, 2019 at 9:07 PM Yang Shi <shy828301@gmail.com> wrote:
+...
+> > > You mean it solves the problem by retrying more times?  Actually, I'm
+> > > not sure if you have swap setup in your test, but force_empty does do
+> > > swap if swap is on. This may cause it can't reclaim all the page cache
+> > > in 5 retries.  I have a patch within that series to skip swap.
 > >
-> > Hummm, say, if you run syz-manager locally and report a bug, where
-> > will the webserver and database that allows to download all satellite
-> > info work? How long you need to keep this info and provide the web
-> > service? You will also need to pay and maintain the server for... how
-> > long? I don't see how this can work and how we can ask people to do
-> > this. This frankly looks like overly complex solution to a problem
-> > were simpler solutions will work. Keeping all info in a self-contained
-> > file looks like the only option to make it work reliably.
-> > It's also not possible to attribute kernel output to individual programs.
+> > Basically yes, retrying solves the problem. But compared to immediate retries, a scheduled retry in a few seconds is much more effective.
 >
-> The first messages I want to look at is kernel output. Then, I look at
-> syz-program lines as needed. But current "a self-contained file" is
-> hard to find kernel output.
+> This may suggest doing force_empty in a worker is more effective in
+> fact. Not sure if this is good enough to convince Johannes or not.
+>
 
-I think everybody looks at kernel crash first, that's why we provide
-kernel crash inline in the email so it's super easy to find. One does
-not need to look at console output at all to read the crash message.
-Console output is meant for more complex cases when a developer needs
-to extract some long tail of custom information. We don't know what
-exactly information a developer is looking for and it is different in
-each case, so it's not possible to optimize for this. We preserve
-console output intact to not destroy some potentially important
-information. Say, if we start reordering messages, we lose timing
-information and timing/interleaving information is important in some
-cases.
+>From what I understand what we actually want is to force_empty an
+offlined memcg. How about we change the semantics of force_empty on
+root_mem_cgroup? Currently force_empty on root_mem_cgroup returns
+-EINVAL. Rather than that, let's do force_empty on all offlined memcgs
+if user does force_empty on root_mem_cgroup. Something like following.
 
-> Even if we keep both kernel output and
-> syz-program lines in a single file, we can improve readability by
-> splitting into kernel output section and syz-program section.
->
->   # Kernel output section start
->   [$(uptime)][$(caller_info)] executing program #0123456789abcdef0123456789abcdef
->   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_0123456789abcdef0123456789abcdef_are_here)
->   [$(uptime)][$(caller_info)] executing program #456789abcdef0123456789abcdef0123
->   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
->   [$(uptime)][$(caller_info)] executing program #89abcdef0123456789abcdef01234567
->   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_89abcdef0123456789abcdef01234567_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
->   [$(uptime)][$(caller_info)] BUG: unable to handle kernel paging request at $(address)
->   [$(uptime)][$(caller_info)] CPU: $(cpu) PID: $(pid) Comm: syz#89abcdef0123 Not tainted $(version) #$(build)
->   [$(uptime)][$(caller_info)] $(backtrace_of_caller_info_is_here)
->   [$(uptime)][$(caller_info)] Kernel panic - not syncing: Fatal exception
->   # Kernel output section end
->   # syzbot code section start
->   Program for #0123456789abcdef0123456789abcdef
->   $(program_lines_for_0123456789abcdef0123456789abcdef_is_here)
->   Program for #456789abcdef0123456789abcdef0123
->   $(program_lines_for_456789abcdef0123456789abcdef0123_is_here)
->   Program for #89abcdef0123456789abcdef01234567
->   $(program_lines_for_89abcdef0123456789abcdef01234567_is_here)
->   # syzbot code section end
->
+---
+ mm/memcontrol.c | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a4ac554be7e8..51daa2935c41 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2898,14 +2898,16 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+  *
+  * Caller is responsible for holding css reference for memcg.
+  */
+-static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
++static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool online)
+ {
+ 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 
+ 	/* we call try-to-free pages for make this cgroup empty */
+-	lru_add_drain_all();
+ 
+-	drain_all_stock(memcg);
++	if (online) {
++		lru_add_drain_all();
++		drain_all_stock(memcg);
++	}
+ 
+ 	/* try to free all pages in this cgroup */
+ 	while (nr_retries && page_counter_read(&memcg->memory)) {
+@@ -2915,7 +2917,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
+ 			return -EINTR;
+ 
+ 		progress = try_to_free_mem_cgroup_pages(memcg, 1,
+-							GFP_KERNEL, true);
++							GFP_KERNEL, online);
+ 		if (!progress) {
+ 			nr_retries--;
+ 			/* maybe some writeback is necessary */
+@@ -2932,10 +2934,16 @@ static ssize_t mem_cgroup_force_empty_write(struct kernfs_open_file *of,
+ 					    loff_t off)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
++	struct mem_cgroup *mi;
+ 
+-	if (mem_cgroup_is_root(memcg))
+-		return -EINVAL;
+-	return mem_cgroup_force_empty(memcg) ?: nbytes;
++	if (mem_cgroup_is_root(memcg)) {
++		for_each_mem_cgroup_tree(mi, memcg) {
++			if (!mem_cgroup_online(mi))
++				mem_cgroup_force_empty(mi, false);
++		}
++		return 0;
++	}
++	return mem_cgroup_force_empty(memcg, true) ?: nbytes;
+ }
+ 
+ static u64 mem_cgroup_hierarchy_read(struct cgroup_subsys_state *css,
+-- 
+2.20.1.321.g9e740568ce-goog
