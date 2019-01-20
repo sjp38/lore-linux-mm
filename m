@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 385BB8E0002
-	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 22:31:08 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id e68so10654789plb.3
-        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 19:31:08 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4698E8E0002
+	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 22:31:12 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id s22so11600741pgv.8
+        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 19:31:12 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 43sor12796381plc.28.2019.01.19.19.31.06
+        by mx.google.com with SMTPS id l30sor12519399plg.17.2019.01.19.19.31.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 19 Jan 2019 19:31:06 -0800 (PST)
+        Sat, 19 Jan 2019 19:31:10 -0800 (PST)
 From: Xiongchun Duan <duanxiongchun@bytedance.com>
-Subject: [PATCH 4/5] Memcgroup:Implement force empty work function
-Date: Sat, 19 Jan 2019 22:30:20 -0500
-Message-Id: <1547955021-11520-5-git-send-email-duanxiongchun@bytedance.com>
+Subject: [PATCH 5/5] Memcgroup:add cgroup fs to show offline memcgroup status
+Date: Sat, 19 Jan 2019 22:30:21 -0500
+Message-Id: <1547955021-11520-6-git-send-email-duanxiongchun@bytedance.com>
 In-Reply-To: <1547955021-11520-1-git-send-email-duanxiongchun@bytedance.com>
 References: <1547955021-11520-1-git-send-email-duanxiongchun@bytedance.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,162 +20,180 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org, linux-mm@kvack.org
 Cc: shy828301@gmail.com, mhocko@kernel.org, tj@kernel.org, hannes@cmpxchg.org, zhangyongsu@bytedance.com, liuxiaozhou@bytedance.com, zhengfeiran@bytedance.com, wangdongdong.6@bytedance.com, Xiongchun Duan <duanxiongchun@bytedance.com>
 
-Implement force empty work function and add trigger by global work.
-force_empty_list : offline cgroup wait for trigger force empty.
-empty_fail_list: offline cgroup which had been trigger for too
-many time will not auto retrigger.
+Add cgroups_wait_empty proc file to show wait force empty memcgroup Add
+cgroup_empty_fail file to show memcgroup which had try many time still did
+not release. you can echo 0 > /proc/cgroup_empty_fail to manualy trigger
+force empty this memcgroup
 
 Signed-off-by: Xiongchun Duan <duanxiongchun@bytedance.com>
 ---
- include/linux/memcontrol.h |  4 +++
- mm/memcontrol.c            | 81 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 85 insertions(+)
+ mm/memcontrol.c | 140 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 140 insertions(+)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 0a29f7f..064192e 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -315,6 +315,10 @@ struct mem_cgroup {
- 	int current_retry;
- 	unsigned long timer_jiffies;
- 
-+	struct list_head force_empty_node;
-+	struct list_head empty_fail_node;
-+	struct work_struct force_empty_work;
-+
- 	struct mem_cgroup_per_node *nodeinfo[0];
- 	/* WARNING: nodeinfo must be the last member here */
- };
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fad1aae..21b4432 100644
+index 21b4432..1529549 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -86,6 +86,10 @@
- 
- struct mem_cgroup *root_mem_cgroup __read_mostly;
- 
-+static DEFINE_MUTEX(offline_cgroup_mutex);
-+static LIST_HEAD(force_empty_list);
-+static LIST_HEAD(empty_fail_list);
-+
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- 
- /* Socket memory accounting disabled? */
-@@ -2939,9 +2943,52 @@ static ssize_t mem_cgroup_force_empty_write(struct kernfs_open_file *of,
- 
- static void add_force_empty_list(struct mem_cgroup *memcg)
- {
-+	struct list_head *pos, *n;
-+	struct mem_cgroup *pos_memcg;
-+	unsigned long tmp = memcg->timer_jiffies;
-+
-+	mutex_lock(&offline_cgroup_mutex);
-+	list_for_each_safe(pos, n, &force_empty_list) {
-+		pos_memcg = container_of(pos,
-+				struct mem_cgroup, force_empty_node);
-+		if	(time_after(tmp, pos_memcg->timer_jiffies))
-+			tmp = pos_memcg->timer_jiffies;
-+		if (time_after(pos_memcg->timer_jiffies, memcg->timer_jiffies))
-+			break;
-+	}
-+	list_add_tail(&memcg->force_empty_node, pos);
-+	mutex_unlock(&offline_cgroup_mutex);
-+	mod_timer(&empty_trigger, tmp);
- 
+@@ -57,6 +57,7 @@
+ #include <linux/sort.h>
+ #include <linux/fs.h>
+ #include <linux/seq_file.h>
++#include <linux/proc_fs.h>
+ #include <linux/vmpressure.h>
+ #include <linux/mm_inline.h>
+ #include <linux/swap_cgroup.h>
+@@ -6440,6 +6441,140 @@ void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+ 	refill_stock(memcg, nr_pages);
  }
  
-+static void mem_cgroup_force_empty_delay(struct work_struct *work)
++#ifdef CONFIG_PROC_FS
++static void print_memcg_header(struct seq_file *m)
 +{
-+	unsigned int order;
-+	struct mem_cgroup *memcg = container_of(work,
-+			struct mem_cgroup, force_empty_work);
-+
-+	if (page_counter_read(&memcg->memory)) {
-+		mem_cgroup_force_empty(memcg);
-+		memcg->current_retry += 1;
-+		if (page_counter_read(&memcg->memory)) {
-+			if (memcg->current_retry >= memcg->max_retry) {
-+				if (list_empty(&memcg->empty_fail_node)) {
-+					mutex_lock(&offline_cgroup_mutex);
-+					list_add(&memcg->empty_fail_node,
-+							&empty_fail_list);
-+					mutex_unlock(&offline_cgroup_mutex);
-+				}
-+			} else {
-+				order = 1 << (memcg->current_retry - 1);
-+				memcg->timer_jiffies = jiffies + HZ * order;
-+				add_force_empty_list(memcg);
-+			}
-+		}
-+	}
-+	css_put(&memcg->css);
++	seq_puts(m, "address,css_ref,mem_ref,current_retry,max_retry\n");
 +}
 +
- static u64 mem_cgroup_hierarchy_read(struct cgroup_subsys_state *css,
- 				     struct cftype *cft)
- {
-@@ -4545,6 +4592,9 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 
- 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
- 		static_branch_inc(&memcg_sockets_enabled_key);
++static void memcgroup_show(struct mem_cgroup *memcg,
++		struct seq_file *m, bool header)
++{
++	if (header)
++		print_memcg_header(m);
++	seq_printf(m, "%p,%lu,%lu,%d,%d\n", memcg,
++			atomic_long_read(&memcg->css.refcnt.count),
++			page_counter_read(&memcg->memory),
++			memcg->current_retry, memcg->max_retry);
++}
 +
-+	INIT_LIST_HEAD(&memcg->force_empty_node);
-+	INIT_LIST_HEAD(&memcg->empty_fail_node);
- 	memcg->max_retry = sysctl_cgroup_default_retry;
- 	memcg->current_retry  = 0;
- 
-@@ -4577,7 +4627,26 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 
- static void trigger_force_empty(struct work_struct *work)
- {
++void *fail_start(struct seq_file *m, loff_t *pos)
++{
++	mutex_lock(&offline_cgroup_mutex);
++	return seq_list_start(&empty_fail_list, *pos);
++}
++
++void *fail_next(struct seq_file *m, void *p, loff_t *pos)
++{
++	return seq_list_next(p, &empty_fail_list, pos);
++}
++
++void fail_stop(struct seq_file *m, void *p)
++{
++	mutex_unlock(&offline_cgroup_mutex);
++}
++
++static int fail_show(struct seq_file *m, void *p)
++{
++	struct mem_cgroup *memcg = list_entry(p, struct mem_cgroup,
++			empty_fail_node);
++	if (p == empty_fail_list.next)
++		memcgroup_show(memcg, m, true);
++	else
++		memcgroup_show(memcg, m, false);
++
++	return 0;
++}
++
++static const struct seq_operations fail_list_op = {
++	.start = fail_start,
++	.next = fail_next,
++	.stop = fail_stop,
++	.show = fail_show,
++};
++
++static int fail_list_open(struct inode *inode, struct file *file)
++{
++	return seq_open(file, &fail_list_op);
++}
++
++ssize_t fail_list_write(struct file *file, const char __user *buffer,
++	size_t count, loff_t *ppos)
++{
 +	struct list_head *pos, *n;
 +	struct mem_cgroup *memcg;
- 
++
 +	mutex_lock(&offline_cgroup_mutex);
-+	list_for_each_safe(pos, n, &force_empty_list) {
-+		memcg = container_of(pos, struct mem_cgroup,
-+				force_empty_node);
-+		if (time_after(jiffies, memcg->timer_jiffies)) {
-+			if (atomic_long_add_unless(&memcg->css.refcnt.count,
-+						1, 0) == 0) {
-+				continue;
-+			} else if (!queue_work(memcg_force_empty_wq,
-+						&memcg->force_empty_work)) {
-+				css_put(&memcg->css);
-+			} else {
-+				list_del_init(&memcg->force_empty_node);
-+			}
++	list_for_each_safe(pos, n, &empty_fail_list) {
++		memcg = container_of(pos, struct mem_cgroup, empty_fail_node);
++		if (atomic_long_add_unless(&memcg->css.refcnt.count,
++					1, 0) == 0) {
++			continue;
++		} else if (!queue_work(memcg_force_empty_wq,
++					&memcg->force_empty_work)) {
++			css_put(&memcg->css);
 +		}
 +	}
 +	mutex_unlock(&offline_cgroup_mutex);
- }
- 
- static void empty_timer_trigger(struct timer_list *t)
-@@ -4595,6 +4664,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- 		mem_cgroup_force_empty(memcg);
- 		if (page_counter_read(&memcg->memory) &&
- 				memcg->max_retry != 1) {
-+			INIT_WORK(&memcg->force_empty_work,
-+					mem_cgroup_force_empty_delay);
- 			memcg->timer_jiffies = jiffies + HZ;
- 			add_force_empty_list(memcg);
- 		}
-@@ -4626,6 +4697,16 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- static void mem_cgroup_css_released(struct cgroup_subsys_state *css)
++	return count;
++}
++
++static const struct file_operations proc_fail_list_operations = {
++	.open = fail_list_open,
++	.read = seq_read,
++	.write = fail_list_write,
++	.llseek = seq_lseek,
++	.release = seq_release,
++};
++
++void *empty_start(struct seq_file *m, loff_t *pos)
++{
++	mutex_lock(&offline_cgroup_mutex);
++	return seq_list_start(&force_empty_list, *pos);
++}
++
++void *empty_next(struct seq_file *m, void *p, loff_t *pos)
++{
++	return seq_list_next(p, &force_empty_list, pos);
++}
++
++void empty_stop(struct seq_file *m, void *p)
++{
++	mutex_unlock(&offline_cgroup_mutex);
++}
++
++static int empty_show(struct seq_file *m, void *p)
++{
++	struct mem_cgroup *memcg = list_entry(p,
++			struct mem_cgroup, force_empty_node);
++	if (p == force_empty_list.next)
++		memcgroup_show(memcg, m, true);
++	else
++		memcgroup_show(memcg, m, false);
++
++	return 0;
++}
++
++static const struct seq_operations empty_list_op = {
++	.start = empty_start,
++	.next = empty_next,
++	.stop = empty_stop,
++	.show = empty_show,
++};
++
++static int empty_list_open(struct inode *inode, struct file *file)
++{
++	return seq_open(file, &empty_list_op);
++}
++
++static const struct file_operations proc_empty_list_operations = {
++	.open = empty_list_open,
++	.read = seq_read,
++	.llseek = seq_lseek,
++	.release = seq_release,
++};
++#endif
++
+ static int __init cgroup_memory(char *s)
  {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+	if (!list_empty(&memcg->force_empty_node)) {
-+		mutex_lock(&offline_cgroup_mutex);
-+		list_del_init(&memcg->force_empty_node);
-+		mutex_unlock(&offline_cgroup_mutex);
-+	}
-+	if (!list_empty(&memcg->empty_fail_node)) {
-+		mutex_lock(&offline_cgroup_mutex);
-+		list_del_init(&memcg->empty_fail_node);
-+		mutex_unlock(&offline_cgroup_mutex);
-+	}
+ 	char *token;
+@@ -6483,6 +6618,11 @@ static int __init mem_cgroup_init(void)
+ 	INIT_WORK(&timer_poll_work, trigger_force_empty);
+ 	timer_setup(&empty_trigger, empty_timer_trigger, 0);
  
- 	invalidate_reclaim_iterators(memcg);
- }
++#ifdef CONFIG_PROC_FS
++	proc_create("cgroups_wait_empty", 0, NULL, &proc_empty_list_operations);
++	proc_create("cgroups_empty_fail", 0, NULL, &proc_fail_list_operations);
++#endif
++
+ 	cpuhp_setup_state_nocalls(CPUHP_MM_MEMCQ_DEAD, "mm/memctrl:dead", NULL,
+ 				  memcg_hotplug_cpu_dead);
+ 
 -- 
 1.8.3.1
