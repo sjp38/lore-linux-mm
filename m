@@ -1,87 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 40D978E0002
-	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 21:43:12 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id l76so10743768pfg.1
-        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 18:43:12 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C4F8E0002
+	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 22:30:51 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id p4so11586697pgj.21
+        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 19:30:51 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 88sor12417000plb.63.2019.01.19.18.43.10
+        by mx.google.com with SMTPS id d27sor14338055pgm.9.2019.01.19.19.30.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 19 Jan 2019 18:43:11 -0800 (PST)
-From: Changbin Du <changbin.du@gmail.com>
-Subject: [PATCH] mm/page_owner: move config option to mm/Kconfig.debug
-Date: Sun, 20 Jan 2019 10:42:54 +0800
-Message-Id: <20190120024254.6270-1-changbin.du@gmail.com>
+        Sat, 19 Jan 2019 19:30:50 -0800 (PST)
+From: Xiongchun Duan <duanxiongchun@bytedance.com>
+Subject: [PATCH 0/5] fix offline memcgroup still hold in memory
+Date: Sat, 19 Jan 2019 22:30:16 -0500
+Message-Id: <1547955021-11520-1-git-send-email-duanxiongchun@bytedance.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: yamada.masahiro@socionext.com, mingo@kernel.org, arnd@arndb.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Changbin Du <changbin.du@gmail.com>
+To: cgroups@vger.kernel.org, linux-mm@kvack.org
+Cc: shy828301@gmail.com, mhocko@kernel.org, tj@kernel.org, hannes@cmpxchg.org, zhangyongsu@bytedance.com, liuxiaozhou@bytedance.com, zhengfeiran@bytedance.com, wangdongdong.6@bytedance.com, Xiongchun Duan <duanxiongchun@bytedance.com>
 
-Move the PAGE_OWNER option from submenu "Compile-time checks and compiler
-options" to dedicated submenu "Memory Debugging".
+we find that in huge memory system frequent creat creation and deletion
+memcgroup make the system leave lots of offline memcgroup.we had seen 100000 
+unrelease offline memcgroup in our system(512G memory).
 
-Signed-off-by: Changbin Du <changbin.du@gmail.com>
----
- lib/Kconfig.debug | 17 -----------------
- mm/Kconfig.debug  | 17 +++++++++++++++++
- 2 files changed, 17 insertions(+), 17 deletions(-)
+this memcgroup hold because some memory page still charged.
+so we try to Multiple interval call force_empty to reclaim this memory page.
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index d4df5b24d75e..e43cfdc86fd6 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -266,23 +266,6 @@ config UNUSED_SYMBOLS
- 	  you really need it, and what the merge plan to the mainline kernel for
- 	  your module is.
- 
--config PAGE_OWNER
--	bool "Track page owner"
--	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
--	select DEBUG_FS
--	select STACKTRACE
--	select STACKDEPOT
--	select PAGE_EXTENSION
--	help
--	  This keeps track of what call chain is the owner of a page, may
--	  help to find bare alloc_page(s) leaks. Even if you include this
--	  feature on your build, it is disabled in default. You should pass
--	  "page_owner=on" to boot parameter in order to enable it. Eats
--	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
--	  for user-space helper.
--
--	  If unsure, say N.
--
- config DEBUG_FS
- 	bool "Debug Filesystem"
- 	help
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 9a7b8b049d04..e3df921208c0 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -39,6 +39,23 @@ config DEBUG_PAGEALLOC_ENABLE_DEFAULT
- 	  Enable debug page memory allocations by default? This value
- 	  can be overridden by debug_pagealloc=off|on.
- 
-+config PAGE_OWNER
-+	bool "Track page owner"
-+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
-+	select DEBUG_FS
-+	select STACKTRACE
-+	select STACKDEPOT
-+	select PAGE_EXTENSION
-+	help
-+	  This keeps track of what call chain is the owner of a page, may
-+	  help to find bare alloc_page(s) leaks. Even if you include this
-+	  feature on your build, it is disabled in default. You should pass
-+	  "page_owner=on" to boot parameter in order to enable it. Eats
-+	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
-+	  for user-space helper.
-+
-+	  If unsure, say N.
-+
- config PAGE_POISONING
- 	bool "Poison pages after freeing"
- 	select PAGE_POISONING_NO_SANITY if HIBERNATION
+after applying those patchs,in our system,the unrelease offline memcgroup
+was reduced from 100000 to 100.
+
+
+Xiongchun Duan (5):
+  Memcgroup: force empty after memcgroup offline
+  Memcgroup: Add timer to trigger workqueue
+  Memcgroup:add a global work
+  Memcgroup:Implement force empty work function
+  Memcgroup:add cgroup fs to show offline memcgroup status
+
+ Documentation/cgroup-v1/memory.txt |   7 +-
+ Documentation/sysctl/kernel.txt    |  10 ++
+ include/linux/memcontrol.h         |  11 ++
+ kernel/sysctl.c                    |   9 ++
+ mm/memcontrol.c                    | 271 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 306 insertions(+), 2 deletions(-)
+
 -- 
-2.17.1
+1.8.3.1
