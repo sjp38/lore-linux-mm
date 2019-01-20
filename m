@@ -1,54 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 545C18E0003
-	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 18:58:09 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id y35so6334420edb.5
-        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 15:58:09 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s17si511258edr.396.2019.01.19.15.58.07
-        for <linux-mm@kvack.org>;
-        Sat, 19 Jan 2019 15:58:07 -0800 (PST)
-Date: Sat, 19 Jan 2019 23:57:57 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] hugetlb: allow to free gigantic pages regardless of the
- configuration
-Message-ID: <20190119235756.GF26876@brain-police>
-References: <20190117183953.5990-1-aghiti@upmem.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190117183953.5990-1-aghiti@upmem.com>
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 40D978E0002
+	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 21:43:12 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id l76so10743768pfg.1
+        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 18:43:12 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 88sor12417000plb.63.2019.01.19.18.43.10
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 19 Jan 2019 18:43:11 -0800 (PST)
+From: Changbin Du <changbin.du@gmail.com>
+Subject: [PATCH] mm/page_owner: move config option to mm/Kconfig.debug
+Date: Sun, 20 Jan 2019 10:42:54 +0800
+Message-Id: <20190120024254.6270-1-changbin.du@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandre Ghiti <aghiti@upmem.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Kravetz <mike.kravetz@oracle.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, linux-riscv@lists.infradead.org, Alexandre Ghiti <alex@ghiti.fr>
+To: akpm@linux-foundation.org
+Cc: yamada.masahiro@socionext.com, mingo@kernel.org, arnd@arndb.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Changbin Du <changbin.du@gmail.com>
 
-On Thu, Jan 17, 2019 at 06:39:53PM +0000, Alexandre Ghiti wrote:
-> From: Alexandre Ghiti <alex@ghiti.fr>
-> 
-> On systems without CMA or (MEMORY_ISOLATION && COMPACTION) activated but
-> that support gigantic pages, boottime reserved gigantic pages can not be
-> freed at all. This patchs simply enables the possibility to hand back
-> those pages to memory allocator.
-> 
-> This commit then renames gigantic_page_supported and
-> ARCH_HAS_GIGANTIC_PAGE to make them more accurate. Indeed, those values
-> being false does not mean that the system cannot use gigantic pages: it
-> just means that runtime allocation of gigantic pages is not supported,
-> one can still allocate boottime gigantic pages if the architecture supports
-> it.
-> 
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-> ---
-> 
-> - Compiled on all architectures
-> - Tested on riscv architecture
-> 
->  arch/arm64/Kconfig                           |  2 +-
->  arch/arm64/include/asm/hugetlb.h             |  7 +++--
+Move the PAGE_OWNER option from submenu "Compile-time checks and compiler
+options" to dedicated submenu "Memory Debugging".
 
-The arm64 bits look straightforward enough to me...
+Signed-off-by: Changbin Du <changbin.du@gmail.com>
+---
+ lib/Kconfig.debug | 17 -----------------
+ mm/Kconfig.debug  | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 17 deletions(-)
 
-Acked-by: Will Deacon <will.deacon@arm.com>
-
-Will
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index d4df5b24d75e..e43cfdc86fd6 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -266,23 +266,6 @@ config UNUSED_SYMBOLS
+ 	  you really need it, and what the merge plan to the mainline kernel for
+ 	  your module is.
+ 
+-config PAGE_OWNER
+-	bool "Track page owner"
+-	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
+-	select DEBUG_FS
+-	select STACKTRACE
+-	select STACKDEPOT
+-	select PAGE_EXTENSION
+-	help
+-	  This keeps track of what call chain is the owner of a page, may
+-	  help to find bare alloc_page(s) leaks. Even if you include this
+-	  feature on your build, it is disabled in default. You should pass
+-	  "page_owner=on" to boot parameter in order to enable it. Eats
+-	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
+-	  for user-space helper.
+-
+-	  If unsure, say N.
+-
+ config DEBUG_FS
+ 	bool "Debug Filesystem"
+ 	help
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index 9a7b8b049d04..e3df921208c0 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -39,6 +39,23 @@ config DEBUG_PAGEALLOC_ENABLE_DEFAULT
+ 	  Enable debug page memory allocations by default? This value
+ 	  can be overridden by debug_pagealloc=off|on.
+ 
++config PAGE_OWNER
++	bool "Track page owner"
++	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
++	select DEBUG_FS
++	select STACKTRACE
++	select STACKDEPOT
++	select PAGE_EXTENSION
++	help
++	  This keeps track of what call chain is the owner of a page, may
++	  help to find bare alloc_page(s) leaks. Even if you include this
++	  feature on your build, it is disabled in default. You should pass
++	  "page_owner=on" to boot parameter in order to enable it. Eats
++	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
++	  for user-space helper.
++
++	  If unsure, say N.
++
+ config PAGE_POISONING
+ 	bool "Poison pages after freeing"
+ 	select PAGE_POISONING_NO_SANITY if HIBERNATION
+-- 
+2.17.1
