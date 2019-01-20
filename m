@@ -1,118 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B9B6C8E0001
-	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 15:24:34 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id e188so1006211yba.19
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 12:24:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i133sor4319472yba.106.2019.01.20.12.24.33
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D398E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 16:07:45 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id a2so12679986pgt.11
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 13:07:45 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d40si1944470pla.427.2019.01.20.13.07.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 20 Jan 2019 12:24:33 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 20 Jan 2019 13:07:43 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0KKwrJL040874
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 16:07:43 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q4j49fdkt-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 16:07:43 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 20 Jan 2019 21:07:40 -0000
+Date: Sun, 20 Jan 2019 23:07:32 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH 4/4] userfaultfd: change the direction for UFFDIO_REMAP
+ to out
+References: <cover.1547251023.git.blake.caldwell@colorado.edu>
+ <ab1b6be85254e111935104cf4a2293ab2fa4a8d6.1547251023.git.blake.caldwell@colorado.edu>
 MIME-Version: 1.0
-References: <20190119005022.61321-1-shakeelb@google.com> <20190119070934.GD4087@dhcp22.suse.cz>
-In-Reply-To: <20190119070934.GD4087@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Sun, 20 Jan 2019 12:24:22 -0800
-Message-ID: <CALvZod7Dk-TLFHf1wi=qLAY3nv4t6grEmJkppZz=JB3GutXC+g@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm, oom: fix use-after-free in oom_kill_process
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ab1b6be85254e111935104cf4a2293ab2fa4a8d6.1547251023.git.blake.caldwell@colorado.edu>
+Message-Id: <20190120210731.GC28141@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Blake Caldwell <blake.caldwell@colorado.edu>
+Cc: rppt@linux.vnet.ibm.com, xemul@virtuozzo.com, akpm@linux-foundation.org, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, aarcange@redhat.com
 
-On Fri, Jan 18, 2019 at 11:09 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 18-01-19 16:50:22, Shakeel Butt wrote:
-> [...]
-> > On looking further it seems like the process selected to be oom-killed
-> > has exited even before reaching read_lock(&tasklist_lock) in
-> > oom_kill_process(). More specifically the tsk->usage is 1 which is due
-> > to get_task_struct() in oom_evaluate_task() and the put_task_struct
-> > within for_each_thread() frees the tsk and for_each_thread() tries to
-> > access the tsk. The easiest fix is to do get/put across the
-> > for_each_thread() on the selected task.
->
-> Very well spotted! The code seems safe because we are careful to
-> transfer the victim along with reference counting but I've totally
-> missed that the loop itself needs a reference. It seems that this has
-> been broken since the heuristic has been introduced. But I haven't
-> checked it closely. I am still on vacation.
->
-> > Now the next question is should we continue with the oom-kill as the
-> > previously selected task has exited? However before adding more
-> > complexity and heuristics, let's answer why we even look at the
-> > children of oom-kill selected task?
->
-> The objective was the work protection assuming that children did less
-> work than their parrent. I find this argument a bit questionable because
-> it highly depends a specific workload while it opens doors for
-> problematic behavior at the same time. If you have a fork bomb like
-> workload then it is basically hard to resolve the OOM condition as
-> children have barely any memory so we keep looping killing tasks which
-> will not free up much. So I am all for removing this heuristic.
->
-> > The select_bad_process() has already
-> > selected the worst process in the system/memcg. Due to race, the
-> > selected process might not be the worst at the kill time but does that
-> > matter matter?
->
-> No, we don't I believe. The aim of the oom killer is to kill something.
-> We will never be ideal here because this is a land of races.
->
-> > The userspace can play with oom_score_adj to prefer
-> > children to be killed before the parent. I looked at the history but it
-> > seems like this is there before git history.
-> >
-> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
->
-> Fixes: 5e9d834a0e0c ("oom: sacrifice child with highest badness score for parent")
-> Cc: stable
->
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
-> Thanks!
+Hi,
 
-Thanks for the review. I will keep this for the stable branches and
-for the next release I will remove this whole children selection
-heuristic.
+On Sat, Jan 12, 2019 at 12:36:29AM +0000, Blake Caldwell wrote:
+> Moving a page out of a userfaultfd registered region and into a userland
+> anonymous vma is needed by the use case of uncooperatively limiting the
+> resident size of the userfaultfd region. Reverse the direction of the
+> original userfaultfd_remap() to the out direction. Now after memory has
+> been removed, subsequent accesses will generate uffdio page fault events.
 
-Shakeel
+It took me a while but better late then never :)
 
-> > ---
-> >  mm/oom_kill.c | 8 ++++++++
-> >  1 file changed, 8 insertions(+)
-> >
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 0930b4365be7..1a007dae1e8f 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -981,6 +981,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
-> >        * still freeing memory.
-> >        */
-> >       read_lock(&tasklist_lock);
-> > +
-> > +     /*
-> > +      * The task 'p' might have already exited before reaching here. The
-> > +      * put_task_struct() will free task_struct 'p' while the loop still try
-> > +      * to access the field of 'p', so, get an extra reference.
-> > +      */
-> > +     get_task_struct(p);
-> >       for_each_thread(p, t) {
-> >               list_for_each_entry(child, &t->children, sibling) {
-> >                       unsigned int child_points;
-> > @@ -1000,6 +1007,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
-> >                       }
-> >               }
-> >       }
-> > +     put_task_struct(p);
-> >       read_unlock(&tasklist_lock);
-> >
-> >       /*
-> > --
-> > 2.20.1.321.g9e740568ce-goog
->
-> --
-> Michal Hocko
-> SUSE Labs
+Why did you keep this as a separate patch? If the primary use case for
+UFFDIO_REMAP to move pages out of userfaultfd region, why not make it so
+from the beginning?
+
+> Signed-off-by: Blake Caldwell <blake.caldwell@colorado.edu>
+> ---
+>  Documentation/admin-guide/mm/userfaultfd.rst | 10 ++++++++++
+>  fs/userfaultfd.c                             |  6 +++---
+>  2 files changed, 13 insertions(+), 3 deletions(-)
+> 
+> diff --git a/Documentation/admin-guide/mm/userfaultfd.rst b/Documentation/admin-guide/mm/userfaultfd.rst
+> index 5048cf6..714af49 100644
+> --- a/Documentation/admin-guide/mm/userfaultfd.rst
+> +++ b/Documentation/admin-guide/mm/userfaultfd.rst
+> @@ -108,6 +108,16 @@ UFFDIO_COPY. They're atomic as in guaranteeing that nothing can see an
+>  half copied page since it'll keep userfaulting until the copy has
+>  finished.
+> 
+> +To move pages out of a userfault registered region and into a user vma
+> +the UFFDIO_REMAP ioctl can be used. This is only possible for the
+> +"OUT" direction. For the "IN" direction, UFFDIO_COPY is preferred
+> +since UFFDIO_REMAP requires a TLB flush on the source range at a
+> +greater penalty than copying the page. With
+> +UFFDIO_REGISTER_MODE_MISSING set, subsequent accesses to the same
+> +region will generate a page fault event. This allows non-cooperative
+> +removal of memory in a userfaultfd registered vma, effectively
+> +limiting the amount of resident memory in such a region.
+> +
+>  QEMU/KVM
+>  ========
+> 
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index cf68cdb..8099da2 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -1808,10 +1808,10 @@ static int userfaultfd_remap(struct userfaultfd_ctx *ctx,
+>  			   sizeof(uffdio_remap)-sizeof(__s64)))
+>  		goto out;
+> 
+> -	ret = validate_range(ctx->mm, uffdio_remap.dst, uffdio_remap.len);
+> +	ret = validate_range(current->mm, uffdio_remap.dst, uffdio_remap.len);
+>  	if (ret)
+>  		goto out;
+> -	ret = validate_range(current->mm, uffdio_remap.src, uffdio_remap.len);
+> +	ret = validate_range(ctx->mm, uffdio_remap.src, uffdio_remap.len);
+>  	if (ret)
+>  		goto out;
+>  	ret = -EINVAL;
+> @@ -1819,7 +1819,7 @@ static int userfaultfd_remap(struct userfaultfd_ctx *ctx,
+>  				  UFFDIO_REMAP_MODE_DONTWAKE))
+>  		goto out;
+> 
+> -	ret = remap_pages(ctx->mm, current->mm,
+> +	ret = remap_pages(current->mm, ctx->mm,
+>  			  uffdio_remap.dst, uffdio_remap.src,
+>  			  uffdio_remap.len, uffdio_remap.mode);
+>  	if (unlikely(put_user(ret, &user_uffdio_remap->remap)))
+> -- 
+> 1.8.3.1
+> 
+
+-- 
+Sincerely yours,
+Mike.
