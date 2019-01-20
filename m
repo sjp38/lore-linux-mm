@@ -4,126 +4,124 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CCE4C282C2
-	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 20:21:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F2A1C282C2
+	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 20:23:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A516220880
-	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 20:21:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C0D7520880
+	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 20:23:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="wFXz6VS4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A516220880
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Ovavreme"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C0D7520880
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 07B438E0003; Sun, 20 Jan 2019 15:21:10 -0500 (EST)
+	id 6E1CE8E0004; Sun, 20 Jan 2019 15:23:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 028DA8E0001; Sun, 20 Jan 2019 15:21:09 -0500 (EST)
+	id 668D28E0001; Sun, 20 Jan 2019 15:23:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E81278E0003; Sun, 20 Jan 2019 15:21:09 -0500 (EST)
+	id 50A378E0004; Sun, 20 Jan 2019 15:23:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C13888E0001
-	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 15:21:09 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id d15so2316020ybk.12
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 12:21:09 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CC588E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 15:23:18 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id x64so10230977ywc.6
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 12:23:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=OEpEYG/0P2v/J4M7joVpRo9Cq+8rhRHs87h/EEaaWhM=;
-        b=ufCiSwdNo6W5SvPmzY+3Uok7RgpbUPJCbR+wuXKQborgUBzjLZs8ZzkT22oNVmUKUm
-         poT89H12gs0vFFP1dF7OWMlzZeUu9cIIYf+9Eirb5emi4C2gBLe7VXVzUs1Dv3gqSIAb
-         RsGfRLpEOcjxU+lMKwyMU2Vtv52STo9EGE2lRarbxPnk8AyfIbgZiNcODgKczFSHKyVv
-         rNxifQeffzT1ddqSypQixQ53Mh77YiTs/mluEJU1/f3/24tk6dWeiK81OqbYJ92bCWov
-         a0+ffn9+ypTJa2EhQsQm9mN3hXiKTZkAIyRM9Ly+eJrpHhk5dDO63AYWSpd08BSAp1ma
-         cYBg==
-X-Gm-Message-State: AJcUukdn8LlGshEhNIIxBydezeyAHBCAifetC4mjTu1VwkronLc2JBQh
-	M6gCmINHEvVr/ieUL+WrbaedQSQGA1X7yAX1hM8Clzl4uSFTxr4vFg2BmCh/SIElyZCi0vfCu73
-	uDLHmXN/2KRJKtJ2+SU/8r231ErAjb1eMUidr+xdxZic2pHBeXdOe+AxHaGStnpAcm/7C9nrOz7
-	u1enqMkQ73fp4ru44+nHrzMFbTn7EHZwKjoED+8n5zeLn0eiOvzqA2syCyxEVFfeokaBeLLq1LG
-	XCfAbEDcfVKQuHq1zKS6pzIg64mNd+g3n+BKaS4qS0AFKW94k/lckSZji12aHT5MjDaHF9t0XSi
-	u3wSwWI5XxjQGguSxYw2qgACDCW2kn6Z7KR3tJ5QV0ru59W0w+8F5gehIdQ8uSUnHv7bUp0mGt0
-	B
-X-Received: by 2002:a25:38c9:: with SMTP id f192mr15454763yba.64.1548015669460;
-        Sun, 20 Jan 2019 12:21:09 -0800 (PST)
-X-Received: by 2002:a25:38c9:: with SMTP id f192mr15454733yba.64.1548015668768;
-        Sun, 20 Jan 2019 12:21:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548015668; cv=none;
+        bh=uyipLOZTSIwpZWsR1TcE0z4tQjeXZYKEV1wzcg4NrdU=;
+        b=fkpfLm3ba9ajxb3W5ZKbumgvzwdwT4nT+bXWEunVVXQ+106VYCd9qg/fgVBz/ICUBv
+         kL82e5R6ulopBVNflLU4Ljr7fCJcGxs2WFY0315BmDFaYv8MAVM7qRjn14+4p+Rs04ZQ
+         HYGdppZt0NNpARqiCtV53K6vTdxucOl5giMev7PQ7eUtLj3p0POayR3y98KHV/xx7A7J
+         bGcvcVRYItCDz/1c0XkUK4+8CYrJOJViygnMhL5nnIZypfn3bk3eqGBKOG/5YSkhxYXG
+         nDDq+sD7/EziM5R5ThwA+/BK6HOmBHMl+X4usaWs1Uk9Ma1tYGQObBovFiOYep6eTw9M
+         UnEg==
+X-Gm-Message-State: AJcUukdISGRyvJToQn0Y5Oc49eJHbvVzuJwY6rWsJPTEnKF60ZAT4oHK
+	U//h6s3nYbdZl2s8eivbVufze4Tv8g7yFTltF8TqIE/AA3uZZkOf5k/1Lk06fLaXOI8zD2WU3xW
+	bRgadXGgDfvoRJsyx+GFtUfq0gjdk4CMHhf3kiGmO/8XjSiahOhyblU/NfgK+OFERKNE6WGbzOc
+	0OonxvWUpIGNrwoUS3Ak35e4/ApHquEYVXFpsKQydaCtWw1+3Y/XxNc/jNsbDowccWFrbXLVtw1
+	NfxdJBnviTQAH5qrqigaY5TciAaJcCyGej1ZIpLceDiBPz6zNi0Yw5g1c+6z8yYl4xc0zN4GhoD
+	RxJf2MVeeNKbcQDQZDDkj3g8QFdU6xnJq6VjvswEA+/WaD7NHqtG2xlcZOi/JKCvnKBifuCs070
+	/
+X-Received: by 2002:a81:de09:: with SMTP id k9mr26185481ywj.384.1548015797858;
+        Sun, 20 Jan 2019 12:23:17 -0800 (PST)
+X-Received: by 2002:a81:de09:: with SMTP id k9mr26185467ywj.384.1548015797414;
+        Sun, 20 Jan 2019 12:23:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548015797; cv=none;
         d=google.com; s=arc-20160816;
-        b=IZcXoLx1KAFyZTHRR+Fjs97yrVggYOJF5PsgcAetX6TtRZi1AjsvkqQcVKHAnh0iNt
-         XEFwdrV4xNHgwg7JEpB44hTrV6g7D5A8PbuTj2veWd8kkkXJKBgbByx3pRIslenT6lcy
-         8GZinD1t2cM9vIIHM0kCFNCxyDvYyEXybSH6WIGW3qlLn0JEIKfSfGpdIGAHTq1hA2F3
-         PbfWWq9Izz9ZxSTZCl8Oq2FINe9nqerjYXV/q9DPhOQottCfKco425dWYwvUJv4PDpQQ
-         /YBKNztP8ljzS9gko+W5IVCefUX91eOJzQyAMUnat716WZ+DaiXQt/czxFgawnDFWlxM
-         sJFw==
+        b=w45/E1JDbLNQYg6EqquhVh0SWFRtyewR1gdlTENmkELo9HLBiNlDyqRs/ZyIKXBwPn
+         lmEUP/5TlhtKjtcxc/En6C1wn3fsq4FNNIfk99ssaeAxhhNEwA/L7XXKT1Yh/Phsws3m
+         kch4bfY+cnfMYSplbaONppWgP151f0nwosSJD1kfZBvuudu5EvscCeQRnZbq96xe3qLK
+         zALabBT/NadU466L+/xJSmAsw8+nXGvSr/n7OFOPqvlo9F6WHPKKKrjBNnF67GuCcekF
+         AfMURGudREZZi3vNwx5VDv7s6o3YzZG4hkzAyh87EX8FK5PbS0LyqO8iZTrlLP0haE/n
+         iYqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=OEpEYG/0P2v/J4M7joVpRo9Cq+8rhRHs87h/EEaaWhM=;
-        b=GlVXN90DuIlVmaTgpvSv1Wskljkvfd9k6hzGH/uI1/D/0L0j0WK0Lq5ybWj/d8Jm+n
-         SRGh0GJt72GmtberZpoi9mmgkHPM9j2u8b7zz8KsjzE+f3Irm3MWFWewWtgKvrcXHD17
-         3UAaXwtpl9FHIVkYQFTvSB7fltEtPDuIqMztDboC3bUEjKGYWbqQ8nES3AQWWEv+Go9Z
-         xpmKvyxXmHdPjw+5nDqXsSbza0NrXUQAesCwi7wRpLkN4Fido7S7UYJOl6cl6WHPS+Gt
-         zOLkcMbwpvanswQQ6AxfyPegPod4t8lumAgBfCUDSg8hCgBwUZoxVh0R5otZRa3983Wa
-         IiTQ==
+        bh=uyipLOZTSIwpZWsR1TcE0z4tQjeXZYKEV1wzcg4NrdU=;
+        b=VeKqvLAVCdvGe9VIbul95RVoILzRAPrz/pLz7fU3InYF0D6QC34W7+bk/Kg9DhINdz
+         U+MjppOt6eiMvlhsdttksiqJ2ZoQgocZ0o0F5b+S3p5YZEpmfiXUBV2eRcvPrvtcu62J
+         Uzw/ofJw7ynnrM7Hff1S/D8UCYRRcBt4IYovnunC3tJThr2srCbAy6ZQ5heLU7FVD9DK
+         QeRWdc46oVoW8adRTJZ4VKzUbc46rFmWsdhSDSDvjAWC+1xUrdEKr5DORdcurgKczz+9
+         AusitoZ0h19eIw3xQZiUR9SOxzT+4ufz0N/4PCHMH4DelOYzN2UmH5cf9bIdZUwB9l0a
+         3i3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=wFXz6VS4;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Ovavreme;
        spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c3sor4623755ybi.206.2019.01.20.12.21.08
+        by mx.google.com with SMTPS id d4sor1905332ywm.164.2019.01.20.12.23.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 20 Jan 2019 12:21:08 -0800 (PST)
+        Sun, 20 Jan 2019 12:23:17 -0800 (PST)
 Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=wFXz6VS4;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Ovavreme;
        spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=OEpEYG/0P2v/J4M7joVpRo9Cq+8rhRHs87h/EEaaWhM=;
-        b=wFXz6VS4TmhgouhKBWxlxWByBoXZkf2HrzTbE8WN+Dj7vO9iNqt2PlNf79wXHK6K7t
-         DqkIk4JyhQKnE6i7KrzX9ckrklJya/+NOLgw6TcbN3fdRLrm5B+opnxsMvyCNI3qESWz
-         UasD7zjHsyPwMupwmGDJay/h1cV6OK0mht750/xWv2LLUKRdkwDJcfxBocsHdXWpi4Vx
-         RH+dYE8wwc8HwH/iNVsBkP+2C0kdSGi+BA8lOoFFNJL+D+QNBabJ/OP8FMyz9SjTC0ar
-         WKpzWQD1y0jIZg6taiGQavg38enlOwwjUjSU5BeCv4Du/5BFak3bl7t3TBnPL6d8fybZ
-         qlww==
-X-Google-Smtp-Source: ALg8bN4Lc5AT3/6z9ICm7STuaFDqZ6qlHNK6fPVkuyjZ6PjVk+EDgjzdCnz979HSopmOCPxFgAo2eCAoW6/FLGjpCD8=
-X-Received: by 2002:a25:5d7:: with SMTP id 206mr14246404ybf.164.1548015668260;
- Sun, 20 Jan 2019 12:21:08 -0800 (PST)
+        bh=uyipLOZTSIwpZWsR1TcE0z4tQjeXZYKEV1wzcg4NrdU=;
+        b=Ovavreme06i/tytbU8X7EJC4RV8sMcflD5xhosuyrSWqXc5eM8szEctbmKg9M8LNKO
+         aGWQ/xCrNFp00v4VVDGlrSp5ZJdOv6vieT/xlAUKbKPx2yN1vNDJ4iIxj5U936gukCoY
+         U9GgQD2k1/pm7VBpzCy0Pe2TCP+E8h22TCV01Fy/em6ASXf5FXqEWUh1YfPaHys/CMq1
+         RGaGlIbSDi2TTl6ckosGRJIH3lHT83h1ZzX5z67li1hUGBhnx+A3/slKkvkMPZnCGMg+
+         UfjYti0gPSaUYxN1VhlPkjC4XW9A36VerlF7d4Tk9cGFLaTLRlwo8tOika7BfzZhp5MZ
+         WT7A==
+X-Google-Smtp-Source: ALg8bN7duwdDk5JK1h87DBVWJL+DtD+PdtVzIgEpXIJiCrqL5BteFdBGwjM7HQJUFjBIQLleYVSCz88/LiMRLWbUtB4=
+X-Received: by 2002:a81:60c4:: with SMTP id u187mr25686411ywb.345.1548015796908;
+ Sun, 20 Jan 2019 12:23:16 -0800 (PST)
 MIME-Version: 1.0
-References: <20190119005022.61321-1-shakeelb@google.com> <20190119015843.GB15935@castle.DHCP.thefacebook.com>
-In-Reply-To: <20190119015843.GB15935@castle.DHCP.thefacebook.com>
+References: <20190119005022.61321-1-shakeelb@google.com> <02f74c47-4f35-3d59-f767-268844cb875e@i-love.sakura.ne.jp>
+In-Reply-To: <02f74c47-4f35-3d59-f767-268844cb875e@i-love.sakura.ne.jp>
 From: Shakeel Butt <shakeelb@google.com>
-Date: Sun, 20 Jan 2019 12:20:57 -0800
+Date: Sun, 20 Jan 2019 12:23:06 -0800
 Message-ID:
- <CALvZod6zRy69bHoXvEWED28OFZ8u4o8JBAL7nyjKMmUjBb5n4w@mail.gmail.com>
+ <CALvZod4h7ouNE7p2ouTix9uK3XLUvP6UYNDPEkR-y5PZRJRDnw@mail.gmail.com>
 Subject: Re: [RFC PATCH] mm, oom: fix use-after-free in oom_kill_process
-To: Roman Gushchin <guro@fb.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, 
 	David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+	Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190120202057.WXptPj7iaKnjOC2hxQGS2BnbG8AdZsVddymq1xLsLpA@z>
+Message-ID: <20190120202306.jfZpRUQaMa3SnpuckfITDcnewp97tGtWVS98EHubSB0@z>
 
-On Fri, Jan 18, 2019 at 5:58 PM Roman Gushchin <guro@fb.com> wrote:
+On Fri, Jan 18, 2019 at 7:35 PM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
 >
-> Hi Shakeel!
->
-> >
+> On 2019/01/19 9:50, Shakeel Butt wrote:
 > > On looking further it seems like the process selected to be oom-killed
 > > has exited even before reaching read_lock(&tasklist_lock) in
 > > oom_kill_process(). More specifically the tsk->usage is 1 which is due
@@ -132,36 +130,44 @@ On Fri, Jan 18, 2019 at 5:58 PM Roman Gushchin <guro@fb.com> wrote:
 > > access the tsk. The easiest fix is to do get/put across the
 > > for_each_thread() on the selected task.
 >
-> Please, feel free to add
-> Reviewed-by: Roman Gushchin <guro@fb.com>
-> for this part.
+> Good catch. p->usage can become 1 while printk()ing a lot at dump_header().
 >
-
-Thanks.
-
+> > @@ -981,6 +981,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+> >        * still freeing memory.
+> >        */
+> >       read_lock(&tasklist_lock);
+> > +
+> > +     /*
+> > +      * The task 'p' might have already exited before reaching here. The
+> > +      * put_task_struct() will free task_struct 'p' while the loop still try
+> > +      * to access the field of 'p', so, get an extra reference.
+> > +      */
+> > +     get_task_struct(p);
+> >       for_each_thread(p, t) {
+> >               list_for_each_entry(child, &t->children, sibling) {
+> >                       unsigned int child_points;
+> > @@ -1000,6 +1007,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+> >                       }
+> >               }
+> >       }
+> > +     put_task_struct(p);
+>
+> Moving put_task_struct(p) to after read_unlock(&tasklist_lock) will reduce
+> latency of a write_lock(&tasklist_lock) waiter.
+>
+> >       read_unlock(&tasklist_lock);
 > >
-> > Now the next question is should we continue with the oom-kill as the
-> > previously selected task has exited? However before adding more
-> > complexity and heuristics, let's answer why we even look at the
-> > children of oom-kill selected task? The select_bad_process() has already
-> > selected the worst process in the system/memcg. Due to race, the
-> > selected process might not be the worst at the kill time but does that
-> > matter matter? The userspace can play with oom_score_adj to prefer
-> > children to be killed before the parent. I looked at the history but it
-> > seems like this is there before git history.
+> >       /*
+> >
 >
-> I'd totally support you in an attempt to remove this logic,
-> unless someone has a good example of its usefulness.
->
-> I believe it's a very old hack to select children over parents
-> in case they have the same oom badness (e.g. share most of the memory).
->
-> Maybe we can prefer older processes in case of equal oom badness,
-> and it will be enough.
->
-> Thanks!
+> By the way, p->usage is already 1 implies that p->mm == NULL due to already
+> completed exit_mm(p). Then, process_shares_mm(child, p->mm) might fail to
+> return true for some of children. Not critical but might lead to unnecessary
+> oom_badness() calls for child selection. Maybe we want to use same logic
+> __oom_kill_process() uses (i.e. bail out if find_task_lock_mm(p) failed)?
 
-I am thinking of removing the whole logic of selecting children.
+Thanks for the review. I am thinking of removing the whole children
+selection heuristic for now.
 
 Shakeel
 
