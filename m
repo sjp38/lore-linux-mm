@@ -1,76 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CFC778E0001
-	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 13:12:54 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id m19so6897143edc.6
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 10:12:54 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g18si1699757edh.385.2019.01.20.10.12.53
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C13888E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 15:21:09 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id d15so2316020ybk.12
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 12:21:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c3sor4623755ybi.206.2019.01.20.12.21.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Jan 2019 10:12:53 -0800 (PST)
-Date: Sun, 20 Jan 2019 19:12:50 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/5] fix offline memcgroup still hold in memory
-Message-ID: <20190120181250.GJ4087@dhcp22.suse.cz>
-References: <1547955021-11520-1-git-send-email-duanxiongchun@bytedance.com>
+        (Google Transport Security);
+        Sun, 20 Jan 2019 12:21:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1547955021-11520-1-git-send-email-duanxiongchun@bytedance.com>
+References: <20190119005022.61321-1-shakeelb@google.com> <20190119015843.GB15935@castle.DHCP.thefacebook.com>
+In-Reply-To: <20190119015843.GB15935@castle.DHCP.thefacebook.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Sun, 20 Jan 2019 12:20:57 -0800
+Message-ID: <CALvZod6zRy69bHoXvEWED28OFZ8u4o8JBAL7nyjKMmUjBb5n4w@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm, oom: fix use-after-free in oom_kill_process
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiongchun Duan <duanxiongchun@bytedance.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, shy828301@gmail.com, tj@kernel.org, hannes@cmpxchg.org, zhangyongsu@bytedance.com, liuxiaozhou@bytedance.com, zhengfeiran@bytedance.com, wangdongdong.6@bytedance.com
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat 19-01-19 22:30:16, Xiongchun Duan wrote:
-> we find that in huge memory system frequent creat creation and deletion
-> memcgroup make the system leave lots of offline memcgroup.we had seen 100000 
-> unrelease offline memcgroup in our system(512G memory).
-> 
-> this memcgroup hold because some memory page still charged.
-> so we try to Multiple interval call force_empty to reclaim this memory page.
-> 
-> after applying those patchs,in our system,the unrelease offline memcgroup
-> was reduced from 100000 to 100.
+On Fri, Jan 18, 2019 at 5:58 PM Roman Gushchin <guro@fb.com> wrote:
+>
+> Hi Shakeel!
+>
+> >
+> > On looking further it seems like the process selected to be oom-killed
+> > has exited even before reaching read_lock(&tasklist_lock) in
+> > oom_kill_process(). More specifically the tsk->usage is 1 which is due
+> > to get_task_struct() in oom_evaluate_task() and the put_task_struct
+> > within for_each_thread() frees the tsk and for_each_thread() tries to
+> > access the tsk. The easiest fix is to do get/put across the
+> > for_each_thread() on the selected task.
+>
+> Please, feel free to add
+> Reviewed-by: Roman Gushchin <guro@fb.com>
+> for this part.
+>
 
-I've stopped at patch 3 because all these patches really ask for much
-more justification. Please note that each patch should explain the
-problem, the proposed solution on highlevel and explain why it is done
-so. The cover letter should also explain the underlying problem.
-What does prevent those memcgs to be reclaim completely on force_empty?
+Thanks.
 
-Besides that, I do agree that the current implementation of force_empty
-is rather suboptimal. There is a hardcoded retry loop counter which
-doesn't really make much sense to me. The context is interruptible and
-there is no real reason to have a retry count limit. If a userspace want
-to implement a policy it can do it from userspace - e.g.
+> >
+> > Now the next question is should we continue with the oom-kill as the
+> > previously selected task has exited? However before adding more
+> > complexity and heuristics, let's answer why we even look at the
+> > children of oom-kill selected task? The select_bad_process() has already
+> > selected the worst process in the system/memcg. Due to race, the
+> > selected process might not be the worst at the kill time but does that
+> > matter matter? The userspace can play with oom_score_adj to prefer
+> > children to be killed before the parent. I looked at the history but it
+> > seems like this is there before git history.
+>
+> I'd totally support you in an attempt to remove this logic,
+> unless someone has a good example of its usefulness.
+>
+> I believe it's a very old hack to select children over parents
+> in case they have the same oom badness (e.g. share most of the memory).
+>
+> Maybe we can prefer older processes in case of equal oom badness,
+> and it will be enough.
+>
+> Thanks!
 
-timeout 2m echo 0 > force_empty
+I am thinking of removing the whole logic of selecting children.
 
-Last but not least a force_empty on offline has been proposed recently
-http://lkml.kernel.org/r/1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com
-I haven't followed up on that discussion yet but it is always better to
-check what where arguments there and explain why this approach is any
-better/different.
-
-> Xiongchun Duan (5):
->   Memcgroup: force empty after memcgroup offline
->   Memcgroup: Add timer to trigger workqueue
->   Memcgroup:add a global work
->   Memcgroup:Implement force empty work function
->   Memcgroup:add cgroup fs to show offline memcgroup status
-> 
->  Documentation/cgroup-v1/memory.txt |   7 +-
->  Documentation/sysctl/kernel.txt    |  10 ++
->  include/linux/memcontrol.h         |  11 ++
->  kernel/sysctl.c                    |   9 ++
->  mm/memcontrol.c                    | 271 +++++++++++++++++++++++++++++++++++++
->  5 files changed, 306 insertions(+), 2 deletions(-)
-> 
-> -- 
-> 1.8.3.1
-
--- 
-Michal Hocko
-SUSE Labs
+Shakeel
