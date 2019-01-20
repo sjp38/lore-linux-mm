@@ -1,211 +1,188 @@
-Return-Path: <SRS0=Ztt1=P3=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=a6Xk=P4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EA95C61CE8
-	for <linux-mm@archiver.kernel.org>; Sat, 19 Jan 2019 17:06:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C6170C6369F
+	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 13:30:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D40B2084F
-	for <linux-mm@archiver.kernel.org>; Sat, 19 Jan 2019 17:06:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D40B2084F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 6186220861
+	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 13:30:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ovui++He"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6186220861
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 877368E0003; Sat, 19 Jan 2019 12:06:00 -0500 (EST)
+	id AADAB8E0003; Sun, 20 Jan 2019 08:30:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 826C68E0002; Sat, 19 Jan 2019 12:06:00 -0500 (EST)
+	id A5CEE8E0001; Sun, 20 Jan 2019 08:30:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73ED88E0003; Sat, 19 Jan 2019 12:06:00 -0500 (EST)
+	id 94D9E8E0003; Sun, 20 Jan 2019 08:30:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4145E8E0002
-	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 12:06:00 -0500 (EST)
-Received: by mail-vs1-f70.google.com with SMTP id c201so7687530vsd.4
-        for <linux-mm@kvack.org>; Sat, 19 Jan 2019 09:06:00 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E5CE8E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 08:30:42 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id b14so8491986itd.1
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 05:30:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=hPZrItUXd2H0WcwlY6Ng1Q7UljN2zVyzpIW25JQnrbY=;
-        b=Ya8tQf8BlX4s25FiOUcfv06MGYB7tO369aWZb+iTUQQnY6YAZngF4uuv/LpjHzMxFE
-         ywGdTqlXiLmzx4mJ0dMkefz6acyXe6Q/2QVpCyQWBygkSOBxgHs7Wmbh7Tcng2mMuQXR
-         dni/zrAKnyO5JH/HUK7p8UIeXBDu19Gp9L07xdRa8g2V59Aqh92YDx3v/qbRzywjWeir
-         Ivnpk7RSVIem62JH/gfnwM+uNE6UPc3852ilwKM4R0dHMo2N10SS8HYjL60LZ0DUjeXJ
-         l9LylwA3U2jstvA8OcFclhcVT+pH9BEO2tBJIhMTZVL2OHxgGE8hZOkIEpW8WI/7u1no
-         iHcA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: AJcUukcMRXOCCaEst7J66586yAF+WlS7JtPnPU6Pm5vtuStcqtI9RWEo
-	PgKLcVc+FnzDuYOfxaCFg8vEtAOZEbOgD0DMHlleiFn+qTA76P5lH8gDTFzf/HCxmEW+4nPNdzf
-	iuQcawrVKHeAxEnF+dPd5j+gn+3Nu7O7IzDVKXpMDT/x2PyZ9pBf2nCN7pPnrjOeeLA==
-X-Received: by 2002:a1f:7d02:: with SMTP id y2mr4578220vkc.62.1547917559865;
-        Sat, 19 Jan 2019 09:05:59 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5/OReB0RoIqMEpyGcmEFmMkGbr79lSZmiobx3XSO/k2TWBqQcDeMa0U/HZYgk3Tlf6svFB
-X-Received: by 2002:a1f:7d02:: with SMTP id y2mr4578204vkc.62.1547917559115;
-        Sat, 19 Jan 2019 09:05:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547917559; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=kvPxZxbejLIRpkWpPkQpCpqx55TaTGMUbFyDQUcQOH4=;
+        b=Vt4sMaSkoePAHcIe8jCvfgWh6ukLuaTYc9IKBE2CzadJw82Dr+UfX9rujgTQx+dYlP
+         C7O2aweZrOP+YX1mLk6njkdiqOeASKLqsZT2uDxCs1DgQNkLNswunS3schl7tO74gNhp
+         gi45isl9V6Ee44eJbHmucp83egnXBGvKCF/LG3rIp0T8X/DX3lFjRhDh0LBk4JtkhfNO
+         ++/l46nTQLDmgFTusjRJ3Ipws8PO+bHeOitRX4j2+kd2RDjBjnkOu9h+1dQI0BRFiZJI
+         mwcr6qc7s1YylRbMh2PzoFuGI25gjti3pjKsIYYz3Qf7y1NQJMQP3eMOFc/h4Q5MxC55
+         +KEQ==
+X-Gm-Message-State: AJcUukeinlQ9Y3XtAEDPONrRFhPlUZj7UoTTfRdX5J0DLpGx8nQsHtVl
+	rC2Yn18XBjGP4hkxHEMc1rQ6sinl+t/WnlmYnHLN+3yoqRzykB8hb5g4QZjhZsg/ZLd6vYpEazB
+	+6pY5n1o6NjKkrGZr5IOcu7InNoUuLQfC/EoeIsZyO/E14QUKgyIRFceMCnkWXpi316akO+adN+
+	rsQojKvrmWX3ZySxB70Fv752O0TjzFq/Bz5FN3hxt6SMZ8YevW6gs2tZc3gyzyfoyBG6U6KjOa4
+	zfvV/vqJtVrBVTsOEyzqhfL0MN/gAXquQttyqnnTH2HhGecE3g5ZNYd6BEd/tQdshfmdNhSvRP/
+	4FtcPPTgk4GgL9hpkr83/STcWSGt3+3GDpubus1+5nVcOp8IG3pdQalSTJLOVkgympwTfZkuZ+e
+	S
+X-Received: by 2002:a24:9307:: with SMTP id y7mr15374926itd.38.1547991042144;
+        Sun, 20 Jan 2019 05:30:42 -0800 (PST)
+X-Received: by 2002:a24:9307:: with SMTP id y7mr15374888itd.38.1547991040974;
+        Sun, 20 Jan 2019 05:30:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1547991040; cv=none;
         d=google.com; s=arc-20160816;
-        b=ub9GHpkbpjkxygBxHN7DfExuGii+ae0gidmDQEZ0A0Q5xUQcWDbmhFtox79N8toiIs
-         aKme2M4DfnlbMTgfMSDyQ4MaEaO8dfmqpHkjKRO1n/rqH23axY16A0YnZQx8TnpjhzAi
-         7m8GamWDs15lh3xoTFnZqHK5t2jvEVSXpWxJaH4USFPg2WRkOYhmfHX/r3zRKMBuO541
-         MCs4RS1rG6YWMwGTcYLp9RMSOWQL4PGLwS1O0/XIOQEEf1vb657vm1wVSek3+rs4Ngoz
-         f7h9/QcV2VoDahrckEGJbJPjXIIPX4ur1Sq+rwz1egscvYBvRuANf+Q3x/D44DCVvA5d
-         aM+g==
+        b=cKBeyRT9gmWQKtZdBf6DyqUjEH0FQFVH+Cr1xeAus2XXVit1op/yGlmNjh/H9FUEpo
+         CW/dWrmYMNDhmyK+XQQzE7AmKV49ZXQvcf6xeY4WIewGgXAf6g6dLGPN0i31k/aRkdAr
+         Yy7XMYOG2KbSpov6qT7fTbZNsMz280t2Gvb2j4uQbxEhJCmk66Aq+vJXYl8RRK+FyMRE
+         iv20OzY9aS/hKBC0eU6IdiIA64i1BYHCmFILCyfB4p3ERg4qMjGvK20VhgNrB10tQeiL
+         8dF/ngCn4M4f724JO2dn3TdfLWT2U5bR2eSPKWYRCO6+q5DITvKjpqI3nIHJJBvveYcL
+         szyQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=hPZrItUXd2H0WcwlY6Ng1Q7UljN2zVyzpIW25JQnrbY=;
-        b=iy5FbeJ+DNcxBE7cZXbbft5znpj+07VTUDBSEbbdbW4j49BS6ij7m1fAoxyDrXKbZH
-         gc9dQSGAg0mtanGkFAKkAGQ9f2Webl90uYe1MvLscVUSEkKlRhuWVzG/gw+cQ62ugCHm
-         Tj7sowaUHlv4NNiRxs6rmWu9icV9h1VV+46Y1TG+8bykEpkw1bLpFK/Rle15X1lGE8wy
-         4E9XjWpnQfxyWS9NJ33CqfSTN8W4w0GJH21xEtnWi7Zn6hiiYiA/HCZO2JpctRYe2W7V
-         nr8F5wjiAlRmdrQ8+hksedmDnhZI2IHOxR3v8uX0Li5IZeP8kFSODXLJ8SiXmVygg768
-         4z7w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=kvPxZxbejLIRpkWpPkQpCpqx55TaTGMUbFyDQUcQOH4=;
+        b=s4zYk46S0dCmCUOj/GwDBxNfMASq1m9k8LyGFL23JOrZLlgMmoTIaKsaEOwDVmN1Wj
+         1K965msX4oYhr1s3U+cE5QBrLDk2mFU+F0YODVhhP1jwz6wBGNqftWeRWTZv8nkEXZnl
+         jCrpT4nZqtxFty3jYjjDn+QTc6C68WDV2f+OExZEs8d6OXAcN63fTGbXmSpx1HlZED5Y
+         0R+EP5HzZMf9LMzsD+vkcuq1edLgezM8QB3FeBo2JiMRwCQK0gSGe7e4s+2LQYzKvqMb
+         /tSHmWED2V5vDYv6hQM9uu/UVyVUW9OShRCbwVj6vcwfAJDTKpCnH7Z7pJd/RoTDru/Z
+         3idQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id 78si5648677uav.234.2019.01.19.09.05.58
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ovui++He;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 23sor24563116jal.5.2019.01.20.05.30.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 Jan 2019 09:05:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        (Google Transport Security);
+        Sun, 20 Jan 2019 05:30:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS405-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id 0A3BDBE72D27548D7AB7;
-	Sun, 20 Jan 2019 01:05:55 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS405-HUB.china.huawei.com
- (10.3.19.205) with Microsoft SMTP Server id 14.3.408.0; Sun, 20 Jan 2019
- 01:05:54 +0800
-Message-ID: <5C4358F1.1080505@huawei.com>
-Date: Sun, 20 Jan 2019 01:05:53 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ovui++He;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=kvPxZxbejLIRpkWpPkQpCpqx55TaTGMUbFyDQUcQOH4=;
+        b=ovui++HeQkza1NtzXxbxEEAuR9Kl+GYoJUXLn6Pkezrl/6olxG0GM9Emt9KnAMstkh
+         m0mPlxWguzJ9f5G8d2dFTHSmm4eiWCItwxFYnaKj9DWy2UUBbNPS8feoqCI29CMaMmKD
+         ZV7/XOXDTcd4pruN7Kj6IgSETHHYqCS3/SYmC1pDYTVz9yY1RnWg/mjThwG7G6D++LkC
+         Q2xuRx/A5p94WPyY219D3+J4yl1qKgJJSryZSo4HoqK9YnIgWpiKLyuvSkbouA1oIFHf
+         WQ4yrQZ12I+Lq57gScP1Fou22oHFv+c3pxtPeLbxhjAYZceYyXBQsHqT+c+kO23+KGkz
+         srjw==
+X-Google-Smtp-Source: ALg8bN4Y567V5el6qPj6tMuVjN9+Yf2lTkOzSiNd3H/zVUMmXK/cv9wDbxp2/voSuypeGaZjJ0OMecXqt6RgliDFKL0=
+X-Received: by 2002:a02:97a2:: with SMTP id s31mr14655398jaj.82.1547991040336;
+ Sun, 20 Jan 2019 05:30:40 -0800 (PST)
 MIME-Version: 1.0
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-CC: Vinayak Menon <vinmenon@codeaurora.org>, Linux-MM <linux-mm@kvack.org>,
-	<charante@codeaurora.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: Re: [PATCH v11 00/26] Speculative page faults
-References: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org> <5a24109c-7460-4a8e-a439-d2f2646568e6@codeaurora.org> <9ae5496f-7a51-e7b7-0061-5b68354a7945@linux.vnet.ibm.com> <e104a6dc-931b-944c-9555-dc1c001a57e0@codeaurora.org> <5C40A48F.6070306@huawei.com> <8bfaf41b-6d88-c0de-35c0-1c41db7a691e@linux.vnet.ibm.com>
-In-Reply-To: <8bfaf41b-6d88-c0de-35c0-1c41db7a691e@linux.vnet.ibm.com>
+References: <ea2bc542-38b2-8218-9eb7-4c4a05da36ea@i-love.sakura.ne.jp>
+ <CACT4Y+Yy-bF07F7F8DoFY8=4LtLURRn1WsZzNZ9LN+N=vn7Tpw@mail.gmail.com>
+ <201901180520.x0I5KYTi096127@www262.sakura.ne.jp> <CACT4Y+acvQXPLHFSbNYAEma6Rqx6QCp_kqjsbAF8M9og4KA3CA@mail.gmail.com>
+ <d90cc533-607e-fe40-9b02-a6cac7b7b534@i-love.sakura.ne.jp>
+In-Reply-To: <d90cc533-607e-fe40-9b02-a6cac7b7b534@i-love.sakura.ne.jp>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sun, 20 Jan 2019 14:30:29 +0100
+Message-ID:
+ <CACT4Y+b=5_p=eTgKobApkZZTAVeRxrn3dEempFHampFjrGX0Pw@mail.gmail.com>
+Subject: Re: INFO: rcu detected stall in ndisc_alloc_skb
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: syzbot <syzbot+ea7d9cb314b4ab49a18a@syzkaller.appspotmail.com>, 
+	David Miller <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, 
+	LKML <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, 
+	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Linux-MM <linux-mm@kvack.org>, 
+	Shakeel Butt <shakeelb@google.com>, syzkaller <syzkaller@googlegroups.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190119170553.UScSi21nIn9FErwK5_dq71KwaUjn2h7Sy4tYWiySr3g@z>
+Message-ID: <20190120133029.wv1FRjIKJI1WniMZ8awYuYKB7YZ-SHEgGcxpSfI_9tg@z>
 
-On 2019/1/19 0:24, Laurent Dufour wrote:
-> Le 17/01/2019 à 16:51, zhong jiang a écrit :
->> On 2019/1/16 19:41, Vinayak Menon wrote:
->>> On 1/15/2019 1:54 PM, Laurent Dufour wrote:
->>>> Le 14/01/2019 à 14:19, Vinayak Menon a écrit :
->>>>> On 1/11/2019 9:13 PM, Vinayak Menon wrote:
->>>>>> Hi Laurent,
->>>>>>
->>>>>> We are observing an issue with speculative page fault with the following test code on ARM64 (4.14 kernel, 8 cores).
->>>>>
->>>>> With the patch below, we don't hit the issue.
->>>>>
->>>>> From: Vinayak Menon <vinmenon@codeaurora.org>
->>>>> Date: Mon, 14 Jan 2019 16:06:34 +0530
->>>>> Subject: [PATCH] mm: flush stale tlb entries on speculative write fault
->>>>>
->>>>> It is observed that the following scenario results in
->>>>> threads A and B of process 1 blocking on pthread_mutex_lock
->>>>> forever after few iterations.
->>>>>
->>>>> CPU 1                   CPU 2                    CPU 3
->>>>> Process 1,              Process 1,               Process 1,
->>>>> Thread A                Thread B                 Thread C
->>>>>
->>>>> while (1) {             while (1) {              while(1) {
->>>>> pthread_mutex_lock(l)   pthread_mutex_lock(l)    fork
->>>>> pthread_mutex_unlock(l) pthread_mutex_unlock(l)  }
->>>>> }                       }
->>>>>
->>>>> When from thread C, copy_one_pte write-protects the parent pte
->>>>> (of lock l), stale tlb entries can exist with write permissions
->>>>> on one of the CPUs at least. This can create a problem if one
->>>>> of the threads A or B hits the write fault. Though dup_mmap calls
->>>>> flush_tlb_mm after copy_page_range, since speculative page fault
->>>>> does not take mmap_sem it can proceed further fixing a fault soon
->>>>> after CPU 3 does ptep_set_wrprotect. But the CPU with stale tlb
->>>>> entry can still modify old_page even after it is copied to
->>>>> new_page by wp_page_copy, thus causing a corruption.
->>>> Nice catch and thanks for your investigation!
->>>>
->>>> There is a real synchronization issue here between copy_page_range() and the speculative page fault handler. I didn't get it on PowerVM since the TLB are flushed when arch_exit_lazy_mode() is called in copy_page_range() but now, I can get it when running on x86_64.
->>>>
->>>>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
->>>>> ---
->>>>>    mm/memory.c | 7 +++++++
->>>>>    1 file changed, 7 insertions(+)
->>>>>
->>>>> diff --git a/mm/memory.c b/mm/memory.c
->>>>> index 52080e4..1ea168ff 100644
->>>>> --- a/mm/memory.c
->>>>> +++ b/mm/memory.c
->>>>> @@ -4507,6 +4507,13 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
->>>>>                   return VM_FAULT_RETRY;
->>>>>           }
->>>>>
->>>>> +       /*
->>>>> +        * Discard tlb entries created before ptep_set_wrprotect
->>>>> +        * in copy_one_pte
->>>>> +        */
->>>>> +       if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
->>>>> +               flush_tlb_page(vmf.vma, address);
->>>>> +
->>>>>           mem_cgroup_oom_enable();
->>>>>           ret = handle_pte_fault(&vmf);
->>>>>           mem_cgroup_oom_disable();
->>>> Your patch is fixing the race but I'm wondering about the cost of these tlb flushes. Here we are flushing on a per page basis (architecture like x86_64 are smarter and flush more pages) but there is a request to flush a range of tlb entries each time a cow page is newly touched. I think there could be some bad impact here.
->>>>
->>>> Another option would be to flush the range in copy_pte_range() before unlocking the page table lock. This will flush entries flush_tlb_mm() would later handle in dup_mmap() but that will be called once per fork per cow VMA.
->>>
->>> But wouldn't this cause an unnecessary impact if most of the COW pages remain untouched (which I assume would be the usual case) and thus do not create a fault ?
->>>
->>>
->>>> I tried the attached patch which seems to fix the issue on x86_64. Could you please give it a try on arm64 ?
->>>>
->>> Your patch works fine on arm64 with a minor change. Thanks Laurent.
->> Hi, Vinayak and Laurent
->>
->> I think the below change will impact the performance significantly. Becuase most of process has many
->> vmas with cow flags. Flush the tlb in advance is not the better way to avoid the issue and it will
->> call the flush_tlb_mm  later.
->>
->> I think we can try the following way to do.
->>
->> vm_write_begin(vma)
->> copy_pte_range
->> vm_write_end(vma)
->>
->> The speculative page fault will return to grap the mmap_sem to run the nromal path.
->> Any thought?
+On Sat, Jan 19, 2019 at 2:10 PM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
 >
-> Here is a new version of the patch fixing this issue. There is no additional TLB flush, all the fix is belonging on vm_write_{begin,end} calls.
+> On 2019/01/19 21:16, Dmitry Vyukov wrote:
+> >> The question for me is, whether sysbot can detect hash collision with different
+> >> syz-program lines before writing the hash value to /dev/kmsg, and retry by modifying
+> >> syz-program lines in order to get a new hash value until collision is avoided.
+> >> If it is difficult, simpler choice like current Unix time and PID could be used
+> >> instead...
+> >
+> > Hummm, say, if you run syz-manager locally and report a bug, where
+> > will the webserver and database that allows to download all satellite
+> > info work? How long you need to keep this info and provide the web
+> > service? You will also need to pay and maintain the server for... how
+> > long? I don't see how this can work and how we can ask people to do
+> > this. This frankly looks like overly complex solution to a problem
+> > were simpler solutions will work. Keeping all info in a self-contained
+> > file looks like the only option to make it work reliably.
+> > It's also not possible to attribute kernel output to individual programs.
 >
-> I did some test on x86_64 and PowerPC but that needs to be double check on arm64.
->
-> Vinayak, Zhong, could you please give it a try ?
->
-Thanks, look good to me. I will try it.
+> The first messages I want to look at is kernel output. Then, I look at
+> syz-program lines as needed. But current "a self-contained file" is
+> hard to find kernel output.
 
-Sincerely,
-zhong jiang
-> Thanks,
-> Laurent.
->
+I think everybody looks at kernel crash first, that's why we provide
+kernel crash inline in the email so it's super easy to find. One does
+not need to look at console output at all to read the crash message.
+Console output is meant for more complex cases when a developer needs
+to extract some long tail of custom information. We don't know what
+exactly information a developer is looking for and it is different in
+each case, so it's not possible to optimize for this. We preserve
+console output intact to not destroy some potentially important
+information. Say, if we start reordering messages, we lose timing
+information and timing/interleaving information is important in some
+cases.
 
+> Even if we keep both kernel output and
+> syz-program lines in a single file, we can improve readability by
+> splitting into kernel output section and syz-program section.
+>
+>   # Kernel output section start
+>   [$(uptime)][$(caller_info)] executing program #0123456789abcdef0123456789abcdef
+>   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_0123456789abcdef0123456789abcdef_are_here)
+>   [$(uptime)][$(caller_info)] executing program #456789abcdef0123456789abcdef0123
+>   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
+>   [$(uptime)][$(caller_info)] executing program #89abcdef0123456789abcdef01234567
+>   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_89abcdef0123456789abcdef01234567_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
+>   [$(uptime)][$(caller_info)] BUG: unable to handle kernel paging request at $(address)
+>   [$(uptime)][$(caller_info)] CPU: $(cpu) PID: $(pid) Comm: syz#89abcdef0123 Not tainted $(version) #$(build)
+>   [$(uptime)][$(caller_info)] $(backtrace_of_caller_info_is_here)
+>   [$(uptime)][$(caller_info)] Kernel panic - not syncing: Fatal exception
+>   # Kernel output section end
+>   # syzbot code section start
+>   Program for #0123456789abcdef0123456789abcdef
+>   $(program_lines_for_0123456789abcdef0123456789abcdef_is_here)
+>   Program for #456789abcdef0123456789abcdef0123
+>   $(program_lines_for_456789abcdef0123456789abcdef0123_is_here)
+>   Program for #89abcdef0123456789abcdef01234567
+>   $(program_lines_for_89abcdef0123456789abcdef01234567_is_here)
+>   # syzbot code section end
+>
 
