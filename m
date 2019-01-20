@@ -6,95 +6,96 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 019DAC7113D
-	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 16:16:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8F38C7113C
+	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 16:20:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8CB902087B
-	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 16:16:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CB902087B
+	by mail.kernel.org (Postfix) with ESMTP id 7C5C92087B
+	for <linux-mm@archiver.kernel.org>; Sun, 20 Jan 2019 16:20:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C5C92087B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 06CC58E0003; Sun, 20 Jan 2019 11:16:24 -0500 (EST)
+	id 06A638E0004; Sun, 20 Jan 2019 11:20:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 01B798E0001; Sun, 20 Jan 2019 11:16:23 -0500 (EST)
+	id F34FB8E0001; Sun, 20 Jan 2019 11:20:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E73A38E0003; Sun, 20 Jan 2019 11:16:23 -0500 (EST)
+	id DFC4F8E0004; Sun, 20 Jan 2019 11:20:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3CD8E0001
-	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 11:16:23 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id p131so8334597oia.21
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 08:16:23 -0800 (PST)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B5D098E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 11:20:13 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id v184so8354213oie.6
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 08:20:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:mime-version
          :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=vqq8xMl7K0vAPz7n9VQCf5cdbFyZR4ZOXMYdzAlyKWw=;
-        b=iv9s6aN8IaWzeEGdt+QJLr+83XX4g+U2DE5+Q7nE+f52OVReVKEQQ/YMbVYiI4nwxG
-         mwzMyjvUk4NC7o2DtbawNb7m6XktHDv4q6Iyvp7UKvgmOxDWlPzuvdRq0p1xD35Q8vv6
-         ONtQ9jL2fWMBCdehGeaIvYo/pMDDA0vHPG9u1PmoCKHKL4sogINcewTZI+3pJfZGBG24
-         ntXB6zbPzEfyZet4/s1IEwsxm+WCBXPMOGzUyIi5Ca6yNysqtCl2ff44wp+wOLMWnql6
-         VAaO5WJd/nx6Yyr+Ei/8yeqquSOSPjibqwrhl6hqtzmdG2ysUU4Jv7FYzJB1FQJgfuXz
-         YvSw==
+        bh=87E/+3zx0weqSrGfJzPSvhyyNU7cB2w5xkBG7edYcBc=;
+        b=TSs+xcGyLmO0lvhnZdla8jegZiI++kf6Rc7hlINnxeuphszeLAtIPmbxJ62nwMGAy9
+         pqxWLeK+Xyre8E/x6d8gpYcu+LYWtm1LkonLBR+hHnTjf2j++VYbu2ChPHsU/4rKApOj
+         YMWyW1/HH/6r0xXpCEymR88IatMf8fdgAQDJ0sN5zWCE0qd/dzBQkUTBr3RKBuyhKR52
+         M3zk4yrjcA41gmMHG65M6ml0bbkOhXm93/GiIZ5XMBf/NN60mE0JT+TZtJh+YA3VFm/M
+         xQEGsgUgJjP4J9n8GCXGy0aIGDfshDcEGLgERf8V/03Dnt9TwXWJ1YN0lHP52o7WTurc
+         adbA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukdtuxrkCunFVMUHpM8v6OehfUBnzNf2gqsQRBTRBPaAnxS7QDy7
-	iBcW/gDKb5w1kewFVP5T46flkw7924cjZ11b0UhR6hY6XGz461gpgSafkiL/Mwj3fKrn1R4ouH6
-	g5uNeQtaTAUAhWSgm4mP8L8z2DqFn/fYd+KS7G4MmFoofUdGsbsCOmgTH2LH8Or89fAE9aQz8yD
-	738fKuxSbsN4nMlyA71i/lL1pjPN+B+dWfxqXYugsWns3VmybsVNWbtuoz+1d42ONwiYWg/ha52
-	KogJL/qUBweC/P7+hYtQULu+qG6aCmuqZW+GSb4Tv+y2lL1sdYKEiOUfuuXISBp4bLX89Pv+9r7
-	RElbQktFp9XtaeT+h7LUUiprgpwaOGjapYD0RxGlCeg5WP5Ec2+grppsuxwwaKMKQ3Do3Lv9TQ=
+X-Gm-Message-State: AJcUukeRGGGr5i+KsY9fz/T2e7l9kG+qZMueP5eQNxrhDeC1ZsbWHJLv
+	DCOETAUAVLi/4IEerEJIOxS9hcddlBskvXP7zlx9MWIVS1rKKQLmmbOuPvBIYAPSMPnsH6xZHVJ
+	sRGf80PoylIffRcvnYOudMUipWakZen6s5WsFIlQPq4d2SXoKC2SPiS725LXdgxyaZSKDpIK81p
+	7pAqfkwkeuBvgvgLAhXSG81Oqs0xT+YbiRhMiDU3Vt3ZN1uYQGLB24L1aTSDeVwYhclHtZ/VoE4
+	WPom6rDfezW7NfG8AXehp4Mw7O6wlziBVc6poL4ZASF8kgnv8RnZpZifWnQi9pDHPd9Q/ZL8yRc
+	L/rOn2Po52eoXnHivvvCwlXANr/3Gx/npCvpqnUNH6gOF+294kTCB90isagTQcESanIUTbdr1Q=
 	=
-X-Received: by 2002:aca:e7c9:: with SMTP id e192mr3632743oih.155.1548000983479;
-        Sun, 20 Jan 2019 08:16:23 -0800 (PST)
-X-Received: by 2002:aca:e7c9:: with SMTP id e192mr3632709oih.155.1548000982426;
-        Sun, 20 Jan 2019 08:16:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548000982; cv=none;
+X-Received: by 2002:aca:31cb:: with SMTP id x194mr3427745oix.213.1548001213493;
+        Sun, 20 Jan 2019 08:20:13 -0800 (PST)
+X-Received: by 2002:aca:31cb:: with SMTP id x194mr3427708oix.213.1548001212715;
+        Sun, 20 Jan 2019 08:20:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548001212; cv=none;
         d=google.com; s=arc-20160816;
-        b=XECMFTDhL64jd/120Jz/zSdx3WEcZgMAVKmGhkOGScRHLrJJwUggvBHMn+8NKO8v4S
-         o+AcV3xCEgTEnsa27aJUW812Ij0O9NPNeHgQZwntv/oujAfgrVaR4vbWoNfQjmGMVpwy
-         cPURp0V/akvsnM0XAL3G6/KbIHGMaZJFz9rYA08G2YTCxvJrbwKjHrPbc/Sd2SVzBIAR
-         LbCDFuUKge9KbTmExXsGhT6mL7sStws1w6BcXZwtiGJQMM11xILeL4CUP8wsGxXDfkIx
-         ldhUpFj6QFOc2i6nfcQkdlcMUT5khcmNVPoi0Brb0irWRmVXoH6N047cR9wW6+3B3iUH
-         83KQ==
+        b=ViU7tX1JX2X6ZLaxcGv603VSuOS7f4GJcbIXaHhpPihUC4020Kx1O6MyuqyiZs1FIQ
+         oQf2eMpSYgtHdRSJKc2Yo7Zc04sJ0KCkj2vFmqX2cAf+YH1lLqkokEdi0+4dbA8pi63w
+         wuxFB95C8IWNHKj2USfz0d062hXf20PpIZrsq+1Ta3/bVSFX9oGz9Woi+rCV92r+swgZ
+         Wt7JQT/wjT0oETIxFvmzTV1ceoPeP7+tNqVRRA18yDaLdkkYDUtXh37hJzXmuhQhSH/e
+         VJNRHT0Fjoqr5JF+wqSXOCLIKV6ONiZRPUmHDu94O0R6BxKcgFqdmSqImHAVc2fGUuT7
+         yVOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version;
-        bh=vqq8xMl7K0vAPz7n9VQCf5cdbFyZR4ZOXMYdzAlyKWw=;
-        b=jNPO8RGRkYbNTAmSHZjcLimMkoIe7rwOzZ3yJd9gzkBLMNzfD3sqvsvxcw+uj9RCX+
-         Jv8RCmS3MS+Y88ES5qIjn+lFo2hPNuN8qiTwzomrTz9wn0TgsQNh0dDi7s3CWiquRRzb
-         aSS1BGipHPlnIGKjdsIEvxBwXsZnCWqPS0u1uC5E76wiWbtk893u1OwuK+QsVtfZF3hQ
-         aTeTGFRZnY/HxhF4R5hMEgzdL3EIOOcowCIXvx0c98HN8KAHATL5tbQ0P1KAEY4jvZ5O
-         hP0XhXsMWWjcpj8K3FlK8A2zJgE1MmxESPbRSxcLprStAFOl/Nw9NFidSM0QGLVPoZYZ
-         o3UQ==
+        bh=87E/+3zx0weqSrGfJzPSvhyyNU7cB2w5xkBG7edYcBc=;
+        b=0MQFjaSgtHLeQwmuLi4ifogSXAm1zBNTZWYGM4PvlMuCMGQu9YwWU+x7hw3M5oDfKB
+         o3AygglKEKtf1Ycr/rawWa67YJvCIfxFrNywUWuT2E7o7PH0IsR0+6Ecod/BRFP/3ZTd
+         J4kqGxpQ/4sff5RM7K9CqsUIAHsJZUq5m/1AcA2N64Gyz/h22zCfgGSrre/67SK8t1m7
+         ZmLRsId+LEGls8YcCkStUGCaE6Gdms/w6KWgVUDsEmFVkt22xxpYV4To91st7emUZAIQ
+         7yG19lEeqhMaEhUrlpiwOGWh8i0MvC8q2drc6qHvzJpobo2Xq+WaLDJagzBkbWsVHe+p
+         w9gA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x73sor2186117oia.98.2019.01.20.08.16.22
+        by mx.google.com with SMTPS id s189sor1938095ois.146.2019.01.20.08.20.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 20 Jan 2019 08:16:22 -0800 (PST)
+        Sun, 20 Jan 2019 08:20:12 -0800 (PST)
 Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: ALg8bN7VrgUhjumeH8KZNgH0lP3U5pjPHxVHl07vfY246EtGTaBwoElTJbCp2NHeWQX88AoBHdGVHOZ1lVdDkhq38ow=
-X-Received: by 2002:aca:6c8b:: with SMTP id h133mr3561880oic.33.1548000981959;
- Sun, 20 Jan 2019 08:16:21 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5NqABJ18wP8P6IhKoam3VQS7fk8Gs/RE1Yj7JHEHhV4UN+uNm+x//910014kfRV+Ut4sCX8NiXUchri5bNe+M=
+X-Received: by 2002:aca:e715:: with SMTP id e21mr3625067oih.76.1548001212260;
+ Sun, 20 Jan 2019 08:20:12 -0800 (PST)
 MIME-Version: 1.0
 References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-6-keith.busch@intel.com>
  <CAJZ5v0jmkyrNBHzqHsOuWjLXF34tq83VnEhdBWrdFqxyiXC=cw@mail.gmail.com>
- <CAPcyv4gH0_e_NFJNOFH4XXarSs7+TOj4nT0r-D33ZGNCfqBdxg@mail.gmail.com> <20190119090129.GC10836@kroah.com>
-In-Reply-To: <20190119090129.GC10836@kroah.com>
+ <CAPcyv4gH0_e_NFJNOFH4XXarSs7+TOj4nT0r-D33ZGNCfqBdxg@mail.gmail.com>
+ <20190119090129.GC10836@kroah.com> <CAPcyv4jijnkW6E=0gpT3-qy5uOgTV-D7AN+CAu7mmdrRKGHvFg@mail.gmail.com>
+In-Reply-To: <CAPcyv4jijnkW6E=0gpT3-qy5uOgTV-D7AN+CAu7mmdrRKGHvFg@mail.gmail.com>
 From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Sun, 20 Jan 2019 17:16:05 +0100
+Date: Sun, 20 Jan 2019 17:19:56 +0100
 Message-ID:
- <CAJZ5v0jxuLPUvwr-hYstgC-7BKDwqkJpep94rnnUFvFhKG4W3g@mail.gmail.com>
+ <CAJZ5v0hS8Mb-BZuzztTt9D0Rd0TPzMcod48Ev-8HCZg07BP6fw@mail.gmail.com>
 Subject: Re: [PATCHv4 05/13] Documentation/ABI: Add new node sysfs attributes
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, "Rafael J. Wysocki" <rafael@kernel.org>, 
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, 
 	Keith Busch <keith.busch@intel.com>, 
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
 	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
@@ -105,86 +106,99 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190120161605._s3DVwAsyHEhqZQjv8ceXbNvEt1rLW6ORGqv5u6A1l8@z>
+Message-ID: <20190120161956.TcvjwSys_LudPXQQNY59zaFV7PGMFSf3MV-PMt7RmzQ@z>
 
-On Sat, Jan 19, 2019 at 10:01 AM Greg Kroah-Hartman
-<gregkh@linuxfoundation.org> wrote:
+On Sat, Jan 19, 2019 at 5:56 PM Dan Williams <dan.j.williams@intel.com> wrote:
 >
-> On Fri, Jan 18, 2019 at 01:08:02PM -0800, Dan Williams wrote:
-> > On Thu, Jan 17, 2019 at 3:41 AM Rafael J. Wysocki <rafael@kernel.org> wrote:
-> > >
-> > > On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
-> > > >
-> > > > Add entries for memory initiator and target node class attributes.
-> > > >
-> > > > Signed-off-by: Keith Busch <keith.busch@intel.com>
-> > >
-> > > I would recommend combining this with the previous patch, as the way
-> > > it is now I need to look at two patches at the time. :-)
-> > >
-> > > > ---
-> > > >  Documentation/ABI/stable/sysfs-devices-node | 25 ++++++++++++++++++++++++-
-> > > >  1 file changed, 24 insertions(+), 1 deletion(-)
-> > > >
-> > > > diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-> > > > index 3e90e1f3bf0a..a9c47b4b0eee 100644
-> > > > --- a/Documentation/ABI/stable/sysfs-devices-node
-> > > > +++ b/Documentation/ABI/stable/sysfs-devices-node
-> > > > @@ -90,4 +90,27 @@ Date:                December 2009
-> > > >  Contact:       Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > > >  Description:
-> > > >                 The node's huge page size control/query attributes.
-> > > > -               See Documentation/admin-guide/mm/hugetlbpage.rst
-> > > > \ No newline at end of file
-> > > > +               See Documentation/admin-guide/mm/hugetlbpage.rst
-> > > > +
-> > > > +What:          /sys/devices/system/node/nodeX/classY/
-> > > > +Date:          December 2018
-> > > > +Contact:       Keith Busch <keith.busch@intel.com>
-> > > > +Description:
-> > > > +               The node's relationship to other nodes for access class "Y".
-> > > > +
-> > > > +What:          /sys/devices/system/node/nodeX/classY/initiator_nodelist
-> > > > +Date:          December 2018
-> > > > +Contact:       Keith Busch <keith.busch@intel.com>
-> > > > +Description:
-> > > > +               The node list of memory initiators that have class "Y" access
-> > > > +               to this node's memory. CPUs and other memory initiators in
-> > > > +               nodes not in the list accessing this node's memory may have
-> > > > +               different performance.
-> > >
-> > > This does not follow the general "one value per file" rule of sysfs (I
-> > > know that there are other sysfs files with more than one value in
-> > > them, but it is better to follow this rule as long as that makes
-> > > sense).
-> > >
-> > > > +
-> > > > +What:          /sys/devices/system/node/nodeX/classY/target_nodelist
-> > > > +Date:          December 2018
-> > > > +Contact:       Keith Busch <keith.busch@intel.com>
-> > > > +Description:
-> > > > +               The node list of memory targets that this initiator node has
-> > > > +               class "Y" access. Memory accesses from this node to nodes not
-> > > > +               in this list may have differet performance.
-> > > > --
-> > >
-> > > Same here.
-> > >
-> > > And if you follow the recommendation given in the previous message
-> > > (add "initiators" and "targets" subdirs under "classX"), you won't
-> > > even need the two files above.
+> On Sat, Jan 19, 2019 at 1:01 AM Greg Kroah-Hartman
+> <gregkh@linuxfoundation.org> wrote:
 > >
-> > This recommendation is in conflict with Greg's feedback about kobject
-> > usage. If these are just "vanity" subdirs I think it's better to have
-> > a multi-value sysfs file. This "list" style is already commonplace for
-> > the /sys/devices/system hierarchy.
+> > On Fri, Jan 18, 2019 at 01:08:02PM -0800, Dan Williams wrote:
+> > > On Thu, Jan 17, 2019 at 3:41 AM Rafael J. Wysocki <rafael@kernel.org> wrote:
+> > > >
+> > > > On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+> > > > >
+> > > > > Add entries for memory initiator and target node class attributes.
+> > > > >
+> > > > > Signed-off-by: Keith Busch <keith.busch@intel.com>
+> > > >
+> > > > I would recommend combining this with the previous patch, as the way
+> > > > it is now I need to look at two patches at the time. :-)
+> > > >
+> > > > > ---
+> > > > >  Documentation/ABI/stable/sysfs-devices-node | 25 ++++++++++++++++++++++++-
+> > > > >  1 file changed, 24 insertions(+), 1 deletion(-)
+> > > > >
+> > > > > diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> > > > > index 3e90e1f3bf0a..a9c47b4b0eee 100644
+> > > > > --- a/Documentation/ABI/stable/sysfs-devices-node
+> > > > > +++ b/Documentation/ABI/stable/sysfs-devices-node
+> > > > > @@ -90,4 +90,27 @@ Date:                December 2009
+> > > > >  Contact:       Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > > > >  Description:
+> > > > >                 The node's huge page size control/query attributes.
+> > > > > -               See Documentation/admin-guide/mm/hugetlbpage.rst
+> > > > > \ No newline at end of file
+> > > > > +               See Documentation/admin-guide/mm/hugetlbpage.rst
+> > > > > +
+> > > > > +What:          /sys/devices/system/node/nodeX/classY/
+> > > > > +Date:          December 2018
+> > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > +Description:
+> > > > > +               The node's relationship to other nodes for access class "Y".
+> > > > > +
+> > > > > +What:          /sys/devices/system/node/nodeX/classY/initiator_nodelist
+> > > > > +Date:          December 2018
+> > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > +Description:
+> > > > > +               The node list of memory initiators that have class "Y" access
+> > > > > +               to this node's memory. CPUs and other memory initiators in
+> > > > > +               nodes not in the list accessing this node's memory may have
+> > > > > +               different performance.
+> > > >
+> > > > This does not follow the general "one value per file" rule of sysfs (I
+> > > > know that there are other sysfs files with more than one value in
+> > > > them, but it is better to follow this rule as long as that makes
+> > > > sense).
+> > > >
+> > > > > +
+> > > > > +What:          /sys/devices/system/node/nodeX/classY/target_nodelist
+> > > > > +Date:          December 2018
+> > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > +Description:
+> > > > > +               The node list of memory targets that this initiator node has
+> > > > > +               class "Y" access. Memory accesses from this node to nodes not
+> > > > > +               in this list may have differet performance.
+> > > > > --
+> > > >
+> > > > Same here.
+> > > >
+> > > > And if you follow the recommendation given in the previous message
+> > > > (add "initiators" and "targets" subdirs under "classX"), you won't
+> > > > even need the two files above.
+> > >
+> > > This recommendation is in conflict with Greg's feedback about kobject
+> > > usage. If these are just "vanity" subdirs I think it's better to have
+> > > a multi-value sysfs file. This "list" style is already commonplace for
+> > > the /sys/devices/system hierarchy.
+> >
+> > If you do a subdirectory "correctly" (i.e. a name for an attribute
+> > group), that's fine.  Just do not ever create a kobject just for a
+> > subdir, that will mess up userspace.
+> >
+> > And I hate the "multi-value" sysfs files, where at all possible, please
+> > do not copy past bad mistakes there.  If you can make them individual
+> > files, please do that, it makes it easier to maintain and code the
+> > kernel for.
 >
-> If you do a subdirectory "correctly" (i.e. a name for an attribute
-> group), that's fine.
+> I agree in general about multi-value sysfs, but in this case we're
+> talking about a mask. Masks are a single value. That said I can get on
+> board with calling what 'cpulist' does a design mistake (human
+> readable mask), but otherwise switching to one file per item in the
+> mask is a mess for userspace to consume.
 
-Yes, that's what I was thinking about: along the lines of the "power"
-group under device kobjects.
+Can you please refer to my response to Keith?
 
-Cheers,
-Rafael
+If you have "initiators" and "targets" under "classX" and a list of
+symlinks in each of them, I don't see any kind of a mess here.
 
