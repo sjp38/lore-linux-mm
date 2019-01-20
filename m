@@ -1,110 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CAA048E0002
-	for <linux-mm@kvack.org>; Sat, 19 Jan 2019 02:09:37 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id z10so5775792edz.15
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2019 23:09:37 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n9si5857754eda.325.2019.01.18.23.09.36
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 167298E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 07:45:37 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id i3so13936222pfj.4
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 04:45:37 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id o1si9693251pld.79.2019.01.20.04.45.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jan 2019 23:09:36 -0800 (PST)
-Date: Sat, 19 Jan 2019 08:09:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: fix use-after-free in oom_kill_process
-Message-ID: <20190119070934.GD4087@dhcp22.suse.cz>
-References: <20190119005022.61321-1-shakeelb@google.com>
+        Sun, 20 Jan 2019 04:45:35 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0KCclvF138211
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 07:45:35 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q4hq78crw-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 07:45:35 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 20 Jan 2019 12:45:32 -0000
+Date: Sun, 20 Jan 2019 14:45:25 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH] mm: fix some typo scatter in mm directory
+References: <20190118235123.27843-1-richard.weiyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190119005022.61321-1-shakeelb@google.com>
+In-Reply-To: <20190118235123.27843-1-richard.weiyang@gmail.com>
+Message-Id: <20190120124524.GA25462@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, cl@linux.com, penberg@kernel.org, rientjes@google.com
 
-On Fri 18-01-19 16:50:22, Shakeel Butt wrote:
-[...]
-> On looking further it seems like the process selected to be oom-killed
-> has exited even before reaching read_lock(&tasklist_lock) in
-> oom_kill_process(). More specifically the tsk->usage is 1 which is due
-> to get_task_struct() in oom_evaluate_task() and the put_task_struct
-> within for_each_thread() frees the tsk and for_each_thread() tries to
-> access the tsk. The easiest fix is to do get/put across the
-> for_each_thread() on the selected task.
-
-Very well spotted! The code seems safe because we are careful to
-transfer the victim along with reference counting but I've totally
-missed that the loop itself needs a reference. It seems that this has
-been broken since the heuristic has been introduced. But I haven't
-checked it closely. I am still on vacation.
-
-> Now the next question is should we continue with the oom-kill as the
-> previously selected task has exited? However before adding more
-> complexity and heuristics, let's answer why we even look at the
-> children of oom-kill selected task?
-
-The objective was the work protection assuming that children did less
-work than their parrent. I find this argument a bit questionable because
-it highly depends a specific workload while it opens doors for
-problematic behavior at the same time. If you have a fork bomb like
-workload then it is basically hard to resolve the OOM condition as
-children have barely any memory so we keep looping killing tasks which
-will not free up much. So I am all for removing this heuristic.
-
-> The select_bad_process() has already
-> selected the worst process in the system/memcg. Due to race, the
-> selected process might not be the worst at the kill time but does that
-> matter matter?
-
-No, we don't I believe. The aim of the oom killer is to kill something.
-We will never be ideal here because this is a land of races.
-
-> The userspace can play with oom_score_adj to prefer
-> children to be killed before the parent. I looked at the history but it
-> seems like this is there before git history.
+On Sat, Jan 19, 2019 at 07:51:23AM +0800, Wei Yang wrote:
+> No functional change.
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 
-Fixes: 5e9d834a0e0c ("oom: sacrifice child with highest badness score for parent")
-Cc: stable
+Acked-by: Mike Rapoport <rppt@linux.ibm.com>
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
 > ---
->  mm/oom_kill.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
+>  include/linux/mmzone.h | 2 +-
+>  mm/migrate.c           | 2 +-
+>  mm/mmap.c              | 8 ++++----
+>  mm/page_alloc.c        | 4 ++--
+>  mm/slub.c              | 2 +-
+>  mm/vmscan.c            | 2 +-
+>  6 files changed, 10 insertions(+), 10 deletions(-)
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 0930b4365be7..1a007dae1e8f 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -981,6 +981,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  	 * still freeing memory.
->  	 */
->  	read_lock(&tasklist_lock);
-> +
-> +	/*
-> +	 * The task 'p' might have already exited before reaching here. The
-> +	 * put_task_struct() will free task_struct 'p' while the loop still try
-> +	 * to access the field of 'p', so, get an extra reference.
-> +	 */
-> +	get_task_struct(p);
->  	for_each_thread(p, t) {
->  		list_for_each_entry(child, &t->children, sibling) {
->  			unsigned int child_points;
-> @@ -1000,6 +1007,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  			}
->  		}
->  	}
-> +	put_task_struct(p);
->  	read_unlock(&tasklist_lock);
->  
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 842f9189537b..faf8cf60f900 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1299,7 +1299,7 @@ void memory_present(int nid, unsigned long start, unsigned long end);
+> 
+>  /*
+>   * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we
+> - * need to check pfn validility within that MAX_ORDER_NR_PAGES block.
+> + * need to check pfn validity within that MAX_ORDER_NR_PAGES block.
+>   * pfn_valid_within() should be used in this case; we optimise this away
+>   * when we have no holes within a MAX_ORDER_NR_PAGES block.
+>   */
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index a16b15090df3..2122f38f569e 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -100,7 +100,7 @@ int isolate_movable_page(struct page *page, isolate_mode_t mode)
 >  	/*
+>  	 * Check PageMovable before holding a PG_lock because page's owner
+>  	 * assumes anybody doesn't touch PG_lock of newly allocated page
+> -	 * so unconditionally grapping the lock ruins page's owner side.
+> +	 * so unconditionally grabbing the lock ruins page's owner side.
+>  	 */
+>  	if (unlikely(!__PageMovable(page)))
+>  		goto out_putpage;
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index f901065c4c64..55b8e6b55738 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -438,7 +438,7 @@ static void vma_gap_update(struct vm_area_struct *vma)
+>  {
+>  	/*
+>  	 * As it turns out, RB_DECLARE_CALLBACKS() already created a callback
+> -	 * function that does exacltly what we want.
+> +	 * function that does exactly what we want.
+>  	 */
+>  	vma_gap_callbacks_propagate(&vma->vm_rb, NULL);
+>  }
+> @@ -1012,7 +1012,7 @@ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+>  	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
+>  	 * match the flags but dirty bit -- the caller should mark
+>  	 * merged VMA as dirty. If dirty bit won't be excluded from
+> -	 * comparison, we increase pressue on the memory system forcing
+> +	 * comparison, we increase pressure on the memory system forcing
+>  	 * the kernel to generate new VMAs when old one could be
+>  	 * extended instead.
+>  	 */
+> @@ -1115,7 +1115,7 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
+>   *    PPPP    NNNN    PPPPPPPPPPPP    PPPPPPPPNNNN    PPPPNNNNNNNN
+>   *    might become    case 1 below    case 2 below    case 3 below
+>   *
+> - * It is important for case 8 that the the vma NNNN overlapping the
+> + * It is important for case 8 that the vma NNNN overlapping the
+>   * region AAAA is never going to extended over XXXX. Instead XXXX must
+>   * be extended in region AAAA and NNNN must be removed. This way in
+>   * all cases where vma_merge succeeds, the moment vma_adjust drops the
+> @@ -1645,7 +1645,7 @@ SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
+>  #endif /* __ARCH_WANT_SYS_OLD_MMAP */
+> 
+>  /*
+> - * Some shared mappigns will want the pages marked read-only
+> + * Some shared mappings will want the pages marked read-only
+>   * to track write events. If so, we'll downgrade vm_page_prot
+>   * to the private version (using protection_map[] without the
+>   * VM_SHARED bit).
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d7073cedd087..43ceb2481ad5 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7493,7 +7493,7 @@ static void __setup_per_zone_wmarks(void)
+>  			 * value here.
+>  			 *
+>  			 * The WMARK_HIGH-WMARK_LOW and (WMARK_LOW-WMARK_MIN)
+> -			 * deltas control asynch page reclaim, and so should
+> +			 * deltas control async page reclaim, and so should
+>  			 * not be capped for highmem.
+>  			 */
+>  			unsigned long min_pages;
+> @@ -7970,7 +7970,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+> 
+>  		/*
+>  		 * Hugepages are not in LRU lists, but they're movable.
+> -		 * We need not scan over tail pages bacause we don't
+> +		 * We need not scan over tail pages because we don't
+>  		 * handle each tail page individually in migration.
+>  		 */
+>  		if (PageHuge(page)) {
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 1e3d0ec4e200..c3738f671a0c 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2111,7 +2111,7 @@ static void deactivate_slab(struct kmem_cache *s, struct page *page,
+>  		if (!lock) {
+>  			lock = 1;
+>  			/*
+> -			 * Taking the spinlock removes the possiblity
+> +			 * Taking the spinlock removes the possibility
+>  			 * that acquire_slab() will see a slab page that
+>  			 * is frozen
+>  			 */
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a714c4f800e9..1b573812e546 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3537,7 +3537,7 @@ static bool kswapd_shrink_node(pg_data_t *pgdat,
+>   *
+>   * kswapd scans the zones in the highmem->normal->dma direction.  It skips
+>   * zones which have free_pages > high_wmark_pages(zone), but once a zone is
+> - * found to have free_pages <= high_wmark_pages(zone), any page is that zone
+> + * found to have free_pages <= high_wmark_pages(zone), any page in that zone
+>   * or lower is eligible for reclaim until at least one usable zone is
+>   * balanced.
+>   */
 > -- 
-> 2.20.1.321.g9e740568ce-goog
+> 2.15.1
+> 
 
 -- 
-Michal Hocko
-SUSE Labs
+Sincerely yours,
+Mike.
