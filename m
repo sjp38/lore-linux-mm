@@ -1,92 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D74538E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 11:25:07 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id 42so21100877qtr.7
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 08:25:07 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u198si3787881qka.181.2019.01.21.08.25.06
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E5CE8E0001
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 08:30:42 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id b14so8491986itd.1
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 05:30:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 23sor24563116jal.5.2019.01.20.05.30.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 08:25:06 -0800 (PST)
-Date: Mon, 21 Jan 2019 11:24:55 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH RFC 04/24] mm: gup: allow VM_FAULT_RETRY for multiple
- times
-Message-ID: <20190121162455.GC3711@redhat.com>
-References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-5-peterx@redhat.com>
+        (Google Transport Security);
+        Sun, 20 Jan 2019 05:30:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190121075722.7945-5-peterx@redhat.com>
+References: <ea2bc542-38b2-8218-9eb7-4c4a05da36ea@i-love.sakura.ne.jp>
+ <CACT4Y+Yy-bF07F7F8DoFY8=4LtLURRn1WsZzNZ9LN+N=vn7Tpw@mail.gmail.com>
+ <201901180520.x0I5KYTi096127@www262.sakura.ne.jp> <CACT4Y+acvQXPLHFSbNYAEma6Rqx6QCp_kqjsbAF8M9og4KA3CA@mail.gmail.com>
+ <d90cc533-607e-fe40-9b02-a6cac7b7b534@i-love.sakura.ne.jp>
+In-Reply-To: <d90cc533-607e-fe40-9b02-a6cac7b7b534@i-love.sakura.ne.jp>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sun, 20 Jan 2019 14:30:29 +0100
+Message-ID: <CACT4Y+b=5_p=eTgKobApkZZTAVeRxrn3dEempFHampFjrGX0Pw@mail.gmail.com>
+Subject: Re: INFO: rcu detected stall in ndisc_alloc_skb
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: syzbot <syzbot+ea7d9cb314b4ab49a18a@syzkaller.appspotmail.com>, David Miller <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, LKML <linux-kernel@vger.kernel.org>, netdev <netdev@vger.kernel.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Linux-MM <linux-mm@kvack.org>, Shakeel Butt <shakeelb@google.com>, syzkaller <syzkaller@googlegroups.com>
 
-On Mon, Jan 21, 2019 at 03:57:02PM +0800, Peter Xu wrote:
-> This is the gup counterpart of the change that allows the VM_FAULT_RETRY
-> to happen for more than once.
-> 
-> Signed-off-by: Peter Xu <peterx@redhat.com>
+On Sat, Jan 19, 2019 at 2:10 PM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> On 2019/01/19 21:16, Dmitry Vyukov wrote:
+> >> The question for me is, whether sysbot can detect hash collision with different
+> >> syz-program lines before writing the hash value to /dev/kmsg, and retry by modifying
+> >> syz-program lines in order to get a new hash value until collision is avoided.
+> >> If it is difficult, simpler choice like current Unix time and PID could be used
+> >> instead...
+> >
+> > Hummm, say, if you run syz-manager locally and report a bug, where
+> > will the webserver and database that allows to download all satellite
+> > info work? How long you need to keep this info and provide the web
+> > service? You will also need to pay and maintain the server for... how
+> > long? I don't see how this can work and how we can ask people to do
+> > this. This frankly looks like overly complex solution to a problem
+> > were simpler solutions will work. Keeping all info in a self-contained
+> > file looks like the only option to make it work reliably.
+> > It's also not possible to attribute kernel output to individual programs.
+>
+> The first messages I want to look at is kernel output. Then, I look at
+> syz-program lines as needed. But current "a self-contained file" is
+> hard to find kernel output.
 
-So it would be nice to add a comment in the code and in the commit message
-about possible fault starvation (mostly due to previous patch changes) as
-if some one experience that and try to bisect it might overlook the commit.
+I think everybody looks at kernel crash first, that's why we provide
+kernel crash inline in the email so it's super easy to find. One does
+not need to look at console output at all to read the crash message.
+Console output is meant for more complex cases when a developer needs
+to extract some long tail of custom information. We don't know what
+exactly information a developer is looking for and it is different in
+each case, so it's not possible to optimize for this. We preserve
+console output intact to not destroy some potentially important
+information. Say, if we start reordering messages, we lose timing
+information and timing/interleaving information is important in some
+cases.
 
-Otherwise:
-
-Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
-
-> ---
->  mm/gup.c | 17 +++++++++++++----
->  1 file changed, 13 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 7b1f452cc2ef..22f1d419a849 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -528,7 +528,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
->  	if (*flags & FOLL_NOWAIT)
->  		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
->  	if (*flags & FOLL_TRIED) {
-> -		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
-> +		/*
-> +		 * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
-> +		 * can co-exist
-> +		 */
->  		fault_flags |= FAULT_FLAG_TRIED;
->  	}
->  
-> @@ -943,17 +946,23 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
->  		/* VM_FAULT_RETRY triggered, so seek to the faulting offset */
->  		pages += ret;
->  		start += ret << PAGE_SHIFT;
-> +		lock_dropped = true;
->  
-> +retry:
->  		/*
->  		 * Repeat on the address that fired VM_FAULT_RETRY
-> -		 * without FAULT_FLAG_ALLOW_RETRY but with
-> +		 * with both FAULT_FLAG_ALLOW_RETRY and
->  		 * FAULT_FLAG_TRIED.
->  		 */
->  		*locked = 1;
-> -		lock_dropped = true;
->  		down_read(&mm->mmap_sem);
->  		ret = __get_user_pages(tsk, mm, start, 1, flags | FOLL_TRIED,
-> -				       pages, NULL, NULL);
-> +				       pages, NULL, locked);
-> +		if (!*locked) {
-> +			/* Continue to retry until we succeeded */
-> +			BUG_ON(ret != 0);
-> +			goto retry;
-> +		}
->  		if (ret != 1) {
->  			BUG_ON(ret > 1);
->  			if (!pages_done)
-> -- 
-> 2.17.1
-> 
+> Even if we keep both kernel output and
+> syz-program lines in a single file, we can improve readability by
+> splitting into kernel output section and syz-program section.
+>
+>   # Kernel output section start
+>   [$(uptime)][$(caller_info)] executing program #0123456789abcdef0123456789abcdef
+>   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_0123456789abcdef0123456789abcdef_are_here)
+>   [$(uptime)][$(caller_info)] executing program #456789abcdef0123456789abcdef0123
+>   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
+>   [$(uptime)][$(caller_info)] executing program #89abcdef0123456789abcdef01234567
+>   [$(uptime)][$(caller_info)] $(kernel_messages_caused_by_89abcdef0123456789abcdef01234567_456789abcdef0123456789abcdef0123_and_0123456789abcdef0123456789abcdef_are_here)
+>   [$(uptime)][$(caller_info)] BUG: unable to handle kernel paging request at $(address)
+>   [$(uptime)][$(caller_info)] CPU: $(cpu) PID: $(pid) Comm: syz#89abcdef0123 Not tainted $(version) #$(build)
+>   [$(uptime)][$(caller_info)] $(backtrace_of_caller_info_is_here)
+>   [$(uptime)][$(caller_info)] Kernel panic - not syncing: Fatal exception
+>   # Kernel output section end
+>   # syzbot code section start
+>   Program for #0123456789abcdef0123456789abcdef
+>   $(program_lines_for_0123456789abcdef0123456789abcdef_is_here)
+>   Program for #456789abcdef0123456789abcdef0123
+>   $(program_lines_for_456789abcdef0123456789abcdef0123_is_here)
+>   Program for #89abcdef0123456789abcdef01234567
+>   $(program_lines_for_89abcdef0123456789abcdef01234567_is_here)
+>   # syzbot code section end
+>
