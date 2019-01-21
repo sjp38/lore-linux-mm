@@ -1,79 +1,314 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D9958E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 12:42:49 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id r131so9935097oia.7
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:42:49 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 90E298E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 12:42:57 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id b18so10138911oii.1
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:42:57 -0800 (PST)
 Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id x79si2933700oif.183.2019.01.21.09.42.47
+        by mx.google.com with ESMTPS id 93si6849753ots.304.2019.01.21.09.42.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 09:42:48 -0800 (PST)
+        Mon, 21 Jan 2019 09:42:56 -0800 (PST)
 From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: [PATCH v2 -next 0/6] mm: make pinned_vm atomic and simplify users
-Date: Mon, 21 Jan 2019 09:42:14 -0800
-Message-Id: <20190121174220.10583-1-dave@stgolabs.net>
+Subject: [PATCH 1/6] mm: make mm->pinned_vm an atomic64 counter
+Date: Mon, 21 Jan 2019 09:42:15 -0800
+Message-Id: <20190121174220.10583-2-dave@stgolabs.net>
+In-Reply-To: <20190121174220.10583-1-dave@stgolabs.net>
+References: <20190121174220.10583-1-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: dledford@redhat.com, jgg@mellanox.com, jack@suse.de, ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net
+Cc: dledford@redhat.com, jgg@mellanox.com, jack@suse.de, ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net, Davidlohr Bueso <dbueso@suse.de>
 
-Changes from v1 (https://patchwork.kernel.org/cover/10764923/):
- - Converted pinned_vm to atomic64 instead of atomic_long such that
-   infiniband need not worry about overflows.
+Taking a sleeping lock to _only_ increment a variable is quite the
+overkill, and pretty much all users do this. Furthermore, some drivers
+(ie: infiniband and scif) that need pinned semantics can go to quite
+some trouble to actually delay via workqueue (un)accounting for pinned
+pages when not possible to acquire it.
 
- - Rebased patch 1 and added Ira's reviews as well as Parvi's review
-   for patch 5 (thanks!).
-   
---------
+By making the counter atomic we no longer need to hold the mmap_sem
+and can simply some code around it for pinned_vm users. The counter
+is 64-bit such that we need not worry about overflows such as rdma
+user input controlled from userspace.
 
-Hi,
+Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+---
+ drivers/infiniband/core/umem.c             | 12 ++++++------
+ drivers/infiniband/hw/hfi1/user_pages.c    |  6 +++---
+ drivers/infiniband/hw/qib/qib_user_pages.c |  4 ++--
+ drivers/infiniband/hw/usnic/usnic_uiom.c   |  8 ++++----
+ drivers/misc/mic/scif/scif_rma.c           |  6 +++---
+ fs/proc/task_mmu.c                         |  2 +-
+ include/linux/mm_types.h                   |  2 +-
+ kernel/events/core.c                       |  8 ++++----
+ kernel/fork.c                              |  2 +-
+ mm/debug.c                                 |  3 ++-
+ 10 files changed, 27 insertions(+), 26 deletions(-)
 
-The following patches aim to provide cleanups to users that pin pages
-(mostly infiniband) by converting the counter to atomic -- note that
-Daniel Jordan also has patches[1] for the locked_vm counterpart and vfio.
-
-Apart from removing a source of mmap_sem writer, we benefit in that
-we can get rid of a lot of code that defers work when the lock cannot
-be acquired, as well as drivers avoiding mmap_sem altogether by also
-converting gup to gup_fast() and letting the mm handle it. Users
-that do the gup_longterm() remain of course under at least reader mmap_sem.
-
-Everything has been compile-tested _only_ so I hope I didn't do anything
-too stupid. Please consider for v5.1.
-
-On a similar topic and potential follow up, it would be nice to resurrect
-Peter's VM_PINNED idea in that the broken semantics that occurred after
-bc3e53f682 ("mm: distinguish between mlocked and pinned pages") are still
-present. Also encapsulating internal mm logic via mm[un]pin() instead of
-drivers having to know about internals and playing nice with compaction are
-all wins.
-
-Thanks!
-
-[1] https://lkml.org/lkml/2018/11/5/854
-
-Davidlohr Bueso (6):
-  mm: make mm->pinned_vm an atomic64 counter
-  mic/scif: do not use mmap_sem
-  drivers/IB,qib: do not use mmap_sem
-  drivers/IB,hfi1: do not se mmap_sem
-  drivers/IB,usnic: reduce scope of mmap_sem
-  drivers/IB,core: reduce scope of mmap_sem
-
- drivers/infiniband/core/umem.c              | 47 +++-----------------
- drivers/infiniband/hw/hfi1/user_pages.c     | 12 ++---
- drivers/infiniband/hw/qib/qib_user_pages.c  | 69 ++++++++++-------------------
- drivers/infiniband/hw/usnic/usnic_ib_main.c |  2 -
- drivers/infiniband/hw/usnic/usnic_uiom.c    | 56 +++--------------------
- drivers/infiniband/hw/usnic/usnic_uiom.h    |  1 -
- drivers/misc/mic/scif/scif_rma.c            | 38 +++++-----------
- fs/proc/task_mmu.c                          |  2 +-
- include/linux/mm_types.h                    |  2 +-
- kernel/events/core.c                        |  8 ++--
- kernel/fork.c                               |  2 +-
- mm/debug.c                                  |  3 +-
- 12 files changed, 57 insertions(+), 185 deletions(-)
-
+diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+index 1efe0a74e06b..678abe1afcba 100644
+--- a/drivers/infiniband/core/umem.c
++++ b/drivers/infiniband/core/umem.c
+@@ -166,13 +166,13 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+ 
+ 	down_write(&mm->mmap_sem);
+-	if (check_add_overflow(mm->pinned_vm, npages, &new_pinned) ||
+-	    (new_pinned > lock_limit && !capable(CAP_IPC_LOCK))) {
++	new_pinned = atomic64_read(&mm->pinned_vm) + npages;
++	if (new_pinned > lock_limit && !capable(CAP_IPC_LOCK)) {
+ 		up_write(&mm->mmap_sem);
+ 		ret = -ENOMEM;
+ 		goto out;
+ 	}
+-	mm->pinned_vm = new_pinned;
++	atomic64_set(&mm->pinned_vm, new_pinned);
+ 	up_write(&mm->mmap_sem);
+ 
+ 	cur_base = addr & PAGE_MASK;
+@@ -234,7 +234,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
+ 	__ib_umem_release(context->device, umem, 0);
+ vma:
+ 	down_write(&mm->mmap_sem);
+-	mm->pinned_vm -= ib_umem_num_pages(umem);
++	atomic64_sub(ib_umem_num_pages(umem), &mm->pinned_vm);
+ 	up_write(&mm->mmap_sem);
+ out:
+ 	if (vma_list)
+@@ -263,7 +263,7 @@ static void ib_umem_release_defer(struct work_struct *work)
+ 	struct ib_umem *umem = container_of(work, struct ib_umem, work);
+ 
+ 	down_write(&umem->owning_mm->mmap_sem);
+-	umem->owning_mm->pinned_vm -= ib_umem_num_pages(umem);
++	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
+ 	up_write(&umem->owning_mm->mmap_sem);
+ 
+ 	__ib_umem_release_tail(umem);
+@@ -302,7 +302,7 @@ void ib_umem_release(struct ib_umem *umem)
+ 	} else {
+ 		down_write(&umem->owning_mm->mmap_sem);
+ 	}
+-	umem->owning_mm->pinned_vm -= ib_umem_num_pages(umem);
++	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
+ 	up_write(&umem->owning_mm->mmap_sem);
+ 
+ 	__ib_umem_release_tail(umem);
+diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
+index e341e6dcc388..40a6e434190f 100644
+--- a/drivers/infiniband/hw/hfi1/user_pages.c
++++ b/drivers/infiniband/hw/hfi1/user_pages.c
+@@ -92,7 +92,7 @@ bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
+ 	size = DIV_ROUND_UP(size, PAGE_SIZE);
+ 
+ 	down_read(&mm->mmap_sem);
+-	pinned = mm->pinned_vm;
++	pinned = atomic64_read(&mm->pinned_vm);
+ 	up_read(&mm->mmap_sem);
+ 
+ 	/* First, check the absolute limit against all pinned pages. */
+@@ -112,7 +112,7 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
+ 		return ret;
+ 
+ 	down_write(&mm->mmap_sem);
+-	mm->pinned_vm += ret;
++	atomic64_add(ret, &mm->pinned_vm);
+ 	up_write(&mm->mmap_sem);
+ 
+ 	return ret;
+@@ -131,7 +131,7 @@ void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+ 
+ 	if (mm) { /* during close after signal, mm can be NULL */
+ 		down_write(&mm->mmap_sem);
+-		mm->pinned_vm -= npages;
++		atomic64_sub(npages, &mm->pinned_vm);
+ 		up_write(&mm->mmap_sem);
+ 	}
+ }
+diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
+index 16543d5e80c3..602387bf98e7 100644
+--- a/drivers/infiniband/hw/qib/qib_user_pages.c
++++ b/drivers/infiniband/hw/qib/qib_user_pages.c
+@@ -75,7 +75,7 @@ static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
+ 			goto bail_release;
+ 	}
+ 
+-	current->mm->pinned_vm += num_pages;
++	atomic64_add(num_pages, &current->mm->pinned_vm);
+ 
+ 	ret = 0;
+ 	goto bail;
+@@ -156,7 +156,7 @@ void qib_release_user_pages(struct page **p, size_t num_pages)
+ 	__qib_release_user_pages(p, num_pages, 1);
+ 
+ 	if (current->mm) {
+-		current->mm->pinned_vm -= num_pages;
++		atomic64_sub(num_pages, &current->mm->pinned_vm);
+ 		up_write(&current->mm->mmap_sem);
+ 	}
+ }
+diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
+index ce01a59fccc4..854436a2b437 100644
+--- a/drivers/infiniband/hw/usnic/usnic_uiom.c
++++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
+@@ -129,7 +129,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
+ 	uiomr->owning_mm = mm = current->mm;
+ 	down_write(&mm->mmap_sem);
+ 
+-	locked = npages + current->mm->pinned_vm;
++	locked = npages + atomic64_read(&current->mm->pinned_vm);
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+ 
+ 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+@@ -187,7 +187,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
+ 	if (ret < 0)
+ 		usnic_uiom_put_pages(chunk_list, 0);
+ 	else {
+-		mm->pinned_vm = locked;
++		atomic64_set(&mm->pinned_vm, locked);
+ 		mmgrab(uiomr->owning_mm);
+ 	}
+ 
+@@ -441,7 +441,7 @@ static void usnic_uiom_release_defer(struct work_struct *work)
+ 		container_of(work, struct usnic_uiom_reg, work);
+ 
+ 	down_write(&uiomr->owning_mm->mmap_sem);
+-	uiomr->owning_mm->pinned_vm -= usnic_uiom_num_pages(uiomr);
++	atomic64_sub(usnic_uiom_num_pages(uiomr), &uiomr->owning_mm->pinned_vm);
+ 	up_write(&uiomr->owning_mm->mmap_sem);
+ 
+ 	__usnic_uiom_release_tail(uiomr);
+@@ -469,7 +469,7 @@ void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr,
+ 	} else {
+ 		down_write(&uiomr->owning_mm->mmap_sem);
+ 	}
+-	uiomr->owning_mm->pinned_vm -= usnic_uiom_num_pages(uiomr);
++	atomic64_sub(usnic_uiom_num_pages(uiomr), &uiomr->owning_mm->pinned_vm);
+ 	up_write(&uiomr->owning_mm->mmap_sem);
+ 
+ 	__usnic_uiom_release_tail(uiomr);
+diff --git a/drivers/misc/mic/scif/scif_rma.c b/drivers/misc/mic/scif/scif_rma.c
+index 749321eb91ae..2448368f181e 100644
+--- a/drivers/misc/mic/scif/scif_rma.c
++++ b/drivers/misc/mic/scif/scif_rma.c
+@@ -285,7 +285,7 @@ __scif_dec_pinned_vm_lock(struct mm_struct *mm,
+ 	} else {
+ 		down_write(&mm->mmap_sem);
+ 	}
+-	mm->pinned_vm -= nr_pages;
++	atomic64_sub(nr_pages, &mm->pinned_vm);
+ 	up_write(&mm->mmap_sem);
+ 	return 0;
+ }
+@@ -299,7 +299,7 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
+ 		return 0;
+ 
+ 	locked = nr_pages;
+-	locked += mm->pinned_vm;
++	locked += atomic64_read(&mm->pinned_vm);
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+ 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+ 		dev_err(scif_info.mdev.this_device,
+@@ -307,7 +307,7 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
+ 			locked, lock_limit);
+ 		return -ENOMEM;
+ 	}
+-	mm->pinned_vm = locked;
++	atomic64_set(&mm->pinned_vm, locked);
+ 	return 0;
+ }
+ 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 6976e17dba68..640ae8a47c73 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -59,7 +59,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	SEQ_PUT_DEC("VmPeak:\t", hiwater_vm);
+ 	SEQ_PUT_DEC(" kB\nVmSize:\t", total_vm);
+ 	SEQ_PUT_DEC(" kB\nVmLck:\t", mm->locked_vm);
+-	SEQ_PUT_DEC(" kB\nVmPin:\t", mm->pinned_vm);
++	SEQ_PUT_DEC(" kB\nVmPin:\t", atomic64_read(&mm->pinned_vm));
+ 	SEQ_PUT_DEC(" kB\nVmHWM:\t", hiwater_rss);
+ 	SEQ_PUT_DEC(" kB\nVmRSS:\t", total_rss);
+ 	SEQ_PUT_DEC(" kB\nRssAnon:\t", anon);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 6312b02d65ed..0c8be6f9c92d 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -404,7 +404,7 @@ struct mm_struct {
+ 
+ 		unsigned long total_vm;	   /* Total pages mapped */
+ 		unsigned long locked_vm;   /* Pages that have PG_mlocked set */
+-		unsigned long pinned_vm;   /* Refcount permanently increased */
++		atomic64_t    pinned_vm;   /* Refcount permanently increased */
+ 		unsigned long data_vm;	   /* VM_WRITE & ~VM_SHARED & ~VM_STACK */
+ 		unsigned long exec_vm;	   /* VM_EXEC & ~VM_WRITE & ~VM_STACK */
+ 		unsigned long stack_vm;	   /* VM_STACK */
+diff --git a/kernel/events/core.c b/kernel/events/core.c
+index 3cd13a30f732..8df0b77a4687 100644
+--- a/kernel/events/core.c
++++ b/kernel/events/core.c
+@@ -5459,7 +5459,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
+ 
+ 		/* now it's safe to free the pages */
+ 		atomic_long_sub(rb->aux_nr_pages, &mmap_user->locked_vm);
+-		vma->vm_mm->pinned_vm -= rb->aux_mmap_locked;
++		atomic64_sub(rb->aux_mmap_locked, &vma->vm_mm->pinned_vm);
+ 
+ 		/* this has to be the last one */
+ 		rb_free_aux(rb);
+@@ -5532,7 +5532,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
+ 	 */
+ 
+ 	atomic_long_sub((size >> PAGE_SHIFT) + 1, &mmap_user->locked_vm);
+-	vma->vm_mm->pinned_vm -= mmap_locked;
++	atomic64_sub(mmap_locked, &vma->vm_mm->pinned_vm);
+ 	free_uid(mmap_user);
+ 
+ out_put:
+@@ -5680,7 +5680,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
+ 
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK);
+ 	lock_limit >>= PAGE_SHIFT;
+-	locked = vma->vm_mm->pinned_vm + extra;
++	locked = atomic64_read(&vma->vm_mm->pinned_vm) + extra;
+ 
+ 	if ((locked > lock_limit) && perf_paranoid_tracepoint_raw() &&
+ 		!capable(CAP_IPC_LOCK)) {
+@@ -5721,7 +5721,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
+ unlock:
+ 	if (!ret) {
+ 		atomic_long_add(user_extra, &user->locked_vm);
+-		vma->vm_mm->pinned_vm += extra;
++		atomic64_add(extra, &vma->vm_mm->pinned_vm);
+ 
+ 		atomic_inc(&event->mmap_count);
+ 	} else if (rb) {
+diff --git a/kernel/fork.c b/kernel/fork.c
+index c48e9e244a89..a68de9032ced 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -981,7 +981,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm_pgtables_bytes_init(mm);
+ 	mm->map_count = 0;
+ 	mm->locked_vm = 0;
+-	mm->pinned_vm = 0;
++	atomic64_set(&mm->pinned_vm, 0);
+ 	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
+ 	spin_lock_init(&mm->page_table_lock);
+ 	spin_lock_init(&mm->arg_lock);
+diff --git a/mm/debug.c b/mm/debug.c
+index 0abb987dad9b..bcf70e365a77 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -166,7 +166,8 @@ void dump_mm(const struct mm_struct *mm)
+ 		mm_pgtables_bytes(mm),
+ 		mm->map_count,
+ 		mm->hiwater_rss, mm->hiwater_vm, mm->total_vm, mm->locked_vm,
+-		mm->pinned_vm, mm->data_vm, mm->exec_vm, mm->stack_vm,
++		atomic64_read(&mm->pinned_vm),
++		mm->data_vm, mm->exec_vm, mm->stack_vm,
+ 		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
+ 		mm->start_brk, mm->brk, mm->start_stack,
+ 		mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
 -- 
 2.16.4
