@@ -2,131 +2,257 @@ Return-Path: <SRS0=AzIT=P5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5DBAC312E1
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 01:23:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 85359C31D63
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 06:45:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6A27217D4
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 01:23:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6A27217D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id F292C217F9
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 06:45:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F292C217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C7EC8E0003; Sun, 20 Jan 2019 20:23:38 -0500 (EST)
+	id 6925A8E0003; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 278388E0001; Sun, 20 Jan 2019 20:23:38 -0500 (EST)
+	id 6429E8E0001; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 18DE68E0003; Sun, 20 Jan 2019 20:23:38 -0500 (EST)
+	id 5326C8E0003; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E3C818E0001
-	for <linux-mm@kvack.org>; Sun, 20 Jan 2019 20:23:37 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id n22so7643321otq.8
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 17:23:37 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 28D7B8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id p4so15994582iod.17
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 22:45:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:mime-version:date:references:in-reply-to
-         :content-transfer-encoding;
-        bh=IrpDpQRmv2ZJkZZHibl5FPTqOC+BpdBcNVZHRa2MjVg=;
-        b=qnhwRg2dvL9u6q1QVSTTKRKR58ZTdw3XWWbRRqaGjNuUIk3Kg6ezFjF+Ooto7VXlER
-         agF0VXKP6vRWmem2Fz0wKZIMWYrPk7zsqzjiAhsiosjtzknkNaRCW1QZSjTXgPYTjEJM
-         ub5JHS6R7Dpm99j21+Cq1JFslH+JDHNNvGYYMUQfFwAZ/r3BOkGfeJRHcypDKIc2KCMx
-         M/yVc5ELLCcyQCBYvC8i54TAgR09LZxkVFUnOrlSHxtFURM9TUErSpdKLYeeJbAPRxaN
-         IBvqa0FJ4bFhK/3BrhcP0cQ99hxS3fDZl/FSOOfyXs4B3c3Qq6+oRKxaX9t8FoQ73KYk
-         lzSw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AJcUukeRybmdfGLUyofBw8wDlt87DqgQgFniB+G7jxXCQku05yHEMHAP
-	e9yjTOfBPzSYtVSUitSgzV6uAXuVNeEKE9CpXXjwwS/dmXSoeEBVTx9HjrQzhRjO0vwLo1fQzK+
-	5nVhRIb1pUzLPBZCVBz3GTYPXujbQIg2inpWpi+KWoE0v8BzkwYyJ/F03Yj6ias+vQQ==
-X-Received: by 2002:a9d:2015:: with SMTP id n21mr18955663ota.289.1548033817551;
-        Sun, 20 Jan 2019 17:23:37 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN60cM06Dkwt1VA/3iNooect+2LknI1CoGCiUMkjBvB7EA68FvrjIJu2WbVDf+UZh+1nFt9w
-X-Received: by 2002:a9d:2015:: with SMTP id n21mr18955648ota.289.1548033816879;
-        Sun, 20 Jan 2019 17:23:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548033816; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:message-id:subject:from:to;
+        bh=RKWG0lkPh1RDT/J5vz53cnfMPUpRyauX16PNwBznA58=;
+        b=ECz2M85FNGfxwLeALjnrxKVHMXjjHHJO12JfgKsmVmw5IHTSesGNdSKKfdmidshMke
+         iDjI301mRxhAsejZYrEPVg0dUnK6NvBcyEcxVMRH5B80o8hXun3WzsqBKM5OsEd02zlx
+         hAvo4SGOrz51Lxgfo5Mb3gJELo1EauAsqgF3kNVwuPuusM5k8CgEvtS06hoyVeGh9QZi
+         4ZEnvpIAXp/h6ThNjDQu1xippeBffh/A++rceO1XEYSKoZT7nc9EtDb6Z2GeKsZQ38h+
+         Zb0w2uXigkXTmf+5kIMrhpp6KoynG75JL6NC9l8ivVFJV4CmlQqSC2fLC1Z38l2AOjT9
+         2Ncw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3b2pFXAkbAEIw23oeppivettmh.ksskpiywivgsrxirx.gsq@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: AJcUukfHFXI6TwUhOiUPdwZrLl7eVpkZzTeP9VengJYfmPIXUcpdtz/m
+	Abk/XynpMQzheZveVNzmhkYvCzlx88PN+GqdV+cFk0HW+s9Y+KCZGZIdZqIe8frs/VV2ILcXZvm
+	QXWXTDRCQlqQwvkzJHjBFDcZ0pQz5Oj2T7IPhMVWyq0vxWizYtZVjvEpvu40C+c6pH22MTeXUFn
+	WUGr0gz9QxBb2WOiDWr1qotDb1V0O4wPYUPgm2Ah3pIGJbnyn+C9LGrUaqfdNjIcsZURFwdtD3Q
+	5ahoMTdg7B3ya0R9TRyNOHCs6Yixjl3yUQ2+FmMvFnz5n5bv2R4PArMxGlVuUbWcgT95mkK2g4X
+	EgeQrVsL3WTx6d+iesn1wAfElmb1u5+ynFXWCr7fcBUc/N2n6A1P7jntoaR7oR1ErhatJJeQLg=
+	=
+X-Received: by 2002:a6b:39c6:: with SMTP id g189mr14705343ioa.255.1548053104787;
+        Sun, 20 Jan 2019 22:45:04 -0800 (PST)
+X-Received: by 2002:a6b:39c6:: with SMTP id g189mr14705327ioa.255.1548053103959;
+        Sun, 20 Jan 2019 22:45:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548053103; cv=none;
         d=google.com; s=arc-20160816;
-        b=qlR4m5nkN4h73p2yghwhOV0rW57mzc9GgQzepaYmsruMIw3A+jJBe0m2o3O6McDK19
-         n6xXDi+2T3b3aVLEJ9D1pg2vX/gYFPIO7ugr5nk4GsWGCUUUJixw/k27WcKuTjy8wBkp
-         E11ebS4rIpwlXz0hDEumSDVv8FH9/DLRGhRW9Kctn044/f+Mc05p8QJfzWp7B3hdsNGZ
-         z/gxk+k4VET0L16MKj1MK4mTIn0rTNxvkB2HIWLWP6vlDVVkGzS3hFj2RWd74G7zctBa
-         4kPhORJ5hgdIE56B3qE7XSV8M+v1ftxlpIRwTj0uRVz/9rlhqMsqaXOBE4/qFNk++bj1
-         RSzg==
+        b=dbpfjabNFC8kmwnkJGWo6M8aI2610/MBgPQJenvzjqChvmbjj4Kkm8gvIdVRqpGjYg
+         ckbK6o1/99hk9lgq2F0twA7iXy96yL74PdrvOxc1IRB/QrBPJqUkKKfUrv4VshWupRdO
+         7Pp0VSE7soGYyMn7Pi/TkyYOwmS+DCMvLKkBjejApeGVN+JGTqYgjT2zpadjvJD85p3u
+         QT//egK0C1stsZOosYY8BwvIkWtgFcauIkl3qnjMcod5I90To9fZSOR9BhvBxrfFhtJD
+         iP4kCv/eKkWGgqIs/yPgO6FInalBRULqQRJf5Ri04ALFb07GLcw1lToytKTkNrdC3Zzm
+         k8ZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:date:mime-version
-         :cc:to:from:subject:message-id;
-        bh=IrpDpQRmv2ZJkZZHibl5FPTqOC+BpdBcNVZHRa2MjVg=;
-        b=kIHjnIyVAcEiSWAVUOs/ObpVp5OXeiA1iVrG05zjNGyp4XQBAUsV4/dJmASp1ygJHo
-         122PkKQdW/fMVDZQXiphezNZnxS601i2T8zXyqxIEkaTyh3KgXKyeauBVHaQO7CVCLUv
-         3fWrJhAKAYJm0F+/Yvs3IcfC3d1DwuxXe7BfDLT3D/MrRML0CSA4zSHBbADvDN30M7Jv
-         XN0EmHS+bZGc7N58vW0SqvQo2Obgm3mB2haSuuWiT8YAPQMXl68zJWktjSJamM2EplNv
-         4o99t9/ynuM6HA5cMWsWtDHdOKGcLd/wE8zSl2V3cEaUyv7bNfhJF3LDAcQIQY1Ii8jT
-         +F9A==
+        h=to:from:subject:message-id:date:mime-version;
+        bh=RKWG0lkPh1RDT/J5vz53cnfMPUpRyauX16PNwBznA58=;
+        b=QZ3xmJXLj2RrR2sJSE8ulNTwPR5KrG5oTgSBXsNXsxVu+PZEhptwdCNhsKCREUxhf6
+         rS+s7tpYiXuL+ocVfRNzwhxwKYeb5qJS6r2RA3Wv5+UVpIVuPqEZGwcCy704v5vowm/h
+         JJRXEJ6ki0dY/T0A7p5CMxBmKeSeouLpqC8G5IEaLfif9PiafnSk/Fw1wdJufFJS9U4b
+         izjqjIwXdaEKChovlpgCcVCWzRuHo4uLK7G8H/gBwnn9SSQStncPhAZrMEJ1B3+qbwJR
+         JGgJEKfwSW/S2x/rnxA1LtIuXfCvGY0eYxytSQDHvCen7/i+yHaHICu/qu+Dyf2xZSd8
+         BhsQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id i20si5789157oto.71.2019.01.20.17.23.36
+       spf=pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3b2pFXAkbAEIw23oeppivettmh.ksskpiywivgsrxirx.gsq@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id v134sor18547197itb.19.2019.01.20.22.45.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Jan 2019 17:23:36 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        (Google Transport Security);
+        Sun, 20 Jan 2019 22:45:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav104.sakura.ne.jp (fsav104.sakura.ne.jp [27.133.134.231])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x0L1NL1A043042;
-	Mon, 21 Jan 2019 10:23:21 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav104.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav104.sakura.ne.jp);
- Mon, 21 Jan 2019 10:23:21 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav104.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (localhost [127.0.0.1])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x0L1NLis043031;
-	Mon, 21 Jan 2019 10:23:21 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: (from i-love@localhost)
-	by www262.sakura.ne.jp (8.15.2/8.15.2/Submit) id x0L1NLFJ043029;
-	Mon, 21 Jan 2019 10:23:21 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Message-Id: <201901210123.x0L1NLFJ043029@www262.sakura.ne.jp>
-X-Authentication-Warning: www262.sakura.ne.jp: i-love set sender to penguin-kernel@i-love.sakura.ne.jp using -f
-Subject: Re: [PATCH] mm, oom: remove 'prefer children over parent' heuristic
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-        David Rientjes <rientjes@google.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Roman Gushchin <guro@fb.com>,
-        Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+       spf=pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3b2pFXAkbAEIw23oeppivettmh.ksskpiywivgsrxirx.gsq@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: ALg8bN7rpeMQsteiPlv5L/osvomJPscYDCa34a9qazyd2CZk3BmO/p4p7ZDlMV2H1aFcsq5zFRzq+EG5OK0iVZoFo7AnbFZkxREX
 MIME-Version: 1.0
-Date: Mon, 21 Jan 2019 10:23:21 +0900
-References: <20190120215059.183552-1-shakeelb@google.com>
-In-Reply-To: <20190120215059.183552-1-shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+X-Received: by 2002:a24:fe42:: with SMTP id w63mr19608276ith.13.1548053103667;
+ Sun, 20 Jan 2019 22:45:03 -0800 (PST)
+Date: Sun, 20 Jan 2019 22:45:03 -0800
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <0000000000005676f8057ff2335f@google.com>
+Subject: KASAN: use-after-free Read in oom_kill_process
+From: syzbot <syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com>
+To: akpm@linux-foundation.org, ebiederm@xmission.com, guro@fb.com, 
+	hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	mhocko@kernel.org, rientjes@google.com, syzkaller-bugs@googlegroups.com, 
+	yuzhoujian@didichuxing.com
+Content-Type: text/plain; charset="UTF-8"; delsp="yes"; format="flowed"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190121012321.Z9ubwM_oE3B_hfcfxY7qk50wmDCRnjfMvoodxwrr91I@z>
+Message-ID: <20190121064503.s9-J0fKtFrO33ohszV9JdFTfzIbLPhZK8yl09-CVl0U@z>
 
-Shakeel Butt wrote:
-> +	pr_err("%s: Kill process %d (%s) score %lu or sacrifice child\n",
-> +		message, task_pid_nr(p), p->comm, oc->chosen_points);
+Hello,
 
-This patch is to make "or sacrifice child" false. And, the process reported
-by this line will become always same with the process reported by
+syzbot found the following crash on:
 
-	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
-		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
+HEAD commit:    47bfa6d9dc8c Merge tag 'selinux-pr-20190115' of git://git...
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=123af46b400000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=8a4dffabfb4e36f9
+dashboard link: https://syzkaller.appspot.com/bug?extid=7fbbfa368521945f0e3d
+compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
 
-. Then, better to merge these pr_err() lines?
+Unfortunately, I don't have any reproducer for this crash yet.
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com
+
+kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
+Memory cgroup stats for /syz1: cache:28KB rss:274692KB rss_huge:190464KB  
+shmem:64KB mapped_file:0KB dirty:0KB writeback:0KB swap:0KB  
+inactive_anon:222780KB active_anon:4152KB inactive_file:0KB active_file:0KB  
+unevictable:47872KB
+oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=syz1,mems_allowed=0-1,oom_memcg=/syz1,task_memcg=/syz1,task=syz-executor1,pid=15858,uid=0
+Memory cgroup out of memory: Kill process 15858 (syz-executor1) score 1148  
+or sacrifice child
+==================================================================
+BUG: KASAN: use-after-free in oom_kill_process.cold+0x484/0x9d4  
+mm/oom_kill.c:978
+Read of size 8 at addr ffff8880595f6c40 by task syz-executor1/15817
+
+CPU: 1 PID: 15817 Comm: syz-executor1 Not tainted 5.0.0-rc2+ #29
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x1db/0x2d0 lib/dump_stack.c:113
+  print_address_description.cold+0x7c/0x20d mm/kasan/report.c:187
+  kasan_report.cold+0x1b/0x40 mm/kasan/report.c:317
+  __asan_report_load8_noabort+0x14/0x20 mm/kasan/generic_report.c:135
+  oom_kill_process.cold+0x484/0x9d4 mm/oom_kill.c:978
+  out_of_memory+0x885/0x1420 mm/oom_kill.c:1133
+  mem_cgroup_out_of_memory+0x160/0x210 mm/memcontrol.c:1393
+  mem_cgroup_oom mm/memcontrol.c:1721 [inline]
+  try_charge+0xd44/0x19b0 mm/memcontrol.c:2283
+  memcg_kmem_charge_memcg+0x7c/0x130 mm/memcontrol.c:2591
+  memcg_kmem_charge+0x13b/0x340 mm/memcontrol.c:2624
+  __alloc_pages_nodemask+0x7b8/0xdc0 mm/page_alloc.c:4559
+  __alloc_pages include/linux/gfp.h:473 [inline]
+  __alloc_pages_node include/linux/gfp.h:486 [inline]
+  alloc_pages_node include/linux/gfp.h:500 [inline]
+  alloc_thread_stack_node kernel/fork.c:246 [inline]
+  dup_task_struct kernel/fork.c:849 [inline]
+  copy_process+0x847/0x8710 kernel/fork.c:1753
+  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
+  __do_sys_clone kernel/fork.c:2334 [inline]
+  __se_sys_clone kernel/fork.c:2328 [inline]
+  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
+  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x457ec9
+Code: 6d b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
+48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
+ff 0f 83 3b b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+RSP: 002b:00007f36f091cc78 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
+RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 0000000000457ec9
+RDX: 9999999999999999 RSI: 0000000000000000 RDI: 0000000000000000
+RBP: 000000000073bf00 R08: ffffffffffffffff R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000246 R12: 00007f36f091d6d4
+R13: 00000000004be2a0 R14: 00000000004ce760 R15: 00000000ffffffff
+
+Allocated by task 15809:
+  save_stack+0x45/0xd0 mm/kasan/common.c:73
+  set_track mm/kasan/common.c:85 [inline]
+  __kasan_kmalloc mm/kasan/common.c:496 [inline]
+  __kasan_kmalloc.constprop.0+0xcf/0xe0 mm/kasan/common.c:469
+  kasan_kmalloc mm/kasan/common.c:504 [inline]
+  kasan_slab_alloc+0xf/0x20 mm/kasan/common.c:411
+  kmem_cache_alloc_node+0x144/0x710 mm/slab.c:3633
+  alloc_task_struct_node kernel/fork.c:158 [inline]
+  dup_task_struct kernel/fork.c:845 [inline]
+  copy_process+0x405b/0x8710 kernel/fork.c:1753
+  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
+  __do_sys_clone kernel/fork.c:2334 [inline]
+  __se_sys_clone kernel/fork.c:2328 [inline]
+  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
+  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+
+Freed by task 15817:
+  save_stack+0x45/0xd0 mm/kasan/common.c:73
+  set_track mm/kasan/common.c:85 [inline]
+  __kasan_slab_free+0x102/0x150 mm/kasan/common.c:458
+  kasan_slab_free+0xe/0x10 mm/kasan/common.c:466
+  __cache_free mm/slab.c:3487 [inline]
+  kmem_cache_free+0x86/0x260 mm/slab.c:3749
+  free_task_struct kernel/fork.c:163 [inline]
+  free_task+0x170/0x1f0 kernel/fork.c:458
+  __put_task_struct+0x2e0/0x630 kernel/fork.c:731
+  put_task_struct+0x4b/0x60 include/linux/sched/task.h:98
+  oom_kill_process.cold+0x93a/0x9d4 mm/oom_kill.c:990
+  out_of_memory+0x885/0x1420 mm/oom_kill.c:1133
+  mem_cgroup_out_of_memory+0x160/0x210 mm/memcontrol.c:1393
+  mem_cgroup_oom mm/memcontrol.c:1721 [inline]
+  try_charge+0xd44/0x19b0 mm/memcontrol.c:2283
+  memcg_kmem_charge_memcg+0x7c/0x130 mm/memcontrol.c:2591
+  memcg_kmem_charge+0x13b/0x340 mm/memcontrol.c:2624
+  __alloc_pages_nodemask+0x7b8/0xdc0 mm/page_alloc.c:4559
+  __alloc_pages include/linux/gfp.h:473 [inline]
+  __alloc_pages_node include/linux/gfp.h:486 [inline]
+  alloc_pages_node include/linux/gfp.h:500 [inline]
+  alloc_thread_stack_node kernel/fork.c:246 [inline]
+  dup_task_struct kernel/fork.c:849 [inline]
+  copy_process+0x847/0x8710 kernel/fork.c:1753
+  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
+  __do_sys_clone kernel/fork.c:2334 [inline]
+  __se_sys_clone kernel/fork.c:2328 [inline]
+  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
+  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+
+The buggy address belongs to the object at ffff8880595f6540
+  which belongs to the cache task_struct(33:syz1) of size 6080
+The buggy address is located 1792 bytes inside of
+  6080-byte region [ffff8880595f6540, ffff8880595f7d00)
+The buggy address belongs to the page:
+page:ffffea0001657d80 count:1 mapcount:0 mapping:ffff888091f65840 index:0x0  
+compound_mapcount: 0
+flags: 0x1fffc0000010200(slab|head)
+raw: 01fffc0000010200 ffffea00028b3288 ffffea0002612788 ffff888091f65840
+raw: 0000000000000000 ffff8880595f6540 0000000100000001 ffff888057fe2b00
+page dumped because: kasan: bad access detected
+page->mem_cgroup:ffff888057fe2b00
+
+Memory state around the buggy address:
+  ffff8880595f6b00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+  ffff8880595f6b80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> ffff8880595f6c00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+                                            ^
+  ffff8880595f6c80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+  ffff8880595f6d00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+==================================================================
+protocol 88fb is buggy, dev hsr_slave_0
+protocol 88fb is buggy, dev hsr_slave_1
+protocol 88fb is buggy, dev hsr_slave_0
+protocol 88fb is buggy, dev hsr_slave_1
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
 
