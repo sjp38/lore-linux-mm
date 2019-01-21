@@ -1,313 +1,515 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 363F08E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:09:46 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id s70so19547207qks.4
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:09:46 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 497FE8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:40:29 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id w15so21324900qtk.19
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:40:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c4si3532171qvo.215.2019.01.21.07.09.44
+        by mx.google.com with ESMTPS id d1si10186871qki.160.2019.01.21.07.40.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 07:09:45 -0800 (PST)
-Date: Mon, 21 Jan 2019 10:09:38 -0500
+        Mon, 21 Jan 2019 07:40:27 -0800 (PST)
+Date: Mon, 21 Jan 2019 10:40:18 -0500
 From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH RFC 10/24] userfaultfd: wp: add WP pagetable tracking to
- x86
-Message-ID: <20190121150937.GE3344@redhat.com>
+Subject: Re: [PATCH RFC 02/24] mm: userfault: return VM_FAULT_RETRY on signals
+Message-ID: <20190121154017.GA3711@redhat.com>
 References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-11-peterx@redhat.com>
+ <20190121075722.7945-3-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190121075722.7945-11-peterx@redhat.com>
+In-Reply-To: <20190121075722.7945-3-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
-On Mon, Jan 21, 2019 at 03:57:08PM +0800, Peter Xu wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
+On Mon, Jan 21, 2019 at 03:57:00PM +0800, Peter Xu wrote:
+> There was a special path in handle_userfault() in the past that we'll
+> return a VM_FAULT_NOPAGE when we detected non-fatal signals when waiting
+> for userfault handling.  We did that by reacquiring the mmap_sem before
+> returning.  However that brings a risk in that the vmas might have
+> changed when we retake the mmap_sem and even we could be holding an
+> invalid vma structure.  The problem was reported by syzbot.
+
+This is confusing this should be a patch on its own ie changes to
+fs/userfaultfd.c where you remove that path.
+
 > 
-> Accurate userfaultfd WP tracking is possible by tracking exactly which
-> virtual memory ranges were writeprotected by userland. We can't relay
-> only on the RW bit of the mapped pagetable because that information is
-> destroyed by fork() or KSM or swap. If we were to relay on that, we'd
-> need to stay on the safe side and generate false positive wp faults
-> for every swapped out page.
+> This patch removes the special path and we'll return a VM_FAULT_RETRY
+> with the common path even if we have got such signals.  Then for all the
+> architectures that is passing in VM_FAULT_ALLOW_RETRY into
+> handle_mm_fault(), we check not only for SIGKILL but for all the rest of
+> userspace pending signals right after we returned from
+> handle_mm_fault().
+> 
+> The idea comes from the upstream discussion between Linus and Andrea:
+> 
+>   https://lkml.org/lkml/2017/10/30/560
+> 
+> (This patch contains a potential fix for a double-free of mmap_sem on
+>  ARC architecture; please see https://lkml.org/lkml/2018/11/1/723 for
+>  more information)
 
-So you want to forward write fault (of a protected range) to user space
-only if page is not write protected because of fork(), KSM or swap.
+This patch should only be about changing the return to userspace rule.
+Before this patch the arch fault handler returned to userspace only
+for fatal signal, after this patch it returns to userspace for any
+signal.
 
-This write protection feature is only for anonymous page right ? Other-
-wise how would you protect a share page (ie anyone can look it up and
-call page_mkwrite on it and start writting to it) ?
-
-So for anonymous page for fork() the mapcount will tell you if page is
-write protected for COW. For KSM it is easy check the page flag.
-
-For swap you can use the page lock to synchronize. A page that is
-write protected because of swap is write protected because it is being
-write to disk thus either under page lock, or with PageWriteback()
-returning true while write is on going.
-
-So to me it seems you could properly identify if a page is write
-protected for fork, swap or KSM without a new flag.
+It would be a lot better to have a fix for arc as a separate patch so
+that we can focus on reviewing only one thing.
 
 Cheers,
 Jérôme
 
+
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
 > Signed-off-by: Peter Xu <peterx@redhat.com>
 > ---
->  arch/x86/Kconfig                     |  1 +
->  arch/x86/include/asm/pgtable.h       | 52 ++++++++++++++++++++++++++++
->  arch/x86/include/asm/pgtable_64.h    |  8 ++++-
->  arch/x86/include/asm/pgtable_types.h |  9 +++++
->  include/asm-generic/pgtable.h        |  1 +
->  include/asm-generic/pgtable_uffd.h   | 51 +++++++++++++++++++++++++++
->  init/Kconfig                         |  5 +++
->  7 files changed, 126 insertions(+), 1 deletion(-)
->  create mode 100644 include/asm-generic/pgtable_uffd.h
+>  arch/alpha/mm/fault.c      |  2 +-
+>  arch/arc/mm/fault.c        | 11 +++++++----
+>  arch/arm/mm/fault.c        | 14 ++++++++++----
+>  arch/arm64/mm/fault.c      |  6 +++---
+>  arch/hexagon/mm/vm_fault.c |  2 +-
+>  arch/ia64/mm/fault.c       |  2 +-
+>  arch/m68k/mm/fault.c       |  2 +-
+>  arch/microblaze/mm/fault.c |  2 +-
+>  arch/mips/mm/fault.c       |  2 +-
+>  arch/nds32/mm/fault.c      |  6 +++---
+>  arch/nios2/mm/fault.c      |  2 +-
+>  arch/openrisc/mm/fault.c   |  2 +-
+>  arch/parisc/mm/fault.c     |  2 +-
+>  arch/powerpc/mm/fault.c    |  4 +++-
+>  arch/riscv/mm/fault.c      |  4 ++--
+>  arch/s390/mm/fault.c       |  9 ++++++---
+>  arch/sh/mm/fault.c         |  4 ++++
+>  arch/sparc/mm/fault_32.c   |  3 +++
+>  arch/sparc/mm/fault_64.c   |  3 +++
+>  arch/um/kernel/trap.c      |  5 ++++-
+>  arch/unicore32/mm/fault.c  |  4 ++--
+>  arch/x86/mm/fault.c        | 12 +++++++++++-
+>  arch/xtensa/mm/fault.c     |  3 +++
+>  fs/userfaultfd.c           | 24 ------------------------
+>  24 files changed, 73 insertions(+), 57 deletions(-)
 > 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 8689e794a43c..096c773452d0 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -207,6 +207,7 @@ config X86
->  	select USER_STACKTRACE_SUPPORT
->  	select VIRT_TO_BUS
->  	select X86_FEATURE_NAMES		if PROC_FS
-> +	select HAVE_ARCH_USERFAULTFD_WP		if USERFAULTFD
+> diff --git a/arch/alpha/mm/fault.c b/arch/alpha/mm/fault.c
+> index d73dc473fbb9..46e5e420ad2a 100644
+> --- a/arch/alpha/mm/fault.c
+> +++ b/arch/alpha/mm/fault.c
+> @@ -150,7 +150,7 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
+>  	   the fault.  */
+>  	fault = handle_mm_fault(vma, address, flags);
 >  
->  config INSTRUCTION_DECODER
->  	def_bool y
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 40616e805292..7a71158982f4 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -23,6 +23,7 @@
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
 >  
->  #ifndef __ASSEMBLY__
->  #include <asm/x86_init.h>
-> +#include <asm-generic/pgtable_uffd.h>
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
+> index e2d9fc3fea01..91492d244ea6 100644
+> --- a/arch/arc/mm/fault.c
+> +++ b/arch/arc/mm/fault.c
+> @@ -142,11 +142,14 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
+>  	fault = handle_mm_fault(vma, address, flags);
 >  
->  extern pgd_t early_top_pgt[PTRS_PER_PGD];
->  int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
-> @@ -293,6 +294,23 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
->  	return native_make_pte(v & ~clear);
->  }
+>  	/* If Pagefault was interrupted by SIGKILL, exit page fault "early" */
+> -	if (unlikely(fatal_signal_pending(current))) {
+> -		if ((fault & VM_FAULT_ERROR) && !(fault & VM_FAULT_RETRY))
+> +	if (unlikely(fatal_signal_pending(current) && user_mode(regs))) {
+> +		/*
+> +		 * VM_FAULT_RETRY means we have released the mmap_sem,
+> +		 * otherwise we need to drop it before leaving
+> +		 */
+> +		if (!(fault & VM_FAULT_RETRY))
+>  			up_read(&mm->mmap_sem);
+> -		if (user_mode(regs))
+> -			return;
+> +		return;
+>  	}
 >  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline int pte_uffd_wp(pte_t pte)
-> +{
-> +	return pte_flags(pte) & _PAGE_UFFD_WP;
-> +}
-> +
-> +static inline pte_t pte_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte_set_flags(pte, _PAGE_UFFD_WP);
-> +}
-> +
-> +static inline pte_t pte_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte_clear_flags(pte, _PAGE_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  static inline pte_t pte_mkclean(pte_t pte)
->  {
->  	return pte_clear_flags(pte, _PAGE_DIRTY);
-> @@ -372,6 +390,23 @@ static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
->  	return native_make_pmd(v & ~clear);
->  }
+>  	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+> diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+> index f4ea4c62c613..743077d19669 100644
+> --- a/arch/arm/mm/fault.c
+> +++ b/arch/arm/mm/fault.c
+> @@ -308,14 +308,20 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 >  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline int pmd_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd_flags(pmd) & _PAGE_UFFD_WP;
-> +}
-> +
-> +static inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
-> +{
-> +	return pmd_set_flags(pmd, _PAGE_UFFD_WP);
-> +}
-> +
-> +static inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd_clear_flags(pmd, _PAGE_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  static inline pmd_t pmd_mkold(pmd_t pmd)
->  {
->  	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
-> @@ -1351,6 +1386,23 @@ static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
->  #endif
->  #endif
+>  	fault = __do_page_fault(mm, addr, fsr, flags, tsk);
 >  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline pte_t pte_swp_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte_set_flags(pte, _PAGE_SWP_UFFD_WP);
-> +}
-> +
-> +static inline int pte_swp_uffd_wp(pte_t pte)
-> +{
-> +	return pte_flags(pte) & _PAGE_SWP_UFFD_WP;
-> +}
-> +
-> +static inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte_clear_flags(pte, _PAGE_SWP_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  #define PKRU_AD_BIT 0x1
->  #define PKRU_WD_BIT 0x2
->  #define PKRU_BITS_PER_PKEY 2
-> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-> index 9c85b54bf03c..e0c5d29b8685 100644
-> --- a/arch/x86/include/asm/pgtable_64.h
-> +++ b/arch/x86/include/asm/pgtable_64.h
-> @@ -189,7 +189,7 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
->   *
->   * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit number
->   * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
-> - * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|X|SD|0| <- swp entry
-> + * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|F|SD|0| <- swp entry
->   *
->   * G (8) is aliased and used as a PROT_NONE indicator for
->   * !present ptes.  We need to start storing swap entries above
-> @@ -197,9 +197,15 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
->   * erratum where they can be incorrectly set by hardware on
->   * non-present PTEs.
->   *
-> + * SD Bits 1-4 are not used in non-present format and available for
-> + * special use described below:
-> + *
->   * SD (1) in swp entry is used to store soft dirty bit, which helps us
->   * remember soft dirty over page migration
->   *
-> + * F (2) in swp entry is used to record when a pagetable is
-> + * writeprotected by userfaultfd WP support.
-> + *
->   * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
->   * but also L and G.
->   *
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index 106b7d0e2dae..163043ab142d 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -32,6 +32,7 @@
+> -	/* If we need to retry but a fatal signal is pending, handle the
+> +	/* If we need to retry but a signal is pending, handle the
+>  	 * signal first. We do not need to release the mmap_sem because
+>  	 * it would already be released in __lock_page_or_retry in
+>  	 * mm/filemap.c. */
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+> -		if (!user_mode(regs))
+> +	if (fault & VM_FAULT_RETRY) {
+> +		if (fatal_signal_pending(current) && !user_mode(regs))
+>  			goto no_context;
+> -		return 0;
+> +		else if (signal_pending(current))
+> +			/*
+> +			 * It's either a common signal, or a fatal
+> +			 * signal but for the userspace, we return
+> +			 * immediately.
+> +			 */
+> +			return 0;
+>  	}
 >  
->  #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
->  #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
-> +#define _PAGE_BIT_UFFD_WP	_PAGE_BIT_SOFTW2 /* userfaultfd wrprotected */
->  #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
->  #define _PAGE_BIT_DEVMAP	_PAGE_BIT_SOFTW4
+>  	/*
+> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+> index 7d9571f4ae3d..744d6451ea83 100644
+> --- a/arch/arm64/mm/fault.c
+> +++ b/arch/arm64/mm/fault.c
+> @@ -499,13 +499,13 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 >  
-> @@ -100,6 +101,14 @@
->  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
->  #endif
+>  	if (fault & VM_FAULT_RETRY) {
+>  		/*
+> -		 * If we need to retry but a fatal signal is pending,
+> +		 * If we need to retry but a signal is pending,
+>  		 * handle the signal first. We do not need to release
+>  		 * the mmap_sem because it would already be released
+>  		 * in __lock_page_or_retry in mm/filemap.c.
+>  		 */
+> -		if (fatal_signal_pending(current)) {
+> -			if (!user_mode(regs))
+> +		if (signal_pending(current)) {
+> +			if (fatal_signal_pending(current) && !user_mode(regs))
+>  				goto no_context;
+>  			return 0;
+>  		}
+> diff --git a/arch/hexagon/mm/vm_fault.c b/arch/hexagon/mm/vm_fault.c
+> index eb263e61daf4..be10b441d9cc 100644
+> --- a/arch/hexagon/mm/vm_fault.c
+> +++ b/arch/hexagon/mm/vm_fault.c
+> @@ -104,7 +104,7 @@ void do_page_fault(unsigned long address, long cause, struct pt_regs *regs)
 >  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 1) << _PAGE_BIT_UFFD_WP)
-> +#define _PAGE_SWP_UFFD_WP	_PAGE_USER
-> +#else
-> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 0))
-> +#define _PAGE_SWP_UFFD_WP	(_AT(pteval_t, 0))
-> +#endif
-> +
->  #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
->  #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
->  #define _PAGE_DEVMAP	(_AT(u64, 1) << _PAGE_BIT_DEVMAP)
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 359fb935ded6..0e1470ecf7b5 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -10,6 +10,7 @@
->  #include <linux/mm_types.h>
->  #include <linux/bug.h>
->  #include <linux/errno.h>
-> +#include <asm-generic/pgtable_uffd.h>
+>  	fault = handle_mm_fault(vma, address, flags);
 >  
->  #if 5 - defined(__PAGETABLE_P4D_FOLDED) - defined(__PAGETABLE_PUD_FOLDED) - \
->  	defined(__PAGETABLE_PMD_FOLDED) != CONFIG_PGTABLE_LEVELS
-> diff --git a/include/asm-generic/pgtable_uffd.h b/include/asm-generic/pgtable_uffd.h
-> new file mode 100644
-> index 000000000000..643d1bf559c2
-> --- /dev/null
-> +++ b/include/asm-generic/pgtable_uffd.h
-> @@ -0,0 +1,51 @@
-> +#ifndef _ASM_GENERIC_PGTABLE_UFFD_H
-> +#define _ASM_GENERIC_PGTABLE_UFFD_H
-> +
-> +#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static __always_inline int pte_uffd_wp(pte_t pte)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline int pmd_uffd_wp(pmd_t pmd)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline pte_t pte_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
-> +{
-> +	return pmd;
-> +}
-> +
-> +static __always_inline pte_t pte_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd;
-> +}
-> +
-> +static __always_inline pte_t pte_swp_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline int pte_swp_uffd_wp(pte_t pte)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
-> +#endif /* _ASM_GENERIC_PGTABLE_UFFD_H */
-> diff --git a/init/Kconfig b/init/Kconfig
-> index cf5b5a0dcbc2..2a02e004874e 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1418,6 +1418,11 @@ config ADVISE_SYSCALLS
->  	  applications use these syscalls, you can disable this option to save
->  	  space.
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
 >  
-> +config HAVE_ARCH_USERFAULTFD_WP
-> +	bool
-> +	help
-> +	  Arch has userfaultfd write protection support
+>  	/* The most common case -- we are done. */
+> diff --git a/arch/ia64/mm/fault.c b/arch/ia64/mm/fault.c
+> index 5baeb022f474..62c2d39d2bed 100644
+> --- a/arch/ia64/mm/fault.c
+> +++ b/arch/ia64/mm/fault.c
+> @@ -163,7 +163,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
+>  	 */
+>  	fault = handle_mm_fault(vma, address, flags);
+>  
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
+>  
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/m68k/mm/fault.c b/arch/m68k/mm/fault.c
+> index 9b6163c05a75..d9808a807ab8 100644
+> --- a/arch/m68k/mm/fault.c
+> +++ b/arch/m68k/mm/fault.c
+> @@ -138,7 +138,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
+>  	fault = handle_mm_fault(vma, address, flags);
+>  	pr_debug("handle_mm_fault returns %x\n", fault);
+>  
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return 0;
+>  
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/microblaze/mm/fault.c b/arch/microblaze/mm/fault.c
+> index 202ad6a494f5..4fd2dbd0c5ca 100644
+> --- a/arch/microblaze/mm/fault.c
+> +++ b/arch/microblaze/mm/fault.c
+> @@ -217,7 +217,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
+>  	 */
+>  	fault = handle_mm_fault(vma, address, flags);
+>  
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
+>  
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/mips/mm/fault.c b/arch/mips/mm/fault.c
+> index 73d8a0f0b810..92374fd091d2 100644
+> --- a/arch/mips/mm/fault.c
+> +++ b/arch/mips/mm/fault.c
+> @@ -154,7 +154,7 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
+>  	 */
+>  	fault = handle_mm_fault(vma, address, flags);
+>  
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
+>  
+>  	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+> diff --git a/arch/nds32/mm/fault.c b/arch/nds32/mm/fault.c
+> index b740534b152c..72461745d3e1 100644
+> --- a/arch/nds32/mm/fault.c
+> +++ b/arch/nds32/mm/fault.c
+> @@ -207,12 +207,12 @@ void do_page_fault(unsigned long entry, unsigned long addr,
+>  	fault = handle_mm_fault(vma, addr, flags);
+>  
+>  	/*
+> -	 * If we need to retry but a fatal signal is pending, handle the
+> +	 * If we need to retry but a signal is pending, handle the
+>  	 * signal first. We do not need to release the mmap_sem because it
+>  	 * would already be released in __lock_page_or_retry in mm/filemap.c.
+>  	 */
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+> -		if (!user_mode(regs))
+> +	if (fault & VM_FAULT_RETRY && signal_pending(current)) {
+> +		if (fatal_signal_pending(current) && !user_mode(regs))
+>  			goto no_context;
+>  		return;
+>  	}
+> diff --git a/arch/nios2/mm/fault.c b/arch/nios2/mm/fault.c
+> index 24fd84cf6006..5939434a31ae 100644
+> --- a/arch/nios2/mm/fault.c
+> +++ b/arch/nios2/mm/fault.c
+> @@ -134,7 +134,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long cause,
+>  	 */
+>  	fault = handle_mm_fault(vma, address, flags);
+>  
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
+>  
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/openrisc/mm/fault.c b/arch/openrisc/mm/fault.c
+> index dc4dbafc1d83..873ecb5d82d7 100644
+> --- a/arch/openrisc/mm/fault.c
+> +++ b/arch/openrisc/mm/fault.c
+> @@ -165,7 +165,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
+>  
+>  	fault = handle_mm_fault(vma, address, flags);
+>  
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
+>  
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/parisc/mm/fault.c b/arch/parisc/mm/fault.c
+> index c8e8b7c05558..29422eec329d 100644
+> --- a/arch/parisc/mm/fault.c
+> +++ b/arch/parisc/mm/fault.c
+> @@ -303,7 +303,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
+>  
+>  	fault = handle_mm_fault(vma, address, flags);
+>  
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return;
+>  
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
+> index 1697e903bbf2..8bc0d091f13c 100644
+> --- a/arch/powerpc/mm/fault.c
+> +++ b/arch/powerpc/mm/fault.c
+> @@ -575,8 +575,10 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
+>  			 */
+>  			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+>  			flags |= FAULT_FLAG_TRIED;
+> -			if (!fatal_signal_pending(current))
+> +			if (!signal_pending(current))
+>  				goto retry;
+> +			else if (!fatal_signal_pending(current) && is_user)
+> +				return 0;
+>  		}
+>  
+>  		/*
+> diff --git a/arch/riscv/mm/fault.c b/arch/riscv/mm/fault.c
+> index 88401d5125bc..4fc8d746bec3 100644
+> --- a/arch/riscv/mm/fault.c
+> +++ b/arch/riscv/mm/fault.c
+> @@ -123,11 +123,11 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
+>  	fault = handle_mm_fault(vma, addr, flags);
+>  
+>  	/*
+> -	 * If we need to retry but a fatal signal is pending, handle the
+> +	 * If we need to retry but a signal is pending, handle the
+>  	 * signal first. We do not need to release the mmap_sem because it
+>  	 * would already be released in __lock_page_or_retry in mm/filemap.c.
+>  	 */
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(tsk))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(tsk))
+>  		return;
+>  
+>  	if (unlikely(fault & VM_FAULT_ERROR)) {
+> diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
+> index 2b8f32f56e0c..19b4fb2fafab 100644
+> --- a/arch/s390/mm/fault.c
+> +++ b/arch/s390/mm/fault.c
+> @@ -500,9 +500,12 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
+>  	 * the fault.
+>  	 */
+>  	fault = handle_mm_fault(vma, address, flags);
+> -	/* No reason to continue if interrupted by SIGKILL. */
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+> -		fault = VM_FAULT_SIGNAL;
+> +	/* Do not continue if interrupted by signals. */
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current)) {
+> +		if (fatal_signal_pending(current))
+> +			fault = VM_FAULT_SIGNAL;
+> +		else
+> +			fault = 0;
+>  		if (flags & FAULT_FLAG_RETRY_NOWAIT)
+>  			goto out_up;
+>  		goto out;
+> diff --git a/arch/sh/mm/fault.c b/arch/sh/mm/fault.c
+> index 6defd2c6d9b1..baf5d73df40c 100644
+> --- a/arch/sh/mm/fault.c
+> +++ b/arch/sh/mm/fault.c
+> @@ -506,6 +506,10 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
+>  			 * have already released it in __lock_page_or_retry
+>  			 * in mm/filemap.c.
+>  			 */
 > +
->  config MEMBARRIER
->  	bool "Enable membarrier() system call" if EXPERT
->  	default y
+> +			if (user_mode(regs) && signal_pending(tsk))
+> +				return;
+> +
+>  			goto retry;
+>  		}
+>  	}
+> diff --git a/arch/sparc/mm/fault_32.c b/arch/sparc/mm/fault_32.c
+> index b0440b0edd97..a2c83104fe35 100644
+> --- a/arch/sparc/mm/fault_32.c
+> +++ b/arch/sparc/mm/fault_32.c
+> @@ -269,6 +269,9 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
+>  			 * in mm/filemap.c.
+>  			 */
+>  
+> +			if (user_mode(regs) && signal_pending(tsk))
+> +				return;
+> +
+>  			goto retry;
+>  		}
+>  	}
+> diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
+> index 8f8a604c1300..cad71ec5c7b3 100644
+> --- a/arch/sparc/mm/fault_64.c
+> +++ b/arch/sparc/mm/fault_64.c
+> @@ -467,6 +467,9 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
+>  			 * in mm/filemap.c.
+>  			 */
+>  
+> +			if (user_mode(regs) && signal_pending(current))
+> +				return;
+> +
+>  			goto retry;
+>  		}
+>  	}
+> diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
+> index 0e8b6158f224..09baf37b65b9 100644
+> --- a/arch/um/kernel/trap.c
+> +++ b/arch/um/kernel/trap.c
+> @@ -76,8 +76,11 @@ int handle_page_fault(unsigned long address, unsigned long ip,
+>  
+>  		fault = handle_mm_fault(vma, address, flags);
+>  
+> -		if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +		if (fault & VM_FAULT_RETRY && signal_pending(current)) {
+> +			if (is_user && !fatal_signal_pending(current))
+> +				err = 0;
+>  			goto out_nosemaphore;
+> +		}
+>  
+>  		if (unlikely(fault & VM_FAULT_ERROR)) {
+>  			if (fault & VM_FAULT_OOM) {
+> diff --git a/arch/unicore32/mm/fault.c b/arch/unicore32/mm/fault.c
+> index b9a3a50644c1..3611f19234a1 100644
+> --- a/arch/unicore32/mm/fault.c
+> +++ b/arch/unicore32/mm/fault.c
+> @@ -248,11 +248,11 @@ static int do_pf(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+>  
+>  	fault = __do_pf(mm, addr, fsr, flags, tsk);
+>  
+> -	/* If we need to retry but a fatal signal is pending, handle the
+> +	/* If we need to retry but a signal is pending, handle the
+>  	 * signal first. We do not need to release the mmap_sem because
+>  	 * it would already be released in __lock_page_or_retry in
+>  	 * mm/filemap.c. */
+> -	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+> +	if ((fault & VM_FAULT_RETRY) && signal_pending(current))
+>  		return 0;
+>  
+>  	if (!(fault & VM_FAULT_ERROR) && (flags & FAULT_FLAG_ALLOW_RETRY)) {
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 71d4b9d4d43f..b94ef0c2b98c 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -1433,8 +1433,18 @@ void do_user_addr_fault(struct pt_regs *regs,
+>  		if (flags & FAULT_FLAG_ALLOW_RETRY) {
+>  			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+>  			flags |= FAULT_FLAG_TRIED;
+> -			if (!fatal_signal_pending(tsk))
+> +			if (!signal_pending(tsk))
+>  				goto retry;
+> +			else if (!fatal_signal_pending(tsk))
+> +				/*
+> +				 * There is a signal for the task but
+> +				 * it's not fatal, let's return
+> +				 * directly to the userspace.  This
+> +				 * gives chance for signals like
+> +				 * SIGSTOP/SIGCONT to be handled
+> +				 * faster, e.g., with GDB.
+> +				 */
+> +				return;
+>  		}
+>  
+>  		/* User mode? Just return to handle the fatal exception */
+> diff --git a/arch/xtensa/mm/fault.c b/arch/xtensa/mm/fault.c
+> index 2ab0e0dcd166..792dad5e2f12 100644
+> --- a/arch/xtensa/mm/fault.c
+> +++ b/arch/xtensa/mm/fault.c
+> @@ -136,6 +136,9 @@ void do_page_fault(struct pt_regs *regs)
+>  			 * in mm/filemap.c.
+>  			 */
+>  
+> +			if (user_mode(regs) && signal_pending(current))
+> +				return;
+> +
+>  			goto retry;
+>  		}
+>  	}
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 270d4888c6d5..bc9f6230a3f0 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -515,30 +515,6 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
+>  
+>  	__set_current_state(TASK_RUNNING);
+>  
+> -	if (return_to_userland) {
+> -		if (signal_pending(current) &&
+> -		    !fatal_signal_pending(current)) {
+> -			/*
+> -			 * If we got a SIGSTOP or SIGCONT and this is
+> -			 * a normal userland page fault, just let
+> -			 * userland return so the signal will be
+> -			 * handled and gdb debugging works.  The page
+> -			 * fault code immediately after we return from
+> -			 * this function is going to release the
+> -			 * mmap_sem and it's not depending on it
+> -			 * (unlike gup would if we were not to return
+> -			 * VM_FAULT_RETRY).
+> -			 *
+> -			 * If a fatal signal is pending we still take
+> -			 * the streamlined VM_FAULT_RETRY failure path
+> -			 * and there's no need to retake the mmap_sem
+> -			 * in such case.
+> -			 */
+> -			down_read(&mm->mmap_sem);
+> -			ret = VM_FAULT_NOPAGE;
+> -		}
+> -	}
+> -
+>  	/*
+>  	 * Here we race with the list_del; list_add in
+>  	 * userfaultfd_ctx_read(), however because we don't ever run
 > -- 
 > 2.17.1
 > 
