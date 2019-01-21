@@ -1,116 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E6EA8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:17:06 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id e17so10602764wrw.13
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 23:17:06 -0800 (PST)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id i3si65207347wrh.295.2019.01.20.23.17.04
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 336958E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:57:36 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id w15so20276253qtk.19
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 23:57:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z54si1671979qtb.1.2019.01.20.23.57.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Jan 2019 23:17:04 -0800 (PST)
-Subject: Re: [PATCH v3 3/3] powerpc/32: Add KASAN support
-References: <cover.1547289808.git.christophe.leroy@c-s.fr>
- <935f9f83393affb5d55323b126468ecb90373b88.1547289808.git.christophe.leroy@c-s.fr>
- <e4b343fa-702b-294f-7741-bb85ed877cdf@virtuozzo.com>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <8d433501-a5a7-8e3b-03f7-ccdd0f8622e1@c-s.fr>
-Date: Mon, 21 Jan 2019 08:17:03 +0100
-MIME-Version: 1.0
-In-Reply-To: <e4b343fa-702b-294f-7741-bb85ed877cdf@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+        Sun, 20 Jan 2019 23:57:34 -0800 (PST)
+From: Peter Xu <peterx@redhat.com>
+Subject: [PATCH RFC 00/24] userfaultfd: write protection support
+Date: Mon, 21 Jan 2019 15:56:58 +0800
+Message-Id: <20190121075722.7945-1-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, peterx@redhat.com, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
+Hi,
 
+This series implements initial write protection support for
+userfaultfd.  Currently both shmem and hugetlbfs are not supported
+yet, but only anonymous memory.
 
-Le 15/01/2019 à 18:23, Andrey Ryabinin a écrit :
-> 
-> 
-> On 1/12/19 2:16 PM, Christophe Leroy wrote:
-> 
->> +KASAN_SANITIZE_early_32.o := n
->> +KASAN_SANITIZE_cputable.o := n
->> +KASAN_SANITIZE_prom_init.o := n
->> +
-> 
-> Usually it's also good idea to disable branch profiling - define DISABLE_BRANCH_PROFILING
-> either in top of these files or via Makefile. Branch profiling redefines if() statement and calls
-> instrumented ftrace_likely_update in every if().
-> 
-> 
-> 
->> diff --git a/arch/powerpc/mm/kasan_init.c b/arch/powerpc/mm/kasan_init.c
->> new file mode 100644
->> index 000000000000..3edc9c2d2f3e
-> 
->> +void __init kasan_init(void)
->> +{
->> +	struct memblock_region *reg;
->> +
->> +	for_each_memblock(memory, reg)
->> +		kasan_init_region(reg);
->> +
->> +	pr_info("KASAN init done\n");
-> 
-> Without "init_task.kasan_depth = 0;" kasan will not repot bugs.
-> 
-> There is test_kasan module. Make sure that it produce reports.
-> 
+To be simple, either "userfaultfd-wp" or "uffd-wp" might be used in
+later paragraphs.
 
-Thanks for the review.
+The whole series can also be found at:
 
-Now I get the following very early in boot, what does that mean ?
+  https://github.com/xzpeter/linux/tree/uffd-wp-merged
 
-[    0.000000] KASAN init done
-[    0.000000] 
-==================================================================
-[    0.000000] BUG: KASAN: unknown-crash in memblock_alloc_try_nid+0xd8/0xf0
-[    0.000000] Write of size 68 at addr c7ff5a90 by task swapper/0
-[    0.000000]
-[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 
-5.0.0-rc2-s3k-dev-00559-g88aa407c4bce #772
-[    0.000000] Call Trace:
-[    0.000000] [c094ded0] [c016c7e4] 
-print_address_description+0x1a0/0x2b8 (unreliable)
-[    0.000000] [c094df00] [c016caa0] kasan_report+0xe4/0x168
-[    0.000000] [c094df40] [c016b464] memset+0x2c/0x4c
-[    0.000000] [c094df60] [c08731f0] memblock_alloc_try_nid+0xd8/0xf0
-[    0.000000] [c094df90] [c0861f20] mmu_context_init+0x58/0xa0
-[    0.000000] [c094dfb0] [c085ca70] start_kernel+0x54/0x400
-[    0.000000] [c094dff0] [c0002258] start_here+0x44/0x9c
-[    0.000000]
-[    0.000000]
-[    0.000000] Memory state around the buggy address:
-[    0.000000]  c7ff5980: e2 a1 87 81 bd d4 a5 b5 f8 8d 89 e7 72 bc 20 24
-[    0.000000]  c7ff5a00: e7 b9 c1 c7 17 e9 b4 bd a4 d0 e7 a0 11 15 a5 b5
-[    0.000000] >c7ff5a80: b5 e1 83 a5 2d 65 31 3f f3 e5 a7 ef 34 b5 69 b5
-[    0.000000]                  ^
-[    0.000000]  c7ff5b00: 21 a5 c1 c1 b4 bf 2d e5 e5 c3 f5 91 e3 b8 a1 34
-[    0.000000]  c7ff5b80: ad ef 23 87 3d a6 ad b5 c3 c3 80 b7 ac b1 1f 37
-[    0.000000] 
-==================================================================
-[    0.000000] Disabling lock debugging due to kernel taint
-[    0.000000] MMU: Allocated 76 bytes of context maps for 16 contexts
-[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 8176
-[    0.000000] Kernel command line: console=ttyCPM0,115200N8 
-ip=192.168.2.7:192.168.2.2::255.0.0.0:vgoip:eth0:off kgdboc=ttyCPM0
-[    0.000000] Dentry cache hash table entries: 16384 (order: 2, 65536 
-bytes)
-[    0.000000] Inode-cache hash table entries: 8192 (order: 1, 32768 bytes)
-[    0.000000] Memory: 99904K/131072K available (7376K kernel code, 528K 
-rwdata, 1168K rodata, 576K init, 4623K bss, 31168K reserved, 0K 
-cma-reserved)
-[    0.000000] Kernel virtual memory layout:
-[    0.000000]   * 0xffefc000..0xffffc000  : fixmap
-[    0.000000]   * 0xf7c00000..0xffc00000  : kasan shadow mem
-[    0.000000]   * 0xf7a00000..0xf7c00000  : consistent mem
-[    0.000000]   * 0xf7a00000..0xf7a00000  : early ioremap
-[    0.000000]   * 0xc9000000..0xf7a00000  : vmalloc & ioremap
+Any comment would be greatly welcomed.   Thanks.
 
+Overview
+====================
 
-Christophe
+The uffd-wp work was initialized by Shaohua Li [1], and later
+continued by Andrea [2]. This series is based upon Andrea's latest
+userfaultfd tree, and it is a continuous works from both Shaohua and
+Andrea.  Many of the follow up ideas come from Andrea too.
+
+Besides the old MISSING register mode of userfaultfd, the new uffd-wp
+support provides another alternative register mode called
+UFFDIO_REGISTER_MODE_WP that can be used to listen to not only missing
+page faults but also write protection page faults, or even they can be
+registered together.  At the same time, the new feature also provides
+a new userfaultfd ioctl called UFFDIO_WRITEPROTECT which allows the
+userspace to write protect a range or memory or fixup write permission
+of faulted pages.
+
+Please refer to the document patch "userfaultfd: wp:
+UFFDIO_REGISTER_MODE_WP documentation update" for more information on
+the new interface and what it can do.
+
+The major workflow of an uffd-wp program should be:
+
+  1. Register a memory region with WP mode using UFFDIO_REGISTER_MODE_WP
+
+  2. Write protect part of the whole registered region using
+     UFFDIO_WRITEPROTECT, passing in UFFDIO_WRITEPROTECT_MODE_WP to
+     show that we want to write protect the range.
+
+  3. Start a working thread that modifies the protected pages,
+     meanwhile listening to UFFD messages.
+
+  4. When a write is detected upon the protected range, page fault
+     happens, a UFFD message will be generated and reported to the
+     page fault handling thread
+
+  5. The page fault handler thread resolves the page fault using the
+     new UFFDIO_WRITEPROTECT ioctl, but this time passing in
+     !UFFDIO_WRITEPROTECT_MODE_WP instead showing that we want to
+     recover the write permission.  Before this operation, the fault
+     handler thread can do anything it wants, e.g., dumps the page to
+     a persistent storage.
+
+  6. The worker thread will continue running with the correctly
+     applied write permission from step 5.
+
+Currently there are already two projects that are based on this new
+userfaultfd feature.
+
+QEMU Live Snapshot: The project provides a way to allow the QEMU
+                    hypervisor to take snapshot of VMs without
+                    stopping the VM [3].
+
+LLNL umap library:  The project provides a mmap-like interface and
+                    "allow to have an application specific buffer of
+                    pages cached from a large file, i.e. out-of-core
+                    execution using memory map" [4][5].
+
+Before posting the patchset, this series was smoke tested against QEMU
+live snapshot and the LLNL umap library (by doing parallel quicksort
+using 128 sorting threads + 80 uffd servicing threads).  My sincere
+thanks to Marty Mcfadden and Denis Plotnikov for the help along the
+way.
+
+Implementation
+==============
+
+Patch 1-4: The whole uffd-wp requires the kernel page fault path to
+           take more than one retries.  In the previous works starting
+           from Shaohua, a new fault flag FAULT_FLAG_ALLOW_UFFD_RETRY
+           was introduced for this [6]. However in this series we have
+           dropped that patch, instead the whole work is based on the
+           recent series "[PATCH RFC v3 0/4] mm: some enhancements to
+           the page fault mechanism" [7] which removes the assuption
+           that VM_FAULT_RETRY can only happen once.  This four
+           patches are identital patches but picked up here.  Please
+           refer to the cover letter [7] for more information.  More
+           discussion upstream shows that this work could even benefit
+           existing use case [8] so please help justify whether
+           patches 1-4 can be consider to be accepted even earlier
+           than the rest of the series.
+
+Patch 5-21:   Implements the uffd-wp logic.  To avoid collision with
+              existing write protections (e.g., an private anonymous
+              page can be write protected if it was shared between
+              multiple processes), a new PTE bit (_PAGE_UFFD_WP) was
+              introduced to explicitly mark a PTE as userfault
+              write-protected.  A similar bit was also used in the
+              swap/migration entry (_PAGE_SWP_UFFD_WP) to make sure
+              even if the pages were swapped or migrated, the uffd-wp
+              tracking information won't be lost.  When resolving a
+              page fault, we'll do a page copy before hand if the page
+              was COWed to make sure we won't corrupt any shared
+              pages.  Etc.  Please see separated patches for more
+              details.
+
+Patch 22:     Documentation update for uffd-wp
+
+Patch 23,24:  Uffd-wp selftests
+
+TODO
+=============
+
+- hugetlbfs/shmem support
+- performance
+- more architectures
+- ...
+
+References
+==========
+
+[1] https://lwn.net/Articles/666187/
+[2] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/log/?h=userfault
+[3] https://github.com/denis-plotnikov/qemu/commits/background-snapshot-kvm
+[4] https://github.com/LLNL/umap
+[5] https://llnl-umap.readthedocs.io/en/develop/
+[6] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
+[7] https://lkml.org/lkml/2018/11/21/370
+[8] https://lkml.org/lkml/2018/12/30/64
+
+Andrea Arcangeli (5):
+  userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
+  userfaultfd: wp: hook userfault handler to write protection fault
+  userfaultfd: wp: add WP pagetable tracking to x86
+  userfaultfd: wp: userfaultfd_pte/huge_pmd_wp() helpers
+  userfaultfd: wp: add UFFDIO_COPY_MODE_WP
+
+Martin Cracauer (1):
+  userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
+
+Peter Xu (15):
+  mm: gup: rename "nonblocking" to "locked" where proper
+  mm: userfault: return VM_FAULT_RETRY on signals
+  mm: allow VM_FAULT_RETRY for multiple times
+  mm: gup: allow VM_FAULT_RETRY for multiple times
+  mm: merge parameters for change_protection()
+  userfaultfd: wp: apply _PAGE_UFFD_WP bit
+  mm: export wp_page_copy()
+  userfaultfd: wp: handle COW properly for uffd-wp
+  userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
+  userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
+  userfaultfd: wp: support swap and page migration
+  userfaultfd: wp: don't wake up when doing write protect
+  khugepaged: skip collapse if uffd-wp detected
+  userfaultfd: selftests: refactor statistics
+  userfaultfd: selftests: add write-protect test
+
+Shaohua Li (3):
+  userfaultfd: wp: add helper for writeprotect check
+  userfaultfd: wp: support write protection for userfault vma range
+  userfaultfd: wp: enabled write protection in userfaultfd API
+
+ Documentation/admin-guide/mm/userfaultfd.rst |  51 +++++
+ arch/alpha/mm/fault.c                        |   4 +-
+ arch/arc/mm/fault.c                          |  12 +-
+ arch/arm/mm/fault.c                          |  17 +-
+ arch/arm64/mm/fault.c                        |  11 +-
+ arch/hexagon/mm/vm_fault.c                   |   3 +-
+ arch/ia64/mm/fault.c                         |   3 +-
+ arch/m68k/mm/fault.c                         |   5 +-
+ arch/microblaze/mm/fault.c                   |   3 +-
+ arch/mips/mm/fault.c                         |   3 +-
+ arch/nds32/mm/fault.c                        |   7 +-
+ arch/nios2/mm/fault.c                        |   5 +-
+ arch/openrisc/mm/fault.c                     |   3 +-
+ arch/parisc/mm/fault.c                       |   4 +-
+ arch/powerpc/mm/fault.c                      |   9 +-
+ arch/riscv/mm/fault.c                        |   9 +-
+ arch/s390/mm/fault.c                         |  14 +-
+ arch/sh/mm/fault.c                           |   5 +-
+ arch/sparc/mm/fault_32.c                     |   4 +-
+ arch/sparc/mm/fault_64.c                     |   4 +-
+ arch/um/kernel/trap.c                        |   6 +-
+ arch/unicore32/mm/fault.c                    |  10 +-
+ arch/x86/Kconfig                             |   1 +
+ arch/x86/include/asm/pgtable.h               |  67 ++++++
+ arch/x86/include/asm/pgtable_64.h            |   8 +-
+ arch/x86/include/asm/pgtable_types.h         |  11 +-
+ arch/x86/mm/fault.c                          |  13 +-
+ arch/xtensa/mm/fault.c                       |   4 +-
+ fs/userfaultfd.c                             | 110 +++++----
+ include/asm-generic/pgtable.h                |   1 +
+ include/asm-generic/pgtable_uffd.h           |  66 ++++++
+ include/linux/huge_mm.h                      |   2 +-
+ include/linux/mm.h                           |  21 +-
+ include/linux/swapops.h                      |   2 +
+ include/linux/userfaultfd_k.h                |  41 +++-
+ include/trace/events/huge_memory.h           |   1 +
+ include/uapi/linux/userfaultfd.h             |  28 ++-
+ init/Kconfig                                 |   5 +
+ mm/gup.c                                     |  61 ++---
+ mm/huge_memory.c                             |  28 ++-
+ mm/hugetlb.c                                 |   8 +-
+ mm/khugepaged.c                              |  23 ++
+ mm/memory.c                                  |  28 ++-
+ mm/mempolicy.c                               |   2 +-
+ mm/migrate.c                                 |   7 +
+ mm/mprotect.c                                |  99 +++++++--
+ mm/rmap.c                                    |   6 +
+ mm/userfaultfd.c                             |  92 +++++++-
+ tools/testing/selftests/vm/userfaultfd.c     | 222 ++++++++++++++-----
+ 49 files changed, 898 insertions(+), 251 deletions(-)
+ create mode 100644 include/asm-generic/pgtable_uffd.h
+
+-- 
+2.17.1
