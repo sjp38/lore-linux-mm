@@ -2,257 +2,188 @@ Return-Path: <SRS0=AzIT=P5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85359C31D63
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 06:45:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68E23C282DB
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 08:06:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F292C217F9
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 06:45:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F292C217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 1E46320823
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 08:06:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="d3iRdJ/V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E46320823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6925A8E0003; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
+	id BFB6E8E0024; Mon, 21 Jan 2019 03:06:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6429E8E0001; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
+	id BAB2F8E0018; Mon, 21 Jan 2019 03:06:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5326C8E0003; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
+	id AC50C8E0024; Mon, 21 Jan 2019 03:06:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 28D7B8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id p4so15994582iod.17
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 22:45:05 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE058E0018
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:07 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id 201so10910404ywp.13
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:06:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:message-id:subject:from:to;
-        bh=RKWG0lkPh1RDT/J5vz53cnfMPUpRyauX16PNwBznA58=;
-        b=ECz2M85FNGfxwLeALjnrxKVHMXjjHHJO12JfgKsmVmw5IHTSesGNdSKKfdmidshMke
-         iDjI301mRxhAsejZYrEPVg0dUnK6NvBcyEcxVMRH5B80o8hXun3WzsqBKM5OsEd02zlx
-         hAvo4SGOrz51Lxgfo5Mb3gJELo1EauAsqgF3kNVwuPuusM5k8CgEvtS06hoyVeGh9QZi
-         4ZEnvpIAXp/h6ThNjDQu1xippeBffh/A++rceO1XEYSKoZT7nc9EtDb6Z2GeKsZQ38h+
-         Zb0w2uXigkXTmf+5kIMrhpp6KoynG75JL6NC9l8ivVFJV4CmlQqSC2fLC1Z38l2AOjT9
-         2Ncw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3b2pFXAkbAEIw23oeppivettmh.ksskpiywivgsrxirx.gsq@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: AJcUukfHFXI6TwUhOiUPdwZrLl7eVpkZzTeP9VengJYfmPIXUcpdtz/m
-	Abk/XynpMQzheZveVNzmhkYvCzlx88PN+GqdV+cFk0HW+s9Y+KCZGZIdZqIe8frs/VV2ILcXZvm
-	QXWXTDRCQlqQwvkzJHjBFDcZ0pQz5Oj2T7IPhMVWyq0vxWizYtZVjvEpvu40C+c6pH22MTeXUFn
-	WUGr0gz9QxBb2WOiDWr1qotDb1V0O4wPYUPgm2Ah3pIGJbnyn+C9LGrUaqfdNjIcsZURFwdtD3Q
-	5ahoMTdg7B3ya0R9TRyNOHCs6Yixjl3yUQ2+FmMvFnz5n5bv2R4PArMxGlVuUbWcgT95mkK2g4X
-	EgeQrVsL3WTx6d+iesn1wAfElmb1u5+ynFXWCr7fcBUc/N2n6A1P7jntoaR7oR1ErhatJJeQLg=
-	=
-X-Received: by 2002:a6b:39c6:: with SMTP id g189mr14705343ioa.255.1548053104787;
-        Sun, 20 Jan 2019 22:45:04 -0800 (PST)
-X-Received: by 2002:a6b:39c6:: with SMTP id g189mr14705327ioa.255.1548053103959;
-        Sun, 20 Jan 2019 22:45:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548053103; cv=none;
+        h=x-gm-message-state:subject:from:to:cc:references:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=p32sQDI6ox884rw5fGb9+nzl0KtF9Y6AnqZiwtU2mA8=;
+        b=KQwiGOoL6uFHXzTU/CmQWtNMEAp9dkC57COu/9fo/4/fCyDXbBNneq+LfEVCqMk1SH
+         BA4f1BM7wgYVl7CvoFqYo18laUG0Md8IBdfaGRbZdOuPHaR0sXU16qBpKYCPkldaiWKY
+         EQMnvKksovOzr8N6ZM2UmsiOoCbl3h/NcW3eNjFF8wrN6V01fpPCnfnU7oAYGl2hoaPw
+         8Y6ZCDQnde2VpAPE76+TjJUc+1VW6L+KLlcX/Z5oqJyVjS204hK2lYz2RhhL55SSXOIX
+         YpqPsGHf21tBIuyL1dNkm1KONZ5NN6+3FtiuuQs4NTVvuudsHe6z8JTv+Zdt4tg8Tn3G
+         izgw==
+X-Gm-Message-State: AJcUukcu6aRnsklJu2ijGCx0uZFLSn910ZcL6xHLoVRcSOOS+A1bAcr+
+	WbNHd8q3R4DPhrvI1Dc9Md2bV+bAihAeSovcCeemV7T3YBYYrYN9VVpmXy8buz89wGGljweHDCJ
+	G3GdRvABDhNOjFnzxHGm80YO0Gc4PgXMdKa95qSsFTsGeC7mTals+5Ng5LK2MViwIXA==
+X-Received: by 2002:a81:2c09:: with SMTP id s9mr27089267yws.165.1548057967265;
+        Mon, 21 Jan 2019 00:06:07 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN65bwhTrMfoHmhuFuigFrwnyAQ/HqHFKY7ZIbsK6ysXJcn2hSste/TABV7pOtNL3496cGo1
+X-Received: by 2002:a81:2c09:: with SMTP id s9mr27089236yws.165.1548057966545;
+        Mon, 21 Jan 2019 00:06:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548057966; cv=none;
         d=google.com; s=arc-20160816;
-        b=dbpfjabNFC8kmwnkJGWo6M8aI2610/MBgPQJenvzjqChvmbjj4Kkm8gvIdVRqpGjYg
-         ckbK6o1/99hk9lgq2F0twA7iXy96yL74PdrvOxc1IRB/QrBPJqUkKKfUrv4VshWupRdO
-         7Pp0VSE7soGYyMn7Pi/TkyYOwmS+DCMvLKkBjejApeGVN+JGTqYgjT2zpadjvJD85p3u
-         QT//egK0C1stsZOosYY8BwvIkWtgFcauIkl3qnjMcod5I90To9fZSOR9BhvBxrfFhtJD
-         iP4kCv/eKkWGgqIs/yPgO6FInalBRULqQRJf5Ri04ALFb07GLcw1lToytKTkNrdC3Zzm
-         k8ZA==
+        b=pW94ibwoeRA2MGYR6MvjsnCntr6PWmoHpBM2aBZmj0TBH/GNCxuujw0Ex0LHvLmkwD
+         4u2Eei7+zMGNCv3pzONJjOHwAUTCLUXZxMDI02pt3TH9aVrQA4VVRBrMMdQwxAPB5Dep
+         QQDv7diVE5BRzslfFGjBOIWEA64U8wlJUkFX3E1OEvzk3Lhp/HB+vKD0aviVSrb7gu6i
+         y8bDk2hBuB417iTALUTWZQtrt3U8KqbsAA8FO5DU3DRZYw9mvUZwToOob97FpTa/rJqp
+         HOWFEol/XHwUFJpH0RWpTt8DX2xirdYCVQiLx6fqpCSjh2GH+sTYdMW8Dsi+2wE6arxP
+         bD5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:date:mime-version;
-        bh=RKWG0lkPh1RDT/J5vz53cnfMPUpRyauX16PNwBznA58=;
-        b=QZ3xmJXLj2RrR2sJSE8ulNTwPR5KrG5oTgSBXsNXsxVu+PZEhptwdCNhsKCREUxhf6
-         rS+s7tpYiXuL+ocVfRNzwhxwKYeb5qJS6r2RA3Wv5+UVpIVuPqEZGwcCy704v5vowm/h
-         JJRXEJ6ki0dY/T0A7p5CMxBmKeSeouLpqC8G5IEaLfif9PiafnSk/Fw1wdJufFJS9U4b
-         izjqjIwXdaEKChovlpgCcVCWzRuHo4uLK7G8H/gBwnn9SSQStncPhAZrMEJ1B3+qbwJR
-         JGgJEKfwSW/S2x/rnxA1LtIuXfCvGY0eYxytSQDHvCen7/i+yHaHICu/qu+Dyf2xZSd8
-         BhsQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:references:cc
+         :to:from:subject;
+        bh=p32sQDI6ox884rw5fGb9+nzl0KtF9Y6AnqZiwtU2mA8=;
+        b=X0Gyx6+0/QWU8/mJK2xLL2KCjk3/u6GhDVzP0ToQvGYYqkkuQ6B6MTFLIPXe+MHsUu
+         c9BZeeLTpePPqYlKyITRE/MnOYddkDjQaY+CaYm/Eukp7ZLlGJJbZa51+6SCw9orOzV/
+         i1+es4CvX65pN1VFwDpiFR3gX+wRBVekFNwHrn1yVpAX6Av41EOqK/VWDyglQghO/ilH
+         PEZHTgL2AXVzXhGh2RrMcsA+zPdujWnUTocgOYH/Uks7IPJ8V56aVAE3Y9noNwaMTvgw
+         FYcgAIHGMOhkBn0BaqedIaqn+8MRyrr4+5vESLE86apobOmuOu8IVBE+0I+hzs/7BL9+
+         O2nw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3b2pFXAkbAEIw23oeppivettmh.ksskpiywivgsrxirx.gsq@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id v134sor18547197itb.19.2019.01.20.22.45.03
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="d3iRdJ/V";
+       spf=pass (google.com: domain of amhetre@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=amhetre@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id g129si8607877ywh.259.2019.01.21.00.06.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 20 Jan 2019 22:45:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Jan 2019 00:06:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of amhetre@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3b2pfxakbaeiw23oeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3b2pFXAkbAEIw23oeppivettmh.ksskpiywivgsrxirx.gsq@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: ALg8bN7rpeMQsteiPlv5L/osvomJPscYDCa34a9qazyd2CZk3BmO/p4p7ZDlMV2H1aFcsq5zFRzq+EG5OK0iVZoFo7AnbFZkxREX
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="d3iRdJ/V";
+       spf=pass (google.com: domain of amhetre@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=amhetre@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c457d4c0000>; Mon, 21 Jan 2019 00:05:32 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Mon, 21 Jan 2019 00:06:05 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Mon, 21 Jan 2019 00:06:05 -0800
+Received: from [10.24.229.42] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Mon, 21 Jan
+ 2019 08:06:01 +0000
+Subject: Re: [PATCH] mm: Expose lazy vfree pages to control via sysctl
+From: Ashish Mhetre <amhetre@nvidia.com>
+To: Matthew Wilcox <willy@infradead.org>
+CC: <vdumpa@nvidia.com>, <mcgrof@kernel.org>, <keescook@chromium.org>,
+	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
+	<linux-tegra@vger.kernel.org>, <Snikam@nvidia.com>, <avanbrunt@nvidia.com>
+References: <1546616141-486-1-git-send-email-amhetre@nvidia.com>
+ <20190104180332.GV6310@bombadil.infradead.org>
+ <a7bb656a-c815-09a4-69fc-bb9e7427cfa6@nvidia.com>
+Message-ID: <27bd8776-87fa-69ad-7b6e-4425251b5e9c@nvidia.com>
+Date: Mon, 21 Jan 2019 13:36:00 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.2.1
 MIME-Version: 1.0
-X-Received: by 2002:a24:fe42:: with SMTP id w63mr19608276ith.13.1548053103667;
- Sun, 20 Jan 2019 22:45:03 -0800 (PST)
-Date: Sun, 20 Jan 2019 22:45:03 -0800
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <0000000000005676f8057ff2335f@google.com>
-Subject: KASAN: use-after-free Read in oom_kill_process
-From: syzbot <syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, ebiederm@xmission.com, guro@fb.com, 
-	hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	mhocko@kernel.org, rientjes@google.com, syzkaller-bugs@googlegroups.com, 
-	yuzhoujian@didichuxing.com
-Content-Type: text/plain; charset="UTF-8"; delsp="yes"; format="flowed"
+In-Reply-To: <a7bb656a-c815-09a4-69fc-bb9e7427cfa6@nvidia.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="UTF-8"; format="flowed"
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1548057932; bh=p32sQDI6ox884rw5fGb9+nzl0KtF9Y6AnqZiwtU2mA8=;
+	h=X-PGP-Universal:Subject:From:To:CC:References:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=d3iRdJ/VYyrOLckotFMOUko9EC56GYaN0i/ItutV3lHntwGMBRttdbgRwSmFk+NES
+	 fnK3hwBKifXG25nNbbFX81U9mUwQyadFr8T8rgfhmiczRHofAg3oSkMm9NnReu5Y4t
+	 Zy4jRTWcsIssJsJbHHCd6iD/acCI4tqtgGwf2yZfeGum0S93gjQPiLEVtJdoSQhnff
+	 NPZUvA58krZT0fid46WvtW3VoQ4qCGc/act+rZIQswuYjdxzvemRV4BDTqKGXAouMD
+	 LtW8IkH60KKO9EKWzyWryfIDIAhnf+gAWF4yxj9Gl0sVQFtKWtwZQZd+S38QZxSrmj
+	 4TnaQnFoADiXA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190121064503.s9-J0fKtFrO33ohszV9JdFTfzIbLPhZK8yl09-CVl0U@z>
+Message-ID: <20190121080600.zz3E156j9qghfw85l9HrSyigYnCU7-GdTId1yTG0FEw@z>
 
-Hello,
+The issue is not seen on new kernel. This patch won't be needed. Thanks.
 
-syzbot found the following crash on:
-
-HEAD commit:    47bfa6d9dc8c Merge tag 'selinux-pr-20190115' of git://git...
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=123af46b400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=8a4dffabfb4e36f9
-dashboard link: https://syzkaller.appspot.com/bug?extid=7fbbfa368521945f0e3d
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-
-Unfortunately, I don't have any reproducer for this crash yet.
-
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com
-
-kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
-Memory cgroup stats for /syz1: cache:28KB rss:274692KB rss_huge:190464KB  
-shmem:64KB mapped_file:0KB dirty:0KB writeback:0KB swap:0KB  
-inactive_anon:222780KB active_anon:4152KB inactive_file:0KB active_file:0KB  
-unevictable:47872KB
-oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=syz1,mems_allowed=0-1,oom_memcg=/syz1,task_memcg=/syz1,task=syz-executor1,pid=15858,uid=0
-Memory cgroup out of memory: Kill process 15858 (syz-executor1) score 1148  
-or sacrifice child
-==================================================================
-BUG: KASAN: use-after-free in oom_kill_process.cold+0x484/0x9d4  
-mm/oom_kill.c:978
-Read of size 8 at addr ffff8880595f6c40 by task syz-executor1/15817
-
-CPU: 1 PID: 15817 Comm: syz-executor1 Not tainted 5.0.0-rc2+ #29
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1db/0x2d0 lib/dump_stack.c:113
-  print_address_description.cold+0x7c/0x20d mm/kasan/report.c:187
-  kasan_report.cold+0x1b/0x40 mm/kasan/report.c:317
-  __asan_report_load8_noabort+0x14/0x20 mm/kasan/generic_report.c:135
-  oom_kill_process.cold+0x484/0x9d4 mm/oom_kill.c:978
-  out_of_memory+0x885/0x1420 mm/oom_kill.c:1133
-  mem_cgroup_out_of_memory+0x160/0x210 mm/memcontrol.c:1393
-  mem_cgroup_oom mm/memcontrol.c:1721 [inline]
-  try_charge+0xd44/0x19b0 mm/memcontrol.c:2283
-  memcg_kmem_charge_memcg+0x7c/0x130 mm/memcontrol.c:2591
-  memcg_kmem_charge+0x13b/0x340 mm/memcontrol.c:2624
-  __alloc_pages_nodemask+0x7b8/0xdc0 mm/page_alloc.c:4559
-  __alloc_pages include/linux/gfp.h:473 [inline]
-  __alloc_pages_node include/linux/gfp.h:486 [inline]
-  alloc_pages_node include/linux/gfp.h:500 [inline]
-  alloc_thread_stack_node kernel/fork.c:246 [inline]
-  dup_task_struct kernel/fork.c:849 [inline]
-  copy_process+0x847/0x8710 kernel/fork.c:1753
-  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
-  __do_sys_clone kernel/fork.c:2334 [inline]
-  __se_sys_clone kernel/fork.c:2328 [inline]
-  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
-  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457ec9
-Code: 6d b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 3b b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007f36f091cc78 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 0000000000457ec9
-RDX: 9999999999999999 RSI: 0000000000000000 RDI: 0000000000000000
-RBP: 000000000073bf00 R08: ffffffffffffffff R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00007f36f091d6d4
-R13: 00000000004be2a0 R14: 00000000004ce760 R15: 00000000ffffffff
-
-Allocated by task 15809:
-  save_stack+0x45/0xd0 mm/kasan/common.c:73
-  set_track mm/kasan/common.c:85 [inline]
-  __kasan_kmalloc mm/kasan/common.c:496 [inline]
-  __kasan_kmalloc.constprop.0+0xcf/0xe0 mm/kasan/common.c:469
-  kasan_kmalloc mm/kasan/common.c:504 [inline]
-  kasan_slab_alloc+0xf/0x20 mm/kasan/common.c:411
-  kmem_cache_alloc_node+0x144/0x710 mm/slab.c:3633
-  alloc_task_struct_node kernel/fork.c:158 [inline]
-  dup_task_struct kernel/fork.c:845 [inline]
-  copy_process+0x405b/0x8710 kernel/fork.c:1753
-  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
-  __do_sys_clone kernel/fork.c:2334 [inline]
-  __se_sys_clone kernel/fork.c:2328 [inline]
-  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
-  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-Freed by task 15817:
-  save_stack+0x45/0xd0 mm/kasan/common.c:73
-  set_track mm/kasan/common.c:85 [inline]
-  __kasan_slab_free+0x102/0x150 mm/kasan/common.c:458
-  kasan_slab_free+0xe/0x10 mm/kasan/common.c:466
-  __cache_free mm/slab.c:3487 [inline]
-  kmem_cache_free+0x86/0x260 mm/slab.c:3749
-  free_task_struct kernel/fork.c:163 [inline]
-  free_task+0x170/0x1f0 kernel/fork.c:458
-  __put_task_struct+0x2e0/0x630 kernel/fork.c:731
-  put_task_struct+0x4b/0x60 include/linux/sched/task.h:98
-  oom_kill_process.cold+0x93a/0x9d4 mm/oom_kill.c:990
-  out_of_memory+0x885/0x1420 mm/oom_kill.c:1133
-  mem_cgroup_out_of_memory+0x160/0x210 mm/memcontrol.c:1393
-  mem_cgroup_oom mm/memcontrol.c:1721 [inline]
-  try_charge+0xd44/0x19b0 mm/memcontrol.c:2283
-  memcg_kmem_charge_memcg+0x7c/0x130 mm/memcontrol.c:2591
-  memcg_kmem_charge+0x13b/0x340 mm/memcontrol.c:2624
-  __alloc_pages_nodemask+0x7b8/0xdc0 mm/page_alloc.c:4559
-  __alloc_pages include/linux/gfp.h:473 [inline]
-  __alloc_pages_node include/linux/gfp.h:486 [inline]
-  alloc_pages_node include/linux/gfp.h:500 [inline]
-  alloc_thread_stack_node kernel/fork.c:246 [inline]
-  dup_task_struct kernel/fork.c:849 [inline]
-  copy_process+0x847/0x8710 kernel/fork.c:1753
-  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
-  __do_sys_clone kernel/fork.c:2334 [inline]
-  __se_sys_clone kernel/fork.c:2328 [inline]
-  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
-  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-The buggy address belongs to the object at ffff8880595f6540
-  which belongs to the cache task_struct(33:syz1) of size 6080
-The buggy address is located 1792 bytes inside of
-  6080-byte region [ffff8880595f6540, ffff8880595f7d00)
-The buggy address belongs to the page:
-page:ffffea0001657d80 count:1 mapcount:0 mapping:ffff888091f65840 index:0x0  
-compound_mapcount: 0
-flags: 0x1fffc0000010200(slab|head)
-raw: 01fffc0000010200 ffffea00028b3288 ffffea0002612788 ffff888091f65840
-raw: 0000000000000000 ffff8880595f6540 0000000100000001 ffff888057fe2b00
-page dumped because: kasan: bad access detected
-page->mem_cgroup:ffff888057fe2b00
-
-Memory state around the buggy address:
-  ffff8880595f6b00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-  ffff8880595f6b80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> ffff8880595f6c00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-                                            ^
-  ffff8880595f6c80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-  ffff8880595f6d00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-==================================================================
-protocol 88fb is buggy, dev hsr_slave_0
-protocol 88fb is buggy, dev hsr_slave_1
-protocol 88fb is buggy, dev hsr_slave_0
-protocol 88fb is buggy, dev hsr_slave_1
-
-
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
-
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+On 06/01/19 2:12 PM, Ashish Mhetre wrote:
+> Matthew, this issue was last reported in September 2018 on K4.9.
+> I verified that the optimization patches mentioned by you were not=20
+> present in our downstream kernel when we faced the issue. I will check=20
+> whether issue still persist on new kernel with all these patches and=20
+> come back.
+>=20
+> On 04/01/19 11:33 PM, Matthew Wilcox wrote:
+>> On Fri, Jan 04, 2019 at 09:05:41PM +0530, Ashish Mhetre wrote:
+>>> From: Hiroshi Doyu <hdoyu@nvidia.com>
+>>>
+>>> The purpose of lazy_max_pages is to gather virtual address space till i=
+t
+>>> reaches the lazy_max_pages limit and then purge with a TLB flush and=20
+>>> hence
+>>> reduce the number of global TLB flushes.
+>>> The default value of lazy_max_pages with one CPU is 32MB and with 4=20
+>>> CPUs it
+>>> is 96MB i.e. for 4 cores, 96MB of vmalloc space will be gathered=20
+>>> before it
+>>> is purged with a TLB flush.
+>>> This feature has shown random latency issues. For example, we have seen
+>>> that the kernel thread for some camera application spent 30ms in
+>>> __purge_vmap_area_lazy() with 4 CPUs.
+>>
+>> You're not the first to report something like this.=C2=A0 Looking throug=
+h the
+>> kernel logs, I see:
+>>
+>> commit 763b218ddfaf56761c19923beb7e16656f66ec62
+>> Author: Joel Fernandes <joelaf@google.com>
+>> Date:=C2=A0=C2=A0 Mon Dec 12 16:44:26 2016 -0800
+>>
+>> =C2=A0=C2=A0=C2=A0=C2=A0 mm: add preempt points into __purge_vmap_area_l=
+azy()
+>>
+>> commit f9e09977671b618aeb25ddc0d4c9a84d5b5cde9d
+>> Author: Christoph Hellwig <hch@lst.de>
+>> Date:=C2=A0=C2=A0 Mon Dec 12 16:44:23 2016 -0800
+>>
+>> =C2=A0=C2=A0=C2=A0=C2=A0 mm: turn vmap_purge_lock into a mutex
+>>
+>> commit 80c4bd7a5e4368b680e0aeb57050a1b06eb573d8
+>> Author: Chris Wilson <chris@chris-wilson.co.uk>
+>> Date:=C2=A0=C2=A0 Fri May 20 16:57:38 2016 -0700
+>>
+>> =C2=A0=C2=A0=C2=A0=C2=A0 mm/vmalloc: keep a separate lazy-free list
+>>
+>> So the first thing I want to do is to confirm that you see this problem
+>> on a modern kernel.=C2=A0 We've had trouble with NVidia before reporting
+>> historical problems as if they were new.
+>>
 
