@@ -1,198 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BD38A8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:45 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id w18so19938187qts.8
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:04:45 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 080C38E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:50 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id z6so20135006qtj.21
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:04:50 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 11si3278665qkf.108.2019.01.21.00.04.44
+        by mx.google.com with ESMTPS id b123si645137qka.57.2019.01.21.00.04.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 00:04:44 -0800 (PST)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L83qgf072899
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:44 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2q580ddewa-1
+        Mon, 21 Jan 2019 00:04:48 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L83nWK028322
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:48 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2q59wfrvah-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:43 -0500
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:48 -0500
 Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 21 Jan 2019 08:04:41 -0000
+	Mon, 21 Jan 2019 08:04:45 -0000
 From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 02/21] powerpc: use memblock functions returning virtual address
-Date: Mon, 21 Jan 2019 10:03:49 +0200
+Subject: [PATCH v2 03/21] memblock: replace memblock_alloc_base(ANYWHERE) with memblock_phys_alloc
+Date: Mon, 21 Jan 2019 10:03:50 +0200
 In-Reply-To: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
 References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1548057848-15136-3-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1548057848-15136-4-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org, Christophe Leroy <christophe.leroy@c-s.fr>, Mike Rapoport <rppt@linux.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org, Mike Rapoport <rppt@linux.ibm.com>
 
-From: Christophe Leroy <christophe.leroy@c-s.fr>
+The calls to memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ANYWHERE) and
+memblock_phys_alloc(size, align) are equivalent as both try to allocate
+'size' bytes with 'align' alignment anywhere in the memory and panic if hte
+allocation fails.
 
-Since only the virtual address of allocated blocks is used,
-lets use functions returning directly virtual address.
+The conversion is done using the following semantic patch:
 
-Those functions have the advantage of also zeroing the block.
+@@
+expression size, align;
+@@
+- memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ANYWHERE)
++ memblock_phys_alloc(size, align)
 
-[ MR:
- - updated error message in alloc_stack() to be more verbose
- - convereted several additional call sites ]
-
-Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- arch/powerpc/kernel/dt_cpu_ftrs.c |  3 +--
- arch/powerpc/kernel/irq.c         |  5 -----
- arch/powerpc/kernel/paca.c        |  6 +++++-
- arch/powerpc/kernel/prom.c        |  5 ++++-
- arch/powerpc/kernel/setup_32.c    | 26 ++++++++++++++++----------
- 5 files changed, 26 insertions(+), 19 deletions(-)
+ arch/arm/mm/init.c                   | 2 +-
+ arch/sh/boards/mach-ap325rxa/setup.c | 2 +-
+ arch/sh/boards/mach-ecovec24/setup.c | 4 ++--
+ arch/sh/boards/mach-kfr2r09/setup.c  | 2 +-
+ arch/sh/boards/mach-migor/setup.c    | 2 +-
+ arch/sh/boards/mach-se/7724/setup.c  | 4 ++--
+ arch/xtensa/mm/kasan_init.c          | 3 +--
+ 7 files changed, 9 insertions(+), 10 deletions(-)
 
-diff --git a/arch/powerpc/kernel/dt_cpu_ftrs.c b/arch/powerpc/kernel/dt_cpu_ftrs.c
-index 8be3721..2554824 100644
---- a/arch/powerpc/kernel/dt_cpu_ftrs.c
-+++ b/arch/powerpc/kernel/dt_cpu_ftrs.c
-@@ -813,7 +813,6 @@ static int __init process_cpufeatures_node(unsigned long node,
- 	int len;
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 478ea8b..b76b90e 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -205,7 +205,7 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
  
- 	f = &dt_cpu_features[i];
--	memset(f, 0, sizeof(struct dt_cpu_feature));
+ 	BUG_ON(!arm_memblock_steal_permitted);
  
- 	f->node = node;
+-	phys = memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, align);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
  
-@@ -1008,7 +1007,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
- 	/* Count and allocate space for cpu features */
- 	of_scan_flat_dt_subnodes(node, count_cpufeatures_subnodes,
- 						&nr_dt_cpu_features);
--	dt_cpu_features = __va(memblock_phys_alloc(sizeof(struct dt_cpu_feature) * nr_dt_cpu_features, PAGE_SIZE));
-+	dt_cpu_features = memblock_alloc(sizeof(struct dt_cpu_feature) * nr_dt_cpu_features, PAGE_SIZE);
+diff --git a/arch/sh/boards/mach-ap325rxa/setup.c b/arch/sh/boards/mach-ap325rxa/setup.c
+index 8f234d04..d7ceab6 100644
+--- a/arch/sh/boards/mach-ap325rxa/setup.c
++++ b/arch/sh/boards/mach-ap325rxa/setup.c
+@@ -557,7 +557,7 @@ static void __init ap325rxa_mv_mem_reserve(void)
+ 	phys_addr_t phys;
+ 	phys_addr_t size = CEU_BUFFER_MEMORY_SIZE;
  
- 	cpufeatures_setup_start(isa);
+-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, PAGE_SIZE);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
  
-diff --git a/arch/powerpc/kernel/irq.c b/arch/powerpc/kernel/irq.c
-index 916ddc4..4a44bc3 100644
---- a/arch/powerpc/kernel/irq.c
-+++ b/arch/powerpc/kernel/irq.c
-@@ -725,18 +725,15 @@ void exc_lvl_ctx_init(void)
- #endif
- #endif
+diff --git a/arch/sh/boards/mach-ecovec24/setup.c b/arch/sh/boards/mach-ecovec24/setup.c
+index 22b4106..a3901806 100644
+--- a/arch/sh/boards/mach-ecovec24/setup.c
++++ b/arch/sh/boards/mach-ecovec24/setup.c
+@@ -1480,12 +1480,12 @@ static void __init ecovec_mv_mem_reserve(void)
+ 	phys_addr_t phys;
+ 	phys_addr_t size = CEU_BUFFER_MEMORY_SIZE;
  
--		memset((void *)critirq_ctx[cpu_nr], 0, THREAD_SIZE);
- 		tp = critirq_ctx[cpu_nr];
- 		tp->cpu = cpu_nr;
- 		tp->preempt_count = 0;
+-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, PAGE_SIZE);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
+ 	ceu0_dma_membase = phys;
  
- #ifdef CONFIG_BOOKE
--		memset((void *)dbgirq_ctx[cpu_nr], 0, THREAD_SIZE);
- 		tp = dbgirq_ctx[cpu_nr];
- 		tp->cpu = cpu_nr;
- 		tp->preempt_count = 0;
+-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, PAGE_SIZE);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
+ 	ceu1_dma_membase = phys;
+diff --git a/arch/sh/boards/mach-kfr2r09/setup.c b/arch/sh/boards/mach-kfr2r09/setup.c
+index 203d249..55bdf4a 100644
+--- a/arch/sh/boards/mach-kfr2r09/setup.c
++++ b/arch/sh/boards/mach-kfr2r09/setup.c
+@@ -631,7 +631,7 @@ static void __init kfr2r09_mv_mem_reserve(void)
+ 	phys_addr_t phys;
+ 	phys_addr_t size = CEU_BUFFER_MEMORY_SIZE;
  
--		memset((void *)mcheckirq_ctx[cpu_nr], 0, THREAD_SIZE);
- 		tp = mcheckirq_ctx[cpu_nr];
- 		tp->cpu = cpu_nr;
- 		tp->preempt_count = HARDIRQ_OFFSET;
-@@ -754,12 +751,10 @@ void irq_ctx_init(void)
- 	int i;
+-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, PAGE_SIZE);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
  
- 	for_each_possible_cpu(i) {
--		memset((void *)softirq_ctx[i], 0, THREAD_SIZE);
- 		tp = softirq_ctx[i];
- 		tp->cpu = i;
- 		klp_init_thread_info(tp);
+diff --git a/arch/sh/boards/mach-migor/setup.c b/arch/sh/boards/mach-migor/setup.c
+index f4ad33c..ba7eee6 100644
+--- a/arch/sh/boards/mach-migor/setup.c
++++ b/arch/sh/boards/mach-migor/setup.c
+@@ -630,7 +630,7 @@ static void __init migor_mv_mem_reserve(void)
+ 	phys_addr_t phys;
+ 	phys_addr_t size = CEU_BUFFER_MEMORY_SIZE;
  
--		memset((void *)hardirq_ctx[i], 0, THREAD_SIZE);
- 		tp = hardirq_ctx[i];
- 		tp->cpu = i;
- 		klp_init_thread_info(tp);
-diff --git a/arch/powerpc/kernel/paca.c b/arch/powerpc/kernel/paca.c
-index 8c890c6..e7382ab 100644
---- a/arch/powerpc/kernel/paca.c
-+++ b/arch/powerpc/kernel/paca.c
-@@ -196,7 +196,11 @@ void __init allocate_paca_ptrs(void)
- 	paca_nr_cpu_ids = nr_cpu_ids;
+-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, PAGE_SIZE);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
  
- 	paca_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
--	paca_ptrs = __va(memblock_phys_alloc(paca_ptrs_size, SMP_CACHE_BYTES));
-+	paca_ptrs = memblock_alloc_raw(paca_ptrs_size, SMP_CACHE_BYTES);
-+	if (!paca_ptrs)
-+		panic("Failed to allocate %d bytes for paca pointers\n",
-+		      paca_ptrs_size);
-+
- 	memset(paca_ptrs, 0x88, paca_ptrs_size);
- }
+diff --git a/arch/sh/boards/mach-se/7724/setup.c b/arch/sh/boards/mach-se/7724/setup.c
+index fdbec22a..4696e10 100644
+--- a/arch/sh/boards/mach-se/7724/setup.c
++++ b/arch/sh/boards/mach-se/7724/setup.c
+@@ -965,12 +965,12 @@ static void __init ms7724se_mv_mem_reserve(void)
+ 	phys_addr_t phys;
+ 	phys_addr_t size = CEU_BUFFER_MEMORY_SIZE;
  
-diff --git a/arch/powerpc/kernel/prom.c b/arch/powerpc/kernel/prom.c
-index e97aaf2..c0ed4fa 100644
---- a/arch/powerpc/kernel/prom.c
-+++ b/arch/powerpc/kernel/prom.c
-@@ -127,7 +127,10 @@ static void __init move_device_tree(void)
- 	if ((memory_limit && (start + size) > PHYSICAL_START + memory_limit) ||
- 	    !memblock_is_memory(start + size - 1) ||
- 	    overlaps_crashkernel(start, size) || overlaps_initrd(start, size)) {
--		p = __va(memblock_phys_alloc(size, PAGE_SIZE));
-+		p = memblock_alloc_raw(size, PAGE_SIZE);
-+		if (!p)
-+			panic("Failed to allocate %lu bytes to move device tree\n",
-+			      size);
- 		memcpy(p, initial_boot_params, size);
- 		initial_boot_params = p;
- 		DBG("Moved device tree to 0x%px\n", p);
-diff --git a/arch/powerpc/kernel/setup_32.c b/arch/powerpc/kernel/setup_32.c
-index 947f904..1f0b762 100644
---- a/arch/powerpc/kernel/setup_32.c
-+++ b/arch/powerpc/kernel/setup_32.c
-@@ -196,6 +196,17 @@ static int __init ppc_init(void)
- }
- arch_initcall(ppc_init);
+-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, PAGE_SIZE);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
+ 	ceu0_dma_membase = phys;
  
-+static void *__init alloc_stack(void)
-+{
-+	void *ptr = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
-+
-+	if (!ptr)
-+		panic("cannot allocate %d bytes for stack at %pS\n",
-+		      THREAD_SIZE, (void *)_RET_IP_);
-+
-+	return ptr;
-+}
-+
- void __init irqstack_early_init(void)
- {
- 	unsigned int i;
-@@ -203,10 +214,8 @@ void __init irqstack_early_init(void)
- 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
- 	 * as the memblock is limited to lowmem by default */
- 	for_each_possible_cpu(i) {
--		softirq_ctx[i] = (struct thread_info *)
--			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
--		hardirq_ctx[i] = (struct thread_info *)
--			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
-+		softirq_ctx[i] = alloc_stack();
-+		hardirq_ctx[i] = alloc_stack();
- 	}
- }
+-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
++	phys = memblock_phys_alloc(size, PAGE_SIZE);
+ 	memblock_free(phys, size);
+ 	memblock_remove(phys, size);
+ 	ceu1_dma_membase = phys;
+diff --git a/arch/xtensa/mm/kasan_init.c b/arch/xtensa/mm/kasan_init.c
+index 1734cda..48dbb03 100644
+--- a/arch/xtensa/mm/kasan_init.c
++++ b/arch/xtensa/mm/kasan_init.c
+@@ -52,8 +52,7 @@ static void __init populate(void *start, void *end)
  
-@@ -224,13 +233,10 @@ void __init exc_lvl_early_init(void)
- 		hw_cpu = 0;
- #endif
+ 		for (k = 0; k < PTRS_PER_PTE; ++k, ++j) {
+ 			phys_addr_t phys =
+-				memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
+-						    MEMBLOCK_ALLOC_ANYWHERE);
++				memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
  
--		critirq_ctx[hw_cpu] = (struct thread_info *)
--			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
-+		critirq_ctx[hw_cpu] = alloc_stack();
- #ifdef CONFIG_BOOKE
--		dbgirq_ctx[hw_cpu] = (struct thread_info *)
--			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
--		mcheckirq_ctx[hw_cpu] = (struct thread_info *)
--			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
-+		dbgirq_ctx[hw_cpu] = alloc_stack();
-+		mcheckirq_ctx[hw_cpu] = alloc_stack();
- #endif
- 	}
- }
+ 			set_pte(pte + j, pfn_pte(PHYS_PFN(phys), PAGE_KERNEL));
+ 		}
 -- 
 2.7.4
