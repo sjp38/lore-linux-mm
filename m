@@ -1,60 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B29558E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 05:27:11 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id v4so7367132edm.18
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:27:11 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i21si3847280edg.324.2019.01.21.02.27.10
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E678B8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:05:56 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id q33so20671655qte.23
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 06:05:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p78si403079qke.233.2019.01.21.06.05.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 02:27:10 -0800 (PST)
-Date: Mon, 21 Jan 2019 11:27:08 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: memory cgroup pagecache and inode problem
-Message-ID: <20190121102708.GQ4087@dhcp22.suse.cz>
-References: <CAHbLzkoRGk9nE6URO9xJKaAQ+8HDPJQosJuPyR1iYuaUBroDMg@mail.gmail.com>
- <20190120231551.213847-1-shakeelb@google.com>
+        Mon, 21 Jan 2019 06:05:55 -0800 (PST)
+Date: Mon, 21 Jan 2019 09:05:35 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH RFC 06/24] userfaultfd: wp: support write protection for
+ userfault vma range
+Message-ID: <20190121140535.GD3344@redhat.com>
+References: <20190121075722.7945-1-peterx@redhat.com>
+ <20190121075722.7945-7-peterx@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190120231551.213847-1-shakeelb@google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190121075722.7945-7-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Yang Shi <shy828301@gmail.com>, Fam Zheng <zhengfeiran@bytedance.com>, cgroups@vger.kernel.org, Linux MM <linux-mm@kvack.org>, tj@kernel.org, Johannes Weiner <hannes@cmpxchg.org>, lizefan@huawei.com, Vladimir Davydov <vdavydov.dev@gmail.com>, duanxiongchun@bytedance.com, =?utf-8?B?5byg5rC46IKD?= <zhangyongsu@bytedance.com>, liuxiaozhou@bytedance.com
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Sun 20-01-19 15:15:51, Shakeel Butt wrote:
-> On Wed, Jan 16, 2019 at 9:07 PM Yang Shi <shy828301@gmail.com> wrote:
-> ...
-> > > > You mean it solves the problem by retrying more times?  Actually, I'm
-> > > > not sure if you have swap setup in your test, but force_empty does do
-> > > > swap if swap is on. This may cause it can't reclaim all the page cache
-> > > > in 5 retries.  I have a patch within that series to skip swap.
-> > >
-> > > Basically yes, retrying solves the problem. But compared to immediate retries, a scheduled retry in a few seconds is much more effective.
-> >
-> > This may suggest doing force_empty in a worker is more effective in
-> > fact. Not sure if this is good enough to convince Johannes or not.
-> >
+On Mon, Jan 21, 2019 at 03:57:04PM +0800, Peter Xu wrote:
+> From: Shaohua Li <shli@fb.com>
 > 
-> >From what I understand what we actually want is to force_empty an
-> offlined memcg. How about we change the semantics of force_empty on
-> root_mem_cgroup? Currently force_empty on root_mem_cgroup returns
-> -EINVAL. Rather than that, let's do force_empty on all offlined memcgs
-> if user does force_empty on root_mem_cgroup. Something like following.
+> Add API to enable/disable writeprotect a vma range. Unlike mprotect,
+> this doesn't split/merge vmas.
 
-No, I do not thing we want to make root memcg somehow special here. I do
-recognize two things here
-1) people seem to want to have a control over when a specific cgroup
-gets reclaimed (basically force_empty)
-2) people would like the above to happen when a memcg is offlined
+AFAICT it does not do that.
 
-The first part is not present in v2 and we should discuss whether we
-want to expose it because it hasn't been added due to lack of usecases.
-The later is discussed [1] already so let's continue there.
+> 
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Shaohua Li <shli@fb.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Peter Xu <peterx@redhat.com>
+> ---
+>  include/linux/userfaultfd_k.h |  2 ++
+>  mm/userfaultfd.c              | 52 +++++++++++++++++++++++++++++++++++
+>  2 files changed, 54 insertions(+)
+> 
+> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+> index 38f748e7186e..e82f3156f4e9 100644
+> --- a/include/linux/userfaultfd_k.h
+> +++ b/include/linux/userfaultfd_k.h
+> @@ -37,6 +37,8 @@ extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
+>  			      unsigned long dst_start,
+>  			      unsigned long len,
+>  			      bool *mmap_changing);
+> +extern int mwriteprotect_range(struct mm_struct *dst_mm,
+> +		unsigned long start, unsigned long len, bool enable_wp);
+>  
+>  /* mm helpers */
+>  static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
+> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> index 458acda96f20..c38903f501c7 100644
+> --- a/mm/userfaultfd.c
+> +++ b/mm/userfaultfd.c
+> @@ -615,3 +615,55 @@ ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
+>  {
+>  	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing);
+>  }
+> +
+> +int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
+> +	unsigned long len, bool enable_wp)
+> +{
+> +	struct vm_area_struct *dst_vma;
+> +	pgprot_t newprot;
+> +	int err;
+> +
+> +	/*
+> +	 * Sanitize the command parameters:
+> +	 */
+> +	BUG_ON(start & ~PAGE_MASK);
+> +	BUG_ON(len & ~PAGE_MASK);
+> +
+> +	/* Does the address range wrap, or is the span zero-sized? */
+> +	BUG_ON(start + len <= start);
+> +
+> +	down_read(&dst_mm->mmap_sem);
+> +
+> +	/*
+> +	 * Make sure the vma is not shared, that the dst range is
+> +	 * both valid and fully within a single existing vma.
+> +	 */
+> +	err = -EINVAL;
+> +	dst_vma = find_vma(dst_mm, start);
+> +	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
+> +		goto out_unlock;
+> +	if (start < dst_vma->vm_start ||
+> +	    start + len > dst_vma->vm_end)
+> +		goto out_unlock;
+> +
+> +	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+> +		goto out_unlock;
+> +	if (!userfaultfd_wp(dst_vma))
+> +		goto out_unlock;
+> +
+> +	if (!vma_is_anonymous(dst_vma))
+> +		goto out_unlock;
+> +
+> +	if (enable_wp)
+> +		newprot = vm_get_page_prot(dst_vma->vm_flags & ~(VM_WRITE));
+> +	else
+> +		newprot = vm_get_page_prot(dst_vma->vm_flags);
+> +
+> +	change_protection(dst_vma, start, start + len, newprot,
+> +				!enable_wp, 0);
 
-[1] http://lkml.kernel.org/r/1547061285-100329-1-git-send-email-yang.shi@linux.alibaba.com
--- 
-Michal Hocko
-SUSE Labs
+So setting dirty_accountable bring us to that code in mprotect.c:
+
+    if (dirty_accountable && pte_dirty(ptent) &&
+            (pte_soft_dirty(ptent) ||
+             !(vma->vm_flags & VM_SOFTDIRTY))) {
+        ptent = pte_mkwrite(ptent);
+    }
+
+My understanding is that you want to set write flag when enable_wp
+is false and you want to set the write flag unconditionaly, right ?
+
+If so then you should really move the change_protection() flags
+patch before this patch and add a flag for setting pte write flags.
+
+Otherwise the above is broken at it will only set the write flag
+for pte that were dirty and i am guessing so far you always were
+lucky because pte were all dirty (change_protection will preserve
+dirtyness) when you write protected them.
+
+So i believe the above is broken or at very least unclear if what
+you really want is to only set write flag to pte that have the
+dirty flag set.
+
+
+Cheers,
+Jérôme
+
+
+> +
+> +	err = 0;
+> +out_unlock:
+> +	up_read(&dst_mm->mmap_sem);
+> +	return err;
+> +}
+> -- 
+> 2.17.1
+> 
