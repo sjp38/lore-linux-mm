@@ -1,256 +1,313 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A5238E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:33:34 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id m37so21032263qte.10
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 06:33:34 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 363F08E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:09:46 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id s70so19547207qks.4
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:09:46 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v67si8301343qkd.63.2019.01.21.06.33.32
+        by mx.google.com with ESMTPS id c4si3532171qvo.215.2019.01.21.07.09.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 06:33:32 -0800 (PST)
-Subject: Re: [PATCH RFC 00/24] userfaultfd: write protection support
+        Mon, 21 Jan 2019 07:09:45 -0800 (PST)
+Date: Mon, 21 Jan 2019 10:09:38 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH RFC 10/24] userfaultfd: wp: add WP pagetable tracking to
+ x86
+Message-ID: <20190121150937.GE3344@redhat.com>
 References: <20190121075722.7945-1-peterx@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <c2485a2d-25b3-2fc0-4902-01fa278be9c7@redhat.com>
-Date: Mon, 21 Jan 2019 15:33:21 +0100
+ <20190121075722.7945-11-peterx@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190121075722.7945-1-peterx@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190121075722.7945-11-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
-On 21.01.19 08:56, Peter Xu wrote:
-> Hi,
+On Mon, Jan 21, 2019 at 03:57:08PM +0800, Peter Xu wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> This series implements initial write protection support for
-> userfaultfd.  Currently both shmem and hugetlbfs are not supported
-> yet, but only anonymous memory.
+> Accurate userfaultfd WP tracking is possible by tracking exactly which
+> virtual memory ranges were writeprotected by userland. We can't relay
+> only on the RW bit of the mapped pagetable because that information is
+> destroyed by fork() or KSM or swap. If we were to relay on that, we'd
+> need to stay on the safe side and generate false positive wp faults
+> for every swapped out page.
+
+So you want to forward write fault (of a protected range) to user space
+only if page is not write protected because of fork(), KSM or swap.
+
+This write protection feature is only for anonymous page right ? Other-
+wise how would you protect a share page (ie anyone can look it up and
+call page_mkwrite on it and start writting to it) ?
+
+So for anonymous page for fork() the mapcount will tell you if page is
+write protected for COW. For KSM it is easy check the page flag.
+
+For swap you can use the page lock to synchronize. A page that is
+write protected because of swap is write protected because it is being
+write to disk thus either under page lock, or with PageWriteback()
+returning true while write is on going.
+
+So to me it seems you could properly identify if a page is write
+protected for fork, swap or KSM without a new flag.
+
+Cheers,
+Jérôme
+
 > 
-> To be simple, either "userfaultfd-wp" or "uffd-wp" might be used in
-> later paragraphs.
-> 
-> The whole series can also be found at:
-> 
->   https://github.com/xzpeter/linux/tree/uffd-wp-merged
-> 
-> Any comment would be greatly welcomed.   Thanks.
-> 
-> Overview
-> ====================
-> 
-> The uffd-wp work was initialized by Shaohua Li [1], and later
-> continued by Andrea [2]. This series is based upon Andrea's latest
-> userfaultfd tree, and it is a continuous works from both Shaohua and
-> Andrea.  Many of the follow up ideas come from Andrea too.
-> 
-> Besides the old MISSING register mode of userfaultfd, the new uffd-wp
-> support provides another alternative register mode called
-> UFFDIO_REGISTER_MODE_WP that can be used to listen to not only missing
-> page faults but also write protection page faults, or even they can be
-> registered together.  At the same time, the new feature also provides
-> a new userfaultfd ioctl called UFFDIO_WRITEPROTECT which allows the
-> userspace to write protect a range or memory or fixup write permission
-> of faulted pages.
-> 
-> Please refer to the document patch "userfaultfd: wp:
-> UFFDIO_REGISTER_MODE_WP documentation update" for more information on
-> the new interface and what it can do.
-> 
-> The major workflow of an uffd-wp program should be:
-> 
->   1. Register a memory region with WP mode using UFFDIO_REGISTER_MODE_WP
-> 
->   2. Write protect part of the whole registered region using
->      UFFDIO_WRITEPROTECT, passing in UFFDIO_WRITEPROTECT_MODE_WP to
->      show that we want to write protect the range.
-> 
->   3. Start a working thread that modifies the protected pages,
->      meanwhile listening to UFFD messages.
-> 
->   4. When a write is detected upon the protected range, page fault
->      happens, a UFFD message will be generated and reported to the
->      page fault handling thread
-> 
->   5. The page fault handler thread resolves the page fault using the
->      new UFFDIO_WRITEPROTECT ioctl, but this time passing in
->      !UFFDIO_WRITEPROTECT_MODE_WP instead showing that we want to
->      recover the write permission.  Before this operation, the fault
->      handler thread can do anything it wants, e.g., dumps the page to
->      a persistent storage.
-> 
->   6. The worker thread will continue running with the correctly
->      applied write permission from step 5.
-> 
-> Currently there are already two projects that are based on this new
-> userfaultfd feature.
-> 
-> QEMU Live Snapshot: The project provides a way to allow the QEMU
->                     hypervisor to take snapshot of VMs without
->                     stopping the VM [3].
-> 
-> LLNL umap library:  The project provides a mmap-like interface and
->                     "allow to have an application specific buffer of
->                     pages cached from a large file, i.e. out-of-core
->                     execution using memory map" [4][5].
-> 
-> Before posting the patchset, this series was smoke tested against QEMU
-> live snapshot and the LLNL umap library (by doing parallel quicksort
-> using 128 sorting threads + 80 uffd servicing threads).  My sincere
-> thanks to Marty Mcfadden and Denis Plotnikov for the help along the
-> way.
-> 
-> Implementation
-> ==============
-> 
-> Patch 1-4: The whole uffd-wp requires the kernel page fault path to
->            take more than one retries.  In the previous works starting
->            from Shaohua, a new fault flag FAULT_FLAG_ALLOW_UFFD_RETRY
->            was introduced for this [6]. However in this series we have
->            dropped that patch, instead the whole work is based on the
->            recent series "[PATCH RFC v3 0/4] mm: some enhancements to
->            the page fault mechanism" [7] which removes the assuption
->            that VM_FAULT_RETRY can only happen once.  This four
->            patches are identital patches but picked up here.  Please
->            refer to the cover letter [7] for more information.  More
->            discussion upstream shows that this work could even benefit
->            existing use case [8] so please help justify whether
->            patches 1-4 can be consider to be accepted even earlier
->            than the rest of the series.
-> 
-> Patch 5-21:   Implements the uffd-wp logic.  To avoid collision with
->               existing write protections (e.g., an private anonymous
->               page can be write protected if it was shared between
->               multiple processes), a new PTE bit (_PAGE_UFFD_WP) was
->               introduced to explicitly mark a PTE as userfault
->               write-protected.  A similar bit was also used in the
->               swap/migration entry (_PAGE_SWP_UFFD_WP) to make sure
->               even if the pages were swapped or migrated, the uffd-wp
->               tracking information won't be lost.  When resolving a
->               page fault, we'll do a page copy before hand if the page
->               was COWed to make sure we won't corrupt any shared
->               pages.  Etc.  Please see separated patches for more
->               details.
-> 
-> Patch 22:     Documentation update for uffd-wp
-> 
-> Patch 23,24:  Uffd-wp selftests
-> 
-> TODO
-> =============
-> 
-> - hugetlbfs/shmem support
-> - performance
-> - more architectures
-> - ...
-> 
-> References
-> ==========
-> 
-> [1] https://lwn.net/Articles/666187/
-> [2] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/log/?h=userfault
-> [3] https://github.com/denis-plotnikov/qemu/commits/background-snapshot-kvm
-> [4] https://github.com/LLNL/umap
-> [5] https://llnl-umap.readthedocs.io/en/develop/
-> [6] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
-> [7] https://lkml.org/lkml/2018/11/21/370
-> [8] https://lkml.org/lkml/2018/12/30/64
-> 
-> Andrea Arcangeli (5):
->   userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
->   userfaultfd: wp: hook userfault handler to write protection fault
->   userfaultfd: wp: add WP pagetable tracking to x86
->   userfaultfd: wp: userfaultfd_pte/huge_pmd_wp() helpers
->   userfaultfd: wp: add UFFDIO_COPY_MODE_WP
-> 
-> Martin Cracauer (1):
->   userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
-> 
-> Peter Xu (15):
->   mm: gup: rename "nonblocking" to "locked" where proper
->   mm: userfault: return VM_FAULT_RETRY on signals
->   mm: allow VM_FAULT_RETRY for multiple times
->   mm: gup: allow VM_FAULT_RETRY for multiple times
->   mm: merge parameters for change_protection()
->   userfaultfd: wp: apply _PAGE_UFFD_WP bit
->   mm: export wp_page_copy()
->   userfaultfd: wp: handle COW properly for uffd-wp
->   userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
->   userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
->   userfaultfd: wp: support swap and page migration
->   userfaultfd: wp: don't wake up when doing write protect
->   khugepaged: skip collapse if uffd-wp detected
->   userfaultfd: selftests: refactor statistics
->   userfaultfd: selftests: add write-protect test
-> 
-> Shaohua Li (3):
->   userfaultfd: wp: add helper for writeprotect check
->   userfaultfd: wp: support write protection for userfault vma range
->   userfaultfd: wp: enabled write protection in userfaultfd API
-> 
->  Documentation/admin-guide/mm/userfaultfd.rst |  51 +++++
->  arch/alpha/mm/fault.c                        |   4 +-
->  arch/arc/mm/fault.c                          |  12 +-
->  arch/arm/mm/fault.c                          |  17 +-
->  arch/arm64/mm/fault.c                        |  11 +-
->  arch/hexagon/mm/vm_fault.c                   |   3 +-
->  arch/ia64/mm/fault.c                         |   3 +-
->  arch/m68k/mm/fault.c                         |   5 +-
->  arch/microblaze/mm/fault.c                   |   3 +-
->  arch/mips/mm/fault.c                         |   3 +-
->  arch/nds32/mm/fault.c                        |   7 +-
->  arch/nios2/mm/fault.c                        |   5 +-
->  arch/openrisc/mm/fault.c                     |   3 +-
->  arch/parisc/mm/fault.c                       |   4 +-
->  arch/powerpc/mm/fault.c                      |   9 +-
->  arch/riscv/mm/fault.c                        |   9 +-
->  arch/s390/mm/fault.c                         |  14 +-
->  arch/sh/mm/fault.c                           |   5 +-
->  arch/sparc/mm/fault_32.c                     |   4 +-
->  arch/sparc/mm/fault_64.c                     |   4 +-
->  arch/um/kernel/trap.c                        |   6 +-
->  arch/unicore32/mm/fault.c                    |  10 +-
->  arch/x86/Kconfig                             |   1 +
->  arch/x86/include/asm/pgtable.h               |  67 ++++++
->  arch/x86/include/asm/pgtable_64.h            |   8 +-
->  arch/x86/include/asm/pgtable_types.h         |  11 +-
->  arch/x86/mm/fault.c                          |  13 +-
->  arch/xtensa/mm/fault.c                       |   4 +-
->  fs/userfaultfd.c                             | 110 +++++----
->  include/asm-generic/pgtable.h                |   1 +
->  include/asm-generic/pgtable_uffd.h           |  66 ++++++
->  include/linux/huge_mm.h                      |   2 +-
->  include/linux/mm.h                           |  21 +-
->  include/linux/swapops.h                      |   2 +
->  include/linux/userfaultfd_k.h                |  41 +++-
->  include/trace/events/huge_memory.h           |   1 +
->  include/uapi/linux/userfaultfd.h             |  28 ++-
->  init/Kconfig                                 |   5 +
->  mm/gup.c                                     |  61 ++---
->  mm/huge_memory.c                             |  28 ++-
->  mm/hugetlb.c                                 |   8 +-
->  mm/khugepaged.c                              |  23 ++
->  mm/memory.c                                  |  28 ++-
->  mm/mempolicy.c                               |   2 +-
->  mm/migrate.c                                 |   7 +
->  mm/mprotect.c                                |  99 +++++++--
->  mm/rmap.c                                    |   6 +
->  mm/userfaultfd.c                             |  92 +++++++-
->  tools/testing/selftests/vm/userfaultfd.c     | 222 ++++++++++++++-----
->  49 files changed, 898 insertions(+), 251 deletions(-)
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Peter Xu <peterx@redhat.com>
+> ---
+>  arch/x86/Kconfig                     |  1 +
+>  arch/x86/include/asm/pgtable.h       | 52 ++++++++++++++++++++++++++++
+>  arch/x86/include/asm/pgtable_64.h    |  8 ++++-
+>  arch/x86/include/asm/pgtable_types.h |  9 +++++
+>  include/asm-generic/pgtable.h        |  1 +
+>  include/asm-generic/pgtable_uffd.h   | 51 +++++++++++++++++++++++++++
+>  init/Kconfig                         |  5 +++
+>  7 files changed, 126 insertions(+), 1 deletion(-)
 >  create mode 100644 include/asm-generic/pgtable_uffd.h
 > 
-
-Does this series fix the "false positives" case I experienced on early
-prototypes of uffd-wp? (getting notified about a write access although
-it was not a write access?)
-
--- 
-
-Thanks,
-
-David / dhildenb
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 8689e794a43c..096c773452d0 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -207,6 +207,7 @@ config X86
+>  	select USER_STACKTRACE_SUPPORT
+>  	select VIRT_TO_BUS
+>  	select X86_FEATURE_NAMES		if PROC_FS
+> +	select HAVE_ARCH_USERFAULTFD_WP		if USERFAULTFD
+>  
+>  config INSTRUCTION_DECODER
+>  	def_bool y
+> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+> index 40616e805292..7a71158982f4 100644
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -23,6 +23,7 @@
+>  
+>  #ifndef __ASSEMBLY__
+>  #include <asm/x86_init.h>
+> +#include <asm-generic/pgtable_uffd.h>
+>  
+>  extern pgd_t early_top_pgt[PTRS_PER_PGD];
+>  int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
+> @@ -293,6 +294,23 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
+>  	return native_make_pte(v & ~clear);
+>  }
+>  
+> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
+> +static inline int pte_uffd_wp(pte_t pte)
+> +{
+> +	return pte_flags(pte) & _PAGE_UFFD_WP;
+> +}
+> +
+> +static inline pte_t pte_mkuffd_wp(pte_t pte)
+> +{
+> +	return pte_set_flags(pte, _PAGE_UFFD_WP);
+> +}
+> +
+> +static inline pte_t pte_clear_uffd_wp(pte_t pte)
+> +{
+> +	return pte_clear_flags(pte, _PAGE_UFFD_WP);
+> +}
+> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
+> +
+>  static inline pte_t pte_mkclean(pte_t pte)
+>  {
+>  	return pte_clear_flags(pte, _PAGE_DIRTY);
+> @@ -372,6 +390,23 @@ static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
+>  	return native_make_pmd(v & ~clear);
+>  }
+>  
+> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
+> +static inline int pmd_uffd_wp(pmd_t pmd)
+> +{
+> +	return pmd_flags(pmd) & _PAGE_UFFD_WP;
+> +}
+> +
+> +static inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
+> +{
+> +	return pmd_set_flags(pmd, _PAGE_UFFD_WP);
+> +}
+> +
+> +static inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
+> +{
+> +	return pmd_clear_flags(pmd, _PAGE_UFFD_WP);
+> +}
+> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
+> +
+>  static inline pmd_t pmd_mkold(pmd_t pmd)
+>  {
+>  	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
+> @@ -1351,6 +1386,23 @@ static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
+>  #endif
+>  #endif
+>  
+> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
+> +static inline pte_t pte_swp_mkuffd_wp(pte_t pte)
+> +{
+> +	return pte_set_flags(pte, _PAGE_SWP_UFFD_WP);
+> +}
+> +
+> +static inline int pte_swp_uffd_wp(pte_t pte)
+> +{
+> +	return pte_flags(pte) & _PAGE_SWP_UFFD_WP;
+> +}
+> +
+> +static inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
+> +{
+> +	return pte_clear_flags(pte, _PAGE_SWP_UFFD_WP);
+> +}
+> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
+> +
+>  #define PKRU_AD_BIT 0x1
+>  #define PKRU_WD_BIT 0x2
+>  #define PKRU_BITS_PER_PKEY 2
+> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+> index 9c85b54bf03c..e0c5d29b8685 100644
+> --- a/arch/x86/include/asm/pgtable_64.h
+> +++ b/arch/x86/include/asm/pgtable_64.h
+> @@ -189,7 +189,7 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
+>   *
+>   * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit number
+>   * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
+> - * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|X|SD|0| <- swp entry
+> + * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|F|SD|0| <- swp entry
+>   *
+>   * G (8) is aliased and used as a PROT_NONE indicator for
+>   * !present ptes.  We need to start storing swap entries above
+> @@ -197,9 +197,15 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
+>   * erratum where they can be incorrectly set by hardware on
+>   * non-present PTEs.
+>   *
+> + * SD Bits 1-4 are not used in non-present format and available for
+> + * special use described below:
+> + *
+>   * SD (1) in swp entry is used to store soft dirty bit, which helps us
+>   * remember soft dirty over page migration
+>   *
+> + * F (2) in swp entry is used to record when a pagetable is
+> + * writeprotected by userfaultfd WP support.
+> + *
+>   * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
+>   * but also L and G.
+>   *
+> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> index 106b7d0e2dae..163043ab142d 100644
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -32,6 +32,7 @@
+>  
+>  #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
+>  #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
+> +#define _PAGE_BIT_UFFD_WP	_PAGE_BIT_SOFTW2 /* userfaultfd wrprotected */
+>  #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
+>  #define _PAGE_BIT_DEVMAP	_PAGE_BIT_SOFTW4
+>  
+> @@ -100,6 +101,14 @@
+>  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
+>  #endif
+>  
+> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
+> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 1) << _PAGE_BIT_UFFD_WP)
+> +#define _PAGE_SWP_UFFD_WP	_PAGE_USER
+> +#else
+> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 0))
+> +#define _PAGE_SWP_UFFD_WP	(_AT(pteval_t, 0))
+> +#endif
+> +
+>  #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+>  #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
+>  #define _PAGE_DEVMAP	(_AT(u64, 1) << _PAGE_BIT_DEVMAP)
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index 359fb935ded6..0e1470ecf7b5 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -10,6 +10,7 @@
+>  #include <linux/mm_types.h>
+>  #include <linux/bug.h>
+>  #include <linux/errno.h>
+> +#include <asm-generic/pgtable_uffd.h>
+>  
+>  #if 5 - defined(__PAGETABLE_P4D_FOLDED) - defined(__PAGETABLE_PUD_FOLDED) - \
+>  	defined(__PAGETABLE_PMD_FOLDED) != CONFIG_PGTABLE_LEVELS
+> diff --git a/include/asm-generic/pgtable_uffd.h b/include/asm-generic/pgtable_uffd.h
+> new file mode 100644
+> index 000000000000..643d1bf559c2
+> --- /dev/null
+> +++ b/include/asm-generic/pgtable_uffd.h
+> @@ -0,0 +1,51 @@
+> +#ifndef _ASM_GENERIC_PGTABLE_UFFD_H
+> +#define _ASM_GENERIC_PGTABLE_UFFD_H
+> +
+> +#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_WP
+> +static __always_inline int pte_uffd_wp(pte_t pte)
+> +{
+> +	return 0;
+> +}
+> +
+> +static __always_inline int pmd_uffd_wp(pmd_t pmd)
+> +{
+> +	return 0;
+> +}
+> +
+> +static __always_inline pte_t pte_mkuffd_wp(pte_t pte)
+> +{
+> +	return pte;
+> +}
+> +
+> +static __always_inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
+> +{
+> +	return pmd;
+> +}
+> +
+> +static __always_inline pte_t pte_clear_uffd_wp(pte_t pte)
+> +{
+> +	return pte;
+> +}
+> +
+> +static __always_inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
+> +{
+> +	return pmd;
+> +}
+> +
+> +static __always_inline pte_t pte_swp_mkuffd_wp(pte_t pte)
+> +{
+> +	return pte;
+> +}
+> +
+> +static __always_inline int pte_swp_uffd_wp(pte_t pte)
+> +{
+> +	return 0;
+> +}
+> +
+> +static __always_inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
+> +{
+> +	return pte;
+> +}
+> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
+> +
+> +#endif /* _ASM_GENERIC_PGTABLE_UFFD_H */
+> diff --git a/init/Kconfig b/init/Kconfig
+> index cf5b5a0dcbc2..2a02e004874e 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -1418,6 +1418,11 @@ config ADVISE_SYSCALLS
+>  	  applications use these syscalls, you can disable this option to save
+>  	  space.
+>  
+> +config HAVE_ARCH_USERFAULTFD_WP
+> +	bool
+> +	help
+> +	  Arch has userfaultfd write protection support
+> +
+>  config MEMBARRIER
+>  	bool "Enable membarrier() system call" if EXPERT
+>  	default y
+> -- 
+> 2.17.1
+> 
