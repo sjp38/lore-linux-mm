@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D8B5C8E0025
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:07 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id m13so12686535pls.15
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:06:07 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A8C628E0025
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:14 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id p4so13613373pgj.21
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:06:14 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q9si12552477pgi.89.2019.01.21.00.06.06
+        by mx.google.com with ESMTPS id n8si11838590plk.9.2019.01.21.00.06.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 00:06:06 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L84CAJ125620
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:06 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2q58rjunwc-1
+        Mon, 21 Jan 2019 00:06:12 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L84MVb080748
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:12 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q57sc60av-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:06 -0500
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:12 -0500
 Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 21 Jan 2019 08:06:02 -0000
+	Mon, 21 Jan 2019 08:06:08 -0000
 From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 16/21] mm/percpu: add checks for the return value of memblock_alloc*()
-Date: Mon, 21 Jan 2019 10:04:03 +0200
+Subject: [PATCH v2 17/21] init/main: add checks for the return value of memblock_alloc*()
+Date: Mon, 21 Jan 2019 10:04:04 +0200
 In-Reply-To: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
 References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1548057848-15136-17-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1548057848-15136-18-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -39,134 +39,54 @@ size calculations with a local variable.
 
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- mm/percpu.c | 73 +++++++++++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 56 insertions(+), 17 deletions(-)
+ init/main.c | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index db86282..5998b03 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1086,6 +1086,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
- 	struct pcpu_chunk *chunk;
- 	unsigned long aligned_addr, lcm_align;
- 	int start_offset, offset_bits, region_size, region_bits;
-+	size_t alloc_size;
- 
- 	/* region calculations */
- 	aligned_addr = tmp_addr & PAGE_MASK;
-@@ -1101,9 +1102,12 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
- 	region_size = ALIGN(start_offset + map_size, lcm_align);
- 
- 	/* allocate chunk */
--	chunk = memblock_alloc(sizeof(struct pcpu_chunk) +
--			       BITS_TO_LONGS(region_size >> PAGE_SHIFT),
--			       SMP_CACHE_BYTES);
-+	alloc_size = sizeof(struct pcpu_chunk) +
-+		BITS_TO_LONGS(region_size >> PAGE_SHIFT);
-+	chunk = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!chunk)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
- 
- 	INIT_LIST_HEAD(&chunk->list);
- 
-@@ -1114,12 +1118,25 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
- 	chunk->nr_pages = region_size >> PAGE_SHIFT;
- 	region_bits = pcpu_chunk_map_bits(chunk);
- 
--	chunk->alloc_map = memblock_alloc(BITS_TO_LONGS(region_bits) * sizeof(chunk->alloc_map[0]),
--					  SMP_CACHE_BYTES);
--	chunk->bound_map = memblock_alloc(BITS_TO_LONGS(region_bits + 1) * sizeof(chunk->bound_map[0]),
--					  SMP_CACHE_BYTES);
--	chunk->md_blocks = memblock_alloc(pcpu_chunk_nr_blocks(chunk) * sizeof(chunk->md_blocks[0]),
--					  SMP_CACHE_BYTES);
-+	alloc_size = BITS_TO_LONGS(region_bits) * sizeof(chunk->alloc_map[0]);
-+	chunk->alloc_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!chunk->alloc_map)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
+diff --git a/init/main.c b/init/main.c
+index a56f65a..d58a365 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -373,12 +373,20 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
+  */
+ static void __init setup_command_line(char *command_line)
+ {
+-	saved_command_line =
+-		memblock_alloc(strlen(boot_command_line) + 1, SMP_CACHE_BYTES);
+-	initcall_command_line =
+-		memblock_alloc(strlen(boot_command_line) + 1, SMP_CACHE_BYTES);
+-	static_command_line = memblock_alloc(strlen(command_line) + 1,
+-					     SMP_CACHE_BYTES);
++	size_t len = strlen(boot_command_line) + 1;
 +
-+	alloc_size =
-+		BITS_TO_LONGS(region_bits + 1) * sizeof(chunk->bound_map[0]);
-+	chunk->bound_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!chunk->bound_map)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
++	saved_command_line = memblock_alloc(len, SMP_CACHE_BYTES);
++	if (!saved_command_line)
++		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
 +
-+	alloc_size = pcpu_chunk_nr_blocks(chunk) * sizeof(chunk->md_blocks[0]);
-+	chunk->md_blocks = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!chunk->md_blocks)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
++	initcall_command_line =	memblock_alloc(len, SMP_CACHE_BYTES);
++	if (!initcall_command_line)
++		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
 +
- 	pcpu_init_md_blocks(chunk);
- 
- 	/* manage populated page bitmap */
-@@ -2044,6 +2061,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	int group, unit, i;
- 	int map_size;
- 	unsigned long tmp_addr;
-+	size_t alloc_size;
- 
- #define PCPU_SETUP_BUG_ON(cond)	do {					\
- 	if (unlikely(cond)) {						\
-@@ -2075,14 +2093,29 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
- 
- 	/* process group information and build config tables accordingly */
--	group_offsets = memblock_alloc(ai->nr_groups * sizeof(group_offsets[0]),
--				       SMP_CACHE_BYTES);
--	group_sizes = memblock_alloc(ai->nr_groups * sizeof(group_sizes[0]),
--				     SMP_CACHE_BYTES);
--	unit_map = memblock_alloc(nr_cpu_ids * sizeof(unit_map[0]),
--				  SMP_CACHE_BYTES);
--	unit_off = memblock_alloc(nr_cpu_ids * sizeof(unit_off[0]),
--				  SMP_CACHE_BYTES);
-+	alloc_size = ai->nr_groups * sizeof(group_offsets[0]);
-+	group_offsets = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!group_offsets)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
++	static_command_line = memblock_alloc(len, SMP_CACHE_BYTES);
++	if (!static_command_line)
++		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
 +
-+	alloc_size = ai->nr_groups * sizeof(group_sizes[0]);
-+	group_sizes = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!group_sizes)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
-+
-+	alloc_size = nr_cpu_ids * sizeof(unit_map[0]);
-+	unit_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!unit_map)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
-+
-+	alloc_size = nr_cpu_ids * sizeof(unit_off[0]);
-+	unit_off = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-+	if (!unit_off)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      alloc_size);
- 
- 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
- 		unit_map[cpu] = UINT_MAX;
-@@ -2148,6 +2181,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
- 	pcpu_slot = memblock_alloc(pcpu_nr_slots * sizeof(pcpu_slot[0]),
- 				   SMP_CACHE_BYTES);
-+	if (!pcpu_slot)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      pcpu_nr_slots * sizeof(pcpu_slot[0]));
- 	for (i = 0; i < pcpu_nr_slots; i++)
- 		INIT_LIST_HEAD(&pcpu_slot[i]);
- 
-@@ -2602,6 +2638,9 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
- 	pages_size = PFN_ALIGN(unit_pages * num_possible_cpus() *
- 			       sizeof(pages[0]));
- 	pages = memblock_alloc(pages_size, SMP_CACHE_BYTES);
-+	if (!pages)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      pages_size);
- 
- 	/* allocate pages */
- 	j = 0;
+ 	strcpy(saved_command_line, boot_command_line);
+ 	strcpy(static_command_line, command_line);
+ }
+@@ -773,8 +781,14 @@ static int __init initcall_blacklist(char *str)
+ 			pr_debug("blacklisting initcall %s\n", str_entry);
+ 			entry = memblock_alloc(sizeof(*entry),
+ 					       SMP_CACHE_BYTES);
++			if (!entry)
++				panic("%s: Failed to allocate %zu bytes\n",
++				      __func__, sizeof(*entry));
+ 			entry->buf = memblock_alloc(strlen(str_entry) + 1,
+ 						    SMP_CACHE_BYTES);
++			if (!entry->buf)
++				panic("%s: Failed to allocate %zu bytes\n",
++				      __func__, strlen(str_entry) + 1);
+ 			strcpy(entry->buf, str_entry);
+ 			list_add(&entry->next, &blacklisted_initcalls);
+ 		}
 -- 
 2.7.4
