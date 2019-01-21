@@ -1,98 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C0D4A8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 12:27:47 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id o6so2647148wmf.0
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:27:47 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id t5si22192370wmb.51.2019.01.21.09.27.46
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D9958E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 12:42:49 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id r131so9935097oia.7
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:42:49 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id x79si2933700oif.183.2019.01.21.09.42.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 09:27:46 -0800 (PST)
-Date: Mon, 21 Jan 2019 18:27:43 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 20/25] ACPI / APEI: Use separate fixmap pages for
- arm64 NMI-like notifications
-Message-ID: <20190121172743.GN29166@zn.tnic>
-References: <20181203180613.228133-1-james.morse@arm.com>
- <20181203180613.228133-21-james.morse@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20181203180613.228133-21-james.morse@arm.com>
+        Mon, 21 Jan 2019 09:42:48 -0800 (PST)
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: [PATCH v2 -next 0/6] mm: make pinned_vm atomic and simplify users
+Date: Mon, 21 Jan 2019 09:42:14 -0800
+Message-Id: <20190121174220.10583-1-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
+To: akpm@linux-foundation.org
+Cc: dledford@redhat.com, jgg@mellanox.com, jack@suse.de, ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net
 
-On Mon, Dec 03, 2018 at 06:06:08PM +0000, James Morse wrote:
-> Now that ghes notification helpers provide the fixmap slots and
-> take the lock themselves, multiple NMI-like notifications can
-> be used on arm64.
-> 
-> These should be named after their notification method as they can't
-> all be called 'NMI'. x86's NOTIFY_NMI already is, change the SEA
-> fixmap entry to be called FIX_APEI_GHES_SEA.
-> 
-> Future patches can add support for FIX_APEI_GHES_SEI and
-> FIX_APEI_GHES_SDEI_{NORMAL,CRITICAL}.
-> 
-> Because all of ghes.c builds on both architectures, provide a
-> constant for each fixmap entry that the architecture will never
-> use.
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> 
-> ---
-> Changes since v6:
->  * Added #ifdef definitions of each missing fixmap entry.
-> 
-> Changes since v3:
->  * idx/lock are now in a separate struct.
->  * Add to the comment above ghes_fixmap_lock_irq so that it makes more
->    sense in isolation.
-> 
-> fixup for split fixmap
-> ---
->  arch/arm64/include/asm/fixmap.h |  2 +-
->  drivers/acpi/apei/ghes.c        | 10 +++++++++-
->  2 files changed, 10 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm64/include/asm/fixmap.h b/arch/arm64/include/asm/fixmap.h
-> index ec1e6d6fa14c..966dd4bb23f2 100644
-> --- a/arch/arm64/include/asm/fixmap.h
-> +++ b/arch/arm64/include/asm/fixmap.h
-> @@ -55,7 +55,7 @@ enum fixed_addresses {
->  #ifdef CONFIG_ACPI_APEI_GHES
->  	/* Used for GHES mapping from assorted contexts */
->  	FIX_APEI_GHES_IRQ,
-> -	FIX_APEI_GHES_NMI,
-> +	FIX_APEI_GHES_SEA,
->  #endif /* CONFIG_ACPI_APEI_GHES */
->  
->  #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-> index 849da0d43a21..6cbf9471b2a2 100644
-> --- a/drivers/acpi/apei/ghes.c
-> +++ b/drivers/acpi/apei/ghes.c
-> @@ -85,6 +85,14 @@
->  	((struct acpi_hest_generic_status *)				\
->  	 ((struct ghes_estatus_node *)(estatus_node) + 1))
->  
-> +/* NMI-like notifications vary by architecture. Fill in the fixmap gaps */
-> +#ifndef CONFIG_HAVE_ACPI_APEI_NMI
-> +#define FIX_APEI_GHES_NMI	-1
-> +#endif
-> +#ifndef CONFIG_ACPI_APEI_SEA
-> +#define FIX_APEI_GHES_SEA	-1
+Changes from v1 (https://patchwork.kernel.org/cover/10764923/):
+ - Converted pinned_vm to atomic64 instead of atomic_long such that
+   infiniband need not worry about overflows.
 
-I'm guessing those -1 are going to cause __set_fixmap() to fail, right?
+ - Rebased patch 1 and added Ira's reviews as well as Parvi's review
+   for patch 5 (thanks!).
+   
+--------
 
-I'm wondering if we could catch that situation in ghes_map() already to
-protect ourselves against future changes in the fixmap code...
+Hi,
+
+The following patches aim to provide cleanups to users that pin pages
+(mostly infiniband) by converting the counter to atomic -- note that
+Daniel Jordan also has patches[1] for the locked_vm counterpart and vfio.
+
+Apart from removing a source of mmap_sem writer, we benefit in that
+we can get rid of a lot of code that defers work when the lock cannot
+be acquired, as well as drivers avoiding mmap_sem altogether by also
+converting gup to gup_fast() and letting the mm handle it. Users
+that do the gup_longterm() remain of course under at least reader mmap_sem.
+
+Everything has been compile-tested _only_ so I hope I didn't do anything
+too stupid. Please consider for v5.1.
+
+On a similar topic and potential follow up, it would be nice to resurrect
+Peter's VM_PINNED idea in that the broken semantics that occurred after
+bc3e53f682 ("mm: distinguish between mlocked and pinned pages") are still
+present. Also encapsulating internal mm logic via mm[un]pin() instead of
+drivers having to know about internals and playing nice with compaction are
+all wins.
+
+Thanks!
+
+[1] https://lkml.org/lkml/2018/11/5/854
+
+Davidlohr Bueso (6):
+  mm: make mm->pinned_vm an atomic64 counter
+  mic/scif: do not use mmap_sem
+  drivers/IB,qib: do not use mmap_sem
+  drivers/IB,hfi1: do not se mmap_sem
+  drivers/IB,usnic: reduce scope of mmap_sem
+  drivers/IB,core: reduce scope of mmap_sem
+
+ drivers/infiniband/core/umem.c              | 47 +++-----------------
+ drivers/infiniband/hw/hfi1/user_pages.c     | 12 ++---
+ drivers/infiniband/hw/qib/qib_user_pages.c  | 69 ++++++++++-------------------
+ drivers/infiniband/hw/usnic/usnic_ib_main.c |  2 -
+ drivers/infiniband/hw/usnic/usnic_uiom.c    | 56 +++--------------------
+ drivers/infiniband/hw/usnic/usnic_uiom.h    |  1 -
+ drivers/misc/mic/scif/scif_rma.c            | 38 +++++-----------
+ fs/proc/task_mmu.c                          |  2 +-
+ include/linux/mm_types.h                    |  2 +-
+ kernel/events/core.c                        |  8 ++--
+ kernel/fork.c                               |  2 +-
+ mm/debug.c                                  |  3 +-
+ 12 files changed, 57 insertions(+), 185 deletions(-)
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.16.4
