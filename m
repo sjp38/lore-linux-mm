@@ -2,162 +2,181 @@ Return-Path: <SRS0=AzIT=P5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0571FC2F3A0
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 12:35:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D293C2F3A0
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 12:35:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B2DF82084C
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 12:35:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UF2COheU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B2DF82084C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 632752085A
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 12:35:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 632752085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6765A8E0003; Mon, 21 Jan 2019 07:35:16 -0500 (EST)
+	id 0AA2A8E0005; Mon, 21 Jan 2019 07:35:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6272A8E0001; Mon, 21 Jan 2019 07:35:16 -0500 (EST)
+	id 05CFC8E0001; Mon, 21 Jan 2019 07:35:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5175F8E0003; Mon, 21 Jan 2019 07:35:16 -0500 (EST)
+	id E8E408E0005; Mon, 21 Jan 2019 07:35:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 24AC38E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:16 -0500 (EST)
-Received: by mail-vs1-f70.google.com with SMTP id j123so10546912vsd.9
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:35:16 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A90D58E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:46 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id a2so14042595pgt.11
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:35:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=k+MSaycj/9KITYA6lfk8QZCRSnahwfifAXAEb5FjW38=;
-        b=oTpdVsk1koqSLWJVg9nE0304uP3FCfstY9dsrsKFqkGl77WqTbMsBfJi5nIlSBBboR
-         8e6nhS9MwOmUPWkvnLcmYNFIyTa10jhzrpGFqyWMSZqh0my//74x8T9PClrz6fxUkXLC
-         L6qP9N+hQglrulvnTzUEwEWoos0VmlwxVPtgvHMVkYTI/ed9wz+Jxole8YvXBSoc94l0
-         +FDRdM3NYEN3fSK2ITzCocNy73vLe6eflgZ0KEMHYfhhMtoclzOt6lkQgHjlwpjoryaz
-         yXGDRs+AtUzQUabZ79rAmXLRN0nwy/GJ2yzCeWVQ4hokdkj42Hdo4nRvZq/ZG3+L05qE
-         KIiQ==
-X-Gm-Message-State: AJcUukfkneBdM0+oDQOt2S4kkG6Qe2NnTdUNaNW9EBpbc+Xh2gA/wzYk
-	QckOn0TiZkbttym6A36qSYTAcVc+V+TgZU9iHzS+NlnEsmeCrM1w0Uli9xSCIoqp3UUxARQmL5k
-	PFqvoRKkChz+47l37rtfsYWM21vwFYtZQJmoFTTBEU6SWzC4O2FTlhjLJIs7C9Pwa5eXHV7O5tG
-	SS+WlUMTVfeM4BZ2k5sdJeGC8TZXlFvx/qO6/vm3yV0nM2FOpJAJqsNgC7TxTRuJsej+nbRmAAF
-	6W0pte/vAeGXtETD8kUZAFWMoBUQkbCzcT/LXu2WBjidgcd9RfjmOXkaOPCxM7ZcdLf+ygYIzQx
-	uiLIECPcCWBYZ2dUB8Jha1HU/FKrlWliNe4Y/Gk+S6puLK5LSx5FqOoR2QHP646cPm24OMPqIxH
-	7
-X-Received: by 2002:a1f:2cb:: with SMTP id 194mr11760824vkc.19.1548074115779;
-        Mon, 21 Jan 2019 04:35:15 -0800 (PST)
-X-Received: by 2002:a1f:2cb:: with SMTP id 194mr11760810vkc.19.1548074115199;
-        Mon, 21 Jan 2019 04:35:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548074115; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=1VJUVK14Krc3G40HC1daUt+/htEC9Aq5ztMnb7k49sg=;
+        b=GCan3qVUCcgOuQOJY8gjYcEFtYe71NFpSYJMpcReVTV/cUMxpQarurX88a+erd+do9
+         q1ecKf9eRyZP03UL2i0K+eC5X/3b7brwRMdBM21zaagsXq2PzwSMkgnpCKRSBdSQnCTT
+         jRwG7/7cudTYNkFJxpX1PdCN0CF6uij805+ih0BFvCuKdktJT4u7UGw1n4DL1A0LNm8G
+         9dh7dA0yJpXGYpZW/sv64cJoisPITos4bmU04wJ5Ho1bVYLx5fsUX82Ra6i7PBi49COw
+         RO5kFBgTulaLrk3HzYc9ub1JBc5tbOuoWk0fITZKjbjM2OVxAorsjkIzkiCNIbTmKSbw
+         0BcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AJcUukd2i9LkdclKeMoZZEy0IxfbiylrKrDahSjUCt8k/hAXG3mt6dm7
+	dQq+wnwhJqSNQzoNJ3sorNVlgKwFnsF6T49wgUkMSbADKiqL3/hLxmJXHCR+IHapFT7RN1HCGt4
+	nFntNF3h5kjxrOlMt5bIUqg3ADy1YkNh8yoYEvENEE9Mv/P04TdtH77PinDsNWRmjuA==
+X-Received: by 2002:a17:902:48:: with SMTP id 66mr29263086pla.68.1548074146152;
+        Mon, 21 Jan 2019 04:35:46 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN52K2hVGfXltTzLEF6vM8jUiMiGDi/9JXo2k+N4YQYjVZtcnyuixbGKcTyEwee6C+L8lM21
+X-Received: by 2002:a17:902:48:: with SMTP id 66mr29263043pla.68.1548074145472;
+        Mon, 21 Jan 2019 04:35:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548074145; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZxBqPqi6S8EyYiIeTVqH7Hb30xQM8sVh3ah8uXuPoks5JuputPcbVxLhop8kPyt3y9
-         vggtIJ0MJNSF32BoodrcXmF3nc/uj+f0rpIzYE0GMLWKXZYSPSdbzlslfJvewZvsfeJJ
-         T44r7q/OF9TzV+x+NooXPf8RINJaRMHcDG/FG6DkozJYyV+s0F/gvBaBZ+n3Av6OvGEN
-         DMWHNiLslmm0FJhCa7ANER0DqabWALiNim8fr9V7sxmyic0rLubTAmpfle0CaKfyN8EP
-         5XzFMhc+i7RZ9YRaKF8EPm0Fz5wtHfF5YWHayYRi7kgrOsmK9g9A2GF6oS1LluJCVcx9
-         bYhA==
+        b=NQMqcNQC4xdcUbouz3cJ7zX3O9hT3l55NPbbJt+Cgxh/8xCmx/9OrMPf40e3CQN2l1
+         pg1DZtQoo15VkyJ8RvsA/y5f4gAxDvllR7ZM9BlUsh9xp2j41OpLpCV76583FSasbw/o
+         1xI7959CcVj5XXdqvmhtcyisqj2eY6ouzuWF0ELz5dRM529OqJ5LiysfQ0mhFbJ6Nsu/
+         RgdB96WKOWyS9Op0H+9tpbWH2qVZiNZzBrUimUh/dyNvQ8XNGPOupgh1qufryXAfpRRq
+         SAmbRVEbWsOEtkML8PYbE16BwEcGyqyoobqrE02OFxuBmxU4CRW9ofWxbSEyZQPMjVaw
+         DOlA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=k+MSaycj/9KITYA6lfk8QZCRSnahwfifAXAEb5FjW38=;
-        b=GP1KSEylSSPeMeSvPYpyzljJ/9z2ifyAl0DjZlFg0JMbHY8DvzzP4wzfvDr1yr+Vij
-         nkACOTZAITNzX4LRderjX2HrA6IcuR6nqaBA7LwqQAFaQFKEMlF+edbAoePhQ3dx+ZAw
-         PoIXH6cw6qoc5/C0Yo7i0yKONxzsG2/Z5KoN3QV14pMnLaebDMiyYZ3L40vc0XMAPb3z
-         f0t2F9t6qFFUFLzm0ugrC5kj3IB9o1JTjO5ieztW9HTcY1A4Wxso/d8+azFeqdGJOFGn
-         LfoZxeT/kzjzpsBroJsJJEOeozDsruGsjjrGIfghyPnp9bLf+8fc7l5vdmAl7fZzYeuc
-         LT4g==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=1VJUVK14Krc3G40HC1daUt+/htEC9Aq5ztMnb7k49sg=;
+        b=VHbbu7QPvR54rQe4F363VtUbtQ2MrPatURSrTtdDkWHC4CTlItW09LTC+yE7sRIEx4
+         At+S7MVyv+JuMtpit5TW1nva9AL9dsxjLvP5ztiybXj3jVnKg3b+BTZqIDIKZPFSuiSR
+         c8ctz/KQUqRYrO1X036f5Nzmqd7yqZnjiuB9HtAgj5ujSTP/WQd99bMvaTJCeKcDJUHh
+         GM7uaro4pQAIoVi0TR7ji5aDCYafiEv8HQVvvuTdjkliu9xcbHmAjKheiBeaQtBxbBHy
+         Kw/9dGmoCkg6Rb9O+SH/MqbTOs+Zd41UAK4ScpQl9lj/NWIi38gJuxOEUexaAOzkGnDX
+         qQug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UF2COheU;
-       spf=pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pintu.ping@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l23sor7274430uar.46.2019.01.21.04.35.15
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id h188si12109130pfg.44.2019.01.21.04.35.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 Jan 2019 04:35:15 -0800 (PST)
-Received-SPF: pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Jan 2019 04:35:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UF2COheU;
-       spf=pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pintu.ping@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=k+MSaycj/9KITYA6lfk8QZCRSnahwfifAXAEb5FjW38=;
-        b=UF2COheUoysXjsRSEAmwWvy5ArpkdNfz58fuMsj0CWoKN6ba9PggydnGg8dWNnxGdD
-         6xNV8hqPBGouluqMMVwCAfevMbvLnz4CkE/80V/tbf82hpdrnJ2eOhqlyJ560TEoeviv
-         hS1PZ5IowjEB0S8s0cb0k+voFynUWiRACHTllvcoiQXgdAeZwPkp0wmy15M9i8bzcj8f
-         xpMDexfrQSPWWR5ZuTjWHqb6unZrPRJeCqMpfCJ0DER/WUX69ez/UNghdh4iwX5ulSQb
-         +uvO8W9H7y7pfSdTKxQGFCs/6HBfoKY939BGG/zfFk/Rq1zuEq4iDiHE7nlofiqJJKaG
-         j1bQ==
-X-Google-Smtp-Source: ALg8bN7BTMgsv7iqj35UyxppTuxv/Y6UFsAvIzIcZL9zuwtmFozpjinsnmWFAZjBSG8GUGYxUb3A1UBWwOOmUHTeENU=
-X-Received: by 2002:ab0:4802:: with SMTP id b2mr12152078uad.47.1548074114497;
- Mon, 21 Jan 2019 04:35:14 -0800 (PST)
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0LCTQ6C060936
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:44 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q5c3we2kp-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:44 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Mon, 21 Jan 2019 12:35:42 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 21 Jan 2019 12:35:38 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x0LCZbfZ1966472
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 21 Jan 2019 12:35:37 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B560811C058;
+	Mon, 21 Jan 2019 12:35:37 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 62F7F11C050;
+	Mon, 21 Jan 2019 12:35:36 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.74.157])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Mon, 21 Jan 2019 12:35:36 +0000 (GMT)
+X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Matt Corallo <kernel@bluematt.me>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org, bugzilla-daemon@bugzilla.kernel.org
+Subject: Re: [Bug 202149] New: NULL Pointer Dereference in __split_huge_pmd on PPC64LE
+In-Reply-To: <A61367CF-277E-4E74-8A9D-C94C5E53817B@bluematt.me>
+References: <bug-202149-27@https.bugzilla.kernel.org/> <20190104170459.c8c7fa57ba9bc8a69dee5666@linux-foundation.org> <87ef9nk4cj.fsf@linux.ibm.com> <ed4bea40-cf9e-89a1-f99a-3dbd6249847f@bluematt.me> <8736q2jbhr.fsf@linux.ibm.com> <A61367CF-277E-4E74-8A9D-C94C5E53817B@bluematt.me>
+Date: Mon, 21 Jan 2019 18:05:33 +0530
 MIME-Version: 1.0
-References: <CAOuPNLj4QzNDt0npZn2LhZTFgDNJ1CsWPw3=wvUuxnGtQW308g@mail.gmail.com>
- <bceb32be-d508-c2a4-fa81-ab8b90323d3f@codeaurora.org> <CAOuPNLiNtPFksCuZF_vL6+YuLG0i0umzQhMCyEN69h9tySn2Vw@mail.gmail.com>
- <57ff3437-47b5-fe92-d576-084ce26aa5d8@codeaurora.org> <CAOuPNLjjd67FnjaHbJj_auD-EWnbc+6sc+hcT_HE6fjeKhEQrw@mail.gmail.com>
- <1ffe2b68-c87b-aa19-08af-b811063b3310@codeaurora.org>
-In-Reply-To: <1ffe2b68-c87b-aa19-08af-b811063b3310@codeaurora.org>
-From: Pintu Agarwal <pintu.ping@gmail.com>
-Date: Mon, 21 Jan 2019 18:05:03 +0530
-Message-ID:
- <CAOuPNLgM-aV51_L4WzwSGPQ4daVqWBgs8mQ8Gdw-f4Kdmadx1Q@mail.gmail.com>
-Subject: Re: Need help: how to locate failure from irq_chip subsystem
-To: Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
-Cc: open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, 
-	Russell King - ARM Linux <linux@armlinux.org.uk>, linux-mm@kvack.org, linux-pm@vger.kernel.org, 
-	kernelnewbies@kernelnewbies.org
 Content-Type: text/plain; charset="UTF-8"
+X-TM-AS-GCONF: 00
+x-cbid: 19012112-0012-0000-0000-000002EAD832
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19012112-0013-0000-0000-00002121FEF7
+Message-Id: <87bm4achnu.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-01-21_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1901210099
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190121123503.93fcAke-HeJUVFx-pncBmwTXHZyYVinb3127EUX-qkY@z>
+Message-ID: <20190121123533.ORBt0-U_2hXdGoXhycC2T4f61G8vqEkcmWg_1lsj-8Y@z>
 
-On Fri, Jan 18, 2019 at 5:23 PM Sai Prakash Ranjan
-<saiprakash.ranjan@codeaurora.org> wrote:
->
-> On 1/18/2019 4:50 PM, Pintu Agarwal wrote:
-> >>>> Could you please tell which QCOM SoC this board is based on?
-> >>>>
-> >>>
-> >>> Snapdragon 845 with kernel 4.9.x
-> >>> I want to know from which subsystem it is triggered:drivers/soc/qcom/
-> >>>
-> >>
-> >> Irqchip driver is "drivers/irqchip/irq-gic-v3.c". The kernel you are
-> >> using is msm-4.9 I suppose or some other kernel?
-> >>
-> > Yes, I am using customized version of msm-4.9 kernel based on Android.
-> > And yes the irqchip driver is: irq-gic-v3, which I can see from config.
-> >
-> > But, what I wanted to know is, how to find out which driver module
-> > (hopefully under: /drivers/soc/qcom/) that register with this
-> > irq_chip, is getting triggered at the time of crash ?
-> > So, that I can implement irq_hold function for it, which is the cause of crash.
-> >
->
-> Hmm, since this is a bootup crash, *initcall_debug* should help.
-> Add "initcall_debug ignore_loglevel" to kernel commandline and
-> check the last log before crash.
->
 
-OK thanks Sai, for your suggestions.
-Yes, I already tried that, but it did not help much.
+Can you test this patch?
 
-Anyways, I could finally find the culprit driver, from where null
-reference is coming.
-So, that issue is fixed.
-But, now I am looking into another issue.
-If required, I will post further...
+From e511e79af9a314854848ea8fda9dfa6d7e07c5e4 Mon Sep 17 00:00:00 2001
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Mon, 21 Jan 2019 16:43:17 +0530
+Subject: [PATCH] arch/powerpc/radix: Fix kernel crash with mremap
 
-Thanks,
-Pintu
+With support for split pmd lock, we use pmd page pmd_huge_pte pointer to store
+the deposited page table. In those config when we move page tables we need to
+make sure we move the depoisted page table to the right pmd page. Otherwise this
+can result in crash when we withdraw of deposited page table because we can find
+the pmd_huge_pte NULL.
+
+c0000000004a1230 __split_huge_pmd+0x1070/0x1940
+c0000000004a0ff4 __split_huge_pmd+0xe34/0x1940 (unreliable)
+c0000000004a4000 vma_adjust_trans_huge+0x110/0x1c0
+c00000000042fe04 __vma_adjust+0x2b4/0x9b0
+c0000000004316e8 __split_vma+0x1b8/0x280
+c00000000043192c __do_munmap+0x13c/0x550
+c000000000439390 sys_mremap+0x220/0x7e0
+c00000000000b488 system_call+0x5c/0x70
+
+Fixes: 675d995297d4 ("powerpc/book3s64: Enable split pmd ptlock.")
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/pgtable.h | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 92eaea164700..86e62384256d 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -1262,8 +1262,6 @@ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
+ 					 struct spinlock *old_pmd_ptl,
+ 					 struct vm_area_struct *vma)
+ {
+-	if (radix_enabled())
+-		return false;
+ 	/*
+ 	 * Archs like ppc64 use pgtable to store per pmd
+ 	 * specific information. So when we switch the pmd,
+-- 
+2.20.1
 
