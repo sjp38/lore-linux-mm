@@ -1,66 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 24AC38E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:16 -0500 (EST)
-Received: by mail-vs1-f70.google.com with SMTP id j123so10546912vsd.9
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:35:16 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l23sor7274430uar.46.2019.01.21.04.35.15
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A90D58E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:46 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id a2so14042595pgt.11
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:35:46 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id h188si12109130pfg.44.2019.01.21.04.35.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 Jan 2019 04:35:15 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Jan 2019 04:35:45 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0LCTQ6C060936
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:44 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q5c3we2kp-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 07:35:44 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Mon, 21 Jan 2019 12:35:42 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: Re: [Bug 202149] New: NULL Pointer Dereference in __split_huge_pmd on PPC64LE
+In-Reply-To: <A61367CF-277E-4E74-8A9D-C94C5E53817B@bluematt.me>
+References: <bug-202149-27@https.bugzilla.kernel.org/> <20190104170459.c8c7fa57ba9bc8a69dee5666@linux-foundation.org> <87ef9nk4cj.fsf@linux.ibm.com> <ed4bea40-cf9e-89a1-f99a-3dbd6249847f@bluematt.me> <8736q2jbhr.fsf@linux.ibm.com> <A61367CF-277E-4E74-8A9D-C94C5E53817B@bluematt.me>
+Date: Mon, 21 Jan 2019 18:05:33 +0530
 MIME-Version: 1.0
-References: <CAOuPNLj4QzNDt0npZn2LhZTFgDNJ1CsWPw3=wvUuxnGtQW308g@mail.gmail.com>
- <bceb32be-d508-c2a4-fa81-ab8b90323d3f@codeaurora.org> <CAOuPNLiNtPFksCuZF_vL6+YuLG0i0umzQhMCyEN69h9tySn2Vw@mail.gmail.com>
- <57ff3437-47b5-fe92-d576-084ce26aa5d8@codeaurora.org> <CAOuPNLjjd67FnjaHbJj_auD-EWnbc+6sc+hcT_HE6fjeKhEQrw@mail.gmail.com>
- <1ffe2b68-c87b-aa19-08af-b811063b3310@codeaurora.org>
-In-Reply-To: <1ffe2b68-c87b-aa19-08af-b811063b3310@codeaurora.org>
-From: Pintu Agarwal <pintu.ping@gmail.com>
-Date: Mon, 21 Jan 2019 18:05:03 +0530
-Message-ID: <CAOuPNLgM-aV51_L4WzwSGPQ4daVqWBgs8mQ8Gdw-f4Kdmadx1Q@mail.gmail.com>
-Subject: Re: Need help: how to locate failure from irq_chip subsystem
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
+Message-Id: <87bm4achnu.fsf@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
-Cc: open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@armlinux.org.uk>, linux-mm@kvack.org, linux-pm@vger.kernel.org, kernelnewbies@kernelnewbies.org
+To: Matt Corallo <kernel@bluematt.me>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Fri, Jan 18, 2019 at 5:23 PM Sai Prakash Ranjan
-<saiprakash.ranjan@codeaurora.org> wrote:
->
-> On 1/18/2019 4:50 PM, Pintu Agarwal wrote:
-> >>>> Could you please tell which QCOM SoC this board is based on?
-> >>>>
-> >>>
-> >>> Snapdragon 845 with kernel 4.9.x
-> >>> I want to know from which subsystem it is triggered:drivers/soc/qcom/
-> >>>
-> >>
-> >> Irqchip driver is "drivers/irqchip/irq-gic-v3.c". The kernel you are
-> >> using is msm-4.9 I suppose or some other kernel?
-> >>
-> > Yes, I am using customized version of msm-4.9 kernel based on Android.
-> > And yes the irqchip driver is: irq-gic-v3, which I can see from config.
-> >
-> > But, what I wanted to know is, how to find out which driver module
-> > (hopefully under: /drivers/soc/qcom/) that register with this
-> > irq_chip, is getting triggered at the time of crash ?
-> > So, that I can implement irq_hold function for it, which is the cause of crash.
-> >
->
-> Hmm, since this is a bootup crash, *initcall_debug* should help.
-> Add "initcall_debug ignore_loglevel" to kernel commandline and
-> check the last log before crash.
->
 
-OK thanks Sai, for your suggestions.
-Yes, I already tried that, but it did not help much.
+Can you test this patch?
 
-Anyways, I could finally find the culprit driver, from where null
-reference is coming.
-So, that issue is fixed.
-But, now I am looking into another issue.
-If required, I will post further...
+>From e511e79af9a314854848ea8fda9dfa6d7e07c5e4 Mon Sep 17 00:00:00 2001
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Mon, 21 Jan 2019 16:43:17 +0530
+Subject: [PATCH] arch/powerpc/radix: Fix kernel crash with mremap
 
-Thanks,
-Pintu
+With support for split pmd lock, we use pmd page pmd_huge_pte pointer to store
+the deposited page table. In those config when we move page tables we need to
+make sure we move the depoisted page table to the right pmd page. Otherwise this
+can result in crash when we withdraw of deposited page table because we can find
+the pmd_huge_pte NULL.
+
+c0000000004a1230 __split_huge_pmd+0x1070/0x1940
+c0000000004a0ff4 __split_huge_pmd+0xe34/0x1940 (unreliable)
+c0000000004a4000 vma_adjust_trans_huge+0x110/0x1c0
+c00000000042fe04 __vma_adjust+0x2b4/0x9b0
+c0000000004316e8 __split_vma+0x1b8/0x280
+c00000000043192c __do_munmap+0x13c/0x550
+c000000000439390 sys_mremap+0x220/0x7e0
+c00000000000b488 system_call+0x5c/0x70
+
+Fixes: 675d995297d4 ("powerpc/book3s64: Enable split pmd ptlock.")
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/pgtable.h | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 92eaea164700..86e62384256d 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -1262,8 +1262,6 @@ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
+ 					 struct spinlock *old_pmd_ptl,
+ 					 struct vm_area_struct *vma)
+ {
+-	if (radix_enabled())
+-		return false;
+ 	/*
+ 	 * Archs like ppc64 use pgtable to store per pmd
+ 	 * specific information. So when we switch the pmd,
+-- 
+2.20.1
