@@ -1,134 +1,61 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: [PATCH 2/6] mic/scif: do not use mmap_sem
-Date: Mon, 21 Jan 2019 09:42:16 -0800
-Message-Id: <20190121174220.10583-3-dave@stgolabs.net>
-In-Reply-To: <20190121174220.10583-1-dave@stgolabs.net>
-References: <20190121174220.10583-1-dave@stgolabs.net>
-Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org
-Cc: dledford@redhat.com, jgg@mellanox.com, jack@suse.de, ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net, sudeep.dutt@intel.com, ashutosh.dixit@intel.com, Davidlohr Bueso <dbueso@suse.de>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B2F58E0008
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 12:58:49 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id y83so19604310qka.7
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:58:49 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c47sor101004435qvh.6.2019.01.21.09.58.48
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 21 Jan 2019 09:58:48 -0800 (PST)
+Subject: Re: [PATCH] mm/hotplug: invalid PFNs from pfn_to_online_page()
+From: Qian Cai <cai@lca.pw>
+References: <51e79597-21ef-3073-9036-cfc33291f395@lca.pw>
+ <20190118021650.93222-1-cai@lca.pw> <20190121095352.GM4087@dhcp22.suse.cz>
+ <1295f347-5a14-5b3b-23ef-2f001c25d980@lca.pw>
+Message-ID: <3c4aa744-4a8a-08a6-bc41-ac3a722a0d17@lca.pw>
+Date: Mon, 21 Jan 2019 12:58:46 -0500
+MIME-Version: 1.0
+In-Reply-To: <1295f347-5a14-5b3b-23ef-2f001c25d980@lca.pw>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: akpm@linux-foundation.org, osalvador@suse.de, catalin.marinas@arm.com, vbabka@suse.cz, linux-mm@kvack.org
 
-The driver uses mmap_sem for both pinned_vm accounting and
-get_user_pages(). By using gup_fast() and letting the mm handle
-the lock if needed, we can no longer rely on the semaphore and
-simplify the whole thing.
 
-Cc: sudeep.dutt@intel.com
-Cc: ashutosh.dixit@intel.com
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
----
- drivers/misc/mic/scif/scif_rma.c | 36 +++++++++++-------------------------
- 1 file changed, 11 insertions(+), 25 deletions(-)
 
-diff --git a/drivers/misc/mic/scif/scif_rma.c b/drivers/misc/mic/scif/scif_rma.c
-index 2448368f181e..263b8ad507ea 100644
---- a/drivers/misc/mic/scif/scif_rma.c
-+++ b/drivers/misc/mic/scif/scif_rma.c
-@@ -272,21 +272,12 @@ static inline void __scif_release_mm(struct mm_struct *mm)
- 
- static inline int
- __scif_dec_pinned_vm_lock(struct mm_struct *mm,
--			  int nr_pages, bool try_lock)
-+			  int nr_pages)
- {
- 	if (!mm || !nr_pages || !scif_ulimit_check)
- 		return 0;
--	if (try_lock) {
--		if (!down_write_trylock(&mm->mmap_sem)) {
--			dev_err(scif_info.mdev.this_device,
--				"%s %d err\n", __func__, __LINE__);
--			return -1;
--		}
--	} else {
--		down_write(&mm->mmap_sem);
--	}
-+
- 	atomic64_sub(nr_pages, &mm->pinned_vm);
--	up_write(&mm->mmap_sem);
- 	return 0;
- }
- 
-@@ -298,16 +289,16 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
- 	if (!mm || !nr_pages || !scif_ulimit_check)
- 		return 0;
- 
--	locked = nr_pages;
--	locked += atomic64_read(&mm->pinned_vm);
- 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-+	locked = atomic64_add_return(nr_pages, &mm->pinned_vm);
-+
- 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
-+		atomic64_sub(nr_pages, &mm->pinned_vm);
- 		dev_err(scif_info.mdev.this_device,
- 			"locked(%lu) > lock_limit(%lu)\n",
- 			locked, lock_limit);
- 		return -ENOMEM;
- 	}
--	atomic64_set(&mm->pinned_vm, locked);
- 	return 0;
- }
- 
-@@ -326,7 +317,7 @@ int scif_destroy_window(struct scif_endpt *ep, struct scif_window *window)
- 
- 	might_sleep();
- 	if (!window->temp && window->mm) {
--		__scif_dec_pinned_vm_lock(window->mm, window->nr_pages, 0);
-+		__scif_dec_pinned_vm_lock(window->mm, window->nr_pages);
- 		__scif_release_mm(window->mm);
- 		window->mm = NULL;
- 	}
-@@ -737,7 +728,7 @@ int scif_unregister_window(struct scif_window *window)
- 					    ep->rma_info.dma_chan);
- 		} else {
- 			if (!__scif_dec_pinned_vm_lock(window->mm,
--						       window->nr_pages, 1)) {
-+						       window->nr_pages)) {
- 				__scif_release_mm(window->mm);
- 				window->mm = NULL;
- 			}
-@@ -1385,28 +1376,23 @@ int __scif_pin_pages(void *addr, size_t len, int *out_prot,
- 		prot |= SCIF_PROT_WRITE;
- retry:
- 		mm = current->mm;
--		down_write(&mm->mmap_sem);
- 		if (ulimit) {
- 			err = __scif_check_inc_pinned_vm(mm, nr_pages);
- 			if (err) {
--				up_write(&mm->mmap_sem);
- 				pinned_pages->nr_pages = 0;
- 				goto error_unmap;
- 			}
- 		}
- 
--		pinned_pages->nr_pages = get_user_pages(
-+		pinned_pages->nr_pages = get_user_pages_fast(
- 				(u64)addr,
- 				nr_pages,
- 				(prot & SCIF_PROT_WRITE) ? FOLL_WRITE : 0,
--				pinned_pages->pages,
--				NULL);
--		up_write(&mm->mmap_sem);
-+				pinned_pages->pages);
- 		if (nr_pages != pinned_pages->nr_pages) {
- 			if (try_upgrade) {
- 				if (ulimit)
--					__scif_dec_pinned_vm_lock(mm,
--								  nr_pages, 0);
-+					__scif_dec_pinned_vm_lock(mm, nr_pages);
- 				/* Roll back any pinned pages */
- 				for (i = 0; i < pinned_pages->nr_pages; i++) {
- 					if (pinned_pages->pages[i])
-@@ -1433,7 +1419,7 @@ int __scif_pin_pages(void *addr, size_t len, int *out_prot,
- 	return err;
- dec_pinned:
- 	if (ulimit)
--		__scif_dec_pinned_vm_lock(mm, nr_pages, 0);
-+		__scif_dec_pinned_vm_lock(mm, nr_pages);
- 	/* Something went wrong! Rollback */
- error_unmap:
- 	pinned_pages->nr_pages = nr_pages;
--- 
-2.16.4
+On 1/21/19 11:38 AM, Qian Cai wrote:
+> 
+> 
+> On 1/21/19 4:53 AM, Michal Hocko wrote:
+>> On Thu 17-01-19 21:16:50, Qian Cai wrote:
+>>> On an arm64 ThunderX2 server, the first kmemleak scan would crash [1]
+>>> with CONFIG_DEBUG_VM_PGFLAGS=y due to page_to_nid() found a pfn that is
+>>> not directly mapped (MEMBLOCK_NOMAP). Hence, the page->flags is
+>>> uninitialized.
+>>>
+>>> This is due to the commit 9f1eb38e0e11 ("mm, kmemleak: little
+>>> optimization while scanning") starts to use pfn_to_online_page() instead
+>>> of pfn_valid(). However, in the CONFIG_MEMORY_HOTPLUG=y case,
+>>> pfn_to_online_page() does not call memblock_is_map_memory() while
+>>> pfn_valid() does.
+>>
+>> How come there is an online section which has an pfn_valid==F? We do
+>> allocate the full section worth of struct pages so there is a valid
+>> struct page. Is there any hole inside this section?
+> 
+> It has CONFIG_HOLES_IN_ZONE=y.
+
+Actually, this does not seem have anything to do with holes.
+
+68709f45385a arm64: only consider memblocks with NOMAP cleared for linear mapping
+
+This causes pages marked as nomap being no long reassigned to the new zone in
+memmap_init_zone() by calling __init_single_page().
+
+There is an old discussion for this topic.
+https://lkml.org/lkml/2016/11/30/566
