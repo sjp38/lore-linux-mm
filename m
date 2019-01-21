@@ -1,82 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DE058E0018
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D8B5C8E0025
 	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:07 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id 201so10910404ywp.13
+Received: by mail-pl1-f199.google.com with SMTP id m13so12686535pls.15
         for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:06:07 -0800 (PST)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id g129si8607877ywh.259.2019.01.21.00.06.06
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id q9si12552477pgi.89.2019.01.21.00.06.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 21 Jan 2019 00:06:06 -0800 (PST)
-Subject: Re: [PATCH] mm: Expose lazy vfree pages to control via sysctl
-From: Ashish Mhetre <amhetre@nvidia.com>
-References: <1546616141-486-1-git-send-email-amhetre@nvidia.com>
- <20190104180332.GV6310@bombadil.infradead.org>
- <a7bb656a-c815-09a4-69fc-bb9e7427cfa6@nvidia.com>
-Message-ID: <27bd8776-87fa-69ad-7b6e-4425251b5e9c@nvidia.com>
-Date: Mon, 21 Jan 2019 13:36:00 +0530
-MIME-Version: 1.0
-In-Reply-To: <a7bb656a-c815-09a4-69fc-bb9e7427cfa6@nvidia.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L84CAJ125620
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:06 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q58rjunwc-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:06 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 21 Jan 2019 08:06:02 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v2 16/21] mm/percpu: add checks for the return value of memblock_alloc*()
+Date: Mon, 21 Jan 2019 10:04:03 +0200
+In-Reply-To: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
+References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1548057848-15136-17-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: vdumpa@nvidia.com, mcgrof@kernel.org, keescook@chromium.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, Snikam@nvidia.com, avanbrunt@nvidia.com
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org, Mike Rapoport <rppt@linux.ibm.com>
 
-The issue is not seen on new kernel. This patch won't be needed. Thanks.
+Add panic() calls if memblock_alloc() returns NULL.
 
-On 06/01/19 2:12 PM, Ashish Mhetre wrote:
-> Matthew, this issue was last reported in September 2018 on K4.9.
-> I verified that the optimization patches mentioned by you were not=20
-> present in our downstream kernel when we faced the issue. I will check=20
-> whether issue still persist on new kernel with all these patches and=20
-> come back.
->=20
-> On 04/01/19 11:33 PM, Matthew Wilcox wrote:
->> On Fri, Jan 04, 2019 at 09:05:41PM +0530, Ashish Mhetre wrote:
->>> From: Hiroshi Doyu <hdoyu@nvidia.com>
->>>
->>> The purpose of lazy_max_pages is to gather virtual address space till i=
-t
->>> reaches the lazy_max_pages limit and then purge with a TLB flush and=20
->>> hence
->>> reduce the number of global TLB flushes.
->>> The default value of lazy_max_pages with one CPU is 32MB and with 4=20
->>> CPUs it
->>> is 96MB i.e. for 4 cores, 96MB of vmalloc space will be gathered=20
->>> before it
->>> is purged with a TLB flush.
->>> This feature has shown random latency issues. For example, we have seen
->>> that the kernel thread for some camera application spent 30ms in
->>> __purge_vmap_area_lazy() with 4 CPUs.
->>
->> You're not the first to report something like this.=C2=A0 Looking throug=
-h the
->> kernel logs, I see:
->>
->> commit 763b218ddfaf56761c19923beb7e16656f66ec62
->> Author: Joel Fernandes <joelaf@google.com>
->> Date:=C2=A0=C2=A0 Mon Dec 12 16:44:26 2016 -0800
->>
->> =C2=A0=C2=A0=C2=A0=C2=A0 mm: add preempt points into __purge_vmap_area_l=
-azy()
->>
->> commit f9e09977671b618aeb25ddc0d4c9a84d5b5cde9d
->> Author: Christoph Hellwig <hch@lst.de>
->> Date:=C2=A0=C2=A0 Mon Dec 12 16:44:23 2016 -0800
->>
->> =C2=A0=C2=A0=C2=A0=C2=A0 mm: turn vmap_purge_lock into a mutex
->>
->> commit 80c4bd7a5e4368b680e0aeb57050a1b06eb573d8
->> Author: Chris Wilson <chris@chris-wilson.co.uk>
->> Date:=C2=A0=C2=A0 Fri May 20 16:57:38 2016 -0700
->>
->> =C2=A0=C2=A0=C2=A0=C2=A0 mm/vmalloc: keep a separate lazy-free list
->>
->> So the first thing I want to do is to confirm that you see this problem
->> on a modern kernel.=C2=A0 We've had trouble with NVidia before reporting
->> historical problems as if they were new.
->>
+The panic() format duplicates the one used by memblock itself and in order
+to avoid explosion with long parameters list replace open coded allocation
+size calculations with a local variable.
+
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ mm/percpu.c | 73 +++++++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 56 insertions(+), 17 deletions(-)
+
+diff --git a/mm/percpu.c b/mm/percpu.c
+index db86282..5998b03 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1086,6 +1086,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
+ 	struct pcpu_chunk *chunk;
+ 	unsigned long aligned_addr, lcm_align;
+ 	int start_offset, offset_bits, region_size, region_bits;
++	size_t alloc_size;
+ 
+ 	/* region calculations */
+ 	aligned_addr = tmp_addr & PAGE_MASK;
+@@ -1101,9 +1102,12 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
+ 	region_size = ALIGN(start_offset + map_size, lcm_align);
+ 
+ 	/* allocate chunk */
+-	chunk = memblock_alloc(sizeof(struct pcpu_chunk) +
+-			       BITS_TO_LONGS(region_size >> PAGE_SHIFT),
+-			       SMP_CACHE_BYTES);
++	alloc_size = sizeof(struct pcpu_chunk) +
++		BITS_TO_LONGS(region_size >> PAGE_SHIFT);
++	chunk = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!chunk)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
+ 
+ 	INIT_LIST_HEAD(&chunk->list);
+ 
+@@ -1114,12 +1118,25 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
+ 	chunk->nr_pages = region_size >> PAGE_SHIFT;
+ 	region_bits = pcpu_chunk_map_bits(chunk);
+ 
+-	chunk->alloc_map = memblock_alloc(BITS_TO_LONGS(region_bits) * sizeof(chunk->alloc_map[0]),
+-					  SMP_CACHE_BYTES);
+-	chunk->bound_map = memblock_alloc(BITS_TO_LONGS(region_bits + 1) * sizeof(chunk->bound_map[0]),
+-					  SMP_CACHE_BYTES);
+-	chunk->md_blocks = memblock_alloc(pcpu_chunk_nr_blocks(chunk) * sizeof(chunk->md_blocks[0]),
+-					  SMP_CACHE_BYTES);
++	alloc_size = BITS_TO_LONGS(region_bits) * sizeof(chunk->alloc_map[0]);
++	chunk->alloc_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!chunk->alloc_map)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
++
++	alloc_size =
++		BITS_TO_LONGS(region_bits + 1) * sizeof(chunk->bound_map[0]);
++	chunk->bound_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!chunk->bound_map)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
++
++	alloc_size = pcpu_chunk_nr_blocks(chunk) * sizeof(chunk->md_blocks[0]);
++	chunk->md_blocks = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!chunk->md_blocks)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
++
+ 	pcpu_init_md_blocks(chunk);
+ 
+ 	/* manage populated page bitmap */
+@@ -2044,6 +2061,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	int group, unit, i;
+ 	int map_size;
+ 	unsigned long tmp_addr;
++	size_t alloc_size;
+ 
+ #define PCPU_SETUP_BUG_ON(cond)	do {					\
+ 	if (unlikely(cond)) {						\
+@@ -2075,14 +2093,29 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
+ 
+ 	/* process group information and build config tables accordingly */
+-	group_offsets = memblock_alloc(ai->nr_groups * sizeof(group_offsets[0]),
+-				       SMP_CACHE_BYTES);
+-	group_sizes = memblock_alloc(ai->nr_groups * sizeof(group_sizes[0]),
+-				     SMP_CACHE_BYTES);
+-	unit_map = memblock_alloc(nr_cpu_ids * sizeof(unit_map[0]),
+-				  SMP_CACHE_BYTES);
+-	unit_off = memblock_alloc(nr_cpu_ids * sizeof(unit_off[0]),
+-				  SMP_CACHE_BYTES);
++	alloc_size = ai->nr_groups * sizeof(group_offsets[0]);
++	group_offsets = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!group_offsets)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
++
++	alloc_size = ai->nr_groups * sizeof(group_sizes[0]);
++	group_sizes = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!group_sizes)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
++
++	alloc_size = nr_cpu_ids * sizeof(unit_map[0]);
++	unit_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!unit_map)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
++
++	alloc_size = nr_cpu_ids * sizeof(unit_off[0]);
++	unit_off = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
++	if (!unit_off)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      alloc_size);
+ 
+ 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
+ 		unit_map[cpu] = UINT_MAX;
+@@ -2148,6 +2181,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
+ 	pcpu_slot = memblock_alloc(pcpu_nr_slots * sizeof(pcpu_slot[0]),
+ 				   SMP_CACHE_BYTES);
++	if (!pcpu_slot)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      pcpu_nr_slots * sizeof(pcpu_slot[0]));
+ 	for (i = 0; i < pcpu_nr_slots; i++)
+ 		INIT_LIST_HEAD(&pcpu_slot[i]);
+ 
+@@ -2602,6 +2638,9 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 	pages_size = PFN_ALIGN(unit_pages * num_possible_cpus() *
+ 			       sizeof(pages[0]));
+ 	pages = memblock_alloc(pages_size, SMP_CACHE_BYTES);
++	if (!pages)
++		panic("%s: Failed to allocate %zu bytes\n", __func__,
++		      pages_size);
+ 
+ 	/* allocate pages */
+ 	j = 0;
+-- 
+2.7.4
