@@ -1,117 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A1FE8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:58:23 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id c71so18252685qke.18
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 23:58:23 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 575568E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:58:29 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id p79so18648378qki.15
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 23:58:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w39si806948qtc.168.2019.01.20.23.58.22
+        by mx.google.com with ESMTPS id i1si723561qtr.117.2019.01.20.23.58.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Jan 2019 23:58:22 -0800 (PST)
+        Sun, 20 Jan 2019 23:58:28 -0800 (PST)
 From: Peter Xu <peterx@redhat.com>
-Subject: [PATCH RFC 06/24] userfaultfd: wp: support write protection for userfault vma range
-Date: Mon, 21 Jan 2019 15:57:04 +0800
-Message-Id: <20190121075722.7945-7-peterx@redhat.com>
+Subject: [PATCH RFC 07/24] userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
+Date: Mon, 21 Jan 2019 15:57:05 +0800
+Message-Id: <20190121075722.7945-8-peterx@redhat.com>
 In-Reply-To: <20190121075722.7945-1-peterx@redhat.com>
 References: <20190121075722.7945-1-peterx@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, peterx@redhat.com, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, peterx@redhat.com, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
-From: Shaohua Li <shli@fb.com>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Add API to enable/disable writeprotect a vma range. Unlike mprotect,
-this doesn't split/merge vmas.
+v1: From: Shaohua Li <shli@fb.com>
 
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Shaohua Li <shli@fb.com>
+v2: cleanups, remove a branch.
+
+[peterx writes up the commit message, as below...]
+
+This patch introduces the new uffd-wp APIs for userspace.
+
+Firstly, we'll allow to do UFFDIO_REGISTER with write protection
+tracking using the new UFFDIO_REGISTER_MODE_WP flag.  Note that this
+flag can co-exist with the existing UFFDIO_REGISTER_MODE_MISSING, in
+which case the userspace program can not only resolve missing page
+faults, and at the same time tracking page data changes along the way.
+
+Secondly, we introduced the new UFFDIO_WRITEPROTECT API to do page
+level write protection tracking.  Note that we will need to register
+the memory region with UFFDIO_REGISTER_MODE_WP before that.
+
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+[peterx: remove useless block, write commit message]
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- include/linux/userfaultfd_k.h |  2 ++
- mm/userfaultfd.c              | 52 +++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+)
+ fs/userfaultfd.c                 | 78 +++++++++++++++++++++++++-------
+ include/uapi/linux/userfaultfd.h | 11 +++++
+ 2 files changed, 73 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-index 38f748e7186e..e82f3156f4e9 100644
---- a/include/linux/userfaultfd_k.h
-+++ b/include/linux/userfaultfd_k.h
-@@ -37,6 +37,8 @@ extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
- 			      unsigned long dst_start,
- 			      unsigned long len,
- 			      bool *mmap_changing);
-+extern int mwriteprotect_range(struct mm_struct *dst_mm,
-+		unsigned long start, unsigned long len, bool enable_wp);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index bc9f6230a3f0..6ff8773d6797 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -305,8 +305,11 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
+ 	if (!pmd_present(_pmd))
+ 		goto out;
  
- /* mm helpers */
- static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index 458acda96f20..c38903f501c7 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -615,3 +615,55 @@ ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
- {
- 	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing);
+-	if (pmd_trans_huge(_pmd))
++	if (pmd_trans_huge(_pmd)) {
++		if (!pmd_write(_pmd) && (reason & VM_UFFD_WP))
++			ret = true;
+ 		goto out;
++	}
+ 
+ 	/*
+ 	 * the pmd is stable (as in !pmd_trans_unstable) so we can re-read it
+@@ -319,6 +322,8 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
+ 	 */
+ 	if (pte_none(*pte))
+ 		ret = true;
++	if (!pte_write(*pte) && (reason & VM_UFFD_WP))
++		ret = true;
+ 	pte_unmap(pte);
+ 
+ out:
+@@ -1252,10 +1257,13 @@ static __always_inline int validate_range(struct mm_struct *mm,
+ 	return 0;
  }
-+
-+int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
-+	unsigned long len, bool enable_wp)
+ 
+-static inline bool vma_can_userfault(struct vm_area_struct *vma)
++static inline bool vma_can_userfault(struct vm_area_struct *vma,
++				     unsigned long vm_flags)
+ {
+-	return vma_is_anonymous(vma) || is_vm_hugetlb_page(vma) ||
+-		vma_is_shmem(vma);
++	/* FIXME: add WP support to hugetlbfs and shmem */
++	return vma_is_anonymous(vma) ||
++		((is_vm_hugetlb_page(vma) || vma_is_shmem(vma)) &&
++		 !(vm_flags & VM_UFFD_WP));
+ }
+ 
+ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+@@ -1287,15 +1295,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 	vm_flags = 0;
+ 	if (uffdio_register.mode & UFFDIO_REGISTER_MODE_MISSING)
+ 		vm_flags |= VM_UFFD_MISSING;
+-	if (uffdio_register.mode & UFFDIO_REGISTER_MODE_WP) {
++	if (uffdio_register.mode & UFFDIO_REGISTER_MODE_WP)
+ 		vm_flags |= VM_UFFD_WP;
+-		/*
+-		 * FIXME: remove the below error constraint by
+-		 * implementing the wprotect tracking mode.
+-		 */
+-		ret = -EINVAL;
+-		goto out;
+-	}
+ 
+ 	ret = validate_range(mm, uffdio_register.range.start,
+ 			     uffdio_register.range.len);
+@@ -1343,7 +1344,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 
+ 		/* check not compatible vmas */
+ 		ret = -EINVAL;
+-		if (!vma_can_userfault(cur))
++		if (!vma_can_userfault(cur, vm_flags))
+ 			goto out_unlock;
+ 
+ 		/*
+@@ -1371,6 +1372,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 			if (end & (vma_hpagesize - 1))
+ 				goto out_unlock;
+ 		}
++		if ((vm_flags & VM_UFFD_WP) && !(cur->vm_flags & VM_WRITE))
++			goto out_unlock;
+ 
+ 		/*
+ 		 * Check that this vma isn't already owned by a
+@@ -1400,7 +1403,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 	do {
+ 		cond_resched();
+ 
+-		BUG_ON(!vma_can_userfault(vma));
++		BUG_ON(!vma_can_userfault(vma, vm_flags));
+ 		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
+ 		       vma->vm_userfaultfd_ctx.ctx != ctx);
+ 		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
+@@ -1535,7 +1538,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 		 * provides for more strict behavior to notice
+ 		 * unregistration errors.
+ 		 */
+-		if (!vma_can_userfault(cur))
++		if (!vma_can_userfault(cur, cur->vm_flags))
+ 			goto out_unlock;
+ 
+ 		found = true;
+@@ -1549,7 +1552,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 	do {
+ 		cond_resched();
+ 
+-		BUG_ON(!vma_can_userfault(vma));
++		BUG_ON(!vma_can_userfault(vma, vma->vm_flags));
+ 		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
+ 
+ 		/*
+@@ -1760,6 +1763,46 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+ 	return ret;
+ }
+ 
++static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
++				    unsigned long arg)
 +{
-+	struct vm_area_struct *dst_vma;
-+	pgprot_t newprot;
-+	int err;
++	int ret;
++	struct uffdio_writeprotect uffdio_wp;
++	struct uffdio_writeprotect __user *user_uffdio_wp;
++	struct userfaultfd_wake_range range;
 +
-+	/*
-+	 * Sanitize the command parameters:
-+	 */
-+	BUG_ON(start & ~PAGE_MASK);
-+	BUG_ON(len & ~PAGE_MASK);
++	user_uffdio_wp = (struct uffdio_writeprotect __user *) arg;
 +
-+	/* Does the address range wrap, or is the span zero-sized? */
-+	BUG_ON(start + len <= start);
++	if (copy_from_user(&uffdio_wp, user_uffdio_wp,
++			   sizeof(struct uffdio_writeprotect)))
++		return -EFAULT;
 +
-+	down_read(&dst_mm->mmap_sem);
++	ret = validate_range(ctx->mm, uffdio_wp.range.start,
++			     uffdio_wp.range.len);
++	if (ret)
++		return ret;
 +
-+	/*
-+	 * Make sure the vma is not shared, that the dst range is
-+	 * both valid and fully within a single existing vma.
-+	 */
-+	err = -EINVAL;
-+	dst_vma = find_vma(dst_mm, start);
-+	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
-+		goto out_unlock;
-+	if (start < dst_vma->vm_start ||
-+	    start + len > dst_vma->vm_end)
-+		goto out_unlock;
++	if (uffdio_wp.mode & ~(UFFDIO_WRITEPROTECT_MODE_DONTWAKE |
++			       UFFDIO_WRITEPROTECT_MODE_WP))
++		return -EINVAL;
++	if ((uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP) &&
++	     (uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE))
++		return -EINVAL;
 +
-+	if (!dst_vma->vm_userfaultfd_ctx.ctx)
-+		goto out_unlock;
-+	if (!userfaultfd_wp(dst_vma))
-+		goto out_unlock;
++	ret = mwriteprotect_range(ctx->mm, uffdio_wp.range.start,
++				  uffdio_wp.range.len, uffdio_wp.mode &
++				  UFFDIO_WRITEPROTECT_MODE_WP);
++	if (ret)
++		return ret;
 +
-+	if (!vma_is_anonymous(dst_vma))
-+		goto out_unlock;
-+
-+	if (enable_wp)
-+		newprot = vm_get_page_prot(dst_vma->vm_flags & ~(VM_WRITE));
-+	else
-+		newprot = vm_get_page_prot(dst_vma->vm_flags);
-+
-+	change_protection(dst_vma, start, start + len, newprot,
-+				!enable_wp, 0);
-+
-+	err = 0;
-+out_unlock:
-+	up_read(&dst_mm->mmap_sem);
-+	return err;
++	if (!(uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE)) {
++		range.start = uffdio_wp.range.start;
++		range.len = uffdio_wp.range.len;
++		wake_userfault(ctx, &range);
++	}
++	return ret;
 +}
++
+ static inline unsigned int uffd_ctx_features(__u64 user_features)
+ {
+ 	/*
+@@ -1837,6 +1880,9 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
+ 	case UFFDIO_ZEROPAGE:
+ 		ret = userfaultfd_zeropage(ctx, arg);
+ 		break;
++	case UFFDIO_WRITEPROTECT:
++		ret = userfaultfd_writeprotect(ctx, arg);
++		break;
+ 	}
+ 	return ret;
+ }
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+index 48f1a7c2f1f0..11517f796275 100644
+--- a/include/uapi/linux/userfaultfd.h
++++ b/include/uapi/linux/userfaultfd.h
+@@ -52,6 +52,7 @@
+ #define _UFFDIO_WAKE			(0x02)
+ #define _UFFDIO_COPY			(0x03)
+ #define _UFFDIO_ZEROPAGE		(0x04)
++#define _UFFDIO_WRITEPROTECT		(0x06)
+ #define _UFFDIO_API			(0x3F)
+ 
+ /* userfaultfd ioctl ids */
+@@ -68,6 +69,8 @@
+ 				      struct uffdio_copy)
+ #define UFFDIO_ZEROPAGE		_IOWR(UFFDIO, _UFFDIO_ZEROPAGE,	\
+ 				      struct uffdio_zeropage)
++#define UFFDIO_WRITEPROTECT	_IOWR(UFFDIO, _UFFDIO_WRITEPROTECT, \
++				      struct uffdio_writeprotect)
+ 
+ /* read() structure */
+ struct uffd_msg {
+@@ -231,4 +234,12 @@ struct uffdio_zeropage {
+ 	__s64 zeropage;
+ };
+ 
++struct uffdio_writeprotect {
++	struct uffdio_range range;
++	/* !WP means undo writeprotect. DONTWAKE is valid only with !WP */
++#define UFFDIO_WRITEPROTECT_MODE_WP		((__u64)1<<0)
++#define UFFDIO_WRITEPROTECT_MODE_DONTWAKE	((__u64)1<<1)
++	__u64 mode;
++};
++
+ #endif /* _LINUX_USERFAULTFD_H */
 -- 
 2.17.1
