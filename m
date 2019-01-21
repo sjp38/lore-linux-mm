@@ -1,84 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F8918E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:20:00 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id d41so7949405eda.12
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:20:00 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 90si2709902edb.180.2019.01.21.10.19.58
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 84E9E8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:24:21 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id p65-v6so5300264ljb.16
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:24:21 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k14-v6sor7713694lji.4.2019.01.21.10.24.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 10:19:58 -0800 (PST)
-Date: Mon, 21 Jan 2019 19:19:57 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/hotplug: invalid PFNs from pfn_to_online_page()
-Message-ID: <20190121181957.GX4087@dhcp22.suse.cz>
-References: <51e79597-21ef-3073-9036-cfc33291f395@lca.pw>
- <20190118021650.93222-1-cai@lca.pw>
- <20190121095352.GM4087@dhcp22.suse.cz>
- <1295f347-5a14-5b3b-23ef-2f001c25d980@lca.pw>
+        (Google Transport Security);
+        Mon, 21 Jan 2019 10:24:19 -0800 (PST)
+Date: Mon, 21 Jan 2019 21:24:16 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: + mm-thp-always-specify-disabled-vmas-as-nh-in-smaps.patch added
+ to -mm tree
+Message-ID: <20190121182416.GB2332@uranus.lan>
+References: <alpine.DEB.2.21.1812240058060.114867@chino.kir.corp.google.com>
+ <20181224091731.GB16738@dhcp22.suse.cz>
+ <20181227111114.5tvvkddyp7cytzeb@kshutemo-mobl1>
+ <20181227213100.aeee730c1f9ec5cb11de39a3@linux-foundation.org>
+ <20181228081847.GP16738@dhcp22.suse.cz>
+ <00ec4644-70c2-4bd1-ec3f-b994fa0669e8@suse.cz>
+ <20190115063202.GA13744@rapoport-lnx>
+ <20190121102144.GP4087@dhcp22.suse.cz>
+ <20190121180029.GA2332@uranus.lan>
+ <20190121181824.GW4087@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1295f347-5a14-5b3b-23ef-2f001c25d980@lca.pw>
+In-Reply-To: <20190121181824.GW4087@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, osalvador@suse.de, catalin.marinas@arm.com, vbabka@suse.cz, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, kirill.shutemov@linux.intel.com, adobriyan@gmail.com, Linux API <linux-api@vger.kernel.org>, Andrei Vagin <avagin@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM layout <linux-mm@kvack.org>
 
-On Mon 21-01-19 11:38:49, Qian Cai wrote:
-> 
-> 
-> On 1/21/19 4:53 AM, Michal Hocko wrote:
-> > On Thu 17-01-19 21:16:50, Qian Cai wrote:
-[...]
-> >> Fixes: 2d070eab2e82 ("mm: consider zone which is not fully populated to
-> >> have holes")
+On Mon, Jan 21, 2019 at 07:18:24PM +0100, Michal Hocko wrote:
+> > > 
+> > > So can we make a decision on this finally please?
 > > 
-> > Did you mean 
-> > Fixes: 9f1eb38e0e11 ("mm, kmemleak: little  optimization while scanning")
+> > As to me David's userspace application could use /proc/$pid/status
+> > to fetch precise THP state. And the patch in mm queue simply breaks
+> > others userspace thus should be reverted.
 > 
-> No, pfn_to_online_page() missed a few checks compared to pfn_valid() at least on
-> arm64 where the returned pfn is no longer valid (where pfn_valid() will skip those).
-> 
-> 2d070eab2e82 introduced pfn_to_online_page(), so it was targeted to fix it.
+> 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each vma") will
+> provide even more detailed information because it displays THP
+> eligibility per VMA so you do not have to check all other conditions
+> that control THP.
 
-But it is 9f1eb38e0e11 which has replaced pfn_valid by
-pfn_to_online_page.
-
-> 
-> > 
-> >> Signed-off-by: Qian Cai <cai@lca.pw>
-> >> ---
-> >>  include/linux/memory_hotplug.h | 2 +-
-> >>  1 file changed, 1 insertion(+), 1 deletion(-)
-> >>
-> >> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> >> index 07da5c6c5ba0..b8b36e6ac43b 100644
-> >> --- a/include/linux/memory_hotplug.h
-> >> +++ b/include/linux/memory_hotplug.h
-> >> @@ -26,7 +26,7 @@ struct vmem_altmap;
-> >>  	struct page *___page = NULL;			\
-> >>  	unsigned long ___nr = pfn_to_section_nr(pfn);	\
-> >>  							\
-> >> -	if (___nr < NR_MEM_SECTIONS && online_section_nr(___nr))\
-> >> +	if (online_section_nr(___nr) && pfn_valid(pfn))	\
-> >>  		___page = pfn_to_page(pfn);		\
-> > 
-> > Why have you removed the bound check? Is this safe?
-> > Regarding the fix, I am not really sure TBH. If the secion is online
-> > then we assume all struct pages to be initialized. If anything this
-> > should be limited to werid arches which might have holes so
-> > pfn_valid_within().
-> 
-> It looks to me at least on arm64 and x86_64, it has done this check in
-> pfn_valid() already.
-> 
-> if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-> 		return 0
-
-But an everflow could happen before pfn_valid is evaluated, no?
-
--- 
-Michal Hocko
-SUSE Labs
+Thus the only thing we need is to wait for David's reply if he can
+update his application to use the THPeligible flag and drop the
+patch from mm queue
