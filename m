@@ -1,241 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 336958E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:57:36 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id w15so20276253qtk.19
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 23:57:36 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z54si1671979qtb.1.2019.01.20.23.57.34
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 96E038E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:33 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 82so15405892pfs.20
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:04:33 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f7si8607863pga.87.2019.01.21.00.04.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Jan 2019 23:57:34 -0800 (PST)
-From: Peter Xu <peterx@redhat.com>
-Subject: [PATCH RFC 00/24] userfaultfd: write protection support
-Date: Mon, 21 Jan 2019 15:56:58 +0800
-Message-Id: <20190121075722.7945-1-peterx@redhat.com>
+        Mon, 21 Jan 2019 00:04:31 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L83ngN132193
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:31 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q59werw5e-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:04:31 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 21 Jan 2019 08:04:27 -0000
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v2 00/21] Refine memblock API
+Date: Mon, 21 Jan 2019 10:03:47 +0200
+Message-Id: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, peterx@redhat.com, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org, Mike Rapoport <rppt@linux.ibm.com>
 
 Hi,
 
-This series implements initial write protection support for
-userfaultfd.  Currently both shmem and hugetlbfs are not supported
-yet, but only anonymous memory.
+Current memblock API is quite extensive and, which is more annoying,
+duplicated. Except the low-level functions that allow searching for a free
+memory region and marking it as reserved, memblock provides three (well,
+two and a half) sets of functions to allocate memory. There are several
+overlapping functions that return a physical address and there are
+functions that return virtual address. Those that return the virtual
+address may also clear the allocated memory. And, on top of all that, some
+allocators panic and some return NULL in case of error.
 
-To be simple, either "userfaultfd-wp" or "uffd-wp" might be used in
-later paragraphs.
+This set tries to reduce the mess, and trim down the amount of memblock
+allocation methods.
 
-The whole series can also be found at:
+Patches 1-10 consolidate the functions that return physical address of
+the allocated memory
 
-  https://github.com/xzpeter/linux/tree/uffd-wp-merged
+Patches 11-13 are some trivial cleanups
 
-Any comment would be greatly welcomed.   Thanks.
+Patches 14-19 add checks for the return value of memblock_alloc*() and
+panics in case of errors. The patches 14-18 include some minor refactoring
+to have better readability of the resulting code and patch 19 is a
+mechanical addition of
 
-Overview
-====================
+	if (!ptr)
+		panic();
 
-The uffd-wp work was initialized by Shaohua Li [1], and later
-continued by Andrea [2]. This series is based upon Andrea's latest
-userfaultfd tree, and it is a continuous works from both Shaohua and
-Andrea.  Many of the follow up ideas come from Andrea too.
+after memblock_alloc*() calls.
 
-Besides the old MISSING register mode of userfaultfd, the new uffd-wp
-support provides another alternative register mode called
-UFFDIO_REGISTER_MODE_WP that can be used to listen to not only missing
-page faults but also write protection page faults, or even they can be
-registered together.  At the same time, the new feature also provides
-a new userfaultfd ioctl called UFFDIO_WRITEPROTECT which allows the
-userspace to write protect a range or memory or fixup write permission
-of faulted pages.
+And, finally, patches 20 and 21 remove panic() calls memblock and _nopanic
+variants from memblock.
 
-Please refer to the document patch "userfaultfd: wp:
-UFFDIO_REGISTER_MODE_WP documentation update" for more information on
-the new interface and what it can do.
+v2 changes:
+* replace some more %lu with %zu
+* remove panics where they are not needed in s390 and in printk
+* collect Acked-by and Reviewed-by.
 
-The major workflow of an uffd-wp program should be:
 
-  1. Register a memory region with WP mode using UFFDIO_REGISTER_MODE_WP
+Christophe Leroy (1):
+  powerpc: use memblock functions returning virtual address
 
-  2. Write protect part of the whole registered region using
-     UFFDIO_WRITEPROTECT, passing in UFFDIO_WRITEPROTECT_MODE_WP to
-     show that we want to write protect the range.
+Mike Rapoport (20):
+  openrisc: prefer memblock APIs returning virtual address
+  memblock: replace memblock_alloc_base(ANYWHERE) with memblock_phys_alloc
+  memblock: drop memblock_alloc_base_nid()
+  memblock: emphasize that memblock_alloc_range() returns a physical address
+  memblock: memblock_phys_alloc_try_nid(): don't panic
+  memblock: memblock_phys_alloc(): don't panic
+  memblock: drop __memblock_alloc_base()
+  memblock: drop memblock_alloc_base()
+  memblock: refactor internal allocation functions
+  memblock: make memblock_find_in_range_node() and choose_memblock_flags() static
+  arch: use memblock_alloc() instead of memblock_alloc_from(size, align, 0)
+  arch: don't memset(0) memory returned by memblock_alloc()
+  ia64: add checks for the return value of memblock_alloc*()
+  sparc: add checks for the return value of memblock_alloc*()
+  mm/percpu: add checks for the return value of memblock_alloc*()
+  init/main: add checks for the return value of memblock_alloc*()
+  swiotlb: add checks for the return value of memblock_alloc*()
+  treewide: add checks for the return value of memblock_alloc*()
+  memblock: memblock_alloc_try_nid: don't panic
+  memblock: drop memblock_alloc_*_nopanic() variants
 
-  3. Start a working thread that modifies the protected pages,
-     meanwhile listening to UFFD messages.
-
-  4. When a write is detected upon the protected range, page fault
-     happens, a UFFD message will be generated and reported to the
-     page fault handling thread
-
-  5. The page fault handler thread resolves the page fault using the
-     new UFFDIO_WRITEPROTECT ioctl, but this time passing in
-     !UFFDIO_WRITEPROTECT_MODE_WP instead showing that we want to
-     recover the write permission.  Before this operation, the fault
-     handler thread can do anything it wants, e.g., dumps the page to
-     a persistent storage.
-
-  6. The worker thread will continue running with the correctly
-     applied write permission from step 5.
-
-Currently there are already two projects that are based on this new
-userfaultfd feature.
-
-QEMU Live Snapshot: The project provides a way to allow the QEMU
-                    hypervisor to take snapshot of VMs without
-                    stopping the VM [3].
-
-LLNL umap library:  The project provides a mmap-like interface and
-                    "allow to have an application specific buffer of
-                    pages cached from a large file, i.e. out-of-core
-                    execution using memory map" [4][5].
-
-Before posting the patchset, this series was smoke tested against QEMU
-live snapshot and the LLNL umap library (by doing parallel quicksort
-using 128 sorting threads + 80 uffd servicing threads).  My sincere
-thanks to Marty Mcfadden and Denis Plotnikov for the help along the
-way.
-
-Implementation
-==============
-
-Patch 1-4: The whole uffd-wp requires the kernel page fault path to
-           take more than one retries.  In the previous works starting
-           from Shaohua, a new fault flag FAULT_FLAG_ALLOW_UFFD_RETRY
-           was introduced for this [6]. However in this series we have
-           dropped that patch, instead the whole work is based on the
-           recent series "[PATCH RFC v3 0/4] mm: some enhancements to
-           the page fault mechanism" [7] which removes the assuption
-           that VM_FAULT_RETRY can only happen once.  This four
-           patches are identital patches but picked up here.  Please
-           refer to the cover letter [7] for more information.  More
-           discussion upstream shows that this work could even benefit
-           existing use case [8] so please help justify whether
-           patches 1-4 can be consider to be accepted even earlier
-           than the rest of the series.
-
-Patch 5-21:   Implements the uffd-wp logic.  To avoid collision with
-              existing write protections (e.g., an private anonymous
-              page can be write protected if it was shared between
-              multiple processes), a new PTE bit (_PAGE_UFFD_WP) was
-              introduced to explicitly mark a PTE as userfault
-              write-protected.  A similar bit was also used in the
-              swap/migration entry (_PAGE_SWP_UFFD_WP) to make sure
-              even if the pages were swapped or migrated, the uffd-wp
-              tracking information won't be lost.  When resolving a
-              page fault, we'll do a page copy before hand if the page
-              was COWed to make sure we won't corrupt any shared
-              pages.  Etc.  Please see separated patches for more
-              details.
-
-Patch 22:     Documentation update for uffd-wp
-
-Patch 23,24:  Uffd-wp selftests
-
-TODO
-=============
-
-- hugetlbfs/shmem support
-- performance
-- more architectures
-- ...
-
-References
-==========
-
-[1] https://lwn.net/Articles/666187/
-[2] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/log/?h=userfault
-[3] https://github.com/denis-plotnikov/qemu/commits/background-snapshot-kvm
-[4] https://github.com/LLNL/umap
-[5] https://llnl-umap.readthedocs.io/en/develop/
-[6] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
-[7] https://lkml.org/lkml/2018/11/21/370
-[8] https://lkml.org/lkml/2018/12/30/64
-
-Andrea Arcangeli (5):
-  userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
-  userfaultfd: wp: hook userfault handler to write protection fault
-  userfaultfd: wp: add WP pagetable tracking to x86
-  userfaultfd: wp: userfaultfd_pte/huge_pmd_wp() helpers
-  userfaultfd: wp: add UFFDIO_COPY_MODE_WP
-
-Martin Cracauer (1):
-  userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
-
-Peter Xu (15):
-  mm: gup: rename "nonblocking" to "locked" where proper
-  mm: userfault: return VM_FAULT_RETRY on signals
-  mm: allow VM_FAULT_RETRY for multiple times
-  mm: gup: allow VM_FAULT_RETRY for multiple times
-  mm: merge parameters for change_protection()
-  userfaultfd: wp: apply _PAGE_UFFD_WP bit
-  mm: export wp_page_copy()
-  userfaultfd: wp: handle COW properly for uffd-wp
-  userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
-  userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
-  userfaultfd: wp: support swap and page migration
-  userfaultfd: wp: don't wake up when doing write protect
-  khugepaged: skip collapse if uffd-wp detected
-  userfaultfd: selftests: refactor statistics
-  userfaultfd: selftests: add write-protect test
-
-Shaohua Li (3):
-  userfaultfd: wp: add helper for writeprotect check
-  userfaultfd: wp: support write protection for userfault vma range
-  userfaultfd: wp: enabled write protection in userfaultfd API
-
- Documentation/admin-guide/mm/userfaultfd.rst |  51 +++++
- arch/alpha/mm/fault.c                        |   4 +-
- arch/arc/mm/fault.c                          |  12 +-
- arch/arm/mm/fault.c                          |  17 +-
- arch/arm64/mm/fault.c                        |  11 +-
- arch/hexagon/mm/vm_fault.c                   |   3 +-
- arch/ia64/mm/fault.c                         |   3 +-
- arch/m68k/mm/fault.c                         |   5 +-
- arch/microblaze/mm/fault.c                   |   3 +-
- arch/mips/mm/fault.c                         |   3 +-
- arch/nds32/mm/fault.c                        |   7 +-
- arch/nios2/mm/fault.c                        |   5 +-
- arch/openrisc/mm/fault.c                     |   3 +-
- arch/parisc/mm/fault.c                       |   4 +-
- arch/powerpc/mm/fault.c                      |   9 +-
- arch/riscv/mm/fault.c                        |   9 +-
- arch/s390/mm/fault.c                         |  14 +-
- arch/sh/mm/fault.c                           |   5 +-
- arch/sparc/mm/fault_32.c                     |   4 +-
- arch/sparc/mm/fault_64.c                     |   4 +-
- arch/um/kernel/trap.c                        |   6 +-
- arch/unicore32/mm/fault.c                    |  10 +-
- arch/x86/Kconfig                             |   1 +
- arch/x86/include/asm/pgtable.h               |  67 ++++++
- arch/x86/include/asm/pgtable_64.h            |   8 +-
- arch/x86/include/asm/pgtable_types.h         |  11 +-
- arch/x86/mm/fault.c                          |  13 +-
- arch/xtensa/mm/fault.c                       |   4 +-
- fs/userfaultfd.c                             | 110 +++++----
- include/asm-generic/pgtable.h                |   1 +
- include/asm-generic/pgtable_uffd.h           |  66 ++++++
- include/linux/huge_mm.h                      |   2 +-
- include/linux/mm.h                           |  21 +-
- include/linux/swapops.h                      |   2 +
- include/linux/userfaultfd_k.h                |  41 +++-
- include/trace/events/huge_memory.h           |   1 +
- include/uapi/linux/userfaultfd.h             |  28 ++-
- init/Kconfig                                 |   5 +
- mm/gup.c                                     |  61 ++---
- mm/huge_memory.c                             |  28 ++-
- mm/hugetlb.c                                 |   8 +-
- mm/khugepaged.c                              |  23 ++
- mm/memory.c                                  |  28 ++-
- mm/mempolicy.c                               |   2 +-
- mm/migrate.c                                 |   7 +
- mm/mprotect.c                                |  99 +++++++--
- mm/rmap.c                                    |   6 +
- mm/userfaultfd.c                             |  92 +++++++-
- tools/testing/selftests/vm/userfaultfd.c     | 222 ++++++++++++++-----
- 49 files changed, 898 insertions(+), 251 deletions(-)
- create mode 100644 include/asm-generic/pgtable_uffd.h
+ arch/alpha/kernel/core_cia.c              |   5 +-
+ arch/alpha/kernel/core_marvel.c           |   6 +
+ arch/alpha/kernel/pci-noop.c              |  13 +-
+ arch/alpha/kernel/pci.c                   |  11 +-
+ arch/alpha/kernel/pci_iommu.c             |  16 +-
+ arch/alpha/kernel/setup.c                 |   2 +-
+ arch/arc/kernel/unwind.c                  |   3 +-
+ arch/arc/mm/highmem.c                     |   4 +
+ arch/arm/kernel/setup.c                   |   6 +
+ arch/arm/mm/init.c                        |   6 +-
+ arch/arm/mm/mmu.c                         |  14 +-
+ arch/arm64/kernel/setup.c                 |   8 +-
+ arch/arm64/mm/kasan_init.c                |  10 ++
+ arch/arm64/mm/mmu.c                       |   2 +
+ arch/arm64/mm/numa.c                      |   4 +
+ arch/c6x/mm/dma-coherent.c                |   4 +
+ arch/c6x/mm/init.c                        |   4 +-
+ arch/csky/mm/highmem.c                    |   5 +
+ arch/h8300/mm/init.c                      |   4 +-
+ arch/ia64/kernel/mca.c                    |  25 +--
+ arch/ia64/mm/contig.c                     |   8 +-
+ arch/ia64/mm/discontig.c                  |   4 +
+ arch/ia64/mm/init.c                       |  38 ++++-
+ arch/ia64/mm/tlb.c                        |   6 +
+ arch/ia64/sn/kernel/io_common.c           |   3 +
+ arch/ia64/sn/kernel/setup.c               |  12 +-
+ arch/m68k/atari/stram.c                   |   4 +
+ arch/m68k/mm/init.c                       |   3 +
+ arch/m68k/mm/mcfmmu.c                     |   7 +-
+ arch/m68k/mm/motorola.c                   |   9 ++
+ arch/m68k/mm/sun3mmu.c                    |   6 +
+ arch/m68k/sun3/sun3dvma.c                 |   3 +
+ arch/microblaze/mm/init.c                 |  10 +-
+ arch/mips/cavium-octeon/dma-octeon.c      |   3 +
+ arch/mips/kernel/setup.c                  |   3 +
+ arch/mips/kernel/traps.c                  |   5 +-
+ arch/mips/mm/init.c                       |   5 +
+ arch/nds32/mm/init.c                      |  12 ++
+ arch/openrisc/mm/init.c                   |   5 +-
+ arch/openrisc/mm/ioremap.c                |   8 +-
+ arch/powerpc/kernel/dt_cpu_ftrs.c         |   8 +-
+ arch/powerpc/kernel/irq.c                 |   5 -
+ arch/powerpc/kernel/paca.c                |   6 +-
+ arch/powerpc/kernel/pci_32.c              |   3 +
+ arch/powerpc/kernel/prom.c                |   5 +-
+ arch/powerpc/kernel/rtas.c                |   6 +-
+ arch/powerpc/kernel/setup-common.c        |   3 +
+ arch/powerpc/kernel/setup_32.c            |  26 ++--
+ arch/powerpc/kernel/setup_64.c            |   4 +
+ arch/powerpc/lib/alloc.c                  |   3 +
+ arch/powerpc/mm/hash_utils_64.c           |  11 +-
+ arch/powerpc/mm/mmu_context_nohash.c      |   9 ++
+ arch/powerpc/mm/numa.c                    |   4 +
+ arch/powerpc/mm/pgtable-book3e.c          |  12 +-
+ arch/powerpc/mm/pgtable-book3s64.c        |   3 +
+ arch/powerpc/mm/pgtable-radix.c           |   9 +-
+ arch/powerpc/mm/ppc_mmu_32.c              |   3 +
+ arch/powerpc/platforms/pasemi/iommu.c     |   3 +
+ arch/powerpc/platforms/powermac/nvram.c   |   3 +
+ arch/powerpc/platforms/powernv/opal.c     |   3 +
+ arch/powerpc/platforms/powernv/pci-ioda.c |   8 +
+ arch/powerpc/platforms/ps3/setup.c        |   3 +
+ arch/powerpc/sysdev/dart_iommu.c          |   3 +
+ arch/powerpc/sysdev/msi_bitmap.c          |   3 +
+ arch/s390/kernel/crash_dump.c             |   3 +
+ arch/s390/kernel/setup.c                  |  16 ++
+ arch/s390/kernel/smp.c                    |   9 +-
+ arch/s390/kernel/topology.c               |   6 +
+ arch/s390/numa/mode_emu.c                 |   3 +
+ arch/s390/numa/numa.c                     |   6 +-
+ arch/sh/boards/mach-ap325rxa/setup.c      |   5 +-
+ arch/sh/boards/mach-ecovec24/setup.c      |  10 +-
+ arch/sh/boards/mach-kfr2r09/setup.c       |   5 +-
+ arch/sh/boards/mach-migor/setup.c         |   5 +-
+ arch/sh/boards/mach-se/7724/setup.c       |  10 +-
+ arch/sh/kernel/machine_kexec.c            |   3 +-
+ arch/sh/mm/init.c                         |   8 +-
+ arch/sh/mm/numa.c                         |   4 +
+ arch/sparc/kernel/prom_32.c               |   6 +-
+ arch/sparc/kernel/setup_64.c              |   6 +
+ arch/sparc/kernel/smp_64.c                |  12 ++
+ arch/sparc/mm/init_32.c                   |   2 +-
+ arch/sparc/mm/init_64.c                   |  11 ++
+ arch/sparc/mm/srmmu.c                     |  18 ++-
+ arch/um/drivers/net_kern.c                |   3 +
+ arch/um/drivers/vector_kern.c             |   3 +
+ arch/um/kernel/initrd.c                   |   2 +
+ arch/um/kernel/mem.c                      |  16 ++
+ arch/unicore32/kernel/setup.c             |   4 +
+ arch/unicore32/mm/mmu.c                   |  15 +-
+ arch/x86/kernel/acpi/boot.c               |   3 +
+ arch/x86/kernel/apic/io_apic.c            |   5 +
+ arch/x86/kernel/e820.c                    |   5 +-
+ arch/x86/kernel/setup_percpu.c            |  10 +-
+ arch/x86/mm/kasan_init_64.c               |  14 +-
+ arch/x86/mm/numa.c                        |  12 +-
+ arch/x86/platform/olpc/olpc_dt.c          |   3 +
+ arch/x86/xen/p2m.c                        |  11 +-
+ arch/xtensa/mm/kasan_init.c               |  10 +-
+ arch/xtensa/mm/mmu.c                      |   3 +
+ drivers/clk/ti/clk.c                      |   3 +
+ drivers/firmware/memmap.c                 |   2 +-
+ drivers/macintosh/smu.c                   |   5 +-
+ drivers/of/fdt.c                          |   8 +-
+ drivers/of/of_reserved_mem.c              |   7 +-
+ drivers/of/unittest.c                     |   8 +-
+ drivers/usb/early/xhci-dbc.c              |   2 +-
+ drivers/xen/swiotlb-xen.c                 |   7 +-
+ include/linux/memblock.h                  |  59 +------
+ init/main.c                               |  26 +++-
+ kernel/dma/swiotlb.c                      |  21 ++-
+ kernel/power/snapshot.c                   |   3 +
+ kernel/printk/printk.c                    |   9 +-
+ lib/cpumask.c                             |   3 +
+ mm/cma.c                                  |  10 +-
+ mm/kasan/init.c                           |  10 +-
+ mm/memblock.c                             | 249 ++++++++++--------------------
+ mm/page_alloc.c                           |  10 +-
+ mm/page_ext.c                             |   2 +-
+ mm/percpu.c                               |  84 +++++++---
+ mm/sparse.c                               |  25 ++-
+ 121 files changed, 860 insertions(+), 412 deletions(-)
 
 -- 
-2.17.1
+2.7.4
