@@ -1,103 +1,256 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 950A78E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 08:54:59 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id w19so21080940qto.13
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 05:54:59 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A5238E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:33:34 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id m37so21032263qte.10
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 06:33:34 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 38si1441870qvi.108.2019.01.21.05.54.58
+        by mx.google.com with ESMTPS id v67si8301343qkd.63.2019.01.21.06.33.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 05:54:58 -0800 (PST)
-Date: Mon, 21 Jan 2019 08:54:46 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH RFC 13/24] mm: merge parameters for change_protection()
-Message-ID: <20190121135444.GC3344@redhat.com>
+        Mon, 21 Jan 2019 06:33:32 -0800 (PST)
+Subject: Re: [PATCH RFC 00/24] userfaultfd: write protection support
 References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-14-peterx@redhat.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <c2485a2d-25b3-2fc0-4902-01fa278be9c7@redhat.com>
+Date: Mon, 21 Jan 2019 15:33:21 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190121075722.7945-14-peterx@redhat.com>
+In-Reply-To: <20190121075722.7945-1-peterx@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: Peter Xu <peterx@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
-On Mon, Jan 21, 2019 at 03:57:11PM +0800, Peter Xu wrote:
-> change_protection() was used by either the NUMA or mprotect() code,
-> there's one parameter for each of the callers (dirty_accountable and
-> prot_numa).  Further, these parameters are passed along the calls:
+On 21.01.19 08:56, Peter Xu wrote:
+> Hi,
 > 
->   - change_protection_range()
->   - change_p4d_range()
->   - change_pud_range()
->   - change_pmd_range()
->   - ...
+> This series implements initial write protection support for
+> userfaultfd.  Currently both shmem and hugetlbfs are not supported
+> yet, but only anonymous memory.
 > 
-> Now we introduce a flag for change_protect() and all these helpers to
-> replace these parameters.  Then we can avoid passing multiple parameters
-> multiple times along the way.
+> To be simple, either "userfaultfd-wp" or "uffd-wp" might be used in
+> later paragraphs.
 > 
-> More importantly, it'll greatly simplify the work if we want to
-> introduce any new parameters to change_protection().  In the follow up
-> patches, a new parameter for userfaultfd write protection will be
-> introduced.
+> The whole series can also be found at:
 > 
-> No functional change at all.
-
-There is one change i could spot and also something that looks wrong.
-
+>   https://github.com/xzpeter/linux/tree/uffd-wp-merged
 > 
-> Signed-off-by: Peter Xu <peterx@redhat.com>
-> ---
+> Any comment would be greatly welcomed.   Thanks.
+> 
+> Overview
+> ====================
+> 
+> The uffd-wp work was initialized by Shaohua Li [1], and later
+> continued by Andrea [2]. This series is based upon Andrea's latest
+> userfaultfd tree, and it is a continuous works from both Shaohua and
+> Andrea.  Many of the follow up ideas come from Andrea too.
+> 
+> Besides the old MISSING register mode of userfaultfd, the new uffd-wp
+> support provides another alternative register mode called
+> UFFDIO_REGISTER_MODE_WP that can be used to listen to not only missing
+> page faults but also write protection page faults, or even they can be
+> registered together.  At the same time, the new feature also provides
+> a new userfaultfd ioctl called UFFDIO_WRITEPROTECT which allows the
+> userspace to write protect a range or memory or fixup write permission
+> of faulted pages.
+> 
+> Please refer to the document patch "userfaultfd: wp:
+> UFFDIO_REGISTER_MODE_WP documentation update" for more information on
+> the new interface and what it can do.
+> 
+> The major workflow of an uffd-wp program should be:
+> 
+>   1. Register a memory region with WP mode using UFFDIO_REGISTER_MODE_WP
+> 
+>   2. Write protect part of the whole registered region using
+>      UFFDIO_WRITEPROTECT, passing in UFFDIO_WRITEPROTECT_MODE_WP to
+>      show that we want to write protect the range.
+> 
+>   3. Start a working thread that modifies the protected pages,
+>      meanwhile listening to UFFD messages.
+> 
+>   4. When a write is detected upon the protected range, page fault
+>      happens, a UFFD message will be generated and reported to the
+>      page fault handling thread
+> 
+>   5. The page fault handler thread resolves the page fault using the
+>      new UFFDIO_WRITEPROTECT ioctl, but this time passing in
+>      !UFFDIO_WRITEPROTECT_MODE_WP instead showing that we want to
+>      recover the write permission.  Before this operation, the fault
+>      handler thread can do anything it wants, e.g., dumps the page to
+>      a persistent storage.
+> 
+>   6. The worker thread will continue running with the correctly
+>      applied write permission from step 5.
+> 
+> Currently there are already two projects that are based on this new
+> userfaultfd feature.
+> 
+> QEMU Live Snapshot: The project provides a way to allow the QEMU
+>                     hypervisor to take snapshot of VMs without
+>                     stopping the VM [3].
+> 
+> LLNL umap library:  The project provides a mmap-like interface and
+>                     "allow to have an application specific buffer of
+>                     pages cached from a large file, i.e. out-of-core
+>                     execution using memory map" [4][5].
+> 
+> Before posting the patchset, this series was smoke tested against QEMU
+> live snapshot and the LLNL umap library (by doing parallel quicksort
+> using 128 sorting threads + 80 uffd servicing threads).  My sincere
+> thanks to Marty Mcfadden and Denis Plotnikov for the help along the
+> way.
+> 
+> Implementation
+> ==============
+> 
+> Patch 1-4: The whole uffd-wp requires the kernel page fault path to
+>            take more than one retries.  In the previous works starting
+>            from Shaohua, a new fault flag FAULT_FLAG_ALLOW_UFFD_RETRY
+>            was introduced for this [6]. However in this series we have
+>            dropped that patch, instead the whole work is based on the
+>            recent series "[PATCH RFC v3 0/4] mm: some enhancements to
+>            the page fault mechanism" [7] which removes the assuption
+>            that VM_FAULT_RETRY can only happen once.  This four
+>            patches are identital patches but picked up here.  Please
+>            refer to the cover letter [7] for more information.  More
+>            discussion upstream shows that this work could even benefit
+>            existing use case [8] so please help justify whether
+>            patches 1-4 can be consider to be accepted even earlier
+>            than the rest of the series.
+> 
+> Patch 5-21:   Implements the uffd-wp logic.  To avoid collision with
+>               existing write protections (e.g., an private anonymous
+>               page can be write protected if it was shared between
+>               multiple processes), a new PTE bit (_PAGE_UFFD_WP) was
+>               introduced to explicitly mark a PTE as userfault
+>               write-protected.  A similar bit was also used in the
+>               swap/migration entry (_PAGE_SWP_UFFD_WP) to make sure
+>               even if the pages were swapped or migrated, the uffd-wp
+>               tracking information won't be lost.  When resolving a
+>               page fault, we'll do a page copy before hand if the page
+>               was COWed to make sure we won't corrupt any shared
+>               pages.  Etc.  Please see separated patches for more
+>               details.
+> 
+> Patch 22:     Documentation update for uffd-wp
+> 
+> Patch 23,24:  Uffd-wp selftests
+> 
+> TODO
+> =============
+> 
+> - hugetlbfs/shmem support
+> - performance
+> - more architectures
+> - ...
+> 
+> References
+> ==========
+> 
+> [1] https://lwn.net/Articles/666187/
+> [2] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/log/?h=userfault
+> [3] https://github.com/denis-plotnikov/qemu/commits/background-snapshot-kvm
+> [4] https://github.com/LLNL/umap
+> [5] https://llnl-umap.readthedocs.io/en/develop/
+> [6] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
+> [7] https://lkml.org/lkml/2018/11/21/370
+> [8] https://lkml.org/lkml/2018/12/30/64
+> 
+> Andrea Arcangeli (5):
+>   userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
+>   userfaultfd: wp: hook userfault handler to write protection fault
+>   userfaultfd: wp: add WP pagetable tracking to x86
+>   userfaultfd: wp: userfaultfd_pte/huge_pmd_wp() helpers
+>   userfaultfd: wp: add UFFDIO_COPY_MODE_WP
+> 
+> Martin Cracauer (1):
+>   userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
+> 
+> Peter Xu (15):
+>   mm: gup: rename "nonblocking" to "locked" where proper
+>   mm: userfault: return VM_FAULT_RETRY on signals
+>   mm: allow VM_FAULT_RETRY for multiple times
+>   mm: gup: allow VM_FAULT_RETRY for multiple times
+>   mm: merge parameters for change_protection()
+>   userfaultfd: wp: apply _PAGE_UFFD_WP bit
+>   mm: export wp_page_copy()
+>   userfaultfd: wp: handle COW properly for uffd-wp
+>   userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
+>   userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
+>   userfaultfd: wp: support swap and page migration
+>   userfaultfd: wp: don't wake up when doing write protect
+>   khugepaged: skip collapse if uffd-wp detected
+>   userfaultfd: selftests: refactor statistics
+>   userfaultfd: selftests: add write-protect test
+> 
+> Shaohua Li (3):
+>   userfaultfd: wp: add helper for writeprotect check
+>   userfaultfd: wp: support write protection for userfault vma range
+>   userfaultfd: wp: enabled write protection in userfaultfd API
+> 
+>  Documentation/admin-guide/mm/userfaultfd.rst |  51 +++++
+>  arch/alpha/mm/fault.c                        |   4 +-
+>  arch/arc/mm/fault.c                          |  12 +-
+>  arch/arm/mm/fault.c                          |  17 +-
+>  arch/arm64/mm/fault.c                        |  11 +-
+>  arch/hexagon/mm/vm_fault.c                   |   3 +-
+>  arch/ia64/mm/fault.c                         |   3 +-
+>  arch/m68k/mm/fault.c                         |   5 +-
+>  arch/microblaze/mm/fault.c                   |   3 +-
+>  arch/mips/mm/fault.c                         |   3 +-
+>  arch/nds32/mm/fault.c                        |   7 +-
+>  arch/nios2/mm/fault.c                        |   5 +-
+>  arch/openrisc/mm/fault.c                     |   3 +-
+>  arch/parisc/mm/fault.c                       |   4 +-
+>  arch/powerpc/mm/fault.c                      |   9 +-
+>  arch/riscv/mm/fault.c                        |   9 +-
+>  arch/s390/mm/fault.c                         |  14 +-
+>  arch/sh/mm/fault.c                           |   5 +-
+>  arch/sparc/mm/fault_32.c                     |   4 +-
+>  arch/sparc/mm/fault_64.c                     |   4 +-
+>  arch/um/kernel/trap.c                        |   6 +-
+>  arch/unicore32/mm/fault.c                    |  10 +-
+>  arch/x86/Kconfig                             |   1 +
+>  arch/x86/include/asm/pgtable.h               |  67 ++++++
+>  arch/x86/include/asm/pgtable_64.h            |   8 +-
+>  arch/x86/include/asm/pgtable_types.h         |  11 +-
+>  arch/x86/mm/fault.c                          |  13 +-
+>  arch/xtensa/mm/fault.c                       |   4 +-
+>  fs/userfaultfd.c                             | 110 +++++----
+>  include/asm-generic/pgtable.h                |   1 +
+>  include/asm-generic/pgtable_uffd.h           |  66 ++++++
+>  include/linux/huge_mm.h                      |   2 +-
+>  include/linux/mm.h                           |  21 +-
+>  include/linux/swapops.h                      |   2 +
+>  include/linux/userfaultfd_k.h                |  41 +++-
+>  include/trace/events/huge_memory.h           |   1 +
+>  include/uapi/linux/userfaultfd.h             |  28 ++-
+>  init/Kconfig                                 |   5 +
+>  mm/gup.c                                     |  61 ++---
+>  mm/huge_memory.c                             |  28 ++-
+>  mm/hugetlb.c                                 |   8 +-
+>  mm/khugepaged.c                              |  23 ++
+>  mm/memory.c                                  |  28 ++-
+>  mm/mempolicy.c                               |   2 +-
+>  mm/migrate.c                                 |   7 +
+>  mm/mprotect.c                                |  99 +++++++--
+>  mm/rmap.c                                    |   6 +
+>  mm/userfaultfd.c                             |  92 +++++++-
+>  tools/testing/selftests/vm/userfaultfd.c     | 222 ++++++++++++++-----
+>  49 files changed, 898 insertions(+), 251 deletions(-)
+>  create mode 100644 include/asm-generic/pgtable_uffd.h
+> 
 
-[...]
+Does this series fix the "false positives" case I experienced on early
+prototypes of uffd-wp? (getting notified about a write access although
+it was not a write access?)
 
-> @@ -428,8 +431,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
->  	dirty_accountable = vma_wants_writenotify(vma, vma->vm_page_prot);
->  	vma_set_page_prot(vma);
->  
-> -	change_protection(vma, start, end, vma->vm_page_prot,
-> -			  dirty_accountable, 0);
-> +	change_protection(vma, start, end, vma->vm_page_prot, MM_CP_DIRTY_ACCT);
+-- 
 
-Here you unconditionaly see the DIRTY_ACCT flag instead it should be
-something like:
+Thanks,
 
-    s/dirty_accountable/cp_flags
-    if (vma_wants_writenotify(vma, vma->vm_page_prot))
-        cp_flags = MM_CP_DIRTY_ACCT;
-    else
-        cp_flags = 0;
-
-    change_protection(vma, start, end, vma->vm_page_prot, cp_flags);
-
-Or any equivalent construct.
-
->  	/*
->  	 * Private VM_LOCKED VMA becoming writable: trigger COW to avoid major
-> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> index 005291b9b62f..23d4bbd117ee 100644
-> --- a/mm/userfaultfd.c
-> +++ b/mm/userfaultfd.c
-> @@ -674,7 +674,7 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
->  		newprot = vm_get_page_prot(dst_vma->vm_flags);
->  
->  	change_protection(dst_vma, start, start + len, newprot,
-> -				!enable_wp, 0);
-> +			  enable_wp ? 0 : MM_CP_DIRTY_ACCT);
-
-We had a discussion in the past on that, i have not look at other
-patches but this seems wrong to me. MM_CP_DIRTY_ACCT is an
-optimization to keep a pte with write permission if it is dirty
-while my understanding is that you want to set write flag for pte
-unconditionaly.
-
-So maybe this patch that adds flag should be earlier in the serie
-so that you can add a flag to do that before introducing the UFD
-mwriteprotect_range() function.
-
-Cheers,
-Jérôme
+David / dhildenb
