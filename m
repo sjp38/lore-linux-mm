@@ -1,148 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A3D0C8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:19:38 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id z10so7481641edz.15
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:19:38 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d12si1556151edh.283.2019.01.21.01.19.36
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0D38E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:24:14 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id w15so10093055ita.1
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:24:14 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s21sor6330215iol.146.2019.01.21.01.24.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 01:19:37 -0800 (PST)
-Date: Mon, 21 Jan 2019 10:19:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: remove 'prefer children over parent' heuristic
-Message-ID: <20190121091933.GL4087@dhcp22.suse.cz>
-References: <20190120215059.183552-1-shakeelb@google.com>
+        (Google Transport Security);
+        Mon, 21 Jan 2019 01:24:12 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190120215059.183552-1-shakeelb@google.com>
+References: <cover.1547289808.git.christophe.leroy@c-s.fr> <935f9f83393affb5d55323b126468ecb90373b88.1547289808.git.christophe.leroy@c-s.fr>
+ <e4b343fa-702b-294f-7741-bb85ed877cdf@virtuozzo.com> <8d433501-a5a7-8e3b-03f7-ccdd0f8622e1@c-s.fr>
+ <CACT4Y+Z+UbN1rjHr3T5rgHpCJUknupPvEPw0SHs1-qjWBDhm3Q@mail.gmail.com> <d2f85bee-c551-ec9d-1a13-6d3364788cc1@c-s.fr>
+In-Reply-To: <d2f85bee-c551-ec9d-1a13-6d3364788cc1@c-s.fr>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 21 Jan 2019 10:24:01 +0100
+Message-ID: <CACT4Y+Y9H8LhpODFk6TE00kZWCU_V2QK1CStWxBt4EnWpLuCcQ@mail.gmail.com>
+Subject: Re: [PATCH v3 3/3] powerpc/32: Add KASAN support
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Roman Gushchin <guro@fb.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Alexander Potapenko <glider@google.com>, LKML <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 
-On Sun 20-01-19 13:50:59, Shakeel Butt wrote:
-> >From the start of the git history of Linux, the kernel after selecting
-> the worst process to be oom-killed, prefer to kill its child (if the
-> child does not share mm with the parent). Later it was changed to prefer
-> to kill a child who is worst. If the parent is still the worst then the
-> parent will be killed.
-> 
-> This heuristic assumes that the children did less work than their parent
-> and by killing one of them, the work lost will be less. However this is
-> very workload dependent. If there is a workload which can benefit from
-> this heuristic, can use oom_score_adj to prefer children to be killed
-> before the parent.
-> 
-> The select_bad_process() has already selected the worst process in the
-> system/memcg. There is no need to recheck the badness of its children
-> and hoping to find a worse candidate. That's a lot of unneeded racy
-> work. So, let's remove this whole heuristic.
+On Mon, Jan 21, 2019 at 9:37 AM Christophe Leroy
+<christophe.leroy@c-s.fr> wrote:
+>
+>
+>
+> Le 21/01/2019 =C3=A0 09:30, Dmitry Vyukov a =C3=A9crit :
+> > On Mon, Jan 21, 2019 at 8:17 AM Christophe Leroy
+> > <christophe.leroy@c-s.fr> wrote:
+> >>
+> >>
+> >>
+> >> Le 15/01/2019 =C3=A0 18:23, Andrey Ryabinin a =C3=A9crit :
+> >>>
+> >>>
+> >>> On 1/12/19 2:16 PM, Christophe Leroy wrote:
+> >>>
+> >>>> +KASAN_SANITIZE_early_32.o :=3D n
+> >>>> +KASAN_SANITIZE_cputable.o :=3D n
+> >>>> +KASAN_SANITIZE_prom_init.o :=3D n
+> >>>> +
+> >>>
+> >>> Usually it's also good idea to disable branch profiling - define DISA=
+BLE_BRANCH_PROFILING
+> >>> either in top of these files or via Makefile. Branch profiling redefi=
+nes if() statement and calls
+> >>> instrumented ftrace_likely_update in every if().
+> >>>
+> >>>
+> >>>
+> >>>> diff --git a/arch/powerpc/mm/kasan_init.c b/arch/powerpc/mm/kasan_in=
+it.c
+> >>>> new file mode 100644
+> >>>> index 000000000000..3edc9c2d2f3e
+> >>>
+> >>>> +void __init kasan_init(void)
+> >>>> +{
+> >>>> +    struct memblock_region *reg;
+> >>>> +
+> >>>> +    for_each_memblock(memory, reg)
+> >>>> +            kasan_init_region(reg);
+> >>>> +
+> >>>> +    pr_info("KASAN init done\n");
+> >>>
+> >>> Without "init_task.kasan_depth =3D 0;" kasan will not repot bugs.
+> >>>
+> >>> There is test_kasan module. Make sure that it produce reports.
+> >>>
+> >>
+> >> Thanks for the review.
+> >>
+> >> Now I get the following very early in boot, what does that mean ?
+> >
+> > This looks like an instrumented memset call before kasan shadow is
+> > mapped, or kasan shadow is not zeros. Does this happen before or after
+> > mapping of kasan_early_shadow_page?
+>
+> This is after the mapping of kasan_early_shadow_page.
+>
+> > This version seems to miss what x86 code has to clear the early shadow:
+> >
+> > /*
+> > * kasan_early_shadow_page has been used as early shadow memory, thus
+> > * it may contain some garbage. Now we can clear and write protect it,
+> > * since after the TLB flush no one should write to it.
+> > */
+> > memset(kasan_early_shadow_page, 0, PAGE_SIZE);
+>
+> In the early part, kasan_early_shadow_page is mapped read-only so I
+> assumed this reset of its content was unneccessary.
+>
+> I'll try with it.
+>
+> Christophe
 
-Yes, I agree with this direction. Let's try it and see whether there is
-anything really depending on the heuristic. I hope that is not the case
-but at least we will hear about it and the reasoning behind.
+As far as I understand machine memory contains garbage after boot, and
+that page needs to be all 0's so we need to explicitly memset it.
 
-I think the changelog should also mension that the heuristic is
-dangerous because it make fork bomb like workloads to recover much later
-because we constantly pick and kill processes which are not memory hogs.
 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-
-Appart from the nit in the printk output
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Also I would prefer s@p@victim@ because it makes the code more readable
-
-I pressume you are going to send this along with the fix for the
-use-after-free in one series.
-
-Thanks.
-
-> ---
->  mm/oom_kill.c | 49 ++++---------------------------------------------
->  1 file changed, 4 insertions(+), 45 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1a007dae1e8f..6cee185dc147 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -944,12 +944,7 @@ static int oom_kill_memcg_member(struct task_struct *task, void *unused)
->  static void oom_kill_process(struct oom_control *oc, const char *message)
->  {
->  	struct task_struct *p = oc->chosen;
-> -	unsigned int points = oc->chosen_points;
-> -	struct task_struct *victim = p;
-> -	struct task_struct *child;
-> -	struct task_struct *t;
->  	struct mem_cgroup *oom_group;
-> -	unsigned int victim_points = 0;
->  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
->  					      DEFAULT_RATELIMIT_BURST);
->  
-> @@ -971,53 +966,17 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  	if (__ratelimit(&oom_rs))
->  		dump_header(oc, p);
->  
-> -	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
-> -		message, task_pid_nr(p), p->comm, points);
-> -
-> -	/*
-> -	 * If any of p's children has a different mm and is eligible for kill,
-> -	 * the one with the highest oom_badness() score is sacrificed for its
-> -	 * parent.  This attempts to lose the minimal amount of work done while
-> -	 * still freeing memory.
-> -	 */
-> -	read_lock(&tasklist_lock);
-> -
-> -	/*
-> -	 * The task 'p' might have already exited before reaching here. The
-> -	 * put_task_struct() will free task_struct 'p' while the loop still try
-> -	 * to access the field of 'p', so, get an extra reference.
-> -	 */
-> -	get_task_struct(p);
-> -	for_each_thread(p, t) {
-> -		list_for_each_entry(child, &t->children, sibling) {
-> -			unsigned int child_points;
-> -
-> -			if (process_shares_mm(child, p->mm))
-> -				continue;
-> -			/*
-> -			 * oom_badness() returns 0 if the thread is unkillable
-> -			 */
-> -			child_points = oom_badness(child,
-> -				oc->memcg, oc->nodemask, oc->totalpages);
-> -			if (child_points > victim_points) {
-> -				put_task_struct(victim);
-> -				victim = child;
-> -				victim_points = child_points;
-> -				get_task_struct(victim);
-> -			}
-> -		}
-> -	}
-> -	put_task_struct(p);
-> -	read_unlock(&tasklist_lock);
-> +	pr_err("%s: Kill process %d (%s) score %lu or sacrifice child\n",
-> +		message, task_pid_nr(p), p->comm, oc->chosen_points);
->  
->  	/*
->  	 * Do we need to kill the entire memory cgroup?
->  	 * Or even one of the ancestor memory cgroups?
->  	 * Check this out before killing the victim task.
->  	 */
-> -	oom_group = mem_cgroup_get_oom_group(victim, oc->memcg);
-> +	oom_group = mem_cgroup_get_oom_group(p, oc->memcg);
->  
-> -	__oom_kill_process(victim);
-> +	__oom_kill_process(p);
->  
->  	/*
->  	 * If necessary, kill all tasks in the selected memory cgroup.
-> -- 
-> 2.20.1.321.g9e740568ce-goog
-
--- 
-Michal Hocko
-SUSE Labs
+> >> [    0.000000] KASAN init done
+> >> [    0.000000]
+> >> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> >> [    0.000000] BUG: KASAN: unknown-crash in memblock_alloc_try_nid+0xd=
+8/0xf0
+> >> [    0.000000] Write of size 68 at addr c7ff5a90 by task swapper/0
+> >> [    0.000000]
+> >> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted
+> >> 5.0.0-rc2-s3k-dev-00559-g88aa407c4bce #772
+> >> [    0.000000] Call Trace:
+> >> [    0.000000] [c094ded0] [c016c7e4]
+> >> print_address_description+0x1a0/0x2b8 (unreliable)
+> >> [    0.000000] [c094df00] [c016caa0] kasan_report+0xe4/0x168
+> >> [    0.000000] [c094df40] [c016b464] memset+0x2c/0x4c
+> >> [    0.000000] [c094df60] [c08731f0] memblock_alloc_try_nid+0xd8/0xf0
+> >> [    0.000000] [c094df90] [c0861f20] mmu_context_init+0x58/0xa0
+> >> [    0.000000] [c094dfb0] [c085ca70] start_kernel+0x54/0x400
+> >> [    0.000000] [c094dff0] [c0002258] start_here+0x44/0x9c
+> >> [    0.000000]
+> >> [    0.000000]
+> >> [    0.000000] Memory state around the buggy address:
+> >> [    0.000000]  c7ff5980: e2 a1 87 81 bd d4 a5 b5 f8 8d 89 e7 72 bc 20=
+ 24
+> >> [    0.000000]  c7ff5a00: e7 b9 c1 c7 17 e9 b4 bd a4 d0 e7 a0 11 15 a5=
+ b5
+> >> [    0.000000] >c7ff5a80: b5 e1 83 a5 2d 65 31 3f f3 e5 a7 ef 34 b5 69=
+ b5
+> >> [    0.000000]                  ^
+> >> [    0.000000]  c7ff5b00: 21 a5 c1 c1 b4 bf 2d e5 e5 c3 f5 91 e3 b8 a1=
+ 34
+> >> [    0.000000]  c7ff5b80: ad ef 23 87 3d a6 ad b5 c3 c3 80 b7 ac b1 1f=
+ 37
+> >> [    0.000000]
+> >> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> >> [    0.000000] Disabling lock debugging due to kernel taint
+> >> [    0.000000] MMU: Allocated 76 bytes of context maps for 16 contexts
+> >> [    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: =
+8176
+> >> [    0.000000] Kernel command line: console=3DttyCPM0,115200N8
+> >> ip=3D192.168.2.7:192.168.2.2::255.0.0.0:vgoip:eth0:off kgdboc=3DttyCPM=
+0
+> >> [    0.000000] Dentry cache hash table entries: 16384 (order: 2, 65536
+> >> bytes)
+> >> [    0.000000] Inode-cache hash table entries: 8192 (order: 1, 32768 b=
+ytes)
+> >> [    0.000000] Memory: 99904K/131072K available (7376K kernel code, 52=
+8K
+> >> rwdata, 1168K rodata, 576K init, 4623K bss, 31168K reserved, 0K
+> >> cma-reserved)
+> >> [    0.000000] Kernel virtual memory layout:
+> >> [    0.000000]   * 0xffefc000..0xffffc000  : fixmap
+> >> [    0.000000]   * 0xf7c00000..0xffc00000  : kasan shadow mem
+> >> [    0.000000]   * 0xf7a00000..0xf7c00000  : consistent mem
+> >> [    0.000000]   * 0xf7a00000..0xf7a00000  : early ioremap
+> >> [    0.000000]   * 0xc9000000..0xf7a00000  : vmalloc & ioremap
+> >>
+> >>
+> >> Christophe
