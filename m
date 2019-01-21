@@ -1,175 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 28D7B8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:45:05 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id p4so15994582iod.17
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 22:45:05 -0800 (PST)
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id v134sor18547197itb.19.2019.01.20.22.45.03
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E6EA8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:17:06 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id e17so10602764wrw.13
+        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 23:17:06 -0800 (PST)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id i3si65207347wrh.295.2019.01.20.23.17.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 20 Jan 2019 22:45:03 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 20 Jan 2019 23:17:04 -0800 (PST)
+Subject: Re: [PATCH v3 3/3] powerpc/32: Add KASAN support
+References: <cover.1547289808.git.christophe.leroy@c-s.fr>
+ <935f9f83393affb5d55323b126468ecb90373b88.1547289808.git.christophe.leroy@c-s.fr>
+ <e4b343fa-702b-294f-7741-bb85ed877cdf@virtuozzo.com>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <8d433501-a5a7-8e3b-03f7-ccdd0f8622e1@c-s.fr>
+Date: Mon, 21 Jan 2019 08:17:03 +0100
 MIME-Version: 1.0
-Date: Sun, 20 Jan 2019 22:45:03 -0800
-Message-ID: <0000000000005676f8057ff2335f@google.com>
-Subject: KASAN: use-after-free Read in oom_kill_process
-From: syzbot <syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <e4b343fa-702b-294f-7741-bb85ed877cdf@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, ebiederm@xmission.com, guro@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, rientjes@google.com, syzkaller-bugs@googlegroups.com, yuzhoujian@didichuxing.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-Hello,
 
-syzbot found the following crash on:
 
-HEAD commit:    47bfa6d9dc8c Merge tag 'selinux-pr-20190115' of git://git...
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=123af46b400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=8a4dffabfb4e36f9
-dashboard link: https://syzkaller.appspot.com/bug?extid=7fbbfa368521945f0e3d
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+Le 15/01/2019 à 18:23, Andrey Ryabinin a écrit :
+> 
+> 
+> On 1/12/19 2:16 PM, Christophe Leroy wrote:
+> 
+>> +KASAN_SANITIZE_early_32.o := n
+>> +KASAN_SANITIZE_cputable.o := n
+>> +KASAN_SANITIZE_prom_init.o := n
+>> +
+> 
+> Usually it's also good idea to disable branch profiling - define DISABLE_BRANCH_PROFILING
+> either in top of these files or via Makefile. Branch profiling redefines if() statement and calls
+> instrumented ftrace_likely_update in every if().
+> 
+> 
+> 
+>> diff --git a/arch/powerpc/mm/kasan_init.c b/arch/powerpc/mm/kasan_init.c
+>> new file mode 100644
+>> index 000000000000..3edc9c2d2f3e
+> 
+>> +void __init kasan_init(void)
+>> +{
+>> +	struct memblock_region *reg;
+>> +
+>> +	for_each_memblock(memory, reg)
+>> +		kasan_init_region(reg);
+>> +
+>> +	pr_info("KASAN init done\n");
+> 
+> Without "init_task.kasan_depth = 0;" kasan will not repot bugs.
+> 
+> There is test_kasan module. Make sure that it produce reports.
+> 
 
-Unfortunately, I don't have any reproducer for this crash yet.
+Thanks for the review.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com
+Now I get the following very early in boot, what does that mean ?
 
-kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
-Memory cgroup stats for /syz1: cache:28KB rss:274692KB rss_huge:190464KB  
-shmem:64KB mapped_file:0KB dirty:0KB writeback:0KB swap:0KB  
-inactive_anon:222780KB active_anon:4152KB inactive_file:0KB active_file:0KB  
-unevictable:47872KB
-oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=syz1,mems_allowed=0-1,oom_memcg=/syz1,task_memcg=/syz1,task=syz-executor1,pid=15858,uid=0
-Memory cgroup out of memory: Kill process 15858 (syz-executor1) score 1148  
-or sacrifice child
+[    0.000000] KASAN init done
+[    0.000000] 
 ==================================================================
-BUG: KASAN: use-after-free in oom_kill_process.cold+0x484/0x9d4  
-mm/oom_kill.c:978
-Read of size 8 at addr ffff8880595f6c40 by task syz-executor1/15817
-
-CPU: 1 PID: 15817 Comm: syz-executor1 Not tainted 5.0.0-rc2+ #29
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x1db/0x2d0 lib/dump_stack.c:113
-  print_address_description.cold+0x7c/0x20d mm/kasan/report.c:187
-  kasan_report.cold+0x1b/0x40 mm/kasan/report.c:317
-  __asan_report_load8_noabort+0x14/0x20 mm/kasan/generic_report.c:135
-  oom_kill_process.cold+0x484/0x9d4 mm/oom_kill.c:978
-  out_of_memory+0x885/0x1420 mm/oom_kill.c:1133
-  mem_cgroup_out_of_memory+0x160/0x210 mm/memcontrol.c:1393
-  mem_cgroup_oom mm/memcontrol.c:1721 [inline]
-  try_charge+0xd44/0x19b0 mm/memcontrol.c:2283
-  memcg_kmem_charge_memcg+0x7c/0x130 mm/memcontrol.c:2591
-  memcg_kmem_charge+0x13b/0x340 mm/memcontrol.c:2624
-  __alloc_pages_nodemask+0x7b8/0xdc0 mm/page_alloc.c:4559
-  __alloc_pages include/linux/gfp.h:473 [inline]
-  __alloc_pages_node include/linux/gfp.h:486 [inline]
-  alloc_pages_node include/linux/gfp.h:500 [inline]
-  alloc_thread_stack_node kernel/fork.c:246 [inline]
-  dup_task_struct kernel/fork.c:849 [inline]
-  copy_process+0x847/0x8710 kernel/fork.c:1753
-  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
-  __do_sys_clone kernel/fork.c:2334 [inline]
-  __se_sys_clone kernel/fork.c:2328 [inline]
-  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
-  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457ec9
-Code: 6d b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 3b b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007f36f091cc78 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 0000000000457ec9
-RDX: 9999999999999999 RSI: 0000000000000000 RDI: 0000000000000000
-RBP: 000000000073bf00 R08: ffffffffffffffff R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000246 R12: 00007f36f091d6d4
-R13: 00000000004be2a0 R14: 00000000004ce760 R15: 00000000ffffffff
-
-Allocated by task 15809:
-  save_stack+0x45/0xd0 mm/kasan/common.c:73
-  set_track mm/kasan/common.c:85 [inline]
-  __kasan_kmalloc mm/kasan/common.c:496 [inline]
-  __kasan_kmalloc.constprop.0+0xcf/0xe0 mm/kasan/common.c:469
-  kasan_kmalloc mm/kasan/common.c:504 [inline]
-  kasan_slab_alloc+0xf/0x20 mm/kasan/common.c:411
-  kmem_cache_alloc_node+0x144/0x710 mm/slab.c:3633
-  alloc_task_struct_node kernel/fork.c:158 [inline]
-  dup_task_struct kernel/fork.c:845 [inline]
-  copy_process+0x405b/0x8710 kernel/fork.c:1753
-  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
-  __do_sys_clone kernel/fork.c:2334 [inline]
-  __se_sys_clone kernel/fork.c:2328 [inline]
-  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
-  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-Freed by task 15817:
-  save_stack+0x45/0xd0 mm/kasan/common.c:73
-  set_track mm/kasan/common.c:85 [inline]
-  __kasan_slab_free+0x102/0x150 mm/kasan/common.c:458
-  kasan_slab_free+0xe/0x10 mm/kasan/common.c:466
-  __cache_free mm/slab.c:3487 [inline]
-  kmem_cache_free+0x86/0x260 mm/slab.c:3749
-  free_task_struct kernel/fork.c:163 [inline]
-  free_task+0x170/0x1f0 kernel/fork.c:458
-  __put_task_struct+0x2e0/0x630 kernel/fork.c:731
-  put_task_struct+0x4b/0x60 include/linux/sched/task.h:98
-  oom_kill_process.cold+0x93a/0x9d4 mm/oom_kill.c:990
-  out_of_memory+0x885/0x1420 mm/oom_kill.c:1133
-  mem_cgroup_out_of_memory+0x160/0x210 mm/memcontrol.c:1393
-  mem_cgroup_oom mm/memcontrol.c:1721 [inline]
-  try_charge+0xd44/0x19b0 mm/memcontrol.c:2283
-  memcg_kmem_charge_memcg+0x7c/0x130 mm/memcontrol.c:2591
-  memcg_kmem_charge+0x13b/0x340 mm/memcontrol.c:2624
-  __alloc_pages_nodemask+0x7b8/0xdc0 mm/page_alloc.c:4559
-  __alloc_pages include/linux/gfp.h:473 [inline]
-  __alloc_pages_node include/linux/gfp.h:486 [inline]
-  alloc_pages_node include/linux/gfp.h:500 [inline]
-  alloc_thread_stack_node kernel/fork.c:246 [inline]
-  dup_task_struct kernel/fork.c:849 [inline]
-  copy_process+0x847/0x8710 kernel/fork.c:1753
-  _do_fork+0x1a9/0x1170 kernel/fork.c:2227
-  __do_sys_clone kernel/fork.c:2334 [inline]
-  __se_sys_clone kernel/fork.c:2328 [inline]
-  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2328
-  do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-The buggy address belongs to the object at ffff8880595f6540
-  which belongs to the cache task_struct(33:syz1) of size 6080
-The buggy address is located 1792 bytes inside of
-  6080-byte region [ffff8880595f6540, ffff8880595f7d00)
-The buggy address belongs to the page:
-page:ffffea0001657d80 count:1 mapcount:0 mapping:ffff888091f65840 index:0x0  
-compound_mapcount: 0
-flags: 0x1fffc0000010200(slab|head)
-raw: 01fffc0000010200 ffffea00028b3288 ffffea0002612788 ffff888091f65840
-raw: 0000000000000000 ffff8880595f6540 0000000100000001 ffff888057fe2b00
-page dumped because: kasan: bad access detected
-page->mem_cgroup:ffff888057fe2b00
-
-Memory state around the buggy address:
-  ffff8880595f6b00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-  ffff8880595f6b80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> ffff8880595f6c00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-                                            ^
-  ffff8880595f6c80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-  ffff8880595f6d00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+[    0.000000] BUG: KASAN: unknown-crash in memblock_alloc_try_nid+0xd8/0xf0
+[    0.000000] Write of size 68 at addr c7ff5a90 by task swapper/0
+[    0.000000]
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 
+5.0.0-rc2-s3k-dev-00559-g88aa407c4bce #772
+[    0.000000] Call Trace:
+[    0.000000] [c094ded0] [c016c7e4] 
+print_address_description+0x1a0/0x2b8 (unreliable)
+[    0.000000] [c094df00] [c016caa0] kasan_report+0xe4/0x168
+[    0.000000] [c094df40] [c016b464] memset+0x2c/0x4c
+[    0.000000] [c094df60] [c08731f0] memblock_alloc_try_nid+0xd8/0xf0
+[    0.000000] [c094df90] [c0861f20] mmu_context_init+0x58/0xa0
+[    0.000000] [c094dfb0] [c085ca70] start_kernel+0x54/0x400
+[    0.000000] [c094dff0] [c0002258] start_here+0x44/0x9c
+[    0.000000]
+[    0.000000]
+[    0.000000] Memory state around the buggy address:
+[    0.000000]  c7ff5980: e2 a1 87 81 bd d4 a5 b5 f8 8d 89 e7 72 bc 20 24
+[    0.000000]  c7ff5a00: e7 b9 c1 c7 17 e9 b4 bd a4 d0 e7 a0 11 15 a5 b5
+[    0.000000] >c7ff5a80: b5 e1 83 a5 2d 65 31 3f f3 e5 a7 ef 34 b5 69 b5
+[    0.000000]                  ^
+[    0.000000]  c7ff5b00: 21 a5 c1 c1 b4 bf 2d e5 e5 c3 f5 91 e3 b8 a1 34
+[    0.000000]  c7ff5b80: ad ef 23 87 3d a6 ad b5 c3 c3 80 b7 ac b1 1f 37
+[    0.000000] 
 ==================================================================
-protocol 88fb is buggy, dev hsr_slave_0
-protocol 88fb is buggy, dev hsr_slave_1
-protocol 88fb is buggy, dev hsr_slave_0
-protocol 88fb is buggy, dev hsr_slave_1
+[    0.000000] Disabling lock debugging due to kernel taint
+[    0.000000] MMU: Allocated 76 bytes of context maps for 16 contexts
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 8176
+[    0.000000] Kernel command line: console=ttyCPM0,115200N8 
+ip=192.168.2.7:192.168.2.2::255.0.0.0:vgoip:eth0:off kgdboc=ttyCPM0
+[    0.000000] Dentry cache hash table entries: 16384 (order: 2, 65536 
+bytes)
+[    0.000000] Inode-cache hash table entries: 8192 (order: 1, 32768 bytes)
+[    0.000000] Memory: 99904K/131072K available (7376K kernel code, 528K 
+rwdata, 1168K rodata, 576K init, 4623K bss, 31168K reserved, 0K 
+cma-reserved)
+[    0.000000] Kernel virtual memory layout:
+[    0.000000]   * 0xffefc000..0xffffc000  : fixmap
+[    0.000000]   * 0xf7c00000..0xffc00000  : kasan shadow mem
+[    0.000000]   * 0xf7a00000..0xf7c00000  : consistent mem
+[    0.000000]   * 0xf7a00000..0xf7a00000  : early ioremap
+[    0.000000]   * 0xc9000000..0xf7a00000  : vmalloc & ioremap
 
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
-
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+Christophe
