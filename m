@@ -1,113 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 425668E0008
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 12:58:59 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id l17so2668386wme.1
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:58:59 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id x20si32279934wmh.163.2019.01.21.09.58.57
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AAB78E0008
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:00:33 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id g92-v6so5160382ljg.23
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:00:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o28sor3415146lfd.61.2019.01.21.10.00.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 09:58:57 -0800 (PST)
-Date: Mon, 21 Jan 2019 18:58:50 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 22/25] ACPI / APEI: Kick the memory_failure() queue
- for synchronous errors
-Message-ID: <20190121175850.GO29166@zn.tnic>
-References: <20181203180613.228133-1-james.morse@arm.com>
- <20181203180613.228133-23-james.morse@arm.com>
+        (Google Transport Security);
+        Mon, 21 Jan 2019 10:00:31 -0800 (PST)
+Date: Mon, 21 Jan 2019 21:00:29 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: + mm-thp-always-specify-disabled-vmas-as-nh-in-smaps.patch added
+ to -mm tree
+Message-ID: <20190121180029.GA2332@uranus.lan>
+References: <alpine.DEB.2.21.1812211419320.219499@chino.kir.corp.google.com>
+ <20181224080426.GC9063@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1812240058060.114867@chino.kir.corp.google.com>
+ <20181224091731.GB16738@dhcp22.suse.cz>
+ <20181227111114.5tvvkddyp7cytzeb@kshutemo-mobl1>
+ <20181227213100.aeee730c1f9ec5cb11de39a3@linux-foundation.org>
+ <20181228081847.GP16738@dhcp22.suse.cz>
+ <00ec4644-70c2-4bd1-ec3f-b994fa0669e8@suse.cz>
+ <20190115063202.GA13744@rapoport-lnx>
+ <20190121102144.GP4087@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20181203180613.228133-23-james.morse@arm.com>
+In-Reply-To: <20190121102144.GP4087@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, kirill.shutemov@linux.intel.com, adobriyan@gmail.com, Linux API <linux-api@vger.kernel.org>, Andrei Vagin <avagin@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM layout <linux-mm@kvack.org>
 
-On Mon, Dec 03, 2018 at 06:06:10PM +0000, James Morse wrote:
-> memory_failure() offlines or repairs pages of memory that have been
-> discovered to be corrupt. These may be detected by an external
-> component, (e.g. the memory controller), and notified via an IRQ.
-> In this case the work is queued as not all of memory_failure()s work
-> can happen in IRQ context.
-> 
-> If the error was detected as a result of user-space accessing a
-> corrupt memory location the CPU may take an abort instead. On arm64
-> this is a 'synchronous external abort', and on a firmware first
-> system it is replayed using NOTIFY_SEA.
-> 
-> This notification has NMI like properties, (it can interrupt
-> IRQ-masked code), so the memory_failure() work is queued. If we
-> return to user-space before the queued memory_failure() work is
-> processed, we will take the fault again. This loop may cause platform
-> firmware to exceed some threshold and reboot when Linux could have
-> recovered from this error.
-> 
-> If a ghes notification type indicates that it may be triggered again
-> when we return to user-space, use the task-work and notify-resume
-> hooks to kick the relevant memory_failure() queue before returning
-> to user-space.
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> 
-> ---
-> current->mm == &init_mm ? I couldn't find a helper for this.
-> The intent is not to set TIF flags on kernel threads. What happens
-> if a kernel-thread takes on of these? Its just one of the many
-> not-handled-very-well cases we have already, as memory_failure()
-> puts it: "try to be lucky".
-> 
-> I assume that if NOTIFY_NMI is coming from SMM it must suffer from
-> this problem too.
-
-Good question.
-
-I'm guessing all those things should be queued on a normal struct
-work_struct queue, no?
-
-Now, memory_failure_queue() does that and can run from IRQ context so
-you need only an irq_work which can queue from NMI context. We do it
-this way in the MCA code:
-
-We queue in an irq_work in NMI context and work through the items in
-process context.
-
-> ---
->  drivers/acpi/apei/ghes.c | 65 ++++++++++++++++++++++++++++++++++++----
->  1 file changed, 60 insertions(+), 5 deletions(-)
-
+On Mon, Jan 21, 2019 at 11:21:44AM +0100, Michal Hocko wrote:
 ...
+> > 
+> > The patch from David obviously breaks CRIU, and I can't see a nice solution
+> > that will work for everybody.
+> > 
+> > Of course we could add something like 'NH' to /proc/pid/smaps so that 'nh'
+> > will work as David's userspace is expecting and 'NH' will represent the
+> > state of VmFlags. This is hackish and ugly, though.
+> > 
+> > In any case, if David's patch is not reverted CRIU needs some way to know
+> > if VMA has VM_NOHUGEPAGE set.
+> 
+> Hmm, there doesn't seem to be any follow up here and the patch is still
+> in the mmotm tree AFAICS in mainline-urgent section. I thought it was
+> clarified that the patch will break an existing userspace that relies on
+> the documented semantic.
+> 
+> While it is unfortunate that the use case mentioned by David got broken
+> we have provided a long term sustainable which is much better than
+> relying on an undocumented side effect of the prctl implementation at
+> the time.
+> 
+> So can we make a decision on this finally please?
 
-> @@ -407,7 +447,22 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
->  
->  	if (flags != -1)
->  		memory_failure_queue(pfn, flags);
-> -#endif
-> +
-> +	/*
-> +	 * If the notification indicates that it was the interrupted
-> +	 * instruction that caused the error, try to kick the
-> +	 * memory_failure() queue before returning to user-space.
-> +	 */
-> +	if (ghes_is_synchronous(ghes) && current->mm != &init_mm) {
-> +		callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
-
-Can we avoid that GFP_ATOMIC allocation and kfree() in
-ghes_kick_memory_failure()?
-
-I mean, that struct ghes_memory_failure_work is small enough and we
-already do lockless allocation:
-
-	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
-
-so I guess we could add that ghes_memory_failure_work struct to that
-estatus_node, hand it into ghes_do_proc() and then free it.
-
-No?
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+As to me David's userspace application could use /proc/$pid/status
+to fetch precise THP state. And the patch in mm queue simply breaks
+others userspace thus should be reverted.
