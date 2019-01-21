@@ -1,32 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 500F38E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 16:53:25 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id p79so20469494qki.15
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:53:25 -0800 (PST)
-Received: from a9-36.smtp-out.amazonses.com (a9-36.smtp-out.amazonses.com. [54.240.9.36])
-        by mx.google.com with ESMTPS id o89si3159903qvo.208.2019.01.21.13.53.24
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C9A1D8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 17:02:37 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id b16so21929768qtc.22
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 14:02:37 -0800 (PST)
+Received: from a9-34.smtp-out.amazonses.com (a9-34.smtp-out.amazonses.com. [54.240.9.34])
+        by mx.google.com with ESMTPS id b6si2305201qtq.62.2019.01.21.14.02.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 21 Jan 2019 13:53:24 -0800 (PST)
-Date: Mon, 21 Jan 2019 21:53:24 +0000
+        Mon, 21 Jan 2019 14:02:37 -0800 (PST)
+Date: Mon, 21 Jan 2019 22:02:36 +0000
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 6/6] drivers/IB,core: reduce scope of mmap_sem
-In-Reply-To: <20190121174220.10583-7-dave@stgolabs.net>
-Message-ID: <01000168726760d6-6c4f2b48-870e-4a46-846b-3bb3d324000d-000000@email.amazonses.com>
-References: <20190121174220.10583-1-dave@stgolabs.net> <20190121174220.10583-7-dave@stgolabs.net>
+Subject: Re: [PATCH] mm/slub: use WARN_ON() for some slab errors
+In-Reply-To: <1548063490-545-1-git-send-email-miles.chen@mediatek.com>
+Message-ID: <01000168726fcf15-81d8feb3-26f0-44d6-bbd8-62aa149118b5-000000@email.amazonses.com>
+References: <1548063490-545-1-git-send-email-miles.chen@mediatek.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: akpm@linux-foundation.org, dledford@redhat.com, jgg@mellanox.com, jack@suse.de, ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
+To: Miles Chen <miles.chen@mediatek.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mediatek@lists.infradead.org
 
-On Mon, 21 Jan 2019, Davidlohr Bueso wrote:
+On Mon, 21 Jan 2019, miles.chen@mediatek.com wrote:
 
-> ib_umem_get() uses gup_longterm() and relies on the lock to
-> stabilze the vma_list, so we cannot really get rid of mmap_sem
-> altogether, but now that the counter is atomic, we can get of
-> some complexity that mmap_sem brings with only pinned_vm.
+> From: Miles Chen <miles.chen@mediatek.com>
+>
+> When debugging with slub.c, sometimes we have to trigger a panic in
+> order to get the coredump file. To do that, we have to modify slub.c and
+> rebuild kernel. To make debugging easier, use WARN_ON() for these slab
+> errors so we can dump stack trace by default or set panic_on_warn to
+> trigger a panic.
 
-Reviewd-by: Christoph Lameter <cl@linux.com>
+These locations really should dump stack and not terminate. There is
+subsequent processing that should be done.
+
+Slub terminates by default. The messages you are modifying are only
+enabled if the user specified that special debugging should be one
+(typically via a kernel parameter slub_debug).
+
+It does not make sense to terminate the process here.
