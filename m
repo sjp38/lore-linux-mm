@@ -2,156 +2,250 @@ Return-Path: <SRS0=AzIT=P5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDAADC282F6
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:38:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20E17C282F6
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:54:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B2E52085A
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:38:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B2E52085A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id D15F52084A
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:54:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D15F52084A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4167B8E0007; Mon, 21 Jan 2019 04:38:25 -0500 (EST)
+	id 84FA38E0005; Mon, 21 Jan 2019 04:54:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C5A98E0001; Mon, 21 Jan 2019 04:38:25 -0500 (EST)
+	id 7D8998E0001; Mon, 21 Jan 2019 04:54:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 267A48E0007; Mon, 21 Jan 2019 04:38:25 -0500 (EST)
+	id 679638E0005; Mon, 21 Jan 2019 04:54:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D59FD8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:38:24 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id t2so15567090pfj.15
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:38:24 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 391258E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:54:49 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id p128so9579754oib.2
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:54:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version;
-        bh=40fkhlvKt3exakgkZBKxTVwjvkc8X48HNmJX/i05Pkk=;
-        b=N6XhQMMF+Y388TVletq7gfPu2ILkwWMZ9h0yRUJCMA1kTKO3/S0zW0TKtE6GmO8vjX
-         6Y/bH3PxNxrq6nN+KoZu4j51ZjECS1axK139kolg4+CiGxOxKw1xy3CA95oSRJUOVPId
-         eFKwCtiQlmo5mgyKYmekWw/tTHAu4xbslYUG3Pl1/5oOJUxYXRHUTuAs74uxSaBl2m43
-         MOKb2e5UaoQsUvwtvBr+EeBJsyoA7ljgA/ZmUoBlq9fu0vQEnvGnGYtw/kdMoiQvsF4p
-         tM6h+Kt0WVV2dNkYlzw/48TxL3DG/NdffeDLJZ+DfzuDqEv6RAeUmJhG14HNR7EzuW27
-         J7/Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-X-Gm-Message-State: AJcUukdkAVNS64WIx557naXaoOrAjOA8rfDpi7YVZIxozq/C1D5B9g1N
-	vTBstpqrOUOy3neb3lG7p8Ir9X4Z3IkaFRmIzcMc1Ccs4GdGsvjhxyP4bqWwVsV6+bf0PJLKVaX
-	bjuq52gL9L2AZjKoQ/WRSG9mtismC/wXqjWZ23IIeRc0376JIK9QESehr1dFQmAa6Mg==
-X-Received: by 2002:a65:434d:: with SMTP id k13mr27824030pgq.269.1548063504551;
-        Mon, 21 Jan 2019 01:38:24 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4mq3I/Zk/niQRTruEPb3P8FCpxEi6yf/Q0vjYNjvXdxL6VyXem/UzeNTKREPI/AWoXuuHP
-X-Received: by 2002:a65:434d:: with SMTP id k13mr27823995pgq.269.1548063503853;
-        Mon, 21 Jan 2019 01:38:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548063503; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=87CvBlMDEwsgkgwxIumJcsJNusyqa2h8QasIs0SSQ4A=;
+        b=QxWKXJcnGJJE/vMJ/HSiDIWfq+2GlwTXjE9ZrLvFcZC/OkEbCgQ1wX+ICY9dyX31KP
+         IwGfizGO8yQPT/g2s48b1nh6MpmFOekKfclq4GNTr7Xdd//DbIMuvHCqGlIK5CeOgT8r
+         YnwRLRDyZJ4mp0k/jNUV7n6YJMWTWiDflBVIgEdEA1kTqha6Wqe64kqZeWPZkxOZqsns
+         AP0mlw7TLvlPyV+UQjyVp7LTcrOqsPDZKt1Uh4lLZOidgjfO99y6uLdQDpqkIV3bRyj+
+         kwrzhKyrltzixmq+bFOM/QNmN2C0Qz8zzCA3SKs4aTQ6S9vLdrx3fKgf5uz4A+8VIoqi
+         d8zQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukeyc+88Yl1Q7QlcZ4UGGmApU4F/ks9hpcM/BNGNcR/1tT4FeQ2y
+	UTKblGlbMfdvQs5Kbemo+X4LK3yRCiq/c29PqZQItMRt7RBlLhH/BtOHiPIx9NiDDKaJqSKULFK
+	/NxVSenuDrTd/XfKP3EniAXrjJR2F2nKjdzBGZhTLv3M4Yl3acxtBX7e7Ik97Bnr9SnBH3PEIs2
+	7WXn8mGH9yaNnBCSLrjsToTnGO/9TomXQvNYrjLNOrt97CBkB4yZpzPjOk10ncsDGv1d3F9S+Hh
+	LlVGvmljT6xF5nN2z2qjDqRYtylVh9/L0ECJsIOKRgsrMOD1GsnQnGfpoy+tEP9DVviHAXsWzqh
+	+lLCiDjKBZ/4EIoNs/5gZdQpdsxT24Wz1BoVbvbWvdyMNK8VStL4lL4jEs4yKTc5DhOkGg7M8Q=
+	=
+X-Received: by 2002:a05:6830:1414:: with SMTP id v20mr19292763otp.125.1548064488804;
+        Mon, 21 Jan 2019 01:54:48 -0800 (PST)
+X-Received: by 2002:a05:6830:1414:: with SMTP id v20mr19292741otp.125.1548064487906;
+        Mon, 21 Jan 2019 01:54:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548064487; cv=none;
         d=google.com; s=arc-20160816;
-        b=N+LqFT+pVbk/1fFRFnWtSkNK2NpplI4ijgyCK1crrwH4QEpmuWbgyb1JbG+UDlFWDw
-         DgMLKE9ATFWjwNNCFnKTez4PBEJVqAV1Gmfz6StsH7o8NKRq33ajer7OqtNEvVfselVL
-         rQGuatIWXB2Yy0/aGBjEqM1Rubnc2BOLd7ndGKFfUm7CuabeaFSP3GumzkDrmmXrvO98
-         g9AZ79cXwqXnd3pK3GARKwmNppFphoqcbVIQsqtQIFQ2969fKnDp2gUI5bSd2IWnuOfb
-         7Pv+R4ma71gmmpHANpSAEtlzzj6yNJDO8K+S85vlI+CyNFpA94l7Vs8ynnpct/Lgze8j
-         hC+A==
+        b=Fy4m9UZ9akj2rYBATEExywy3hewdgKu6dVvFm7Pn1aQ8xY8boy19a/iZkN0Zl5FHMu
+         F743lRMdSQcYsAKt8gPSSnjk/GM8eN110kyrDGF9q0I3/CbE4iXrELthcSc2A5hFU1t6
+         76cNwEJk548T8GADh9jEb7O8QPDeG/GB/8IZFUzYzNE1857CMBDgD+KwW1n5frxPjwco
+         rdNAGGRyahVVqL9TYfxtljmZrnFFjXWVlJoOk9x03GbYsnaNaGaBuT5wnPIQosEeo85I
+         UbHJzi7GRDCW7xjO2DXQ7a7rh5u2VGG1WXYoAE5OuIVnBH+vzO1yKmJqYgrYOeEJ7cFy
+         jGaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from;
-        bh=40fkhlvKt3exakgkZBKxTVwjvkc8X48HNmJX/i05Pkk=;
-        b=fsm5x6N98sa07LEBGmDAZFvS1SsAN+/HsjyEq8H292K5Q6kNZ+dU1fn4XrSNPP39NB
-         0O7ykED17frB8/9KK/naCxrBC6lYwx+23AZLxRbQryB9QyW/OWcgC4W4GejT7FHHdWwn
-         UNNihi04Y9T2afOaWgxtYMJcSRG/Vvj+RsA++UP5HNv2fIxoQaSNGoCQajwDFtpeCTjh
-         I8KNNgTeAiQhG6lweIdxtR3z4Ajqb2Emn6yK3X55gBFPD7OVDHt0krxjWLFx5/yQ3A2M
-         GMtz5UMXkeRvwD0QzgTmCEHB4TRqJSusUtzRLftslYKvr1Li/K0BxidT2Pd0vsYFroi3
-         Qszw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=87CvBlMDEwsgkgwxIumJcsJNusyqa2h8QasIs0SSQ4A=;
+        b=YmJki/KcIWtR5UIVBM5Pv40hgRg7I6ZxjhMC2IQzMikKBVJ21tf3Cn60ELv5mSoM9x
+         zSVz8laTmXJbFZa/8s7kov37GWk1fTEfHOLfgHvvbOk9r8qm71jzIFGpEMuM9lJ7LSDj
+         G4Tua+jIiko6ld3pfTEIVF68bSXKWbRknDsSMTRDuDuoo7XdfW6YmKTsS+oJwvrDpPqo
+         GKpngSsQP1wFZCuSSu7K7yuqlK0EbQihxbGeNmneZ7uX57oBmJCNpjsT9lKpr+wMxbwu
+         oyLbjU+EPiIAEFg6ej00VIpVMG1UzqvgjzE62LKVWi5vQB35vzYpDXzez7BKCFJCah08
+         2mpA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id e69si11679964pfg.137.2019.01.21.01.38.23
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 9sor7312997otx.20.2019.01.21.01.54.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 01:38:23 -0800 (PST)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
+        (Google Transport Security);
+        Mon, 21 Jan 2019 01:54:47 -0800 (PST)
+Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-X-UUID: e39555a8435f4724bbf3fb08b876d1b3-20190121
-X-UUID: e39555a8435f4724bbf3fb08b876d1b3-20190121
-Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw01.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1215981584; Mon, 21 Jan 2019 17:38:14 +0800
-Received: from mtkcas09.mediatek.inc (172.21.101.178) by
- mtkmbs08n2.mediatek.inc (172.21.101.56) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Mon, 21 Jan 2019 17:38:12 +0800
-Received: from mtksdccf07.mediatek.inc (172.21.84.99) by mtkcas09.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Mon, 21 Jan 2019 17:38:12 +0800
-From: <miles.chen@mediatek.com>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David
- Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew
- Morton <akpm@linux-foundation.org>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	<linux-mediatek@lists.infradead.org>, Miles Chen <miles.chen@mediatek.com>
-Subject: [PATCH] mm/slub: use WARN_ON() for some slab errors
-Date: Mon, 21 Jan 2019 17:38:10 +0800
-Message-ID: <1548063490-545-1-git-send-email-miles.chen@mediatek.com>
-X-Mailer: git-send-email 1.9.1
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: ALg8bN4mJs+6oxIzHvFyi0JOQGxKe9bm5Y+j398WmftB5+ZxWAZB4K5N/Q/mstdx262rofIvON8ZuUBDmRxa8zX/J3g=
+X-Received: by 2002:a9d:2062:: with SMTP id n89mr17828386ota.244.1548064487351;
+ Mon, 21 Jan 2019 01:54:47 -0800 (PST)
 MIME-Version: 1.0
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-6-keith.busch@intel.com>
+ <CAJZ5v0jmkyrNBHzqHsOuWjLXF34tq83VnEhdBWrdFqxyiXC=cw@mail.gmail.com>
+ <CAPcyv4gH0_e_NFJNOFH4XXarSs7+TOj4nT0r-D33ZGNCfqBdxg@mail.gmail.com>
+ <20190119090129.GC10836@kroah.com> <CAPcyv4jijnkW6E=0gpT3-qy5uOgTV-D7AN+CAu7mmdrRKGHvFg@mail.gmail.com>
+ <CAJZ5v0hS8Mb-BZuzztTt9D0Rd0TPzMcod48Ev-8HCZg07BP6fw@mail.gmail.com> <CAPcyv4jsOQZxdk4TENFwanqgmqEJhGegbzrkN6q8EEsTu=UNGA@mail.gmail.com>
+In-Reply-To: <CAPcyv4jsOQZxdk4TENFwanqgmqEJhGegbzrkN6q8EEsTu=UNGA@mail.gmail.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Mon, 21 Jan 2019 10:54:33 +0100
+Message-ID:
+ <CAJZ5v0j+GsHZoifmbO_vX=a8VnFPvwuZr5GRyaVRNuHgHgtcrA@mail.gmail.com>
+Subject: Re: [PATCHv4 05/13] Documentation/ABI: Add new node sysfs attributes
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Keith Busch <keith.busch@intel.com>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
 Content-Type: text/plain; charset="UTF-8"
-X-TM-SNTS-SMTP:
-	22854B56D5FA26CFEBB0D7CFF0AD17A8FEB7B10791F002CBBB518968530C57542000:8
-X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190121093810.dRNQl2F9uM_XMaEDKikrcgJ3QzimgBID_Jg4g3971oA@z>
+Message-ID: <20190121095433.7LxU2L_sP1FV0xBH-cumDfXqD1dQQZjOjuDnvLf6YNs@z>
 
-From: Miles Chen <miles.chen@mediatek.com>
+On Sun, Jan 20, 2019 at 6:34 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Sun, Jan 20, 2019 at 8:20 AM Rafael J. Wysocki <rafael@kernel.org> wrote:
+> >
+> > On Sat, Jan 19, 2019 at 5:56 PM Dan Williams <dan.j.williams@intel.com> wrote:
+> > >
+> > > On Sat, Jan 19, 2019 at 1:01 AM Greg Kroah-Hartman
+> > > <gregkh@linuxfoundation.org> wrote:
+> > > >
+> > > > On Fri, Jan 18, 2019 at 01:08:02PM -0800, Dan Williams wrote:
+> > > > > On Thu, Jan 17, 2019 at 3:41 AM Rafael J. Wysocki <rafael@kernel.org> wrote:
+> > > > > >
+> > > > > > On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+> > > > > > >
+> > > > > > > Add entries for memory initiator and target node class attributes.
+> > > > > > >
+> > > > > > > Signed-off-by: Keith Busch <keith.busch@intel.com>
+> > > > > >
+> > > > > > I would recommend combining this with the previous patch, as the way
+> > > > > > it is now I need to look at two patches at the time. :-)
+> > > > > >
+> > > > > > > ---
+> > > > > > >  Documentation/ABI/stable/sysfs-devices-node | 25 ++++++++++++++++++++++++-
+> > > > > > >  1 file changed, 24 insertions(+), 1 deletion(-)
+> > > > > > >
+> > > > > > > diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> > > > > > > index 3e90e1f3bf0a..a9c47b4b0eee 100644
+> > > > > > > --- a/Documentation/ABI/stable/sysfs-devices-node
+> > > > > > > +++ b/Documentation/ABI/stable/sysfs-devices-node
+> > > > > > > @@ -90,4 +90,27 @@ Date:                December 2009
+> > > > > > >  Contact:       Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > > > > > >  Description:
+> > > > > > >                 The node's huge page size control/query attributes.
+> > > > > > > -               See Documentation/admin-guide/mm/hugetlbpage.rst
+> > > > > > > \ No newline at end of file
+> > > > > > > +               See Documentation/admin-guide/mm/hugetlbpage.rst
+> > > > > > > +
+> > > > > > > +What:          /sys/devices/system/node/nodeX/classY/
+> > > > > > > +Date:          December 2018
+> > > > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > > > +Description:
+> > > > > > > +               The node's relationship to other nodes for access class "Y".
+> > > > > > > +
+> > > > > > > +What:          /sys/devices/system/node/nodeX/classY/initiator_nodelist
+> > > > > > > +Date:          December 2018
+> > > > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > > > +Description:
+> > > > > > > +               The node list of memory initiators that have class "Y" access
+> > > > > > > +               to this node's memory. CPUs and other memory initiators in
+> > > > > > > +               nodes not in the list accessing this node's memory may have
+> > > > > > > +               different performance.
+> > > > > >
+> > > > > > This does not follow the general "one value per file" rule of sysfs (I
+> > > > > > know that there are other sysfs files with more than one value in
+> > > > > > them, but it is better to follow this rule as long as that makes
+> > > > > > sense).
+> > > > > >
+> > > > > > > +
+> > > > > > > +What:          /sys/devices/system/node/nodeX/classY/target_nodelist
+> > > > > > > +Date:          December 2018
+> > > > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > > > +Description:
+> > > > > > > +               The node list of memory targets that this initiator node has
+> > > > > > > +               class "Y" access. Memory accesses from this node to nodes not
+> > > > > > > +               in this list may have differet performance.
+> > > > > > > --
+> > > > > >
+> > > > > > Same here.
+> > > > > >
+> > > > > > And if you follow the recommendation given in the previous message
+> > > > > > (add "initiators" and "targets" subdirs under "classX"), you won't
+> > > > > > even need the two files above.
+> > > > >
+> > > > > This recommendation is in conflict with Greg's feedback about kobject
+> > > > > usage. If these are just "vanity" subdirs I think it's better to have
+> > > > > a multi-value sysfs file. This "list" style is already commonplace for
+> > > > > the /sys/devices/system hierarchy.
+> > > >
+> > > > If you do a subdirectory "correctly" (i.e. a name for an attribute
+> > > > group), that's fine.  Just do not ever create a kobject just for a
+> > > > subdir, that will mess up userspace.
+> > > >
+> > > > And I hate the "multi-value" sysfs files, where at all possible, please
+> > > > do not copy past bad mistakes there.  If you can make them individual
+> > > > files, please do that, it makes it easier to maintain and code the
+> > > > kernel for.
+> > >
+> > > I agree in general about multi-value sysfs, but in this case we're
+> > > talking about a mask. Masks are a single value. That said I can get on
+> > > board with calling what 'cpulist' does a design mistake (human
+> > > readable mask), but otherwise switching to one file per item in the
+> > > mask is a mess for userspace to consume.
+> >
+> > Can you please refer to my response to Keith?
+>
+> Ah, ok I missed the patch4 comments and was reading this one in
+> isolation... which also bolsters your comment about squashing these
+> two patches together.
+>
+> > If you have "initiators" and "targets" under "classX" and a list of
+> > symlinks in each of them, I don't see any kind of a mess here.
+>
+> In this instance, I think having symlinks at all is "messy" vs just
+> having a mask. Yes, you're right, if we have the proposed symlinks
+> from patch4 there is no need for these _nodelist attributes, and those
+> symlinks would be better under "initiator" and "target" directories.
+> However, I'm arguing going the other way, just have the 2 mask
+> attributes and no symlinks. The HMAT erodes the concept of "numa
+> nodes" typically being a single digit number space per platform. Given
+> increasing numbers of memory target types and initiator devices its
+> going to be cumbersome to have userspace walk multiple symlinks vs
+> just reading a mask and opening the canonical path for a node
+> directly.
 
-When debugging with slub.c, sometimes we have to trigger a panic in
-order to get the coredump file. To do that, we have to modify slub.c and
-rebuild kernel. To make debugging easier, use WARN_ON() for these slab
-errors so we can dump stack trace by default or set panic_on_warn to
-trigger a panic.
+The symlinks only need to be walked once, however, and after walking
+them (once) the user space program can simply create a mask for
+itself.
 
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- mm/slub.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+To me, the question here is how to represent a graph in a filesystem,
+and since nodes are naturally represented by directories, it is also
+natural to represent connections between them as symlinks.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 1e3d0ec4e200..e48c3bb30c93 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -684,7 +684,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
- 		print_section(KERN_ERR, "Padding ", p + off,
- 			      size_from_object(s) - off);
- 
--	dump_stack();
-+	WARN_ON(1);
- }
- 
- void object_err(struct kmem_cache *s, struct page *page,
-@@ -705,7 +705,7 @@ static __printf(3, 4) void slab_err(struct kmem_cache *s, struct page *page,
- 	va_end(args);
- 	slab_bug(s, "%s", buf);
- 	print_page_info(page);
--	dump_stack();
-+	WARN_ON(1);
- }
- 
- static void init_object(struct kmem_cache *s, void *object, u8 val)
-@@ -1690,7 +1690,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 		flags &= ~GFP_SLAB_BUG_MASK;
- 		pr_warn("Unexpected gfp: %#x (%pGg). Fixing up to gfp: %#x (%pGg). Fix your code!\n",
- 				invalid_mask, &invalid_mask, flags, &flags);
--		dump_stack();
-+		WARN_ON(1);
- 	}
- 
- 	return allocate_slab(s,
--- 
-2.18.0
+> This is also part of the rationale for only emitting one "class"
+> (initiator / target performance profile) by default. There's an N-to-N
+> initiator-target description in the HMAT. When / if we decide emit
+> more classes the more work userspace would need to do to convert
+> directory structures back into data.
+
+I'm not convinced by this argument, as this conversion is a one-off
+exercise.  Ultimately, a tool in user space would need to represent a
+graph anyway and how it obtains the data to do that doesn't matter too
+much to it.
+
+However, IMO there is value in representing the graph in a filesystem
+in such a way that, say, a file manager program (without special
+modifications) can be used to walk it by a human.
+
+Let alone the one-value-per-file rule of sysfs that doesn't need to be
+violated if symlinks are used.
 
