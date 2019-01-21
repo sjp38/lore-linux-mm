@@ -1,225 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6FE8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 02:59:28 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id y83so18336283qka.7
-        for <linux-mm@kvack.org>; Sun, 20 Jan 2019 23:59:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q123si1306828qke.124.2019.01.20.23.59.27
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 391258E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:54:49 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id p128so9579754oib.2
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:54:49 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 9sor7312997otx.20.2019.01.21.01.54.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Jan 2019 23:59:27 -0800 (PST)
-From: Peter Xu <peterx@redhat.com>
-Subject: [PATCH RFC 14/24] userfaultfd: wp: apply _PAGE_UFFD_WP bit
-Date: Mon, 21 Jan 2019 15:57:12 +0800
-Message-Id: <20190121075722.7945-15-peterx@redhat.com>
-In-Reply-To: <20190121075722.7945-1-peterx@redhat.com>
-References: <20190121075722.7945-1-peterx@redhat.com>
+        (Google Transport Security);
+        Mon, 21 Jan 2019 01:54:47 -0800 (PST)
+MIME-Version: 1.0
+References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-6-keith.busch@intel.com>
+ <CAJZ5v0jmkyrNBHzqHsOuWjLXF34tq83VnEhdBWrdFqxyiXC=cw@mail.gmail.com>
+ <CAPcyv4gH0_e_NFJNOFH4XXarSs7+TOj4nT0r-D33ZGNCfqBdxg@mail.gmail.com>
+ <20190119090129.GC10836@kroah.com> <CAPcyv4jijnkW6E=0gpT3-qy5uOgTV-D7AN+CAu7mmdrRKGHvFg@mail.gmail.com>
+ <CAJZ5v0hS8Mb-BZuzztTt9D0Rd0TPzMcod48Ev-8HCZg07BP6fw@mail.gmail.com> <CAPcyv4jsOQZxdk4TENFwanqgmqEJhGegbzrkN6q8EEsTu=UNGA@mail.gmail.com>
+In-Reply-To: <CAPcyv4jsOQZxdk4TENFwanqgmqEJhGegbzrkN6q8EEsTu=UNGA@mail.gmail.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Mon, 21 Jan 2019 10:54:33 +0100
+Message-ID: <CAJZ5v0j+GsHZoifmbO_vX=a8VnFPvwuZr5GRyaVRNuHgHgtcrA@mail.gmail.com>
+Subject: Re: [PATCHv4 05/13] Documentation/ABI: Add new node sysfs attributes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, peterx@redhat.com, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Keith Busch <keith.busch@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
 
-Firstly, introduce two new flags MM_CP_UFFD_WP[_RESOLVE] for
-change_protection() when used with uffd-wp and make sure the two new
-flags are exclusively used.  Then,
+On Sun, Jan 20, 2019 at 6:34 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Sun, Jan 20, 2019 at 8:20 AM Rafael J. Wysocki <rafael@kernel.org> wrote:
+> >
+> > On Sat, Jan 19, 2019 at 5:56 PM Dan Williams <dan.j.williams@intel.com> wrote:
+> > >
+> > > On Sat, Jan 19, 2019 at 1:01 AM Greg Kroah-Hartman
+> > > <gregkh@linuxfoundation.org> wrote:
+> > > >
+> > > > On Fri, Jan 18, 2019 at 01:08:02PM -0800, Dan Williams wrote:
+> > > > > On Thu, Jan 17, 2019 at 3:41 AM Rafael J. Wysocki <rafael@kernel.org> wrote:
+> > > > > >
+> > > > > > On Wed, Jan 16, 2019 at 6:59 PM Keith Busch <keith.busch@intel.com> wrote:
+> > > > > > >
+> > > > > > > Add entries for memory initiator and target node class attributes.
+> > > > > > >
+> > > > > > > Signed-off-by: Keith Busch <keith.busch@intel.com>
+> > > > > >
+> > > > > > I would recommend combining this with the previous patch, as the way
+> > > > > > it is now I need to look at two patches at the time. :-)
+> > > > > >
+> > > > > > > ---
+> > > > > > >  Documentation/ABI/stable/sysfs-devices-node | 25 ++++++++++++++++++++++++-
+> > > > > > >  1 file changed, 24 insertions(+), 1 deletion(-)
+> > > > > > >
+> > > > > > > diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> > > > > > > index 3e90e1f3bf0a..a9c47b4b0eee 100644
+> > > > > > > --- a/Documentation/ABI/stable/sysfs-devices-node
+> > > > > > > +++ b/Documentation/ABI/stable/sysfs-devices-node
+> > > > > > > @@ -90,4 +90,27 @@ Date:                December 2009
+> > > > > > >  Contact:       Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > > > > > >  Description:
+> > > > > > >                 The node's huge page size control/query attributes.
+> > > > > > > -               See Documentation/admin-guide/mm/hugetlbpage.rst
+> > > > > > > \ No newline at end of file
+> > > > > > > +               See Documentation/admin-guide/mm/hugetlbpage.rst
+> > > > > > > +
+> > > > > > > +What:          /sys/devices/system/node/nodeX/classY/
+> > > > > > > +Date:          December 2018
+> > > > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > > > +Description:
+> > > > > > > +               The node's relationship to other nodes for access class "Y".
+> > > > > > > +
+> > > > > > > +What:          /sys/devices/system/node/nodeX/classY/initiator_nodelist
+> > > > > > > +Date:          December 2018
+> > > > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > > > +Description:
+> > > > > > > +               The node list of memory initiators that have class "Y" access
+> > > > > > > +               to this node's memory. CPUs and other memory initiators in
+> > > > > > > +               nodes not in the list accessing this node's memory may have
+> > > > > > > +               different performance.
+> > > > > >
+> > > > > > This does not follow the general "one value per file" rule of sysfs (I
+> > > > > > know that there are other sysfs files with more than one value in
+> > > > > > them, but it is better to follow this rule as long as that makes
+> > > > > > sense).
+> > > > > >
+> > > > > > > +
+> > > > > > > +What:          /sys/devices/system/node/nodeX/classY/target_nodelist
+> > > > > > > +Date:          December 2018
+> > > > > > > +Contact:       Keith Busch <keith.busch@intel.com>
+> > > > > > > +Description:
+> > > > > > > +               The node list of memory targets that this initiator node has
+> > > > > > > +               class "Y" access. Memory accesses from this node to nodes not
+> > > > > > > +               in this list may have differet performance.
+> > > > > > > --
+> > > > > >
+> > > > > > Same here.
+> > > > > >
+> > > > > > And if you follow the recommendation given in the previous message
+> > > > > > (add "initiators" and "targets" subdirs under "classX"), you won't
+> > > > > > even need the two files above.
+> > > > >
+> > > > > This recommendation is in conflict with Greg's feedback about kobject
+> > > > > usage. If these are just "vanity" subdirs I think it's better to have
+> > > > > a multi-value sysfs file. This "list" style is already commonplace for
+> > > > > the /sys/devices/system hierarchy.
+> > > >
+> > > > If you do a subdirectory "correctly" (i.e. a name for an attribute
+> > > > group), that's fine.  Just do not ever create a kobject just for a
+> > > > subdir, that will mess up userspace.
+> > > >
+> > > > And I hate the "multi-value" sysfs files, where at all possible, please
+> > > > do not copy past bad mistakes there.  If you can make them individual
+> > > > files, please do that, it makes it easier to maintain and code the
+> > > > kernel for.
+> > >
+> > > I agree in general about multi-value sysfs, but in this case we're
+> > > talking about a mask. Masks are a single value. That said I can get on
+> > > board with calling what 'cpulist' does a design mistake (human
+> > > readable mask), but otherwise switching to one file per item in the
+> > > mask is a mess for userspace to consume.
+> >
+> > Can you please refer to my response to Keith?
+>
+> Ah, ok I missed the patch4 comments and was reading this one in
+> isolation... which also bolsters your comment about squashing these
+> two patches together.
+>
+> > If you have "initiators" and "targets" under "classX" and a list of
+> > symlinks in each of them, I don't see any kind of a mess here.
+>
+> In this instance, I think having symlinks at all is "messy" vs just
+> having a mask. Yes, you're right, if we have the proposed symlinks
+> from patch4 there is no need for these _nodelist attributes, and those
+> symlinks would be better under "initiator" and "target" directories.
+> However, I'm arguing going the other way, just have the 2 mask
+> attributes and no symlinks. The HMAT erodes the concept of "numa
+> nodes" typically being a single digit number space per platform. Given
+> increasing numbers of memory target types and initiator devices its
+> going to be cumbersome to have userspace walk multiple symlinks vs
+> just reading a mask and opening the canonical path for a node
+> directly.
 
-  - For MM_CP_UFFD_WP: apply the _PAGE_UFFD_WP bit and remove _PAGE_RW
-    when a range of memory is write protected by uffd
+The symlinks only need to be walked once, however, and after walking
+them (once) the user space program can simply create a mask for
+itself.
 
-  - For MM_CP_UFFD_WP_RESOLVE: remove the _PAGE_UFFD_WP bit and recover
-    _PAGE_RW when write protection is resolved from userspace
+To me, the question here is how to represent a graph in a filesystem,
+and since nodes are naturally represented by directories, it is also
+natural to represent connections between them as symlinks.
 
-And use this new interface in mwriteprotect_range() to replace the old
-MM_CP_DIRTY_ACCT.
+> This is also part of the rationale for only emitting one "class"
+> (initiator / target performance profile) by default. There's an N-to-N
+> initiator-target description in the HMAT. When / if we decide emit
+> more classes the more work userspace would need to do to convert
+> directory structures back into data.
 
-Do this change for both PTEs and huge PMDs.  Then we can start to
-identify which PTE/PMD is write protected by general (e.g., COW or soft
-dirty tracking), and which is for userfaultfd-wp.
+I'm not convinced by this argument, as this conversion is a one-off
+exercise.  Ultimately, a tool in user space would need to represent a
+graph anyway and how it obtains the data to do that doesn't matter too
+much to it.
 
-Since we should keep the _PAGE_UFFD_WP when doing pte_modify(), add it
-into _PAGE_CHG_MASK as well.  Meanwhile, since we have this new bit, we
-can be even more strict when detecting uffd-wp page faults in either
-do_wp_page() or wp_huge_pmd().
+However, IMO there is value in representing the graph in a filesystem
+in such a way that, say, a file manager program (without special
+modifications) can be used to walk it by a human.
 
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
- arch/x86/include/asm/pgtable_types.h |  2 +-
- include/linux/mm.h                   |  5 +++++
- mm/huge_memory.c                     | 14 +++++++++++++-
- mm/memory.c                          |  4 ++--
- mm/mprotect.c                        | 12 ++++++++++++
- mm/userfaultfd.c                     | 10 +++++++---
- 6 files changed, 40 insertions(+), 7 deletions(-)
-
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 163043ab142d..d6972b4c6abc 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -133,7 +133,7 @@
-  */
- #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
- 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
--			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP)
-+			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP | _PAGE_UFFD_WP)
- #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
- 
- /*
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 452fcc31fa29..89345b51d8bd 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1599,6 +1599,11 @@ extern unsigned long move_page_tables(struct vm_area_struct *vma,
- #define  MM_CP_DIRTY_ACCT                  (1UL << 0)
- /* Whether this protection change is for NUMA hints */
- #define  MM_CP_PROT_NUMA                   (1UL << 1)
-+/* Whether this change is for write protecting */
-+#define  MM_CP_UFFD_WP                     (1UL << 2) /* do wp */
-+#define  MM_CP_UFFD_WP_RESOLVE             (1UL << 3) /* Resolve wp */
-+#define  MM_CP_UFFD_WP_ALL                 (MM_CP_UFFD_WP | \
-+					    MM_CP_UFFD_WP_RESOLVE)
- 
- extern unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
- 			      unsigned long end, pgprot_t newprot,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index be8160bb7cac..169795c8e56c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1864,6 +1864,8 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 	bool preserve_write;
- 	int ret;
- 	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
-+	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
-+	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
- 
- 	ptl = __pmd_trans_huge_lock(pmd, vma);
- 	if (!ptl)
-@@ -1930,6 +1932,13 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 	entry = pmd_modify(entry, newprot);
- 	if (preserve_write)
- 		entry = pmd_mk_savedwrite(entry);
-+	if (uffd_wp) {
-+		entry = pmd_wrprotect(entry);
-+		entry = pmd_mkuffd_wp(entry);
-+	} else if (uffd_wp_resolve) {
-+		entry = pmd_mkwrite(entry);
-+		entry = pmd_clear_uffd_wp(entry);
-+	}
- 	ret = HPAGE_PMD_NR;
- 	set_pmd_at(mm, addr, pmd, entry);
- 	BUG_ON(vma_is_anonymous(vma) && !preserve_write && pmd_write(entry));
-@@ -2079,7 +2088,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 	struct page *page;
- 	pgtable_t pgtable;
- 	pmd_t old_pmd, _pmd;
--	bool young, write, soft_dirty, pmd_migration = false;
-+	bool young, write, soft_dirty, pmd_migration = false, uffd_wp = false;
- 	unsigned long addr;
- 	int i;
- 
-@@ -2161,6 +2170,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 		write = pmd_write(old_pmd);
- 		young = pmd_young(old_pmd);
- 		soft_dirty = pmd_soft_dirty(old_pmd);
-+		uffd_wp = pmd_uffd_wp(old_pmd);
- 	}
- 	VM_BUG_ON_PAGE(!page_count(page), page);
- 	page_ref_add(page, HPAGE_PMD_NR - 1);
-@@ -2194,6 +2204,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 				entry = pte_mkold(entry);
- 			if (soft_dirty)
- 				entry = pte_mksoft_dirty(entry);
-+			if (uffd_wp)
-+				entry = pte_mkuffd_wp(entry);
- 		}
- 		pte = pte_offset_map(&_pmd, addr);
- 		BUG_ON(!pte_none(*pte));
-diff --git a/mm/memory.c b/mm/memory.c
-index 89d51d1650e4..7f276158683b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2482,7 +2482,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
- {
- 	struct vm_area_struct *vma = vmf->vma;
- 
--	if (userfaultfd_wp(vma)) {
-+	if (userfaultfd_pte_wp(vma, *vmf->pte)) {
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
- 		return handle_userfault(vmf, VM_UFFD_WP);
- 	}
-@@ -3670,7 +3670,7 @@ static inline vm_fault_t create_huge_pmd(struct vm_fault *vmf)
- static inline vm_fault_t wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
- {
- 	if (vma_is_anonymous(vmf->vma)) {
--		if (userfaultfd_wp(vmf->vma))
-+		if (userfaultfd_huge_pmd_wp(vmf->vma, orig_pmd))
- 			return handle_userfault(vmf, VM_UFFD_WP);
- 		return do_huge_pmd_wp_page(vmf, orig_pmd);
- 	}
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 416ede326c03..000e246c163b 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -46,6 +46,8 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	int target_node = NUMA_NO_NODE;
- 	bool dirty_accountable = cp_flags & MM_CP_DIRTY_ACCT;
- 	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
-+	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
-+	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
- 
- 	/*
- 	 * Can be called with only the mmap_sem for reading by
-@@ -117,6 +119,14 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 			if (preserve_write)
- 				ptent = pte_mk_savedwrite(ptent);
- 
-+			if (uffd_wp) {
-+				ptent = pte_wrprotect(ptent);
-+				ptent = pte_mkuffd_wp(ptent);
-+			} else if (uffd_wp_resolve) {
-+				ptent = pte_mkwrite(ptent);
-+				ptent = pte_clear_uffd_wp(ptent);
-+			}
-+
- 			/* Avoid taking write faults for known dirty pages */
- 			if (dirty_accountable && pte_dirty(ptent) &&
- 					(pte_soft_dirty(ptent) ||
-@@ -300,6 +310,8 @@ unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
- {
- 	unsigned long pages;
- 
-+	BUG_ON((cp_flags & MM_CP_UFFD_WP_ALL) == MM_CP_UFFD_WP_ALL);
-+
- 	if (is_vm_hugetlb_page(vma))
- 		pages = hugetlb_change_protection(vma, start, end, newprot);
- 	else
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index 23d4bbd117ee..902247ca1474 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -73,8 +73,12 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
- 		goto out_release;
- 
- 	_dst_pte = pte_mkdirty(mk_pte(page, dst_vma->vm_page_prot));
--	if (dst_vma->vm_flags & VM_WRITE && !wp_copy)
--		_dst_pte = pte_mkwrite(_dst_pte);
-+	if (dst_vma->vm_flags & VM_WRITE) {
-+		if (wp_copy)
-+			_dst_pte = pte_mkuffd_wp(_dst_pte);
-+		else
-+			_dst_pte = pte_mkwrite(_dst_pte);
-+	}
- 
- 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
- 	if (dst_vma->vm_file) {
-@@ -674,7 +678,7 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
- 		newprot = vm_get_page_prot(dst_vma->vm_flags);
- 
- 	change_protection(dst_vma, start, start + len, newprot,
--			  enable_wp ? 0 : MM_CP_DIRTY_ACCT);
-+			  enable_wp ? MM_CP_UFFD_WP : MM_CP_UFFD_WP_RESOLVE);
- 
- 	err = 0;
- out_unlock:
--- 
-2.17.1
+Let alone the one-value-per-file rule of sysfs that doesn't need to be
+violated if symlinks are used.
