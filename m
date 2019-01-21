@@ -1,202 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B3F48E0018
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:02 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id y2so12660999plr.8
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:06:02 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d32si9283978pla.136.2019.01.21.00.06.00
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE058E0018
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:07 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id 201so10910404ywp.13
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:06:07 -0800 (PST)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id g129si8607877ywh.259.2019.01.21.00.06.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 00:06:01 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L83o4I064495
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:00 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2q57kw69rd-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:06:00 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 21 Jan 2019 08:05:57 -0000
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 15/21] sparc: add checks for the return value of memblock_alloc*()
-Date: Mon, 21 Jan 2019 10:04:02 +0200
-In-Reply-To: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
-References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1548057848-15136-16-git-send-email-rppt@linux.ibm.com>
+        Mon, 21 Jan 2019 00:06:06 -0800 (PST)
+Subject: Re: [PATCH] mm: Expose lazy vfree pages to control via sysctl
+From: Ashish Mhetre <amhetre@nvidia.com>
+References: <1546616141-486-1-git-send-email-amhetre@nvidia.com>
+ <20190104180332.GV6310@bombadil.infradead.org>
+ <a7bb656a-c815-09a4-69fc-bb9e7427cfa6@nvidia.com>
+Message-ID: <27bd8776-87fa-69ad-7b6e-4425251b5e9c@nvidia.com>
+Date: Mon, 21 Jan 2019 13:36:00 +0530
+MIME-Version: 1.0
+In-Reply-To: <a7bb656a-c815-09a4-69fc-bb9e7427cfa6@nvidia.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org, Mike Rapoport <rppt@linux.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: vdumpa@nvidia.com, mcgrof@kernel.org, keescook@chromium.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-tegra@vger.kernel.org, Snikam@nvidia.com, avanbrunt@nvidia.com
 
-Add panic() calls if memblock_alloc*() returns NULL.
+The issue is not seen on new kernel. This patch won't be needed. Thanks.
 
-Most of the changes are simply addition of
-
-        if(!ptr)
-                panic();
-
-statements after the calls to memblock_alloc*() variants.
-
-Exceptions are pcpu_populate_pte() and kernel_map_range() that were
-slightly refactored to accommodate the change.
-
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Acked-by: David S. Miller <davem@davemloft.net>
----
- arch/sparc/kernel/prom_32.c  |  2 ++
- arch/sparc/kernel/setup_64.c |  6 ++++++
- arch/sparc/kernel/smp_64.c   | 12 ++++++++++++
- arch/sparc/mm/init_64.c      | 11 +++++++++++
- arch/sparc/mm/srmmu.c        |  8 ++++++++
- 5 files changed, 39 insertions(+)
-
-diff --git a/arch/sparc/kernel/prom_32.c b/arch/sparc/kernel/prom_32.c
-index e7126ca..869b16c 100644
---- a/arch/sparc/kernel/prom_32.c
-+++ b/arch/sparc/kernel/prom_32.c
-@@ -33,6 +33,8 @@ void * __init prom_early_alloc(unsigned long size)
- 	void *ret;
- 
- 	ret = memblock_alloc(size, SMP_CACHE_BYTES);
-+	if (!ret)
-+		panic("%s: Failed to allocate %lu bytes\n", __func__, size);
- 
- 	prom_early_allocated += size;
- 
-diff --git a/arch/sparc/kernel/setup_64.c b/arch/sparc/kernel/setup_64.c
-index 51c4d12..fd2182a 100644
---- a/arch/sparc/kernel/setup_64.c
-+++ b/arch/sparc/kernel/setup_64.c
-@@ -624,8 +624,14 @@ void __init alloc_irqstack_bootmem(void)
- 
- 		softirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
- 						       THREAD_SIZE, node);
-+		if (!softirq_stack[i])
-+			panic("%s: Failed to allocate %lu bytes align=%lx nid=%d\n",
-+			      __func__, THREAD_SIZE, THREAD_SIZE, node);
- 		hardirq_stack[i] = memblock_alloc_node(THREAD_SIZE,
- 						       THREAD_SIZE, node);
-+		if (!hardirq_stack[i])
-+			panic("%s: Failed to allocate %lu bytes align=%lx nid=%d\n",
-+			      __func__, THREAD_SIZE, THREAD_SIZE, node);
- 	}
- }
- 
-diff --git a/arch/sparc/kernel/smp_64.c b/arch/sparc/kernel/smp_64.c
-index f45d876..a8275fe 100644
---- a/arch/sparc/kernel/smp_64.c
-+++ b/arch/sparc/kernel/smp_64.c
-@@ -1628,6 +1628,8 @@ static void __init pcpu_populate_pte(unsigned long addr)
- 		pud_t *new;
- 
- 		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+		if (!new)
-+			goto err_alloc;
- 		pgd_populate(&init_mm, pgd, new);
- 	}
- 
-@@ -1636,6 +1638,8 @@ static void __init pcpu_populate_pte(unsigned long addr)
- 		pmd_t *new;
- 
- 		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+		if (!new)
-+			goto err_alloc;
- 		pud_populate(&init_mm, pud, new);
- 	}
- 
-@@ -1644,8 +1648,16 @@ static void __init pcpu_populate_pte(unsigned long addr)
- 		pte_t *new;
- 
- 		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+		if (!new)
-+			goto err_alloc;
- 		pmd_populate_kernel(&init_mm, pmd, new);
- 	}
-+
-+	return;
-+
-+err_alloc:
-+	panic("%s: Failed to allocate %lu bytes align=%lx from=%lx\n",
-+	      __func__, PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
- }
- 
- void __init setup_per_cpu_areas(void)
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index ef340e8..f2d70ff 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -1809,6 +1809,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
- 
- 			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
- 						  PAGE_SIZE);
-+			if (!new)
-+				goto err_alloc;
- 			alloc_bytes += PAGE_SIZE;
- 			pgd_populate(&init_mm, pgd, new);
- 		}
-@@ -1822,6 +1824,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
- 			}
- 			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
- 						  PAGE_SIZE);
-+			if (!new)
-+				goto err_alloc;
- 			alloc_bytes += PAGE_SIZE;
- 			pud_populate(&init_mm, pud, new);
- 		}
-@@ -1836,6 +1840,8 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
- 			}
- 			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
- 						  PAGE_SIZE);
-+			if (!new)
-+				goto err_alloc;
- 			alloc_bytes += PAGE_SIZE;
- 			pmd_populate_kernel(&init_mm, pmd, new);
- 		}
-@@ -1855,6 +1861,11 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
- 	}
- 
- 	return alloc_bytes;
-+
-+err_alloc:
-+	panic("%s: Failed to allocate %lu bytes align=%lx from=%lx\n",
-+	      __func__, PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
-+	return -ENOMEM;
- }
- 
- static void __init flush_all_kernel_tsbs(void)
-diff --git a/arch/sparc/mm/srmmu.c b/arch/sparc/mm/srmmu.c
-index a400ec3..aaebbc0 100644
---- a/arch/sparc/mm/srmmu.c
-+++ b/arch/sparc/mm/srmmu.c
-@@ -305,11 +305,17 @@ static void __init srmmu_nocache_init(void)
- 
- 	srmmu_nocache_pool = memblock_alloc(srmmu_nocache_size,
- 					    SRMMU_NOCACHE_ALIGN_MAX);
-+	if (!srmmu_nocache_pool)
-+		panic("%s: Failed to allocate %lu bytes align=0x%x\n",
-+		      __func__, srmmu_nocache_size, SRMMU_NOCACHE_ALIGN_MAX);
- 	memset(srmmu_nocache_pool, 0, srmmu_nocache_size);
- 
- 	srmmu_nocache_bitmap =
- 		memblock_alloc(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
- 			       SMP_CACHE_BYTES);
-+	if (!srmmu_nocache_bitmap)
-+		panic("%s: Failed to allocate %zu bytes\n", __func__,
-+		      BITS_TO_LONGS(bitmap_bits) * sizeof(long));
- 	bit_map_init(&srmmu_nocache_map, srmmu_nocache_bitmap, bitmap_bits);
- 
- 	srmmu_swapper_pg_dir = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
-@@ -468,6 +474,8 @@ static void __init sparc_context_init(int numctx)
- 
- 	size = numctx * sizeof(struct ctx_list);
- 	ctx_list_pool = memblock_alloc(size, SMP_CACHE_BYTES);
-+	if (!ctx_list_pool)
-+		panic("%s: Failed to allocate %lu bytes\n", __func__, size);
- 
- 	for (ctx = 0; ctx < numctx; ctx++) {
- 		struct ctx_list *clist;
--- 
-2.7.4
+On 06/01/19 2:12 PM, Ashish Mhetre wrote:
+> Matthew, this issue was last reported in September 2018 on K4.9.
+> I verified that the optimization patches mentioned by you were not=20
+> present in our downstream kernel when we faced the issue. I will check=20
+> whether issue still persist on new kernel with all these patches and=20
+> come back.
+>=20
+> On 04/01/19 11:33 PM, Matthew Wilcox wrote:
+>> On Fri, Jan 04, 2019 at 09:05:41PM +0530, Ashish Mhetre wrote:
+>>> From: Hiroshi Doyu <hdoyu@nvidia.com>
+>>>
+>>> The purpose of lazy_max_pages is to gather virtual address space till i=
+t
+>>> reaches the lazy_max_pages limit and then purge with a TLB flush and=20
+>>> hence
+>>> reduce the number of global TLB flushes.
+>>> The default value of lazy_max_pages with one CPU is 32MB and with 4=20
+>>> CPUs it
+>>> is 96MB i.e. for 4 cores, 96MB of vmalloc space will be gathered=20
+>>> before it
+>>> is purged with a TLB flush.
+>>> This feature has shown random latency issues. For example, we have seen
+>>> that the kernel thread for some camera application spent 30ms in
+>>> __purge_vmap_area_lazy() with 4 CPUs.
+>>
+>> You're not the first to report something like this.=C2=A0 Looking throug=
+h the
+>> kernel logs, I see:
+>>
+>> commit 763b218ddfaf56761c19923beb7e16656f66ec62
+>> Author: Joel Fernandes <joelaf@google.com>
+>> Date:=C2=A0=C2=A0 Mon Dec 12 16:44:26 2016 -0800
+>>
+>> =C2=A0=C2=A0=C2=A0=C2=A0 mm: add preempt points into __purge_vmap_area_l=
+azy()
+>>
+>> commit f9e09977671b618aeb25ddc0d4c9a84d5b5cde9d
+>> Author: Christoph Hellwig <hch@lst.de>
+>> Date:=C2=A0=C2=A0 Mon Dec 12 16:44:23 2016 -0800
+>>
+>> =C2=A0=C2=A0=C2=A0=C2=A0 mm: turn vmap_purge_lock into a mutex
+>>
+>> commit 80c4bd7a5e4368b680e0aeb57050a1b06eb573d8
+>> Author: Chris Wilson <chris@chris-wilson.co.uk>
+>> Date:=C2=A0=C2=A0 Fri May 20 16:57:38 2016 -0700
+>>
+>> =C2=A0=C2=A0=C2=A0=C2=A0 mm/vmalloc: keep a separate lazy-free list
+>>
+>> So the first thing I want to do is to confirm that you see this problem
+>> on a modern kernel.=C2=A0 We've had trouble with NVidia before reporting
+>> historical problems as if they were new.
+>>
