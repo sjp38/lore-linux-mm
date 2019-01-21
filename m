@@ -2,267 +2,156 @@ Return-Path: <SRS0=AzIT=P5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F90FC282DB
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:24:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CDAADC282F6
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:38:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C2A6720989
-	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:24:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="FspUHSpg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2A6720989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 8B2E52085A
+	for <linux-mm@archiver.kernel.org>; Mon, 21 Jan 2019 09:38:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B2E52085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5CE328E0007; Mon, 21 Jan 2019 04:24:14 -0500 (EST)
+	id 4167B8E0007; Mon, 21 Jan 2019 04:38:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 57D998E0001; Mon, 21 Jan 2019 04:24:14 -0500 (EST)
+	id 3C5A98E0001; Mon, 21 Jan 2019 04:38:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 46F888E0007; Mon, 21 Jan 2019 04:24:14 -0500 (EST)
+	id 267A48E0007; Mon, 21 Jan 2019 04:38:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E0D38E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:24:14 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id w15so10093055ita.1
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:24:14 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D59FD8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 04:38:24 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id t2so15567090pfj.15
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 01:38:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=OL2n5Xw7y8Ptr0DjBBqoBVn5ATX7sgHlxy4qXLn+gjs=;
-        b=Aju1TWFS6pZnOQAiNO6DGh5opd3g6BeFOX49LU16ptVPh5kFPyJOb+FlRo1jTlk3hO
-         d3wc8Wh7zwjHBX6fX5ZOjM4YcutwvvmFrZCybAXV2C5qLF/l84zthzAH0lPys4Bzk/wF
-         i6DkZBwto6y0iqUrOvy7PKGAlEtIezE+jDqV7lI+3Wjkhj8K9zPhuyLipp67pJPOoCeR
-         ZugNS4NI/qEtgEEVZJ17PGnRdGl9tQcfFTIafzQOBrGE3aiSexZomsrH7eCYBB1Oh8mI
-         AWImgFsWEQHJClauqZjdXP32w178TzQR++GD6VfTD/eCbp33KDh0gbJk4vojLlaX7R2U
-         6n+g==
-X-Gm-Message-State: AJcUukd4Gv8UbIMTHlyaJkYbWrAAVARVmTVDQfANw9qo8Eg8jkY3vMys
-	Z4AUvKTR6ShsRajwfG0akGSm7OEbfH2cx7ikl+zUBIMQjgEUBnanGea87FElAWadqsRzq6/82Cn
-	1szNVK9C8EeRzrV91TWmdCzBjfGzWCuY8+vjdx7EWG8AFwIXEqr14NdpYm2VinZO7eJ+TPIHN91
-	De11Gr4Y8zW+xXl5s/ft/G5qZEUYEA7GW8zF6qTlS0TexGMFTDoD8XxMyEPGog/4ZvpgFVUlySR
-	lZLzbumrkWNlGn5yu7zQts84XlnfsPEd3+25zg92zYBBPDj0Ur8K0ZfwYGiY5GGordgucFU2Yrm
-	OrTCbNCB/nnNGJ81XgFcJVr6dZgyzL8qZhXHTsSfNdGSC+Yb0YLdnuIvSPUwGHqMLFwcDUaGHKb
-	L
-X-Received: by 2002:a02:9281:: with SMTP id b1mr17353520jah.86.1548062653757;
-        Mon, 21 Jan 2019 01:24:13 -0800 (PST)
-X-Received: by 2002:a02:9281:: with SMTP id b1mr17353497jah.86.1548062652848;
-        Mon, 21 Jan 2019 01:24:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548062652; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=40fkhlvKt3exakgkZBKxTVwjvkc8X48HNmJX/i05Pkk=;
+        b=N6XhQMMF+Y388TVletq7gfPu2ILkwWMZ9h0yRUJCMA1kTKO3/S0zW0TKtE6GmO8vjX
+         6Y/bH3PxNxrq6nN+KoZu4j51ZjECS1axK139kolg4+CiGxOxKw1xy3CA95oSRJUOVPId
+         eFKwCtiQlmo5mgyKYmekWw/tTHAu4xbslYUG3Pl1/5oOJUxYXRHUTuAs74uxSaBl2m43
+         MOKb2e5UaoQsUvwtvBr+EeBJsyoA7ljgA/ZmUoBlq9fu0vQEnvGnGYtw/kdMoiQvsF4p
+         tM6h+Kt0WVV2dNkYlzw/48TxL3DG/NdffeDLJZ+DfzuDqEv6RAeUmJhG14HNR7EzuW27
+         J7/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
+X-Gm-Message-State: AJcUukdkAVNS64WIx557naXaoOrAjOA8rfDpi7YVZIxozq/C1D5B9g1N
+	vTBstpqrOUOy3neb3lG7p8Ir9X4Z3IkaFRmIzcMc1Ccs4GdGsvjhxyP4bqWwVsV6+bf0PJLKVaX
+	bjuq52gL9L2AZjKoQ/WRSG9mtismC/wXqjWZ23IIeRc0376JIK9QESehr1dFQmAa6Mg==
+X-Received: by 2002:a65:434d:: with SMTP id k13mr27824030pgq.269.1548063504551;
+        Mon, 21 Jan 2019 01:38:24 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4mq3I/Zk/niQRTruEPb3P8FCpxEi6yf/Q0vjYNjvXdxL6VyXem/UzeNTKREPI/AWoXuuHP
+X-Received: by 2002:a65:434d:: with SMTP id k13mr27823995pgq.269.1548063503853;
+        Mon, 21 Jan 2019 01:38:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548063503; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q7w7Le5eyHFDucwBuzZX1AGxlPzZ8g7BV5LJ4nO0y0PzMS+Zd1+i33Brjgzq92n/lK
-         sQh9F40l7Y+zVa42Zx+JgVAr8s1z+uOzoHhgaMRar703OzvmvPucPcLhxSFY6Wfq8xed
-         e86AwWLt6Ry//DQzfQ+5RPQnxbo8qTOmhcZB7n/rvQuCb01wRQD3M5u505TwGScqWZqS
-         NXQGKdTL5ekym0M/cbguOjGwMhMuXamxJLjBf36B7OC/SCzyp2bmm7r9fr9Os9tK9wSM
-         YrDvnLrCgwIJJMDPL+iSwdCH7pMiV6eUGyS5oKoPSZ/OkMXxZHO4ZmIS5gTDqSTlWpt2
-         rvEg==
+        b=N+LqFT+pVbk/1fFRFnWtSkNK2NpplI4ijgyCK1crrwH4QEpmuWbgyb1JbG+UDlFWDw
+         DgMLKE9ATFWjwNNCFnKTez4PBEJVqAV1Gmfz6StsH7o8NKRq33ajer7OqtNEvVfselVL
+         rQGuatIWXB2Yy0/aGBjEqM1Rubnc2BOLd7ndGKFfUm7CuabeaFSP3GumzkDrmmXrvO98
+         g9AZ79cXwqXnd3pK3GARKwmNppFphoqcbVIQsqtQIFQ2969fKnDp2gUI5bSd2IWnuOfb
+         7Pv+R4ma71gmmpHANpSAEtlzzj6yNJDO8K+S85vlI+CyNFpA94l7Vs8ynnpct/Lgze8j
+         hC+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=OL2n5Xw7y8Ptr0DjBBqoBVn5ATX7sgHlxy4qXLn+gjs=;
-        b=UqabV0/pXRrFG7UCJ/5mggm7lnDN3aP4zTny+8HqcA0pfzpOmhzNiZyKvcrqHqSbdx
-         PGrsh6PnUWKz/1jWWWAahnIx2Ps9dx7cUOmPKKY5TF7tE9A1VVI+ord0ImjdGN5Nip4h
-         nB6P6QEHo+GOP2hWfoUjEnluCAcR4SNm6oJ/4pAeLZ2XF+A1PWSm45Q0hUx5MzwwH9j2
-         7hev2zrfZ2s/2hkc33YKm1u7ZcuXSVJ4GqhVXeB5vPN7dXY082riHwm1APD4GNIvBd6A
-         3+61A3kgMI6eOajgcObr7FQijg22F28z1L6l7Ey/FnX6ObhtudAOSr81JsIaKN6nA6Qo
-         jlVA==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=40fkhlvKt3exakgkZBKxTVwjvkc8X48HNmJX/i05Pkk=;
+        b=fsm5x6N98sa07LEBGmDAZFvS1SsAN+/HsjyEq8H292K5Q6kNZ+dU1fn4XrSNPP39NB
+         0O7ykED17frB8/9KK/naCxrBC6lYwx+23AZLxRbQryB9QyW/OWcgC4W4GejT7FHHdWwn
+         UNNihi04Y9T2afOaWgxtYMJcSRG/Vvj+RsA++UP5HNv2fIxoQaSNGoCQajwDFtpeCTjh
+         I8KNNgTeAiQhG6lweIdxtR3z4Ajqb2Emn6yK3X55gBFPD7OVDHt0krxjWLFx5/yQ3A2M
+         GMtz5UMXkeRvwD0QzgTmCEHB4TRqJSusUtzRLftslYKvr1Li/K0BxidT2Pd0vsYFroi3
+         Qszw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=FspUHSpg;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s21sor6330215iol.146.2019.01.21.01.24.12
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
+Received: from mailgw01.mediatek.com ([210.61.82.183])
+        by mx.google.com with ESMTPS id e69si11679964pfg.137.2019.01.21.01.38.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 Jan 2019 01:24:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Jan 2019 01:38:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=FspUHSpg;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=OL2n5Xw7y8Ptr0DjBBqoBVn5ATX7sgHlxy4qXLn+gjs=;
-        b=FspUHSpgPEzwu1muclAAi7XviMZms13m3cDHuKxYXJ1txn+rRvpIutGfSdYUg7uztB
-         xf0plqq0jVHk+Pma9VT7cern26/a8LJVbBatAa3FYL3i5PBIOHtm56/rU9RGR2aoG+aS
-         qBasWBA/Rf93rMpK4ZyhYU2beT1DCU5/OgeFih4+RDeMdtTAkWX5eF2E5Fg9/bp2jwy5
-         l02kCcVUVVtUEnM85o34JZc0TVb8sMXotrDgNecM1ButMpxJXVUpMt8ZVp2txQ+dq65o
-         X6EDHO4CRm8RBQwadx4ejWA7kEK1d/UA6v3wT6M+YKVf2K1mmZn6ypDjll8rRH1v6BaZ
-         DqYQ==
-X-Google-Smtp-Source: ALg8bN6493yX5n0Sowdnesa/q/XbYafkPUw9euh9B+RBhmtez05eHYlS1J4VDNJ67eWt65/+x40iKxqMYkrOW49HbY0=
-X-Received: by 2002:a5d:8491:: with SMTP id t17mr16118491iom.11.1548062652245;
- Mon, 21 Jan 2019 01:24:12 -0800 (PST)
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
+X-UUID: e39555a8435f4724bbf3fb08b876d1b3-20190121
+X-UUID: e39555a8435f4724bbf3fb08b876d1b3-20190121
+Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw01.mediatek.com
+	(envelope-from <miles.chen@mediatek.com>)
+	(mhqrelay.mediatek.com ESMTP with TLS)
+	with ESMTP id 1215981584; Mon, 21 Jan 2019 17:38:14 +0800
+Received: from mtkcas09.mediatek.inc (172.21.101.178) by
+ mtkmbs08n2.mediatek.inc (172.21.101.56) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Mon, 21 Jan 2019 17:38:12 +0800
+Received: from mtksdccf07.mediatek.inc (172.21.84.99) by mtkcas09.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Mon, 21 Jan 2019 17:38:12 +0800
+From: <miles.chen@mediatek.com>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David
+ Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew
+ Morton <akpm@linux-foundation.org>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
+	<linux-mediatek@lists.infradead.org>, Miles Chen <miles.chen@mediatek.com>
+Subject: [PATCH] mm/slub: use WARN_ON() for some slab errors
+Date: Mon, 21 Jan 2019 17:38:10 +0800
+Message-ID: <1548063490-545-1-git-send-email-miles.chen@mediatek.com>
+X-Mailer: git-send-email 1.9.1
 MIME-Version: 1.0
-References: <cover.1547289808.git.christophe.leroy@c-s.fr> <935f9f83393affb5d55323b126468ecb90373b88.1547289808.git.christophe.leroy@c-s.fr>
- <e4b343fa-702b-294f-7741-bb85ed877cdf@virtuozzo.com> <8d433501-a5a7-8e3b-03f7-ccdd0f8622e1@c-s.fr>
- <CACT4Y+Z+UbN1rjHr3T5rgHpCJUknupPvEPw0SHs1-qjWBDhm3Q@mail.gmail.com> <d2f85bee-c551-ec9d-1a13-6d3364788cc1@c-s.fr>
-In-Reply-To: <d2f85bee-c551-ec9d-1a13-6d3364788cc1@c-s.fr>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 21 Jan 2019 10:24:01 +0100
-Message-ID:
- <CACT4Y+Y9H8LhpODFk6TE00kZWCU_V2QK1CStWxBt4EnWpLuCcQ@mail.gmail.com>
-Subject: Re: [PATCH v3 3/3] powerpc/32: Add KASAN support
-To: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Alexander Potapenko <glider@google.com>, 
-	LKML <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, 
-	kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+X-TM-SNTS-SMTP:
+	22854B56D5FA26CFEBB0D7CFF0AD17A8FEB7B10791F002CBBB518968530C57542000:8
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190121092401.c628RrWvUATO7Br3AlROLeQ-F-PB9G-8FSTDTPDQhOQ@z>
+Message-ID: <20190121093810.dRNQl2F9uM_XMaEDKikrcgJ3QzimgBID_Jg4g3971oA@z>
 
-On Mon, Jan 21, 2019 at 9:37 AM Christophe Leroy
-<christophe.leroy@c-s.fr> wrote:
->
->
->
-> Le 21/01/2019 =C3=A0 09:30, Dmitry Vyukov a =C3=A9crit :
-> > On Mon, Jan 21, 2019 at 8:17 AM Christophe Leroy
-> > <christophe.leroy@c-s.fr> wrote:
-> >>
-> >>
-> >>
-> >> Le 15/01/2019 =C3=A0 18:23, Andrey Ryabinin a =C3=A9crit :
-> >>>
-> >>>
-> >>> On 1/12/19 2:16 PM, Christophe Leroy wrote:
-> >>>
-> >>>> +KASAN_SANITIZE_early_32.o :=3D n
-> >>>> +KASAN_SANITIZE_cputable.o :=3D n
-> >>>> +KASAN_SANITIZE_prom_init.o :=3D n
-> >>>> +
-> >>>
-> >>> Usually it's also good idea to disable branch profiling - define DISA=
-BLE_BRANCH_PROFILING
-> >>> either in top of these files or via Makefile. Branch profiling redefi=
-nes if() statement and calls
-> >>> instrumented ftrace_likely_update in every if().
-> >>>
-> >>>
-> >>>
-> >>>> diff --git a/arch/powerpc/mm/kasan_init.c b/arch/powerpc/mm/kasan_in=
-it.c
-> >>>> new file mode 100644
-> >>>> index 000000000000..3edc9c2d2f3e
-> >>>
-> >>>> +void __init kasan_init(void)
-> >>>> +{
-> >>>> +    struct memblock_region *reg;
-> >>>> +
-> >>>> +    for_each_memblock(memory, reg)
-> >>>> +            kasan_init_region(reg);
-> >>>> +
-> >>>> +    pr_info("KASAN init done\n");
-> >>>
-> >>> Without "init_task.kasan_depth =3D 0;" kasan will not repot bugs.
-> >>>
-> >>> There is test_kasan module. Make sure that it produce reports.
-> >>>
-> >>
-> >> Thanks for the review.
-> >>
-> >> Now I get the following very early in boot, what does that mean ?
-> >
-> > This looks like an instrumented memset call before kasan shadow is
-> > mapped, or kasan shadow is not zeros. Does this happen before or after
-> > mapping of kasan_early_shadow_page?
->
-> This is after the mapping of kasan_early_shadow_page.
->
-> > This version seems to miss what x86 code has to clear the early shadow:
-> >
-> > /*
-> > * kasan_early_shadow_page has been used as early shadow memory, thus
-> > * it may contain some garbage. Now we can clear and write protect it,
-> > * since after the TLB flush no one should write to it.
-> > */
-> > memset(kasan_early_shadow_page, 0, PAGE_SIZE);
->
-> In the early part, kasan_early_shadow_page is mapped read-only so I
-> assumed this reset of its content was unneccessary.
->
-> I'll try with it.
->
-> Christophe
+From: Miles Chen <miles.chen@mediatek.com>
 
-As far as I understand machine memory contains garbage after boot, and
-that page needs to be all 0's so we need to explicitly memset it.
+When debugging with slub.c, sometimes we have to trigger a panic in
+order to get the coredump file. To do that, we have to modify slub.c and
+rebuild kernel. To make debugging easier, use WARN_ON() for these slab
+errors so we can dump stack trace by default or set panic_on_warn to
+trigger a panic.
 
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+---
+ mm/slub.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-> >> [    0.000000] KASAN init done
-> >> [    0.000000]
-> >> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> >> [    0.000000] BUG: KASAN: unknown-crash in memblock_alloc_try_nid+0xd=
-8/0xf0
-> >> [    0.000000] Write of size 68 at addr c7ff5a90 by task swapper/0
-> >> [    0.000000]
-> >> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted
-> >> 5.0.0-rc2-s3k-dev-00559-g88aa407c4bce #772
-> >> [    0.000000] Call Trace:
-> >> [    0.000000] [c094ded0] [c016c7e4]
-> >> print_address_description+0x1a0/0x2b8 (unreliable)
-> >> [    0.000000] [c094df00] [c016caa0] kasan_report+0xe4/0x168
-> >> [    0.000000] [c094df40] [c016b464] memset+0x2c/0x4c
-> >> [    0.000000] [c094df60] [c08731f0] memblock_alloc_try_nid+0xd8/0xf0
-> >> [    0.000000] [c094df90] [c0861f20] mmu_context_init+0x58/0xa0
-> >> [    0.000000] [c094dfb0] [c085ca70] start_kernel+0x54/0x400
-> >> [    0.000000] [c094dff0] [c0002258] start_here+0x44/0x9c
-> >> [    0.000000]
-> >> [    0.000000]
-> >> [    0.000000] Memory state around the buggy address:
-> >> [    0.000000]  c7ff5980: e2 a1 87 81 bd d4 a5 b5 f8 8d 89 e7 72 bc 20=
- 24
-> >> [    0.000000]  c7ff5a00: e7 b9 c1 c7 17 e9 b4 bd a4 d0 e7 a0 11 15 a5=
- b5
-> >> [    0.000000] >c7ff5a80: b5 e1 83 a5 2d 65 31 3f f3 e5 a7 ef 34 b5 69=
- b5
-> >> [    0.000000]                  ^
-> >> [    0.000000]  c7ff5b00: 21 a5 c1 c1 b4 bf 2d e5 e5 c3 f5 91 e3 b8 a1=
- 34
-> >> [    0.000000]  c7ff5b80: ad ef 23 87 3d a6 ad b5 c3 c3 80 b7 ac b1 1f=
- 37
-> >> [    0.000000]
-> >> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> >> [    0.000000] Disabling lock debugging due to kernel taint
-> >> [    0.000000] MMU: Allocated 76 bytes of context maps for 16 contexts
-> >> [    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: =
-8176
-> >> [    0.000000] Kernel command line: console=3DttyCPM0,115200N8
-> >> ip=3D192.168.2.7:192.168.2.2::255.0.0.0:vgoip:eth0:off kgdboc=3DttyCPM=
-0
-> >> [    0.000000] Dentry cache hash table entries: 16384 (order: 2, 65536
-> >> bytes)
-> >> [    0.000000] Inode-cache hash table entries: 8192 (order: 1, 32768 b=
-ytes)
-> >> [    0.000000] Memory: 99904K/131072K available (7376K kernel code, 52=
-8K
-> >> rwdata, 1168K rodata, 576K init, 4623K bss, 31168K reserved, 0K
-> >> cma-reserved)
-> >> [    0.000000] Kernel virtual memory layout:
-> >> [    0.000000]   * 0xffefc000..0xffffc000  : fixmap
-> >> [    0.000000]   * 0xf7c00000..0xffc00000  : kasan shadow mem
-> >> [    0.000000]   * 0xf7a00000..0xf7c00000  : consistent mem
-> >> [    0.000000]   * 0xf7a00000..0xf7a00000  : early ioremap
-> >> [    0.000000]   * 0xc9000000..0xf7a00000  : vmalloc & ioremap
-> >>
-> >>
-> >> Christophe
+diff --git a/mm/slub.c b/mm/slub.c
+index 1e3d0ec4e200..e48c3bb30c93 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -684,7 +684,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
+ 		print_section(KERN_ERR, "Padding ", p + off,
+ 			      size_from_object(s) - off);
+ 
+-	dump_stack();
++	WARN_ON(1);
+ }
+ 
+ void object_err(struct kmem_cache *s, struct page *page,
+@@ -705,7 +705,7 @@ static __printf(3, 4) void slab_err(struct kmem_cache *s, struct page *page,
+ 	va_end(args);
+ 	slab_bug(s, "%s", buf);
+ 	print_page_info(page);
+-	dump_stack();
++	WARN_ON(1);
+ }
+ 
+ static void init_object(struct kmem_cache *s, void *object, u8 val)
+@@ -1690,7 +1690,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 		flags &= ~GFP_SLAB_BUG_MASK;
+ 		pr_warn("Unexpected gfp: %#x (%pGg). Fixing up to gfp: %#x (%pGg). Fix your code!\n",
+ 				invalid_mask, &invalid_mask, flags, &flags);
+-		dump_stack();
++		WARN_ON(1);
+ 	}
+ 
+ 	return allocate_slab(s,
+-- 
+2.18.0
 
