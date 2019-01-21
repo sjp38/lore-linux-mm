@@ -1,43 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E19B38E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 16:48:53 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id s5so17596320iom.22
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:48:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p11sor21790833itb.1.2019.01.21.13.48.52
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D1CDE8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 16:51:51 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id k90so22394902qte.0
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:51:51 -0800 (PST)
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id z12si875305qtq.2.2019.01.21.13.51.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 Jan 2019 13:48:53 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 21 Jan 2019 13:51:47 -0800 (PST)
+Date: Mon, 21 Jan 2019 21:51:47 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/6] mm: make mm->pinned_vm an atomic64 counter
+In-Reply-To: <20190121174220.10583-2-dave@stgolabs.net>
+Message-ID: <010001687265e644-49af6f45-e29b-41a7-9cd4-50ff8d64b9f9-000000@email.amazonses.com>
+References: <20190121174220.10583-1-dave@stgolabs.net> <20190121174220.10583-2-dave@stgolabs.net>
 MIME-Version: 1.0
-References: <CABXGCsMfWW_jA4vVfzr8MOLfqj2kz_AYyn5Ve48dxe1DtAbWXw@mail.gmail.com>
- <f3647d02-083c-d3f8-597f-9a98095d20f1@amd.com>
-In-Reply-To: <f3647d02-083c-d3f8-597f-9a98095d20f1@amd.com>
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Tue, 22 Jan 2019 02:48:41 +0500
-Message-ID: <CABXGCsNbjYvoc=QtX0fbW0V6T8dYzxn29yUGDD0CieL5s9GCtw@mail.gmail.com>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Grodzovsky, Andrey" <Andrey.Grodzovsky@amd.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, amd-gfx list <amd-gfx@lists.freedesktop.org>, "Wentland, Harry" <Harry.Wentland@amd.com>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, dledford@redhat.com, jgg@mellanox.com, jack@suse.de, ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
 
-On Mon, 21 Jan 2019 at 22:00, Grodzovsky, Andrey
-<Andrey.Grodzovsky@amd.com> wrote:
->
-> + Harry
->
-> Looks like this is happening during GPU reset due to job time out. I would first try to reproduce this just with a plain reset from sysfs.
-> Mikhail, also please provide add2line for dce110_setup_audio_dto.isra.8+0x171
+On Mon, 21 Jan 2019, Davidlohr Bueso wrote
+> Taking a sleeping lock to _only_ increment a variable is quite the
+> overkill, and pretty much all users do this. Furthermore, some drivers
+> (ie: infiniband and scif) that need pinned semantics can go to quite
+> some trouble to actually delay via workqueue (un)accounting for pinned
+> pages when not possible to acquire it.
 
-$ eu-addr2line -e
-/lib/debug/lib/modules/5.0.0-0.rc2.git4.3.fc30.x86_64/kernel/drivers/gpu/drm/amd/amdgpu/amdgpu.ko.debug
-dce110_setup_audio_dto.isra.8+0x171
-drivers/gpu/drm/amd/amdgpu/../display/dc/dce110/dce110_hw_sequencer.c:1996:25
-
-Thanks, I hope this helps.
-
---
-Best Regards,
-Mike Gavrilov.
+Reviewed-by: Christoph Lameter <cl@linux.com>
