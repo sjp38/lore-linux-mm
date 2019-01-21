@@ -1,182 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A1F8E0018
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:05:42 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id m37so20179913qte.10
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:05:42 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 153238E0018
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:05:50 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id b16so19921527qtc.22
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 00:05:50 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s91si202412qtd.154.2019.01.21.00.05.41
+        by mx.google.com with ESMTPS id k15si1670981qvc.27.2019.01.21.00.05.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 00:05:41 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L84GtB084033
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:05:41 -0500
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2q57yk5kbq-1
+        Mon, 21 Jan 2019 00:05:49 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0L850Zm131766
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:05:48 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2q590xu378-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:05:41 -0500
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 03:05:48 -0500
 Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 21 Jan 2019 08:05:38 -0000
+	Mon, 21 Jan 2019 08:05:45 -0000
 From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 12/21] arch: use memblock_alloc() instead of memblock_alloc_from(size, align, 0)
-Date: Mon, 21 Jan 2019 10:03:59 +0200
+Subject: [PATCH v2 13/21] arch: don't memset(0) memory returned by memblock_alloc()
+Date: Mon, 21 Jan 2019 10:04:00 +0200
 In-Reply-To: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
 References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
-Message-Id: <1548057848-15136-13-git-send-email-rppt@linux.ibm.com>
+Message-Id: <1548057848-15136-14-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org, Mike Rapoport <rppt@linux.ibm.com>
 
-The last parameter of memblock_alloc_from() is the lower limit for the
-memory allocation. When it is 0, the call is equivalent to
-memblock_alloc().
+memblock_alloc() already clears the allocated memory, no point in doing it
+twice.
 
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Acked-by: Paul Burton <paul.burton@mips.com> # MIPS part
+Acked-by: Geert Uytterhoeven <geert@linux-m68k.org> # m68k
 ---
- arch/alpha/kernel/core_cia.c  |  2 +-
- arch/alpha/kernel/pci_iommu.c |  4 ++--
- arch/alpha/kernel/setup.c     |  2 +-
- arch/ia64/kernel/mca.c        |  3 +--
- arch/mips/kernel/traps.c      |  2 +-
- arch/sparc/kernel/prom_32.c   |  2 +-
- arch/sparc/mm/init_32.c       |  2 +-
- arch/sparc/mm/srmmu.c         | 10 +++++-----
- 8 files changed, 13 insertions(+), 14 deletions(-)
+ arch/c6x/mm/init.c          | 1 -
+ arch/h8300/mm/init.c        | 1 -
+ arch/ia64/kernel/mca.c      | 2 --
+ arch/m68k/mm/mcfmmu.c       | 1 -
+ arch/microblaze/mm/init.c   | 6 ++----
+ arch/sparc/kernel/prom_32.c | 2 --
+ 6 files changed, 2 insertions(+), 11 deletions(-)
 
-diff --git a/arch/alpha/kernel/core_cia.c b/arch/alpha/kernel/core_cia.c
-index 867e873..466cd44 100644
---- a/arch/alpha/kernel/core_cia.c
-+++ b/arch/alpha/kernel/core_cia.c
-@@ -331,7 +331,7 @@ cia_prepare_tbia_workaround(int window)
- 	long i;
+diff --git a/arch/c6x/mm/init.c b/arch/c6x/mm/init.c
+index af5ada0..e83c046 100644
+--- a/arch/c6x/mm/init.c
++++ b/arch/c6x/mm/init.c
+@@ -40,7 +40,6 @@ void __init paging_init(void)
  
- 	/* Use minimal 1K map. */
--	ppte = memblock_alloc_from(CIA_BROKEN_TBIA_SIZE, 32768, 0);
-+	ppte = memblock_alloc(CIA_BROKEN_TBIA_SIZE, 32768);
- 	pte = (virt_to_phys(ppte) >> (PAGE_SHIFT - 1)) | 1;
+ 	empty_zero_page      = (unsigned long) memblock_alloc(PAGE_SIZE,
+ 							      PAGE_SIZE);
+-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
  
- 	for (i = 0; i < CIA_BROKEN_TBIA_SIZE / sizeof(unsigned long); ++i)
-diff --git a/arch/alpha/kernel/pci_iommu.c b/arch/alpha/kernel/pci_iommu.c
-index aa0f50d..e4cf77b 100644
---- a/arch/alpha/kernel/pci_iommu.c
-+++ b/arch/alpha/kernel/pci_iommu.c
-@@ -87,13 +87,13 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
- 		printk("%s: couldn't allocate arena ptes from node %d\n"
- 		       "    falling back to system-wide allocation\n",
- 		       __func__, nid);
--		arena->ptes = memblock_alloc_from(mem_size, align, 0);
-+		arena->ptes = memblock_alloc(mem_size, align);
- 	}
+ 	/*
+ 	 * Set up user data space
+diff --git a/arch/h8300/mm/init.c b/arch/h8300/mm/init.c
+index 6519252..a157890 100644
+--- a/arch/h8300/mm/init.c
++++ b/arch/h8300/mm/init.c
+@@ -68,7 +68,6 @@ void __init paging_init(void)
+ 	 * to a couple of allocated pages.
+ 	 */
+ 	empty_zero_page = (unsigned long)memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
  
- #else /* CONFIG_DISCONTIGMEM */
- 
- 	arena = memblock_alloc(sizeof(*arena), SMP_CACHE_BYTES);
--	arena->ptes = memblock_alloc_from(mem_size, align, 0);
-+	arena->ptes = memblock_alloc(mem_size, align);
- 
- #endif /* CONFIG_DISCONTIGMEM */
- 
-diff --git a/arch/alpha/kernel/setup.c b/arch/alpha/kernel/setup.c
-index 4b5b1b2..5d4c76a 100644
---- a/arch/alpha/kernel/setup.c
-+++ b/arch/alpha/kernel/setup.c
-@@ -293,7 +293,7 @@ move_initrd(unsigned long mem_limit)
- 	unsigned long size;
- 
- 	size = initrd_end - initrd_start;
--	start = memblock_alloc_from(PAGE_ALIGN(size), PAGE_SIZE, 0);
-+	start = memblock_alloc(PAGE_ALIGN(size), PAGE_SIZE);
- 	if (!start || __pa(start) + size > mem_limit) {
- 		initrd_start = initrd_end = 0;
- 		return NULL;
+ 	/*
+ 	 * Set up SFC/DFC registers (user data space).
 diff --git a/arch/ia64/kernel/mca.c b/arch/ia64/kernel/mca.c
-index 91bd1e1..74d148b 100644
+index 74d148b..370bc34 100644
 --- a/arch/ia64/kernel/mca.c
 +++ b/arch/ia64/kernel/mca.c
-@@ -1835,8 +1835,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
- /* Caller prevents this from being called after init */
- static void * __ref mca_bootmem(void)
- {
--	return memblock_alloc_from(sizeof(struct ia64_mca_cpu),
--				   KERNEL_STACK_SIZE, 0);
-+	return memblock_alloc(sizeof(struct ia64_mca_cpu), KERNEL_STACK_SIZE);
+@@ -400,8 +400,6 @@ ia64_log_init(int sal_info_type)
+ 
+ 	// set up OS data structures to hold error info
+ 	IA64_LOG_ALLOCATE(sal_info_type, max_size);
+-	memset(IA64_LOG_CURR_BUFFER(sal_info_type), 0, max_size);
+-	memset(IA64_LOG_NEXT_BUFFER(sal_info_type), 0, max_size);
  }
  
- /* Do per-CPU MCA-related initialization.  */
-diff --git a/arch/mips/kernel/traps.c b/arch/mips/kernel/traps.c
-index c91097f..2bbdee5 100644
---- a/arch/mips/kernel/traps.c
-+++ b/arch/mips/kernel/traps.c
-@@ -2291,7 +2291,7 @@ void __init trap_init(void)
- 		phys_addr_t ebase_pa;
+ /*
+diff --git a/arch/m68k/mm/mcfmmu.c b/arch/m68k/mm/mcfmmu.c
+index 0de4999..492f953 100644
+--- a/arch/m68k/mm/mcfmmu.c
++++ b/arch/m68k/mm/mcfmmu.c
+@@ -44,7 +44,6 @@ void __init paging_init(void)
+ 	int i;
  
- 		ebase = (unsigned long)
--			memblock_alloc_from(size, 1 << fls(size), 0);
-+			memblock_alloc(size, 1 << fls(size));
+ 	empty_zero_page = (void *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+-	memset((void *) empty_zero_page, 0, PAGE_SIZE);
  
- 		/*
- 		 * Try to ensure ebase resides in KSeg0 if possible.
+ 	pg_dir = swapper_pg_dir;
+ 	memset(swapper_pg_dir, 0, sizeof(swapper_pg_dir));
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index 44f4b89..bd1cd4b 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -376,10 +376,8 @@ void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
+ 
+ 	if (mem_init_done)
+ 		p = kzalloc(size, mask);
+-	else {
++	else
+ 		p = memblock_alloc(size, SMP_CACHE_BYTES);
+-		if (p)
+-			memset(p, 0, size);
+-	}
++
+ 	return p;
+ }
 diff --git a/arch/sparc/kernel/prom_32.c b/arch/sparc/kernel/prom_32.c
-index 42d7f2a..38940af 100644
+index 38940af..e7126ca 100644
 --- a/arch/sparc/kernel/prom_32.c
 +++ b/arch/sparc/kernel/prom_32.c
-@@ -32,7 +32,7 @@ void * __init prom_early_alloc(unsigned long size)
- {
+@@ -33,8 +33,6 @@ void * __init prom_early_alloc(unsigned long size)
  	void *ret;
  
--	ret = memblock_alloc_from(size, SMP_CACHE_BYTES, 0UL);
-+	ret = memblock_alloc(size, SMP_CACHE_BYTES);
- 	if (ret != NULL)
- 		memset(ret, 0, size);
+ 	ret = memblock_alloc(size, SMP_CACHE_BYTES);
+-	if (ret != NULL)
+-		memset(ret, 0, size);
  
-diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
-index d900952..a8ff298 100644
---- a/arch/sparc/mm/init_32.c
-+++ b/arch/sparc/mm/init_32.c
-@@ -264,7 +264,7 @@ void __init mem_init(void)
- 	i = last_valid_pfn >> ((20 - PAGE_SHIFT) + 5);
- 	i += 1;
- 	sparc_valid_addr_bitmap = (unsigned long *)
--		memblock_alloc_from(i << 2, SMP_CACHE_BYTES, 0UL);
-+		memblock_alloc(i << 2, SMP_CACHE_BYTES);
+ 	prom_early_allocated += size;
  
- 	if (sparc_valid_addr_bitmap == NULL) {
- 		prom_printf("mem_init: Cannot alloc valid_addr_bitmap.\n");
-diff --git a/arch/sparc/mm/srmmu.c b/arch/sparc/mm/srmmu.c
-index b609362..a400ec3 100644
---- a/arch/sparc/mm/srmmu.c
-+++ b/arch/sparc/mm/srmmu.c
-@@ -303,13 +303,13 @@ static void __init srmmu_nocache_init(void)
- 
- 	bitmap_bits = srmmu_nocache_size >> SRMMU_NOCACHE_BITMAP_SHIFT;
- 
--	srmmu_nocache_pool = memblock_alloc_from(srmmu_nocache_size,
--						 SRMMU_NOCACHE_ALIGN_MAX, 0UL);
-+	srmmu_nocache_pool = memblock_alloc(srmmu_nocache_size,
-+					    SRMMU_NOCACHE_ALIGN_MAX);
- 	memset(srmmu_nocache_pool, 0, srmmu_nocache_size);
- 
- 	srmmu_nocache_bitmap =
--		memblock_alloc_from(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
--				    SMP_CACHE_BYTES, 0UL);
-+		memblock_alloc(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
-+			       SMP_CACHE_BYTES);
- 	bit_map_init(&srmmu_nocache_map, srmmu_nocache_bitmap, bitmap_bits);
- 
- 	srmmu_swapper_pg_dir = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
-@@ -467,7 +467,7 @@ static void __init sparc_context_init(int numctx)
- 	unsigned long size;
- 
- 	size = numctx * sizeof(struct ctx_list);
--	ctx_list_pool = memblock_alloc_from(size, SMP_CACHE_BYTES, 0UL);
-+	ctx_list_pool = memblock_alloc(size, SMP_CACHE_BYTES);
- 
- 	for (ctx = 0; ctx < numctx; ctx++) {
- 		struct ctx_list *clist;
 -- 
 2.7.4
