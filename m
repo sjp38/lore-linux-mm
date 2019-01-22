@@ -1,77 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C0988E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 10:16:31 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c34so9337347edb.8
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 07:16:31 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r17si3460052edq.40.2019.01.22.07.16.29
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 167F68E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 10:22:07 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r13so16654521pgb.7
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 07:22:07 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f10si16684732pln.289.2019.01.22.07.22.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 07:16:29 -0800 (PST)
-Date: Tue, 22 Jan 2019 16:16:28 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, page_alloc: cleanup usemap_size() when SPARSEMEM is
- not set
-Message-ID: <20190122151628.GI4087@dhcp22.suse.cz>
-References: <20190118234905.27597-1-richard.weiyang@gmail.com>
- <20190122085524.GE4087@dhcp22.suse.cz>
- <20190122150717.llf4owk6soejibov@master>
+        Tue, 22 Jan 2019 07:22:05 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH] hwpoison-inject: no need to check return value of debugfs_create functions
+Date: Tue, 22 Jan 2019 16:21:10 +0100
+Message-Id: <20190122152151.16139-11-gregkh@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190122150717.llf4owk6soejibov@master>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
 
-On Tue 22-01-19 15:07:17, Wei Yang wrote:
-> On Tue, Jan 22, 2019 at 09:55:24AM +0100, Michal Hocko wrote:
-> >On Sat 19-01-19 07:49:05, Wei Yang wrote:
-> >> Two cleanups in this patch:
-> >> 
-> >>   * since pageblock_nr_pages == (1 << pageblock_order), the roundup()
-> >>     and right shift pageblock_order could be replaced with
-> >>     DIV_ROUND_UP()
-> >
-> >Why is this change worth it?
-> >
-> 
-> To make it directly show usemapsize is number of times of
-> pageblock_nr_pages.
+When calling debugfs functions, there is no need to ever check the
+return value.  The function can work or not, but the code logic should
+never do something different based on this.
 
-Does this lead to a better code generation? Does it make the code easier
-to read/maintain?
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ mm/hwpoison-inject.c | 67 +++++++++++++++-----------------------------
+ 1 file changed, 22 insertions(+), 45 deletions(-)
 
-> >>   * use BITS_TO_LONGS() to get number of bytes for bitmap
-> >> 
-> >> This patch also fix one typo in comment.
-> >> 
-> >> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> >> ---
-> >>  mm/page_alloc.c | 9 +++------
-> >>  1 file changed, 3 insertions(+), 6 deletions(-)
-> >> 
-> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> index d295c9bc01a8..d7073cedd087 100644
-> >> --- a/mm/page_alloc.c
-> >> +++ b/mm/page_alloc.c
-> >> @@ -6352,7 +6352,7 @@ static void __init calculate_node_totalpages(struct pglist_data *pgdat,
-> >>  /*
-> >>   * Calculate the size of the zone->blockflags rounded to an unsigned long
-> >>   * Start by making sure zonesize is a multiple of pageblock_order by rounding
-> >> - * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
-> >> + * up. Then use 1 NR_PAGEBLOCK_BITS width of bits per pageblock, finally
-> >
-> >why do you change this?
-> >
-> 
-> Is the original comment not correct? Or I misunderstand the English
-> word?
-
-yes AFAICS
-
+diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
+index b6ac70616c32..36662d0097d5 100644
+--- a/mm/hwpoison-inject.c
++++ b/mm/hwpoison-inject.c
+@@ -76,63 +76,40 @@ static void pfn_inject_exit(void)
+ 
+ static int pfn_inject_init(void)
+ {
+-	struct dentry *dentry;
+-
+ 	hwpoison_dir = debugfs_create_dir("hwpoison", NULL);
+-	if (hwpoison_dir == NULL)
+-		return -ENOMEM;
+ 
+ 	/*
+ 	 * Note that the below poison/unpoison interfaces do not involve
+ 	 * hardware status change, hence do not require hardware support.
+ 	 * They are mainly for testing hwpoison in software level.
+ 	 */
+-	dentry = debugfs_create_file("corrupt-pfn", 0200, hwpoison_dir,
+-					  NULL, &hwpoison_fops);
+-	if (!dentry)
+-		goto fail;
+-
+-	dentry = debugfs_create_file("unpoison-pfn", 0200, hwpoison_dir,
+-				     NULL, &unpoison_fops);
+-	if (!dentry)
+-		goto fail;
+-
+-	dentry = debugfs_create_u32("corrupt-filter-enable", 0600,
+-				    hwpoison_dir, &hwpoison_filter_enable);
+-	if (!dentry)
+-		goto fail;
+-
+-	dentry = debugfs_create_u32("corrupt-filter-dev-major", 0600,
+-				    hwpoison_dir, &hwpoison_filter_dev_major);
+-	if (!dentry)
+-		goto fail;
+-
+-	dentry = debugfs_create_u32("corrupt-filter-dev-minor", 0600,
+-				    hwpoison_dir, &hwpoison_filter_dev_minor);
+-	if (!dentry)
+-		goto fail;
+-
+-	dentry = debugfs_create_u64("corrupt-filter-flags-mask", 0600,
+-				    hwpoison_dir, &hwpoison_filter_flags_mask);
+-	if (!dentry)
+-		goto fail;
+-
+-	dentry = debugfs_create_u64("corrupt-filter-flags-value", 0600,
+-				    hwpoison_dir, &hwpoison_filter_flags_value);
+-	if (!dentry)
+-		goto fail;
++	debugfs_create_file("corrupt-pfn", 0200, hwpoison_dir, NULL,
++			    &hwpoison_fops);
++
++	debugfs_create_file("unpoison-pfn", 0200, hwpoison_dir, NULL,
++			    &unpoison_fops);
++
++	debugfs_create_u32("corrupt-filter-enable", 0600, hwpoison_dir,
++			   &hwpoison_filter_enable);
++
++	debugfs_create_u32("corrupt-filter-dev-major", 0600, hwpoison_dir,
++			   &hwpoison_filter_dev_major);
++
++	debugfs_create_u32("corrupt-filter-dev-minor", 0600, hwpoison_dir,
++			   &hwpoison_filter_dev_minor);
++
++	debugfs_create_u64("corrupt-filter-flags-mask", 0600, hwpoison_dir,
++			   &hwpoison_filter_flags_mask);
++
++	debugfs_create_u64("corrupt-filter-flags-value", 0600, hwpoison_dir,
++			   &hwpoison_filter_flags_value);
+ 
+ #ifdef CONFIG_MEMCG
+-	dentry = debugfs_create_u64("corrupt-filter-memcg", 0600,
+-				    hwpoison_dir, &hwpoison_filter_memcg);
+-	if (!dentry)
+-		goto fail;
++	debugfs_create_u64("corrupt-filter-memcg", 0600, hwpoison_dir,
++			   &hwpoison_filter_memcg);
+ #endif
+ 
+ 	return 0;
+-fail:
+-	pfn_inject_exit();
+-	return -ENOMEM;
+ }
+ 
+ module_init(pfn_inject_init);
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1
