@@ -2,132 +2,122 @@ Return-Path: <SRS0=7n0b=P6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28DEDC282C3
-	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 16:54:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 170DEC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 21:44:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E2F6621726
-	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 16:54:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2F6621726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id B47D7217D6
+	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 21:44:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B47D7217D6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 836E38E0004; Tue, 22 Jan 2019 11:54:58 -0500 (EST)
+	id 206D18E0003; Tue, 22 Jan 2019 16:44:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E5168E0001; Tue, 22 Jan 2019 11:54:58 -0500 (EST)
+	id 1B5118E0001; Tue, 22 Jan 2019 16:44:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 688E08E0004; Tue, 22 Jan 2019 11:54:58 -0500 (EST)
+	id 0A6288E0003; Tue, 22 Jan 2019 16:44:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 386558E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 11:54:58 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id b27so9852342otk.6
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 08:54:58 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CAEC28E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 16:44:17 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id s71so22363pfi.22
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 13:44:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=10akT0bp1NHa/2U4y1Gem6h2yLdRu35gxbi/m3mvu2Q=;
-        b=sVOJ8M0Kc8/0gSBn21WtXoQUUTDa22b+mR2NDAks+LZL9hAicKPfjF7AJwSgSlkLQz
-         /FBl7fBk2r+NGKSY/sxIOmHMhEqbeU3NpXZ9CALlXQW27eYQ2A2/9bFtJVBS3ZVU9yy+
-         38u232exeCgWKSWTxBhI/4vzdw3aryZGb05MRqwGgxRPpZzOr6248pdnT5ItqdDVPhS3
-         PqZvaUtPy+ulV6YC8fIIq9DGxVj3+6BspXyDXDoaKh+fnzqDp2QpeqaC2psbzh4i3zh5
-         VqvkuOiAzbv+xZDG9LVjh7zsDgHJV6vYNz+XH0uKvfqgwjWo5YTxxDL1ybuhHEYX/kXf
-         dJzA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukf/rf1DeMD8D63oEvfQ1++vXpZOKY67XxUPySdvwBLogE+r0Abm
-	vFVML7zhfrsqgOFbdKuGOJle7rnu/CuHeSHoCcGq653LnudCLTazmgsakcOMV3AjhV/n602741X
-	sFi2j4vWBQ6YjnHmkpa1TM+6V6x37Bl8h9Jn5PUSqYXTtg3geXtylHfejKSWjZYvWZiqkoI5bgw
-	u8DR2T/xVzJo/PpQzX9VD6lt4GOiu8qZqsXYLZtO2+1ulEMo4FkpPd600KX4gZ6PNiGWW3ScUnQ
-	zFDeF01ARngLg+umRsAq8NlOn9pLdAvtn2EHiT77wwlogCwqrxUOwhvCxwlHV1CUDHi93kaIL1g
-	BZt42+vfhGnNnqRVHoWzjjnicZrI4voaLJd4e+uKfGxbd7qQ9imjY5XzvM77gsUKznOvoK8uLA=
-	=
-X-Received: by 2002:aca:b102:: with SMTP id a2mr9052063oif.180.1548176097953;
-        Tue, 22 Jan 2019 08:54:57 -0800 (PST)
-X-Received: by 2002:aca:b102:: with SMTP id a2mr9052036oif.180.1548176097321;
-        Tue, 22 Jan 2019 08:54:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548176097; cv=none;
-        d=google.com; s=arc-20160816;
-        b=MNIvoqdQTSjOJ/1R9seLL2egv+i1nAS743IRsRnyeFh61YNESOe2HpPghlt6bTVpXk
-         3hTjI3ndYm/WaYwGKAqQ1ywMUmCPof9s8bh4ucY531Sh6NwMJNcrHbX5/QOBUIbSFrjp
-         cjb+SRNDSQcy3hGZHl/Gah0J6Nvu6OtPWiqKN2Qm09a/o0f+OzQC+DlD7CnxYNjlgmpF
-         DSozecdM/uyGFNgtitdc6XPv0aZ6a9XUNOHh8GNNM3k4wc0E6AkvYRv/6lZq7TL+E7vS
-         zy2e8xgmuiaY0rqJOIVYxE6uwsJQVFWHJCv5eVMWauQq9lWi1MTvC+a/DSUCXOY3jHU9
-         n8rg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
          :mime-version;
-        bh=10akT0bp1NHa/2U4y1Gem6h2yLdRu35gxbi/m3mvu2Q=;
-        b=NFswOS0IqRTnk22lMTRZX+4iYlByX91+YszgShv5q2GcJRdrJGq3NhHkJx+w2VTW9j
-         dl2Z8c8IhRMIVCogU0KK4edcWVLYFvlicOMOvG5upeM7P2UhDTeomwqreg/2cqwVLIA9
-         QNLoGx9OBrijCKBLpIuedjn5iuE7/e2asyolL7U0qmUZtOVpfu2Pyj0PIA750oj26Rj5
-         CmnuwyqjwtSNu9oPbxc6vWpIl08eO3DsaTtJmKHuUcGx+yIdbC2XRx/BxHDYRpL9voOb
-         P8CdK8yHuh45UdY8AJZ/QIjuLW9wv0FA4RZ9BAtAtNsj11FpSRCCS4opedBPb2nmH0fj
-         xbqQ==
+        bh=WmCJIgU0U+rMXlSQge28ZABnQmUUFnt4rL6spZNid/o=;
+        b=VVbxbD0jw9NlGTHXwYhLbLJd0eo772roFrBc6EAtN390nGYsWOI1MztmeMFpQmsxXR
+         LLhwHDTUWYUhYvsOvI8RF/qXA8WJ0rsMl+kR/dKo78ahxsSqQQkWw0+lSgrfA1+ulo6I
+         V+HRogfGwJyxgUeeIHKpHCQ49Yepmpye7BPsh5lj16D7xAD7Y2EajZ2w63diLzjk361i
+         xtnfyejK5yxkM7B9MPjLlYcAURUBK6DD5BgIYVZUD7bkllCreCHgkhkXP2kBFdy1GOsh
+         NSIWgeLsCP2ckNwJOObAS8b5tFts8H7mHY4a33InDpFCLD1beBMcWwVWDw1H9rc+j65h
+         LMoQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ak@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukdBqglmgbC6nstSdXrAAXaAZHlbZPfvUoYrx0mv3bpJepHlLmtz
+	lk3oLMeN/QpqnAPsxK9WsJKh1IriSmVwuJiXBx53QT/WlEujnlRVcHMtYhIbBAGh0vMPvkDB3KB
+	J0iTn7MYw2VM1IjVXZObsMIcGNSLY/W6B5kJHeYamw28HA9lapdiFzEK8DhaMdL+fiA==
+X-Received: by 2002:a62:3241:: with SMTP id y62mr35030342pfy.178.1548193457496;
+        Tue, 22 Jan 2019 13:44:17 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5Di6cL8lTpNBK5npo6nuCiZnqQ/kSjGAAREXMFk1CQ6gg/WQNTFvKYO4GKeoAKymozCjs/
+X-Received: by 2002:a62:3241:: with SMTP id y62mr35030308pfy.178.1548193456681;
+        Tue, 22 Jan 2019 13:44:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548193456; cv=none;
+        d=google.com; s=arc-20160816;
+        b=G3TceHQDbGa/GWxzOkKVW3wLGYI+FLtBwkgsUlUCjFbuKEyvSYFC6PFBiozbhi3G5P
+         +vG/u+kqPhitnwMEvrslUEwgTLioy1UT/YcBfqt4UnFDjSxXE0gcTvo3EdUXn+tB+jFn
+         7nYNqGUGH4Jehpl+t4TGUBQ75P1/n15RjC5WUzXWxISPzKZj/svyHuX5OVkH1tM5Hj/J
+         HysKObYO2po4iYWf7363TAyG6hFn+rlsjnUHMwd6O7p7c787mwti2/QdjKFD2e7yF/vR
+         NUCC9SKbLXLiSiyuErLA8UrIALaA4Y8EO3RZnp4F/6+N+dIuBeYTi1r4egn3Y4r1D0Xs
+         QwvQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=WmCJIgU0U+rMXlSQge28ZABnQmUUFnt4rL6spZNid/o=;
+        b=YPBCcSxW7h3iGyIKM7rapSnZm1XUqihvXr7eAu50LEYYGnaZWkKsjKCILYbgYbSUqw
+         lUPYmww/i6OmuRuE0O3BflhLNugbjiJ69mKCaKWZCwjemzKFvQDUstzkrzsjHLDRQEvJ
+         4tK3Bm5JMj8xt9f5Zo/FjCfLS23KbtaxuI8JPS8NOxH0fZT3k2kUbNoXG0deKIzc9CxD
+         DDFQjL7DlEP+ySpKY0tGJEa/V0MgKHtdr6Dr4JQY+XnxSeWHh3b0kcOw9rbHa/QeuRPj
+         aXX3kobnxsB4nBr6+hFravcTZ5SacK4aWv8JmXwSzxeQGmhZdc/Xku4l3KS3dDxbwebD
+         UYHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 90sor9667285oti.17.2019.01.22.08.54.57
+       spf=pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ak@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id f5si11526028pfn.259.2019.01.22.13.44.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 22 Jan 2019 08:54:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Jan 2019 13:44:16 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: ALg8bN7/pj42bfI8MW2bGnxgQF7xVHkxCJOb9VEFnDvIEb8DKD9g0HZa8+FBZ9rVqFp0rnIb5zJLxmr2py7CtonYb70=
-X-Received: by 2002:a9d:588c:: with SMTP id x12mr23381958otg.139.1548176096957;
- Tue, 22 Jan 2019 08:54:56 -0800 (PST)
+       spf=pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ak@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Jan 2019 13:44:15 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,508,1539673200"; 
+   d="scan'208";a="128046630"
+Received: from tassilo.jf.intel.com (HELO tassilo.localdomain) ([10.7.201.137])
+  by orsmga002.jf.intel.com with ESMTP; 22 Jan 2019 13:44:15 -0800
+Received: by tassilo.localdomain (Postfix, from userid 1000)
+	id B3876301202; Tue, 22 Jan 2019 13:44:15 -0800 (PST)
+From: Andi Kleen <ak@linux.intel.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org,  linux-mm@kvack.org,  linux-kernel@vger.kernel.org
+Subject: Re: [LSF/MM TOPIC] Page flags, can we free up space ?
+References: <20190122201744.GA3939@redhat.com>
+Date: Tue, 22 Jan 2019 13:44:15 -0800
+In-Reply-To: <20190122201744.GA3939@redhat.com> (Jerome Glisse's message of
+	"Tue, 22 Jan 2019 15:17:44 -0500")
+Message-ID: <87tvi074gg.fsf@linux.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-References: <20190116175804.30196-1-keith.busch@intel.com> <20190116175804.30196-6-keith.busch@intel.com>
- <CAJZ5v0jmkyrNBHzqHsOuWjLXF34tq83VnEhdBWrdFqxyiXC=cw@mail.gmail.com>
- <CAPcyv4gH0_e_NFJNOFH4XXarSs7+TOj4nT0r-D33ZGNCfqBdxg@mail.gmail.com>
- <20190119090129.GC10836@kroah.com> <CAJZ5v0jxuLPUvwr-hYstgC-7BKDwqkJpep94rnnUFvFhKG4W3g@mail.gmail.com>
- <20190122163650.GD1477@localhost.localdomain> <CAJZ5v0ggO9DePeYJkEoZ-ymB5VQywBgTnsGBo4WPHD5_JrjKRA@mail.gmail.com>
-In-Reply-To: <CAJZ5v0ggO9DePeYJkEoZ-ymB5VQywBgTnsGBo4WPHD5_JrjKRA@mail.gmail.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Tue, 22 Jan 2019 17:54:45 +0100
-Message-ID:
- <CAJZ5v0h1Q_dtJu7eXvs-7-bFRBBhLC158H1FKv96nE87rHv40A@mail.gmail.com>
-Subject: Re: [PATCHv4 05/13] Documentation/ABI: Add new node sysfs attributes
-To: Keith Busch <keith.busch@intel.com>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	Dan Williams <dan.j.williams@intel.com>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190122165445.p7JhAtOSFWAsenP10-3Ls5c1zBgckSQ4Q3rObyarY8w@z>
+Message-ID: <20190122214415.iWizBunTWe7pg9VQwJ8u15R0TEnThblVlFyR7MxLUE0@z>
 
-On Tue, Jan 22, 2019 at 5:51 PM Rafael J. Wysocki <rafael@kernel.org> wrote:
+Jerome Glisse <jglisse@redhat.com> writes:
 >
-> On Tue, Jan 22, 2019 at 5:37 PM Keith Busch <keith.busch@intel.com> wrote:
-> >
-> > On Sun, Jan 20, 2019 at 05:16:05PM +0100, Rafael J. Wysocki wrote:
-> > > On Sat, Jan 19, 2019 at 10:01 AM Greg Kroah-Hartman
-> > > <gregkh@linuxfoundation.org> wrote:
-> > > >
-> > > > If you do a subdirectory "correctly" (i.e. a name for an attribute
-> > > > group), that's fine.
-> > >
-> > > Yes, that's what I was thinking about: along the lines of the "power"
-> > > group under device kobjects.
-> >
-> > We can't append symlinks to an attribute group, though.
->
-> That's right, unfortunately.
+> Right now this is more a temptative ie i do not know if i will succeed,
+> in any case i can report on failure or success and discuss my finding to
+> get people opinions on the matter.
 
-Scratch this.
+I would just stop putting node/zone number into the flags. These
+could be all handled with a small perfect hash table, like the original
+x86_64 port did, which should be quite cheap to look up.
+Then there should be enough bits for everyone again.
 
-You can add them using sysfs_add_link_to_group().  For example, see
-what acpi_power_expose_list() does.
+-Andi
 
