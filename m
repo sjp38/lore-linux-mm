@@ -1,69 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 54B438E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 15:10:07 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id b14so14530633itd.1
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 12:10:07 -0800 (PST)
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id p6si9322150itm.58.2019.01.22.12.10.03
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 313CB8E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 15:28:26 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id l1so12982914wrn.3
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 12:28:26 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id g18si47644729wrx.15.2019.01.22.12.28.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 12:10:04 -0800 (PST)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC PATCH] mm: vmscan: do not iterate all mem cgroups for global direct reclaim
-Date: Wed, 23 Jan 2019 04:09:42 +0800
-Message-Id: <1548187782-108454-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Jan 2019 12:28:24 -0800 (PST)
+Date: Tue, 22 Jan 2019 21:28:19 +0100
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: Re: [PATCH] backing-dev: no need to check return value of
+ debugfs_create functions
+Message-ID: <20190122202817.vypepopx4sd757c3@linutronix.de>
+References: <20190122152151.16139-8-gregkh@linuxfoundation.org>
+ <20190122160759.mx3h7gjc23zmrvxc@linutronix.de>
+ <20190122162503.GB22548@kroah.com>
+ <20190122171908.c7geuvluezkjp3s7@linutronix.de>
+ <20190122183348.GA31271@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190122183348.GA31271@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, hannes@cmpxchg.org, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Anders Roxell <anders.roxell@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org
 
-In current implementation, both kswapd and direct reclaim has to iterate
-all mem cgroups.  It is not a problem before offline mem cgroups could
-be iterated.  But, currently with iterating offline mem cgroups, it
-could be very time consuming.  In our workloads, we saw over 400K mem
-cgroups accumulated in some cases, only a few hundred are online memcgs.
-Although kswapd could help out to reduce the number of memcgs, direct
-reclaim still get hit with iterating a number of offline memcgs in some
-cases.  We experienced the responsiveness problems due to this
-occassionally.
+On 2019-01-22 19:33:48 [+0100], Greg Kroah-Hartman wrote:
+> On Tue, Jan 22, 2019 at 06:19:08PM +0100, Sebastian Andrzej Siewior wrote:
+> > but if you cat the stats file then it will dereference the bdi struct
+> > which has been free(), right?
+> 
+> Maybe, I don't know, your code is long gone, it doesn't matter :)
 
-Here just break the iteration once it reclaims enough pages as what
-memcg direct reclaim does.  This may hurt the fairness among memcgs
-since direct reclaim may awlays do reclaim from same memcgs.  But, it
-sounds ok since direct reclaim just tries to reclaim SWAP_CLUSTER_MAX
-pages and memcgs can be protected by min/low.
+may point is that you may remain with a stats file in debugfs' root
+folder which you can cat and then crash.
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- mm/vmscan.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+> > > But step back, how could that original call be NULL?  That only happens
+> > > if you pass it a bad parent dentry (which you didn't), or the system is
+> > > totally out of memory (in which case you don't care as everything else
+> > > is on fire).
+> > 
+> > debugfs_get_inode() could do -ENOMEM and then the directory creation
+> > fails with NULL.
+> 
+> And if that happens, your system has worse problems :)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a714c4f..ced5a16 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2764,16 +2764,15 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 				   sc->nr_reclaimed - reclaimed);
- 
- 			/*
--			 * Direct reclaim and kswapd have to scan all memory
--			 * cgroups to fulfill the overall scan target for the
--			 * node.
-+			 * Kswapd have to scan all memory cgroups to fulfill
-+			 * the overall scan target for the node.
- 			 *
- 			 * Limit reclaim, on the other hand, only cares about
- 			 * nr_to_reclaim pages to be reclaimed and it will
- 			 * retry with decreasing priority if one round over the
- 			 * whole hierarchy is not sufficient.
- 			 */
--			if (!global_reclaim(sc) &&
-+			if ((!global_reclaim(sc) || !current_is_kswapd()) &&
- 					sc->nr_reclaimed >= sc->nr_to_reclaim) {
- 				mem_cgroup_iter_break(root, memcg);
- 				break;
--- 
-1.8.3.1
+So we care to properly handle -ENOMEM in driver's probe function. Those
+change find their way to stable kernels.
+This unhandled -ENOMEM in debugfs_get_inode() will let
+debugfs_create_dir() reuturn NULL. Then debugfs_create_file() will
+create the stats in debugfs' root folder. This is a changed behaviour
+which is not expected. And then on rmmod the stats file is still present
+and will participate in use-after-free if it is read.
+
+> As it's been that way for over a decade, I think we will be fine :)
+> If it changes in the future, in some way that actually matters, I'll go
+> back and fix up all of the callers.
+
+That is okay then :).
+I don't mind if the stats file does not show up due to an error on
+probe. It is debugfs after all. However I don't think that it is okay
+that the stats file remains in the root folder even after the module has
+been removed (and access memory that does not belong to it).
+
+> thanks,
+> 
+> greg k-h
+
+Sebastian
