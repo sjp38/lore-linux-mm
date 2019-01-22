@@ -1,332 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3A18E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 04:56:20 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id l45so9160851edb.1
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 01:56:19 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a101si2942735edf.386.2019.01.22.01.56.18
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D518E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 05:03:07 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id w124so7079262oif.3
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 02:03:07 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id s61si7787194otb.294.2019.01.22.02.03.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 01:56:18 -0800 (PST)
-Date: Tue, 22 Jan 2019 10:56:16 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/6] mm: make mm->pinned_vm an atomic64 counter
-Message-ID: <20190122095616.GA13149@quack2.suse.cz>
-References: <20190121174220.10583-1-dave@stgolabs.net>
- <20190121174220.10583-2-dave@stgolabs.net>
+        Tue, 22 Jan 2019 02:03:06 -0800 (PST)
+Subject: Re: possible deadlock in __do_page_fault
+References: <000000000000f7a28e057653dc6e@google.com>
+ <20180920141058.4ed467594761e073606eafe2@linux-foundation.org>
+ <CAHRSSEzX5HOUEQ6DgEF76OLGrwS1isWMdtvneBLOEEnwoMxVrA@mail.gmail.com>
+ <CAEXW_YSot+3AMQ=jmDRowmqoOmQmujp9r8Dh18KJJN1EDmyHOw@mail.gmail.com>
+ <20180921162110.e22d09a9e281d194db3c8359@linux-foundation.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <4b0a5f8c-2be2-db38-a70d-8d497cb67665@I-love.SAKURA.ne.jp>
+Date: Tue, 22 Jan 2019 19:02:35 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190121174220.10583-2-dave@stgolabs.net>
+In-Reply-To: <20180921162110.e22d09a9e281d194db3c8359@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: akpm@linux-foundation.org, dledford@redhat.com, jgg@mellanox.com, jack@suse.de, ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joel@joelfernandes.org>
+Cc: Todd Kjos <tkjos@google.com>, Joel Fernandes <joelaf@google.com>, syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com, ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Mon 21-01-19 09:42:15, Davidlohr Bueso wrote:
-> Taking a sleeping lock to _only_ increment a variable is quite the
-> overkill, and pretty much all users do this. Furthermore, some drivers
-> (ie: infiniband and scif) that need pinned semantics can go to quite
-> some trouble to actually delay via workqueue (un)accounting for pinned
-> pages when not possible to acquire it.
+On 2018/09/22 8:21, Andrew Morton wrote:
+> On Thu, 20 Sep 2018 19:33:15 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
 > 
-> By making the counter atomic we no longer need to hold the mmap_sem
-> and can simply some code around it for pinned_vm users. The counter
-> is 64-bit such that we need not worry about overflows such as rdma
-> user input controlled from userspace.
+>> On Thu, Sep 20, 2018 at 5:12 PM Todd Kjos <tkjos@google.com> wrote:
+>>>
+>>> +Joel Fernandes
+>>>
+>>> On Thu, Sep 20, 2018 at 2:11 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>>>>
+>>>>
+>>>> Thanks.  Let's cc the ashmem folks.
+>>>>
+>>
+>> This should be fixed by https://patchwork.kernel.org/patch/10572477/
+>>
+>> It has Neil Brown's Reviewed-by but looks like didn't yet appear in
+>> anyone's tree, could Greg take this patch?
 > 
-> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
-
-The patch looks good to me. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-and I really like the cleanups allowed by this in the drivers :)
-
-								Honza
-
-> ---
->  drivers/infiniband/core/umem.c             | 12 ++++++------
->  drivers/infiniband/hw/hfi1/user_pages.c    |  6 +++---
->  drivers/infiniband/hw/qib/qib_user_pages.c |  4 ++--
->  drivers/infiniband/hw/usnic/usnic_uiom.c   |  8 ++++----
->  drivers/misc/mic/scif/scif_rma.c           |  6 +++---
->  fs/proc/task_mmu.c                         |  2 +-
->  include/linux/mm_types.h                   |  2 +-
->  kernel/events/core.c                       |  8 ++++----
->  kernel/fork.c                              |  2 +-
->  mm/debug.c                                 |  3 ++-
->  10 files changed, 27 insertions(+), 26 deletions(-)
+> All is well.  That went into mainline yesterday, with a cc:stable.
 > 
-> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-> index 1efe0a74e06b..678abe1afcba 100644
-> --- a/drivers/infiniband/core/umem.c
-> +++ b/drivers/infiniband/core/umem.c
-> @@ -166,13 +166,13 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
->  	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
->  
->  	down_write(&mm->mmap_sem);
-> -	if (check_add_overflow(mm->pinned_vm, npages, &new_pinned) ||
-> -	    (new_pinned > lock_limit && !capable(CAP_IPC_LOCK))) {
-> +	new_pinned = atomic64_read(&mm->pinned_vm) + npages;
-> +	if (new_pinned > lock_limit && !capable(CAP_IPC_LOCK)) {
->  		up_write(&mm->mmap_sem);
->  		ret = -ENOMEM;
->  		goto out;
->  	}
-> -	mm->pinned_vm = new_pinned;
-> +	atomic64_set(&mm->pinned_vm, new_pinned);
->  	up_write(&mm->mmap_sem);
->  
->  	cur_base = addr & PAGE_MASK;
-> @@ -234,7 +234,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
->  	__ib_umem_release(context->device, umem, 0);
->  vma:
->  	down_write(&mm->mmap_sem);
-> -	mm->pinned_vm -= ib_umem_num_pages(umem);
-> +	atomic64_sub(ib_umem_num_pages(umem), &mm->pinned_vm);
->  	up_write(&mm->mmap_sem);
->  out:
->  	if (vma_list)
-> @@ -263,7 +263,7 @@ static void ib_umem_release_defer(struct work_struct *work)
->  	struct ib_umem *umem = container_of(work, struct ib_umem, work);
->  
->  	down_write(&umem->owning_mm->mmap_sem);
-> -	umem->owning_mm->pinned_vm -= ib_umem_num_pages(umem);
-> +	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
->  	up_write(&umem->owning_mm->mmap_sem);
->  
->  	__ib_umem_release_tail(umem);
-> @@ -302,7 +302,7 @@ void ib_umem_release(struct ib_umem *umem)
->  	} else {
->  		down_write(&umem->owning_mm->mmap_sem);
->  	}
-> -	umem->owning_mm->pinned_vm -= ib_umem_num_pages(umem);
-> +	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
->  	up_write(&umem->owning_mm->mmap_sem);
->  
->  	__ib_umem_release_tail(umem);
-> diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-> index e341e6dcc388..40a6e434190f 100644
-> --- a/drivers/infiniband/hw/hfi1/user_pages.c
-> +++ b/drivers/infiniband/hw/hfi1/user_pages.c
-> @@ -92,7 +92,7 @@ bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
->  	size = DIV_ROUND_UP(size, PAGE_SIZE);
->  
->  	down_read(&mm->mmap_sem);
-> -	pinned = mm->pinned_vm;
-> +	pinned = atomic64_read(&mm->pinned_vm);
->  	up_read(&mm->mmap_sem);
->  
->  	/* First, check the absolute limit against all pinned pages. */
-> @@ -112,7 +112,7 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
->  		return ret;
->  
->  	down_write(&mm->mmap_sem);
-> -	mm->pinned_vm += ret;
-> +	atomic64_add(ret, &mm->pinned_vm);
->  	up_write(&mm->mmap_sem);
->  
->  	return ret;
-> @@ -131,7 +131,7 @@ void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
->  
->  	if (mm) { /* during close after signal, mm can be NULL */
->  		down_write(&mm->mmap_sem);
-> -		mm->pinned_vm -= npages;
-> +		atomic64_sub(npages, &mm->pinned_vm);
->  		up_write(&mm->mmap_sem);
->  	}
->  }
-> diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
-> index 16543d5e80c3..602387bf98e7 100644
-> --- a/drivers/infiniband/hw/qib/qib_user_pages.c
-> +++ b/drivers/infiniband/hw/qib/qib_user_pages.c
-> @@ -75,7 +75,7 @@ static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
->  			goto bail_release;
->  	}
->  
-> -	current->mm->pinned_vm += num_pages;
-> +	atomic64_add(num_pages, &current->mm->pinned_vm);
->  
->  	ret = 0;
->  	goto bail;
-> @@ -156,7 +156,7 @@ void qib_release_user_pages(struct page **p, size_t num_pages)
->  	__qib_release_user_pages(p, num_pages, 1);
->  
->  	if (current->mm) {
-> -		current->mm->pinned_vm -= num_pages;
-> +		atomic64_sub(num_pages, &current->mm->pinned_vm);
->  		up_write(&current->mm->mmap_sem);
->  	}
->  }
-> diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
-> index ce01a59fccc4..854436a2b437 100644
-> --- a/drivers/infiniband/hw/usnic/usnic_uiom.c
-> +++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
-> @@ -129,7 +129,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
->  	uiomr->owning_mm = mm = current->mm;
->  	down_write(&mm->mmap_sem);
->  
-> -	locked = npages + current->mm->pinned_vm;
-> +	locked = npages + atomic64_read(&current->mm->pinned_vm);
->  	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
->  
->  	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
-> @@ -187,7 +187,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
->  	if (ret < 0)
->  		usnic_uiom_put_pages(chunk_list, 0);
->  	else {
-> -		mm->pinned_vm = locked;
-> +		atomic64_set(&mm->pinned_vm, locked);
->  		mmgrab(uiomr->owning_mm);
->  	}
->  
-> @@ -441,7 +441,7 @@ static void usnic_uiom_release_defer(struct work_struct *work)
->  		container_of(work, struct usnic_uiom_reg, work);
->  
->  	down_write(&uiomr->owning_mm->mmap_sem);
-> -	uiomr->owning_mm->pinned_vm -= usnic_uiom_num_pages(uiomr);
-> +	atomic64_sub(usnic_uiom_num_pages(uiomr), &uiomr->owning_mm->pinned_vm);
->  	up_write(&uiomr->owning_mm->mmap_sem);
->  
->  	__usnic_uiom_release_tail(uiomr);
-> @@ -469,7 +469,7 @@ void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr,
->  	} else {
->  		down_write(&uiomr->owning_mm->mmap_sem);
->  	}
-> -	uiomr->owning_mm->pinned_vm -= usnic_uiom_num_pages(uiomr);
-> +	atomic64_sub(usnic_uiom_num_pages(uiomr), &uiomr->owning_mm->pinned_vm);
->  	up_write(&uiomr->owning_mm->mmap_sem);
->  
->  	__usnic_uiom_release_tail(uiomr);
-> diff --git a/drivers/misc/mic/scif/scif_rma.c b/drivers/misc/mic/scif/scif_rma.c
-> index 749321eb91ae..2448368f181e 100644
-> --- a/drivers/misc/mic/scif/scif_rma.c
-> +++ b/drivers/misc/mic/scif/scif_rma.c
-> @@ -285,7 +285,7 @@ __scif_dec_pinned_vm_lock(struct mm_struct *mm,
->  	} else {
->  		down_write(&mm->mmap_sem);
->  	}
-> -	mm->pinned_vm -= nr_pages;
-> +	atomic64_sub(nr_pages, &mm->pinned_vm);
->  	up_write(&mm->mmap_sem);
->  	return 0;
->  }
-> @@ -299,7 +299,7 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
->  		return 0;
->  
->  	locked = nr_pages;
-> -	locked += mm->pinned_vm;
-> +	locked += atomic64_read(&mm->pinned_vm);
->  	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
->  	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
->  		dev_err(scif_info.mdev.this_device,
-> @@ -307,7 +307,7 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
->  			locked, lock_limit);
->  		return -ENOMEM;
->  	}
-> -	mm->pinned_vm = locked;
-> +	atomic64_set(&mm->pinned_vm, locked);
->  	return 0;
->  }
->  
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 6976e17dba68..640ae8a47c73 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -59,7 +59,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
->  	SEQ_PUT_DEC("VmPeak:\t", hiwater_vm);
->  	SEQ_PUT_DEC(" kB\nVmSize:\t", total_vm);
->  	SEQ_PUT_DEC(" kB\nVmLck:\t", mm->locked_vm);
-> -	SEQ_PUT_DEC(" kB\nVmPin:\t", mm->pinned_vm);
-> +	SEQ_PUT_DEC(" kB\nVmPin:\t", atomic64_read(&mm->pinned_vm));
->  	SEQ_PUT_DEC(" kB\nVmHWM:\t", hiwater_rss);
->  	SEQ_PUT_DEC(" kB\nVmRSS:\t", total_rss);
->  	SEQ_PUT_DEC(" kB\nRssAnon:\t", anon);
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 6312b02d65ed..0c8be6f9c92d 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -404,7 +404,7 @@ struct mm_struct {
->  
->  		unsigned long total_vm;	   /* Total pages mapped */
->  		unsigned long locked_vm;   /* Pages that have PG_mlocked set */
-> -		unsigned long pinned_vm;   /* Refcount permanently increased */
-> +		atomic64_t    pinned_vm;   /* Refcount permanently increased */
->  		unsigned long data_vm;	   /* VM_WRITE & ~VM_SHARED & ~VM_STACK */
->  		unsigned long exec_vm;	   /* VM_EXEC & ~VM_WRITE & ~VM_STACK */
->  		unsigned long stack_vm;	   /* VM_STACK */
-> diff --git a/kernel/events/core.c b/kernel/events/core.c
-> index 3cd13a30f732..8df0b77a4687 100644
-> --- a/kernel/events/core.c
-> +++ b/kernel/events/core.c
-> @@ -5459,7 +5459,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
->  
->  		/* now it's safe to free the pages */
->  		atomic_long_sub(rb->aux_nr_pages, &mmap_user->locked_vm);
-> -		vma->vm_mm->pinned_vm -= rb->aux_mmap_locked;
-> +		atomic64_sub(rb->aux_mmap_locked, &vma->vm_mm->pinned_vm);
->  
->  		/* this has to be the last one */
->  		rb_free_aux(rb);
-> @@ -5532,7 +5532,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
->  	 */
->  
->  	atomic_long_sub((size >> PAGE_SHIFT) + 1, &mmap_user->locked_vm);
-> -	vma->vm_mm->pinned_vm -= mmap_locked;
-> +	atomic64_sub(mmap_locked, &vma->vm_mm->pinned_vm);
->  	free_uid(mmap_user);
->  
->  out_put:
-> @@ -5680,7 +5680,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
->  
->  	lock_limit = rlimit(RLIMIT_MEMLOCK);
->  	lock_limit >>= PAGE_SHIFT;
-> -	locked = vma->vm_mm->pinned_vm + extra;
-> +	locked = atomic64_read(&vma->vm_mm->pinned_vm) + extra;
->  
->  	if ((locked > lock_limit) && perf_paranoid_tracepoint_raw() &&
->  		!capable(CAP_IPC_LOCK)) {
-> @@ -5721,7 +5721,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
->  unlock:
->  	if (!ret) {
->  		atomic_long_add(user_extra, &user->locked_vm);
-> -		vma->vm_mm->pinned_vm += extra;
-> +		atomic64_add(extra, &vma->vm_mm->pinned_vm);
->  
->  		atomic_inc(&event->mmap_count);
->  	} else if (rb) {
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index c48e9e244a89..a68de9032ced 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -981,7 +981,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  	mm_pgtables_bytes_init(mm);
->  	mm->map_count = 0;
->  	mm->locked_vm = 0;
-> -	mm->pinned_vm = 0;
-> +	atomic64_set(&mm->pinned_vm, 0);
->  	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
->  	spin_lock_init(&mm->page_table_lock);
->  	spin_lock_init(&mm->arg_lock);
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 0abb987dad9b..bcf70e365a77 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -166,7 +166,8 @@ void dump_mm(const struct mm_struct *mm)
->  		mm_pgtables_bytes(mm),
->  		mm->map_count,
->  		mm->hiwater_rss, mm->hiwater_vm, mm->total_vm, mm->locked_vm,
-> -		mm->pinned_vm, mm->data_vm, mm->exec_vm, mm->stack_vm,
-> +		atomic64_read(&mm->pinned_vm),
-> +		mm->data_vm, mm->exec_vm, mm->stack_vm,
->  		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
->  		mm->start_brk, mm->brk, mm->start_stack,
->  		mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
-> -- 
-> 2.16.4
-> 
+
+This problem was not fixed at all.
+
+Why do we need to call fallocate() synchronously with ashmem_mutex held?
+Why can't we call fallocate() asynchronously from WQ_MEM_RECLAIM workqueue
+context so that we can call fallocate() with ashmem_mutex not held?
+
+I don't know how ashmem works, but as far as I can guess, offloading is
+possible as long as other operations which depend on the completion of
+fallocate() operation (e.g. read()/mmap(), querying/changing pinned status)
+wait for completion of asynchronous fallocate() operation (like a draft
+patch shown below is doing).
+
+---
+ drivers/staging/android/ashmem.c | 50 ++++++++++++++++++++++++++++----
+ 1 file changed, 45 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
+index 90a8a9f1ac7d..1a890c43a10a 100644
+--- a/drivers/staging/android/ashmem.c
++++ b/drivers/staging/android/ashmem.c
+@@ -75,6 +75,17 @@ struct ashmem_range {
+ /* LRU list of unpinned pages, protected by ashmem_mutex */
+ static LIST_HEAD(ashmem_lru_list);
+ 
++static struct workqueue_struct *ashmem_wq;
++static atomic_t ashmem_shrink_inflight = ATOMIC_INIT(0);
++static DECLARE_WAIT_QUEUE_HEAD(ashmem_shrink_wait);
++
++struct ashmem_shrink_work {
++	struct work_struct work;
++	struct file *file;
++	loff_t start;
++	loff_t end;
++};
++
+ /*
+  * long lru_count - The count of pages on our LRU list.
+  *
+@@ -292,6 +303,7 @@ static ssize_t ashmem_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+ 	int ret = 0;
+ 
+ 	mutex_lock(&ashmem_mutex);
++	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
+ 
+ 	/* If size is not set, or set to 0, always return EOF. */
+ 	if (asma->size == 0)
+@@ -359,6 +371,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
+ 	int ret = 0;
+ 
+ 	mutex_lock(&ashmem_mutex);
++	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
+ 
+ 	/* user needs to SET_SIZE before mapping */
+ 	if (!asma->size) {
+@@ -421,6 +434,19 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
+ 	return ret;
+ }
+ 
++static void ashmem_shrink_worker(struct work_struct *work)
++{
++	struct ashmem_shrink_work *w = container_of(work, typeof(*w), work);
++
++	w->file->f_op->fallocate(w->file,
++				 FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
++				 w->start, w->end - w->start);
++	fput(w->file);
++	kfree(w);
++	if (atomic_dec_and_test(&ashmem_shrink_inflight))
++		wake_up_all(&ashmem_shrink_wait);
++}
++
+ /*
+  * ashmem_shrink - our cache shrinker, called from mm/vmscan.c
+  *
+@@ -449,12 +475,18 @@ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 		return -1;
+ 
+ 	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
+-		loff_t start = range->pgstart * PAGE_SIZE;
+-		loff_t end = (range->pgend + 1) * PAGE_SIZE;
++		struct ashmem_shrink_work *w = kzalloc(sizeof(*w), GFP_ATOMIC);
++
++		if (!w)
++			break;
++		INIT_WORK(&w->work, ashmem_shrink_worker);
++		w->file = range->asma->file;
++		get_file(w->file);
++		w->start = range->pgstart * PAGE_SIZE;
++		w->end = (range->pgend + 1) * PAGE_SIZE;
++		atomic_inc(&ashmem_shrink_inflight);
++		queue_work(ashmem_wq, &w->work);
+ 
+-		range->asma->file->f_op->fallocate(range->asma->file,
+-				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+-				start, end - start);
+ 		range->purged = ASHMEM_WAS_PURGED;
+ 		lru_del(range);
+ 
+@@ -713,6 +745,7 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
+ 		return -EFAULT;
+ 
+ 	mutex_lock(&ashmem_mutex);
++	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
+ 
+ 	if (!asma->file)
+ 		goto out_unlock;
+@@ -883,8 +916,15 @@ static int __init ashmem_init(void)
+ 		goto out_free2;
+ 	}
+ 
++	ashmem_wq = alloc_workqueue("ashmem_wq", WQ_MEM_RECLAIM, 0);
++	if (!ashmem_wq) {
++		pr_err("failed to create workqueue\n");
++		goto out_demisc;
++	}
++
+ 	ret = register_shrinker(&ashmem_shrinker);
+ 	if (ret) {
++		destroy_workqueue(ashmem_wq);
+ 		pr_err("failed to register shrinker!\n");
+ 		goto out_demisc;
+ 	}
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.17.1
