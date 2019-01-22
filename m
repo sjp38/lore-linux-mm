@@ -1,82 +1,49 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Mon, 21 Jan 2019 13:58:49 -0800
-Message-Id: <20190121215850.221745-1-shakeelb@google.com>
-Mime-Version: 1.0
-Subject: [PATCH v3 1/2] mm, oom: fix use-after-free in oom_kill_process
-From: Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Sender: linux-kernel-owner@vger.kernel.org
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Roman Gushchin <guro@fb.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com, Michal Hocko <mhocko@suse.com>, stable@kernel.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 82B1F8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 22:18:18 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id w28so20657320qkj.22
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 19:18:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g188si729579qkf.215.2019.01.21.19.18.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Jan 2019 19:18:17 -0800 (PST)
+Date: Tue, 22 Jan 2019 11:18:03 +0800
+From: Peter Xu <peterx@redhat.com>
+Subject: Re: [PATCH RFC 00/24] userfaultfd: write protection support
+Message-ID: <20190122031803.GB7669@xz-x1>
+References: <20190121075722.7945-1-peterx@redhat.com>
+ <c2485a2d-25b3-2fc0-4902-01fa278be9c7@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <c2485a2d-25b3-2fc0-4902-01fa278be9c7@redhat.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
-Syzbot instance running on upstream kernel found a use-after-free bug
-in oom_kill_process. On further inspection it seems like the process
-selected to be oom-killed has exited even before reaching
-read_lock(&tasklist_lock) in oom_kill_process(). More specifically the
-tsk->usage is 1 which is due to get_task_struct() in oom_evaluate_task()
-and the put_task_struct within for_each_thread() frees the tsk and
-for_each_thread() tries to access the tsk. The easiest fix is to do
-get/put across the for_each_thread() on the selected task.
+On Mon, Jan 21, 2019 at 03:33:21PM +0100, David Hildenbrand wrote:
 
-Now the next question is should we continue with the oom-kill as the
-previously selected task has exited? However before adding more
-complexity and heuristics, let's answer why we even look at the
-children of oom-kill selected task? The select_bad_process() has already
-selected the worst process in the system/memcg. Due to race, the
-selected process might not be the worst at the kill time but does that
-matter? The userspace can use the oom_score_adj interface to prefer
-children to be killed before the parent. I looked at the history but it
-seems like this is there before git history.
+[...]
 
-Reported-by: syzbot+7fbbfa368521945f0e3d@syzkaller.appspotmail.com
-Fixes: 6b0c81b3be11 ("mm, oom: reduce dependency on tasklist_lock")
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
-Reviewed-by: Roman Gushchin <guro@fb.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: stable@kernel.org
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+> Does this series fix the "false positives" case I experienced on early
+> prototypes of uffd-wp? (getting notified about a write access although
+> it was not a write access?)
 
----
-Changelog since v2:
-- N/A
+Hi, David,
 
-Changelog since v1:
-- Improved the commit message and added the Reported-by and Fixes tags.
+Yes it should solve it.
 
- mm/oom_kill.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+The early prototype in Andrea's tree hasn't yet applied the new
+PTE/swap bits for uffd-wp hence it was not able to avoid those fause
+positives.  This series has applied all those ideas (which actually
+come from Andrea as well) so the protection information will be
+persisent per PTE rather than per VMA and it will be kept even through
+swapping and page migrations.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 0930b4365be7..1a007dae1e8f 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -981,6 +981,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	 * still freeing memory.
- 	 */
- 	read_lock(&tasklist_lock);
-+
-+	/*
-+	 * The task 'p' might have already exited before reaching here. The
-+	 * put_task_struct() will free task_struct 'p' while the loop still try
-+	 * to access the field of 'p', so, get an extra reference.
-+	 */
-+	get_task_struct(p);
- 	for_each_thread(p, t) {
- 		list_for_each_entry(child, &t->children, sibling) {
- 			unsigned int child_points;
-@@ -1000,6 +1007,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 			}
- 		}
- 	}
-+	put_task_struct(p);
- 	read_unlock(&tasklist_lock);
- 
- 	/*
+Thanks,
+
 -- 
-2.20.1.321.g9e740568ce-goog
+Peter Xu
