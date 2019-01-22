@@ -1,51 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 84E9E8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 13:24:21 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id p65-v6so5300264ljb.16
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 10:24:21 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k14-v6sor7713694lji.4.2019.01.21.10.24.19
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D61258E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 10:52:59 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id v12so15632222plp.16
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 07:52:59 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f35si16772302pgf.449.2019.01.22.07.52.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 Jan 2019 10:24:19 -0800 (PST)
-Date: Mon, 21 Jan 2019 21:24:16 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: + mm-thp-always-specify-disabled-vmas-as-nh-in-smaps.patch added
- to -mm tree
-Message-ID: <20190121182416.GB2332@uranus.lan>
-References: <alpine.DEB.2.21.1812240058060.114867@chino.kir.corp.google.com>
- <20181224091731.GB16738@dhcp22.suse.cz>
- <20181227111114.5tvvkddyp7cytzeb@kshutemo-mobl1>
- <20181227213100.aeee730c1f9ec5cb11de39a3@linux-foundation.org>
- <20181228081847.GP16738@dhcp22.suse.cz>
- <00ec4644-70c2-4bd1-ec3f-b994fa0669e8@suse.cz>
- <20190115063202.GA13744@rapoport-lnx>
- <20190121102144.GP4087@dhcp22.suse.cz>
- <20190121180029.GA2332@uranus.lan>
- <20190121181824.GW4087@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Jan 2019 07:52:58 -0800 (PST)
+Date: Tue, 22 Jan 2019 16:52:55 +0100
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] mm: no need to check return value of debugfs_create
+ functions
+Message-ID: <20190122155255.GA20142@kroah.com>
+References: <20190122152151.16139-14-gregkh@linuxfoundation.org>
+ <20190122153102.GJ4087@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190121181824.GW4087@dhcp22.suse.cz>
+In-Reply-To: <20190122153102.GJ4087@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, kirill.shutemov@linux.intel.com, adobriyan@gmail.com, Linux API <linux-api@vger.kernel.org>, Andrei Vagin <avagin@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM layout <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org
 
-On Mon, Jan 21, 2019 at 07:18:24PM +0100, Michal Hocko wrote:
-> > > 
-> > > So can we make a decision on this finally please?
-> > 
-> > As to me David's userspace application could use /proc/$pid/status
-> > to fetch precise THP state. And the patch in mm queue simply breaks
-> > others userspace thus should be reverted.
+On Tue, Jan 22, 2019 at 04:31:02PM +0100, Michal Hocko wrote:
+> On Tue 22-01-19 16:21:13, Greg KH wrote:
+> [...]
+> > diff --git a/mm/memblock.c b/mm/memblock.c
+> > index 022d4cbb3618..18ee657fb918 100644
+> > --- a/mm/memblock.c
+> > +++ b/mm/memblock.c
+> > @@ -1998,8 +1998,7 @@ DEFINE_SHOW_ATTRIBUTE(memblock_debug);
+> >  static int __init memblock_init_debugfs(void)
+> >  {
+> >  	struct dentry *root = debugfs_create_dir("memblock", NULL);
+> > -	if (!root)
+> > -		return -ENXIO;
+> > +
+> >  	debugfs_create_file("memory", 0444, root,
+> >  			    &memblock.memory, &memblock_debug_fops);
+> >  	debugfs_create_file("reserved", 0444, root,
 > 
-> 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each vma") will
-> provide even more detailed information because it displays THP
-> eligibility per VMA so you do not have to check all other conditions
-> that control THP.
+> I haven't really read the whole patch but this has just hit my eyes. Is
+> this a correct behavior?
+> 
+> Documentations says:
+>  * @parent: a pointer to the parent dentry for this file.  This should be a
+>  *          directory dentry if set.  If this parameter is NULL, then the
+>  *          file will be created in the root of the debugfs filesystem.
+> 
+> so in case of failure we would get those debugfs files outside of their
+> intended scope. I believe it is much more correct to simply not create
+> anything, no?
 
-Thus the only thing we need is to wait for David's reply if he can
-update his application to use the THPeligible flag and drop the
-patch from mm queue
+If debugfs_create_dir() returns NULL, then something is really wrong
+(you passed it an invalid pointer as the parent dentry, or free memory
+is gone), so there's nothing you can do except keep moving forward and
+take that result and pass it as any parent pointer you want to.  Your
+code logic should never care if a debugfs file is created or not, it is
+"fire and forget".
+
+And any result of a debugfs call, like this one, that is to be passed
+into another debugfs call, will work just fine if the first one failed
+(the second one usually will also fail, which is fine.)
+
+Also, and this is the biggest problem, everyone gets the return value
+check wrong thinking NULL will be an error, it is one type of error, but
+other ones are also returned and no one checks them properly.  So just
+don't check at all, that is the design goal here.
+
+hope this helps,
+
+greg k-h
