@@ -1,175 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 92D518E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 05:03:07 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id w124so7079262oif.3
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 02:03:07 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id s61si7787194otb.294.2019.01.22.02.03.05
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AD218E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 05:37:17 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id f31so9065116edf.17
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 02:37:17 -0800 (PST)
+Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
+        by mx.google.com with ESMTPS id j1-v6si1222768ejo.195.2019.01.22.02.37.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 02:03:06 -0800 (PST)
-Subject: Re: possible deadlock in __do_page_fault
-References: <000000000000f7a28e057653dc6e@google.com>
- <20180920141058.4ed467594761e073606eafe2@linux-foundation.org>
- <CAHRSSEzX5HOUEQ6DgEF76OLGrwS1isWMdtvneBLOEEnwoMxVrA@mail.gmail.com>
- <CAEXW_YSot+3AMQ=jmDRowmqoOmQmujp9r8Dh18KJJN1EDmyHOw@mail.gmail.com>
- <20180921162110.e22d09a9e281d194db3c8359@linux-foundation.org>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <4b0a5f8c-2be2-db38-a70d-8d497cb67665@I-love.SAKURA.ne.jp>
-Date: Tue, 22 Jan 2019 19:02:35 +0900
-MIME-Version: 1.0
-In-Reply-To: <20180921162110.e22d09a9e281d194db3c8359@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Tue, 22 Jan 2019 02:37:15 -0800 (PST)
+From: Oscar Salvador <osalvador@suse.de>
+Subject: [RFC PATCH v2 0/4] mm, memory_hotplug: allocate memmap from hotadded memory
+Date: Tue, 22 Jan 2019 11:37:04 +0100
+Message-Id: <20190122103708.11043-1-osalvador@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Joel Fernandes <joel@joelfernandes.org>
-Cc: Todd Kjos <tkjos@google.com>, Joel Fernandes <joelaf@google.com>, syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com, ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?= <arve@android.com>, Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: linux-mm@kvack.org
+Cc: mhocko@suse.com, dan.j.williams@intel.com, Pavel.Tatashin@microsoft.com, david@redhat.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Oscar Salvador <osalvador@suse.de>
 
-On 2018/09/22 8:21, Andrew Morton wrote:
-> On Thu, 20 Sep 2018 19:33:15 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
-> 
->> On Thu, Sep 20, 2018 at 5:12 PM Todd Kjos <tkjos@google.com> wrote:
->>>
->>> +Joel Fernandes
->>>
->>> On Thu, Sep 20, 2018 at 2:11 PM Andrew Morton <akpm@linux-foundation.org> wrote:
->>>>
->>>>
->>>> Thanks.  Let's cc the ashmem folks.
->>>>
->>
->> This should be fixed by https://patchwork.kernel.org/patch/10572477/
->>
->> It has Neil Brown's Reviewed-by but looks like didn't yet appear in
->> anyone's tree, could Greg take this patch?
-> 
-> All is well.  That went into mainline yesterday, with a cc:stable.
-> 
+Hi,
 
-This problem was not fixed at all.
+this is the v2 of the first RFC I sent back then in October [1].
+In this new version I tried to reduce the complexity as much as possible,
+plus some clean ups.
 
-Why do we need to call fallocate() synchronously with ashmem_mutex held?
-Why can't we call fallocate() asynchronously from WQ_MEM_RECLAIM workqueue
-context so that we can call fallocate() with ashmem_mutex not held?
+[Testing]
 
-I don't know how ashmem works, but as far as I can guess, offloading is
-possible as long as other operations which depend on the completion of
-fallocate() operation (e.g. read()/mmap(), querying/changing pinned status)
-wait for completion of asynchronous fallocate() operation (like a draft
-patch shown below is doing).
+I have tested it on "x86_64" (small/big memblocks) and on "powerpc".
+On both architectures hot-add/hot-remove online/offline operations
+worked as expected using vmemmap pages, I have not seen any issues so far.
+I wanted to try it out on Hyper-V/Xen, but I did not manage to.
+I plan to do so along this week (if time allows).
+I would also like to test it on arm64, but I am not sure I can grab
+an arm64 box anytime soon.
 
----
- drivers/staging/android/ashmem.c | 50 ++++++++++++++++++++++++++++----
- 1 file changed, 45 insertions(+), 5 deletions(-)
+[Coverletter]:
 
-diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
-index 90a8a9f1ac7d..1a890c43a10a 100644
---- a/drivers/staging/android/ashmem.c
-+++ b/drivers/staging/android/ashmem.c
-@@ -75,6 +75,17 @@ struct ashmem_range {
- /* LRU list of unpinned pages, protected by ashmem_mutex */
- static LIST_HEAD(ashmem_lru_list);
+This is another step to make the memory hotplug more usable. The primary
+goal of this patchset is to reduce memory overhead of the hot added
+memory (at least for SPARSE_VMEMMAP memory model). The current way we use
+to populate memmap (struct page array) has two main drawbacks:
+
+a) it consumes an additional memory until the hotadded memory itself is
+   onlined and
+b) memmap might end up on a different numa node which is especially true
+   for movable_node configuration.
+
+a) is problem especially for memory hotplug based memory "ballooning"
+   solutions when the delay between physical memory hotplug and the
+   onlining can lead to OOM and that led to introduction of hacks like auto
+   onlining (see 31bc3858ea3e ("memory-hotplug: add automatic onlining
+   policy for the newly added memory")).
+
+b) can have performance drawbacks.
+
+I have also seen hot-add operations failing on powerpc due to the fact
+that we try to use order-8 pages when populating the memmap array.
+Given 64KB base pagesize, that is 16MB.
+If we run out of those, we just fail the operation and we cannot add
+more memory.
+We could fallback to base pages as x86_64 does, but we can do better.
+
+One way to mitigate all these issues is to simply allocate memmap array
+(which is the largest memory footprint of the physical memory hotplug)
+from the hotadded memory itself. VMEMMAP memory model allows us to map
+any pfn range so the memory doesn't need to be online to be usable
+for the array. See patch 3 for more details. In short I am reusing an
+existing vmem_altmap which wants to achieve the same thing for nvdim
+device memory.
+
+There is also one potential drawback, though. If somebody uses memory
+hotplug for 1G (gigantic) hugetlb pages then this scheme will not work
+for them obviously because each memory block will contain reserved
+area. Large x86 machines will use 2G memblocks so at least one 1G page
+will be available but this is still not 2G...
+
+I am not really sure somebody does that and how reliable that can work
+actually. Nevertheless, I _believe_ that onlining more memory into
+virtual machines is much more common usecase. Anyway if there ever is a
+strong demand for such a usecase we have basically 3 options a) enlarge
+memory blocks even more b) enhance altmap allocation strategy and reuse
+low memory sections to host memmaps of other sections on the same NUMA
+node c) have the memmap allocation strategy configurable to fallback to
+the current allocation.
  
-+static struct workqueue_struct *ashmem_wq;
-+static atomic_t ashmem_shrink_inflight = ATOMIC_INIT(0);
-+static DECLARE_WAIT_QUEUE_HEAD(ashmem_shrink_wait);
-+
-+struct ashmem_shrink_work {
-+	struct work_struct work;
-+	struct file *file;
-+	loff_t start;
-+	loff_t end;
-+};
-+
- /*
-  * long lru_count - The count of pages on our LRU list.
-  *
-@@ -292,6 +303,7 @@ static ssize_t ashmem_read_iter(struct kiocb *iocb, struct iov_iter *iter)
- 	int ret = 0;
- 
- 	mutex_lock(&ashmem_mutex);
-+	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
- 
- 	/* If size is not set, or set to 0, always return EOF. */
- 	if (asma->size == 0)
-@@ -359,6 +371,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
- 	int ret = 0;
- 
- 	mutex_lock(&ashmem_mutex);
-+	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
- 
- 	/* user needs to SET_SIZE before mapping */
- 	if (!asma->size) {
-@@ -421,6 +434,19 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
- 	return ret;
- }
- 
-+static void ashmem_shrink_worker(struct work_struct *work)
-+{
-+	struct ashmem_shrink_work *w = container_of(work, typeof(*w), work);
-+
-+	w->file->f_op->fallocate(w->file,
-+				 FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-+				 w->start, w->end - w->start);
-+	fput(w->file);
-+	kfree(w);
-+	if (atomic_dec_and_test(&ashmem_shrink_inflight))
-+		wake_up_all(&ashmem_shrink_wait);
-+}
-+
- /*
-  * ashmem_shrink - our cache shrinker, called from mm/vmscan.c
-  *
-@@ -449,12 +475,18 @@ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
- 		return -1;
- 
- 	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
--		loff_t start = range->pgstart * PAGE_SIZE;
--		loff_t end = (range->pgend + 1) * PAGE_SIZE;
-+		struct ashmem_shrink_work *w = kzalloc(sizeof(*w), GFP_ATOMIC);
-+
-+		if (!w)
-+			break;
-+		INIT_WORK(&w->work, ashmem_shrink_worker);
-+		w->file = range->asma->file;
-+		get_file(w->file);
-+		w->start = range->pgstart * PAGE_SIZE;
-+		w->end = (range->pgend + 1) * PAGE_SIZE;
-+		atomic_inc(&ashmem_shrink_inflight);
-+		queue_work(ashmem_wq, &w->work);
- 
--		range->asma->file->f_op->fallocate(range->asma->file,
--				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
--				start, end - start);
- 		range->purged = ASHMEM_WAS_PURGED;
- 		lru_del(range);
- 
-@@ -713,6 +745,7 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
- 		return -EFAULT;
- 
- 	mutex_lock(&ashmem_mutex);
-+	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
- 
- 	if (!asma->file)
- 		goto out_unlock;
-@@ -883,8 +916,15 @@ static int __init ashmem_init(void)
- 		goto out_free2;
- 	}
- 
-+	ashmem_wq = alloc_workqueue("ashmem_wq", WQ_MEM_RECLAIM, 0);
-+	if (!ashmem_wq) {
-+		pr_err("failed to create workqueue\n");
-+		goto out_demisc;
-+	}
-+
- 	ret = register_shrinker(&ashmem_shrinker);
- 	if (ret) {
-+		destroy_workqueue(ashmem_wq);
- 		pr_err("failed to register shrinker!\n");
- 		goto out_demisc;
- 	}
+[Overall design]:
+
+Let us say we hot-add 2GB of memory on a x86_64 (memblock size = 128M).
+That is:
+
+ - 16 sections
+ - 524288 pages
+ - 8192 vmemmap pages (out of those 524288. We spend 512 pages for each section)
+
+ The range of pages is: 0xffffea0004000000 - 0xffffea0006000000
+ The vmemmap range is:  0xffffea0004000000 - 0xffffea0004080000
+
+ 0xffffea0004000000 is the head vmemmap page (first page), while all the others
+ are "tails".
+
+ We keep the following information in it:
+
+ - Head page:
+   - head->_refcount: number of sections
+   - head->private :  number of vmemmap pages
+ - Tail page:
+   - tail->freelist : pointer to the head
+
+This is done because it eases the work in cases where we have to compute the
+number of vmemmap pages to know how much do we have to skip etc, and to keep
+the right accounting to present_pages.
+
+When we want to hot-remove the range, we need to be careful because the first
+pages of that range, are used for the memmap maping, so if we remove those
+first, we would blow up while accessing the others later on.
+For that reason we keep the number of sections in head->_refcount, to know how
+much do we have to defer the free up.
+
+Since in a hot-remove operation, sections are being removed sequentially, the
+approach taken here is that every time we hit free_section_memmap(), we decrease
+the refcount of the head.
+When it reaches 0, we know that we hit the last section, so we call
+vmemmap_free() for the whole memory-range in backwards, so we make sure that
+the pages used for the mapping will be latest to be freed up.
+
+The accounting is as follows:
+
+ Vmemmap pages are charged to spanned/present_paged, but not to manages_pages.
+
+I yet have to check a couple of things like creating an accounting item
+like VMEMMAP_PAGES to show in /proc/meminfo to ease to spot the memory that
+went in there, testing Hyper-V/Xen to see how they react to the fact that
+we are using the beginning of the memory-range for our own purposes, and to
+check the thing about gigantic pages + hotplug.
+I also have to check that there is no compilation/runtime errors when
+CONFIG_SPARSEMEM but !CONFIG_SPARSEMEM_VMEMMAP.
+But before that, I would like to get people's feedback about the overall
+design, and ideas/suggestions.
+
+
+[1] https://patchwork.kernel.org/cover/10685835/
+
+Michal Hocko (3):
+  mm, memory_hotplug: cleanup memory offline path
+  mm, memory_hotplug: provide a more generic restrictions for memory
+    hotplug
+  mm, sparse: rename kmalloc_section_memmap, __kfree_section_memmap
+
+Oscar Salvador (1):
+  mm, memory_hotplug: allocate memmap from the added memory range for
+    sparse-vmemmap
+
+ arch/arm64/mm/mmu.c            |  10 ++-
+ arch/ia64/mm/init.c            |   5 +-
+ arch/powerpc/mm/init_64.c      |   7 ++
+ arch/powerpc/mm/mem.c          |   6 +-
+ arch/s390/mm/init.c            |  12 ++-
+ arch/sh/mm/init.c              |   6 +-
+ arch/x86/mm/init_32.c          |   6 +-
+ arch/x86/mm/init_64.c          |  20 +++--
+ drivers/hv/hv_balloon.c        |   1 +
+ drivers/xen/balloon.c          |   1 +
+ include/linux/memory_hotplug.h |  42 ++++++++--
+ include/linux/memremap.h       |   2 +-
+ include/linux/page-flags.h     |  23 +++++
+ kernel/memremap.c              |   9 +-
+ mm/compaction.c                |   8 ++
+ mm/memory_hotplug.c            | 186 +++++++++++++++++++++++++++++------------
+ mm/page_alloc.c                |  47 ++++++++++-
+ mm/page_isolation.c            |  13 +++
+ mm/sparse.c                    | 124 +++++++++++++++++++++++++--
+ mm/util.c                      |   2 +
+ 20 files changed, 431 insertions(+), 99 deletions(-)
+
 -- 
-2.17.1
+2.13.7
