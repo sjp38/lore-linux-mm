@@ -1,57 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F9588E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 21:02:10 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id m37so22791755qte.10
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 18:02:10 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x24si418779qtp.214.2019.01.21.18.02.09
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1159A8E0001
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 21:41:42 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id l7so12291946ywh.16
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 18:41:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y127sor1883382ywf.195.2019.01.21.18.41.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 18:02:09 -0800 (PST)
-Date: Tue, 22 Jan 2019 10:01:30 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH V14 00/18] block: support multi-page bvec
-Message-ID: <20190122020128.GB2490@ming.t460p>
-References: <20190121081805.32727-1-ming.lei@redhat.com>
- <61dfaa1e-e7bf-75f1-410b-ed32f97d0782@grimberg.me>
+        (Google Transport Security);
+        Mon, 21 Jan 2019 18:41:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <61dfaa1e-e7bf-75f1-410b-ed32f97d0782@grimberg.me>
+References: <20190121215850.221745-1-shakeelb@google.com> <20190121215850.221745-2-shakeelb@google.com>
+In-Reply-To: <20190121215850.221745-2-shakeelb@google.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Mon, 21 Jan 2019 18:41:28 -0800
+Message-ID: <CALvZod5mvwj9yGOxaaOCnSTkg9rxVbdztewFgdyw_do4BwsHPQ@mail.gmail.com>
+Subject: Re: [PATCH v3 2/2] mm, oom: remove 'prefer children over parent' heuristic
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sagi Grimberg <sagi@grimberg.me>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Roman Gushchin <guro@fb.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, Jan 21, 2019 at 01:43:21AM -0800, Sagi Grimberg wrote:
-> 
-> > V14:
-> > 	- drop patch(patch 4 in V13) for renaming bvec helpers, as suggested by Jens
-> > 	- use mp_bvec_* as multi-page bvec helper name
-> > 	- fix one build issue, which is caused by missing one converion of
-> > 	bio_for_each_segment_all in fs/gfs2
-> > 	- fix one 32bit ARCH specific issue caused by segment boundary mask
-> > 	overflow
-> 
-> Hey Ming,
-> 
-> So is nvme-tcp also affected here? The only point where I see nvme-tcp
-> can be affected is when initializing a bvec iter using bio_segments() as
-> everywhere else we use iters which should transparently work..
-> 
-> I see that loop was converted, does it mean that nvme-tcp needs to
-> call something like?
+On Mon, Jan 21, 2019 at 1:59 PM Shakeel Butt <shakeelb@google.com> wrote:
+>
+> From the start of the git history of Linux, the kernel after selecting
+> the worst process to be oom-killed, prefer to kill its child (if the
+> child does not share mm with the parent). Later it was changed to prefer
+> to kill a child who is worst. If the parent is still the worst then the
+> parent will be killed.
+>
+> This heuristic assumes that the children did less work than their parent
+> and by killing one of them, the work lost will be less. However this is
+> very workload dependent. If there is a workload which can benefit from
+> this heuristic, can use oom_score_adj to prefer children to be killed
+> before the parent.
+>
+> The select_bad_process() has already selected the worst process in the
+> system/memcg. There is no need to recheck the badness of its children
+> and hoping to find a worse candidate. That's a lot of unneeded racy
+> work. Also the heuristic is dangerous because it make fork bomb like
+> workloads to recover much later because we constantly pick and kill
+> processes which are not memory hogs. So, let's remove this whole
+> heuristic.
+>
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Michal, though I have kept your Acked-by but I have made a couple of
+changes in the code. Please let me know if you are ok with the
+changes.
+
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+>
+> ---
+> Changelog since v2:
+> - Propagate the message to __oom_kill_process().
+>
+> Changelog since v1:
+> - Improved commit message based on mhocko's comment.
+> - Replaced 'p' with 'victim'.
+> - Removed extra pr_err message.
+>
+> ---
+>  mm/oom_kill.c | 78 ++++++++++++---------------------------------------
+>  1 file changed, 18 insertions(+), 60 deletions(-)
+>
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 1a007dae1e8f..c90184fd48a3 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -843,7 +843,7 @@ static bool task_will_free_mem(struct task_struct *task)
+>         return ret;
+>  }
+>
+> -static void __oom_kill_process(struct task_struct *victim)
+> +static void __oom_kill_process(struct task_struct *victim, const char *message)
+>  {
+>         struct task_struct *p;
+>         struct mm_struct *mm;
+> @@ -874,8 +874,9 @@ static void __oom_kill_process(struct task_struct *victim)
+>          */
+>         do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
+>         mark_oom_victim(victim);
+> -       pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+> -               task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+> +       pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+> +               message, task_pid_nr(victim), victim->comm,
+> +               K(victim->mm->total_vm),
+>                 K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+>                 K(get_mm_counter(victim->mm, MM_FILEPAGES)),
+>                 K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
+> @@ -932,24 +933,19 @@ static void __oom_kill_process(struct task_struct *victim)
+>   * Kill provided task unless it's secured by setting
+>   * oom_score_adj to OOM_SCORE_ADJ_MIN.
+>   */
+> -static int oom_kill_memcg_member(struct task_struct *task, void *unused)
+> +static int oom_kill_memcg_member(struct task_struct *task, void *message)
+>  {
+>         if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+>                 get_task_struct(task);
+> -               __oom_kill_process(task);
+> +               __oom_kill_process(task, message);
+>         }
+>         return 0;
+>  }
+>
+>  static void oom_kill_process(struct oom_control *oc, const char *message)
+>  {
+> -       struct task_struct *p = oc->chosen;
+> -       unsigned int points = oc->chosen_points;
+> -       struct task_struct *victim = p;
+> -       struct task_struct *child;
+> -       struct task_struct *t;
+> +       struct task_struct *victim = oc->chosen;
+>         struct mem_cgroup *oom_group;
+> -       unsigned int victim_points = 0;
+>         static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+>                                               DEFAULT_RATELIMIT_BURST);
+>
+> @@ -958,57 +954,18 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>          * its children or threads, just give it access to memory reserves
+>          * so it can die quickly
+>          */
+> -       task_lock(p);
+> -       if (task_will_free_mem(p)) {
+> -               mark_oom_victim(p);
+> -               wake_oom_reaper(p);
+> -               task_unlock(p);
+> -               put_task_struct(p);
+> +       task_lock(victim);
+> +       if (task_will_free_mem(victim)) {
+> +               mark_oom_victim(victim);
+> +               wake_oom_reaper(victim);
+> +               task_unlock(victim);
+> +               put_task_struct(victim);
+>                 return;
+>         }
+> -       task_unlock(p);
+> +       task_unlock(victim);
+>
+>         if (__ratelimit(&oom_rs))
+> -               dump_header(oc, p);
+> -
+> -       pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+> -               message, task_pid_nr(p), p->comm, points);
+> -
+> -       /*
+> -        * If any of p's children has a different mm and is eligible for kill,
+> -        * the one with the highest oom_badness() score is sacrificed for its
+> -        * parent.  This attempts to lose the minimal amount of work done while
+> -        * still freeing memory.
+> -        */
+> -       read_lock(&tasklist_lock);
+> -
+> -       /*
+> -        * The task 'p' might have already exited before reaching here. The
+> -        * put_task_struct() will free task_struct 'p' while the loop still try
+> -        * to access the field of 'p', so, get an extra reference.
+> -        */
+> -       get_task_struct(p);
+> -       for_each_thread(p, t) {
+> -               list_for_each_entry(child, &t->children, sibling) {
+> -                       unsigned int child_points;
+> -
+> -                       if (process_shares_mm(child, p->mm))
+> -                               continue;
+> -                       /*
+> -                        * oom_badness() returns 0 if the thread is unkillable
+> -                        */
+> -                       child_points = oom_badness(child,
+> -                               oc->memcg, oc->nodemask, oc->totalpages);
+> -                       if (child_points > victim_points) {
+> -                               put_task_struct(victim);
+> -                               victim = child;
+> -                               victim_points = child_points;
+> -                               get_task_struct(victim);
+> -                       }
+> -               }
+> -       }
+> -       put_task_struct(p);
+> -       read_unlock(&tasklist_lock);
+> +               dump_header(oc, victim);
+>
+>         /*
+>          * Do we need to kill the entire memory cgroup?
+> @@ -1017,14 +974,15 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>          */
+>         oom_group = mem_cgroup_get_oom_group(victim, oc->memcg);
+>
+> -       __oom_kill_process(victim);
+> +       __oom_kill_process(victim, message);
+>
+>         /*
+>          * If necessary, kill all tasks in the selected memory cgroup.
+>          */
+>         if (oom_group) {
+>                 mem_cgroup_print_oom_group(oom_group);
+> -               mem_cgroup_scan_tasks(oom_group, oom_kill_memcg_member, NULL);
+> +               mem_cgroup_scan_tasks(oom_group, oom_kill_memcg_member,
+> +                                     (void*) message);
+>                 mem_cgroup_put(oom_group);
+>         }
+>  }
 > --
-> 	bio_for_each_mp_bvec(bv, bio, iter)
-> 		nr_bvecs++;
-
-bio_for_each_segment()/bio_segments() still works, just not as efficient
-as bio_for_each_mp_bvec() given each multi-page bvec(very similar with scatterlist)
-is returned in each loop.
-
-I don't look at nvme-tcp code yet. But if nvme-tcp supports this way,
-it can benefit from bio_for_each_mp_bvec().
-
-Thanks,
-Ming
+> 2.20.1.321.g9e740568ce-goog
+>
