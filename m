@@ -1,194 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 051F98E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 02:01:03 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id p65-v6so5746956ljb.16
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 23:01:02 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k189sor3813636lfk.58.2019.01.21.23.01.00
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A51FA8E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 03:06:41 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id b3so9024824edi.0
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 00:06:41 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y49si4099576edd.80.2019.01.22.00.06.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 Jan 2019 23:01:00 -0800 (PST)
-MIME-Version: 1.0
-References: <20190111150712.GA2696@jordon-HP-15-Notebook-PC>
-In-Reply-To: <20190111150712.GA2696@jordon-HP-15-Notebook-PC>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 22 Jan 2019 12:30:47 +0530
-Message-ID: <CAFqt6zYOpbwc8518f27W8_YOkuprdJJLyJg1fFB==wrFZLdEYQ@mail.gmail.com>
-Subject: Re: [PATCH 1/9] mm: Introduce new vm_insert_range and
- vm_insert_range_buggy API
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Jan 2019 00:06:39 -0800 (PST)
+From: Juergen Gross <jgross@suse.com>
+Subject: [PATCH 2/2] x86/xen: dont add memory above max allowed allocation
+Date: Tue, 22 Jan 2019 09:06:28 +0100
+Message-Id: <20190122080628.7238-3-jgross@suse.com>
+In-Reply-To: <20190122080628.7238-1-jgross@suse.com>
+References: <20190122080628.7238-1-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, Rik van Riel <riel@surriel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>
-Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
+To: linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, x86@kernel.org, linux-mm@kvack.org
+Cc: boris.ostrovsky@oracle.com, sstabellini@kernel.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de, Juergen Gross <jgross@suse.com>
 
-On Fri, Jan 11, 2019 at 8:33 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->
-> Previouly drivers have their own way of mapping range of
-> kernel pages/memory into user vma and this was done by
-> invoking vm_insert_page() within a loop.
->
-> As this pattern is common across different drivers, it can
-> be generalized by creating new functions and use it across
-> the drivers.
->
-> vm_insert_range() is the API which could be used to mapped
-> kernel memory/pages in drivers which has considered vm_pgoff
->
-> vm_insert_range_buggy() is the API which could be used to map
-> range of kernel memory/pages in drivers which has not considered
-> vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
->
-> We _could_ then at a later "fix" these drivers which are using
-> vm_insert_range_buggy() to behave according to the normal vm_pgoff
-> offsetting simply by removing the _buggy suffix on the function
-> name and if that causes regressions, it gives us an easy way to revert.
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> Suggested-by: Russell King <linux@armlinux.org.uk>
-> Suggested-by: Matthew Wilcox <willy@infradead.org>
+Don't allow memory to be added above the allowed maximum allocation
+limit set by Xen.
 
-Any comment on these APIs ?
+Trying to do so would result in cases like the following:
 
-> ---
->  include/linux/mm.h |  4 +++
->  mm/memory.c        | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/nommu.c         | 14 ++++++++++
->  3 files changed, 99 insertions(+)
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 5411de9..9d1dff6 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2514,6 +2514,10 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
->  int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
->                         unsigned long pfn, unsigned long size, pgprot_t);
->  int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
-> +int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +                               unsigned long num);
-> +int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-> +                               unsigned long num);
->  vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->                         unsigned long pfn);
->  vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 4ad2d29..00e66df 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1520,6 +1520,87 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
->  }
->  EXPORT_SYMBOL(vm_insert_page);
->
-> +/**
-> + * __vm_insert_range - insert range of kernel pages into user vma
-> + * @vma: user vma to map to
-> + * @pages: pointer to array of source kernel pages
-> + * @num: number of pages in page array
-> + * @offset: user's requested vm_pgoff
-> + *
-> + * This allows drivers to insert range of kernel pages they've allocated
-> + * into a user vma.
-> + *
-> + * If we fail to insert any page into the vma, the function will return
-> + * immediately leaving any previously inserted pages present.  Callers
-> + * from the mmap handler may immediately return the error as their caller
-> + * will destroy the vma, removing any successfully inserted pages. Other
-> + * callers should make their own arrangements for calling unmap_region().
-> + *
-> + * Context: Process context.
-> + * Return: 0 on success and error code otherwise.
-> + */
-> +static int __vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +                               unsigned long num, unsigned long offset)
-> +{
-> +       unsigned long count = vma_pages(vma);
-> +       unsigned long uaddr = vma->vm_start;
-> +       int ret, i;
-> +
-> +       /* Fail if the user requested offset is beyond the end of the object */
-> +       if (offset > num)
-> +               return -ENXIO;
-> +
-> +       /* Fail if the user requested size exceeds available object size */
-> +       if (count > num - offset)
-> +               return -ENXIO;
-> +
-> +       for (i = 0; i < count; i++) {
-> +               ret = vm_insert_page(vma, uaddr, pages[offset + i]);
-> +               if (ret < 0)
-> +                       return ret;
-> +               uaddr += PAGE_SIZE;
-> +       }
-> +
-> +       return 0;
-> +}
-> +
-> +/**
-> + * vm_insert_range - insert range of kernel pages starts with non zero offset
-> + * @vma: user vma to map to
-> + * @pages: pointer to array of source kernel pages
-> + * @num: number of pages in page array
-> + *
-> + * Maps an object consisting of `num' `pages', catering for the user's
-> + * requested vm_pgoff
-> + *
-> + * Context: Process context. Called by mmap handlers.
-> + * Return: 0 on success and error code otherwise.
-> + */
-> +int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +                               unsigned long num)
-> +{
-> +       return __vm_insert_range(vma, pages, num, vma->vm_pgoff);
-> +}
-> +EXPORT_SYMBOL(vm_insert_range);
-> +
-> +/**
-> + * vm_insert_range_buggy - insert range of kernel pages starts with zero offset
-> + * @vma: user vma to map to
-> + * @pages: pointer to array of source kernel pages
-> + * @num: number of pages in page array
-> + *
-> + * Maps a set of pages, always starting at page[0]
-> + *
-> + * Context: Process context. Called by mmap handlers.
-> + * Return: 0 on success and error code otherwise.
-> + */
-> +int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-> +                               unsigned long num)
-> +{
-> +       return __vm_insert_range(vma, pages, num, 0);
-> +}
-> +EXPORT_SYMBOL(vm_insert_range_buggy);
-> +
->  static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->                         pfn_t pfn, pgprot_t prot, bool mkwrite)
->  {
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 749276b..21d101e 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -473,6 +473,20 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
->  }
->  EXPORT_SYMBOL(vm_insert_page);
->
-> +int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +                       unsigned long num)
-> +{
-> +       return -EINVAL;
-> +}
-> +EXPORT_SYMBOL(vm_insert_range);
-> +
-> +int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-> +                               unsigned long num)
-> +{
-> +       return -EINVAL;
-> +}
-> +EXPORT_SYMBOL(vm_insert_range_buggy);
-> +
->  /*
->   *  sys_brk() for the most part doesn't need the global kernel
->   *  lock, except when an application is doing something nasty
-> --
-> 1.9.1
->
+[  584.559652] ------------[ cut here ]------------
+[  584.564897] WARNING: CPU: 2 PID: 1 at ../arch/x86/xen/multicalls.c:129 xen_alloc_pte+0x1c7/0x390()
+[  584.575151] Modules linked in:
+[  584.578643] Supported: Yes
+[  584.581750] CPU: 2 PID: 1 Comm: swapper/0 Not tainted 4.4.120-92.70-default #1
+[  584.590000] Hardware name: Cisco Systems Inc UCSC-C460-M4/UCSC-C460-M4, BIOS C460M4.4.0.1b.0.0629181419 06/29/2018
+[  584.601862]  0000000000000000 ffffffff813175a0 0000000000000000 ffffffff8184777c
+[  584.610200]  ffffffff8107f4e1 ffff880487eb7000 ffff8801862b79c0 ffff88048608d290
+[  584.618537]  0000000000487eb7 ffffea0000000201 ffffffff81009de7 ffffffff81068561
+[  584.626876] Call Trace:
+[  584.629699]  [<ffffffff81019ad9>] dump_trace+0x59/0x340
+[  584.635645]  [<ffffffff81019eaa>] show_stack_log_lvl+0xea/0x170
+[  584.642391]  [<ffffffff8101ac51>] show_stack+0x21/0x40
+[  584.648238]  [<ffffffff813175a0>] dump_stack+0x5c/0x7c
+[  584.654085]  [<ffffffff8107f4e1>] warn_slowpath_common+0x81/0xb0
+[  584.660932]  [<ffffffff81009de7>] xen_alloc_pte+0x1c7/0x390
+[  584.667289]  [<ffffffff810647f0>] pmd_populate_kernel.constprop.6+0x40/0x80
+[  584.675241]  [<ffffffff815ecfe8>] phys_pmd_init+0x210/0x255
+[  584.681587]  [<ffffffff815ed207>] phys_pud_init+0x1da/0x247
+[  584.687931]  [<ffffffff815edb3b>] kernel_physical_mapping_init+0xf5/0x1d4
+[  584.695682]  [<ffffffff815e9bdd>] init_memory_mapping+0x18d/0x380
+[  584.702631]  [<ffffffff81064699>] arch_add_memory+0x59/0xf0
+
+Signed-off-by: Juergen Gross <jgross@suse.com>
+---
+ arch/x86/xen/setup.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
+index d5f303c0e656..5929a6ba5c25 100644
+--- a/arch/x86/xen/setup.c
++++ b/arch/x86/xen/setup.c
+@@ -12,6 +12,7 @@
+ #include <linux/memblock.h>
+ #include <linux/cpuidle.h>
+ #include <linux/cpufreq.h>
++#include <linux/memory_hotplug.h>
+ 
+ #include <asm/elf.h>
+ #include <asm/vdso.h>
+@@ -785,6 +786,10 @@ char * __init xen_memory_setup(void)
+ 	/* How many extra pages do we need due to remapping? */
+ 	max_pages += xen_foreach_remap_area(max_pfn, xen_count_remap_pages);
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
++	max_mem_size = PFN_PHYS(max_pages);
++#endif
++
+ 	if (max_pages > max_pfn)
+ 		extra_pages += max_pages - max_pfn;
+ 
+-- 
+2.16.4
