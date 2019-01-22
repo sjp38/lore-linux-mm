@@ -2,122 +2,148 @@ Return-Path: <SRS0=7n0b=P6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 170DEC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 21:44:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D93DC282C5
+	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 22:51:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B47D7217D6
-	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 21:44:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B47D7217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 23FD920870
+	for <linux-mm@archiver.kernel.org>; Tue, 22 Jan 2019 22:51:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="Mdh/az/u"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23FD920870
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 206D18E0003; Tue, 22 Jan 2019 16:44:18 -0500 (EST)
+	id 68E368E0003; Tue, 22 Jan 2019 17:51:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B5118E0001; Tue, 22 Jan 2019 16:44:18 -0500 (EST)
+	id 63D358E0001; Tue, 22 Jan 2019 17:51:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A6288E0003; Tue, 22 Jan 2019 16:44:18 -0500 (EST)
+	id 507B28E0003; Tue, 22 Jan 2019 17:51:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CAEC28E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 16:44:17 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id s71so22363pfi.22
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 13:44:17 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EEEA8E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 17:51:19 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id n50so291767qtb.9
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 14:51:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=WmCJIgU0U+rMXlSQge28ZABnQmUUFnt4rL6spZNid/o=;
-        b=VVbxbD0jw9NlGTHXwYhLbLJd0eo772roFrBc6EAtN390nGYsWOI1MztmeMFpQmsxXR
-         LLhwHDTUWYUhYvsOvI8RF/qXA8WJ0rsMl+kR/dKo78ahxsSqQQkWw0+lSgrfA1+ulo6I
-         V+HRogfGwJyxgUeeIHKpHCQ49Yepmpye7BPsh5lj16D7xAD7Y2EajZ2w63diLzjk361i
-         xtnfyejK5yxkM7B9MPjLlYcAURUBK6DD5BgIYVZUD7bkllCreCHgkhkXP2kBFdy1GOsh
-         NSIWgeLsCP2ckNwJOObAS8b5tFts8H7mHY4a33InDpFCLD1beBMcWwVWDw1H9rc+j65h
-         LMoQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ak@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukdBqglmgbC6nstSdXrAAXaAZHlbZPfvUoYrx0mv3bpJepHlLmtz
-	lk3oLMeN/QpqnAPsxK9WsJKh1IriSmVwuJiXBx53QT/WlEujnlRVcHMtYhIbBAGh0vMPvkDB3KB
-	J0iTn7MYw2VM1IjVXZObsMIcGNSLY/W6B5kJHeYamw28HA9lapdiFzEK8DhaMdL+fiA==
-X-Received: by 2002:a62:3241:: with SMTP id y62mr35030342pfy.178.1548193457496;
-        Tue, 22 Jan 2019 13:44:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Di6cL8lTpNBK5npo6nuCiZnqQ/kSjGAAREXMFk1CQ6gg/WQNTFvKYO4GKeoAKymozCjs/
-X-Received: by 2002:a62:3241:: with SMTP id y62mr35030308pfy.178.1548193456681;
-        Tue, 22 Jan 2019 13:44:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548193456; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=o/XBYHY6SKkDwEIlSoffdYinDoT8V1LONeQ2d/odNaQ=;
+        b=VOvtALhMbtVwjazN/e1PL1mhSaL29QpUdo+Q3xoP+FUS6V8ul84/cilLdxvv2Kzy07
+         QttyGE+C5i9q4QReaPe4CuZye4BpaiiONDchl38rNuN2hhhJOiJI49OQoGvrSCROM5nm
+         4AiAO9QxCcLr1kH5IGuVEc/dqqBp6HQM2i1cDVYkqRULE/qMUHWJx+OhwhlLedgEQdq9
+         8KJZrv4IvCT4W/vWh6h2QfNJZ74fb/uspnHxDc39VdYSq8LeGhxysfzWPePs3PoO4xRp
+         G8x4XNHEqhI4PeQ1gShLPTrp4slaoRFCsTbL6goH5s7DCy4CQIAvNAyNiBbGTqmWGEnD
+         /tcw==
+X-Gm-Message-State: AJcUukd6vzuB8rDQuJJeE5U4UPseZ7qWVIQFFWydOmulO+vTURNEw8D+
+	lKXUAOK43G8sMUe0oZlEIGQzzO6u714MrKToWBonn7crb+pHTYd5rz+W82naOhDtTdkOOAbNeqC
+	s3zKFRRhjXGNw+IoewhANp5hX4D7JI5U1J/CCwgP3TYCnIQgSsUolB1ZJHE0Z47DZ+WEksRlqAm
+	UzO64OWDMc1h6b2JlESJV/fLuiQyyIxUdGcb/ThKne5CinDKABtxvPPfIn63mdvt5SOGo8NWGcM
+	AA/VBXD4vOBQOwX2aTjkgB9012fl8DHVSbP53cvDpVO+1gNcd2rruvppWT64o+1HLqnk5fv/CQ8
+	rAqQLNwpo+Bzx3BkzWkGEJNRMEqo9BIBpv91O0jDqlgr3WAjV16d6VJI8joa7a+o6F2tvxHvz6m
+	5
+X-Received: by 2002:ac8:2487:: with SMTP id s7mr32806657qts.116.1548197478881;
+        Tue, 22 Jan 2019 14:51:18 -0800 (PST)
+X-Received: by 2002:ac8:2487:: with SMTP id s7mr32806636qts.116.1548197478341;
+        Tue, 22 Jan 2019 14:51:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548197478; cv=none;
         d=google.com; s=arc-20160816;
-        b=G3TceHQDbGa/GWxzOkKVW3wLGYI+FLtBwkgsUlUCjFbuKEyvSYFC6PFBiozbhi3G5P
-         +vG/u+kqPhitnwMEvrslUEwgTLioy1UT/YcBfqt4UnFDjSxXE0gcTvo3EdUXn+tB+jFn
-         7nYNqGUGH4Jehpl+t4TGUBQ75P1/n15RjC5WUzXWxISPzKZj/svyHuX5OVkH1tM5Hj/J
-         HysKObYO2po4iYWf7363TAyG6hFn+rlsjnUHMwd6O7p7c787mwti2/QdjKFD2e7yF/vR
-         NUCC9SKbLXLiSiyuErLA8UrIALaA4Y8EO3RZnp4F/6+N+dIuBeYTi1r4egn3Y4r1D0Xs
-         QwvQ==
+        b=QVjPPN4aro9xsyM03Tm66aA9b+7Y5zv47DjtSG3qZA+94rN9thb/mg52uagekXJuWG
+         6EdWdA5ukEIpBZrI0vrGtEdmDjFN2hHSa3Z0GC6jnKnucO3AI/JhiRF9BEmFJgv1m+m2
+         ZNGRlRjaUW6yqojQrY0yoNE6ObMhPLvahLhhb3xowbUhLW+gZCC+d+znTN/MqBSfJg21
+         CoLeRVNGWgonEMHZBmAOQ4h6SLBLgszREg7zzwNMdMkXp4AsIMv2hp0/uNzeVjODC//M
+         8ciPfFmHCZzEjhPedc6lsEvTwbp1xgo5CUoginbC6VrrSfNNWrpGf6CxTla+G6zm+uKG
+         S4ig==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=WmCJIgU0U+rMXlSQge28ZABnQmUUFnt4rL6spZNid/o=;
-        b=YPBCcSxW7h3iGyIKM7rapSnZm1XUqihvXr7eAu50LEYYGnaZWkKsjKCILYbgYbSUqw
-         lUPYmww/i6OmuRuE0O3BflhLNugbjiJ69mKCaKWZCwjemzKFvQDUstzkrzsjHLDRQEvJ
-         4tK3Bm5JMj8xt9f5Zo/FjCfLS23KbtaxuI8JPS8NOxH0fZT3k2kUbNoXG0deKIzc9CxD
-         DDFQjL7DlEP+ySpKY0tGJEa/V0MgKHtdr6Dr4JQY+XnxSeWHh3b0kcOw9rbHa/QeuRPj
-         aXX3kobnxsB4nBr6+hFravcTZ5SacK4aWv8JmXwSzxeQGmhZdc/Xku4l3KS3dDxbwebD
-         UYHg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=o/XBYHY6SKkDwEIlSoffdYinDoT8V1LONeQ2d/odNaQ=;
+        b=EEU0hjAjtJnWzoeHl3U1P2NJelYfACfAWXRS61s9M72Qxvw5gwtrVOZuYgMJHjfqCc
+         lx4qHWzUct6GYBZxbgLFr4KGQRzZeNL6weouStAvMbLYMFzQD7QKbV3dAgKLDw6i9Qzn
+         Ay0kelRsVTfpitXxU9cZOwfvzRsQE6X5sDwKrA8SIvaKh7bAwy+lYU/NEG9YK+jev52L
+         GqGZsIxl650vyqlQ8RcOnxmi0vN9uA3B4+GazpR//RfNsnduH9Jtfw/mFdIwLYa6PF4Q
+         MoBwq384Ki6O/cCrX5rP0LurkSfjhHHr9Tq2xn0Rb+d+8JSML2cfVTDfWDyh4/OYh5Dk
+         3GYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ak@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id f5si11526028pfn.259.2019.01.22.13.44.16
+       dkim=pass header.i=@chromium.org header.s=google header.b="Mdh/az/u";
+       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p16sor114152754qtn.60.2019.01.22.14.51.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 13:44:16 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Tue, 22 Jan 2019 14:51:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of ak@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ak@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Jan 2019 13:44:15 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,508,1539673200"; 
-   d="scan'208";a="128046630"
-Received: from tassilo.jf.intel.com (HELO tassilo.localdomain) ([10.7.201.137])
-  by orsmga002.jf.intel.com with ESMTP; 22 Jan 2019 13:44:15 -0800
-Received: by tassilo.localdomain (Postfix, from userid 1000)
-	id B3876301202; Tue, 22 Jan 2019 13:44:15 -0800 (PST)
-From: Andi Kleen <ak@linux.intel.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: lsf-pc@lists.linux-foundation.org,  linux-mm@kvack.org,  linux-kernel@vger.kernel.org
-Subject: Re: [LSF/MM TOPIC] Page flags, can we free up space ?
-References: <20190122201744.GA3939@redhat.com>
-Date: Tue, 22 Jan 2019 13:44:15 -0800
-In-Reply-To: <20190122201744.GA3939@redhat.com> (Jerome Glisse's message of
-	"Tue, 22 Jan 2019 15:17:44 -0500")
-Message-ID: <87tvi074gg.fsf@linux.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       dkim=pass header.i=@chromium.org header.s=google header.b="Mdh/az/u";
+       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=o/XBYHY6SKkDwEIlSoffdYinDoT8V1LONeQ2d/odNaQ=;
+        b=Mdh/az/ur8N3P0fSSYxO41aX78d92rObeQskl7lbc4hS9DeDf73UVzUUoQnLrUd0Bd
+         Zatbb+NMZBOeS3NFGPdYahMoTBb07Iq5+kNvUVnquujE7C9y5uRKH0RP9h9mCLl90VY+
+         XomJsnQMp5EEdrxsr8xxLlc1SHbxLsUMdNl0o=
+X-Google-Smtp-Source: ALg8bN7Zt15oTdh/04iq08N8IN0vyYu7i10byl+0WgPF5QJSa0QzavTsyex2nrnJhE4cip6lVIqoJK0xipouBFaKmWQ=
+X-Received: by 2002:ac8:6b18:: with SMTP id w24mr33380556qts.144.1548197477728;
+ Tue, 22 Jan 2019 14:51:17 -0800 (PST)
 MIME-Version: 1.0
+References: <20181210011504.122604-1-drinkcat@chromium.org>
+ <CANMq1KAmFKpcxi49wJyfP4N01A80B2d-2RGY2Wrwg0BvaFxAxg@mail.gmail.com> <20190111102155.in5rctq5krs4ewfi@8bytes.org>
+In-Reply-To: <20190111102155.in5rctq5krs4ewfi@8bytes.org>
+From: Nicolas Boichat <drinkcat@chromium.org>
+Date: Wed, 23 Jan 2019 06:51:05 +0800
+Message-ID:
+ <CANMq1KCq7wEYXKLZGCZczZ_yQrmK=MkHbUXESKhHnx5G_CMNVg@mail.gmail.com>
+Subject: Re: [PATCH v6 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page tables
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Will Deacon <will.deacon@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, 
+	Mel Gorman <mgorman@techsingularity.net>, 
+	Levin Alexander <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org, 
+	lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
+	Yong Wu <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
+	Tomasz Figa <tfiga@google.com>, Yingjoe Chen <yingjoe.chen@mediatek.com>, hch@infradead.org, 
+	Matthew Wilcox <willy@infradead.org>, Hsin-Yi Wang <hsinyi@chromium.org>, stable@vger.kernel.org, 
+	Joerg Roedel <joro@8bytes.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190122214415.iWizBunTWe7pg9VQwJ8u15R0TEnThblVlFyR7MxLUE0@z>
+Message-ID: <20190122225105.VeZdpNfdywguRJvcBCMpwNwG0HP4XBBiD5izEy3kwvI@z>
 
-Jerome Glisse <jglisse@redhat.com> writes:
+Hi Andrew,
+
+On Fri, Jan 11, 2019 at 6:21 PM Joerg Roedel <joro@8bytes.org> wrote:
 >
-> Right now this is more a temptative ie i do not know if i will succeed,
-> in any case i can report on failure or success and discuss my finding to
-> get people opinions on the matter.
+> On Wed, Jan 02, 2019 at 01:51:45PM +0800, Nicolas Boichat wrote:
+> > Does anyone have any further comment on this series? If not, which
+> > maintainer is going to pick this up? I assume Andrew Morton?
+>
+> Probably, yes. I don't like to carry the mm-changes in iommu-tree, so
+> this should go through mm.
 
-I would just stop putting node/zone number into the flags. These
-could be all handled with a small perfect hash table, like the original
-x86_64 port did, which should be quite cheap to look up.
-Then there should be enough bits for everyone again.
+Gentle ping on this series, it seems like it's better if it goes
+through your tree.
 
--Andi
+Series still applies cleanly on linux-next, but I'm happy to resend if
+that helps.
+
+Thanks!
+
+> Regards,
+>
+>         Joerg
 
