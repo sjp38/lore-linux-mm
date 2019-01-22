@@ -1,45 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D9C5B8E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 11:37:54 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 74so18601749pfk.12
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 08:37:54 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id b11si3622694pgt.289.2019.01.22.08.37.53
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AC0648E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 12:02:38 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id j5so24752588qtk.11
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 09:02:38 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q129si1270663qkb.189.2019.01.22.09.02.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 08:37:53 -0800 (PST)
-Date: Tue, 22 Jan 2019 09:36:50 -0700
-From: Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCHv4 05/13] Documentation/ABI: Add new node sysfs attributes
-Message-ID: <20190122163650.GD1477@localhost.localdomain>
-References: <20190116175804.30196-1-keith.busch@intel.com>
- <20190116175804.30196-6-keith.busch@intel.com>
- <CAJZ5v0jmkyrNBHzqHsOuWjLXF34tq83VnEhdBWrdFqxyiXC=cw@mail.gmail.com>
- <CAPcyv4gH0_e_NFJNOFH4XXarSs7+TOj4nT0r-D33ZGNCfqBdxg@mail.gmail.com>
- <20190119090129.GC10836@kroah.com>
- <CAJZ5v0jxuLPUvwr-hYstgC-7BKDwqkJpep94rnnUFvFhKG4W3g@mail.gmail.com>
+        Tue, 22 Jan 2019 09:02:37 -0800 (PST)
+Date: Tue, 22 Jan 2019 12:02:24 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH RFC 06/24] userfaultfd: wp: support write protection for
+ userfault vma range
+Message-ID: <20190122170223.GC3188@redhat.com>
+References: <20190121075722.7945-1-peterx@redhat.com>
+ <20190121075722.7945-7-peterx@redhat.com>
+ <20190121140535.GD3344@redhat.com>
+ <20190122093935.GF14907@xz-x1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAJZ5v0jxuLPUvwr-hYstgC-7BKDwqkJpep94rnnUFvFhKG4W3g@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190122093935.GF14907@xz-x1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Williams <dan.j.williams@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Sun, Jan 20, 2019 at 05:16:05PM +0100, Rafael J. Wysocki wrote:
-> On Sat, Jan 19, 2019 at 10:01 AM Greg Kroah-Hartman
-> <gregkh@linuxfoundation.org> wrote:
-> >
-> > If you do a subdirectory "correctly" (i.e. a name for an attribute
-> > group), that's fine.
+On Tue, Jan 22, 2019 at 05:39:35PM +0800, Peter Xu wrote:
+> On Mon, Jan 21, 2019 at 09:05:35AM -0500, Jerome Glisse wrote:
 > 
-> Yes, that's what I was thinking about: along the lines of the "power"
-> group under device kobjects.
+> [...]
+> 
+> > > +	change_protection(dst_vma, start, start + len, newprot,
+> > > +				!enable_wp, 0);
+> > 
+> > So setting dirty_accountable bring us to that code in mprotect.c:
+> > 
+> >     if (dirty_accountable && pte_dirty(ptent) &&
+> >             (pte_soft_dirty(ptent) ||
+> >              !(vma->vm_flags & VM_SOFTDIRTY))) {
+> >         ptent = pte_mkwrite(ptent);
+> >     }
+> > 
+> > My understanding is that you want to set write flag when enable_wp
+> > is false and you want to set the write flag unconditionaly, right ?
+> 
+> Right.
+> 
+> > 
+> > If so then you should really move the change_protection() flags
+> > patch before this patch and add a flag for setting pte write flags.
+> > 
+> > Otherwise the above is broken at it will only set the write flag
+> > for pte that were dirty and i am guessing so far you always were
+> > lucky because pte were all dirty (change_protection will preserve
+> > dirtyness) when you write protected them.
+> > 
+> > So i believe the above is broken or at very least unclear if what
+> > you really want is to only set write flag to pte that have the
+> > dirty flag set.
+> 
+> You are right, if we build the tree until this patch it won't work for
+> all the cases.  It'll only work if the page was at least writable
+> before and also it's dirty (as you explained).  Sorry to be unclear
+> about this, maybe I should at least mention that in the commit message
+> but I totally forgot it.
+> 
+> All these problems are solved in later on patches, please feel free to
+> have a look at:
+> 
+>   mm: merge parameters for change_protection()
+>   userfaultfd: wp: apply _PAGE_UFFD_WP bit
+>   userfaultfd: wp: handle COW properly for uffd-wp
+> 
+> Note that even in the follow up patches IMHO we can't directly change
+> the write permission since the page can be shared by other processes
+> (e.g., the zero page or COW pages).  But the general idea is the same
+> as you explained.
+> 
+> I tried to avoid squashing these stuff altogether as explained
+> previously.  Also, this patch can be seen as a standalone patch to
+> introduce the new interface which seems to make sense too, and it is
+> indeed still working in many cases so I see the latter patches as
+> enhancement of this one.  Please let me know if you still want me to
+> have all these stuff squashed, or if you'd like me to squash some of
+> them.
 
-We can't append symlinks to an attribute group, though. I'd need to create
-a lot of struct devices just to get the desired directory hiearchy. And
-then each of those "devices" will have their own "power" group, which
-really doesn't make any sense for what we're trying to show. Is that
-really the right way to do this, or something else I'm missing?
+Yeah i have look at those after looking at this one. You should just
+re-order the patch this one first and then one that add new flag,
+then ones that add the new userfaultfd feature. Otherwise you are
+adding a userfaultfd feature that is broken midway ie it is added
+broken and then you fix it. Some one bisecting thing might get hurt
+by that. It is better to add and change everything you need and then
+add the new feature so that the new feature will work as intended.
+
+So no squashing just change the order ie add the userfaultfd code
+last.
+
+Cheers,
+Jérôme
