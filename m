@@ -1,104 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B18C48E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 10:07:06 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id m13so15576801pls.15
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 07:07:06 -0800 (PST)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id l59si15895576plb.154.2019.01.22.07.07.04
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 462578E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 10:07:21 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id o21so9576897edq.4
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 07:07:21 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x22sor21209221eda.18.2019.01.22.07.07.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 07:07:05 -0800 (PST)
-Received: from eucas1p1.samsung.com (unknown [182.198.249.206])
-	by mailout1.w1.samsung.com (KnoxPortal) with ESMTP id 20190122150701euoutp01e081687323b48f56956d13f7151e78fe~8NBF3XW0j3173231732euoutp01n
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 15:07:01 +0000 (GMT)
-Subject: Re: [PATCH 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use
- vm_insert_range_buggy
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Message-ID: <241810e0-2288-c59b-6c21-6d853d9fe84a@samsung.com>
-Date: Tue, 22 Jan 2019 16:06:58 +0100
+        (Google Transport Security);
+        Tue, 22 Jan 2019 07:07:19 -0800 (PST)
+Date: Tue, 22 Jan 2019 15:07:17 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, page_alloc: cleanup usemap_size() when SPARSEMEM is
+ not set
+Message-ID: <20190122150717.llf4owk6soejibov@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20190118234905.27597-1-richard.weiyang@gmail.com>
+ <20190122085524.GE4087@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190111151154.GA2819@jordon-HP-15-Notebook-PC>
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-References: <CGME20190111150806epcas2p4ecaac58547db019e7dc779349d495f4d@epcas2p4.samsung.com>
-	<20190111151154.GA2819@jordon-HP-15-Notebook-PC>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190122085524.GE4087@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com, pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org, linux@armlinux.org.uk, robin.murphy@arm.com
-Cc: linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org
 
-Hi Souptick,
-
-On 2019-01-11 16:11, Souptick Joarder wrote:
-> Convert to use vm_insert_range_buggy to map range of kernel memory
-> to user vma.
+On Tue, Jan 22, 2019 at 09:55:24AM +0100, Michal Hocko wrote:
+>On Sat 19-01-19 07:49:05, Wei Yang wrote:
+>> Two cleanups in this patch:
+>> 
+>>   * since pageblock_nr_pages == (1 << pageblock_order), the roundup()
+>>     and right shift pageblock_order could be replaced with
+>>     DIV_ROUND_UP()
 >
-> This driver has ignored vm_pgoff. We could later "fix" these drivers
-> to behave according to the normal vm_pgoff offsetting simply by
-> removing the _buggy suffix on the function name and if that causes
-> regressions, it gives us an easy way to revert.
-
-Just a generic note about videobuf2: videobuf2-dma-sg is ignoring vm_pgoff by design. vm_pgoff is used as a 'cookie' to select a buffer to mmap and videobuf2-core already checks that. If userspace provides an offset, which doesn't match any of the registered 'cookies' (reported to userspace via separate v4l2 ioctl), an error is returned.
-
-I'm sorry for the late reply.
-
-> There is an existing bug inside gem_mmap_obj(), where user passed
-> length is not checked against buf->num_pages. For any value of
-> length > buf->num_pages it will end up overrun buf->pages[i],
-> which could lead to a potential bug.
+>Why is this change worth it?
 >
-> This has been addressed by passing buf->num_pages as input to
-> vm_insert_range_buggy() and inside this API error condition is
-> checked which will avoid overrun the page boundary.
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> ---
->  drivers/media/common/videobuf2/videobuf2-dma-sg.c | 22 ++++++----------------
->  1 file changed, 6 insertions(+), 16 deletions(-)
->
-> diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-> index 015e737..ef046b4 100644
-> --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-> +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-> @@ -328,28 +328,18 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
->  static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
->  {
->  	struct vb2_dma_sg_buf *buf = buf_priv;
-> -	unsigned long uaddr = vma->vm_start;
-> -	unsigned long usize = vma->vm_end - vma->vm_start;
-> -	int i = 0;
-> +	int err;
->  
->  	if (!buf) {
->  		printk(KERN_ERR "No memory to map\n");
->  		return -EINVAL;
->  	}
->  
-> -	do {
-> -		int ret;
-> -
-> -		ret = vm_insert_page(vma, uaddr, buf->pages[i++]);
-> -		if (ret) {
-> -			printk(KERN_ERR "Remapping memory, error: %d\n", ret);
-> -			return ret;
-> -		}
-> -
-> -		uaddr += PAGE_SIZE;
-> -		usize -= PAGE_SIZE;
-> -	} while (usize > 0);
-> -
-> +	err = vm_insert_range_buggy(vma, buf->pages, buf->num_pages);
-> +	if (err) {
-> +		printk(KERN_ERR "Remapping memory, error: %d\n", err);
-> +		return err;
-> +	}
->  
->  	/*
->  	 * Use common vm_area operations to track buffer refcount.
 
-Best regards
+To make it directly show usemapsize is number of times of
+pageblock_nr_pages.
+
+>>   * use BITS_TO_LONGS() to get number of bytes for bitmap
+>> 
+>> This patch also fix one typo in comment.
+>> 
+>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>> ---
+>>  mm/page_alloc.c | 9 +++------
+>>  1 file changed, 3 insertions(+), 6 deletions(-)
+>> 
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index d295c9bc01a8..d7073cedd087 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -6352,7 +6352,7 @@ static void __init calculate_node_totalpages(struct pglist_data *pgdat,
+>>  /*
+>>   * Calculate the size of the zone->blockflags rounded to an unsigned long
+>>   * Start by making sure zonesize is a multiple of pageblock_order by rounding
+>> - * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
+>> + * up. Then use 1 NR_PAGEBLOCK_BITS width of bits per pageblock, finally
+>
+>why do you change this?
+>
+
+Is the original comment not correct? Or I misunderstand the English
+word?
+
+>>   * round what is now in bits to nearest long in bits, then return it in
+>>   * bytes.
+>>   */
+>> @@ -6361,12 +6361,9 @@ static unsigned long __init usemap_size(unsigned long zone_start_pfn, unsigned l
+>>  	unsigned long usemapsize;
+>>  
+>>  	zonesize += zone_start_pfn & (pageblock_nr_pages-1);
+>> -	usemapsize = roundup(zonesize, pageblock_nr_pages);
+>> -	usemapsize = usemapsize >> pageblock_order;
+>> +	usemapsize = DIV_ROUND_UP(zonesize, pageblock_nr_pages);
+>>  	usemapsize *= NR_PAGEBLOCK_BITS;
+>> -	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
+>> -
+>> -	return usemapsize / 8;
+>> +	return BITS_TO_LONGS(usemapsize) * sizeof(unsigned long);
+>>  }
+>>  
+>>  static void __ref setup_usemap(struct pglist_data *pgdat,
+>> -- 
+>> 2.15.1
+>> 
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
+
 -- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+Wei Yang
+Help you, Help me
