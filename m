@@ -1,82 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B88028E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 03:55:26 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c3so9178753eda.3
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 00:55:26 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 4B6ED8E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 04:09:09 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id z10so9069861edz.15
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 01:09:09 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c1-v6si4896291ejf.257.2019.01.22.00.55.25
+        by mx.google.com with ESMTPS id v27si716720edm.111.2019.01.22.01.09.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 00:55:25 -0800 (PST)
-Date: Tue, 22 Jan 2019 09:55:24 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, page_alloc: cleanup usemap_size() when SPARSEMEM is
- not set
-Message-ID: <20190122085524.GE4087@dhcp22.suse.cz>
-References: <20190118234905.27597-1-richard.weiyang@gmail.com>
+        Tue, 22 Jan 2019 01:09:07 -0800 (PST)
+Subject: Re: [Xen-devel] [PATCH 2/2] x86/xen: dont add memory above max
+ allowed allocation
+References: =?UTF-8?B?PDIwMTkwMTIyMDgwNjI4LjcyMzjvv70x77+9amdyb3NzQHN1c2Uu?=
+ =?UTF-8?Q?com=3e_=3c20190122080628=2e7238-3-jgross=40suse=2ecom=3e_=3c5C46D?=
+ =?UTF-8?Q?9D00200007800210007=40suse=2ecom=3e?=
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <8872a401-46e1-ae81-e84e-0e70bdde2cce@suse.com>
+Date: Tue, 22 Jan 2019 10:09:05 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190118234905.27597-1-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Jan Beulich <JBeulich@suse.com>
+Cc: Borislav Petkov <bp@alien8.de>, Stefano Stabellini <sstabellini@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, xen-devel <xen-devel@lists.xenproject.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, mingo@redhat.com, lkml <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Sat 19-01-19 07:49:05, Wei Yang wrote:
-> Two cleanups in this patch:
+On 22/01/2019 09:52, Jan Beulich wrote:
+>>>> On 22.01.19 at 09:06, <jgross@suse.com> wrote:
+>> Don't allow memory to be added above the allowed maximum allocation
+>> limit set by Xen.
 > 
->   * since pageblock_nr_pages == (1 << pageblock_order), the roundup()
->     and right shift pageblock_order could be replaced with
->     DIV_ROUND_UP()
+> This reads as if the hypervisor was imposing a limit here, but looking at
+> xen_get_max_pages(), xen_foreach_remap_area(), and
+> xen_count_remap_pages() I take it that it's a restriction enforced by
+> the Xen subsystem in Linux. Furthermore from the cover letter I imply
+> that the observed issue was on a Dom0, yet xen_get_max_pages()'s
+> use of XENMEM_maximum_reservation wouldn't impose any limit there
+> at all (without use of the hypervisor option "dom0_mem=max:..."),
+> would it?
 
-Why is this change worth it?
+Oh yes, you are right, of course!
 
->   * use BITS_TO_LONGS() to get number of bytes for bitmap
-> 
-> This patch also fix one typo in comment.
-> 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> ---
->  mm/page_alloc.c | 9 +++------
->  1 file changed, 3 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d295c9bc01a8..d7073cedd087 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6352,7 +6352,7 @@ static void __init calculate_node_totalpages(struct pglist_data *pgdat,
->  /*
->   * Calculate the size of the zone->blockflags rounded to an unsigned long
->   * Start by making sure zonesize is a multiple of pageblock_order by rounding
-> - * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
-> + * up. Then use 1 NR_PAGEBLOCK_BITS width of bits per pageblock, finally
+I need to check the current reservation and adjust the allowed limit
+in case of ballooning and/or memory hotplug.
 
-why do you change this?
+Thanks for noticing that!
 
->   * round what is now in bits to nearest long in bits, then return it in
->   * bytes.
->   */
-> @@ -6361,12 +6361,9 @@ static unsigned long __init usemap_size(unsigned long zone_start_pfn, unsigned l
->  	unsigned long usemapsize;
->  
->  	zonesize += zone_start_pfn & (pageblock_nr_pages-1);
-> -	usemapsize = roundup(zonesize, pageblock_nr_pages);
-> -	usemapsize = usemapsize >> pageblock_order;
-> +	usemapsize = DIV_ROUND_UP(zonesize, pageblock_nr_pages);
->  	usemapsize *= NR_PAGEBLOCK_BITS;
-> -	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
-> -
-> -	return usemapsize / 8;
-> +	return BITS_TO_LONGS(usemapsize) * sizeof(unsigned long);
->  }
->  
->  static void __ref setup_usemap(struct pglist_data *pgdat,
-> -- 
-> 2.15.1
-> 
 
--- 
-Michal Hocko
-SUSE Labs
+Juergen
