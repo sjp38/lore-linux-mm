@@ -1,78 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 745C88E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 04:00:01 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id s14so21457454qkl.16
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 01:00:01 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 677AD8E0001
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 04:39:49 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id n50so23949819qtb.9
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 01:39:49 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m13si3518501qvk.140.2019.01.22.01.00.00
+        by mx.google.com with ESMTPS id b9si2498879qtq.169.2019.01.22.01.39.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 01:00:00 -0800 (PST)
-Subject: Re: [PATCH RFC 00/24] userfaultfd: write protection support
+        Tue, 22 Jan 2019 01:39:48 -0800 (PST)
+Date: Tue, 22 Jan 2019 17:39:35 +0800
+From: Peter Xu <peterx@redhat.com>
+Subject: Re: [PATCH RFC 06/24] userfaultfd: wp: support write protection for
+ userfault vma range
+Message-ID: <20190122093935.GF14907@xz-x1>
 References: <20190121075722.7945-1-peterx@redhat.com>
- <c2485a2d-25b3-2fc0-4902-01fa278be9c7@redhat.com>
- <20190122031803.GB7669@xz-x1>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <c36071dd-da8a-22fa-8f9a-262c942fcdf4@redhat.com>
-Date: Tue, 22 Jan 2019 09:59:34 +0100
+ <20190121075722.7945-7-peterx@redhat.com>
+ <20190121140535.GD3344@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190122031803.GB7669@xz-x1>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
+In-Reply-To: <20190121140535.GD3344@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On 22.01.19 04:18, Peter Xu wrote:
-> On Mon, Jan 21, 2019 at 03:33:21PM +0100, David Hildenbrand wrote:
+On Mon, Jan 21, 2019 at 09:05:35AM -0500, Jerome Glisse wrote:
+
+[...]
+
+> > +	change_protection(dst_vma, start, start + len, newprot,
+> > +				!enable_wp, 0);
 > 
-> [...]
+> So setting dirty_accountable bring us to that code in mprotect.c:
 > 
->> Does this series fix the "false positives" case I experienced on early
->> prototypes of uffd-wp? (getting notified about a write access although
->> it was not a write access?)
+>     if (dirty_accountable && pte_dirty(ptent) &&
+>             (pte_soft_dirty(ptent) ||
+>              !(vma->vm_flags & VM_SOFTDIRTY))) {
+>         ptent = pte_mkwrite(ptent);
+>     }
 > 
-> Hi, David,
+> My understanding is that you want to set write flag when enable_wp
+> is false and you want to set the write flag unconditionaly, right ?
+
+Right.
+
 > 
-> Yes it should solve it.
+> If so then you should really move the change_protection() flags
+> patch before this patch and add a flag for setting pte write flags.
+> 
+> Otherwise the above is broken at it will only set the write flag
+> for pte that were dirty and i am guessing so far you always were
+> lucky because pte were all dirty (change_protection will preserve
+> dirtyness) when you write protected them.
+> 
+> So i believe the above is broken or at very least unclear if what
+> you really want is to only set write flag to pte that have the
+> dirty flag set.
 
-Terrific, as my use case for uffd-wp really rely on not having false
-positives these are good news :)
+You are right, if we build the tree until this patch it won't work for
+all the cases.  It'll only work if the page was at least writable
+before and also it's dirty (as you explained).  Sorry to be unclear
+about this, maybe I should at least mention that in the commit message
+but I totally forgot it.
 
-... however it will take a while until I actually have time to look back
-into it (too much stuff on my table).
+All these problems are solved in later on patches, please feel free to
+have a look at:
 
-Just for reference (we talked about this offline once):
+  mm: merge parameters for change_protection()
+  userfaultfd: wp: apply _PAGE_UFFD_WP bit
+  userfaultfd: wp: handle COW properly for uffd-wp
 
-My plan is to use this for virtio-mem in QEMU. Memory that a virtio-mem
-device provides to a guest can either be plugged or unplugged. When
-unplugging, memory will be MADVISE_DONTNEED'ed and uffd-wp'ed. The guest
-can still read memory (e.g. for dumping) but writing to it is considered
-bad (as the guest could this way consume more memory as intended). So I
-can detect malicious guests without too much overhead this way.
+Note that even in the follow up patches IMHO we can't directly change
+the write permission since the page can be shared by other processes
+(e.g., the zero page or COW pages).  But the general idea is the same
+as you explained.
 
-False positives would mean that I would detect guests as malicious
-although they are not. So it really would be harmful.
+I tried to avoid squashing these stuff altogether as explained
+previously.  Also, this patch can be seen as a standalone patch to
+introduce the new interface which seems to make sense too, and it is
+indeed still working in many cases so I see the latter patches as
+enhancement of this one.  Please let me know if you still want me to
+have all these stuff squashed, or if you'd like me to squash some of
+them.
 
 Thanks!
 
-> 
-> The early prototype in Andrea's tree hasn't yet applied the new
-> PTE/swap bits for uffd-wp hence it was not able to avoid those fause
-> positives.  This series has applied all those ideas (which actually
-> come from Andrea as well) so the protection information will be
-> persisent per PTE rather than per VMA and it will be kept even through
-> swapping and page migrations.
-> 
-> Thanks,
-> 
-
-
 -- 
-
-Thanks,
-
-David / dhildenb
+Peter Xu
