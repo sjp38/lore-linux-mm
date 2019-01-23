@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C4AFE8E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:10:59 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id b8so2394375pfe.10
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 11:10:59 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t184si19387809pfb.22.2019.01.23.11.10.58
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0828F8E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 17:57:48 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id g13so2543803plo.10
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:57:47 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id k20si19123583pfb.215.2019.01.23.14.57.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 Jan 2019 11:10:58 -0800 (PST)
-Date: Wed, 23 Jan 2019 11:10:47 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
-Message-ID: <20190123191046.GA15311@bombadil.infradead.org>
-References: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jan 2019 14:57:46 -0800 (PST)
+Date: Wed, 23 Jan 2019 22:57:45 +0000
+From: Sasha Levin <sashal@kernel.org>
+Subject: Re: [PATCH] mm: proc: smaps_rollup: Fix pss_locked calculation
+In-Reply-To: <20190121011049.160505-1-sspatil@android.com>
+References: <20190121011049.160505-1-sspatil@android.com>
+Message-Id: <20190123225746.5B3DF218A4@mail.kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: lsf-pc@lists.linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Sasha Levin <sashal@kernel.org>, Sandeep Patil <sspatil@android.com>, vbabka@suse.cz, adobriyan@gmail.com, akpm@linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Wed, Jan 23, 2019 at 10:48:58AM +0200, Amir Goldstein wrote:
-> Hi,
-> 
-> In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong brought
-> up the subject of sharing pages between cloned files and the general vibe
-> in room was that it could be done.
-> 
-> In his talk about XFS subvolumes and snapshots [2], Dave Chinner said
-> that Matthew Willcox was "working on that problem".
+Hi,
 
-My solution is to move the DAX hacks into the page cache proper.  For a
-reflinked file, the filesystem would create a canonical address_space
-to own the pages, and this is what ->mapping and ->index would refer to.
+[This is an automated email]
 
-Instances of that reflinked file would each have their own address_space,
-just as they have their own inode.  The i_pages array would contain only
-PFN entries (until the COWs start).
+This commit has been processed because it contains a "Fixes:" tag,
+fixing commit: 493b0e9d945f mm: add /proc/pid/smaps_rollup.
 
-I'm currently at LCA; please excuse me for not participating more fully
-right now.
+The bot has tested the following trees: v4.20.3, v4.19.16, v4.14.94.
+
+v4.20.3: Build OK!
+v4.19.16: Build OK!
+v4.14.94: Failed to apply! Possible dependencies:
+    8526d84f8171 ("fs/proc/task_mmu.c: do not show VmExe bigger than total executable virtual memory")
+    8e68d689afe3 ("mm: /proc/pid/smaps: factor out mem stats gathering")
+    af5b0f6a09e4 ("mm: consolidate page table accounting")
+    b4e98d9ac775 ("mm: account pud page tables")
+    c4812909f5d5 ("mm: introduce wrappers to access mm->nr_ptes")
+    d1be35cb6f96 ("proc: add seq_put_decimal_ull_width to speed up /proc/pid/smaps")
+
+
+How should we proceed with this patch?
+
+--
+Thanks,
+Sasha
