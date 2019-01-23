@@ -1,96 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A4BE8E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 13:36:45 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id t2so1257484edb.22
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:36:45 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 77B098E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 13:37:39 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id e17so1275312edr.7
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:37:39 -0800 (PST)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i21si997568edg.324.2019.01.23.10.36.43
+        by mx.google.com with ESMTP id c19si2889577edb.397.2019.01.23.10.37.37
         for <linux-mm@kvack.org>;
-        Wed, 23 Jan 2019 10:36:43 -0800 (PST)
-Subject: Re: [PATCH v7 10/25] ACPI / APEI: Tell firmware the estatus queue
- consumed the records
+        Wed, 23 Jan 2019 10:37:38 -0800 (PST)
+Subject: Re: [PATCH v7 22/25] ACPI / APEI: Kick the memory_failure() queue for
+ synchronous errors
 References: <20181203180613.228133-1-james.morse@arm.com>
- <20181203180613.228133-11-james.morse@arm.com>
- <20181211183634.GO27375@zn.tnic>
- <56cfa16b-ece4-76e0-3799-58201f8a4ff1@arm.com>
- <CABo9ajArdbYMOBGPRa185yo9MnKRb0pgS-pHqUNdNS9m+kKO-Q@mail.gmail.com>
- <20190111120322.GD4729@zn.tnic>
- <CABo9ajAk5XNBmNHRRfUb-dQzW7-UOs5826jPkrVz-8zrtMUYkg@mail.gmail.com>
- <20190111174532.GI4729@zn.tnic>
- <32025682-f85a-58ef-7386-7ee23296b944@arm.com>
- <20190111195800.GA11723@zn.tnic>
+ <20181203180613.228133-23-james.morse@arm.com>
+ <9d153a07-aa7a-6e0c-3bd3-994a66f9639a@huawei.com>
+ <5c775aa9-ea57-dea7-6083-c1e3fc160b29@arm.com>
+ <20190122105143.GB26587@zn.tnic>
 From: James Morse <james.morse@arm.com>
-Message-ID: <18138b57-51ba-c99c-5b8d-b263fb964714@arm.com>
-Date: Wed, 23 Jan 2019 18:36:38 +0000
+Message-ID: <ae892690-fdf7-b326-1c76-5bf39c2c9bb5@arm.com>
+Date: Wed, 23 Jan 2019 18:37:32 +0000
 MIME-Version: 1.0
-In-Reply-To: <20190111195800.GA11723@zn.tnic>
+In-Reply-To: <20190122105143.GB26587@zn.tnic>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Borislav Petkov <bp@alien8.de>
-Cc: Tyler Baicar <baicar.tyler@gmail.com>, Linux ACPI <linux-acpi@vger.kernel.org>, kvmarm@lists.cs.columbia.edu, arm-mail-list <linux-arm-kernel@lists.infradead.org>, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
+Cc: Xie XiuQi <xiexiuqi@huawei.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Fan Wu <wufan@codeaurora.org>, Wang Xiongfeng <wangxiongfeng2@huawei.com>
 
 Hi Boris,
 
-On 11/01/2019 19:58, Borislav Petkov wrote:
-> On Fri, Jan 11, 2019 at 06:25:21PM +0000, James Morse wrote:
->> We ack it in the corrupt-record case too, because we are done with the
->> memory.
+On 22/01/2019 10:51, Borislav Petkov wrote:
+> On Mon, Dec 10, 2018 at 07:15:13PM +0000, James Morse wrote:
+>> What happens if we miss MF_ACTION_REQUIRED?
 > 
-> Ok, so the only thing that we need to do unconditionally is ACK in order
-> to free the memory. Or is there an exception to that set of steps in
-> error handling?
-
-Do you consider ENOENT an error? We don't ack in that case as the memory wasn't
-in use.
-
-For the other cases its because the records are bogus, but we still
-unconditionally tell firmware we're done with them.
-
-
->> I think it is. 18.3.2.8 of ACPI v6.2 (search for Generic Hardware Error Source
->> version 2", then below the table):
->> * OSPM detects error (via interrupt/exception or polling the block status)
->> * OSPM copies the error status block
->> * OSPM clears the block status field of the error status block
->> * OSPM acknowledges the error via Read Ack register
->>
->> The ENOENT case is excluded by 'polling the block status'.
+> AFAICU, the logic is to force-send a signal to the user process, i.e.,
+> force_sig_info() which cannot be ignored. IOW, an "enlightened" process
+> would know how to do recovery action from a memory error.
 > 
-> Ok, so we signal the absence of an error record with ENOENT.
+> VS the action optional thing which you can handle at your leisure.
+
+> So the question boils down to what kind of severity do the errors
+> reported through SEA have? I mean, if the hw would go the trouble to do
+> the synchronous reporting, then something important must've happened and
+> it wants us to know about it and handle it.
+
+Before v8.2 we assumed these were fatal for the thread, it couldn't make progress.
+Since v8.2 we get a value from the CPU, the severity values are, (the flippant
+summary is obviously mine!):
+* Recoverable: "You're about to step in it, fix it or die"
+* Uncontainable: "It was here, but it escaped, we dont know where it went, panic!"
+* Restartable/Corrected: "its fine, pretend this didn't happen"
+
+Firmware should duplicate these values into the CPER severity fields.
+
+
+>> Surely the page still gets unmapped as its PG_Poisoned, an AO signal
+>> may be pending, but if user-space touches the page it will get an AR
+>> signal. Is this just about removing an extra AO signal to user-space?
+
+If we miss MF_ACTION_REQUIRED, the page still gets unmapped from user-space, and
+user-space gets an AO signal. With this patch it takes that signal before it
+continues. If it ignores it, the access gets a translation-fault->EHWPOISON->AR
+signal from the arch code.
+
+... so missing the flag gives us an extra signal. I'm not convinced this results
+in any observable difference.
+
+
+>> If we do need this, I'd like to pick it up from the CPER records, as x86's
+>> NOTIFY_NMI looks like it covers both AO/AR cases. (as does NOTIFY_SDEI). The
+>> Master/Target abort or Invalid-address types in the memory-error-section CPER
+>> records look like the best bet.
 > 
->         if (!buf_paddr)
->                 return -ENOENT;
-> 
-> Can that even happen?
+> Right, and we do all kinds of severity mapping there aka ghes_severity()
+> so that'll be a good start, methinks.
 
-Yes, for NOTIFY_POLLED its the norm. For the IRQ flavours that walk a list of
-GHES, all but one of them will return ENOENT.
-
-
-> Also, in that case, what would happen if we ACK the error anyway? We'd
-> confuse the firmware?
-
-No idea.
-
-> I sure hope firmware is prepared for spurious ACKs :)
-
-We could try it and see. It depends if firmware shares ack locations between
-multiple GHES. We could ack an empty GHES, and it removes the records of one we
-haven't looked at yet.
-
-
->> Unsurprisingly the spec doesn't consider the case that firmware generates
->> corrupt records!
-> 
-> You mean the EIO case?
-
-Yup,
-
-> Not surprised at all. But we do not report that record so all good.
+The options are those 'aborts' in the memory error. These must have been a
+result of some request. If we get a CPU error structure as part of the same
+block, it may have a cache/bus error structure, which has a precise bit that
+tells us whether this is a co-incidence. (but linux doesn't support any of those
+structures today)
 
 
 
