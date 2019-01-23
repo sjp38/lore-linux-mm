@@ -1,62 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C9948E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:25:33 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id y193so1032894ybe.13
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:25:33 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id i4si1405738ybp.8.2019.01.23.06.25.32
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 667F98E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:35:50 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id t10so1560792plo.13
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:35:50 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id ce19si20653036plb.13.2019.01.23.06.35.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 06:25:32 -0800 (PST)
-Date: Wed, 23 Jan 2019 09:25:07 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH] mm: cleancache: no need to check return value of
- debugfs_create functions
-Message-ID: <20190123142504.GA19985@Konrads-MacBook-Pro.local>
-References: <20190122152151.16139-12-gregkh@linuxfoundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190122152151.16139-12-gregkh@linuxfoundation.org>
+        Wed, 23 Jan 2019 06:35:49 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [PATCH 1/2] x86: respect memory size limiting via mem= parameter
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190122080628.7238-2-jgross@suse.com>
+Date: Wed, 23 Jan 2019 07:35:28 -0700
+Content-Transfer-Encoding: 7bit
+Message-Id: <69D0866F-77A7-4529-A01E-12395106E22D@oracle.com>
+References: <20190122080628.7238-1-jgross@suse.com>
+ <20190122080628.7238-2-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Juergen Gross <jgross@suse.com>
+Cc: kernel list <linux-kernel@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, sstabellini@kernel.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de
 
-On Tue, Jan 22, 2019 at 04:21:11PM +0100, Greg Kroah-Hartman wrote:
-> When calling debugfs functions, there is no need to ever check the
-> return value.  The function can work or not, but the code logic should
-> never do something different based on this.
+
+
+> On Jan 22, 2019, at 1:06 AM, Juergen Gross <jgross@suse.com> wrote:
 > 
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-
-OK.
-
-Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-
-or I can push it through my tree but it may be just easier for Andrew
-too do it
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> ---
->  mm/cleancache.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index b9a667d36c55..7fc2a87110a3 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -96,10 +96,16 @@ void mem_hotplug_done(void)
+> 	cpus_read_unlock();
+> }
 > 
-> diff --git a/mm/cleancache.c b/mm/cleancache.c
-> index 2bf12da9baa0..082fdda7aaa6 100644
-> --- a/mm/cleancache.c
-> +++ b/mm/cleancache.c
-> @@ -305,8 +305,7 @@ static int __init init_cleancache(void)
->  {
->  #ifdef CONFIG_DEBUG_FS
->  	struct dentry *root = debugfs_create_dir("cleancache", NULL);
-> -	if (root == NULL)
-> -		return -ENXIO;
-> +
->  	debugfs_create_u64("succ_gets", 0444, root, &cleancache_succ_gets);
->  	debugfs_create_u64("failed_gets", 0444, root, &cleancache_failed_gets);
->  	debugfs_create_u64("puts", 0444, root, &cleancache_puts);
-> -- 
-> 2.20.1
-> 
+> +u64 max_mem_size = -1;
+
+This may be pedantic, but I'd rather see U64_MAX used here.
