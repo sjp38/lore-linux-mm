@@ -2,168 +2,169 @@ Return-Path: <SRS0=euUm=P7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2294EC282C0
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 20:35:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 134EEC41518
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 20:36:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D662E218A2
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 20:35:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C76A1218A2
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 20:36:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="BY9X9J/4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D662E218A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="dZuKBLN4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C76A1218A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=synopsys.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7287F8E004A; Wed, 23 Jan 2019 15:35:54 -0500 (EST)
+	id 6171B8E004B; Wed, 23 Jan 2019 15:36:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FEE48E0047; Wed, 23 Jan 2019 15:35:54 -0500 (EST)
+	id 5ECB58E0047; Wed, 23 Jan 2019 15:36:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EE578E004A; Wed, 23 Jan 2019 15:35:54 -0500 (EST)
+	id 4DC858E004B; Wed, 23 Jan 2019 15:36:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E547D8E0047
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 15:35:53 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id e8-v6so949371ljg.22
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:35:53 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7F48E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 15:36:48 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id a2so2324475pgt.11
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:36:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=SKJLCHAPKT7F2kMasdD5CPgiqsCrm80NhZkTQRdPbiY=;
-        b=JtzbkQu/HzXkP0naO1abZrl8VVJ0tIiaDxDcfGyUoJV3BgTpHHrjTo12d2ojkCPRhU
-         LJ19/Kj95AiZiZN7TwIvX/RkDNKI8UTuOj0VYRKjBiAl6mB+ml9I7GxdzrJWRg6iBeU4
-         O1U88ErCVLgON5BKS7/w/kErTP0vEdTSrymPEaO+U9ZUG7tzF6xei+mVONsrzgNkCOL6
-         0Q+BhFcMmO4z/DW3yYV1XkrncY7qfWIGyszg6M82bYXYdAIoFESIQqaco7AosAHAs9Uw
-         WF2zwhPYgAckrN3B+H4izVD3iI3dGAbd53jnSdf/Q+RPk5Qhzs+CxMXqCAbjEu8rGTmC
-         Nz5A==
-X-Gm-Message-State: AJcUukesVYl4tVGKFm8G/Rwa9WobDmOurCVVpVFy8IN/6FtY8uCQ95b7
-	cqthRTHmRAFMiN2fCInH1SnEnuYKWO5oHK/cr5ababQpgxjU/jrRugmq5YkYfZ+EEbqVG5SeTim
-	vlXiUGp4PCH6rlbLLQbEV3VVLjmZaVUdvj5XgwxvqFmTvSzpf2PCfzKxWz6qYt7VsHWzdgXbjA/
-	7lwKE97wL0r6g+bqa5fOkuONqo/3qORjxsWLGyKLkoVzMtcE2o8y56PuI/n2lnPunoyyvAqeihQ
-	V/eGAArSBiNJplabwmWALAnlaEFuLHL0qvS9+G3NJTQJg4P9BR1PIc3iQjqmcuvXVixZwxgguMi
-	Cy/x/fy5rXwOgFwrigiHfBhWy5FGt/25fFfFFsF5ub2eF/gHmRHgp5BhUi3Y8W0cBerT8c8C6uG
-	s
-X-Received: by 2002:a2e:9017:: with SMTP id h23-v6mr1716104ljg.71.1548275752992;
-        Wed, 23 Jan 2019 12:35:52 -0800 (PST)
-X-Received: by 2002:a2e:9017:: with SMTP id h23-v6mr1716077ljg.71.1548275752037;
-        Wed, 23 Jan 2019 12:35:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548275752; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version;
+        bh=Rl8db0nnJLRjwk+udm8zI1dppHxFLCqjaj+7JgpLVt8=;
+        b=fz4EcmB2dLDESMjPJbpjE6CGB31XCUdib2jPCI0YgGWGJ6mN3KcaYPa1y/GHNq4nI7
+         kG1+9Kl3DCyvEY/FG72xRzF8hPidgMxIIlbBTkI7bmu057NjyRJSh8mOO9vBkvjNZPHT
+         9r4x4wn2y0JASR3jinLpXAPaMXix+9kJiqgqXhyBY/iS9pUbynGHCOw7Ot2cf2AthYFt
+         wEFAUaIpd+JP12Q7zf8gJHnTHtVGc4XApOT5+4TiSzYbhEy3rPVyN+3i8CzCs57H5Q4Y
+         aqS6wBLAreiOXCvAI5GKQ4oKojOAvXiUdNhb7fkQEWHMuCw3jnzRaM02sb2ye7gvhLSq
+         rvSA==
+X-Gm-Message-State: AJcUukcds5PVJhQ0r8OfrDAOqDBebnhj5jbMlT9XaOltpHZ6d/5rpqaT
+	8YAAJX84pGwBq56HVjYUX/pU71xSB80fLt0CbrXrFRoFS/7qCLlxvr++sGJmnBrIsuXR8SJpXQR
+	nwO3d2bLqYbiSy2NDpmRZmCAqcGgu1E7VSjALiNhHtQC3MLYgHGt6Bu57EX5YlPZlJw==
+X-Received: by 2002:a62:104a:: with SMTP id y71mr3499745pfi.34.1548275807717;
+        Wed, 23 Jan 2019 12:36:47 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4R0j5WeL31TYZr3j8l07b0ldS6ilR6TKM/EPYmz1vJyh5ny75/eAlaM96bfB9MxYBAnjgZ
+X-Received: by 2002:a62:104a:: with SMTP id y71mr3499702pfi.34.1548275807007;
+        Wed, 23 Jan 2019 12:36:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548275806; cv=none;
         d=google.com; s=arc-20160816;
-        b=jzMFfhiFY91T7BxamUioOgf0T9jP6Rs7PcHrnlC/1oFLqyEneHhYSfDqE5AEuAYvCq
-         yt+B2iLnWRC7VvAMWaOUd2pSIuL2lBpLg6AiNgbHvttLyP5J0X2RhWucL0ZyZzOoIF22
-         lq7yiTp27xsLs331TFswJEb4kUGHy6CctJVWcaY/BNxAvj1r1jz+44ecgG9mw3xmHZMF
-         OQfcAcJXF3EbCu9pb+4Sc/c0EKJWQ3QLog0FZ9F5s7BHtZPfdYcRub5ltghCkQNIYzD9
-         IZQ5IWYAoQj9kE0t0BOQNw3Qgyx2M6LJkRRiT03X3V6YyB1kCrrn9bYs3RtPQasbb8CV
-         p5ig==
+        b=qNGzR6JFJRK6UW9VDdOand/S/OkQ7dgMFelOFsRpo5098+5Rv3f3zdv86nHrakrNal
+         sA0p8snjSNq3epz5vny/1Q/sapupZZjasz3KrQyCplYAH2WXGAyJr13d7c9BryXLesJ1
+         eguXksK70VEDP3q4MtRxgsET/AfbCAquh6p7pj/L1H9RwOeqiD/PMxxXm4WDUTHRwr47
+         1FAzAIQC8qXISu4HbFAMKxgteoAffZMSs3sUPzPpzZlpneBc7hWOBdYpnIAyxtbCh6Ne
+         A0rRl9azB+BQKjmRvyB/UWecFIuAr2oc7zK1lj8EJn1XU8WUGll+cve+/NtxIJSl2wV/
+         nENw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=SKJLCHAPKT7F2kMasdD5CPgiqsCrm80NhZkTQRdPbiY=;
-        b=WTs8vV9DVwj/IK2slNTEd6YfVr3gzsvdIyWBe3udunSfTlnOo+LZy0StIbYqeiWrlj
-         VV1WFOeErmt3mpjnVGmCh3xeIN9DKshqEM9T3fCHUazItnXSYpO94bKKdf/jMAdTT9z+
-         G3Fd+1COiaJc8pHq5f6YUjdlRmhu5vKRA4XDBVvSbEnqSbh1KOsk+Q1jX2yUT2iMhZBJ
-         qSOdwp0ed3BxxNMdLPd2D4yQ2tkzUFiM9fSsHhATpJrY8LM538S8fbQdrSIRHIAdcZQ8
-         xtVD8EoAkMIwnKSklMDcGyXVuoal9sh2zWt5pmtir+ZQ2MXetZdvNUDWrKANjmQGWrxB
-         DNow==
+        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
+         :from:dkim-signature;
+        bh=Rl8db0nnJLRjwk+udm8zI1dppHxFLCqjaj+7JgpLVt8=;
+        b=bP+qDdugnkaC6lCs/20WalKaKqVxJjwH7WFj9HidZNhgCMRz6OAjwMUqedMS5lCSjI
+         cB85kMwLk16S749cIFGDJZcp6efm+kl6qZvoPy31TGxnm7OxunkY+0ksWolYm4m+6dju
+         A2NOa+JtfC7CFgxlXhWoIFttKlVNJu+xE7/ArIYZlE9RHXm+cLY/MLtUnD9STozYUQDN
+         5EFRToJTTjYEJyPzlKqDxHQY6gEMxVv9OopE/raD100e7DDltlv3iM0tr+EUa2YZjv2i
+         sjQzt1yCSRvzEfOxUkyY7XMygHSss1O49twblUVjoQEnAIUG7+N590YqfPEvY4wpxW++
+         jc+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="BY9X9J/4";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f8-v6sor3112783ljg.0.2019.01.23.12.35.51
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 Jan 2019 12:35:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="BY9X9J/4";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=SKJLCHAPKT7F2kMasdD5CPgiqsCrm80NhZkTQRdPbiY=;
-        b=BY9X9J/4+qqxYeGyF3R59zxkMjOBG19x6ckQ3lzQ8Ru+lHBQz5Wyx5u058TqaI8R+Z
-         qAmOrx5ByYriMlr+YA0ByQJdlVx3veIJOEF+gI83DzB5PUQc/2ZZMGeD81NKhNvS3PWM
-         /uSEKiKERYfDI2z3E2tUOXDOKJqrmctffswU4=
-X-Google-Smtp-Source: ALg8bN6VVBHfPPkK+mo0a15G+dFy40heShmwqrOzE1R2Ll9qqx1ppbN5viGMVPeYEODbPuppqvcN5Q==
-X-Received: by 2002:a2e:9b15:: with SMTP id u21-v6mr2931717lji.29.1548275750967;
-        Wed, 23 Jan 2019 12:35:50 -0800 (PST)
-Received: from mail-lj1-f173.google.com (mail-lj1-f173.google.com. [209.85.208.173])
-        by smtp.gmail.com with ESMTPSA id q3sm635025lff.42.2019.01.23.12.35.49
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=dZuKBLN4;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id n3si20736696pld.36.2019.01.23.12.36.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 12:35:49 -0800 (PST)
-Received: by mail-lj1-f173.google.com with SMTP id t18-v6so3186856ljd.4
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:35:49 -0800 (PST)
-X-Received: by 2002:a2e:880a:: with SMTP id x10-v6mr3388044ljh.174.1548275749194;
- Wed, 23 Jan 2019 12:35:49 -0800 (PST)
+        Wed, 23 Jan 2019 12:36:46 -0800 (PST)
+Received-SPF: pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) client-ip=198.182.47.9;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=dZuKBLN4;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from mailhost.synopsys.com (dc2-mailhost2.synopsys.com [10.12.135.162])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by smtprelay.synopsys.com (Postfix) with ESMTPS id 4E1E324E09A5;
+	Wed, 23 Jan 2019 12:36:46 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=synopsys.com; s=mail;
+	t=1548275806; bh=kJQpOk9ZK86cD+f4lSJLjtMX3cfMvrQBXd+6efrgIP4=;
+	h=From:To:CC:Subject:Date:In-Reply-To:References:From;
+	b=dZuKBLN4fosMTZqfsal0ZyRo/wn5iUM2k2qZFxow0NmEKflFzF5TFyfm2LdqocROm
+	 bDMSfhbtHpZFSJCWhxE2dRYwiF6rKyN9FMzlCcQ1LGeMHIHi5NBINqc8G3EOvnxKRi
+	 6JS+sR1bo9lYJySXOLo02kzhlEifaj/depZm9QfYIF71DF1DYwws5fFV0V9n5wRxki
+	 vLPwh5q0FlcQiLAe1ZWQkokaNmnYAapoesdycqhKWu877Z6m9TejcXYHB/kY7bnwBV
+	 iC1o7/eWs7mEKO0RIFUpdXiMbPB2cYWlcnpegJRjYuqMe6XyYvqpr9E8TNHpwZnbGv
+	 oTMiXHfhObT3A==
+Received: from US01WXQAHTC1.internal.synopsys.com (us01wxqahtc1.internal.synopsys.com [10.12.238.230])
+	(using TLSv1.2 with cipher AES128-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mailhost.synopsys.com (Postfix) with ESMTPS id EBC3AA0091;
+	Wed, 23 Jan 2019 20:36:45 +0000 (UTC)
+Received: from IN01WEHTCA.internal.synopsys.com (10.144.199.104) by
+ US01WXQAHTC1.internal.synopsys.com (10.12.238.230) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Wed, 23 Jan 2019 12:33:20 -0800
+Received: from IN01WEHTCB.internal.synopsys.com (10.144.199.105) by
+ IN01WEHTCA.internal.synopsys.com (10.144.199.103) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Thu, 24 Jan 2019 02:03:21 +0530
+Received: from vineetg-Latitude-E7450.internal.synopsys.com (10.10.161.70) by
+ IN01WEHTCB.internal.synopsys.com (10.144.199.243) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Thu, 24 Jan 2019 02:03:19 +0530
+From: Vineet Gupta <vineet.gupta1@synopsys.com>
+To: <linux-kernel@vger.kernel.org>
+CC: <linux-snps-arc@lists.infradead.org>, <linux-mm@kvack.org>,
+	<peterz@infradead.org>, <mark.rutland@arm.com>,
+	Vineet Gupta <vineet.gupta1@synopsys.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	<linux-fsdevel@vger.kernel.org>
+Subject: [PATCH v2 1/3] coredump: Replace opencoded set_mask_bits()
+Date: Wed, 23 Jan 2019 12:33:02 -0800
+Message-ID: <1548275584-18096-2-git-send-email-vgupta@synopsys.com>
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: <1548275584-18096-1-git-send-email-vgupta@synopsys.com>
+References: <1548275584-18096-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
-References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
- <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net> <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
- <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
- <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm> <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
- <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm> <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
-In-Reply-To: <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 24 Jan 2019 09:35:32 +1300
-X-Gmail-Original-Message-ID: <CAHk-=wgy+1YT-Rhj5qWb_aCuBADhcq42GDKHB74sqrnOVPKzPg@mail.gmail.com>
-Message-ID:
- <CAHk-=wgy+1YT-Rhj5qWb_aCuBADhcq42GDKHB74sqrnOVPKzPg@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, 
-	Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, 
-	Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
+X-Originating-IP: [10.10.161.70]
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190123203532.kJbtBYBKlZz2Q6ES1QW0OhvQykvpswqLXsRxegXQpLo@z>
+Message-ID: <20190123203302.nl-9fxLxzUbas6NYG9DBeb-rTu3WqX5n_KsRWvUNO6Q@z>
 
-On Thu, Jan 24, 2019 at 9:27 AM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> I've reverted the 'let's try to just remove the code' part in my tree.
-> But I didn't apply the two other patches yet. Any final comments
-> before that should happen?
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Link: http://lkml.kernel.org/g/20150807115710.GA16897@redhat.com
+Reviewed-by: Anthony Yznaga <anthony.yznaga@oracle.com>
+Acked-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+---
+ fs/exec.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
 
-Side note: the inode_permission() addition to can_do_mincore() in that
-patch 0002, seems to be questionable. We do
-
-+static inline bool can_do_mincore(struct vm_area_struct *vma)
-+{
-+       return vma_is_anonymous(vma)
-+               || (vma->vm_file && (vma->vm_file->f_mode & FMODE_WRITE))
-+               || inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
-+}
-
-note how it tests whether vma->vm_file is NULL for the FMODE_WRITE
-test, but not for the inode_permission() test.
-
-So either we test unnecessarily in the second line, or we don't
-properly test it in the third one.
-
-I think the "test vm_file" thing may be unnecessary, because a
-non-anonymous mapping should always have a file pointer and an inode.
-But I could  imagine some odd case (vdso mapping, anyone?) that
-doesn't have a vm_file, but also isn't anonymous.
-
-Anybody?
-
-Anyway, it's one reason why I didn't actually apply those other two
-patches yet. This may be a 5.1 issue..
-
-                   Linus
+diff --git a/fs/exec.c b/fs/exec.c
+index fb72d36f7823..df7f05362283 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1944,15 +1944,10 @@ EXPORT_SYMBOL(set_binfmt);
+  */
+ void set_dumpable(struct mm_struct *mm, int value)
+ {
+-	unsigned long old, new;
+-
+ 	if (WARN_ON((unsigned)value > SUID_DUMP_ROOT))
+ 		return;
+ 
+-	do {
+-		old = READ_ONCE(mm->flags);
+-		new = (old & ~MMF_DUMPABLE_MASK) | value;
+-	} while (cmpxchg(&mm->flags, old, new) != old);
++	set_mask_bits(&mm->flags, MMF_DUMPABLE_MASK, value);
+ }
+ 
+ SYSCALL_DEFINE3(execve,
+-- 
+2.7.4
 
