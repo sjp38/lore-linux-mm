@@ -1,42 +1,111 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B703A8E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 17:23:53 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id n39so4243353qtn.18
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:23:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f20si323926qtm.242.2019.01.23.14.23.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jan 2019 14:23:53 -0800 (PST)
+From: jglisse@redhat.com
+Subject: [PATCH v4 8/9] gpu/drm/i915: optimize out the case when a range is updated to read only
+Date: Wed, 23 Jan 2019 17:23:14 -0500
+Message-Id: <20190123222315.1122-9-jglisse@redhat.com>
+In-Reply-To: <20190123222315.1122-1-jglisse@redhat.com>
+References: <20190123222315.1122-1-jglisse@redhat.com>
 MIME-Version: 1.0
-References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
- <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net> <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
- <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
- <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm> <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
- <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm>
-In-Reply-To: <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 24 Jan 2019 09:27:21 +1300
-Message-ID: <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Content-Type: text/plain; charset="UTF-8"
-Sender: linux-kernel-owner@vger.kernel.org
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Jan Kara <jack@suse.cz>, Felix Kuehling <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, linux-fsdevel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
 
-On Thu, Jan 17, 2019 at 9:23 AM Jiri Kosina <jikos@kernel.org> wrote:
->
-> So I've done some basic smoke testing (~2 hours of LTP+xfstests) on the
-> kernel with the three topmost patches from
->
->         https://git.kernel.org/pub/scm/linux/kernel/git/jikos/jikos.git/log/?h=pagecache-sidechannel
->
-> applied (also attaching to this mail), and no obvious breakage popped up.
->
-> So if noone sees any principal problem there, I'll happily submit it with
-> proper attribution etc.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-So this seems to have died down, and a week later we seem to not have
-a lot of noise here any more. I think it means people either weren't
-testing it, or just didn't find any real problems.
+When range of virtual address is updated read only and corresponding
+user ptr object are already read only it is pointless to do anything.
+Optimize this case out.
 
-I've reverted the 'let's try to just remove the code' part in my tree.
-But I didn't apply the two other patches yet. Any final comments
-before that should happen?
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Cc: Christian König <christian.koenig@amd.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Ross Zwisler <zwisler@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Radim Krčmář <rkrcmar@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: kvm@vger.kernel.org
+Cc: dri-devel@lists.freedesktop.org
+Cc: linux-rdma@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org
+Cc: Arnd Bergmann <arnd@arndb.de>
+---
+ drivers/gpu/drm/i915/i915_gem_userptr.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-                     Linus
+diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
+index 9558582c105e..23330ac3d7ea 100644
+--- a/drivers/gpu/drm/i915/i915_gem_userptr.c
++++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
+@@ -59,6 +59,7 @@ struct i915_mmu_object {
+ 	struct interval_tree_node it;
+ 	struct list_head link;
+ 	struct work_struct work;
++	bool read_only;
+ 	bool attached;
+ };
+ 
+@@ -119,6 +120,7 @@ static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+ 		container_of(_mn, struct i915_mmu_notifier, mn);
+ 	struct i915_mmu_object *mo;
+ 	struct interval_tree_node *it;
++	bool update_to_read_only;
+ 	LIST_HEAD(cancelled);
+ 	unsigned long end;
+ 
+@@ -128,6 +130,8 @@ static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+ 	/* interval ranges are inclusive, but invalidate range is exclusive */
+ 	end = range->end - 1;
+ 
++	update_to_read_only = mmu_notifier_range_update_to_read_only(range);
++
+ 	spin_lock(&mn->lock);
+ 	it = interval_tree_iter_first(&mn->objects, range->start, end);
+ 	while (it) {
+@@ -145,6 +149,17 @@ static int i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+ 		 * object if it is not in the process of being destroyed.
+ 		 */
+ 		mo = container_of(it, struct i915_mmu_object, it);
++
++		/*
++		 * If it is already read only and we are updating to
++		 * read only then we do not need to change anything.
++		 * So save time and skip this one.
++		 */
++		if (update_to_read_only && mo->read_only) {
++			it = interval_tree_iter_next(it, range->start, end);
++			continue;
++		}
++
+ 		if (kref_get_unless_zero(&mo->obj->base.refcount))
+ 			queue_work(mn->wq, &mo->work);
+ 
+@@ -270,6 +285,7 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
+ 	mo->mn = mn;
+ 	mo->obj = obj;
+ 	mo->it.start = obj->userptr.ptr;
++	mo->read_only = i915_gem_object_is_readonly(obj);
+ 	mo->it.last = obj->userptr.ptr + obj->base.size - 1;
+ 	INIT_WORK(&mo->work, cancel_userptr);
+ 
+-- 
+2.17.2
