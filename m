@@ -1,65 +1,42 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 267378E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:57:23 -0500 (EST)
-Received: by mail-yw1-f70.google.com with SMTP id b8so1502461ywb.17
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:57:23 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n19sor3405508ywd.166.2019.01.23.09.57.22
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 Jan 2019 09:57:22 -0800 (PST)
+Return-Path: <linux-kernel-owner@vger.kernel.org>
 MIME-Version: 1.0
-References: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
- <20190123145434.GK13149@quack2.suse.cz>
-In-Reply-To: <20190123145434.GK13149@quack2.suse.cz>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Wed, 23 Jan 2019 19:57:10 +0200
-Message-ID: <CAOQ4uxivipnXihRud_5cUmjeOj000MwH5+oVDWv_2kwGCsamDA@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
+References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
+ <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+ <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
+ <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
+ <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net> <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
+ <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
+ <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm> <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
+ <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm>
+In-Reply-To: <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 24 Jan 2019 09:27:21 +1300
+Message-ID: <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
 Content-Type: text/plain; charset="UTF-8"
-Sender: owner-linux-mm@kvack.org
+Sender: linux-kernel-owner@vger.kernel.org
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: lsf-pc@lists.linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jerome Glisse <jglisse@redhat.com>
 
-On Wed, Jan 23, 2019 at 4:54 PM Jan Kara <jack@suse.cz> wrote:
-...
-> >
-> > At first glance, this requires dropping the assumption that a for an
-> > uptodate clean page, vmf->vma->vm_file->f_inode == page->mapping->host.
-> > Is there really such an assumption in common vfs/mm code?  and what will
-> > it take to drop it?
+On Thu, Jan 17, 2019 at 9:23 AM Jiri Kosina <jikos@kernel.org> wrote:
 >
-> There definitely is such assumption. Take for example page reclaim as one
-> such place that will be non-trivial to deal with. You need to remove the
-> page from page cache of all inodes that contain it without having any file
-> context whatsoever. So you will need to create some way for this page->page
-> caches mapping to happen. Jerome in his talk at LSF/MM last year [1] actually
-> nicely summarized what it would take to get rid of page->mapping
-> dereferences. He even had some preliminary patches. To sum it up, it's a
-> lot of intrusive work but in principle it is possible.
+> So I've done some basic smoke testing (~2 hours of LTP+xfstests) on the
+> kernel with the three topmost patches from
 >
-> [1] https://lwn.net/Articles/752564/
+>         https://git.kernel.org/pub/scm/linux/kernel/git/jikos/jikos.git/log/?h=pagecache-sidechannel
 >
+> applied (also attaching to this mail), and no obvious breakage popped up.
+>
+> So if noone sees any principal problem there, I'll happily submit it with
+> proper attribution etc.
 
-That would be real nice if that work makes progress.
-However, for the sake of discussion, for the narrow case of overlayfs page
-sharing, if page->mapping is the overlay mapping, then it already has
-references to the underlying inode/mapping and overlayfs mapping ops
-can do the right thing for reclaim and migrate.
+So this seems to have died down, and a week later we seem to not have
+a lot of noise here any more. I think it means people either weren't
+testing it, or just didn't find any real problems.
 
-So the fact that there is a lot of code referencing page->mapping (I know that)
-doesn't really answer my question of how hard it is to drop the assumption
-that vmf->vma->vm_file->f_inode == page->mapping->host for read protected
-uptodate pages from common code.
-Because if overlayfs (or any other arbitrator) will make sure that dirty pages
-and non uptodate pages abide by existing page->mapping semantics, then
-block layer code (for example) can still safely dereference page->mapping.
+I've reverted the 'let's try to just remove the code' part in my tree.
+But I didn't apply the two other patches yet. Any final comments
+before that should happen?
 
-In any case, I'd really love to see the first part of Jerome's work merged, with
-mapping propagated to all common helpers, even if the fs-specific patches
-and KSM patches will take longer to land.
-
-Thanks,
-Amir.
+                     Linus
