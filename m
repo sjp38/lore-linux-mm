@@ -1,29 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C90838E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:04:31 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id v11so1626807ply.4
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 07:04:31 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id a8si16545736pgw.380.2019.01.23.07.04.30
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BCA6F8E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:12:36 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id u32so2762355qte.1
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 07:12:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t60si184041qtd.279.2019.01.23.07.12.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 07:04:30 -0800 (PST)
-Date: Wed, 23 Jan 2019 10:03:36 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [RFC PATCH v7 09/16] mm: add a user_virt_to_phys symbol
-Message-ID: <20190123150248.GE19289@Konrads-MacBook-Pro.local>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
- <c9a409397fc608f7ae6297597d9ea3d21eeb3b38.1547153058.git.khalid.aziz@oracle.com>
+        Wed, 23 Jan 2019 07:12:35 -0800 (PST)
+Date: Wed, 23 Jan 2019 10:12:29 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
+Message-ID: <20190123151228.GA3097@redhat.com>
+References: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+ <20190123145434.GK13149@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <c9a409397fc608f7ae6297597d9ea3d21eeb3b38.1547153058.git.khalid.aziz@oracle.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190123145434.GK13149@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Amir Goldstein <amir73il@gmail.com>, lsf-pc@lists.linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-> +EXPORT_SYMBOL(user_virt_to_phys);
+On Wed, Jan 23, 2019 at 03:54:34PM +0100, Jan Kara wrote:
+> On Wed 23-01-19 10:48:58, Amir Goldstein wrote:
+> > In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong brought
+> > up the subject of sharing pages between cloned files and the general vibe
+> > in room was that it could be done.
+> > 
+> > In his talk about XFS subvolumes and snapshots [2], Dave Chinner said
+> > that Matthew Willcox was "working on that problem".
+> > 
+> > I have started working on a new overlayfs address space implementation
+> > that could also benefit from being able to share pages even for filesystems
+> > that do not support clones (for copy up anticipation state).
+> > 
+> > To simplify the problem, we can start with sharing only uptodate clean
+> > pages that map the same offset in respected files. While the same offset
+> > requirement somewhat limits the use cases that benefit from shared file
+> > pages, there is still a vast majority of use cases (i.e. clone full
+> > image), where sharing pages of similar offset will bring a lot of
+> > benefit.
+> > 
+> > At first glance, this requires dropping the assumption that a for an
+> > uptodate clean page, vmf->vma->vm_file->f_inode == page->mapping->host.
+> > Is there really such an assumption in common vfs/mm code?  and what will
+> > it take to drop it?
+> 
+> There definitely is such assumption. Take for example page reclaim as one
+> such place that will be non-trivial to deal with. You need to remove the
+> page from page cache of all inodes that contain it without having any file
+> context whatsoever. So you will need to create some way for this page->page
+> caches mapping to happen. Jerome in his talk at LSF/MM last year [1] actually
+> nicely summarized what it would take to get rid of page->mapping
+> dereferences. He even had some preliminary patches. To sum it up, it's a
+> lot of intrusive work but in principle it is possible.
+> 
+> [1] https://lwn.net/Articles/752564/
+> 
 
-Could it be _GPL? OTherwise looks OK to me.
+I intend to post a v2 of my patchset doing that sometime soon. For
+various reasons this had been push to the bottom of my todo list since
+last year. It is now almost at the top and it will stay at the top.
+So i will be resuming work on that.
+
+I wanted to propose this topic again as a joint session with mm so
+here is my proposal:
+
+
+I would like to discuss the removal of page mapping field dependency
+in most kernel code path so the we can overload that field for generic
+page write protection (KSM) for file back pages. The whole idea behind
+this is that we almost always have the mapping a page belongs to within
+the call stack for any function that operate on a file or on a vma do
+have it:
+    - syscall/kernel on a file (file -> inode -> mapping)
+    - syscall/kernel on virtual address (vma -> file -> mapping)
+    - write back for a given mapping
+
+Note that the plan is not to free up the mapping field in struct page
+but to reduce the number of place that needs the mapping corresponding
+to a page to as few places as possible. The few exceptions are:
+    - page reclaim
+    - memory compaction
+    - set_page_dirty() on GUPed (get_user_pages*()) pages
+
+For page reclaim and memory compaction we do not care about mapping
+exactly but about being able to unmap/migrate a page. So any over-
+loading of mapping needs to keep providing helpers to handle those
+cases.
+
+For set_page_dirty() on GUPed pages we can take a slow path if the
+page has an overloaded mapping field.
+
+
+Previous patchset:
+https://lore.kernel.org/lkml/20180404191831.5378-1-jglisse@redhat.com/
+
+Cheers,
+Jérôme
