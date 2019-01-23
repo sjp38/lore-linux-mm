@@ -1,80 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 031538E0001
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 05:23:19 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id l45so755809edb.1
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 02:23:18 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m3-v6si3295101ejb.316.2019.01.23.02.23.17
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB9C78E0001
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 05:28:08 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id k16-v6so543892lji.5
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 02:28:08 -0800 (PST)
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id y2-v6si2188972lja.84.2019.01.23.02.28.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 02:23:17 -0800 (PST)
-Date: Wed, 23 Jan 2019 11:22:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,memory_hotplug: Fix scan_movable_pages for gigantic
- hugepages
-Message-ID: <20190123102242.GT4087@dhcp22.suse.cz>
-References: <20190122154407.18417-1-osalvador@suse.de>
- <20190123094717.GQ4087@dhcp22.suse.cz>
- <20190123101838.qxsapn4dhcergs6t@d104.suse.de>
+        Wed, 23 Jan 2019 02:28:06 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: vmscan: do not iterate all mem cgroups for global
+ direct reclaim
+References: <1548187782-108454-1-git-send-email-yang.shi@linux.alibaba.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <fa1d9a1f-99c8-a4ae-da7f-ed90336497e9@virtuozzo.com>
+Date: Wed, 23 Jan 2019 13:28:03 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190123101838.qxsapn4dhcergs6t@d104.suse.de>
+In-Reply-To: <1548187782-108454-1-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@suse.de>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, david@redhat.com
+To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@suse.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 23-01-19 11:18:42, Oscar Salvador wrote:
-> On Wed, Jan 23, 2019 at 10:47:17AM +0100, Michal Hocko wrote:
-> > So this should be probably folded into the above patch as it is
-> > incomplete unless I am missing something.
+On 22.01.2019 23:09, Yang Shi wrote:
+> In current implementation, both kswapd and direct reclaim has to iterate
+> all mem cgroups.  It is not a problem before offline mem cgroups could
+> be iterated.  But, currently with iterating offline mem cgroups, it
+> could be very time consuming.  In our workloads, we saw over 400K mem
+> cgroups accumulated in some cases, only a few hundred are online memcgs.
+> Although kswapd could help out to reduce the number of memcgs, direct
+> reclaim still get hit with iterating a number of offline memcgs in some
+> cases.  We experienced the responsiveness problems due to this
+> occassionally.
 > 
-> Well, they are triggered from different paths.
-> The former error was triggered in:
-> 
-> removable_show
->  is_mem_section_removable
->   is_pageblock_removable_nolock
->    has_unmovable_pages
-> 
-> while this one is triggered when actually doing the offline operation
+> Here just break the iteration once it reclaims enough pages as what
+> memcg direct reclaim does.  This may hurt the fairness among memcgs
+> since direct reclaim may awlays do reclaim from same memcgs.  But, it
+> sounds ok since direct reclaim just tries to reclaim SWAP_CLUSTER_MAX
+> pages and memcgs can be protected by min/low.
 
-But it would trigger from the offline path as well, no?
+In case of we stop after SWAP_CLUSTER_MAX pages are reclaimed; it's possible
+the following situation. Memcgs, which are closest to root_mem_cgroup, will
+become empty, and you will have to iterate over empty memcg hierarchy long time,
+just to find a not empty memcg.
 
-> __offline_pages
->  scan_movable_pages
+I'd suggest, we should not lose fairness. We may introduce
+mem_cgroup::last_reclaim_child parameter to save a child
+(or its id), where the last reclaim was interrupted. Then
+next reclaim should start from this child:
+
+   memcg = mem_cgroup_iter(root, find_child(root->last_reclaim_child), &reclaim);
+   do {  
+
+      if ((!global_reclaim(sc) || !current_is_kswapd()) && 
+           sc->nr_reclaimed >= sc->nr_to_reclaim) { 
+               root->last_reclaim_child = memcg->id;
+               mem_cgroup_iter_break(root, memcg);
+               break; 
+      }
+
+Kirill
+ 
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+>  mm/vmscan.c | 7 +++----
+>  1 file changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a714c4f..ced5a16 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2764,16 +2764,15 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  				   sc->nr_reclaimed - reclaimed);
 >  
-> But I do agree that one without the other is not really useful, an incomplete.
-> The truth is that I did not spot this one when fixing [1] because I did not
-> really try to offline the memblock back then, so my fault.
-
-I should have noticed that during the review but those paths are really
-far away from each other so this is hard to spot indeed
-
-> While I agree that the best approach would be to fold this one into [1],
-> I am not sure if it is too late for that as it seems that [1] was already
-> released into mainline, and moreover to stable.
-
-OK, I wasn't aware of that. Then my suggestion is clearly moot.
-
-> I guess I will have Andrew decide what is the best way to carry on here.
+>  			/*
+> -			 * Direct reclaim and kswapd have to scan all memory
+> -			 * cgroups to fulfill the overall scan target for the
+> -			 * node.
+> +			 * Kswapd have to scan all memory cgroups to fulfill
+> +			 * the overall scan target for the node.
+>  			 *
+>  			 * Limit reclaim, on the other hand, only cares about
+>  			 * nr_to_reclaim pages to be reclaimed and it will
+>  			 * retry with decreasing priority if one round over the
+>  			 * whole hierarchy is not sufficient.
+>  			 */
+> -			if (!global_reclaim(sc) &&
+> +			if ((!global_reclaim(sc) || !current_is_kswapd()) &&
+>  					sc->nr_reclaimed >= sc->nr_to_reclaim) {
+>  				mem_cgroup_iter_break(root, memcg);
+>  				break;
 > 
-> [1] https://patchwork.kernel.org/patch/10739963/
-> 
-> > 
-> > > Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> > 
-> > Other than that the change looks good to me.
-> > 
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Thanks!
-> -- 
-> Oscar Salvador
-> SUSE L3
-
--- 
-Michal Hocko
-SUSE Labs
