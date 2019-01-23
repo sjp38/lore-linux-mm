@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E0BD98E0047
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 17:23:42 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id q33so4209476qte.23
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:23:42 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5131B8E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 17:23:45 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id k90so4384403qte.0
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:23:45 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k18si1459105qtb.401.2019.01.23.14.23.42
+        by mx.google.com with ESMTPS id h12si6136349qto.184.2019.01.23.14.23.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 14:23:42 -0800 (PST)
+        Wed, 23 Jan 2019 14:23:44 -0800 (PST)
 From: jglisse@redhat.com
-Subject: [PATCH v4 4/9] mm/mmu_notifier: pass down vma and reasons why mmu notifier is happening
-Date: Wed, 23 Jan 2019 17:23:10 -0500
-Message-Id: <20190123222315.1122-5-jglisse@redhat.com>
+Subject: [PATCH v4 5/9] mm/mmu_notifier: mmu_notifier_range_update_to_read_only() helper
+Date: Wed, 23 Jan 2019 17:23:11 -0500
+Message-Id: <20190123222315.1122-6-jglisse@redhat.com>
 In-Reply-To: <20190123222315.1122-1-jglisse@redhat.com>
 References: <20190123222315.1122-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -25,17 +25,10 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?U
 
 From: Jérôme Glisse <jglisse@redhat.com>
 
-CPU page table update can happens for many reasons, not only as a result
-of a syscall (munmap(), mprotect(), mremap(), madvise(), ...) but also
-as a result of kernel activities (memory compression, reclaim, migration,
-...).
-
-Users of mmu notifier API track changes to the CPU page table and take
-specific action for them. While current API only provide range of virtual
-address affected by the change, not why the changes is happening
-
-This patch is just passing down the new informations by adding it to the
-mmu_notifier_range structure.
+Helper to test if a range is updated to read only (it is still valid
+to read from the range). This is useful for device driver or anyone
+who wish to optimize out update when they know that they already have
+the range map read only.
 
 Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Cc: Christian König <christian.koenig@amd.com>
@@ -57,33 +50,49 @@ Cc: linux-rdma@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org
 Cc: Arnd Bergmann <arnd@arndb.de>
 ---
- include/linux/mmu_notifier.h | 4 ++++
- 1 file changed, 4 insertions(+)
+ include/linux/mmu_notifier.h |  4 ++++
+ mm/mmu_notifier.c            | 10 ++++++++++
+ 2 files changed, 14 insertions(+)
 
 diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index a9808add4070..7514775817de 100644
+index 7514775817de..be873c431886 100644
 --- a/include/linux/mmu_notifier.h
 +++ b/include/linux/mmu_notifier.h
-@@ -56,9 +56,11 @@ struct mmu_notifier_mm {
- };
+@@ -257,6 +257,8 @@ extern void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *r,
+ 				  bool only_end);
+ extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end);
++extern bool
++mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range);
  
- struct mmu_notifier_range {
-+	struct vm_area_struct *vma;
- 	struct mm_struct *mm;
- 	unsigned long start;
- 	unsigned long end;
-+	enum mmu_notifier_event event;
- 	bool blockable;
- };
- 
-@@ -354,6 +356,8 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
- 					   unsigned long start,
- 					   unsigned long end)
+ static inline void mmu_notifier_release(struct mm_struct *mm)
  {
-+	range->vma = vma;
-+	range->event = event;
- 	range->mm = mm;
- 	range->start = start;
- 	range->end = end;
+@@ -553,6 +555,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ {
+ }
+ 
++#define mmu_notifier_range_update_to_read_only(r) false
++
+ #define ptep_clear_flush_young_notify ptep_clear_flush_young
+ #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
+ #define ptep_clear_young_notify ptep_test_and_clear_young
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 9c884abc7850..0b2f77715a08 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -395,3 +395,13 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+ 	mmdrop(mm);
+ }
+ EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
++
++bool
++mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range)
++{
++	if (!range->vma || range->event != MMU_NOTIFY_PROTECTION_VMA)
++		return false;
++	/* Return true if the vma still have the read flag set. */
++	return range->vma->vm_flags & VM_READ;
++}
++EXPORT_SYMBOL_GPL(mmu_notifier_range_update_to_read_only);
 -- 
 2.17.2
