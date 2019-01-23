@@ -1,45 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C15FE8E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:58:33 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id b8so1538173pfe.10
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 03:58:33 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d12si3943822pln.340.2019.01.23.03.58.32
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 64C9C8E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:35:06 -0500 (EST)
+Received: by mail-wm1-f72.google.com with SMTP id a11so534931wmh.2
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:35:06 -0800 (PST)
+Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::10])
+        by mx.google.com with ESMTPS id f17si72995082wru.378.2019.01.23.06.35.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 03:58:32 -0800 (PST)
-Date: Wed, 23 Jan 2019 12:58:29 +0100
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 1/3] treewide: Lift switch variables out of switches
-Message-ID: <20190123115829.GA31385@kroah.com>
-References: <20190123110349.35882-1-keescook@chromium.org>
- <20190123110349.35882-2-keescook@chromium.org>
+        Wed, 23 Jan 2019 06:35:04 -0800 (PST)
+Subject: Re: use generic DMA mapping code in powerpc V4
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+References: <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de>
+ <20190118112842.GA9115@lst.de>
+ <a2ca0118-5915-8b1c-7cfa-71cb4b43eaa6@xenosoft.de>
+ <20190118121810.GA13327@lst.de>
+ <eceebeda-0e18-00f6-06e7-def2eb0aa961@xenosoft.de>
+ <20190118125500.GA15657@lst.de>
+ <e11e61b1-6468-122e-fc2b-3b3f857186bb@xenosoft.de>
+ <f39d4fc6-7e4e-9132-c03f-59f1b52260e0@xenosoft.de>
+ <b9e5e081-a3cc-2625-4e08-2d55c2ba224b@xenosoft.de>
+ <20190119130222.GA24346@lst.de> <20190119140452.GA25198@lst.de>
+ <bfe4adcc-01c1-7b46-f40a-8e020ff77f58@xenosoft.de>
+Message-ID: <8434e281-eb85-51d9-106f-f4faa559e89c@xenosoft.de>
+Date: Wed, 23 Jan 2019 15:34:55 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+In-Reply-To: <bfe4adcc-01c1-7b46-f40a-8e020ff77f58@xenosoft.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190123110349.35882-2-keescook@chromium.org>
+Content-Language: de-DE
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Laura Abbott <labbott@redhat.com>, Alexander Popov <alex.popov@linux.com>, xen-devel@lists.xenproject.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, intel-wired-lan@lists.osuosl.org, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, dev@openvswitch.org, linux-kbuild@vger.kernel.org, linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Jan 23, 2019 at 03:03:47AM -0800, Kees Cook wrote:
-> Variables declared in a switch statement before any case statements
-> cannot be initialized, so move all instances out of the switches.
-> After this, future always-initialized stack variables will work
-> and not throw warnings like this:
-> 
-> fs/fcntl.c: In function ‘send_sigio_to_task’:
-> fs/fcntl.c:738:13: warning: statement will never be executed [-Wswitch-unreachable]
->    siginfo_t si;
->              ^~
+Hi Christoph,
 
-That's a pain, so this means we can't have any new variables in { }
-scope except for at the top of a function?
+I also compiled a kernel (zImage) for the X1000  from your Git 
+'powerpc-dma.6-debug' (both patches) today.
 
-That's going to be a hard thing to keep from happening over time, as
-this is valid C :(
+It boots and the P.A. Semi Ethernet works!
 
-greg k-h
+I will test just the first patch tomorrow.
+
+Thanks,
+Christian
+
+
+On 21 January 2019 at 3:38PM, Christian Zigotzky wrote:
+> Hello Christoph,
+>
+> Thanks for your reply. I successfully compiled a kernel (uImage) for 
+> the X5000 from your Git 'powerpc-dma.6-debug' (both patches) today.
+>
+> It detects the SATA hard disk drive and boots without any problems.
+>
