@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FF0C8E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 23:42:15 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id v188so867302ita.0
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 20:42:15 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id i135si10029968iti.83.2019.01.22.20.42.14
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B3EC8E0001
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 01:46:50 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id i3so1059895pfj.4
+        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 22:46:50 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id a2si18504556pfb.166.2019.01.22.22.46.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 20:42:14 -0800 (PST)
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2 2/2] mm, oom: remove 'prefer children over parent'
- heuristic
-Date: Wed, 23 Jan 2019 04:41:42 +0000
-Message-ID: <20190123044133.GA17489@castle.DHCP.thefacebook.com>
-References: <20190121185033.161015-1-shakeelb@google.com>
- <20190121185033.161015-2-shakeelb@google.com>
-In-Reply-To: <20190121185033.161015-2-shakeelb@google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <CD12C87089972E48B9CA64CA7AEA0D5A@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 22 Jan 2019 22:46:49 -0800 (PST)
+Date: Wed, 23 Jan 2019 07:46:46 +0100
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] backing-dev: no need to check return value of
+ debugfs_create functions
+Message-ID: <20190123064646.GA26885@kroah.com>
+References: <20190122152151.16139-8-gregkh@linuxfoundation.org>
+ <20190122160759.mx3h7gjc23zmrvxc@linutronix.de>
+ <20190122162503.GB22548@kroah.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190122162503.GB22548@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Anders Roxell <anders.roxell@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org
 
-On Mon, Jan 21, 2019 at 10:50:32AM -0800, Shakeel Butt wrote:
-> From the start of the git history of Linux, the kernel after selecting
-> the worst process to be oom-killed, prefer to kill its child (if the
-> child does not share mm with the parent). Later it was changed to prefer
-> to kill a child who is worst. If the parent is still the worst then the
-> parent will be killed.
->=20
-> This heuristic assumes that the children did less work than their parent
-> and by killing one of them, the work lost will be less. However this is
-> very workload dependent. If there is a workload which can benefit from
-> this heuristic, can use oom_score_adj to prefer children to be killed
-> before the parent.
->=20
-> The select_bad_process() has already selected the worst process in the
-> system/memcg. There is no need to recheck the badness of its children
-> and hoping to find a worse candidate. That's a lot of unneeded racy
-> work. Also the heuristic is dangerous because it make fork bomb like
-> workloads to recover much later because we constantly pick and kill
-> processes which are not memory hogs. So, let's remove this whole
-> heuristic.
+On Tue, Jan 22, 2019 at 05:25:03PM +0100, Greg Kroah-Hartman wrote:
+> On Tue, Jan 22, 2019 at 05:07:59PM +0100, Sebastian Andrzej Siewior wrote:
+> > On 2019-01-22 16:21:07 [+0100], Greg Kroah-Hartman wrote:
+> > > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> > > index 8a8bb8796c6c..85ef344a9c67 100644
+> > > --- a/mm/backing-dev.c
+> > > +++ b/mm/backing-dev.c
+> > > @@ -102,39 +102,25 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+> > >  }
+> > >  DEFINE_SHOW_ATTRIBUTE(bdi_debug_stats);
+> > >  
+> > > -static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+> > > +static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+> > >  {
+> > > -	if (!bdi_debug_root)
+> > > -		return -ENOMEM;
+> > > -
+> > >  	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
+> > 
+> > If this fails then ->debug_dir is NULL 
+> 
+> Wonderful, who cares :)
 
-This is a great cleanup, thanks!
+Ok, after sleeping on it, I'll change this function to return an error
+if we are out of memory, that way you will not be creating any files in
+any other location if you use the return value like this.  That should
+solve this issue.
 
-Acked-by: Roman Gushchin <guro@fb.com>
+thanks,
+
+greg k-h
