@@ -1,68 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E27B38E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 07:11:02 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id e29so869057ede.19
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 04:11:02 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b24si1784756eju.264.2019.01.23.04.11.01
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EFDEB8E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 07:12:38 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id c4so1569949ioh.16
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 04:12:38 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b62sor7168900iof.34.2019.01.23.04.12.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 04:11:01 -0800 (PST)
-Date: Wed, 23 Jan 2019 13:10:58 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm: vmscan: do not iterate all mem cgroups for
- global direct reclaim
-Message-ID: <20190123121058.GW4087@dhcp22.suse.cz>
-References: <1548187782-108454-1-git-send-email-yang.shi@linux.alibaba.com>
- <fa1d9a1f-99c8-a4ae-da7f-ed90336497e9@virtuozzo.com>
- <20190123110254.GU4087@dhcp22.suse.cz>
- <9bd4044b-63d0-b24f-a108-3061c00ed131@virtuozzo.com>
+        (Google Transport Security);
+        Wed, 23 Jan 2019 04:12:38 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9bd4044b-63d0-b24f-a108-3061c00ed131@virtuozzo.com>
+References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org>
+ <20190123115829.GA31385@kroah.com> <CAG48ez2vfXkr9dozJiGmze8k49VOXfs=K7M8bv0aQsDDpzrEFQ@mail.gmail.com>
+In-Reply-To: <CAG48ez2vfXkr9dozJiGmze8k49VOXfs=K7M8bv0aQsDDpzrEFQ@mail.gmail.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Wed, 23 Jan 2019 13:12:26 +0100
+Message-ID: <CAKv+Gu-ECKNy+nmnbsetkOg28VR1YkFgnRsu+u9mN4DC_poBwg@mail.gmail.com>
+Subject: Re: [PATCH 1/3] treewide: Lift switch variables out of switches
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jann Horn <jannh@google.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, kernel list <linux-kernel@vger.kernel.org>, Laura Abbott <labbott@redhat.com>, Alexander Popov <alex.popov@linux.com>, xen-devel <xen-devel@lists.xenproject.org>, dri-devel <dri-devel@lists.freedesktop.org>, intel-gfx@lists.freedesktop.org, intel-wired-lan@lists.osuosl.org, Network Development <netdev@vger.kernel.org>, linux-usb <linux-usb@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, dev@openvswitch.org, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, linux-security-module <linux-security-module@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On Wed 23-01-19 14:05:28, Kirill Tkhai wrote:
-> On 23.01.2019 14:02, Michal Hocko wrote:
-> > On Wed 23-01-19 13:28:03, Kirill Tkhai wrote:
-> >> On 22.01.2019 23:09, Yang Shi wrote:
-> >>> In current implementation, both kswapd and direct reclaim has to iterate
-> >>> all mem cgroups.  It is not a problem before offline mem cgroups could
-> >>> be iterated.  But, currently with iterating offline mem cgroups, it
-> >>> could be very time consuming.  In our workloads, we saw over 400K mem
-> >>> cgroups accumulated in some cases, only a few hundred are online memcgs.
-> >>> Although kswapd could help out to reduce the number of memcgs, direct
-> >>> reclaim still get hit with iterating a number of offline memcgs in some
-> >>> cases.  We experienced the responsiveness problems due to this
-> >>> occassionally.
-> >>>
-> >>> Here just break the iteration once it reclaims enough pages as what
-> >>> memcg direct reclaim does.  This may hurt the fairness among memcgs
-> >>> since direct reclaim may awlays do reclaim from same memcgs.  But, it
-> >>> sounds ok since direct reclaim just tries to reclaim SWAP_CLUSTER_MAX
-> >>> pages and memcgs can be protected by min/low.
-> >>
-> >> In case of we stop after SWAP_CLUSTER_MAX pages are reclaimed; it's possible
-> >> the following situation. Memcgs, which are closest to root_mem_cgroup, will
-> >> become empty, and you will have to iterate over empty memcg hierarchy long time,
-> >> just to find a not empty memcg.
-> >>
-> >> I'd suggest, we should not lose fairness. We may introduce
-> >> mem_cgroup::last_reclaim_child parameter to save a child
-> >> (or its id), where the last reclaim was interrupted. Then
-> >> next reclaim should start from this child:
-> > 
-> > Why is not our reclaim_cookie based caching sufficient?
-> 
-> Hm, maybe I missed them. Do cookies already implement this functionality?
+On Wed, 23 Jan 2019 at 13:09, Jann Horn <jannh@google.com> wrote:
+>
+> On Wed, Jan 23, 2019 at 1:04 PM Greg KH <gregkh@linuxfoundation.org> wrot=
+e:
+> > On Wed, Jan 23, 2019 at 03:03:47AM -0800, Kees Cook wrote:
+> > > Variables declared in a switch statement before any case statements
+> > > cannot be initialized, so move all instances out of the switches.
+> > > After this, future always-initialized stack variables will work
+> > > and not throw warnings like this:
+> > >
+> > > fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
+> > > fs/fcntl.c:738:13: warning: statement will never be executed [-Wswitc=
+h-unreachable]
+> > >    siginfo_t si;
+> > >              ^~
+> >
+> > That's a pain, so this means we can't have any new variables in { }
+> > scope except for at the top of a function?
+>
+> AFAICS this only applies to switch statements (because they jump to a
+> case and don't execute stuff at the start of the block), not blocks
+> after if/while/... .
+>
 
-Have a look at mem_cgroup_iter
+I guess that means it may apply to other cases where you do a 'goto'
+into the middle of a for() loop, for instance (at the first
+iteration), which is also a valid pattern.
 
--- 
-Michal Hocko
-SUSE Labs
+Is there any way to tag these assignments so the diagnostic disregards them=
+?
