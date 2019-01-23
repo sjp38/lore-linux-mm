@@ -2,188 +2,147 @@ Return-Path: <SRS0=euUm=P7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BEA06C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 16:50:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B02EFC282C5
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 17:06:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6BC6B2085A
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 16:50:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BC6B2085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 687AB2184C
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 17:06:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="G54Ed2/a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 687AB2184C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A90278E0035; Wed, 23 Jan 2019 11:50:38 -0500 (EST)
+	id F19AB8E0037; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A40778E001A; Wed, 23 Jan 2019 11:50:38 -0500 (EST)
+	id EC81E8E001A; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 955428E0035; Wed, 23 Jan 2019 11:50:38 -0500 (EST)
+	id DB69C8E0037; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 580F58E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 11:50:38 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id x26so1850541pgc.5
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 08:50:38 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AB7948E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id t3so1258988ybq.20
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:06:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:reply-to:to:cc:date:in-reply-to:references
-         :organization:user-agent:mime-version;
-        bh=n73MorgM5BfXTEufxFwRjcabWFxMT3tYBZfPdCnZH/g=;
-        b=Ja4xRHX3EutStDc76ZUxFYdpdCu++/yrDD/csNneyQsa/smGHEl6iabk/zScW1O3js
-         SRg9ilQ/Gh+pi989j+gmfXQcsS68k+OPRbSOpkkw+TrD9xC23QXEb1RdJavQuQVvkc6o
-         WcHoMrmE78j5CQuTZNu8k9IdzC5wDoCP+6fVP3DrJvg0shqsycLuMEz6mPkEN5LdqB4M
-         wSOSK2hlr2qejsw8lrgJpT+JaWVegsGi8+njNeQyzMF0nEqzYzNRWvgr2IQIEu+PzQpM
-         kut7BxidwZbZLNiVOY+6E3XkoeBlD4HhDuDgFx9z9xIhZY3jDEiWjKNFcZbmWL7H0NaF
-         cX0Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jeffrey.t.kirsher@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=jeffrey.t.kirsher@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukeFj1yac2SEjnPb8/FzPWRdiW296Cbu0QF9BxVVikFWXyX1SZRF
-	ySbAAedh05fXKc71/4oDIyhTLJAjUaQgs9xmxKgoencD8TQ960utlfTVX5F5XF1P1zRA+20jLfu
-	XpmGOsnMCeTLXdUxm0Kz60TO2Z0r9Uhr53cwgWEB494jgydpZ4n34lFNwPSA2jE1vDQ==
-X-Received: by 2002:a62:9719:: with SMTP id n25mr2742489pfe.240.1548262237850;
-        Wed, 23 Jan 2019 08:50:37 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5hiVkUl77469s+HmIyQQmVx0TdMSl+wY65iyJC9NhnzWssViEWecgHFeO5VCkIaHM3LreT
-X-Received: by 2002:a62:9719:: with SMTP id n25mr2742444pfe.240.1548262237122;
-        Wed, 23 Jan 2019 08:50:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548262237; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=HNCegrmxHoxYKtGgIrNR+lBf/jjXvPvl9X+DRYbXV68=;
+        b=bzq90KJRBvhPV+aI9vQ3DXqwDBc3WYQ2klH8CGe1UwhakXGsAEffUxSwbZPhroKliT
+         zSNMb2rbYAlLR52vsbRrD/wggf0vlKXOSVQS9Oocu/zSVs5ojPf/RhfDX3mi44Rnw7DH
+         zw5wBiCAD7Tl8Mp7dfsSh3VdVlzmRuJQLYXkEPqOOY/5DPodYpfdwjoIPbwB7X3rM4vZ
+         DYFg4kvQUq2WiZ9mrGAuJsmDpHFgkE7ev51L/eWIHN2FVx35plWCoT3YnK5iy893xsE9
+         6y7WDY7vO/spRmMpe01BQEBY2bmtYHkefelwo4k2GFTd1rbboBFpFzyPEFgXlycas1iy
+         3ApA==
+X-Gm-Message-State: AJcUukdbcg9kBrriPUZrRKpea1WS/a6CVI8TpTcoRkn5224BCzQ2GAEH
+	tpX4qyZCTTGU8ODxBkl7QRfH5TkuFzd0djbqKm8ucBowkkPrcM3MntOZj7k0krBvVeEUIDra+Tl
+	f6KoKGwh2myCOnz+33iqiy+uQDdbvGqurmktA9UJkuy1krNWHzr0izrbtNaQIYaherg==
+X-Received: by 2002:a25:b44a:: with SMTP id c10mr2769737ybg.505.1548263172427;
+        Wed, 23 Jan 2019 09:06:12 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4q566jkk49+lFZ1GDuS3U9O0K5o6HpkSONZGhlI97WM7aMnEtnkEIqKPgnIMixj3E1PiXk
+X-Received: by 2002:a25:b44a:: with SMTP id c10mr2769665ybg.505.1548263171620;
+        Wed, 23 Jan 2019 09:06:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548263171; cv=none;
         d=google.com; s=arc-20160816;
-        b=l1yxXpPlc8jiuhyOazBrGAlTLWWQY2ys6H/kuaQmcxoHfi3X3NJjzpP2Xh4Kulf7I5
-         QxaTjctk3GYOOemEaNy0hCp31lgwakX71xleH1AUCOVKd3yJbUs1b1QplQtdQ3CF3CcB
-         wjv1kdYHr76GJ0V0w/LlEZINLlIKuiD9PykEKKiWsfsFs5RVSlBsxipsCVZ/W4LOw4G6
-         F51us0aXjp77hlD8U7c5qvP8Smj5La09qkXkd7ftvn/2HSkuxk75hzuOjZ29vbERneo9
-         I4wDbw+qfkH0Fg7ryncuArfHNMKmAI8Tsb7Lxywts3uJ8M1lnP1Lfi3dIQfqcOZSolyk
-         MBrA==
+        b=RpCQT6WMfJUO0unafGoYfDGV+rfVwotjdqGYzL+2qLflR3r3wp0RiSRina1vK1/RQZ
+         QbWaFTgIJ6soK/10wtiuw7kWRt0OwxAWlwyc2iGBD9vG5uzj4pz6Odd+qzTkq745CDO8
+         WCXZD7WU6aJIYbU+lgDdbYXFZ7akQ+DZaOwg7xO1Hc+lcqtyfIscVs1Czz06thUvAE5B
+         GKrtYD0RLghcZi9bbfAUhdrIWu5so2dFzbJDFDaxJpRN+YjmU3Y4Z35kTXU7e+QMHQLA
+         clgVE1nz9SdFxjZL8Ins2T85d/hTXqkzh6doNAL1YhUplgIagduO1aAutyqf56tPIK7X
+         Ep+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:organization:references:in-reply-to:date:cc
-         :to:reply-to:from:subject:message-id;
-        bh=n73MorgM5BfXTEufxFwRjcabWFxMT3tYBZfPdCnZH/g=;
-        b=iQkXX5KmyyKde1YI4ROCSRUHaf31tcursMHvoa+iKGfL5C3GZNDBUMVz+k32zOeBg3
-         Q82NQl7Oqxi9cBglF5ZnATDOwd0aytKs6c9LtYP+HGohWxJMyy3rVB12W2oKsQX7OpkB
-         808O8+1pL6IAfWhO+FgPopQJOLeBuLvHBcVJaAN2t130IYkT9a0292DPRbdw7aJjK8nl
-         WwwZYQpLUrukJdMPpDXqcaMjZ1TOJETxtzn3GLWtcQwUBtlHFkMxWdY15oxMRvGAm4aA
-         3IiIFUr2JliS27YLO5HpqdqKcC4Ou1febzBkiga4xHJ7+6V8YMwP7gJBt2OKWgyATDAl
-         kCMw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=HNCegrmxHoxYKtGgIrNR+lBf/jjXvPvl9X+DRYbXV68=;
+        b=sXQ9aI1MZoK8B9WJ6W1G6ZGinChVgXBJPOpt6B0/qCvyIohj3VHrPbHRuyVCkV6fT7
+         HGVoDzeH6GlDvOXc9XqcyhnrM/ATR3niBL3diJl59pfQXkMD7gDqOgGLa0Kr6ePUB4x2
+         e/QGov+LTjVPOQXL+EdDnkG4zWv+f5heGETJ5CR1lmnxlM5l4/EVjvTmw/HAtLqOjOSW
+         V8MB7lkIks92ODCj5DQachDtf0lut/dvap+MjM1UY1uncpA8Okla1kNym7D7jcnLMoGy
+         mysITJ1KCUkJJv3RoQpL/kgTLhn1DcQc4JaDFP+d7a7aptlLaPE7bMQRc9XgMpzavoeg
+         Gp4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jeffrey.t.kirsher@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=jeffrey.t.kirsher@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id x128si6588679pfb.128.2019.01.23.08.50.36
+       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b="G54Ed2/a";
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id d11si3014134ybe.382.2019.01.23.09.06.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 08:50:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of jeffrey.t.kirsher@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 23 Jan 2019 09:06:11 -0800 (PST)
+Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jeffrey.t.kirsher@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=jeffrey.t.kirsher@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Jan 2019 08:50:36 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,512,1539673200"; 
-   d="asc'?scan'208";a="312849120"
-Received: from jtkirshe-desk1.jf.intel.com ([134.134.177.96])
-  by fmsmga006.fm.intel.com with ESMTP; 23 Jan 2019 08:50:36 -0800
-Message-ID: <7d8a6120ea335d74c41a5fba3754518ea60e936e.camel@intel.com>
-Subject: Re: [Intel-wired-lan] [PATCH 1/3] treewide: Lift switch variables
- out of switches
-From: Jeff Kirsher <jeffrey.t.kirsher@intel.com>
-Reply-To: jeffrey.t.kirsher@intel.com
-To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
-Cc: dev@openvswitch.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
- netdev@vger.kernel.org, intel-gfx@lists.freedesktop.org, 
- linux-usb@vger.kernel.org, dri-devel@lists.freedesktop.org,
- linux-mm@kvack.org,  linux-security-module@vger.kernel.org,
- kernel-hardening@lists.openwall.com,  intel-wired-lan@lists.osuosl.org,
- linux-fsdevel@vger.kernel.org,  xen-devel@lists.xenproject.org, Laura
- Abbott <labbott@redhat.com>,  linux-kbuild@vger.kernel.org, Alexander Popov
- <alex.popov@linux.com>
-Date: Wed, 23 Jan 2019 08:51:38 -0800
-In-Reply-To: <20190123110349.35882-2-keescook@chromium.org>
-References: <20190123110349.35882-1-keescook@chromium.org>
-	 <20190123110349.35882-2-keescook@chromium.org>
-Organization: Intel
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-ckUn9AFZsnGNoWsnxDog"
-User-Agent: Evolution 3.30.4 (3.30.4-1.fc29) 
+       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b="G54Ed2/a";
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from localhost (localhost [127.0.0.1])
+	by bedivere.hansenpartnership.com (Postfix) with ESMTP id 8F0998EE27B;
+	Wed, 23 Jan 2019 09:06:09 -0800 (PST)
+Received: from bedivere.hansenpartnership.com ([127.0.0.1])
+	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 3H4iM5LmBZ-7; Wed, 23 Jan 2019 09:06:09 -0800 (PST)
+Received: from [153.66.254.194] (unknown [50.35.68.20])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id E703C8EE02B;
+	Wed, 23 Jan 2019 09:06:08 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1548263169;
+	bh=IQnhYHscQeLDdiG9MTTzOYWlFyns9kqljgzUWLrltHo=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=G54Ed2/aqrGbVSOajSEmTCZGY1wWL0I7FGVzcN/gXmGuoSXNbp0hz1caxnq+pvyW0
+	 yJ2lmWiGuONID19DRCA6kppGvDTwuN+JQuHXWnu0NQZ7VsofDIj3A1NoMuZJwhF9cZ
+	 3IDCh3j2fjI76b73WTN0R8CoH/Wym7r59HmUmH+4=
+Message-ID: <1548263167.2949.27.camel@HansenPartnership.com>
+Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Amir Goldstein <amir73il@gmail.com>, lsf-pc@lists.linux-foundation.org
+Cc: Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong"
+ <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara
+ <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Chris Mason
+ <clm@fb.com>,  Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel
+ <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+Date: Wed, 23 Jan 2019 09:06:07 -0800
+In-Reply-To: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+References: 
+	<CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190123165138.FvgeVM_gbWl4tcZsTRM99QOdkzBTlmL7cXyhQHn_xTw@z>
+Message-ID: <20190123170607.FDaQtuB8jVfk4aeV0iH7h5AWvwNBV-9Xud8Yj-YkQOE@z>
 
+On Wed, 2019-01-23 at 10:48 +0200, Amir Goldstein wrote:
+> Hi,
+> 
+> In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong
+> brought up the subject of sharing pages between cloned files and the
+> general vibe in room was that it could be done.
 
---=-ckUn9AFZsnGNoWsnxDog
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+This subject has been around for a while.  We talked about cache
+sharing for containers in LSF/MM 2013, although it was as a discussion
+within a session rather than a session about it.  At that time,
+Parallels already had an out of tree implementation of a daemon that
+forced this sharing and docker was complaining about the dual caching
+problem of their graph drivers.
 
-On Wed, 2019-01-23 at 03:03 -0800, Kees Cook wrote:
-> Variables declared in a switch statement before any case statements
-> cannot be initialized, so move all instances out of the switches.
-> After this, future always-initialized stack variables will work
-> and not throw warnings like this:
->=20
-> fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
-> fs/fcntl.c:738:13: warning: statement will never be executed [-
-> Wswitch-unreachable]
->    siginfo_t si;
->              ^~
->=20
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+So, what we need in addition to reflink for container images is
+something like ksm for containers which can force read only sharing of
+pages that have the same content even though they're apparently from
+different files.  This is because most cloud container systems run
+multiple copies of the same container image even if the overlays don't
+necessarily reflect the origin.  Essentially it's the same reason why
+reflink doesn't solve the sharing problem entirely for VMs.
 
-Acked-by: Jeff Kirsher <jeffrey.t.kirsher@intel.com>
-
-For the e1000 changes.
-
-> ---
->  arch/x86/xen/enlighten_pv.c                   |  7 ++++---
->  drivers/char/pcmcia/cm4000_cs.c               |  2 +-
->  drivers/char/ppdev.c                          | 20 ++++++++---------
-> --
->  drivers/gpu/drm/drm_edid.c                    |  4 ++--
->  drivers/gpu/drm/i915/intel_display.c          |  2 +-
->  drivers/gpu/drm/i915/intel_pm.c               |  4 ++--
->  drivers/net/ethernet/intel/e1000/e1000_main.c |  3 ++-
->  drivers/tty/n_tty.c                           |  3 +--
->  drivers/usb/gadget/udc/net2280.c              |  5 ++---
->  fs/fcntl.c                                    |  3 ++-
->  mm/shmem.c                                    |  5 +++--
->  net/core/skbuff.c                             |  4 ++--
->  net/ipv6/ip6_gre.c                            |  4 ++--
->  net/ipv6/ip6_tunnel.c                         |  4 ++--
->  net/openvswitch/flow_netlink.c                |  7 +++----
->  security/tomoyo/common.c                      |  3 ++-
->  security/tomoyo/condition.c                   |  7 ++++---
->  security/tomoyo/util.c                        |  4 ++--
->  18 files changed, 45 insertions(+), 46 deletions(-)
-
-
---=-ckUn9AFZsnGNoWsnxDog
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAABCAAdFiEEiTyZWz+nnTrOJ1LZ5W/vlVpL7c4FAlxIm5oACgkQ5W/vlVpL
-7c6nHA/+I5AUD+yELZtkueGqZrZ0E/i+TX7+2pxKNRieTprDcNtILryQEfP4XrvX
-r7X4QwfM9Rfmrlr1WcZrQW2LVn+uuflivdbtCmE0ZX4iBnIhAoeguyZ6+hInlbDY
-oN+TzAFm96uYB70bOnyqutGVBKfMkazDXiVtqzbu+7HAMWFnQFFzKX6/o+eL0/Np
-1qBQP1okUj2dM/ujfQKLxWQu8IupAI5nDeucqFsscZO1Yh/g9IjOyClDUGSXAyBO
-Xr67/lCCAt1/Z0GkqN+HElzbtjokp0xitLFF9MyOkmrHiHKcvD62I4OJ97OXlFuF
-YXvwIg6/9NfVhGgh/k8z6xAAB9JDIZ0rb5yezcdu1FqSYVrAyzI4tmD+l3fS7zyr
-AnHaQ4tTzsmj0T70bz1wooR2oOnyA2MhVhGUfPXNER24TaApApki5eqydsVPpsMk
-3gukrduJogzBL2AVMTp780UAj2WnHYsJhso62fYOPT0huDhAsIWaqcuVi5Fs0o94
-b9t84vtQG5NHFEBmaaaVdFhB9+Tw3sOHh+nglVzHm3UZNHcFi+lEgxjtV6cTcm0C
-1oIX6J17KkZPxkOf0ENU8Cj/gnvNRF/ZhkDPe0r1bMYnL8w0WxB/rCSPQfWD/F5r
-bdTuBQbV5MKBc4evjKtB1mFUYD9WrOMIbPjMo9pkJ0XQuttdthc=
-=MB+1
------END PGP SIGNATURE-----
-
---=-ckUn9AFZsnGNoWsnxDog--
+James
 
