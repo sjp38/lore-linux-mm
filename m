@@ -1,177 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E02C28E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:57:55 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id w18so2829879qts.8
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 07:57:55 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q20sor58155257qke.121.2019.01.23.07.57.54
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 99A618E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:05:23 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c53so1210845edc.9
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:05:23 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t20si5412042edw.353.2019.01.23.09.05.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 Jan 2019 07:57:54 -0800 (PST)
-Date: Wed, 23 Jan 2019 10:57:51 -0500
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: possible deadlock in __do_page_fault
-Message-ID: <20190123155751.GA168927@google.com>
-References: <4b0a5f8c-2be2-db38-a70d-8d497cb67665@I-love.SAKURA.ne.jp>
- <20190122153220.GA191275@google.com>
- <201901230201.x0N214eq043832@www262.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jan 2019 09:05:21 -0800 (PST)
+Date: Wed, 23 Jan 2019 18:05:18 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/4] mm/memory-hotplug: allow memory resources to be
+ children
+Message-ID: <20190123170518.GC4087@dhcp22.suse.cz>
+References: <20190116181859.D1504459@viggo.jf.intel.com>
+ <20190116181902.670EEBC3@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201901230201.x0N214eq043832@www262.sakura.ne.jp>
+In-Reply-To: <20190116181902.670EEBC3@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Todd Kjos <tkjos@google.com>, syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com, ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: dave@sr71.net, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com, baiyaowei@cmss.chinamobile.com, tiwai@suse.de
 
-On Wed, Jan 23, 2019 at 11:01:04AM +0900, Tetsuo Handa wrote:
-> Joel Fernandes wrote:
-> > > Why do we need to call fallocate() synchronously with ashmem_mutex held?
-> > > Why can't we call fallocate() asynchronously from WQ_MEM_RECLAIM workqueue
-> > > context so that we can call fallocate() with ashmem_mutex not held?
-> > > 
-> > > I don't know how ashmem works, but as far as I can guess, offloading is
-> > > possible as long as other operations which depend on the completion of
-> > > fallocate() operation (e.g. read()/mmap(), querying/changing pinned status)
-> > > wait for completion of asynchronous fallocate() operation (like a draft
-> > > patch shown below is doing).
-> > 
-> > This adds a bit of complexity, I am worried if it will introduce more
-> > bugs especially because ashmem is going away in the long term, in favor of
-> > memfd - and if its worth adding more complexity / maintenance burden to it.
+[Sorry for a late reply]
+
+On Wed 16-01-19 10:19:02, Dave Hansen wrote:
 > 
-> I don't care migrating to memfd. I care when bugs are fixed.
-
-That's fair. I'm not a fan of bugs either. I was just making a point that -
-we want to fix things while not introducing unwanted complexity and cause
-more bugs. That said, thanks for the patch and trying to fix it.
-
-> > I am wondering if we can do this synchronously, without using a workqueue.
-> > All you would need is a temporary list of areas to punch. In
-> > ashmem_shrink_scan, you would create this list under mutex and then once you
-> > release the mutex, you can go through this list and do the fallocate followed
-> > by the wake up of waiters on the wait queue, right? If you can do it this
-> > way, then it would be better IMO.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Are you sure that none of locks held before doing GFP_KERNEL allocation
-> interferes lock dependency used by fallocate() ? If yes, we can do without a
-> workqueue context (like a draft patch shown below). Since I don't understand
-> what locks are potentially involved, I offloaded to a clean workqueue context.
+> The mm/resource.c code is used to manage the physical address
+> space.  We can view the current resource configuration in
+> /proc/iomem.  An example of this is at the bottom of this
+> description.
+> 
+> The nvdimm subsystem "owns" the physical address resources which
+> map to persistent memory and has resources inserted for them as
+> "Persistent Memory".  We want to use this persistent memory, but
+> as volatile memory, just like RAM.  The best way to do this is
+> to leave the existing resource in place, but add a "System RAM"
+> resource underneath it. This clearly communicates the ownership
+> relationship of this memory.
+> 
+> The request_resource_conflict() API only deals with the
+> top-level resources.  Replace it with __request_region() which
+> will search for !IORESOURCE_BUSY areas lower in the resource
+> tree than the top level.
+> 
+> We also rework the old error message a bit since we do not get
+> the conflicting entry back: only an indication that we *had* a
+> conflict.
+> 
+> We *could* also simply truncate the existing top-level
+> "Persistent Memory" resource and take over the released address
+> space.  But, this means that if we ever decide to hot-unplug the
+> "RAM" and give it back, we need to recreate the original setup,
+> which may mean going back to the BIOS tables.
+> 
+> This should have no real effect on the existing collision
+> detection because the areas that truly conflict should be marked
+> IORESOURCE_BUSY.
+> 
+> 00000000-00000fff : Reserved
+> 00001000-0009fbff : System RAM
+> 0009fc00-0009ffff : Reserved
+> 000a0000-000bffff : PCI Bus 0000:00
+> 000c0000-000c97ff : Video ROM
+> 000c9800-000ca5ff : Adapter ROM
+> 000f0000-000fffff : Reserved
+>   000f0000-000fffff : System ROM
+> 00100000-9fffffff : System RAM
+>   01000000-01e071d0 : Kernel code
+>   01e071d1-027dfdff : Kernel data
+>   02dc6000-0305dfff : Kernel bss
+> a0000000-afffffff : Persistent Memory (legacy)
+>   a0000000-a7ffffff : System RAM
+> b0000000-bffdffff : System RAM
+> bffe0000-bfffffff : Reserved
+> c0000000-febfffff : PCI Bus 0000:00
 
-fallocate acquires inode locks. So there is a lock dependency between
-- memory reclaim (fake lock)
-- inode locks.
+This is the only memory hotplug related change in this series AFAICS.
+Unfortunately I am not really familiar with guts for resources
+infrastructure so I cannot judge the correctness. The change looks
+sensible to me although I do not feel like acking it.
 
-This dependency is there whether we have your patch or not. I am not aware of
-any other locks that are held other than these. But you could also just use
-lockdep to dump all held locks at that point to confirm.
+Overall design of this feature makes a lot of sense to me. It doesn't
+really add any weird APIs yet it allows to use nvdimms as a memory
+transparently. All future policies are to be defined by the userspace
+and I like that. I was especially astonished by the sheer size of the
+driver and changes it required to achieve that. Really nice!
 
-> Anyway, I need your checks regarding whether this approach is waiting for
-> completion at all locations which need to wait for completion.
-
-I think you are waiting in unwanted locations. The only location you need to
-wait in is ashmem_pin_unpin.
-
-So, to my eyes all that is needed to fix this bug is:
-
-1. Delete the range from the ashmem_lru_list
-2. Release the ashmem_mutex
-3. fallocate the range.
-4. Do the completion so that any waiting pin/unpin can proceed.
-
-Could you clarify why you feel you need to wait for completion at those other
-locations?
-
-Note that once a range is unpinned, it is open sesame and userspace cannot
-really expect consistent data from such range till it is pinned again.
-
-Thanks!
-
- - Joel
-
-
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dave Jiang <dave.jiang@intel.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Vishal Verma <vishal.l.verma@intel.com>
+> Cc: Tom Lendacky <thomas.lendacky@amd.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: linux-nvdimm@lists.01.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Fengguang Wu <fengguang.wu@intel.com>
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 > ---
->  drivers/staging/android/ashmem.c | 25 ++++++++++++++++++++-----
->  1 file changed, 20 insertions(+), 5 deletions(-)
 > 
-> diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
-> index 90a8a9f1ac7d..6a267563cb66 100644
-> --- a/drivers/staging/android/ashmem.c
-> +++ b/drivers/staging/android/ashmem.c
-> @@ -75,6 +75,9 @@ struct ashmem_range {
->  /* LRU list of unpinned pages, protected by ashmem_mutex */
->  static LIST_HEAD(ashmem_lru_list);
->  
-> +static atomic_t ashmem_shrink_inflight = ATOMIC_INIT(0);
-> +static DECLARE_WAIT_QUEUE_HEAD(ashmem_shrink_wait);
-> +
->  /*
->   * long lru_count - The count of pages on our LRU list.
->   *
-> @@ -292,6 +295,7 @@ static ssize_t ashmem_read_iter(struct kiocb *iocb, struct iov_iter *iter)
->  	int ret = 0;
->  
->  	mutex_lock(&ashmem_mutex);
-> +	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
->  
->  	/* If size is not set, or set to 0, always return EOF. */
->  	if (asma->size == 0)
-> @@ -359,6 +363,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
->  	int ret = 0;
->  
->  	mutex_lock(&ashmem_mutex);
-> +	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
->  
->  	/* user needs to SET_SIZE before mapping */
->  	if (!asma->size) {
-> @@ -438,7 +443,6 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
->  static unsigned long
->  ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+>  b/mm/memory_hotplug.c |   31 ++++++++++++++-----------------
+>  1 file changed, 14 insertions(+), 17 deletions(-)
+> 
+> diff -puN mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child mm/memory_hotplug.c
+> --- a/mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child	2018-12-20 11:48:42.317771933 -0800
+> +++ b/mm/memory_hotplug.c	2018-12-20 11:48:42.322771933 -0800
+> @@ -98,24 +98,21 @@ void mem_hotplug_done(void)
+>  /* add this memory to iomem resource */
+>  static struct resource *register_memory_resource(u64 start, u64 size)
 >  {
-> -	struct ashmem_range *range, *next;
->  	unsigned long freed = 0;
+> -	struct resource *res, *conflict;
+> -	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> -	if (!res)
+> -		return ERR_PTR(-ENOMEM);
+> +	struct resource *res;
+> +	unsigned long flags =  IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+> +	char *resource_name = "System RAM";
 >  
->  	/* We might recurse into filesystem code, so bail out if necessary */
-> @@ -448,17 +452,27 @@ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->  	if (!mutex_trylock(&ashmem_mutex))
->  		return -1;
->  
-> -	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
-> +	while (!list_empty(&ashmem_lru_list)) {
-> +		struct ashmem_range *range =
-> +			list_first_entry(&ashmem_lru_list, typeof(*range), lru);
->  		loff_t start = range->pgstart * PAGE_SIZE;
->  		loff_t end = (range->pgend + 1) * PAGE_SIZE;
-> +		struct file *f = range->asma->file;
->  
-> -		range->asma->file->f_op->fallocate(range->asma->file,
-> -				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> -				start, end - start);
-> +		get_file(f);
-> +		atomic_inc(&ashmem_shrink_inflight);
->  		range->purged = ASHMEM_WAS_PURGED;
->  		lru_del(range);
->  
->  		freed += range_size(range);
-> +		mutex_unlock(&ashmem_mutex);
-> +		f->f_op->fallocate(f,
-> +				   FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> +				   start, end - start);
-> +		fput(f);
-> +		if (atomic_dec_and_test(&ashmem_shrink_inflight))
-> +			wake_up_all(&ashmem_shrink_wait);
-> +		mutex_lock(&ashmem_mutex);
->  		if (--sc->nr_to_scan <= 0)
->  			break;
+> -	res->name = "System RAM";
+> -	res->start = start;
+> -	res->end = start + size - 1;
+> -	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+> -	conflict =  request_resource_conflict(&iomem_resource, res);
+> -	if (conflict) {
+> -		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
+> -			pr_debug("Device unaddressable memory block "
+> -				 "memory hotplug at %#010llx !\n",
+> -				 (unsigned long long)start);
+> -		}
+> -		pr_debug("System RAM resource %pR cannot be added\n", res);
+> -		kfree(res);
+> +	/*
+> +	 * Request ownership of the new memory range.  This might be
+> +	 * a child of an existing resource that was present but
+> +	 * not marked as busy.
+> +	 */
+> +	res = __request_region(&iomem_resource, start, size,
+> +			       resource_name, flags);
+> +
+> +	if (!res) {
+> +		pr_debug("Unable to reserve System RAM region: %016llx->%016llx\n",
+> +				start, start + size);
+>  		return ERR_PTR(-EEXIST);
 >  	}
-> @@ -713,6 +727,7 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
->  		return -EFAULT;
->  
->  	mutex_lock(&ashmem_mutex);
-> +	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
->  
->  	if (!asma->file)
->  		goto out_unlock;
-> -- 
-> 2.17.1
+>  	return res;
+> _
+
+-- 
+Michal Hocko
+SUSE Labs
