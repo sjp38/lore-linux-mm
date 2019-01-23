@@ -1,72 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E547D8E0047
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 15:35:53 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id e8-v6so949371ljg.22
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:35:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f8-v6sor3112783ljg.0.2019.01.23.12.35.51
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 Jan 2019 12:35:52 -0800 (PST)
-Received: from mail-lj1-f173.google.com (mail-lj1-f173.google.com. [209.85.208.173])
-        by smtp.gmail.com with ESMTPSA id q3sm635025lff.42.2019.01.23.12.35.49
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 091588E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 17:23:34 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id n50so4350077qtb.9
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:23:34 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r65si8550397qtd.301.2019.01.23.14.23.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 12:35:49 -0800 (PST)
-Received: by mail-lj1-f173.google.com with SMTP id t18-v6so3186856ljd.4
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:35:49 -0800 (PST)
+        Wed, 23 Jan 2019 14:23:33 -0800 (PST)
+From: jglisse@redhat.com
+Subject: [PATCH v4 1/9] mm/mmu_notifier: contextual information for event enums
+Date: Wed, 23 Jan 2019 17:23:07 -0500
+Message-Id: <20190123222315.1122-2-jglisse@redhat.com>
+In-Reply-To: <20190123222315.1122-1-jglisse@redhat.com>
+References: <20190123222315.1122-1-jglisse@redhat.com>
 MIME-Version: 1.0
-References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
- <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net> <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
- <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
- <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm> <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
- <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm> <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
-In-Reply-To: <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 24 Jan 2019 09:35:32 +1300
-Message-ID: <CAHk-=wgy+1YT-Rhj5qWb_aCuBADhcq42GDKHB74sqrnOVPKzPg@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Jan Kara <jack@suse.cz>, Felix Kuehling <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <zwisler@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, linux-fsdevel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
 
-On Thu, Jan 24, 2019 at 9:27 AM Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> I've reverted the 'let's try to just remove the code' part in my tree.
-> But I didn't apply the two other patches yet. Any final comments
-> before that should happen?
+From: Jérôme Glisse <jglisse@redhat.com>
 
-Side note: the inode_permission() addition to can_do_mincore() in that
-patch 0002, seems to be questionable. We do
+CPU page table update can happens for many reasons, not only as a result
+of a syscall (munmap(), mprotect(), mremap(), madvise(), ...) but also
+as a result of kernel activities (memory compression, reclaim, migration,
+...).
 
-+static inline bool can_do_mincore(struct vm_area_struct *vma)
-+{
-+       return vma_is_anonymous(vma)
-+               || (vma->vm_file && (vma->vm_file->f_mode & FMODE_WRITE))
-+               || inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
-+}
+This patch introduce a set of enums that can be associated with each of
+the events triggering a mmu notifier. Latter patches take advantages of
+those enum values.
 
-note how it tests whether vma->vm_file is NULL for the FMODE_WRITE
-test, but not for the inode_permission() test.
+    - UNMAP: munmap() or mremap()
+    - CLEAR: page table is cleared (migration, compaction, reclaim, ...)
+    - PROTECTION_VMA: change in access protections for the range
+    - PROTECTION_PAGE: change in access protections for page in the range
+    - SOFT_DIRTY: soft dirtyness tracking
 
-So either we test unnecessarily in the second line, or we don't
-properly test it in the third one.
+Being able to identify munmap() and mremap() from other reasons why the
+page table is cleared is important to allow user of mmu notifier to
+update their own internal tracking structure accordingly (on munmap or
+mremap it is not longer needed to track range of virtual address as it
+becomes invalid).
 
-I think the "test vm_file" thing may be unnecessary, because a
-non-anonymous mapping should always have a file pointer and an inode.
-But I could  imagine some odd case (vdso mapping, anyone?) that
-doesn't have a vm_file, but also isn't anonymous.
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Cc: Christian König <christian.koenig@amd.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Ross Zwisler <zwisler@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Radim Krčmář <rkrcmar@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: kvm@vger.kernel.org
+Cc: dri-devel@lists.freedesktop.org
+Cc: linux-rdma@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org
+Cc: Arnd Bergmann <arnd@arndb.de>
+---
+ include/linux/mmu_notifier.h | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
 
-Anybody?
-
-Anyway, it's one reason why I didn't actually apply those other two
-patches yet. This may be a 5.1 issue..
-
-                   Linus
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 4050ec1c3b45..abc9dbb7bcb6 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -10,6 +10,36 @@
+ struct mmu_notifier;
+ struct mmu_notifier_ops;
+ 
++/**
++ * enum mmu_notifier_event - reason for the mmu notifier callback
++ * @MMU_NOTIFY_UNMAP: either munmap() that unmap the range or a mremap() that
++ * move the range
++ *
++ * @MMU_NOTIFY_CLEAR: clear page table entry (many reasons for this like
++ * madvise() or replacing a page by another one, ...).
++ *
++ * @MMU_NOTIFY_PROTECTION_VMA: update is due to protection change for the range
++ * ie using the vma access permission (vm_page_prot) to update the whole range
++ * is enough no need to inspect changes to the CPU page table (mprotect()
++ * syscall)
++ *
++ * @MMU_NOTIFY_PROTECTION_PAGE: update is due to change in read/write flag for
++ * pages in the range so to mirror those changes the user must inspect the CPU
++ * page table (from the end callback).
++ *
++ * @MMU_NOTIFY_SOFT_DIRTY: soft dirty accounting (still same page and same
++ * access flags). User should soft dirty the page in the end callback to make
++ * sure that anyone relying on soft dirtyness catch pages that might be written
++ * through non CPU mappings.
++ */
++enum mmu_notifier_event {
++	MMU_NOTIFY_UNMAP = 0,
++	MMU_NOTIFY_CLEAR,
++	MMU_NOTIFY_PROTECTION_VMA,
++	MMU_NOTIFY_PROTECTION_PAGE,
++	MMU_NOTIFY_SOFT_DIRTY,
++};
++
+ #ifdef CONFIG_MMU_NOTIFIER
+ 
+ /*
+-- 
+2.17.2
