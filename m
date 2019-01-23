@@ -2,147 +2,163 @@ Return-Path: <SRS0=euUm=P7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B02EFC282C5
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 17:06:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84D85C282C5
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 17:57:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 687AB2184C
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 17:06:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1BB6B217D4
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 17:57:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="G54Ed2/a"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 687AB2184C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jxdzYmAS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BB6B217D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F19AB8E0037; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
+	id 6B6AE8E0038; Wed, 23 Jan 2019 12:57:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC81E8E001A; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
+	id 664738E001A; Wed, 23 Jan 2019 12:57:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB69C8E0037; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
+	id 553508E0038; Wed, 23 Jan 2019 12:57:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AB7948E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id t3so1258988ybq.20
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:06:12 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 267378E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:57:23 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id b8so1502461ywb.17
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:57:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=HNCegrmxHoxYKtGgIrNR+lBf/jjXvPvl9X+DRYbXV68=;
-        b=bzq90KJRBvhPV+aI9vQ3DXqwDBc3WYQ2klH8CGe1UwhakXGsAEffUxSwbZPhroKliT
-         zSNMb2rbYAlLR52vsbRrD/wggf0vlKXOSVQS9Oocu/zSVs5ojPf/RhfDX3mi44Rnw7DH
-         zw5wBiCAD7Tl8Mp7dfsSh3VdVlzmRuJQLYXkEPqOOY/5DPodYpfdwjoIPbwB7X3rM4vZ
-         DYFg4kvQUq2WiZ9mrGAuJsmDpHFgkE7ev51L/eWIHN2FVx35plWCoT3YnK5iy893xsE9
-         6y7WDY7vO/spRmMpe01BQEBY2bmtYHkefelwo4k2GFTd1rbboBFpFzyPEFgXlycas1iy
-         3ApA==
-X-Gm-Message-State: AJcUukdbcg9kBrriPUZrRKpea1WS/a6CVI8TpTcoRkn5224BCzQ2GAEH
-	tpX4qyZCTTGU8ODxBkl7QRfH5TkuFzd0djbqKm8ucBowkkPrcM3MntOZj7k0krBvVeEUIDra+Tl
-	f6KoKGwh2myCOnz+33iqiy+uQDdbvGqurmktA9UJkuy1krNWHzr0izrbtNaQIYaherg==
-X-Received: by 2002:a25:b44a:: with SMTP id c10mr2769737ybg.505.1548263172427;
-        Wed, 23 Jan 2019 09:06:12 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4q566jkk49+lFZ1GDuS3U9O0K5o6HpkSONZGhlI97WM7aMnEtnkEIqKPgnIMixj3E1PiXk
-X-Received: by 2002:a25:b44a:: with SMTP id c10mr2769665ybg.505.1548263171620;
-        Wed, 23 Jan 2019 09:06:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548263171; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=znQqA7mNprkXHZ2TRenByp8okFQwW7BAurjbNn0fM9Q=;
+        b=YGqxsAwxXCSQ5ISojti8wZap+nk/raznrt2eZQcOGfP8vPqtYBkUqNPWmm+dEfCGWz
+         MgNqDcwJQdO6hDsIhTwC4O3/FfpwtaIoP/ljxsOWxluEsYVL+1atS9hZ3nfa5aoRhBlf
+         nnXDvFJJJwtlELNoiYjQHU0WWq9jFu59LxOlsjQIS7clKRCNr5xTs0XJh6AA+sFZhllr
+         4Q9SwlpzMZlucr4YvfBbRmhBL71B4rdWzJkOiGjPCJPlFP22zgEZXtNxXKmWfz0YgSrS
+         giVpIAzbnB5HOOtqsh54f3EMZEwwFxo+5c+mYuRg+xBPnmLW1d7EqozDP0IuCBxh6EnQ
+         0LbQ==
+X-Gm-Message-State: AJcUukdA2Sm2cBemyi4in+CInN1HptUpqtbBC9CTN+H+y/2RfrUFZg2F
+	60L/Y9+3TQf0WNSe3/MzsPM3HYCSBbccThqMgRDsv2xKmLEtKMriDGdE2vNUaFjsIfQfz9WVMZ7
+	/1M3amnh8wAZkYxwt4BAlAkdInB5ofWKwxhj+KKoCzyk6Fd3Rn3mA7E4wucaKjlcA5O+zYnP5bV
+	3snT018aEj6OTvaq1SXEc8OHvbm5W51IJWzY3BsXI6YqGlzOj2Jc5SOsVync8quTSq6Vc44Nerq
+	+5Zw0j7U+C8tTeifAOEpDx3Brkds8nXdH2S5kRgy27uEBVTkn2oEo1XkZZsvn0y0p5r2m5GofDZ
+	B7yt/6GwhFYJZ8ru7235fJpDuKktmp7ddST3MsE45znEnhIRuJrwHVq4eoYCCcTNm+p54XUTHPz
+	7
+X-Received: by 2002:a25:39c7:: with SMTP id g190mr2949610yba.447.1548266242789;
+        Wed, 23 Jan 2019 09:57:22 -0800 (PST)
+X-Received: by 2002:a25:39c7:: with SMTP id g190mr2949581yba.447.1548266242108;
+        Wed, 23 Jan 2019 09:57:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548266242; cv=none;
         d=google.com; s=arc-20160816;
-        b=RpCQT6WMfJUO0unafGoYfDGV+rfVwotjdqGYzL+2qLflR3r3wp0RiSRina1vK1/RQZ
-         QbWaFTgIJ6soK/10wtiuw7kWRt0OwxAWlwyc2iGBD9vG5uzj4pz6Odd+qzTkq745CDO8
-         WCXZD7WU6aJIYbU+lgDdbYXFZ7akQ+DZaOwg7xO1Hc+lcqtyfIscVs1Czz06thUvAE5B
-         GKrtYD0RLghcZi9bbfAUhdrIWu5so2dFzbJDFDaxJpRN+YjmU3Y4Z35kTXU7e+QMHQLA
-         clgVE1nz9SdFxjZL8Ins2T85d/hTXqkzh6doNAL1YhUplgIagduO1aAutyqf56tPIK7X
-         Ep+w==
+        b=LDj3tLzt2ylgZA4UgQgrTNIr3fWp2+Tq5NePm+iYi40Uke5rg4ubfpPud6COjQ86/y
+         Er68OaOOpWGdHSe7Zv5KJqCvbosS8iPFuxsL1k31qL1E3Xe4DgrHDtBjY9RIYbHq/KzC
+         ziPNugn3zGCUtKHfngV7hvTzVLxZ9ElqtkHs3kCXvwhqskG3MlXU1wMsSwdmchfevITH
+         LG4w0gZPs1N8BExvTO7Zkte0cNDFzWxW8Dg4D6Jx8U4PQWf3Flg6d6647nAmgSyVyiXx
+         q2kvc3EvD5UH/ZSFL7umnqJIH1H9yTDubWrOcJ/72Y8m+HzJKA4j85QAQcW8ewdr3Am/
+         zR+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=HNCegrmxHoxYKtGgIrNR+lBf/jjXvPvl9X+DRYbXV68=;
-        b=sXQ9aI1MZoK8B9WJ6W1G6ZGinChVgXBJPOpt6B0/qCvyIohj3VHrPbHRuyVCkV6fT7
-         HGVoDzeH6GlDvOXc9XqcyhnrM/ATR3niBL3diJl59pfQXkMD7gDqOgGLa0Kr6ePUB4x2
-         e/QGov+LTjVPOQXL+EdDnkG4zWv+f5heGETJ5CR1lmnxlM5l4/EVjvTmw/HAtLqOjOSW
-         V8MB7lkIks92ODCj5DQachDtf0lut/dvap+MjM1UY1uncpA8Okla1kNym7D7jcnLMoGy
-         mysITJ1KCUkJJv3RoQpL/kgTLhn1DcQc4JaDFP+d7a7aptlLaPE7bMQRc9XgMpzavoeg
-         Gp4w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=znQqA7mNprkXHZ2TRenByp8okFQwW7BAurjbNn0fM9Q=;
+        b=ySE5cbNiOC0n1J3gNlx5xYwKYqgP/MMuWm8fT5/rlUEqxmJflElL7LHGZaWe8amxAc
+         LswVDSaj+hbxgcfVJKhZecdfQivDrWXIYhL91kWk3IQeYs2Z2Gs9ckOmXdZq0NfWNEu4
+         J36l60ROPQIboPE2KmkCNPUfhTxz9GXzWMKfWp6LCZWq7Bvtd73R5yJfSBNdFPnC1s3l
+         lBUUoO72+OvzlHCvC3acwj4vPTaN2f38Ce0B6lWL8n71GLaco4rPWOecAtH553rqCWBp
+         ULNAvSFVO+KmByHMS/xXv8FA2+e60Hl0hT7n7o5zrK8Wb9sq2exUs5iNRtL8YkwUjVOx
+         AUmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b="G54Ed2/a";
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id d11si3014134ybe.382.2019.01.23.09.06.11
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jxdzYmAS;
+       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n19sor3405508ywd.166.2019.01.23.09.57.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 Jan 2019 09:06:11 -0800 (PST)
-Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
+        (Google Transport Security);
+        Wed, 23 Jan 2019 09:57:22 -0800 (PST)
+Received-SPF: pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b="G54Ed2/a";
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from localhost (localhost [127.0.0.1])
-	by bedivere.hansenpartnership.com (Postfix) with ESMTP id 8F0998EE27B;
-	Wed, 23 Jan 2019 09:06:09 -0800 (PST)
-Received: from bedivere.hansenpartnership.com ([127.0.0.1])
-	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 3H4iM5LmBZ-7; Wed, 23 Jan 2019 09:06:09 -0800 (PST)
-Received: from [153.66.254.194] (unknown [50.35.68.20])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id E703C8EE02B;
-	Wed, 23 Jan 2019 09:06:08 -0800 (PST)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
-	s=20151216; t=1548263169;
-	bh=IQnhYHscQeLDdiG9MTTzOYWlFyns9kqljgzUWLrltHo=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=G54Ed2/aqrGbVSOajSEmTCZGY1wWL0I7FGVzcN/gXmGuoSXNbp0hz1caxnq+pvyW0
-	 yJ2lmWiGuONID19DRCA6kppGvDTwuN+JQuHXWnu0NQZ7VsofDIj3A1NoMuZJwhF9cZ
-	 3IDCh3j2fjI76b73WTN0R8CoH/Wym7r59HmUmH+4=
-Message-ID: <1548263167.2949.27.camel@HansenPartnership.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jxdzYmAS;
+       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=znQqA7mNprkXHZ2TRenByp8okFQwW7BAurjbNn0fM9Q=;
+        b=jxdzYmAS7ubIO9o41WdqY5xemN/D+59e66eOMwuBw+y1E49yj70bQnGqBXb20svttp
+         4fzNMaV0Fltj8aY+yUXLdPVTBDM+AP+qPud+Zg9pKVeL7Z5z+rtLLMIEPToTQahiDEwk
+         otpr8luIZ7hUrNj91Py//2ZNMw6j7ln1HDI53zfyJ1R9zeylSCSYFSFX5kUODKzi3k0f
+         ItlovayeiMMuYWTmo+QiEsoTj0Qfdv1sPurpEJ1X7WgrpmQoGo8ISdRnxiohVZwODe+K
+         QA1nIX0BKllaL2yB8ANoL4LwLuW4/CSBS4B6lD7Gm+0Ht72ozs32OrNJrlgZBHkkDHzF
+         Htow==
+X-Google-Smtp-Source: ALg8bN6VZ2nAmLEdz6Xzm4ATBXIcC0UgAavQg2EahaPQTEvP4o5XnjIkCej61qC4WXFp0p/0K9ufWaWbBgnbu+M4r7s=
+X-Received: by 2002:a81:34d3:: with SMTP id b202mr3042722ywa.241.1548266241657;
+ Wed, 23 Jan 2019 09:57:21 -0800 (PST)
+MIME-Version: 1.0
+References: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+ <20190123145434.GK13149@quack2.suse.cz>
+In-Reply-To: <20190123145434.GK13149@quack2.suse.cz>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 23 Jan 2019 19:57:10 +0200
+Message-ID:
+ <CAOQ4uxivipnXihRud_5cUmjeOj000MwH5+oVDWv_2kwGCsamDA@mail.gmail.com>
 Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-To: Amir Goldstein <amir73il@gmail.com>, lsf-pc@lists.linux-foundation.org
-Cc: Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong"
- <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara
- <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Chris Mason
- <clm@fb.com>,  Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel
- <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
-Date: Wed, 23 Jan 2019 09:06:07 -0800
-In-Reply-To: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
-References: 
-	<CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: lsf-pc@lists.linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, 
+	"Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, 
+	Matthew Wilcox <willy@infradead.org>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Jerome Glisse <jglisse@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.6 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190123170607.FDaQtuB8jVfk4aeV0iH7h5AWvwNBV-9Xud8Yj-YkQOE@z>
+Message-ID: <20190123175710.jQeoSpSxg1kACD8c6-Lv8SYzKnfyrwVzMCvgvozHTss@z>
 
-On Wed, 2019-01-23 at 10:48 +0200, Amir Goldstein wrote:
-> Hi,
-> 
-> In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong
-> brought up the subject of sharing pages between cloned files and the
-> general vibe in room was that it could be done.
+On Wed, Jan 23, 2019 at 4:54 PM Jan Kara <jack@suse.cz> wrote:
+...
+> >
+> > At first glance, this requires dropping the assumption that a for an
+> > uptodate clean page, vmf->vma->vm_file->f_inode == page->mapping->host.
+> > Is there really such an assumption in common vfs/mm code?  and what will
+> > it take to drop it?
+>
+> There definitely is such assumption. Take for example page reclaim as one
+> such place that will be non-trivial to deal with. You need to remove the
+> page from page cache of all inodes that contain it without having any file
+> context whatsoever. So you will need to create some way for this page->page
+> caches mapping to happen. Jerome in his talk at LSF/MM last year [1] actually
+> nicely summarized what it would take to get rid of page->mapping
+> dereferences. He even had some preliminary patches. To sum it up, it's a
+> lot of intrusive work but in principle it is possible.
+>
+> [1] https://lwn.net/Articles/752564/
+>
 
-This subject has been around for a while.  We talked about cache
-sharing for containers in LSF/MM 2013, although it was as a discussion
-within a session rather than a session about it.  At that time,
-Parallels already had an out of tree implementation of a daemon that
-forced this sharing and docker was complaining about the dual caching
-problem of their graph drivers.
+That would be real nice if that work makes progress.
+However, for the sake of discussion, for the narrow case of overlayfs page
+sharing, if page->mapping is the overlay mapping, then it already has
+references to the underlying inode/mapping and overlayfs mapping ops
+can do the right thing for reclaim and migrate.
 
-So, what we need in addition to reflink for container images is
-something like ksm for containers which can force read only sharing of
-pages that have the same content even though they're apparently from
-different files.  This is because most cloud container systems run
-multiple copies of the same container image even if the overlays don't
-necessarily reflect the origin.  Essentially it's the same reason why
-reflink doesn't solve the sharing problem entirely for VMs.
+So the fact that there is a lot of code referencing page->mapping (I know that)
+doesn't really answer my question of how hard it is to drop the assumption
+that vmf->vma->vm_file->f_inode == page->mapping->host for read protected
+uptodate pages from common code.
+Because if overlayfs (or any other arbitrator) will make sure that dirty pages
+and non uptodate pages abide by existing page->mapping semantics, then
+block layer code (for example) can still safely dereference page->mapping.
 
-James
+In any case, I'd really love to see the first part of Jerome's work merged, with
+mapping propagated to all common helpers, even if the fs-specific patches
+and KSM patches will take longer to land.
+
+Thanks,
+Amir.
 
