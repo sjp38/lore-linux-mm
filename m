@@ -2,189 +2,175 @@ Return-Path: <SRS0=euUm=P7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 86C36C282C0
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 18:56:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 386FEC282C5
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 20:33:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 41B5F21855
-	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 18:56:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E8606218A1
+	for <linux-mm@archiver.kernel.org>; Wed, 23 Jan 2019 20:33:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="IquwkO95"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41B5F21855
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="VCwEHtpu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8606218A1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=synopsys.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D41418E003F; Wed, 23 Jan 2019 13:56:09 -0500 (EST)
+	id 779238E0046; Wed, 23 Jan 2019 15:33:31 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CC8CB8E001A; Wed, 23 Jan 2019 13:56:09 -0500 (EST)
+	id 728078E001A; Wed, 23 Jan 2019 15:33:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B90778E003F; Wed, 23 Jan 2019 13:56:09 -0500 (EST)
+	id 5CA438E0046; Wed, 23 Jan 2019 15:33:31 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 85D658E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 13:56:09 -0500 (EST)
-Received: by mail-vs1-f72.google.com with SMTP id o132so1119522vsd.11
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:56:09 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 17EEE8E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 15:33:31 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id ay11so2282154plb.20
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:33:31 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=Ireb14swxzh/kGO0PaPMQde96Q1mT+0FNq7POlr1RtA=;
-        b=jNqg7unnmExMUSLHVGUJt6A6J8OC1z0ByNM5OQgu4Q7em45sTT18YiM25xIQQghV1O
-         1N3kbUfHqxrLTY4fvg6+gF2H8z4w/B8+qUkeRee8SK0HuNGLcFshaMU7RWfh2vugKdsU
-         IcpnFJe+q8tehM42bVjdJ2RtETAgujqf9xYj1uR07c8gkWj+WXR09xqSBhG7x0TtLQoP
-         XyUgpsZ0p3bSnpT4NJXn2Mm5gNvA+JEbcHfRtQg+RCa94XwLjwnMK+BBxdqXzDYTvbGG
-         GApgugHaDRuURbemNSSn2WnSkyytO/jAvnNqQXet6YhcXhxWbl5FWx9mS+2WglvSZURv
-         8oSQ==
-X-Gm-Message-State: AJcUukeD6ToQWXBdPndWuSljgLi7Ow+wUS55phjoBEkhUV/GGUMOny+W
-	xS9kuc/ODFYh7oYA9X91dVJeXTUGcfLZMQQsowHL6x+3Tt8eQgtUA5Dc9KipgpZSuDvQ2mQAeFU
-	Xr52x7BOP66bHFfE7zua0EX7JN7oGNR6tmtpkW1DY44R53kWpL0aKp/VzUcB9BX1m1AovNo204k
-	gEax7QC2XASdAxWidKOfHh/2OVgPsIQ9bqj9j6k0/t8ffQfc1C2SROYmeL+C3kVeGtIodrW7CTi
-	NT2egzlRYSVEmwNHc4RzCtpN8bsgrnqEPDwb9B14m+GZEUjUi4gXhHVH6DT/iAqmmRmHtnj8DEY
-	OyluerW9wlNGuK0Ypn69g/thvLHgQMfSgNfKFEGmujjHNjXD+Mw8rG3GWy1tBjjFEtzqahfYHMP
-	w
-X-Received: by 2002:a67:6d42:: with SMTP id i63mr1425610vsc.158.1548269769137;
-        Wed, 23 Jan 2019 10:56:09 -0800 (PST)
-X-Received: by 2002:a67:6d42:: with SMTP id i63mr1425593vsc.158.1548269768586;
-        Wed, 23 Jan 2019 10:56:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548269768; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version;
+        bh=v3jNlULmSE1VwiKJZu9XoB4X2QYGbn4gc7r4/sN0uaE=;
+        b=UyKTCNP6U1deQOXefLjBBlCiJyrxTLcYuyeGOYo3E7ZHtefVzBTIG1KUmyz5lgo4Rg
+         6AzoEhAgICTkTMCSVDU8tZ2mRseRrQAQvjLI9BsxWR7buw5tEPVU09M4LCbbq8uTXWAM
+         9ywO/sgUQN7YAKUJNX6EWdpANAUMyijVrDeGTE4R2QDFkUcAr3DJHwHDIBzRJtlJxkeM
+         x9UIY01LXjBUq3UPONY7j8JfvcjTdTwJXAuYO90F5k0YevxhlUssNfuS1h0GhJ/9ZYzY
+         rVugdPSQHSK7sdVZT7PkYbZnAKvbohMbAfBka1JA69TNeisC+20/SJm2x0qIRBpUzXWd
+         fa5w==
+X-Gm-Message-State: AJcUukfjrWvCy73ZOlnmzZeFQRL6ff8PrILGcdOsJJT4xNIstR+qxM5p
+	k1jcQ/8qLuhIPHi4+yHAm/XYzzB2uuIgg/f8RLTRVKoCdr0As+Rfq2GYXoG8sXjReaCIDF1tO7C
+	9X6fwfOmmdG6Zpem2+N8Bi8DnBLle+bV5AkcaX0SjDNoVNt55+QWLW1lXG5skn58SVQ==
+X-Received: by 2002:a63:fc49:: with SMTP id r9mr3286592pgk.209.1548275610592;
+        Wed, 23 Jan 2019 12:33:30 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5cliLvG2K5/TcJxg/JmOIDiJlQBbvGmwEf266IJIbx+sG0umvHvf816X4gnxgFjO9KcYGN
+X-Received: by 2002:a63:fc49:: with SMTP id r9mr3286553pgk.209.1548275609883;
+        Wed, 23 Jan 2019 12:33:29 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548275609; cv=none;
         d=google.com; s=arc-20160816;
-        b=wTWninUw69VLdhdHVFzFDDMfcF01+GHPkREdDyEkDwa5j9Nv1r+gbyFkQsP3ZxG7LS
-         3uvIG4YwElmQg9+3a6x095BgBB1R/B4o4ki7le3cDZ3GHfgkw5sIAXJGKC9JWPJEut2s
-         SHK96WBE3BWM/LpG6gCWmm0ABrEE/LCpAf4JKzXlFsvtYMxd8FLrDFxe+g6ZQPh0t3uK
-         UNunuN/TbdIpXJ/Hz1u1TxepPU9ObcGLgEQQTGRjLZlR1o9gGkLWwj33Ct3lXJTZJw02
-         TRerO/7ohmCpqLYAP1ezPOlof7EFH7FhK2pBfjcHK6sfXVqwm9RNlRrtPRomV/11Q1jC
-         Aq/A==
+        b=Xm8+8p/sH4TNxaFOakOFmBhd1soiI6e8I3RKagIDOGxVUk57hiKXW2DgT0NbgP/Puc
+         t7Hr4IDYdo+CqQwL3l4dOq3bRaZz1XeImdFQmPX59eFtowSww/5yeP5eBEtc0bb8Duvx
+         i2JoV9zs0guzgnJI/01s/9vfBx9sk8M7b/iVKRnWVjNgIg/1r6RVCRTBV+6TYj1QEDlB
+         DEseoYd2fxxFw8/HawrDAe8Sm5jFFBPuwPA4Lib6JOO0gB2wogK7/KloJ9C+aOgwkeSp
+         bkvtW+Y+43hfrvf9FkS2d7TDrpWays2e7WA8znxZZsRicYIWKIZ8Y1G4bT2dgfVGZRZV
+         xCqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=Ireb14swxzh/kGO0PaPMQde96Q1mT+0FNq7POlr1RtA=;
-        b=Vl19IzhZiocUDmsnQ8lTrDs8cy6p3P9GJrAtyWV6fdZnUOQCyI2M/clbKALLc+L+ZZ
-         RlNpPjvgsPlUR3LvpzocUWWPycT9gF0sQEM86vNp4jSceM69+BQsELbUNIj9FHZtLIdx
-         kDfzmWc4r2z/3jz1th6lsRFtHpWBUqBpKtzH/ci1FAVuPH7o0L1twzCPH5QHRYK3iBrG
-         QOm29SYTxCR4B2XnnnjsaTWH/+BFlcOkiRG7n1xdxv2j3J0LIb4WQckwKEBNC/Do2nc7
-         3mV6kdnJOKv0JaY/opj//8qggKgUDSeJa2ZVNdXen90ChjSyZQoUq14xpF0BZpH2xhs/
-         EAHg==
+        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
+         :from:dkim-signature;
+        bh=v3jNlULmSE1VwiKJZu9XoB4X2QYGbn4gc7r4/sN0uaE=;
+        b=zlxs9quqklTQlSZQllJ8MssF+AFuwc1Stc9N5nND4hv92DOiyTh1YSmy49UP/z+xHa
+         waJmYhjFEJBLeEjt9zaHA5cIhi6oj6JJfBnSaFyhvLOWWmkbrqDVk1fEnbWAhZltUwlG
+         VhXE5gvo2TqIW9rxhXp8/o/wtH1+F4l0Xag1eJGgv6S65ZN3Tt6DHWOxBSkym3rI7It/
+         /LewBXMUrIDKcLQSuyw08ByN/rGFJXcypqy7RterNykVlwf8htvrskeKsQxqyfkV0qv7
+         71ecGhF/kqnFSGF3xcsEyvTuniJO+eNHS8873vttNl1QcXk5m0MyoBka3OKwNey7mCnW
+         3CEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=IquwkO95;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z17sor10222570uao.49.2019.01.23.10.56.08
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 Jan 2019 10:56:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=IquwkO95;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=Ireb14swxzh/kGO0PaPMQde96Q1mT+0FNq7POlr1RtA=;
-        b=IquwkO95q/UwwPMizwgMyjj4ev3XxDyhR/G3JHGEMCF3sSBM1iMANjExCpcvgLzlnG
-         c0k6jUJJgFMV5g0qmbSVJ021AH6TGBxq+8XWJcUoxP8kLv+OEHJYUwpGc+sctoUZRDos
-         hIzip/irtCZpPPkUNHJdcUGvO4CqxO0BooUhg=
-X-Google-Smtp-Source: ALg8bN7gv0zW9ipqO2Kec6fVvXxe8ESBS1M27sr/EElJ3QGtXVI3OfFcCk/PeJ/IeCzHpbN7GDIHMQ==
-X-Received: by 2002:ab0:25ca:: with SMTP id y10mr1299553uan.21.1548269768065;
-        Wed, 23 Jan 2019 10:56:08 -0800 (PST)
-Received: from mail-ua1-f41.google.com (mail-ua1-f41.google.com. [209.85.222.41])
-        by smtp.gmail.com with ESMTPSA id l13sm98292054vka.16.2019.01.23.10.56.05
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=VCwEHtpu;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id t184si19573706pfb.22.2019.01.23.12.33.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 10:56:05 -0800 (PST)
-Received: by mail-ua1-f41.google.com with SMTP id v24so1072089uap.13
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:56:05 -0800 (PST)
-X-Received: by 2002:ab0:470d:: with SMTP id h13mr1375354uac.122.1548269764744;
- Wed, 23 Jan 2019 10:56:04 -0800 (PST)
+        Wed, 23 Jan 2019 12:33:29 -0800 (PST)
+Received-SPF: pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) client-ip=198.182.47.9;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=VCwEHtpu;
+       spf=pass (google.com: domain of vineet.gupta1@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=vineet.gupta1@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from mailhost.synopsys.com (badc-mailhost2.synopsys.com [10.192.0.18])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by smtprelay.synopsys.com (Postfix) with ESMTPS id BFB4124E08FE;
+	Wed, 23 Jan 2019 12:33:28 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=synopsys.com; s=mail;
+	t=1548275609; bh=/YPzUCBU7GMseM6oGutvXPyXevw5WaEZWn2TeW3rLb0=;
+	h=From:To:CC:Subject:Date:In-Reply-To:References:From;
+	b=VCwEHtpuLINV899uuD3C4uvwIg3nf3I66r7K0NjIWgk3/IIsqDYzJjrhU6Rqoo7Zh
+	 QPegu7LIcLeeQPWfeHoJUNic3qZxpPlMmIaibbNObQE2S/tYvtx/01U42BEBOkJKlh
+	 HUJmlEeR4SDC/TuNN1RJwppUYEQiIyhWIIqv95LpyHqFT+VVmpvffsyzTA8+L0NCwX
+	 uNHAUx4T/Iq6k29s4iYvIdtfo5LwBtRIi0pWzDt8WNw5y8l7FFX4DHWYY3oLcCAMgj
+	 hZ64fDEo+IfbFBe8NDaGsjxVSjTnSFCJhUMfokS/5JYqcLV0kZD4aXXv0UVYdA/pPG
+	 T1W+VLqargwgw==
+Received: from US01WEHTC3.internal.synopsys.com (us01wehtc3.internal.synopsys.com [10.15.84.232])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mailhost.synopsys.com (Postfix) with ESMTPS id A765EA0066;
+	Wed, 23 Jan 2019 20:33:27 +0000 (UTC)
+Received: from IN01WEHTCA.internal.synopsys.com (10.144.199.104) by
+ US01WEHTC3.internal.synopsys.com (10.15.84.232) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Wed, 23 Jan 2019 12:33:27 -0800
+Received: from IN01WEHTCB.internal.synopsys.com (10.144.199.105) by
+ IN01WEHTCA.internal.synopsys.com (10.144.199.103) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Thu, 24 Jan 2019 02:03:28 +0530
+Received: from vineetg-Latitude-E7450.internal.synopsys.com (10.10.161.70) by
+ IN01WEHTCB.internal.synopsys.com (10.144.199.243) with Microsoft SMTP Server
+ (TLS) id 14.3.408.0; Thu, 24 Jan 2019 02:03:25 +0530
+From: Vineet Gupta <vineet.gupta1@synopsys.com>
+To: <linux-kernel@vger.kernel.org>
+CC: <linux-snps-arc@lists.infradead.org>, <linux-mm@kvack.org>,
+	<peterz@infradead.org>, <mark.rutland@arm.com>,
+	Vineet Gupta <vineet.gupta1@synopsys.com>,
+	Miklos Szeredi <mszeredi@redhat.com>, Ingo Molnar <mingo@kernel.org>,
+	Jani Nikula <jani.nikula@intel.com>,
+	Chris Wilson <chris@chris-wilson.co.uk>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: [PATCH v2 3/3] bitops.h: set_mask_bits() to return old value
+Date: Wed, 23 Jan 2019 12:33:04 -0800
+Message-ID: <1548275584-18096-4-git-send-email-vgupta@synopsys.com>
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: <1548275584-18096-1-git-send-email-vgupta@synopsys.com>
+References: <1548275584-18096-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
-References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org>
- <20190123115829.GA31385@kroah.com> <874l9z31c5.fsf@intel.com>
- <000001d4b32a$845e06e0$8d1a14a0$@211mainstreet.net> <87va2f1int.fsf@intel.com>
-In-Reply-To: <87va2f1int.fsf@intel.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 24 Jan 2019 07:55:51 +1300
-X-Gmail-Original-Message-ID: <CAGXu5jJUxHtFq0rBJ9FwzMcZDWnusPUauC_=MaOz7H0_PF25jQ@mail.gmail.com>
-Message-ID:
- <CAGXu5jJUxHtFq0rBJ9FwzMcZDWnusPUauC_=MaOz7H0_PF25jQ@mail.gmail.com>
-Subject: Re: [Intel-gfx] [PATCH 1/3] treewide: Lift switch variables out of switches
-To: Jani Nikula <jani.nikula@linux.intel.com>
-Cc: Edwin Zimmerman <edwin@211mainstreet.net>, Greg KH <gregkh@linuxfoundation.org>, 
-	dev@openvswitch.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
-	Network Development <netdev@vger.kernel.org>, intel-gfx@lists.freedesktop.org, 
-	linux-usb@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, 
-	Maling list - DRI developers <dri-devel@lists.freedesktop.org>, Linux-MM <linux-mm@kvack.org>, 
-	linux-security-module <linux-security-module@vger.kernel.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, intel-wired-lan@lists.osuosl.org, 
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, 
-	Laura Abbott <labbott@redhat.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, 
-	Alexander Popov <alex.popov@linux.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+X-Originating-IP: [10.10.161.70]
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190123185551.lU8b9vN-tbxBaxmMtfNL4LxVmjvOwTtok3q5-Qylo_k@z>
+Message-ID: <20190123203304.AkXufxqrSKZYydGOFqvek0V1DJzja7dfn4jrM-N73WY@z>
 
-On Thu, Jan 24, 2019 at 4:44 AM Jani Nikula <jani.nikula@linux.intel.com> w=
-rote:
->
-> On Wed, 23 Jan 2019, Edwin Zimmerman <edwin@211mainstreet.net> wrote:
-> > On Wed, 23 Jan 2019, Jani Nikula <jani.nikula@linux.intel.com> wrote:
-> >> On Wed, 23 Jan 2019, Greg KH <gregkh@linuxfoundation.org> wrote:
-> >> > On Wed, Jan 23, 2019 at 03:03:47AM -0800, Kees Cook wrote:
-> >> >> Variables declared in a switch statement before any case statements
-> >> >> cannot be initialized, so move all instances out of the switches.
-> >> >> After this, future always-initialized stack variables will work
-> >> >> and not throw warnings like this:
-> >> >>
-> >> >> fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
-> >> >> fs/fcntl.c:738:13: warning: statement will never be executed [-Wswi=
-tch-unreachable]
-> >> >>    siginfo_t si;
-> >> >>              ^~
-> >> >
-> >> > That's a pain, so this means we can't have any new variables in { }
-> >> > scope except for at the top of a function?
+| > Also, set_mask_bits is used in fs quite a bit and we can possibly come up
+| > with a generic llsc based implementation (w/o the cmpxchg loop)
+|
+| May I also suggest changing the return value of set_mask_bits() to old.
+|
+| You can compute the new value given old, but you cannot compute the old
+| value given new, therefore old is the better return value. Also, no
+| current user seems to use the return value, so changing it is without
+| risk.
 
-Just in case this wasn't clear: no, it's just the switch statement
-before the first "case". I cannot imagine how bad it would be if we
-couldn't have block-scoped variables! Heh. :)
+Link: http://lkml.kernel.org/g/20150807110955.GH16853@twins.programming.kicks-ass.net
+Suggested-by: Peter Zijlstra <peterz@infradead.org>
+Cc: Miklos Szeredi <mszeredi@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Jani Nikula <jani.nikula@intel.com>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Anthony Yznaga <anthony.yznaga@oracle.com>
+Acked-by: Will Deacon <will.deacon@arm.com>
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+---
+ include/linux/bitops.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> >> >
-> >> > That's going to be a hard thing to keep from happening over time, as
-> >> > this is valid C :(
-> >>
-> >> Not all valid C is meant to be used! ;)
-> >
-> > Very true.  The other thing to keep in mind is the burden of enforcing
-> > a prohibition on a valid C construct like this.  It seems to me that
-> > patch reviewers and maintainers have enough to do without forcing them
-> > to watch for variable declarations in switch statements.  Automating
-> > this prohibition, should it be accepted, seems like a good idea to me.
->
-> Considering that the treewide diffstat to fix this is:
->
->  18 files changed, 45 insertions(+), 46 deletions(-)
->
-> and using the gcc plugin in question will trigger the switch-unreachable
-> warning, I think we're good. There'll probably be the occasional
-> declarations that pass through, and will get fixed afterwards.
-
-Yeah, that was my thinking as well: it's a rare use, and we get a
-warning when it comes up.
-
-Thanks!
-
---=20
-Kees Cook
+diff --git a/include/linux/bitops.h b/include/linux/bitops.h
+index 705f7c442691..602af23b98c7 100644
+--- a/include/linux/bitops.h
++++ b/include/linux/bitops.h
+@@ -246,7 +246,7 @@ static __always_inline void __assign_bit(long nr, volatile unsigned long *addr,
+ 		new__ = (old__ & ~mask__) | bits__;		\
+ 	} while (cmpxchg(ptr, old__, new__) != old__);		\
+ 								\
+-	new__;							\
++	old__;							\
+ })
+ #endif
+ 
+-- 
+2.7.4
 
