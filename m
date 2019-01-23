@@ -1,148 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7668E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 13:40:15 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id e12so1282246edd.16
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:40:15 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v27si3688232edb.444.2019.01.23.10.40.13
-        for <linux-mm@kvack.org>;
-        Wed, 23 Jan 2019 10:40:14 -0800 (PST)
-Subject: Re: [PATCH v7 22/25] ACPI / APEI: Kick the memory_failure() queue for
- synchronous errors
-References: <20181203180613.228133-1-james.morse@arm.com>
- <20181203180613.228133-23-james.morse@arm.com>
- <20190121175850.GO29166@zn.tnic>
-From: James Morse <james.morse@arm.com>
-Message-ID: <58053f17-5f03-8408-7252-a38ed3d448a9@arm.com>
-Date: Wed, 23 Jan 2019 18:40:08 +0000
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 85D658E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 13:56:09 -0500 (EST)
+Received: by mail-vs1-f72.google.com with SMTP id o132so1119522vsd.11
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:56:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z17sor10222570uao.49.2019.01.23.10.56.08
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 23 Jan 2019 10:56:08 -0800 (PST)
+Received: from mail-ua1-f41.google.com (mail-ua1-f41.google.com. [209.85.222.41])
+        by smtp.gmail.com with ESMTPSA id l13sm98292054vka.16.2019.01.23.10.56.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jan 2019 10:56:05 -0800 (PST)
+Received: by mail-ua1-f41.google.com with SMTP id v24so1072089uap.13
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:56:05 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190121175850.GO29166@zn.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org>
+ <20190123115829.GA31385@kroah.com> <874l9z31c5.fsf@intel.com>
+ <000001d4b32a$845e06e0$8d1a14a0$@211mainstreet.net> <87va2f1int.fsf@intel.com>
+In-Reply-To: <87va2f1int.fsf@intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 24 Jan 2019 07:55:51 +1300
+Message-ID: <CAGXu5jJUxHtFq0rBJ9FwzMcZDWnusPUauC_=MaOz7H0_PF25jQ@mail.gmail.com>
+Subject: Re: [Intel-gfx] [PATCH 1/3] treewide: Lift switch variables out of switches
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
+To: Jani Nikula <jani.nikula@linux.intel.com>
+Cc: Edwin Zimmerman <edwin@211mainstreet.net>, Greg KH <gregkh@linuxfoundation.org>, dev@openvswitch.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Network Development <netdev@vger.kernel.org>, intel-gfx@lists.freedesktop.org, linux-usb@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Maling list - DRI developers <dri-devel@lists.freedesktop.org>, Linux-MM <linux-mm@kvack.org>, linux-security-module <linux-security-module@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, intel-wired-lan@lists.osuosl.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, Laura Abbott <labbott@redhat.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Alexander Popov <alex.popov@linux.com>
 
-Hi Boris,
+On Thu, Jan 24, 2019 at 4:44 AM Jani Nikula <jani.nikula@linux.intel.com> w=
+rote:
+>
+> On Wed, 23 Jan 2019, Edwin Zimmerman <edwin@211mainstreet.net> wrote:
+> > On Wed, 23 Jan 2019, Jani Nikula <jani.nikula@linux.intel.com> wrote:
+> >> On Wed, 23 Jan 2019, Greg KH <gregkh@linuxfoundation.org> wrote:
+> >> > On Wed, Jan 23, 2019 at 03:03:47AM -0800, Kees Cook wrote:
+> >> >> Variables declared in a switch statement before any case statements
+> >> >> cannot be initialized, so move all instances out of the switches.
+> >> >> After this, future always-initialized stack variables will work
+> >> >> and not throw warnings like this:
+> >> >>
+> >> >> fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
+> >> >> fs/fcntl.c:738:13: warning: statement will never be executed [-Wswi=
+tch-unreachable]
+> >> >>    siginfo_t si;
+> >> >>              ^~
+> >> >
+> >> > That's a pain, so this means we can't have any new variables in { }
+> >> > scope except for at the top of a function?
 
-On 21/01/2019 17:58, Borislav Petkov wrote:
-> On Mon, Dec 03, 2018 at 06:06:10PM +0000, James Morse wrote:
->> memory_failure() offlines or repairs pages of memory that have been
->> discovered to be corrupt. These may be detected by an external
->> component, (e.g. the memory controller), and notified via an IRQ.
->> In this case the work is queued as not all of memory_failure()s work
->> can happen in IRQ context.
->>
->> If the error was detected as a result of user-space accessing a
->> corrupt memory location the CPU may take an abort instead. On arm64
->> this is a 'synchronous external abort', and on a firmware first
->> system it is replayed using NOTIFY_SEA.
->>
->> This notification has NMI like properties, (it can interrupt
->> IRQ-masked code), so the memory_failure() work is queued. If we
->> return to user-space before the queued memory_failure() work is
->> processed, we will take the fault again. This loop may cause platform
->> firmware to exceed some threshold and reboot when Linux could have
->> recovered from this error.
->>
->> If a ghes notification type indicates that it may be triggered again
->> when we return to user-space, use the task-work and notify-resume
->> hooks to kick the relevant memory_failure() queue before returning
->> to user-space.
+Just in case this wasn't clear: no, it's just the switch statement
+before the first "case". I cannot imagine how bad it would be if we
+couldn't have block-scoped variables! Heh. :)
 
->> ---
+> >> >
+> >> > That's going to be a hard thing to keep from happening over time, as
+> >> > this is valid C :(
+> >>
+> >> Not all valid C is meant to be used! ;)
+> >
+> > Very true.  The other thing to keep in mind is the burden of enforcing
+> > a prohibition on a valid C construct like this.  It seems to me that
+> > patch reviewers and maintainers have enough to do without forcing them
+> > to watch for variable declarations in switch statements.  Automating
+> > this prohibition, should it be accepted, seems like a good idea to me.
+>
+> Considering that the treewide diffstat to fix this is:
+>
+>  18 files changed, 45 insertions(+), 46 deletions(-)
+>
+> and using the gcc plugin in question will trigger the switch-unreachable
+> warning, I think we're good. There'll probably be the occasional
+> declarations that pass through, and will get fixed afterwards.
 
->> I assume that if NOTIFY_NMI is coming from SMM it must suffer from
->> this problem too.
-> 
-> Good question.
-> 
-> I'm guessing all those things should be queued on a normal struct
-> work_struct queue, no?
+Yeah, that was my thinking as well: it's a rare use, and we get a
+warning when it comes up.
 
-ghes_notify_nmi() does this today with its:
-|	irq_work_queue(&ghes_proc_irq_work);
+Thanks!
 
-Once its in IRQ context, the irq_work pokes memory_failure_queue(), which
-schedule_work_on()s.
-
-Finally we schedule() in process context, and can unmap the affected memory.
-
-
-The problem is between each of these steps we might return to user-space and run
-the instruction that tripped all this to begin with.
-
-
-My SMM comment was because the CPU must jump from user-space->SMM, which injects
-an NMI into the kernel. The kernel's EIP must point into user-space, so
-returning from the NMI without doing the memory_failure() work puts us back the
-same position we started in.
-
-
-> Now, memory_failure_queue() does that and can run from IRQ context so
-> you need only an irq_work which can queue from NMI context. We do it
-> this way in the MCA code:
-> 
-
-(was there something missing here?)
-
-> We queue in an irq_work in NMI context and work through the items in
-> process context.
-
-How are you getting from NMI to process context in one go?
-
-This patch causes the IRQ->process transition.
-The arch specific bit of this gives the irq work queue a kick if returning from
-the NMI would unmask IRQs. This makes it look like we moved from NMI to IRQ
-context without returning to user-space.
-
-Once ghes_handle_memory_failure() runs in IRQ context, it task_work_add()s the
-call to ghes_kick_memory_failure().
-
-Finally on the way out of the kernel to user-space that task_work runs and the
-memory_failure() work happens in process context.
-
-During all this the user-space program counter can point at a poisoned location,
-but we don't return there until the memory_failure() work has been done.
-
-
->> @@ -407,7 +447,22 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
->>  
->>  	if (flags != -1)
->>  		memory_failure_queue(pfn, flags);
->> -#endif
->> +
->> +	/*
->> +	 * If the notification indicates that it was the interrupted
->> +	 * instruction that caused the error, try to kick the
->> +	 * memory_failure() queue before returning to user-space.
->> +	 */
->> +	if (ghes_is_synchronous(ghes) && current->mm != &init_mm) {
->> +		callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
-> 
-> Can we avoid that GFP_ATOMIC allocation and kfree() in
-> ghes_kick_memory_failure()?
-> 
-> I mean, that struct ghes_memory_failure_work is small enough and we
-> already do lockless allocation:
-> 
-> 	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
-> 
-> so I guess we could add that ghes_memory_failure_work struct to that
-> estatus_node, hand it into ghes_do_proc() and then free it.
-
-I forget estatus_node is a linux thing, not an ACPI-spec thing!
-
-Hmmm, ghes_handle_memory_failure() runs for POLLED and irq error sources too,
-they don't have an estatus_node. We don't care about this ret_to_user() problem
-as they are all asynchronous, this is why we have ghes_is_synchronous()...
-
-It feels like there should be a way to do this, let me have a go...
-
-
-Thanks,
-
-James
+--=20
+Kees Cook
