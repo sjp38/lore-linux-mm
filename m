@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CF3C8E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 08:21:54 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id n124so1882195itb.7
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 05:21:54 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id 68si10985932iou.135.2019.01.23.05.21.52
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 10AE28E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:09:13 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id 201so1186225ywp.13
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:09:13 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id b194si11638756ywh.68.2019.01.23.06.09.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 05:21:52 -0800 (PST)
+        Wed, 23 Jan 2019 06:09:11 -0800 (PST)
 Content-Type: text/plain;
 	charset=us-ascii
 Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [PATCH 1/3] treewide: Lift switch variables out of switches
+Subject: Re: [PATCH 1/2] mm/mmap.c: Remove redundant variable 'addr' in
+ arch_get_unmapped_area_topdown()
 From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <CAG48ez2vfXkr9dozJiGmze8k49VOXfs=K7M8bv0aQsDDpzrEFQ@mail.gmail.com>
-Date: Wed, 23 Jan 2019 06:21:44 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <536BB69D-6E93-4E32-8303-16D92E07D8AA@oracle.com>
-References: <20190123110349.35882-1-keescook@chromium.org>
- <20190123110349.35882-2-keescook@chromium.org>
- <20190123115829.GA31385@kroah.com>
- <CAG48ez2vfXkr9dozJiGmze8k49VOXfs=K7M8bv0aQsDDpzrEFQ@mail.gmail.com>
+In-Reply-To: <affba895224614ac3f2cbafa9d4fa7be3361de9d.1547966629.git.nullptr.cpp@gmail.com>
+Date: Wed, 23 Jan 2019 07:09:02 -0700
+Content-Transfer-Encoding: 7bit
+Message-Id: <919A3677-F069-4944-9590-588D366578A1@oracle.com>
+References: <cover.1547966629.git.nullptr.cpp@gmail.com>
+ <affba895224614ac3f2cbafa9d4fa7be3361de9d.1547966629.git.nullptr.cpp@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, kernel list <linux-kernel@vger.kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Laura Abbott <labbott@redhat.com>, Alexander Popov <alex.popov@linux.com>, xen-devel <xen-devel@lists.xenproject.org>, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, intel-wired-lan <intel-wired-lan@lists.osuosl.org>, Network Development <netdev@vger.kernel.org>, linux-usb@vger.kernel.org, linux-fsdevel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, dev@openvswitch.org, linux-kbuild@vger.kernel.org, linux-security-module <linux-security-module@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Yang Fan <nullptr.cpp@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, will.deacon@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
 
-> On Jan 23, 2019, at 5:09 AM, Jann Horn <jannh@google.com> wrote:
->=20
-> AFAICS this only applies to switch statements (because they jump to a
-> case and don't execute stuff at the start of the block), not blocks
-> after if/while/... .
+> On Jan 20, 2019, at 1:13 AM, Yang Fan <nullptr.cpp@gmail.com> wrote:
+> 
+> The variable 'addr' is redundant in arch_get_unmapped_area_topdown(), 
+> just use parameter 'addr0' directly. Then remove the const qualifier 
+> of the parameter, and change its name to 'addr'.
+> 
+> Signed-off-by: Yang Fan <nullptr.cpp@gmail.com>
 
-It bothers me that we are going out of our way to deprecate valid C =
-constructs
-in favor of placing the declarations elsewhere.
+These seem similar enough I question whether they really need to be two
+distinct patches, given both involve removing const keywords from the same
+routine, and the shift to using the passed addr directly rather than
+declaring and assigning addr from addr0 is a direct consequence of
+removing the const.
 
-As current compiler warnings would catch any reference before =
-initialization
-usage anyway, it seems like we are letting a compiler warning rather =
-than the
-language standard dictate syntax.
-
-Certainly if we want to make it a best practice coding style issue we =
-can, and
-then an appropriate note explaining why should be added to
-Documentation/process/coding-style.rst.=
+I could be wrong though and easily persuaded otherwise.
