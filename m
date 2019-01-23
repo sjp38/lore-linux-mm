@@ -1,118 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0008B8E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:26:20 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id k90so2802394qte.0
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 07:26:20 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q11si7618407qkc.214.2019.01.23.07.26.19
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E02C28E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:57:55 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id w18so2829879qts.8
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 07:57:55 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q20sor58155257qke.121.2019.01.23.07.57.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 07:26:19 -0800 (PST)
-Date: Wed, 23 Jan 2019 10:26:14 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
-Message-ID: <20190123152613.GB3097@redhat.com>
-References: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
- <20190123145434.GK13149@quack2.suse.cz>
- <20190123151228.GA3097@redhat.com>
+        (Google Transport Security);
+        Wed, 23 Jan 2019 07:57:54 -0800 (PST)
+Date: Wed, 23 Jan 2019 10:57:51 -0500
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: possible deadlock in __do_page_fault
+Message-ID: <20190123155751.GA168927@google.com>
+References: <4b0a5f8c-2be2-db38-a70d-8d497cb67665@I-love.SAKURA.ne.jp>
+ <20190122153220.GA191275@google.com>
+ <201901230201.x0N214eq043832@www262.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190123151228.GA3097@redhat.com>
+In-Reply-To: <201901230201.x0N214eq043832@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Amir Goldstein <amir73il@gmail.com>, lsf-pc@lists.linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Todd Kjos <tkjos@google.com>, syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com, ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Wed, Jan 23, 2019 at 10:12:29AM -0500, Jerome Glisse wrote:
-> On Wed, Jan 23, 2019 at 03:54:34PM +0100, Jan Kara wrote:
-> > On Wed 23-01-19 10:48:58, Amir Goldstein wrote:
-> > > In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong brought
-> > > up the subject of sharing pages between cloned files and the general vibe
-> > > in room was that it could be done.
+On Wed, Jan 23, 2019 at 11:01:04AM +0900, Tetsuo Handa wrote:
+> Joel Fernandes wrote:
+> > > Why do we need to call fallocate() synchronously with ashmem_mutex held?
+> > > Why can't we call fallocate() asynchronously from WQ_MEM_RECLAIM workqueue
+> > > context so that we can call fallocate() with ashmem_mutex not held?
 > > > 
-> > > In his talk about XFS subvolumes and snapshots [2], Dave Chinner said
-> > > that Matthew Willcox was "working on that problem".
-> > > 
-> > > I have started working on a new overlayfs address space implementation
-> > > that could also benefit from being able to share pages even for filesystems
-> > > that do not support clones (for copy up anticipation state).
-> > > 
-> > > To simplify the problem, we can start with sharing only uptodate clean
-> > > pages that map the same offset in respected files. While the same offset
-> > > requirement somewhat limits the use cases that benefit from shared file
-> > > pages, there is still a vast majority of use cases (i.e. clone full
-> > > image), where sharing pages of similar offset will bring a lot of
-> > > benefit.
-> > > 
-> > > At first glance, this requires dropping the assumption that a for an
-> > > uptodate clean page, vmf->vma->vm_file->f_inode == page->mapping->host.
-> > > Is there really such an assumption in common vfs/mm code?  and what will
-> > > it take to drop it?
+> > > I don't know how ashmem works, but as far as I can guess, offloading is
+> > > possible as long as other operations which depend on the completion of
+> > > fallocate() operation (e.g. read()/mmap(), querying/changing pinned status)
+> > > wait for completion of asynchronous fallocate() operation (like a draft
+> > > patch shown below is doing).
 > > 
-> > There definitely is such assumption. Take for example page reclaim as one
-> > such place that will be non-trivial to deal with. You need to remove the
-> > page from page cache of all inodes that contain it without having any file
-> > context whatsoever. So you will need to create some way for this page->page
-> > caches mapping to happen. Jerome in his talk at LSF/MM last year [1] actually
-> > nicely summarized what it would take to get rid of page->mapping
-> > dereferences. He even had some preliminary patches. To sum it up, it's a
-> > lot of intrusive work but in principle it is possible.
-> > 
-> > [1] https://lwn.net/Articles/752564/
-> > 
+> > This adds a bit of complexity, I am worried if it will introduce more
+> > bugs especially because ashmem is going away in the long term, in favor of
+> > memfd - and if its worth adding more complexity / maintenance burden to it.
 > 
-> I intend to post a v2 of my patchset doing that sometime soon. For
-> various reasons this had been push to the bottom of my todo list since
-> last year. It is now almost at the top and it will stay at the top.
-> So i will be resuming work on that.
-> 
-> I wanted to propose this topic again as a joint session with mm so
-> here is my proposal:
-> 
-> 
-> I would like to discuss the removal of page mapping field dependency
-> in most kernel code path so the we can overload that field for generic
-> page write protection (KSM) for file back pages. The whole idea behind
-> this is that we almost always have the mapping a page belongs to within
-> the call stack for any function that operate on a file or on a vma do
-> have it:
->     - syscall/kernel on a file (file -> inode -> mapping)
->     - syscall/kernel on virtual address (vma -> file -> mapping)
->     - write back for a given mapping
-> 
-> Note that the plan is not to free up the mapping field in struct page
-> but to reduce the number of place that needs the mapping corresponding
-> to a page to as few places as possible. The few exceptions are:
->     - page reclaim
->     - memory compaction
->     - set_page_dirty() on GUPed (get_user_pages*()) pages
-> 
-> For page reclaim and memory compaction we do not care about mapping
-> exactly but about being able to unmap/migrate a page. So any over-
-> loading of mapping needs to keep providing helpers to handle those
-> cases.
-> 
-> For set_page_dirty() on GUPed pages we can take a slow path if the
-> page has an overloaded mapping field.
-> 
-> 
-> Previous patchset:
-> https://lore.kernel.org/lkml/20180404191831.5378-1-jglisse@redhat.com/
+> I don't care migrating to memfd. I care when bugs are fixed.
 
-Stupid me forget to say what i want to talk about during LSF/MM
-session:
-    - very quick overlook of the patchset and then taking questions on it
-    - gather people feeling/opinion (does it looks good ?)
-    - merging strategy for which i have some thought and would like to
-      gather feedback on them
+That's fair. I'm not a fan of bugs either. I was just making a point that -
+we want to fix things while not introducing unwanted complexity and cause
+more bugs. That said, thanks for the patch and trying to fix it.
 
-I expect to post a v2 long before LSF/MM probably in February so
-people will have sometime to look at it. A warning it is almost
-entirely all done with coccinelle as it is almost only mechanical
-changes.
+> > I am wondering if we can do this synchronously, without using a workqueue.
+> > All you would need is a temporary list of areas to punch. In
+> > ashmem_shrink_scan, you would create this list under mutex and then once you
+> > release the mutex, you can go through this list and do the fallocate followed
+> > by the wake up of waiters on the wait queue, right? If you can do it this
+> > way, then it would be better IMO.
+> 
+> Are you sure that none of locks held before doing GFP_KERNEL allocation
+> interferes lock dependency used by fallocate() ? If yes, we can do without a
+> workqueue context (like a draft patch shown below). Since I don't understand
+> what locks are potentially involved, I offloaded to a clean workqueue context.
 
-Cheers,
-Jérôme
+fallocate acquires inode locks. So there is a lock dependency between
+- memory reclaim (fake lock)
+- inode locks.
+
+This dependency is there whether we have your patch or not. I am not aware of
+any other locks that are held other than these. But you could also just use
+lockdep to dump all held locks at that point to confirm.
+
+> Anyway, I need your checks regarding whether this approach is waiting for
+> completion at all locations which need to wait for completion.
+
+I think you are waiting in unwanted locations. The only location you need to
+wait in is ashmem_pin_unpin.
+
+So, to my eyes all that is needed to fix this bug is:
+
+1. Delete the range from the ashmem_lru_list
+2. Release the ashmem_mutex
+3. fallocate the range.
+4. Do the completion so that any waiting pin/unpin can proceed.
+
+Could you clarify why you feel you need to wait for completion at those other
+locations?
+
+Note that once a range is unpinned, it is open sesame and userspace cannot
+really expect consistent data from such range till it is pinned again.
+
+Thanks!
+
+ - Joel
+
+
+> ---
+>  drivers/staging/android/ashmem.c | 25 ++++++++++++++++++++-----
+>  1 file changed, 20 insertions(+), 5 deletions(-)
+> 
+> diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
+> index 90a8a9f1ac7d..6a267563cb66 100644
+> --- a/drivers/staging/android/ashmem.c
+> +++ b/drivers/staging/android/ashmem.c
+> @@ -75,6 +75,9 @@ struct ashmem_range {
+>  /* LRU list of unpinned pages, protected by ashmem_mutex */
+>  static LIST_HEAD(ashmem_lru_list);
+>  
+> +static atomic_t ashmem_shrink_inflight = ATOMIC_INIT(0);
+> +static DECLARE_WAIT_QUEUE_HEAD(ashmem_shrink_wait);
+> +
+>  /*
+>   * long lru_count - The count of pages on our LRU list.
+>   *
+> @@ -292,6 +295,7 @@ static ssize_t ashmem_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+>  	int ret = 0;
+>  
+>  	mutex_lock(&ashmem_mutex);
+> +	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
+>  
+>  	/* If size is not set, or set to 0, always return EOF. */
+>  	if (asma->size == 0)
+> @@ -359,6 +363,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
+>  	int ret = 0;
+>  
+>  	mutex_lock(&ashmem_mutex);
+> +	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
+>  
+>  	/* user needs to SET_SIZE before mapping */
+>  	if (!asma->size) {
+> @@ -438,7 +443,6 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
+>  static unsigned long
+>  ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+>  {
+> -	struct ashmem_range *range, *next;
+>  	unsigned long freed = 0;
+>  
+>  	/* We might recurse into filesystem code, so bail out if necessary */
+> @@ -448,17 +452,27 @@ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+>  	if (!mutex_trylock(&ashmem_mutex))
+>  		return -1;
+>  
+> -	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
+> +	while (!list_empty(&ashmem_lru_list)) {
+> +		struct ashmem_range *range =
+> +			list_first_entry(&ashmem_lru_list, typeof(*range), lru);
+>  		loff_t start = range->pgstart * PAGE_SIZE;
+>  		loff_t end = (range->pgend + 1) * PAGE_SIZE;
+> +		struct file *f = range->asma->file;
+>  
+> -		range->asma->file->f_op->fallocate(range->asma->file,
+> -				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+> -				start, end - start);
+> +		get_file(f);
+> +		atomic_inc(&ashmem_shrink_inflight);
+>  		range->purged = ASHMEM_WAS_PURGED;
+>  		lru_del(range);
+>  
+>  		freed += range_size(range);
+> +		mutex_unlock(&ashmem_mutex);
+> +		f->f_op->fallocate(f,
+> +				   FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+> +				   start, end - start);
+> +		fput(f);
+> +		if (atomic_dec_and_test(&ashmem_shrink_inflight))
+> +			wake_up_all(&ashmem_shrink_wait);
+> +		mutex_lock(&ashmem_mutex);
+>  		if (--sc->nr_to_scan <= 0)
+>  			break;
+>  	}
+> @@ -713,6 +727,7 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
+>  		return -EFAULT;
+>  
+>  	mutex_lock(&ashmem_mutex);
+> +	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
+>  
+>  	if (!asma->file)
+>  		goto out_unlock;
+> -- 
+> 2.17.1
