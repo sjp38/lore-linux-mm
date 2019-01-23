@@ -1,76 +1,46 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C19678E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 16:35:12 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id y1so1570183wrd.7
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 13:35:12 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id u141si37136063wmu.75.2019.01.23.13.35.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Jan 2019 13:35:11 -0800 (PST)
+Date: Wed, 23 Jan 2019 22:35:06 +0100
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: Re: [PATCH] backing-dev: no need to check return value of
+ debugfs_create functions
+Message-ID: <20190123213506.nfjqpbhbctmls2lf@linutronix.de>
+References: <20190122152151.16139-8-gregkh@linuxfoundation.org>
 MIME-Version: 1.0
-References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org>
- <20190123115829.GA31385@kroah.com> <874l9z31c5.fsf@intel.com> <20190123191802.GB15311@bombadil.infradead.org>
-In-Reply-To: <20190123191802.GB15311@bombadil.infradead.org>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 24 Jan 2019 09:36:11 +1300
-Message-ID: <CAGXu5jLNvHVhbyr5Cbyoe8o0ARv52sU-NEpD+u2UYfESM3ofCw@mail.gmail.com>
-Subject: Re: [Intel-gfx] [PATCH 1/3] treewide: Lift switch variables out of switches
-Content-Type: text/plain; charset="UTF-8"
-Sender: linux-kernel-owner@vger.kernel.org
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jani Nikula <jani.nikula@linux.intel.com>, Greg KH <gregkh@linuxfoundation.org>, dev@openvswitch.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Network Development <netdev@vger.kernel.org>, intel-gfx@lists.freedesktop.org, linux-usb@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Maling list - DRI developers <dri-devel@lists.freedesktop.org>, Linux-MM <linux-mm@kvack.org>, linux-security-module <linux-security-module@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, intel-wired-lan@lists.osuosl.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, Laura Abbott <labbott@redhat.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Alexander Popov <alex.popov@linux.com>
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190122152151.16139-8-gregkh@linuxfoundation.org>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Anders Roxell <anders.roxell@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org
 
-On Thu, Jan 24, 2019 at 8:18 AM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Wed, Jan 23, 2019 at 04:17:30PM +0200, Jani Nikula wrote:
-> > Can't have:
-> >
-> >       switch (i) {
-> >               int j;
-> >       case 0:
-> >               /* ... */
-> >       }
-> >
-> > because it can't be turned into:
-> >
-> >       switch (i) {
-> >               int j = 0; /* not valid C */
-> >       case 0:
-> >               /* ... */
-> >       }
-> >
-> > but can have e.g.:
-> >
-> >       switch (i) {
-> >       case 0:
-> >               {
-> >                       int j = 0;
-> >                       /* ... */
-> >               }
-> >       }
-> >
-> > I think Kees' approach of moving such variable declarations to the
-> > enclosing block scope is better than adding another nesting block.
->
-> Another nesting level would be bad, but I think this is OK:
->
->         switch (i) {
->         case 0: {
->                 int j = 0;
->                 /* ... */
->         }
->         case 1: {
->                 void *p = q;
->                 /* ... */
->         }
->         }
->
-> I can imagine Kees' patch might have a bad effect on stack consumption,
-> unless GCC can be relied on to be smart enough to notice the
-> non-overlapping liveness of the vriables and use the same stack slots
-> for both.
+On 2019-01-22 16:21:07 [+0100], Greg Kroah-Hartman wrote:
+> When calling debugfs functions, there is no need to ever check the
+> return value.  The function can work or not, but the code logic should
+> never do something different based on this.
+> 
+> And as the return value does not matter at all, no need to save the
+> dentry in struct backing_dev_info, so delete it.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Anders Roxell <anders.roxell@linaro.org>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-GCC is reasonable at this. The main issue, though, was most of these
-places were using the variables in multiple case statements, so they
-couldn't be limited to a single block (or they'd need to be manually
-repeated in each block, which is even more ugly, IMO).
+with "[PATCH 2/2] debugfs: return error values, not NULL"
+Reviewed-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-Whatever the consensus, I'm happy to tweak the patch.
-
-Thanks!
-
--- 
-Kees Cook
+Sebastian
