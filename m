@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E21818E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 13:46:41 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id u20so25403730qtk.6
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 10:46:41 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w11sor104141875qvb.20.2019.01.22.10.46.40
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AF79E8E0001
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 04:55:06 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id e17so716102edr.7
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 01:55:06 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k11-v6si2383258ejq.166.2019.01.23.01.55.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 22 Jan 2019 10:46:40 -0800 (PST)
-Subject: Re: [PATCH] backing-dev: no need to check return value of
- debugfs_create functions
-References: <20190122152151.16139-8-gregkh@linuxfoundation.org>
- <20190122160759.mx3h7gjc23zmrvxc@linutronix.de>
- <20190122162503.GB22548@kroah.com>
- <20190122171908.c7geuvluezkjp3s7@linutronix.de>
- <20190122183348.GA31271@kroah.com>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <86349002-49d7-7053-b26f-51309e320a04@lca.pw>
-Date: Tue, 22 Jan 2019 13:46:38 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jan 2019 01:55:05 -0800 (PST)
+Date: Wed, 23 Jan 2019 10:55:03 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, page_alloc: cleanup usemap_size() when SPARSEMEM is
+ not set
+Message-ID: <20190123095503.GR4087@dhcp22.suse.cz>
+References: <20190118234905.27597-1-richard.weiyang@gmail.com>
+ <20190122085524.GE4087@dhcp22.suse.cz>
+ <20190122150717.llf4owk6soejibov@master>
+ <20190122151628.GI4087@dhcp22.suse.cz>
+ <20190122155628.eu4sxocyjb5lrcla@master>
 MIME-Version: 1.0
-In-Reply-To: <20190122183348.GA31271@kroah.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190122155628.eu4sxocyjb5lrcla@master>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Anders Roxell <anders.roxell@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-
-
-On 1/22/19 1:33 PM, Greg Kroah-Hartman wrote:
-> On Tue, Jan 22, 2019 at 06:19:08PM +0100, Sebastian Andrzej Siewior wrote:
->> On 2019-01-22 17:25:03 [+0100], Greg Kroah-Hartman wrote:
->>>>>  }
->>>>>  
->>>>>  static void bdi_debug_unregister(struct backing_dev_info *bdi)
->>>>>  {
->>>>> -	debugfs_remove(bdi->debug_stats);
->>>>> -	debugfs_remove(bdi->debug_dir);
->>>>> +	debugfs_remove_recursive(bdi->debug_dir);
->>>>
->>>> this won't remove it.
->>>
->>> Which is fine, you don't care.
->>
->> but if you cat the stats file then it will dereference the bdi struct
->> which has been free(), right?
+On Tue 22-01-19 15:56:28, Wei Yang wrote:
+> On Tue, Jan 22, 2019 at 04:16:28PM +0100, Michal Hocko wrote:
+> >On Tue 22-01-19 15:07:17, Wei Yang wrote:
+> >> On Tue, Jan 22, 2019 at 09:55:24AM +0100, Michal Hocko wrote:
+> >> >On Sat 19-01-19 07:49:05, Wei Yang wrote:
+> >> >> Two cleanups in this patch:
+> >> >> 
+> >> >>   * since pageblock_nr_pages == (1 << pageblock_order), the roundup()
+> >> >>     and right shift pageblock_order could be replaced with
+> >> >>     DIV_ROUND_UP()
+> >> >
+> >> >Why is this change worth it?
+> >> >
+> >> 
+> >> To make it directly show usemapsize is number of times of
+> >> pageblock_nr_pages.
+> >
+> >Does this lead to a better code generation? Does it make the code easier
+> >to read/maintain?
+> >
 > 
-> Maybe, I don't know, your code is long gone, it doesn't matter :)
+> I think the answer is yes.
 > 
->>> But step back, how could that original call be NULL?  That only happens
->>> if you pass it a bad parent dentry (which you didn't), or the system is
->>> totally out of memory (in which case you don't care as everything else
->>> is on fire).
->>
->> debugfs_get_inode() could do -ENOMEM and then the directory creation
->> fails with NULL.
-> 
-> And if that happens, your system has worse problems :)
+>   * it reduce the code from 6 lines to 3 lines, 50% off
+>   * by reducing calculation back and forth, it would be easier for
+>     audience to catch what it tries to do
 
-Well, there are cases that people are running longevity testing on debug kernels
-that including OOM and reading all files in sysfs test cases.
-
-Admittedly, the situation right now is not all that healthy as many things are
-unable to survive in a low-memory situation, i.e., kmemleak, dma-api debug etc
-could just disable themselves.
-
-That's been said, it certainly not necessary to make the situation worse by
-triggering a NULL pointer dereferencing or KASAN use-after-free warnings because
-of those patches.
+To be honest, I really do not see this sufficient to justify touching
+the code unless the resulting _generated_ code is better/more efficient.
+-- 
+Michal Hocko
+SUSE Labs
