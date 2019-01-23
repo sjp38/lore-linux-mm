@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CEF748E0047
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 17:23:50 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id n95so4290103qte.16
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:23:50 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 792758E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 17:23:56 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id p24so4368941qtl.2
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 14:23:56 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l2si2315120qtj.22.2019.01.23.14.23.49
+        by mx.google.com with ESMTPS id c4si3776096qtj.64.2019.01.23.14.23.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 14:23:50 -0800 (PST)
+        Wed, 23 Jan 2019 14:23:55 -0800 (PST)
 From: jglisse@redhat.com
-Subject: [PATCH v4 7/9] gpu/drm/amdgpu: optimize out the case when a range is updated to read only
-Date: Wed, 23 Jan 2019 17:23:13 -0500
-Message-Id: <20190123222315.1122-8-jglisse@redhat.com>
+Subject: [PATCH v4 9/9] RDMA/umem_odp: optimize out the case when a range is updated to read only
+Date: Wed, 23 Jan 2019 17:23:15 -0500
+Message-Id: <20190123222315.1122-10-jglisse@redhat.com>
 In-Reply-To: <20190123222315.1122-1-jglisse@redhat.com>
 References: <20190123222315.1122-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -49,46 +49,87 @@ Cc: linux-rdma@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org
 Cc: Arnd Bergmann <arnd@arndb.de>
 ---
- drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ drivers/infiniband/core/umem_odp.c | 22 +++++++++++++++++++---
+ include/rdma/ib_umem_odp.h         |  1 +
+ 2 files changed, 20 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-index 3e6823fdd939..7880eda064cd 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-@@ -294,6 +294,7 @@ static int amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
+diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
+index a4ec43093cb3..fa4e7fdcabfc 100644
+--- a/drivers/infiniband/core/umem_odp.c
++++ b/drivers/infiniband/core/umem_odp.c
+@@ -140,8 +140,15 @@ static void ib_umem_notifier_release(struct mmu_notifier *mn,
+ static int invalidate_range_start_trampoline(struct ib_umem_odp *item,
+ 					     u64 start, u64 end, void *cookie)
  {
- 	struct amdgpu_mn *amn = container_of(mn, struct amdgpu_mn, mn);
- 	struct interval_tree_node *it;
-+	bool update_to_read_only;
- 	unsigned long end;
++	bool update_to_read_only = *((bool *)cookie);
++
+ 	ib_umem_notifier_start_account(item);
+-	item->umem.context->invalidate_range(item, start, end);
++	/*
++	 * If it is already read only and we are updating to read only then we
++	 * do not need to change anything. So save time and skip this one.
++	 */
++	if (!update_to_read_only || !item->read_only)
++		item->umem.context->invalidate_range(item, start, end);
+ 	return 0;
+ }
  
- 	/* notification is exclusive, but interval is inclusive */
-@@ -302,6 +303,8 @@ static int amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
- 	if (amdgpu_mn_read_lock(amn, range->blockable))
- 		return -EAGAIN;
+@@ -150,6 +157,7 @@ static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
+ {
+ 	struct ib_ucontext_per_mm *per_mm =
+ 		container_of(mn, struct ib_ucontext_per_mm, mn);
++	bool update_to_read_only;
+ 
+ 	if (range->blockable)
+ 		down_read(&per_mm->umem_rwsem);
+@@ -166,10 +174,13 @@ static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
+ 		return 0;
+ 	}
  
 +	update_to_read_only = mmu_notifier_range_update_to_read_only(range);
 +
- 	it = interval_tree_iter_first(&amn->objects, range->start, end);
- 	while (it) {
- 		struct amdgpu_mn_node *node;
-@@ -317,6 +320,16 @@ static int amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
+ 	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, range->start,
+ 					     range->end,
+ 					     invalidate_range_start_trampoline,
+-					     range->blockable, NULL);
++					     range->blockable,
++					     &update_to_read_only);
+ }
  
- 		list_for_each_entry(bo, &node->bos, mn_list) {
- 			struct kgd_mem *mem = bo->kfd_bo;
-+			bool read_only;
+ static int invalidate_range_end_trampoline(struct ib_umem_odp *item, u64 start,
+@@ -363,6 +374,9 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
+ 		goto out_odp_data;
+ 	}
+ 
++	/* Assume read only at first, each time GUP is call this is updated. */
++	odp_data->read_only = true;
 +
-+			/*
-+			 * If it is already read only and we are updating to
-+			 * read only then we do not need to change anything.
-+			 * So save time and skip this one.
-+			 */
-+			read_only = amdgpu_ttm_tt_is_readonly(bo->tbo.ttm);
-+			if (update_to_read_only && read_only)
-+				continue;
+ 	odp_data->dma_list =
+ 		vzalloc(array_size(pages, sizeof(*odp_data->dma_list)));
+ 	if (!odp_data->dma_list) {
+@@ -619,8 +633,10 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+ 		goto out_put_task;
+ 	}
  
- 			if (amdgpu_ttm_tt_affect_userptr(bo->tbo.ttm,
- 							 range->start,
+-	if (access_mask & ODP_WRITE_ALLOWED_BIT)
++	if (access_mask & ODP_WRITE_ALLOWED_BIT) {
++		umem_odp->read_only = false;
+ 		flags |= FOLL_WRITE;
++	}
+ 
+ 	start_idx = (user_virt - ib_umem_start(umem)) >> page_shift;
+ 	k = start_idx;
+diff --git a/include/rdma/ib_umem_odp.h b/include/rdma/ib_umem_odp.h
+index 0b1446fe2fab..8256668c6170 100644
+--- a/include/rdma/ib_umem_odp.h
++++ b/include/rdma/ib_umem_odp.h
+@@ -76,6 +76,7 @@ struct ib_umem_odp {
+ 	struct completion	notifier_completion;
+ 	int			dying;
+ 	struct work_struct	work;
++	bool read_only;
+ };
+ 
+ static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)
 -- 
 2.17.2
