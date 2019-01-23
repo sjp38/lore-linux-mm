@@ -1,49 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AB7948E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:06:12 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id t3so1258988ybq.20
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:06:12 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id d11si3014134ybe.382.2019.01.23.09.06.11
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E4A7F8E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 13:02:34 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id f3so1975741pgq.13
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 10:02:34 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 187si18294440pfb.41.2019.01.23.10.02.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 Jan 2019 09:06:11 -0800 (PST)
-Message-ID: <1548263167.2949.27.camel@HansenPartnership.com>
-Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Wed, 23 Jan 2019 09:06:07 -0800
-In-Reply-To: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
-References: 
-	<CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jan 2019 10:02:32 -0800 (PST)
+Date: Wed, 23 Jan 2019 19:02:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/2] mm: introduce put_user_page*(), placeholder versions
+Message-ID: <20190123180230.GN13149@quack2.suse.cz>
+References: <b6f4ed36-fc8d-1f9b-8c74-b12f61d496ae@nvidia.com>
+ <20190114145447.GJ13316@quack2.suse.cz>
+ <20190114172124.GA3702@redhat.com>
+ <20190115080759.GC29524@quack2.suse.cz>
+ <20190116113819.GD26069@quack2.suse.cz>
+ <20190116130813.GA3617@redhat.com>
+ <20190117093047.GB9378@quack2.suse.cz>
+ <20190117151759.GA3550@redhat.com>
+ <20190122152459.GG13149@quack2.suse.cz>
+ <20190122164613.GA3188@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190122164613.GA3188@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>, lsf-pc@lists.linux-foundation.org
-Cc: Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, Dan Williams <dan.j.williams@intel.com>, John Hubbard <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, tom@talpey.com, Al Viro <viro@zeniv.linux.org.uk>, benve@cisco.com, Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, "Dalessandro, Dennis" <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Michal Hocko <mhocko@kernel.org>, mike.marciniszyn@intel.com, rcampbell@nvidia.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Wed, 2019-01-23 at 10:48 +0200, Amir Goldstein wrote:
-> Hi,
+On Tue 22-01-19 11:46:13, Jerome Glisse wrote:
+> On Tue, Jan 22, 2019 at 04:24:59PM +0100, Jan Kara wrote:
+> > On Thu 17-01-19 10:17:59, Jerome Glisse wrote:
+> > > On Thu, Jan 17, 2019 at 10:30:47AM +0100, Jan Kara wrote:
+> > > > On Wed 16-01-19 08:08:14, Jerome Glisse wrote:
+> > > > > On Wed, Jan 16, 2019 at 12:38:19PM +0100, Jan Kara wrote:
+> > > > > > On Tue 15-01-19 09:07:59, Jan Kara wrote:
+> > > > > > > Agreed. So with page lock it would actually look like:
+> > > > > > > 
+> > > > > > > get_page_pin()
+> > > > > > > 	lock_page(page);
+> > > > > > > 	wait_for_stable_page();
+> > > > > > > 	atomic_add(&page->_refcount, PAGE_PIN_BIAS);
+> > > > > > > 	unlock_page(page);
+> > > > > > > 
+> > > > > > > And if we perform page_pinned() check under page lock, then if
+> > > > > > > page_pinned() returned false, we are sure page is not and will not be
+> > > > > > > pinned until we drop the page lock (and also until page writeback is
+> > > > > > > completed if needed).
+> > > > > > 
+> > > > > > After some more though, why do we even need wait_for_stable_page() and
+> > > > > > lock_page() in get_page_pin()?
+> > > > > > 
+> > > > > > During writepage page_mkclean() will write protect all page tables. So
+> > > > > > there can be no new writeable GUP pins until we unlock the page as all such
+> > > > > > GUPs will have to first go through fault and ->page_mkwrite() handler. And
+> > > > > > that will wait on page lock and do wait_for_stable_page() for us anyway.
+> > > > > > Am I just confused?
+> > > > > 
+> > > > > Yeah with page lock it should synchronize on the pte but you still
+> > > > > need to check for writeback iirc the page is unlocked after file
+> > > > > system has queue up the write and thus the page can be unlock with
+> > > > > write back pending (and PageWriteback() == trye) and i am not sure
+> > > > > that in that states we can safely let anyone write to that page. I
+> > > > > am assuming that in some case the block device also expect stable
+> > > > > page content (RAID stuff).
+> > > > > 
+> > > > > So the PageWriteback() test is not only for racing page_mkclean()/
+> > > > > test_set_page_writeback() and GUP but also for pending write back.
+> > > > 
+> > > > But this is prevented by wait_for_stable_page() that is already present in
+> > > > ->page_mkwrite() handlers. Look:
+> > > > 
+> > > > ->writepage()
+> > > >   /* Page is locked here */
+> > > >   clear_page_dirty_for_io(page)
+> > > >     page_mkclean(page)
+> > > >       -> page tables get writeprotected
+> > > >     /* The following line will be added by our patches */
+> > > >     if (page_pinned(page)) -> bounce
+> > > >     TestClearPageDirty(page)
+> > > >   set_page_writeback(page);
+> > > >   unlock_page(page);
+> > > >   ...submit_io...
+> > > > 
+> > > > IRQ
+> > > >   - IO completion
+> > > >   end_page_writeback()
+> > > > 
+> > > > So if GUP happens before page_mkclean() writeprotects corresponding PTE
+> > > > (and these two actions are synchronized on the PTE lock), page_pinned()
+> > > > will see the increment and report the page as pinned.
+> > > > 
+> > > > If GUP happens after page_mkclean() writeprotects corresponding PTE, it
+> > > > will fault:
+> > > >   handle_mm_fault()
+> > > >     do_wp_page()
+> > > >       wp_page_shared()
+> > > >         do_page_mkwrite()
+> > > >           ->page_mkwrite() - that is block_page_mkwrite() or
+> > > > 	    iomap_page_mkwrite() or whatever filesystem provides
+> > > > 	  lock_page(page)
+> > > >           ... prepare page ...
+> > > > 	  wait_for_stable_page(page) -> this blocks until IO completes
+> > > > 	    if someone cares about pages not being modified while under IO.
+> > > 
+> > > The case i am worried is GUP see pte with write flag set but has not
+> > > lock the page yet (GUP is get pte first, then pte to page then lock
+> > > page), then it locks the page but the lock page can make it wait for a
+> > > racing page_mkclean()...write back that have not yet write protected
+> > > the pte the GUP just read. So by the time GUP has the page locked the
+> > > pte it read might no longer have the write flag set. Hence why you need
+> > > to also check for write back after taking the page lock. Alternatively
+> > > you could recheck the pte after a successful try_lock on the page.
+> > 
+> > This isn't really possible. GUP does:
+> > 
+> > get_user_pages()
+> > ...
+> >   follow_page_mask()
+> >   ...
+> >     follow_page_pte()
+> >       ptep = pte_offset_map_lock()
+> >       check permissions and page sanity
+> >       if (flags & FOLL_GET)
+> >         get_page(page); -> this would become
+> > 	  atomic_add(&page->_refcount, PAGE_PIN_BIAS);
+> >       pte_unmap_unlock(ptep, ptl);
+> > 
+> > page_mkclean() on the other hand grabs the same pte lock to change the pte
+> > to write-protected. So after page_mkclean() has modified the PTE we are
+> > racing on for access, we are sure to either see increased _refcount or get
+> > page fault from GUP.
+> > 
+> > If we see increased _refcount, we bounce the page and are fine. If GUP
+> > faults, we will wait for page lock (so wait until page is prepared for IO
+> > and has PageWriteback set) while handling the fault, then enter
+> > ->page_mkwrite, which will do wait_for_stable_page() -> wait for
+> > outstanding writeback to complete.
+> > 
+> > So I still conclude - no need for page lock in the GUP path at all AFAICT.
+> > In fact we rely on the very same page fault vs page writeback synchronization
+> > for normal user faults as well. And normal user mmap access is even nastier
+> > than GUP access because the CPU reads page tables without taking PTE lock.
 > 
-> In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong
-> brought up the subject of sharing pages between cloned files and the
-> general vibe in room was that it could be done.
+> For the "slow" GUP path you are right you do not need a lock as the
+> page table lock give you the ordering. For the GUP fast path you
+> would either need the lock or the memory barrier with the test for
+> page write back.
+> 
+> Maybe an easier thing is to convert GUP fast to try to take the page
+> table lock if it fails taking the page table lock then we fall back
+> to slow GUP path. Otherwise then we have the same garantee as the slow
+> path.
 
-This subject has been around for a while.  We talked about cache
-sharing for containers in LSF/MM 2013, although it was as a discussion
-within a session rather than a session about it.  At that time,
-Parallels already had an out of tree implementation of a daemon that
-forced this sharing and docker was complaining about the dual caching
-problem of their graph drivers.
+You're right I was looking at the wrong place for GUP_fast() path. But I
+still don't think anything special (i.e. page lock or new barrier) is
+necessary. GUP_fast() takes care already now that it cannot race with page
+unmapping or write-protection (as there are other places in MM that rely on
+this). Look, gup_pte_range() has:
 
-So, what we need in addition to reflink for container images is
-something like ksm for containers which can force read only sharing of
-pages that have the same content even though they're apparently from
-different files.  This is because most cloud container systems run
-multiple copies of the same container image even if the overlays don't
-necessarily reflect the origin.  Essentially it's the same reason why
-reflink doesn't solve the sharing problem entirely for VMs.
+                if (!page_cache_get_speculative(head))
+                        goto pte_unmap;
 
-James
+                if (unlikely(pte_val(pte) != pte_val(*ptep))) {
+                        put_page(head);
+                        goto pte_unmap;
+                }
+
+So that page_cache_get_speculative() will become
+page_cache_pin_speculative() to increment refcount by PAGE_PIN_BIAS instead
+of 1. That is atomic ordered operation so it cannot be reordered with the
+following check that PTE stayed same. So once page_mkclean() write-protects
+PTE, there can be no new pins from GUP_fast() and we are sure all
+succeeding pins are visible in page->_refcount after page_mkclean()
+completes. Again this is nothing new, other mm code already relies on
+either seeing page->_refcount incremented or GUP fast bailing out (e.g. DAX
+relies on this). Although strictly speaking I'm not 100% sure what prevents
+page->_refcount load to be speculatively reordered before PTE update even
+in current places using this but there's so much stuff inbetween that
+there's probably something ;). But we could add smp_rmb() after
+page_mkclean() before changing page_pinned() for the peace of mind I guess.
+
+> The issue is that i am not sure if the page table directory page and
+> it's associated spinlock can go in bad state if the directory is being
+> freed (like a racing munmap). This would need to be check. A scheme
+> that might protect against that is to take the above lock of each level
+> before going down one level. Once you are down one level you can unlock
+> the above level. So at any point in time GUP fast holds the lock to a
+> current and valid directory and thus no one could race to remove it.
+> 
+>     GUP_fast()
+>       gup_pgd_range()
+>         if (p4d_try_map_lock()) {
+>           gup_p4d_range()
+>           if (pud_try_map_lock()) {
+>             p4d_unlock();
+>             gup_pud_range();
+>               if (pmd_try_map_lock()) {
+>                 pud_unlock();
+>                 gup_pmd_range();
+>                   if (pte_try_map_lock()) {
+>                     pmd_unlock();
+>                     // Do gup
+>                   }
+>              }
+>           }
+>        }
+> 
+> Maybe this is worse than taking the mmap_sem and checking for vma.
+> 
+> 
+> > > > > > That actually touches on another question I wanted to get opinions on. GUP
+> > > > > > can be for read and GUP can be for write (that is one of GUP flags).
+> > > > > > Filesystems with page cache generally have issues only with GUP for write
+> > > > > > as it can currently corrupt data, unexpectedly dirty page etc.. DAX & memory
+> > > > > > hotplug have issues with both (DAX cannot truncate page pinned in any way,
+> > > > > > memory hotplug will just loop in kernel until the page gets unpinned). So
+> > > > > > we probably want to track both types of GUP pins and page-cache based
+> > > > > > filesystems will take the hit even if they don't have to for read-pins?
+> > > > > 
+> > > > > Yes the distinction between read and write would be nice. With the map
+> > > > > count solution you can only increment the mapcount for GUP(write=true).
+> > > > 
+> > > > Well, but if we track only pins for write, DAX or memory hotplug will not
+> > > > be able to use this mechanism. So at this point I'm more leaning towards
+> > > > tracking all pins. It will cost some performance needlessly for read pins
+> > > > and filesystems using page cache when bouncing such pages but it's not like
+> > > > writeback of pinned pages is some performance critical operation... But I
+> > > > wanted to spell this out so that people are aware of this.
+> > > 
+> > > No they would know for regular pin, it is just as page migrate code. If
+> > > the refcount + (extra_ref_by_the_code_checking) > mapcount then you know
+> > > someone has extra reference on your page.
+> > > 
+> > > Those extra references are either some regular fs event taking place (some
+> > > code doing find_get_page for instance) or a GUP reference (wether it is a
+> > > write pin or a read pin).
+> > > 
+> > > So the only issue is false positive, ie thinking the page is under GUP
+> > > while it has just elevated refcount because of some other regular fs/mm
+> > > event. To minimize false positive for a more accurate pin test (write or
+> > > read) you can enforce few thing:
+> > > 
+> > >     1 - first page lock
+> > >     2 - then freeze the page with expected counted
+> > > 
+> > > With that it should minimize false positive. In the end even with the bias
+> > > case you can also have false positive.
+> > 
+> > So this is basically what the code is currently doing. And for DAX it works
+> > well since the page is being truncated and so essentially nobody is
+> > touching it. But for hotplug it doesn't work quite well - hotplug would
+> > like to return EBUSY to userspace when the page is pinned but retry if the
+> > page reference is just transient.
+> 
+> I do not think there is anyway around transient refcount other
+> than periodicaly check. Maybe hot unplug (i am assuming we are
+> talking about unplug here) can set the reserved page flag and
+> we can change the page get ref to never inc refcount for page
+> with reserved flag. I see that they have been cleanup on going
+> around reserved page so it might or might not be possible.
+
+Well, there's no problem with transient refcount. The code is fine with
+retrying in that case. The problem is when the refcount actually is *not*
+transient and so hot-unplug ends up retrying forever (or for very long
+time). In that case it should rather bail with EBUSY but currently there's
+no way to distinguish transient from longer term pin.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
