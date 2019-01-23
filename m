@@ -1,99 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1568E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:21:55 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id t10so1544340plo.13
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:21:55 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d12si4302701pln.340.2019.01.23.06.21.53
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA468E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:22:02 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id v2so1557065plg.6
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:22:02 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id j3si18527568plk.199.2019.01.23.06.22.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 06:21:54 -0800 (PST)
-Date: Wed, 23 Jan 2019 09:20:49 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [RFC PATCH v7 05/16] arm64/mm: Add support for XPFO
-Message-ID: <20190123142047.GB19289@Konrads-MacBook-Pro.local>
-References: <cover.1547153058.git.khalid.aziz@oracle.com>
- <89f03091af87f5ab27bd6cafb032236d5bd81d65.1547153058.git.khalid.aziz@oracle.com>
+        Wed, 23 Jan 2019 06:22:01 -0800 (PST)
+From: Jani Nikula <jani.nikula@linux.intel.com>
+Subject: Re: [Intel-gfx] [PATCH 1/3] treewide: Lift switch variables out of switches
+In-Reply-To: <874l9z31c5.fsf@intel.com>
+References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org> <20190123115829.GA31385@kroah.com> <874l9z31c5.fsf@intel.com>
+Date: Wed, 23 Jan 2019 16:23:39 +0200
+Message-ID: <871s53311w.fsf@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <89f03091af87f5ab27bd6cafb032236d5bd81d65.1547153058.git.khalid.aziz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, Juerg Haefliger <juerg.haefliger@canonical.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Tycho Andersen <tycho@docker.com>
+To: Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>
+Cc: dev@openvswitch.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, netdev@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com, intel-wired-lan@lists.osuosl.org, linux-fsdevel@vger.kernel.org, xen-devel@lists.xenproject.org, Laura Abbott <labbott@redhat.com>, linux-kbuild@vger.kernel.org, Alexander Popov <alex.popov@linux.com>
 
-On Thu, Jan 10, 2019 at 02:09:37PM -0700, Khalid Aziz wrote:
-> From: Juerg Haefliger <juerg.haefliger@canonical.com>
-> 
-> Enable support for eXclusive Page Frame Ownership (XPFO) for arm64 and
-> provide a hook for updating a single kernel page table entry (which is
-> required by the generic XPFO code).
-> 
-> v6: use flush_tlb_kernel_range() instead of __flush_tlb_one()
-> 
-> CC: linux-arm-kernel@lists.infradead.org
-> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
-> Signed-off-by: Tycho Andersen <tycho@docker.com>
-> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
-> ---
->  arch/arm64/Kconfig     |  1 +
->  arch/arm64/mm/Makefile |  2 ++
->  arch/arm64/mm/xpfo.c   | 58 ++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 61 insertions(+)
->  create mode 100644 arch/arm64/mm/xpfo.c
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index ea2ab0330e3a..f0a9c0007d23 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -171,6 +171,7 @@ config ARM64
->  	select SWIOTLB
->  	select SYSCTL_EXCEPTION_TRACE
->  	select THREAD_INFO_IN_TASK
-> +	select ARCH_SUPPORTS_XPFO
->  	help
->  	  ARM 64-bit (AArch64) Linux support.
->  
-> diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
-> index 849c1df3d214..cca3808d9776 100644
-> --- a/arch/arm64/mm/Makefile
-> +++ b/arch/arm64/mm/Makefile
-> @@ -12,3 +12,5 @@ KASAN_SANITIZE_physaddr.o	+= n
->  
->  obj-$(CONFIG_KASAN)		+= kasan_init.o
->  KASAN_SANITIZE_kasan_init.o	:= n
-> +
-> +obj-$(CONFIG_XPFO)		+= xpfo.o
-> diff --git a/arch/arm64/mm/xpfo.c b/arch/arm64/mm/xpfo.c
-> new file mode 100644
-> index 000000000000..678e2be848eb
-> --- /dev/null
-> +++ b/arch/arm64/mm/xpfo.c
-> @@ -0,0 +1,58 @@
-> +/*
-> + * Copyright (C) 2017 Hewlett Packard Enterprise Development, L.P.
-> + * Copyright (C) 2016 Brown University. All rights reserved.
-> + *
-> + * Authors:
-> + *   Juerg Haefliger <juerg.haefliger@hpe.com>
-> + *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
-> + *
-> + * This program is free software; you can redistribute it and/or modify it
-> + * under the terms of the GNU General Public License version 2 as published by
-> + * the Free Software Foundation.
-> + */
-> +
-> +#include <linux/mm.h>
-> +#include <linux/module.h>
-> +
-> +#include <asm/tlbflush.h>
-> +
-> +/*
-> + * Lookup the page table entry for a virtual address and return a pointer to
-> + * the entry. Based on x86 tree.
-> + */
-> +static pte_t *lookup_address(unsigned long addr)
+On Wed, 23 Jan 2019, Jani Nikula <jani.nikula@linux.intel.com> wrote:
+> On Wed, 23 Jan 2019, Greg KH <gregkh@linuxfoundation.org> wrote:
+>> On Wed, Jan 23, 2019 at 03:03:47AM -0800, Kees Cook wrote:
+>>> Variables declared in a switch statement before any case statements
+>>> cannot be initialized, so move all instances out of the switches.
+>>> After this, future always-initialized stack variables will work
+>>> and not throw warnings like this:
+>>>=20
+>>> fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
+>>> fs/fcntl.c:738:13: warning: statement will never be executed [-Wswitch-=
+unreachable]
+>>>    siginfo_t si;
+>>>              ^~
+>>
+>> That's a pain, so this means we can't have any new variables in { }
+>> scope except for at the top of a function?
+>>
+>> That's going to be a hard thing to keep from happening over time, as
+>> this is valid C :(
+>
+> Not all valid C is meant to be used! ;)
+>
+> Anyway, I think you're mistaking the limitation to arbitrary blocks
+> while it's only about the switch block IIUC.
+>
+> Can't have:
+>
+> 	switch (i) {
+> 		int j;
+> 	case 0:
+>         	/* ... */
+> 	}
+>
+> because it can't be turned into:
+>
+> 	switch (i) {
+> 		int j =3D 0; /* not valid C */
+> 	case 0:
+>         	/* ... */
+> 	}
+>
+> but can have e.g.:
+>
+> 	switch (i) {
+> 	case 0:
+> 		{
+> 			int j =3D 0;
+> 	        	/* ... */
+> 		}
+> 	}
+>
+> I think Kees' approach of moving such variable declarations to the
+> enclosing block scope is better than adding another nesting block.
 
-The x86 also has level. Would it make sense to include that in here?
+PS. The patch is
+
+Reviewed-by: Jani Nikula <jani.nikula@intel.com>
+
+and the drivers/gpu/drm/i915/* parts are
+
+Acked-by: Jani Nikula <jani.nikula@intel.com>
+
+for merging via whichever tree is appropriate. (There'll be minor
+conflicts with in-flight work in our -next tree, but no biggie.)
+
+
+--=20
+Jani Nikula, Intel Open Source Graphics Center
