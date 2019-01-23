@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E1FC58E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:39:14 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id t2so998968edb.22
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:39:14 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 7-v6si626616ejq.150.2019.01.23.06.39.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 06:39:13 -0800 (PST)
-Subject: Re: [PATCH 1/2] x86: respect memory size limiting via mem= parameter
-References: <20190122080628.7238-1-jgross@suse.com>
- <20190122080628.7238-2-jgross@suse.com>
- <69D0866F-77A7-4529-A01E-12395106E22D@oracle.com>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <222a2429-957c-c6cd-3f46-06a627bbbd5e@suse.com>
-Date: Wed, 23 Jan 2019 15:39:11 +0100
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DA45D8E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:47:06 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id u197so2049938qka.8
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:47:06 -0800 (PST)
+Received: from mail.emypeople.net (mail.emypeople.net. [216.220.167.73])
+        by mx.google.com with ESMTP id u189si5490103qkf.44.2019.01.23.06.47.05
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jan 2019 06:47:06 -0800 (PST)
+From: "Edwin Zimmerman" <edwin@211mainstreet.net>
+References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org> <20190123115829.GA31385@kroah.com> <874l9z31c5.fsf@intel.com>
+In-Reply-To: <874l9z31c5.fsf@intel.com>
+Subject: RE: [Intel-gfx] [PATCH 1/3] treewide: Lift switch variables out of switches
+Date: Wed, 23 Jan 2019 09:47:06 -0500
+Message-ID: <000001d4b32a$845e06e0$8d1a14a0$@211mainstreet.net>
 MIME-Version: 1.0
-In-Reply-To: <69D0866F-77A7-4529-A01E-12395106E22D@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: kernel list <linux-kernel@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, sstabellini@kernel.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de
+To: 'Jani Nikula' <jani.nikula@linux.intel.com>, 'Greg KH' <gregkh@linuxfoundation.org>, 'Kees Cook' <keescook@chromium.org>
+Cc: dev@openvswitch.org, 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, netdev@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com, intel-wired-lan@lists.osuosl.org, linux-fsdevel@vger.kernel.org, xen-devel@lists.xenproject.org, 'Laura Abbott' <labbott@redhat.com>, linux-kbuild@vger.kernel.org, 'Alexander Popov' <alex.popov@linux.com>
 
-On 23/01/2019 15:35, William Kucharski wrote:
-> 
-> 
->> On Jan 22, 2019, at 1:06 AM, Juergen Gross <jgross@suse.com> wrote:
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index b9a667d36c55..7fc2a87110a3 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -96,10 +96,16 @@ void mem_hotplug_done(void)
->> 	cpus_read_unlock();
->> }
->>
->> +u64 max_mem_size = -1;
-> 
-> This may be pedantic, but I'd rather see U64_MAX used here.
+On Wed, 23 Jan 2019, Jani Nikula <jani.nikula@linux.intel.com> wrote:
+> On Wed, 23 Jan 2019, Greg KH <gregkh@linuxfoundation.org> wrote:
+> > On Wed, Jan 23, 2019 at 03:03:47AM -0800, Kees Cook wrote:
+> >> Variables declared in a switch statement before any case statements
+> >> cannot be initialized, so move all instances out of the switches.
+> >> After this, future always-initialized stack variables will work
+> >> and not throw warnings like this:
+> >>
+> >> fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
+> >> fs/fcntl.c:738:13: warning: statement will never be executed =
+[-Wswitch-unreachable]
+> >>    siginfo_t si;
+> >>              ^~
+> >
+> > That's a pain, so this means we can't have any new variables in { }
+> > scope except for at the top of a function?
+> >
+> > That's going to be a hard thing to keep from happening over time, as
+> > this is valid C :(
+>=20
+> Not all valid C is meant to be used! ;)
 
-Fine with me. Will change.
+Very true.  The other thing to keep in mind is the burden of enforcing a =
+prohibition on a valid C construct like this. =20
+It seems to me that patch reviewers and maintainers have enough to do =
+without forcing them to watch for variable
+declarations in switch statements.  Automating this prohibition, should =
+it be accepted, seems like a good idea to me.
 
-
-Juergen
+-Edwin Zimmerman
