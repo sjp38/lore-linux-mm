@@ -1,59 +1,76 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B7F48E0047
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 15:36:48 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id a2so2324475pgt.11
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:36:48 -0800 (PST)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id n3si20736696pld.36.2019.01.23.12.36.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 12:36:46 -0800 (PST)
-From: Vineet Gupta <vineet.gupta1@synopsys.com>
-Subject: [PATCH v2 1/3] coredump: Replace opencoded set_mask_bits()
-Date: Wed, 23 Jan 2019 12:33:02 -0800
-Message-ID: <1548275584-18096-2-git-send-email-vgupta@synopsys.com>
-In-Reply-To: <1548275584-18096-1-git-send-email-vgupta@synopsys.com>
-References: <1548275584-18096-1-git-send-email-vgupta@synopsys.com>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
-Sender: owner-linux-mm@kvack.org
+References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org>
+ <20190123115829.GA31385@kroah.com> <874l9z31c5.fsf@intel.com> <20190123191802.GB15311@bombadil.infradead.org>
+In-Reply-To: <20190123191802.GB15311@bombadil.infradead.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 24 Jan 2019 09:36:11 +1300
+Message-ID: <CAGXu5jLNvHVhbyr5Cbyoe8o0ARv52sU-NEpD+u2UYfESM3ofCw@mail.gmail.com>
+Subject: Re: [Intel-gfx] [PATCH 1/3] treewide: Lift switch variables out of switches
+Content-Type: text/plain; charset="UTF-8"
+Sender: linux-kernel-owner@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jani Nikula <jani.nikula@linux.intel.com>, Greg KH <gregkh@linuxfoundation.org>, dev@openvswitch.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Network Development <netdev@vger.kernel.org>, intel-gfx@lists.freedesktop.org, linux-usb@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Maling list - DRI developers <dri-devel@lists.freedesktop.org>, Linux-MM <linux-mm@kvack.org>, linux-security-module <linux-security-module@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, intel-wired-lan@lists.osuosl.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, xen-devel <xen-devel@lists.xenproject.org>, Laura Abbott <labbott@redhat.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Alexander Popov <alex.popov@linux.com>
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-snps-arc@lists.infradead.org, linux-mm@kvack.org, peterz@infradead.org, mark.rutland@arm.com, Vineet Gupta <vineet.gupta1@synopsys.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org
 
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Link: http://lkml.kernel.org/g/20150807115710.GA16897@redhat.com
-Reviewed-by: Anthony Yznaga <anthony.yznaga@oracle.com>
-Acked-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- fs/exec.c | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+On Thu, Jan 24, 2019 at 8:18 AM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Wed, Jan 23, 2019 at 04:17:30PM +0200, Jani Nikula wrote:
+> > Can't have:
+> >
+> >       switch (i) {
+> >               int j;
+> >       case 0:
+> >               /* ... */
+> >       }
+> >
+> > because it can't be turned into:
+> >
+> >       switch (i) {
+> >               int j = 0; /* not valid C */
+> >       case 0:
+> >               /* ... */
+> >       }
+> >
+> > but can have e.g.:
+> >
+> >       switch (i) {
+> >       case 0:
+> >               {
+> >                       int j = 0;
+> >                       /* ... */
+> >               }
+> >       }
+> >
+> > I think Kees' approach of moving such variable declarations to the
+> > enclosing block scope is better than adding another nesting block.
+>
+> Another nesting level would be bad, but I think this is OK:
+>
+>         switch (i) {
+>         case 0: {
+>                 int j = 0;
+>                 /* ... */
+>         }
+>         case 1: {
+>                 void *p = q;
+>                 /* ... */
+>         }
+>         }
+>
+> I can imagine Kees' patch might have a bad effect on stack consumption,
+> unless GCC can be relied on to be smart enough to notice the
+> non-overlapping liveness of the vriables and use the same stack slots
+> for both.
 
-diff --git a/fs/exec.c b/fs/exec.c
-index fb72d36f7823..df7f05362283 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -1944,15 +1944,10 @@ EXPORT_SYMBOL(set_binfmt);
-  */
- void set_dumpable(struct mm_struct *mm, int value)
- {
--	unsigned long old, new;
--
- 	if (WARN_ON((unsigned)value > SUID_DUMP_ROOT))
- 		return;
- 
--	do {
--		old = READ_ONCE(mm->flags);
--		new = (old & ~MMF_DUMPABLE_MASK) | value;
--	} while (cmpxchg(&mm->flags, old, new) != old);
-+	set_mask_bits(&mm->flags, MMF_DUMPABLE_MASK, value);
- }
- 
- SYSCALL_DEFINE3(execve,
+GCC is reasonable at this. The main issue, though, was most of these
+places were using the variables in multiple case statements, so they
+couldn't be limited to a single block (or they'd need to be manually
+repeated in each block, which is even more ugly, IMO).
+
+Whatever the consensus, I'm happy to tweak the patch.
+
+Thanks!
+
 -- 
-2.7.4
+Kees Cook
