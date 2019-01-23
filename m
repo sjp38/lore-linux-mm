@@ -1,116 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 290AB8E0001
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2019 21:43:49 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id a199so666069qkb.23
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2019 18:43:49 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x1si549996qkc.167.2019.01.22.18.43.48
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 552F58E0001
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 03:49:12 -0500 (EST)
+Received: by mail-yw1-f72.google.com with SMTP id m200so806683ywd.14
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 00:49:12 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o127sor2408903ywf.31.2019.01.23.00.49.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jan 2019 18:43:48 -0800 (PST)
-Date: Tue, 22 Jan 2019 21:43:38 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH RFC 06/24] userfaultfd: wp: support write protection for
- userfault vma range
-Message-ID: <20190123024338.GB3652@redhat.com>
-References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-7-peterx@redhat.com>
- <20190121140535.GD3344@redhat.com>
- <20190122093935.GF14907@xz-x1>
- <20190122170223.GC3188@redhat.com>
- <20190123021745.GB2970@xz-x1>
+        (Google Transport Security);
+        Wed, 23 Jan 2019 00:49:10 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190123021745.GB2970@xz-x1>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 23 Jan 2019 10:48:58 +0200
+Message-ID: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+Subject: [LSF/MM TOPIC] Sharing file backed pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Rik van Riel <riel@redhat.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: Al Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Wed, Jan 23, 2019 at 10:17:45AM +0800, Peter Xu wrote:
-> On Tue, Jan 22, 2019 at 12:02:24PM -0500, Jerome Glisse wrote:
-> > On Tue, Jan 22, 2019 at 05:39:35PM +0800, Peter Xu wrote:
-> > > On Mon, Jan 21, 2019 at 09:05:35AM -0500, Jerome Glisse wrote:
-> > > 
-> > > [...]
-> > > 
-> > > > > +	change_protection(dst_vma, start, start + len, newprot,
-> > > > > +				!enable_wp, 0);
-> > > > 
-> > > > So setting dirty_accountable bring us to that code in mprotect.c:
-> > > > 
-> > > >     if (dirty_accountable && pte_dirty(ptent) &&
-> > > >             (pte_soft_dirty(ptent) ||
-> > > >              !(vma->vm_flags & VM_SOFTDIRTY))) {
-> > > >         ptent = pte_mkwrite(ptent);
-> > > >     }
-> > > > 
-> > > > My understanding is that you want to set write flag when enable_wp
-> > > > is false and you want to set the write flag unconditionaly, right ?
-> > > 
-> > > Right.
-> > > 
-> > > > 
-> > > > If so then you should really move the change_protection() flags
-> > > > patch before this patch and add a flag for setting pte write flags.
-> > > > 
-> > > > Otherwise the above is broken at it will only set the write flag
-> > > > for pte that were dirty and i am guessing so far you always were
-> > > > lucky because pte were all dirty (change_protection will preserve
-> > > > dirtyness) when you write protected them.
-> > > > 
-> > > > So i believe the above is broken or at very least unclear if what
-> > > > you really want is to only set write flag to pte that have the
-> > > > dirty flag set.
-> > > 
-> > > You are right, if we build the tree until this patch it won't work for
-> > > all the cases.  It'll only work if the page was at least writable
-> > > before and also it's dirty (as you explained).  Sorry to be unclear
-> > > about this, maybe I should at least mention that in the commit message
-> > > but I totally forgot it.
-> > > 
-> > > All these problems are solved in later on patches, please feel free to
-> > > have a look at:
-> > > 
-> > >   mm: merge parameters for change_protection()
-> > >   userfaultfd: wp: apply _PAGE_UFFD_WP bit
-> > >   userfaultfd: wp: handle COW properly for uffd-wp
-> > > 
-> > > Note that even in the follow up patches IMHO we can't directly change
-> > > the write permission since the page can be shared by other processes
-> > > (e.g., the zero page or COW pages).  But the general idea is the same
-> > > as you explained.
-> > > 
-> > > I tried to avoid squashing these stuff altogether as explained
-> > > previously.  Also, this patch can be seen as a standalone patch to
-> > > introduce the new interface which seems to make sense too, and it is
-> > > indeed still working in many cases so I see the latter patches as
-> > > enhancement of this one.  Please let me know if you still want me to
-> > > have all these stuff squashed, or if you'd like me to squash some of
-> > > them.
-> > 
-> > Yeah i have look at those after looking at this one. You should just
-> > re-order the patch this one first and then one that add new flag,
-> > then ones that add the new userfaultfd feature. Otherwise you are
-> > adding a userfaultfd feature that is broken midway ie it is added
-> > broken and then you fix it. Some one bisecting thing might get hurt
-> > by that. It is better to add and change everything you need and then
-> > add the new feature so that the new feature will work as intended.
-> > 
-> > So no squashing just change the order ie add the userfaultfd code
-> > last.
-> 
-> Yes this makes sense, I'll do that in v2.  Thanks for the suggestion!
+Hi,
 
-Note before doing a v2 i would really like to see some proof of why
-you need new page table flag see my reply to:
-    userfaultfd: wp: add WP pagetable tracking to x86
+In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong brought
+up the subject of sharing pages between cloned files and the general vibe
+in room was that it could be done.
 
-As i believe you can identify COW or KSM from UFD write protect with-
-out a pte flag.
+In his talk about XFS subvolumes and snapshots [2], Dave Chinner said
+that Matthew Willcox was "working on that problem".
 
-Cheers,
-Jérôme
+I have started working on a new overlayfs address space implementation
+that could also benefit from being able to share pages even for filesystems
+that do not support clones (for copy up anticipation state).
+
+To simplify the problem, we can start with sharing only uptodate clean
+pages that map the same offset in respected files. While the same offset
+requirement somewhat limits the use cases that benefit from shared
+file pages, there is still a vast majority of use cases (i.e. clone full image),
+where sharing pages of similar offset will bring a lot of benefit.
+
+At first glance, this requires dropping the assumption that a for an uptodate
+clean page, vmf->vma->vm_file->f_inode == page->mapping->host.
+Is there really such an assumption in common vfs/mm code?
+and what will it take to drop it?
+
+I would like to discuss where do we stand on this effort and what are the
+steps we need to take to move this forward, as well as to collaborate the
+efforts between the interested parties (e.g. xfs, btrfs, overlayfs, anyone?).
+
+Thanks,
+Amir.
+
+[1] https://lwn.net/Articles/684826/
+[2] https://lwn.net/Articles/747633/
