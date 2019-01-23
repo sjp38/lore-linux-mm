@@ -1,507 +1,468 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DB6908E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:04:16 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id f69so1483892pff.5
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 03:04:16 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5578E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:04:18 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id v11so1295083ply.4
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 03:04:18 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j6sor27582318pgq.46.2019.01.23.03.04.14
+        by mx.google.com with SMTPS id j1sor26212094plk.57.2019.01.23.03.04.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 23 Jan 2019 03:04:15 -0800 (PST)
+        Wed, 23 Jan 2019 03:04:16 -0800 (PST)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 3/3] lib: Introduce test_stackinit module
-Date: Wed, 23 Jan 2019 03:03:49 -0800
-Message-Id: <20190123110349.35882-4-keescook@chromium.org>
+Subject: [PATCH 1/3] treewide: Lift switch variables out of switches
+Date: Wed, 23 Jan 2019 03:03:47 -0800
+Message-Id: <20190123110349.35882-2-keescook@chromium.org>
 In-Reply-To: <20190123110349.35882-1-keescook@chromium.org>
 References: <20190123110349.35882-1-keescook@chromium.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Kees Cook <keescook@chromium.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Laura Abbott <labbott@redhat.com>, Alexander Popov <alex.popov@linux.com>, xen-devel@lists.xenproject.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, intel-wired-lan@lists.osuosl.org, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, dev@openvswitch.org, linux-kbuild@vger.kernel.org, linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Adds test for stack initialization coverage. We have several build options
-that control the level of stack variable initialization. This test lets us
-visualize which options cover which cases, and provide tests for options
-that are currently not available (padding initialization).
+Variables declared in a switch statement before any case statements
+cannot be initialized, so move all instances out of the switches.
+After this, future always-initialized stack variables will work
+and not throw warnings like this:
 
-All options pass the explicit initialization cases and the partial
-initializers (even with padding):
-
-test_stackinit: u8_zero ok
-test_stackinit: u16_zero ok
-test_stackinit: u32_zero ok
-test_stackinit: u64_zero ok
-test_stackinit: char_array_zero ok
-test_stackinit: small_hole_zero ok
-test_stackinit: big_hole_zero ok
-test_stackinit: packed_zero ok
-test_stackinit: small_hole_dynamic_partial ok
-test_stackinit: big_hole_dynamic_partial ok
-test_stackinit: packed_static_partial ok
-test_stackinit: small_hole_static_partial ok
-test_stackinit: big_hole_static_partial ok
-
-The results of the other tests (which contain no explicit initialization),
-change based on the build's configured compiler instrumentation.
-
-No options:
-
-test_stackinit: small_hole_static_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_static_all FAIL (uninit bytes: 61)
-test_stackinit: small_hole_dynamic_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_dynamic_all FAIL (uninit bytes: 61)
-test_stackinit: small_hole_runtime_partial FAIL (uninit bytes: 23)
-test_stackinit: big_hole_runtime_partial FAIL (uninit bytes: 127)
-test_stackinit: small_hole_runtime_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_runtime_all FAIL (uninit bytes: 61)
-test_stackinit: u8 FAIL (uninit bytes: 1)
-test_stackinit: u16 FAIL (uninit bytes: 2)
-test_stackinit: u32 FAIL (uninit bytes: 4)
-test_stackinit: u64 FAIL (uninit bytes: 8)
-test_stackinit: char_array FAIL (uninit bytes: 16)
-test_stackinit: small_hole FAIL (uninit bytes: 24)
-test_stackinit: big_hole FAIL (uninit bytes: 128)
-test_stackinit: user FAIL (uninit bytes: 32)
-test_stackinit: failures: 16
-
-CONFIG_GCC_PLUGIN_STRUCTLEAK=y
-This only tries to initialize structs with __user markings:
-
-test_stackinit: small_hole_static_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_static_all FAIL (uninit bytes: 61)
-test_stackinit: small_hole_dynamic_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_dynamic_all FAIL (uninit bytes: 61)
-test_stackinit: small_hole_runtime_partial FAIL (uninit bytes: 23)
-test_stackinit: big_hole_runtime_partial FAIL (uninit bytes: 127)
-test_stackinit: small_hole_runtime_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_runtime_all FAIL (uninit bytes: 61)
-test_stackinit: u8 FAIL (uninit bytes: 1)
-test_stackinit: u16 FAIL (uninit bytes: 2)
-test_stackinit: u32 FAIL (uninit bytes: 4)
-test_stackinit: u64 FAIL (uninit bytes: 8)
-test_stackinit: char_array FAIL (uninit bytes: 16)
-test_stackinit: small_hole FAIL (uninit bytes: 24)
-test_stackinit: big_hole FAIL (uninit bytes: 128)
-test_stackinit: user ok
-test_stackinit: failures: 15
-
-CONFIG_GCC_PLUGIN_STRUCTLEAK=y
-CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL=y
-This initializes all structures passed by reference (scalars and strings
-remain uninitialized, but padding is wiped):
-
-test_stackinit: small_hole_static_all ok
-test_stackinit: big_hole_static_all ok
-test_stackinit: small_hole_dynamic_all ok
-test_stackinit: big_hole_dynamic_all ok
-test_stackinit: small_hole_runtime_partial ok
-test_stackinit: big_hole_runtime_partial ok
-test_stackinit: small_hole_runtime_all ok
-test_stackinit: big_hole_runtime_all ok
-test_stackinit: u8 FAIL (uninit bytes: 1)
-test_stackinit: u16 FAIL (uninit bytes: 2)
-test_stackinit: u32 FAIL (uninit bytes: 4)
-test_stackinit: u64 FAIL (uninit bytes: 8)
-test_stackinit: char_array FAIL (uninit bytes: 16)
-test_stackinit: small_hole ok
-test_stackinit: big_hole ok
-test_stackinit: user ok
-test_stackinit: failures: 5
-
-CONFIG_GCC_PLUGIN_STACKINIT=y
-This initializes all variables, but has no special padding handling:
-
-test_stackinit: small_hole_static_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_static_all FAIL (uninit bytes: 61)
-test_stackinit: small_hole_dynamic_all FAIL (uninit bytes: 3)
-test_stackinit: big_hole_dynamic_all FAIL (uninit bytes: 61)
-test_stackinit: small_hole_runtime_partial ok
-test_stackinit: big_hole_runtime_partial ok
-test_stackinit: small_hole_runtime_all ok
-test_stackinit: big_hole_runtime_all ok
-test_stackinit: u8 ok
-test_stackinit: u16 ok
-test_stackinit: u32 ok
-test_stackinit: u64 ok
-test_stackinit: char_array ok
-test_stackinit: small_hole ok
-test_stackinit: big_hole ok
-test_stackinit: user ok
-test_stackinit: failures: 4
+fs/fcntl.c: In function ‘send_sigio_to_task’:
+fs/fcntl.c:738:13: warning: statement will never be executed [-Wswitch-unreachable]
+   siginfo_t si;
+             ^~
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- lib/Kconfig.debug    |   9 ++
- lib/Makefile         |   1 +
- lib/test_stackinit.c | 327 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 337 insertions(+)
- create mode 100644 lib/test_stackinit.c
+ arch/x86/xen/enlighten_pv.c                   |  7 ++++---
+ drivers/char/pcmcia/cm4000_cs.c               |  2 +-
+ drivers/char/ppdev.c                          | 20 ++++++++-----------
+ drivers/gpu/drm/drm_edid.c                    |  4 ++--
+ drivers/gpu/drm/i915/intel_display.c          |  2 +-
+ drivers/gpu/drm/i915/intel_pm.c               |  4 ++--
+ drivers/net/ethernet/intel/e1000/e1000_main.c |  3 ++-
+ drivers/tty/n_tty.c                           |  3 +--
+ drivers/usb/gadget/udc/net2280.c              |  5 ++---
+ fs/fcntl.c                                    |  3 ++-
+ mm/shmem.c                                    |  5 +++--
+ net/core/skbuff.c                             |  4 ++--
+ net/ipv6/ip6_gre.c                            |  4 ++--
+ net/ipv6/ip6_tunnel.c                         |  4 ++--
+ net/openvswitch/flow_netlink.c                |  7 +++----
+ security/tomoyo/common.c                      |  3 ++-
+ security/tomoyo/condition.c                   |  7 ++++---
+ security/tomoyo/util.c                        |  4 ++--
+ 18 files changed, 45 insertions(+), 46 deletions(-)
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index d4df5b24d75e..09788afcccc9 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -2001,6 +2001,15 @@ config TEST_OBJAGG
+diff --git a/arch/x86/xen/enlighten_pv.c b/arch/x86/xen/enlighten_pv.c
+index c54a493e139a..a79d4b548a08 100644
+--- a/arch/x86/xen/enlighten_pv.c
++++ b/arch/x86/xen/enlighten_pv.c
+@@ -907,14 +907,15 @@ static u64 xen_read_msr_safe(unsigned int msr, int *err)
+ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
+ {
+ 	int ret;
++#ifdef CONFIG_X86_64
++	unsigned which;
++	u64 base;
++#endif
  
- 	  If unsure, say N.
+ 	ret = 0;
  
-+config TEST_STACKINIT
-+	tristate "Test level of stack variable initialization"
-+	help
-+	  Test if the kernel is zero-initializing stack variables
-+	  from CONFIG_GCC_PLUGIN_STACKINIT, CONFIG_GCC_PLUGIN_STRUCTLEAK,
-+	  and/or GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
-+
-+	  If unsure, say N.
-+
- endif # RUNTIME_TESTING_MENU
+ 	switch (msr) {
+ #ifdef CONFIG_X86_64
+-		unsigned which;
+-		u64 base;
+-
+ 	case MSR_FS_BASE:		which = SEGBASE_FS; goto set;
+ 	case MSR_KERNEL_GS_BASE:	which = SEGBASE_GS_USER; goto set;
+ 	case MSR_GS_BASE:		which = SEGBASE_GS_KERNEL; goto set;
+diff --git a/drivers/char/pcmcia/cm4000_cs.c b/drivers/char/pcmcia/cm4000_cs.c
+index 7a4eb86aedac..7211dc0e6f4f 100644
+--- a/drivers/char/pcmcia/cm4000_cs.c
++++ b/drivers/char/pcmcia/cm4000_cs.c
+@@ -663,6 +663,7 @@ static void monitor_card(struct timer_list *t)
+ {
+ 	struct cm4000_dev *dev = from_timer(dev, t, timer);
+ 	unsigned int iobase = dev->p_dev->resource[0]->start;
++	unsigned char flags0;
+ 	unsigned short s;
+ 	struct ptsreq ptsreq;
+ 	int i, atrc;
+@@ -731,7 +732,6 @@ static void monitor_card(struct timer_list *t)
+ 	}
  
- config MEMTEST
-diff --git a/lib/Makefile b/lib/Makefile
-index e1b59da71418..c81a66d4d00d 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -76,6 +76,7 @@ obj-$(CONFIG_TEST_KMOD) += test_kmod.o
- obj-$(CONFIG_TEST_DEBUG_VIRTUAL) += test_debug_virtual.o
- obj-$(CONFIG_TEST_MEMCAT_P) += test_memcat_p.o
- obj-$(CONFIG_TEST_OBJAGG) += test_objagg.o
-+obj-$(CONFIG_TEST_STACKINIT) += test_stackinit.o
+ 	switch (dev->mstate) {
+-		unsigned char flags0;
+ 	case M_CARDOFF:
+ 		DEBUGP(4, dev, "M_CARDOFF\n");
+ 		flags0 = inb(REG_FLAGS0(iobase));
+diff --git a/drivers/char/ppdev.c b/drivers/char/ppdev.c
+index 1ae77b41050a..d77c97e4f996 100644
+--- a/drivers/char/ppdev.c
++++ b/drivers/char/ppdev.c
+@@ -359,14 +359,19 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 	struct pp_struct *pp = file->private_data;
+ 	struct parport *port;
+ 	void __user *argp = (void __user *)arg;
++	struct ieee1284_info *info;
++	unsigned char reg;
++	unsigned char mask;
++	int mode;
++	s32 time32[2];
++	s64 time64[2];
++	struct timespec64 ts;
++	int ret;
  
- ifeq ($(CONFIG_DEBUG_KOBJECT),y)
- CFLAGS_kobject.o += -DDEBUG
-diff --git a/lib/test_stackinit.c b/lib/test_stackinit.c
-new file mode 100644
-index 000000000000..e2ff56a1002a
---- /dev/null
-+++ b/lib/test_stackinit.c
-@@ -0,0 +1,327 @@
-+// SPDX-Licenses: GPLv2
-+/*
-+ * Test cases for -finit-local-vars and CONFIG_GCC_PLUGIN_STACKINIT.
-+ */
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 	/* First handle the cases that don't take arguments. */
+ 	switch (cmd) {
+ 	case PPCLAIM:
+ 	    {
+-		struct ieee1284_info *info;
+-		int ret;
+-
+ 		if (pp->flags & PP_CLAIMED) {
+ 			dev_dbg(&pp->pdev->dev, "you've already got it!\n");
+ 			return -EINVAL;
+@@ -517,15 +522,6 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 
+ 	port = pp->pdev->port;
+ 	switch (cmd) {
+-		struct ieee1284_info *info;
+-		unsigned char reg;
+-		unsigned char mask;
+-		int mode;
+-		s32 time32[2];
+-		s64 time64[2];
+-		struct timespec64 ts;
+-		int ret;
+-
+ 	case PPRSTATUS:
+ 		reg = parport_read_status(port);
+ 		if (copy_to_user(argp, &reg, sizeof(reg)))
+diff --git a/drivers/gpu/drm/drm_edid.c b/drivers/gpu/drm/drm_edid.c
+index b506e3622b08..8f93956c1628 100644
+--- a/drivers/gpu/drm/drm_edid.c
++++ b/drivers/gpu/drm/drm_edid.c
+@@ -3942,12 +3942,12 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
+ 		}
+ 
+ 		for_each_cea_db(cea, i, start, end) {
++			int sad_count;
 +
-+#include <linux/init.h>
-+#include <linux/kernel.h>
-+#include <linux/module.h>
-+#include <linux/string.h>
+ 			db = &cea[i];
+ 			dbl = cea_db_payload_len(db);
+ 
+ 			switch (cea_db_tag(db)) {
+-				int sad_count;
+-
+ 			case AUDIO_BLOCK:
+ 				/* Audio Data Block, contains SADs */
+ 				sad_count = min(dbl / 3, 15 - total_sad_count);
+diff --git a/drivers/gpu/drm/i915/intel_display.c b/drivers/gpu/drm/i915/intel_display.c
+index 3da9c0f9e948..aa1c2ebea456 100644
+--- a/drivers/gpu/drm/i915/intel_display.c
++++ b/drivers/gpu/drm/i915/intel_display.c
+@@ -11341,6 +11341,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
+ 	drm_for_each_connector_iter(connector, &conn_iter) {
+ 		struct drm_connector_state *connector_state;
+ 		struct intel_encoder *encoder;
++		unsigned int port_mask;
+ 
+ 		connector_state = drm_atomic_get_new_connector_state(state, connector);
+ 		if (!connector_state)
+@@ -11354,7 +11355,6 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
+ 		WARN_ON(!connector_state->crtc);
+ 
+ 		switch (encoder->type) {
+-			unsigned int port_mask;
+ 		case INTEL_OUTPUT_DDI:
+ 			if (WARN_ON(!HAS_DDI(to_i915(dev))))
+ 				break;
+diff --git a/drivers/gpu/drm/i915/intel_pm.c b/drivers/gpu/drm/i915/intel_pm.c
+index a26b4eddda25..c135fdec96b3 100644
+--- a/drivers/gpu/drm/i915/intel_pm.c
++++ b/drivers/gpu/drm/i915/intel_pm.c
+@@ -478,9 +478,9 @@ static void vlv_get_fifo_size(struct intel_crtc_state *crtc_state)
+ 	struct vlv_fifo_state *fifo_state = &crtc_state->wm.vlv.fifo_state;
+ 	enum pipe pipe = crtc->pipe;
+ 	int sprite0_start, sprite1_start;
++	uint32_t dsparb, dsparb2, dsparb3;
+ 
+ 	switch (pipe) {
+-		uint32_t dsparb, dsparb2, dsparb3;
+ 	case PIPE_A:
+ 		dsparb = I915_READ(DSPARB);
+ 		dsparb2 = I915_READ(DSPARB2);
+@@ -1944,6 +1944,7 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
+ 	const struct vlv_fifo_state *fifo_state =
+ 		&crtc_state->wm.vlv.fifo_state;
+ 	int sprite0_start, sprite1_start, fifo_size;
++	uint32_t dsparb, dsparb2, dsparb3;
+ 
+ 	if (!crtc_state->fifo_changed)
+ 		return;
+@@ -1969,7 +1970,6 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
+ 	spin_lock(&dev_priv->uncore.lock);
+ 
+ 	switch (crtc->pipe) {
+-		uint32_t dsparb, dsparb2, dsparb3;
+ 	case PIPE_A:
+ 		dsparb = I915_READ_FW(DSPARB);
+ 		dsparb2 = I915_READ_FW(DSPARB2);
+diff --git a/drivers/net/ethernet/intel/e1000/e1000_main.c b/drivers/net/ethernet/intel/e1000/e1000_main.c
+index 8fe9af0e2ab7..041062736845 100644
+--- a/drivers/net/ethernet/intel/e1000/e1000_main.c
++++ b/drivers/net/ethernet/intel/e1000/e1000_main.c
+@@ -3140,8 +3140,9 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
+ 
+ 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+ 		if (skb->data_len && hdr_len == len) {
++			unsigned int pull_size;
 +
-+/* Exfiltration buffer. */
-+#define MAX_VAR_SIZE	128
-+static char check_buf[MAX_VAR_SIZE];
+ 			switch (hw->mac_type) {
+-				unsigned int pull_size;
+ 			case e1000_82544:
+ 				/* Make sure we have room to chop off 4 bytes,
+ 				 * and that the end alignment will work out to
+diff --git a/drivers/tty/n_tty.c b/drivers/tty/n_tty.c
+index 5dc9686697cf..eafb39157281 100644
+--- a/drivers/tty/n_tty.c
++++ b/drivers/tty/n_tty.c
+@@ -634,6 +634,7 @@ static size_t __process_echoes(struct tty_struct *tty)
+ 	while (MASK(ldata->echo_commit) != MASK(tail)) {
+ 		c = echo_buf(ldata, tail);
+ 		if (c == ECHO_OP_START) {
++			unsigned int num_chars, num_bs;
+ 			unsigned char op;
+ 			int no_space_left = 0;
+ 
+@@ -652,8 +653,6 @@ static size_t __process_echoes(struct tty_struct *tty)
+ 			op = echo_buf(ldata, tail + 1);
+ 
+ 			switch (op) {
+-				unsigned int num_chars, num_bs;
+-
+ 			case ECHO_OP_ERASE_TAB:
+ 				if (MASK(ldata->echo_commit) == MASK(tail + 2))
+ 					goto not_yet_stored;
+diff --git a/drivers/usb/gadget/udc/net2280.c b/drivers/usb/gadget/udc/net2280.c
+index e7dae5379e04..2b275a574e94 100644
+--- a/drivers/usb/gadget/udc/net2280.c
++++ b/drivers/usb/gadget/udc/net2280.c
+@@ -2854,16 +2854,15 @@ static void ep_clear_seqnum(struct net2280_ep *ep)
+ static void handle_stat0_irqs_superspeed(struct net2280 *dev,
+ 		struct net2280_ep *ep, struct usb_ctrlrequest r)
+ {
++	struct net2280_ep *e;
+ 	int tmp = 0;
++	u16 status;
+ 
+ #define	w_value		le16_to_cpu(r.wValue)
+ #define	w_index		le16_to_cpu(r.wIndex)
+ #define	w_length	le16_to_cpu(r.wLength)
+ 
+ 	switch (r.bRequest) {
+-		struct net2280_ep *e;
+-		u16 status;
+-
+ 	case USB_REQ_SET_CONFIGURATION:
+ 		dev->addressed_state = !w_value;
+ 		goto usb3_delegate;
+diff --git a/fs/fcntl.c b/fs/fcntl.c
+index 083185174c6d..0640b64ecdc2 100644
+--- a/fs/fcntl.c
++++ b/fs/fcntl.c
+@@ -725,6 +725,8 @@ static void send_sigio_to_task(struct task_struct *p,
+ 			       struct fown_struct *fown,
+ 			       int fd, int reason, enum pid_type type)
+ {
++	kernel_siginfo_t si;
 +
-+/* Character array to trigger stack protector in all functions. */
-+#define VAR_BUFFER	 32
+ 	/*
+ 	 * F_SETSIG can change ->signum lockless in parallel, make
+ 	 * sure we read it once and use the same value throughout.
+@@ -735,7 +737,6 @@ static void send_sigio_to_task(struct task_struct *p,
+ 		return;
+ 
+ 	switch (signum) {
+-		kernel_siginfo_t si;
+ 		default:
+ 			/* Queue a rt signal with the appropriate fd as its
+ 			   value.  We use SI_SIGIO as the source, not 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 6ece1e2fe76e..0b02624dd8b2 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1721,6 +1721,9 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		swap_free(swap);
+ 
+ 	} else {
++		loff_t i_size;
++		pgoff_t off;
 +
-+/* Volatile mask to convince compiler to copy memory with 0xff. */
-+static volatile u8 forced_mask = 0xff;
+ 		if (vma && userfaultfd_missing(vma)) {
+ 			*fault_type = handle_userfault(vmf, VM_UFFD_MISSING);
+ 			return 0;
+@@ -1734,8 +1737,6 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		if (shmem_huge == SHMEM_HUGE_FORCE)
+ 			goto alloc_huge;
+ 		switch (sbinfo->huge) {
+-			loff_t i_size;
+-			pgoff_t off;
+ 		case SHMEM_HUGE_NEVER:
+ 			goto alloc_nohuge;
+ 		case SHMEM_HUGE_WITHIN_SIZE:
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 26d848484912..7597b3fc9d21 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -4506,9 +4506,9 @@ static __sum16 *skb_checksum_setup_ip(struct sk_buff *skb,
+ 				      typeof(IPPROTO_IP) proto,
+ 				      unsigned int off)
+ {
+-	switch (proto) {
+-		int err;
++	int err;
+ 
++	switch (proto) {
+ 	case IPPROTO_TCP:
+ 		err = skb_maybe_pull_tail(skb, off + sizeof(struct tcphdr),
+ 					  off + MAX_TCP_HDR_LEN);
+diff --git a/net/ipv6/ip6_gre.c b/net/ipv6/ip6_gre.c
+index b1be67ca6768..9aee1add46c0 100644
+--- a/net/ipv6/ip6_gre.c
++++ b/net/ipv6/ip6_gre.c
+@@ -427,9 +427,11 @@ static int ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+ 		       u8 type, u8 code, int offset, __be32 info)
+ {
+ 	struct net *net = dev_net(skb->dev);
++	struct ipv6_tlv_tnl_enc_lim *tel;
+ 	const struct ipv6hdr *ipv6h;
+ 	struct tnl_ptk_info tpi;
+ 	struct ip6_tnl *t;
++	__u32 teli;
+ 
+ 	if (gre_parse_header(skb, &tpi, NULL, htons(ETH_P_IPV6),
+ 			     offset) < 0)
+@@ -442,8 +444,6 @@ static int ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+ 		return -ENOENT;
+ 
+ 	switch (type) {
+-		struct ipv6_tlv_tnl_enc_lim *tel;
+-		__u32 teli;
+ 	case ICMPV6_DEST_UNREACH:
+ 		net_dbg_ratelimited("%s: Path to destination invalid or inactive!\n",
+ 				    t->parms.name);
+diff --git a/net/ipv6/ip6_tunnel.c b/net/ipv6/ip6_tunnel.c
+index 0c6403cf8b52..94ccc7a9037b 100644
+--- a/net/ipv6/ip6_tunnel.c
++++ b/net/ipv6/ip6_tunnel.c
+@@ -478,10 +478,12 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
+ 	struct net *net = dev_net(skb->dev);
+ 	u8 rel_type = ICMPV6_DEST_UNREACH;
+ 	u8 rel_code = ICMPV6_ADDR_UNREACH;
++	struct ipv6_tlv_tnl_enc_lim *tel;
+ 	__u32 rel_info = 0;
+ 	struct ip6_tnl *t;
+ 	int err = -ENOENT;
+ 	int rel_msg = 0;
++	__u32 mtu, teli;
+ 	u8 tproto;
+ 	__u16 len;
+ 
+@@ -501,8 +503,6 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
+ 	err = 0;
+ 
+ 	switch (*type) {
+-		struct ipv6_tlv_tnl_enc_lim *tel;
+-		__u32 mtu, teli;
+ 	case ICMPV6_DEST_UNREACH:
+ 		net_dbg_ratelimited("%s: Path to destination invalid or inactive!\n",
+ 				    t->parms.name);
+diff --git a/net/openvswitch/flow_netlink.c b/net/openvswitch/flow_netlink.c
+index 691da853bef5..dee2f9516ae8 100644
+--- a/net/openvswitch/flow_netlink.c
++++ b/net/openvswitch/flow_netlink.c
+@@ -2652,8 +2652,11 @@ static int validate_set(const struct nlattr *a,
+ 			u8 mac_proto, __be16 eth_type, bool masked, bool log)
+ {
+ 	const struct nlattr *ovs_key = nla_data(a);
++	const struct ovs_key_ipv4 *ipv4_key;
++	const struct ovs_key_ipv6 *ipv6_key;
+ 	int key_type = nla_type(ovs_key);
+ 	size_t key_len;
++	int err;
+ 
+ 	/* There can be only one key in a action */
+ 	if (nla_total_size(nla_len(ovs_key)) != nla_len(a))
+@@ -2671,10 +2674,6 @@ static int validate_set(const struct nlattr *a,
+ 		return -EINVAL;
+ 
+ 	switch (key_type) {
+-	const struct ovs_key_ipv4 *ipv4_key;
+-	const struct ovs_key_ipv6 *ipv6_key;
+-	int err;
+-
+ 	case OVS_KEY_ATTR_PRIORITY:
+ 	case OVS_KEY_ATTR_SKB_MARK:
+ 	case OVS_KEY_ATTR_CT_MARK:
+diff --git a/security/tomoyo/common.c b/security/tomoyo/common.c
+index c598aa00d5e3..bedbd0518153 100644
+--- a/security/tomoyo/common.c
++++ b/security/tomoyo/common.c
+@@ -1583,8 +1583,9 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
+ 	list_for_each_cookie(head->r.domain, &tomoyo_domain_list) {
+ 		struct tomoyo_domain_info *domain =
+ 			list_entry(head->r.domain, typeof(*domain), list);
++		u8 i;
 +
-+/* Location and size tracking to validate fill and test are colocated. */
-+static void *fill_start, *target_start;
-+static size_t fill_size, target_size;
+ 		switch (head->r.step) {
+-			u8 i;
+ 		case 0:
+ 			if (domain->is_deleted &&
+ 			    !head->r.print_this_domain_only)
+diff --git a/security/tomoyo/condition.c b/security/tomoyo/condition.c
+index 8d0e1b9c9c57..c10d903febe5 100644
+--- a/security/tomoyo/condition.c
++++ b/security/tomoyo/condition.c
+@@ -787,10 +787,11 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
+ 		/* Check string expressions. */
+ 		if (right == TOMOYO_NAME_UNION) {
+ 			const struct tomoyo_name_union *ptr = names_p++;
++			struct tomoyo_path_info *symlink;
++			struct tomoyo_execve *ee;
++			struct file *file;
 +
-+static bool range_contains(char *haystack_start, size_t haystack_size,
-+			   char *needle_start, size_t needle_size)
-+{
-+	if (needle_start >= haystack_start &&
-+	    needle_start + needle_size <= haystack_start + haystack_size)
-+		return true;
-+	return false;
-+}
+ 			switch (left) {
+-				struct tomoyo_path_info *symlink;
+-				struct tomoyo_execve *ee;
+-				struct file *file;
+ 			case TOMOYO_SYMLINK_TARGET:
+ 				symlink = obj ? obj->symlink_target : NULL;
+ 				if (!symlink ||
+diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
+index badffc8271c8..8e2bb36df37b 100644
+--- a/security/tomoyo/util.c
++++ b/security/tomoyo/util.c
+@@ -668,6 +668,8 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
+ {
+ 	while (filename < filename_end && pattern < pattern_end) {
+ 		char c;
++		int i, j;
 +
-+#define DO_NOTHING_TYPE_SCALAR(var_type)	var_type
-+#define DO_NOTHING_TYPE_STRING(var_type)	void
-+#define DO_NOTHING_TYPE_STRUCT(var_type)	void
-+
-+#define DO_NOTHING_RETURN_SCALAR(ptr)		*(ptr)
-+#define DO_NOTHING_RETURN_STRING(ptr)		/**/
-+#define DO_NOTHING_RETURN_STRUCT(ptr)		/**/
-+
-+#define DO_NOTHING_CALL_SCALAR(var, name)			\
-+		(var) = do_nothing_ ## name(&(var))
-+#define DO_NOTHING_CALL_STRING(var, name)			\
-+		do_nothing_ ## name(var)
-+#define DO_NOTHING_CALL_STRUCT(var, name)			\
-+		do_nothing_ ## name(&(var))
-+
-+#define FETCH_ARG_SCALAR(var)		&var
-+#define FETCH_ARG_STRING(var)		var
-+#define FETCH_ARG_STRUCT(var)		&var
-+
-+#define FILL_SIZE_SCALAR		1
-+#define FILL_SIZE_STRING		16
-+#define FILL_SIZE_STRUCT		1
-+
-+#define INIT_CLONE_SCALAR		/**/
-+#define INIT_CLONE_STRING		[FILL_SIZE_STRING]
-+#define INIT_CLONE_STRUCT		/**/
-+
-+#define INIT_SCALAR_NONE		/**/
-+#define INIT_SCALAR_ZERO		= 0
-+
-+#define INIT_STRING_NONE		[FILL_SIZE_STRING] /**/
-+#define INIT_STRING_ZERO		[FILL_SIZE_STRING] = { }
-+
-+#define INIT_STRUCT_NONE		/**/
-+#define INIT_STRUCT_ZERO		= { }
-+#define INIT_STRUCT_STATIC_PARTIAL	= { .two = 0, }
-+#define INIT_STRUCT_STATIC_ALL		= { .one = arg->one,		\
-+					    .two = arg->two,		\
-+					    .three = arg->three,	\
-+					    .four = arg->four,		\
-+					}
-+#define INIT_STRUCT_DYNAMIC_PARTIAL	= { .two = arg->two, }
-+#define INIT_STRUCT_DYNAMIC_ALL		= { .one = arg->one,		\
-+					    .two = arg->two,		\
-+					    .three = arg->three,	\
-+					    .four = arg->four,		\
-+					}
-+#define INIT_STRUCT_RUNTIME_PARTIAL	;				\
-+					var.two = 0
-+#define INIT_STRUCT_RUNTIME_ALL		;				\
-+					var.one = 0;			\
-+					var.two = 0;			\
-+					var.three = 0;			\
-+					memset(&var.four, 0,		\
-+					       sizeof(var.four))
-+
-+/*
-+ * @name: unique string name for the test
-+ * @var_type: type to be tested for zeroing initialization
-+ * @which: is this a SCALAR or a STRUCT type?
-+ * @init_level: what kind of initialization is performed
-+ */
-+#define DEFINE_TEST(name, var_type, which, init_level)		\
-+static noinline int fill_ ## name(unsigned long sp)		\
-+{								\
-+	char buf[VAR_BUFFER +					\
-+		 sizeof(var_type) * FILL_SIZE_ ## which * 4];	\
-+								\
-+	fill_start = buf;					\
-+	fill_size = sizeof(buf);				\
-+	/* Fill variable with 0xFF. */				\
-+	memset(fill_start, (char)((sp && 0xff) | forced_mask),	\
-+	       fill_size);					\
-+								\
-+	return (int)buf[0] | (int)buf[sizeof(buf)-1];		\
-+}								\
-+/* no-op to force compiler into ignoring "uninitialized" vars */\
-+static noinline DO_NOTHING_TYPE_ ## which(var_type)		\
-+do_nothing_ ## name(var_type *ptr)				\
-+{								\
-+	/* Will always be true, but compiler doesn't know. */	\
-+	if ((unsigned long)ptr > 0x2)				\
-+		return DO_NOTHING_RETURN_ ## which(ptr);	\
-+	else							\
-+		return DO_NOTHING_RETURN_ ## which(ptr + 1);	\
-+}								\
-+static noinline int fetch_ ## name(unsigned long sp,		\
-+				   var_type *arg)		\
-+{								\
-+	char buf[VAR_BUFFER];					\
-+	var_type var INIT_ ## which ## _ ## init_level;		\
-+								\
-+	target_start = &var;					\
-+	target_size = sizeof(var);				\
-+	/*							\
-+	 * Keep this buffer around to make sure we've got a	\
-+	 * stack frame of SOME kind...				\
-+	 */							\
-+	memset(buf, (char)(sp && 0xff), sizeof(buf));		\
-+								\
-+	/* Silence "never initialized" warnings. */		\
-+	DO_NOTHING_CALL_ ## which(var, name);			\
-+								\
-+	/* Exfiltrate "var" or field of "var". */		\
-+	memcpy(check_buf, target_start, target_size);		\
-+								\
-+	return (int)buf[0] | (int)buf[sizeof(buf) - 1];		\
-+}								\
-+/* Returns 0 on success, 1 on failure. */			\
-+static noinline int test_ ## name (void)			\
-+{								\
-+	var_type zero INIT_CLONE_ ## which;			\
-+	int ignored;						\
-+	u8 sum = 0, i;						\
-+								\
-+	/* Notice when a new test is larger than expected. */	\
-+	BUILD_BUG_ON(sizeof(zero) > MAX_VAR_SIZE);		\
-+	/* Clear entire check buffer for later bit tests. */	\
-+	memset(check_buf, 0x00, sizeof(check_buf));		\
-+								\
-+	/* Fill clone type with zero for per-field init. */	\
-+	memset(&zero, 0x00, sizeof(zero));			\
-+	/* Fill stack with 0xFF. */				\
-+	ignored = fill_ ##name((unsigned long)&ignored);	\
-+	/* Extract stack-defined variable contents. */		\
-+	ignored = fetch_ ##name((unsigned long)&ignored,	\
-+				FETCH_ARG_ ## which(zero));	\
-+								\
-+	/* Validate that compiler lined up fill and target. */	\
-+	if (!range_contains(fill_start, fill_size,		\
-+			    target_start, target_size)) {	\
-+		pr_err(#name ": stack fill missed target!?\n");	\
-+		pr_err(#name ": fill %zu wide\n", fill_size);	\
-+		pr_err(#name ": target offset by %ld\n",	\
-+			(ssize_t)(uintptr_t)fill_start -	\
-+			(ssize_t)(uintptr_t)target_start);	\
-+		return 1;					\
-+	}							\
-+								\
-+	/* Look for any set bits in the check region. */	\
-+	for (i = 0; i < sizeof(check_buf); i++)			\
-+		sum += (check_buf[i] != 0);			\
-+								\
-+	if (sum == 0)						\
-+		pr_info(#name " ok\n");				\
-+	else							\
-+		pr_warn(#name " FAIL (uninit bytes: %d)\n",	\
-+			sum);					\
-+								\
-+	return (sum != 0);					\
-+}
-+
-+/* Structure with no padding. */
-+struct test_packed {
-+	unsigned long one;
-+	unsigned long two;
-+	unsigned long three;
-+	unsigned long four;
-+};
-+
-+/* Simple structure with padding likely to be covered by compiler. */
-+struct test_small_hole {
-+	size_t one;
-+	char two;
-+	/* 3 byte padding hole here. */
-+	int three;
-+	unsigned long four;
-+};
-+
-+/* Try to trigger unhandled padding in a structure. */
-+struct test_aligned {
-+	u32 internal1;
-+	u64 internal2;
-+} __aligned(64);
-+
-+struct test_big_hole {
-+	u8 one;
-+	u8 two;
-+	u8 three;
-+	/* 61 byte padding hole here. */
-+	struct test_aligned four;
-+} __aligned(64);
-+
-+/* Test if STRUCTLEAK is clearing structs with __user fields. */
-+struct test_user {
-+	u8 one;
-+	char __user *two;
-+	unsigned long three;
-+	unsigned long four;
-+};
-+
-+/* These should be fully initialized all the time! */
-+DEFINE_TEST(u8_zero, u8, SCALAR, ZERO);
-+DEFINE_TEST(u16_zero, u16, SCALAR, ZERO);
-+DEFINE_TEST(u32_zero, u32, SCALAR, ZERO);
-+DEFINE_TEST(u64_zero, u64, SCALAR, ZERO);
-+DEFINE_TEST(char_array_zero, unsigned char, STRING, ZERO);
-+
-+DEFINE_TEST(packed_zero, struct test_packed, STRUCT, ZERO);
-+DEFINE_TEST(small_hole_zero, struct test_small_hole, STRUCT, ZERO);
-+DEFINE_TEST(big_hole_zero, struct test_big_hole, STRUCT, ZERO);
-+
-+/* Static initialization: padding may be left uninitialized. */
-+DEFINE_TEST(packed_static_partial, struct test_packed, STRUCT, STATIC_PARTIAL);
-+DEFINE_TEST(small_hole_static_partial, struct test_small_hole, STRUCT, STATIC_PARTIAL);
-+DEFINE_TEST(big_hole_static_partial, struct test_big_hole, STRUCT, STATIC_PARTIAL);
-+
-+DEFINE_TEST(small_hole_static_all, struct test_small_hole, STRUCT, STATIC_ALL);
-+DEFINE_TEST(big_hole_static_all, struct test_big_hole, STRUCT, STATIC_ALL);
-+
-+/* Dynamic initialization: padding may be left uninitialized. */
-+DEFINE_TEST(small_hole_dynamic_partial, struct test_small_hole, STRUCT, DYNAMIC_PARTIAL);
-+DEFINE_TEST(big_hole_dynamic_partial, struct test_big_hole, STRUCT, DYNAMIC_PARTIAL);
-+
-+DEFINE_TEST(small_hole_dynamic_all, struct test_small_hole, STRUCT, DYNAMIC_ALL);
-+DEFINE_TEST(big_hole_dynamic_all, struct test_big_hole, STRUCT, DYNAMIC_ALL);
-+
-+/* Runtime initialization: padding may be left uninitialized. */
-+DEFINE_TEST(small_hole_runtime_partial, struct test_small_hole, STRUCT, RUNTIME_PARTIAL);
-+DEFINE_TEST(big_hole_runtime_partial, struct test_big_hole, STRUCT, RUNTIME_PARTIAL);
-+
-+DEFINE_TEST(small_hole_runtime_all, struct test_small_hole, STRUCT, RUNTIME_ALL);
-+DEFINE_TEST(big_hole_runtime_all, struct test_big_hole, STRUCT, RUNTIME_ALL);
-+
-+/* No initialization without compiler instrumentation. */
-+DEFINE_TEST(u8, u8, SCALAR, NONE);
-+DEFINE_TEST(u16, u16, SCALAR, NONE);
-+DEFINE_TEST(u32, u32, SCALAR, NONE);
-+DEFINE_TEST(u64, u64, SCALAR, NONE);
-+DEFINE_TEST(char_array, unsigned char, STRING, NONE);
-+DEFINE_TEST(small_hole, struct test_small_hole, STRUCT, NONE);
-+DEFINE_TEST(big_hole, struct test_big_hole, STRUCT, NONE);
-+DEFINE_TEST(user, struct test_user, STRUCT, NONE);
-+
-+static int __init test_stackinit_init(void)
-+{
-+	unsigned int failures = 0;
-+
-+	/* These are explicitly initialized and should always pass. */
-+	failures += test_u8_zero();
-+	failures += test_u16_zero();
-+	failures += test_u32_zero();
-+	failures += test_u64_zero();
-+	failures += test_char_array_zero();
-+	failures += test_small_hole_zero();
-+	failures += test_big_hole_zero();
-+	failures += test_packed_zero();
-+
-+	/* Padding here appears to be accidentally always initialized. */
-+	failures += test_small_hole_dynamic_partial();
-+	failures += test_big_hole_dynamic_partial();
-+	failures += test_packed_static_partial();
-+
-+	/* Padding initialization depends on compiler behaviors. */
-+	failures += test_small_hole_static_partial();
-+	failures += test_big_hole_static_partial();
-+	failures += test_small_hole_static_all();
-+	failures += test_big_hole_static_all();
-+	failures += test_small_hole_dynamic_all();
-+	failures += test_big_hole_dynamic_all();
-+	failures += test_small_hole_runtime_partial();
-+	failures += test_big_hole_runtime_partial();
-+	failures += test_small_hole_runtime_all();
-+	failures += test_big_hole_runtime_all();
-+
-+	/* STACKINIT should cover everything from here down. */
-+	failures += test_u8();
-+	failures += test_u16();
-+	failures += test_u32();
-+	failures += test_u64();
-+	failures += test_char_array();
-+
-+	/* STRUCTLEAK_BYREF_ALL should cover from here down. */
-+	failures += test_small_hole();
-+	failures += test_big_hole();
-+
-+	/* STRUCTLEAK should cover this. */
-+	failures += test_user();
-+
-+	if (failures == 0)
-+		pr_info("all tests passed!\n");
-+	else
-+		pr_err("failures: %u\n", failures);
-+
-+	return failures ? -EINVAL : 0;
-+}
-+module_init(test_stackinit_init);
-+
-+static void __exit test_stackinit_exit(void)
-+{ }
-+module_exit(test_stackinit_exit);
-+
-+MODULE_LICENSE("GPL");
+ 		if (*pattern != '\\') {
+ 			if (*filename++ != *pattern++)
+ 				return false;
+@@ -676,8 +678,6 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
+ 		c = *filename;
+ 		pattern++;
+ 		switch (*pattern) {
+-			int i;
+-			int j;
+ 		case '?':
+ 			if (c == '/') {
+ 				return false;
 -- 
 2.17.1
