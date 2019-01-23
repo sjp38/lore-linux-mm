@@ -1,55 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 363BC8E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 15:15:14 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id d35so3879489qtd.20
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:15:14 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 16si1775550qvl.219.2019.01.23.12.15.13
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E547D8E0047
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 15:35:53 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id e8-v6so949371ljg.22
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:35:53 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f8-v6sor3112783ljg.0.2019.01.23.12.35.51
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 23 Jan 2019 12:35:52 -0800 (PST)
+Received: from mail-lj1-f173.google.com (mail-lj1-f173.google.com. [209.85.208.173])
+        by smtp.gmail.com with ESMTPSA id q3sm635025lff.42.2019.01.23.12.35.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 12:15:13 -0800 (PST)
-Date: Wed, 23 Jan 2019 15:15:06 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 2/4] mm/memory-hotplug: allow memory resources to be
- children
-Message-ID: <20190123201506.GG3097@redhat.com>
-References: <20190116181859.D1504459@viggo.jf.intel.com>
- <20190116181902.670EEBC3@viggo.jf.intel.com>
- <20190116191635.GD3617@redhat.com>
- <2b52778d-f120-eec7-3e7a-3a9c182170f0@intel.com>
- <20190116233849.GE3617@redhat.com>
- <b1f22eda-b52f-af20-637f-b45971a12d33@intel.com>
+        Wed, 23 Jan 2019 12:35:49 -0800 (PST)
+Received: by mail-lj1-f173.google.com with SMTP id t18-v6so3186856ljd.4
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 12:35:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <b1f22eda-b52f-af20-637f-b45971a12d33@intel.com>
+References: <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
+ <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
+ <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
+ <5c3e7de6.1c69fb81.4aebb.3fec@mx.google.com> <CAHk-=wgF9p9xNzZei_-ejGLy1bJf4VS1C5E9_V0kCTEpCkpCTQ@mail.gmail.com>
+ <9E337EA6-7CDA-457B-96C6-E91F83742587@amacapital.net> <CAHk-=wjqkbjL2_BwUYxJxJhdadiw6Zx-Yu_mK3E6P7kG3wSGcQ@mail.gmail.com>
+ <20190116054613.GA11670@nautica> <CAHk-=wjVjecbGRcxZUSwoSgAq9ZbMxbA=MOiqDrPgx7_P3xGhg@mail.gmail.com>
+ <nycvar.YFH.7.76.1901161710470.6626@cbobk.fhfr.pm> <CAHk-=wgsnWvSsMfoEYzOq6fpahkHWxF3aSJBbVqywLa34OXnLg@mail.gmail.com>
+ <nycvar.YFH.7.76.1901162120000.6626@cbobk.fhfr.pm> <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
+In-Reply-To: <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 24 Jan 2019 09:35:32 +1300
+Message-ID: <CAHk-=wgy+1YT-Rhj5qWb_aCuBADhcq42GDKHB74sqrnOVPKzPg@mail.gmail.com>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, dave@sr71.net, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com, baiyaowei@cmss.chinamobile.com, tiwai@suse.de
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Jan 23, 2019 at 12:03:54PM -0800, Dave Hansen wrote:
-> On 1/16/19 3:38 PM, Jerome Glisse wrote:
-> > So right now i would rather that we keep properly reporting this
-> > hazard so that at least we know it failed because of that. This
-> > also include making sure that we can not register private memory
-> > as a child of an un-busy resource that does exist but might not
-> > have yet been claim by its rightful owner.
-> 
-> I can definitely keep the warning in.  But, I don't think there's a
-> chance of HMM registering a IORES_DESC_DEVICE_PRIVATE_MEMORY region as
-> the child of another.  The region_intersects() check *should* find that:
+On Thu, Jan 24, 2019 at 9:27 AM Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> I've reverted the 'let's try to just remove the code' part in my tree.
+> But I didn't apply the two other patches yet. Any final comments
+> before that should happen?
 
-Sounds fine to (just keep the warning).
+Side note: the inode_permission() addition to can_do_mincore() in that
+patch 0002, seems to be questionable. We do
 
-Cheers,
-Jérôme
++static inline bool can_do_mincore(struct vm_area_struct *vma)
++{
++       return vma_is_anonymous(vma)
++               || (vma->vm_file && (vma->vm_file->f_mode & FMODE_WRITE))
++               || inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
++}
 
-> 
-> >         for (; addr > size && addr >= iomem_resource.start; addr -= size) {
-> >                 ret = region_intersects(addr, size, 0, IORES_DESC_NONE);
-> >                 if (ret != REGION_DISJOINT)
-> >                         continue;
-> 
+note how it tests whether vma->vm_file is NULL for the FMODE_WRITE
+test, but not for the inode_permission() test.
+
+So either we test unnecessarily in the second line, or we don't
+properly test it in the third one.
+
+I think the "test vm_file" thing may be unnecessary, because a
+non-anonymous mapping should always have a file pointer and an inode.
+But I could  imagine some odd case (vdso mapping, anyone?) that
+doesn't have a vm_file, but also isn't anonymous.
+
+Anybody?
+
+Anyway, it's one reason why I didn't actually apply those other two
+patches yet. This may be a 5.1 issue..
+
+                   Linus
