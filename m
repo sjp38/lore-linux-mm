@@ -1,84 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 941FF8E001A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:15:55 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id s22so1560886pgv.8
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:15:55 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id b21si19597337pfb.89.2019.01.23.06.15.54
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A7AE8E001A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 09:17:48 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id t26so1544579pgu.18
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 06:17:48 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id p23si18995046pgk.312.2019.01.23.06.17.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 06:15:54 -0800 (PST)
-From: Jani Nikula <jani.nikula@linux.intel.com>
-Subject: Re: [Intel-gfx] [PATCH 1/3] treewide: Lift switch variables out of switches
-In-Reply-To: <20190123115829.GA31385@kroah.com>
-References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org> <20190123115829.GA31385@kroah.com>
-Date: Wed, 23 Jan 2019 16:17:30 +0200
-Message-ID: <874l9z31c5.fsf@intel.com>
+        Wed, 23 Jan 2019 06:17:47 -0800 (PST)
+Date: Wed, 23 Jan 2019 09:16:35 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [RFC PATCH v7 04/16] swiotlb: Map the buffer if it was unmapped
+ by XPFO
+Message-ID: <20190123141614.GA19289@Konrads-MacBook-Pro.local>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+ <98f9b9be522d694d5a52640dd1dfbdd14ca6f8e5.1547153058.git.khalid.aziz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <98f9b9be522d694d5a52640dd1dfbdd14ca6f8e5.1547153058.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>
-Cc: dev@openvswitch.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, netdev@vger.kernel.org, intel-gfx@lists.freedesktop.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com, intel-wired-lan@lists.osuosl.org, linux-fsdevel@vger.kernel.org, xen-devel@lists.xenproject.org, Laura Abbott <labbott@redhat.com>, linux-kbuild@vger.kernel.org, Alexander Popov <alex.popov@linux.com>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org, liran.alon@oracle.com, keescook@google.com, Juerg Haefliger <juerg.haefliger@canonical.com>, deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com, joao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tycho Andersen <tycho@docker.com>
 
-On Wed, 23 Jan 2019, Greg KH <gregkh@linuxfoundation.org> wrote:
-> On Wed, Jan 23, 2019 at 03:03:47AM -0800, Kees Cook wrote:
->> Variables declared in a switch statement before any case statements
->> cannot be initialized, so move all instances out of the switches.
->> After this, future always-initialized stack variables will work
->> and not throw warnings like this:
->>=20
->> fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
->> fs/fcntl.c:738:13: warning: statement will never be executed [-Wswitch-u=
-nreachable]
->>    siginfo_t si;
->>              ^~
->
-> That's a pain, so this means we can't have any new variables in { }
-> scope except for at the top of a function?
->
-> That's going to be a hard thing to keep from happening over time, as
-> this is valid C :(
+On Thu, Jan 10, 2019 at 02:09:36PM -0700, Khalid Aziz wrote:
+> From: Juerg Haefliger <juerg.haefliger@canonical.com>
+> 
+> v6: * guard against lookup_xpfo() returning NULL
+> 
+> CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+> Signed-off-by: Tycho Andersen <tycho@docker.com>
+> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 
-Not all valid C is meant to be used! ;)
+Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-Anyway, I think you're mistaking the limitation to arbitrary blocks
-while it's only about the switch block IIUC.
-
-Can't have:
-
-	switch (i) {
-		int j;
-	case 0:
-        	/* ... */
-	}
-
-because it can't be turned into:
-
-	switch (i) {
-		int j =3D 0; /* not valid C */
-	case 0:
-        	/* ... */
-	}
-
-but can have e.g.:
-
-	switch (i) {
-	case 0:
-		{
-			int j =3D 0;
-	        	/* ... */
-		}
-	}
-
-I think Kees' approach of moving such variable declarations to the
-enclosing block scope is better than adding another nesting block.
-
-BR,
-Jani.
-
-
---=20
-Jani Nikula, Intel Open Source Graphics Center
+> ---
+>  include/linux/xpfo.h |  4 ++++
+>  kernel/dma/swiotlb.c |  3 ++-
+>  mm/xpfo.c            | 15 +++++++++++++++
+>  3 files changed, 21 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+> index a39259ce0174..e38b823f44e3 100644
+> --- a/include/linux/xpfo.h
+> +++ b/include/linux/xpfo.h
+> @@ -35,6 +35,8 @@ void xpfo_kunmap(void *kaddr, struct page *page);
+>  void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp);
+>  void xpfo_free_pages(struct page *page, int order);
+>  
+> +bool xpfo_page_is_unmapped(struct page *page);
+> +
+>  #else /* !CONFIG_XPFO */
+>  
+>  static inline void xpfo_kmap(void *kaddr, struct page *page) { }
+> @@ -42,6 +44,8 @@ static inline void xpfo_kunmap(void *kaddr, struct page *page) { }
+>  static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }
+>  static inline void xpfo_free_pages(struct page *page, int order) { }
+>  
+> +static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }
+> +
+>  #endif /* CONFIG_XPFO */
+>  
+>  #endif /* _LINUX_XPFO_H */
+> diff --git a/kernel/dma/swiotlb.c b/kernel/dma/swiotlb.c
+> index 045930e32c0e..820a54b57491 100644
+> --- a/kernel/dma/swiotlb.c
+> +++ b/kernel/dma/swiotlb.c
+> @@ -396,8 +396,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
+>  {
+>  	unsigned long pfn = PFN_DOWN(orig_addr);
+>  	unsigned char *vaddr = phys_to_virt(tlb_addr);
+> +	struct page *page = pfn_to_page(pfn);
+>  
+> -	if (PageHighMem(pfn_to_page(pfn))) {
+> +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
+>  		/* The buffer does not have a mapping.  Map it in and copy */
+>  		unsigned int offset = orig_addr & ~PAGE_MASK;
+>  		char *buffer;
+> diff --git a/mm/xpfo.c b/mm/xpfo.c
+> index bff24afcaa2e..cdbcbac582d5 100644
+> --- a/mm/xpfo.c
+> +++ b/mm/xpfo.c
+> @@ -220,3 +220,18 @@ void xpfo_kunmap(void *kaddr, struct page *page)
+>  	spin_unlock(&xpfo->maplock);
+>  }
+>  EXPORT_SYMBOL(xpfo_kunmap);
+> +
+> +bool xpfo_page_is_unmapped(struct page *page)
+> +{
+> +	struct xpfo *xpfo;
+> +
+> +	if (!static_branch_unlikely(&xpfo_inited))
+> +		return false;
+> +
+> +	xpfo = lookup_xpfo(page);
+> +	if (unlikely(!xpfo) && !xpfo->inited)
+> +		return false;
+> +
+> +	return test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
+> +}
+> +EXPORT_SYMBOL(xpfo_page_is_unmapped);
+> -- 
+> 2.17.1
+> 
