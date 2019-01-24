@@ -2,234 +2,256 @@ Return-Path: <SRS0=9gyo=QA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F32D7C282C5
-	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 14:25:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4584C282C3
+	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 21:57:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F02221872
-	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 14:25:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F02221872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 92D1F218D2
+	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 21:57:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="R4gv/Kq8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92D1F218D2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 367EF8E008C; Thu, 24 Jan 2019 09:25:58 -0500 (EST)
+	id 1A1408E0084; Thu, 24 Jan 2019 16:57:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 317158E0089; Thu, 24 Jan 2019 09:25:58 -0500 (EST)
+	id 150428E0082; Thu, 24 Jan 2019 16:57:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E19C8E008C; Thu, 24 Jan 2019 09:25:58 -0500 (EST)
+	id 0402D8E0084; Thu, 24 Jan 2019 16:57:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AF86A8E0089
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 09:25:57 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id v4so2337635edm.18
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 06:25:57 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CF6F88E0082
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 16:57:11 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id n201so1759143ybg.9
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 13:57:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=/IvgxLQsmz6BiIV7R98LfJ778XVXOwzDR7tRdpMkh9s=;
-        b=MvtsvqLwPXUCZpqDq9Yz88f6yfPpz94i4huHeeqLCbyiG85vEUYckkkquUIYCHLEeB
-         sJbp0TtBaUzUQI/q91pluY/uT2OMwuVQGhaojsoWk1rX72jh45XK/bm0/E8q67kldHym
-         8tiU/95nlmneUwGqM7hpNvKagdX5MdyROhqqo3W7VRi/P2hpKH7KiG7D1K4rfiRZxhSo
-         NKP8NCMYh6W4fSaoGPm1lwHtQLFlysNXmK98dXYXlj1DDCGDudVH7IOjEWbIVpiQ3CwD
-         7lPRAeFa6tnRbRRyjjDaUjs1V4dh95+XY+8gYFY6YwgAAewdHWh5QKvGlshyQVvh7kX/
-         WKJw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukcYzpWMeA/kDvZfrXVxfsaUPrCPkYqWE+H0v6c5+Px0KHbGU1te
-	4lsDjPt07ixJPI3VDEiVUjG4Gd2EhUbP/z+7qblh6hOYrbpukTgtJTF1LuuNQeNWpZuLiaW15Mz
-	+Zas6JVWnTzoVOLlPIv6cTi9gJlFE2Gdw+mMD5+VJivrLJGZDEWOhtF3E/ozfals=
-X-Received: by 2002:a50:9a83:: with SMTP id p3mr6929680edb.279.1548339957232;
-        Thu, 24 Jan 2019 06:25:57 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN78+ZDfdmtTxZMO5Vmp9NELfn6Lhi/q40Z6fq2j/fAQQSyrWuotXRTtCXKcuLnFb5yBkNlj
-X-Received: by 2002:a50:9a83:: with SMTP id p3mr6929628edb.279.1548339956277;
-        Thu, 24 Jan 2019 06:25:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548339956; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language:dkim-signature;
+        bh=naFzZHExRS53DU+o6GCwc37LudjoqgRPZlmh7umATB0=;
+        b=VgocXOVCUdmYUUsX13OGHYcyRw8HxLutfurLE7tgUg5N2K2Vk4UUVGfYZsY1to8oYV
+         +Qiudc7pgyvqwbHVUvlFBYwXOfUx/QQL0e+cezrrEE2D05WHswov0o+qFtrPOLeQZJw1
+         943fiRVXg6GJEgxxI65X24KqTe32miTYAf1ZkroSuz0D1yIDpOKViTZraF8xWjsLIDmX
+         bZ7PV62Nyh7LSrmkBJIectAImAJhqQD6CGH30gc4mRwfzyxLWxC5moCHSYaKBwwhW+QQ
+         U+tB6mNreP5ri3eBJIQ4bhGm5YtzeBvdvitakNt2yT91XCbMnpN3aSmJgtTcBfYMtuCb
+         HnBA==
+X-Gm-Message-State: AJcUukemxKdrmmg6hRYbNEvv+MWaZeBgMHH9z+zh4PwVvNeSOrBzpCd1
+	Ph2MuVe/WTUaADMZZX06lM1oXLnRELzIqR3gSGPheasKvS+Cl0U6RkuI93HuqVFxxWBVv8fHPlB
+	cUhgYdYTnxhchajkNSpPu3ZHWI0I8VT5tkmCnw+V/IoSyenqmGwHvu1IWuGvMrM8S/A==
+X-Received: by 2002:a25:9a81:: with SMTP id s1mr8208366ybo.358.1548367031545;
+        Thu, 24 Jan 2019 13:57:11 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5wUbUK+qNaaOtwpFnpIYupp6cBFNGmFEzGY4KD97B+TVO49ET55eOejhHdmLj1a8mkFfCx
+X-Received: by 2002:a25:9a81:: with SMTP id s1mr8208318ybo.358.1548367030358;
+        Thu, 24 Jan 2019 13:57:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548367030; cv=none;
         d=google.com; s=arc-20160816;
-        b=J4Q5Nqnx3uiwXuTO/LX704K2HHT2x9H0cVSJJkW0wOX68WLuo2YMDCnFT0x65j+q0h
-         tRAKfAa6QkPprLfeOAtEG2OIsrkSmUuIciR9s0hm3Xo14KqF0Q8yZboFkvnS4HWW6A4r
-         D1zN2KgV5gwfER4XLIbSc/qcn7KH3kWgYqjXPT/K3o0Z7va3ASJ/9j5Gf+Y9juMrcuX3
-         iiR9OlWrnZb30RWXUbC3hUffuZeokyEheRN5bvB1unFmTn25QGgD6CHCg7+0+Y1PMVwA
-         pnYBwkMm6d3O1NDaYgpuUdHFrcOI9qDGgnHB6+8+pct3LF0rvhkC9jtHMMhv8gI3pCjw
-         TESg==
+        b=pvF3lC3cRzcfYXKeEnrvSCYnqjnVj+hZponkFj+Nl6RUeZvjQGkIH6ROh9AqTbPsQa
+         h9TiKJAFT/fZDspxdZmKNFriDuodPRCNOXqtjYL0Y3nCXEsOYNoviiUlvZ04SLOEIIYR
+         aQ2RulEww9ko6lHl+XQmTkhbK2jXDboCpHUe8iOBtlCB1pw8gztaGwr4gk1f51OCdpaf
+         J8Nf6FTeJKJARg/fFDvF1Kyfol2rKJubLmE8gkhJfrdz80QhouqKHQmoDI99x5BKhACU
+         90lZVIKbhsBst5zhY5JoE/affqbfeV15AOM4BTfOhwndyIWU9r32v97UNFiJMYicJfdd
+         wrrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=/IvgxLQsmz6BiIV7R98LfJ778XVXOwzDR7tRdpMkh9s=;
-        b=Mx11vKUB8vIsZho0BzsVjJU9NxSt0JSoDcJNEDvDu7Z6jG7THYsAS8dyfogH6AEGE3
-         7YoBDLBHrYovJJAwUiRfMqL/2DmPPPVbJ8IQip527306WoQFYpoxNATnRZWLwhtlcnUm
-         4TEj5nRBlOdS7zgN7z4EkGC/dV+O2SKG1WVitAl6YTKKe/2w6D+VmX2OxteY0g2+9RiJ
-         p9wScQ1AR7VkRyl/p62opA2lFyrUJbdiKgJraQ7r32qr2PMUCPotW62eXqMHh/cf/HMd
-         /b37jaKrpLAAgqqyB0tbA3z4BLUUig9Yh1HGb4Q5Nlm4y+N1AV/P31akPAFb8Cy+IkFg
-         w2Jg==
+        h=dkim-signature:content-language:content-transfer-encoding
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=naFzZHExRS53DU+o6GCwc37LudjoqgRPZlmh7umATB0=;
+        b=Z4+dPkeBggiYFEAbKPIHnUytenwoO1uqGP4/mCOVbxIHf4MvyFngLVPu52NkjOozaH
+         8KlLBY3HdWUeu2QTmvPgOiutREK39aIdsFLirwT8MvbsWR8pP6//GaJq3qOAEgcbpOjc
+         o8VHOSohDuRzP+oyA3lf0o6bjUwL1NB/P+LCHw1Tj/Qk5IE71ljjUMJuks4vN8BPdiyh
+         hsXMBS/Kax7Vlm2mI0tHiZLKzemjcAmZFF13OhEGUSO9CaVlfXb2YepXX7+09XjNq0D3
+         0TmLF5ezWC8VGPV7yy1ezD3Xtv21zJKCwIrXW0PC0RD70odvCsZpNoQIIxodvQC9jAB+
+         NRIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ca11si3245358ejb.216.2019.01.24.06.25.56
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="R4gv/Kq8";
+       spf=pass (google.com: domain of prpatel@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=prpatel@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id 127si13291498ybq.85.2019.01.24.13.57.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 06:25:56 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 24 Jan 2019 13:57:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of prpatel@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8792BAE62;
-	Thu, 24 Jan 2019 14:25:55 +0000 (UTC)
-Date: Thu, 24 Jan 2019 15:25:53 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-To: Dominique Martinet <asmadeus@codewreck.org>
-cc: Linus Torvalds <torvalds@linux-foundation.org>, 
-    Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, 
-    Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
-    Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-    Greg KH <gregkh@linuxfoundation.org>, 
-    Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, 
-    Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, 
-    Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <20190124124501.GA18012@nautica>
-Message-ID: <nycvar.YFH.7.76.1901241523500.6626@cbobk.fhfr.pm>
-References: <nycvar.YFH.7.76.1901240009560.6626@cbobk.fhfr.pm> <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com> <20190124002455.GA23181@nautica> <20190124124501.GA18012@nautica>
-User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="R4gv/Kq8";
+       spf=pass (google.com: domain of prpatel@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=prpatel@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c4a34a30001>; Thu, 24 Jan 2019 13:56:51 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 24 Jan 2019 13:57:09 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 24 Jan 2019 13:57:09 -0800
+Received: from [10.24.242.22] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Thu, 24 Jan
+ 2019 21:57:05 +0000
+Subject: Re: [PATCH] selinux: avc: mark avc node as not a leak
+To: Catalin Marinas <catalin.marinas@arm.com>
+CC: <paul@paul-moore.com>, <sds@tycho.nsa.gov>, <eparis@parisplace.org>,
+	<linux-kernel@vger.kernel.org>, <selinux@vger.kernel.org>,
+	<linux-tegra@vger.kernel.org>, <talho@nvidia.com>, <swarren@nvidia.com>,
+	<linux-mm@kvack.org>, <snikam@nvidia.com>, <vdumpa@nvidia.com>
+References: <1547023162-6381-1-git-send-email-prpatel@nvidia.com>
+ <20190109113126.nzpmb7xx4xqtn37w@mbp>
+From: Prateek Patel <prpatel@nvidia.com>
+Message-ID: <75b75170-9316-9f7a-13a6-5f2b92b35bb2@nvidia.com>
+Date: Fri, 25 Jan 2019 03:26:54 +0530
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="1678380546-789356226-1548339955=:6626"
+In-Reply-To: <20190109113126.nzpmb7xx4xqtn37w@mbp>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="UTF-8"; format="flowed"
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-GB
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1548367011; bh=naFzZHExRS53DU+o6GCwc37LudjoqgRPZlmh7umATB0=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Transfer-Encoding:
+	 Content-Language;
+	b=R4gv/Kq8AThjTn+PBmNgX+U8dQa8APWv0UvDO+vJtLVyTmMMq0E+LVHFgeFlAXamb
+	 zkcgxBEAdBNj9mns/tooYz6dUpNdyQuzB6tS2MGbgE5TBZlzjTtrpNCGvpfsAo0oRb
+	 +HBcLRpCVdy7cdO+sTM6uFygZXAT/yUgbWFFKEBBDdAoLHyJ1c6zZeAWFnByooTXLd
+	 QigZNy9igY9oZ1USBWq6Xpvv/jY7O49rLkQWN8V1t1n6vqUMxr89Jjk8PIaEtoopof
+	 EmVKwuY9VfomNsHqIL4gVSHgkoZHLKM07hDJYyM1hEwDxE8W962yAedyx/7seLlnHM
+	 uBeyNfdm9e3xg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190124142553.TuUd9QgBsUy4K_JgJbPiKmzLxU7sXn73IRtDP0CP3_I@z>
+Message-ID: <20190124215654.m9zY7hN4Y3yxQSZQyI9m7QQOhptrx7oGhAPoRrAbtBg@z>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
 
---1678380546-789356226-1548339955=:6626
-Content-Type: text/plain; charset=US-ASCII
+On 1/9/2019 5:01 PM, Catalin Marinas wrote:
+> Hi Prateek,
+>
+> On Wed, Jan 09, 2019 at 02:09:22PM +0530, Prateek Patel wrote:
+>> From: Sri Krishna chowdary <schowdary@nvidia.com>
+>>
+>> kmemleak detects allocated objects as leaks if not accessed for
+>> default scan time. The memory allocated using avc_alloc_node
+>> is freed using rcu mechanism when nodes are reclaimed or on
+>> avc_flush. So, there is no real leak here and kmemleak_scan
+>> detects it as a leak which is false positive. Hence, mark it as
+>> kmemleak_not_leak.
+> In theory, kmemleak should detect the node->rhead in the lists used by
+> call_rcu() and not report it as a leak. Which RCU options do you have
+> enabled (just to check whether kmemleak tracks the RCU internal lists)?
+>
+> Also, does this leak eventually disappear without your patch? Does
+>
+>    echo dump=3D0xffffffc0dd1a0e60 > /sys/kernel/debug/kmemleak
+>
+> still display this object?
+>
+> Thanks.
+Hi Catalin,
+It was intermittently showing leak and didn't repro on multiple runs. To=20
+repo, I decreased the
+minimum object age for reporting, I found triggering the second scan=20
+just after first is not showing
+any leak. Also, without my patch, on echo dump, obj is not displaying.
+Is increasing minimum object age for reporting a good idea to handle=20
+such type of issues to
+avoid false-positives?
 
-On Thu, 24 Jan 2019, Dominique Martinet wrote:
+Following is the log:
 
-> Jiri, you've offered resubmitting the last two patches properly, can you 
-> incorporate this change or should I just send this directly? (I'd take 
-> most of your commit message and add your name somewhere)
+t186_int:/ # echo scan > /sys/kernel/debug/kmemleak
+t186_int:/ # cat /sys/kernel/debug/kmemleak
 
-I've been running some basic smoke testing with the kernel from
-
-	https://git.kernel.org/pub/scm/linux/kernel/git/jikos/jikos.git/log/?h=pagecache-sidechannel-v2
-
-(attaching the respective two patches to apply on top of latest Linus' 
-tree to this mail as well), and everything looks good so far.
+unreferenced object 0xffffffc1e06424c8 (size 72):
+ =C2=A0 comm "netd", pid 4891, jiffies 4294906431 (age 23.120s)
+ =C2=A0 hex dump (first 32 bytes):
+ =C2=A0=C2=A0=C2=A0 97 01 00 00 1b 00 00 00 0b 00 00 00 57 06 04 00 .......=
+.....W...
+ =C2=A0=C2=A0=C2=A0 00 00 00 00 ff ff ff ff 01 00 00 00 00 00 00 00 .......=
+.........
+ =C2=A0 backtrace:
+ =C2=A0=C2=A0=C2=A0 [<ffffff8008275214>] kmem_cache_alloc+0x1ac/0x2c0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084dcf90>] avc_alloc_node+0x28/0x240
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084dd404>] avc_compute_av+0xa4/0x1d0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084de1b8>] avc_has_perm+0xf8/0x1b8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084e37f8>] file_has_perm+0xb8/0xe8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084e3d64>] match_file+0x44/0x98
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082cc9d4>] iterate_fd+0x84/0xd0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084e2b3c>] selinux_bprm_committing_creds+0xec=
+/0x230
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084d842c>] security_bprm_committing_creds+0x4=
+4/0x60
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082ad020>] install_exec_creds+0x20/0x70
+ =C2=A0=C2=A0=C2=A0 [<ffffff800831b9a4>] load_elf_binary+0x31c/0xd10
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082ae530>] search_binary_handler+0x98/0x288
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082af078>] do_execveat_common.isra.14+0x550/0=
+x6d0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082af4ac>] SyS_execve+0x4c/0x60
+ =C2=A0=C2=A0=C2=A0 [<ffffff80080839c0>] el0_svc_naked+0x34/0x38
+ =C2=A0=C2=A0=C2=A0 [<ffffffffffffffff>] 0xffffffffffffffff
+unreferenced object 0xffffffc1ab3c61b0 (size 72):
+ =C2=A0 comm "crash_dump64", pid 5058, jiffies 4294907834 (age 17.508s)
+ =C2=A0 hex dump (first 32 bytes):
+ =C2=A0=C2=A0=C2=A0 2f 02 00 00 6b 00 00 00 07 00 00 00 53 04 04 00 /...k..=
+.....S...
+ =C2=A0=C2=A0=C2=A0 00 00 00 00 ff ff fd ff 01 00 00 00 00 00 00 00 .......=
+.........
+ =C2=A0 backtrace:
+ =C2=A0=C2=A0=C2=A0 [<ffffff8008275214>] kmem_cache_alloc+0x1ac/0x2c0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084dcf90>] avc_alloc_node+0x28/0x240
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084dd404>] avc_compute_av+0xa4/0x1d0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084de084>] avc_has_perm_noaudit+0xe4/0x120
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084e1264>] selinux_inode_permission+0xc4/0x1c=
+8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084d8fe8>] security_inode_permission+0x60/0x8=
+8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b2cf4>] __inode_permission2+0x54/0x120
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b2e30>] inode_permission2+0x38/0x80
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b4b58>] may_open+0x70/0x128
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b6fd4>] do_last+0x234/0xee8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b7d30>] path_openat+0xa8/0x310
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b9390>] do_filp_open+0x88/0x108
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082a1fec>] do_sys_open+0x1a4/0x290
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082a215c>] SyS_openat+0x3c/0x50
+ =C2=A0=C2=A0=C2=A0 [<ffffff80080839c0>] el0_svc_naked+0x34/0x38
+ =C2=A0=C2=A0=C2=A0 [<ffffffffffffffff>] 0xffffffffffffffff
+unreferenced object 0xffffffc1d3bcf678 (size 72):
+ =C2=A0 comm "mediaserver", pid 5156, jiffies 4294909577 (age 10.536s)
+ =C2=A0 hex dump (first 32 bytes):
+ =C2=A0=C2=A0=C2=A0 0b 02 00 00 e2 01 00 00 07 00 00 00 53 04 04 00 .......=
+.....S...
+ =C2=A0=C2=A0=C2=A0 00 00 00 00 f7 ff ff ff 01 00 00 00 00 00 00 00 .......=
+.........
+ =C2=A0 backtrace:
+ =C2=A0=C2=A0=C2=A0 [<ffffff8008275214>] kmem_cache_alloc+0x1ac/0x2c0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084dcf90>] avc_alloc_node+0x28/0x240
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084dd404>] avc_compute_av+0xa4/0x1d0
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084de084>] avc_has_perm_noaudit+0xe4/0x120
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084e1264>] selinux_inode_permission+0xc4/0x1c=
+8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80084d8fe8>] security_inode_permission+0x60/0x8=
+8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b2cf4>] __inode_permission2+0x54/0x120
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b2e30>] inode_permission2+0x38/0x80
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b4b58>] may_open+0x70/0x128
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b6fd4>] do_last+0x234/0xee8
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b7d30>] path_openat+0xa8/0x310
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082b9390>] do_filp_open+0x88/0x108
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082a1fec>] do_sys_open+0x1a4/0x290
+ =C2=A0=C2=A0=C2=A0 [<ffffff80082a21f4>] compat_SyS_openat+0x3c/0x50
+ =C2=A0=C2=A0=C2=A0 [<ffffff80080839c0>] el0_svc_naked+0x34/0x38
+ =C2=A0=C2=A0=C2=A0 [<ffffffffffffffff>] 0xffffffffffffffff
+t186_int:/ # echo dump=3D0xffffffc1d3bcf678 > /sys/kernel/debug/kmemleak
+kmemleak: Unknown object at 0xffffffc1d3bcf678
 
 Thanks,
-
--- 
-Jiri Kosina
-SUSE Labs
-
---1678380546-789356226-1548339955=:6626
-Content-Type: text/x-patch; name=0001-mm-mincore-make-mincore-more-conservative.patch
-Content-Transfer-Encoding: BASE64
-Content-ID: <nycvar.YFH.7.76.1901241525530.6626@cbobk.fhfr.pm>
-Content-Description: 
-Content-Disposition: attachment; filename=0001-mm-mincore-make-mincore-more-conservative.patch
-
-RnJvbSA5ODEwNTY1ZjFkNWY5NjZhODQ5MDBjZGNiODVlMzNhYTc1NzFhZmJl
-IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
-PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjA6
-NTM6MTcgKzAxMDANClN1YmplY3Q6IFtQQVRDSCAxLzJdIG1tL21pbmNvcmU6
-IG1ha2UgbWluY29yZSgpIG1vcmUgY29uc2VydmF0aXZlDQoNClRoZSBzZW1h
-bnRpY3Mgb2Ygd2hhdCBtaW5jb3JlKCkgY29uc2lkZXJzIHRvIGJlIHJlc2lk
-ZW50IGlzIG5vdCBjb21wbGV0ZWx5DQpjbGVhciwgYnV0IExpbnV4IGhhcyBh
-bHdheXMgKHNpbmNlIDIuMy41Miwgd2hpY2ggaXMgd2hlbiBtaW5jb3JlKCkg
-d2FzDQppbml0aWFsbHkgZG9uZSkgdHJlYXRlZCBpdCBhcyAicGFnZSBpcyBh
-dmFpbGFibGUgaW4gcGFnZSBjYWNoZSIuDQoNClRoYXQncyBwb3RlbnRpYWxs
-eSBhIHByb2JsZW0sIGFzIHRoYXQgW2luXWRpcmVjdGx5IGV4cG9zZXMgbWV0
-YS1pbmZvcm1hdGlvbg0KYWJvdXQgcGFnZWNhY2hlIC8gbWVtb3J5IG1hcHBp
-bmcgc3RhdGUgZXZlbiBhYm91dCBtZW1vcnkgbm90IHN0cmljdGx5IGJlbG9u
-Z2luZw0KdG8gdGhlIHByb2Nlc3MgZXhlY3V0aW5nIHRoZSBzeXNjYWxsLCBv
-cGVuaW5nIHBvc3NpYmlsaXRpZXMgZm9yIHNpZGVjaGFubmVsDQphdHRhY2tz
-Lg0KDQpDaGFuZ2UgdGhlIHNlbWFudGljcyBvZiBtaW5jb3JlKCkgc28gdGhh
-dCBpdCBvbmx5IHJldmVhbHMgcGFnZWNhY2hlIGluZm9ybWF0aW9uDQpmb3Ig
-bm9uLWFub255bW91cyBtYXBwaW5ncyB0aGF0IGJlbG9nIHRvIGZpbGVzIHRo
-YXQgdGhlIGNhbGxpbmcgcHJvY2VzcyBjb3VsZA0KKGlmIGl0IHRyaWVkIHRv
-KSBzdWNjZXNzZnVsbHkgb3BlbiBmb3Igd3JpdGluZy4NCg0KT3JpZ2luYWxs
-eS1ieTogTGludXMgVG9ydmFsZHMgPHRvcnZhbGRzQGxpbnV4LWZvdW5kYXRp
-b24ub3JnPg0KT3JpZ2luYWxseS1ieTogRG9taW5pcXVlIE1hcnRpbmV0IDxh
-c21hZGV1c0Bjb2Rld3JlY2sub3JnPg0KU2lnbmVkLW9mZi1ieTogSmlyaSBL
-b3NpbmEgPGprb3NpbmFAc3VzZS5jej4NCi0tLQ0KIG1tL21pbmNvcmUuYyB8
-IDE1ICsrKysrKysrKysrKysrLQ0KIDEgZmlsZSBjaGFuZ2VkLCAxNCBpbnNl
-cnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9t
-aW5jb3JlLmMgYi9tbS9taW5jb3JlLmMNCmluZGV4IDIxODA5OWI1ZWQzMS4u
-NzQ3YTQ5MDdhM2FjIDEwMDY0NA0KLS0tIGEvbW0vbWluY29yZS5jDQorKysg
-Yi9tbS9taW5jb3JlLmMNCkBAIC0xNjksNiArMTY5LDE0IEBAIHN0YXRpYyBp
-bnQgbWluY29yZV9wdGVfcmFuZ2UocG1kX3QgKnBtZCwgdW5zaWduZWQgbG9u
-ZyBhZGRyLCB1bnNpZ25lZCBsb25nIGVuZCwNCiAJcmV0dXJuIDA7DQogfQ0K
-IA0KK3N0YXRpYyBpbmxpbmUgYm9vbCBjYW5fZG9fbWluY29yZShzdHJ1Y3Qg
-dm1fYXJlYV9zdHJ1Y3QgKnZtYSkNCit7DQorCXJldHVybiB2bWFfaXNfYW5v
-bnltb3VzKHZtYSkgfHwNCisJCSh2bWEtPnZtX2ZpbGUgJiYNCisJCQkoaW5v
-ZGVfb3duZXJfb3JfY2FwYWJsZShmaWxlX2lub2RlKHZtYS0+dm1fZmlsZSkp
-DQorCQkJIHx8IGlub2RlX3Blcm1pc3Npb24oZmlsZV9pbm9kZSh2bWEtPnZt
-X2ZpbGUpLCBNQVlfV1JJVEUpID09IDApKTsNCit9DQorDQogLyoNCiAgKiBE
-byBhIGNodW5rIG9mICJzeXNfbWluY29yZSgpIi4gV2UndmUgYWxyZWFkeSBj
-aGVja2VkDQogICogYWxsIHRoZSBhcmd1bWVudHMsIHdlIGhvbGQgdGhlIG1t
-YXAgc2VtYXBob3JlOiB3ZSBzaG91bGQNCkBAIC0xODksOCArMTk3LDEzIEBA
-IHN0YXRpYyBsb25nIGRvX21pbmNvcmUodW5zaWduZWQgbG9uZyBhZGRyLCB1
-bnNpZ25lZCBsb25nIHBhZ2VzLCB1bnNpZ25lZCBjaGFyICp2DQogCXZtYSA9
-IGZpbmRfdm1hKGN1cnJlbnQtPm1tLCBhZGRyKTsNCiAJaWYgKCF2bWEgfHwg
-YWRkciA8IHZtYS0+dm1fc3RhcnQpDQogCQlyZXR1cm4gLUVOT01FTTsNCi0J
-bWluY29yZV93YWxrLm1tID0gdm1hLT52bV9tbTsNCiAJZW5kID0gbWluKHZt
-YS0+dm1fZW5kLCBhZGRyICsgKHBhZ2VzIDw8IFBBR0VfU0hJRlQpKTsNCisJ
-aWYgKCFjYW5fZG9fbWluY29yZSh2bWEpKSB7DQorCQl1bnNpZ25lZCBsb25n
-IHBhZ2VzID0gKGVuZCAtIGFkZHIpID4+IFBBR0VfU0hJRlQ7DQorCQltZW1z
-ZXQodmVjLCAxLCBwYWdlcyk7DQorCQlyZXR1cm4gcGFnZXM7DQorCX0NCisJ
-bWluY29yZV93YWxrLm1tID0gdm1hLT52bV9tbTsNCiAJZXJyID0gd2Fsa19w
-YWdlX3JhbmdlKGFkZHIsIGVuZCwgJm1pbmNvcmVfd2Fsayk7DQogCWlmIChl
-cnIgPCAwKQ0KIAkJcmV0dXJuIGVycjsNCi0tIA0KMi4xMi4zDQoNCg==
-
---1678380546-789356226-1548339955=:6626
-Content-Type: text/x-patch; name=0002-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
-Content-Transfer-Encoding: BASE64
-Content-ID: <nycvar.YFH.7.76.1901241525531.6626@cbobk.fhfr.pm>
-Content-Description: 
-Content-Disposition: attachment; filename=0002-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
-
-RnJvbSBmMjg3MTg1ZmM1ZTBmZmJiYjM4MGYyZDY4ZGQxOTI5MDcxNTgyOWE4
-IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
-PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjE6
-MDY6NTggKzAxMDANClN1YmplY3Q6IFtQQVRDSCAyLzJdIG1tL2ZpbGVtYXA6
-IGluaXRpYXRlIHJlYWRhaGVhZCBldmVuIGlmIElPQ0JfTk9XQUlUIGlzIHNl
-dA0KIGZvciB0aGUgSS9PDQoNCnByZWFkdjIoUldGX05PV0FJVCkgY2FuIGJl
-IHVzZWQgdG8gb3BlbiBhIHNpZGUtY2hhbm5lbCB0byBwYWdlY2FjaGUgY29u
-dGVudHMsIGFzDQppdCByZXZlYWxzIG1ldGFkYXRhIGFib3V0IHJlc2lkZW5j
-eSBvZiBwYWdlcyBpbiBwYWdlY2FjaGUuDQoNCklmIHByZWFkdjIoUldGX05P
-V0FJVCkgcmV0dXJucyBpbW1lZGlhdGVseSwgaXQgcHJvdmlkZXMgYSBjbGVh
-ciAicGFnZSBub3QNCnJlc2lkZW50IiBpbmZvcm1hdGlvbiwgYW5kIHZpY2Ug
-dmVyc2EuDQoNCkNsb3NlIHRoYXQgc2lkZWNoYW5uZWwgYnkgYWx3YXlzIGlu
-aXRpYXRpbmcgcmVhZGFoZWFkIG9uIHRoZSBjYWNoZSBpZiB3ZQ0KZW5jb3Vu
-dGVyIGEgY2FjaGUgbWlzcyBmb3IgcHJlYWR2MihSV0ZfTk9XQUlUKTsgd2l0
-aCB0aGF0IGluIHBsYWNlLCBwcm9iaW5nDQp0aGUgcGFnZWNhY2hlIHJlc2lk
-ZW5jeSBpdHNlbGYgd2lsbCBhY3R1YWxseSBwb3B1bGF0ZSB0aGUgY2FjaGUs
-IG1ha2luZyB0aGUNCnNpZGVjaGFubmVsIHVzZWxlc3MuDQoNCk9yaWdpbmFs
-bHktYnk6IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51eC1mb3VuZGF0
-aW9uLm9yZz4NClNpZ25lZC1vZmYtYnk6IEppcmkgS29zaW5hIDxqa29zaW5h
-QHN1c2UuY3o+DQotLS0NCiBtbS9maWxlbWFwLmMgfCAyIC0tDQogMSBmaWxl
-IGNoYW5nZWQsIDIgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9m
-aWxlbWFwLmMgYi9tbS9maWxlbWFwLmMNCmluZGV4IDlmNWUzMjNlODgzZS4u
-N2JjZGQzNmU2MjlkIDEwMDY0NA0KLS0tIGEvbW0vZmlsZW1hcC5jDQorKysg
-Yi9tbS9maWxlbWFwLmMNCkBAIC0yMDc1LDggKzIwNzUsNiBAQCBzdGF0aWMg
-c3NpemVfdCBnZW5lcmljX2ZpbGVfYnVmZmVyZWRfcmVhZChzdHJ1Y3Qga2lv
-Y2IgKmlvY2IsDQogDQogCQlwYWdlID0gZmluZF9nZXRfcGFnZShtYXBwaW5n
-LCBpbmRleCk7DQogCQlpZiAoIXBhZ2UpIHsNCi0JCQlpZiAoaW9jYi0+a2lf
-ZmxhZ3MgJiBJT0NCX05PV0FJVCkNCi0JCQkJZ290byB3b3VsZF9ibG9jazsN
-CiAJCQlwYWdlX2NhY2hlX3N5bmNfcmVhZGFoZWFkKG1hcHBpbmcsDQogCQkJ
-CQlyYSwgZmlscCwNCiAJCQkJCWluZGV4LCBsYXN0X2luZGV4IC0gaW5kZXgp
-Ow0KLS0gDQoyLjEyLjMNCg0K
-
---1678380546-789356226-1548339955=:6626--
 
