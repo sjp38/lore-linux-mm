@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3498E007C
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 04:04:03 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id f17so2023586edm.20
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 01:04:03 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d8-v6si4684509ejm.81.2019.01.24.01.04.01
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 936D38E0086
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 08:46:49 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id w18so6501194qts.8
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 05:46:49 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g194sor26762912qka.139.2019.01.24.05.46.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 01:04:01 -0800 (PST)
-Date: Thu, 24 Jan 2019 10:04:00 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: [LSF/MM TOPIC] get_user_pages() pins in file mappings
-Message-ID: <20190124090400.GE12184@quack2.suse.cz>
+        (Google Transport Security);
+        Thu, 24 Jan 2019 05:46:48 -0800 (PST)
+Date: Thu, 24 Jan 2019 08:46:46 -0500
+From: Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: possible deadlock in __do_page_fault
+Message-ID: <20190124134646.GA53008@google.com>
+References: <201901230201.x0N214eq043832@www262.sakura.ne.jp>
+ <20190123155751.GA168927@google.com>
+ <201901240152.x0O1qUUU069046@www262.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <201901240152.x0O1qUUU069046@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Todd Kjos <tkjos@google.com>, syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com, ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-This is a joint proposal with Dan Williams, John Hubbard, and Jérôme
-Glisse.
+On Thu, Jan 24, 2019 at 10:52:30AM +0900, Tetsuo Handa wrote:
+> Joel Fernandes wrote:
+> > > Anyway, I need your checks regarding whether this approach is waiting for
+> > > completion at all locations which need to wait for completion.
+> > 
+> > I think you are waiting in unwanted locations. The only location you need to
+> > wait in is ashmem_pin_unpin.
+> > 
+> > So, to my eyes all that is needed to fix this bug is:
+> > 
+> > 1. Delete the range from the ashmem_lru_list
+> > 2. Release the ashmem_mutex
+> > 3. fallocate the range.
+> > 4. Do the completion so that any waiting pin/unpin can proceed.
+> > 
+> > Could you clarify why you feel you need to wait for completion at those other
+> > locations?
+> 
+> Because I don't know how ashmem works.
 
-Last year we've talked with Dan about issues we have with filesystems and
-GUP [1]. The crux of the problem lies in the fact that there is no
-coordination (or even awareness) between filesystem working on a page (such
-as doing writeback) and GUP user modifying page contents and setting it
-dirty. This can (and we have user reports of this) lead to data corruption,
-kernel crashes, and other fun.
+You sound like you're almost there though.
 
-Since last year we have worked together on solving these problems and we
-have explored couple dead ends as well as hopefully found solutions to some
-of the partial problems. So I'd like to give some overview of where we
-stand and what remains to be solved and get thoughts from wider community
-about proposed solutions / problems to be solved.
+> > Note that once a range is unpinned, it is open sesame and userspace cannot
+> > really expect consistent data from such range till it is pinned again.
+> 
+> Then, I'm tempted to eliminate shrinker and LRU list (like a draft patch shown
+> below). I think this is not equivalent to current code because this shrinks
+> upon only range_alloc() time and I don't know whether it is OK to temporarily
+> release ashmem_mutex during range_alloc() at "Case #4" of ashmem_pin(), but
+> can't we go this direction? 
 
-In particular we hope to have reasonably robust mechanism of identifying
-pages pinned by GUP (patches will be posted soon) - I'd like to run that by
-MM folks (unless discussion happens on mailing lists before LSF/MM). We
-also have ideas how filesystems should react to pinned page in their
-writepages methods - there will be some changes needed in some filesystems
-to bounce the page if they need stable page contents. So I'd like to
-explain why we chose to do bouncing to fs people (i.e., why we cannot just
-wait, skip the page, do something else etc.) to save us from the same
-discussion with each fs separately and also hash out what the API for
-filesystems to do this should look like. Finally we plan to keep pinned
-page permanently dirty - again something I'd like to explain why we do this
-and gather input from other people.
+No, the point of the shrinker is to do a lazy free. We cannot free things
+during unpin since it can be pinned again and we need to find that range by
+going through the list. We also cannot get rid of any lists. Since if
+something is re-pinned, we need to find it and find out if it was purged. We
+also need the list for knowing what was unpinned so the shrinker works.
 
-This should be ideally shared MM + FS session.
+By the way, all this may be going away quite soon (the whole driver) as I
+said, so just give it a little bit of time.
 
-[1] https://lwn.net/Articles/753027/
+I am happy to fix it soon if that's not the case (which I should know soon -
+like a couple of weeks) but I'd like to hold off till then.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> By the way, why not to check range_alloc() failure before calling range_shrink() ?
+
+That would be a nice thing to do. Send a patch?
+
+thanks,
+
+ - Joel
