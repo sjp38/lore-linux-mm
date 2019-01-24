@@ -1,119 +1,91 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 233878E0066
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2019 19:24:43 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id v187so2132908ywv.15
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 16:24:43 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l6si840662ybm.5.2019.01.23.16.24.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 16:24:42 -0800 (PST)
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Date: Thu, 24 Jan 2019 00:24:05 +0000
-Message-ID: <20190124002359.GB21563@castle.DHCP.thefacebook.com>
-References: <20190123223144.GA10798@chrisdown.name>
-In-Reply-To: <20190123223144.GA10798@chrisdown.name>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <4EF58E70687BCD4598BE7A330F81C27C@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Thu, 24 Jan 2019 01:24:55 +0100
+From: Dominique Martinet <asmadeus@codewreck.org>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Message-ID: <20190124002455.GA23181@nautica>
 MIME-Version: 1.0
-Sender: owner-linux-mm@kvack.org
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <nycvar.YFH.7.76.1901240009560.6626@cbobk.fhfr.pm>
+ <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jikos@kernel.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
-To: Chris Down <chris@chrisdown.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Dennis Zhou <dennis@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kernel Team <Kernel-team@fb.com>
 
-On Wed, Jan 23, 2019 at 05:31:44PM -0500, Chris Down wrote:
-> memory.stat and other files already consider subtrees in their output,
-> and we should too in order to not present an inconsistent interface.
->=20
-> The current situation is fairly confusing, because people interacting
-> with cgroups expect hierarchical behaviour in the vein of memory.stat,
-> cgroup.events, and other files. For example, this causes confusion when
-> debugging reclaim events under low, as currently these always read "0"
-> at non-leaf memcg nodes, which frequently causes people to misdiagnose
-> breach behaviour. The same confusion applies to other counters in this
-> file when debugging issues.
->=20
-> Aggregation is done at write time instead of at read-time since these
-> counters aren't hot (unlike memory.stat which is per-page, so it does it
-> at read time), and it makes sense to bundle this with the file
-> notifications.
+Linus Torvalds wrote on Thu, Jan 24, 2019:
+> I've reverted the 'let's try to just remove the code' part in my tree.
+> But I didn't apply the two other patches yet. Any final comments
+> before that should happen?
 
-I agree with the consistency argument (matching cgroup.events, ...),
-and it's definitely looks better for oom* events, but at the same time it f=
-eels
-like a API break.
+I mentionned when sending the updated version that just checking file
+permission might not be enough, e.g. a git tree is full of read-only
+objects that someone might want to preload and think we might really
+want to check both despite the overhead in the denied case.
 
-Just for example, let's say you have a delegated sub-tree with memory.max
-set. Earlier, getting memory.high/max event meant that the whole sub-tree
-is tight on memory, and, for example, led to shutdown of some parts of the =
-tree.
-After your change, it might mean that some sub-cgroup has reached its limit=
-,
-and probably doesn't matter on the top level.
+Josh agreed and I meant to send a new version since nothing was
+happening but work priorities got the better of me, and I was kind of
+waiting for the ltp testcases[1] as well because aside from the few
+tests I ran by hand I'm not sure the few hours of ltp/xfstests Jiri ran
+did much but this is probably going to be a chicken-or-egg problem..
 
-Maybe it's still ok, but we definitely need to document it better. It feels
-bad that different versions of the kernel will handle it differently, so
-the userspace has to workaround it to actually use these events.
+[1] https://github.com/linux-test-project/ltp/issues/461
 
-Also, please, make sure that it doesn't break memcg kselftests.
+Jiri Kosina wrote on Thu, Jan 24, 2019:
+> On Thu, 24 Jan 2019, Linus Torvalds wrote:
+> 
+> > Side note: the inode_permission() addition to can_do_mincore() in that
+> > patch 0002, seems to be questionable. We do
+> > 
+> > +static inline bool can_do_mincore(struct vm_area_struct *vma)
+> > +{
+> > +       return vma_is_anonymous(vma)
+> > +               || (vma->vm_file && (vma->vm_file->f_mode & FMODE_WRITE))
+> > +               || inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
+> > +}
+> > 
+> > note how it tests whether vma->vm_file is NULL for the FMODE_WRITE
+> > test, but not for the inode_permission() test.
+> > 
+> > So either we test unnecessarily in the second line, or we don't
+> > properly test it in the third one.
+> > 
+> > I think the "test vm_file" thing may be unnecessary, because a
+> > non-anonymous mapping should always have a file pointer and an inode.
+> > But I could  imagine some odd case (vdso mapping, anyone?) that
+> > doesn't have a vm_file, but also isn't anonymous.
+> 
+> Hmm, good point.
+> 
+> So dropping the 'vma->vm_file' test and checking whether given vma is 
+> special mapping should hopefully provide the desired semantics, shouldn't 
+> it?
 
->=20
-> After this patch, events are propagated up the hierarchy:
->=20
->    [root@ktst ~]# cat /sys/fs/cgroup/system.slice/memory.events
->    low 0
->    high 0
->    max 0
->    oom 0
->    oom_kill 0
->    [root@ktst ~]# systemd-run -p MemoryMax=3D1 true
->    Running as unit: run-r251162a189fb4562b9dabfdc9b0422f5.service
->    [root@ktst ~]# cat /sys/fs/cgroup/system.slice/memory.events
->    low 0
->    high 0
->    max 7
->    oom 1
->    oom_kill 1
->=20
-> Signed-off-by: Chris Down <chris@chrisdown.name>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> To: Andrew Morton <akpm@linux-foundation.org>
+I think it's probably better to keep this simple, if we're going to
+check something before accessing vm_file we might as well directly check
+it.
 
-s/To/CC
+I was thinking of something along the lines of:
+	return vma_is_anonymous(vma) || (vma->vm_file &&
+			(inode_owner_or_capable(file_inode(vma->vm_file))
+			 || inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0));
 
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Roman Gushchin <guro@fb.com>
-> Cc: Dennis Zhou <dennis@kernel.org>
-> Cc: linux-kernel@vger.kernel.org
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: kernel-team@fb.com
-> ---
-> include/linux/memcontrol.h | 6 ++++--
-> 1 file changed, 4 insertions(+), 2 deletions(-)
->=20
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 380a212a8c52..5428b372def4 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -769,8 +769,10 @@ static inline void count_memcg_event_mm(struct mm_st=
-ruct *mm,
-> static inline void memcg_memory_event(struct mem_cgroup *memcg,
-> 				      enum memcg_memory_event event)
-> {
-> -	atomic_long_inc(&memcg->memory_events[event]);
-> -	cgroup_file_notify(&memcg->events_file);
-> +	do {
-> +		atomic_long_inc(&memcg->memory_events[event]);
-> +		cgroup_file_notify(&memcg->events_file);
-> +	} while ((memcg =3D parent_mem_cgroup(memcg)));
+I dropped the first f_mode check because none of the known mincore users
+open the files read-write, and the check is redundant with
+inode_permission() so while it would probably be an optimisation in some
+cases I do not think it is useful in practice.
+On the other hand, I have no idea how expensive the inode_permission and
+owner checks really are - do they try to refresh attributes on a
+networked filesystem or would it trust the cache or is it fs dependant?
 
-We don't have memory.events file for the root cgroup, so we can stop earlie=
-r.
+Honestly this is more a case of "the people who's be interested in
+seeing this have no idea what they're doing" than lack of interest.. I
+wouldn't mind if there were tests doing mincore on a bunch of special
+files/mappings but I just tried on a few regular files by hand, this
+isn't proper coverage; I'll try to take more time to test various
+mappings today (JST).
 
-Thanks!
+
+Thanks,
+-- 
+Dominique
