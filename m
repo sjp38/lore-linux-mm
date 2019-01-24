@@ -1,123 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CEBD68E0047
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 00:47:30 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id u20so5385179qtk.6
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 21:47:30 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABC68E0073
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 02:05:14 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id n39so5478708qtn.18
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2019 23:05:14 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c5si3011300qth.210.2019.01.23.21.47.29
+        by mx.google.com with ESMTPS id k8si418537qvp.96.2019.01.23.23.05.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jan 2019 21:47:30 -0800 (PST)
-Date: Thu, 24 Jan 2019 13:47:18 +0800
+        Wed, 23 Jan 2019 23:05:13 -0800 (PST)
+Date: Thu, 24 Jan 2019 15:05:03 +0800
 From: Peter Xu <peterx@redhat.com>
-Subject: Re: [PATCH RFC 06/24] userfaultfd: wp: support write protection for
- userfault vma range
-Message-ID: <20190124054718.GI18231@xz-x1>
+Subject: Re: [PATCH RFC 04/24] mm: gup: allow VM_FAULT_RETRY for multiple
+ times
+Message-ID: <20190124070503.GJ18231@xz-x1>
 References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-7-peterx@redhat.com>
- <20190121140535.GD3344@redhat.com>
- <20190122093935.GF14907@xz-x1>
- <20190122170223.GC3188@redhat.com>
- <20190123021745.GB2970@xz-x1>
- <20190123024338.GB3652@redhat.com>
+ <20190121075722.7945-5-peterx@redhat.com>
+ <20190121162455.GC3711@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190123024338.GB3652@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190121162455.GC3711@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
-On Tue, Jan 22, 2019 at 09:43:38PM -0500, Jerome Glisse wrote:
-> On Wed, Jan 23, 2019 at 10:17:45AM +0800, Peter Xu wrote:
-> > On Tue, Jan 22, 2019 at 12:02:24PM -0500, Jerome Glisse wrote:
-> > > On Tue, Jan 22, 2019 at 05:39:35PM +0800, Peter Xu wrote:
-> > > > On Mon, Jan 21, 2019 at 09:05:35AM -0500, Jerome Glisse wrote:
-> > > > 
-> > > > [...]
-> > > > 
-> > > > > > +	change_protection(dst_vma, start, start + len, newprot,
-> > > > > > +				!enable_wp, 0);
-> > > > > 
-> > > > > So setting dirty_accountable bring us to that code in mprotect.c:
-> > > > > 
-> > > > >     if (dirty_accountable && pte_dirty(ptent) &&
-> > > > >             (pte_soft_dirty(ptent) ||
-> > > > >              !(vma->vm_flags & VM_SOFTDIRTY))) {
-> > > > >         ptent = pte_mkwrite(ptent);
-> > > > >     }
-> > > > > 
-> > > > > My understanding is that you want to set write flag when enable_wp
-> > > > > is false and you want to set the write flag unconditionaly, right ?
-> > > > 
-> > > > Right.
-> > > > 
-> > > > > 
-> > > > > If so then you should really move the change_protection() flags
-> > > > > patch before this patch and add a flag for setting pte write flags.
-> > > > > 
-> > > > > Otherwise the above is broken at it will only set the write flag
-> > > > > for pte that were dirty and i am guessing so far you always were
-> > > > > lucky because pte were all dirty (change_protection will preserve
-> > > > > dirtyness) when you write protected them.
-> > > > > 
-> > > > > So i believe the above is broken or at very least unclear if what
-> > > > > you really want is to only set write flag to pte that have the
-> > > > > dirty flag set.
-> > > > 
-> > > > You are right, if we build the tree until this patch it won't work for
-> > > > all the cases.  It'll only work if the page was at least writable
-> > > > before and also it's dirty (as you explained).  Sorry to be unclear
-> > > > about this, maybe I should at least mention that in the commit message
-> > > > but I totally forgot it.
-> > > > 
-> > > > All these problems are solved in later on patches, please feel free to
-> > > > have a look at:
-> > > > 
-> > > >   mm: merge parameters for change_protection()
-> > > >   userfaultfd: wp: apply _PAGE_UFFD_WP bit
-> > > >   userfaultfd: wp: handle COW properly for uffd-wp
-> > > > 
-> > > > Note that even in the follow up patches IMHO we can't directly change
-> > > > the write permission since the page can be shared by other processes
-> > > > (e.g., the zero page or COW pages).  But the general idea is the same
-> > > > as you explained.
-> > > > 
-> > > > I tried to avoid squashing these stuff altogether as explained
-> > > > previously.  Also, this patch can be seen as a standalone patch to
-> > > > introduce the new interface which seems to make sense too, and it is
-> > > > indeed still working in many cases so I see the latter patches as
-> > > > enhancement of this one.  Please let me know if you still want me to
-> > > > have all these stuff squashed, or if you'd like me to squash some of
-> > > > them.
-> > > 
-> > > Yeah i have look at those after looking at this one. You should just
-> > > re-order the patch this one first and then one that add new flag,
-> > > then ones that add the new userfaultfd feature. Otherwise you are
-> > > adding a userfaultfd feature that is broken midway ie it is added
-> > > broken and then you fix it. Some one bisecting thing might get hurt
-> > > by that. It is better to add and change everything you need and then
-> > > add the new feature so that the new feature will work as intended.
-> > > 
-> > > So no squashing just change the order ie add the userfaultfd code
-> > > last.
+On Mon, Jan 21, 2019 at 11:24:55AM -0500, Jerome Glisse wrote:
+> On Mon, Jan 21, 2019 at 03:57:02PM +0800, Peter Xu wrote:
+> > This is the gup counterpart of the change that allows the VM_FAULT_RETRY
+> > to happen for more than once.
 > > 
-> > Yes this makes sense, I'll do that in v2.  Thanks for the suggestion!
+> > Signed-off-by: Peter Xu <peterx@redhat.com>
 > 
-> Note before doing a v2 i would really like to see some proof of why
-> you need new page table flag see my reply to:
->     userfaultfd: wp: add WP pagetable tracking to x86
+> So it would be nice to add a comment in the code and in the commit message
+> about possible fault starvation (mostly due to previous patch changes) as
+> if some one experience that and try to bisect it might overlook the commit.
 > 
-> As i believe you can identify COW or KSM from UFD write protect with-
-> out a pte flag.
+> Otherwise:
+> 
+> Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-Yes.  I replied in that thread with my understanding on why the new
-bit is required in the PTE (and also another new bit in the swap
-entry).  We can discuss there.
+Jerome, can I still keep this r-b if I'm going to fix the starvation
+issue you mentioned in previous patch about lock page?
 
-Thanks,
+Regards,
 
 -- 
 Peter Xu
