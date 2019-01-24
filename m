@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2328E0097
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 16:15:47 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id l76so5724660pfg.1
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 13:15:47 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DF778E0097
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 16:15:52 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id b17so5668879pfc.11
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 13:15:52 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p3sor32892617plo.56.2019.01.24.13.15.46
+        by mx.google.com with SMTPS id az5sor31957935plb.11.2019.01.24.13.15.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 24 Jan 2019 13:15:46 -0800 (PST)
+        Thu, 24 Jan 2019 13:15:51 -0800 (PST)
 From: Suren Baghdasaryan <surenb@google.com>
-Subject: [PATCH v3 2/5] kernel: cgroup: add poll file operation
-Date: Thu, 24 Jan 2019 13:15:15 -0800
-Message-Id: <20190124211518.244221-3-surenb@google.com>
+Subject: [PATCH v3 4/5] psi: rename psi fields in preparation for psi trigger addition
+Date: Thu, 24 Jan 2019 13:15:17 -0800
+Message-Id: <20190124211518.244221-5-surenb@google.com>
 In-Reply-To: <20190124211518.244221-1-surenb@google.com>
 References: <20190124211518.244221-1-surenb@google.com>
 MIME-Version: 1.0
@@ -22,80 +22,128 @@ List-ID: <linux-mm.kvack.org>
 To: gregkh@linuxfoundation.org
 Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+Renaming psi_group structure member fields used for calculating psi
+totals and averages for clear distinction between them and trigger-related
+fields that will be added next.
 
-Cgroup has a standardized poll/notification mechanism for waking all
-pollers on all fds when a filesystem node changes. To allow polling
-for custom events, add a .poll callback that can override the default.
-
-This is in preparation for pollable cgroup pressure files which have
-per-fd trigger configurations.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 ---
- include/linux/cgroup-defs.h |  4 ++++
- kernel/cgroup/cgroup.c      | 12 ++++++++++++
- 2 files changed, 16 insertions(+)
+ include/linux/psi_types.h | 15 ++++++++-------
+ kernel/sched/psi.c        | 26 ++++++++++++++------------
+ 2 files changed, 22 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
-index 8fcbae1b8db0..aad3babef007 100644
---- a/include/linux/cgroup-defs.h
-+++ b/include/linux/cgroup-defs.h
-@@ -32,6 +32,7 @@ struct kernfs_node;
- struct kernfs_ops;
- struct kernfs_open_file;
- struct seq_file;
-+struct poll_table_struct;
- 
- #define MAX_CGROUP_TYPE_NAMELEN 32
- #define MAX_CGROUP_ROOT_NAMELEN 64
-@@ -574,6 +575,9 @@ struct cftype {
- 	ssize_t (*write)(struct kernfs_open_file *of,
- 			 char *buf, size_t nbytes, loff_t off);
- 
-+	__poll_t (*poll)(struct kernfs_open_file *of,
-+			 struct poll_table_struct *pt);
-+
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- 	struct lock_class_key	lockdep_key;
- #endif
-diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
-index f31bd61c9466..e8cd12c6a553 100644
---- a/kernel/cgroup/cgroup.c
-+++ b/kernel/cgroup/cgroup.c
-@@ -3533,6 +3533,16 @@ static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
- 	return ret ?: nbytes;
- }
- 
-+static __poll_t cgroup_file_poll(struct kernfs_open_file *of, poll_table *pt)
-+{
-+	struct cftype *cft = of->kn->priv;
-+
-+	if (cft->poll)
-+		return cft->poll(of, pt);
-+
-+	return kernfs_generic_poll(of, pt);
-+}
-+
- static void *cgroup_seqfile_start(struct seq_file *seq, loff_t *ppos)
- {
- 	return seq_cft(seq)->seq_start(seq, ppos);
-@@ -3571,6 +3581,7 @@ static struct kernfs_ops cgroup_kf_single_ops = {
- 	.open			= cgroup_file_open,
- 	.release		= cgroup_file_release,
- 	.write			= cgroup_file_write,
-+	.poll			= cgroup_file_poll,
- 	.seq_show		= cgroup_seqfile_show,
+diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
+index 762c6bb16f3c..47757668bdcb 100644
+--- a/include/linux/psi_types.h
++++ b/include/linux/psi_types.h
+@@ -69,20 +69,21 @@ struct psi_group_cpu {
  };
  
-@@ -3579,6 +3590,7 @@ static struct kernfs_ops cgroup_kf_ops = {
- 	.open			= cgroup_file_open,
- 	.release		= cgroup_file_release,
- 	.write			= cgroup_file_write,
-+	.poll			= cgroup_file_poll,
- 	.seq_start		= cgroup_seqfile_start,
- 	.seq_next		= cgroup_seqfile_next,
- 	.seq_stop		= cgroup_seqfile_stop,
+ struct psi_group {
+-	/* Protects data updated during an aggregation */
+-	struct mutex stat_lock;
++	/* Protects data used by the aggregator */
++	struct mutex update_lock;
+ 
+ 	/* Per-cpu task state & time tracking */
+ 	struct psi_group_cpu __percpu *pcpu;
+ 
+-	/* Periodic aggregation state */
+-	u64 total_prev[NR_PSI_STATES - 1];
+-	u64 last_update;
+-	u64 next_update;
+ 	struct delayed_work clock_work;
+ 
+-	/* Total stall times and sampled pressure averages */
++	/* Total stall times observed */
+ 	u64 total[NR_PSI_STATES - 1];
++
++	/* Running pressure averages */
++	u64 avg_total[NR_PSI_STATES - 1];
++	u64 avg_last_update;
++	u64 avg_next_update;
+ 	unsigned long avg[NR_PSI_STATES - 1][3];
+ };
+ 
+diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
+index 2262d920295f..c366503ba135 100644
+--- a/kernel/sched/psi.c
++++ b/kernel/sched/psi.c
+@@ -172,9 +172,9 @@ static void group_init(struct psi_group *group)
+ 
+ 	for_each_possible_cpu(cpu)
+ 		seqcount_init(&per_cpu_ptr(group->pcpu, cpu)->seq);
+-	group->next_update = sched_clock() + psi_period;
++	group->avg_next_update = sched_clock() + psi_period;
+ 	INIT_DELAYED_WORK(&group->clock_work, psi_update_work);
+-	mutex_init(&group->stat_lock);
++	mutex_init(&group->update_lock);
+ }
+ 
+ void __init psi_init(void)
+@@ -277,7 +277,7 @@ static bool update_stats(struct psi_group *group)
+ 	int cpu;
+ 	int s;
+ 
+-	mutex_lock(&group->stat_lock);
++	mutex_lock(&group->update_lock);
+ 
+ 	/*
+ 	 * Collect the per-cpu time buckets and average them into a
+@@ -318,7 +318,7 @@ static bool update_stats(struct psi_group *group)
+ 
+ 	/* avgX= */
+ 	now = sched_clock();
+-	expires = group->next_update;
++	expires = group->avg_next_update;
+ 	if (now < expires)
+ 		goto out;
+ 	if (now - expires > psi_period)
+@@ -331,14 +331,14 @@ static bool update_stats(struct psi_group *group)
+ 	 * But the deltas we sample out of the per-cpu buckets above
+ 	 * are based on the actual time elapsing between clock ticks.
+ 	 */
+-	group->next_update = expires + ((1 + missed_periods) * psi_period);
+-	period = now - (group->last_update + (missed_periods * psi_period));
+-	group->last_update = now;
++	group->avg_next_update = expires + ((1 + missed_periods) * psi_period);
++	period = now - (group->avg_last_update + (missed_periods * psi_period));
++	group->avg_last_update = now;
+ 
+ 	for (s = 0; s < NR_PSI_STATES - 1; s++) {
+ 		u32 sample;
+ 
+-		sample = group->total[s] - group->total_prev[s];
++		sample = group->total[s] - group->avg_total[s];
+ 		/*
+ 		 * Due to the lockless sampling of the time buckets,
+ 		 * recorded time deltas can slip into the next period,
+@@ -358,11 +358,11 @@ static bool update_stats(struct psi_group *group)
+ 		 */
+ 		if (sample > period)
+ 			sample = period;
+-		group->total_prev[s] += sample;
++		group->avg_total[s] += sample;
+ 		calc_avgs(group->avg[s], missed_periods, sample, period);
+ 	}
+ out:
+-	mutex_unlock(&group->stat_lock);
++	mutex_unlock(&group->update_lock);
+ 	return nonidle_total;
+ }
+ 
+@@ -390,8 +390,10 @@ static void psi_update_work(struct work_struct *work)
+ 		u64 now;
+ 
+ 		now = sched_clock();
+-		if (group->next_update > now)
+-			delay = nsecs_to_jiffies(group->next_update - now) + 1;
++		if (group->avg_next_update > now) {
++			delay = nsecs_to_jiffies(
++				group->avg_next_update - now) + 1;
++		}
+ 		schedule_delayed_work(dwork, delay);
+ 	}
+ }
 -- 
 2.20.1.321.g9e740568ce-goog
