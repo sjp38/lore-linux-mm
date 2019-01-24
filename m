@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 74C6A8E0097
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A384D8E0082
 	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 18:08:27 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id f3so5015197pgq.13
+Received: by mail-pg1-f197.google.com with SMTP id i124so5045138pgc.2
         for <linux-mm@kvack.org>; Thu, 24 Jan 2019 15:08:27 -0800 (PST)
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
         by mx.google.com with ESMTPS id i7si24473410pgc.144.2019.01.24.15.08.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 15:08:25 -0800 (PST)
+        Thu, 24 Jan 2019 15:08:26 -0800 (PST)
 From: Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv5 04/10] node: Link memory nodes to their compute nodes
-Date: Thu, 24 Jan 2019 16:07:18 -0700
-Message-Id: <20190124230724.10022-5-keith.busch@intel.com>
+Subject: [PATCHv5 05/10] acpi/hmat: Register processor domain to its memory
+Date: Thu, 24 Jan 2019 16:07:19 -0700
+Message-Id: <20190124230724.10022-6-keith.busch@intel.com>
 In-Reply-To: <20190124230724.10022-1-keith.busch@intel.com>
 References: <20190124230724.10022-1-keith.busch@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,294 +20,409 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>
 
-Systems may be constructed with various specialized nodes. Some nodes
-may provide memory, some provide compute devices that access and use
-that memory, and others may provide both. Nodes that provide memory are
-referred to as memory targets, and nodes that can initiate memory access
-are referred to as memory initiators.
+If the HMAT Subsystem Address Range provides a valid processor proximity
+domain for a memory domain, or a processor domain matches the performance
+access of the valid processor proximity domain, register the memory
+target with that initiator so this relationship will be visible under
+the node's sysfs directory.
 
-Memory targets will often have varying access characteristics from
-different initiators, and platforms may have ways to express those
-relationships. In preparation for these systems, provide interfaces for
-the kernel to export the memory relationship among different nodes memory
-targets and their initiators with symlinks to each other.
-
-If a system provides access locality for each initiator-target pair, nodes
-may be grouped into ranked access classes relative to other nodes. The
-new interface allows a subsystem to register relationships of varying
-classes if available and desired to be exported.
-
-A memory initiator may have multiple memory targets in the same access
-class. The target memory's initiators in a given class indicate the
-nodes access characteristics share the same performance relative to other
-linked initiator nodes. Each target within an initiator's access class,
-though, do not necessarily perform the same as each other.
-
-A memory target node may have multiple memory initiators. All linked
-initiators in a target's class have the same access characteristics to
-that target.
-
-The following example show the nodes' new sysfs hierarchy for a memory
-target node 'Y' with access class 0 from initiator node 'X':
-
-  # symlinks -v /sys/devices/system/node/nodeX/access0/
-  relative: /sys/devices/system/node/nodeX/access0/targets/nodeY -> ../../nodeY
-
-  # symlinks -v /sys/devices/system/node/nodeY/access0/
-  relative: /sys/devices/system/node/nodeY/access0/initiators/nodeX -> ../../nodeX
-
-The new attributes are added to the sysfs stable documentation.
+Since HMAT requires valid address ranges have an equivalent SRAT entry,
+verify each memory target satisfies this requirement.
 
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- Documentation/ABI/stable/sysfs-devices-node |  25 ++++-
- drivers/base/node.c                         | 142 +++++++++++++++++++++++++++-
- include/linux/node.h                        |   7 +-
- 3 files changed, 171 insertions(+), 3 deletions(-)
+ drivers/acpi/hmat/hmat.c | 310 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 310 insertions(+)
 
-diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-index 3e90e1f3bf0a..fb843222a281 100644
---- a/Documentation/ABI/stable/sysfs-devices-node
-+++ b/Documentation/ABI/stable/sysfs-devices-node
-@@ -90,4 +90,27 @@ Date:		December 2009
- Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
- Description:
- 		The node's huge page size control/query attributes.
--		See Documentation/admin-guide/mm/hugetlbpage.rst
-\ No newline at end of file
-+		See Documentation/admin-guide/mm/hugetlbpage.rst
-+
-+What:		/sys/devices/system/node/nodeX/accessY/
-+Date:		December 2018
-+Contact:	Keith Busch <keith.busch@intel.com>
-+Description:
-+		The node's relationship to other nodes for access class "Y".
-+
-+What:		/sys/devices/system/node/nodeX/accessY/initiators/
-+Date:		December 2018
-+Contact:	Keith Busch <keith.busch@intel.com>
-+Description:
-+		The directory containing symlinks to memory initiator
-+		nodes that have class "Y" access to this target node's
-+		memory. CPUs and other memory initiators in nodes not in
-+		the list accessing this node's memory may have different
-+		performance.
-+
-+What:		/sys/devices/system/node/nodeX/classY/targets/
-+Date:		December 2018
-+Contact:	Keith Busch <keith.busch@intel.com>
-+Description:
-+		The directory containing symlinks to memory targets that
-+		this initiator node has class "Y" access.
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 86d6cd92ce3d..6f4097680580 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -17,6 +17,7 @@
- #include <linux/nodemask.h>
- #include <linux/cpu.h>
- #include <linux/device.h>
-+#include <linux/pm_runtime.h>
- #include <linux/swap.h>
- #include <linux/slab.h>
+diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
+index 1741bf30d87f..85fd835c2e23 100644
+--- a/drivers/acpi/hmat/hmat.c
++++ b/drivers/acpi/hmat/hmat.c
+@@ -16,6 +16,91 @@
+ #include <linux/node.h>
+ #include <linux/sysfs.h>
  
-@@ -59,6 +60,94 @@ static inline ssize_t node_read_cpulist(struct device *dev,
- static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
- static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
- 
-+/**
-+ * struct node_access_nodes - Access class device to hold user visible
-+ * 			      relationships to other nodes.
-+ * @dev:	Device for this memory access class
-+ * @list_node:	List element in the node's access list
-+ * @access:	The access class rank
-+ */
-+struct node_access_nodes {
-+	struct device		dev;
-+	struct list_head	list_node;
-+	unsigned		access;
-+};
-+#define to_access_nodes(dev) container_of(dev, struct node_access_nodes, dev)
++static __initdata LIST_HEAD(targets);
++static __initdata LIST_HEAD(initiators);
++static __initdata LIST_HEAD(localities);
 +
-+static struct attribute *node_init_access_node_attrs[] = {
-+	NULL,
++struct memory_target {
++	struct list_head node;
++	unsigned int memory_pxm;
++	unsigned int processor_pxm;
++	unsigned int read_bandwidth;
++	unsigned int write_bandwidth;
++	unsigned int read_latency;
++	unsigned int write_latency;
 +};
 +
-+static struct attribute *node_targ_access_node_attrs[] = {
-+	NULL,
++struct memory_initiator {
++	struct list_head node;
++	unsigned int processor_pxm;
 +};
 +
-+static const struct attribute_group initiators = {
-+	.name	= "initiators",
-+	.attrs	= node_init_access_node_attrs,
++struct memory_locality {
++	struct list_head node;
++	struct acpi_hmat_locality *hmat_loc;
 +};
 +
-+static const struct attribute_group targets = {
-+	.name	= "targets",
-+	.attrs	= node_targ_access_node_attrs,
-+};
-+
-+static const struct attribute_group *node_access_node_groups[] = {
-+	&initiators,
-+	&targets,
-+	NULL,
-+};
-+
-+static void node_remove_accesses(struct node *node)
++static __init struct memory_initiator *find_mem_initiator(unsigned int cpu_pxm)
 +{
-+	struct node_access_nodes *c, *cnext;
++	struct memory_initiator *intitator;
 +
-+	list_for_each_entry_safe(c, cnext, &node->access_list, list_node) {
-+		list_del(&c->list_node);
-+		device_unregister(&c->dev);
-+	}
-+}
-+
-+static void node_access_release(struct device *dev)
-+{
-+	kfree(to_access_nodes(dev));
-+}
-+
-+static struct node_access_nodes *node_init_node_access(struct node *node,
-+						       unsigned access)
-+{
-+	struct node_access_nodes *access_node;
-+	struct device *dev;
-+
-+	list_for_each_entry(access_node, &node->access_list, list_node)
-+		if (access_node->access == access)
-+			return access_node;
-+
-+	access_node = kzalloc(sizeof(*access_node), GFP_KERNEL);
-+	if (!access_node)
-+		return NULL;
-+
-+	access_node->access = access;
-+	dev = &access_node->dev;
-+	dev->parent = &node->dev;
-+	dev->release = node_access_release;
-+	dev->groups = node_access_node_groups;
-+	if (dev_set_name(dev, "access%u", access))
-+		goto free;
-+
-+	if (device_register(dev))
-+		goto free_name;
-+
-+	pm_runtime_no_callbacks(dev);
-+	list_add_tail(&access_node->list_node, &node->access_list);
-+	return access_node;
-+free_name:
-+	kfree_const(dev->kobj.name);
-+free:
-+	kfree(access_node);
++	list_for_each_entry(intitator, &initiators, node)
++		if (intitator->processor_pxm == cpu_pxm)
++			return intitator;
 +	return NULL;
 +}
 +
- #define K(x) ((x) << (PAGE_SHIFT - 10))
- static ssize_t node_read_meminfo(struct device *dev,
- 			struct device_attribute *attr, char *buf)
-@@ -340,7 +429,7 @@ static int register_node(struct node *node, int num)
- void unregister_node(struct node *node)
- {
- 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
--
-+	node_remove_accesses(node);
- 	device_unregister(&node->dev);
- }
- 
-@@ -372,6 +461,56 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
- 				 kobject_name(&node_devices[nid]->dev.kobj));
- }
- 
-+/**
-+ * register_memory_node_under_compute_node - link memory node to its compute
-+ *					     node for a given access class.
-+ * @mem_node:	Memory node number
-+ * @cpu_node:	Cpu  node number
-+ * @access:	Access class to register
-+ *
-+ * Description:
-+ * 	For use with platforms that may have separate memory and compute nodes.
-+ * 	This function will export node relationships linking which memory
-+ * 	initiator nodes can access memory targets at a given ranked access
-+ * 	class.
-+ */
-+int register_memory_node_under_compute_node(unsigned int mem_nid,
-+					    unsigned int cpu_nid,
-+					    unsigned access)
++static __init struct memory_target *find_mem_target(unsigned int mem_pxm)
 +{
-+	struct node *init_node, *targ_node;
-+	struct node_access_nodes *initiator, *target;
-+	int ret;
++	struct memory_target *target;
 +
-+	if (!node_online(cpu_nid) || !node_online(mem_nid))
-+		return -ENODEV;
-+
-+	init_node = node_devices[cpu_nid];
-+	targ_node = node_devices[mem_nid];
-+	initiator = node_init_node_access(init_node, access);
-+	target = node_init_node_access(targ_node, access);
-+	if (!initiator || !target)
-+		return -ENOMEM;
-+
-+	ret = sysfs_add_link_to_group(&initiator->dev.kobj, "targets",
-+				      &targ_node->dev.kobj,
-+				      dev_name(&targ_node->dev));
-+	if (ret)
-+		return ret;
-+
-+	ret = sysfs_add_link_to_group(&target->dev.kobj, "initiators",
-+				      &init_node->dev.kobj,
-+				      dev_name(&init_node->dev));
-+	if (ret)
-+		goto err;
-+
-+	return 0;
-+ err:
-+	sysfs_remove_link_from_group(&initiator->dev.kobj, "targets",
-+				     dev_name(&targ_node->dev));
-+	return ret;
++	list_for_each_entry(target, &targets, node)
++		if (target->memory_pxm == mem_pxm)
++			return target;
++	return NULL;
 +}
 +
- int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
++static __init struct memory_initiator *alloc_memory_initiator(
++							unsigned int cpu_pxm)
++{
++	struct memory_initiator *intitator;
++
++	if (pxm_to_node(cpu_pxm) == NUMA_NO_NODE)
++		return NULL;
++
++	intitator = find_mem_initiator(cpu_pxm);
++	if (intitator)
++		return intitator;
++
++	intitator = kzalloc(sizeof(*intitator), GFP_KERNEL);
++	if (!intitator)
++		return NULL;
++
++	intitator->processor_pxm = cpu_pxm;
++	list_add_tail(&intitator->node, &initiators);
++	return intitator;
++}
++
++static __init void alloc_memory_target(unsigned int mem_pxm)
++{
++	struct memory_target *target;
++
++	if (pxm_to_node(mem_pxm) == NUMA_NO_NODE)
++		return;
++
++	target = find_mem_target(mem_pxm);
++	if (target)
++		return;
++
++	target = kzalloc(sizeof(*target), GFP_KERNEL);
++	if (!target)
++		return;
++
++	target->memory_pxm = mem_pxm;
++	target->processor_pxm = PXM_INVAL;
++	list_add_tail(&target->node, &targets);
++}
++
+ static __init const char *hmat_data_type(u8 type)
  {
- 	struct device *obj;
-@@ -580,6 +719,7 @@ int __register_one_node(int nid)
- 			register_cpu_under_node(cpu, nid);
+ 	switch (type) {
+@@ -52,13 +137,45 @@ static __init const char *hmat_data_type_suffix(u8 type)
+ 	};
+ }
+ 
++static __init void hmat_update_target_access(struct memory_target *target,
++                                             u8 type, u32 value)
++{
++	switch (type) {
++	case ACPI_HMAT_ACCESS_LATENCY:
++		target->read_latency = value;
++		target->write_latency = value;
++		break;
++	case ACPI_HMAT_READ_LATENCY:
++		target->read_latency = value;
++		break;
++	case ACPI_HMAT_WRITE_LATENCY:
++		target->write_latency = value;
++		break;
++	case ACPI_HMAT_ACCESS_BANDWIDTH:
++		target->read_bandwidth = value;
++		target->write_bandwidth = value;
++		break;
++	case ACPI_HMAT_READ_BANDWIDTH:
++		target->read_bandwidth = value;
++		break;
++	case ACPI_HMAT_WRITE_BANDWIDTH:
++		target->write_bandwidth = value;
++		break;
++	default:
++		break;
++	};
++}
++
+ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+ 				      const unsigned long end)
+ {
+ 	struct acpi_hmat_locality *hmat_loc = (void *)header;
++	struct memory_target *target;
++	struct memory_initiator *initiator;
+ 	unsigned int init, targ, total_size, ipds, tpds;
+ 	u32 *inits, *targs, value;
+ 	u16 *entries;
++	bool report = false;
+ 	u8 type;
+ 
+ 	if (hmat_loc->header.length < sizeof(*hmat_loc)) {
+@@ -82,16 +199,42 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+ 		hmat_loc->flags, hmat_data_type(type), ipds, tpds,
+ 		hmat_loc->entry_base_unit);
+ 
++	/* Don't report performance of memory side caches */
++	switch (hmat_loc->flags & ACPI_HMAT_MEMORY_HIERARCHY) {
++	case ACPI_HMAT_MEMORY:
++	case ACPI_HMAT_LAST_LEVEL_CACHE:
++		report = true;
++		break;
++	default:
++		break;
++	}
++
+ 	inits = (u32 *)(hmat_loc + 1);
+ 	targs = &inits[ipds];
+ 	entries = (u16 *)(&targs[tpds]);
+ 	for (init = 0; init < ipds; init++) {
++		initiator = alloc_memory_initiator(inits[init]);
+ 		for (targ = 0; targ < tpds; targ++) {
+ 			value = entries[init * tpds + targ];
+ 			value = (value * hmat_loc->entry_base_unit) / 10;
+ 			pr_info("  Initiator-Target[%d-%d]:%d%s\n",
+ 				inits[init], targs[targ], value,
+ 				hmat_data_type_suffix(type));
++
++			target = find_mem_target(targs[targ]);
++			if (target && report &&
++			    target->processor_pxm == initiator->processor_pxm)
++				hmat_update_target_access(target, type, value);
++		}
++	}
++
++	if (report) {
++		struct memory_locality *loc;
++
++		loc = kzalloc(sizeof(*loc), GFP_KERNEL);
++		if (loc) {
++			loc->hmat_loc = hmat_loc;
++			list_add_tail(&loc->node, &localities);
+ 		}
  	}
  
-+	INIT_LIST_HEAD(&node_devices[nid]->access_list);
- 	/* initialize work queue for memory hot plug */
- 	init_node_hugetlb_work(nid);
+@@ -122,16 +265,35 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
+ 					   const unsigned long end)
+ {
+ 	struct acpi_hmat_address_range *spa = (void *)header;
++	struct memory_target *target = NULL;
  
-diff --git a/include/linux/node.h b/include/linux/node.h
-index 257bb3d6d014..f34688a203c1 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -17,11 +17,12 @@
- 
- #include <linux/device.h>
- #include <linux/cpumask.h>
-+#include <linux/list.h>
- #include <linux/workqueue.h>
- 
- struct node {
- 	struct device	dev;
--
-+	struct list_head access_list;
- #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
- 	struct work_struct	node_work;
- #endif
-@@ -75,6 +76,10 @@ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
- extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
- 					   unsigned long phys_index);
- 
-+extern int register_memory_node_under_compute_node(unsigned int mem_nid,
-+						   unsigned int cpu_nid,
-+						   unsigned access);
+ 	if (spa->header.length != sizeof(*spa)) {
+ 		pr_debug("HMAT: Unexpected address range header length: %d\n",
+ 			 spa->header.length);
+ 		return -EINVAL;
+ 	}
 +
- #ifdef CONFIG_HUGETLBFS
- extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
- 					 node_registration_func_t unregister);
+ 	pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
+ 		spa->physical_address_base, spa->physical_address_length,
+ 		spa->flags, spa->processor_PD, spa->memory_PD);
+ 
++	if (spa->flags & ACPI_HMAT_MEMORY_PD_VALID) {
++		target = find_mem_target(spa->memory_PD);
++		if (!target) {
++			pr_debug("HMAT: Memory Domain missing from SRAT\n");
++			return -EINVAL;
++		}
++	}
++	if (target && spa->flags & ACPI_HMAT_PROCESSOR_PD_VALID) {
++		int p_node = pxm_to_node(spa->processor_PD);
++
++		if (p_node == NUMA_NO_NODE) {
++			pr_debug("HMAT: Invalid Processor Domain\n");
++			return -EINVAL;
++		}
++		target->processor_pxm = p_node;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -155,6 +317,142 @@ static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
+ 	}
+ }
+ 
++static __init int srat_parse_mem_affinity(union acpi_subtable_headers *header,
++					  const unsigned long end)
++{
++	struct acpi_srat_mem_affinity *ma = (void *)header;
++
++	if (!ma)
++		return -EINVAL;
++	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
++		return 0;
++	alloc_memory_target(ma->proximity_domain);
++	return 0;
++}
++
++static __init bool hmat_is_local(struct memory_target *target,
++                                 u8 type, u32 value)
++{
++	switch (type) {
++	case ACPI_HMAT_ACCESS_LATENCY:
++		return value == target->read_latency &&
++		       value == target->write_latency;
++	case ACPI_HMAT_READ_LATENCY:
++		return value == target->read_latency;
++	case ACPI_HMAT_WRITE_LATENCY:
++		return value == target->write_latency;
++	case ACPI_HMAT_ACCESS_BANDWIDTH:
++		return value == target->read_bandwidth &&
++		       value == target->write_bandwidth;
++	case ACPI_HMAT_READ_BANDWIDTH:
++		return value == target->read_bandwidth;
++	case ACPI_HMAT_WRITE_BANDWIDTH:
++		return value == target->write_bandwidth;
++	default:
++		return true;
++	};
++}
++
++static bool hmat_is_local_initiator(struct memory_target *target,
++				    struct memory_initiator *initiator,
++				    struct acpi_hmat_locality *hmat_loc)
++{
++	unsigned int ipds, tpds, i, idx = 0, tdx = 0;
++	u32 *inits, *targs, value;
++	u16 *entries;
++
++	ipds = hmat_loc->number_of_initiator_Pds;
++	tpds = hmat_loc->number_of_target_Pds;
++	inits = (u32 *)(hmat_loc + 1);
++	targs = &inits[ipds];
++	entries = (u16 *)(&targs[tpds]);
++
++	for (i = 0; i < ipds; i++) {
++		if (inits[i] == initiator->processor_pxm) {
++			idx = i;
++			break;
++		}
++	}
++
++	if (i == ipds)
++		return false;
++
++	for (i = 0; i < tpds; i++) {
++		if (targs[i] == target->memory_pxm) {
++			tdx = i;
++			break;
++		}
++	}
++	if (i == tpds)
++		return false;
++
++	value = entries[idx * tpds + tdx];
++	value = (value * hmat_loc->entry_base_unit) / 10;
++
++	return hmat_is_local(target, hmat_loc->data_type, value);
++}
++
++static __init void hmat_register_if_local(struct memory_target *target,
++					  struct memory_initiator *initiator)
++{
++	unsigned int mem_nid, cpu_nid;
++	struct memory_locality *loc;
++
++	if (initiator->processor_pxm == target->processor_pxm)
++		return;
++
++	list_for_each_entry(loc, &localities, node)
++		if (!hmat_is_local_initiator(target, initiator, loc->hmat_loc))
++			return;
++
++	mem_nid = pxm_to_node(target->memory_pxm);
++	cpu_nid = pxm_to_node(initiator->processor_pxm);
++	register_memory_node_under_compute_node(mem_nid, cpu_nid, 0);
++}
++
++static __init void hmat_register_target_initiators(struct memory_target *target)
++{
++	struct memory_initiator *initiator;
++	unsigned int mem_nid, cpu_nid;
++
++	if (target->processor_pxm == PXM_INVAL)
++		return;
++
++	mem_nid = pxm_to_node(target->memory_pxm);
++	cpu_nid = pxm_to_node(target->processor_pxm);
++	if (register_memory_node_under_compute_node(mem_nid, cpu_nid, 0))
++		return;
++
++	if (list_empty(&localities))
++		return;
++
++	list_for_each_entry(initiator, &initiators, node)
++		hmat_register_if_local(target, initiator);
++}
++
++static __init void hmat_register_targets(void)
++{
++	struct memory_target *target, *tnext;
++	struct memory_locality *loc, *lnext;
++	struct memory_initiator *intitator, *inext;
++
++	list_for_each_entry_safe(target, tnext, &targets, node) {
++		list_del(&target->node);
++		hmat_register_target_initiators(target);
++		kfree(target);
++	}
++
++	list_for_each_entry_safe(intitator, inext, &initiators, node) {
++		list_del(&intitator->node);
++		kfree(intitator);
++	}
++
++	list_for_each_entry_safe(loc, lnext, &localities, node) {
++		list_del(&loc->node);
++		kfree(loc);
++	}
++}
++
+ static __init int hmat_init(void)
+ {
+ 	struct acpi_table_header *tbl;
+@@ -164,6 +462,17 @@ static __init int hmat_init(void)
+ 	if (srat_disabled())
+ 		return 0;
+ 
++	status = acpi_get_table(ACPI_SIG_SRAT, 0, &tbl);
++	if (ACPI_FAILURE(status))
++		return 0;
++
++	if (acpi_table_parse_entries(ACPI_SIG_SRAT,
++				sizeof(struct acpi_table_srat),
++				ACPI_SRAT_TYPE_MEMORY_AFFINITY,
++				srat_parse_mem_affinity, 0) < 0)
++		goto out_put;
++	acpi_put_table(tbl);
++
+ 	status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
+ 	if (ACPI_FAILURE(status))
+ 		return 0;
+@@ -174,6 +483,7 @@ static __init int hmat_init(void)
+ 					     hmat_parse_subtable, 0) < 0)
+ 			goto out_put;
+ 	}
++	hmat_register_targets();
+ out_put:
+ 	acpi_put_table(tbl);
+ 	return 0;
 -- 
 2.14.4
