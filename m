@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 657A58E00AC
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 18:21:57 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id v12so4956627plp.16
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 15:21:57 -0800 (PST)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id p3si8871042plk.424.2019.01.24.15.21.55
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2483B8E00AC
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 18:21:59 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id d3so5005450pgv.23
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 15:21:59 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id h19si12278998pgb.231.2019.01.24.15.21.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 15:21:56 -0800 (PST)
-Subject: [PATCH 3/5] mm/memory-hotplug: allow memory resources to be children
+        Thu, 24 Jan 2019 15:21:57 -0800 (PST)
+Subject: [PATCH 4/5] dax/kmem: let walk_system_ram_range() search child resources
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 24 Jan 2019 15:14:45 -0800
+Date: Thu, 24 Jan 2019 15:14:47 -0800
 References: <20190124231441.37A4A305@viggo.jf.intel.com>
 In-Reply-To: <20190124231441.37A4A305@viggo.jf.intel.com>
-Message-Id: <20190124231445.5D8EEDAF@viggo.jf.intel.com>
+Message-Id: <20190124231447.74358AA5@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,50 +23,21 @@ Cc: Dave Hansen <dave.hansen@linux.intel.com>, dan.j.williams@intel.com, dave.ji
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The mm/resource.c code is used to manage the physical address
-space.  The current resource configuration can be viewed in
-/proc/iomem.  An example of this is at the bottom of this
-description.
+In the process of onlining memory, we use walk_system_ram_range()
+to find the actual RAM areas inside of the area being onlined.
 
-The nvdimm subsystem "owns" the physical address resources which
-map to persistent memory and has resources inserted for them as
-"Persistent Memory".  The best way to repurpose this for volatile
-use is to leave the existing resource in place, but add a "System
-RAM" resource underneath it. This clearly communicates the
-ownership relationship of this memory.
+However, it currently only finds memory resources which are
+"top-level" iomem_resources.  Children are not currently
+searched which causes it to skip System RAM in areas like this
+(in the format of /proc/iomem):
 
-The request_resource_conflict() API only deals with the
-top-level resources.  Replace it with __request_region() which
-will search for !IORESOURCE_BUSY areas lower in the resource
-tree than the top level.
+a0000000-bfffffff : Persistent Memory (legacy)
+  a0000000-afffffff : System RAM
 
-We *could* also simply truncate the existing top-level
-"Persistent Memory" resource and take over the released address
-space.  But, this means that if we ever decide to hot-unplug the
-"RAM" and give it back, we need to recreate the original setup,
-which may mean going back to the BIOS tables.
-
-This should have no real effect on the existing collision
-detection because the areas that truly conflict should be marked
-IORESOURCE_BUSY.
-
-00000000-00000fff : Reserved
-00001000-0009fbff : System RAM
-0009fc00-0009ffff : Reserved
-000a0000-000bffff : PCI Bus 0000:00
-000c0000-000c97ff : Video ROM
-000c9800-000ca5ff : Adapter ROM
-000f0000-000fffff : Reserved
-  000f0000-000fffff : System ROM
-00100000-9fffffff : System RAM
-  01000000-01e071d0 : Kernel code
-  01e071d1-027dfdff : Kernel data
-  02dc6000-0305dfff : Kernel bss
-a0000000-afffffff : Persistent Memory (legacy)
-  a0000000-a7ffffff : System RAM
-b0000000-bffdffff : System RAM
-bffe0000-bfffffff : Reserved
-c0000000-febfffff : PCI Bus 0000:00
+Changing the true->false here allows children to be searched
+as well.  We need this because we add a new "System RAM"
+resource underneath the "persistent memory" resource when
+we use persistent memory in a volatile mode.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
@@ -88,44 +59,29 @@ Cc: Takashi Iwai <tiwai@suse.de>
 Cc: Jerome Glisse <jglisse@redhat.com>
 ---
 
- b/mm/memory_hotplug.c |   26 ++++++++++++++------------
- 1 file changed, 14 insertions(+), 12 deletions(-)
+ b/kernel/resource.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff -puN mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child mm/memory_hotplug.c
---- a/mm/memory_hotplug.c~mm-memory-hotplug-allow-memory-resource-to-be-child	2019-01-24 15:13:14.979199537 -0800
-+++ b/mm/memory_hotplug.c	2019-01-24 15:13:14.983199537 -0800
-@@ -98,19 +98,21 @@ void mem_hotplug_done(void)
- /* add this memory to iomem resource */
- static struct resource *register_memory_resource(u64 start, u64 size)
- {
--	struct resource *res, *conflict;
--	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
--	if (!res)
--		return ERR_PTR(-ENOMEM);
-+	struct resource *res;
-+	unsigned long flags =  IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
-+	char *resource_name = "System RAM";
- 
--	res->name = "System RAM";
--	res->start = start;
--	res->end = start + size - 1;
--	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
--	conflict =  request_resource_conflict(&iomem_resource, res);
--	if (conflict) {
--		pr_debug("System RAM resource %pR cannot be added\n", res);
--		kfree(res);
-+	/*
-+	 * Request ownership of the new memory range.  This might be
-+	 * a child of an existing resource that was present but
-+	 * not marked as busy.
-+	 */
-+	res = __request_region(&iomem_resource, start, size,
-+			       resource_name, flags);
-+
-+	if (!res) {
-+		pr_debug("Unable to reserve System RAM region: %016llx->%016llx\n",
-+				start, start + size);
- 		return ERR_PTR(-EEXIST);
- 	}
- 	return res;
+diff -puN kernel/resource.c~mm-walk_system_ram_range-search-child-resources kernel/resource.c
+--- a/kernel/resource.c~mm-walk_system_ram_range-search-child-resources	2019-01-24 15:13:15.482199536 -0800
++++ b/kernel/resource.c	2019-01-24 15:13:15.486199536 -0800
+@@ -445,6 +445,9 @@ int walk_mem_res(u64 start, u64 end, voi
+  * This function calls the @func callback against all memory ranges of type
+  * System RAM which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
+  * It is to be used only for System RAM.
++ *
++ * This will find System RAM ranges that are children of top-level resources
++ * in addition to top-level System RAM resources.
+  */
+ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
+ 			  void *arg, int (*func)(unsigned long, unsigned long, void *))
+@@ -460,7 +463,7 @@ int walk_system_ram_range(unsigned long
+ 	flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+ 	while (start < end &&
+ 	       !find_next_iomem_res(start, end, flags, IORES_DESC_NONE,
+-				    true, &res)) {
++				    false, &res)) {
+ 		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+ 		if (end_pfn > pfn)
 _
