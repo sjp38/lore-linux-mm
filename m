@@ -2,604 +2,234 @@ Return-Path: <SRS0=9gyo=QA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6068C282C3
-	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 12:58:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F32D7C282C5
+	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 14:25:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6907A218AD
-	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 12:58:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6907A218AD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=211mainstreet.net
+	by mail.kernel.org (Postfix) with ESMTP id 9F02221872
+	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 14:25:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F02221872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD1DF8E0087; Thu, 24 Jan 2019 07:58:34 -0500 (EST)
+	id 367EF8E008C; Thu, 24 Jan 2019 09:25:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C59E58E0086; Thu, 24 Jan 2019 07:58:34 -0500 (EST)
+	id 317158E0089; Thu, 24 Jan 2019 09:25:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD4B38E0087; Thu, 24 Jan 2019 07:58:34 -0500 (EST)
+	id 1E19C8E008C; Thu, 24 Jan 2019 09:25:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78E198E0086
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 07:58:34 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id u32so6501900qte.1
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 04:58:34 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AF86A8E0089
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 09:25:57 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id v4so2337635edm.18
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 06:25:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :references:in-reply-to:subject:date:message-id:mime-version
-         :content-transfer-encoding:content-language:thread-index;
-        bh=W3JhrpOjNFeM4NkDX9UtwuApZSnTKBIz6GaOSmgd8yQ=;
-        b=HUSqSZzpkp5DdtHQWtrPxM6Gz9iLZdXxnjMRs0YjBnCBbBv/s885Eu3RtDt5bN4lTK
-         wg318R6Wu/pNWCNxou3Gx3e9r52Qt12p+NZVAu6mV5Ye/LDz9H+FbwipnuzgKad9AB0P
-         TFq3p8wQ8OR6zNu1AhZfs6utR0Hcg/LvyqqPPslclllJ18OJEh936wm071vxa1Ce5xFM
-         Q7VQjy6eI9rccjRDqLuKd6SiFJT4OvC6JllYboKpok8TN3B2Vps466KK6PhJxMwjXzBB
-         aaGTrkp5ecCzsWCZCWzIcBUZA0UiNVbi1h+1+NBsNGksphuhOU4Z0jXaLuhxsjiy3c9W
-         bybQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 216.220.167.73 is neither permitted nor denied by best guess record for domain of edwin@211mainstreet.net) smtp.mailfrom=edwin@211mainstreet.net
-X-Gm-Message-State: AJcUukeGSW4mE2nlKFLWqlapT9YxAmI5QabO5IVTQLP7IMP/YcpifhfC
-	OMJdFCXH4wA2RN8AUveM3sRSzzkaa6AJl6XJM5v8cTa3PUgMQDWyTNLghMqM9hjySbjdMmjhxQR
-	sSpxet/7I3pJLBz/fsu2+u5UnP/jDYogGu+9q7vuH5Dcy7iBb9MxsYm+NWtnY+I0=
-X-Received: by 2002:aed:2c22:: with SMTP id f31mr6681089qtd.154.1548334714111;
-        Thu, 24 Jan 2019 04:58:34 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4Pn1pWUv/unG1evm8YiSHPvORJF0ZSKaElTPDFH+gQ/iRI8ldHkHg0Tg3BPHFe7lBeGvmK
-X-Received: by 2002:aed:2c22:: with SMTP id f31mr6681020qtd.154.1548334712514;
-        Thu, 24 Jan 2019 04:58:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548334712; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=/IvgxLQsmz6BiIV7R98LfJ778XVXOwzDR7tRdpMkh9s=;
+        b=MvtsvqLwPXUCZpqDq9Yz88f6yfPpz94i4huHeeqLCbyiG85vEUYckkkquUIYCHLEeB
+         sJbp0TtBaUzUQI/q91pluY/uT2OMwuVQGhaojsoWk1rX72jh45XK/bm0/E8q67kldHym
+         8tiU/95nlmneUwGqM7hpNvKagdX5MdyROhqqo3W7VRi/P2hpKH7KiG7D1K4rfiRZxhSo
+         NKP8NCMYh6W4fSaoGPm1lwHtQLFlysNXmK98dXYXlj1DDCGDudVH7IOjEWbIVpiQ3CwD
+         7lPRAeFa6tnRbRRyjjDaUjs1V4dh95+XY+8gYFY6YwgAAewdHWh5QKvGlshyQVvh7kX/
+         WKJw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukcYzpWMeA/kDvZfrXVxfsaUPrCPkYqWE+H0v6c5+Px0KHbGU1te
+	4lsDjPt07ixJPI3VDEiVUjG4Gd2EhUbP/z+7qblh6hOYrbpukTgtJTF1LuuNQeNWpZuLiaW15Mz
+	+Zas6JVWnTzoVOLlPIv6cTi9gJlFE2Gdw+mMD5+VJivrLJGZDEWOhtF3E/ozfals=
+X-Received: by 2002:a50:9a83:: with SMTP id p3mr6929680edb.279.1548339957232;
+        Thu, 24 Jan 2019 06:25:57 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN78+ZDfdmtTxZMO5Vmp9NELfn6Lhi/q40Z6fq2j/fAQQSyrWuotXRTtCXKcuLnFb5yBkNlj
+X-Received: by 2002:a50:9a83:: with SMTP id p3mr6929628edb.279.1548339956277;
+        Thu, 24 Jan 2019 06:25:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548339956; cv=none;
         d=google.com; s=arc-20160816;
-        b=qjxohk1a56NE3XUzxKijLJ0eOMZXO7nBwacxBy0BquJ4VB+b7U5MqYbVxK01hQnfUX
-         ewyCBHBxwkKcbuI4tbcZp53GOeGLK95DqUNg4pbcFX9044ISbZ9KKnMHGGz+jshF4hcs
-         5YSbXJsuq/cTxe2AbA0XBbSzO25OUYjfN1poZcZUNCZolht224GWjZihas6BGTtb/VOi
-         sY4msPTSejvLDZTt+xGTL1k7x6wRA9XA7r6o7UHelNEkmNcPd/W3i30KN9J0M1W8XWbU
-         UV03VOrwoi1rie5JtvwJhqCqBU15E6zb9dW6nuAvWZR1vyiEHH3ob/Rgt0W6O70SsFSH
-         shCA==
+        b=J4Q5Nqnx3uiwXuTO/LX704K2HHT2x9H0cVSJJkW0wOX68WLuo2YMDCnFT0x65j+q0h
+         tRAKfAa6QkPprLfeOAtEG2OIsrkSmUuIciR9s0hm3Xo14KqF0Q8yZboFkvnS4HWW6A4r
+         D1zN2KgV5gwfER4XLIbSc/qcn7KH3kWgYqjXPT/K3o0Z7va3ASJ/9j5Gf+Y9juMrcuX3
+         iiR9OlWrnZb30RWXUbC3hUffuZeokyEheRN5bvB1unFmTn25QGgD6CHCg7+0+Y1PMVwA
+         pnYBwkMm6d3O1NDaYgpuUdHFrcOI9qDGgnHB6+8+pct3LF0rvhkC9jtHMMhv8gI3pCjw
+         TESg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=thread-index:content-language:content-transfer-encoding
-         :mime-version:message-id:date:subject:in-reply-to:references:cc:to
-         :from;
-        bh=W3JhrpOjNFeM4NkDX9UtwuApZSnTKBIz6GaOSmgd8yQ=;
-        b=C2gOJ5A52nV7yVD9qLKmleUd3yJdHBJ6umQ1D+Wn88GSQLKXu+MRNcRSLr4xfv8OcP
-         oMVtpgxDtEznq5ZBVlvAPN/YNNDhiyBerNKlCKDv4g0HDfSjWKy0G5xnUPRsRbdwczgL
-         j1o3vYjp5qy+pfR8BRFlbvtBs2R4XcKSYIWFnnDpv5p4W3uQQQsAzaxctmHIGModdb/M
-         qYz2a13tm0puZm34aYvy6DoQTDol1QUwwvDIg4xl3uLL5Xz62M2ppl3H48K3WxUP5yWr
-         tvV4SPQk08Mr8mu5xKs86BrrWlfwONSYmZ/iJg0/X4uV9oKsKYxbovmI74L9Wx8DrQyi
-         Oeog==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=/IvgxLQsmz6BiIV7R98LfJ778XVXOwzDR7tRdpMkh9s=;
+        b=Mx11vKUB8vIsZho0BzsVjJU9NxSt0JSoDcJNEDvDu7Z6jG7THYsAS8dyfogH6AEGE3
+         7YoBDLBHrYovJJAwUiRfMqL/2DmPPPVbJ8IQip527306WoQFYpoxNATnRZWLwhtlcnUm
+         4TEj5nRBlOdS7zgN7z4EkGC/dV+O2SKG1WVitAl6YTKKe/2w6D+VmX2OxteY0g2+9RiJ
+         p9wScQ1AR7VkRyl/p62opA2lFyrUJbdiKgJraQ7r32qr2PMUCPotW62eXqMHh/cf/HMd
+         /b37jaKrpLAAgqqyB0tbA3z4BLUUig9Yh1HGb4Q5Nlm4y+N1AV/P31akPAFb8Cy+IkFg
+         w2Jg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 216.220.167.73 is neither permitted nor denied by best guess record for domain of edwin@211mainstreet.net) smtp.mailfrom=edwin@211mainstreet.net
-Received: from mail.emypeople.net (mail.emypeople.net. [216.220.167.73])
-        by mx.google.com with ESMTP id 10si5547757qto.215.2019.01.24.04.58.32
-        for <linux-mm@kvack.org>;
-        Thu, 24 Jan 2019 04:58:32 -0800 (PST)
-Received-SPF: neutral (google.com: 216.220.167.73 is neither permitted nor denied by best guess record for domain of edwin@211mainstreet.net) client-ip=216.220.167.73;
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ca11si3245358ejb.216.2019.01.24.06.25.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Jan 2019 06:25:56 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 216.220.167.73 is neither permitted nor denied by best guess record for domain of edwin@211mainstreet.net) smtp.mailfrom=edwin@211mainstreet.net
-Received: from Shop7 ([166.182.241.35])
-        by mail.emypeople.net (12.1.1 build 4 DEB9 x64) with ASMTP id 201901240758306826;
-        Thu, 24 Jan 2019 07:58:30 -0500
-From: "Edwin Zimmerman" <edwin@211mainstreet.net>
-To: "'Kees Cook'" <keescook@chromium.org>,
-	<linux-kernel@vger.kernel.org>
-Cc: "'Ard Biesheuvel'" <ard.biesheuvel@linaro.org>,
-	"'Laura Abbott'" <labbott@redhat.com>,
-	"'Alexander Popov'" <alex.popov@linux.com>,
-	<xen-devel@lists.xenproject.org>,
-	<dri-devel@lists.freedesktop.org>,
-	<intel-gfx@lists.freedesktop.org>,
-	<intel-wired-lan@lists.osuosl.org>,
-	<netdev@vger.kernel.org>,
-	<linux-usb@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>,
-	<linux-mm@kvack.org>,
-	<dev@openvswitch.org>,
-	<linux-kbuild@vger.kernel.org>,
-	<linux-security-module@vger.kernel.org>,
-	<kernel-hardening@lists.openwall.com>
-References: <20190123110349.35882-1-keescook@chromium.org> <20190123110349.35882-2-keescook@chromium.org>
-In-Reply-To: <20190123110349.35882-2-keescook@chromium.org>
-Subject: RE: [PATCH 1/3] treewide: Lift switch variables out of switches
-Date: Thu, 24 Jan 2019 07:58:32 -0500
-Message-ID: <000501d4b3e4$83dd2290$8b9767b0$@211mainstreet.net>
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 8792BAE62;
+	Thu, 24 Jan 2019 14:25:55 +0000 (UTC)
+Date: Thu, 24 Jan 2019 15:25:53 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
+To: Dominique Martinet <asmadeus@codewreck.org>
+cc: Linus Torvalds <torvalds@linux-foundation.org>, 
+    Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, 
+    Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
+    Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+    Greg KH <gregkh@linuxfoundation.org>, 
+    Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, 
+    Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, 
+    Linux API <linux-api@vger.kernel.org>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+In-Reply-To: <20190124124501.GA18012@nautica>
+Message-ID: <nycvar.YFH.7.76.1901241523500.6626@cbobk.fhfr.pm>
+References: <nycvar.YFH.7.76.1901240009560.6626@cbobk.fhfr.pm> <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com> <20190124002455.GA23181@nautica> <20190124124501.GA18012@nautica>
+User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-X-Mailer: Microsoft Outlook 15.0
-Content-Language: en-us
-Thread-Index: AQK1qhpX7cEQ8qlEpLW6qt3JZ7VVWQH3EeYfo+y7j7A=
+Content-Type: multipart/mixed; boundary="1678380546-789356226-1548339955=:6626"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190124125832.VBqWRPaM-DbaJSzOofcFnRtPrrr4x6xi9pdk1izP-2c@z>
+Message-ID: <20190124142553.TuUd9QgBsUy4K_JgJbPiKmzLxU7sXn73IRtDP0CP3_I@z>
 
-On Wednesday, January 23, 2019 6:04 AM, Kees Cook wrote
->=20
-> Variables declared in a switch statement before any case statements
-> cannot be initialized, so move all instances out of the switches.
-> After this, future always-initialized stack variables will work
-> and not throw warnings like this:
->=20
-> fs/fcntl.c: In function =E2=80=98send_sigio_to_task=E2=80=99:
-> fs/fcntl.c:738:13: warning: statement will never be executed =
-[-Wswitch-unreachable]
->    siginfo_t si;
->              ^~
->=20
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Reviewed by: Edwin Zimmerman <edwin@211mainstreet.net>
+--1678380546-789356226-1548339955=:6626
+Content-Type: text/plain; charset=US-ASCII
 
-> ---
->  arch/x86/xen/enlighten_pv.c                   |  7 ++++---
->  drivers/char/pcmcia/cm4000_cs.c               |  2 +-
->  drivers/char/ppdev.c                          | 20 =
-++++++++-----------
->  drivers/gpu/drm/drm_edid.c                    |  4 ++--
->  drivers/gpu/drm/i915/intel_display.c          |  2 +-
->  drivers/gpu/drm/i915/intel_pm.c               |  4 ++--
->  drivers/net/ethernet/intel/e1000/e1000_main.c |  3 ++-
->  drivers/tty/n_tty.c                           |  3 +--
->  drivers/usb/gadget/udc/net2280.c              |  5 ++---
->  fs/fcntl.c                                    |  3 ++-
->  mm/shmem.c                                    |  5 +++--
->  net/core/skbuff.c                             |  4 ++--
->  net/ipv6/ip6_gre.c                            |  4 ++--
->  net/ipv6/ip6_tunnel.c                         |  4 ++--
->  net/openvswitch/flow_netlink.c                |  7 +++----
->  security/tomoyo/common.c                      |  3 ++-
->  security/tomoyo/condition.c                   |  7 ++++---
->  security/tomoyo/util.c                        |  4 ++--
->  18 files changed, 45 insertions(+), 46 deletions(-)
->=20
-> diff --git a/arch/x86/xen/enlighten_pv.c b/arch/x86/xen/enlighten_pv.c
-> index c54a493e139a..a79d4b548a08 100644
-> --- a/arch/x86/xen/enlighten_pv.c
-> +++ b/arch/x86/xen/enlighten_pv.c
-> @@ -907,14 +907,15 @@ static u64 xen_read_msr_safe(unsigned int msr, =
-int *err)
->  static int xen_write_msr_safe(unsigned int msr, unsigned low, =
-unsigned high)
->  {
->  	int ret;
-> +#ifdef CONFIG_X86_64
-> +	unsigned which;
-> +	u64 base;
-> +#endif
->=20
->  	ret =3D 0;
->=20
->  	switch (msr) {
->  #ifdef CONFIG_X86_64
-> -		unsigned which;
-> -		u64 base;
-> -
->  	case MSR_FS_BASE:		which =3D SEGBASE_FS; goto set;
->  	case MSR_KERNEL_GS_BASE:	which =3D SEGBASE_GS_USER; goto set;
->  	case MSR_GS_BASE:		which =3D SEGBASE_GS_KERNEL; goto set;
-> diff --git a/drivers/char/pcmcia/cm4000_cs.c =
-b/drivers/char/pcmcia/cm4000_cs.c
-> index 7a4eb86aedac..7211dc0e6f4f 100644
-> --- a/drivers/char/pcmcia/cm4000_cs.c
-> +++ b/drivers/char/pcmcia/cm4000_cs.c
-> @@ -663,6 +663,7 @@ static void monitor_card(struct timer_list *t)
->  {
->  	struct cm4000_dev *dev =3D from_timer(dev, t, timer);
->  	unsigned int iobase =3D dev->p_dev->resource[0]->start;
-> +	unsigned char flags0;
->  	unsigned short s;
->  	struct ptsreq ptsreq;
->  	int i, atrc;
-> @@ -731,7 +732,6 @@ static void monitor_card(struct timer_list *t)
->  	}
->=20
->  	switch (dev->mstate) {
-> -		unsigned char flags0;
->  	case M_CARDOFF:
->  		DEBUGP(4, dev, "M_CARDOFF\n");
->  		flags0 =3D inb(REG_FLAGS0(iobase));
-> diff --git a/drivers/char/ppdev.c b/drivers/char/ppdev.c
-> index 1ae77b41050a..d77c97e4f996 100644
-> --- a/drivers/char/ppdev.c
-> +++ b/drivers/char/ppdev.c
-> @@ -359,14 +359,19 @@ static int pp_do_ioctl(struct file *file, =
-unsigned int cmd, unsigned long arg)
->  	struct pp_struct *pp =3D file->private_data;
->  	struct parport *port;
->  	void __user *argp =3D (void __user *)arg;
-> +	struct ieee1284_info *info;
-> +	unsigned char reg;
-> +	unsigned char mask;
-> +	int mode;
-> +	s32 time32[2];
-> +	s64 time64[2];
-> +	struct timespec64 ts;
-> +	int ret;
->=20
->  	/* First handle the cases that don't take arguments. */
->  	switch (cmd) {
->  	case PPCLAIM:
->  	    {
-> -		struct ieee1284_info *info;
-> -		int ret;
-> -
->  		if (pp->flags & PP_CLAIMED) {
->  			dev_dbg(&pp->pdev->dev, "you've already got it!\n");
->  			return -EINVAL;
-> @@ -517,15 +522,6 @@ static int pp_do_ioctl(struct file *file, =
-unsigned int cmd, unsigned long arg)
->=20
->  	port =3D pp->pdev->port;
->  	switch (cmd) {
-> -		struct ieee1284_info *info;
-> -		unsigned char reg;
-> -		unsigned char mask;
-> -		int mode;
-> -		s32 time32[2];
-> -		s64 time64[2];
-> -		struct timespec64 ts;
-> -		int ret;
-> -
->  	case PPRSTATUS:
->  		reg =3D parport_read_status(port);
->  		if (copy_to_user(argp, &reg, sizeof(reg)))
-> diff --git a/drivers/gpu/drm/drm_edid.c b/drivers/gpu/drm/drm_edid.c
-> index b506e3622b08..8f93956c1628 100644
-> --- a/drivers/gpu/drm/drm_edid.c
-> +++ b/drivers/gpu/drm/drm_edid.c
-> @@ -3942,12 +3942,12 @@ static void drm_edid_to_eld(struct =
-drm_connector *connector, struct edid *edid)
->  		}
->=20
->  		for_each_cea_db(cea, i, start, end) {
-> +			int sad_count;
-> +
->  			db =3D &cea[i];
->  			dbl =3D cea_db_payload_len(db);
->=20
->  			switch (cea_db_tag(db)) {
-> -				int sad_count;
-> -
->  			case AUDIO_BLOCK:
->  				/* Audio Data Block, contains SADs */
->  				sad_count =3D min(dbl / 3, 15 - total_sad_count);
-> diff --git a/drivers/gpu/drm/i915/intel_display.c =
-b/drivers/gpu/drm/i915/intel_display.c
-> index 3da9c0f9e948..aa1c2ebea456 100644
-> --- a/drivers/gpu/drm/i915/intel_display.c
-> +++ b/drivers/gpu/drm/i915/intel_display.c
-> @@ -11341,6 +11341,7 @@ static bool =
-check_digital_port_conflicts(struct drm_atomic_state *state)
->  	drm_for_each_connector_iter(connector, &conn_iter) {
->  		struct drm_connector_state *connector_state;
->  		struct intel_encoder *encoder;
-> +		unsigned int port_mask;
->=20
->  		connector_state =3D drm_atomic_get_new_connector_state(state, =
-connector);
->  		if (!connector_state)
-> @@ -11354,7 +11355,6 @@ static bool =
-check_digital_port_conflicts(struct drm_atomic_state *state)
->  		WARN_ON(!connector_state->crtc);
->=20
->  		switch (encoder->type) {
-> -			unsigned int port_mask;
->  		case INTEL_OUTPUT_DDI:
->  			if (WARN_ON(!HAS_DDI(to_i915(dev))))
->  				break;
-> diff --git a/drivers/gpu/drm/i915/intel_pm.c =
-b/drivers/gpu/drm/i915/intel_pm.c
-> index a26b4eddda25..c135fdec96b3 100644
-> --- a/drivers/gpu/drm/i915/intel_pm.c
-> +++ b/drivers/gpu/drm/i915/intel_pm.c
-> @@ -478,9 +478,9 @@ static void vlv_get_fifo_size(struct =
-intel_crtc_state *crtc_state)
->  	struct vlv_fifo_state *fifo_state =3D =
-&crtc_state->wm.vlv.fifo_state;
->  	enum pipe pipe =3D crtc->pipe;
->  	int sprite0_start, sprite1_start;
-> +	uint32_t dsparb, dsparb2, dsparb3;
->=20
->  	switch (pipe) {
-> -		uint32_t dsparb, dsparb2, dsparb3;
->  	case PIPE_A:
->  		dsparb =3D I915_READ(DSPARB);
->  		dsparb2 =3D I915_READ(DSPARB2);
-> @@ -1944,6 +1944,7 @@ static void vlv_atomic_update_fifo(struct =
-intel_atomic_state *state,
->  	const struct vlv_fifo_state *fifo_state =3D
->  		&crtc_state->wm.vlv.fifo_state;
->  	int sprite0_start, sprite1_start, fifo_size;
-> +	uint32_t dsparb, dsparb2, dsparb3;
->=20
->  	if (!crtc_state->fifo_changed)
->  		return;
-> @@ -1969,7 +1970,6 @@ static void vlv_atomic_update_fifo(struct =
-intel_atomic_state *state,
->  	spin_lock(&dev_priv->uncore.lock);
->=20
->  	switch (crtc->pipe) {
-> -		uint32_t dsparb, dsparb2, dsparb3;
->  	case PIPE_A:
->  		dsparb =3D I915_READ_FW(DSPARB);
->  		dsparb2 =3D I915_READ_FW(DSPARB2);
-> diff --git a/drivers/net/ethernet/intel/e1000/e1000_main.c =
-b/drivers/net/ethernet/intel/e1000/e1000_main.c
-> index 8fe9af0e2ab7..041062736845 100644
-> --- a/drivers/net/ethernet/intel/e1000/e1000_main.c
-> +++ b/drivers/net/ethernet/intel/e1000/e1000_main.c
-> @@ -3140,8 +3140,9 @@ static netdev_tx_t e1000_xmit_frame(struct =
-sk_buff *skb,
->=20
->  		hdr_len =3D skb_transport_offset(skb) + tcp_hdrlen(skb);
->  		if (skb->data_len && hdr_len =3D=3D len) {
-> +			unsigned int pull_size;
-> +
->  			switch (hw->mac_type) {
-> -				unsigned int pull_size;
->  			case e1000_82544:
->  				/* Make sure we have room to chop off 4 bytes,
->  				 * and that the end alignment will work out to
-> diff --git a/drivers/tty/n_tty.c b/drivers/tty/n_tty.c
-> index 5dc9686697cf..eafb39157281 100644
-> --- a/drivers/tty/n_tty.c
-> +++ b/drivers/tty/n_tty.c
-> @@ -634,6 +634,7 @@ static size_t __process_echoes(struct tty_struct =
-*tty)
->  	while (MASK(ldata->echo_commit) !=3D MASK(tail)) {
->  		c =3D echo_buf(ldata, tail);
->  		if (c =3D=3D ECHO_OP_START) {
-> +			unsigned int num_chars, num_bs;
->  			unsigned char op;
->  			int no_space_left =3D 0;
->=20
-> @@ -652,8 +653,6 @@ static size_t __process_echoes(struct tty_struct =
-*tty)
->  			op =3D echo_buf(ldata, tail + 1);
->=20
->  			switch (op) {
-> -				unsigned int num_chars, num_bs;
-> -
->  			case ECHO_OP_ERASE_TAB:
->  				if (MASK(ldata->echo_commit) =3D=3D MASK(tail + 2))
->  					goto not_yet_stored;
-> diff --git a/drivers/usb/gadget/udc/net2280.c =
-b/drivers/usb/gadget/udc/net2280.c
-> index e7dae5379e04..2b275a574e94 100644
-> --- a/drivers/usb/gadget/udc/net2280.c
-> +++ b/drivers/usb/gadget/udc/net2280.c
-> @@ -2854,16 +2854,15 @@ static void ep_clear_seqnum(struct net2280_ep =
-*ep)
->  static void handle_stat0_irqs_superspeed(struct net2280 *dev,
->  		struct net2280_ep *ep, struct usb_ctrlrequest r)
->  {
-> +	struct net2280_ep *e;
->  	int tmp =3D 0;
-> +	u16 status;
->=20
->  #define	w_value		le16_to_cpu(r.wValue)
->  #define	w_index		le16_to_cpu(r.wIndex)
->  #define	w_length	le16_to_cpu(r.wLength)
->=20
->  	switch (r.bRequest) {
-> -		struct net2280_ep *e;
-> -		u16 status;
-> -
->  	case USB_REQ_SET_CONFIGURATION:
->  		dev->addressed_state =3D !w_value;
->  		goto usb3_delegate;
-> diff --git a/fs/fcntl.c b/fs/fcntl.c
-> index 083185174c6d..0640b64ecdc2 100644
-> --- a/fs/fcntl.c
-> +++ b/fs/fcntl.c
-> @@ -725,6 +725,8 @@ static void send_sigio_to_task(struct task_struct =
-*p,
->  			       struct fown_struct *fown,
->  			       int fd, int reason, enum pid_type type)
->  {
-> +	kernel_siginfo_t si;
-> +
->  	/*
->  	 * F_SETSIG can change ->signum lockless in parallel, make
->  	 * sure we read it once and use the same value throughout.
-> @@ -735,7 +737,6 @@ static void send_sigio_to_task(struct task_struct =
-*p,
->  		return;
->=20
->  	switch (signum) {
-> -		kernel_siginfo_t si;
->  		default:
->  			/* Queue a rt signal with the appropriate fd as its
->  			   value.  We use SI_SIGIO as the source, not
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 6ece1e2fe76e..0b02624dd8b2 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1721,6 +1721,9 @@ static int shmem_getpage_gfp(struct inode =
-*inode, pgoff_t index,
->  		swap_free(swap);
->=20
->  	} else {
-> +		loff_t i_size;
-> +		pgoff_t off;
-> +
->  		if (vma && userfaultfd_missing(vma)) {
->  			*fault_type =3D handle_userfault(vmf, VM_UFFD_MISSING);
->  			return 0;
-> @@ -1734,8 +1737,6 @@ static int shmem_getpage_gfp(struct inode =
-*inode, pgoff_t index,
->  		if (shmem_huge =3D=3D SHMEM_HUGE_FORCE)
->  			goto alloc_huge;
->  		switch (sbinfo->huge) {
-> -			loff_t i_size;
-> -			pgoff_t off;
->  		case SHMEM_HUGE_NEVER:
->  			goto alloc_nohuge;
->  		case SHMEM_HUGE_WITHIN_SIZE:
-> diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-> index 26d848484912..7597b3fc9d21 100644
-> --- a/net/core/skbuff.c
-> +++ b/net/core/skbuff.c
-> @@ -4506,9 +4506,9 @@ static __sum16 *skb_checksum_setup_ip(struct =
-sk_buff *skb,
->  				      typeof(IPPROTO_IP) proto,
->  				      unsigned int off)
->  {
-> -	switch (proto) {
-> -		int err;
-> +	int err;
->=20
-> +	switch (proto) {
->  	case IPPROTO_TCP:
->  		err =3D skb_maybe_pull_tail(skb, off + sizeof(struct tcphdr),
->  					  off + MAX_TCP_HDR_LEN);
-> diff --git a/net/ipv6/ip6_gre.c b/net/ipv6/ip6_gre.c
-> index b1be67ca6768..9aee1add46c0 100644
-> --- a/net/ipv6/ip6_gre.c
-> +++ b/net/ipv6/ip6_gre.c
-> @@ -427,9 +427,11 @@ static int ip6gre_err(struct sk_buff *skb, struct =
-inet6_skb_parm *opt,
->  		       u8 type, u8 code, int offset, __be32 info)
->  {
->  	struct net *net =3D dev_net(skb->dev);
-> +	struct ipv6_tlv_tnl_enc_lim *tel;
->  	const struct ipv6hdr *ipv6h;
->  	struct tnl_ptk_info tpi;
->  	struct ip6_tnl *t;
-> +	__u32 teli;
->=20
->  	if (gre_parse_header(skb, &tpi, NULL, htons(ETH_P_IPV6),
->  			     offset) < 0)
-> @@ -442,8 +444,6 @@ static int ip6gre_err(struct sk_buff *skb, struct =
-inet6_skb_parm *opt,
->  		return -ENOENT;
->=20
->  	switch (type) {
-> -		struct ipv6_tlv_tnl_enc_lim *tel;
-> -		__u32 teli;
->  	case ICMPV6_DEST_UNREACH:
->  		net_dbg_ratelimited("%s: Path to destination invalid or =
-inactive!\n",
->  				    t->parms.name);
-> diff --git a/net/ipv6/ip6_tunnel.c b/net/ipv6/ip6_tunnel.c
-> index 0c6403cf8b52..94ccc7a9037b 100644
-> --- a/net/ipv6/ip6_tunnel.c
-> +++ b/net/ipv6/ip6_tunnel.c
-> @@ -478,10 +478,12 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, =
-struct inet6_skb_parm *opt,
->  	struct net *net =3D dev_net(skb->dev);
->  	u8 rel_type =3D ICMPV6_DEST_UNREACH;
->  	u8 rel_code =3D ICMPV6_ADDR_UNREACH;
-> +	struct ipv6_tlv_tnl_enc_lim *tel;
->  	__u32 rel_info =3D 0;
->  	struct ip6_tnl *t;
->  	int err =3D -ENOENT;
->  	int rel_msg =3D 0;
-> +	__u32 mtu, teli;
->  	u8 tproto;
->  	__u16 len;
->=20
-> @@ -501,8 +503,6 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, =
-struct inet6_skb_parm *opt,
->  	err =3D 0;
->=20
->  	switch (*type) {
-> -		struct ipv6_tlv_tnl_enc_lim *tel;
-> -		__u32 mtu, teli;
->  	case ICMPV6_DEST_UNREACH:
->  		net_dbg_ratelimited("%s: Path to destination invalid or =
-inactive!\n",
->  				    t->parms.name);
-> diff --git a/net/openvswitch/flow_netlink.c =
-b/net/openvswitch/flow_netlink.c
-> index 691da853bef5..dee2f9516ae8 100644
-> --- a/net/openvswitch/flow_netlink.c
-> +++ b/net/openvswitch/flow_netlink.c
-> @@ -2652,8 +2652,11 @@ static int validate_set(const struct nlattr *a,
->  			u8 mac_proto, __be16 eth_type, bool masked, bool log)
->  {
->  	const struct nlattr *ovs_key =3D nla_data(a);
-> +	const struct ovs_key_ipv4 *ipv4_key;
-> +	const struct ovs_key_ipv6 *ipv6_key;
->  	int key_type =3D nla_type(ovs_key);
->  	size_t key_len;
-> +	int err;
->=20
->  	/* There can be only one key in a action */
->  	if (nla_total_size(nla_len(ovs_key)) !=3D nla_len(a))
-> @@ -2671,10 +2674,6 @@ static int validate_set(const struct nlattr *a,
->  		return -EINVAL;
->=20
->  	switch (key_type) {
-> -	const struct ovs_key_ipv4 *ipv4_key;
-> -	const struct ovs_key_ipv6 *ipv6_key;
-> -	int err;
-> -
->  	case OVS_KEY_ATTR_PRIORITY:
->  	case OVS_KEY_ATTR_SKB_MARK:
->  	case OVS_KEY_ATTR_CT_MARK:
-> diff --git a/security/tomoyo/common.c b/security/tomoyo/common.c
-> index c598aa00d5e3..bedbd0518153 100644
-> --- a/security/tomoyo/common.c
-> +++ b/security/tomoyo/common.c
-> @@ -1583,8 +1583,9 @@ static void tomoyo_read_domain(struct =
-tomoyo_io_buffer *head)
->  	list_for_each_cookie(head->r.domain, &tomoyo_domain_list) {
->  		struct tomoyo_domain_info *domain =3D
->  			list_entry(head->r.domain, typeof(*domain), list);
-> +		u8 i;
-> +
->  		switch (head->r.step) {
-> -			u8 i;
->  		case 0:
->  			if (domain->is_deleted &&
->  			    !head->r.print_this_domain_only)
-> diff --git a/security/tomoyo/condition.c b/security/tomoyo/condition.c
-> index 8d0e1b9c9c57..c10d903febe5 100644
-> --- a/security/tomoyo/condition.c
-> +++ b/security/tomoyo/condition.c
-> @@ -787,10 +787,11 @@ bool tomoyo_condition(struct tomoyo_request_info =
-*r,
->  		/* Check string expressions. */
->  		if (right =3D=3D TOMOYO_NAME_UNION) {
->  			const struct tomoyo_name_union *ptr =3D names_p++;
-> +			struct tomoyo_path_info *symlink;
-> +			struct tomoyo_execve *ee;
-> +			struct file *file;
-> +
->  			switch (left) {
-> -				struct tomoyo_path_info *symlink;
-> -				struct tomoyo_execve *ee;
-> -				struct file *file;
->  			case TOMOYO_SYMLINK_TARGET:
->  				symlink =3D obj ? obj->symlink_target : NULL;
->  				if (!symlink ||
-> diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
-> index badffc8271c8..8e2bb36df37b 100644
-> --- a/security/tomoyo/util.c
-> +++ b/security/tomoyo/util.c
-> @@ -668,6 +668,8 @@ static bool tomoyo_file_matches_pattern2(const =
-char *filename,
->  {
->  	while (filename < filename_end && pattern < pattern_end) {
->  		char c;
-> +		int i, j;
-> +
->  		if (*pattern !=3D '\\') {
->  			if (*filename++ !=3D *pattern++)
->  				return false;
-> @@ -676,8 +678,6 @@ static bool tomoyo_file_matches_pattern2(const =
-char *filename,
->  		c =3D *filename;
->  		pattern++;
->  		switch (*pattern) {
-> -			int i;
-> -			int j;
->  		case '?':
->  			if (c =3D=3D '/') {
->  				return false;
-> --
-> 2.17.1
+On Thu, 24 Jan 2019, Dominique Martinet wrote:
+
+> Jiri, you've offered resubmitting the last two patches properly, can you 
+> incorporate this change or should I just send this directly? (I'd take 
+> most of your commit message and add your name somewhere)
+
+I've been running some basic smoke testing with the kernel from
+
+	https://git.kernel.org/pub/scm/linux/kernel/git/jikos/jikos.git/log/?h=pagecache-sidechannel-v2
+
+(attaching the respective two patches to apply on top of latest Linus' 
+tree to this mail as well), and everything looks good so far.
+
+Thanks,
+
+-- 
+Jiri Kosina
+SUSE Labs
+
+--1678380546-789356226-1548339955=:6626
+Content-Type: text/x-patch; name=0001-mm-mincore-make-mincore-more-conservative.patch
+Content-Transfer-Encoding: BASE64
+Content-ID: <nycvar.YFH.7.76.1901241525530.6626@cbobk.fhfr.pm>
+Content-Description: 
+Content-Disposition: attachment; filename=0001-mm-mincore-make-mincore-more-conservative.patch
+
+RnJvbSA5ODEwNTY1ZjFkNWY5NjZhODQ5MDBjZGNiODVlMzNhYTc1NzFhZmJl
+IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
+PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjA6
+NTM6MTcgKzAxMDANClN1YmplY3Q6IFtQQVRDSCAxLzJdIG1tL21pbmNvcmU6
+IG1ha2UgbWluY29yZSgpIG1vcmUgY29uc2VydmF0aXZlDQoNClRoZSBzZW1h
+bnRpY3Mgb2Ygd2hhdCBtaW5jb3JlKCkgY29uc2lkZXJzIHRvIGJlIHJlc2lk
+ZW50IGlzIG5vdCBjb21wbGV0ZWx5DQpjbGVhciwgYnV0IExpbnV4IGhhcyBh
+bHdheXMgKHNpbmNlIDIuMy41Miwgd2hpY2ggaXMgd2hlbiBtaW5jb3JlKCkg
+d2FzDQppbml0aWFsbHkgZG9uZSkgdHJlYXRlZCBpdCBhcyAicGFnZSBpcyBh
+dmFpbGFibGUgaW4gcGFnZSBjYWNoZSIuDQoNClRoYXQncyBwb3RlbnRpYWxs
+eSBhIHByb2JsZW0sIGFzIHRoYXQgW2luXWRpcmVjdGx5IGV4cG9zZXMgbWV0
+YS1pbmZvcm1hdGlvbg0KYWJvdXQgcGFnZWNhY2hlIC8gbWVtb3J5IG1hcHBp
+bmcgc3RhdGUgZXZlbiBhYm91dCBtZW1vcnkgbm90IHN0cmljdGx5IGJlbG9u
+Z2luZw0KdG8gdGhlIHByb2Nlc3MgZXhlY3V0aW5nIHRoZSBzeXNjYWxsLCBv
+cGVuaW5nIHBvc3NpYmlsaXRpZXMgZm9yIHNpZGVjaGFubmVsDQphdHRhY2tz
+Lg0KDQpDaGFuZ2UgdGhlIHNlbWFudGljcyBvZiBtaW5jb3JlKCkgc28gdGhh
+dCBpdCBvbmx5IHJldmVhbHMgcGFnZWNhY2hlIGluZm9ybWF0aW9uDQpmb3Ig
+bm9uLWFub255bW91cyBtYXBwaW5ncyB0aGF0IGJlbG9nIHRvIGZpbGVzIHRo
+YXQgdGhlIGNhbGxpbmcgcHJvY2VzcyBjb3VsZA0KKGlmIGl0IHRyaWVkIHRv
+KSBzdWNjZXNzZnVsbHkgb3BlbiBmb3Igd3JpdGluZy4NCg0KT3JpZ2luYWxs
+eS1ieTogTGludXMgVG9ydmFsZHMgPHRvcnZhbGRzQGxpbnV4LWZvdW5kYXRp
+b24ub3JnPg0KT3JpZ2luYWxseS1ieTogRG9taW5pcXVlIE1hcnRpbmV0IDxh
+c21hZGV1c0Bjb2Rld3JlY2sub3JnPg0KU2lnbmVkLW9mZi1ieTogSmlyaSBL
+b3NpbmEgPGprb3NpbmFAc3VzZS5jej4NCi0tLQ0KIG1tL21pbmNvcmUuYyB8
+IDE1ICsrKysrKysrKysrKysrLQ0KIDEgZmlsZSBjaGFuZ2VkLCAxNCBpbnNl
+cnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9t
+aW5jb3JlLmMgYi9tbS9taW5jb3JlLmMNCmluZGV4IDIxODA5OWI1ZWQzMS4u
+NzQ3YTQ5MDdhM2FjIDEwMDY0NA0KLS0tIGEvbW0vbWluY29yZS5jDQorKysg
+Yi9tbS9taW5jb3JlLmMNCkBAIC0xNjksNiArMTY5LDE0IEBAIHN0YXRpYyBp
+bnQgbWluY29yZV9wdGVfcmFuZ2UocG1kX3QgKnBtZCwgdW5zaWduZWQgbG9u
+ZyBhZGRyLCB1bnNpZ25lZCBsb25nIGVuZCwNCiAJcmV0dXJuIDA7DQogfQ0K
+IA0KK3N0YXRpYyBpbmxpbmUgYm9vbCBjYW5fZG9fbWluY29yZShzdHJ1Y3Qg
+dm1fYXJlYV9zdHJ1Y3QgKnZtYSkNCit7DQorCXJldHVybiB2bWFfaXNfYW5v
+bnltb3VzKHZtYSkgfHwNCisJCSh2bWEtPnZtX2ZpbGUgJiYNCisJCQkoaW5v
+ZGVfb3duZXJfb3JfY2FwYWJsZShmaWxlX2lub2RlKHZtYS0+dm1fZmlsZSkp
+DQorCQkJIHx8IGlub2RlX3Blcm1pc3Npb24oZmlsZV9pbm9kZSh2bWEtPnZt
+X2ZpbGUpLCBNQVlfV1JJVEUpID09IDApKTsNCit9DQorDQogLyoNCiAgKiBE
+byBhIGNodW5rIG9mICJzeXNfbWluY29yZSgpIi4gV2UndmUgYWxyZWFkeSBj
+aGVja2VkDQogICogYWxsIHRoZSBhcmd1bWVudHMsIHdlIGhvbGQgdGhlIG1t
+YXAgc2VtYXBob3JlOiB3ZSBzaG91bGQNCkBAIC0xODksOCArMTk3LDEzIEBA
+IHN0YXRpYyBsb25nIGRvX21pbmNvcmUodW5zaWduZWQgbG9uZyBhZGRyLCB1
+bnNpZ25lZCBsb25nIHBhZ2VzLCB1bnNpZ25lZCBjaGFyICp2DQogCXZtYSA9
+IGZpbmRfdm1hKGN1cnJlbnQtPm1tLCBhZGRyKTsNCiAJaWYgKCF2bWEgfHwg
+YWRkciA8IHZtYS0+dm1fc3RhcnQpDQogCQlyZXR1cm4gLUVOT01FTTsNCi0J
+bWluY29yZV93YWxrLm1tID0gdm1hLT52bV9tbTsNCiAJZW5kID0gbWluKHZt
+YS0+dm1fZW5kLCBhZGRyICsgKHBhZ2VzIDw8IFBBR0VfU0hJRlQpKTsNCisJ
+aWYgKCFjYW5fZG9fbWluY29yZSh2bWEpKSB7DQorCQl1bnNpZ25lZCBsb25n
+IHBhZ2VzID0gKGVuZCAtIGFkZHIpID4+IFBBR0VfU0hJRlQ7DQorCQltZW1z
+ZXQodmVjLCAxLCBwYWdlcyk7DQorCQlyZXR1cm4gcGFnZXM7DQorCX0NCisJ
+bWluY29yZV93YWxrLm1tID0gdm1hLT52bV9tbTsNCiAJZXJyID0gd2Fsa19w
+YWdlX3JhbmdlKGFkZHIsIGVuZCwgJm1pbmNvcmVfd2Fsayk7DQogCWlmIChl
+cnIgPCAwKQ0KIAkJcmV0dXJuIGVycjsNCi0tIA0KMi4xMi4zDQoNCg==
+
+--1678380546-789356226-1548339955=:6626
+Content-Type: text/x-patch; name=0002-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
+Content-Transfer-Encoding: BASE64
+Content-ID: <nycvar.YFH.7.76.1901241525531.6626@cbobk.fhfr.pm>
+Content-Description: 
+Content-Disposition: attachment; filename=0002-mm-filemap-initiate-readahead-even-if-IOCB_NOWAIT-is.patch
+
+RnJvbSBmMjg3MTg1ZmM1ZTBmZmJiYjM4MGYyZDY4ZGQxOTI5MDcxNTgyOWE4
+IE1vbiBTZXAgMTcgMDA6MDA6MDAgMjAwMQ0KRnJvbTogSmlyaSBLb3NpbmEg
+PGprb3NpbmFAc3VzZS5jej4NCkRhdGU6IFdlZCwgMTYgSmFuIDIwMTkgMjE6
+MDY6NTggKzAxMDANClN1YmplY3Q6IFtQQVRDSCAyLzJdIG1tL2ZpbGVtYXA6
+IGluaXRpYXRlIHJlYWRhaGVhZCBldmVuIGlmIElPQ0JfTk9XQUlUIGlzIHNl
+dA0KIGZvciB0aGUgSS9PDQoNCnByZWFkdjIoUldGX05PV0FJVCkgY2FuIGJl
+IHVzZWQgdG8gb3BlbiBhIHNpZGUtY2hhbm5lbCB0byBwYWdlY2FjaGUgY29u
+dGVudHMsIGFzDQppdCByZXZlYWxzIG1ldGFkYXRhIGFib3V0IHJlc2lkZW5j
+eSBvZiBwYWdlcyBpbiBwYWdlY2FjaGUuDQoNCklmIHByZWFkdjIoUldGX05P
+V0FJVCkgcmV0dXJucyBpbW1lZGlhdGVseSwgaXQgcHJvdmlkZXMgYSBjbGVh
+ciAicGFnZSBub3QNCnJlc2lkZW50IiBpbmZvcm1hdGlvbiwgYW5kIHZpY2Ug
+dmVyc2EuDQoNCkNsb3NlIHRoYXQgc2lkZWNoYW5uZWwgYnkgYWx3YXlzIGlu
+aXRpYXRpbmcgcmVhZGFoZWFkIG9uIHRoZSBjYWNoZSBpZiB3ZQ0KZW5jb3Vu
+dGVyIGEgY2FjaGUgbWlzcyBmb3IgcHJlYWR2MihSV0ZfTk9XQUlUKTsgd2l0
+aCB0aGF0IGluIHBsYWNlLCBwcm9iaW5nDQp0aGUgcGFnZWNhY2hlIHJlc2lk
+ZW5jeSBpdHNlbGYgd2lsbCBhY3R1YWxseSBwb3B1bGF0ZSB0aGUgY2FjaGUs
+IG1ha2luZyB0aGUNCnNpZGVjaGFubmVsIHVzZWxlc3MuDQoNCk9yaWdpbmFs
+bHktYnk6IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51eC1mb3VuZGF0
+aW9uLm9yZz4NClNpZ25lZC1vZmYtYnk6IEppcmkgS29zaW5hIDxqa29zaW5h
+QHN1c2UuY3o+DQotLS0NCiBtbS9maWxlbWFwLmMgfCAyIC0tDQogMSBmaWxl
+IGNoYW5nZWQsIDIgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9tbS9m
+aWxlbWFwLmMgYi9tbS9maWxlbWFwLmMNCmluZGV4IDlmNWUzMjNlODgzZS4u
+N2JjZGQzNmU2MjlkIDEwMDY0NA0KLS0tIGEvbW0vZmlsZW1hcC5jDQorKysg
+Yi9tbS9maWxlbWFwLmMNCkBAIC0yMDc1LDggKzIwNzUsNiBAQCBzdGF0aWMg
+c3NpemVfdCBnZW5lcmljX2ZpbGVfYnVmZmVyZWRfcmVhZChzdHJ1Y3Qga2lv
+Y2IgKmlvY2IsDQogDQogCQlwYWdlID0gZmluZF9nZXRfcGFnZShtYXBwaW5n
+LCBpbmRleCk7DQogCQlpZiAoIXBhZ2UpIHsNCi0JCQlpZiAoaW9jYi0+a2lf
+ZmxhZ3MgJiBJT0NCX05PV0FJVCkNCi0JCQkJZ290byB3b3VsZF9ibG9jazsN
+CiAJCQlwYWdlX2NhY2hlX3N5bmNfcmVhZGFoZWFkKG1hcHBpbmcsDQogCQkJ
+CQlyYSwgZmlscCwNCiAJCQkJCWluZGV4LCBsYXN0X2luZGV4IC0gaW5kZXgp
+Ow0KLS0gDQoyLjEyLjMNCg0K
+
+--1678380546-789356226-1548339955=:6626--
 
