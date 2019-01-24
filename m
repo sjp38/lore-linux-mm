@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E97A8E00C8
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 03:44:40 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id e17so3375950edr.7
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 00:44:40 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g51si6903961edg.7.2019.01.25.00.44.39
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 32F148E0084
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 11:56:38 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id o200so3048500ybc.1
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 08:56:38 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z7sor3971130ywe.8.2019.01.24.08.56.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 00:44:39 -0800 (PST)
-Date: Fri, 25 Jan 2019 08:44:36 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [-next 20190118] "kernel BUG at mm/page_alloc.c:3112!"
-Message-ID: <20190125084436.GA26418@suse.de>
-References: <20190121154312.GH4020@osiris>
- <20190121160607.GV4087@dhcp22.suse.cz>
- <20190121163747.GL28934@suse.de>
- <20190125080307.GA3561@osiris>
+        (Google Transport Security);
+        Thu, 24 Jan 2019 08:56:36 -0800 (PST)
+Date: Thu, 24 Jan 2019 11:56:34 -0500
+From: Chris Down <chris@chrisdown.name>
+Subject: Re: [PATCH] mm: Move maxable seq_file logic into a single place
+Message-ID: <20190124165634.GA13549@chrisdown.name>
+References: <20190124061718.GA15486@chrisdown.name>
+ <20190124160935.GB12436@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20190125080307.GA3561@osiris>
+In-Reply-To: <20190124160935.GB12436@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-next@vger.kernel.org, Michael Holzheu <holzheu@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On Fri, Jan 25, 2019 at 09:03:07AM +0100, Heiko Carstens wrote:
-> On Mon, Jan 21, 2019 at 04:37:47PM +0000, Mel Gorman wrote:
-> > On Mon, Jan 21, 2019 at 05:06:07PM +0100, Michal Hocko wrote:
-> > > This sounds familiar. Cc Mel and Vlastimil.
-> > > 
-> > 
-> > There is a series sitting in Andrew's inbox that replaces a compaction
-> > series. A patch is dropped in the new version that deals with pages
-> > getting freed during compaction that *may* be allowing active pages to
-> > reach the free list and not tripping a warning like it should. I'm hoping
-> > it'll be picked up soon to see if this particular bug persists or if it's
-> > something else.
-> 
-> Has this been picked up already? With linux next 20190124 I still get this:
-> 
+Johannes Weiner writes:
+>I think this increases complexity more than it saves LOC,
+>unfortunately.
+>
+>The current situation is a bit repetitive, but much more obviously
+>correct. And we're not planning on adding many more of those memcg
+>interface files, so I this doesn't seem to be an improvement re:
+>maintainability and future extensibility of the code.
 
-Unfortunately not. Andrew will hopefully be online next week to pick it
-up.
+Hmm, my main goal in the patch was not really reduction of LOC, but more around 
+centralising logic so that it's clear where these functions are unique and 
+where they are completely the same. My initial reaction upon reading these was 
+mostly to feel like I'm missing something due to the large amount of similarity 
+between them, wondering if the change in mem_cgroup/page_counter access is 
+really the only thing to look at, so my goal was primarily to reduce confusion 
+(although of course this is subjective, I can also see your point about how 
+having "memory.low" and the like without context can also be confusing).
 
--- 
-Mel Gorman
-SUSE Labs
+I think using a macro is not ideal, but unfortunately without it a lot of the 
+complexity can't really be abstracted easily.
+
+If not this, what would you think about a patch that adds two new functions:
+
+1. mem_cgroup_from_seq
+2. mem_cgroup_write_max_or_val
+
+This won't be able to reduce as much of the overlap as the macro, but it still 
+will centralise a lot of the logic.
