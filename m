@@ -1,42 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BBB5B8E0084
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 12:01:21 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id v2so4276986plg.6
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 09:01:21 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a81si22460519pfj.195.2019.01.24.09.01.20
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 141618E0097
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 16:15:50 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id p9so5698920pfj.3
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 13:15:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u10sor35044647pgr.25.2019.01.24.13.15.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 09:01:20 -0800 (PST)
-Date: Thu, 24 Jan 2019 18:01:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190124170117.GS4087@dhcp22.suse.cz>
-References: <20190123223144.GA10798@chrisdown.name>
- <20190124082252.GD4087@dhcp22.suse.cz>
- <20190124160009.GA12436@cmpxchg.org>
+        (Google Transport Security);
+        Thu, 24 Jan 2019 13:15:48 -0800 (PST)
+From: Suren Baghdasaryan <surenb@google.com>
+Subject: [PATCH v3 3/5] psi: introduce state_mask to represent stalled psi states
+Date: Thu, 24 Jan 2019 13:15:16 -0800
+Message-Id: <20190124211518.244221-4-surenb@google.com>
+In-Reply-To: <20190124211518.244221-1-surenb@google.com>
+References: <20190124211518.244221-1-surenb@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190124160009.GA12436@cmpxchg.org>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: gregkh@linuxfoundation.org
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>
 
-On Thu 24-01-19 11:00:10, Johannes Weiner wrote:
-[...]
-> We cannot fully eliminate a risk for regression, but it strikes me as
-> highly unlikely, given the extremely young age of cgroup2-based system
-> management and surrounding tooling.
+The psi monitoring patches will need to determine the same states as
+record_times(). To avoid calculating them twice, maintain a state mask
+that can be consulted cheaply. Do this in a separate patch to keep the
+churn in the main feature patch at a minimum.
+This adds 4-byte state_mask member into psi_group_cpu struct which
+results in its first cacheline-aligned part to become 52 bytes long.
+Add explicit values to enumeration element counters that affect
+psi_group_cpu struct size.
 
-I am not really sure what you consider young but this interface is 4.0+
-IIRC and the cgroup v2 is considered stable since 4.5 unless I
-missrememeber and that is not a short time period in my book. Changing
-interfaces now represents a non-trivial risk and so far I haven't heard
-any actual usecase where the current semantic is actually wrong.
-Inconsistency on its own is not a sufficient justification IMO.
+Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+---
+ include/linux/psi_types.h |  9 ++++++---
+ kernel/sched/psi.c        | 29 +++++++++++++++++++----------
+ 2 files changed, 25 insertions(+), 13 deletions(-)
+
+diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
+index 2cf422db5d18..762c6bb16f3c 100644
+--- a/include/linux/psi_types.h
++++ b/include/linux/psi_types.h
+@@ -11,7 +11,7 @@ enum psi_task_count {
+ 	NR_IOWAIT,
+ 	NR_MEMSTALL,
+ 	NR_RUNNING,
+-	NR_PSI_TASK_COUNTS,
++	NR_PSI_TASK_COUNTS = 3,
+ };
+ 
+ /* Task state bitmasks */
+@@ -24,7 +24,7 @@ enum psi_res {
+ 	PSI_IO,
+ 	PSI_MEM,
+ 	PSI_CPU,
+-	NR_PSI_RESOURCES,
++	NR_PSI_RESOURCES = 3,
+ };
+ 
+ /*
+@@ -41,7 +41,7 @@ enum psi_states {
+ 	PSI_CPU_SOME,
+ 	/* Only per-CPU, to weigh the CPU in the global average: */
+ 	PSI_NONIDLE,
+-	NR_PSI_STATES,
++	NR_PSI_STATES = 6,
+ };
+ 
+ struct psi_group_cpu {
+@@ -53,6 +53,9 @@ struct psi_group_cpu {
+ 	/* States of the tasks belonging to this group */
+ 	unsigned int tasks[NR_PSI_TASK_COUNTS];
+ 
++	/* Aggregate pressure state derived from the tasks */
++	u32 state_mask;
++
+ 	/* Period time sampling buckets for each state of interest (ns) */
+ 	u32 times[NR_PSI_STATES];
+ 
+diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
+index fe24de3fbc93..2262d920295f 100644
+--- a/kernel/sched/psi.c
++++ b/kernel/sched/psi.c
+@@ -212,17 +212,17 @@ static bool test_state(unsigned int *tasks, enum psi_states state)
+ static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
+ {
+ 	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
+-	unsigned int tasks[NR_PSI_TASK_COUNTS];
+ 	u64 now, state_start;
++	enum psi_states s;
+ 	unsigned int seq;
+-	int s;
++	u32 state_mask;
+ 
+ 	/* Snapshot a coherent view of the CPU state */
+ 	do {
+ 		seq = read_seqcount_begin(&groupc->seq);
+ 		now = cpu_clock(cpu);
+ 		memcpy(times, groupc->times, sizeof(groupc->times));
+-		memcpy(tasks, groupc->tasks, sizeof(groupc->tasks));
++		state_mask = groupc->state_mask;
+ 		state_start = groupc->state_start;
+ 	} while (read_seqcount_retry(&groupc->seq, seq));
+ 
+@@ -238,7 +238,7 @@ static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
+ 		 * (u32) and our reported pressure close to what's
+ 		 * actually happening.
+ 		 */
+-		if (test_state(tasks, s))
++		if (state_mask & (1 << s))
+ 			times[s] += now - state_start;
+ 
+ 		delta = times[s] - groupc->times_prev[s];
+@@ -406,15 +406,15 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
+ 	delta = now - groupc->state_start;
+ 	groupc->state_start = now;
+ 
+-	if (test_state(groupc->tasks, PSI_IO_SOME)) {
++	if (groupc->state_mask & (1 << PSI_IO_SOME)) {
+ 		groupc->times[PSI_IO_SOME] += delta;
+-		if (test_state(groupc->tasks, PSI_IO_FULL))
++		if (groupc->state_mask & (1 << PSI_IO_FULL))
+ 			groupc->times[PSI_IO_FULL] += delta;
+ 	}
+ 
+-	if (test_state(groupc->tasks, PSI_MEM_SOME)) {
++	if (groupc->state_mask & (1 << PSI_MEM_SOME)) {
+ 		groupc->times[PSI_MEM_SOME] += delta;
+-		if (test_state(groupc->tasks, PSI_MEM_FULL))
++		if (groupc->state_mask & (1 << PSI_MEM_FULL))
+ 			groupc->times[PSI_MEM_FULL] += delta;
+ 		else if (memstall_tick) {
+ 			u32 sample;
+@@ -435,10 +435,10 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
+ 		}
+ 	}
+ 
+-	if (test_state(groupc->tasks, PSI_CPU_SOME))
++	if (groupc->state_mask & (1 << PSI_CPU_SOME))
+ 		groupc->times[PSI_CPU_SOME] += delta;
+ 
+-	if (test_state(groupc->tasks, PSI_NONIDLE))
++	if (groupc->state_mask & (1 << PSI_NONIDLE))
+ 		groupc->times[PSI_NONIDLE] += delta;
+ }
+ 
+@@ -447,6 +447,8 @@ static void psi_group_change(struct psi_group *group, int cpu,
+ {
+ 	struct psi_group_cpu *groupc;
+ 	unsigned int t, m;
++	enum psi_states s;
++	u32 state_mask = 0;
+ 
+ 	groupc = per_cpu_ptr(group->pcpu, cpu);
+ 
+@@ -479,6 +481,13 @@ static void psi_group_change(struct psi_group *group, int cpu,
+ 		if (set & (1 << t))
+ 			groupc->tasks[t]++;
+ 
++	/* Calculate state mask representing active states */
++	for (s = 0; s < NR_PSI_STATES; s++) {
++		if (test_state(groupc->tasks, s))
++			state_mask |= (1 << s);
++	}
++	groupc->state_mask = state_mask;
++
+ 	write_seqcount_end(&groupc->seq);
+ 
+ 	if (!delayed_work_pending(&group->clock_work))
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1.321.g9e740568ce-goog
