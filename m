@@ -1,66 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7471B8E00EE
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 16:24:45 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id p9so8598220pfj.3
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 13:24:45 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 91si3594960ply.222.2019.01.25.13.24.44
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 322528E00EE
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 18:30:29 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id a2so9091903ioq.9
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 15:30:29 -0800 (PST)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id m73si12519686itm.99.2019.01.25.15.30.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 13:24:44 -0800 (PST)
-Subject: Re: [PATCH 2/5] mm/resource: move HMM pr_debug() deeper into resource
- code
+        Fri, 25 Jan 2019 15:30:26 -0800 (PST)
+Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal
+ RAM
 References: <20190124231441.37A4A305@viggo.jf.intel.com>
- <20190124231444.38182DD8@viggo.jf.intel.com>
- <CAErSpo4oSjQAxeRy8Tz_Jvo+cRovBvVx9WBeNb_P6PxT-A_XhA@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <b191ad4a-da4e-9bc7-4468-d6e4a8b3d66f@intel.com>
-Date: Fri, 25 Jan 2019 13:24:43 -0800
+ <20190124231448.E102D18E@viggo.jf.intel.com>
+ <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com>
+ <CAPcyv4hjJhUQpMy1CVJZur0Ssr7Cr2fkcD50L5gzx6v_KY14vg@mail.gmail.com>
+ <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
+ <CAPcyv4ikXD8rJAmV6tGNiq56m_ZXPZNrYkTwOSUJ7D1O_M5s=w@mail.gmail.com>
+ <b7d45d83a314955e7dff25401dfc0d4f4247cfcd.camel@intel.com>
+ <dc7d8190-2c94-9bdb-fb5b-a80a3fb55822@oracle.com>
+ <CAPcyv4hEyG-1hC=20M7YGFG-BF7yvNcG7EkLurAfysHHB2yXBA@mail.gmail.com>
+From: Jane Chu <jane.chu@oracle.com>
+Message-ID: <ef27aeed-6f09-456e-a7aa-24430167e155@oracle.com>
+Date: Fri, 25 Jan 2019 15:30:10 -0800
 MIME-Version: 1.0
-In-Reply-To: <CAErSpo4oSjQAxeRy8Tz_Jvo+cRovBvVx9WBeNb_P6PxT-A_XhA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <CAPcyv4hEyG-1hC=20M7YGFG-BF7yvNcG7EkLurAfysHHB2yXBA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bjorn Helgaas <bhelgaas@google.com>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jerome Glisse <jglisse@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, "Du, Fan" <fan.du@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "tiwai@suse.de" <tiwai@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jglisse@redhat.com" <jglisse@redhat.com>, "zwisler@kernel.org" <zwisler@kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>, "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "Huang, Ying" <ying.huang@intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>
 
-On 1/25/19 1:18 PM, Bjorn Helgaas wrote:
-> On Thu, Jan 24, 2019 at 5:21 PM Dave Hansen <dave.hansen@linux.intel.com> wrote:
->> diff -puN kernel/resource.c~move-request_region-check kernel/resource.c
->> --- a/kernel/resource.c~move-request_region-check       2019-01-24 15:13:14.453199539 -0800
->> +++ b/kernel/resource.c 2019-01-24 15:13:14.458199539 -0800
->> @@ -1123,6 +1123,16 @@ struct resource * __request_region(struc
->>                 conflict = __request_resource(parent, res);
->>                 if (!conflict)
->>                         break;
->> +               /*
->> +                * mm/hmm.c reserves physical addresses which then
->> +                * become unavailable to other users.  Conflicts are
->> +                * not expected.  Be verbose if one is encountered.
->> +                */
->> +               if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
->> +                       pr_debug("Resource conflict with unaddressable "
->> +                                "device memory at %#010llx !\n",
->> +                                (unsigned long long)start);
+
+
+On 1/25/2019 11:15 AM, Dan Williams wrote:
+> On Fri, Jan 25, 2019 at 11:10 AM Jane Chu <jane.chu@oracle.com> wrote:
+>>
+>>
+>> On 1/25/2019 10:20 AM, Verma, Vishal L wrote:
+>>>
+>>> On Fri, 2019-01-25 at 09:18 -0800, Dan Williams wrote:
+>>>> On Fri, Jan 25, 2019 at 12:20 AM Du, Fan <fan.du@intel.com> wrote:
+>>>>> Dan
+>>>>>
+>>>>> Thanks for the insights!
+>>>>>
+>>>>> Can I say, the UCE is delivered from h/w to OS in a single way in
+>>>>> case of machine
+>>>>> check, only PMEM/DAX stuff filter out UC address and managed in its
+>>>>> own way by
+>>>>> badblocks, if PMEM/DAX doesn't do so, then common RAS workflow will
+>>>>> kick in,
+>>>>> right?
+>>>>
+>>>> The common RAS workflow always kicks in, it's just the page state
+>>>> presented by a DAX mapping needs distinct handling. Once it is
+>>>> hot-plugged it no longer needs to be treated differently than "System
+>>>> RAM".
+>>>>
+>>>>> And how about when ARS is involved but no machine check fired for
+>>>>> the function
+>>>>> of this patchset?
+>>>>
+>>>> The hotplug effectively disconnects this address range from the ARS
+>>>> results. They will still be reported in the libnvdimm "region" level
+>>>> badblocks instance, but there's no safe / coordinated way to go clear
+>>>> those errors without additional kernel enabling. There is no "clear
+>>>> error" semantic for "System RAM".
+>>>>
+>>> Perhaps as future enabling, the kernel can go perform "clear error" for
+>>> offlined pages, and make them usable again. But I'm not sure how
+>>> prepared mm is to re-accept pages previously offlined.
+>>>
+>>
+>> Offlining a DRAM backed page due to an UC makes sense because
+>>    a. the physical DRAM cell might still have an error
+>>    b. power cycle, scrubing could potentially 'repair' the DRAM cell,
+>> making the page usable again.
+>>
+>> But for a PMEM backed page, neither is true. If a poison bit is set in
+>> a page, that indicates the underlying hardware has completed the repair
+>> work, all that's left is for software to recover.  Secondly, because
+>> poison is persistent, unless software explicitly clear the bit,
+>> the page is permanently unusable.
 > 
-> I don't object to the change, but are you really OK with this being a
-> pr_debug() message that is only emitted when enabled via either the
-> dynamic debug mechanism or DEBUG being defined?  From the comments, it
-> seems more like a KERN_INFO sort of message.
-
-I left it consistent with the original message that was in the code.
-I'm happy to change it, though, if the consumers of it (Jerome,
-basically) want something different.
-
-> Also, maybe the message would be more useful if it included the
-> conflicting resource as well as the region you're requesting?  Many of
-> the other callers of request_resource_conflict() have something like
-> this:
+> Not permanently... system-owner always has the option to use the
+> device-DAX and ARS mechanisms to clear errors at the next boot.
+> There's just no kernel enabling to do that automatically as a part of
+> this patch set.
 > 
->   dev_err(dev, "resource collision: %pR conflicts with %s %pR\n",
->         new, conflict->name, conflict);
+> However, we should consider this along with the userspace enabling to
+> control which device-dax instances are set aside for hotplug. It would
+> make sense to have a "clear errors before hotplug" configuration
+> option.
+> 
 
-Seems sane.  I was just trying to change as little as possible.
+Agreed, it would be nice to clear error prior to the hotplug operation,
+better if that can be handled by the kernel.
+
+thanks,
+-jane
