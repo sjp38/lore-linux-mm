@@ -2,189 +2,197 @@ Return-Path: <SRS0=o7Ai=QB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A441EC282C6
-	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 19:15:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D45FBC282C0
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 21:03:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 65D402087E
-	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 19:15:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6BF78218A6
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 21:03:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="j0naHyGZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65D402087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="JRDDhEn8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BF78218A6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EACDD8E00EA; Fri, 25 Jan 2019 14:15:22 -0500 (EST)
+	id B00AB8E00EF; Fri, 25 Jan 2019 16:03:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E5B7C8E00D7; Fri, 25 Jan 2019 14:15:22 -0500 (EST)
+	id AB2538E00EE; Fri, 25 Jan 2019 16:03:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D4AB48E00EA; Fri, 25 Jan 2019 14:15:22 -0500 (EST)
+	id 9C90E8E00EF; Fri, 25 Jan 2019 16:03:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7078E00D7
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 14:15:22 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id z6so4176685otm.10
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:15:22 -0800 (PST)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 44FC18E00EE
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 16:03:09 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id 18so2633189wmw.6
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 13:03:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=FXX004AUcxBjaHmlWfnuskZBXjN2zPH5jsYaxqyIBbA=;
-        b=HwqgpCSTekl8V0lMwM6ghZbAo2bDr9RTy7rEsUP32pZQLyZcwrvY17aFpkT1dKozfk
-         pOUYmNqm3mxURZiy/WU2arFW+t5sDKAZdRI3xQsNw739PSJ0rTMODrVSy0ybONu2o3MZ
-         kMvMIkSZZ8flZ5avaKWX8OKWVk4ZEK5KEN6saqFPBekJKdGLHRRfczpp6evdZb5k9kJd
-         KJw5Sl1PLlCBNwDLAmh20ak953WUF733+GMiQr07ThVUGdVyZJEQkK30dkJXGro+dKTg
-         VXdcWw8+EbEzrBscFlui89TaA1XGNwdXlDoGjgKJPlaW8Le+gR6xcrgsjrGNmfPW7+Ud
-         DNxA==
-X-Gm-Message-State: AJcUuke7xLrtZAFgJ/vKlhI9PMaGI0qoY3LY/JOE5ac1kAdt/Z/Y+CG4
-	O4LGYzVyovH4FacNqBpUWIIS//jUSasGeEVcpnpr+5wfD5ZchkAUvFXYUXcH38qxKIju9t/IVZK
-	ewqQfDEuHkwYGv3nH7iI9kx8SQY46dKDN92WGjxxwWRDlmZqWyD5QhZjkbu8swB/DRd2TKYQrpO
-	9GiKfupJcY7oblatHU0OSrMBzX3pwm6um69OoJou1D9t6YviTN1uKR9OkmVHiUQPWcrnlRmxcQP
-	C+7NZiuOd7epmCL91KtPEbmO0GB8svnHPTJwSIgs/2DOfjcugfwQGi0zxEyaHgPiu3Tl2T8/jnB
-	EJI3FUSEwUUmYBMQRqXEt+9DDy55OWJXUHXWTuQI5E+5Y4opBra4rK3QFK+tQnMjbRTGbibwSsQ
-	x
-X-Received: by 2002:a9d:6b11:: with SMTP id g17mr8670304otp.70.1548443722353;
-        Fri, 25 Jan 2019 11:15:22 -0800 (PST)
-X-Received: by 2002:a9d:6b11:: with SMTP id g17mr8670269otp.70.1548443721653;
-        Fri, 25 Jan 2019 11:15:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548443721; cv=none;
+        bh=GlFA8LtVMqJOfnjC7UmYvTFlMlqdaOETYFtC07gL8c8=;
+        b=KU+F18XyoyUXOrQg1qelJrExDLh8pMRzL+mEfJegZJyQCeZxVwVB6ig3XWuvGeuRWe
+         etc0TdNl4cUuKC2yV1pkOr4POnZjB6JujSZr2QKXsC7TpJjXFbiGcyxz3WTgkPVflhFo
+         e8oB4k1fZ428uVtyToSvlL+qCodLDwZKd7XSKdtYclqOs7ruw+ktk2aP5YdWJR3F+O6g
+         BMPPSqOFaMt3mUtcoAi2b4uO7m8bfgJJtGE8PBhlSPeHQlclmHkbvsDxvFkCoimBTZ2Z
+         pm+Nm0hBzsjh9yrtXw5JhcE+SLRkjpNa1kU7WgwaBnz1Vzr0IKG2VdRLErU48mT5X4NH
+         Mf3Q==
+X-Gm-Message-State: AJcUukcW/E/eH2b1N3NGGFKFFp7EDWuyLBK/aeZ05m70+fdkjBCyj9Zx
+	QJmMRc3EwlZISCei+5Mw2G0AqbY2xDj/DfPQR0GDOlLvBqT15oxiMhaFKEJUfonjCF+Gw/6Jj9l
+	a4S3U8nGgTqu4w5XDt4KNk7/Sl/JLr668Lpm07zk8bZNF3/mJEGQhkGdkiBCuynREfzRpxr+m5X
+	HLz9vwPQ8qSjX60BcePV430ZaMtDP7m8irqRwQwVGdzvLVRCQDS3UU7rcSCgEUS3M0z+3v8vcng
+	sxaASOhsOiLfciA8JtQk729wZ3KKo3IEZbPN5pxf/XuHo6IxFp04Gmo/vWqp8sk4fslnWK3ynYn
+	GZcQUmYKWsXg6QKfLF/1+mjxd3r5+qWxXEChryXZprIFItp1sCwHypHGelSebsVP+Yi/H3wbPXU
+	r
+X-Received: by 2002:a1c:bc82:: with SMTP id m124mr8038102wmf.77.1548450188724;
+        Fri, 25 Jan 2019 13:03:08 -0800 (PST)
+X-Received: by 2002:a1c:bc82:: with SMTP id m124mr8038057wmf.77.1548450187564;
+        Fri, 25 Jan 2019 13:03:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548450187; cv=none;
         d=google.com; s=arc-20160816;
-        b=bdqBpWmgEhfJiQ7MpXKlIQeSsXPwehYwFFCGBis8yWbTx/HALNmRKfrBKu/UIvuphC
-         Qu7S5LrajWuP4zGCBMyegfh7O19eCpU7H0eZikQ8DQr0jug1xcMFdgg/4eC6EPtf21EK
-         5UoNLLp5U19HNvTNLpzAJIaxhM3TME/0EXtRP73leF7yCbvVtj8KFJRzMcEPh7WRTmpC
-         qE2fKslw4pJe2sMghkSKXc6i8USF5rKbwOsSf94bCiOn3OoEjhs8f1QVdkDzTt/91fKi
-         5diVBfwQXyHgtGCBkTc4O4Ba06/9EAld1OZJi2ui6rKpbSJ2y3nZMmU2uX0lR/VonFFK
-         WcwA==
+        b=TnXZDApGUdIYeMN2S9T8huz4kQ8CjVe1PyOp977ITXetzwtKG7Dhxq6WYKBZICYJG/
+         mwc53X4Wa7KqMYdgfuPXUaWT/iGfBw5IAy8UWLp66fpQCYwzoI1GtA98sm6RLggTy9UJ
+         6K4+HEDuOknG21FlEz10uTYO14v6L3XsLRAtUmr7WZRRF1Ae4DqOq8C1Ysy4dHShZ0+y
+         EPo6IMoXn3zMm/MC9KTxUMyoi8yHSQAUCZklEgEnfaJrltOqwF1V2lCmmFxoYtCKDv8R
+         GVGhAEUwgXoZECCZ3FxntUeDyIPrx4RQEc5T8wAcuk9KHSrs+IjSLy8CBQjUygRnLBsu
+         vdpA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=FXX004AUcxBjaHmlWfnuskZBXjN2zPH5jsYaxqyIBbA=;
-        b=aqr7a/AIWRaDER4jDCpBxqtZoH/epHLTnaq3enC6SZUF74BGnQWeusOJGqM96kRjEs
-         zqH7+kjc+dc289zcO5hApksM7+OFMHAhwEfBgK1JGQSxgCdQg2pHMiZHbu9MyN7hrmZ+
-         Sz9ikfVBLDW9ET05YSZoAbUEB5PBa+Dwz9m6mkubMKn/gSc4pWLzws1Qq2/PIKb58DpK
-         cd+3akZ/98jq9hd60Qz/HA2zZe9IeGlj7wgrHFDUYgKBF0tOkhEJg5tWWsDEbt8lcj3m
-         +OqLD8XxEictUIHYtAAnkdNNWB4zMDTdeg+s31ozyhR6gLdOXnIvRHjP4f5OwsX13zyD
-         LWqA==
+        bh=GlFA8LtVMqJOfnjC7UmYvTFlMlqdaOETYFtC07gL8c8=;
+        b=uwLTEctNbIk2Tl4tBzPxTuwqistcFVaBpEs2bzAzp8bMRjgZ9LGVJR8+PWUaopjAiy
+         4m4PKwNARtd4pp3xyeCUybzqkq0zPwJu7thcsarAcZ1cyvKTQgPQvOt5Bo8xmsfk6HrG
+         TOwLlCM5XcuH3f4j2ZYG90ynlpIECXkRJwng4HRvKsgWv3DEJHvuN+fHf8XN3nfZCZxp
+         0+aIVTObftxaaZdKrNGyVy3zrtUwiAsjf8xN1QFxdx5kYA4VxAsZtTcBolDWnxlT/U+K
+         rW/oyfsE04JBZoXQ58ITM0O5xaU5ss3w1+uvGV0JNB56bjEbhCdBUDhPzyYclOae8mzK
+         H/EQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=j0naHyGZ;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=JRDDhEn8;
+       spf=pass (google.com: domain of bhelgaas@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bhelgaas@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l109sor2017138otc.139.2019.01.25.11.15.20
+        by mx.google.com with SMTPS id q4sor74827920wru.28.2019.01.25.13.03.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 25 Jan 2019 11:15:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 25 Jan 2019 13:03:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of bhelgaas@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=j0naHyGZ;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=JRDDhEn8;
+       spf=pass (google.com: domain of bhelgaas@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bhelgaas@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=FXX004AUcxBjaHmlWfnuskZBXjN2zPH5jsYaxqyIBbA=;
-        b=j0naHyGZb7bTOZgS5cKphb1EaD6TDe8yYOuc3+W4EFKKF0dqoNYQZ0C4GxAOqGhQ0X
-         pDtgQ8ti8VVxXkKWPEGq6sFIatbuZTQJsxj9O6U9667pmeSAPODPTPkR+ObAPZ7TYKAp
-         b+S3oydSEbwteEh7fUofOubhcbLuzrle7wQ6ofNxh5mE5DmTJaj0CZHHIh1JePCh7Tpd
-         no+lYtsUgMbOTmxgMlqB61uSNA2maTzIvV31tyt+a4Dj2bm94JzAvP/J3c+XsxUY15rR
-         Hxif60hGnf80FZo9hzMvwmIq05FLlUTS0Ai7LIWG5rW6TKsGwyfUHyaPv9JrXdcZVs0/
-         4tCA==
-X-Google-Smtp-Source: ALg8bN6Kb8jFPohdwfb3jz7Y3w7BALuAbBbG0OIeL/vtE/+MMlIOH5lQdmAqpGvcB0DV1IB9r3F6bfAyrB9ZgAkju/M=
-X-Received: by 2002:a9d:6a50:: with SMTP id h16mr8256461otn.95.1548443719889;
- Fri, 25 Jan 2019 11:15:19 -0800 (PST)
+        bh=GlFA8LtVMqJOfnjC7UmYvTFlMlqdaOETYFtC07gL8c8=;
+        b=JRDDhEn8/pBLDYMXq+rCIIkS2PvE/vCc8+Vgigg/VxRv1eyxQObLuf9Ql56fZebign
+         hZZqX3LZTlxh4qtYJaHRX2ZnZzRI7SNdQMloqP3An+Di6jaSMBjtcI/JkdMlqzFC7BEj
+         tkjLMRL0VYIJA0AfWf3mSFlXN8mfnFRs1vQPOThm+lQyqR7/DIeHKPd2b+iEhtmP8cNq
+         4SJIynT+/KmTQu69nps1hVdBtXq267EqcDrobJaMrTFCskCvhU1WRvRJrO1Hf8U8jAuH
+         0OQeoiMxMDs+Md0Ca0wNaQmVQZ/n7I0rK2cPmMM6IwHp4d2nC7eHBJYVhXFM8VCGru71
+         w3TA==
+X-Google-Smtp-Source: ALg8bN4YSnU8ocVyHeD54PjkgUNpLaNRE+Av0um87TRh1jxbNHujScXrZ+6dCqJZAqSI4YIMKMgZIpl7xkOcH+hyQDg=
+X-Received: by 2002:adf:9b11:: with SMTP id b17mr13033849wrc.168.1548450186690;
+ Fri, 25 Jan 2019 13:03:06 -0800 (PST)
 MIME-Version: 1.0
-References: <20190124231441.37A4A305@viggo.jf.intel.com> <20190124231448.E102D18E@viggo.jf.intel.com>
- <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com> <CAPcyv4hjJhUQpMy1CVJZur0Ssr7Cr2fkcD50L5gzx6v_KY14vg@mail.gmail.com>
- <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
- <CAPcyv4ikXD8rJAmV6tGNiq56m_ZXPZNrYkTwOSUJ7D1O_M5s=w@mail.gmail.com>
- <b7d45d83a314955e7dff25401dfc0d4f4247cfcd.camel@intel.com> <dc7d8190-2c94-9bdb-fb5b-a80a3fb55822@oracle.com>
-In-Reply-To: <dc7d8190-2c94-9bdb-fb5b-a80a3fb55822@oracle.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 25 Jan 2019 11:15:08 -0800
+References: <20190124231441.37A4A305@viggo.jf.intel.com> <20190124231442.EFD29EE0@viggo.jf.intel.com>
+In-Reply-To: <20190124231442.EFD29EE0@viggo.jf.intel.com>
+From: Bjorn Helgaas <bhelgaas@google.com>
+Date: Fri, 25 Jan 2019 15:02:55 -0600
 Message-ID:
- <CAPcyv4hEyG-1hC=20M7YGFG-BF7yvNcG7EkLurAfysHHB2yXBA@mail.gmail.com>
-Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal RAM
-To: Jane Chu <jane.chu@oracle.com>
-Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, "Du, Fan" <fan.du@intel.com>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "tiwai@suse.de" <tiwai@suse.de>, 
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, 
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jglisse@redhat.com" <jglisse@redhat.com>, 
-	"zwisler@kernel.org" <zwisler@kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, 
-	"baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>, 
-	"thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>
+ <CAErSpo7kMjfi-1r8ZyGbheWzo+JCFkDZ1zpVhyNV7VVy8NOV7g@mail.gmail.com>
+Subject: Re: [PATCH 1/5] mm/resource: return real error codes from walk failures
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>, 
+	Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, vishal.l.verma@intel.com, 
+	thomas.lendacky@amd.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, 
+	linux-nvdimm@lists.01.org, linux-mm@kvack.org, 
+	Huang Ying <ying.huang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, 
+	Borislav Petkov <bp@suse.de>, baiyaowei@cmss.chinamobile.com, Takashi Iwai <tiwai@suse.de>, 
+	Jerome Glisse <jglisse@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190125191508.FhcTWHBgyRreKfuSWaoubd_-HxygPDFY8SSDFElQFp8@z>
+Message-ID: <20190125210255.jbLi420NiT-v90pqIqiT9QEpj5bRiJJbaukIjFmmAfs@z>
 
-On Fri, Jan 25, 2019 at 11:10 AM Jane Chu <jane.chu@oracle.com> wrote:
+On Thu, Jan 24, 2019 at 5:21 PM Dave Hansen <dave.hansen@linux.intel.com> wrote:
 >
 >
-> On 1/25/2019 10:20 AM, Verma, Vishal L wrote:
-> >
-> > On Fri, 2019-01-25 at 09:18 -0800, Dan Williams wrote:
-> >> On Fri, Jan 25, 2019 at 12:20 AM Du, Fan <fan.du@intel.com> wrote:
-> >>> Dan
-> >>>
-> >>> Thanks for the insights!
-> >>>
-> >>> Can I say, the UCE is delivered from h/w to OS in a single way in
-> >>> case of machine
-> >>> check, only PMEM/DAX stuff filter out UC address and managed in its
-> >>> own way by
-> >>> badblocks, if PMEM/DAX doesn't do so, then common RAS workflow will
-> >>> kick in,
-> >>> right?
-> >>
-> >> The common RAS workflow always kicks in, it's just the page state
-> >> presented by a DAX mapping needs distinct handling. Once it is
-> >> hot-plugged it no longer needs to be treated differently than "System
-> >> RAM".
-> >>
-> >>> And how about when ARS is involved but no machine check fired for
-> >>> the function
-> >>> of this patchset?
-> >>
-> >> The hotplug effectively disconnects this address range from the ARS
-> >> results. They will still be reported in the libnvdimm "region" level
-> >> badblocks instance, but there's no safe / coordinated way to go clear
-> >> those errors without additional kernel enabling. There is no "clear
-> >> error" semantic for "System RAM".
-> >>
-> > Perhaps as future enabling, the kernel can go perform "clear error" for
-> > offlined pages, and make them usable again. But I'm not sure how
-> > prepared mm is to re-accept pages previously offlined.
-> >
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 >
-> Offlining a DRAM backed page due to an UC makes sense because
->   a. the physical DRAM cell might still have an error
->   b. power cycle, scrubing could potentially 'repair' the DRAM cell,
-> making the page usable again.
+> walk_system_ram_range() can return an error code either becuase *it*
+> failed, or because the 'func' that it calls returned an error.  The
+> memory hotplug does the following:
 >
-> But for a PMEM backed page, neither is true. If a poison bit is set in
-> a page, that indicates the underlying hardware has completed the repair
-> work, all that's left is for software to recover.  Secondly, because
-> poison is persistent, unless software explicitly clear the bit,
-> the page is permanently unusable.
+>         ret = walk_system_ram_range(..., func);
+>         if (ret)
+>                 return ret;
+>
+> and 'ret' makes it out to userspace, eventually.  The problem is,
+> walk_system_ram_range() failues that result from *it* failing (as
+> opposed to 'func') return -1.  That leads to a very odd -EPERM (-1)
+> return code out to userspace.
+>
+> Make walk_system_ram_range() return -EINVAL for internal failures to
+> keep userspace less confused.
+>
+> This return code is compatible with all the callers that I audited.
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dave Jiang <dave.jiang@intel.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Vishal Verma <vishal.l.verma@intel.com>
+> Cc: Tom Lendacky <thomas.lendacky@amd.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: linux-nvdimm@lists.01.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Fengguang Wu <fengguang.wu@intel.com>
+> Cc: Borislav Petkov <bp@suse.de>
+> Cc: Bjorn Helgaas <bhelgaas@google.com>
+> Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+> Cc: Takashi Iwai <tiwai@suse.de>
+> Cc: Jerome Glisse <jglisse@redhat.com>
+> ---
+>
+>  b/kernel/resource.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff -puN kernel/resource.c~memory-hotplug-walk_system_ram_range-returns-neg-1 kernel/resource.c
+> --- a/kernel/resource.c~memory-hotplug-walk_system_ram_range-returns-neg-1      2019-01-24 15:13:13.950199540 -0800
+> +++ b/kernel/resource.c 2019-01-24 15:13:13.954199540 -0800
+> @@ -375,7 +375,7 @@ static int __walk_iomem_res_desc(resourc
+>                                  int (*func)(struct resource *, void *))
+>  {
+>         struct resource res;
+> -       int ret = -1;
+> +       int ret = -EINVAL;
+>
+>         while (start < end &&
+>                !find_next_iomem_res(start, end, flags, desc, first_lvl, &res)) {
+> @@ -453,7 +453,7 @@ int walk_system_ram_range(unsigned long
+>         unsigned long flags;
+>         struct resource res;
+>         unsigned long pfn, end_pfn;
+> -       int ret = -1;
+> +       int ret = -EINVAL;
 
-Not permanently... system-owner always has the option to use the
-device-DAX and ARS mechanisms to clear errors at the next boot.
-There's just no kernel enabling to do that automatically as a part of
-this patch set.
+Can you either make a similar change to the powerpc version of
+walk_system_ram_range() in arch/powerpc/mm/mem.c or explain why it's
+not needed?  It *seems* like we'd want both versions of
+walk_system_ram_range() to behave similarly in this respect.
 
-However, we should consider this along with the userspace enabling to
-control which device-dax instances are set aside for hotplug. It would
-make sense to have a "clear errors before hotplug" configuration
-option.
+>         start = (u64) start_pfn << PAGE_SHIFT;
+>         end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
+> _
 
