@@ -1,50 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DBB448E00D7
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 12:18:53 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id w124so4775975oif.3
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 09:18:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u18sor2312474otq.164.2019.01.25.09.18.52
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 25 Jan 2019 09:18:52 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 31CAB8E00DF
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 12:45:15 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id o21so4026891edq.4
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 09:45:15 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t14-v6si7626570ejf.152.2019.01.25.09.45.13
+        for <linux-mm@kvack.org>;
+        Fri, 25 Jan 2019 09:45:13 -0800 (PST)
+Date: Fri, 25 Jan 2019 17:45:02 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v2 06/21] memblock: memblock_phys_alloc_try_nid(): don't
+ panic
+Message-ID: <20190125174502.GL25901@arrakis.emea.arm.com>
+References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
+ <1548057848-15136-7-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
-References: <20190124231441.37A4A305@viggo.jf.intel.com> <20190124231448.E102D18E@viggo.jf.intel.com>
- <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com> <CAPcyv4hjJhUQpMy1CVJZur0Ssr7Cr2fkcD50L5gzx6v_KY14vg@mail.gmail.com>
- <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
-In-Reply-To: <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 25 Jan 2019 09:18:41 -0800
-Message-ID: <CAPcyv4ikXD8rJAmV6tGNiq56m_ZXPZNrYkTwOSUJ7D1O_M5s=w@mail.gmail.com>
-Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal RAM
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1548057848-15136-7-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Du, Fan" <fan.du@intel.com>
-Cc: Jane Chu <jane.chu@oracle.com>, Tom Lendacky <thomas.lendacky@amd.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Takashi Iwai <tiwai@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcj9tZSBHbGlzc2U=?= <jglisse@redhat.com>, Borislav Petkov <bp@suse.de>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Ross Zwisler <zwisler@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org
 
-On Fri, Jan 25, 2019 at 12:20 AM Du, Fan <fan.du@intel.com> wrote:
->
-> Dan
->
-> Thanks for the insights!
->
-> Can I say, the UCE is delivered from h/w to OS in a single way in case of machine
-> check, only PMEM/DAX stuff filter out UC address and managed in its own way by
-> badblocks, if PMEM/DAX doesn't do so, then common RAS workflow will kick in,
-> right?
+On Mon, Jan 21, 2019 at 10:03:53AM +0200, Mike Rapoport wrote:
+> diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
+> index ae34e3a..2c61ea4 100644
+> --- a/arch/arm64/mm/numa.c
+> +++ b/arch/arm64/mm/numa.c
+> @@ -237,6 +237,10 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+>  		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
+>  
+>  	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+> +	if (!nd_pa)
+> +		panic("Cannot allocate %zu bytes for node %d data\n",
+> +		      nd_size, nid);
+> +
+>  	nd = __va(nd_pa);
+>  
+>  	/* report and initialize */
 
-The common RAS workflow always kicks in, it's just the page state
-presented by a DAX mapping needs distinct handling. Once it is
-hot-plugged it no longer needs to be treated differently than "System
-RAM".
+Does it mean that memblock_phys_alloc_try_nid() never returns valid
+physical memory starting at 0?
 
-> And how about when ARS is involved but no machine check fired for the function
-> of this patchset?
-
-The hotplug effectively disconnects this address range from the ARS
-results. They will still be reported in the libnvdimm "region" level
-badblocks instance, but there's no safe / coordinated way to go clear
-those errors without additional kernel enabling. There is no "clear
-error" semantic for "System RAM".
+-- 
+Catalin
