@@ -1,108 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FAFA8E00D7
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:51:57 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id 201so5292779ywp.13
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 08:51:57 -0800 (PST)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DBB448E00D7
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 12:18:53 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id w124so4775975oif.3
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 09:18:53 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h66sor3421451ywa.160.2019.01.25.08.51.55
+        by mx.google.com with SMTPS id u18sor2312474otq.164.2019.01.25.09.18.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 25 Jan 2019 08:51:56 -0800 (PST)
-Date: Fri, 25 Jan 2019 08:51:52 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190125165152.GK50184@devbig004.ftw2.facebook.com>
-References: <20190123223144.GA10798@chrisdown.name>
- <20190124082252.GD4087@dhcp22.suse.cz>
- <20190124160009.GA12436@cmpxchg.org>
- <20190124170117.GS4087@dhcp22.suse.cz>
- <20190124182328.GA10820@cmpxchg.org>
- <20190125074824.GD3560@dhcp22.suse.cz>
+        Fri, 25 Jan 2019 09:18:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190125074824.GD3560@dhcp22.suse.cz>
+References: <20190124231441.37A4A305@viggo.jf.intel.com> <20190124231448.E102D18E@viggo.jf.intel.com>
+ <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com> <CAPcyv4hjJhUQpMy1CVJZur0Ssr7Cr2fkcD50L5gzx6v_KY14vg@mail.gmail.com>
+ <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
+In-Reply-To: <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 25 Jan 2019 09:18:41 -0800
+Message-ID: <CAPcyv4ikXD8rJAmV6tGNiq56m_ZXPZNrYkTwOSUJ7D1O_M5s=w@mail.gmail.com>
+Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal RAM
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: "Du, Fan" <fan.du@intel.com>
+Cc: Jane Chu <jane.chu@oracle.com>, Tom Lendacky <thomas.lendacky@amd.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Takashi Iwai <tiwai@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcj9tZSBHbGlzc2U=?= <jglisse@redhat.com>, Borislav Petkov <bp@suse.de>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Ross Zwisler <zwisler@kernel.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
 
-Hello, Michal.
+On Fri, Jan 25, 2019 at 12:20 AM Du, Fan <fan.du@intel.com> wrote:
+>
+> Dan
+>
+> Thanks for the insights!
+>
+> Can I say, the UCE is delivered from h/w to OS in a single way in case of machine
+> check, only PMEM/DAX stuff filter out UC address and managed in its own way by
+> badblocks, if PMEM/DAX doesn't do so, then common RAS workflow will kick in,
+> right?
 
-On Fri, Jan 25, 2019 at 09:42:13AM +0100, Michal Hocko wrote:
-> > If you read my sentence again, I'm not talking about the kernel but
-> > the surrounding infrastructure that consumes this data. The risk is
-> > not dependent on the age of the interface age, but on its adoption.
-> 
-> You really have to assume the user visible interface is consumed shortly
-> after it is exposed/considered stable in this case as cgroups v2 was
-> explicitly called unstable for a considerable period of time. This is a
-> general policy regarding user APIs in the kernel. I can see arguments a
-> next release after introduction or in similar cases but this is 3 years
-> ago. We already have distribution kernels based on 4.12 kernel and it is
-> old comparing to 5.0.
+The common RAS workflow always kicks in, it's just the page state
+presented by a DAX mapping needs distinct handling. Once it is
+hot-plugged it no longer needs to be treated differently than "System
+RAM".
 
-We do change userland-visible behaviors if the existing behavior is
-buggy / misleading / confusing.  For example, we recently changed how
-discard bytes are accounted (no longer included in write bytes or ios)
-and even how mincore(2) behaves, both of which are far older than
-cgroup2.
+> And how about when ARS is involved but no machine check fired for the function
+> of this patchset?
 
-The main considerations are the blast radius and existing use cases in
-these decisions.  Age does contribute to it but mostly because they
-affect how widely the behavior may be depended upon.
-
-> > > Changing interfaces now represents a non-trivial risk and so far I
-> > > haven't heard any actual usecase where the current semantic is
-> > > actually wrong.  Inconsistency on its own is not a sufficient
-> > > justification IMO.
-> > 
-> > It can be seen either way, and in isolation it wouldn't be wrong to
-> > count events on the local level. But we made that decision for the
-> > entire interface, and this file is the odd one out now. From that
-> > comprehensive perspective, yes, the behavior is wrong.
-> 
-> I do see your point about consistency. But it is also important to
-> consider the usability of this interface. As already mentioned, catching
-> an oom event at a level where the oom doesn't happen and having hard
-> time to identify that place without races is a not a straightforward API
-> to use. So it might be really the case that the api is actually usable
-> for its purpose.
-
-What if a user wants to monitor any ooms in the subtree tho, which is
-a valid use case?  If local event monitoring is useful and it can be,
-let's add separate events which are clearly identifiable to be local.
-Right now, it's confusing like hell.
-
-> > It really
-> > confuses people who are trying to use it, because they *do* expect it
-> > to behave recursively.
-> 
-> Then we should improve the documentation. But seriously these are no
-> strong reasons to change a long term semantic people might rely on.
-
-This is broken interface.  We're mixing local and hierarchical numbers
-willy nilly without obvious way of telling them apart.
-
-> > I'm really having a hard time believing there are existing cgroup2
-> > users with specific expectations for the non-recursive behavior...
-> 
-> I can certainly imagine monitoring tools to hook at levels where limits
-> are set and report events as they happen. It would be more than
-> confusing to receive events for reclaim/ooms that hasn't happened at
-> that level just because a delegated memcg down the hierarchy has decided
-> to set a more restrictive limits. Really this is a very unexpected
-> behavior change for anybody using that interface right now on anything
-> but leaf memcgs.
-
-Sure, there's some probability this change may cause some disruptions
-although I'm pretty skeptical given that inner node event monitoring
-is mostly useless right now.  However, there's also a lot of on-going
-and future costs everyone is paying because the interface is so
-confusing.
-
-Thanks.
-
--- 
-tejun
+The hotplug effectively disconnects this address range from the ARS
+results. They will still be reported in the libnvdimm "region" level
+badblocks instance, but there's no safe / coordinated way to go clear
+those errors without additional kernel enabling. There is no "clear
+error" semantic for "System RAM".
