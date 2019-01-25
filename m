@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 31CAB8E00DF
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 12:45:15 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id o21so4026891edq.4
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 09:45:15 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t14-v6si7626570ejf.152.2019.01.25.09.45.13
-        for <linux-mm@kvack.org>;
-        Fri, 25 Jan 2019 09:45:13 -0800 (PST)
-Date: Fri, 25 Jan 2019 17:45:02 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v2 06/21] memblock: memblock_phys_alloc_try_nid(): don't
- panic
-Message-ID: <20190125174502.GL25901@arrakis.emea.arm.com>
-References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
- <1548057848-15136-7-git-send-email-rppt@linux.ibm.com>
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D80D98E00DF
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 13:21:00 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id u17so6816201pgn.17
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 10:21:00 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id z22si25054625plo.202.2019.01.25.10.20.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Jan 2019 10:20:59 -0800 (PST)
+From: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like
+ normal RAM
+Date: Fri, 25 Jan 2019 18:20:56 +0000
+Message-ID: <b7d45d83a314955e7dff25401dfc0d4f4247cfcd.camel@intel.com>
+References: <20190124231441.37A4A305@viggo.jf.intel.com>
+	 <20190124231448.E102D18E@viggo.jf.intel.com>
+	 <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com>
+	 <CAPcyv4hjJhUQpMy1CVJZur0Ssr7Cr2fkcD50L5gzx6v_KY14vg@mail.gmail.com>
+	 <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
+	 <CAPcyv4ikXD8rJAmV6tGNiq56m_ZXPZNrYkTwOSUJ7D1O_M5s=w@mail.gmail.com>
+In-Reply-To: <CAPcyv4ikXD8rJAmV6tGNiq56m_ZXPZNrYkTwOSUJ7D1O_M5s=w@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <54E31B413D1FF149BE238966A26CD136@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1548057848-15136-7-git-send-email-rppt@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org
+To: "Williams, Dan J" <dan.j.williams@intel.com>, "Du, Fan" <fan.du@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "tiwai@suse.de" <tiwai@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jglisse@redhat.com" <jglisse@redhat.com>, "zwisler@kernel.org" <zwisler@kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>, "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "Huang,
+ Ying" <ying.huang@intel.com>, "jane.chu@oracle.com" <jane.chu@oracle.com>, "bhelgaas@google.com" <bhelgaas@google.com>
 
-On Mon, Jan 21, 2019 at 10:03:53AM +0200, Mike Rapoport wrote:
-> diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
-> index ae34e3a..2c61ea4 100644
-> --- a/arch/arm64/mm/numa.c
-> +++ b/arch/arm64/mm/numa.c
-> @@ -237,6 +237,10 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
->  		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
->  
->  	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
-> +	if (!nd_pa)
-> +		panic("Cannot allocate %zu bytes for node %d data\n",
-> +		      nd_size, nid);
-> +
->  	nd = __va(nd_pa);
->  
->  	/* report and initialize */
-
-Does it mean that memblock_phys_alloc_try_nid() never returns valid
-physical memory starting at 0?
-
--- 
-Catalin
+DQpPbiBGcmksIDIwMTktMDEtMjUgYXQgMDk6MTggLTA4MDAsIERhbiBXaWxsaWFtcyB3cm90ZToN
+Cj4gT24gRnJpLCBKYW4gMjUsIDIwMTkgYXQgMTI6MjAgQU0gRHUsIEZhbiA8ZmFuLmR1QGludGVs
+LmNvbT4gd3JvdGU6DQo+ID4gRGFuDQo+ID4gDQo+ID4gVGhhbmtzIGZvciB0aGUgaW5zaWdodHMh
+DQo+ID4gDQo+ID4gQ2FuIEkgc2F5LCB0aGUgVUNFIGlzIGRlbGl2ZXJlZCBmcm9tIGgvdyB0byBP
+UyBpbiBhIHNpbmdsZSB3YXkgaW4NCj4gPiBjYXNlIG9mIG1hY2hpbmUNCj4gPiBjaGVjaywgb25s
+eSBQTUVNL0RBWCBzdHVmZiBmaWx0ZXIgb3V0IFVDIGFkZHJlc3MgYW5kIG1hbmFnZWQgaW4gaXRz
+DQo+ID4gb3duIHdheSBieQ0KPiA+IGJhZGJsb2NrcywgaWYgUE1FTS9EQVggZG9lc24ndCBkbyBz
+bywgdGhlbiBjb21tb24gUkFTIHdvcmtmbG93IHdpbGwNCj4gPiBraWNrIGluLA0KPiA+IHJpZ2h0
+Pw0KPiANCj4gVGhlIGNvbW1vbiBSQVMgd29ya2Zsb3cgYWx3YXlzIGtpY2tzIGluLCBpdCdzIGp1
+c3QgdGhlIHBhZ2Ugc3RhdGUNCj4gcHJlc2VudGVkIGJ5IGEgREFYIG1hcHBpbmcgbmVlZHMgZGlz
+dGluY3QgaGFuZGxpbmcuIE9uY2UgaXQgaXMNCj4gaG90LXBsdWdnZWQgaXQgbm8gbG9uZ2VyIG5l
+ZWRzIHRvIGJlIHRyZWF0ZWQgZGlmZmVyZW50bHkgdGhhbiAiU3lzdGVtDQo+IFJBTSIuDQo+IA0K
+PiA+IEFuZCBob3cgYWJvdXQgd2hlbiBBUlMgaXMgaW52b2x2ZWQgYnV0IG5vIG1hY2hpbmUgY2hl
+Y2sgZmlyZWQgZm9yDQo+ID4gdGhlIGZ1bmN0aW9uDQo+ID4gb2YgdGhpcyBwYXRjaHNldD8NCj4g
+DQo+IFRoZSBob3RwbHVnIGVmZmVjdGl2ZWx5IGRpc2Nvbm5lY3RzIHRoaXMgYWRkcmVzcyByYW5n
+ZSBmcm9tIHRoZSBBUlMNCj4gcmVzdWx0cy4gVGhleSB3aWxsIHN0aWxsIGJlIHJlcG9ydGVkIGlu
+IHRoZSBsaWJudmRpbW0gInJlZ2lvbiIgbGV2ZWwNCj4gYmFkYmxvY2tzIGluc3RhbmNlLCBidXQg
+dGhlcmUncyBubyBzYWZlIC8gY29vcmRpbmF0ZWQgd2F5IHRvIGdvIGNsZWFyDQo+IHRob3NlIGVy
+cm9ycyB3aXRob3V0IGFkZGl0aW9uYWwga2VybmVsIGVuYWJsaW5nLiBUaGVyZSBpcyBubyAiY2xl
+YXINCj4gZXJyb3IiIHNlbWFudGljIGZvciAiU3lzdGVtIFJBTSIuDQo+IA0KUGVyaGFwcyBhcyBm
+dXR1cmUgZW5hYmxpbmcsIHRoZSBrZXJuZWwgY2FuIGdvIHBlcmZvcm0gImNsZWFyIGVycm9yIiBm
+b3INCm9mZmxpbmVkIHBhZ2VzLCBhbmQgbWFrZSB0aGVtIHVzYWJsZSBhZ2Fpbi4gQnV0IEknbSBu
+b3Qgc3VyZSBob3cNCnByZXBhcmVkIG1tIGlzIHRvIHJlLWFjY2VwdCBwYWdlcyBwcmV2aW91c2x5
+IG9mZmxpbmVkLg0K
