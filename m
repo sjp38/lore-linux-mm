@@ -1,114 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8790E8E00D7
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 14:07:23 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id 42so11755614qtr.7
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:07:23 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C20998E00D7
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 14:08:30 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id v64so10377178qka.5
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:08:30 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d19si1767378qke.208.2019.01.25.11.07.22
+        by mx.google.com with ESMTPS id 33si704517qte.189.2019.01.25.11.08.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 11:07:22 -0800 (PST)
-Date: Fri, 25 Jan 2019 14:07:17 -0500
+        Fri, 25 Jan 2019 11:08:29 -0800 (PST)
+Date: Fri, 25 Jan 2019 14:08:22 -0500
 From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 2/5] mm/resource: move HMM pr_debug() deeper into
- resource code
-Message-ID: <20190125190716.GB3237@redhat.com>
+Subject: Re: [PATCH 0/5] [v4] Allow persistent memory to be used like normal
+ RAM
+Message-ID: <20190125190820.GC3237@redhat.com>
 References: <20190124231441.37A4A305@viggo.jf.intel.com>
- <20190124231444.38182DD8@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190124231444.38182DD8@viggo.jf.intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190124231441.37A4A305@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com
+Cc: linux-kernel@vger.kernel.org, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com, baiyaowei@cmss.chinamobile.com, tiwai@suse.de
 
-On Thu, Jan 24, 2019 at 03:14:44PM -0800, Dave Hansen wrote:
+On Thu, Jan 24, 2019 at 03:14:41PM -0800, Dave Hansen wrote:
+> v3 spurred a bunch of really good discussion.  Thanks to everybody
+> that made comments and suggestions!
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+> I would still love some Acks on this from the folks on cc, even if it
+> is on just the patch touching your area.
 > 
-> HMM consumes physical address space for its own use, even
-> though nothing is mapped or accessible there.  It uses a
-> special resource description (IORES_DESC_DEVICE_PRIVATE_MEMORY)
-> to uniquely identify these areas.
+> Note: these are based on commit d2f33c19644 in:
 > 
-> When HMM consumes address space, it makes a best guess about
-> what to consume.  However, it is possible that a future memory
-> or device hotplug can collide with the reserved area.  In the
-> case of these conflicts, there is an error message in
-> register_memory_resource().
+> 	git://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git libnvdimm-pending
 > 
-> Later patches in this series move register_memory_resource()
-> from using request_resource_conflict() to __request_region().
-> Unfortunately, __request_region() does not return the conflict
-> like the previous function did, which makes it impossible to
-> check for IORES_DESC_DEVICE_PRIVATE_MEMORY in a conflicting
-> resource.
-> 
-> Instead of warning in register_memory_resource(), move the
-> check into the core resource code itself (__request_region())
-> where the conflicting resource _is_ available.  This has the
-> added bonus of producing a warning in case of HMM conflicts
-> with devices *or* RAM address space, as opposed to the RAM-
-> only warnings that were there previously.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dave Jiang <dave.jiang@intel.com>
-> Cc: Ross Zwisler <zwisler@kernel.org>
-> Cc: Vishal Verma <vishal.l.verma@intel.com>
-> Cc: Tom Lendacky <thomas.lendacky@amd.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: linux-nvdimm@lists.01.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: Huang Ying <ying.huang@intel.com>
-> Cc: Fengguang Wu <fengguang.wu@intel.com>
+> Changes since v3:
+>  * Move HMM-related resource warning instead of removing it
+>  * Use __request_resource() directly instead of devm.
+>  * Create a separate DAX_PMEM Kconfig option, complete with help text
+>  * Update patch descriptions and cover letter to give a better
+>    overview of use-cases and hardware where this might be useful.
 
-Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+This one looks good to me, i will give it a go on monday to
+test against nouveau and HMM.
 
-> ---
-> 
->  b/kernel/resource.c   |   10 ++++++++++
->  b/mm/memory_hotplug.c |    5 -----
->  2 files changed, 10 insertions(+), 5 deletions(-)
-> 
-> diff -puN kernel/resource.c~move-request_region-check kernel/resource.c
-> --- a/kernel/resource.c~move-request_region-check	2019-01-24 15:13:14.453199539 -0800
-> +++ b/kernel/resource.c	2019-01-24 15:13:14.458199539 -0800
-> @@ -1123,6 +1123,16 @@ struct resource * __request_region(struc
->  		conflict = __request_resource(parent, res);
->  		if (!conflict)
->  			break;
-> +		/*
-> +		 * mm/hmm.c reserves physical addresses which then
-> +		 * become unavailable to other users.  Conflicts are
-> +		 * not expected.  Be verbose if one is encountered.
-> +		 */
-> +		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
-> +			pr_debug("Resource conflict with unaddressable "
-> +				 "device memory at %#010llx !\n",
-> +				 (unsigned long long)start);
-> +		}
->  		if (conflict != parent) {
->  			if (!(conflict->flags & IORESOURCE_BUSY)) {
->  				parent = conflict;
-> diff -puN mm/memory_hotplug.c~move-request_region-check mm/memory_hotplug.c
-> --- a/mm/memory_hotplug.c~move-request_region-check	2019-01-24 15:13:14.455199539 -0800
-> +++ b/mm/memory_hotplug.c	2019-01-24 15:13:14.459199539 -0800
-> @@ -109,11 +109,6 @@ static struct resource *register_memory_
->  	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
->  	conflict =  request_resource_conflict(&iomem_resource, res);
->  	if (conflict) {
-> -		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
-> -			pr_debug("Device unaddressable memory block "
-> -				 "memory hotplug at %#010llx !\n",
-> -				 (unsigned long long)start);
-> -		}
->  		pr_debug("System RAM resource %pR cannot be added\n", res);
->  		kfree(res);
->  		return ERR_PTR(-EEXIST);
-> _
+Cheers,
+Jérôme
