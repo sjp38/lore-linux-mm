@@ -1,266 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C656F8E00CD
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 05:12:49 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id p79so8772985qki.15
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 02:12:49 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v2si742449qtf.321.2019.01.25.02.12.48
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BBE758E00BC
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 09:20:44 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id e17so3739087edr.7
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 06:20:44 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n2si349071ejr.241.2019.01.25.06.20.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 02:12:48 -0800 (PST)
-Date: Fri, 25 Jan 2019 18:12:34 +0800
-From: Peter Xu <peterx@redhat.com>
-Subject: Re: [PATCH RFC 07/24] userfaultfd: wp: add the writeprotect API to
- userfaultfd ioctl
-Message-ID: <20190125101234.GA3128@xz-x1>
-References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-8-peterx@redhat.com>
- <20190121104232.GA26461@rapoport-lnx>
- <20190124045551.GD18231@xz-x1>
- <20190124072706.GA3179@rapoport-lnx>
- <20190124092848.GL18231@xz-x1>
- <20190125075453.GF31519@rapoport-lnx>
+        Fri, 25 Jan 2019 06:20:42 -0800 (PST)
+Date: Fri, 25 Jan 2019 15:20:39 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v7 1/3] mm: Shuffle initial free memory to improve
+ memory-side-cache utilization
+Message-ID: <20190125142039.GN3560@dhcp22.suse.cz>
+References: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <154690327057.676627.18166704439241470885.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190125075453.GF31519@rapoport-lnx>
+In-Reply-To: <154690327057.676627.18166704439241470885.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@linux.intel.com>, Mike Rapoport <rppt@linux.ibm.com>, keith.busch@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de
 
-On Fri, Jan 25, 2019 at 09:54:53AM +0200, Mike Rapoport wrote:
-> On Thu, Jan 24, 2019 at 05:28:48PM +0800, Peter Xu wrote:
-> > On Thu, Jan 24, 2019 at 09:27:07AM +0200, Mike Rapoport wrote:
-> > > On Thu, Jan 24, 2019 at 12:56:15PM +0800, Peter Xu wrote:
-> > > > On Mon, Jan 21, 2019 at 12:42:33PM +0200, Mike Rapoport wrote:
-> > > > 
-> > > > [...]
-> > > > 
-> > > > > > @@ -1343,7 +1344,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
-> > > > > > 
-> > > > > >  		/* check not compatible vmas */
-> > > > > >  		ret = -EINVAL;
-> > > > > > -		if (!vma_can_userfault(cur))
-> > > > > > +		if (!vma_can_userfault(cur, vm_flags))
-> > > > > >  			goto out_unlock;
-> > > > > > 
-> > > > > >  		/*
-> > > > > > @@ -1371,6 +1372,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
-> > > > > >  			if (end & (vma_hpagesize - 1))
-> > > > > >  				goto out_unlock;
-> > > > > >  		}
-> > > > > > +		if ((vm_flags & VM_UFFD_WP) && !(cur->vm_flags & VM_WRITE))
-> > > > > > +			goto out_unlock;
-> > > > > 
-> > > > > This is problematic for the non-cooperative use-case. Way may still want to
-> > > > > monitor a read-only area because it may eventually become writable, e.g. if
-> > > > > the monitored process runs mprotect().
-> > > > 
-> > > > Firstly I think I should be able to change it to VM_MAYWRITE which
-> > > > seems to suite more.
-> > > > 
-> > > > Meanwhile, frankly speaking I didn't think a lot about how to nest the
-> > > > usages of uffd-wp and mprotect(), so far I was only considering it as
-> > > > a replacement of mprotect().  But indeed it can happen that the
-> > > > monitored process calls mprotect().  Is there an existing scenario of
-> > > > such usage?
-> > > > 
-> > > > The problem is I'm uncertain about whether this scenario can work
-> > > > after all.  Say, the monitor process A write protected process B's
-> > > > page P, so logically A will definitely receive a message before B
-> > > > writes to page P.  However here if we allow process B to do
-> > > > mprotect(PROT_WRITE) upon page P and grant write permission to it on
-> > > > its own, then A will not be able to capture the write operation at
-> > > > all?  Then I don't know how it can work here... or whether we should
-> > > > fail the mprotect() at least upon uffd-wp ranges?
-> > > 
-> > > The use-case we've discussed a while ago was to use uffd-wp instead of
-> > > soft-dirty for tracking memory changes in CRIU for pre-copy migration.
-> > > Currently, we enable soft-dirty for the migrated process and monitor
-> > > /proc/pid/pagemap between memory dump iterations to see what memory pages
-> > > have been changed.
-> > > With uffd-wp we thought to register all the process memory with uffd-wp and
-> > > then track changes with uffd-wp notifications. Back then it was considered
-> > > only at the very general level without paying much attention to details.
-> > > 
-> > > So my initial thought was that we do register the entire memory with
-> > > uffd-wp. If an area changes from RO to RW at some point, uffd-wp will
-> > > generate notifications to the monitor, it would be able to notice the
-> > > change and the write will continue normally.
-> > > 
-> > > If we are to limit uffd-wp register only to VMAs with VM_WRITE and even
-> > > VM_MAYWRITE, we'd need a way to handle the possible changes of VMA
-> > > protection and an ability to add monitoring for areas that changed from RO
-> > > to RW.
-> > > 
-> > > Can't say I have a clear picture in mind at the moment, will continue to
-> > > think about it.
-> > 
-> > Thanks for these details.  Though I have a question about how it's
-> > used.
-> > 
-> > Since we're talking about replacing soft dirty with uffd-wp here, I
-> > noticed that there's a major interface difference between soft-dirty
-> > and uffd-wp: the soft-dirty was all about /proc operations so a
-> > monitor process can easily monitor mostly any process on the system as
-> > long as knowing its PID.  However I'm unsure about uffd-wp since
-> > userfaultfd was always bound to a mm_struct.  For example, the syscall
-> > userfaultfd() will always attach the current process mm_struct to the
-> > newly created userfaultfd but it cannot be attached to another random
-> > mm_struct of other processes.  Or is there any way that the CRIU
-> > monitor process can gain an userfaultfd of any process of the system
-> > somehow?
+On Mon 07-01-19 15:21:10, Dan Williams wrote:
+[...]
+
+Thanks a lot for the additional information. And...
+
+> Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
+> perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
+> when they are initially populated with free memory at boot and at
+> hotplug time. Do this based on either the presence of a
+> page_alloc.shuffle=Y command line parameter, or autodetection of a
+> memory-side-cache (to be added in a follow-on patch).
+
+... to make it opt-in and also provide an opt-out to override for the
+auto-detected case.
+
+> The shuffling is done in terms of CONFIG_SHUFFLE_PAGE_ORDER sized free
+> pages where the default CONFIG_SHUFFLE_PAGE_ORDER is MAX_ORDER-1 i.e.
+> 10, 4MB this trades off randomization granularity for time spent
+> shuffling.
+
+But I do not really think we want to make this a config option. Who do
+you expect will tune this? I would rather wait for those usecases to be
+called out and we can give them a command line parameter to do so rather
+than something hardcoded during compile time and as such really unusable
+for any consumer of the pre-built kernels.
+
+I do not have a problem with the default section though.
+
+> MAX_ORDER-1 was chosen to be minimally invasive to the page
+> allocator while still showing memory-side cache behavior improvements,
+> and the expectation that the security implications of finer granularity
+> randomization is mitigated by CONFIG_SLAB_FREELIST_RANDOM.
+> 
+> The performance impact of the shuffling appears to be in the noise
+> compared to other memory initialization work. Also the bulk of the work
+> is done in the background as a part of deferred_init_memmap().
+> 
+> This initial randomization can be undone over time so a follow-on patch
+> is introduced to inject entropy on page free decisions. It is reasonable
+> to ask if the page free entropy is sufficient, but it is not enough due
+> to the in-order initial freeing of pages. At the start of that process
+> putting page1 in front or behind page0 still keeps them close together,
+> page2 is still near page1 and has a high chance of being adjacent. As
+> more pages are added ordering diversity improves, but there is still
+> high page locality for the low address pages and this leads to no
+> significant impact to the cache conflict rate.
+> 
+> [1]: https://itpeernetwork.intel.com/intel-optane-dc-persistent-memory-operating-modes/
+> [2]: https://lkml.org/lkml/2018/9/22/54
+> [3]: https://lkml.org/lkml/2018/10/12/309
+
+Please turn lkml.org links into http://lkml.kernel.org/r/$msg_id
+
+[....]
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index cc4a507d7ca4..8c37a023a790 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1272,6 +1272,10 @@ void sparse_init(void);
+>  #else
+>  #define sparse_init()	do {} while (0)
+>  #define sparse_index_init(_sec, _nid)  do {} while (0)
+> +static inline int pfn_present(unsigned long pfn)
+> +{
+> +	return 1;
+> +}
+
+Does this really make sense? Shouldn't this default to pfn_valid on
+!sparsemem?
+
+[...]
+> +config SHUFFLE_PAGE_ALLOCATOR
+> +	bool "Page allocator randomization"
+> +	depends on ACPI_NUMA
+> +	default SLAB_FREELIST_RANDOM
+> +	help
+> +	  Randomization of the page allocator improves the average
+> +	  utilization of a direct-mapped memory-side-cache. See section
+> +	  5.2.27 Heterogeneous Memory Attribute Table (HMAT) in the ACPI
+> +	  6.2a specification for an example of how a platform advertises
+> +	  the presence of a memory-side-cache. There are also incidental
+> +	  security benefits as it reduces the predictability of page
+> +	  allocations to compliment SLAB_FREELIST_RANDOM, but the
+> +	  default granularity of shuffling on 4MB (MAX_ORDER) pages is
+> +	  selected based on cache utilization benefits.
+> +
+> +	  While the randomization improves cache utilization it may
+> +	  negatively impact workloads on platforms without a cache. For
+> +	  this reason, by default, the randomization is enabled only
+> +	  after runtime detection of a direct-mapped memory-side-cache.
+> +	  Otherwise, the randomization may be force enabled with the
+> +	  'page_alloc.shuffle' kernel command line parameter.
+> +
+> +	  Say Y if unsure.
+
+Do we really need to make this a choice? Are any of the tiny systems
+going to be NUMA? Why cannot we just make it depend on ACPI_NUMA?
+
+> +config SHUFFLE_PAGE_ORDER
+> +	depends on SHUFFLE_PAGE_ALLOCATOR
+> +	int "Page allocator shuffle order"
+> +	range 0 10
+> +	default 10
+> +	help
+> +	  Specify the granularity at which shuffling (randomization) is
+> +	  performed. By default this is set to MAX_ORDER-1 to minimize
+> +	  runtime impact of randomization and with the expectation that
+> +	  SLAB_FREELIST_RANDOM mitigates heap attacks on smaller
+> +	  object granularities.
+> +
+
+and no, do not make this configurable here as already mentioned.
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 022d4cbb3618..3602f7a2eab4 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -17,6 +17,7 @@
+>  #include <linux/poison.h>
+>  #include <linux/pfn.h>
+>  #include <linux/debugfs.h>
+> +#include <linux/shuffle.h>
+>  #include <linux/kmemleak.h>
+>  #include <linux/seq_file.h>
+>  #include <linux/memblock.h>
+> @@ -1929,9 +1930,16 @@ static unsigned long __init free_low_memory_core_early(void)
+>  	 *  low ram will be on Node1
+>  	 */
+>  	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+> -				NULL)
+> +				NULL) {
+> +		pg_data_t *pgdat;
+> +
+>  		count += __free_memory_core(start, end);
 >  
-> Yes, there is. For CRIU to read the process state during snapshot (or one
-> the source in case of the migration) we inject a parasite code into the
-> victim process. The parasite code communicates with the "main" CRIU monitor
-> via UNIX socket to pass information that cannot be obtained from outside.
-> For uffd-wp usage we thought about creating the uffd context in the
-> parasite code, registering the memory and passing the userfault file
-> descriptor to the CRIU core via that UNIX socket.
+> +		for_each_online_pgdat(pgdat)
+> +			shuffle_free_memory(pgdat, PHYS_PFN(start),
+> +					PHYS_PFN(end));
+> +	}
+> +
+>  	return count;
+>  }
+>  
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index b9a667d36c55..7caffb9a91ab 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -23,6 +23,7 @@
+>  #include <linux/highmem.h>
+>  #include <linux/vmalloc.h>
+>  #include <linux/ioport.h>
+> +#include <linux/shuffle.h>
+>  #include <linux/delay.h>
+>  #include <linux/migrate.h>
+>  #include <linux/page-isolation.h>
+> @@ -895,6 +896,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	zone->zone_pgdat->node_present_pages += onlined_pages;
+>  	pgdat_resize_unlock(zone->zone_pgdat, &flags);
+>  
+> +	shuffle_zone(zone, pfn, zone_end_pfn(zone));
+> +
+>  	if (onlined_pages) {
+>  		node_states_set_node(nid, &arg);
+>  		if (need_zonelists_rebuild)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index cde5dac6229a..2adcd6da8a07 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -61,6 +61,7 @@
+>  #include <linux/sched/rt.h>
+>  #include <linux/sched/mm.h>
+>  #include <linux/page_owner.h>
+> +#include <linux/shuffle.h>
+>  #include <linux/kthread.h>
+>  #include <linux/memcontrol.h>
+>  #include <linux/ftrace.h>
+> @@ -1634,6 +1635,8 @@ static int __init deferred_init_memmap(void *data)
+>  	}
+>  	pgdat_resize_unlock(pgdat, &flags);
+>  
+> +	shuffle_zone(zone, first_init_pfn, zone_end_pfn(zone));
+> +
+>  	/* Sanity check that the next zone really is unpopulated */
+>  	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
 
-Glad to know the black magic behind it...
+I would prefer if would have less placess to place the shuffling. Why
+cannot we have a single place for the bootup and one for onlining part?
+page_alloc_init_late sounds like a good place for the later. You can
+miss some early allocations but are those of a big interest?
 
-> 
-> > > 
-> > > > > Particularity, for using uffd-wp as a replacement for soft-dirty would
-> > > > > require it.
-> > > > > 
-> > > > > > 
-> > > > > >  		/*
-> > > > > >  		 * Check that this vma isn't already owned by a
-> > > > > > @@ -1400,7 +1403,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
-> > > > > >  	do {
-> > > > > >  		cond_resched();
-> > > > > > 
-> > > > > > -		BUG_ON(!vma_can_userfault(vma));
-> > > > > > +		BUG_ON(!vma_can_userfault(vma, vm_flags));
-> > > > > >  		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
-> > > > > >  		       vma->vm_userfaultfd_ctx.ctx != ctx);
-> > > > > >  		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
-> > > > > > @@ -1760,6 +1763,46 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
-> > > > > >  	return ret;
-> > > > > >  }
-> > > > > > 
-> > > > > > +static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
-> > > > > > +				    unsigned long arg)
-> > > > > > +{
-> > > > > > +	int ret;
-> > > > > > +	struct uffdio_writeprotect uffdio_wp;
-> > > > > > +	struct uffdio_writeprotect __user *user_uffdio_wp;
-> > > > > > +	struct userfaultfd_wake_range range;
-> > > > > > +
-> > > > > 
-> > > > > In the non-cooperative mode the userfaultfd_writeprotect() may race with VM
-> > > > > layout changes, pretty much as uffdio_copy() [1]. My solution for uffdio_copy()
-> > > > > was to return -EAGAIN if such race is encountered. I think the same would
-> > > > > apply here.
-> > > > 
-> > > > I tried to understand the problem at [1] but failed... could you help
-> > > > to clarify it a bit more?
-> > > > 
-> > > > I'm quoting some of the discussions from [1] here directly between you
-> > > > and Pavel:
-> > > > 
-> > > >   > Since the monitor cannot assume that the process will access all its memory
-> > > >   > it has to copy some pages "in the background". A simple monitor may look
-> > > >   > like:
-> > > >   > 
-> > > >   > 	for (;;) {
-> > > >   > 		wait_for_uffd_events(timeout);
-> > > >   > 		handle_uffd_events();
-> > > >   > 		uffd_copy(some not faulted pages);
-> > > >   > 	}
-> > > >   > 
-> > > >   > Then, if the "background" uffd_copy() races with fork, the pages we've
-> > > >   > copied may be already present in parent's mappings before the call to
-> > > >   > copy_page_range() and may be not.
-> > > >   > 
-> > > >   > If the pages were not present, uffd_copy'ing them again to the child's
-> > > >   > memory would be ok.
-> > > >   >
-> > > >   > But if uffd_copy() was first to catch mmap_sem, and we would uffd_copy them
-> > > >   > again, child process will get memory corruption.
-> > > > 
-> > > > Here I don't understand why the child process will get memory
-> > > > corruption if uffd_copy() caught the mmap_sem first.
-> > > > 
-> > > > If it did it, then IMHO when uffd_copy() copies the page again it'll
-> > > > simply get a -EEXIST showing that the page has already been copied.
-> > > > Could you explain on why there will be a data corruption?
-> > > 
-> > > Let's say we do post-copy migration of a process A with CRIU and its page at
-> > > address 0x1000 is already copied. Now it modifies the contents of this
-> > > page. At this point the contents of the page at 0x1000 is different on the
-> > > source and the destination.
-> > > Next, process A forks process B. The CRIU's uffd monitor gets
-> > > UFFD_EVENT_FORK, and starts filling process B memory with UFFDIO_COPY.
-> > > It may happen, that UFFDIO_COPY to 0x1000 of the process B will occur
-> > 
-> > I think this is the place I started to get confused...
-> > 
-> > The mmap copy phase and the FORK event path is in dup_mmap() as
-> > mentioned in the patch too:
-> > 
-> >      dup_mmap()
-> >         down_write(old_mm)
-> >         down_write(new_mm)
-> >         foreach(vma)
-> >             copy_page_range()            (a)
-> >         up_write(new_mm)
-> >         up_write(old_mm)
-> >         dup_userfaultfd_complete()       (b)
-> > 
-> > Here if we already received UFFD_EVENT_FORK and started to copy pages
-> > to process B in the background, then we should have at least passed
-> > (b) above since otherwise we won't even know the existance of process
-> > B.  However if so, we should have already passed the point to copy
-> > data at (a) too, then how could copy_page_range() race?  It seems that
-> > I might have missed something important out there but it's not easy
-> > for me to figure out myself...
-> 
-> Apparently, I confused myself as well...
-> I clearly remember that there was a problem with fork() but the sequence
-> the causes it keeps evading me :(
-> 
-> Anyway, some mean of synchronization between uffd_copy and the
-> non-cooperative events is required. Take, for example, MADV_DONTNEED. When
-> it races with uffdio_copy() a process may end reading non zero values right
-> after MADV_DONTNEED call.
-> 
-> uffd monitor           | process
-> -----------------------+-------------------------------------------
-> uffdio_copy(0x1000)    | madvise(MADV_DONTNEED, 0x1000)
->                        |    down_read(mmap_sem)
->                        |    zap_pte_range(0x1000)
->                        |    up_read(mmap_sem)
->    down_read(mmap_sem) |
->    copy()              |
->    up_read(mmap_sem)   |
->                        |  read(0x1000) != 0
-> 
-> Similar issues happen with mpremap() and munmap().
-
-I think I get the point this time especially with the context of CRIU
-process postcopy migration in mind.
-
-If my understanding is correct, here if UFFDIO_COPY returned -EAGAIN
-due to this, continuous UFFDIO_COPY upon the same page will fail too
-(which could be slightly confusing at the first glance since normally
-that's what -EAGAIN means: it should let the caller to simply
-retry...), and IMHO the only correct way to solve this to break out of
-the copy_page_background() loop and receive uffd messages instead.
-And then we'll notice that there's a UNMAP event of the page, then we
-know that we don't need to UFFDIO_COPY this page, so instead of a real
-"retry" we just don't do it at all.
-
-Tricky... but it does make sense if considering this under the
-postcopy scenario for either CRIU or even QEMU when migrating VMs.
-
-Then I'll just simply follow df2cc96e77011cf79892 in
-UFFDIO_WRITEPROTECT() too then.  Thanks for all these explanations!
-
+I haven't checked the actual shuffling algorithm, I will trust you on
+that part ;)
 -- 
-Peter Xu
+Michal Hocko
+SUSE Labs
