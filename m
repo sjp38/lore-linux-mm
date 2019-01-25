@@ -1,137 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ED7138E00B5
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 23:56:02 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id l12-v6so2292747ljb.11
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 20:56:02 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 129sor2606894lfl.19.2019.01.24.20.56.00
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 53E4B8E00C2
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 02:24:34 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c53so3373533edc.9
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 23:24:34 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kq26si1441069ejb.228.2019.01.24.23.24.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 24 Jan 2019 20:56:01 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Jan 2019 23:24:32 -0800 (PST)
+Date: Fri, 25 Jan 2019 08:24:29 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm: Extract memcg maxable seq_file logic to
+ seq_show_memcg_tunable
+Message-ID: <20190125072429.GA3560@dhcp22.suse.cz>
+References: <20190124194100.GA31425@chrisdown.name>
 MIME-Version: 1.0
-References: <CGME20190111150806epcas2p4ecaac58547db019e7dc779349d495f4d@epcas2p4.samsung.com>
- <20190111151154.GA2819@jordon-HP-15-Notebook-PC> <241810e0-2288-c59b-6c21-6d853d9fe84a@samsung.com>
-In-Reply-To: <241810e0-2288-c59b-6c21-6d853d9fe84a@samsung.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Fri, 25 Jan 2019 10:25:48 +0530
-Message-ID: <CAFqt6zbYHq-pS=rGx+3ncJ7rO-LvL5=iOou21oguKjrc=3qouA@mail.gmail.com>
-Subject: Re: [PATCH 7/9] videobuf2/videobuf2-dma-sg.c: Convert to use vm_insert_range_buggy
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190124194100.GA31425@chrisdown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, mchehab@kernel.org, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Chris Down <chris@chrisdown.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-Hi Marek,
+On Thu 24-01-19 14:41:00, Chris Down wrote:
+> memcg has a significant number of files exposed to kernfs where their
+> value is either exposed directly or is "max" in the case of
+> PAGE_COUNTER_MAX.
+> 
+> This patch makes this generic by providing a single function to do this
+> work. In combination with the previous patch adding mem_cgroup_from_seq,
+> this makes all of the seq_show feeder functions significantly more
+> simple.
 
-On Tue, Jan 22, 2019 at 8:37 PM Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
->
-> Hi Souptick,
->
-> On 2019-01-11 16:11, Souptick Joarder wrote:
-> > Convert to use vm_insert_range_buggy to map range of kernel memory
-> > to user vma.
-> >
-> > This driver has ignored vm_pgoff. We could later "fix" these drivers
-> > to behave according to the normal vm_pgoff offsetting simply by
-> > removing the _buggy suffix on the function name and if that causes
-> > regressions, it gives us an easy way to revert.
->
-> Just a generic note about videobuf2: videobuf2-dma-sg is ignoring vm_pgof=
-f by design. vm_pgoff is used as a 'cookie' to select a buffer to mmap and =
-videobuf2-core already checks that. If userspace provides an offset, which =
-doesn't match any of the registered 'cookies' (reported to userspace via se=
-parate v4l2 ioctl), an error is returned.
+Yeah this is what I've had in mind when mentioning a helper in the
+previous version of the patch. I like this more even though the
+resulting savings are not that large.
 
-Ok, it means once the buf is selected, videobuf2-dma-sg should always
-mapped buf->pages[i]
-from index 0 ( irrespective of vm_pgoff value). So although we are
-replacing the code with
-vm_insert_range_buggy(), *_buggy* suffix will mislead others and
-should not be used.
-And if we replace this code with  vm_insert_range(), this will
-introduce bug for *non zero*
-value of vm_pgoff.
+> Signed-off-by: Chris Down <chris@chrisdown.name>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: kernel-team@fb.com
 
-Please correct me if my understanding is wrong.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-So what your opinion about this patch ? Shall I drop this patch from
-current series ?
-or,
-There is any better way to handle this scenario ?
+> ---
+>  mm/memcontrol.c | 64 +++++++++++++++----------------------------------
+>  1 file changed, 19 insertions(+), 45 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 98aad31f5226..81b6f752471a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5375,6 +5375,16 @@ static void mem_cgroup_bind(struct cgroup_subsys_state *root_css)
+>  		root_mem_cgroup->use_hierarchy = false;
+>  }
+>  
+> +static int seq_puts_memcg_tunable(struct seq_file *m, unsigned long value)
+> +{
+> +	if (value == PAGE_COUNTER_MAX)
+> +		seq_puts(m, "max\n");
+> +	else
+> +		seq_printf(m, "%llu\n", (u64)value * PAGE_SIZE);
+> +
+> +	return 0;
+> +}
+> +
+>  static u64 memory_current_read(struct cgroup_subsys_state *css,
+>  			       struct cftype *cft)
+>  {
+> @@ -5385,15 +5395,8 @@ static u64 memory_current_read(struct cgroup_subsys_state *css,
+>  
+>  static int memory_min_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+> -	unsigned long min = READ_ONCE(memcg->memory.min);
+> -
+> -	if (min == PAGE_COUNTER_MAX)
+> -		seq_puts(m, "max\n");
+> -	else
+> -		seq_printf(m, "%llu\n", (u64)min * PAGE_SIZE);
+> -
+> -	return 0;
+> +	return seq_puts_memcg_tunable(m,
+> +		READ_ONCE(mem_cgroup_from_seq(m)->memory.min));
+>  }
+>  
+>  static ssize_t memory_min_write(struct kernfs_open_file *of,
+> @@ -5415,15 +5418,8 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
+>  
+>  static int memory_low_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+> -	unsigned long low = READ_ONCE(memcg->memory.low);
+> -
+> -	if (low == PAGE_COUNTER_MAX)
+> -		seq_puts(m, "max\n");
+> -	else
+> -		seq_printf(m, "%llu\n", (u64)low * PAGE_SIZE);
+> -
+> -	return 0;
+> +	return seq_puts_memcg_tunable(m,
+> +		READ_ONCE(mem_cgroup_from_seq(m)->memory.low));
+>  }
+>  
+>  static ssize_t memory_low_write(struct kernfs_open_file *of,
+> @@ -5445,15 +5441,7 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
+>  
+>  static int memory_high_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+> -	unsigned long high = READ_ONCE(memcg->high);
+> -
+> -	if (high == PAGE_COUNTER_MAX)
+> -		seq_puts(m, "max\n");
+> -	else
+> -		seq_printf(m, "%llu\n", (u64)high * PAGE_SIZE);
+> -
+> -	return 0;
+> +	return seq_puts_memcg_tunable(m, READ_ONCE(mem_cgroup_from_seq(m)->high));
+>  }
+>  
+>  static ssize_t memory_high_write(struct kernfs_open_file *of,
+> @@ -5482,15 +5470,8 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
+>  
+>  static int memory_max_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+> -	unsigned long max = READ_ONCE(memcg->memory.max);
+> -
+> -	if (max == PAGE_COUNTER_MAX)
+> -		seq_puts(m, "max\n");
+> -	else
+> -		seq_printf(m, "%llu\n", (u64)max * PAGE_SIZE);
+> -
+> -	return 0;
+> +	return seq_puts_memcg_tunable(m,
+> +		READ_ONCE(mem_cgroup_from_seq(m)->memory.max));
+>  }
+>  
+>  static ssize_t memory_max_write(struct kernfs_open_file *of,
+> @@ -6622,15 +6603,8 @@ static u64 swap_current_read(struct cgroup_subsys_state *css,
+>  
+>  static int swap_max_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+> -	unsigned long max = READ_ONCE(memcg->swap.max);
+> -
+> -	if (max == PAGE_COUNTER_MAX)
+> -		seq_puts(m, "max\n");
+> -	else
+> -		seq_printf(m, "%llu\n", (u64)max * PAGE_SIZE);
+> -
+> -	return 0;
+> +	return seq_puts_memcg_tunable(m,
+> +		READ_ONCE(mem_cgroup_from_seq(m)->swap.max));
+>  }
+>  
+>  static ssize_t swap_max_write(struct kernfs_open_file *of,
+> -- 
+> 2.20.1
 
-
->
-> > There is an existing bug inside gem_mmap_obj(), where user passed
-> > length is not checked against buf->num_pages. For any value of
-> > length > buf->num_pages it will end up overrun buf->pages[i],
-> > which could lead to a potential bug.
-
-It is not gem_mmap_obj(), it should be vb2_dma_sg_mmap().
-Sorry about it.
-
-What about this issue ? Does it looks like a valid issue ?
-
-
-> >
-> > This has been addressed by passing buf->num_pages as input to
-> > vm_insert_range_buggy() and inside this API error condition is
-> > checked which will avoid overrun the page boundary.
-> >
-> > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> > ---
-> >  drivers/media/common/videobuf2/videobuf2-dma-sg.c | 22 ++++++---------=
--------
-> >  1 file changed, 6 insertions(+), 16 deletions(-)
-> >
-> > diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/driver=
-s/media/common/videobuf2/videobuf2-dma-sg.c
-> > index 015e737..ef046b4 100644
-> > --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-> > +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-> > @@ -328,28 +328,18 @@ static unsigned int vb2_dma_sg_num_users(void *bu=
-f_priv)
-> >  static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
-> >  {
-> >       struct vb2_dma_sg_buf *buf =3D buf_priv;
-> > -     unsigned long uaddr =3D vma->vm_start;
-> > -     unsigned long usize =3D vma->vm_end - vma->vm_start;
-> > -     int i =3D 0;
-> > +     int err;
-> >
-> >       if (!buf) {
-> >               printk(KERN_ERR "No memory to map\n");
-> >               return -EINVAL;
-> >       }
-> >
-> > -     do {
-> > -             int ret;
-> > -
-> > -             ret =3D vm_insert_page(vma, uaddr, buf->pages[i++]);
-> > -             if (ret) {
-> > -                     printk(KERN_ERR "Remapping memory, error: %d\n", =
-ret);
-> > -                     return ret;
-> > -             }
-> > -
-> > -             uaddr +=3D PAGE_SIZE;
-> > -             usize -=3D PAGE_SIZE;
-> > -     } while (usize > 0);
-> > -
-> > +     err =3D vm_insert_range_buggy(vma, buf->pages, buf->num_pages);
-> > +     if (err) {
-> > +             printk(KERN_ERR "Remapping memory, error: %d\n", err);
-> > +             return err;
-> > +     }
-> >
-> >       /*
-> >        * Use common vm_area operations to track buffer refcount.
->
-> Best regards
-> --
-> Marek Szyprowski, PhD
-> Samsung R&D Institute Poland
->
+-- 
+Michal Hocko
+SUSE Labs
