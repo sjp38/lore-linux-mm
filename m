@@ -2,150 +2,203 @@ Return-Path: <SRS0=o7Ai=QB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EB820C282C0
-	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 06:48:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1584DC282C6
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 08:39:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6F8A218D0
-	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 06:48:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A373320870
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 08:39:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="gp70rwtR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6F8A218D0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="PlL+sttb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A373320870
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C2038E00C3; Fri, 25 Jan 2019 01:48:11 -0500 (EST)
+	id 1BCF18E00C9; Fri, 25 Jan 2019 03:39:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 171958E00C2; Fri, 25 Jan 2019 01:48:11 -0500 (EST)
+	id 16D458E00C8; Fri, 25 Jan 2019 03:39:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 087D18E00C3; Fri, 25 Jan 2019 01:48:11 -0500 (EST)
+	id 084498E00C9; Fri, 25 Jan 2019 03:39:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D2F4A8E00C2
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 01:48:10 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id t83so4031902oie.16
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 22:48:10 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CBEF58E00C8
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 03:39:33 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id i2so4654204ywb.1
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 00:39:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=3Mv5wuebRzoalbCk7v0arDMNle3VSxPxLSOwttSePtY=;
-        b=LGllKdJujPp6aMsB/a+ESub7/uEsSmkQShObFjUSnoCfvZsrnNDlm8jSeB7F9H3/uQ
-         tGDUk8/tomPRCsQlcV1sHKXB2urqR1jCzkhp2j3d3AJKFlkueA22DE6E//Obsf0e51TH
-         ZCvAoiGECTRATWjH1CFee3iXTK9OqEotjmJ+IfuequHOVtMEYlFBKJ/RLsJ+5PDu3vfi
-         wVAs/CnLfPSmBMSKjUpBlLAHe1fQafnBKdzkzKSqDTYZ1a5u8SQg24bMpKUEjN+ZbU9E
-         rxpRRfAZzegFlw1HuLEeZC+gF2PpYWwyD9KYr3Z9Lty3ubQi9MtyGNdsFNowpbczkgqp
-         t42Q==
-X-Gm-Message-State: AHQUAubA++QWocPEKaXisvjayYkM9N9hQQ6odFaT4zYrq75YgmQxguBE
-	ZZuq0FR006M9oza7SdRpo+HNu+Trj4m6n+Pgba/N8cMPfa2vJBtQrAZRqKmvtwVYqLxWnjehDTD
-	2Hm7XdJII0YTH81q//YkBYiNLeXsvb5ri/lC+c7wYiWReZaj1c0myok+0g0yRheZDfqzVIeQoMi
-	Ld1QBmDJbusIhvH4yXobNA8hBvjvL5R5m9JOkTXWc+Mv3BshpQtdyIVvlDdoRjBIoucSWRbKAUV
-	zgw41c506qIcI1oTZUnv5R2QEv0WIeGiwb9oSWSJrEYmGkRIDJzz8nMXvs1y+8wClwDYm/shKz8
-	iJH8XT3crFtveR6DcB5UdWl0ENsJtG7XJUZ4cC7oE5Gxx1Wq1WD0ST2nAGScNjaeGdZMLuZiNwA
-	S
-X-Received: by 2002:aca:6995:: with SMTP id e143mr527279oic.283.1548398890556;
-        Thu, 24 Jan 2019 22:48:10 -0800 (PST)
-X-Received: by 2002:aca:db41:: with SMTP id s62mr495324oig.349.1548397689398;
-        Thu, 24 Jan 2019 22:28:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548397689; cv=none;
+        bh=5RsQ+sFYoypryxcf4obw0Tm6Js/KH0eBEE767zFLd7g=;
+        b=L/MI9B6R1zhR78wX+3ZxLp+ZqbDHfIw5ZmayADXxVkrHhY/SnIdcWfpiM4kzt2wmQg
+         j30l7urBakx9/1vuqWPNfWmh4OoHBRsBWlQTGPfnfWVEaVWLsZ7f5mJsV17l/nc804Uu
+         dg1kxTEaNBXSu105NaipwT0FIRmykPXGF20ly4BQFXOEpNQ244valIYfYKlCDtWSet/E
+         z6i4X6mCyws+56bX2N/WFB3YD8ucL9qVgFz83HqXF7OMkdab5tzVenLG/vvQr0UwF+I5
+         2sxt2LcJQoXhiire7pYws2YrMr8w7bUvDH82l07+lnbYpuZUlDdTEeXagih4ZccwN8tb
+         46fg==
+X-Gm-Message-State: AJcUukc9TCkjYzT7xpmIeLlmRmgA69nO0oqAofy8d2pxSda1wdwKx4jW
+	HhnfH2r6VZ/cfXuDc5nRWgROltVs5qixq+5LIC/ZAve5PO28+ubFzOWLEiZqMkkA2pf64gQ19wW
+	fud92ECgkOi5/pHJ0FyqgzOYpkfHULafh31vf7PASnBeTOc2l3MhhApLMDwU/9SDO1od+k4J04c
+	M1F2SEsCLA0G9fkLJIWHa3f3L1wRGx8x15spRtiMUCA0UtDTjfRv4hIgfJkKsQKIvsHxMIMJHIC
+	njF5EW/93SXI1wjGPOe1mq2Gthm56aSGfcVtNS3CFgRphi7iXl1aLKXFGjWIVyBHH5KPSKDFmJr
+	C+/kPVNgrNBYCIPEWzP6qEhVxQkhnTZaJ6SUKlH4dSmOLYo0Hxk2OTHExt1/c4IEbxJiFIkBFQR
+	q
+X-Received: by 2002:a81:99d6:: with SMTP id q205mr9915577ywg.106.1548405573448;
+        Fri, 25 Jan 2019 00:39:33 -0800 (PST)
+X-Received: by 2002:a81:99d6:: with SMTP id q205mr9915545ywg.106.1548405572648;
+        Fri, 25 Jan 2019 00:39:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548405572; cv=none;
         d=google.com; s=arc-20160816;
-        b=XKBsB0hOtXVAjdGoyFGpYeF75WqVtjYEyCfVzs5Tab85d5D2hDcvVmA3jigy7CNiBj
-         vq7lzQ1MuOfRR9Y2mnFqntTkg41DRVdm4bv6IdlIgvLdidzsEav1uXyG5y2cOuEjmUz4
-         AoH6OLuSeBimAo9g08RYV+IfRQLgrzCwTpjIUTPG9XiRAiiUXWzHGujSXO7IQoDMn1GQ
-         k2Yq8qJqrMt71fZ4lviBRGYSQv0/qoLQS0jkpThroffF6H11rNDcUD6uZzmi6K6B4aTe
-         ujAKr4PD6CQWhVwT2T13FvzmvcwegVt6LwxyidI+DwFIOmea7/WcGnCpO2NIc6tvav3I
-         TBlw==
+        b=VgvcHsiN+wOod+TJzqparsQglUKVOAlYuYbH4WxHoqcPuCKS0QaJxDGbfp78chBM0A
+         IeWw2so/yU+yElzK3JpzHnzqJY0zFzDt4hFmY/MTp26EzmOWmkKRqcU7IoEsg4TFtjaX
+         PMfbAZvb0uxyjzlx3v+qDD886a1hOuPVZ6bwM6/P7oqd0E6nme9s4yRXNc9/tRx9aJYZ
+         vRwjU7BeknXYLctCdhZ0uIrUpvE0lUgYlGp06SwgV5Ut46T+PxlErVPa6QfZLYm0zQ6c
+         ih0hi3hSYqMH8HXvydQC25l/PNxIF4rSacULwf28wNIDFO1auxBPFR2cifm28ttiWzXL
+         6UXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=3Mv5wuebRzoalbCk7v0arDMNle3VSxPxLSOwttSePtY=;
-        b=tymUeRE5muU/+QHLJcvqhFPwYOUCGiFwkg/FKjhwsmoIlKACgapkXUkMBz1pfhcM10
-         yR+LwDjanm+037VVHi0wWrYPtC3QAcCxeAebeakYFV+9a/Jh5Gtk9JUR9P9/rG6zAKkE
-         anc5jRbRFUJ/Q+OVhQxkKewcVMONjZgYT0wqKfACg+RPyTuTCARKTRoLWC/0wkzcxU43
-         2ROJDXcVZhUUgWihxzOfcMV2KA6ir+la6ljsgSkRCs4yTICq5UX2+WEfqJ9ZMu39lqmP
-         3N6EBOe8y8JMSFMwykZuf6jD7TjudPEgVysD4A0wu7HNox8ztRUdv8MZADNgmHzxRkH4
-         +gYw==
+        bh=5RsQ+sFYoypryxcf4obw0Tm6Js/KH0eBEE767zFLd7g=;
+        b=WFYBMhBBgwrUDNes4GC6KiKDjPCExO6iApAMcuN9lKN66fZ5oDWfN4VY4dr/V+86/L
+         fGanoz/+SHwjvVdMsblI0X7P53nq5OrS6KzRRqvE7e0UYEfvdwQtJiJwPvTGQCntga85
+         5IUC6+Xt/JXUWtUyUWp8bTZYzLEf/1z6Ct8CkEi/3/BN5fk2LCW5A4BxrZn1AvzTQu46
+         Jw/Ba/m76ywuuTER9W11ZbTM/sJQSTkTRGDoG/qWWN6kP+iEwvh0bkJtQycs32FiY2Pu
+         l52MS/mYQkusZYweE0StlsgljbLYlwesn0GHGlTVZ0oH4kHQIbny9Hr75EoKEPMPYHx5
+         m37A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=gp70rwtR;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v5sor1101094oix.68.2019.01.24.22.28.09
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PlL+sttb;
+       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x125sor10816529ybx.117.2019.01.25.00.39.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 24 Jan 2019 22:28:09 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 25 Jan 2019 00:39:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of amir73il@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=gp70rwtR;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PlL+sttb;
+       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=3Mv5wuebRzoalbCk7v0arDMNle3VSxPxLSOwttSePtY=;
-        b=gp70rwtRHbqz/Kj7KbZjRxy4Tiu+ZnkP1IVeLNRLzlqV6rncaLAO5NAGYGjGXoS8gK
-         ghskggWCWW0/Y56HMc6J0RP/BEDdM+5S89h/5Cy1fqiGtUUAVQyXB/ORHmUGRy/oVpFD
-         jMCs5wh+ZhweLK8ozanvFtp4ieRPha1WYgQeDsmnm9fl4UFMzOYA94+DeZs4uNwwoCdY
-         +DxPEymsYhIVEz6R2Y6Vl89GH6bbLXa3U6ALFkXcsWfSqmY7Me4P6C8n9ndQBhvMktgI
-         rRBQhQzH2Ybhz13Z/tt62bSi5xLOJbx7thOHGBEegMudekMopSbTeJ/KfrU9TP18CIEM
-         DM2A==
-X-Google-Smtp-Source: AHgI3IaAd7/Bz4rL67ZFLiO3E0QWfxNZbkq3MoXd0sjw9uIOtxAfi2CtOXobVGBBel159D3EmKXvi06BZYuigPT2ldQ=
-X-Received: by 2002:aca:2dc8:: with SMTP id t191mr502126oit.235.1548397689037;
- Thu, 24 Jan 2019 22:28:09 -0800 (PST)
+        bh=5RsQ+sFYoypryxcf4obw0Tm6Js/KH0eBEE767zFLd7g=;
+        b=PlL+sttbW4npqEKLdlyhPvsMD6YFCG43bBnF9L7lYY6xEfllLL7EuMU8bJk7wNMaGz
+         Nodr8t/eCCaISzrEp4VOevg289FxomMNDAdzAkHH6VQI9VUSjZA9JH+e/9xAT5nzPNCg
+         o6CiEEgSv0HhkEXHwR5ZoXc7sgZXL0ookJbSPHNgKqDJ+KKNDSc65na+NnLrh2wxyDmQ
+         XHFq7Gd8YOfYYRdvrMjCZAd/PGa21mU2K0mYISt7nlDi0tWnjGySlGbeVhuBPJltvvvg
+         eURLtMSnLCkZmTwQos3QRaYwSQ8//L73iuZ7D53tgPtiGqwsc+YTxnn16FxB4Do792+m
+         wCGw==
+X-Google-Smtp-Source: ALg8bN5oi4uxQ4df1M2elZHI/C91sqzV6u81+gFs4I1wMlB9wTl+P9BzIpnS5a0+bQocgYVONBoX4pp/P4M4pWP1vcQ=
+X-Received: by 2002:a25:f81d:: with SMTP id u29mr9920972ybd.397.1548405572087;
+ Fri, 25 Jan 2019 00:39:32 -0800 (PST)
 MIME-Version: 1.0
-References: <20190124231441.37A4A305@viggo.jf.intel.com> <20190124231448.E102D18E@viggo.jf.intel.com>
- <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com>
-In-Reply-To: <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 24 Jan 2019 22:27:58 -0800
+References: <CAOQ4uxj4DiU=vFqHCuaHQ=4XVkTeJrXci0Y6YUX=22dE+iygqA@mail.gmail.com>
+ <20190123145434.GK13149@quack2.suse.cz> <20190124103906.iwbttyrf6lddieou@kshutemo-mobl1>
+In-Reply-To: <20190124103906.iwbttyrf6lddieou@kshutemo-mobl1>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Fri, 25 Jan 2019 10:39:20 +0200
 Message-ID:
- <CAPcyv4hjJhUQpMy1CVJZur0Ssr7Cr2fkcD50L5gzx6v_KY14vg@mail.gmail.com>
-Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal RAM
-To: Jane Chu <jane.chu@oracle.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>, 
-	Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Takashi Iwai <tiwai@suse.de>, Ross Zwisler <zwisler@kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Fengguang Wu <fengguang.wu@intel.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>
+ <CAOQ4uxgfkzWsh+=gKGL4YGiBGLYvhcOCy13X5L2ycVdghYhrOA@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Sharing file backed pages
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>
+Cc: lsf-pc@lists.linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, 
+	"Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, 
+	Matthew Wilcox <willy@infradead.org>, Chris Mason <clm@fb.com>, Miklos Szeredi <miklos@szeredi.hu>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190125062758.cuaqhDTUPH-IcrPjT5gloNyN6FPcI_3fPA5fH1rjoO0@z>
+Message-ID: <20190125083920.yNU1oi9otgl_vtbyNocm2V9QbYu87wlo7RP3EXdEZXE@z>
 
-On Thu, Jan 24, 2019 at 10:13 PM Jane Chu <jane.chu@oracle.com> wrote:
+On Thu, Jan 24, 2019 at 12:39 PM Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
 >
-> Hi, Dave,
+> On Wed, Jan 23, 2019 at 03:54:34PM +0100, Jan Kara wrote:
+> > On Wed 23-01-19 10:48:58, Amir Goldstein wrote:
+> > > In his session about "reflink" in LSF/MM 2016 [1], Darrick Wong brought
+> > > up the subject of sharing pages between cloned files and the general vibe
+> > > in room was that it could be done.
+> > >
+> > > In his talk about XFS subvolumes and snapshots [2], Dave Chinner said
+> > > that Matthew Willcox was "working on that problem".
+> > >
+> > > I have started working on a new overlayfs address space implementation
+> > > that could also benefit from being able to share pages even for filesystems
+> > > that do not support clones (for copy up anticipation state).
+> > >
+> > > To simplify the problem, we can start with sharing only uptodate clean
+> > > pages that map the same offset in respected files. While the same offset
+> > > requirement somewhat limits the use cases that benefit from shared file
+> > > pages, there is still a vast majority of use cases (i.e. clone full
+> > > image), where sharing pages of similar offset will bring a lot of
+> > > benefit.
+> > >
+> > > At first glance, this requires dropping the assumption that a for an
+> > > uptodate clean page, vmf->vma->vm_file->f_inode == page->mapping->host.
+> > > Is there really such an assumption in common vfs/mm code?  and what will
+> > > it take to drop it?
+> >
+> > There definitely is such assumption. Take for example page reclaim as one
+> > such place that will be non-trivial to deal with. You need to remove the
+> > page from page cache of all inodes that contain it without having any file
+> > context whatsoever. So you will need to create some way for this page->page
+> > caches mapping to happen.
 >
-> While chatting with my colleague Erwin about the patchset, it occurred
-> that we're not clear about the error handling part. Specifically,
+> We have it solved for anon pages where we need to find all VMA the page
+> might be mapped to. I think we should look into adopting anon_vma
+> approach[1] for files too. From the first look the problemspace looks very
+> similar.
 >
-> 1. If an uncorrectable error is detected during a 'load' in the hot
-> plugged pmem region, how will the error be handled?  will it be
-> handled like PMEM or DRAM?
 
-DRAM.
+Yes there are many similarities and we should definitely adopt existing
+solutions for shared anon pages. There are also differences and we need
+to make sure we cover them in the design.
 
-> 2. If a poison is set, and is persistent, which entity should clear
-> the poison, and badblock(if applicable)? If it's user's responsibility,
-> does ndctl support the clearing in this mode?
+For example, reclaiming a multiply shared page may prove to be more
+expensive then reclaiming a non shared page. Depending on how the page
+has ended up being shared (perhaps by KSM or by a special copy_file_range()
+mode on an fs that doesn't support clone_file_range), the next time
+the instances
+of the shared page are faulted in, they may not be shared anymore and may
+consume more cache space.
 
-With persistent memory advertised via a static logical-to-physical
-storage/dax device mapping, once an error develops it destroys a
-physical *and* logical part of a device address space. That loss of
-logical address space makes error clearing a necessity. However, with
-the DRAM / "System RAM" error handling model, the OS can just offline
-the page and map a different one to repair the logical address space.
-So, no, ndctl will not have explicit enabling to clear volatile
-errors, the OS will just dynamically offline problematic pages.
+I'd also like to discuss which control the filesystem gets over
+unsharing a page.
+Will fs have a say before page is COWed? By which order of VMAs?
+I think most people currently view the shared pages concept as symetric for
+all VMAs that share the page, but for overlayfs, a "master-slave" or "stacked"
+model might be a better fit, so that, for example, "master" can make a call to
+notify the "slave" about page being dirty instead of breaking the sharing.
+
+Jerome,
+
+Do you think we will have time to cover these issues in the joint session.
+Perhaps we should tentatively plan for a filesystem track session for
+filesystem followup issues?
+
+Some issues I can think of are:
+- Which control filesystem gets for new functionality (see above)
+- Common code to help sharing pages, i.e. for generic vfs interfaces
+  like clone/dedupe/copy_range
+- Can/should blockdev pages (of same block) be shared with file
+  pages of the filesystem on that blockdev by common mpage_ helpers?
+- A common use case is that filesystem images are cloned and loop mounted.
+  How can we propagate the knowledge about files data on loop mounted fs
+  originating from the same underlying block though the loop device? (*)
+
+(*) loop device is just a simple example, but same can apply to other
+storage stacks as well where block layer has dedupe.
+
+Thanks,
+Amir.
 
