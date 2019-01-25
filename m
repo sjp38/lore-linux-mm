@@ -1,61 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DD5E8E00BD
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 01:21:58 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id n39so9513089qtn.18
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 22:21:58 -0800 (PST)
-Received: from wnew1-smtp.messagingengine.com (wnew1-smtp.messagingengine.com. [64.147.123.26])
-        by mx.google.com with ESMTPS id m25si13499972qtg.282.2019.01.24.22.21.57
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DBC0A8E00BD
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 01:24:27 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id 2-v6so2383936ljs.15
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 22:24:27 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k189sor2643934lfk.58.2019.01.24.22.24.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 22:21:57 -0800 (PST)
-Date: Fri, 25 Jan 2019 07:21:51 +0100
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH] mm: proc: smaps_rollup: Fix pss_locked calculation
-Message-ID: <20190125062151.GA19629@kroah.com>
-References: <20190121011049.160505-1-sspatil@android.com>
- <20190123225746.5B3DF218A4@mail.kernel.org>
- <20190124213940.GG243073@google.com>
+        (Google Transport Security);
+        Thu, 24 Jan 2019 22:24:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190124213940.GG243073@google.com>
+References: <20190111150801.GA2714@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20190111150801.GA2714@jordon-HP-15-Notebook-PC>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Fri, 25 Jan 2019 11:54:13 +0530
+Message-ID: <CAFqt6zZx9qxx_Xv=n-PY45OvS7E8ZBq+ZqaeEKfsaCirwaASSg@mail.gmail.com>
+Subject: Re: [PATCH 2/9] arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sandeep Patil <sspatil@android.com>
-Cc: Sasha Levin <sashal@kernel.org>, vbabka@suse.cz, adobriyan@gmail.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org
 
-On Thu, Jan 24, 2019 at 01:39:40PM -0800, Sandeep Patil wrote:
-> On Wed, Jan 23, 2019 at 10:57:45PM +0000, Sasha Levin wrote:
-> > Hi,
-> > 
-> > [This is an automated email]
-> > 
-> > This commit has been processed because it contains a "Fixes:" tag,
-> > fixing commit: 493b0e9d945f mm: add /proc/pid/smaps_rollup.
-> > 
-> > The bot has tested the following trees: v4.20.3, v4.19.16, v4.14.94.
-> > 
-> > v4.20.3: Build OK!
-> > v4.19.16: Build OK!
-> > v4.14.94: Failed to apply! Possible dependencies:
-> >     8526d84f8171 ("fs/proc/task_mmu.c: do not show VmExe bigger than total executable virtual memory")
-> >     8e68d689afe3 ("mm: /proc/pid/smaps: factor out mem stats gathering")
-> >     af5b0f6a09e4 ("mm: consolidate page table accounting")
-> >     b4e98d9ac775 ("mm: account pud page tables")
-> >     c4812909f5d5 ("mm: introduce wrappers to access mm->nr_ptes")
-> >     d1be35cb6f96 ("proc: add seq_put_decimal_ull_width to speed up /proc/pid/smaps")
-> > 
-> > 
-> > How should we proceed with this patch?
-> 
-> I will send 4.14 / 4.9 backports to -stable if / when the patch gets
-> accepted.
+On Fri, Jan 11, 2019 at 8:33 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>
+> Convert to use vm_insert_range() to map range of kernel
+> memory to user vma.
+>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-That's fine, you will get the automated "FAILED:" emails when I try to
-apply it to the tree at that time, and you can send an updated version
-then if you want.
+Any comment on this patch ?
 
-thanks,
-
-greg k-h
+> ---
+>  arch/arm/mm/dma-mapping.c | 22 ++++++----------------
+>  1 file changed, 6 insertions(+), 16 deletions(-)
+>
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 78de138..5334391 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1582,31 +1582,21 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
+>                     void *cpu_addr, dma_addr_t dma_addr, size_t size,
+>                     unsigned long attrs)
+>  {
+> -       unsigned long uaddr = vma->vm_start;
+> -       unsigned long usize = vma->vm_end - vma->vm_start;
+>         struct page **pages = __iommu_get_pages(cpu_addr, attrs);
+>         unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+> -       unsigned long off = vma->vm_pgoff;
+> +       int err;
+>
+>         if (!pages)
+>                 return -ENXIO;
+>
+> -       if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
+> +       if (vma->vm_pgoff >= nr_pages)
+>                 return -ENXIO;
+>
+> -       pages += off;
+> -
+> -       do {
+> -               int ret = vm_insert_page(vma, uaddr, *pages++);
+> -               if (ret) {
+> -                       pr_err("Remapping memory failed: %d\n", ret);
+> -                       return ret;
+> -               }
+> -               uaddr += PAGE_SIZE;
+> -               usize -= PAGE_SIZE;
+> -       } while (usize > 0);
+> +       err = vm_insert_range(vma, pages, nr_pages);
+> +       if (err)
+> +               pr_err("Remapping memory failed: %d\n", err);
+>
+> -       return 0;
+> +       return err;
+>  }
+>  static int arm_iommu_mmap_attrs(struct device *dev,
+>                 struct vm_area_struct *vma, void *cpu_addr,
+> --
+> 1.9.1
+>
