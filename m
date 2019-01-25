@@ -1,58 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 946A28E00DF
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 12:37:16 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id e29so4045529ede.19
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 09:37:16 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x52si423200edx.285.2019.01.25.09.37.15
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CF85E8E00EE
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 16:09:59 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id t26so7107303pgu.18
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 13:09:59 -0800 (PST)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id d5si5726859pgd.488.2019.01.25.13.09.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 09:37:15 -0800 (PST)
-Date: Fri, 25 Jan 2019 18:37:13 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190125173713.GD20411@dhcp22.suse.cz>
-References: <20190123223144.GA10798@chrisdown.name>
- <20190124082252.GD4087@dhcp22.suse.cz>
- <20190124160009.GA12436@cmpxchg.org>
- <20190124170117.GS4087@dhcp22.suse.cz>
- <20190124182328.GA10820@cmpxchg.org>
- <20190125074824.GD3560@dhcp22.suse.cz>
- <20190125165152.GK50184@devbig004.ftw2.facebook.com>
+        Fri, 25 Jan 2019 13:09:58 -0800 (PST)
+Subject: Re: [PATCH 1/5] mm/resource: return real error codes from walk
+ failures
+References: <20190124231441.37A4A305@viggo.jf.intel.com>
+ <20190124231442.EFD29EE0@viggo.jf.intel.com>
+ <CAErSpo7kMjfi-1r8ZyGbheWzo+JCFkDZ1zpVhyNV7VVy8NOV7g@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <4898e064-5298-6a82-83ea-23d16f3dfb3d@intel.com>
+Date: Fri, 25 Jan 2019 13:09:57 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190125165152.GK50184@devbig004.ftw2.facebook.com>
+In-Reply-To: <CAErSpo7kMjfi-1r8ZyGbheWzo+JCFkDZ1zpVhyNV7VVy8NOV7g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Bjorn Helgaas <bhelgaas@google.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, baiyaowei@cmss.chinamobile.com, Takashi Iwai <tiwai@suse.de>, Jerome Glisse <jglisse@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Fri 25-01-19 08:51:52, Tejun Heo wrote:
-[...]
-> > I do see your point about consistency. But it is also important to
-> > consider the usability of this interface. As already mentioned, catching
-> > an oom event at a level where the oom doesn't happen and having hard
-> > time to identify that place without races is a not a straightforward API
-> > to use. So it might be really the case that the api is actually usable
-> > for its purpose.
-> 
-> What if a user wants to monitor any ooms in the subtree tho, which is
-> a valid use case?
+On 1/25/19 1:02 PM, Bjorn Helgaas wrote:
+>> @@ -453,7 +453,7 @@ int walk_system_ram_range(unsigned long
+>>         unsigned long flags;
+>>         struct resource res;
+>>         unsigned long pfn, end_pfn;
+>> -       int ret = -1;
+>> +       int ret = -EINVAL;
+> Can you either make a similar change to the powerpc version of
+> walk_system_ram_range() in arch/powerpc/mm/mem.c or explain why it's
+> not needed?  It *seems* like we'd want both versions of
+> walk_system_ram_range() to behave similarly in this respect.
 
-How is that information useful without know which memcg the oom applies
-to?
+Sure.  A quick grep shows powerpc being the only other implementation.
+I'll just add this hunk:
 
-> If local event monitoring is useful and it can be,
-> let's add separate events which are clearly identifiable to be local.
-> Right now, it's confusing like hell.
+> diff -puN arch/powerpc/mm/mem.c~memory-hotplug-walk_system_ram_range-returns-neg-1 arch/powerpc/mm/mem.c
+> --- a/arch/powerpc/mm/mem.c~memory-hotplug-walk_system_ram_range-returns-neg-1  2019-01-25 12:57:00.000004446 -0800
+> +++ b/arch/powerpc/mm/mem.c     2019-01-25 12:58:13.215004263 -0800 
+> @@ -188,7 +188,7 @@ walk_system_ram_range(unsigned long star 
+>         struct memblock_region *reg; 
+>         unsigned long end_pfn = start_pfn + nr_pages; 
+>         unsigned long tstart, tend; 
+> -       int ret = -1; 
+> +       int ret = -EINVAL; 
 
->From a backward compatible POV it should be a new interface added.
-Please note that I understand that this might be confusing with the rest
-of the cgroup APIs but considering that this is the first time somebody
-is actually complaining and the interface is "production ready" for more
-than three years I am not really sure the situation is all that bad.
--- 
-Michal Hocko
-SUSE Labs
+I'll also dust off the ol' cross-compiler and make sure I didn't
+fat-finger anything.
