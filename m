@@ -1,73 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AD218E00D7
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 14:33:15 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id 41so11805819qto.17
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:33:15 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s128si1112728qkb.115.2019.01.25.11.33.14
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 44FC18E00EE
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 16:03:09 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id 18so2633189wmw.6
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 13:03:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q4sor74827920wru.28.2019.01.25.13.03.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 11:33:14 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0PJNhWC077263
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 14:33:14 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2q85bnhmdr-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 14:33:14 -0500
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Fri, 25 Jan 2019 19:33:11 -0000
-Date: Fri, 25 Jan 2019 21:32:52 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH v2 06/21] memblock: memblock_phys_alloc_try_nid(): don't
- panic
-References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
- <1548057848-15136-7-git-send-email-rppt@linux.ibm.com>
- <20190125174502.GL25901@arrakis.emea.arm.com>
+        (Google Transport Security);
+        Fri, 25 Jan 2019 13:03:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190125174502.GL25901@arrakis.emea.arm.com>
-Message-Id: <20190125193252.GH31519@rapoport-lnx>
+References: <20190124231441.37A4A305@viggo.jf.intel.com> <20190124231442.EFD29EE0@viggo.jf.intel.com>
+In-Reply-To: <20190124231442.EFD29EE0@viggo.jf.intel.com>
+From: Bjorn Helgaas <bhelgaas@google.com>
+Date: Fri, 25 Jan 2019 15:02:55 -0600
+Message-ID: <CAErSpo7kMjfi-1r8ZyGbheWzo+JCFkDZ1zpVhyNV7VVy8NOV7g@mail.gmail.com>
+Subject: Re: [PATCH 1/5] mm/resource: return real error codes from walk failures
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, "David S. Miller" <davem@davemloft.net>, Dennis Zhou <dennis@kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Greentime Hu <green.hu@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Mark Salter <msalter@redhat.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>, Petr Mladek <pmladek@suse.com>, Rich Felker <dalias@libc.org>, Richard Weinberger <richard@nod.at>, Rob Herring <robh+dt@kernel.org>, Russell King <linux@armlinux.org.uk>, Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>, Vineet Gupta <vgupta@synopsys.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, devicetree@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-um@lists.infradead.org, linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org, linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org, sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp, x86@kernel.org, xen-devel@lists.xenproject.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, baiyaowei@cmss.chinamobile.com, Takashi Iwai <tiwai@suse.de>, Jerome Glisse <jglisse@redhat.com>
 
-On Fri, Jan 25, 2019 at 05:45:02PM +0000, Catalin Marinas wrote:
-> On Mon, Jan 21, 2019 at 10:03:53AM +0200, Mike Rapoport wrote:
-> > diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
-> > index ae34e3a..2c61ea4 100644
-> > --- a/arch/arm64/mm/numa.c
-> > +++ b/arch/arm64/mm/numa.c
-> > @@ -237,6 +237,10 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
-> >  		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
-> >  
-> >  	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
-> > +	if (!nd_pa)
-> > +		panic("Cannot allocate %zu bytes for node %d data\n",
-> > +		      nd_size, nid);
-> > +
-> >  	nd = __va(nd_pa);
-> >  
-> >  	/* report and initialize */
-> 
-> Does it mean that memblock_phys_alloc_try_nid() never returns valid
-> physical memory starting at 0?
+On Thu, Jan 24, 2019 at 5:21 PM Dave Hansen <dave.hansen@linux.intel.com> wrote:
+>
+>
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> walk_system_ram_range() can return an error code either becuase *it*
+> failed, or because the 'func' that it calls returned an error.  The
+> memory hotplug does the following:
+>
+>         ret = walk_system_ram_range(..., func);
+>         if (ret)
+>                 return ret;
+>
+> and 'ret' makes it out to userspace, eventually.  The problem is,
+> walk_system_ram_range() failues that result from *it* failing (as
+> opposed to 'func') return -1.  That leads to a very odd -EPERM (-1)
+> return code out to userspace.
+>
+> Make walk_system_ram_range() return -EINVAL for internal failures to
+> keep userspace less confused.
+>
+> This return code is compatible with all the callers that I audited.
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dave Jiang <dave.jiang@intel.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Vishal Verma <vishal.l.verma@intel.com>
+> Cc: Tom Lendacky <thomas.lendacky@amd.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: linux-nvdimm@lists.01.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Fengguang Wu <fengguang.wu@intel.com>
+> Cc: Borislav Petkov <bp@suse.de>
+> Cc: Bjorn Helgaas <bhelgaas@google.com>
+> Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+> Cc: Takashi Iwai <tiwai@suse.de>
+> Cc: Jerome Glisse <jglisse@redhat.com>
+> ---
+>
+>  b/kernel/resource.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff -puN kernel/resource.c~memory-hotplug-walk_system_ram_range-returns-neg-1 kernel/resource.c
+> --- a/kernel/resource.c~memory-hotplug-walk_system_ram_range-returns-neg-1      2019-01-24 15:13:13.950199540 -0800
+> +++ b/kernel/resource.c 2019-01-24 15:13:13.954199540 -0800
+> @@ -375,7 +375,7 @@ static int __walk_iomem_res_desc(resourc
+>                                  int (*func)(struct resource *, void *))
+>  {
+>         struct resource res;
+> -       int ret = -1;
+> +       int ret = -EINVAL;
+>
+>         while (start < end &&
+>                !find_next_iomem_res(start, end, flags, desc, first_lvl, &res)) {
+> @@ -453,7 +453,7 @@ int walk_system_ram_range(unsigned long
+>         unsigned long flags;
+>         struct resource res;
+>         unsigned long pfn, end_pfn;
+> -       int ret = -1;
+> +       int ret = -EINVAL;
 
-Yes, it does.
-memblock_find_in_range_node() that is used by all allocation methods
-skips the first page [1].
- 
-[1] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/memblock.c#n257
+Can you either make a similar change to the powerpc version of
+walk_system_ram_range() in arch/powerpc/mm/mem.c or explain why it's
+not needed?  It *seems* like we'd want both versions of
+walk_system_ram_range() to behave similarly in this respect.
 
-> -- 
-> Catalin
-> 
-
--- 
-Sincerely yours,
-Mike.
+>         start = (u64) start_pfn << PAGE_SHIFT;
+>         end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
+> _
