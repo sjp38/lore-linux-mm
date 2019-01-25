@@ -3,246 +3,231 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56CF3C282C0
-	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 12:33:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3422C282C0
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 16:02:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D4012146E
-	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 12:33:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D4012146E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 9F00B218D0
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 16:02:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F00B218D0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E54C8E00D4; Fri, 25 Jan 2019 07:33:01 -0500 (EST)
+	id EC7E28E00D8; Fri, 25 Jan 2019 11:02:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 996968E00CD; Fri, 25 Jan 2019 07:33:01 -0500 (EST)
+	id E75A78E00D7; Fri, 25 Jan 2019 11:02:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AC388E00D4; Fri, 25 Jan 2019 07:33:01 -0500 (EST)
+	id D674A8E00D8; Fri, 25 Jan 2019 11:02:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BF328E00CD
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 07:33:01 -0500 (EST)
-Received: by mail-vk1-f197.google.com with SMTP id d123so2630367vkf.23
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 04:33:01 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ABBD28E00D7
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:02:28 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id k133so5991985ite.4
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 08:02:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=IDIeFUt1bZqy2qdUv8MOlcWvdWcD/t7KKnjFHyKfmd8=;
-        b=rBXrT+tNT/5SkmePYa95g3U9ttquwJB9CvzOy6zaHACKOz+a0eHnajBuXRHO5uzraN
-         0p1xT877wI2KWgLt/8MmlwTWQmICjkAVlQG9HcyCSZHEtqff6dEdqRZ0jkq+r/dTOgu9
-         IjW9WMGDKvw2Ky0grE175mURon3MRNyjYV44AYuYe0NGywoGKKZbzKVn2rhHnquC0IU2
-         QNoCZ4tMvWtft3FkWZ0GQAOWZmbnOUP9GIdxO7WGjt7uSv9/UntXhRybgedhNTXJf+I4
-         +PRIxUzDCiddOFUuJJ+tBl4qRLkcOs9ecnSXIak9b08hqwd/b73yve6qWT15mLjcFEae
-         bC9Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: AJcUukcth8viALwnBE0TrzWFDnKLr2gSbrsp9GAXK4Ly1TO9w6skDaRM
-	CaA5xqXNfjemyvF4qj5PQ3He+51oAdrzv2Rd+lJvZ7HuajFUcc6QOLZ5j5QAzbLIzA/TEpyG6ty
-	f6FYv6L1MQuxExS+g741BB/N34vmtwsjpkrf62poB9SZ0bMIZfbH8jDShFhuJrfcvOg==
-X-Received: by 2002:a67:2603:: with SMTP id m3mr4436185vsm.160.1548419580938;
-        Fri, 25 Jan 2019 04:33:00 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN45D4XAyNkOkqVn2iySY5qBGVl+SYdhhnJ+kb1qVqMPVphEjOe5Atb1BsOhGaHNyA+YBqJJ
-X-Received: by 2002:a67:2603:: with SMTP id m3mr4436169vsm.160.1548419580226;
-        Fri, 25 Jan 2019 04:33:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548419580; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=CqCtzfmNIlsjjr37EaboZ+t7nVgdj0ZPM+y425F5GJQ=;
+        b=t34WhCgTPb/ifFtnI01HsTRDVQ5YEuJ3zRd28JOA1rjpAvb6BHZtb3hZ1C+p89DRoR
+         0ouUPMHI93TdJN4IRjDZWjpXqkhCsrGh23UW5t1mSGTu6/0iP9jJEIoQrfxDz8OQ+xcj
+         nAS9bx4g1PDDkiatdvoPaEFoFvLDX4XvMMOCPdv2iKp4LrEmvI1gVkqsZRObk+uCq1qO
+         fw81j39N7lrWcX4ayJgWuDhxerWU80l4b4RPl19hg6jXynWGe++At3UG/89aRYtOMnb2
+         Rx7TVFoW9omMta302O31OMKQgRrlBPP/2Bq+HFVhgOoHBunzkaclv3whXhmH0OfSHYlQ
+         o2vA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: AJcUukesW8nUkOhP0wtqKUpQsVS6Il8gAwxviNaHuNtYWash9k0rjdI5
+	ZENDhTMmtfxeRQMW+eZP2opjwQA2qZ314hhohlU2xFXngs1A0CmISyW+i+7xThcT8kUB/flN0d8
+	9NSYrsopOSqevVRsnUnFOh5RcIsMuBB4C6nlM1ht/xoPJhrvxo43ArGpPU7rDqmMwpQ==
+X-Received: by 2002:a02:a791:: with SMTP id e17mr7930925jaj.104.1548432148356;
+        Fri, 25 Jan 2019 08:02:28 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7xJ1YhEIg1hJWn1WPdAnlEeJnqtU2dBRQWFGdKqbDbWFXW4lKJ4CZdbN2wTND7imr9yibz
+X-Received: by 2002:a02:a791:: with SMTP id e17mr7930872jaj.104.1548432147389;
+        Fri, 25 Jan 2019 08:02:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548432147; cv=none;
         d=google.com; s=arc-20160816;
-        b=QgYl/+8l70nsgRVaSwqOIOteai/guHSt9Q4yxD1csdlF57WGCik9BoKeLrTJv+h/9/
-         wU0odLv+BcEby/v9SbbGL7wwGZbXMcWlbjQFmOQRXJejpp0Q7lGIUf4BPZKJ5s1VdKxN
-         fMiZQfNIoz6o16nzGK6IvKL+sr827lLv6wlRWa5hEgAdwrpJ/RgP4D3O+DxuQvk95hiQ
-         uPRzevqPJf9KW5o+gY4qAOm1QW1EI35cypuNCsqQwPC5fMilBB8CYPxTivxxaT2aplCy
-         54X8KXurRtJ6BSkmU07ZWhJPz2AJ4J68yecnyg4lXZXggCHlUPBBDzmtWaFQxLOzs2jO
-         jDPg==
+        b=QCKKj8CSUZyfbYyyw9nnGRB622ojG+XkhyVZ8UakGpUjPjNz8zhtPcDh8r5wxQKTva
+         t4m1dWMq1vGvIP2y9y4M4RVVxraP/FOcqnIXQ9D4zUJTYgwAaaRy+H01Z+w2x1VZGw3W
+         JnodtjWFGnR93pe3PIr2g4rVcoZ5iqi5SqxXuARFIzP9X6JvzdsDuuskjjJT1S3yLzZV
+         HsSdmlphMKkP4S7PxUncnWclW8G9HzzjIE17mMjK+ezceDztsKhLugqB63roG33Cz1Dh
+         0BiDEBXeGXetz6UjLVY4OJnTnztpaZ8vY7EaSOivkR4T8hZLrxmQ3UnjWLd7tL+YDRVC
+         EasA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=IDIeFUt1bZqy2qdUv8MOlcWvdWcD/t7KKnjFHyKfmd8=;
-        b=OYsSWMdEjvJT5xndOHWco6nKczSP5SOUEqv6kIpk8UBWjTrDyYpu3l58iJzRVCyADX
-         dKW03pkPV5RiZqCAW5Oh/s/FZeLwgzsrhRWcjsyG3e2MYiaEv6bVm/E6frnUZu8mZEPf
-         pr2OGOSBGiAeWOqmX4X5Mb7+/5G8lPzhrzKfN5HmlIgXMuczTlB9NJPeYJF5XmEyYLTv
-         Ch0kaCe5NtyzH/oLNsliA5/dgJNcGkeXt6PEMSX7M6XeEVaFnWUKAtwUwDPkyu3Ko1wD
-         yXxf2ZZwo4/WQ/z6UKWS4red8TQO0uEMpIysbVnMVkCon4BVfGXaVpub4Mtg5+Rs+u58
-         ItaA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=CqCtzfmNIlsjjr37EaboZ+t7nVgdj0ZPM+y425F5GJQ=;
+        b=TtO3zVqQJBJ2mD9iK+z1gcc0/ZLatKQs6a/23zLHQW2TMpziQ+0CQ3NSJOw5/fQ8NZ
+         NcEUJJ1ZPWkhbP25BfP/6M9fjeoNeVFdlIhHkwZ5LkYknqVCU26R1H08ocWAVPDu4FJ4
+         v/4WoMfZYC+YfU+/REk/OZED3w14krjbCrRMV3LcVfrOF+oW6STCeYG24f/nmbi6ySQ+
+         3UqxZVugAPykr5n5MJNmJ5ozNSNAkKcsEkdm3+/3mbnE7iQnvkgX6EQ3gZbGeaUyxJKF
+         hb6I+2cEAAq660okfO8q4uljgbeEkMpKiAFGAVgxyXJaTVRz97BAZmffAjGhOgSsoV+z
+         OD4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id y9si18280523uaf.216.2019.01.25.04.32.59
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 8si5800709jak.74.2019.01.25.08.02.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 04:33:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        Fri, 25 Jan 2019 08:02:27 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS407-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 1BF484F9FACB5314346A;
-	Fri, 25 Jan 2019 20:32:56 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS407-HUB.china.huawei.com
- (10.3.19.207) with Microsoft SMTP Server id 14.3.408.0; Fri, 25 Jan 2019
- 20:32:50 +0800
-Message-ID: <5C4B01F1.5020100@huawei.com>
-Date: Fri, 25 Jan 2019 20:32:49 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav107.sakura.ne.jp (fsav107.sakura.ne.jp [27.133.134.234])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x0PG26fg055728;
+	Sat, 26 Jan 2019 01:02:06 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav107.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp);
+ Sat, 26 Jan 2019 01:02:06 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x0PG26Rv055723
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Sat, 26 Jan 2019 01:02:06 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: possible deadlock in __do_page_fault
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Todd Kjos <tkjos@google.com>,
+        syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com,
+        ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz,
+        jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>,
+        linux-mm@kvack.org, mawilcox@microsoft.com,
+        mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com,
+        =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?=
+ <arve@android.com>,
+        Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+References: <201901230201.x0N214eq043832@www262.sakura.ne.jp>
+ <20190123155751.GA168927@google.com>
+ <201901240152.x0O1qUUU069046@www262.sakura.ne.jp>
+ <20190124134646.GA53008@google.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <d736c8f5-eba1-2da8-000f-4b2a80ad74ff@i-love.sakura.ne.jp>
+Date: Sat, 26 Jan 2019 01:02:06 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-CC: Vinayak Menon <vinmenon@codeaurora.org>, Linux-MM <linux-mm@kvack.org>,
-	<charante@codeaurora.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: Re: [PATCH v11 00/26] Speculative page faults
-References: <8b0b2c05-89f8-8002-2dce-fa7004907e78@codeaurora.org> <5a24109c-7460-4a8e-a439-d2f2646568e6@codeaurora.org> <9ae5496f-7a51-e7b7-0061-5b68354a7945@linux.vnet.ibm.com> <e104a6dc-931b-944c-9555-dc1c001a57e0@codeaurora.org> <5C40A48F.6070306@huawei.com> <8bfaf41b-6d88-c0de-35c0-1c41db7a691e@linux.vnet.ibm.com> <5C474351.5030603@huawei.com> <0ab93858-dcd2-b28a-3445-6ed2f75b844b@linux.vnet.ibm.com>
-In-Reply-To: <0ab93858-dcd2-b28a-3445-6ed2f75b844b@linux.vnet.ibm.com>
+In-Reply-To: <20190124134646.GA53008@google.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190125123249.i6dSs0tGSiA37LD6xmJRHVn5YZgHhKQBSGiITP-RN7I@z>
+Message-ID: <20190125160206.Lfyx0PANeYIdIaPchF-v6h4CR00qVm2tFHf2jEck24s@z>
 
-On 2019/1/24 16:20, Laurent Dufour wrote:
-> Le 22/01/2019 à 17:22, zhong jiang a écrit :
->> On 2019/1/19 0:24, Laurent Dufour wrote:
->>> Le 17/01/2019 à 16:51, zhong jiang a écrit :
->>>> On 2019/1/16 19:41, Vinayak Menon wrote:
->>>>> On 1/15/2019 1:54 PM, Laurent Dufour wrote:
->>>>>> Le 14/01/2019 à 14:19, Vinayak Menon a écrit :
->>>>>>> On 1/11/2019 9:13 PM, Vinayak Menon wrote:
->>>>>>>> Hi Laurent,
->>>>>>>>
->>>>>>>> We are observing an issue with speculative page fault with the following test code on ARM64 (4.14 kernel, 8 cores).
->>>>>>>
->>>>>>> With the patch below, we don't hit the issue.
->>>>>>>
->>>>>>> From: Vinayak Menon <vinmenon@codeaurora.org>
->>>>>>> Date: Mon, 14 Jan 2019 16:06:34 +0530
->>>>>>> Subject: [PATCH] mm: flush stale tlb entries on speculative write fault
->>>>>>>
->>>>>>> It is observed that the following scenario results in
->>>>>>> threads A and B of process 1 blocking on pthread_mutex_lock
->>>>>>> forever after few iterations.
->>>>>>>
->>>>>>> CPU 1                   CPU 2                    CPU 3
->>>>>>> Process 1,              Process 1,               Process 1,
->>>>>>> Thread A                Thread B                 Thread C
->>>>>>>
->>>>>>> while (1) {             while (1) {              while(1) {
->>>>>>> pthread_mutex_lock(l)   pthread_mutex_lock(l)    fork
->>>>>>> pthread_mutex_unlock(l) pthread_mutex_unlock(l)  }
->>>>>>> }                       }
->>>>>>>
->>>>>>> When from thread C, copy_one_pte write-protects the parent pte
->>>>>>> (of lock l), stale tlb entries can exist with write permissions
->>>>>>> on one of the CPUs at least. This can create a problem if one
->>>>>>> of the threads A or B hits the write fault. Though dup_mmap calls
->>>>>>> flush_tlb_mm after copy_page_range, since speculative page fault
->>>>>>> does not take mmap_sem it can proceed further fixing a fault soon
->>>>>>> after CPU 3 does ptep_set_wrprotect. But the CPU with stale tlb
->>>>>>> entry can still modify old_page even after it is copied to
->>>>>>> new_page by wp_page_copy, thus causing a corruption.
->>>>>> Nice catch and thanks for your investigation!
->>>>>>
->>>>>> There is a real synchronization issue here between copy_page_range() and the speculative page fault handler. I didn't get it on PowerVM since the TLB are flushed when arch_exit_lazy_mode() is called in copy_page_range() but now, I can get it when running on x86_64.
->>>>>>
->>>>>>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
->>>>>>> ---
->>>>>>>     mm/memory.c | 7 +++++++
->>>>>>>     1 file changed, 7 insertions(+)
->>>>>>>
->>>>>>> diff --git a/mm/memory.c b/mm/memory.c
->>>>>>> index 52080e4..1ea168ff 100644
->>>>>>> --- a/mm/memory.c
->>>>>>> +++ b/mm/memory.c
->>>>>>> @@ -4507,6 +4507,13 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
->>>>>>>                    return VM_FAULT_RETRY;
->>>>>>>            }
->>>>>>>
->>>>>>> +       /*
->>>>>>> +        * Discard tlb entries created before ptep_set_wrprotect
->>>>>>> +        * in copy_one_pte
->>>>>>> +        */
->>>>>>> +       if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
->>>>>>> +               flush_tlb_page(vmf.vma, address);
->>>>>>> +
->>>>>>>            mem_cgroup_oom_enable();
->>>>>>>            ret = handle_pte_fault(&vmf);
->>>>>>>            mem_cgroup_oom_disable();
->>>>>> Your patch is fixing the race but I'm wondering about the cost of these tlb flushes. Here we are flushing on a per page basis (architecture like x86_64 are smarter and flush more pages) but there is a request to flush a range of tlb entries each time a cow page is newly touched. I think there could be some bad impact here.
->>>>>>
->>>>>> Another option would be to flush the range in copy_pte_range() before unlocking the page table lock. This will flush entries flush_tlb_mm() would later handle in dup_mmap() but that will be called once per fork per cow VMA.
->>>>>
->>>>> But wouldn't this cause an unnecessary impact if most of the COW pages remain untouched (which I assume would be the usual case) and thus do not create a fault ?
->>>>>
->>>>>
->>>>>> I tried the attached patch which seems to fix the issue on x86_64. Could you please give it a try on arm64 ?
->>>>>>
->>>>> Your patch works fine on arm64 with a minor change. Thanks Laurent.
->>>> Hi, Vinayak and Laurent
->>>>
->>>> I think the below change will impact the performance significantly. Becuase most of process has many
->>>> vmas with cow flags. Flush the tlb in advance is not the better way to avoid the issue and it will
->>>> call the flush_tlb_mm  later.
->>>>
->>>> I think we can try the following way to do.
->>>>
->>>> vm_write_begin(vma)
->>>> copy_pte_range
->>>> vm_write_end(vma)
->>>>
->>>> The speculative page fault will return to grap the mmap_sem to run the nromal path.
->>>> Any thought?
+On 2019/01/24 22:46, Joel Fernandes wrote:
+> On Thu, Jan 24, 2019 at 10:52:30AM +0900, Tetsuo Handa wrote:
+>> Joel Fernandes wrote:
+>>>> Anyway, I need your checks regarding whether this approach is waiting for
+>>>> completion at all locations which need to wait for completion.
 >>>
->>> Here is a new version of the patch fixing this issue. There is no additional TLB flush, all the fix is belonging on vm_write_{begin,end} calls.
+>>> I think you are waiting in unwanted locations. The only location you need to
+>>> wait in is ashmem_pin_unpin.
 >>>
->>> I did some test on x86_64 and PowerPC but that needs to be double check on arm64.
+>>> So, to my eyes all that is needed to fix this bug is:
 >>>
->>> Vinayak, Zhong, could you please give it a try ?
+>>> 1. Delete the range from the ashmem_lru_list
+>>> 2. Release the ashmem_mutex
+>>> 3. fallocate the range.
+>>> 4. Do the completion so that any waiting pin/unpin can proceed.
 >>>
->> Hi Laurent
->>
->> I apply the patch you had attached and none of any abnormal thing came in two days. It is feasible to fix the issue.
->
-> Good news !
->
->>
->> but It will better to filter the condition by is_cow_mapping. is it right?
->>
->> for example:
->>
->> if (is_cow_mapping(mnpt->vm_flags)) {
->>             ........
->> }
->
-> That's doable for sure but I don't think this has to be introduce in dup_mmap().
-> Unless there is a real performance benefit to do so, I don't think dup_mmap() has to mimic underlying checks done in copy_page_range().
->
+>>> Could you clarify why you feel you need to wait for completion at those other
+>>> locations?
 
-Hi, Laurent
+OK. Here is an updated patch.
+Passed syzbot's best-effort testing using reproducers on all three reports.
 
-I test the performace with microbench after appling the patch. I find 
-the page fault latency will increase about 8% than before.  I think we
-should use is_cow_mapping to waken the impact and I will try it out.
+From f192176dbee54075d41249e9f22918c32cb4d4fc Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Fri, 25 Jan 2019 23:43:01 +0900
+Subject: [PATCH] staging: android: ashmem: Don't call fallocate() with ashmem_mutex held.
 
-or we can use the following solution to replace as Vinayak has said.
+syzbot is hitting lockdep warnings [1][2][3]. This patch tries to fix
+the warning by eliminating ashmem_shrink_scan() => {shmem|vfs}_fallocate()
+sequence.
+
+[1] https://syzkaller.appspot.com/bug?id=87c399f6fa6955006080b24142e2ce7680295ad4
+[2] https://syzkaller.appspot.com/bug?id=7ebea492de7521048355fc84210220e1038a7908
+[3] https://syzkaller.appspot.com/bug?id=e02419c12131c24e2a957ea050c2ab6dcbbc3270
+
+Reported-by: syzbot <syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com>
+Reported-by: syzbot <syzbot+148c2885d71194f18d28@syzkaller.appspotmail.com>
+Reported-by: syzbot <syzbot+4b8b031b89e6b96c4b2e@syzkaller.appspotmail.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ drivers/staging/android/ashmem.c | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
+index 90a8a9f..d40c1d2 100644
+--- a/drivers/staging/android/ashmem.c
++++ b/drivers/staging/android/ashmem.c
+@@ -75,6 +75,9 @@ struct ashmem_range {
+ /* LRU list of unpinned pages, protected by ashmem_mutex */
+ static LIST_HEAD(ashmem_lru_list);
  
-if (flags & FAULT_FLAG_WRITE && !pte_write(vmf.orig_pte))
-    return VM_FAULT_RETRY;
-
-Even though it will influence the performance of SPF, but at least it does
-not bring in any negative impact. Any thought?
-
-Thanks,
-
-
-> Cheers,
-> Laurent.
->
->
-> .
->
-
++static atomic_t ashmem_shrink_inflight = ATOMIC_INIT(0);
++static DECLARE_WAIT_QUEUE_HEAD(ashmem_shrink_wait);
++
+ /*
+  * long lru_count - The count of pages on our LRU list.
+  *
+@@ -438,7 +441,6 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
+ static unsigned long
+ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+-	struct ashmem_range *range, *next;
+ 	unsigned long freed = 0;
+ 
+ 	/* We might recurse into filesystem code, so bail out if necessary */
+@@ -448,17 +450,27 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
+ 	if (!mutex_trylock(&ashmem_mutex))
+ 		return -1;
+ 
+-	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
++	while (!list_empty(&ashmem_lru_list)) {
++		struct ashmem_range *range =
++			list_first_entry(&ashmem_lru_list, typeof(*range), lru);
+ 		loff_t start = range->pgstart * PAGE_SIZE;
+ 		loff_t end = (range->pgend + 1) * PAGE_SIZE;
++		struct file *f = range->asma->file;
+ 
+-		range->asma->file->f_op->fallocate(range->asma->file,
+-				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+-				start, end - start);
++		get_file(f);
++		atomic_inc(&ashmem_shrink_inflight);
+ 		range->purged = ASHMEM_WAS_PURGED;
+ 		lru_del(range);
+ 
+ 		freed += range_size(range);
++		mutex_unlock(&ashmem_mutex);
++		f->f_op->fallocate(f,
++				   FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
++				   start, end - start);
++		fput(f);
++		if (atomic_dec_and_test(&ashmem_shrink_inflight))
++			wake_up_all(&ashmem_shrink_wait);
++		mutex_lock(&ashmem_mutex);
+ 		if (--sc->nr_to_scan <= 0)
+ 			break;
+ 	}
+@@ -713,6 +725,7 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
+ 		return -EFAULT;
+ 
+ 	mutex_lock(&ashmem_mutex);
++	wait_event(ashmem_shrink_wait, !atomic_read(&ashmem_shrink_inflight));
+ 
+ 	if (!asma->file)
+ 		goto out_unlock;
+-- 
+1.8.3.1
 
