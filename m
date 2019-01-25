@@ -1,53 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4FA8E00E4
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 13:28:12 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id i3so8244716pfj.4
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 10:28:12 -0800 (PST)
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730045.outbound.protection.outlook.com. [40.107.73.45])
-        by mx.google.com with ESMTPS id p64si25736096pfg.79.2019.01.25.10.28.11
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8790E8E00D7
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 14:07:23 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id 42so11755614qtr.7
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:07:23 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d19si1767378qke.208.2019.01.25.11.07.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 25 Jan 2019 10:28:11 -0800 (PST)
-From: Nadav Amit <namit@vmware.com>
-Subject: Re: [PATCH 01/17] Fix "x86/alternatives: Lockdep-enforce text_mutex
- in text_poke*()"
-Date: Fri, 25 Jan 2019 18:28:04 +0000
-Message-ID: <BEFCBDFB-F08F-441D-8BCC-07E5F448D9D2@vmware.com>
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
- <20190117003259.23141-2-rick.p.edgecombe@intel.com>
- <20190125093052.GA27998@zn.tnic>
-In-Reply-To: <20190125093052.GA27998@zn.tnic>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <40B2A33442F0754AA96DF64BE91FBD02@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Jan 2019 11:07:22 -0800 (PST)
+Date: Fri, 25 Jan 2019 14:07:17 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 2/5] mm/resource: move HMM pr_debug() deeper into
+ resource code
+Message-ID: <20190125190716.GB3237@redhat.com>
+References: <20190124231441.37A4A305@viggo.jf.intel.com>
+ <20190124231444.38182DD8@viggo.jf.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190124231444.38182DD8@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Damian Tometzki <linux_dti@icloud.com>, linux-integrity <linux-integrity@vger.kernel.org>, LSM List <linux-security-module@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "kristen@linux.intel.com" <kristen@linux.intel.com>, "deneen.t.dock@intel.com" <deneen.t.dock@intel.com>, Kees Cook <keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, dan.j.williams@intel.com, dave.jiang@intel.com, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, akpm@linux-foundation.org, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, ying.huang@intel.com, fengguang.wu@intel.com
 
-PiBPbiBKYW4gMjUsIDIwMTksIGF0IDE6MzAgQU0sIEJvcmlzbGF2IFBldGtvdiA8YnBAYWxpZW44
-LmRlPiB3cm90ZToNCj4gDQo+IE9uIFdlZCwgSmFuIDE2LCAyMDE5IGF0IDA0OjMyOjQzUE0gLTA4
-MDAsIFJpY2sgRWRnZWNvbWJlIHdyb3RlOg0KPj4gRnJvbTogTmFkYXYgQW1pdCA8bmFtaXRAdm13
-YXJlLmNvbT4NCj4+IA0KPj4gdGV4dF9tdXRleCBpcyBjdXJyZW50bHkgZXhwZWN0ZWQgdG8gYmUg
-aGVsZCBiZWZvcmUgdGV4dF9wb2tlKCkgaXMNCj4+IGNhbGxlZCwgYnV0IHdlIGtnZGIgZG9lcyBu
-b3QgdGFrZSB0aGUgbXV0ZXgsIGFuZCBpbnN0ZWFkICpzdXBwb3NlZGx5Kg0KPj4gZW5zdXJlcyB0
-aGUgbG9jayBpcyBub3QgdGFrZW4gYW5kIHdpbGwgbm90IGJlIGFjcXVpcmVkIGJ5IGFueSBvdGhl
-ciBjb3JlDQo+PiB3aGlsZSB0ZXh0X3Bva2UoKSBpcyBydW5uaW5nLg0KPj4gDQo+PiBUaGUgcmVh
-c29uIGZvciB0aGUgInN1cHBvc2VkbHkiIGNvbW1lbnQgaXMgdGhhdCBpdCBpcyBub3QgZW50aXJl
-bHkgY2xlYXINCj4+IHRoYXQgdGhpcyB3b3VsZCBiZSB0aGUgY2FzZSBpZiBnZGJfZG9fcm91bmR1
-cCBpcyB6ZXJvLg0KPiANCj4gSSBndWVzcyB0aGF0IHZhcmlhYmxlIG5hbWUgaXMgImtnZGJfZG9f
-cm91bmR1cOKAnSA/DQoNClllcy4gV2lsbCBmaXguDQoNCj4gDQo+PiBUaGlzIHBhdGNoIGNyZWF0
-ZXMgdHdvIHdyYXBwZXIgZnVuY3Rpb25zLCB0ZXh0X3Bva2UoKSBhbmQNCj4gDQo+IEF2b2lkIGhh
-dmluZyAiVGhpcyBwYXRjaCIgb3IgIlRoaXMgY29tbWl0IiBpbiB0aGUgY29tbWl0IG1lc3NhZ2Uu
-IEl0IGlzDQo+IHRhdXRvbG9naWNhbGx5IHVzZWxlc3MuDQo+IA0KPiBBbHNvLCBkbw0KPiANCj4g
-JCBnaXQgZ3JlcCAnVGhpcyBwYXRjaCcgRG9jdW1lbnRhdGlvbi9wcm9jZXNzDQo+IA0KPiBmb3Ig
-bW9yZSBkZXRhaWxzLg0KDQpPay4NCg0KPj4gDQo+PiArdm9pZCAqdGV4dF9wb2tlX2tnZGIodm9p
-ZCAqYWRkciwgY29uc3Qgdm9pZCAqb3Bjb2RlLCBzaXplX3QgbGVuKQ0KPiANCj4gdGV4dF9wb2tl
-X3VubG9ja2VkKCkgSSBndWVzcy4gSSBkb24ndCB0aGluayBrZ2RiIGlzIHRoYXQgc3BlY2lhbCB0
-aGF0IGl0DQo+IG5lZWRzIGl0cyBvd24gZnVuY3Rpb24gZmxhdm9yLg0KDQpUZ2x4IHN1Z2dlc3Rl
-ZCB0aGlzIG5hbWluZyB0byBwcmV2ZW50IGFueW9uZSBmcm9tIG1pc3VzaW5nIHRleHRfcG9rZV9r
-ZGdiKCkuDQpUaGlzIGlzIGEgdmVyeSBzcGVjaWZpYyB1c2UtY2FzZSB0aGF0IG5vYm9keSBlbHNl
-IHNob3VsZCBuZWVkLg0KDQpSZWdhcmRzLA0KTmFkYXY=
+On Thu, Jan 24, 2019 at 03:14:44PM -0800, Dave Hansen wrote:
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> HMM consumes physical address space for its own use, even
+> though nothing is mapped or accessible there.  It uses a
+> special resource description (IORES_DESC_DEVICE_PRIVATE_MEMORY)
+> to uniquely identify these areas.
+> 
+> When HMM consumes address space, it makes a best guess about
+> what to consume.  However, it is possible that a future memory
+> or device hotplug can collide with the reserved area.  In the
+> case of these conflicts, there is an error message in
+> register_memory_resource().
+> 
+> Later patches in this series move register_memory_resource()
+> from using request_resource_conflict() to __request_region().
+> Unfortunately, __request_region() does not return the conflict
+> like the previous function did, which makes it impossible to
+> check for IORES_DESC_DEVICE_PRIVATE_MEMORY in a conflicting
+> resource.
+> 
+> Instead of warning in register_memory_resource(), move the
+> check into the core resource code itself (__request_region())
+> where the conflicting resource _is_ available.  This has the
+> added bonus of producing a warning in case of HMM conflicts
+> with devices *or* RAM address space, as opposed to the RAM-
+> only warnings that were there previously.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dave Jiang <dave.jiang@intel.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Vishal Verma <vishal.l.verma@intel.com>
+> Cc: Tom Lendacky <thomas.lendacky@amd.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: linux-nvdimm@lists.01.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Fengguang Wu <fengguang.wu@intel.com>
+
+Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+
+> ---
+> 
+>  b/kernel/resource.c   |   10 ++++++++++
+>  b/mm/memory_hotplug.c |    5 -----
+>  2 files changed, 10 insertions(+), 5 deletions(-)
+> 
+> diff -puN kernel/resource.c~move-request_region-check kernel/resource.c
+> --- a/kernel/resource.c~move-request_region-check	2019-01-24 15:13:14.453199539 -0800
+> +++ b/kernel/resource.c	2019-01-24 15:13:14.458199539 -0800
+> @@ -1123,6 +1123,16 @@ struct resource * __request_region(struc
+>  		conflict = __request_resource(parent, res);
+>  		if (!conflict)
+>  			break;
+> +		/*
+> +		 * mm/hmm.c reserves physical addresses which then
+> +		 * become unavailable to other users.  Conflicts are
+> +		 * not expected.  Be verbose if one is encountered.
+> +		 */
+> +		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
+> +			pr_debug("Resource conflict with unaddressable "
+> +				 "device memory at %#010llx !\n",
+> +				 (unsigned long long)start);
+> +		}
+>  		if (conflict != parent) {
+>  			if (!(conflict->flags & IORESOURCE_BUSY)) {
+>  				parent = conflict;
+> diff -puN mm/memory_hotplug.c~move-request_region-check mm/memory_hotplug.c
+> --- a/mm/memory_hotplug.c~move-request_region-check	2019-01-24 15:13:14.455199539 -0800
+> +++ b/mm/memory_hotplug.c	2019-01-24 15:13:14.459199539 -0800
+> @@ -109,11 +109,6 @@ static struct resource *register_memory_
+>  	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+>  	conflict =  request_resource_conflict(&iomem_resource, res);
+>  	if (conflict) {
+> -		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
+> -			pr_debug("Device unaddressable memory block "
+> -				 "memory hotplug at %#010llx !\n",
+> -				 (unsigned long long)start);
+> -		}
+>  		pr_debug("System RAM resource %pR cannot be added\n", res);
+>  		kfree(res);
+>  		return ERR_PTR(-EEXIST);
+> _
