@@ -1,360 +1,204 @@
-Return-Path: <SRS0=9gyo=QA=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=o7Ai=QB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90270C282C3
-	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 23:22:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9CA4C282C0
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 04:19:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49FA2218D3
-	for <linux-mm@archiver.kernel.org>; Thu, 24 Jan 2019 23:22:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49FA2218D3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 4DE85218A6
+	for <linux-mm@archiver.kernel.org>; Fri, 25 Jan 2019 04:19:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GWwUloLc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DE85218A6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0EE18E00B2; Thu, 24 Jan 2019 18:22:00 -0500 (EST)
+	id D7C8E8E00B6; Thu, 24 Jan 2019 23:19:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC0298E00AC; Thu, 24 Jan 2019 18:22:00 -0500 (EST)
+	id D2B858E00B5; Thu, 24 Jan 2019 23:19:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 97DD18E00B2; Thu, 24 Jan 2019 18:22:00 -0500 (EST)
+	id C42058E00B6; Thu, 24 Jan 2019 23:19:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5526C8E00AC
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 18:22:00 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id l76so5977900pfg.1
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 15:22:00 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 81E1A8E00B5
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2019 23:19:56 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id g12so5461178pll.22
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 20:19:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :from:date:references:in-reply-to:message-id;
-        bh=mJCuWqPpUOm9TvYmavfFDGJ3x/EivAx+XR14BBqqjWw=;
-        b=O0RCWH4TngFz4/u/IY9GT4Wr3aMKRVwSSyhwMLvr61yCxfAUjBMOu/zd3Fq0mqG2LL
-         msb9G9TiVliacoSA8K4xT1E3h3hTnjMfsvzNByKGThplbhkK4f9OxUwaIBIwBgIygCcv
-         b/R3YfOdzYQ2QeZSVqQeMLcAEPlcOTVSwiv9AXvPhuN+Ci1Mziuf9sZCfmDZF2E1SIy8
-         itp84N1uh5NzKZB5O5q61kTuhSo5ixBO7CVX7UXzbz6SySeLtlxBCPZXpnyGjvwPmHI6
-         rzvKhdkyC2UAED8JCWVL8zRImUoAls1zZFtdibH968jMVdtLfv3XJDI/U049XHFNLbPP
-         C71Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukdou8W16Fvv32gH6vKUdNq4witOTEzEfhsiHxgQHsPHFtMlcRpA
-	IGVrb0lrWfrTvZhZUu9hl6YL7Q6UwDuNLL+lxyRSFhTS7iH685N44eE0NL3A4yBwlZM3Dm5RYyJ
-	Z6GnUCTbQneUNkj5CzkMcV0dcSG5l/CvgbOvjuYYb0+3iqoBeq3Wluzd+3Km/t1kXDQ==
-X-Received: by 2002:a62:644:: with SMTP id 65mr8534982pfg.161.1548372119980;
-        Thu, 24 Jan 2019 15:21:59 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5BhfxE9FWKZ8eq0BlOBYk781BNef+OvY7dlso9OuQL1ebw6izoN7RRLpXMqCq6CO0a7tci
-X-Received: by 2002:a62:644:: with SMTP id 65mr8534926pfg.161.1548372118835;
-        Thu, 24 Jan 2019 15:21:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548372118; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=v958TPGd4/hka73djmxBpKoCgDXtGpOi9Y+UjzF5q/8=;
+        b=A7NQkwJZi2FYNhE48H5VF9u7ct4X3ROyHOb2BH3MaVHarhrbtXJ99FSN36RyZyoiUv
+         RSYTrFyQYr4lPRfS+GcJU4HDYk+69sfOChW8SOjS4Vu3KBcCCic2yCGzX1jY669kEIqU
+         /DngOsTMWbxy07zRFqp4qLGorZH8fH3voX8JEaN+0TIjK1dfAouvRczMqnIY8dBdm8cQ
+         Wjnon8cMXPU4Pj8NEAsnwJ9kYJI/hWupJL22V8V5AlfT05vcXIISozTdnsK594o1Z1+f
+         ODi9XeqDJE+cwwzRCE2/P9rVsWD5vWVucsUILZITLbmCcnZ4w/2bE3/FSi/niPAd3GU9
+         /KeQ==
+X-Gm-Message-State: AJcUukeLL2vI4mMoi1R0IKEj/hdWbFm8n0eCjOgKPVYr/oFvc7HmAzvs
+	tGiFBekLaF5rJof4cnjgYFIV9qj0OvkPH6BOWwx2rNRmW/FZzmkkJq3KlsRkS+jpV/P6Ib8+lom
+	bq/j2W1tEy7muuzsU2W6QooXu3glUESn/Y6zpQ70FI0EqCqT7eSNRMb3b+TYBJ/rgMgnIF0Ii5z
+	9H3ZfqG5qb0/n/x/5bcezQ/rm08yDawSCBmnAYZCUcuhu3p6OeLU+62IeXcbFQe78wuOkzCHDG1
+	FbhDg83EXvKJGidYn1xBhBsNvfNAhxX7M2OjvKOIabnNjckPoaNAUzik7dQJmdZK62hiEiSupgb
+	YE+QkbFL6cSx5bWyIixTAXV9aT9TyX5M00Qd6YuNKVOwK02QIBQmr21DAfojJy6TwzjhG48GJj/
+	U
+X-Received: by 2002:a17:902:209:: with SMTP id 9mr9532585plc.288.1548389996031;
+        Thu, 24 Jan 2019 20:19:56 -0800 (PST)
+X-Received: by 2002:a17:902:209:: with SMTP id 9mr9532540plc.288.1548389994985;
+        Thu, 24 Jan 2019 20:19:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548389994; cv=none;
         d=google.com; s=arc-20160816;
-        b=Wfceh13HfC0B2Z6OTSAz4zY20NqM/I6VvoTLsaoaaEFVrUCmeJi240FrE98HbsjuDM
-         Y3feejs4UeRFewq0WR+Dn46GuKnAdJm5+Wxy8gwjS/vL1/D1qaWHwOUir2Z7/xb96c0n
-         hsan46zUhaqfJcqN7yx8cKY4l6mWOoGvesh5FIEYokQJvZC4t66CjF0fMQ+5tKAACun8
-         +8unq1pwjLmSCzxBgujD/s5XDnYVrG1vTTJlEzcbi7xIboeSe2KMzBOn9n+l7WvM4mWL
-         I/2E/+NVc9V40ZWO462G4mJX5DyQNltr+BK1Pep5EYnWnrUSueFfMVXJRdZUhfGBlaXp
-         CKHQ==
+        b=yPvMXrgTyhyZepnSD710zN/6sQSYV0GibVqYH1+3S/I+jXhgJQu+s9yn08TqWHKWsS
+         QAG0xiQBaVdiby+jmXlDsjcVXKsAEGGf1MgPxx4xup6InXJBVd85fKeNqeDMKL2eTOJg
+         kq1Lexj1Pj/D4LruAMmgL4uI+X7JupRG+ZiKaZttFUJVBezDBQ2qjS9jekkK7+hvUvQX
+         qIgJ4xwUAvb2j5biZd1oOSpFhWQx0EBOqhmZ9/mKDGissdhUImFpRAPIFrB5oiScVMvh
+         Klr1uSpe5CmUoxeHB3n9BRaN7pySaVoz/W0QL7K1h4SO9ezgUq4BlBKr6JICymsbc4XO
+         7g8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:in-reply-to:references:date:from:cc:to:subject;
-        bh=mJCuWqPpUOm9TvYmavfFDGJ3x/EivAx+XR14BBqqjWw=;
-        b=PsTyKjbCrChBfIf+lxRK9tXVJSvWa/ifb9xZL4csdvm8PmH9UKPbKqS5fHAQMMMw2O
-         SZG7azRcrjWrRUXpswQvMje1WOkEy5JcvVzVVoctXzBPBy2GTWCDxKTziZp6eTNgXqj6
-         TUY28OYsfCrbWWMVsZeJhkFygOs7iARwoUZstf3ehCuLizXmCo4s1Nn4Gvzu3I2OSBFW
-         rYoJ+JpkrpnRtDaSVVCArP+6kkNvDRIB4XsdQXO6GMSxDU1FcBzU0w2knWyZHxa8wf1v
-         3gWVhvWDpr4+bM9yKwW/XqZY3+3xWRoSb9FYZXyN9DSmQbfOKuUuJQNJieuifCHkiKgL
-         LJAQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=v958TPGd4/hka73djmxBpKoCgDXtGpOi9Y+UjzF5q/8=;
+        b=cVOL7D+I+w78D6UDZXwDBUfQz8dGOdqtjFpUp2MGfdlxIx7FcdzJdRFsyPSc1wANOB
+         TLXgzd0JkYoKcrEMQ01FkHYWXx00P439kHAjPq9MJC67NTj1uSA77XieG0vqmlIQFta1
+         vcA6zooH2VzMkd4JRkGMiB3FYPL59yWCh3nh6/kijNkQqm96qyoSmyaQXT5Ps+ZPXquN
+         nvAisDkKKCeadO/22+bvy9ZHb+2iAuLeNESYpSLntH2MotHdXgcx8eFn8sFMgbRzXVUf
+         G7XStYNWUVkyL869wcHF/zjETtiC0rDHb0YXT+rGZavSHGIRjlhhXYZ7ZE7sM5zGkeMz
+         5RDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id p12si23187888pgl.106.2019.01.24.15.21.58
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GWwUloLc;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n11sor34371640pfk.44.2019.01.24.20.19.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 15:21:58 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        (Google Transport Security);
+        Thu, 24 Jan 2019 20:19:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 Jan 2019 15:21:58 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,518,1539673200"; 
-   d="scan'208";a="269699706"
-Received: from viggo.jf.intel.com (HELO localhost.localdomain) ([10.54.77.144])
-  by orsmga004.jf.intel.com with ESMTP; 24 Jan 2019 15:21:58 -0800
-Subject: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal RAM
-To: linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>,dan.j.williams@intel.com,dave.jiang@intel.com,zwisler@kernel.org,vishal.l.verma@intel.com,thomas.lendacky@amd.com,akpm@linux-foundation.org,mhocko@suse.com,linux-nvdimm@lists.01.org,linux-mm@kvack.org,ying.huang@intel.com,fengguang.wu@intel.com,bp@suse.de,bhelgaas@google.com,baiyaowei@cmss.chinamobile.com,tiwai@suse.de,jglisse@redhat.com
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 24 Jan 2019 15:14:48 -0800
-References: <20190124231441.37A4A305@viggo.jf.intel.com>
-In-Reply-To: <20190124231441.37A4A305@viggo.jf.intel.com>
-Message-Id: <20190124231448.E102D18E@viggo.jf.intel.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GWwUloLc;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=v958TPGd4/hka73djmxBpKoCgDXtGpOi9Y+UjzF5q/8=;
+        b=GWwUloLcFlHXKuXqcyGGP0+z+PKdikla/KjDJ68nkzlyCoK6daJzPMUZGL5+xeCBO6
+         Bp7La7Ei2Kf/r4KWuAiHVLqpuJ31giSLeaILW5awNWgxGE0Tdxc9zwyH4iRkA1KV5kGV
+         zGv/vRE8LbzjtMGBbyR11MmYJLO/SAKAg7HboWZSVExyX6LRcpockE60J8tOvIadEmOF
+         aKGAzYnHp1NDbti/USh793RcdWgjth3aVNTlupoqQ0RjCabjgV59gOKGsFQNyss/lzHH
+         Cmjpwe65Vsjrhz2oVzW4e0u8/KkC5ozhjFqLMSH41oXvu/CB6I63fkUMnRo3FODRihxP
+         Wmvg==
+X-Google-Smtp-Source: ALg8bN7l+EaYQtxKu+A1pEdaS0VJYXBAxmSDq/YL72LVesvoqDELB0vKnU0JNFfrRJ4nHrwr2eljYg==
+X-Received: by 2002:a62:8a51:: with SMTP id y78mr9278486pfd.35.1548389994002;
+        Thu, 24 Jan 2019 20:19:54 -0800 (PST)
+Received: from [100.112.89.103] ([104.133.8.103])
+        by smtp.gmail.com with ESMTPSA id m65sm54142060pfg.180.2019.01.24.20.19.52
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 24 Jan 2019 20:19:52 -0800 (PST)
+Date: Thu, 24 Jan 2019 20:19:45 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: Qian Cai <cai@lca.pw>
+cc: Michal Hocko <mhocko@suse.com>, hughd@google.com, 
+    Andrea Arcangeli <aarcange@redhat.com>, torvalds@linux-foundation.org, 
+    vbabka@suse.cz, akpm@linux-foundation.org, Linux-MM <linux-mm@kvack.org>
+Subject: Re: BUG() due to "mm: put_and_wait_on_page_locked() while page is
+ migrated"
+In-Reply-To: <20190123093002.GP4087@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1901241909180.2158@eggly.anvils>
+References: <f87ecfb2-64d3-23d4-54d7-a8ac37733206@lca.pw> <20190123093002.GP4087@dhcp22.suse.cz>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190124231448.2uj5JWz4ozqg4uc6JJRiSgsLdpez32ms-FftTh8NdTQ@z>
+Message-ID: <20190125041945.jcDtUlo7gWk3JE6Rn6uI1Xbl4arfjZA697FI7mjSvSE@z>
 
+On Wed, 23 Jan 2019, Michal Hocko wrote:
+> On Tue 22-01-19 23:29:04, Qian Cai wrote:
+> > Running LTP migrate_pages03 [1] a few times triggering BUG() below on an arm64
+> > ThunderX2 server. Reverted the commit 9a1ea439b16b9 ("mm:
+> > put_and_wait_on_page_locked() while page is migrated") allows it to run
+> > continuously.
+> > 
+> > put_and_wait_on_page_locked
+> >   wait_on_page_bit_common
+> >     put_page
+> >       put_page_testzero
+> >         VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+> > 
+> > [1]
+> > https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/migrate_pages/migrate_pages03.c
+> > 
+> > [ 1304.643587] page:ffff7fe0226ff000 count:2 mapcount:0 mapping:ffff8095c3406d58 index:0x7
+> > [ 1304.652082] xfs_address_space_operations [xfs]
+> [...]
+> > [ 1304.682652] page dumped because: VM_BUG_ON_PAGE(page_ref_count(page) == 0)
+> 
+> This looks like a page reference countimbalance to me. The page seemed
+> to be freed at the the migration code (wait_on_page_bit_common) called
+> put_page and immediatelly got reused for xfs allocation and that is why
+> we see its ref count==2. But I fail to see how that is possible as
+> __migration_entry_wait already does get_page_unless_zero so the
+> imbalance must have been preexisting.
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+This report worried me, but I've thought around it, and agree with
+Michal that it must be reflecting a preexisting refcount imbalance -
+preexisting in the sense that the imbalance occurred sometime before
+reaching put_and_wait_on_page_locked(), and in the sense that the bug
+causing the imbalance came in before the put_and_wait_on_page_locked()
+commit, perhaps even long ago.
 
-This is intended for use with NVDIMMs that are physically persistent
-(physically like flash) so that they can be used as a cost-effective
-RAM replacement.  Intel Optane DC persistent memory is one
-implementation of this kind of NVDIMM.
+If it is a software bug at all - I wonder if any other hardware shows
+the same issue - I have not seen it on x86 (though I wasn't using xfs),
+nor heard of anyone else reporting it - but thank you for doing so,
+it could be important.
 
-Currently, a persistent memory region is "owned" by a device driver,
-either the "Direct DAX" or "Filesystem DAX" drivers.  These drivers
-allow applications to explicitly use persistent memory, generally
-by being modified to use special, new libraries. (DIMM-based
-persistent memory hardware/software is described in great detail
-here: Documentation/nvdimm/nvdimm.txt).
+But I (probably) disagree with Michal about the page being freed and
+reused for xfs allocation. I have no proof, but I think the likelihood
+is that the page shown is the old xfs page (from libc-2.28.so, I see)
+which is currently being migrated.
 
-However, this limits persistent memory use to applications which
-*have* been modified.  To make it more broadly usable, this driver
-"hotplugs" memory into the kernel, to be managed and used just like
-normal RAM would be.
+I realize that "last migrate reason: syscall_or_cpuset" would not get 
+set until later, but I think it's left over from the previous migration:
+migrate_pages03 looks like it's migrating pages back and forth repeatedly.
 
-To make this work, management software must remove the device from
-being controlled by the "Device DAX" infrastructure:
+What I think happened is that something at some time earlier did a
+mistaken put_page() on the page.  Then __migration_entry_wait() raced
+with migrate_page_move_mapping(), in such a way that get_page_unless_zero()
+then briefly raised the page's refcount to expected_count, so migration was
+able to freeze the page (set its refcount transiently to 0).  Then put_and
+_wait_on_page_locked() reached the put_page() in wait_on_page_bit_common()
+while migration still had the refcount frozen at 0, and bang, your crash.
 
-	echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
-	echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+But how come reverting the put_and_wait commit appears to fix it for you?
+That puzzled me, for a while I expected you then to see an equally visible
+crash in the old put_page() after wait_on_page_locked(), or else at the
+migration end where it puts the page afterwards (putback_lru_page perhaps).
 
-and then bind it to this new driver:
+I guess the answer comes from that "libc-2.28.so".  This page is one of
+those very popular pages which were next-to-impossible to migrate before
+the put_and_wait commit, because they are so widely mapped, and their
+migration entries so frequently faulted, that migration could not freeze
+them.  (With enough migration waiters to outweigh the off-by-one of the
+incorrect refcount.)
 
-	echo -n dax0.0 > /sys/bus/dax/drivers/kmem/new_id
-	echo -n dax0.0 > /sys/bus/dax/drivers/kmem/bind
+Being so widely used, the refcount imbalance on that page would (I think)
+only show up when unmounting the root at shutdown: easily missed.
 
-After this, there will be a number of new memory sections visible
-in sysfs that can be onlined, or that may get onlined by existing
-udev-initiated memory hotplug rules.
+So I think you've identified that the put_and_wait commit has exposed
+an existing bug, and it may be very tedious to track down where that is.
+Maybe the bug is itself triggered by migrate_pages03, but quite likely not.
 
-This rebinding procedure is currently a one-way trip.  Once memory
-is bound to "kmem", it's there permanently and can not be
-unbound and assigned back to device_dax.
-
-The kmem driver will never bind to a dax device unless the device
-is *explicitly* bound to the driver.  There are two reasons for
-this: One, since it is a one-way trip, it can not be undone if
-bound incorrectly.  Two, the kmem driver destroys data on the
-device.  Think of if you had good data on a pmem device.  It
-would be catastrophic if you compile-in "kmem", but leave out
-the "device_dax" driver.  kmem would take over the device and
-write volatile data all over your good data.
-
-This inherits any existing NUMA information for the newly-added
-memory from the persistent memory device that came from the
-firmware.  On Intel platforms, the firmware has guarantees that
-require each socket's persistent memory to be in a separate
-memory-only NUMA node.  That means that this patch is not expected
-to create NUMA nodes, but will simply hotplug memory into existing
-nodes.
-
-Because NUMA nodes are created, the existing NUMA APIs and tools
-are sufficient to create policies for applications or memory areas
-to have affinity for or an aversion to using this memory.
-
-There is currently some metadata at the beginning of pmem regions.
-The section-size memory hotplug restrictions, plus this small
-reserved area can cause the "loss" of a section or two of capacity.
-This should be fixable in follow-on patches.  But, as a first step,
-losing 256MB of memory (worst case) out of hundreds of gigabytes
-is a good tradeoff vs. the required code to fix this up precisely.
-This calculation is also the reason we export
-memory_block_size_bytes().
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Jiang <dave.jiang@intel.com>
-Cc: Ross Zwisler <zwisler@kernel.org>
-Cc: Vishal Verma <vishal.l.verma@intel.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: linux-nvdimm@lists.01.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Bjorn Helgaas <bhelgaas@google.com>
-Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Cc: Takashi Iwai <tiwai@suse.de>
-Cc: Jerome Glisse <jglisse@redhat.com>
----
-
- b/drivers/base/memory.c |    1 
- b/drivers/dax/Kconfig   |   16 +++++++
- b/drivers/dax/Makefile  |    1 
- b/drivers/dax/kmem.c    |  108 ++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 126 insertions(+)
-
-diff -puN drivers/base/memory.c~dax-kmem-try-4 drivers/base/memory.c
---- a/drivers/base/memory.c~dax-kmem-try-4	2019-01-24 15:13:15.987199535 -0800
-+++ b/drivers/base/memory.c	2019-01-24 15:13:15.994199535 -0800
-@@ -88,6 +88,7 @@ unsigned long __weak memory_block_size_b
- {
- 	return MIN_MEMORY_BLOCK_SIZE;
- }
-+EXPORT_SYMBOL_GPL(memory_block_size_bytes);
- 
- static unsigned long get_memory_block_size(void)
- {
-diff -puN drivers/dax/Kconfig~dax-kmem-try-4 drivers/dax/Kconfig
---- a/drivers/dax/Kconfig~dax-kmem-try-4	2019-01-24 15:13:15.988199535 -0800
-+++ b/drivers/dax/Kconfig	2019-01-24 15:13:15.994199535 -0800
-@@ -32,6 +32,22 @@ config DEV_DAX_PMEM
- 
- 	  Say M if unsure
- 
-+config DEV_DAX_KMEM
-+	tristate "KMEM DAX: volatile-use of persistent memory"
-+	default DEV_DAX
-+	depends on DEV_DAX
-+	depends on MEMORY_HOTPLUG # for add_memory() and friends
-+	help
-+	  Support access to persistent memory as if it were RAM.  This
-+	  allows easier use of persistent memory by unmodified
-+	  applications.
-+
-+	  To use this feature, a DAX device must be unbound from the
-+	  device_dax driver (PMEM DAX) and bound to this kmem driver
-+	  on each boot.
-+
-+	  Say N if unsure.
-+
- config DEV_DAX_PMEM_COMPAT
- 	tristate "PMEM DAX: support the deprecated /sys/class/dax interface"
- 	depends on DEV_DAX_PMEM
-diff -puN /dev/null drivers/dax/kmem.c
---- /dev/null	2018-12-03 08:41:47.355756491 -0800
-+++ b/drivers/dax/kmem.c	2019-01-24 15:13:15.994199535 -0800
-@@ -0,0 +1,108 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/* Copyright(c) 2016-2018 Intel Corporation. All rights reserved. */
-+#include <linux/memremap.h>
-+#include <linux/pagemap.h>
-+#include <linux/memory.h>
-+#include <linux/module.h>
-+#include <linux/device.h>
-+#include <linux/pfn_t.h>
-+#include <linux/slab.h>
-+#include <linux/dax.h>
-+#include <linux/fs.h>
-+#include <linux/mm.h>
-+#include <linux/mman.h>
-+#include "dax-private.h"
-+#include "bus.h"
-+
-+int dev_dax_kmem_probe(struct device *dev)
-+{
-+	struct dev_dax *dev_dax = to_dev_dax(dev);
-+	struct resource *res = &dev_dax->region->res;
-+	resource_size_t kmem_start;
-+	resource_size_t kmem_size;
-+	resource_size_t kmem_end;
-+	struct resource *new_res;
-+	int numa_node;
-+	int rc;
-+
-+	/*
-+	 * Ensure good NUMA information for the persistent memory.
-+	 * Without this check, there is a risk that slow memory
-+	 * could be mixed in a node with faster memory, causing
-+	 * unavoidable performance issues.
-+	 */
-+	numa_node = dev_dax->target_node;
-+	if (numa_node < 0) {
-+		dev_warn(dev, "rejecting DAX region %pR with invalid node: %d\n",
-+			 res, numa_node);
-+		return -EINVAL;
-+	}
-+
-+	/* Hotplug starting at the beginning of the next block: */
-+	kmem_start = ALIGN(res->start, memory_block_size_bytes());
-+
-+	kmem_size = resource_size(res);
-+	/* Adjust the size down to compensate for moving up kmem_start: */
-+        kmem_size -= kmem_start - res->start;
-+	/* Align the size down to cover only complete blocks: */
-+	kmem_size &= ~(memory_block_size_bytes() - 1);
-+	kmem_end = kmem_start+kmem_size;
-+
-+	/* Region is permanently reserved.  Hot-remove not yet implemented. */
-+	new_res = request_mem_region(kmem_start, kmem_size, dev_name(dev));
-+	if (!new_res) {
-+		dev_warn(dev, "could not reserve region [%pa-%pa]\n",
-+			 &kmem_start, &kmem_end);
-+		return -EBUSY;
-+	}
-+
-+	/*
-+	 * Set flags appropriate for System RAM.  Leave ..._BUSY clear
-+	 * so that add_memory() can add a child resource.  Do not
-+	 * inherit flags from the parent since it may set new flags
-+	 * unknown to us that will break add_memory() below.
-+	 */
-+	new_res->flags = IORESOURCE_SYSTEM_RAM;
-+	new_res->name = dev_name(dev);
-+
-+	rc = add_memory(numa_node, new_res->start, resource_size(new_res));
-+	if (rc)
-+		return rc;
-+
-+	return 0;
-+}
-+
-+static int dev_dax_kmem_remove(struct device *dev)
-+{
-+	/*
-+	 * Purposely leak the request_mem_region() for the device-dax
-+	 * range and return '0' to ->remove() attempts. The removal of
-+	 * the device from the driver always succeeds, but the region
-+	 * is permanently pinned as reserved by the unreleased
-+	 * request_mem_region().
-+	 */
-+	return -EBUSY;
-+}
-+
-+static struct dax_device_driver device_dax_kmem_driver = {
-+	.drv = {
-+		.probe = dev_dax_kmem_probe,
-+		.remove = dev_dax_kmem_remove,
-+	},
-+};
-+
-+static int __init dax_kmem_init(void)
-+{
-+	return dax_driver_register(&device_dax_kmem_driver);
-+}
-+
-+static void __exit dax_kmem_exit(void)
-+{
-+	dax_driver_unregister(&device_dax_kmem_driver);
-+}
-+
-+MODULE_AUTHOR("Intel Corporation");
-+MODULE_LICENSE("GPL v2");
-+module_init(dax_kmem_init);
-+module_exit(dax_kmem_exit);
-+MODULE_ALIAS_DAX_DEVICE(0);
-diff -puN drivers/dax/Makefile~dax-kmem-try-4 drivers/dax/Makefile
---- a/drivers/dax/Makefile~dax-kmem-try-4	2019-01-24 15:13:15.990199535 -0800
-+++ b/drivers/dax/Makefile	2019-01-24 15:13:15.994199535 -0800
-@@ -1,6 +1,7 @@
- # SPDX-License-Identifier: GPL-2.0
- obj-$(CONFIG_DAX) += dax.o
- obj-$(CONFIG_DEV_DAX) += device_dax.o
-+obj-$(CONFIG_DEV_DAX_KMEM) += kmem.o
- 
- dax-y := super.o
- dax-y += bus.o
-_
+Hugh
 
