@@ -1,43 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BD068E00C8
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 03:51:59 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id o21so3431087edq.4
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 00:51:59 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BD6C8E00CD
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 05:40:31 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id i124so6115261pgc.2
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 02:40:31 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f52si2393592ede.346.2019.01.25.00.51.57
+        by mx.google.com with ESMTPS id 62si3450284plc.87.2019.01.25.02.40.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 00:51:57 -0800 (PST)
-Date: Fri, 25 Jan 2019 09:51:56 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: BUG() due to "mm: put_and_wait_on_page_locked() while page is
- migrated"
-Message-ID: <20190125085156.GH3560@dhcp22.suse.cz>
-References: <f87ecfb2-64d3-23d4-54d7-a8ac37733206@lca.pw>
- <20190123093002.GP4087@dhcp22.suse.cz>
- <alpine.LSU.2.11.1901241909180.2158@eggly.anvils>
- <921c752d-8806-b9b5-8bb6-d570a3fec33d@lca.pw>
+        Fri, 25 Jan 2019 02:40:30 -0800 (PST)
+Date: Fri, 25 Jan 2019 11:40:23 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] x86, numa: always initialize all possible nodes
+Message-ID: <20190125104023.GI3560@dhcp22.suse.cz>
+References: <20190114082416.30939-1-mhocko@kernel.org>
+ <20190124141727.GN4087@dhcp22.suse.cz>
+ <20190124175144.GF13790@rapoport-lnx>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <921c752d-8806-b9b5-8bb6-d570a3fec33d@lca.pw>
+In-Reply-To: <20190124175144.GF13790@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qian Cai <cai@lca.pw>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, torvalds@linux-foundation.org, vbabka@suse.cz, akpm@linux-foundation.org, Linux-MM <linux-mm@kvack.org>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-mm@kvack.org, Pingfan Liu <kernelfans@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 24-01-19 23:31:46, Qian Cai wrote:
-[...]
-> It looks like the put_and_wait commit just make the bug easier to reproduce, as
-> it has finally been able to reproduce it (via a different path) after 50+ runs
-> of migrate_pages03 on one of the affected machines even with the commit reverted.
+On Thu 24-01-19 19:51:44, Mike Rapoport wrote:
+> On Thu, Jan 24, 2019 at 03:17:27PM +0100, Michal Hocko wrote:
+> > a friendly ping for this. Does anybody see any problem with this
+> > approach?
+> 
+> FWIW, it looks fine to me.
+> 
+> It'd just be nice to have a few more words in the changelog about *how* the
+> x86 init was reworked ;-)
 
-OK, great. This makes it a little bit less of a head scratcher then.
-Could you confirm whether this is FS specific please? I will go and
-check the migration path. Maybe we doing something wrong there but it
-would be definitely good to know whether the underlying fs is really
-relevant. Thanks!
+Heh, I thought it was there but nope... It probably just existed in my
+head. Sorry about that. What about the following paragraphs added?
+"
+The new code relies on the arch specific initialization to allocate all
+possible NUMA nodes (including memory less) - numa_register_memblks in
+this case. Generic code then initializes both zonelists (__build_all_zonelists)
+and allocator internals (free_area_init_nodes) for all non-null pgdats
+rather than online ones.
+
+For the x86 specific part also do not make new node online in alloc_node_data
+because this is too early to know that. numa_register_memblks knows that
+a node has some memory so it can make the node online appropriately.
+init_memory_less_node hack can be safely removed altogether now.
+"
+
 -- 
 Michal Hocko
 SUSE Labs
