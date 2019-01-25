@@ -1,82 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E57C8E00B5
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 08:37:44 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id e17so3675201wrw.13
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 05:37:44 -0800 (PST)
-Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::7])
-        by mx.google.com with ESMTPS id n5si75150579wrh.320.2019.01.25.05.37.42
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 61B3F8E00D7
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 11:56:28 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id e1so4607707ybn.7
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 08:56:28 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a12sor10597807ybe.180.2019.01.25.08.56.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 05:37:42 -0800 (PST)
-Subject: Re: use generic DMA mapping code in powerpc V4
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-References: <871403f2-fa7d-de15-89eb-070432e15c69@xenosoft.de>
- <20190118112842.GA9115@lst.de>
- <a2ca0118-5915-8b1c-7cfa-71cb4b43eaa6@xenosoft.de>
- <20190118121810.GA13327@lst.de>
- <eceebeda-0e18-00f6-06e7-def2eb0aa961@xenosoft.de>
- <20190118125500.GA15657@lst.de>
- <e11e61b1-6468-122e-fc2b-3b3f857186bb@xenosoft.de>
- <f39d4fc6-7e4e-9132-c03f-59f1b52260e0@xenosoft.de>
- <b9e5e081-a3cc-2625-4e08-2d55c2ba224b@xenosoft.de>
- <20190119130222.GA24346@lst.de> <20190119140452.GA25198@lst.de>
- <bfe4adcc-01c1-7b46-f40a-8e020ff77f58@xenosoft.de>
- <8434e281-eb85-51d9-106f-f4faa559e89c@xenosoft.de>
-Message-ID: <4d8d4854-dac9-a78e-77e5-0455e8ca56c4@xenosoft.de>
-Date: Fri, 25 Jan 2019 14:37:34 +0100
+        (Google Transport Security);
+        Fri, 25 Jan 2019 08:56:26 -0800 (PST)
+Date: Fri, 25 Jan 2019 11:56:24 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: + memcg-do-not-report-racy-no-eligible-oom-tasks.patch added to
+ -mm tree
+Message-ID: <20190125165624.GA17719@cmpxchg.org>
+References: <20190109190306.rATpT%akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <8434e281-eb85-51d9-106f-f4faa559e89c@xenosoft.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: de-DE
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190109190306.rATpT%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, penguin-kernel@i-love.sakura.ne.jp, mhocko@suse.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Next step just with the first patch: 
-5c532d07c2f3c3972104de505d06b8d85f403f06 (use powerpc zone selection)
+On Wed, Jan 09, 2019 at 11:03:06AM -0800, akpm@linux-foundation.org wrote:
+> 
+> The patch titled
+>      Subject: memcg: do not report racy no-eligible OOM tasks
+> has been added to the -mm tree.  Its filename is
+>      memcg-do-not-report-racy-no-eligible-oom-tasks.patch
+> 
+> This patch should soon appear at
+>     http://ozlabs.org/~akpm/mmots/broken-out/memcg-do-not-report-racy-no-eligible-oom-tasks.patch
+> and later at
+>     http://ozlabs.org/~akpm/mmotm/broken-out/memcg-do-not-report-racy-no-eligible-oom-tasks.patch
+> 
+> Before you just go and hit "reply", please:
+>    a) Consider who else should be cc'ed
+>    b) Prefer to cc a suitable mailing list as well
+>    c) Ideally: find the original patch on the mailing list and do a
+>       reply-to-all to that, adding suitable additional cc's
+> 
+> *** Remember to use Documentation/process/submit-checklist.rst when testing your code ***
+> 
+> The -mm tree is included into linux-next and is updated
+> there every 3-4 working days
+> 
+> ------------------------------------------------------
+> From: Michal Hocko <mhocko@suse.com>
+> Subject: memcg: do not report racy no-eligible OOM tasks
+> 
+> Tetsuo has reported [1] that a single process group memcg might easily
+> swamp the log with no-eligible oom victim reports due to race between the
+> memcg charge and oom_reaper
+> 
+> Thread 1		Thread2				oom_reaper
+> try_charge		try_charge
+> 			  mem_cgroup_out_of_memory
+> 			    mutex_lock(oom_lock)
+>   mem_cgroup_out_of_memory
+>     mutex_lock(oom_lock)
+> 			      out_of_memory
+> 			        select_bad_process
+> 				oom_kill_process(current)
+> 				  wake_oom_reaper
+> 							  oom_reap_task
+> 							  MMF_OOM_SKIP->victim
+> 			    mutex_unlock(oom_lock)
+>     out_of_memory
+>       select_bad_process # no task
+> 
+> If Thread1 didn't race it would bail out from try_charge and force the
+> charge.  We can achieve the same by checking tsk_is_oom_victim inside the
+> oom_lock and therefore close the race.
+> 
+> [1] http://lkml.kernel.org/r/bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp
+> Link: http://lkml.kernel.org/r/20190107143802.16847-3-mhocko@kernel.org
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-git clone git://git.infradead.org/users/hch/misc.git -b 
-powerpc-dma.6-debug a
+It looks like this problem is happening in production systems:
 
-git checkout 5c532d07c2f3c3972104de505d06b8d85f403f06
+https://www.spinics.net/lists/cgroups/msg21268.html
 
-Link to the Git: 
-http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6-debug
+where the threads don't exit because they are trapped writing out the
+oom messages to a slow console (running the reproducer from this email
+thread triggers the oom flooding).
 
-Results:
+So IMO we should put this into 5.0 and add:
 
-X5000: The kernel detects the SATA hard disk drive and boots without any 
-problems.
+Fixes: 29ef680ae7c2 ("memcg, oom: move out_of_memory back to the charge path")
+Fixes: 3100dab2aa09 ("mm: memcontrol: print proper OOM header when no eligible victim left")
+Cc: stable@kernel.org # 4.19+
 
-X1000: The kernel boots and the P.A. Semi Ethernet works!
+> --- a/mm/memcontrol.c~memcg-do-not-report-racy-no-eligible-oom-tasks
+> +++ a/mm/memcontrol.c
+> @@ -1387,10 +1387,22 @@ static bool mem_cgroup_out_of_memory(str
+>  		.gfp_mask = gfp_mask,
+>  		.order = order,
+>  	};
+> -	bool ret;
+> +	bool ret = true;
 
--- Christian
+Should this be false if skip the oom kill, btw? Either will result in
+a forced charge - false will do so right away, true will retry once
+and then trigger the victim check in try_charge().
 
+It's just weird to return true when we didn't do what the caller asked
+us to do.
 
-On 23 January 2019 at 3:34PM, Christian Zigotzky wrote:
-> Hi Christoph,
->
-> I also compiled a kernel (zImage) for the X1000  from your Git 
-> 'powerpc-dma.6-debug' (both patches) today.
->
-> It boots and the P.A. Semi Ethernet works!
->
-> I will test just the first patch tomorrow.
->
-> Thanks,
-> Christian
->
->
-> On 21 January 2019 at 3:38PM, Christian Zigotzky wrote:
->> Hello Christoph,
->>
->> Thanks for your reply. I successfully compiled a kernel (uImage) for 
->> the X5000 from your Git 'powerpc-dma.6-debug' (both patches) today.
->>
->> It detects the SATA hard disk drive and boots without any problems.
->>
->
->
+>  	mutex_lock(&oom_lock);
+> +
+> +	/*
+> +	 * multi-threaded tasks might race with oom_reaper and gain
+> +	 * MMF_OOM_SKIP before reaching out_of_memory which can lead
+> +	 * to out_of_memory failure if the task is the last one in
+> +	 * memcg which would be a false possitive failure reported
+> +	 */
+> +	if (tsk_is_oom_victim(current))
+> +		goto unlock;
+> +
+>  	ret = out_of_memory(&oc);
+> +
+> +unlock:
+>  	mutex_unlock(&oom_lock);
+>  	return ret;
