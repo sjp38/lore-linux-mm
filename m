@@ -1,307 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 33D628E00BD
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 01:13:21 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id u126so4519791ywb.0
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 22:13:21 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id p189si586416ywb.307.2019.01.24.22.13.19
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D2EF8E00BD
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 02:55:08 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id d3so5787533pgv.23
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 23:55:08 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 63si25306080pfv.38.2019.01.24.23.55.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 22:13:19 -0800 (PST)
-Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal
- RAM
-References: <20190124231441.37A4A305@viggo.jf.intel.com>
- <20190124231448.E102D18E@viggo.jf.intel.com>
-From: Jane Chu <jane.chu@oracle.com>
-Message-ID: <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com>
-Date: Thu, 24 Jan 2019 22:13:00 -0800
+        Thu, 24 Jan 2019 23:55:06 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0P7nCYh062524
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 02:55:06 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q7uxtes7b-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 02:55:05 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Fri, 25 Jan 2019 07:55:03 -0000
+Date: Fri, 25 Jan 2019 09:54:53 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH RFC 07/24] userfaultfd: wp: add the writeprotect API to
+ userfaultfd ioctl
+References: <20190121075722.7945-1-peterx@redhat.com>
+ <20190121075722.7945-8-peterx@redhat.com>
+ <20190121104232.GA26461@rapoport-lnx>
+ <20190124045551.GD18231@xz-x1>
+ <20190124072706.GA3179@rapoport-lnx>
+ <20190124092848.GL18231@xz-x1>
 MIME-Version: 1.0
-In-Reply-To: <20190124231448.E102D18E@viggo.jf.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190124092848.GL18231@xz-x1>
+Message-Id: <20190125075453.GF31519@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: thomas.lendacky@amd.com, mhocko@suse.com, linux-nvdimm@lists.01.org, tiwai@suse.de, ying.huang@intel.com, linux-mm@kvack.org, jglisse@redhat.com, bp@suse.de, baiyaowei@cmss.chinamobile.com, zwisler@kernel.org, bhelgaas@google.com, fengguang.wu@intel.com, akpm@linux-foundation.org
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>
 
-Hi, Dave,
+On Thu, Jan 24, 2019 at 05:28:48PM +0800, Peter Xu wrote:
+> On Thu, Jan 24, 2019 at 09:27:07AM +0200, Mike Rapoport wrote:
+> > On Thu, Jan 24, 2019 at 12:56:15PM +0800, Peter Xu wrote:
+> > > On Mon, Jan 21, 2019 at 12:42:33PM +0200, Mike Rapoport wrote:
+> > > 
+> > > [...]
+> > > 
+> > > > > @@ -1343,7 +1344,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+> > > > > 
+> > > > >  		/* check not compatible vmas */
+> > > > >  		ret = -EINVAL;
+> > > > > -		if (!vma_can_userfault(cur))
+> > > > > +		if (!vma_can_userfault(cur, vm_flags))
+> > > > >  			goto out_unlock;
+> > > > > 
+> > > > >  		/*
+> > > > > @@ -1371,6 +1372,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+> > > > >  			if (end & (vma_hpagesize - 1))
+> > > > >  				goto out_unlock;
+> > > > >  		}
+> > > > > +		if ((vm_flags & VM_UFFD_WP) && !(cur->vm_flags & VM_WRITE))
+> > > > > +			goto out_unlock;
+> > > > 
+> > > > This is problematic for the non-cooperative use-case. Way may still want to
+> > > > monitor a read-only area because it may eventually become writable, e.g. if
+> > > > the monitored process runs mprotect().
+> > > 
+> > > Firstly I think I should be able to change it to VM_MAYWRITE which
+> > > seems to suite more.
+> > > 
+> > > Meanwhile, frankly speaking I didn't think a lot about how to nest the
+> > > usages of uffd-wp and mprotect(), so far I was only considering it as
+> > > a replacement of mprotect().  But indeed it can happen that the
+> > > monitored process calls mprotect().  Is there an existing scenario of
+> > > such usage?
+> > > 
+> > > The problem is I'm uncertain about whether this scenario can work
+> > > after all.  Say, the monitor process A write protected process B's
+> > > page P, so logically A will definitely receive a message before B
+> > > writes to page P.  However here if we allow process B to do
+> > > mprotect(PROT_WRITE) upon page P and grant write permission to it on
+> > > its own, then A will not be able to capture the write operation at
+> > > all?  Then I don't know how it can work here... or whether we should
+> > > fail the mprotect() at least upon uffd-wp ranges?
+> > 
+> > The use-case we've discussed a while ago was to use uffd-wp instead of
+> > soft-dirty for tracking memory changes in CRIU for pre-copy migration.
+> > Currently, we enable soft-dirty for the migrated process and monitor
+> > /proc/pid/pagemap between memory dump iterations to see what memory pages
+> > have been changed.
+> > With uffd-wp we thought to register all the process memory with uffd-wp and
+> > then track changes with uffd-wp notifications. Back then it was considered
+> > only at the very general level without paying much attention to details.
+> > 
+> > So my initial thought was that we do register the entire memory with
+> > uffd-wp. If an area changes from RO to RW at some point, uffd-wp will
+> > generate notifications to the monitor, it would be able to notice the
+> > change and the write will continue normally.
+> > 
+> > If we are to limit uffd-wp register only to VMAs with VM_WRITE and even
+> > VM_MAYWRITE, we'd need a way to handle the possible changes of VMA
+> > protection and an ability to add monitoring for areas that changed from RO
+> > to RW.
+> > 
+> > Can't say I have a clear picture in mind at the moment, will continue to
+> > think about it.
+> 
+> Thanks for these details.  Though I have a question about how it's
+> used.
+> 
+> Since we're talking about replacing soft dirty with uffd-wp here, I
+> noticed that there's a major interface difference between soft-dirty
+> and uffd-wp: the soft-dirty was all about /proc operations so a
+> monitor process can easily monitor mostly any process on the system as
+> long as knowing its PID.  However I'm unsure about uffd-wp since
+> userfaultfd was always bound to a mm_struct.  For example, the syscall
+> userfaultfd() will always attach the current process mm_struct to the
+> newly created userfaultfd but it cannot be attached to another random
+> mm_struct of other processes.  Or is there any way that the CRIU
+> monitor process can gain an userfaultfd of any process of the system
+> somehow?
+ 
+Yes, there is. For CRIU to read the process state during snapshot (or one
+the source in case of the migration) we inject a parasite code into the
+victim process. The parasite code communicates with the "main" CRIU monitor
+via UNIX socket to pass information that cannot be obtained from outside.
+For uffd-wp usage we thought about creating the uffd context in the
+parasite code, registering the memory and passing the userfault file
+descriptor to the CRIU core via that UNIX socket.
 
-While chatting with my colleague Erwin about the patchset, it occurred
-that we're not clear about the error handling part. Specifically,
+> > 
+> > > > Particularity, for using uffd-wp as a replacement for soft-dirty would
+> > > > require it.
+> > > > 
+> > > > > 
+> > > > >  		/*
+> > > > >  		 * Check that this vma isn't already owned by a
+> > > > > @@ -1400,7 +1403,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+> > > > >  	do {
+> > > > >  		cond_resched();
+> > > > > 
+> > > > > -		BUG_ON(!vma_can_userfault(vma));
+> > > > > +		BUG_ON(!vma_can_userfault(vma, vm_flags));
+> > > > >  		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
+> > > > >  		       vma->vm_userfaultfd_ctx.ctx != ctx);
+> > > > >  		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
+> > > > > @@ -1760,6 +1763,46 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+> > > > >  	return ret;
+> > > > >  }
+> > > > > 
+> > > > > +static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+> > > > > +				    unsigned long arg)
+> > > > > +{
+> > > > > +	int ret;
+> > > > > +	struct uffdio_writeprotect uffdio_wp;
+> > > > > +	struct uffdio_writeprotect __user *user_uffdio_wp;
+> > > > > +	struct userfaultfd_wake_range range;
+> > > > > +
+> > > > 
+> > > > In the non-cooperative mode the userfaultfd_writeprotect() may race with VM
+> > > > layout changes, pretty much as uffdio_copy() [1]. My solution for uffdio_copy()
+> > > > was to return -EAGAIN if such race is encountered. I think the same would
+> > > > apply here.
+> > > 
+> > > I tried to understand the problem at [1] but failed... could you help
+> > > to clarify it a bit more?
+> > > 
+> > > I'm quoting some of the discussions from [1] here directly between you
+> > > and Pavel:
+> > > 
+> > >   > Since the monitor cannot assume that the process will access all its memory
+> > >   > it has to copy some pages "in the background". A simple monitor may look
+> > >   > like:
+> > >   > 
+> > >   > 	for (;;) {
+> > >   > 		wait_for_uffd_events(timeout);
+> > >   > 		handle_uffd_events();
+> > >   > 		uffd_copy(some not faulted pages);
+> > >   > 	}
+> > >   > 
+> > >   > Then, if the "background" uffd_copy() races with fork, the pages we've
+> > >   > copied may be already present in parent's mappings before the call to
+> > >   > copy_page_range() and may be not.
+> > >   > 
+> > >   > If the pages were not present, uffd_copy'ing them again to the child's
+> > >   > memory would be ok.
+> > >   >
+> > >   > But if uffd_copy() was first to catch mmap_sem, and we would uffd_copy them
+> > >   > again, child process will get memory corruption.
+> > > 
+> > > Here I don't understand why the child process will get memory
+> > > corruption if uffd_copy() caught the mmap_sem first.
+> > > 
+> > > If it did it, then IMHO when uffd_copy() copies the page again it'll
+> > > simply get a -EEXIST showing that the page has already been copied.
+> > > Could you explain on why there will be a data corruption?
+> > 
+> > Let's say we do post-copy migration of a process A with CRIU and its page at
+> > address 0x1000 is already copied. Now it modifies the contents of this
+> > page. At this point the contents of the page at 0x1000 is different on the
+> > source and the destination.
+> > Next, process A forks process B. The CRIU's uffd monitor gets
+> > UFFD_EVENT_FORK, and starts filling process B memory with UFFDIO_COPY.
+> > It may happen, that UFFDIO_COPY to 0x1000 of the process B will occur
+> 
+> I think this is the place I started to get confused...
+> 
+> The mmap copy phase and the FORK event path is in dup_mmap() as
+> mentioned in the patch too:
+> 
+>      dup_mmap()
+>         down_write(old_mm)
+>         down_write(new_mm)
+>         foreach(vma)
+>             copy_page_range()            (a)
+>         up_write(new_mm)
+>         up_write(old_mm)
+>         dup_userfaultfd_complete()       (b)
+> 
+> Here if we already received UFFD_EVENT_FORK and started to copy pages
+> to process B in the background, then we should have at least passed
+> (b) above since otherwise we won't even know the existance of process
+> B.  However if so, we should have already passed the point to copy
+> data at (a) too, then how could copy_page_range() race?  It seems that
+> I might have missed something important out there but it's not easy
+> for me to figure out myself...
 
-1. If an uncorrectable error is detected during a 'load' in the hot 
-plugged pmem region, how will the error be handled?  will it be
-handled like PMEM or DRAM?
+Apparently, I confused myself as well...
+I clearly remember that there was a problem with fork() but the sequence
+the causes it keeps evading me :(
 
-2. If a poison is set, and is persistent, which entity should clear
-the poison, and badblock(if applicable)? If it's user's responsibility,
-does ndctl support the clearing in this mode?
+Anyway, some mean of synchronization between uffd_copy and the
+non-cooperative events is required. Take, for example, MADV_DONTNEED. When
+it races with uffdio_copy() a process may end reading non zero values right
+after MADV_DONTNEED call.
 
-thanks!
--jane
+uffd monitor           | process
+-----------------------+-------------------------------------------
+uffdio_copy(0x1000)    | madvise(MADV_DONTNEED, 0x1000)
+                       |    down_read(mmap_sem)
+                       |    zap_pte_range(0x1000)
+                       |    up_read(mmap_sem)
+   down_read(mmap_sem) |
+   copy()              |
+   up_read(mmap_sem)   |
+                       |  read(0x1000) != 0
 
+Similar issues happen with mpremap() and munmap().
 
-On 1/24/2019 3:14 PM, Dave Hansen wrote:
+> Thanks,
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+> > *before* fork() completes and it may race with copy_page_range().
+> > If UFFDIO_COPY wins the race, it will fill the page with the contents from
+> > the source, although the correct data is what process A set in that page.
+> > 
+> > Hope it helps.
 > 
-> This is intended for use with NVDIMMs that are physically persistent
-> (physically like flash) so that they can be used as a cost-effective
-> RAM replacement.  Intel Optane DC persistent memory is one
-> implementation of this kind of NVDIMM.
+> > > >  
+> > > > [1] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=df2cc96e77011cf7989208b206da9817e0321028
+> > > >
 > 
-> Currently, a persistent memory region is "owned" by a device driver,
-> either the "Direct DAX" or "Filesystem DAX" drivers.  These drivers
-> allow applications to explicitly use persistent memory, generally
-> by being modified to use special, new libraries. (DIMM-based
-> persistent memory hardware/software is described in great detail
-> here: Documentation/nvdimm/nvdimm.txt).
+> -- 
+> Peter Xu
 > 
-> However, this limits persistent memory use to applications which
-> *have* been modified.  To make it more broadly usable, this driver
-> "hotplugs" memory into the kernel, to be managed and used just like
-> normal RAM would be.
-> 
-> To make this work, management software must remove the device from
-> being controlled by the "Device DAX" infrastructure:
-> 
-> 	echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
-> 	echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
-> 
-> and then bind it to this new driver:
-> 
-> 	echo -n dax0.0 > /sys/bus/dax/drivers/kmem/new_id
-> 	echo -n dax0.0 > /sys/bus/dax/drivers/kmem/bind
-> 
-> After this, there will be a number of new memory sections visible
-> in sysfs that can be onlined, or that may get onlined by existing
-> udev-initiated memory hotplug rules.
-> 
-> This rebinding procedure is currently a one-way trip.  Once memory
-> is bound to "kmem", it's there permanently and can not be
-> unbound and assigned back to device_dax.
-> 
-> The kmem driver will never bind to a dax device unless the device
-> is *explicitly* bound to the driver.  There are two reasons for
-> this: One, since it is a one-way trip, it can not be undone if
-> bound incorrectly.  Two, the kmem driver destroys data on the
-> device.  Think of if you had good data on a pmem device.  It
-> would be catastrophic if you compile-in "kmem", but leave out
-> the "device_dax" driver.  kmem would take over the device and
-> write volatile data all over your good data.
-> 
-> This inherits any existing NUMA information for the newly-added
-> memory from the persistent memory device that came from the
-> firmware.  On Intel platforms, the firmware has guarantees that
-> require each socket's persistent memory to be in a separate
-> memory-only NUMA node.  That means that this patch is not expected
-> to create NUMA nodes, but will simply hotplug memory into existing
-> nodes.
-> 
-> Because NUMA nodes are created, the existing NUMA APIs and tools
-> are sufficient to create policies for applications or memory areas
-> to have affinity for or an aversion to using this memory.
-> 
-> There is currently some metadata at the beginning of pmem regions.
-> The section-size memory hotplug restrictions, plus this small
-> reserved area can cause the "loss" of a section or two of capacity.
-> This should be fixable in follow-on patches.  But, as a first step,
-> losing 256MB of memory (worst case) out of hundreds of gigabytes
-> is a good tradeoff vs. the required code to fix this up precisely.
-> This calculation is also the reason we export
-> memory_block_size_bytes().
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dave Jiang <dave.jiang@intel.com>
-> Cc: Ross Zwisler <zwisler@kernel.org>
-> Cc: Vishal Verma <vishal.l.verma@intel.com>
-> Cc: Tom Lendacky <thomas.lendacky@amd.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: linux-nvdimm@lists.01.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: Huang Ying <ying.huang@intel.com>
-> Cc: Fengguang Wu <fengguang.wu@intel.com>
-> Cc: Borislav Petkov <bp@suse.de>
-> Cc: Bjorn Helgaas <bhelgaas@google.com>
-> Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-> Cc: Takashi Iwai <tiwai@suse.de>
-> Cc: Jerome Glisse <jglisse@redhat.com>
-> ---
-> 
->   b/drivers/base/memory.c |    1
->   b/drivers/dax/Kconfig   |   16 +++++++
->   b/drivers/dax/Makefile  |    1
->   b/drivers/dax/kmem.c    |  108 ++++++++++++++++++++++++++++++++++++++++++++++++
->   4 files changed, 126 insertions(+)
-> 
-> diff -puN drivers/base/memory.c~dax-kmem-try-4 drivers/base/memory.c
-> --- a/drivers/base/memory.c~dax-kmem-try-4	2019-01-24 15:13:15.987199535 -0800
-> +++ b/drivers/base/memory.c	2019-01-24 15:13:15.994199535 -0800
-> @@ -88,6 +88,7 @@ unsigned long __weak memory_block_size_b
->   {
->   	return MIN_MEMORY_BLOCK_SIZE;
->   }
-> +EXPORT_SYMBOL_GPL(memory_block_size_bytes);
->   
->   static unsigned long get_memory_block_size(void)
->   {
-> diff -puN drivers/dax/Kconfig~dax-kmem-try-4 drivers/dax/Kconfig
-> --- a/drivers/dax/Kconfig~dax-kmem-try-4	2019-01-24 15:13:15.988199535 -0800
-> +++ b/drivers/dax/Kconfig	2019-01-24 15:13:15.994199535 -0800
-> @@ -32,6 +32,22 @@ config DEV_DAX_PMEM
->   
->   	  Say M if unsure
->   
-> +config DEV_DAX_KMEM
-> +	tristate "KMEM DAX: volatile-use of persistent memory"
-> +	default DEV_DAX
-> +	depends on DEV_DAX
-> +	depends on MEMORY_HOTPLUG # for add_memory() and friends
-> +	help
-> +	  Support access to persistent memory as if it were RAM.  This
-> +	  allows easier use of persistent memory by unmodified
-> +	  applications.
-> +
-> +	  To use this feature, a DAX device must be unbound from the
-> +	  device_dax driver (PMEM DAX) and bound to this kmem driver
-> +	  on each boot.
-> +
-> +	  Say N if unsure.
-> +
->   config DEV_DAX_PMEM_COMPAT
->   	tristate "PMEM DAX: support the deprecated /sys/class/dax interface"
->   	depends on DEV_DAX_PMEM
-> diff -puN /dev/null drivers/dax/kmem.c
-> --- /dev/null	2018-12-03 08:41:47.355756491 -0800
-> +++ b/drivers/dax/kmem.c	2019-01-24 15:13:15.994199535 -0800
-> @@ -0,0 +1,108 @@
-> +// SPDX-License-Identifier: GPL-2.0
-> +/* Copyright(c) 2016-2018 Intel Corporation. All rights reserved. */
-> +#include <linux/memremap.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/memory.h>
-> +#include <linux/module.h>
-> +#include <linux/device.h>
-> +#include <linux/pfn_t.h>
-> +#include <linux/slab.h>
-> +#include <linux/dax.h>
-> +#include <linux/fs.h>
-> +#include <linux/mm.h>
-> +#include <linux/mman.h>
-> +#include "dax-private.h"
-> +#include "bus.h"
-> +
-> +int dev_dax_kmem_probe(struct device *dev)
-> +{
-> +	struct dev_dax *dev_dax = to_dev_dax(dev);
-> +	struct resource *res = &dev_dax->region->res;
-> +	resource_size_t kmem_start;
-> +	resource_size_t kmem_size;
-> +	resource_size_t kmem_end;
-> +	struct resource *new_res;
-> +	int numa_node;
-> +	int rc;
-> +
-> +	/*
-> +	 * Ensure good NUMA information for the persistent memory.
-> +	 * Without this check, there is a risk that slow memory
-> +	 * could be mixed in a node with faster memory, causing
-> +	 * unavoidable performance issues.
-> +	 */
-> +	numa_node = dev_dax->target_node;
-> +	if (numa_node < 0) {
-> +		dev_warn(dev, "rejecting DAX region %pR with invalid node: %d\n",
-> +			 res, numa_node);
-> +		return -EINVAL;
-> +	}
-> +
-> +	/* Hotplug starting at the beginning of the next block: */
-> +	kmem_start = ALIGN(res->start, memory_block_size_bytes());
-> +
-> +	kmem_size = resource_size(res);
-> +	/* Adjust the size down to compensate for moving up kmem_start: */
-> +        kmem_size -= kmem_start - res->start;
-> +	/* Align the size down to cover only complete blocks: */
-> +	kmem_size &= ~(memory_block_size_bytes() - 1);
-> +	kmem_end = kmem_start+kmem_size;
-> +
-> +	/* Region is permanently reserved.  Hot-remove not yet implemented. */
-> +	new_res = request_mem_region(kmem_start, kmem_size, dev_name(dev));
-> +	if (!new_res) {
-> +		dev_warn(dev, "could not reserve region [%pa-%pa]\n",
-> +			 &kmem_start, &kmem_end);
-> +		return -EBUSY;
-> +	}
-> +
-> +	/*
-> +	 * Set flags appropriate for System RAM.  Leave ..._BUSY clear
-> +	 * so that add_memory() can add a child resource.  Do not
-> +	 * inherit flags from the parent since it may set new flags
-> +	 * unknown to us that will break add_memory() below.
-> +	 */
-> +	new_res->flags = IORESOURCE_SYSTEM_RAM;
-> +	new_res->name = dev_name(dev);
-> +
-> +	rc = add_memory(numa_node, new_res->start, resource_size(new_res));
-> +	if (rc)
-> +		return rc;
-> +
-> +	return 0;
-> +}
-> +
-> +static int dev_dax_kmem_remove(struct device *dev)
-> +{
-> +	/*
-> +	 * Purposely leak the request_mem_region() for the device-dax
-> +	 * range and return '0' to ->remove() attempts. The removal of
-> +	 * the device from the driver always succeeds, but the region
-> +	 * is permanently pinned as reserved by the unreleased
-> +	 * request_mem_region().
-> +	 */
-> +	return -EBUSY;
-> +}
-> +
-> +static struct dax_device_driver device_dax_kmem_driver = {
-> +	.drv = {
-> +		.probe = dev_dax_kmem_probe,
-> +		.remove = dev_dax_kmem_remove,
-> +	},
-> +};
-> +
-> +static int __init dax_kmem_init(void)
-> +{
-> +	return dax_driver_register(&device_dax_kmem_driver);
-> +}
-> +
-> +static void __exit dax_kmem_exit(void)
-> +{
-> +	dax_driver_unregister(&device_dax_kmem_driver);
-> +}
-> +
-> +MODULE_AUTHOR("Intel Corporation");
-> +MODULE_LICENSE("GPL v2");
-> +module_init(dax_kmem_init);
-> +module_exit(dax_kmem_exit);
-> +MODULE_ALIAS_DAX_DEVICE(0);
-> diff -puN drivers/dax/Makefile~dax-kmem-try-4 drivers/dax/Makefile
-> --- a/drivers/dax/Makefile~dax-kmem-try-4	2019-01-24 15:13:15.990199535 -0800
-> +++ b/drivers/dax/Makefile	2019-01-24 15:13:15.994199535 -0800
-> @@ -1,6 +1,7 @@
->   # SPDX-License-Identifier: GPL-2.0
->   obj-$(CONFIG_DAX) += dax.o
->   obj-$(CONFIG_DEV_DAX) += device_dax.o
-> +obj-$(CONFIG_DEV_DAX_KMEM) += kmem.o
->   
->   dax-y := super.o
->   dax-y += bus.o
-> _
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
-> 
+
+-- 
+Sincerely yours,
+Mike.
