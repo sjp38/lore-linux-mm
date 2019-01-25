@@ -1,43 +1,27 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 53E4B8E00C2
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 02:24:34 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c53so3373533edc.9
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2019 23:24:34 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id kq26si1441069ejb.228.2019.01.24.23.24.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jan 2019 23:24:32 -0800 (PST)
-Date: Fri, 25 Jan 2019 08:24:29 +0100
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+Date: Fri, 25 Jan 2019 08:25:58 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Extract memcg maxable seq_file logic to
- seq_show_memcg_tunable
-Message-ID: <20190125072429.GA3560@dhcp22.suse.cz>
-References: <20190124194100.GA31425@chrisdown.name>
+Subject: Re: [PATCH 1/2] mm: Create mem_cgroup_from_seq
+Message-ID: <20190125072558.GB3560@dhcp22.suse.cz>
+References: <20190124194050.GA31341@chrisdown.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190124194100.GA31425@chrisdown.name>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+In-Reply-To: <20190124194050.GA31341@chrisdown.name>
+Sender: linux-kernel-owner@vger.kernel.org
 To: Chris Down <chris@chrisdown.name>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+List-ID: <linux-mm.kvack.org>
 
-On Thu 24-01-19 14:41:00, Chris Down wrote:
-> memcg has a significant number of files exposed to kernfs where their
-> value is either exposed directly or is "max" in the case of
-> PAGE_COUNTER_MAX.
+On Thu 24-01-19 14:40:50, Chris Down wrote:
+> This is the start of a series of patches similar to my earlier
+> DEFINE_MEMCG_MAX_OR_VAL work, but with less Macro Magic(tm).
 > 
-> This patch makes this generic by providing a single function to do this
-> work. In combination with the previous patch adding mem_cgroup_from_seq,
-> this makes all of the seq_show feeder functions significantly more
-> simple.
-
-Yeah this is what I've had in mind when mentioning a helper in the
-previous version of the patch. I like this more even though the
-resulting savings are not that large.
-
+> There are a bunch of places we go from seq_file to mem_cgroup, which
+> currently requires manually getting the css, then getting the mem_cgroup
+> from the css. It's in enough places now that having mem_cgroup_from_seq
+> makes sense (and also makes the next patch a bit nicer).
+> 
 > Signed-off-by: Chris Down <chris@chrisdown.name>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -51,119 +35,182 @@ resulting savings are not that large.
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
->  mm/memcontrol.c | 64 +++++++++++++++----------------------------------
->  1 file changed, 19 insertions(+), 45 deletions(-)
+>  include/linux/memcontrol.h | 10 ++++++++++
+>  mm/memcontrol.c            | 24 ++++++++++++------------
+>  mm/slab_common.c           |  6 +++---
+>  3 files changed, 25 insertions(+), 15 deletions(-)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 98aad31f5226..81b6f752471a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5375,6 +5375,16 @@ static void mem_cgroup_bind(struct cgroup_subsys_state *root_css)
->  		root_mem_cgroup->use_hierarchy = false;
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index b0eb29ea0d9c..1f3d880b7ca1 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -429,6 +429,11 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 >  }
+>  struct mem_cgroup *mem_cgroup_from_id(unsigned short id);
 >  
-> +static int seq_puts_memcg_tunable(struct seq_file *m, unsigned long value)
+> +static inline struct mem_cgroup *mem_cgroup_from_seq(struct seq_file *m)
 > +{
-> +	if (value == PAGE_COUNTER_MAX)
-> +		seq_puts(m, "max\n");
-> +	else
-> +		seq_printf(m, "%llu\n", (u64)value * PAGE_SIZE);
-> +
-> +	return 0;
+> +	return mem_cgroup_from_css(seq_css(m));
 > +}
 > +
->  static u64 memory_current_read(struct cgroup_subsys_state *css,
->  			       struct cftype *cft)
+>  static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
 >  {
-> @@ -5385,15 +5395,8 @@ static u64 memory_current_read(struct cgroup_subsys_state *css,
+>  	struct mem_cgroup_per_node *mz;
+> @@ -937,6 +942,11 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+>  	return NULL;
+>  }
+>  
+> +static inline struct mem_cgroup *mem_cgroup_from_seq(struct seq_file *m)
+> +{
+> +	return NULL;
+> +}
+> +
+>  static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
+>  {
+>  	return NULL;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 18f4aefbe0bf..98aad31f5226 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3359,7 +3359,7 @@ static int memcg_numa_stat_show(struct seq_file *m, void *v)
+>  	const struct numa_stat *stat;
+>  	int nid;
+>  	unsigned long nr;
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  
+>  	for (stat = stats; stat < stats + ARRAY_SIZE(stats); stat++) {
+>  		nr = mem_cgroup_nr_lru_pages(memcg, stat->lru_mask);
+> @@ -3410,7 +3410,7 @@ static const char *const memcg1_event_names[] = {
+>  
+>  static int memcg_stat_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  	unsigned long memory, memsw;
+>  	struct mem_cgroup *mi;
+>  	unsigned int i;
+> @@ -3842,7 +3842,7 @@ static void mem_cgroup_oom_unregister_event(struct mem_cgroup *memcg,
+>  
+>  static int mem_cgroup_oom_control_read(struct seq_file *sf, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(sf));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(sf);
+>  
+>  	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
+>  	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
+> @@ -5385,7 +5385,7 @@ static u64 memory_current_read(struct cgroup_subsys_state *css,
 >  
 >  static int memory_min_show(struct seq_file *m, void *v)
 >  {
-> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
-> -	unsigned long min = READ_ONCE(memcg->memory.min);
-> -
-> -	if (min == PAGE_COUNTER_MAX)
-> -		seq_puts(m, "max\n");
-> -	else
-> -		seq_printf(m, "%llu\n", (u64)min * PAGE_SIZE);
-> -
-> -	return 0;
-> +	return seq_puts_memcg_tunable(m,
-> +		READ_ONCE(mem_cgroup_from_seq(m)->memory.min));
->  }
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  	unsigned long min = READ_ONCE(memcg->memory.min);
 >  
->  static ssize_t memory_min_write(struct kernfs_open_file *of,
-> @@ -5415,15 +5418,8 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
+>  	if (min == PAGE_COUNTER_MAX)
+> @@ -5415,7 +5415,7 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
 >  
 >  static int memory_low_show(struct seq_file *m, void *v)
 >  {
-> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
-> -	unsigned long low = READ_ONCE(memcg->memory.low);
-> -
-> -	if (low == PAGE_COUNTER_MAX)
-> -		seq_puts(m, "max\n");
-> -	else
-> -		seq_printf(m, "%llu\n", (u64)low * PAGE_SIZE);
-> -
-> -	return 0;
-> +	return seq_puts_memcg_tunable(m,
-> +		READ_ONCE(mem_cgroup_from_seq(m)->memory.low));
->  }
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  	unsigned long low = READ_ONCE(memcg->memory.low);
 >  
->  static ssize_t memory_low_write(struct kernfs_open_file *of,
-> @@ -5445,15 +5441,7 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
+>  	if (low == PAGE_COUNTER_MAX)
+> @@ -5445,7 +5445,7 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
 >  
 >  static int memory_high_show(struct seq_file *m, void *v)
 >  {
-> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
-> -	unsigned long high = READ_ONCE(memcg->high);
-> -
-> -	if (high == PAGE_COUNTER_MAX)
-> -		seq_puts(m, "max\n");
-> -	else
-> -		seq_printf(m, "%llu\n", (u64)high * PAGE_SIZE);
-> -
-> -	return 0;
-> +	return seq_puts_memcg_tunable(m, READ_ONCE(mem_cgroup_from_seq(m)->high));
->  }
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  	unsigned long high = READ_ONCE(memcg->high);
 >  
->  static ssize_t memory_high_write(struct kernfs_open_file *of,
-> @@ -5482,15 +5470,8 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
+>  	if (high == PAGE_COUNTER_MAX)
+> @@ -5482,7 +5482,7 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
 >  
 >  static int memory_max_show(struct seq_file *m, void *v)
 >  {
-> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
-> -	unsigned long max = READ_ONCE(memcg->memory.max);
-> -
-> -	if (max == PAGE_COUNTER_MAX)
-> -		seq_puts(m, "max\n");
-> -	else
-> -		seq_printf(m, "%llu\n", (u64)max * PAGE_SIZE);
-> -
-> -	return 0;
-> +	return seq_puts_memcg_tunable(m,
-> +		READ_ONCE(mem_cgroup_from_seq(m)->memory.max));
->  }
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  	unsigned long max = READ_ONCE(memcg->memory.max);
 >  
->  static ssize_t memory_max_write(struct kernfs_open_file *of,
-> @@ -6622,15 +6603,8 @@ static u64 swap_current_read(struct cgroup_subsys_state *css,
+>  	if (max == PAGE_COUNTER_MAX)
+> @@ -5544,7 +5544,7 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
+>  
+>  static int memory_events_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  
+>  	seq_printf(m, "low %lu\n",
+>  		   atomic_long_read(&memcg->memory_events[MEMCG_LOW]));
+> @@ -5562,7 +5562,7 @@ static int memory_events_show(struct seq_file *m, void *v)
+>  
+>  static int memory_stat_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  	struct accumulated_stats acc;
+>  	int i;
+>  
+> @@ -5639,7 +5639,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
+>  
+>  static int memory_oom_group_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  
+>  	seq_printf(m, "%d\n", memcg->oom_group);
+>  
+> @@ -6622,7 +6622,7 @@ static u64 swap_current_read(struct cgroup_subsys_state *css,
 >  
 >  static int swap_max_show(struct seq_file *m, void *v)
 >  {
-> -	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
-> -	unsigned long max = READ_ONCE(memcg->swap.max);
-> -
-> -	if (max == PAGE_COUNTER_MAX)
-> -		seq_puts(m, "max\n");
-> -	else
-> -		seq_printf(m, "%llu\n", (u64)max * PAGE_SIZE);
-> -
-> -	return 0;
-> +	return seq_puts_memcg_tunable(m,
-> +		READ_ONCE(mem_cgroup_from_seq(m)->swap.max));
->  }
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  	unsigned long max = READ_ONCE(memcg->swap.max);
 >  
->  static ssize_t swap_max_write(struct kernfs_open_file *of,
+>  	if (max == PAGE_COUNTER_MAX)
+> @@ -6652,7 +6652,7 @@ static ssize_t swap_max_write(struct kernfs_open_file *of,
+>  
+>  static int swap_events_show(struct seq_file *m, void *v)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  
+>  	seq_printf(m, "max %lu\n",
+>  		   atomic_long_read(&memcg->memory_events[MEMCG_SWAP_MAX]));
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 81732d05e74a..3dfdbe49ce34 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -1424,7 +1424,7 @@ void dump_unreclaimable_slab(void)
+>  #if defined(CONFIG_MEMCG)
+>  void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  
+>  	mutex_lock(&slab_mutex);
+>  	return seq_list_start(&memcg->kmem_caches, *pos);
+> @@ -1432,7 +1432,7 @@ void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+>  
+>  void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  
+>  	return seq_list_next(p, &memcg->kmem_caches, pos);
+>  }
+> @@ -1446,7 +1446,7 @@ int memcg_slab_show(struct seq_file *m, void *p)
+>  {
+>  	struct kmem_cache *s = list_entry(p, struct kmem_cache,
+>  					  memcg_params.kmem_caches_node);
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
+>  
+>  	if (p == memcg->kmem_caches.next)
+>  		print_slabinfo_header(m);
 > -- 
 > 2.20.1
 
