@@ -2,226 +2,185 @@ Return-Path: <SRS0=Pe7y=QC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC0B4C282C0
-	for <linux-mm@archiver.kernel.org>; Sat, 26 Jan 2019 01:57:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F27FCC282C0
+	for <linux-mm@archiver.kernel.org>; Sat, 26 Jan 2019 02:58:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0C7A21855
-	for <linux-mm@archiver.kernel.org>; Sat, 26 Jan 2019 01:57:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0C7A21855
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 93EF0218F0
+	for <linux-mm@archiver.kernel.org>; Sat, 26 Jan 2019 02:58:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Hp59EcXb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93EF0218F0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 27D478E00F7; Fri, 25 Jan 2019 20:57:21 -0500 (EST)
+	id 0C9BF8E00F8; Fri, 25 Jan 2019 21:58:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 22E628E00F6; Fri, 25 Jan 2019 20:57:21 -0500 (EST)
+	id 079748E00F6; Fri, 25 Jan 2019 21:58:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 11CDA8E00F7; Fri, 25 Jan 2019 20:57:21 -0500 (EST)
+	id EA94F8E00F8; Fri, 25 Jan 2019 21:58:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D84118E00F6
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 20:57:20 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id h85so5407180oib.9
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 17:57:20 -0800 (PST)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B74D08E00F6
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2019 21:58:18 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id x64so6094734ywc.6
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2019 18:58:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=vCQigGJo5Mn6zVHWDFJ7kjPYzxP/O+aT6X8KSRh95JY=;
-        b=jK+qD7pgsEh1WhZmiX5WXd83l4cRsT5SCx9OeV4Wcmjbx0l6oggKT+6PBrNVuauAiT
-         MsMK+ysvXb8Ueh/gwe+WZb/dL7kpu6TgPLOienEKu5ftcapEZFyUWhOST3Of5zkyrsnc
-         ddN4NllvYZ3h8uZseE+06kt4gg+VWLXtSITkjQz6+QuEtMIM5Xk3TPUZelwsHXNajosJ
-         eomzoRJMs+IYcZgHoODT8WJhUgnBv5nJ/F87kQudf3is84PgU9jHCd/G/DHmUjXUDfLS
-         sTxuMbgs3FrVOH4fCGiz0eIljCTebvdWu11IpHlb0brfrTvWTalTzqLlVxebxwL+2aMu
-         raig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AJcUukcs/5AB3Sg1ZU1BAF8kBj3sbce2cuGVXPufc7Pt6iy1fxqWtHI9
-	OdAiQOT22fUiHkoTwl/qkoQLkWPpchiLIaAn4oNDWpW1q9hBHrM1PUB+vQsEoXWpZ/wbkMd2EyC
-	TbAiT/n1ztUibNKFhcs3WSgoqN0NZEZPnZTLBnWA65XnblN2APom+DaEwyOwoWAeWgg==
-X-Received: by 2002:aca:a881:: with SMTP id r123mr372179oie.207.1548467840549;
-        Fri, 25 Jan 2019 17:57:20 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6fiSlilEFLCbCrdA2FudZdwayyARL7tAyWB5Wch2JTHciH85V4iM88KiVejAq9uvjpjL2y
-X-Received: by 2002:aca:a881:: with SMTP id r123mr372149oie.207.1548467839751;
-        Fri, 25 Jan 2019 17:57:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548467839; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=uD+xbZtFCxl/EbX0cOF2Pe8a8lrRkz3suI1QjhUidtg=;
+        b=DjJyVVxCzipvvGnYGIy/cWMoPh41l39M1KaOxUeGgIKnPps6nYKuv1+OvVixb+o+d/
+         fzG70CEiUdNmJkgeldnVqGO4TEMOdc//FdctMkFdb2jAfE9E4x2sVQaBXGeKjOimz0gW
+         DFaDPwYbcNGU0ngALu79tilf4H9cdqnC84onLKxrKsrfc+/Gu78ovkiIyL0pNYVM8Wst
+         xKc42T/hL9e5JG4ymRN+6clK8wQv6tB3UQHfqMpaGdnq4xTEMYNabeSLxLoREGyRa79Q
+         pUunjqrn4my5iXVHDU2DONUIiPRS89TFkq+egmgsdCbNS8nHPLtWOb9Zp6+d50xc4T48
+         GGrg==
+X-Gm-Message-State: AJcUukdgpdfUB75furr8WukGPcZaljK5celBMSPdwtlx6DVE82sdrL7h
+	YGVg6p/+puBkO/vBAk/sxgpDcak8WNblFnCa0KQSJjXLqUBTz+lm4YfyyPt0e655hQlrKbKlGYw
+	oMeb8FOWPtFKuxKQAHcA8rU7kadP9eIRgZTJZJaLKN1tzgXvcPmUaz0nOMaSh2T/3jA==
+X-Received: by 2002:a0d:e156:: with SMTP id k83mr13423202ywe.219.1548471498346;
+        Fri, 25 Jan 2019 18:58:18 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7JE2puqxdX5L0hqbV+4RGdFNciBmRX9M8/8Du6tvgPGPquxeIClDnzksiBpblWCke9ZD0F
+X-Received: by 2002:a0d:e156:: with SMTP id k83mr13423179ywe.219.1548471497713;
+        Fri, 25 Jan 2019 18:58:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548471497; cv=none;
         d=google.com; s=arc-20160816;
-        b=jXZyNn0dog2d8GAdE4ksMKk6kNyTswhfvnQD6o9j49gVwP3iYpxLTiRArHCxMnhzqH
-         hEOrrjPWbX2yXraeEiSUALs4Y7h83qRxDgdNcyQfDDaYf2tc5s+3aVKBaDi9S5zW7gxf
-         Lu/AHDJKYwUtxoYWqvyH9hNma+zE55nKPdWvR4WbouVDcztpzX4JyqGVvgR5GJQCNEPt
-         QEzsZ+YiAQaYShTdpT4G30T1GMfxTJnhqNY0oU5XmQMegyqmFmv54K07rASoBHU93/qX
-         YYyHcL23o5gLUtQZNzwv/n6IHoTex/0LBPX8R9AQ27n/4m06+iQ5tSGuZbDzdREOMYRi
-         1tWQ==
+        b=aGlvbv6iy8+xHk9WzRSxWhv/6OvLsXap7Be3lQf/v+iD8gw8lrf4ZpnVmUk9wS1B/j
+         ZsXtpLMRfM8cV/ABgS0NOf+q26S6fzUdHvxNjgywmCUkhAJjkxBaJiycD8xIPZK9mEyE
+         b7fSO+gjncsJbPznwYCAvL/fytDvuq8B4ch+XdLvjSD3DaTv6beB2PrhTf7WT7sqTgTT
+         OLORyH6xczC+okX3F9XF4yXvaR/5LA4cZIhC7/GWBLsDttH1nydbavs6q93EuZ3MF/UX
+         6G7CeEJsyJIFK/Aj3aPOB8gwJatQBoDsrIBovR7aDlPzp70/HTV3qc3etnZEPbfinm4a
+         fK0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=vCQigGJo5Mn6zVHWDFJ7kjPYzxP/O+aT6X8KSRh95JY=;
-        b=LZPxLD6M40rQBFjGfkvAFhKT+NInGV47RqS3iZ+kFRGK44o88s2PaMt+7y8SD0KMhb
-         QzXgkNqs6eHqfLJxZ4Jh/rWBZsH8FzIQwE1XPd8Cjf9frjKplOPz6SvfK4S8jFgq7kDZ
-         4IvvaC3AeacOPfRgN6BXdfVjJ6iBvvM+uGkSJpEh/8dedT/2zRyeIfbNnmkflhHyJnpq
-         RnIr6LkCv3i4VMV4o3FFcgYgmoKvPPgEzuETTmc+iTl4u0gGVGw4iLhHpWw4P1N9CDwQ
-         sA4HVq+ZctAtK711hUpw6HjocxWe2wMFVBxDNO4clim5zltASUQUS/yBwpdjZYloT9OH
-         cs2g==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=uD+xbZtFCxl/EbX0cOF2Pe8a8lrRkz3suI1QjhUidtg=;
+        b=YW/equDd766pnYqR7K0NYPJKrFt+liq04gI02SU1mGt1ekit+JIaEa7PzmetoA1NA/
+         VQ/ColQjOXhYeFgVdThg5xRbC6O9GoJ+euRUYjhz6oZcegT798K7B6CHH8btihWdbdr1
+         Z6j3M4KZE1Q4WTZicFeAAbt4TGwmY3VynrEulcoB7vxLEBnvXbv8ZOA38J1UgDOHk++z
+         tWstowAQC0JCUgOqH5+ZfSRzyL65jt4rYbjTG5K5QuUMvGc/nGcEDt6cRpuNU40pho6u
+         IxcwBktX6+R7Gb3yQGVMIBXzoUE1fFBtq6MBsjkl/pHPUCHTiVSxFfyZT8UHSz6YwiUB
+         +NAQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id i203si2011993oih.81.2019.01.25.17.57.19
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Hp59EcXb;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id 62si15554948ybi.491.2019.01.25.18.58.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Jan 2019 17:57:19 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        Fri, 25 Jan 2019 18:58:17 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav107.sakura.ne.jp (fsav107.sakura.ne.jp [27.133.134.234])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x0Q1v3dZ074969;
-	Sat, 26 Jan 2019 10:57:03 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav107.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp);
- Sat, 26 Jan 2019 10:57:03 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x0Q1v3aU074964
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Sat, 26 Jan 2019 10:57:03 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: possible deadlock in __do_page_fault
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Todd Kjos <tkjos@google.com>,
-        syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com,
-        ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz,
-        jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>,
-        linux-mm@kvack.org, mawilcox@microsoft.com,
-        mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com,
-        =?UTF-8?Q?Arve_Hj=c3=b8nnev=c3=a5g?=
- <arve@android.com>,
-        Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-References: <201901230201.x0N214eq043832@www262.sakura.ne.jp>
- <20190123155751.GA168927@google.com>
- <201901240152.x0O1qUUU069046@www262.sakura.ne.jp>
- <20190124134646.GA53008@google.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <06b4806c-6b53-85a5-84db-fa432ea4ccd0@i-love.sakura.ne.jp>
-Date: Sat, 26 Jan 2019 10:57:03 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Hp59EcXb;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c4bccc80000>; Fri, 25 Jan 2019 18:58:16 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 25 Jan 2019 18:58:16 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 25 Jan 2019 18:58:16 -0800
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Sat, 26 Jan
+ 2019 02:58:16 +0000
+Subject: Re: [LSF/MM TOPIC] get_user_pages() pins in file mappings
+To: Jan Kara <jack@suse.cz>, <lsf-pc@lists.linux-foundation.org>
+CC: <linux-fsdevel@vger.kernel.org>, <linux-mm@kvack.org>, Dan Williams
+	<dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>
+References: <20190124090400.GE12184@quack2.suse.cz>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <041368e5-7bca-4093-47da-13f1608b0692@nvidia.com>
+Date: Fri, 25 Jan 2019 18:58:15 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190124134646.GA53008@google.com>
+In-Reply-To: <20190124090400.GE12184@quack2.suse.cz>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
 Content-Type: text/plain; charset="UTF-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1548471496; bh=uD+xbZtFCxl/EbX0cOF2Pe8a8lrRkz3suI1QjhUidtg=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=Hp59EcXbiUb6mG3i1HemSvsw687q09VRtca1+hRD6ZlxFYc90RvcG01S2nT80qXsM
+	 xwxY8Etl85hCeBqthKQ4tIM6Hohu3eFYPGzvmz17TAsQM0JL6H3gYUPADYpmrPT+sN
+	 lVXnJbLJ82xiyx73H0Fw2MzRYObt8BazRVH6CFiVaSuspAh2xGdW7ntjCQmvyL+HWt
+	 q05VQ+LzWf625RTYwC7QrtJ7mUfqPVI+27gJSzR4wHFfN+lDPfn3O4Cxs3XGIeHHmW
+	 dEcpuw+n17kEiBJpToh0KwMAuFt11AAqH1SEM8HvA53gVLuDZ5I8pvqig1i1jzsQxI
+	 u5Jn+o3CvWuQA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190126015703.BIRhhkH76T49XElxQ7zaJWXADnguprkBf7Wp-y8mqtk@z>
+Message-ID: <20190126025815.S_uHE26aBeO2xz-hKn5zTyYDYIvZhjjBgPxU9Xt79Tw@z>
 
-On 2019/01/24 22:46, Joel Fernandes wrote:
-> On Thu, Jan 24, 2019 at 10:52:30AM +0900, Tetsuo Handa wrote:
->> Then, I'm tempted to eliminate shrinker and LRU list (like a draft patch shown
->> below). I think this is not equivalent to current code because this shrinks
->> upon only range_alloc() time and I don't know whether it is OK to temporarily
->> release ashmem_mutex during range_alloc() at "Case #4" of ashmem_pin(), but
->> can't we go this direction? 
-> 
-> No, the point of the shrinker is to do a lazy free. We cannot free things
-> during unpin since it can be pinned again and we need to find that range by
-> going through the list. We also cannot get rid of any lists. Since if
-> something is re-pinned, we need to find it and find out if it was purged. We
-> also need the list for knowing what was unpinned so the shrinker works.
-> 
-> By the way, all this may be going away quite soon (the whole driver) as I
-> said, so just give it a little bit of time.
-> 
-> I am happy to fix it soon if that's not the case (which I should know soon -
-> like a couple of weeks) but I'd like to hold off till then.
-> 
->> By the way, why not to check range_alloc() failure before calling range_shrink() ?
-> 
-> That would be a nice thing to do. Send a patch?
+On 1/24/19 1:04 AM, Jan Kara wrote:
+> This is a joint proposal with Dan Williams, John Hubbard, and J=C3=A9r=C3=
+=B4me
+> Glisse.
+>=20
+> Last year we've talked with Dan about issues we have with filesystems and
+> GUP [1]. The crux of the problem lies in the fact that there is no
+> coordination (or even awareness) between filesystem working on a page (su=
+ch
+> as doing writeback) and GUP user modifying page contents and setting it
+> dirty. This can (and we have user reports of this) lead to data corruptio=
+n,
+> kernel crashes, and other fun.
+>=20
+> Since last year we have worked together on solving these problems and we
+> have explored couple dead ends as well as hopefully found solutions to so=
+me
+> of the partial problems. So I'd like to give some overview of where we
+> stand and what remains to be solved and get thoughts from wider community
+> about proposed solutions / problems to be solved.
+>=20
+> In particular we hope to have reasonably robust mechanism of identifying
+> pages pinned by GUP (patches will be posted soon) - I'd like to run that =
+by
+> MM folks (unless discussion happens on mailing lists before LSF/MM). We
+> also have ideas how filesystems should react to pinned page in their
+> writepages methods - there will be some changes needed in some filesystem=
+s
+> to bounce the page if they need stable page contents. So I'd like to
+> explain why we chose to do bouncing to fs people (i.e., why we cannot jus=
+t
+> wait, skip the page, do something else etc.) to save us from the same
+> discussion with each fs separately and also hash out what the API for
+> filesystems to do this should look like. Finally we plan to keep pinned
+> page permanently dirty - again something I'd like to explain why we do th=
+is
+> and gather input from other people.
+>=20
+> This should be ideally shared MM + FS session.
+>=20
+> [1] https://lwn.net/Articles/753027/
+>=20
 
-OK. Here is a patch. I chose __GFP_NOFAIL rather than adding error handling,
-for small GFP_KERNEL allocation won't fail unless current thread was killed by
-the OOM killer or memory allocation fault injection forces it fail, and
-range_alloc() will not be called for multiple times from one syscall.
+Yes! I'd like to attend and discuss this, for sure.=20
 
-But note that doing GFP_KERNEL allocation with ashmem_mutex held has a risk of
-needlessly invoking the OOM killer because "the point of the shrinker is to do
-a lazy free" counts on ashmem_mutex not held by GFP_KERNEL allocating thread.
-Although other shrinkers likely make forward progress by releasing memory,
-technically you should avoid doing GFP_KERNEL allocation with ashmem_mutex held
-if shrinker depends on ashmem_mutex not held.
+Meanwhile, as usual, I'm a bit late on posting an updated RFC for the page
+identification part, but that's coming very soon.
 
 
-
-From e1c4a9b53b0bb11a0743a8f861915c043deb616d Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 26 Jan 2019 10:52:39 +0900
-Subject: [PATCH] staging: android: ashmem: Don't allow range_alloc() to fail.
-
-ashmem_pin() is calling range_shrink() without checking whether
-range_alloc() succeeded. Since memory allocation fault injection might
-force range_alloc() to fail while range_alloc() is called for only once
-for one ioctl() request, make range_alloc() not to fail.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- drivers/staging/android/ashmem.c | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
-
-diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
-index d40c1d2..a8070a2 100644
---- a/drivers/staging/android/ashmem.c
-+++ b/drivers/staging/android/ashmem.c
-@@ -171,18 +171,14 @@ static inline void lru_del(struct ashmem_range *range)
-  * @end:	   The ending page (inclusive)
-  *
-  * This function is protected by ashmem_mutex.
-- *
-- * Return: 0 if successful, or -ENOMEM if there is an error
-  */
--static int range_alloc(struct ashmem_area *asma,
--		       struct ashmem_range *prev_range, unsigned int purged,
--		       size_t start, size_t end)
-+static void range_alloc(struct ashmem_area *asma,
-+			struct ashmem_range *prev_range, unsigned int purged,
-+			size_t start, size_t end)
- {
- 	struct ashmem_range *range;
- 
--	range = kmem_cache_zalloc(ashmem_range_cachep, GFP_KERNEL);
--	if (!range)
--		return -ENOMEM;
-+	range = kmem_cache_zalloc(ashmem_range_cachep, GFP_KERNEL | __GFP_NOFAIL);
- 
- 	range->asma = asma;
- 	range->pgstart = start;
-@@ -193,8 +189,6 @@ static int range_alloc(struct ashmem_area *asma,
- 
- 	if (range_on_lru(range))
- 		lru_add(range);
--
--	return 0;
- }
- 
- /**
-@@ -687,7 +681,8 @@ static int ashmem_unpin(struct ashmem_area *asma, size_t pgstart, size_t pgend)
- 		}
- 	}
- 
--	return range_alloc(asma, range, purged, pgstart, pgend);
-+	range_alloc(asma, range, purged, pgstart, pgend);
-+	return 0;
- }
- 
- /*
--- 
-1.8.3.1
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
