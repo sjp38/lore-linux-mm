@@ -1,46 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BCBC88E0104
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2019 17:35:46 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id z10so5840071edz.15
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 14:35:46 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y25si728311edv.448.2019.01.27.14.35.45
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ED138E0104
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2019 18:01:07 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id i2so3144158ybo.23
+        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 15:01:07 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 63si17888322ybk.196.2019.01.27.15.01.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Jan 2019 14:35:45 -0800 (PST)
-Date: Sun, 27 Jan 2019 23:35:42 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-In-Reply-To: <nycvar.YFH.7.76.1901241523500.6626@cbobk.fhfr.pm>
-Message-ID: <nycvar.YFH.7.76.1901272335040.6626@cbobk.fhfr.pm>
-References: <nycvar.YFH.7.76.1901240009560.6626@cbobk.fhfr.pm> <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com> <20190124002455.GA23181@nautica> <20190124124501.GA18012@nautica> <nycvar.YFH.7.76.1901241523500.6626@cbobk.fhfr.pm>
+        Sun, 27 Jan 2019 15:01:06 -0800 (PST)
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v3] oom, oom_reaper: do not enqueue same task twice
+Date: Sun, 27 Jan 2019 23:00:38 +0000
+Message-ID: <20190127230031.GA26788@castle.DHCP.thefacebook.com>
+References: <6da6ca69-5a6e-a9f6-d091-f89a8488982a@gmail.com>
+ <72aa8863-a534-b8df-6b9e-f69cf4dd5c4d@i-love.sakura.ne.jp>
+ <33a07810-6dbc-36be-5bb6-a279773ccf69@i-love.sakura.ne.jp>
+ <34e97b46-0792-cc66-e0f2-d72576cdec59@i-love.sakura.ne.jp>
+ <2b0c7d6c-c58a-da7d-6f0a-4900694ec2d3@gmail.com>
+ <1d161137-55a5-126f-b47e-b2625bd798ca@i-love.sakura.ne.jp>
+ <20190127083724.GA18811@dhcp22.suse.cz>
+ <ec0d0580-a2dd-f329-9707-0cb91205a216@i-love.sakura.ne.jp>
+ <20190127114021.GB18811@dhcp22.suse.cz>
+ <e865a044-2c10-9858-f4ef-254bc71d6cc2@i-love.sakura.ne.jp>
+In-Reply-To: <e865a044-2c10-9858-f4ef-254bc71d6cc2@i-love.sakura.ne.jp>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D64E8DBC380FFE44B2DE5A50D3C073B9@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominique Martinet <asmadeus@codewreck.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@kernel.org>, =?utf-8?B?QXJrYWRpdXN6IE1pxZtraWV3aWN6?= <a.miskiewicz@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun
+ Heo <tj@kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Aleksa Sarai <asarai@suse.de>, Jay Kamat <jgkamat@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu, 24 Jan 2019, Jiri Kosina wrote:
-
-> > Jiri, you've offered resubmitting the last two patches properly, can you 
-> > incorporate this change or should I just send this directly? (I'd take 
-> > most of your commit message and add your name somewhere)
-> 
-> I've been running some basic smoke testing with the kernel from
-> 
-> 	https://git.kernel.org/pub/scm/linux/kernel/git/jikos/jikos.git/log/?h=pagecache-sidechannel-v2
-> 
-> (attaching the respective two patches to apply on top of latest Linus' 
-> tree to this mail as well), and everything looks good so far.
-
-So, any objections to aproaching it this way?
-
-I've not been able to spot any obvious breakage so far with it.
-
-Thanks,
-
--- 
-Jiri Kosina
-SUSE Labs
+T24gU3VuLCBKYW4gMjcsIDIwMTkgYXQgMTE6NTc6MzhQTSArMDkwMCwgVGV0c3VvIEhhbmRhIHdy
+b3RlOg0KPiBPbiAyMDE5LzAxLzI3IDIwOjQwLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+ID4gT24g
+U3VuIDI3LTAxLTE5IDE5OjU2OjA2LCBUZXRzdW8gSGFuZGEgd3JvdGU6DQo+ID4+IE9uIDIwMTkv
+MDEvMjcgMTc6MzcsIE1pY2hhbCBIb2NrbyB3cm90ZToNCj4gPj4+IFRoYW5rcyBmb3IgdGhlIGFu
+YWx5c2lzIGFuZCB0aGUgcGF0Y2guIFRoaXMgc2hvdWxkIHdvcmssIEkgYmVsaWV2ZSBidXQNCj4g
+Pj4+IEkgYW0gbm90IHJlYWxseSB0aHJpbGxlZCB0byBvdmVybG9hZCB0aGUgbWVhbmluZyBvZiB0
+aGUgTU1GX1VOU1RBQkxFLg0KPiA+Pj4gVGhlIGZsYWcgaXMgbWVhbnQgdG8gc2lnbmFsIGFjY2Vz
+c2luZyBhZGRyZXNzIHNwYWNlIGlzIG5vdCBzdGFibGUgYW5kIGl0DQo+ID4+PiBpcyBub3QgYWlt
+ZWQgdG8gc3luY2hyb25pemUgb29tIHJlYXBlciB3aXRoIHRoZSBvb20gcGF0aC4NCj4gPj4+DQo+
+ID4+PiBDYW4gd2UgbWFrZSB1c2UgbWFya19vb21fdmljdGltIGRpcmVjdGx5PyBJIGRpZG4ndCBn
+ZXQgdG8gdGhpbmsgdGhhdA0KPiA+Pj4gdGhyb3VnaCByaWdodCBub3cgc28gSSBtaWdodCBiZSBt
+aXNzaW5nIHNvbWV0aGluZyBidXQgdGhpcyBzaG91bGQNCj4gPj4+IHByZXZlbnQgcmVwZWF0aW5n
+IHF1ZXVlaW5nIGFzIHdlbGwuDQo+ID4+DQo+ID4+IFllcywgVElGX01FTURJRSB3b3VsZCB3b3Jr
+LiBCdXQgeW91IGFyZSBwbGFubmluZyB0byByZW1vdmUgVElGX01FTURJRS4gQWxzbywNCj4gPj4g
+VElGX01FTURJRSBjYW4ndCBhdm9pZCBlbnF1ZXVpbmcgbWFueSB0aHJlYWRzIHNoYXJpbmcgbW1f
+c3RydWN0IHRvIHRoZSBPT00NCj4gPj4gcmVhcGVyLiBUaGVyZSBpcyBubyBuZWVkIHRvIGVucXVl
+dWUgbWFueSB0aHJlYWRzIHNoYXJpbmcgbW1fc3RydWN0IGJlY2F1c2UNCj4gPj4gdGhlIE9PTSBy
+ZWFwZXIgYWN0cyBvbiBtbV9zdHJ1Y3QgcmF0aGVyIHRoYW4gdGFza19zdHJ1Y3QuIFRodXMsIGVu
+cXVldWluZw0KPiA+PiBiYXNlZCBvbiBwZXIgbW1fc3RydWN0IGZsYWcgc291bmRzIGJldHRlciwg
+YnV0IE1NRl9PT01fVklDVElNIGNhbm5vdCBiZQ0KPiA+PiBzZXQgZnJvbSB3YWtlX29vbV9yZWFw
+ZXIodmljdGltKSBiZWNhdXNlIHZpY3RpbSdzIG1tIG1pZ2h0IGJlIGFscmVhZHkgaW5zaWRlDQo+
+ID4+IGV4aXRfbW1hcCgpIHdoZW4gd2FrZV9vb21fcmVhcGVyKHZpY3RpbSkgaXMgY2FsbGVkIGFm
+dGVyIHRhc2tfdW5sb2NrKHZpY3RpbSkuDQo+ID4+DQo+ID4+IFdlIGNvdWxkIHJlaW50cm9kdWNl
+IE1NRl9PT01fS0lMTEVEIGluIGNvbW1pdCA4NTViMDE4MzI1NzM3Zjc2DQo+ID4+ICgib29tLCBv
+b21fcmVhcGVyOiBkaXNhYmxlIG9vbV9yZWFwZXIgZm9yIG9vbV9raWxsX2FsbG9jYXRpbmdfdGFz
+ayIpDQo+ID4+IGlmIHlvdSBkb24ndCBsaWtlIG92ZXJsb2FkaW5nIHRoZSBtZWFuaW5nIG9mIHRo
+ZSBNTUZfVU5TVEFCTEUuIEJ1dCBzaW5jZQ0KPiA+PiBNTUZfVU5TVEFCTEUgaXMgYXZhaWxhYmxl
+IGluIExpbnV4IDQuOSsga2VybmVscyAod2hpY2ggY292ZXJzIGFsbCBMVFMgc3RhYmxlDQo+ID4+
+IHZlcnNpb25zIHdpdGggdGhlIE9PTSByZWFwZXIgc3VwcG9ydCksIHdlIGNhbiB0ZW1wb3Jhcmls
+eSB1c2UgTU1GX1VOU1RBQkxFDQo+ID4+IGZvciBlYXNlIG9mIGJhY2twb3J0aW5nLg0KPiA+IA0K
+PiA+IEkgYWdyZWUgdGhhdCBhIHBlci1tbSBzdGF0ZSBpcyBtb3JlIG9wdGltYWwgYnV0IEkgd291
+bGQgcmF0aGVyIGZpeCB0aGUNCj4gPiBpc3N1ZSBpbiBhIGNsZWFyIHdheSBmaXJzdCBhbmQgb25s
+eSB0aGVuIHRoaW5rIGFib3V0IGFuIG9wdGltaXphdGlvbiBvbg0KPiA+IHRvcC4gUXVldWVpbmcg
+YmFzZWQgb24gbWFya19vb21fdmljdGltICh3aGF0ZXZlciB0aGF0IHVzZXMgdG8gZ3VhcmFudGVl
+DQo+ID4gdGhlIHZpY3RpbSBpcyBtYXJrZWQgYXRvbWljYWxseSBhbmQgb25seSBvbmNlKSBtYWtl
+cyBzZW5zZSBmcm9tIHRoZQ0KPiA+IGNvbmNlcHR1YWwgcG9pbnQgb2YgdmlldyBhbmQgaXQgbWFr
+ZXMgYSBsb3Qgb2Ygc2Vuc2UgdG8gc3RhcnQgZnJvbQ0KPiA+IHRoZXJlLiBNTUZfVU5TVEFCTEUg
+aGFzIGEgY29tcGxldGVseSBkaWZmZXJlbnQgcHVycG9zZS4gU28gdW5sZXNzIHlvdQ0KPiA+IHNl
+ZSBhIGNvcnJlY3RuZXNzIGlzc3VlIHdpdGggdGhhdCB0aGVuIEkgd291bGQgcmF0aGVyIGdvIHRo
+YXQgd2F5Lg0KPiA+IA0KPiANCj4gVGhlbiwgYWRkaW5nIGEgcGVyIG1tX3N0cnVjdCBmbGFnIGlz
+IGJldHRlci4gSSBkb24ndCBzZWUgdGhlIGRpZmZlcmVuY2UNCj4gYmV0d2VlbiByZXVzaW5nIE1N
+Rl9VTlNUQUJMRSBhcyBhIGZsYWcgZm9yIHdoZXRoZXIgd2FrZV9vb21fcmVhcGVyKCkgZm9yDQo+
+IHRoYXQgdmljdGltJ3MgbWVtb3J5IHdhcyBhbHJlYWR5IGNhbGxlZCAod2hhdCB5b3UgdGhpbmsg
+YXMgYW4gb3ZlcmxvYWQpDQo+IGFuZCByZXVzaW5nIFRJRl9NRU1ESUUgYXMgYSBmbGFnIGZvciB3
+aGV0aGVyIHdha2Vfb29tX3JlYXBlcigpIGZvciB0aGF0DQo+IHZpY3RpbSB0aHJlYWQgY2FuIGJl
+IGNhbGxlZCAod2hhdCBJIHRoaW5rIGFzIGFuIG92ZXJsb2FkKS4gV2Ugd2FudCB0bw0KPiByZW1v
+dmUgVElGX01FTURJRSwgYW5kIHdlIGNhbiBhY3R1YWxseSByZW1vdmUgVElGX01FTURJRSBpZiB5
+b3Ugc3RvcA0KPiB3aGFjay1hLW1vbGUgImNhbiB5b3Ugb2JzZXJ2ZSBpdCBpbiByZWFsIHdvcmts
+b2FkL3Byb2dyYW0/IiBnYW1lLg0KPiBJIGRvbid0IHNlZSBhIGNvcnJlY3RuZXNzIGlzc3VlIHdp
+dGggVElGX01FTURJRSBidXQgSSBkb24ndCB3YW50IHRvIGdvDQo+IFRJRl9NRU1ESUUgd2F5Lg0K
+PiANCj4gDQo+IA0KPiBGcm9tIDljOWU5MzVmYzAzODM0MmM0ODQ2MWFhYmNhNjY2ZjFiNTQ0ZTMy
+YjEgTW9uIFNlcCAxNyAwMDowMDowMCAyMDAxDQo+IEZyb206IFRldHN1byBIYW5kYSA8cGVuZ3Vp
+bi1rZXJuZWxASS1sb3ZlLlNBS1VSQS5uZS5qcD4NCj4gRGF0ZTogU3VuLCAyNyBKYW4gMjAxOSAy
+Mzo1MTozNyArMDkwMA0KPiBTdWJqZWN0OiBbUEFUQ0ggdjNdIG9vbSwgb29tX3JlYXBlcjogZG8g
+bm90IGVucXVldWUgc2FtZSB0YXNrIHR3aWNlDQo+IA0KPiBBcmthZGl1c3ogcmVwb3J0ZWQgdGhh
+dCBlbmFibGluZyBtZW1jZydzIGdyb3VwIG9vbSBraWxsaW5nIGNhdXNlcw0KPiBzdHJhbmdlIG1l
+bWNnIHN0YXRpc3RpY3Mgd2hlcmUgdGhlcmUgaXMgbm8gdGFzayBpbiBhIG1lbWNnIGRlc3BpdGUN
+Cj4gdGhlIG51bWJlciBvZiB0YXNrcyBpbiB0aGF0IG1lbWNnIGlzIG5vdCAwLiBJdCB0dXJuZWQg
+b3V0IHRoYXQgdGhlcmUNCj4gaXMgYSBidWcgaW4gd2FrZV9vb21fcmVhcGVyKCkgd2hpY2ggYWxs
+b3dzIGVucXVldWluZyBzYW1lIHRhc2sgdHdpY2UNCj4gd2hpY2ggbWFrZXMgaW1wb3NzaWJsZSB0
+byBkZWNyZWFzZSB0aGUgbnVtYmVyIG9mIHRhc2tzIGluIHRoYXQgbWVtY2cNCj4gZHVlIHRvIGEg
+cmVmY291bnQgbGVhay4NCj4gDQo+IFRoaXMgYnVnIGV4aXN0ZWQgc2luY2UgdGhlIE9PTSByZWFw
+ZXIgYmVjYW1lIGludm9rYWJsZSBmcm9tDQo+IHRhc2tfd2lsbF9mcmVlX21lbShjdXJyZW50KSBw
+YXRoIGluIG91dF9vZl9tZW1vcnkoKSBpbiBMaW51eCA0LjcsDQo+IGJ1dCBtZW1jZydzIGdyb3Vw
+IG9vbSBraWxsaW5nIG1hZGUgaXQgZWFzaWVyIHRvIHRyaWdnZXIgdGhpcyBidWcgYnkNCj4gY2Fs
+bGluZyB3YWtlX29vbV9yZWFwZXIoKSBvbiB0aGUgc2FtZSB0YXNrIGZyb20gb25lIG91dF9vZl9t
+ZW1vcnkoKQ0KPiByZXF1ZXN0Lg0KPiANCj4gRml4IHRoaXMgYnVnIHVzaW5nIGFuIGFwcHJvYWNo
+IHVzZWQgYnkgY29tbWl0IDg1NWIwMTgzMjU3MzdmNzYNCj4gKCJvb20sIG9vbV9yZWFwZXI6IGRp
+c2FibGUgb29tX3JlYXBlciBmb3Igb29tX2tpbGxfYWxsb2NhdGluZ190YXNrIikuDQo+IEFzIGEg
+c2lkZSBlZmZlY3Qgb2YgdGhpcyBwYXRjaCwgdGhpcyBwYXRjaCBhbHNvIGF2b2lkcyBlbnF1ZXVp
+bmcNCj4gbXVsdGlwbGUgdGhyZWFkcyBzaGFyaW5nIG1lbW9yeSB2aWEgdGFza193aWxsX2ZyZWVf
+bWVtKGN1cnJlbnQpIHBhdGguDQo+IA0KPiBTaWduZWQtb2ZmLWJ5OiBUZXRzdW8gSGFuZGEgPHBl
+bmd1aW4ta2VybmVsQEktbG92ZS5TQUtVUkEubmUuanA+DQo+IFJlcG9ydGVkLWJ5OiBBcmthZGl1
+c3ogTWnFm2tpZXdpY3ogPGFyZWttQG1hdmVuLnBsPg0KPiBUZXN0ZWQtYnk6IEFya2FkaXVzeiBN
+acWba2lld2ljeiA8YXJla21AbWF2ZW4ucGw+DQo+IEZpeGVzOiBhZjhlMTVjYzg1YTI1MzE1ICgi
+b29tLCBvb21fcmVhcGVyOiBkbyBub3QgZW5xdWV1ZSB0YXNrIGlmIGl0IGlzIG9uIHRoZSBvb21f
+cmVhcGVyX2xpc3QgaGVhZCIpDQoNClRoYW5rIHlvdSwgVGV0c3VvIQ0KDQpBY2tlZC1ieTogUm9t
+YW4gR3VzaGNoaW4gPGd1cm9AZmIuY29tPg0K
