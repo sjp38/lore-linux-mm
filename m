@@ -1,157 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E678B8E0001
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2019 09:05:56 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id q33so20671655qte.23
-        for <linux-mm@kvack.org>; Mon, 21 Jan 2019 06:05:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p78si403079qke.233.2019.01.21.06.05.55
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EF368E00BD
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2019 03:37:28 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id t2so5298890edb.22
+        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 00:37:28 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s17si894189edr.396.2019.01.27.00.37.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jan 2019 06:05:55 -0800 (PST)
-Date: Mon, 21 Jan 2019 09:05:35 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH RFC 06/24] userfaultfd: wp: support write protection for
- userfault vma range
-Message-ID: <20190121140535.GD3344@redhat.com>
-References: <20190121075722.7945-1-peterx@redhat.com>
- <20190121075722.7945-7-peterx@redhat.com>
+        Sun, 27 Jan 2019 00:37:26 -0800 (PST)
+Date: Sun, 27 Jan 2019 09:37:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] oom, oom_reaper: do not enqueue same task twice
+Message-ID: <20190127083724.GA18811@dhcp22.suse.cz>
+References: <1cdbef13-564d-61a6-95f4-579d2cad243d@gmail.com>
+ <20190125163731.GJ50184@devbig004.ftw2.facebook.com>
+ <a95d004a-4358-7efc-6d21-12aac4411b32@gmail.com>
+ <480296c4-ed7a-3265-e84a-298e42a0f1d5@I-love.SAKURA.ne.jp>
+ <6da6ca69-5a6e-a9f6-d091-f89a8488982a@gmail.com>
+ <72aa8863-a534-b8df-6b9e-f69cf4dd5c4d@i-love.sakura.ne.jp>
+ <33a07810-6dbc-36be-5bb6-a279773ccf69@i-love.sakura.ne.jp>
+ <34e97b46-0792-cc66-e0f2-d72576cdec59@i-love.sakura.ne.jp>
+ <2b0c7d6c-c58a-da7d-6f0a-4900694ec2d3@gmail.com>
+ <1d161137-55a5-126f-b47e-b2625bd798ca@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190121075722.7945-7-peterx@redhat.com>
+In-Reply-To: <1d161137-55a5-126f-b47e-b2625bd798ca@i-love.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>, Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, Denis Plotnikov <dplotnikov@virtuozzo.com>, Shaohua Li <shli@fb.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Mike Kravetz <mike.kravetz@oracle.com>, Marty McFadden <mcfadden8@llnl.gov>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>, "Dr . David Alan Gilbert" <dgilbert@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Arkadiusz =?utf-8?Q?Mi=C5=9Bkiewicz?= <a.miskiewicz@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, Aleksa Sarai <asarai@suse.de>, Jay Kamat <jgkamat@fb.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
 
-On Mon, Jan 21, 2019 at 03:57:04PM +0800, Peter Xu wrote:
-> From: Shaohua Li <shli@fb.com>
+On Sat 26-01-19 22:10:52, Tetsuo Handa wrote:
+[...]
+> >From 9c9e935fc038342c48461aabca666f1b544e32b1 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sat, 26 Jan 2019 21:57:25 +0900
+> Subject: [PATCH v2] oom, oom_reaper: do not enqueue same task twice
 > 
-> Add API to enable/disable writeprotect a vma range. Unlike mprotect,
-> this doesn't split/merge vmas.
-
-AFAICT it does not do that.
-
+> Arkadiusz reported that enabling memcg's group oom killing causes
+> strange memcg statistics where there is no task in a memcg despite
+> the number of tasks in that memcg is not 0. It turned out that there
+> is a bug in wake_oom_reaper() which allows enqueuing same task twice
+> which makes impossible to decrease the number of tasks in that memcg
+> due to a refcount leak.
 > 
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Pavel Emelyanov <xemul@parallels.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Shaohua Li <shli@fb.com>
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Peter Xu <peterx@redhat.com>
-> ---
->  include/linux/userfaultfd_k.h |  2 ++
->  mm/userfaultfd.c              | 52 +++++++++++++++++++++++++++++++++++
->  2 files changed, 54 insertions(+)
+> This bug existed since the OOM reaper became invokable from
+> task_will_free_mem(current) path in out_of_memory() in Linux 4.7,
+> but memcg's group oom killing made it easier to trigger this bug by
+> calling wake_oom_reaper() on the same task from one out_of_memory()
+> request.
 > 
-> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-> index 38f748e7186e..e82f3156f4e9 100644
-> --- a/include/linux/userfaultfd_k.h
-> +++ b/include/linux/userfaultfd_k.h
-> @@ -37,6 +37,8 @@ extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
->  			      unsigned long dst_start,
->  			      unsigned long len,
->  			      bool *mmap_changing);
-> +extern int mwriteprotect_range(struct mm_struct *dst_mm,
-> +		unsigned long start, unsigned long len, bool enable_wp);
->  
->  /* mm helpers */
->  static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
-> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> index 458acda96f20..c38903f501c7 100644
-> --- a/mm/userfaultfd.c
-> +++ b/mm/userfaultfd.c
-> @@ -615,3 +615,55 @@ ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
->  {
->  	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing);
->  }
-> +
-> +int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
-> +	unsigned long len, bool enable_wp)
-> +{
-> +	struct vm_area_struct *dst_vma;
-> +	pgprot_t newprot;
-> +	int err;
-> +
-> +	/*
-> +	 * Sanitize the command parameters:
-> +	 */
-> +	BUG_ON(start & ~PAGE_MASK);
-> +	BUG_ON(len & ~PAGE_MASK);
-> +
-> +	/* Does the address range wrap, or is the span zero-sized? */
-> +	BUG_ON(start + len <= start);
-> +
-> +	down_read(&dst_mm->mmap_sem);
-> +
-> +	/*
-> +	 * Make sure the vma is not shared, that the dst range is
-> +	 * both valid and fully within a single existing vma.
-> +	 */
-> +	err = -EINVAL;
-> +	dst_vma = find_vma(dst_mm, start);
-> +	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
-> +		goto out_unlock;
-> +	if (start < dst_vma->vm_start ||
-> +	    start + len > dst_vma->vm_end)
-> +		goto out_unlock;
-> +
-> +	if (!dst_vma->vm_userfaultfd_ctx.ctx)
-> +		goto out_unlock;
-> +	if (!userfaultfd_wp(dst_vma))
-> +		goto out_unlock;
-> +
-> +	if (!vma_is_anonymous(dst_vma))
-> +		goto out_unlock;
-> +
-> +	if (enable_wp)
-> +		newprot = vm_get_page_prot(dst_vma->vm_flags & ~(VM_WRITE));
-> +	else
-> +		newprot = vm_get_page_prot(dst_vma->vm_flags);
-> +
-> +	change_protection(dst_vma, start, start + len, newprot,
-> +				!enable_wp, 0);
+> Fix this bug using an approach used by commit 855b018325737f76
+> ("oom, oom_reaper: disable oom_reaper for oom_kill_allocating_task").
+> As a side effect of this patch, this patch also avoids enqueuing
+> multiple threads sharing memory via task_will_free_mem(current) path.
 
-So setting dirty_accountable bring us to that code in mprotect.c:
+Thanks for the analysis and the patch. This should work, I believe but
+I am not really thrilled to overload the meaning of the MMF_UNSTABLE.
+The flag is meant to signal accessing address space is not stable and it
+is not aimed to synchronize oom reaper with the oom path.
 
-    if (dirty_accountable && pte_dirty(ptent) &&
-            (pte_soft_dirty(ptent) ||
-             !(vma->vm_flags & VM_SOFTDIRTY))) {
-        ptent = pte_mkwrite(ptent);
-    }
+Can we make use mark_oom_victim directly? I didn't get to think that
+through right now so I might be missing something but this should
+prevent repeating queueing as well.
 
-My understanding is that you want to set write flag when enable_wp
-is false and you want to set the write flag unconditionaly, right ?
-
-If so then you should really move the change_protection() flags
-patch before this patch and add a flag for setting pte write flags.
-
-Otherwise the above is broken at it will only set the write flag
-for pte that were dirty and i am guessing so far you always were
-lucky because pte were all dirty (change_protection will preserve
-dirtyness) when you write protected them.
-
-So i believe the above is broken or at very least unclear if what
-you really want is to only set write flag to pte that have the
-dirty flag set.
-
-
-Cheers,
-Jérôme
-
-
-> +
-> +	err = 0;
-> +out_unlock:
-> +	up_read(&dst_mm->mmap_sem);
-> +	return err;
-> +}
-> -- 
-> 2.17.1
-> 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f0e8cd9edb1a..dac4f2197e53 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -690,7 +690,7 @@ static void mark_oom_victim(struct task_struct *tsk)
+ 	WARN_ON(oom_killer_disabled);
+ 	/* OOM killer might race with memcg OOM */
+ 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+-		return;
++		return false;
+ 
+ 	/* oom_mm is bound to the signal struct life time. */
+ 	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
+@@ -707,6 +707,8 @@ static void mark_oom_victim(struct task_struct *tsk)
+ 	__thaw_task(tsk);
+ 	atomic_inc(&oom_victims);
+ 	trace_mark_victim(tsk->pid);
++
++	return true;
+ }
+ 
+ /**
+@@ -873,7 +875,7 @@ static void __oom_kill_process(struct task_struct *victim)
+ 	 * reserves from the user space under its control.
+ 	 */
+ 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
+-	mark_oom_victim(victim);
++	can_oom_reap = mark_oom_victim(victim);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+ 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+@@ -954,8 +956,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	 */
+ 	task_lock(p);
+ 	if (task_will_free_mem(p)) {
+-		mark_oom_victim(p);
+-		wake_oom_reaper(p);
++		if (mark_oom_victim(p)
++			wake_oom_reaper(p);
+ 		task_unlock(p);
+ 		put_task_struct(p);
+ 		return;
+@@ -1084,8 +1086,8 @@ bool out_of_memory(struct oom_control *oc)
+ 	 * quickly exit and free its memory.
+ 	 */
+ 	if (task_will_free_mem(current)) {
+-		mark_oom_victim(current);
+-		wake_oom_reaper(current);
++		if (mark_oom_victim(current))
++			wake_oom_reaper(current);
+ 		return true;
+ 	}
+ 
+-- 
+Michal Hocko
+SUSE Labs
