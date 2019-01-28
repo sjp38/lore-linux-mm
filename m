@@ -2,159 +2,190 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A079C282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 06:31:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BAFA7C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 11:31:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51B3F20882
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 06:31:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SrkEZvke"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51B3F20882
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 83B8221738
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 11:31:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83B8221738
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D165D8E0003; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
+	id 09DA38E0007; Mon, 28 Jan 2019 06:31:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9FBA8E0001; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
+	id 04F9C8E0001; Mon, 28 Jan 2019 06:31:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B68148E0003; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
+	id E81A58E0007; Mon, 28 Jan 2019 06:31:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 403288E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id v24-v6so4502792ljj.10
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 22:31:56 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BCA498E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:31:39 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id w4so6107899otj.2
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 03:31:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Xo1XRWo+UsOWJB0j8DeP+bJpW8d+zCzkO/oslyAm+ZY=;
-        b=lsb67fqTu/jPaqB8ohXHqS92Lo3htoSB/g9eVuL8jSL/ZaABJLNdAlEyPzgN4XaA96
-         xvIdXSwM44nqWy/uKbd9JhKyP8+cv5xAkS82jBfTIJYR6HzZQFZavf22q5iKPg3e/WRY
-         uq6c9e2eheHCeJDE2Lm5b84SKG705oWb/2BnUFoVu2+7pwVltAhL7gPtGL6cY9wwdka7
-         BBnhOMRSaxcVFHiLdNpmsLetUV9dJIM1ocHvrWd60oy2vsKOCQi832hmPBnHpHHFSDNM
-         +b8QiYG86PHVyZhEHoDQ62O3f1i/jSeo4hpQG4KaoxKwB8I8uu7EmErUUy+W9m/kSlPJ
-         Pgww==
-X-Gm-Message-State: AJcUukfeVJ3hoWK/VdzMKkseGbcrP1T3I3ASJPxKrxZB9eTWUvH8J+uH
-	E4WbuXWL400N+SsSPUEtN0sytC7zIdHcyCK8L+juI+ZLwaCbtT6TzznVHOk99/+jM5ckcFkNc4c
-	10juHX4J5urnPotAm+H6+DqkABsffrTXBA0VQczWmoq3mvbs7wJlDeXSPMEcHgw2XOD4VWyAHvg
-	OTRfBzL8r7dzK44igNp5ADcF2DplxBWb9mqi1KlGW9ZpYZ+T1m6Bw/DIHmeskBQWBu+5QYxjy/l
-	zXxb7B3yD88Zvq9Oqsp6o+jfkJvr9IIxYBH5pBupuaYno3gCl1abbxNEeRn9YHK1U8c599BIfFH
-	fcyid3DO/4xVXSerq8gOTSgLe0by3iVoz69KCyw3zRP1kibUlJ1tLRQ3YrAzs60r0KCMG4SEZwn
-	A
-X-Received: by 2002:a19:7018:: with SMTP id h24mr15207113lfc.162.1548657115269;
-        Sun, 27 Jan 2019 22:31:55 -0800 (PST)
-X-Received: by 2002:a19:7018:: with SMTP id h24mr15207076lfc.162.1548657114245;
-        Sun, 27 Jan 2019 22:31:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548657114; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=mATiIp2L5KDQ3a8jzMgjpAFBkNXT74zCJEFQBA7P/Zo=;
+        b=mdSdNLQ1B9gDslw7DqJM/SOOzJs+iPjIyye/5o4MAA4rZrIx0X9phjhyOswWTwpKn2
+         OlMjzxUfNZXs3iooq8LfCkriS6VcEiq9GJE57JfHK/zKgVhBe6LDU6JQEHtrY+m+ZEmB
+         J/HBtajeqMyueFuG2pJJUGiw1VP9MsWuC5WlNzzpWoubD1HuRJ8DhIomEeNBhFLa0YzY
+         6QEal7XlI4pkSyU7fpCDMuNbZnE44o5dQudFxmsNZ9YtxwfCP+M7MLRQRXteHSamVDMV
+         pKvDD2Xula9QeXxLIuifLfVchEIB32/505/iAMI3uHQVGJtlK2I0w4ICa+nxRc6Iq6ma
+         ipyw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AJcUukfNfZIIO3JPEzRQk0Hy21+vQIlJ/9wbXymBIx250C0M+PjQ70TD
+	8RjHURmO+mYlasKvwywqBVr+zJboIuKlEKB5C9JDVpfdxkWjiW81ChgXVQWXnRY/0Qwz6sPBRo4
+	XTbs23xQNRnliBy92jbH1D3P48vQn/MaL2QNPEBfSMOpGetfwuIypTt8B0UBujE8HLQ==
+X-Received: by 2002:a9d:6d81:: with SMTP id x1mr15020907otp.17.1548675099285;
+        Mon, 28 Jan 2019 03:31:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6vgTyPL7R0RUmlbZvC0Bk2SttVxAjZAVZJst4LQ3HIx9qaocb467cDJtakpUTbC56R8EY8
+X-Received: by 2002:a9d:6d81:: with SMTP id x1mr15020743otp.17.1548675095016;
+        Mon, 28 Jan 2019 03:31:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548675095; cv=none;
         d=google.com; s=arc-20160816;
-        b=jbRTOJJrD0TTx/7UtPWGTnR+40kK1rFGE7CwTT96hbOKDrDzcdvGB1ZXWtndNHyYyS
-         afwuPpIAJfRsKhbvsqUAcNbHjSUpAf4AkPXq0htjkgbwPXr3gIrDL6L9saPskcpz1UZ3
-         jrECvelpF5bMHxZV+10uZWDJILj8tyqSeKhLn3XAYiBWZFsyXn/MM12Xz1f9zPHBvdo/
-         5zSvOkOqwbEAOjaTu6mQcSN1jFqD62missCAu9kQ9D5AQINDcJKGWUKTJI2Vx2gZNJX0
-         HSpJLZRhj8/cz9/QCbipFkRYhAvDFOpVwzpe21tLA3aawVvP7sXAbt4FiYITcD+VmL4w
-         261A==
+        b=PRyWMJyehznklgsO4EUvQ7QmcgGgekV/rfPX2cqAdSpUFw1z3FROZCFIlWKbhmnDHW
+         NU3eXPpjmso3iA72XTvJHVqc4F3Q+36X2hJOTmkbiImc4RJqzKEJLhd5rQpHn6MNc+Xu
+         0Hvjks+0ov7hibu6NbSPqNiwB9WjMUaG6s1bXlMCiLAixpGlIP6fCem3c4gK5fGpze/6
+         fBES/nKcGPxeLDzBhTw1WzLnupXFdJaT2ndYXKO56i7aZJRsmIyvPp/YYnwtPtYOMFYy
+         WQMLHAkvYpq9380DnpOyR6L0Lzm02oaajo838vdlKkEgoWedAG6yqrGFKN4L5B+AvamS
+         ntoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Xo1XRWo+UsOWJB0j8DeP+bJpW8d+zCzkO/oslyAm+ZY=;
-        b=LZoFRKYcxuIGYIvR3aIShO4Ajbsy4jQGoaaKIaaGEPolP9PCOt/rjc3mUwOA+fDrWP
-         mKWvyKAy5gVZZMTe9j5a1vTEBYk320+jUBWV+WDUaYN3/2XWVlAOMndFsV2k9RNS7BQe
-         L5bYTo4KM51ESoRFgSjZvep69oxKA0CYbeTDUvFMTs8WbxBibsg0QVI5nbvtnxrTg782
-         Zp8Wpjvu2HYf3nVqZm2KJXUOSgE9HIhVQpFFlRD/Xjr33RWZtNisa/RR/jq852EEazIO
-         ViRBMLxtveyIip7sBaec3WbzTRXKbwJgJHn0J9j/byhdZUI/fun2LR0vucS1Fztkeus3
-         cQQw==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=mATiIp2L5KDQ3a8jzMgjpAFBkNXT74zCJEFQBA7P/Zo=;
+        b=hFyGTNihCLbHYJxFNtriB2U6pXHRkx26Cgm2aWiBNaStil4/mKnlheuKwkVJzDeQ6q
+         xyhLdGPJtmpXZjYVyI3EOptPTylzclrWtwHkxEGpMc26uQ3i3Oqcpew1y1+I8tcDOWdL
+         V3oYylXprhmunWqgXYJfkoGjSsNonlY4Edc/rRaPg4ZFQ0taVm4XlBrYRBsPdhSIuNvd
+         58i4dvN/K9lUDDmtUsSoxCLlJec8JsX1lslfo25tR5JRnCRycHuKCU0qgmLezk8LeqWF
+         93uxx4nPgMupe839eFXdSBIN61OtBtaoS9tlxGbmM3IYE3V3VCG0ZaIswfyZgmC+2gDX
+         YpVg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SrkEZvke;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r1-v6sor7911090ljj.2.2019.01.27.22.31.54
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id w13si4820560oiw.238.2019.01.28.03.31.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 27 Jan 2019 22:31:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jan 2019 03:31:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SrkEZvke;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Xo1XRWo+UsOWJB0j8DeP+bJpW8d+zCzkO/oslyAm+ZY=;
-        b=SrkEZvkewK8wCGCd4tU8le3LqMBD4FgqPce3jh4E0ohaqyKSaIfEK/T5MsQOsvOG0O
-         VUtaLhraTkB6Od+YDPTqiH42Wp4M/w3QE51Rm7pYkn8HUzajXjGk9IOY8oGo7nUnqp1z
-         ySB4RLtrTZByVloU5g9dGD/tLdVrksFbZKMYIkEII/XeruQrgsVAlXp/PXsxUC+TV+tA
-         PyQGdNzEBr7b3vmqZu3B0hVsLpi9WoapymNWZXcdUIbMO18OmpqSs5kddu6kb+hRLJvD
-         vz4Lui3WBETrIqEuQvkPe/deSUL4doBbTdWHuwAxyD4+tfL+NumMNwKyFzWTQDfenQaM
-         mraQ==
-X-Google-Smtp-Source: ALg8bN7TnNqZso0t9ffTuek7639g3w1wEhMAxY4Zlyx88OaxeFSK82GVVYlDyXhzq513Dmj5SeO5IHfNEBVREoEcoCw=
-X-Received: by 2002:a05:651c:14e:: with SMTP id c14mr16469993ljd.20.1548657113701;
- Sun, 27 Jan 2019 22:31:53 -0800 (PST)
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS410-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id A1B29F49A16818FF7A10;
+	Mon, 28 Jan 2019 19:31:29 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS410-HUB.china.huawei.com
+ (10.3.19.210) with Microsoft SMTP Server id 14.3.408.0; Mon, 28 Jan 2019
+ 19:31:20 +0800
+Date: Mon, 28 Jan 2019 11:31:08 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Bjorn Helgaas <helgaas@kernel.org>
+CC: Dave Hansen <dave.hansen@intel.com>, <linux-pci@vger.kernel.org>,
+	<x86@kernel.org>, <linuxarm@huawei.com>, Ingo Molnar <mingo@kernel.org>,
+	"Dave Hansen" <dave.hansen@linux.intel.com>, Andy Lutomirski
+	<luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+	<martin@geanix.com>, "Linux Memory Management List" <linux-mm@kvack.org>,
+	"ACPI Devel   Maling List" <linux-acpi@vger.kernel.org>
+Subject: Re: [PATCH V2] x86: Fix an issue with invalid ACPI NUMA config
+Message-ID: <20190128112904.0000461a@huawei.com>
+In-Reply-To: <20181220195714.GE183878@google.com>
+References: <20181211094737.71554-1-Jonathan.Cameron@huawei.com>
+	<a5a938d3-ecc9-028a-3b28-610feda8f3f8@intel.com>
+	<20181212093914.00002aed@huawei.com>
+	<20181220151225.GB183878@google.com>
+	<65f5bb93-b6be-d6dd-6976-e2761f6f2a7b@intel.com>
+	<20181220195714.GE183878@google.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-References: <20190111151110.GA2798@jordon-HP-15-Notebook-PC>
-In-Reply-To: <20190111151110.GA2798@jordon-HP-15-Notebook-PC>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 28 Jan 2019 12:01:42 +0530
-Message-ID:
- <CAFqt6zYhudeTdj02Ex6jaLYoUQ-2YhmwTvJ6+nHRcAJN7NZ99w@mail.gmail.com>
-Subject: Re: [PATCH 6/9] iommu/dma-iommu.c: Convert to use vm_insert_range
-To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, joro@8bytes.org, 
-	Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com
-Cc: iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, 
-	Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190128063142.AP0eboN6mDQpKffauO0cibb688Rjb3OZEbKBejdwFH0@z>
+Message-ID: <20190128113108.4bQn6n6OwKPJEMu5BQFbzcgvSkt2FW1X9m0uueAZvcc@z>
 
-On Fri, Jan 11, 2019 at 8:37 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->
-> Convert to use vm_insert_range() to map range of kernel
-> memory to user vma.
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+On Thu, 20 Dec 2018 13:57:14 -0600
+Bjorn Helgaas <helgaas@kernel.org> wrote:
 
-Any comment on this patch ?
-> ---
->  drivers/iommu/dma-iommu.c | 12 +-----------
->  1 file changed, 1 insertion(+), 11 deletions(-)
->
-> diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
-> index d1b0475..802de67 100644
-> --- a/drivers/iommu/dma-iommu.c
-> +++ b/drivers/iommu/dma-iommu.c
-> @@ -622,17 +622,7 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
->
->  int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma)
->  {
-> -       unsigned long uaddr = vma->vm_start;
-> -       unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-> -       int ret = -ENXIO;
-> -
-> -       for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
-> -               ret = vm_insert_page(vma, uaddr, pages[i]);
-> -               if (ret)
-> -                       break;
-> -               uaddr += PAGE_SIZE;
-> -       }
-> -       return ret;
-> +       return vm_insert_range(vma, pages, PAGE_ALIGN(size) >> PAGE_SHIFT);
->  }
->
->  static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
-> --
-> 1.9.1
->
+> On Thu, Dec 20, 2018 at 09:13:12AM -0800, Dave Hansen wrote:
+> > On 12/20/18 7:12 AM, Bjorn Helgaas wrote:  
+> > >> Other than the error we might be able to use acpi_map_pxm_to_online_node
+> > >> for this, or call both acpi_map_pxm_to_node and acpi_map_pxm_to_online_node
+> > >> and compare the answers to verify we are getting the node we want?  
+> > > Where are we at with this?  It'd be nice to resolve it for v4.21, but
+> > > it's a little out of my comfort zone, so I don't want to apply it
+> > > unless there's clear consensus that this is the right fix.  
+> > 
+> > I still think the fix in this patch sweeps the problem under the rug too
+> > much.  But, it just might be the best single fix for backports, for
+> > instance.  
+> 
+> Sounds like we should first find the best fix, then worry about how to
+> backport it.  So I think we have a little more noodling to do, and
+> I'll defer this for now.
+> 
+> Bjorn
+
+Hi All,
+
+I'd definitely appreciate some guidance on what the 'right' fix is.
+We are starting to get real performance issues reported as a result of not
+being able to use this patch on mainline.
+
+5-10% performance drop on some networking benchmarks.
+
+As a brief summary (having added linux-mm / linux-acpi) the issue is:
+
+1) ACPI allows _PXM to be applied to pci devices (including root ports for
+   example, but any device is fine).
+2) Due to the ordering of when the fw node was set for PCI devices this wasn't
+   taking effect. Easy to solve by just adding the numa node if provided in
+   pci_acpi_setup (which is late enough)
+3) A patch to fix that was applied to the PCIe tree
+  https://patchwork.kernel.org/patch/10597777/
+   but we got non booting regressions on some threadripper platforms.
+   That turned out to be because they don't have SRAT, but do have PXM entries.
+  (i.e. broken firmware).  Naturally Bjorn reverted this very quickly!
+
+I proposed this fix which was to do the same as on Arm and clearly mark numa as
+off when SRAT isn't present on an ACPI system.
+https://elixir.bootlin.com/linux/latest/source/arch/arm64/mm/numa.c#L460
+https://elixir.bootlin.com/linux/latest/source/arch/x86/mm/numa.c#L688
+
+Dave's response was that we needed to fix the underlying issue of trying to
+allocate from non existent NUMA nodes.
+
+Whilst I agree with that in principle (having managed to provide tables doing
+exactly that during development a few times!), I'm not sure the path to doing so is
+clear and so this has been stalled for a few months.  There is to my mind
+still a strong argument, even with such protection in place, that we
+should still be short cutting it so that you get the same paths if you deliberately
+disable numa, and if you have no SRAT and hence can't have NUMA.
+
+So given I have some 'mild for now' screaming going on, I'd definitely
+appreciate input on how to move forward!
+
+There are lots of places this could be worked around, e.g. we could sanity
+check in the acpi_get_pxm call.  I'm not sure what side effects that would have
+and also what cases it wouldn't cover.
+
+Thanks,
+
+Jonathan
+
+
+
+
+
+
 
