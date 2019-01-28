@@ -1,122 +1,78 @@
-From: Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: possible deadlock in __do_page_fault
-Date: Mon, 28 Jan 2019 11:45:02 -0500
-Message-ID: <20190128164502.GA260885@google.com>
-References: <201901230201.x0N214eq043832@www262.sakura.ne.jp>
- <20190123155751.GA168927@google.com>
- <201901240152.x0O1qUUU069046@www262.sakura.ne.jp>
- <20190124134646.GA53008@google.com>
- <d736c8f5-eba1-2da8-000f-4b2a80ad74ff@i-love.sakura.ne.jp>
+From: Dave Hansen <dave.hansen-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>
+Subject: Re: [PATCH 0/5] [v4] Allow persistent memory to be used like normal
+ RAM
+Date: Mon, 28 Jan 2019 08:50:49 -0800
+Message-ID: <3ea28fe1-1828-1017-fa0f-da626d773440@intel.com>
+References: <20190124231441.37A4A305@viggo.jf.intel.com>
+ <20190128110958.GH26056@350D>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <d736c8f5-eba1-2da8-000f-4b2a80ad74ff@i-love.sakura.ne.jp>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Todd Kjos <tkjos@google.com>, syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com, ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, jrdr.linux@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mawilcox@microsoft.com, mgorman@techsingularity.net, syzkaller-bugs@googlegroups.com, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-nvdimm-bounces-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org>
+In-Reply-To: <20190128110958.GH26056@350D>
+Content-Language: en-US
+List-Unsubscribe: <https://lists.01.org/mailman/options/linux-nvdimm>,
+ <mailto:linux-nvdimm-request-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.01.org/pipermail/linux-nvdimm/>
+List-Post: <mailto:linux-nvdimm-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org>
+List-Help: <mailto:linux-nvdimm-request-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.01.org/mailman/listinfo/linux-nvdimm>,
+ <mailto:linux-nvdimm-request-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org?subject=subscribe>
+Errors-To: linux-nvdimm-bounces-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org
+Sender: "Linux-nvdimm" <linux-nvdimm-bounces-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org>
+To: Balbir Singh <bsingharora-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, Dave Hansen <dave.hansen-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>
+Cc: thomas.lendacky-5C7GfCeVMHo@public.gmane.org, mhocko-IBi9RG/b67k@public.gmane.org, linux-nvdimm-hn68Rpc1hR1g9hUCZPvPmw@public.gmane.org, tiwai-l3A5Bk7waGM@public.gmane.org, zwisler-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, jglisse-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org, fengguang.wu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org, baiyaowei-0p4V/sDNsUmm0O/7XYngnFaTQe2KTcn/@public.gmane.org, ying.huang-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org, bhelgaas-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org, akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org, bp-l3A5Bk7waGM@public.gmane.org
 List-Id: linux-mm.kvack.org
 
-On Sat, Jan 26, 2019 at 01:02:06AM +0900, Tetsuo Handa wrote:
-> On 2019/01/24 22:46, Joel Fernandes wrote:
-> > On Thu, Jan 24, 2019 at 10:52:30AM +0900, Tetsuo Handa wrote:
-> >> Joel Fernandes wrote:
-> >>>> Anyway, I need your checks regarding whether this approach is waiting for
-> >>>> completion at all locations which need to wait for completion.
-> >>>
-> >>> I think you are waiting in unwanted locations. The only location you need to
-> >>> wait in is ashmem_pin_unpin.
-> >>>
-> >>> So, to my eyes all that is needed to fix this bug is:
-> >>>
-> >>> 1. Delete the range from the ashmem_lru_list
-> >>> 2. Release the ashmem_mutex
-> >>> 3. fallocate the range.
-> >>> 4. Do the completion so that any waiting pin/unpin can proceed.
-> >>>
-> >>> Could you clarify why you feel you need to wait for completion at those other
-> >>> locations?
-> 
-> OK. Here is an updated patch.
-> Passed syzbot's best-effort testing using reproducers on all three reports.
-> 
-> From f192176dbee54075d41249e9f22918c32cb4d4fc Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Fri, 25 Jan 2019 23:43:01 +0900
-> Subject: [PATCH] staging: android: ashmem: Don't call fallocate() with ashmem_mutex held.
-> 
-> syzbot is hitting lockdep warnings [1][2][3]. This patch tries to fix
-> the warning by eliminating ashmem_shrink_scan() => {shmem|vfs}_fallocate()
-> sequence.
-> 
-> [1] https://syzkaller.appspot.com/bug?id=87c399f6fa6955006080b24142e2ce7680295ad4
-> [2] https://syzkaller.appspot.com/bug?id=7ebea492de7521048355fc84210220e1038a7908
-> [3] https://syzkaller.appspot.com/bug?id=e02419c12131c24e2a957ea050c2ab6dcbbc3270
-> 
-> Reported-by: syzbot <syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com>
-> Reported-by: syzbot <syzbot+148c2885d71194f18d28@syzkaller.appspotmail.com>
-> Reported-by: syzbot <syzbot+4b8b031b89e6b96c4b2e@syzkaller.appspotmail.com>
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  drivers/staging/android/ashmem.c | 23 ++++++++++++++++++-----
->  1 file changed, 18 insertions(+), 5 deletions(-)
-> 
-> diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
-> index 90a8a9f..d40c1d2 100644
-> --- a/drivers/staging/android/ashmem.c
-> +++ b/drivers/staging/android/ashmem.c
-> @@ -75,6 +75,9 @@ struct ashmem_range {
->  /* LRU list of unpinned pages, protected by ashmem_mutex */
->  static LIST_HEAD(ashmem_lru_list);
->  
-> +static atomic_t ashmem_shrink_inflight = ATOMIC_INIT(0);
-> +static DECLARE_WAIT_QUEUE_HEAD(ashmem_shrink_wait);
-> +
->  /*
->   * long lru_count - The count of pages on our LRU list.
->   *
-> @@ -438,7 +441,6 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
->  static unsigned long
->  ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->  {
-> -	struct ashmem_range *range, *next;
->  	unsigned long freed = 0;
->  
->  	/* We might recurse into filesystem code, so bail out if necessary */
-> @@ -448,17 +450,27 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
->  	if (!mutex_trylock(&ashmem_mutex))
->  		return -1;
->  
-> -	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
-> +	while (!list_empty(&ashmem_lru_list)) {
-> +		struct ashmem_range *range =
-> +			list_first_entry(&ashmem_lru_list, typeof(*range), lru);
->  		loff_t start = range->pgstart * PAGE_SIZE;
->  		loff_t end = (range->pgend + 1) * PAGE_SIZE;
-> +		struct file *f = range->asma->file;
->  
-> -		range->asma->file->f_op->fallocate(range->asma->file,
-> -				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> -				start, end - start);
-> +		get_file(f);
-> +		atomic_inc(&ashmem_shrink_inflight);
->  		range->purged = ASHMEM_WAS_PURGED;
->  		lru_del(range);
->  
->  		freed += range_size(range);
-> +		mutex_unlock(&ashmem_mutex);
-> +		f->f_op->fallocate(f,
-> +				   FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> +				   start, end - start);
-> +		fput(f);
-> +		if (atomic_dec_and_test(&ashmem_shrink_inflight))
-> +			wake_up_all(&ashmem_shrink_wait);
-> +		mutex_lock(&ashmem_mutex);
+On 1/28/19 3:09 AM, Balbir Singh wrote:
+>> This is intended for Intel-style NVDIMMs (aka. Intel Optane DC
+>> persistent memory) NVDIMMs.  These DIMMs are physically persistent,
+>> more akin to flash than traditional RAM.  They are also expected to
+>> be more cost-effective than using RAM, which is why folks want this
+>> set in the first place.
+> What variant of NVDIMM's F/P or both?
 
-Let us replace mutex_lock with mutex_trylock, as done before the loop? Here
-is there is an opportunity to not block other ashmem operations. Otherwise
-LGTM. Also, CC stable.
+I'd expect this to get used in any cases where the NVDIMM is
+cost-effective vs. DRAM.  Today, I think that's only NVDIMM-P.  At least
+from what Wikipedia tells me about F vs. P vs. N:
 
-thanks,
+	https://en.wikipedia.org/wiki/NVDIMM
 
- - Joel
+>> == Patch Set Overview ==
+>>
+>> This series adds a new "driver" to which pmem devices can be
+>> attached.  Once attached, the memory "owned" by the device is
+>> hot-added to the kernel and managed like any other memory.  On
+>> systems with an HMAT (a new ACPI table), each socket (roughly)
+>> will have a separate NUMA node for its persistent memory so
+>> this newly-added memory can be selected by its unique NUMA
+>> node.
+> 
+> NUMA is distance based topology, does HMAT solve these problems?
+
+NUMA is no longer just distance-based.  Any memory with different
+properties, like different memory-side caches or bandwidth properties
+can be in its own, discrete NUMA node.
+
+> How do we prevent fallback nodes of normal nodes being pmem nodes?
+
+NUMA policies.
+
+> On an unexpected crash/failure is there a scrubbing mechanism
+> or do we rely on the allocator to do the right thing prior to
+> reallocating any memory.
+
+Yes, but this is not unique to persistent memory.  On a kexec-based
+crash, there might be old, sensitive data in *RAM* when the kernel comes
+up.  We depend on the allocator to zero things there.  We also just
+plain depend on the allocator to zero things so we don't leak
+information when recycling pages in the first place.
+
+I can't think of a scenario where some kind of "leak" of old data
+wouldn't also be a bug with normal, volatile RAM.
+
+> Will frequent zero'ing hurt NVDIMM/pmem's life times?
+
+Everybody reputable that sells things with limited endurance quantifies
+the endurance.  I'd suggest that folks know what the endurance of their
+media is before enabling this.
