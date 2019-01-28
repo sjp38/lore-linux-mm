@@ -1,83 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B7228E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:38:52 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id w1so20468100qta.12
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:38:52 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s16si1158403qtq.248.2019.01.28.06.38.51
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B5B68E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:45:16 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id i55so6720091ede.14
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:45:16 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k26sor29807334edd.12.2019.01.28.06.45.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 06:38:51 -0800 (PST)
-Subject: Re: [PATCH RFC] mm: migrate: don't rely on PageMovable() of newpage
- after unlocking it
-References: <20190128121609.9528-1-david@redhat.com>
- <20190128130709.GJ18811@dhcp22.suse.cz>
- <b03cae19-d02a-0ba2-69a1-010ee76748e7@redhat.com>
- <20190128132146.GK18811@dhcp22.suse.cz>
- <17e7d7e4-f4ca-a681-93e5-92a0c285be14@redhat.com>
- <20190128133514.GL18811@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <cb3eccaf-0fbf-f3b8-dbbe-070acb9837be@redhat.com>
-Date: Mon, 28 Jan 2019 15:38:38 +0100
+        (Google Transport Security);
+        Mon, 28 Jan 2019 06:45:14 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/2] mm, memory_hotplug: fix uninitialized pages fallouts.
+Date: Mon, 28 Jan 2019 15:45:04 +0100
+Message-Id: <20190128144506.15603-1-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190128133514.GL18811@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jan Kara <jack@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Matthew Wilcox <willy@infradead.org>, Vratislav Bendel <vbendel@redhat.com>, Rafael Aquini <aquini@redhat.com>
+To: Mikhail Zaslonko <zaslonko@linux.ibm.com>, Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@soleen.com>, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 28.01.19 14:35, Michal Hocko wrote:
-> On Mon 28-01-19 14:22:52, David Hildenbrand wrote:
->> On 28.01.19 14:21, Michal Hocko wrote:
->>> On Mon 28-01-19 14:14:28, David Hildenbrand wrote:
->>>> On 28.01.19 14:07, Michal Hocko wrote:
->>>>> On Mon 28-01-19 13:16:09, David Hildenbrand wrote:
->>>>> [...]
->>>>>> My theory:
->>>>>>
->>>>>> In __unmap_and_move(), we lock the old and newpage and perform the
->>>>>> migration. In case of vitio-balloon, the new page will become
->>>>>> movable, the old page will no longer be movable.
->>>>>>
->>>>>> However, after unlocking newpage, I think there is nothing stopping
->>>>>> the newpage from getting dequeued and freed by virtio-balloon. This
->>>>>> will result in the newpage
->>>>>> 1. No longer having PageMovable()
->>>>>> 2. Getting moved to the local list before finally freeing it (using
->>>>>>    page->lru)
->>>>>
->>>>> Does that mean that the virtio-balloon can change the Movable state
->>>>> while there are other users of the page? Can you point to the code that
->>>>> does it? How come this can be safe at all? Or is the PageMovable stable
->>>>> only under the page lock?
->>>>>
->>>>
->>>> PageMovable is stable under the lock. The relevant instructions are in
->>>>
->>>> mm/balloon_compaction.c and include/linux/balloon_compaction.h
->>>
->>> OK, I have just checked __ClearPageMovable and it indeed requires
->>> PageLock. Then we also have to move is_lru = __PageMovable(page) after
->>> the page lock.
->>>
->>
->> I assume that is fine as is as the page is isolated? (yes, it will be
->> modified later when moving but we are interested in the original state)
-> 
-> OK, I've missed that the page is indeed isolated. Then the patch makes
-> sense to me.
-> 
+Hi,
+Mikhail has posted fixes for the two bugs quite some time ago [1]. I
+have pushed back on those fixes because I believed that it is much
+better to plug the problem at the initialization time rather than play
+whack-a-mole all over the hotplug code and find all the places which
+expect the full memory section to be initialized. We have ended up with
+2830bf6f05fb ("mm, memory_hotplug: initialize struct pages for the full
+memory section") merged and cause a regression [2][3]. The reason is
+that there might be memory layouts when two NUMA nodes share the same
+memory section so the merged fix is simply incorrect.
 
-Thanks Michal. I assume this has broken ever since balloon compaction
-was introduced. I'll wait a little more and then resend as !RFC with a
-cc-stable tag.
+In order to plug this hole we really have to be zone range aware in
+those handlers. I have split up the original patch into two. One is
+unchanged (patch 2) and I took a different approach for `removable'
+crash. It would be great if Mikhail could test it still works for his
+memory layout.
 
--- 
-
-Thanks,
-
-David / dhildenb
+[1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
+[2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
+[3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
