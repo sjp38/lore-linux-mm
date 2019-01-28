@@ -1,146 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 233358E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:13:09 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id 42so20641247qtr.7
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:13:09 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s63si61594qkd.0.2019.01.28.07.13.08
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 99A1D8E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:19:03 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id b7so6733840eda.10
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:19:03 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o13si785902ejs.213.2019.01.28.07.19.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 07:13:08 -0800 (PST)
-Subject: Re: [PATCH RFC] mm: migrate: don't rely on PageMovable() of newpage
- after unlocking it
-References: <20190128121609.9528-1-david@redhat.com>
- <20190128130709.GJ18811@dhcp22.suse.cz>
- <b03cae19-d02a-0ba2-69a1-010ee76748e7@redhat.com>
- <20190128132146.GK18811@dhcp22.suse.cz>
- <17e7d7e4-f4ca-a681-93e5-92a0c285be14@redhat.com>
- <20190128133514.GL18811@dhcp22.suse.cz>
- <cb3eccaf-0fbf-f3b8-dbbe-070acb9837be@redhat.com>
- <20190128150156.GA10872@xps> <20190128150420.GB10872@xps>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <a81e9bf4-0ac9-7d85-5d20-9ebfd401dec8@redhat.com>
-Date: Mon, 28 Jan 2019 16:13:00 +0100
+        Mon, 28 Jan 2019 07:19:02 -0800 (PST)
+Date: Mon, 28 Jan 2019 16:18:59 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190128151859.GO18811@dhcp22.suse.cz>
+References: <20190124170117.GS4087@dhcp22.suse.cz>
+ <20190124182328.GA10820@cmpxchg.org>
+ <20190125074824.GD3560@dhcp22.suse.cz>
+ <20190125165152.GK50184@devbig004.ftw2.facebook.com>
+ <20190125173713.GD20411@dhcp22.suse.cz>
+ <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+ <20190128125151.GI18811@dhcp22.suse.cz>
+ <20190128142816.GM50184@devbig004.ftw2.facebook.com>
+ <20190128145210.GM18811@dhcp22.suse.cz>
+ <20190128145407.GP50184@devbig004.ftw2.facebook.com>
 MIME-Version: 1.0
-In-Reply-To: <20190128150420.GB10872@xps>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190128145407.GP50184@devbig004.ftw2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jan Kara <jack@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Matthew Wilcox <willy@infradead.org>, Vratislav Bendel <vbendel@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On 28.01.19 16:04, Rafael Aquini wrote:
-> On Mon, Jan 28, 2019 at 10:01:56AM -0500, Rafael Aquini wrote:
->> On Mon, Jan 28, 2019 at 03:38:38PM +0100, David Hildenbrand wrote:
->>> On 28.01.19 14:35, Michal Hocko wrote:
->>>> On Mon 28-01-19 14:22:52, David Hildenbrand wrote:
->>>>> On 28.01.19 14:21, Michal Hocko wrote:
->>>>>> On Mon 28-01-19 14:14:28, David Hildenbrand wrote:
->>>>>>> On 28.01.19 14:07, Michal Hocko wrote:
->>>>>>>> On Mon 28-01-19 13:16:09, David Hildenbrand wrote:
->>>>>>>> [...]
->>>>>>>>> My theory:
->>>>>>>>>
->>>>>>>>> In __unmap_and_move(), we lock the old and newpage and perform the
->>>>>>>>> migration. In case of vitio-balloon, the new page will become
->>>>>>>>> movable, the old page will no longer be movable.
->>>>>>>>>
->>>>>>>>> However, after unlocking newpage, I think there is nothing stopping
->>>>>>>>> the newpage from getting dequeued and freed by virtio-balloon. This
->>>>>>>>> will result in the newpage
->>>>>>>>> 1. No longer having PageMovable()
->>>>>>>>> 2. Getting moved to the local list before finally freeing it (using
->>>>>>>>>    page->lru)
->>>>>>>>
->>>>>>>> Does that mean that the virtio-balloon can change the Movable state
->>>>>>>> while there are other users of the page? Can you point to the code that
->>>>>>>> does it? How come this can be safe at all? Or is the PageMovable stable
->>>>>>>> only under the page lock?
->>>>>>>>
->>>>>>>
->>>>>>> PageMovable is stable under the lock. The relevant instructions are in
->>>>>>>
->>>>>>> mm/balloon_compaction.c and include/linux/balloon_compaction.h
->>>>>>
->>>>>> OK, I have just checked __ClearPageMovable and it indeed requires
->>>>>> PageLock. Then we also have to move is_lru = __PageMovable(page) after
->>>>>> the page lock.
->>>>>>
->>>>>
->>>>> I assume that is fine as is as the page is isolated? (yes, it will be
->>>>> modified later when moving but we are interested in the original state)
->>>>
->>>> OK, I've missed that the page is indeed isolated. Then the patch makes
->>>> sense to me.
->>>>
->>>
->>> Thanks Michal. I assume this has broken ever since balloon compaction
->>> was introduced. I'll wait a little more and then resend as !RFC with a
->>> cc-stable tag.
->>>
->>
->> Yes, balloon deflation could always race against migration
->> This race was a problem, initially, and was dealt with, via:
->>
->> commit 117aad1e9e4d97448d1df3f84b08bd65811e6d6a
->> Author: Rafael Aquini <aquini@redhat.com>
->> Date:   Mon Sep 30 13:45:16 2013 -0700
->>
->>     mm: avoid reinserting isolated balloon pages into LRU lists
->>
->>  
->>
->> I think this upstream patch has re-introduced it, in a more subtle way,
->> as we're stumbling on it now, again:
->>
->> commit d6d86c0a7f8ddc5b38cf089222cb1d9540762dc2
->> Author: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
->> Date:   Thu Oct 9 15:29:27 2014 -0700
->>
->>     mm/balloon_compaction: redesign ballooned pages management
->>     
->>
->>
->> On this particular race against migration case, virtio ballon deflation would 
->> not see it before
->>
->> commit b1123ea6d3b3da25af5c8a9d843bd07ab63213f4
->> Author: Minchan Kim <minchan@kernel.org>
->> Date:   Tue Jul 26 15:23:09 2016 -0700
->>
->>     mm: balloon: use general non-lru movable page feature
->>
->> as the recently released balloon page would be post-processed 
->> without the page->lru list handling, which for migration stability
->> purposes must be done under the protection of page_lock.
->>
->>
+On Mon 28-01-19 06:54:07, Tejun Heo wrote:
+> Hello,
 > 
-> missing part here:
+> On Mon, Jan 28, 2019 at 03:52:10PM +0100, Michal Hocko wrote:
+> > > All .events files generate aggregated stateful notifications.  For
+> > > anyone to do anything, they'd have to remember the previous state to
+> > > identify what actually happened.  Being hierarchical, it'd of course
+> > > need to walk down when an event triggers.
+> > 
+> > And how do you do that in a raceless fashion?
 > 
-> I think your patch adresses this new case.
-> 
-> 
-> Acked-by: Rafael Aquini <aquini@redhat.com>
-> 
-> 
->> get rid of balloon reference count.
-> 
-> ^^ this was a left over (sorry about my fat-fingers)
+> Hmm... I'm having trouble imagining why this would be a problem.  How
+> would it race?
 
-:D
+How do you make an atomic snapshot of the hierarchy state? Or you do
+not need it because event counters are monotonic and you are willing to
+sacrifice some lost or misinterpreted events? For example, you receive
+an oom event while the two children increase the oom event counter. How
+do you tell which one was the source of the event and which one is still
+pending? Or is the ordering unimportant in general?
 
-Thanks! I'll resend with
-
-Cc: stable@vger.kernel.org # 3.12+
-Fixes: d6d86c0a7f8d ("mm/balloon_compaction: redesign ballooned pages
-management")
-
+I can imagine you can live with this model, but having a hierarchical
+reporting without a source of the event just sounds too clumsy from my
+POV. But I guess this is getting tangent to the original patch.
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
