@@ -1,51 +1,52 @@
-From: Shakeel Butt <shakeelb@google.com>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Date: Mon, 28 Jan 2019 08:08:26 -0800
-Message-ID: <CALvZod5Rrr6ENW5yLNzniFeFmGB=mDRH+guNLmcayTX-_xDAGw@mail.gmail.com>
-References: <20190123223144.GA10798@chrisdown.name> <20190124082252.GD4087@dhcp22.suse.cz>
- <20190124160009.GA12436@cmpxchg.org> <20190124170117.GS4087@dhcp22.suse.cz>
- <20190124182328.GA10820@cmpxchg.org> <20190125074824.GD3560@dhcp22.suse.cz>
- <20190125165152.GK50184@devbig004.ftw2.facebook.com> <20190125173713.GD20411@dhcp22.suse.cz>
- <20190125182808.GL50184@devbig004.ftw2.facebook.com> <CALvZod6LFY+FYfBcAX0kLxV5KKB1-TX2cU5EDyyyjvHOtuWWbA@mail.gmail.com>
- <20190128160512.GR50184@devbig004.ftw2.facebook.com>
+From: Sasha Levin <sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 235/258] mm/page_owner: clamp read count to PAGE_SIZE
+Date: Mon, 28 Jan 2019 10:59:01 -0500
+Message-ID: <20190128155924.51521-235-sashal@kernel.org>
+References: <20190128155924.51521-1-sashal@kernel.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20190128160512.GR50184@devbig004.ftw2.facebook.com>
+In-Reply-To: <20190128155924.51521-1-sashal@kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, kernel-team@fb.com
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Cc: Miles Chen <miles.chen@mediatek.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Hi Tejun,
+From: Miles Chen <miles.chen@mediatek.com>
 
-On Mon, Jan 28, 2019 at 8:05 AM Tejun Heo <tj@kernel.org> wrote:
->
-> Hello, Shakeel.
->
-> On Mon, Jan 28, 2019 at 07:59:33AM -0800, Shakeel Butt wrote:
-> > Why not make this configurable at the delegation boundary? As you
-> > mentioned, there are jobs who want centralized workload manager to
-> > watch over their subtrees while there can be jobs which want to
-> > monitor their subtree themselves. For example I can have a job which
-> > know how to act when one of the children cgroup goes OOM. However if
-> > the root of that job goes OOM then the centralized workload manager
-> > should do something about it. With this change, how to implement this
-> > scenario? How will the central manager differentiates between that a
-> > subtree of a job goes OOM or the root of that job? I guess from the
-> > discussion it seems like the centralized manager has to traverse that
-> > job's subtree to find the source of OOM.
-> >
-> > Why can't we let the implementation of centralized manager easier by
-> > allowing to configure the propagation of these notifications across
-> > delegation boundary.
->
-> I think the right way to achieve the above would be having separate
-> recursive and local counters.
->
+[ Upstream commit c8f61cfc871fadfb73ad3eacd64fda457279e911 ]
 
-Do you envision a separate interface/file for recursive and local
-counters? That would make notifications simpler but that is an
-additional interface.
+The (root-only) page owner read might allocate a large size of memory with
+a large read count.  Allocation fails can easily occur when doing high
+order allocations.
 
-Shakeel
+Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
+and avoid allocation fails due to high order allocation.
+
+[akpm@linux-foundation.org: use min_t()]
+Link: http://lkml.kernel.org/r/1541091607-27402-1-git-send-email-miles.chen@mediatek.com
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Joe Perches <joe@perches.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ mm/page_owner.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index d80adfe702d3..9ad588444671 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		.skip = 0
+ 	};
+ 
++	count = min_t(size_t, count, PAGE_SIZE);
+ 	kbuf = kmalloc(count, GFP_KERNEL);
+ 	if (!kbuf)
+ 		return -ENOMEM;
+-- 
+2.19.1
