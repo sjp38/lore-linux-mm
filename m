@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C6098E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:54:16 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 82so14351153pfs.20
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:54:16 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EFD98E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:57:49 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id v2so12083345plg.6
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:57:49 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 2si16135342pgj.104.2019.01.28.07.54.14
+        by mx.google.com with ESMTPS id m15si3605120pfd.3.2019.01.28.07.57.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 07:54:15 -0800 (PST)
+        Mon, 28 Jan 2019 07:57:48 -0800 (PST)
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.20 214/304] percpu: convert spin_lock_irq to spin_lock_irqsave.
-Date: Mon, 28 Jan 2019 10:42:11 -0500
-Message-Id: <20190128154341.47195-214-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.20 278/304] mm/page_owner: clamp read count to PAGE_SIZE
+Date: Mon, 28 Jan 2019 10:43:15 -0500
+Message-Id: <20190128154341.47195-278-sashal@kernel.org>
 In-Reply-To: <20190128154341.47195-1-sashal@kernel.org>
 References: <20190128154341.47195-1-sashal@kernel.org>
 MIME-Version: 1.0
@@ -20,58 +20,43 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: Dennis Zhou <dennis@kernel.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
+Cc: Miles Chen <miles.chen@mediatek.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
 
-From: Dennis Zhou <dennis@kernel.org>
+From: Miles Chen <miles.chen@mediatek.com>
 
-[ Upstream commit 6ab7d47bcbf0144a8cb81536c2cead4cde18acfe ]
+[ Upstream commit c8f61cfc871fadfb73ad3eacd64fda457279e911 ]
 
->From Michael Cree:
-  "Bisection lead to commit b38d08f3181c ("percpu: restructure
-   locking") as being the cause of lockups at initial boot on
-   the kernel built for generic Alpha.
+The (root-only) page owner read might allocate a large size of memory with
+a large read count.  Allocation fails can easily occur when doing high
+order allocations.
 
-   On a suggestion by Tejun Heo that:
+Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
+and avoid allocation fails due to high order allocation.
 
-   So, the only thing I can think of is that it's calling
-   spin_unlock_irq() while irq handling isn't set up yet.
-   Can you please try the followings?
-
-   1. Convert all spin_[un]lock_irq() to
-      spin_lock_irqsave/unlock_irqrestore()."
-
-Fixes: b38d08f3181c ("percpu: restructure locking")
-Reported-and-tested-by: Michael Cree <mcree@orcon.net.nz>
-Acked-by: Tejun Heo <tj@kernel.org>
-Signed-off-by: Dennis Zhou <dennis@kernel.org>
+[akpm@linux-foundation.org: use min_t()]
+Link: http://lkml.kernel.org/r/1541091607-27402-1-git-send-email-miles.chen@mediatek.com
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Joe Perches <joe@perches.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/percpu-km.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/page_owner.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/mm/percpu-km.c b/mm/percpu-km.c
-index 38de70ab1a0d..0f643dc2dc65 100644
---- a/mm/percpu-km.c
-+++ b/mm/percpu-km.c
-@@ -50,6 +50,7 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
- 	struct pcpu_chunk *chunk;
- 	struct page *pages;
-+	unsigned long flags;
- 	int i;
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 87bc0dfdb52b..28b06524939f 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		.skip = 0
+ 	};
  
- 	chunk = pcpu_alloc_chunk(gfp);
-@@ -68,9 +69,9 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- 	chunk->data = pages;
- 	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
- 
--	spin_lock_irq(&pcpu_lock);
-+	spin_lock_irqsave(&pcpu_lock, flags);
- 	pcpu_chunk_populated(chunk, 0, nr_pages, false);
--	spin_unlock_irq(&pcpu_lock);
-+	spin_unlock_irqrestore(&pcpu_lock, flags);
- 
- 	pcpu_stats_chunk_alloc();
- 	trace_percpu_create_chunk(chunk->base_addr);
++	count = min_t(size_t, count, PAGE_SIZE);
+ 	kbuf = kmalloc(count, GFP_KERNEL);
+ 	if (!kbuf)
+ 		return -ENOMEM;
 -- 
 2.19.1
