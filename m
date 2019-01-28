@@ -1,94 +1,74 @@
-From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1] mm: migrate: don't rely on PageMovable() of newpage after unlocking it
-Date: Mon, 28 Jan 2019 17:04:03 +0100
-Message-ID: <20190128160403.16657-1-david@redhat.com>
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+Subject: Re: [RFC][PATCH v2 00/21] PMEM NUMA node and hotness
+ accounting/migration
+Date: Mon, 28 Jan 2019 17:42:39 +0000
+Message-ID: <20190128174239.0000636b@huawei.com>
+References: <20181226131446.330864849@intel.com>
+        <20181227203158.GO16738@dhcp22.suse.cz>
+        <20181228050806.ewpxtwo3fpw7h3lq@wfg-t540p.sh.intel.com>
+        <20181228084105.GQ16738@dhcp22.suse.cz>
+        <20181228094208.7lgxhha34zpqu4db@wfg-t540p.sh.intel.com>
+        <20181228121515.GS16738@dhcp22.suse.cz>
+        <20181228133111.zromvopkfcg3m5oy@wfg-t540p.sh.intel.com>
+        <20181228195224.GY16738@dhcp22.suse.cz>
+        <20190102122110.00000206@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <20190102122110.00000206@huawei.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jan Kara <jack@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Matthew Wilcox <willy@infradead.org>, Vratislav Bendel <vbendel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Huang Ying <ying.huang@intel.com>, Zhang Yi <yi.z.zhang@linux.intel.com>, kvm@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Fan Du <fan.du@intel.com>, Dong Eddie <eddie.dong@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-accelerators@lists.ozlabs.org, Linux Memory Management List <linux-mm@kvack.org>, Peng Dong <dongx.peng@intel.com>, Yao Yuan <yuan.yao@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Dan Williams <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>
 List-Id: linux-mm.kvack.org
 
-While debugging some crashes related to virtio-balloon deflation that
-happened under the old balloon migration code, I stumbled over a race
-that still exists today.
+On Wed, 2 Jan 2019 12:21:10 +0000
+Jonathan Cameron <jonathan.cameron@huawei.com> wrote:
 
-What we experienced:
+> On Fri, 28 Dec 2018 20:52:24 +0100
+> Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > [Ccing Mel and Andrea]
+> > 
 
-drivers/virtio/virtio_balloon.c:release_pages_balloon():
-- WARNING: CPU: 13 PID: 6586 at lib/list_debug.c:59 __list_del_entry+0xa1/0xd0
-- list_del corruption. prev->next should be ffffe253961090a0, but was dead000000000100
+Hi,
 
-Turns out after having added the page to a local list when dequeuing,
-the page would suddenly be moved to an LRU list before we would free it
-via the local list, corrupting both lists. So a page we own and that is
-!LRU was moved to an LRU list.
+I just wanted to highlight this section as I didn't feel we really addressed this
+in the earlier conversation.
 
-In __unmap_and_move(), we lock the old and newpage and perform the
-migration. In case of vitio-balloon, the new page will become
-movable, the old page will no longer be movable.
+> * Hot pages may not be hot just because the host is using them a lot.  It would be
+>   very useful to have a means of adding information available from accelerators
+>   beyond simple accessed bits (dreaming ;)  One problem here is translation
+>   caches (ATCs) as they won't normally result in any updates to the page accessed
+>   bits.  The arm SMMU v3 spec for example makes it clear (though it's kind of
+>   obvious) that the ATS request is the only opportunity to update the accessed
+>   bit.  The nasty option here would be to periodically flush the ATC to force
+>   the access bit updates via repeats of the ATS request (ouch).
+>   That option only works if the iommu supports updating the accessed flag
+>   (optional on SMMU v3 for example).
+> 
 
-However, after unlocking newpage, there is nothing stopping the newpage
-from getting dequeued and freed by virtio-balloon. This
-will result in the newpage
-1. No longer having PageMovable()
-2. Getting moved to the local list before finally freeing it (using
-   page->lru)
+If we ignore the IOMMU hardware update issue which will simply need to be addressed
+by future hardware if these techniques become common, how do we address the
+Address Translation Cache issue without potentially causing big performance
+problems by flushing the cache just to force an accessed bit update?
 
-Back in the migration thread in __unmap_and_move(), we would after
-unlocking the newpage suddenly no longer have PageMovable(newpage) and
-will therefore call putback_lru_page(newpage), modifying page->lru
-although that list is still in use by virtio-balloon.
+These devices are frequently used with PRI and Shared Virtual Addressing
+and can be accessing most of your memory without you having any visibility
+of it in the page tables (as they aren't walked if your ATC is well matched
+in size to your usecase.
 
-To summarize, we have a race between migrating the newpage and checking
-for PageMovable(newpage). Instead of checking PageMovable(newpage), we
-can simply rely on is_lru of the original page.
+Classic example would be accelerated DB walkers like the the CCIX demo
+Xilinx has shown at a few conferences.   The whole point of those is that
+most of the time only your large set of database walkers is using your
+memory and they have translations cached for for a good part of what
+they are accessing.  Flushing that cache could hurt a lot.
+Pinning pages hurts for all the normal flexibility reasons.
 
-Looks like this was introduced by d6d86c0a7f8d ("mm/balloon_compaction:
-redesign ballooned pages management"), which was backported up to 3.12.
-Old compaction code used PageBalloon() via -_is_movable_balloon_page()
-instead of PageMovable(), however with the same semantics.
+Last thing we want is to be migrating these pages that can be very hot but
+in an invisible fashion.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dominik Brodowski <linux@dominikbrodowski.net>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Vratislav Bendel <vbendel@redhat.com>
-Cc: Rafael Aquini <aquini@redhat.com>
-Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: stable@vger.kernel.org # 3.12+
-Fixes: d6d86c0a7f8d ("mm/balloon_compaction: redesign ballooned pages management")
-Reported-by: Vratislav Bendel <vbendel@redhat.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Rafael Aquini <aquini@redhat.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- mm/migrate.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+Thanks,
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 4512afab46ac..31e002270b05 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1135,10 +1135,12 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 	 * If migration is successful, decrease refcount of the newpage
- 	 * which will not free the page because new page owner increased
- 	 * refcounter. As well, if it is LRU page, add the page to LRU
--	 * list in here.
-+	 * list in here. Don't rely on PageMovable(newpage), as that could
-+	 * already have changed after unlocking newpage (e.g.
-+	 * virtio-balloon deflation).
- 	 */
- 	if (rc == MIGRATEPAGE_SUCCESS) {
--		if (unlikely(__PageMovable(newpage)))
-+		if (unlikely(!is_lru))
- 			put_page(newpage);
- 		else
- 			putback_lru_page(newpage);
--- 
-2.17.2
+Jonathan
+ 
