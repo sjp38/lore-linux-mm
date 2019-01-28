@@ -5,122 +5,121 @@ X-Spam-Level:
 X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C920C282CB
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 06:31:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A079C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 06:31:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3F44E20882
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 06:31:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 51B3F20882
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 06:31:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ATzekJRR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F44E20882
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SrkEZvke"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51B3F20882
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA65B8E0002; Mon, 28 Jan 2019 01:31:27 -0500 (EST)
+	id D165D8E0003; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A55648E0001; Mon, 28 Jan 2019 01:31:27 -0500 (EST)
+	id C9FBA8E0001; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 96EF08E0002; Mon, 28 Jan 2019 01:31:27 -0500 (EST)
+	id B68148E0003; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B8A38E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 01:31:27 -0500 (EST)
-Received: by mail-lf1-f72.google.com with SMTP id u23so1307572lfi.5
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 22:31:27 -0800 (PST)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 403288E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 01:31:56 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id v24-v6so4502792ljj.10
+        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 22:31:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=o//iVq3hBTHa9XD8DZInYP3EOrEMWQQBv8sSLizNJeg=;
-        b=H5RiP3AwkO0GgD2FZEyFVNtwcJOlnUp8jdPKa2rbHTD2Q7sr2up21C8R7YNoEhbMyC
-         94SRK92iByfiWtMWjArMOV5zkftM9ExzT4WtHd64VJvrH32Dpa6Z5K1rUJstubrpJvsM
-         zWXwWC0MCzJqC4sqQMYQa08QurZKET28l7TuQsDa+jbF1yZ/kfP1xTjb/qP8d02Lt2Nr
-         GreWJ9uaf6RueWtPI5k4hQz4n0ogVzBngGKf9r7EJDbKLP7LJH6NMuZTgVU4d7YtR1C0
-         FabPvS2P4SknLix2KVeCp/6XOLRU+9+lsdyfYRLoQt3FEzNgjkWR7lMJAtueuMRUIqxD
-         BJYg==
-X-Gm-Message-State: AJcUukfdJKcnDXixPxcohPe2k6zdF2Sn/dmxF8i/ruQqzOrRKa/b+CTt
-	iohIklTJU8dUzA+Mcfx2AuN/3qbJ/bcp5podbotn/Fc63cjczphoB1bJ09fKsI3xCNSc6wnh2ES
-	Q5enicSiTnQXoD0FbARRHOKxOZTzDSszHAJH1MlCy/AQxA6yHmTHYtJ8l2xovqDK/bkS12BhRs1
-	k6xQDvlHi66CoEG4qe5rtR0b8Wo+7R5WrywrbYsoycIq/Itq/aM3IZ6kCz10dID5QTce+vbKnuR
-	wjPvY4HKnEvCf9BGqVB9yyW/zFOcZbNZmWCQgKZpAYEjl+JWKlmvepQv90T95oj9rW1atuAEu30
-	1ijcNn/CzMfJmKJ8IfXZZW2ZS7ngM+QKID5ycdD+5b4NsXOIRNekJ9dOyZiDVnLVAOtBXxkbJzV
-	6
-X-Received: by 2002:a19:db54:: with SMTP id s81mr16266372lfg.102.1548657086219;
-        Sun, 27 Jan 2019 22:31:26 -0800 (PST)
-X-Received: by 2002:a19:db54:: with SMTP id s81mr16266329lfg.102.1548657085070;
-        Sun, 27 Jan 2019 22:31:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548657085; cv=none;
+        bh=Xo1XRWo+UsOWJB0j8DeP+bJpW8d+zCzkO/oslyAm+ZY=;
+        b=lsb67fqTu/jPaqB8ohXHqS92Lo3htoSB/g9eVuL8jSL/ZaABJLNdAlEyPzgN4XaA96
+         xvIdXSwM44nqWy/uKbd9JhKyP8+cv5xAkS82jBfTIJYR6HzZQFZavf22q5iKPg3e/WRY
+         uq6c9e2eheHCeJDE2Lm5b84SKG705oWb/2BnUFoVu2+7pwVltAhL7gPtGL6cY9wwdka7
+         BBnhOMRSaxcVFHiLdNpmsLetUV9dJIM1ocHvrWd60oy2vsKOCQi832hmPBnHpHHFSDNM
+         +b8QiYG86PHVyZhEHoDQ62O3f1i/jSeo4hpQG4KaoxKwB8I8uu7EmErUUy+W9m/kSlPJ
+         Pgww==
+X-Gm-Message-State: AJcUukfeVJ3hoWK/VdzMKkseGbcrP1T3I3ASJPxKrxZB9eTWUvH8J+uH
+	E4WbuXWL400N+SsSPUEtN0sytC7zIdHcyCK8L+juI+ZLwaCbtT6TzznVHOk99/+jM5ckcFkNc4c
+	10juHX4J5urnPotAm+H6+DqkABsffrTXBA0VQczWmoq3mvbs7wJlDeXSPMEcHgw2XOD4VWyAHvg
+	OTRfBzL8r7dzK44igNp5ADcF2DplxBWb9mqi1KlGW9ZpYZ+T1m6Bw/DIHmeskBQWBu+5QYxjy/l
+	zXxb7B3yD88Zvq9Oqsp6o+jfkJvr9IIxYBH5pBupuaYno3gCl1abbxNEeRn9YHK1U8c599BIfFH
+	fcyid3DO/4xVXSerq8gOTSgLe0by3iVoz69KCyw3zRP1kibUlJ1tLRQ3YrAzs60r0KCMG4SEZwn
+	A
+X-Received: by 2002:a19:7018:: with SMTP id h24mr15207113lfc.162.1548657115269;
+        Sun, 27 Jan 2019 22:31:55 -0800 (PST)
+X-Received: by 2002:a19:7018:: with SMTP id h24mr15207076lfc.162.1548657114245;
+        Sun, 27 Jan 2019 22:31:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548657114; cv=none;
         d=google.com; s=arc-20160816;
-        b=rC2QSJuBXiSP0GmUw+Ke3C91eEwT8MJzMKm1+vaBcjZw+srIDWlXygJ/Uzh1m+eNTy
-         Kp5wgniIvThcqNl0PJyCfYQcULDPm9SUsps9vMKWbeg/faTszfEd1xxDwsXtmXkLCgiW
-         MsIA8Mfe50UGLF4QMOMwX17IJFuMQOYChbBCs2OJ4aOQtw7xkwTZmkJkReGZGW5oF7B3
-         eU4ApnzB8CeR9MoU00huEgpaDNQJ4lIADQq3otcHB+9KF4NhNoKnMyKux43NsTnX9M5B
-         2dCsAEATi69tXbkQ64qHiPulPvoAI+lcfVnD2LaNs0AhaF2Ka/9eDHOS3jirr7tvF2Ez
-         15LA==
+        b=jbRTOJJrD0TTx/7UtPWGTnR+40kK1rFGE7CwTT96hbOKDrDzcdvGB1ZXWtndNHyYyS
+         afwuPpIAJfRsKhbvsqUAcNbHjSUpAf4AkPXq0htjkgbwPXr3gIrDL6L9saPskcpz1UZ3
+         jrECvelpF5bMHxZV+10uZWDJILj8tyqSeKhLn3XAYiBWZFsyXn/MM12Xz1f9zPHBvdo/
+         5zSvOkOqwbEAOjaTu6mQcSN1jFqD62missCAu9kQ9D5AQINDcJKGWUKTJI2Vx2gZNJX0
+         HSpJLZRhj8/cz9/QCbipFkRYhAvDFOpVwzpe21tLA3aawVvP7sXAbt4FiYITcD+VmL4w
+         261A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=o//iVq3hBTHa9XD8DZInYP3EOrEMWQQBv8sSLizNJeg=;
-        b=SvAtqzmJSwrUIhXRJOdJUrnb806eBvPeYktHELG+UbJojBRu3gZ4k28nrQN3BiV9sU
-         Q1tS03xntLpS8wmXDsUdeqg9W6fSFNz7hfrTHgMB2FmEelEy+uigzfTjiNsZIysjrcFB
-         YJ5bsAqhsC5Riruu2lkHQqriTgo0vpvKfowvLeiOO37E8FUsQyTBernbx/oLYaLyX/bD
-         q2kY76ABMR+NEJU7X+PLaadW0YJz0cCKxeVT8OHX1VAH0UP5AnIki0zpQywTBJqtGt/6
-         p7tXvR92FdQ+ovwtM5x8Vy9QL+QRZWn1CmTY5WLryO/SciM9O2NnuD2/NzXLIfZhEz8h
-         4nJg==
+        bh=Xo1XRWo+UsOWJB0j8DeP+bJpW8d+zCzkO/oslyAm+ZY=;
+        b=LZoFRKYcxuIGYIvR3aIShO4Ajbsy4jQGoaaKIaaGEPolP9PCOt/rjc3mUwOA+fDrWP
+         mKWvyKAy5gVZZMTe9j5a1vTEBYk320+jUBWV+WDUaYN3/2XWVlAOMndFsV2k9RNS7BQe
+         L5bYTo4KM51ESoRFgSjZvep69oxKA0CYbeTDUvFMTs8WbxBibsg0QVI5nbvtnxrTg782
+         Zp8Wpjvu2HYf3nVqZm2KJXUOSgE9HIhVQpFFlRD/Xjr33RWZtNisa/RR/jq852EEazIO
+         ViRBMLxtveyIip7sBaec3WbzTRXKbwJgJHn0J9j/byhdZUI/fun2LR0vucS1Fztkeus3
+         cQQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ATzekJRR;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SrkEZvke;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y86-v6sor9959770lje.18.2019.01.27.22.31.24
+        by mx.google.com with SMTPS id r1-v6sor7911090ljj.2.2019.01.27.22.31.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 27 Jan 2019 22:31:25 -0800 (PST)
+        Sun, 27 Jan 2019 22:31:54 -0800 (PST)
 Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ATzekJRR;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SrkEZvke;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=o//iVq3hBTHa9XD8DZInYP3EOrEMWQQBv8sSLizNJeg=;
-        b=ATzekJRRvtQGucujNrDFXsV130pA0J7dxJD3Z4UK26nneQ0dIukUNKx6fW2rYIh1S9
-         OI7tn4VuC/2xTJjr74eh9f8zZ3WKdMrF0NkG7xH/VwsTPaFKAjVK4Iy6eymY9yz+tTqp
-         wPJKJcMtN+1Ih7jQsPN1/4jcZwL+CaCvZGfq97ezVCBPFi6vkjj+HVyy67HvPHfl4+pz
-         1cEexzurgJie7Dvbj2YEg4VCl/HGnCyxuE4gHnsSTdLaV+sLCY16cvZgQVhnzAgdr6gI
-         TLiTTKA89ErBtmCJeLFhXPkDppx2Zh4Hu4sP57CvbL6xZUsSGbqyDpl4CYRwc0Kupb+x
-         csSw==
-X-Google-Smtp-Source: AHgI3IbGK5mZK+NnSyULWRlsVeaByjiWok5/YaCNXkrpF86UzHAi5un5qi/64N4ZnNnHC4ujYwvgmDnnWjupdoAOptE=
-X-Received: by 2002:a2e:5703:: with SMTP id l3-v6mr4691341ljb.106.1548657084389;
- Sun, 27 Jan 2019 22:31:24 -0800 (PST)
+        bh=Xo1XRWo+UsOWJB0j8DeP+bJpW8d+zCzkO/oslyAm+ZY=;
+        b=SrkEZvkewK8wCGCd4tU8le3LqMBD4FgqPce3jh4E0ohaqyKSaIfEK/T5MsQOsvOG0O
+         VUtaLhraTkB6Od+YDPTqiH42Wp4M/w3QE51Rm7pYkn8HUzajXjGk9IOY8oGo7nUnqp1z
+         ySB4RLtrTZByVloU5g9dGD/tLdVrksFbZKMYIkEII/XeruQrgsVAlXp/PXsxUC+TV+tA
+         PyQGdNzEBr7b3vmqZu3B0hVsLpi9WoapymNWZXcdUIbMO18OmpqSs5kddu6kb+hRLJvD
+         vz4Lui3WBETrIqEuQvkPe/deSUL4doBbTdWHuwAxyD4+tfL+NumMNwKyFzWTQDfenQaM
+         mraQ==
+X-Google-Smtp-Source: ALg8bN7TnNqZso0t9ffTuek7639g3w1wEhMAxY4Zlyx88OaxeFSK82GVVYlDyXhzq513Dmj5SeO5IHfNEBVREoEcoCw=
+X-Received: by 2002:a05:651c:14e:: with SMTP id c14mr16469993ljd.20.1548657113701;
+ Sun, 27 Jan 2019 22:31:53 -0800 (PST)
 MIME-Version: 1.0
-References: <20190111150933.GA2760@jordon-HP-15-Notebook-PC>
-In-Reply-To: <20190111150933.GA2760@jordon-HP-15-Notebook-PC>
+References: <20190111151110.GA2798@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20190111151110.GA2798@jordon-HP-15-Notebook-PC>
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 28 Jan 2019 12:01:12 +0530
+Date: Mon, 28 Jan 2019 12:01:42 +0530
 Message-ID:
- <CAFqt6zYcd6XgFDz1vGcZpoeDPCpr5sODdUQ=3WF1z8ZKLxUBOQ@mail.gmail.com>
-Subject: Re: [PATCH 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
+ <CAFqt6zYhudeTdj02Ex6jaLYoUQ-2YhmwTvJ6+nHRcAJN7NZ99w@mail.gmail.com>
+Subject: Re: [PATCH 6/9] iommu/dma-iommu.c: Convert to use vm_insert_range
 To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, 
+	Michal Hocko <mhocko@suse.com>, joro@8bytes.org, 
 	Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com
-Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
-	linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, 
-	linux-rockchip@lists.infradead.org
+Cc: iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, 
+	Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190128063112.2_eiC-btcjmsCe0fuFLl6A9WJXun5uJP1GhZYtAbQ3o@z>
+Message-ID: <20190128063142.AP0eboN6mDQpKffauO0cibb688Rjb3OZEbKBejdwFH0@z>
 
-On Fri, Jan 11, 2019 at 8:35 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+On Fri, Jan 11, 2019 at 8:37 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
 >
 > Convert to use vm_insert_range() to map range of kernel
 > memory to user vma.
@@ -128,44 +127,33 @@ On Fri, Jan 11, 2019 at 8:35 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
 > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 
 Any comment on this patch ?
-
 > ---
->  drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 17 ++---------------
->  1 file changed, 2 insertions(+), 15 deletions(-)
+>  drivers/iommu/dma-iommu.c | 12 +-----------
+>  1 file changed, 1 insertion(+), 11 deletions(-)
 >
-> diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-> index a8db758..c9e207f 100644
-> --- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-> +++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
-> @@ -221,26 +221,13 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
->                                               struct vm_area_struct *vma)
+> diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
+> index d1b0475..802de67 100644
+> --- a/drivers/iommu/dma-iommu.c
+> +++ b/drivers/iommu/dma-iommu.c
+> @@ -622,17 +622,7 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
+>
+>  int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma)
 >  {
->         struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
-> -       unsigned int i, count = obj->size >> PAGE_SHIFT;
-> +       unsigned int count = obj->size >> PAGE_SHIFT;
->         unsigned long user_count = vma_pages(vma);
 > -       unsigned long uaddr = vma->vm_start;
-> -       unsigned long offset = vma->vm_pgoff;
-> -       unsigned long end = user_count + offset;
-> -       int ret;
->
->         if (user_count == 0)
->                 return -ENXIO;
-> -       if (end > count)
-> -               return -ENXIO;
->
-> -       for (i = offset; i < end; i++) {
-> -               ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
+> -       unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+> -       int ret = -ENXIO;
+> -
+> -       for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
+> -               ret = vm_insert_page(vma, uaddr, pages[i]);
 > -               if (ret)
-> -                       return ret;
+> -                       break;
 > -               uaddr += PAGE_SIZE;
 > -       }
-> -
-> -       return 0;
-> +       return vm_insert_range(vma, rk_obj->pages, count);
+> -       return ret;
+> +       return vm_insert_range(vma, pages, PAGE_ALIGN(size) >> PAGE_SHIFT);
 >  }
 >
->  static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
+>  static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
 > --
 > 1.9.1
 >
