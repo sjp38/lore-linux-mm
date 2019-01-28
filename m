@@ -1,51 +1,39 @@
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Date: Mon, 28 Jan 2019 09:49:05 -0800
-Message-ID: <20190128174905.GU50184@devbig004.ftw2.facebook.com>
-References: <20190125165152.GK50184@devbig004.ftw2.facebook.com>
- <20190125173713.GD20411@dhcp22.suse.cz>
- <20190125182808.GL50184@devbig004.ftw2.facebook.com>
- <20190128125151.GI18811@dhcp22.suse.cz>
- <20190128142816.GM50184@devbig004.ftw2.facebook.com>
- <20190128145210.GM18811@dhcp22.suse.cz>
- <20190128145407.GP50184@devbig004.ftw2.facebook.com>
- <20190128151859.GO18811@dhcp22.suse.cz>
- <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
- <20190128170526.GQ18811@dhcp22.suse.cz>
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] mm, memory_hotplug: fix uninitialized pages
+ fallouts.
+Date: Mon, 28 Jan 2019 09:50:54 -0800
+Message-ID: <20190128095054.4103093dec81f1c904df7929@linux-foundation.org>
+References: <20190128144506.15603-1-mhocko@kernel.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <20190128170526.GQ18811@dhcp22.suse.cz>
+In-Reply-To: <20190128144506.15603-1-mhocko@kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Hello, Michal.
+On Mon, 28 Jan 2019 15:45:04 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-On Mon, Jan 28, 2019 at 06:05:26PM +0100, Michal Hocko wrote:
-> Yeah, that is quite clear. But it also assumes that the hierarchy is
-> pretty stable but cgroups might go away at any time. I am not saying
-> that the aggregated events are not useful I am just saying that it is
-> quite non-trivial to use and catch all potential corner cases. Maybe I
+> Mikhail has posted fixes for the two bugs quite some time ago [1]. I
+> have pushed back on those fixes because I believed that it is much
+> better to plug the problem at the initialization time rather than play
+> whack-a-mole all over the hotplug code and find all the places which
+> expect the full memory section to be initialized. We have ended up with
+> 2830bf6f05fb ("mm, memory_hotplug: initialize struct pages for the full
+> memory section") merged and cause a regression [2][3]. The reason is
+> that there might be memory layouts when two NUMA nodes share the same
+> memory section so the merged fix is simply incorrect.
+> 
+> In order to plug this hole we really have to be zone range aware in
+> those handlers. I have split up the original patch into two. One is
+> unchanged (patch 2) and I took a different approach for `removable'
+> crash. It would be great if Mikhail could test it still works for his
+> memory layout.
+> 
+> [1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
+> [2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
+> [3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
 
-It really isn't complicated and doesn't require stable subtree.
-
-> am overcomplicating it but one thing is quite clear to me. The existing
-> semantic is really useful to watch for the reclaim behavior at the
-> current level of the tree. You really do not have to care what is
-> happening in the subtree when it is clear that the workload itself
-> is underprovisioned etc. Considering that such a semantic already
-> existis, somebody might depend on it and we likely want also aggregated
-> semantic then I really do not see why to risk regressions rather than
-> add a new memory.hierarchy_events and have both.
-
-The problem then is that most other things are hierarchical including
-some fields in .events files, so if we try to add local stats and
-events, there's no good way to add them.
-
-Thanks.
-
--- 
-tejun
+Any thoughts on which kernel version(s) need these patches?
