@@ -1,56 +1,67 @@
-From: Shakeel Butt <shakeelb@google.com>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Date: Mon, 28 Jan 2019 07:59:33 -0800
-Message-ID: <CALvZod6LFY+FYfBcAX0kLxV5KKB1-TX2cU5EDyyyjvHOtuWWbA@mail.gmail.com>
-References: <20190123223144.GA10798@chrisdown.name> <20190124082252.GD4087@dhcp22.suse.cz>
- <20190124160009.GA12436@cmpxchg.org> <20190124170117.GS4087@dhcp22.suse.cz>
- <20190124182328.GA10820@cmpxchg.org> <20190125074824.GD3560@dhcp22.suse.cz>
- <20190125165152.GK50184@devbig004.ftw2.facebook.com> <20190125173713.GD20411@dhcp22.suse.cz>
- <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+From: Sasha Levin <sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 180/258] percpu: convert spin_lock_irq to spin_lock_irqsave.
+Date: Mon, 28 Jan 2019 10:58:06 -0500
+Message-ID: <20190128155924.51521-180-sashal@kernel.org>
+References: <20190128155924.51521-1-sashal@kernel.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+In-Reply-To: <20190128155924.51521-1-sashal@kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, kernel-team@fb.com
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Cc: Dennis Zhou <dennis@kernel.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Hi Tejun,
+From: Dennis Zhou <dennis@kernel.org>
 
-On Fri, Jan 25, 2019 at 10:28 AM Tejun Heo <tj@kernel.org> wrote:
->
-> Hello, Michal.
->
-> On Fri, Jan 25, 2019 at 06:37:13PM +0100, Michal Hocko wrote:
-> > > What if a user wants to monitor any ooms in the subtree tho, which is
-> > > a valid use case?
-> >
-> > How is that information useful without know which memcg the oom applies
-> > to?
->
-> For example, a workload manager watching over a subtree for a job with
-> nested memory limits set by the job itself.  It wants to take action
-> (reporting and possibly other remediative actions) when something goes
-> wrong in the delegated subtree but isn't involved in how the subtree
-> is configured inside.
->
+[ Upstream commit 6ab7d47bcbf0144a8cb81536c2cead4cde18acfe ]
 
-Why not make this configurable at the delegation boundary? As you
-mentioned, there are jobs who want centralized workload manager to
-watch over their subtrees while there can be jobs which want to
-monitor their subtree themselves. For example I can have a job which
-know how to act when one of the children cgroup goes OOM. However if
-the root of that job goes OOM then the centralized workload manager
-should do something about it. With this change, how to implement this
-scenario? How will the central manager differentiates between that a
-subtree of a job goes OOM or the root of that job? I guess from the
-discussion it seems like the centralized manager has to traverse that
-job's subtree to find the source of OOM.
+>From Michael Cree:
+  "Bisection lead to commit b38d08f3181c ("percpu: restructure
+   locking") as being the cause of lockups at initial boot on
+   the kernel built for generic Alpha.
 
-Why can't we let the implementation of centralized manager easier by
-allowing to configure the propagation of these notifications across
-delegation boundary.
+   On a suggestion by Tejun Heo that:
 
-thanks,
-Shakeel
+   So, the only thing I can think of is that it's calling
+   spin_unlock_irq() while irq handling isn't set up yet.
+   Can you please try the followings?
+
+   1. Convert all spin_[un]lock_irq() to
+      spin_lock_irqsave/unlock_irqrestore()."
+
+Fixes: b38d08f3181c ("percpu: restructure locking")
+Reported-and-tested-by: Michael Cree <mcree@orcon.net.nz>
+Acked-by: Tejun Heo <tj@kernel.org>
+Signed-off-by: Dennis Zhou <dennis@kernel.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ mm/percpu-km.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/percpu-km.c b/mm/percpu-km.c
+index 38de70ab1a0d..0f643dc2dc65 100644
+--- a/mm/percpu-km.c
++++ b/mm/percpu-km.c
+@@ -50,6 +50,7 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
+ 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
+ 	struct pcpu_chunk *chunk;
+ 	struct page *pages;
++	unsigned long flags;
+ 	int i;
+ 
+ 	chunk = pcpu_alloc_chunk(gfp);
+@@ -68,9 +69,9 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
+ 	chunk->data = pages;
+ 	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
+ 
+-	spin_lock_irq(&pcpu_lock);
++	spin_lock_irqsave(&pcpu_lock, flags);
+ 	pcpu_chunk_populated(chunk, 0, nr_pages, false);
+-	spin_unlock_irq(&pcpu_lock);
++	spin_unlock_irqrestore(&pcpu_lock, flags);
+ 
+ 	pcpu_stats_chunk_alloc();
+ 	trace_percpu_create_chunk(chunk->base_addr);
+-- 
+2.19.1
