@@ -2,144 +2,146 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CB6CC282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 18:26:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ACAF2C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 18:41:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 302B421783
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 18:26:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 302B421783
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 7578120989
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 18:41:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7578120989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C89788E0007; Mon, 28 Jan 2019 13:26:19 -0500 (EST)
+	id 3F4D48E0004; Mon, 28 Jan 2019 13:41:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3A258E0001; Mon, 28 Jan 2019 13:26:19 -0500 (EST)
+	id 3CA828E0001; Mon, 28 Jan 2019 13:41:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B504C8E0007; Mon, 28 Jan 2019 13:26:19 -0500 (EST)
+	id 308B18E0004; Mon, 28 Jan 2019 13:41:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 75EA38E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 13:26:19 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id o23so12392435pll.0
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:26:19 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E781F8E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 13:41:43 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id l76so14769167pfg.1
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:41:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=2SwcxLvTj2XjgGRHJsDSZKkK0f/9HJEExqbOcln5oV4=;
-        b=c2+a5p/IYpLOVI30POVpKZerytBf9SYs7SKJhXY0ID9avTNQEpczyDK9ddJzSDDUGg
-         x5TJxeuXpIf/BHmbFhP5dpc/fFZ6YDPEfHusGYdB7oZiccUXJpAMMuN2xa+RFXYCvxd7
-         uq1JA2JDCdVXKcOuzJ+AmP3cZxy6rY6oKH7CwcZ0+Gs990TBtvlLL6iMNwEgZeAE9SBi
-         5ZeU4r5kk5Aqe/IoZ3RqyEUlaEeFSOn8bnmfgmT0FuKx32EBI4X2LItBNi99AtM3i4O1
-         6LYeudSwktCOYs2Gh835Ohf+wMocHYzzpaenZux8l8Ftdh/RmvG83B7xaT2/q44DGIV1
-         7Xgw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AJcUukdS4EBqgOe7i0adF+Ssg8zR+TM3oWJiuzghOs6yNH4NxjvLPvkz
-	z4rt+/IyCzgElFMIJ78BSKQN1aKRdIAcMgxBazI4Fqv99Xk4OPH/T7vFazBCf1zMZX0A80Y54Ty
-	78kYE9WUSd16Oi2vKkXNMmJ3qnCdHi/uP/TcdU5CALEVQgZemBOgGEldgjuRggxxU7Q==
-X-Received: by 2002:a63:af52:: with SMTP id s18mr20909867pgo.385.1548699979135;
-        Mon, 28 Jan 2019 10:26:19 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6xTQRLL4nqVpl1/ljFTwqneXi8tsqMRvRbBPEosFHIE6gYVsOef6WWJ7QsuU+5DbVkBOgy
-X-Received: by 2002:a63:af52:: with SMTP id s18mr20909826pgo.385.1548699978401;
-        Mon, 28 Jan 2019 10:26:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548699978; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=3ggLK68jDfBVTqBqA9BSwW8+v4wYSWEcBBPFtrYTAcY=;
+        b=R/2sOE+yUghwQjnLd7icB/haeeDoaW+0abLFYt6Lo5cZy4GB9rDDgI787pJ4G3X3hK
+         4dxq5iFT5bc/fGNM5SZj9R/hdAll9g4sQl2Romkz+PmB3KUEYQ4QWR8fHu/WmL4KNveT
+         8tCb4+2NhHadzCPAseEI+gACum2AR/wSmWD9eOY36hYPpY9vsFsgwV3kwu566q3xrZDI
+         WITWKq6j+YTVL5esRDj6DNIvPdOCjbiWFGMlIFBBHDEJYx3mewiiCNExp6K2FreCohdM
+         cJaarBpIrViNOcjRn/4V3VCC5HzvUzXPjqqRNj9CcK1rdMW3VpcQPK23HoKbOG9n1ETZ
+         IwrQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukf9CYKUROByLZvH+q83BjX7Cf4M+X0eaRlMdwVJtQ7lBi5W3p11
+	xOhjOk1Z6yVz0io1Hcj6p2zuYmYNaB/EQ9kPVpq2VAyLN78YjTilBKkOCAMverbtfN8wnAt1p60
+	Mc6Q5IUo7D+SP36yZR70e3Zl5s/3+uqDMEyhpiPDafe9k56YExTSQ5qVLBZvuRU0=
+X-Received: by 2002:a62:5f07:: with SMTP id t7mr22826705pfb.108.1548700903620;
+        Mon, 28 Jan 2019 10:41:43 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7/tqPMh7cxvehOueTRSkctUcf7qOipd2Zpw8cUCzWIVvHIqi90kEt0EvFRX8HX+pXgYhVM
+X-Received: by 2002:a62:5f07:: with SMTP id t7mr22826660pfb.108.1548700902712;
+        Mon, 28 Jan 2019 10:41:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548700902; cv=none;
         d=google.com; s=arc-20160816;
-        b=nRIdA54zLqVMOGhcnO20xb6jIiSxDXLehgUz0QozZRGJh4k+xDlDN4I2+2xgD2Din7
-         /C3TiC4HbZCn1zV+FrcgYUiISGrxg6NBsleY1nm/nL0PENgEgwXrlliQz5zVKfSKgomu
-         yiGD+Ud4yGRm72hNksxA6WFdgJNAWtc7mjoFTjMXRtA1YYcgj08kqdwvKsGrdB/ViOqt
-         dXopyaxcK3EAFIIVP2orpR1Zgci4OV0aZRjZ7H1WcZxDB4VjQVOmUT4K1ypDZdE1qFqn
-         pkxm95vS+mm9mWi8jsZPVIFTFw2FGIn8Eh0KRemojwdwn42OvFoC0+488Sn2IZWJyFR3
-         0XAQ==
+        b=WdNnA8+3GtwhSE+PTqjtBST86MNB3ZasD9sX8flOolWLvHFEGWpY2aSmFDeIOI+zG/
+         HQ5lzGC8HcGEsjKsMsRRB5EAix4Pvrke6LCLy155KEiPd9NBRMy5ibqqvzIC7saEpU9l
+         NhPDL6LPa7ijrpk+tLf3asSqplii6+YF6sKNUUYHIzNTAdvwd16nmrBgpLQ7AdiA8Ett
+         o3NoN9JT9sZFwrNtqYokcAKSgIcFInCMigCWgqwxxAtyLiuGWXv17cHGj0JDvQFts5H6
+         Hjo/pNbMzHXPKen2uQC4evdhAB1jk116OxLsaKLecQmn946AxbStlLZQPl6EQQt6TRUA
+         ME1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=2SwcxLvTj2XjgGRHJsDSZKkK0f/9HJEExqbOcln5oV4=;
-        b=d5J5oGLhDaRr9+gzQPm1YTMOx7fc1778Y1EUU4ZAxrietQ6Pg5csHNSOS9pOEmZOda
-         Xls3jxvDeiOii9yBnfG2o/OlWwJXPYZnYpmhd7F29x2v2MoQqQ6P2v+qY40kRUUO7d6h
-         hIiX+FDdJjXquttRBflExi8qz7Dw3oe0OjMDpVOLmoWQxCgh0urOfFfAITNtRcBtKiko
-         CWyhXgNMyx52uk/ORdAxngwTIlAQimkmE9qXURtUawfVE2S+lxaQGcJK8b55RtSu721B
-         /izzpDG6cEufhybghKeYfsfSoAOI5BdVCVHaixmNVBL0QnefSMYf2mxV1Qn6O718AFQS
-         enZg==
+        bh=3ggLK68jDfBVTqBqA9BSwW8+v4wYSWEcBBPFtrYTAcY=;
+        b=yaYlRoov8vDM02g91/4KmfwATKnsM9m4cbKYPlr7p0rO5e2W7dkpmWemWpTFb45lne
+         u6Da7pVKpo06ddjLUhb7EeJPVpMbL3G+jGu5RZF73iUbm1h8d8ZsRb+95gh3AJDeTjXS
+         3zePW4B+fUWaFzUjvNjigVgDGKs/m7eQj/JFkH9SPNQ2nv9DDx5h23dB2qOkZkJVLVYO
+         5X823d9qm8GLzTdArYiTIqgDOEiGM7xWzmW7ggFzGvOH2ARpJ7q8rvyg/UgvgljGzcZJ
+         gxz3yRc+hvCd0frkQPQV0R87BThROfOYRK8wt1VVLNNsvu5vOTRFcXEHQ6dA0ZW8q3FQ
+         9llA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y7si30415007pga.296.2019.01.28.10.26.18
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s71si33021879pfk.105.2019.01.28.10.41.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 10:26:18 -0800 (PST)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        Mon, 28 Jan 2019 10:41:42 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id D854120E9;
-	Mon, 28 Jan 2019 18:26:17 +0000 (UTC)
-Date: Mon, 28 Jan 2019 10:26:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, mm-commits@vger.kernel.org,
- penguin-kernel@i-love.sakura.ne.jp, cgroups@vger.kernel.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: + memcg-do-not-report-racy-no-eligible-oom-tasks.patch added to
- -mm tree
-Message-Id: <20190128102616.d7d63f8e1ecdf176bc313f8a@linux-foundation.org>
-In-Reply-To: <20190125172416.GB20411@dhcp22.suse.cz>
-References: <20190109190306.rATpT%akpm@linux-foundation.org>
-	<20190125165624.GA17719@cmpxchg.org>
-	<20190125172416.GB20411@dhcp22.suse.cz>
-X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D340EB017;
+	Mon, 28 Jan 2019 18:41:40 +0000 (UTC)
+Date: Mon, 28 Jan 2019 19:41:39 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>,
+	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>, schwidefsky@de.ibm.com,
+	heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com,
+	linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 0/2] mm, memory_hotplug: fix uninitialized pages fallouts.
+Message-ID: <20190128184139.GR18811@dhcp22.suse.cz>
+References: <20190128144506.15603-1-mhocko@kernel.org>
+ <20190128095054.4103093dec81f1c904df7929@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190128095054.4103093dec81f1c904df7929@linux-foundation.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Jan 2019 18:24:16 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-
-> > >     out_of_memory
-> > >       select_bad_process # no task
-> > > 
-> > > If Thread1 didn't race it would bail out from try_charge and force the
-> > > charge.  We can achieve the same by checking tsk_is_oom_victim inside the
-> > > oom_lock and therefore close the race.
-> > > 
-> > > [1] http://lkml.kernel.org/r/bb2074c0-34fe-8c2c-1c7d-db71338f1e7f@i-love.sakura.ne.jp
-> > > Link: http://lkml.kernel.org/r/20190107143802.16847-3-mhocko@kernel.org
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > 
-> > It looks like this problem is happening in production systems:
-> > 
-> > https://www.spinics.net/lists/cgroups/msg21268.html
-> > 
-> > where the threads don't exit because they are trapped writing out the
-> > oom messages to a slow console (running the reproducer from this email
-> > thread triggers the oom flooding).
-> > 
-> > So IMO we should put this into 5.0 and add:
+On Mon 28-01-19 09:50:54, Andrew Morton wrote:
+> On Mon, 28 Jan 2019 15:45:04 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Please note that Tetsuo has found out that this will not work with the
-> CLONE_VM without CLONE_SIGHAND cases and his http://lkml.kernel.org/r/01370f70-e1f6-ebe4-b95e-0df21a0bc15e@i-love.sakura.ne.jp
-> should handle this case as well. I've only had objections to the
-> changelog but other than that the patch looked sensible to me.
+> > Mikhail has posted fixes for the two bugs quite some time ago [1]. I
+> > have pushed back on those fixes because I believed that it is much
+> > better to plug the problem at the initialization time rather than play
+> > whack-a-mole all over the hotplug code and find all the places which
+> > expect the full memory section to be initialized. We have ended up with
+> > 2830bf6f05fb ("mm, memory_hotplug: initialize struct pages for the full
+> > memory section") merged and cause a regression [2][3]. The reason is
+> > that there might be memory layouts when two NUMA nodes share the same
+> > memory section so the merged fix is simply incorrect.
+> > 
+> > In order to plug this hole we really have to be zone range aware in
+> > those handlers. I have split up the original patch into two. One is
+> > unchanged (patch 2) and I took a different approach for `removable'
+> > crash. It would be great if Mikhail could test it still works for his
+> > memory layout.
+> > 
+> > [1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
+> > [2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
+> > [3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
+> 
+> Any thoughts on which kernel version(s) need these patches?
 
-So I think you're saying that 
+My remark in 2830bf6f05fb still holds
+    : This has alwways been problem AFAIU.  It just went unnoticed because we
+    : have zeroed memmaps during allocation before f7f99100d8d9 ("mm: stop
+    : zeroing memory during allocation in vmemmap") and so the above test
+    : would simply skip these ranges as belonging to zone 0 or provided a
+    : garbage.
+    :
+    : So I guess we do care for post f7f99100d8d9 kernels mostly and
+    : therefore Fixes: f7f99100d8d9 ("mm: stop zeroing memory during
+    : allocation in vmemmap")
 
-mm-oom-marks-all-killed-tasks-as-oom-victims.patch
-and
-memcg-do-not-report-racy-no-eligible-oom-tasks.patch
-
-should be dropped and that "[PATCH v2] memcg: killed threads should not
-invoke memcg OOM killer" should be redone with some changelog
-alterations and should be merged instead?
+But, please let's wait for the patch 1 to be confirmed to fix the issue.
+-- 
+Michal Hocko
+SUSE Labs
 
