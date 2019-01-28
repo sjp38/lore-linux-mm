@@ -1,45 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BADB18E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:27:46 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id a62so8866272oii.23
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 04:27:46 -0800 (PST)
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id v68si4781561oif.156.2019.01.28.04.27.43
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 084808E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:51:55 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id d41so6440346eda.12
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 04:51:54 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i46si713895eda.288.2019.01.28.04.51.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 04:27:45 -0800 (PST)
-From: zhengbin <zhengbin13@huawei.com>
-Subject: [PATCH] mm/filemap: pass inclusive 'end_byte' parameter to filemap_range_has_page
-Date: Mon, 28 Jan 2019 20:31:19 +0800
-Message-ID: <1548678679-18122-1-git-send-email-zhengbin13@huawei.com>
+        Mon, 28 Jan 2019 04:51:53 -0800 (PST)
+Date: Mon, 28 Jan 2019 13:51:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190128125151.GI18811@dhcp22.suse.cz>
+References: <20190123223144.GA10798@chrisdown.name>
+ <20190124082252.GD4087@dhcp22.suse.cz>
+ <20190124160009.GA12436@cmpxchg.org>
+ <20190124170117.GS4087@dhcp22.suse.cz>
+ <20190124182328.GA10820@cmpxchg.org>
+ <20190125074824.GD3560@dhcp22.suse.cz>
+ <20190125165152.GK50184@devbig004.ftw2.facebook.com>
+ <20190125173713.GD20411@dhcp22.suse.cz>
+ <20190125182808.GL50184@devbig004.ftw2.facebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190125182808.GL50184@devbig004.ftw2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, willy@infradead.org, darrick.wong@oracle.com, amir73il@gmail.com, david@fromorbit.com, hannes@cmpxchg.org, jrdr.linux@gmail.com, hughd@google.com, linux-mm@kvack.org
-Cc: houtao1@huawei.com, yi.zhang@huawei.com, zhengbin13@huawei.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-The 'end_byte' parameter of filemap_range_has_page is required to be
-inclusive, so follow the rule.
+On Fri 25-01-19 10:28:08, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Fri, Jan 25, 2019 at 06:37:13PM +0100, Michal Hocko wrote:
+> > > What if a user wants to monitor any ooms in the subtree tho, which is
+> > > a valid use case?
+> > 
+> > How is that information useful without know which memcg the oom applies
+> > to?
+> 
+> For example, a workload manager watching over a subtree for a job with
+> nested memory limits set by the job itself.  It wants to take action
+> (reporting and possibly other remediative actions) when something goes
+> wrong in the delegated subtree but isn't involved in how the subtree
+> is configured inside.
 
-Signed-off-by: zhengbin <zhengbin13@huawei.com>
----
- mm/filemap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Yes, I understand this part, but it is not clear to me, _how_ to report
+anything sensible without knowing _what_ has caused the event. You can
+walk the cgroup hierarchy and compare cached results with new ones but
+this is a) racy and b) clumsy.
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9f5e323..a236bf3 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -3081,7 +3081,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
- 	if (iocb->ki_flags & IOCB_NOWAIT) {
- 		/* If there are pages to writeback, return */
- 		if (filemap_range_has_page(inode->i_mapping, pos,
--					   pos + write_len))
-+					   pos + write_len - 1))
- 			return -EAGAIN;
- 	} else {
- 		written = filemap_write_and_wait_range(mapping, pos,
---
-2.7.4
+> > > If local event monitoring is useful and it can be,
+> > > let's add separate events which are clearly identifiable to be local.
+> > > Right now, it's confusing like hell.
+> > 
+> > From a backward compatible POV it should be a new interface added.
+> 
+> That sure is an option for use cases like above but it has the
+> downside of carrying over the confusing interface into the indefinite
+> future.
+
+I actually believe that this is not such a big deal. For one thing the
+current events are actually helpful to watch the reclaim/setup behavior.
+
+> Again, I'd like to point back at how we changed the
+> accounting write and trim accounting because the benefits outweighted
+> the risks.
+> 
+> > Please note that I understand that this might be confusing with the rest
+> > of the cgroup APIs but considering that this is the first time somebody
+> > is actually complaining and the interface is "production ready" for more
+> > than three years I am not really sure the situation is all that bad.
+> 
+> cgroup2 uptake hasn't progressed that fast.  None of the major distros
+> or container frameworks are currently shipping with it although many
+> are evaluating switching.  I don't think I'm too mistaken in that we
+> (FB) are at the bleeding edge in terms of adopting cgroup2 and its
+> various new features and are hitting these corner cases and oversights
+> in the process.  If there are noticeable breakages arising from this
+> change, we sure can backpaddle but I think the better course of action
+> is fixing them up while we can.
+
+I do not really think you can go back. You cannot simply change semantic
+back and forth because you just break new users.
+
+Really, I do not see the semantic changing after more than 3 years of
+production ready interface. If you really believe we need a hierarchical
+notification mechanism for the reclaim activity then add a new one.
+-- 
+Michal Hocko
+SUSE Labs
