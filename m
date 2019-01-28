@@ -2,174 +2,163 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23B69C282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:43:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61D63C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:49:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB86F20881
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:43:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB86F20881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id EB9F62175B
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:49:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lVQH1nAe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB9F62175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 750708E0002; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
+	id 3F3248E0002; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7001E8E0001; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
+	id 3A0638E0001; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EF818E0002; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
+	id 2696B8E0002; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F3988E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
-Received: by mail-vk1-f200.google.com with SMTP id o11so4719272vke.5
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:43:00 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 023168E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id p8so6600784ybb.4
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:49:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=7sqKBm6b2VKkB7E7B7WUF3lomqQBXd3MBh/YsvuyDc0=;
-        b=efMj5lrqL8jhEgFnbrCjzc+kHd47X0kd0XRUMgIXATUYvNhJF9T3U4WwCVjg4k63cb
-         BF1uIufAZFRi8Oo0RGr3afLU0M4Pai+xQ9B8vnmDBmNKh6p1bAeAwQL3TCdCii/+yWi6
-         hSvjuV1ZvQebo0PU9T1H3KzWmiV7VeVWFqbBsLzo+xJRKXf6o6TBAGHzlMy8HGXheikU
-         YHVPEl3yzUSqlTRvJaTe8mjNxor/SqH0uxA1VXk3LgclSYggwDxd9HyvMxM4TgNWlswS
-         BQdXML9eXkszcCc8/8atwTXT59kNwlIFR76TGcfPn3dikOSl8UojOZ8hKd1IkZWWAQSH
-         zSYg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: AJcUukf4S8TLWzVnr4sd8b1N7Kw3LW9t9I+S0FQLSh8WWyHPFJhfGFV2
-	k8Akr8W2CQ5G5Hctrpw8624bJ+Dij9VuH0Xr0au31ZCgrAtsav0tdhOymGfoNvIdln3JfyW4A/C
-	oEvzF8cgWNvrZtjEtsAw63orGaTW97m1WLtDoi8R0lo30PPvIBOlegU/qmFroZRrzhg==
-X-Received: by 2002:a67:f696:: with SMTP id n22mr10000833vso.175.1548697379852;
-        Mon, 28 Jan 2019 09:42:59 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Sp2244WsyJPcciWnkx/1HLb9xpBDNlc5CbIP+kPwVdHAxcs21P/ASVQFPY/svzJdnl/0V
-X-Received: by 2002:a67:f696:: with SMTP id n22mr10000808vso.175.1548697378981;
-        Mon, 28 Jan 2019 09:42:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548697378; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=RDoi/eLjxnbObU8/lFllv41Z8VtANrIPfKdXbpygwCE=;
+        b=tKsadUOYaOtLYpwJv6Q9usFa4JcngfKaHvqX7m49Yr4Ox2laqWkhcsjlp/v80M/+vh
+         iU9tge0huW1JDAbTdVxYr6gJj2YlC+Xhplybx7B6S45LbUDJAACk5pQV6HRyXo+onEZW
+         EYpz+mHVrAn67cnCke6P1O4cLp1q50NWJezFHV1S9MwiOjly3TZ1zj2Sjf98ydUtn8Xh
+         VqhLYhSp9fcQGDwD22nXNi1O9+J7VSMp0+LT3cc1kfFQA6P+kcQu+hLwHXbS5+tqjXim
+         HwXGrZ4myislm08Nl6c6YZ25Is/yB+lUh8fYIM1n1eqNcjtHGsYQ1PCjqFIZzzM51Ho6
+         v49w==
+X-Gm-Message-State: AJcUukfUMM1v5IISC2tPOTijX2DStdxqZ7s6bkgn0O2pmvzenmKW7kzw
+	BVB763Owta10n4EsTY1PHZ0LjQ+NLOWH4FPIj6wPzooGVg9r9RXvgtCV77ZP6G2OLsEFwxzO2OT
+	EdwxTmgIFk+cmXhD/X5WeNFoAVUBtn9CQmD8UrqdWKWuWMS0YlqZAleAWR9jbZVeHUmoksIvw01
+	96q3EfsFGW0O61Elk6mtuc/ilReA6OdqsMEUu8ETOn5YLIqx6ekqWLmtdMoYBtCrUUO/vm5oPrV
+	3Y+tgungu5FHbShTFVlMJJ2sT8z2eF2o5kwwGMfk13Off+S+T6Jo2S3kRWmV5F5hU2AHuzchvps
+	KHwxUjI1Sl3D2ipq4H9k9AJlrQYglcwx/Lqy5KU4r/PBv0JGw9rKOB185shgBeQmetpyUiKhww=
+	=
+X-Received: by 2002:a25:7909:: with SMTP id u9mr21396535ybc.451.1548697749375;
+        Mon, 28 Jan 2019 09:49:09 -0800 (PST)
+X-Received: by 2002:a25:7909:: with SMTP id u9mr21396496ybc.451.1548697748663;
+        Mon, 28 Jan 2019 09:49:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548697748; cv=none;
         d=google.com; s=arc-20160816;
-        b=vO1h1nM/KzScqTJiX3fx+FOXz8zIi/zrJZN+RI2JvjU/WFqb9iJvIElqNg1KlyvOPP
-         iB0tuwj2kj6ZdYlv08coEgBrUzg/qEAv1Ki0nXQtYpw/a0wcOWquw0BqUL6kBntOACVm
-         Yqq6w/Y6LC0bkiu+yKLsspTbRQryR72QjQf0qyf2Vb7D+1wkVVhJR0kbqwJUEYAGjE8e
-         4gYy2jOO+fEmPbrcyaCAe4TDpKp3qfjURfdvoBXBKZ7H2qd97WEVuoflfeuCbbvoHaKw
-         oOfXk+pg/4ZzEG1Gp6HwNgMz+Z9i/XlHDFjS3OoRTgzU9D+egl5OByQAGqG8sbyzIzCe
-         jWvw==
+        b=eLnqKgexPpou4P5l5LQJjQ9ddlhZ2p0UsA6Q4UipjU215D8TMlkl5lpBlLKq/qIRMv
+         83nfzjjTT+VjO0XiFXTSLyjb56C8RkLCtkig1B5HmsBugCnHcCFEURskMpX5O2QHCkBU
+         Jswz7XEQ9vdD39WNGVoajKZwGwoP/0K+FhebZcq8xv0wwCzQatXC4Zg0q7QBov6fbyMz
+         O397l/9TJgwZBfV+z4SOYTtrLqonSUP1+ZpTC7R4u/Yz9ITPP04ytU1uR12OzRSg0Ptk
+         C/F/aJ2262VueGz6cYCl2GZkfYjx8KooPUoAN40oOGjtkUBY33ArfcUOw1tdl0PV8gno
+         Qknw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=7sqKBm6b2VKkB7E7B7WUF3lomqQBXd3MBh/YsvuyDc0=;
-        b=PNuZd3UzRxJDMzz1el2/Ih5CJuJTeS62vevMiUMyHQ/abe5HnoFIrdLolt0poR+RIr
-         1D5XflyIlVhK+7a1Fak3U4aYllns1hlKqKI9IfV55U2QYE4EyCuPRPZkAS1tiw9aqoy6
-         mQMAGFi0AKxcT46b2+xVD4WmFusLPCezVNUGjwO8jHAszFQE2U/rRsxIR7zFV1bep+Vb
-         lLACb2lTCc70T1x+JJO7tAEAk115TZu8a2xz/Lxw+6gKeGjM2EoiI4juNm4PoRFOZrHN
-         +iiDVYQgw7PGxZJjs2Fk1NNhBQqpEh7chdVT5/R2UOnBridR4MzBwaq5JxJc8l8Ly9h8
-         Vpgg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=RDoi/eLjxnbObU8/lFllv41Z8VtANrIPfKdXbpygwCE=;
+        b=ZuQHemSKOb6cQm5ob5HWKBjHczONWew8B+HFf9aZQjcR29lkZNuQwGYVF4h6eyoMJk
+         RcjfOP1jfQ8TiPBtul+s7CiKCyYmbfuwfR0N2lDPoos0XEC7k7Bapn2WyIHsEkpkFjEn
+         yA2bPjVIf2z4Q33Ud8Lp/eE07Wr2+SGcdNxJ7yRQGDUnpthp7v9egzPfHi1nys2YUGbu
+         jNNHRzovuzGhccFXPhUuPKKNX/bbBJ/4iBAAtV2oFCybCajhfhVDgfPJLkxdTK3cYsE+
+         X2l0xJsI/+AVWPawHFonbgk5AiXVg+yimZB7O8tUeM2jQJjDZC7DtWW1VZ+OWzRpGMui
+         TeqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id t62si263411uat.137.2019.01.28.09.42.58
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lVQH1nAe;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p130sor4419008ywb.39.2019.01.28.09.49.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 09:42:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
+        (Google Transport Security);
+        Mon, 28 Jan 2019 09:49:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 3D9677F03AFBD8EF99CE;
-	Tue, 29 Jan 2019 01:42:55 +0800 (CST)
-Received: from localhost (10.202.226.61) by DGGEMS402-HUB.china.huawei.com
- (10.3.19.202) with Microsoft SMTP Server id 14.3.408.0; Tue, 29 Jan 2019
- 01:42:52 +0800
-Date: Mon, 28 Jan 2019 17:42:39 +0000
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lVQH1nAe;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=RDoi/eLjxnbObU8/lFllv41Z8VtANrIPfKdXbpygwCE=;
+        b=lVQH1nAeTUapo+A78necDxJ89EsWzDvsbvfeD3DQE7e36L5IebWuxztHjBVoiEnB3H
+         JeYQjUy2zp7nWDkKEDHWbhMsmEV1MFDjEeVeJ8VygkmA3LoR71R+X5dLBG4+lqqUOaWi
+         02xvs+8jBWBa+6eYq8LBoIGsolX6zO1GdwGD3IFAMWM8PbB4KrSsY+KxY9yeJ7jCBhY1
+         0UCJptuXx2QuyCQjU/AzkD5lNtgIKEWL2Qosqrg5N6HL8+iL2cLg8oWv6QbP1rznpvTm
+         cFlCvSg7b/VQb0x4QHr+rmpIWzqsN5L/045u6n82TWmN4rcvRTAXhNjm1X1Hcwgj+I2M
+         YJUg==
+X-Google-Smtp-Source: ALg8bN4UwYkLurYiTtunS7LxeB7dpx1z6ERbMLfdg4VnL53YCm4TRhvjnIQJ3e8G5n+bKLi2/RRHFA==
+X-Received: by 2002:a81:4f97:: with SMTP id d145mr21795942ywb.198.1548697748275;
+        Mon, 28 Jan 2019 09:49:08 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::7:31a1])
+        by smtp.gmail.com with ESMTPSA id n16sm15879617ywn.31.2019.01.28.09.49.07
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jan 2019 09:49:07 -0800 (PST)
+Date: Mon, 28 Jan 2019 09:49:05 -0800
+From: Tejun Heo <tj@kernel.org>
 To: Michal Hocko <mhocko@kernel.org>
-CC: Andrea Arcangeli <aarcange@redhat.com>, Huang Ying <ying.huang@intel.com>,
-	Zhang Yi <yi.z.zhang@linux.intel.com>, <kvm@vger.kernel.org>, Dave Hansen
-	<dave.hansen@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Fan Du
-	<fan.du@intel.com>, Dong Eddie <eddie.dong@intel.com>, LKML
-	<linux-kernel@vger.kernel.org>, <linux-accelerators@lists.ozlabs.org>,
-	"Linux Memory Management List" <linux-mm@kvack.org>, Peng Dong
-	<dongx.peng@intel.com>, Yao Yuan <yuan.yao@intel.com>, Andrew Morton
-	<akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, "Dan
- Williams" <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC][PATCH v2 00/21] PMEM NUMA node and hotness
- accounting/migration
-Message-ID: <20190128174239.0000636b@huawei.com>
-In-Reply-To: <20190102122110.00000206@huawei.com>
-References: <20181226131446.330864849@intel.com>
-	<20181227203158.GO16738@dhcp22.suse.cz>
-	<20181228050806.ewpxtwo3fpw7h3lq@wfg-t540p.sh.intel.com>
-	<20181228084105.GQ16738@dhcp22.suse.cz>
-	<20181228094208.7lgxhha34zpqu4db@wfg-t540p.sh.intel.com>
-	<20181228121515.GS16738@dhcp22.suse.cz>
-	<20181228133111.zromvopkfcg3m5oy@wfg-t540p.sh.intel.com>
-	<20181228195224.GY16738@dhcp22.suse.cz>
-	<20190102122110.00000206@huawei.com>
-Organization: Huawei
-X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, kernel-team@fb.com
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190128174905.GU50184@devbig004.ftw2.facebook.com>
+References: <20190125165152.GK50184@devbig004.ftw2.facebook.com>
+ <20190125173713.GD20411@dhcp22.suse.cz>
+ <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+ <20190128125151.GI18811@dhcp22.suse.cz>
+ <20190128142816.GM50184@devbig004.ftw2.facebook.com>
+ <20190128145210.GM18811@dhcp22.suse.cz>
+ <20190128145407.GP50184@devbig004.ftw2.facebook.com>
+ <20190128151859.GO18811@dhcp22.suse.cz>
+ <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
+ <20190128170526.GQ18811@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.202.226.61]
-X-CFilter-Loop: Reflected
+Content-Disposition: inline
+In-Reply-To: <20190128170526.GQ18811@dhcp22.suse.cz>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190128174239.4T0MpNu8kXj0OMm8T82uC19D0tONYtJpBgwqzE9hLDg@z>
+Message-ID: <20190128174905.BMCVG1w1ppsdW1mCClvABHA0kKw0S0ABSAHcN2OJ61Y@z>
 
-On Wed, 2 Jan 2019 12:21:10 +0000
-Jonathan Cameron <jonathan.cameron@huawei.com> wrote:
+Hello, Michal.
 
-> On Fri, 28 Dec 2018 20:52:24 +0100
-> Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > [Ccing Mel and Andrea]
-> > 
+On Mon, Jan 28, 2019 at 06:05:26PM +0100, Michal Hocko wrote:
+> Yeah, that is quite clear. But it also assumes that the hierarchy is
+> pretty stable but cgroups might go away at any time. I am not saying
+> that the aggregated events are not useful I am just saying that it is
+> quite non-trivial to use and catch all potential corner cases. Maybe I
 
-Hi,
+It really isn't complicated and doesn't require stable subtree.
 
-I just wanted to highlight this section as I didn't feel we really addressed this
-in the earlier conversation.
+> am overcomplicating it but one thing is quite clear to me. The existing
+> semantic is really useful to watch for the reclaim behavior at the
+> current level of the tree. You really do not have to care what is
+> happening in the subtree when it is clear that the workload itself
+> is underprovisioned etc. Considering that such a semantic already
+> existis, somebody might depend on it and we likely want also aggregated
+> semantic then I really do not see why to risk regressions rather than
+> add a new memory.hierarchy_events and have both.
 
-> * Hot pages may not be hot just because the host is using them a lot.  It would be
->   very useful to have a means of adding information available from accelerators
->   beyond simple accessed bits (dreaming ;)  One problem here is translation
->   caches (ATCs) as they won't normally result in any updates to the page accessed
->   bits.  The arm SMMU v3 spec for example makes it clear (though it's kind of
->   obvious) that the ATS request is the only opportunity to update the accessed
->   bit.  The nasty option here would be to periodically flush the ATC to force
->   the access bit updates via repeats of the ATS request (ouch).
->   That option only works if the iommu supports updating the accessed flag
->   (optional on SMMU v3 for example).
-> 
+The problem then is that most other things are hierarchical including
+some fields in .events files, so if we try to add local stats and
+events, there's no good way to add them.
 
-If we ignore the IOMMU hardware update issue which will simply need to be addressed
-by future hardware if these techniques become common, how do we address the
-Address Translation Cache issue without potentially causing big performance
-problems by flushing the cache just to force an accessed bit update?
+Thanks.
 
-These devices are frequently used with PRI and Shared Virtual Addressing
-and can be accessing most of your memory without you having any visibility
-of it in the page tables (as they aren't walked if your ATC is well matched
-in size to your usecase.
-
-Classic example would be accelerated DB walkers like the the CCIX demo
-Xilinx has shown at a few conferences.   The whole point of those is that
-most of the time only your large set of database walkers is using your
-memory and they have translations cached for for a good part of what
-they are accessing.  Flushing that cache could hurt a lot.
-Pinning pages hurts for all the normal flexibility reasons.
-
-Last thing we want is to be migrating these pages that can be very hot but
-in an invisible fashion.
-
-Thanks,
-
-Jonathan
- 
-
+-- 
+tejun
 
