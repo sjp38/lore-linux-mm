@@ -6,170 +6,186 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBD9AC282CD
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 20:03:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1820C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 20:04:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 82E662177E
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 20:03:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82E662177E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id 65C47214DA
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 20:04:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65C47214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 257BE8E0004; Mon, 28 Jan 2019 15:03:33 -0500 (EST)
+	id E8C5E8E0002; Mon, 28 Jan 2019 15:04:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1DE1A8E0001; Mon, 28 Jan 2019 15:03:33 -0500 (EST)
+	id E12B58E0001; Mon, 28 Jan 2019 15:04:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A7E58E0004; Mon, 28 Jan 2019 15:03:33 -0500 (EST)
+	id CB5978E0002; Mon, 28 Jan 2019 15:04:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D1EDF8E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 15:03:32 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id t18so22046614qtj.3
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:03:32 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 870478E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 15:04:32 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id a23so14918832pfo.2
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:04:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version:sender;
-        bh=4JPUVXt2AnmUGHhYL0L59IVWanFzQLuUqKIUT03lwS0=;
-        b=SssylYtaYf/QEtB38RZW1VFADHLYXr8vcZvw9I4Xxf1JvgvQ1zjT9sVkwOWGxZmJiA
-         osmG1fMLApx3PnDeOlyVtl6aK28+Z3M65dEVvurzpLribTiuHgAuqSL9SiOldo1ia88k
-         FkBtIn4jn2DCUH4G5XRbcy0dlBO/vfcj3LVDTJRXetgmxxXhQ+jg5h0Dh1+dGKv9iedt
-         Z0CHW+fLJM1dffLw0BHs8m+sb4KN5ofpIVJjnWqDOs6nPgVJ7ZHy/8XW0f7uPSBTcQ5H
-         XT6uma0abL1adTn7/yGXUKD5hGfO1CNPBHT1xB5/MUyV2QsQ2C6tx2zN4oSnG9WBpMRx
-         t8Rg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: AJcUukfyBV05Bt0PeueYzVgxwM/+3XQTm49YD9pXu51dMMCrNEzJaik9
-	LVb5RAY9iyhPWXxN2WfQQPxwdiIYxoEQQ/ct/3tWtnVs9MydOiS9I7C2iYR+UOGR1QN3BP1TuAe
-	6BaXmryCtd8JyOUhqiPEunpiwmqaPCxBRhlOETj+9rRh/Lj4Kdp3IuEsN9624qAH4mQ==
-X-Received: by 2002:a37:c946:: with SMTP id q67mr21455813qki.145.1548705812651;
-        Mon, 28 Jan 2019 12:03:32 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7JZQSA/IqBd8Kd6Xw9zBaL2/IXejg6zqgdEw32CveS5Kf729FVa9kbA1eP0QbIvAWB50pj
-X-Received: by 2002:a37:c946:: with SMTP id q67mr21455793qki.145.1548705812288;
-        Mon, 28 Jan 2019 12:03:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548705812; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=Q07e/peENslT9pMfwiarlrwhYdvlmbA/0uPKfqvBYjo=;
+        b=cUbq5uOgyMZBHxJWHzNHXZlJWkLXss7WR4EhBzenk8ciWG93IQ/DMwjoVdYd3r2tHh
+         Am9EOfdIsXEGwNbvHxK05LO5dgSs5rDHlnP+qyDGFnLv5ObhkZQGeX1xxQd1J1UMVWdi
+         VVgfqluXdMcV8fEcRb2EnvdKtctln+4EcbDL8zeQNQj9dral6WGAQyjyTKvbfkGSQg03
+         gc3GD0ZTjF43pIQzcGrDIS8e+1sjJs3bWVEtQ8fh+E+A5ITNtANPSOiBgYByLiMB96Ta
+         +nOc/8gPAyHWeA7ABIYmHjkNWbekttptpyq7yyV4nnt7xbnW9WdTZK0nZIRH8Onv4IFa
+         KmOA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AJcUukca2np6mUyyC+vCFkj7wTrPW5bB17vfQe3VzH/evobDHn1AK4Yq
+	3JodemgILukaw3Trdf/VLDB+s6jq+BIUN3tCsFj9gJkXdNg99YBuhk6pc3uTbftsuyWYH67WFvS
+	bUgA3y2HJGyKE4KLcaVDVEwkii8FxA8hxfpf+KM35R1qUtIPv6ETfzSaOkEtLcY+BNA==
+X-Received: by 2002:a62:1a44:: with SMTP id a65mr23566755pfa.30.1548705872179;
+        Mon, 28 Jan 2019 12:04:32 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7L2ysH6qvI1z3IOnLpVvLSS7NPn7/3Gln5RGZt8I+fuT59mwoAhxZCwlXWloxY6lObSNr+
+X-Received: by 2002:a62:1a44:: with SMTP id a65mr23566714pfa.30.1548705871437;
+        Mon, 28 Jan 2019 12:04:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548705871; cv=none;
         d=google.com; s=arc-20160816;
-        b=vHC2/u3jXtBdXiQkwZEOjvZoGSiPO8BYqEzL2rzhyOBJ9W+eHp87KH5SePcEqAaXE1
-         k4nczWZcaAnGitoNmMUgr2wsGfFFXNz9Bs9WI5G6DS19oni9J8sAK4+dnth/KNH4C1+P
-         K8uQEvn2IRnomI73JZZBLTyLejKxzr3+al/WFPQTII830JtveK2SXJGRWdPvp/lGPn7B
-         J9a2EVVdJMcVey3FWHNMb3WhYBDug4VimuH3njAWTQwF6BWohStlVYQGH7cyJqKxM3/G
-         YZmVSAuXLby9XU3btj1oAKn0F0sW6VaKAiC8CpHR2C5+EGGxje+EDcN9yqZ03E2dPlYz
-         NL3Q==
+        b=gERwT3mqc7Cbymh+rj9ttRBGeTbLGkwCzCfhoNtaIVP5fLYgsAdD+lZ1jwBxd7/Fdy
+         K+9P4V0NkBV61sR7IqBDZjldQHEWmGQebwKr5PdyhVb9qsVKQBBoTNQrRhRDdxp4h0Y1
+         rhierLJ46ZMfCPjQGp2N/lY0Q+dTBX53ARNaX9gMeiVQn+gAhzZr7Odgq4wSGqwhEevk
+         55E2Ltpc/wRvA7+Kc1qIryGi1CXfEGiHxMExPlo2fZG02K8at6io0d40tOjM246GjPse
+         vgBkpWtHfmJSa1YWwyTkL45A1HE49Blnnpry6w8R8Jid+6EV6qhlLGBxlzBpXVa1Czyk
+         jAhw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:mime-version:references:in-reply-to:date:cc:to:from:subject
-         :message-id;
-        bh=4JPUVXt2AnmUGHhYL0L59IVWanFzQLuUqKIUT03lwS0=;
-        b=ag5fKyx9xMXAtB7Hi8K8Fb0nx8ckY9F1P+lFc6tdchGhc9LRAVAhIFFXob4pmuPqjS
-         bFLdEe1R9ykeynIwpDa8Sps/fc56+Fii9vdkN08au2Gru6HqBGxn4xgCmAba4Bv90gY/
-         m31EhbLU1SUJKLjuUdO5vuUcWXG181d7RMXseI7rtDztDT3zFKmBocU9i9C9cicwCqPI
-         Q0+Mgy06t0yP1EAwMKDFhh1z9xmYh9JIJlOGdtHL1FaUjQu2ZjwfkSrnLMVlo7MCjvRE
-         XdXlHVlMf/eaKeCkXL9jYkfu0doKPltgs3myG3bSxBtoQuQEfpSlNw1D5liHYkkCk9Hz
-         o3yg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=Q07e/peENslT9pMfwiarlrwhYdvlmbA/0uPKfqvBYjo=;
+        b=zvr+Y7e4ElcW1tVwq4ybGxMNTQ9UV/yz3HrRxOZN8SHTR+gCxbwZIJlqrQUAHpbsMz
+         By4cgEOQy/ujbfBh/fQutRbedLgLY2C3ZkYotALvhBACx/engGRuy96c7gi/bHhrQktM
+         SZofMRqUqT6UOuY8nHrNiXZQKISR8m6HEC9bPxN+d79Lwaop3xokuRheorWx6hcCg3J8
+         Vb9jJ6ofgyp4GTZBoB2opMzRc0Eif7khfhUljhH6hTdrsoIjjQS5RWmr/htZFyqg+Geh
+         +E/fIWJnKAC4pIVlS7ip2Z/l0g9jBmJ6wgEKO0Wudtn83O0hOpJVOOQkGDirk3tANnGY
+         97tg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id o3si2936644qvl.30.2019.01.28.12.03.32
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d23si666749pgm.559.2019.01.28.12.04.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 12:03:32 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+        Mon, 28 Jan 2019 12:04:31 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.91)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1goD7w-0006yz-Lt; Mon, 28 Jan 2019 15:03:28 -0500
-Message-ID: <8ddf2ea674711f373062f4e056dd14fb81c5a2fe.camel@surriel.com>
-Subject: Re: [PATCH] mm,slab,vmscan: accumulate gradual pressure on small
- slabs
-From: Rik van Riel <riel@surriel.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, 
- Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <clm@fb.com>, Roman
- Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>
-Date: Mon, 28 Jan 2019 15:03:28 -0500
-In-Reply-To: <20190128115424.df3f4647023e9e43e75afe67@linux-foundation.org>
-References: <20190128143535.7767c397@imladris.surriel.com>
-	 <20190128115424.df3f4647023e9e43e75afe67@linux-foundation.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-nGE8UQknFPEiL8nfsYnb"
-X-Mailer: Evolution 3.28.5 (3.28.5-1.fc28) 
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id BC7C92477;
+	Mon, 28 Jan 2019 20:04:30 +0000 (UTC)
+Date: Mon, 28 Jan 2019 12:04:29 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>,
+ linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier
+ <thgarnie@google.com>, Oleksiy Avramchenko
+ <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>,
+ Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v1 2/2] mm: add priority threshold to
+ __purge_vmap_area_lazy()
+Message-Id: <20190128120429.17819bd348753c2d7ed3a7b9@linux-foundation.org>
+In-Reply-To: <20190124115648.9433-3-urezki@gmail.com>
+References: <20190124115648.9433-1-urezki@gmail.com>
+	<20190124115648.9433-3-urezki@gmail.com>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 24 Jan 2019 12:56:48 +0100 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
 
---=-nGE8UQknFPEiL8nfsYnb
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+> commit 763b218ddfaf ("mm: add preempt points into
+> __purge_vmap_area_lazy()")
+> 
+> introduced some preempt points, one of those is making an
+> allocation more prioritized over lazy free of vmap areas.
+> 
+> Prioritizing an allocation over freeing does not work well
+> all the time, i.e. it should be rather a compromise.
+> 
+> 1) Number of lazy pages directly influence on busy list length
+> thus on operations like: allocation, lookup, unmap, remove, etc.
+> 
+> 2) Under heavy stress of vmalloc subsystem i run into a situation
+> when memory usage gets increased hitting out_of_memory -> panic
+> state due to completely blocking of logic that frees vmap areas
+> in the __purge_vmap_area_lazy() function.
+> 
+> Establish a threshold passing which the freeing is prioritized
+> back over allocation creating a balance between each other.
 
-On Mon, 2019-01-28 at 11:54 -0800, Andrew Morton wrote:
-> On Mon, 28 Jan 2019 14:35:35 -0500 Rik van Riel <riel@surriel.com>
-> wrote:
->=20
-> >  	/*
-> >  	 * Make sure we apply some minimal pressure on default priority
-> > -	 * even on small cgroups. Stale objects are not only consuming
-> > memory
-> > +	 * even on small cgroups, by accumulating pressure across
-> > multiple
-> > +	 * slab shrinker runs. Stale objects are not only consuming
-> > memory
-> >  	 * by themselves, but can also hold a reference to a dying
-> > cgroup,
-> >  	 * preventing it from being reclaimed. A dying cgroup with all
-> >  	 * corresponding structures like per-cpu stats and kmem caches
-> >  	 * can be really big, so it may lead to a significant waste of
-> > memory.
-> >  	 */
-> > -	delta =3D max_t(unsigned long long, delta, min(freeable,
-> > batch_size));
-> > +	if (!delta) {
-> > +		shrinker->small_scan +=3D freeable;
-> > +
-> > +		delta =3D shrinker->small_scan >> priority;
-> > +		shrinker->small_scan -=3D delta << priority;
-> > +
-> > +		delta *=3D 4;
-> > +		do_div(delta, shrinker->seeks);
->=20
-> What prevents shrinker->small_scan from over- or underflowing over
-> time?
+It would be useful to credit the vmalloc test driver for this
+discovery, and perhaps to identify specifically which test triggered
+the kernel misbehaviour.  Please send along suitable words and I'll add
+them.
 
-We only go into this code path if
-delta >> DEF_PRIORITY is zero.
 
-That is, freeable is smaller than 4096.
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -661,23 +661,27 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+>  	struct llist_node *valist;
+>  	struct vmap_area *va;
+>  	struct vmap_area *n_va;
+> -	bool do_free = false;
+> +	int resched_threshold;
+>  
+>  	lockdep_assert_held(&vmap_purge_lock);
+>  
+>  	valist = llist_del_all(&vmap_purge_list);
+> +	if (unlikely(valist == NULL))
+> +		return false;
 
-> I'll add this:
+Why this change?
 
-> whitespace fixes, per Roman
+> +	/*
+> +	 * TODO: to calculate a flush range without looping.
+> +	 * The list can be up to lazy_max_pages() elements.
+> +	 */
 
-Awesome, thank you!
+How important is this?
 
---=20
-All Rights Reversed.
+>  	llist_for_each_entry(va, valist, purge_list) {
+>  		if (va->va_start < start)
+>  			start = va->va_start;
+>  		if (va->va_end > end)
+>  			end = va->va_end;
+> -		do_free = true;
+>  	}
+>  
+> -	if (!do_free)
+> -		return false;
+> -
+>  	flush_tlb_kernel_range(start, end);
+> +	resched_threshold = (int) lazy_max_pages() << 1;
 
---=-nGE8UQknFPEiL8nfsYnb
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
+Is the typecast really needed?
 
------BEGIN PGP SIGNATURE-----
+Perhaps resched_threshold shiould have unsigned long type and perhaps
+vmap_lazy_nr should be atomic_long_t?
 
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlxPYBAACgkQznnekoTE
-3oN05AgAngaeuhkjCHuyhq8zG04YT0jvQFZoWcNexTYi/rVLmxraUqdOJhpgIvFl
-YMidQJwFi1448jznIdXf3/dgyvbu5JI+JoyhwlfmLv8wyHGWo59AfSkCT8bAPKR5
-qHFY0TQCoOM/QyIW5Qeew5iHjNxceZfLvXNQVlt02jPoR5ysBWC9mudPYHAcTggZ
-4fH8MkS8ukd8ykvx+WbEoO8GzTQrqwcc8bvPsl+mq7I+H2V6J1JhzQON3BSYZnNG
-1SWKuzYdAYP6pxUXYweEl2YkTm4KtNgcxLPF3T8h99Gwa1/Nb9SvWSp6oZB4s9UD
-SWeY7MLKfnBK5aox7F+ilHrcYJrMfw==
-=O2ss
------END PGP SIGNATURE-----
-
---=-nGE8UQknFPEiL8nfsYnb--
+>  	spin_lock(&vmap_area_lock);
+>  	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
+> @@ -685,7 +689,9 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+>  
+>  		__free_vmap_area(va);
+>  		atomic_sub(nr, &vmap_lazy_nr);
+> -		cond_resched_lock(&vmap_area_lock);
+> +
+> +		if (atomic_read(&vmap_lazy_nr) < resched_threshold)
+> +			cond_resched_lock(&vmap_area_lock);
+>  	}
+>  	spin_unlock(&vmap_area_lock);
+>  	return true;
 
