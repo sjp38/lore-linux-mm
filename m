@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B9F2D8E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:45:17 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id l45so6713165edb.1
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:45:17 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EC6938E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:45:18 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e29so6777052ede.19
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:45:18 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l52sor31136483edc.17.2019.01.28.06.45.16
+        by mx.google.com with SMTPS id a37sor29758587edd.23.2019.01.28.06.45.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 28 Jan 2019 06:45:16 -0800 (PST)
+        Mon, 28 Jan 2019 06:45:17 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] mm, memory_hotplug: is_mem_section_removable do not pass the end of a zone
-Date: Mon, 28 Jan 2019 15:45:05 +0100
-Message-Id: <20190128144506.15603-2-mhocko@kernel.org>
+Subject: [PATCH 2/2] mm, memory_hotplug: test_pages_in_a_zone do not pass the end of zone
+Date: Mon, 28 Jan 2019 15:45:06 +0100
+Message-Id: <20190128144506.15603-3-mhocko@kernel.org>
 In-Reply-To: <20190128144506.15603-1-mhocko@kernel.org>
 References: <20190128144506.15603-1-mhocko@kernel.org>
 MIME-Version: 1.0
@@ -22,10 +22,17 @@ List-ID: <linux-mm.kvack.org>
 To: Mikhail Zaslonko <zaslonko@linux.ibm.com>, Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@soleen.com>, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-From: Michal Hocko <mhocko@suse.com>
+From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
 
-Mikhail has reported the following VM_BUG_ON triggered when reading
-sysfs removable state of a memory block:
+If memory end is not aligned with the sparse memory section boundary, the
+mapping of such a section is only partly initialized. This may lead to
+VM_BUG_ON due to uninitialized struct pages access from test_pages_in_a_zone()
+function triggered by memory_hotplug sysfs handlers.
+
+Here are the the panic examples:
+ CONFIG_DEBUG_VM_PGFLAGS=y
+ kernel parameter mem=2050M
+ --------------------------
  page:000003d082008000 is uninitialized and poisoned
  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
  Call Trace:
@@ -42,31 +49,29 @@ sysfs removable state of a memory block:
   [<0000000000385b26>] test_pages_in_a_zone+0xde/0x160
  Kernel panic - not syncing: Fatal exception: panic_on_oops
 
-The reason is that the memory block spans the zone boundary and we are
-stumbling over an unitialized struct page. Fix this by enforcing zone
-range in is_mem_section_removable so that we never run away from a
-zone.
+Fix this by checking whether the pfn to check is within the zone.
 
-Reported-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Debugged-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+[mhocko@suse.com: separated this change from
+http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com]
+Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/memory_hotplug.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/memory_hotplug.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b9a667d36c55..07872789d778 100644
+index 07872789d778..7711d0e327b6 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1233,7 +1233,8 @@ static bool is_pageblock_removable_nolock(struct page *page)
- bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
- {
- 	struct page *page = pfn_to_page(start_pfn);
--	struct page *end_page = page + nr_pages;
-+	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
-+	struct page *end_page = pfn_to_page(end_pfn);
- 
- 	/* Check the starting page of each pageblock within the range */
- 	for (; page < end_page; page = next_active_pageblock(page)) {
+@@ -1274,6 +1274,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+ 				i++;
+ 			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
+ 				continue;
++			/* Check if we got outside of the zone */
++			if (zone && !zone_spans_pfn(zone, pfn + i))
++				return 0;
+ 			page = pfn_to_page(pfn + i);
+ 			if (zone && page_zone(page) != zone)
+ 				return 0;
 -- 
 2.20.1
