@@ -2,169 +2,362 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 504F9C282CD
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 21:53:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DDD6BC282CD
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 22:08:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 112312148E
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 21:53:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8B3E42175B
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 22:08:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="vc03nv96"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 112312148E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="mlkQ6NOF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B3E42175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A670B8E0004; Mon, 28 Jan 2019 16:53:22 -0500 (EST)
+	id 2B8D68E0003; Mon, 28 Jan 2019 17:08:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A14E98E0001; Mon, 28 Jan 2019 16:53:22 -0500 (EST)
+	id 269868E0001; Mon, 28 Jan 2019 17:08:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8DE5C8E0004; Mon, 28 Jan 2019 16:53:22 -0500 (EST)
+	id 10C3A8E0003; Mon, 28 Jan 2019 17:08:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 66E598E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 16:53:22 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id e188so9187618yba.19
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 13:53:22 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CFAAA8E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 17:08:00 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id 18so9197466ybx.6
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 14:08:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=6fUmvSDmEjz08XKF0ToKqbVBrxXVRyHjyqapg2MBg6Q=;
-        b=mLeMn/MvXZDFW7F4Z9K9FNEeAyKhmMQb5h5dcBiH/wvzcyCivADk8z2ZgV8QCJI7Gu
-         tGLLyLe+QY986zUHWCqQAUrhjBevKeH9TTnRofz7DhUnhJ9f4G9IOgPqN2ZTHYOKFWx8
-         Oey2r4NvrT7DBaUyN4/RwVjGES4mFz6Pj0+8yJ3XdIv9uZdiRbGoAOdaEbbKZakTB76O
-         /YKo1ykJelCoc8x19QGSi8vhTKhIPDqDXOaKg5oe4qiNqTCrMViWG1htRKiqVcQiCdWl
-         ou+vUIkRyxP1J0KyBcx7zrXZ1hKcFsMRuM5kr0/JNODyZbrWTnmz2cpTC2LX0m70BICE
-         O5Zg==
-X-Gm-Message-State: AJcUukfdTkLjNgAcB8xRMVPWW735bvFldEtNSyOeh12LtpMIS0f5qqll
-	y7vgNjm5jSugIy+BIKvkR9qs9ZO/V+dLz1ur6akJK/FoO8Pnc5WaRTgo9aeYUQ3/BiOqwjGTXc4
-	4olJ5fa3vmYEgzVsKTH8Bpj6nE48DRGVV57zEZ0nbgkko8n7Gl0jSc4lC8i9HayH0UKs1JW7hoy
-	Bjtzd2s1XQTTI+rfmapXHKePpxGNG4Xx12Bjjh2c9ETU0HsOlbYlKS726Nda/9Rn5WaJy6H8t9o
-	PQ//gQ4PbjFgjkQs6T57k9Tca2PHArQs8nePqcXeylzyjoXTRrnumv2ss8eIJzzO33FvukH/ffk
-	AmrGE2kzrlhLgma4KU7DcQe4RDT5gfo9erQZi7BovDVga8jAIdhuI7uIKRUjtCuEhDzc+YvDtTE
-	1
-X-Received: by 2002:a25:bb0f:: with SMTP id z15mr21806500ybg.57.1548712402081;
-        Mon, 28 Jan 2019 13:53:22 -0800 (PST)
-X-Received: by 2002:a25:bb0f:: with SMTP id z15mr21806476ybg.57.1548712401428;
-        Mon, 28 Jan 2019 13:53:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548712401; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=atziYoVNtZlsUBpoOkRdIcTcr9ul8YlOzzub/SP3RrY=;
+        b=E3Spyv3ujUDOVNd2JMy/dpy1TBt73CojLgw7yWnaNjOFM0iASoBgbhrEgtkGmH8D0+
+         tC2ZBgTd6ford6QX9wO27b2m9zPz2LPhai9HtiB2Fap+niIm6Nq5E5+uBiBtFAI7p0CX
+         pBZcUGj0I3Pu8F4uzkL31OTj3l3NdYnAppT7LYnza+RkamVSaZfiQqiSRM4ww7/faQCt
+         LAXwPDP8+JPN51hJyAg1i8D5er6S2USP3c4807c7c6xBXEGVnvDwW7/PbacFFxTnsct1
+         CqgQGrqEZI8GsvCmoDMsvj8VvEWyWLr6CYDnXV6FuJpha10LfLFsF4M44hM6EdZsgaZD
+         FW1Q==
+X-Gm-Message-State: AJcUukfnHYIrEBd/iRVWY3cm/I/wahO8LQcUyJFBM91uBcUnHKwiK75x
+	OeXddo1FkGLZcyzoHuxmJAJsxS1OibNchd+bqEZkliqtkBc5B/wXOWqWYTZ/qWJg28vLAsy0LUO
+	S24K2TkBYoIEq65U18iV7eAuopBq4rkhVSmNEwwBn3j5V0nyXA0mK8TfN8w3AyMGuwA==
+X-Received: by 2002:a81:d201:: with SMTP id x1mr23774035ywi.9.1548713280473;
+        Mon, 28 Jan 2019 14:08:00 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5UpgdgYLW6rnqwsL4ppUHCV5WGEljSptDDz+Nk8bSxxaLcnBYZbwcwvsAFiIOleDZi8gS2
+X-Received: by 2002:a81:d201:: with SMTP id x1mr23773991ywi.9.1548713279621;
+        Mon, 28 Jan 2019 14:07:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548713279; cv=none;
         d=google.com; s=arc-20160816;
-        b=09GORpCMIlAY9Zdi1dku3bGmHKoS7BlQIATseX2CHwcwZf13uEODD+yKpe6DhpNBLi
-         U3hYDWPRFWcR85+d6wm+ES+7Zcc9VkpWEJtnnBloGmIxY88act20eAE3I1OMDAgJI7EK
-         krRS45tKO7TUFFjQd/4Hc7eXxUXL2n6++AL0zAtOCSfTPsvJ/acqgsNu3M5IY3YntJpS
-         3UtyoDHreOL/jj8XAIbYUagvZFm06cxrfSN6qVle88NM74HYOz0lLV6cAgKwJ2rXZNXM
-         C8dAUcfMR+5+pNwPIdVE5PIma7oWOZF9FYEERdGhuO7bT8yex45mc4hZDbxwzvCC95bh
-         HIsw==
+        b=dWNHlvBCinet2SkH0uk+/VvsaFI8iS4eIpeb54xFlaCcdBt7BNcNn6uJSXVfxOMx22
+         HjeFzmXDGic3M/cWV4BQUD7f+yB4o5r2q4q+P10+XGyGMrCHVHoeRPYYqgv/UPbuBF9o
+         y3gfIwT6vQNlhgWWc6kCmO5qVaUzRiNSskkoKlXyPIQXkZ2VVvYzJYVkvzUOeCZhr0Aw
+         Y06mVri44v0VA6FYLn9Vw/wOL1hlXR+wR7Llgjy0aTUl0yIxlq4Ynk7w+AXWbQPXAVxj
+         k/j/RC2xlVPhDwpnN02vtbuBttfC0LDFChOumVrPr8YYjT/tE4agfT6KTLVDWOQEJLQx
+         pYRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=6fUmvSDmEjz08XKF0ToKqbVBrxXVRyHjyqapg2MBg6Q=;
-        b=nzdS3nIecFMfX9OvImuWoHEj1w2YnTnqlLZuBnAZvs2O7lqsLFjaAA32zcYU30pU9o
-         oAlA9xaMVrGxcHFSI/nTapO4OBhIwrk3FU2jC/wZP7HW0ZBxli4zxxRF+XfKlCDo2ikC
-         TQfwSNTLwhN5rE0LVBRcHweZ0ZptEtxMTbSgc+XidhAtvdCwc+2zSJpA9VVQWCcxYKzV
-         6niCW+9J5sNUCPx52mbA6cO7nw36ce4z3UYo0UXmzmLEpuftdkUA8gMb3HF8aJ5i/enB
-         SKBcDQaJKKPFkuuBuUBsonGSidLEX64mIgi75FHMzmfDH8UlrREQSSd6FAMV4i/VoONO
-         zXXg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=atziYoVNtZlsUBpoOkRdIcTcr9ul8YlOzzub/SP3RrY=;
+        b=ErvC0Vx8vGEfzCp9kDVpWF36+bQP/b143TMt8/vD92KVH76gHMtBt8pHDCj7u1gj2E
+         qLLS4xyQtS3MbB6qIdqSoRUx+k7EBJCdUr3RfNs2P72UHrJNJU54PMKsNaSC9QBIXnVz
+         +V+LusXMMQCp3kEXA8tGLPvYFFWn0oJb1C2uMBTQ09MSgdAg0gKKpTrRTttIItjOR5O7
+         loAlRHYovFlANl2by1cCqiP+QFl40yyw5QFjnhkPQ9Tt1tj3oSaLwZBpxht7pVPsgZHz
+         D0js8z5ZylH8qYm8OfsL8g5+DIXXXgRtofYCvvOG3l0LWVfdxDKPATxf/DJUjb/zLcgb
+         hHPg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=vc03nv96;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t138sor4516968ywe.139.2019.01.28.13.53.16
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=mlkQ6NOF;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id 6si19452141ybm.307.2019.01.28.14.07.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 28 Jan 2019 13:53:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jan 2019 14:07:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=vc03nv96;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=6fUmvSDmEjz08XKF0ToKqbVBrxXVRyHjyqapg2MBg6Q=;
-        b=vc03nv96i0HISo7x2YIJjRidr5L5AP2IUQx6QxFgZmkIVUMJsMRy0c7TK3FrcHSURc
-         aDa2L0TK5Pw30lt66CwIUbIRFXTIeZOeR5wYH0y3ZSoefARez89tTF1w08/hIiX/5Rlh
-         GJjqcQ7j7h3kqaYtO+gCx58GfCaJU3ZPM0wKth+exXBNTulSBbeSLUaDHI0Ec3OnAg4g
-         dByNON9C53Fc1E24EfHoaYt9+4l+UintuPdprpmzY+UswWd8CDo6bAtldH5kxOeofiZ1
-         YBz7LQltzMI/JmZH1RSxBWnMzbc62P4Qaj5+NnVugVBXwh5S9CL0bDhvujlyxrbRU3I4
-         LuFw==
-X-Google-Smtp-Source: ALg8bN4OAl6UXpscoGwFFiaBA21eQ202GOZJFhhB7GKXE4/crw3XmlqCZtLMiadTAOmXTDWM+Q1W7g==
-X-Received: by 2002:a81:b653:: with SMTP id h19mr22487323ywk.170.1548712396677;
-        Mon, 28 Jan 2019 13:53:16 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::5:42c8])
-        by smtp.gmail.com with ESMTPSA id u4sm24465788ywu.92.2019.01.28.13.53.15
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 28 Jan 2019 13:53:15 -0800 (PST)
-Date: Mon, 28 Jan 2019 16:53:15 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@kernel.org>,
-	Arkadiusz =?utf-8?Q?Mi=C5=9Bkiewicz?= <a.miskiewicz@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org,
-	Aleksa Sarai <asarai@suse.de>, Jay Kamat <jgkamat@fb.com>,
-	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>
-Subject: Re: [PATCH v3] oom, oom_reaper: do not enqueue same task twice
-Message-ID: <20190128215315.GA2011@cmpxchg.org>
-References: <6da6ca69-5a6e-a9f6-d091-f89a8488982a@gmail.com>
- <72aa8863-a534-b8df-6b9e-f69cf4dd5c4d@i-love.sakura.ne.jp>
- <33a07810-6dbc-36be-5bb6-a279773ccf69@i-love.sakura.ne.jp>
- <34e97b46-0792-cc66-e0f2-d72576cdec59@i-love.sakura.ne.jp>
- <2b0c7d6c-c58a-da7d-6f0a-4900694ec2d3@gmail.com>
- <1d161137-55a5-126f-b47e-b2625bd798ca@i-love.sakura.ne.jp>
- <20190127083724.GA18811@dhcp22.suse.cz>
- <ec0d0580-a2dd-f329-9707-0cb91205a216@i-love.sakura.ne.jp>
- <20190127114021.GB18811@dhcp22.suse.cz>
- <e865a044-2c10-9858-f4ef-254bc71d6cc2@i-love.sakura.ne.jp>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=mlkQ6NOF;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c4f7d170000>; Mon, 28 Jan 2019 14:07:19 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Mon, 28 Jan 2019 14:07:58 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Mon, 28 Jan 2019 14:07:58 -0800
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Mon, 28 Jan
+ 2019 22:07:57 +0000
+Subject: Re: [v2 PATCH] mm: ksm: do not block on page lock when searching
+ stable tree
+To: Yang Shi <shy828301@gmail.com>
+CC: Yang Shi <yang.shi@linux.alibaba.com>, Kirill Tkhai
+	<ktkhai@virtuozzo.com>, <hughd@google.com>, Andrea Arcangeli
+	<aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM
+	<linux-mm@kvack.org>, Linux Kernel Mailing List
+	<linux-kernel@vger.kernel.org>
+References: <1548287573-15084-1-git-send-email-yang.shi@linux.alibaba.com>
+ <aecc642c-d485-ed95-7935-19cda48800bc@nvidia.com>
+ <CAHbLzkqTZK05g0191dKyTXGDcAuqMi9AGWPHbAEysQdgT7ayBQ@mail.gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <968651e7-b734-2963-5def-71201729c5cf@nvidia.com>
+Date: Mon, 28 Jan 2019 14:07:57 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e865a044-2c10-9858-f4ef-254bc71d6cc2@i-love.sakura.ne.jp>
-User-Agent: Mutt/1.11.2 (2019-01-07)
+In-Reply-To: <CAHbLzkqTZK05g0191dKyTXGDcAuqMi9AGWPHbAEysQdgT7ayBQ@mail.gmail.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1548713239; bh=atziYoVNtZlsUBpoOkRdIcTcr9ul8YlOzzub/SP3RrY=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=mlkQ6NOFlum/2kum5K+LpXqlbXHrJqx8TYD92UbrTOgIqfgSlhPr6cVxHFL1YUdll
+	 pD8aJOiECAEE0qs66jey6fnnnGnQD/M8MO1Wix4fn2RxtuTm7aSEveTtB0LA648o2P
+	 YPsjI4bt3jzSWqQRH4p/Ondq94dpJtLQDLVYG+VE4+9Ymog1anbmZAFvuItauKa7b9
+	 v+gZOLoFCEYl/xE72UtGZzZqYd9Bk451kS7zqf1t8S0Ad8bo8+62I9snp2X6tL9B0N
+	 3BanO6EhtGirwF32pGzKepUp41M74AyeSYQF/AiKWSZIJMeTwaVQfAc+9x6yhbBQeH
+	 p67g2mhkEotlQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Tetsuo,
-
-On Sun, Jan 27, 2019 at 11:57:38PM +0900, Tetsuo Handa wrote:
-> From 9c9e935fc038342c48461aabca666f1b544e32b1 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Sun, 27 Jan 2019 23:51:37 +0900
-> Subject: [PATCH v3] oom, oom_reaper: do not enqueue same task twice
+On 1/28/19 12:06 PM, Yang Shi wrote:
+> Hi John,
 > 
-> Arkadiusz reported that enabling memcg's group oom killing causes
-> strange memcg statistics where there is no task in a memcg despite
-> the number of tasks in that memcg is not 0. It turned out that there
-> is a bug in wake_oom_reaper() which allows enqueuing same task twice
-> which makes impossible to decrease the number of tasks in that memcg
-> due to a refcount leak.
+> Sorry for the late reply. It seems your email didn't reach my company
+> mailbox. So, I replied you with my personal email.
 > 
-> This bug existed since the OOM reaper became invokable from
-> task_will_free_mem(current) path in out_of_memory() in Linux 4.7,
-> but memcg's group oom killing made it easier to trigger this bug by
-> calling wake_oom_reaper() on the same task from one out_of_memory()
-> request.
+> Thanks for your suggestion. This does make the code looks neater.
+> However, I'm not sure how Andrew thought about this patch. Once he is
+> ok to this patch in overall, I will update v3 by following your
+> suggestion.
+> 
+> Regards,
+> Yang
 
-This changelog seems a little terse compared to how tricky this is.
+Hi Yang, 
 
-Can you please include an explanation here *how* this bug is possible?
-I.e. the race condition that causes the function te be entered twice
-and the existing re-entrance check in there to fail.
+OK, great.
 
-> Fix this bug using an approach used by commit 855b018325737f76
-> ("oom, oom_reaper: disable oom_reaper for oom_kill_allocating_task").
-> As a side effect of this patch, this patch also avoids enqueuing
-> multiple threads sharing memory via task_will_free_mem(current) path.
+On the email, I took a quick peek at it looks like my email reached the
+main lists, anyway, in case this helps with troubleshooting on your end:0
+
+https://lore.kernel.org/lkml/aecc642c-d485-ed95-7935-19cda48800bc@nvidia.com/
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
+ 
+> 
+> On Wed, Jan 23, 2019 at 4:24 PM John Hubbard <jhubbard@nvidia.com> wrote:
+>>
+>> On 1/23/19 3:52 PM, Yang Shi wrote:
+>>> ksmd need search stable tree to look for the suitable KSM page, but the
+>>> KSM page might be locked for a while due to i.e. KSM page rmap walk.
+>>> Basically it is not a big deal since commit 2c653d0ee2ae
+>>> ("ksm: introduce ksm_max_page_sharing per page deduplication limit"),
+>>> since max_page_sharing limits the number of shared KSM pages.
+>>>
+>>> But it still sounds not worth waiting for the lock, the page can be skip,
+>>> then try to merge it in the next scan to avoid potential stall if its
+>>> content is still intact.
+>>>
+>>> Introduce async mode to get_ksm_page() to not block on page lock, like
+>>> what try_to_merge_one_page() does.
+>>>
+>>> Return -EBUSY if trylock fails, since NULL means not find suitable KSM
+>>> page, which is a valid case.
+>>>
+>>> With the default max_page_sharing setting (256), there is almost no
+>>> observed change comparing lock vs trylock.
+>>>
+>>> However, with ksm02 of LTP, the reduced ksmd full scan time can be
+>>> observed, which has set max_page_sharing to 786432.  With lock version,
+>>> ksmd may tak 10s - 11s to run two full scans, with trylock version ksmd
+>>> may take 8s - 11s to run two full scans.  And, the number of
+>>> pages_sharing and pages_to_scan keep same.  Basically, this change has
+>>> no harm.
+>>>
+>>> Cc: Hugh Dickins <hughd@google.com>
+>>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>>> Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+>>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>>> ---
+>>> Hi folks,
+>>>
+>>> This patch was with "mm: vmscan: skip KSM page in direct reclaim if priority
+>>> is low" in the initial submission.  Then Hugh and Andrea pointed out commit
+>>> 2c653d0ee2ae ("ksm: introduce ksm_max_page_sharing per page deduplication
+>>> limit") is good enough for limiting the number of shared KSM page to prevent
+>>> from softlock when walking ksm page rmap.  This commit does solve the problem.
+>>> So, the series was dropped by Andrew from -mm tree.
+>>>
+>>> However, I thought the second patch (this one) still sounds useful.  So, I did
+>>> some test and resubmit it.  The first version was reviewed by Krill Tkhai, so
+>>> I keep his Reviewed-by tag since there is no change to the patch except the
+>>> commit log.
+>>>
+>>> So, would you please reconsider this patch?
+>>>
+>>> v2: Updated the commit log to reflect some test result and latest discussion
+>>>
+>>>  mm/ksm.c | 29 +++++++++++++++++++++++++----
+>>>  1 file changed, 25 insertions(+), 4 deletions(-)
+>>>
+>>> diff --git a/mm/ksm.c b/mm/ksm.c
+>>> index 6c48ad1..f66405c 100644
+>>> --- a/mm/ksm.c
+>>> +++ b/mm/ksm.c
+>>> @@ -668,7 +668,7 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>>>  }
+>>>
+>>>  /*
+>>> - * get_ksm_page: checks if the page indicated by the stable node
+>>> + * __get_ksm_page: checks if the page indicated by the stable node
+>>>   * is still its ksm page, despite having held no reference to it.
+>>>   * In which case we can trust the content of the page, and it
+>>>   * returns the gotten page; but if the page has now been zapped,
+>>> @@ -686,7 +686,8 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>>>   * a page to put something that might look like our key in page->mapping.
+>>>   * is on its way to being freed; but it is an anomaly to bear in mind.
+>>>   */
+>>> -static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>>> +static struct page *__get_ksm_page(struct stable_node *stable_node,
+>>> +                                bool lock_it, bool async)
+>>>  {
+>>>       struct page *page;
+>>>       void *expected_mapping;
+>>> @@ -729,7 +730,14 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>>>       }
+>>>
+>>>       if (lock_it) {
+>>> -             lock_page(page);
+>>> +             if (async) {
+>>> +                     if (!trylock_page(page)) {
+>>> +                             put_page(page);
+>>> +                             return ERR_PTR(-EBUSY);
+>>> +                     }
+>>> +             } else
+>>> +                     lock_page(page);
+>>> +
+>>>               if (READ_ONCE(page->mapping) != expected_mapping) {
+>>>                       unlock_page(page);
+>>>                       put_page(page);
+>>> @@ -752,6 +760,11 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>>>       return NULL;
+>>>  }
+>>>
+>>> +static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>>> +{
+>>> +     return __get_ksm_page(stable_node, lock_it, false);
+>>> +}
+>>> +
+>>>  /*
+>>>   * Removing rmap_item from stable or unstable tree.
+>>>   * This function will clean the information from the stable/unstable tree.
+>>> @@ -1673,7 +1686,11 @@ static struct page *stable_tree_search(struct page *page)
+>>>                        * It would be more elegant to return stable_node
+>>>                        * than kpage, but that involves more changes.
+>>>                        */
+>>> -                     tree_page = get_ksm_page(stable_node_dup, true);
+>>> +                     tree_page = __get_ksm_page(stable_node_dup, true, true);
+>>
+>> Hi Yang,
+>>
+>> The bools are stacking up: now you've got two, and the above invocation is no longer
+>> understandable on its own. At this point, we normally shift to flags and/or an
+>> enum.
+>>
+>> Also, I see little value in adding a stub function here, so how about something more
+>> like the following approximation (untested, and changes to callers are not shown):
+>>
+>> diff --git a/mm/ksm.c b/mm/ksm.c
+>> index 6c48ad13b4c9..8390b7905b44 100644
+>> --- a/mm/ksm.c
+>> +++ b/mm/ksm.c
+>> @@ -667,6 +667,12 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>>         free_stable_node(stable_node);
+>>  }
+>>
+>> +typedef enum {
+>> +       GET_KSM_PAGE_NORMAL,
+>> +       GET_KSM_PAGE_LOCK_PAGE,
+>> +       GET_KSM_PAGE_TRYLOCK_PAGE
+>> +} get_ksm_page_t;
+>> +
+>>  /*
+>>   * get_ksm_page: checks if the page indicated by the stable node
+>>   * is still its ksm page, despite having held no reference to it.
+>> @@ -686,7 +692,8 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>>   * a page to put something that might look like our key in page->mapping.
+>>   * is on its way to being freed; but it is an anomaly to bear in mind.
+>>   */
+>> -static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>> +static struct page *get_ksm_page(struct stable_node *stable_node,
+>> +                                get_ksm_page_t flags)
+>>  {
+>>         struct page *page;
+>>         void *expected_mapping;
+>> @@ -728,8 +735,17 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+>>                 goto stale;
+>>         }
+>>
+>> -       if (lock_it) {
+>> +       if (flags == GET_KSM_PAGE_TRYLOCK_PAGE) {
+>> +               if (!trylock_page(page)) {
+>> +                       put_page(page);
+>> +                       return ERR_PTR(-EBUSY);
+>> +               }
+>> +       } else if (flags == GET_KSM_PAGE_LOCK_PAGE) {
+>>                 lock_page(page);
+>> +       }
+>> +
+>> +       if (flags == GET_KSM_PAGE_LOCK_PAGE ||
+>> +           flags == GET_KSM_PAGE_TRYLOCK_PAGE) {
+>>                 if (READ_ONCE(page->mapping) != expected_mapping) {
+>>                         unlock_page(page);
+>>                         put_page(page);
+>>
+>>
+>> thanks,
+>> --
+>> John Hubbard
+>> NVIDIA
+>>
+>>> +
+>>> +                     if (PTR_ERR(tree_page) == -EBUSY)
+>>> +                             return ERR_PTR(-EBUSY);
+>>> +
+>>>                       if (unlikely(!tree_page))
+>>>                               /*
+>>>                                * The tree may have been rebalanced,
+>>> @@ -2060,6 +2077,10 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
+>>>
+>>>       /* We first start with searching the page inside the stable tree */
+>>>       kpage = stable_tree_search(page);
+>>> +
+>>> +     if (PTR_ERR(kpage) == -EBUSY)
+>>> +             return;
+>>> +
+>>>       if (kpage == page && rmap_item->head == stable_node) {
+>>>               put_page(kpage);
+>>>               return;
+>>>
+>>
 
