@@ -1,13 +1,13 @@
 From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.14 153/170] mm/page_owner: clamp read count to PAGE_SIZE
-Date: Mon, 28 Jan 2019 11:11:43 -0500
-Message-ID: <20190128161200.55107-153-sashal@kernel.org>
-References: <20190128161200.55107-1-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.9 095/107] mm/page_owner: clamp read count to PAGE_SIZE
+Date: Mon, 28 Jan 2019 11:19:35 -0500
+Message-ID: <20190128161947.57405-95-sashal@kernel.org>
+References: <20190128161947.57405-1-sashal@kernel.org>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20190128161200.55107-1-sashal@kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
+Return-path: <stable-owner@vger.kernel.org>
+In-Reply-To: <20190128161947.57405-1-sashal@kernel.org>
+Sender: stable-owner@vger.kernel.org
 To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
 Cc: Miles Chen <miles.chen@mediatek.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
@@ -37,10 +37,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 1 insertion(+)
 
 diff --git a/mm/page_owner.c b/mm/page_owner.c
-index a71fe4c623ef..7232c6e24234 100644
+index 60634dc53a88..f3e527d95ab6 100644
 --- a/mm/page_owner.c
 +++ b/mm/page_owner.c
-@@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+@@ -334,6 +334,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
  		.skip = 0
  	};
  
