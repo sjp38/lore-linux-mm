@@ -2,171 +2,163 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F481C282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 15:54:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61976C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 15:59:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F229920989
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 15:54:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 217AF2175B
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 15:59:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pXoMh7mW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F229920989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Y2Nu9OJQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 217AF2175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7035D8E0007; Mon, 28 Jan 2019 10:54:16 -0500 (EST)
+	id B45F88E0002; Mon, 28 Jan 2019 10:59:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B3268E0001; Mon, 28 Jan 2019 10:54:16 -0500 (EST)
+	id ACDBD8E0001; Mon, 28 Jan 2019 10:59:46 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C9838E0007; Mon, 28 Jan 2019 10:54:16 -0500 (EST)
+	id 996118E0002; Mon, 28 Jan 2019 10:59:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C6098E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:54:16 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 82so14351153pfs.20
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:54:16 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 656CB8E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 10:59:46 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id x64so9800126ywc.6
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 07:59:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=TBgzcU+QM8oQkU+TUSLXH1qqIRWFo/d97fxNJnnwyPY=;
-        b=nlDlTU2eSj4NdTazrVrGyyKZLC0/Yx76xMlzqMKwYTnrptyffPHqHu56S6KDv+gYGK
-         lkRyuybUpNRSf+n/p5LTnK7YcgDLpUYeCh2JTfCQP6wNPYrAapVyQeO8f5d2TdXimT2i
-         NjkulNjIIqczxk9ZMe+YzbX2EPR8CwFMtbZDBFm5yrh5JPa2o0rn2HHMlqS0yZKy5TjH
-         esB9PWZ4jV/tmMA1or/VT2VEUY8emK2C5shSO9GQsf1c5RVcpKjp6eMJ0lbK731S1Uzz
-         GxfLYcUl3NZv7as8bknb/+LBcqxTBve4xIw8f8FueAMErA5A15aMgS/HaY6apVW1hfTA
-         Wf5A==
-X-Gm-Message-State: AJcUukdiM/fxxZm/GIBuTq3Rfsy1rL3dG9hJp1gw4oe+bs2CHqYAMC3r
-	ubj4i38OD2xnNMNpyOIKZfsCFST/MrDxD9iRs4KV9SoBzbpmOVSxDQ0L6jiiHve4IFXHfa/nv8G
-	NlhOsvz19KWTLjkGf8/HUsDmFlQGLVdcwoNZ3I830yeiQiBYQpAIslf/FhKQmyVF9hQ==
-X-Received: by 2002:a17:902:5a5:: with SMTP id f34mr22359648plf.161.1548690855659;
-        Mon, 28 Jan 2019 07:54:15 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7Vs0ethcdcicE9MAUggfKHog8wSpCy4cLJmeeYwHI8Uce+gx30VQgnZkoOnN6PsQUle1g+
-X-Received: by 2002:a17:902:5a5:: with SMTP id f34mr22359630plf.161.1548690855044;
-        Mon, 28 Jan 2019 07:54:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548690855; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=yG+IPoHDMDTax/O7ZuXb5W3f6MupuLya0ZnIkWYX/6w=;
+        b=pPEAn4jxgsAkYPEJ8iXkHPzU0kGAYMySu52YfeUf0W1dCWk2ZvPupMkGpd4EtMFqCb
+         /MAG1oKgjVEtG2IRM7zhW2rZlqEHbK1BOEHXARfrpn9QcUkuQQ//z8eI+c441nJ3ko4A
+         Au6c9Fo3E9CS7GPreoOeFz7/srxdNKIuFYangeEWXeuxJPcgpy4G+pBeQr0wftFSHpz/
+         M15JKMuN5cLd0PnoBexqpflZc2AVWeKpk8k+UJKE5jwi3bYNeJYhPFidVfFETQQPmEbq
+         E+PkR3BwwjaXzdSlqe0aUKHIRd7Re0kHUJ4FQTPau/dtcWgEkhgWdKuJH3hegSytVjKq
+         4Yjw==
+X-Gm-Message-State: AJcUukdVwR32Z5rEfScnwaMHwUBvHE8WohDsblLRhXNt1Xpp4e8kJ6ps
+	vSMQRaPletDdH746Q1I9g5CY3Hrxv69rPxmKLL4qiWJJGV76CpayPyOSIPDlxJ2KHty6Xl2lrDC
+	AlEpwelxPfuY7zCU7n6DrD1JcaOIMTSwI7VFdjmbIQjOcBEUUG6P2CVqNV8nVl+eeFjp4WpdxPv
+	tnZfJFeCoG4VeH2j6gRuCzL7brI4ymZHDZwiHoyL2zOi0b6yeGSN8lbWwLK9aOB+GFX92UIHxV1
+	nQUs8EHBIzcyKp87IRN80ucfyEZbEEOwZb3HSsqLIs7McLhdjyFYHRxfev4NK9gVIAxlyM3XOMk
+	Vim+HSP6D+sr93tSfQhFV168AMnxERdKm/3TGHaCMToNUzm3MIMW6SZuNc3UJWAcarLPsWKcwfX
+	k
+X-Received: by 2002:a5b:4c1:: with SMTP id u1mr20862480ybp.82.1548691185995;
+        Mon, 28 Jan 2019 07:59:45 -0800 (PST)
+X-Received: by 2002:a5b:4c1:: with SMTP id u1mr20862447ybp.82.1548691185367;
+        Mon, 28 Jan 2019 07:59:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548691185; cv=none;
         d=google.com; s=arc-20160816;
-        b=WOwPQ+DW5GSItT100Lp5pATEH3FwRYC16e0Ee+KjbpRoUhpYIpN/W+oZPtSXHuzD10
-         zxeHx5B/YyATiX8d0yjnBnui6meZwbB8U0nWmRQDaSlO3TpbOYutPQ3RSwv/fKZXEwX+
-         A2NIbKfgymtiU3prUU7+pSmMap63RuNNHlYYf1vpR0dcU1epA0BwHJVHzUcxfXFerDMd
-         HNnxmo0hdccdTxinCl6vtywyodyFNSWYAKtmhzsSrnxF9IcXFZ4eNquF0Gh1WYfZbKKW
-         9k7RAW1rRuRh/SazgCn8Zvgqh0aNYEHdtXowOhOzB/ZVEZ5Vxm/VdobRNcVS4ZcAZhV5
-         IGRA==
+        b=b2MEqyNMvqNsTLPZr+QhU8G6vt4lmgXN9TGzX+63Fjs/2Y8JcOPBAVKZxg3/oWzoYT
+         W70FWiSYntg0dlLxXp2EP30McmlTPmmOzuxrfV50GKsjFYKDxiobV+LKc9bnPTy9rvkN
+         XB0Dp7adyjqJ5aUAZsAu8VmY6mGV8YqV8MhW3OKkXoqAffrPZUpnsCVfT4brk91S197z
+         Iqd2f8rAo07+iVYzTMrZNRWGKTYTa75KSpNO4ePoN46R0C/VOP1Irt8cTrQNDNSBuIqI
+         TVytiCOYnKF7F5VJRzgSLWvCtLyV2bGVv6cgSQM6xDikedoUgiE8DdYtt1gC5R7bOtjC
+         evBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=TBgzcU+QM8oQkU+TUSLXH1qqIRWFo/d97fxNJnnwyPY=;
-        b=qcmIvgYHAoYtfE+mitZ/yG2xiE7OEq3GXCL9rnskO7JcJJ47Qlxir1LPfJby2d+Som
-         NjKessOjINP1tURipD25tH+bgzmxSS+RzX76oy4Wl+J6qMGgeLGvXqRZ8LWgkQtaaWv6
-         m/ZuZaA/Jq9C/YuC9u8e2aPznOPYj3pnUnqz1R9+9DFiOEm+EyFOr7LTmjnpYOfeUBMI
-         iz1LCzPXJT0QaP4QdYp+gO1GnOeBf7q1M0gVVhFC8bnTwwZ6ornOqssZrT6niX4XwIba
-         DlDFrHEAlmMor2s6Wk4AV21SENwMwJyHSGwFv2vFVEL+CnNKwjaLUCzkfGD9H2VIHN/X
-         aN+g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=yG+IPoHDMDTax/O7ZuXb5W3f6MupuLya0ZnIkWYX/6w=;
+        b=dZRm3GBaxTkk8AVMhSm42pLoS31ylNx304TcwhqkjFWykDj3+6G6HYRZMeB68klNQv
+         MZkgjCP8TTAORazrQWPOcsuJ83fQLORdxwIjtyKuUH/BUwgDg7859D8kIDUiohXvJv5K
+         iOpoOdBRyzQHzleJ3KHNCt+mtBfYP/W55nFOZktVRe5Qr3zUxHcHJVDCKTcXXHwoDmM9
+         cE7OeTTxzyTsQ3jCnGIUAZ0btqj6VLd4xwqn4hhZfKlrK0KB7orfPdlPpaCIbdtE1nQs
+         WXCoyDdv2T4fBzcLFK+3ZV/P1HeCYVQiUWPw6yQW+dkV7PYZ9mpnMKpK2yyP3X2RYcJH
+         Mfow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=pXoMh7mW;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 2si16135342pgj.104.2019.01.28.07.54.14
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Y2Nu9OJQ;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d4sor5837759ywm.164.2019.01.28.07.59.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 07:54:15 -0800 (PST)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Mon, 28 Jan 2019 07:59:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=pXoMh7mW;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 85E062147A;
-	Mon, 28 Jan 2019 15:54:13 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1548690854;
-	bh=Cl1eTko4iUGK2WU8wbodBAejJ2Crw/a+kDLMWX2LUgA=;
-	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=pXoMh7mWN5UIFf1PVRRUS8fdX7QBhnwVWNF85LmyV7TKd/4QOxphj1r3Sm52/KsOe
-	 01VcbjdoQ8NYNV/doj/vHpIM92ErBlwD6p41GUa1mZlRbcG3705M5BEEeAf/EvZKxY
-	 fUXey8CamPiP4zwq08rq9yrQl7NLFDGlBl52zJls=
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Cc: Dennis Zhou <dennis@kernel.org>,
-	Sasha Levin <sashal@kernel.org>,
-	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.20 214/304] percpu: convert spin_lock_irq to spin_lock_irqsave.
-Date: Mon, 28 Jan 2019 10:42:11 -0500
-Message-Id: <20190128154341.47195-214-sashal@kernel.org>
-X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190128154341.47195-1-sashal@kernel.org>
-References: <20190128154341.47195-1-sashal@kernel.org>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Y2Nu9OJQ;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=yG+IPoHDMDTax/O7ZuXb5W3f6MupuLya0ZnIkWYX/6w=;
+        b=Y2Nu9OJQzhF0nbbJyWful5kNWyBwddZ1f1VkAn29tp8WPoA3LQEpNLrXI0kn9uVKgy
+         OlGZ5zSDZ626uxv8mP78Rj7AY2v4WkaCfuHsdJlBn+xXi/4FgKXoDRlJQ+mYBvaUcEBs
+         /SM7LUD6MvsgbB1WryhJ8dhabqGvs4Z7Y6u8y+ALxnGe8PYsUrAJJ5Y/szN5wT1FRpNF
+         mB6Q3M2uWHzBMJQYukDpHZlc+LY9Usy04PZ+TuJ6YRjmujaKDcTm2vvts6QrF8UMvKSD
+         nwJH1risZ+AEEBgV+6YVoz9pRI6Oquh247133FVA/eaZMzmKJy+IaVYXqtOvdwRjrchm
+         ysOw==
+X-Google-Smtp-Source: ALg8bN7fCDdqmT/Poi2kifvBPpqajT1d4G+DhyRvU7E2FrC8gKAWDBqOykP3e9SscAD5+1zazZ4ERAHo037J/PrOYpg=
+X-Received: by 2002:a81:ee07:: with SMTP id l7mr21402528ywm.489.1548691184840;
+ Mon, 28 Jan 2019 07:59:44 -0800 (PST)
 MIME-Version: 1.0
-X-Patchwork-Hint: Ignore
-Content-Transfer-Encoding: 8bit
+References: <20190123223144.GA10798@chrisdown.name> <20190124082252.GD4087@dhcp22.suse.cz>
+ <20190124160009.GA12436@cmpxchg.org> <20190124170117.GS4087@dhcp22.suse.cz>
+ <20190124182328.GA10820@cmpxchg.org> <20190125074824.GD3560@dhcp22.suse.cz>
+ <20190125165152.GK50184@devbig004.ftw2.facebook.com> <20190125173713.GD20411@dhcp22.suse.cz>
+ <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+In-Reply-To: <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Mon, 28 Jan 2019 07:59:33 -0800
+Message-ID:
+ <CALvZod6LFY+FYfBcAX0kLxV5KKB1-TX2cU5EDyyyjvHOtuWWbA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, 
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, kernel-team@fb.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190128154211.fyI8KW5Q8rlpBfadb_MDmcPSF3D4RkhhlMZt7z04-GA@z>
+Message-ID: <20190128155933.bnaG6aPWmMBR8ipdSemcgEdOpyU6vXw8hO5oaEuSAOM@z>
 
-From: Dennis Zhou <dennis@kernel.org>
+Hi Tejun,
 
-[ Upstream commit 6ab7d47bcbf0144a8cb81536c2cead4cde18acfe ]
+On Fri, Jan 25, 2019 at 10:28 AM Tejun Heo <tj@kernel.org> wrote:
+>
+> Hello, Michal.
+>
+> On Fri, Jan 25, 2019 at 06:37:13PM +0100, Michal Hocko wrote:
+> > > What if a user wants to monitor any ooms in the subtree tho, which is
+> > > a valid use case?
+> >
+> > How is that information useful without know which memcg the oom applies
+> > to?
+>
+> For example, a workload manager watching over a subtree for a job with
+> nested memory limits set by the job itself.  It wants to take action
+> (reporting and possibly other remediative actions) when something goes
+> wrong in the delegated subtree but isn't involved in how the subtree
+> is configured inside.
+>
 
-From Michael Cree:
-  "Bisection lead to commit b38d08f3181c ("percpu: restructure
-   locking") as being the cause of lockups at initial boot on
-   the kernel built for generic Alpha.
+Why not make this configurable at the delegation boundary? As you
+mentioned, there are jobs who want centralized workload manager to
+watch over their subtrees while there can be jobs which want to
+monitor their subtree themselves. For example I can have a job which
+know how to act when one of the children cgroup goes OOM. However if
+the root of that job goes OOM then the centralized workload manager
+should do something about it. With this change, how to implement this
+scenario? How will the central manager differentiates between that a
+subtree of a job goes OOM or the root of that job? I guess from the
+discussion it seems like the centralized manager has to traverse that
+job's subtree to find the source of OOM.
 
-   On a suggestion by Tejun Heo that:
+Why can't we let the implementation of centralized manager easier by
+allowing to configure the propagation of these notifications across
+delegation boundary.
 
-   So, the only thing I can think of is that it's calling
-   spin_unlock_irq() while irq handling isn't set up yet.
-   Can you please try the followings?
-
-   1. Convert all spin_[un]lock_irq() to
-      spin_lock_irqsave/unlock_irqrestore()."
-
-Fixes: b38d08f3181c ("percpu: restructure locking")
-Reported-and-tested-by: Michael Cree <mcree@orcon.net.nz>
-Acked-by: Tejun Heo <tj@kernel.org>
-Signed-off-by: Dennis Zhou <dennis@kernel.org>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- mm/percpu-km.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/percpu-km.c b/mm/percpu-km.c
-index 38de70ab1a0d..0f643dc2dc65 100644
---- a/mm/percpu-km.c
-+++ b/mm/percpu-km.c
-@@ -50,6 +50,7 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
- 	struct pcpu_chunk *chunk;
- 	struct page *pages;
-+	unsigned long flags;
- 	int i;
- 
- 	chunk = pcpu_alloc_chunk(gfp);
-@@ -68,9 +69,9 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- 	chunk->data = pages;
- 	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
- 
--	spin_lock_irq(&pcpu_lock);
-+	spin_lock_irqsave(&pcpu_lock, flags);
- 	pcpu_chunk_populated(chunk, 0, nr_pages, false);
--	spin_unlock_irq(&pcpu_lock);
-+	spin_unlock_irqrestore(&pcpu_lock, flags);
- 
- 	pcpu_stats_chunk_alloc();
- 	trace_percpu_create_chunk(chunk->base_addr);
--- 
-2.19.1
+thanks,
+Shakeel
 
