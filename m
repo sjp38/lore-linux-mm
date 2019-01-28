@@ -2,235 +2,214 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 57D92C282CD
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:45:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FECEC282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:50:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EF1382084C
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:45:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="rIzslTGd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF1382084C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 4AC932175B
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:50:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AC932175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A61B8E0002; Mon, 28 Jan 2019 11:45:06 -0500 (EST)
+	id DB6DF8E0002; Mon, 28 Jan 2019 11:50:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 52ECD8E0001; Mon, 28 Jan 2019 11:45:06 -0500 (EST)
+	id D8E728E0001; Mon, 28 Jan 2019 11:50:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F7678E0002; Mon, 28 Jan 2019 11:45:06 -0500 (EST)
+	id C55FD8E0002; Mon, 28 Jan 2019 11:50:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EA778E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 11:45:06 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id x125so18519470qka.17
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 08:45:06 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 85BE18E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 11:50:54 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id a10so12189011plp.14
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 08:50:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=yX0lx2enEm0ho3MBCT9f8E7DZGiastAJR1EiGt/PD+g=;
-        b=UeRPRcKFo6vaDcbyyVmUmf2CUvLLM3VfMsKPJiuuLzFZSDuQzXLlQVRnxw4vlXwoeL
-         h7c6VW3Xgkivdqm1RRiehj1M9rOMOMYCrFi28v26JiXt+GFii1IWEKNJ89WJ5KHi5WcJ
-         BW9LxaaIcFY7Le2xQ679mYZ51vt7VH+t2om5msoO0CM5kEEFV7/lRHQWt8Mw2aiN7ie8
-         LRo+JFLRCDVdcap3Oeva6E8eNSMDxULY7i/+bSIbuWuNBMZmg6H6iJdgJC1gwXg05Amb
-         sjorY6qKVFknnAfkLJxNBNnQuj1InOHan+CNv3zc6HwSZQ+WNQDvEo6I7IN4LjA6Yhk5
-         c+RQ==
-X-Gm-Message-State: AJcUukc//0X4IvHEFE1aMKK97JMHIQVpKDoeZHOXu1QakyNPKs0tP4yl
-	YAZnFiExbhvnjGnwCpAcdpaK83I03GL04buWxNf4GT6pOQTfwgCeMjH3OlctMJg3BWUID+XoT8N
-	9RcNoJQbNgSS1AVs/2uilX4i9oNXvlqVlG8RFplp36K7GHdY+TK2oSm8DzVtr0NQLSMu9n/7Prv
-	lKRix/6tyW20Y2hPKqlURiiD2gPretWinIfWJfXwaRZpxXDxmzH94OamaqUoxU5eNUvab0X3OBl
-	oiG0B0sH8gONM2NDHcvOcfrxkEprzTCsIqnRzQuO35Ro3Xa8u8OLSTOQw/cKsWBfEa+JDUz/yiU
-	PrT49BFFOHBewd6DbOA9ZwG04ECcdsXEx8t4PskomDHeKKl+EuKSls16cEpDIjxwaeFqNKlXe4l
-	+
-X-Received: by 2002:a0c:985d:: with SMTP id e29mr21211613qvd.16.1548693905688;
-        Mon, 28 Jan 2019 08:45:05 -0800 (PST)
-X-Received: by 2002:a0c:985d:: with SMTP id e29mr21211570qvd.16.1548693905006;
-        Mon, 28 Jan 2019 08:45:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548693905; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=WgCcQJddOY+dCGW5R8sEKJyyDQNLAI+E82uo1GlW1E8=;
+        b=sNKcfbNA7kxM7500AITK5Mg5IGswJeIbsf4ih+z2Xsbs1OPqAeFXb3rAxYiNQfJUm0
+         jlnv87V2phus/TNoxfsQj3ZpDiAGxC7mguv1UWSYcCrdqrWAZlB80eUObQkr9Q/kt0jH
+         Z1UZy/e5rRiLCsZvlyyYc9bwXa06QLRPRDlT6tgO1vrAagTcQFsdX0BTBc4YGEXV9Lby
+         +f8opLsSnpwGvVXqvbWX78LlSCVaRpqyEHXdo8fYGibIeV1BnJ3u8Z+WZF+eGzKCIcHm
+         JOEpaI080sxVtSvkX3HA7+wbpsexShYz0t9xDPrqUaSIyvLdj0iO2Wmjn/WDIzW10fD7
+         6wkg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukckc4lp03mvJucZ+DjsUmfjTj+V+Lwe5RGC90gQyHNccyfRnyBY
+	hq22rMjUllSygAha7xakcWkSNeq3QZlc5Ps1NHwp1Om2hXx1kREs1tX7mmEbNMXrrn7Q89oEnHj
+	DT5vGKWLyMxejKk8VN/Klemk+OOqf8wYJhHCBkY4p+qE/pfuWq6KK00fCHG1QALuEVg==
+X-Received: by 2002:a17:902:9691:: with SMTP id n17mr23115661plp.9.1548694254151;
+        Mon, 28 Jan 2019 08:50:54 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4Z7s3HU9s/+oQTfytUsh5Y7vc5ijjZAytSfxcYtEq+tdD1UjUwN5CpeCTaIPi2LK9tkZN5
+X-Received: by 2002:a17:902:9691:: with SMTP id n17mr23115623plp.9.1548694253344;
+        Mon, 28 Jan 2019 08:50:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548694253; cv=none;
         d=google.com; s=arc-20160816;
-        b=Pj0ptwVqOaYOvNzSjQYn7vjsdJwPpDbU0KLklOCUUksLo0AuzgpNc8u6EoDTpXW1wz
-         gIzglrizR/M2Y1SC3HebsEAelFVT9xHIO5nJe3SL7OfvVbdt1kx7o6iivo5sy4HNjTc/
-         ACOTPgHS03K1WvIPlGwEZ8SYaWI0Cu2/6c+8YZKBBqfQzTz8lNLPo4L94Ah27W4895uz
-         0BHw8+/BBMBm+whAR+pDSjdMcBy8lcwOt9S6x89VH5jQirXNuoYISG3uzdzLVCey2btu
-         5rg1pIvMd+OIcZBYxQotsaAXR4cHqbl5wqIDALKXb5YWbUWDoQQr+gVDtyNVgkA5n9FL
-         bBxA==
+        b=tFkLa+M7aFlygW/KKDlRHl6w496YMJlUsr8dGSUoINl7kwPEinB2pqUgVmk7v39IdM
+         07xa+ICCPwWfFg7CDCJwpoXBErxzlWqXhsPOtfR8gMU2VEoDQbcJewSb8s38ZksEqwjL
+         397BbFqYWSXYy7zUVIa92UAsDW2dcJJ54T7fUu/0Sa1AOj0SrWSFQFlbbDy/U+DgUhmp
+         fTnjosQ1bk21s8hsqzuyYt/c5E2lT3KJZTKp3NuLPwNZXF9gjDA/bWGM/bIEwCM4thpC
+         FK9TPFa2BhWZjJI34OgQ/5h7YV2/5yY1H2Y2ZYP5heqmRRJpuifvNE+s1g9EySZDBngY
+         WliQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=yX0lx2enEm0ho3MBCT9f8E7DZGiastAJR1EiGt/PD+g=;
-        b=RA0ggwmS7VUlRx9RkODAR1lpFjEWJ8kZuNcjW1KKV1dxq9ySW/2ZJwe4MIg8XhM8II
-         JZIL3SQ4P0ekVrSTBPCuAjeI3XaXubnYDWVi/rnqRZCMdj7ZOBYeENUh6KmiyI177t69
-         HCrWxPgC+omML+sQNH/+JbYhTHeTrd3Suwr2KobCDCTmcoStiNnMWK/EfYNoqclSmqCx
-         WGsywqw7eGHUaoWKi/70ES4a6ItPdZGEuP72inTGgTsO58CTmS9Mcsr5GodQhUfesgPw
-         x0oGaLFPGv4ejLFGn8SUyt39c5TXxJgKNUz32GsnACXIJgA0QHEGthAJ0U2yq/zTSmbv
-         MWRg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=WgCcQJddOY+dCGW5R8sEKJyyDQNLAI+E82uo1GlW1E8=;
+        b=olTOBSpByroMwA4C5tS3xVqJbYqsK7n8Of4JFmCUtQxuRvFewyBVdNSm6in+tA2h1U
+         cZEWt5BFG3Fg53wzaaAg/ZEyBwyhrAeLPLHRPx300RPejOYV5sfVrAjDgjdr7Tgv8eT8
+         zY30CL4f3o07CEWwIVNkEq0V4o49SjfQud2QawdJ7RBPOLNy2zI1vCgv4JzyuBTwgs/R
+         9XuXDOV8zsH8lQr6r0Crxeu53PugjTb3J0RpguoXgOBnqIwmDi/N0UTquKKzNjl1hu01
+         4Cf+JiNxmaIg8t9QwSQjCidy1idY47Sx7vNOvIqOZS4synlJjvoeN0cyzJAf6pts2XlF
+         FaPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=rIzslTGd;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e11sor135627624qti.4.2019.01.28.08.45.04
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id 32si18971578ple.72.2019.01.28.08.50.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 28 Jan 2019 08:45:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jan 2019 08:50:53 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=rIzslTGd;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=yX0lx2enEm0ho3MBCT9f8E7DZGiastAJR1EiGt/PD+g=;
-        b=rIzslTGdanb2OhJ9WsCE0cZo8ngvCLC8GljHWKMvGCk9qg1D5X4UdljVEUy/4ID7XD
-         pN7hkaGuI44+ldFu7cZkRaMnA3H7iJ2fC5leWHfMwOAsTYdhtdT2bsa12XNWGpUqovPa
-         aS4OIUW5iJfsGvLIMhUwQb/MCjclMt1ydLrDY=
-X-Google-Smtp-Source: ALg8bN6Okkn6VGO5VUPUUEjc8DtkIfFV+RPv0Hatm7QLi5IsmcbGh/a89HRckacmq69QyFBHCWHMUA==
-X-Received: by 2002:aed:30c4:: with SMTP id 62mr21276888qtf.290.1548693904561;
-        Mon, 28 Jan 2019 08:45:04 -0800 (PST)
-Received: from localhost ([2620:0:1004:1100:cca9:fccc:8667:9bdc])
-        by smtp.gmail.com with ESMTPSA id p42sm79595432qte.8.2019.01.28.08.45.03
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 28 Jan 2019 08:45:03 -0800 (PST)
-Date: Mon, 28 Jan 2019 11:45:02 -0500
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Todd Kjos <tkjos@google.com>,
-	syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com,
-	ak@linux.intel.com, Johannes Weiner <hannes@cmpxchg.org>,
-	jack@suse.cz, jrdr.linux@gmail.com,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	mawilcox@microsoft.com, mgorman@techsingularity.net,
-	syzkaller-bugs@googlegroups.com,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: possible deadlock in __do_page_fault
-Message-ID: <20190128164502.GA260885@google.com>
-References: <201901230201.x0N214eq043832@www262.sakura.ne.jp>
- <20190123155751.GA168927@google.com>
- <201901240152.x0O1qUUU069046@www262.sakura.ne.jp>
- <20190124134646.GA53008@google.com>
- <d736c8f5-eba1-2da8-000f-4b2a80ad74ff@i-love.sakura.ne.jp>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jan 2019 08:50:49 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,534,1539673200"; 
+   d="scan'208";a="133807746"
+Received: from ray.jf.intel.com (HELO [10.7.201.16]) ([10.7.201.16])
+  by orsmga001.jf.intel.com with ESMTP; 28 Jan 2019 08:50:49 -0800
+Subject: Re: [PATCH 0/5] [v4] Allow persistent memory to be used like normal
+ RAM
+To: Balbir Singh <bsingharora@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, thomas.lendacky@amd.com, mhocko@suse.com,
+ linux-nvdimm@lists.01.org, tiwai@suse.de, ying.huang@intel.com,
+ linux-mm@kvack.org, jglisse@redhat.com, bp@suse.de,
+ baiyaowei@cmss.chinamobile.com, zwisler@kernel.org, bhelgaas@google.com,
+ fengguang.wu@intel.com, akpm@linux-foundation.org
+References: <20190124231441.37A4A305@viggo.jf.intel.com>
+ <20190128110958.GH26056@350D>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <3ea28fe1-1828-1017-fa0f-da626d773440@intel.com>
+Date: Mon, 28 Jan 2019 08:50:49 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.2.1
 MIME-Version: 1.0
+In-Reply-To: <20190128110958.GH26056@350D>
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-In-Reply-To: <d736c8f5-eba1-2da8-000f-4b2a80ad74ff@i-love.sakura.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190128164502.CZiIqs39jjZmLpvGxi4jdllJjssgDHJcwJnQmbb3EfU@z>
+Message-ID: <20190128165049.IW-5r3bj0zyBizDwNO9nSByDBYYzsYabEM29L-JR0n8@z>
 
-On Sat, Jan 26, 2019 at 01:02:06AM +0900, Tetsuo Handa wrote:
-> On 2019/01/24 22:46, Joel Fernandes wrote:
-> > On Thu, Jan 24, 2019 at 10:52:30AM +0900, Tetsuo Handa wrote:
-> >> Joel Fernandes wrote:
-> >>>> Anyway, I need your checks regarding whether this approach is waiting for
-> >>>> completion at all locations which need to wait for completion.
-> >>>
-> >>> I think you are waiting in unwanted locations. The only location you need to
-> >>> wait in is ashmem_pin_unpin.
-> >>>
-> >>> So, to my eyes all that is needed to fix this bug is:
-> >>>
-> >>> 1. Delete the range from the ashmem_lru_list
-> >>> 2. Release the ashmem_mutex
-> >>> 3. fallocate the range.
-> >>> 4. Do the completion so that any waiting pin/unpin can proceed.
-> >>>
-> >>> Could you clarify why you feel you need to wait for completion at those other
-> >>> locations?
-> 
-> OK. Here is an updated patch.
-> Passed syzbot's best-effort testing using reproducers on all three reports.
-> 
-> From f192176dbee54075d41249e9f22918c32cb4d4fc Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Fri, 25 Jan 2019 23:43:01 +0900
-> Subject: [PATCH] staging: android: ashmem: Don't call fallocate() with ashmem_mutex held.
-> 
-> syzbot is hitting lockdep warnings [1][2][3]. This patch tries to fix
-> the warning by eliminating ashmem_shrink_scan() => {shmem|vfs}_fallocate()
-> sequence.
-> 
-> [1] https://syzkaller.appspot.com/bug?id=87c399f6fa6955006080b24142e2ce7680295ad4
-> [2] https://syzkaller.appspot.com/bug?id=7ebea492de7521048355fc84210220e1038a7908
-> [3] https://syzkaller.appspot.com/bug?id=e02419c12131c24e2a957ea050c2ab6dcbbc3270
-> 
-> Reported-by: syzbot <syzbot+a76129f18c89f3e2ddd4@syzkaller.appspotmail.com>
-> Reported-by: syzbot <syzbot+148c2885d71194f18d28@syzkaller.appspotmail.com>
-> Reported-by: syzbot <syzbot+4b8b031b89e6b96c4b2e@syzkaller.appspotmail.com>
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  drivers/staging/android/ashmem.c | 23 ++++++++++++++++++-----
->  1 file changed, 18 insertions(+), 5 deletions(-)
-> 
-> diff --git a/drivers/staging/android/ashmem.c b/drivers/staging/android/ashmem.c
-> index 90a8a9f..d40c1d2 100644
-> --- a/drivers/staging/android/ashmem.c
-> +++ b/drivers/staging/android/ashmem.c
-> @@ -75,6 +75,9 @@ struct ashmem_range {
->  /* LRU list of unpinned pages, protected by ashmem_mutex */
->  static LIST_HEAD(ashmem_lru_list);
->  
-> +static atomic_t ashmem_shrink_inflight = ATOMIC_INIT(0);
-> +static DECLARE_WAIT_QUEUE_HEAD(ashmem_shrink_wait);
-> +
->  /*
->   * long lru_count - The count of pages on our LRU list.
->   *
-> @@ -438,7 +441,6 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
->  static unsigned long
->  ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->  {
-> -	struct ashmem_range *range, *next;
->  	unsigned long freed = 0;
->  
->  	/* We might recurse into filesystem code, so bail out if necessary */
-> @@ -448,17 +450,27 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
->  	if (!mutex_trylock(&ashmem_mutex))
->  		return -1;
->  
-> -	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
-> +	while (!list_empty(&ashmem_lru_list)) {
-> +		struct ashmem_range *range =
-> +			list_first_entry(&ashmem_lru_list, typeof(*range), lru);
->  		loff_t start = range->pgstart * PAGE_SIZE;
->  		loff_t end = (range->pgend + 1) * PAGE_SIZE;
-> +		struct file *f = range->asma->file;
->  
-> -		range->asma->file->f_op->fallocate(range->asma->file,
-> -				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> -				start, end - start);
-> +		get_file(f);
-> +		atomic_inc(&ashmem_shrink_inflight);
->  		range->purged = ASHMEM_WAS_PURGED;
->  		lru_del(range);
->  
->  		freed += range_size(range);
-> +		mutex_unlock(&ashmem_mutex);
-> +		f->f_op->fallocate(f,
-> +				   FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> +				   start, end - start);
-> +		fput(f);
-> +		if (atomic_dec_and_test(&ashmem_shrink_inflight))
-> +			wake_up_all(&ashmem_shrink_wait);
-> +		mutex_lock(&ashmem_mutex);
+On 1/28/19 3:09 AM, Balbir Singh wrote:
+>> This is intended for Intel-style NVDIMMs (aka. Intel Optane DC
+>> persistent memory) NVDIMMs.  These DIMMs are physically persistent,
+>> more akin to flash than traditional RAM.  They are also expected to
+>> be more cost-effective than using RAM, which is why folks want this
+>> set in the first place.
+> What variant of NVDIMM's F/P or both?
 
-Let us replace mutex_lock with mutex_trylock, as done before the loop? Here
-is there is an opportunity to not block other ashmem operations. Otherwise
-LGTM. Also, CC stable.
+I'd expect this to get used in any cases where the NVDIMM is
+cost-effective vs. DRAM.  Today, I think that's only NVDIMM-P.  At least
+from what Wikipedia tells me about F vs. P vs. N:
 
-thanks,
+	https://en.wikipedia.org/wiki/NVDIMM
 
- - Joel
+>> == Patch Set Overview ==
+>>
+>> This series adds a new "driver" to which pmem devices can be
+>> attached.  Once attached, the memory "owned" by the device is
+>> hot-added to the kernel and managed like any other memory.  On
+>> systems with an HMAT (a new ACPI table), each socket (roughly)
+>> will have a separate NUMA node for its persistent memory so
+>> this newly-added memory can be selected by its unique NUMA
+>> node.
+> 
+> NUMA is distance based topology, does HMAT solve these problems?
+
+NUMA is no longer just distance-based.  Any memory with different
+properties, like different memory-side caches or bandwidth properties
+can be in its own, discrete NUMA node.
+
+> How do we prevent fallback nodes of normal nodes being pmem nodes?
+
+NUMA policies.
+
+> On an unexpected crash/failure is there a scrubbing mechanism
+> or do we rely on the allocator to do the right thing prior to
+> reallocating any memory.
+
+Yes, but this is not unique to persistent memory.  On a kexec-based
+crash, there might be old, sensitive data in *RAM* when the kernel comes
+up.  We depend on the allocator to zero things there.  We also just
+plain depend on the allocator to zero things so we don't leak
+information when recycling pages in the first place.
+
+I can't think of a scenario where some kind of "leak" of old data
+wouldn't also be a bug with normal, volatile RAM.
+
+> Will frequent zero'ing hurt NVDIMM/pmem's life times?
+
+Everybody reputable that sells things with limited endurance quantifies
+the endurance.  I'd suggest that folks know what the endurance of their
+media is before enabling this.
 
