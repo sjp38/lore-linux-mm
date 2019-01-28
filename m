@@ -2,148 +2,164 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6B77C282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:52:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CE95DC282CF
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:05:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0A5312173C
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:52:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=xenosoft.de header.i=@xenosoft.de header.b="Z3nZvXzW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A5312173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=xenosoft.de
+	by mail.kernel.org (Postfix) with ESMTP id 9537321741
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:05:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9537321741
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 971508E0002; Mon, 28 Jan 2019 11:52:08 -0500 (EST)
+	id 2D88B8E0004; Mon, 28 Jan 2019 12:05:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 920DD8E0001; Mon, 28 Jan 2019 11:52:08 -0500 (EST)
+	id 286CA8E0001; Mon, 28 Jan 2019 12:05:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E9838E0002; Mon, 28 Jan 2019 11:52:08 -0500 (EST)
+	id 150938E0004; Mon, 28 Jan 2019 12:05:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9FC8E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 11:52:08 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id x13so6937240wro.9
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 08:52:08 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A81E98E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:05:29 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id x15so6896798edd.2
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:05:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=fYy8sGt7/wpwSK7F/RuYxrqnrtG/2ZYafyDDkfrrFIg=;
-        b=GMSXBeD66MCDK7GZgNjttqFHrOyXdl5gMDZVfZNgOrUKZ6F26q2frlc9zlwYuvXfy9
-         shYesbGue2q5hzB5TlIZZKuOaH12e1WHtS+3aavWZVnxSzGBXaeHTkHTq9upwo5xs2OX
-         NYn4KGTCAFxR3ApwnV96FO1Zb4H1s513A3jJ8B2NBdQMtHbTTTufo70zEOiM5L02/MUy
-         Nm8FnAK8TmnhNw315KO3EnIjSimn2/np9ngzUWJALiI+YnhFzYgQyz1+8Dmc4Q2HrMqa
-         E+gVZEumIX6z4v1sKqETzRw0zXTyGY8OLF/mgF8vFeRekdWR490yz0wjS7mWfQnc6Lck
-         b92w==
-X-Gm-Message-State: AJcUukcJ/suFUc8h4W4eyVBfm5g5onUDo1qkd3MK7Sg8I5ze+grsQAzs
-	YUqt4czDS2QBbE8v6R8hauvWgm6W2e73mMbp8+63Je7QL0tqREDV9OpP40qidiFaCisoBUwT0IN
-	GYfZ2YpWJjHZ9ZSArrKq28q4tx7Z5Qc7417CHQg1CT90omYVI9VXjRg/BciT02zE62A==
-X-Received: by 2002:adf:e911:: with SMTP id f17mr23919367wrm.126.1548694327649;
-        Mon, 28 Jan 2019 08:52:07 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7kMGPkWQ/xjiPo6a1CzWM0UUWryQMjPEN79KAgTwvRojmGc5Z3ChTIvALHUhug/6ZCPYif
-X-Received: by 2002:adf:e911:: with SMTP id f17mr23919293wrm.126.1548694326589;
-        Mon, 28 Jan 2019 08:52:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548694326; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Zx+Y/aRKp4CmUhZaZYeRQinQx2Q0AeBydieP60CheHs=;
+        b=cGCmbpbKeWT/XdBdmrThyJN5lc9UbL0mzlr3l5nKpR6I7s7YwnI4b6iA4PJwJQhgwK
+         4lwJKkMgRUdbEzendGRtcWdmizCBv4BsESKPPUuw66uYK9N8GDW5ktT+cdvBhs/3H0/8
+         thFM1+QJXU/csnKa30N6Pj+8yk4+5YO7+L7+lnxgnBA6ehtcwmzbvLbLDJxNZAcfF/Rt
+         I/ynzxHRQjU3eVCsiPJl3GlAfmSKavH/1W0KHaAOv3zs8Ew4YQYBHgZM8NRSAki6IK2x
+         FiNAqLvzcadII7OIlhhBLFmOyfL99koyZvKSCHn7BtNX+G0w+wUl2NWE3zwy8csUFzBy
+         a+Zg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukfbL3JC1/FQCbFSLbnJYcIv6QGtgnxWP/8h1tlsQGDYIjQLAwle
+	7dCDWXmNnNVKoyzng5cuZtZVUpWHC/iLFYQxojpp7eCMc1fbvo45PXLGZlAvKB9HuoH6FQrMR2v
+	QCnVDJUY91UGElaAmAYfrWFlmad4amux2xlvMkIjO00sJ+Oks47Xoke9xGGmr4Vo=
+X-Received: by 2002:a50:ac81:: with SMTP id x1mr22832095edc.71.1548695129211;
+        Mon, 28 Jan 2019 09:05:29 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7X+8KXrTUgiloG+whYCXQ8H699G3esYHHCQTpukTXwrxXvyoICOnJBg1BvWpJdlSUK1jhE
+X-Received: by 2002:a50:ac81:: with SMTP id x1mr22832040edc.71.1548695128183;
+        Mon, 28 Jan 2019 09:05:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548695128; cv=none;
         d=google.com; s=arc-20160816;
-        b=fQCFNFNlultTswkP4sgAuSD5kLdhP17qfbzF9ZcuxzM9h/0pBEfLbNGRIMnw6TqJ5e
-         WQD0qaDvLMq9Zh0jvy9JfDtCl7k//bPOtXhzzmH4GhQY4Usl+O7oeHjwpORtvoLuUg+D
-         C8PTHgaMQAsGfEo8I8bSXddlYOT42VYv5TNAmNQncxR6d4snqct2wC57FOSZXAXQuYE2
-         3iXyfHO1PpaumDi8WccwAms2tt45umPBOfyIsGVW81Mo3j57YwtzAXHlLxFY2LCuntAn
-         JJgv5Or8/J0dnDf4x77YOAFNVXExcN7VqLfZNq+lbIygl6EW4aQ9gaDaj1h2JuO5VdYM
-         PvuQ==
+        b=mWncfylMPyWEtu/DSQYo8LIMQMX+b+gWqkFTLDQidVNI6ap3Zar9AR729uf1O4ElRV
+         CB1xBbie4or1UJUC2i75QyqqmPPJ+bBzrCewdiQ3sswnwqz7g2eaB23DIvmZnZxCNPit
+         8fEDJ9HkUwRtGjtJzgAPtkQXuKOcxoQwW6atMVTTQvYvf942lKKeEH9clF8Omvh7/C6R
+         6UcULDEDOgMsnERADUgnPQ+iDgLJXJVarnG7YJq7pu28sCdJ8n+GEn2Plf91K8N+mRJn
+         SwM+ffjX1gdMyxGQBKpM5SL1+9PZa3wSy9Bh05yOW4M0LUzMRG0li9JixI15pZAkKxnt
+         woSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=fYy8sGt7/wpwSK7F/RuYxrqnrtG/2ZYafyDDkfrrFIg=;
-        b=azX3UwJ9UvtzxoqPqPQho5JDpMK3dugdFd7WKzzgAd9KulabhV6ca0SHNINZ1/wjOA
-         v3aV+J24ILvthyGFUHTIyAjGpf4qFH/INYfkLulRq0OhgepNYumcYZMf/dSO+TgHBrdL
-         dn0s2GYaDYoS4u8Dqgg1e1DpdWPfbYwK0p0OPMbB76AzPk18B0RF/DXhZrooR2Fpo2W6
-         DxB+GrHpg26O9KwhQeQOdXXbofpTdbXF8uuHC1KXpHF/ljm497Z3N//1Udqu+5Zj5rdQ
-         TLXVbecsmKZ/hcsOr0sdfEu7UifzDJHXLokbS56HCoryGv/i9jGkrLUwNcSls/2gXyJ7
-         ml+A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Zx+Y/aRKp4CmUhZaZYeRQinQx2Q0AeBydieP60CheHs=;
+        b=0wjrDjznng/o5FhCR5GCbIel0G1638rggsM9r1sSd+ZaUpuETHVZIAvv/9EBJUptGQ
+         PEJnvOHT/vcZww71++oeXbsI2nl6Ryv53gOyPLgAV1mh1hPENpmzdymdOV135UfqEjdU
+         8BiQdTRjgw/UxcWU2RFl53tH9SID86eRZ5m/PUXoFJwCpkgbqVaO9x+XLIUfSrjq7ub6
+         utxIEo2BflgI01fE4gH62mLjz9Fn8WCT5NoW9fPncRKZ/3MPst/L/A9uB/NRaIgtPchp
+         tbFnk0oZeewMEFSURZoVnXg+KO5/VYOKiEliey3Vo0nyqEbv7bhL9LNmC8lNZNqvI2kb
+         iNqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=Z3nZvXzW;
-       spf=neutral (google.com: 2a01:238:20a:202:5301::3 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
-Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::3])
-        by mx.google.com with ESMTPS id j5si61614426wrn.140.2019.01.28.08.52.06
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f3si198805edd.313.2019.01.28.09.05.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 08:52:06 -0800 (PST)
-Received-SPF: neutral (google.com: 2a01:238:20a:202:5301::3 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) client-ip=2a01:238:20a:202:5301::3;
+        Mon, 28 Jan 2019 09:05:28 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=Z3nZvXzW;
-       spf=neutral (google.com: 2a01:238:20a:202:5301::3 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; t=1548694326;
-	s=strato-dkim-0002; d=xenosoft.de;
-	h=To:References:Message-Id:Cc:Date:In-Reply-To:From:Subject:
-	X-RZG-CLASS-ID:X-RZG-AUTH:From:Subject:Sender;
-	bh=fYy8sGt7/wpwSK7F/RuYxrqnrtG/2ZYafyDDkfrrFIg=;
-	b=Z3nZvXzWKbOfeF4i/Sa6/34PTNYvwUX9au7khE7YeI915MggrH+7DF7A+NQFL8hv9L
-	PBT1NGaqhLOiNd3kMtdstCvRly3myWoknEsYQ23aH6JAtvvHo9/Vn+1QZtTl6i/SWrnX
-	4jcrABnfX6MGcCReyqx1ZbxsiHyPzF94IrYl5pWcjSw0z525J7scVCTj4uErOr2XDEfS
-	+H5w3aNFbS3l6jVuUC7qYa96fA2hMl9fmsZ/YQb65HwUYKsjRLQ/8KEnZcHG9NYU3uIo
-	8lwtmzsFYNaswpHPgozm3U1/vst4gOhE1hF+f4xnbfSDY2So/750adeJ/mxBNWU8Gp+x
-	Lwyw==
-X-RZG-AUTH: ":L2QefEenb+UdBJSdRCXu93KJ1bmSGnhMdmOod1DhGN0rBVhd9dFr6KxrfO5Oh7R7NWd5jrozwSMRO89bpVdzWy5IAdgOVLzMC27Nvb91"
-X-RZG-CLASS-ID: mo00
-Received: from [IPv6:2a01:598:8085:f5ea:1107:97ca:749d:8607]
-	by smtp.strato.de (RZmta 44.9 AUTH)
-	with ESMTPSA id t0203dv0SGq43xi
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (curve secp521r1 with 521 ECDH bits, eq. 15360 bits RSA))
-	(Client did not present a certificate);
-	Mon, 28 Jan 2019 17:52:04 +0100 (CET)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 95488AFCC;
+	Mon, 28 Jan 2019 17:05:27 +0000 (UTC)
+Date: Mon, 28 Jan 2019 18:05:26 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, kernel-team@fb.com
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190128170526.GQ18811@dhcp22.suse.cz>
+References: <20190125074824.GD3560@dhcp22.suse.cz>
+ <20190125165152.GK50184@devbig004.ftw2.facebook.com>
+ <20190125173713.GD20411@dhcp22.suse.cz>
+ <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+ <20190128125151.GI18811@dhcp22.suse.cz>
+ <20190128142816.GM50184@devbig004.ftw2.facebook.com>
+ <20190128145210.GM18811@dhcp22.suse.cz>
+ <20190128145407.GP50184@devbig004.ftw2.facebook.com>
+ <20190128151859.GO18811@dhcp22.suse.cz>
+ <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0 (1.0)
-Subject: Re: use generic DMA mapping code in powerpc V4
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-X-Mailer: iPhone Mail (16C101)
-In-Reply-To: <20190128162256.GA11737@lst.de>
-Date: Mon, 28 Jan 2019 17:52:03 +0100
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>,
- linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
- linux-mm@kvack.org, iommu@lists.linux-foundation.org,
- Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
- linuxppc-dev@lists.ozlabs.org
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D64B1ED5-46F9-43CF-9B21-FABB2807289B@xenosoft.de>
-References: <e11e61b1-6468-122e-fc2b-3b3f857186bb@xenosoft.de> <f39d4fc6-7e4e-9132-c03f-59f1b52260e0@xenosoft.de> <b9e5e081-a3cc-2625-4e08-2d55c2ba224b@xenosoft.de> <20190119130222.GA24346@lst.de> <20190119140452.GA25198@lst.de> <bfe4adcc-01c1-7b46-f40a-8e020ff77f58@xenosoft.de> <8434e281-eb85-51d9-106f-f4faa559e89c@xenosoft.de> <4d8d4854-dac9-a78e-77e5-0455e8ca56c4@xenosoft.de> <1dec2fbe-f654-dac7-392a-93a5d20e3602@xenosoft.de> <20190128070422.GA2772@lst.de> <20190128162256.GA11737@lst.de>
-To: Christoph Hellwig <hch@lst.de>
+Content-Disposition: inline
+In-Reply-To: <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190128165203.AvW5ZaFW-y69KVWDB6a07K_Pq4QrqxM5txe4R1VHQO4@z>
+Message-ID: <20190128170526.r3ksiIR8KGLSH59t6jWktUizsWkyIvAqSq51cUtXxpE@z>
 
-Thanks a lot! I will test it tomorrow.
+On Mon 28-01-19 07:41:50, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Mon, Jan 28, 2019 at 04:18:59PM +0100, Michal Hocko wrote:
+> > How do you make an atomic snapshot of the hierarchy state? Or you do
+> > not need it because event counters are monotonic and you are willing to
+> > sacrifice some lost or misinterpreted events? For example, you receive
+> > an oom event while the two children increase the oom event counter. How
+> > do you tell which one was the source of the event and which one is still
+> > pending? Or is the ordering unimportant in general?
+> 
+> Hmm... This is straightforward stateful notification.  Imagine the
+> following hierarchy.  The numbers are the notification counters.
+> 
+>      A:0
+>    /   \
+>   B:0  C:0
+> 
+> Let's say B generates an event, soon followed by C.  If A's counter is
+> read after both B and C's events, nothing is missed.
+> 
+> Let's say it ends up generating two notifications and we end up
+> walking down inbetween B and C's events.  It would look like the
+> following.
+> 
+>      A:1
+>    /   \
+>   B:1  C:0
+> 
+> We first see A's 0 -> 1 and then start scanning the subtrees to find
+> out the origin.  We will notice B but let's say we visit C before C's
+> event gets registered (otherwise, nothing is missed).
 
-=E2=80=94 Christian
+Yeah, that is quite clear. But it also assumes that the hierarchy is
+pretty stable but cgroups might go away at any time. I am not saying
+that the aggregated events are not useful I am just saying that it is
+quite non-trivial to use and catch all potential corner cases. Maybe I
+am overcomplicating it but one thing is quite clear to me. The existing
+semantic is really useful to watch for the reclaim behavior at the
+current level of the tree. You really do not have to care what is
+happening in the subtree when it is clear that the workload itself
+is underprovisioned etc. Considering that such a semantic already
+existis, somebody might depend on it and we likely want also aggregated
+semantic then I really do not see why to risk regressions rather than
+add a new memory.hierarchy_events and have both.
 
-Sent from my iPhone
-
-> On 28. Jan 2019, at 17:22, Christoph Hellwig <hch@lst.de> wrote:
->=20
->> On Mon, Jan 28, 2019 at 08:04:22AM +0100, Christoph Hellwig wrote:
->>> On Sun, Jan 27, 2019 at 02:13:09PM +0100, Christian Zigotzky wrote:
->>> Christoph,
->>>=20
->>> What shall I do next?
->>=20
->> I'll need to figure out what went wrong with the new zone selection
->> on powerpc and give you another branch to test.
->=20
-> Can you try the new powerpc-dma.6-debug.2 branch:
->=20
->    git://git.infradead.org/users/hch/misc.git powerpc-dma.6-debug.2
->=20
-> Gitweb:
->=20
->    http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc=
--dma.6-debug.2
+-- 
+Michal Hocko
+SUSE Labs
 
