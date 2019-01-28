@@ -6,102 +6,106 @@ X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FB97C282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:16:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14570C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:18:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2EB6320879
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:16:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C74082148E
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:18:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="DD6u3WsI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EB6320879
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="GhmAErRD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C74082148E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD4DE8E0007; Mon, 28 Jan 2019 11:16:52 -0500 (EST)
+	id 542D78E0009; Mon, 28 Jan 2019 11:18:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B5CDD8E0001; Mon, 28 Jan 2019 11:16:52 -0500 (EST)
+	id 4F3E78E0001; Mon, 28 Jan 2019 11:18:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D5DB8E0007; Mon, 28 Jan 2019 11:16:52 -0500 (EST)
+	id 394C68E0009; Mon, 28 Jan 2019 11:18:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 576688E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 11:16:52 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id g188so11778706pgc.22
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 08:16:52 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EACB98E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 11:18:47 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id i3so14450340pfj.4
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 08:18:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=QK9ouipMXiJwB+afVwhCk/IXgFOSJ7lZmFgHmUi3RZY=;
-        b=r+wk0FF5NHuKerMdSY+4U2T/eh2G8Hhg6qFNXekIcfAAmOwU0/wuViXc1u5y/OylyV
-         A/oLUr4shdY0SNRKDunhbLvwTpBpwHUJAMGtN1TAhnP3J2Sp9x/8LN4q2ZIolFbNTOep
-         6pyArZphHH7FO8piKpJL3io1P5zfkojmF1S5tV+QyUocO6CQnWOHfgE1pG/92rWBkDJi
-         lN0jLigte1D+tKaPAxXqnTUBZXABrMzefZAp7F/MB33rcAAKWKDRTFW+FFgFG6BqNsZd
-         sJf9iu2ua6EebWtZU3HYM346gZGg+NEOucb0/bTEftMsU83yo3eUGFgzcR5sRADncINB
-         nicA==
-X-Gm-Message-State: AJcUukfRuhkCFpruq6+onJMLfRht06hJYGnXZPOIMBHKGZVmpD4ju/85
-	rESUod+zBb6RWGq4hppZvhc6h2+PUHkh2tO/Oub/tqMpXpXxeQVOCEqV4iL3dyfOiRIL23B9U9I
-	5TDcIqfymsexsFEBXQXKogxrRWwMn4a43GqafP6BmPi5FdczurI2TbLQJFmRC7lUOrg==
-X-Received: by 2002:a63:e545:: with SMTP id z5mr20392386pgj.195.1548692212015;
-        Mon, 28 Jan 2019 08:16:52 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4hquMi8sHTzxewHhawkVszlr8/l+rdq0FMxfkxCf7bLVtwcSMTFlJ7NjV1iSYBAf9vX8WD
-X-Received: by 2002:a63:e545:: with SMTP id z5mr20392347pgj.195.1548692211401;
-        Mon, 28 Jan 2019 08:16:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548692211; cv=none;
+        bh=bq1sRvtLk1v32nBFQQNuIJuamhmFxw+bZzT679es4WU=;
+        b=OPfjKJTPT1OIs8pKulU4Lgizz1mORqMVwAJp3o+erP16WgT9YdJfuQ8jQNkt5oUmjT
+         XbqMOL9OZ0ys3hzawzx7Q40mY+tRLj1l9rcdY/bOjtLrR1fyV25yiSh6leKRyqcg4+Qv
+         aYGIpt8W6nWCGJqqv6gHx/4zD7UFgQ/Qy2ewc71WKeMXRu6SPMtXgzmKrmI8LNJMSOo5
+         3T2S2QoIbg2OGsaT+NmgtFOcjcZPlns+8i8iA/u/fV9cag8ISMCW9/GhJIeSMSv4XR5p
+         /ENPsOyB8yYNvbEcQtpSwuVSxAjmCjpmbIkdqdzcWrrF4/x8n3vmRGfkRHNvTpmGpJbL
+         dX0w==
+X-Gm-Message-State: AJcUukevEGdc34YY3Xg9a2asde6SXr3jK4n7k3rIB0kuaBe7NVIcUjqv
+	38y1PIETqwHs+lsLqzNli/nLdrUKtEqNc2VyYqDC7CP4dS53AKp4xcYKHVgp7hfWi/mtlJUsD01
+	D7HBYKVGcoUREqexgsQ5HOA3FMOU1qwwvAWqHmqEmGA45g91dpLVt+ya7v9cJiIGOAA==
+X-Received: by 2002:a63:2d2:: with SMTP id 201mr20347147pgc.14.1548692327562;
+        Mon, 28 Jan 2019 08:18:47 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5uxBx+EixnkeXScijMLMa4cYbHyYyBNT31c0IsMktRpt7B85gOmZYQ1O1RvoDsxLTH2eE3
+X-Received: by 2002:a63:2d2:: with SMTP id 201mr20347115pgc.14.1548692326954;
+        Mon, 28 Jan 2019 08:18:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548692326; cv=none;
         d=google.com; s=arc-20160816;
-        b=bYi7ho3pbKBqmNz3finok4parMwPaLAAQJM272vZmF8qopNktkgwf1ffUBbnd5haPL
-         4bvr1x8iRrfaxrb0CTeI4a1/BVosuwkwKI270o5Xox5W5lHqi8tFTUuVaCmXt+cFLYW2
-         tUCX2y9uJiq+7ijGzk4qaEVs0mOMhjPFtV9UO1uMcM5yidA/X/zLEgAiU/t3sd1AZ6b5
-         dzaaaAZBrGzVL4gpetOsj0sEibA8jLXa0B/YhaZMnHjch9tt5qPxolf1tgaucIm73QAt
-         U9YixFfNjvuLJAIBgdJxHhnOZ9JN49XkAkhAoB/WMamLh99PxtEZpb2vEVaLpB/Q+l2z
-         RRdQ==
+        b=Mf59+meNnw3pUvLOm9w6SMTQK3k8BqpMOW+wfdTXHWPdytIzvfOhE2SBu4sBmAu4Ux
+         Lq7puv01vN/Sl2XenqFrdS1RZRq0CLRLIhxFvL1aGMtUPtkrVBa4Izz65aDv7BJ5onus
+         XmhphOWjoonQbVhRPh7KCBXySWMcZMOUNuAKqjnOtCEuWwj6LAnZ6RJR0iysrM3dYP5H
+         wV0uBZDBA76w5JBnauM5fk65jqypcsWypMxkGKhV5danq39H02T69k9OrtEG7tmAMUJ0
+         qfv0S7viP/tXDgWYEj5Kgj4XbGmxLhRM3zBISYA8pzsI1NSLLh+qz1HzU6aVymH4Zn8/
+         FcuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=QK9ouipMXiJwB+afVwhCk/IXgFOSJ7lZmFgHmUi3RZY=;
-        b=PTV5CqJ4oYYQBZ/+NvtvzJNs+G2+SQL3Mz8sBZoKoaeKJ0xEzCE9+sLt0eebC1EZxf
-         +Cl5QdBHb9dDinLEX8Ywf+pQpknMDsxmx9gsDG7CM9Devos3RP2AT7aDhGP+DUCwYfG4
-         zXE5TxphWyBh11yh2BO3SqVQWRELLdIDJj1sBIBAlKqSynWaBFv+VZnnuBrCYMfac4lS
-         lfSE98EQrLda6Z41/2sq3qbDk/glMj17HSK/ea3jwEfq4recx4tOssGs13T2u/ziv93L
-         tuDSz95iL72OzLcDau64ehg8jKVA5QUDdwiZKpIXoZHRodhjP8jsyGUEHpolU+fTEQ3Q
-         GJ5Q==
+        bh=bq1sRvtLk1v32nBFQQNuIJuamhmFxw+bZzT679es4WU=;
+        b=xmOhLWLqaCImqihHIfJHRzN7CZmPDzOlZcPG8HbzFN+fck4EvsmxOUfVuXESVsH2Uy
+         8Ah9m5bYx6ekzqSO7+CiIdtTLYrB7xKJQjg0sz7TotvVK7hjj88HVcwCapTczgAGTyPn
+         h7k4hdXEp5jjvvCq3iJtriDz/9Ol1mbBHbw5CiFIGj+UxEkr7vEJIeJqOukvvPOhvOyC
+         NELSGK5ALCHufS+U55m8qGwHjtQK2prYoZ0e3cFlBbBkiSIDZhyoerxcX6Wgc8NfVVGm
+         hPaHCEdlGLLqxx9Cc1ymFO6A9HgbNAUz2MTS1xeXyvVUD6efzA2/Bp2mH811rXgo9nTe
+         LRWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=DD6u3WsI;
+       dkim=pass header.i=@kernel.org header.s=default header.b=GhmAErRD;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q3si11666985plb.209.2019.01.28.08.16.51
+        by mx.google.com with ESMTPS id d189si35328804pfa.70.2019.01.28.08.18.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 08:16:51 -0800 (PST)
+        Mon, 28 Jan 2019 08:18:46 -0800 (PST)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=DD6u3WsI;
+       dkim=pass header.i=@kernel.org header.s=default header.b=GhmAErRD;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id E5F8E2147A;
-	Mon, 28 Jan 2019 16:16:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 34DF42175B;
+	Mon, 28 Jan 2019 16:18:44 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1548692211;
-	bh=W0QWpv4BDgJW9fxr6J15E4gpGpoSj9616cMXTiK1M78=;
+	s=default; t=1548692326;
+	bh=S57QohYHsGAIlZI93+42YFU/Aqip7Ade/8Mz+dbvEyk=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=DD6u3WsI+BwxdJICVybz1r+KRruw8Pz1+yeoqkd/kEV+DTROF1kCaz5wavebg4hC8
-	 lydAJTNCYZFFlslEDub3+XWeBdYsbgOmUEbdz8q+lSIEC1CHiAwnfTw7tKafdPuiMI
-	 zRDLiPQoJMgcNVD7yC39kiR6XYZr4RedyAPSRvQM=
+	b=GhmAErRDdisYJPKL+zcxdtx6IGjIzrolCWZfVOPzbh5GJ8TiDZwZxTmwxCyt/yE6s
+	 WD4a/A48IYCQoxIJOavaaqUpVaKV+PD1x+euPTaj0cYDpdsVuM5+lFZ3MpQAwl2i9A
+	 tyiNNP7ZmS2JShYvipZ3Hb6WZ/lHjIAWFwC4ypE8=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Dennis Zhou <dennis@kernel.org>,
+Cc: Miles Chen <miles.chen@mediatek.com>,
+	Joe Perches <joe@perches.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.14 112/170] percpu: convert spin_lock_irq to spin_lock_irqsave.
-Date: Mon, 28 Jan 2019 11:11:02 -0500
-Message-Id: <20190128161200.55107-112-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 153/170] mm/page_owner: clamp read count to PAGE_SIZE
+Date: Mon, 28 Jan 2019 11:11:43 -0500
+Message-Id: <20190128161200.55107-153-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190128161200.55107-1-sashal@kernel.org>
 References: <20190128161200.55107-1-sashal@kernel.org>
@@ -114,59 +118,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190128161102.K3T_P7G15AkAWXhu6Z0zX8sH6NdJAKcdBdsNIfuGuOc@z>
+Message-ID: <20190128161143.hTvA37PvAr9gsiK4O2RZaoNMvUMFvrZlir75lOTsUtw@z>
 
-From: Dennis Zhou <dennis@kernel.org>
+From: Miles Chen <miles.chen@mediatek.com>
 
-[ Upstream commit 6ab7d47bcbf0144a8cb81536c2cead4cde18acfe ]
+[ Upstream commit c8f61cfc871fadfb73ad3eacd64fda457279e911 ]
 
-From Michael Cree:
-  "Bisection lead to commit b38d08f3181c ("percpu: restructure
-   locking") as being the cause of lockups at initial boot on
-   the kernel built for generic Alpha.
+The (root-only) page owner read might allocate a large size of memory with
+a large read count.  Allocation fails can easily occur when doing high
+order allocations.
 
-   On a suggestion by Tejun Heo that:
+Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
+and avoid allocation fails due to high order allocation.
 
-   So, the only thing I can think of is that it's calling
-   spin_unlock_irq() while irq handling isn't set up yet.
-   Can you please try the followings?
-
-   1. Convert all spin_[un]lock_irq() to
-      spin_lock_irqsave/unlock_irqrestore()."
-
-Fixes: b38d08f3181c ("percpu: restructure locking")
-Reported-and-tested-by: Michael Cree <mcree@orcon.net.nz>
-Acked-by: Tejun Heo <tj@kernel.org>
-Signed-off-by: Dennis Zhou <dennis@kernel.org>
+[akpm@linux-foundation.org: use min_t()]
+Link: http://lkml.kernel.org/r/1541091607-27402-1-git-send-email-miles.chen@mediatek.com
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Joe Perches <joe@perches.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/percpu-km.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/page_owner.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/mm/percpu-km.c b/mm/percpu-km.c
-index 0d88d7bd5706..c22d959105b6 100644
---- a/mm/percpu-km.c
-+++ b/mm/percpu-km.c
-@@ -50,6 +50,7 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
- 	struct pcpu_chunk *chunk;
- 	struct page *pages;
-+	unsigned long flags;
- 	int i;
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index a71fe4c623ef..7232c6e24234 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		.skip = 0
+ 	};
  
- 	chunk = pcpu_alloc_chunk(gfp);
-@@ -68,9 +69,9 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- 	chunk->data = pages;
- 	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
- 
--	spin_lock_irq(&pcpu_lock);
-+	spin_lock_irqsave(&pcpu_lock, flags);
- 	pcpu_chunk_populated(chunk, 0, nr_pages, false);
--	spin_unlock_irq(&pcpu_lock);
-+	spin_unlock_irqrestore(&pcpu_lock, flags);
- 
- 	pcpu_stats_chunk_alloc();
- 	trace_percpu_create_chunk(chunk->base_addr);
++	count = min_t(size_t, count, PAGE_SIZE);
+ 	kbuf = kmalloc(count, GFP_KERNEL);
+ 	if (!kbuf)
+ 		return -ENOMEM;
 -- 
 2.19.1
 
