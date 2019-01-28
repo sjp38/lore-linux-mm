@@ -2,164 +2,174 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE95DC282CF
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:05:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 23B69C282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:43:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9537321741
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:05:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9537321741
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id DB86F20881
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:43:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB86F20881
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D88B8E0004; Mon, 28 Jan 2019 12:05:30 -0500 (EST)
+	id 750708E0002; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 286CA8E0001; Mon, 28 Jan 2019 12:05:30 -0500 (EST)
+	id 7001E8E0001; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 150938E0004; Mon, 28 Jan 2019 12:05:30 -0500 (EST)
+	id 5EF818E0002; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A81E98E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:05:29 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id x15so6896798edd.2
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:05:29 -0800 (PST)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F3988E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:43:00 -0500 (EST)
+Received: by mail-vk1-f200.google.com with SMTP id o11so4719272vke.5
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:43:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Zx+Y/aRKp4CmUhZaZYeRQinQx2Q0AeBydieP60CheHs=;
-        b=cGCmbpbKeWT/XdBdmrThyJN5lc9UbL0mzlr3l5nKpR6I7s7YwnI4b6iA4PJwJQhgwK
-         4lwJKkMgRUdbEzendGRtcWdmizCBv4BsESKPPUuw66uYK9N8GDW5ktT+cdvBhs/3H0/8
-         thFM1+QJXU/csnKa30N6Pj+8yk4+5YO7+L7+lnxgnBA6ehtcwmzbvLbLDJxNZAcfF/Rt
-         I/ynzxHRQjU3eVCsiPJl3GlAfmSKavH/1W0KHaAOv3zs8Ew4YQYBHgZM8NRSAki6IK2x
-         FiNAqLvzcadII7OIlhhBLFmOyfL99koyZvKSCHn7BtNX+G0w+wUl2NWE3zwy8csUFzBy
-         a+Zg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukfbL3JC1/FQCbFSLbnJYcIv6QGtgnxWP/8h1tlsQGDYIjQLAwle
-	7dCDWXmNnNVKoyzng5cuZtZVUpWHC/iLFYQxojpp7eCMc1fbvo45PXLGZlAvKB9HuoH6FQrMR2v
-	QCnVDJUY91UGElaAmAYfrWFlmad4amux2xlvMkIjO00sJ+Oks47Xoke9xGGmr4Vo=
-X-Received: by 2002:a50:ac81:: with SMTP id x1mr22832095edc.71.1548695129211;
-        Mon, 28 Jan 2019 09:05:29 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7X+8KXrTUgiloG+whYCXQ8H699G3esYHHCQTpukTXwrxXvyoICOnJBg1BvWpJdlSUK1jhE
-X-Received: by 2002:a50:ac81:: with SMTP id x1mr22832040edc.71.1548695128183;
-        Mon, 28 Jan 2019 09:05:28 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548695128; cv=none;
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=7sqKBm6b2VKkB7E7B7WUF3lomqQBXd3MBh/YsvuyDc0=;
+        b=efMj5lrqL8jhEgFnbrCjzc+kHd47X0kd0XRUMgIXATUYvNhJF9T3U4WwCVjg4k63cb
+         BF1uIufAZFRi8Oo0RGr3afLU0M4Pai+xQ9B8vnmDBmNKh6p1bAeAwQL3TCdCii/+yWi6
+         hSvjuV1ZvQebo0PU9T1H3KzWmiV7VeVWFqbBsLzo+xJRKXf6o6TBAGHzlMy8HGXheikU
+         YHVPEl3yzUSqlTRvJaTe8mjNxor/SqH0uxA1VXk3LgclSYggwDxd9HyvMxM4TgNWlswS
+         BQdXML9eXkszcCc8/8atwTXT59kNwlIFR76TGcfPn3dikOSl8UojOZ8hKd1IkZWWAQSH
+         zSYg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AJcUukf4S8TLWzVnr4sd8b1N7Kw3LW9t9I+S0FQLSh8WWyHPFJhfGFV2
+	k8Akr8W2CQ5G5Hctrpw8624bJ+Dij9VuH0Xr0au31ZCgrAtsav0tdhOymGfoNvIdln3JfyW4A/C
+	oEvzF8cgWNvrZtjEtsAw63orGaTW97m1WLtDoi8R0lo30PPvIBOlegU/qmFroZRrzhg==
+X-Received: by 2002:a67:f696:: with SMTP id n22mr10000833vso.175.1548697379852;
+        Mon, 28 Jan 2019 09:42:59 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5Sp2244WsyJPcciWnkx/1HLb9xpBDNlc5CbIP+kPwVdHAxcs21P/ASVQFPY/svzJdnl/0V
+X-Received: by 2002:a67:f696:: with SMTP id n22mr10000808vso.175.1548697378981;
+        Mon, 28 Jan 2019 09:42:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548697378; cv=none;
         d=google.com; s=arc-20160816;
-        b=mWncfylMPyWEtu/DSQYo8LIMQMX+b+gWqkFTLDQidVNI6ap3Zar9AR729uf1O4ElRV
-         CB1xBbie4or1UJUC2i75QyqqmPPJ+bBzrCewdiQ3sswnwqz7g2eaB23DIvmZnZxCNPit
-         8fEDJ9HkUwRtGjtJzgAPtkQXuKOcxoQwW6atMVTTQvYvf942lKKeEH9clF8Omvh7/C6R
-         6UcULDEDOgMsnERADUgnPQ+iDgLJXJVarnG7YJq7pu28sCdJ8n+GEn2Plf91K8N+mRJn
-         SwM+ffjX1gdMyxGQBKpM5SL1+9PZa3wSy9Bh05yOW4M0LUzMRG0li9JixI15pZAkKxnt
-         woSQ==
+        b=vO1h1nM/KzScqTJiX3fx+FOXz8zIi/zrJZN+RI2JvjU/WFqb9iJvIElqNg1KlyvOPP
+         iB0tuwj2kj6ZdYlv08coEgBrUzg/qEAv1Ki0nXQtYpw/a0wcOWquw0BqUL6kBntOACVm
+         Yqq6w/Y6LC0bkiu+yKLsspTbRQryR72QjQf0qyf2Vb7D+1wkVVhJR0kbqwJUEYAGjE8e
+         4gYy2jOO+fEmPbrcyaCAe4TDpKp3qfjURfdvoBXBKZ7H2qd97WEVuoflfeuCbbvoHaKw
+         oOfXk+pg/4ZzEG1Gp6HwNgMz+Z9i/XlHDFjS3OoRTgzU9D+egl5OByQAGqG8sbyzIzCe
+         jWvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Zx+Y/aRKp4CmUhZaZYeRQinQx2Q0AeBydieP60CheHs=;
-        b=0wjrDjznng/o5FhCR5GCbIel0G1638rggsM9r1sSd+ZaUpuETHVZIAvv/9EBJUptGQ
-         PEJnvOHT/vcZww71++oeXbsI2nl6Ryv53gOyPLgAV1mh1hPENpmzdymdOV135UfqEjdU
-         8BiQdTRjgw/UxcWU2RFl53tH9SID86eRZ5m/PUXoFJwCpkgbqVaO9x+XLIUfSrjq7ub6
-         utxIEo2BflgI01fE4gH62mLjz9Fn8WCT5NoW9fPncRKZ/3MPst/L/A9uB/NRaIgtPchp
-         tbFnk0oZeewMEFSURZoVnXg+KO5/VYOKiEliey3Vo0nyqEbv7bhL9LNmC8lNZNqvI2kb
-         iNqg==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=7sqKBm6b2VKkB7E7B7WUF3lomqQBXd3MBh/YsvuyDc0=;
+        b=PNuZd3UzRxJDMzz1el2/Ih5CJuJTeS62vevMiUMyHQ/abe5HnoFIrdLolt0poR+RIr
+         1D5XflyIlVhK+7a1Fak3U4aYllns1hlKqKI9IfV55U2QYE4EyCuPRPZkAS1tiw9aqoy6
+         mQMAGFi0AKxcT46b2+xVD4WmFusLPCezVNUGjwO8jHAszFQE2U/rRsxIR7zFV1bep+Vb
+         lLACb2lTCc70T1x+JJO7tAEAk115TZu8a2xz/Lxw+6gKeGjM2EoiI4juNm4PoRFOZrHN
+         +iiDVYQgw7PGxZJjs2Fk1NNhBQqpEh7chdVT5/R2UOnBridR4MzBwaq5JxJc8l8Ly9h8
+         Vpgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f3si198805edd.313.2019.01.28.09.05.27
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id t62si263411uat.137.2019.01.28.09.42.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 09:05:28 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 28 Jan 2019 09:42:58 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 95488AFCC;
-	Mon, 28 Jan 2019 17:05:27 +0000 (UTC)
-Date: Mon, 28 Jan 2019 18:05:26 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190128170526.GQ18811@dhcp22.suse.cz>
-References: <20190125074824.GD3560@dhcp22.suse.cz>
- <20190125165152.GK50184@devbig004.ftw2.facebook.com>
- <20190125173713.GD20411@dhcp22.suse.cz>
- <20190125182808.GL50184@devbig004.ftw2.facebook.com>
- <20190128125151.GI18811@dhcp22.suse.cz>
- <20190128142816.GM50184@devbig004.ftw2.facebook.com>
- <20190128145210.GM18811@dhcp22.suse.cz>
- <20190128145407.GP50184@devbig004.ftw2.facebook.com>
- <20190128151859.GO18811@dhcp22.suse.cz>
- <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 3D9677F03AFBD8EF99CE;
+	Tue, 29 Jan 2019 01:42:55 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS402-HUB.china.huawei.com
+ (10.3.19.202) with Microsoft SMTP Server id 14.3.408.0; Tue, 29 Jan 2019
+ 01:42:52 +0800
+Date: Mon, 28 Jan 2019 17:42:39 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>
+CC: Andrea Arcangeli <aarcange@redhat.com>, Huang Ying <ying.huang@intel.com>,
+	Zhang Yi <yi.z.zhang@linux.intel.com>, <kvm@vger.kernel.org>, Dave Hansen
+	<dave.hansen@intel.com>, Liu Jingqi <jingqi.liu@intel.com>, Fan Du
+	<fan.du@intel.com>, Dong Eddie <eddie.dong@intel.com>, LKML
+	<linux-kernel@vger.kernel.org>, <linux-accelerators@lists.ozlabs.org>,
+	"Linux Memory Management List" <linux-mm@kvack.org>, Peng Dong
+	<dongx.peng@intel.com>, Yao Yuan <yuan.yao@intel.com>, Andrew Morton
+	<akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, "Dan
+ Williams" <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC][PATCH v2 00/21] PMEM NUMA node and hotness
+ accounting/migration
+Message-ID: <20190128174239.0000636b@huawei.com>
+In-Reply-To: <20190102122110.00000206@huawei.com>
+References: <20181226131446.330864849@intel.com>
+	<20181227203158.GO16738@dhcp22.suse.cz>
+	<20181228050806.ewpxtwo3fpw7h3lq@wfg-t540p.sh.intel.com>
+	<20181228084105.GQ16738@dhcp22.suse.cz>
+	<20181228094208.7lgxhha34zpqu4db@wfg-t540p.sh.intel.com>
+	<20181228121515.GS16738@dhcp22.suse.cz>
+	<20181228133111.zromvopkfcg3m5oy@wfg-t540p.sh.intel.com>
+	<20181228195224.GY16738@dhcp22.suse.cz>
+	<20190102122110.00000206@huawei.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-In-Reply-To: <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190128170526.r3ksiIR8KGLSH59t6jWktUizsWkyIvAqSq51cUtXxpE@z>
+Message-ID: <20190128174239.4T0MpNu8kXj0OMm8T82uC19D0tONYtJpBgwqzE9hLDg@z>
 
-On Mon 28-01-19 07:41:50, Tejun Heo wrote:
-> Hello, Michal.
-> 
-> On Mon, Jan 28, 2019 at 04:18:59PM +0100, Michal Hocko wrote:
-> > How do you make an atomic snapshot of the hierarchy state? Or you do
-> > not need it because event counters are monotonic and you are willing to
-> > sacrifice some lost or misinterpreted events? For example, you receive
-> > an oom event while the two children increase the oom event counter. How
-> > do you tell which one was the source of the event and which one is still
-> > pending? Or is the ordering unimportant in general?
-> 
-> Hmm... This is straightforward stateful notification.  Imagine the
-> following hierarchy.  The numbers are the notification counters.
-> 
->      A:0
->    /   \
->   B:0  C:0
-> 
-> Let's say B generates an event, soon followed by C.  If A's counter is
-> read after both B and C's events, nothing is missed.
-> 
-> Let's say it ends up generating two notifications and we end up
-> walking down inbetween B and C's events.  It would look like the
-> following.
-> 
->      A:1
->    /   \
->   B:1  C:0
-> 
-> We first see A's 0 -> 1 and then start scanning the subtrees to find
-> out the origin.  We will notice B but let's say we visit C before C's
-> event gets registered (otherwise, nothing is missed).
+On Wed, 2 Jan 2019 12:21:10 +0000
+Jonathan Cameron <jonathan.cameron@huawei.com> wrote:
 
-Yeah, that is quite clear. But it also assumes that the hierarchy is
-pretty stable but cgroups might go away at any time. I am not saying
-that the aggregated events are not useful I am just saying that it is
-quite non-trivial to use and catch all potential corner cases. Maybe I
-am overcomplicating it but one thing is quite clear to me. The existing
-semantic is really useful to watch for the reclaim behavior at the
-current level of the tree. You really do not have to care what is
-happening in the subtree when it is clear that the workload itself
-is underprovisioned etc. Considering that such a semantic already
-existis, somebody might depend on it and we likely want also aggregated
-semantic then I really do not see why to risk regressions rather than
-add a new memory.hierarchy_events and have both.
+> On Fri, 28 Dec 2018 20:52:24 +0100
+> Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > [Ccing Mel and Andrea]
+> > 
 
--- 
-Michal Hocko
-SUSE Labs
+Hi,
+
+I just wanted to highlight this section as I didn't feel we really addressed this
+in the earlier conversation.
+
+> * Hot pages may not be hot just because the host is using them a lot.  It would be
+>   very useful to have a means of adding information available from accelerators
+>   beyond simple accessed bits (dreaming ;)  One problem here is translation
+>   caches (ATCs) as they won't normally result in any updates to the page accessed
+>   bits.  The arm SMMU v3 spec for example makes it clear (though it's kind of
+>   obvious) that the ATS request is the only opportunity to update the accessed
+>   bit.  The nasty option here would be to periodically flush the ATC to force
+>   the access bit updates via repeats of the ATS request (ouch).
+>   That option only works if the iommu supports updating the accessed flag
+>   (optional on SMMU v3 for example).
+> 
+
+If we ignore the IOMMU hardware update issue which will simply need to be addressed
+by future hardware if these techniques become common, how do we address the
+Address Translation Cache issue without potentially causing big performance
+problems by flushing the cache just to force an accessed bit update?
+
+These devices are frequently used with PRI and Shared Virtual Addressing
+and can be accessing most of your memory without you having any visibility
+of it in the page tables (as they aren't walked if your ATC is well matched
+in size to your usecase.
+
+Classic example would be accelerated DB walkers like the the CCIX demo
+Xilinx has shown at a few conferences.   The whole point of those is that
+most of the time only your large set of database walkers is using your
+memory and they have translations cached for for a good part of what
+they are accessing.  Flushing that cache could hurt a lot.
+Pinning pages hurts for all the normal flexibility reasons.
+
+Last thing we want is to be migrating these pages that can be very hot but
+in an invisible fashion.
+
+Thanks,
+
+Jonathan
+ 
+
 
