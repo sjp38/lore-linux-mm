@@ -6,106 +6,110 @@ X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4389CC282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:10:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C7EDFC4151A
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:11:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02A1721738
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:10:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7D7762177E
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 16:11:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="FC+tjslz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02A1721738
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="avQgHdfr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D7762177E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 76CD08E0007; Mon, 28 Jan 2019 11:10:45 -0500 (EST)
+	id 041F58E000A; Mon, 28 Jan 2019 11:11:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 71D578E0001; Mon, 28 Jan 2019 11:10:45 -0500 (EST)
+	id F32A98E0001; Mon, 28 Jan 2019 11:10:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E4188E0007; Mon, 28 Jan 2019 11:10:45 -0500 (EST)
+	id DD49D8E000A; Mon, 28 Jan 2019 11:10:59 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CF6D8E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 11:10:45 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id f125so11817558pgc.20
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 08:10:45 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA028E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 11:10:59 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id t2so14403683pfj.15
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 08:10:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=9tWbXjPx+ylNQqVYDh1Ju/QGShmOIh48UEWicfqbXlc=;
-        b=udf6VO1kFtSEpz1xInrWotUO3W1BTkXKYBZh/1tgyrk6QO7vQdP5jSmlV2aHniJkLK
-         4Om7psynkPpaM+K9Nxi4lmOJlTsKUkQeaBAcZ6BFP15RU84jBND9UjF3bDB81NK2MRfq
-         ryfVsfzis7VWLBITWc9NcqvDixvfHdt7QD9I9B9/M0HDKG/W6pezKgFGCDp8QqcrY9Xs
-         RTN3s7lul4bfb5ckwdymcFgOIKDe16cPxNCVTf9pZJCePIB/wWMxiP0q6qIlj9pYtP22
-         SwHfcSo8epruk6eDxv/2q/1DDuwSvgC8eVXyyieVptHwfo/NN66C2U49wCLs6BEBbd/X
-         J75w==
-X-Gm-Message-State: AJcUukeITAzZtgW4i5hpS7ecIjNUmlnVPWUB1I0uaTZsPhsrhgLyhwQ0
-	jpl2DIKuOjijREtTIURYNVURLkB+oOY8DgXS/x76xlv+xiV1e/PQI41Lp4w//BfdEKT2H/H7fTt
-	ZKvdFHuCLyEyP2y2gOtD1mZFZSkS35w7CNsc4sS2hy/ByIyX0b4gf8dEdQvFY2JkA0A==
-X-Received: by 2002:a65:514c:: with SMTP id g12mr20252748pgq.169.1548691844701;
-        Mon, 28 Jan 2019 08:10:44 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5K0JwwR0or2Rgab1cnQTMPhgIda8DWjxhEIhqOky5SqJHVBLfHqTiQ0i/sqQnhYWfSczqW
-X-Received: by 2002:a65:514c:: with SMTP id g12mr20252719pgq.169.1548691844099;
-        Mon, 28 Jan 2019 08:10:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548691844; cv=none;
+        bh=Qhsxdhz/+tQnKkwaHTRJI1X9IRPCLiWl6pG+bhVwHd4=;
+        b=fDvSW8GxXio0F0dxIlj4spK7qViZ9az+E8HOuY4Y+Yf7e847QT6zIW0eKHx7FgYOID
+         AIioykmMXfxFbdwX+JmX7UgEW8sR4za1ZdoAQVlsfxiqPT0d8zNIvIRLHWHrgwjctjQj
+         ZGuYY4oCVJcU+6VuYF3qFZHX0ucJIoYmZR8xCiDRnwfn51Q4QT3FMhXYsMTasOgLEDNq
+         jwjpOb7ScoRqfawEBq/vVFx14Ay2YHcMIRr71F6Zs1Az3FEqMdP74zuYzzw9sr3ZnNnc
+         U+leT9+JXm7p7EnbtjFzp7xBOjM0z2KvU9Tj2j70t7gJ/eoT+g1egmzxqmngkfXwzbZ6
+         6BhQ==
+X-Gm-Message-State: AJcUuke/uSq4hOPKN6DpXXmMA74X1/kx8y/irukko0k6oo/AzHvhKLGh
+	/78Jas6uX2bbZKrqENk33ipLjKTDaLh+STLt+3z4q1XLHZJbZZqT/B5J3DVWD0dv2UBRHedncJI
+	QukQZhInQ1ae00v2NXc0XcxgqVl6bc8kRvzyfJyj6kRZpZ1allsVDsza5Sa6miIZY5w==
+X-Received: by 2002:a63:e445:: with SMTP id i5mr20345120pgk.307.1548691859292;
+        Mon, 28 Jan 2019 08:10:59 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4eXnvOAIqi3T2bzrhjzx2+ITG6+FFDNHuczqrcmozsDN/hgCxQZjE2uSvG45T/S/5JRfBb
+X-Received: by 2002:a63:e445:: with SMTP id i5mr20345079pgk.307.1548691858510;
+        Mon, 28 Jan 2019 08:10:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548691858; cv=none;
         d=google.com; s=arc-20160816;
-        b=fdSGYsFTsTYtiIlUfq1c09UYAORHRm3qUzMmj1mEFBreuaRITgYZmOqr5tQy+oWJ4+
-         NGQVNoafqqVwFd0DzoyH8zAMOgFeCH6unuiVnHUN4pb1lDXa+p6K8zbowLs1cVudVegE
-         4kC3AXmRx8YiJUFhbxcM8QmU0RZW5pULcSjOCERVhvMgAp9CEY7BkgI6sFLKAkNZVToO
-         1oJKcp0VNYXxH7Gr66EkOzhNRDWxrnup4/KlSgQEF/zDLGXERS5d1EFLlUmkmrT3Mybp
-         KY+Ng0ayvTQSE0FnUZAmivgQ+3ul298oSMG5dMBX2mQusRpq4+el5WbBmasyYHCoQR2c
-         ffcA==
+        b=jVEjL4nYo93hCDFNzGm5g6XJwnyPyzf821LdHzaQTIMkfP1JRix7pDcMytcjcf4Ij8
+         sFdYgl0k/aRSsae17osCUwDnte3RBcAJZTl5G/bUZtBfW5xMGQM3sDrvkRlSHHVGy8/O
+         4hlUrYecwW6smHeG0ZqJNN4crssO7CT4AOKdEhkInSDmRYKxGbuc9fMr4+MFcyIPi153
+         D4c/1ic5GX7Y8+6Vb6bDlgFuf20FguT0B1nwDblZLyfvusBkkWo4zRdO82qS/IJV0e3D
+         2Uui039bbMERMM+XkqBin9rWVmGzU87hTMeCyOppjnDOP4WKgaObPxgGb5hXbl6hwxE5
+         +xzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=9tWbXjPx+ylNQqVYDh1Ju/QGShmOIh48UEWicfqbXlc=;
-        b=pCAnM/ASjNiWq/pQc56GnR4wKSJJCzppfstUL857D4FuwLoT4r4YciA4hp0Asv45BX
-         LX1SYcAAwZW+bsCI0awAQ3oX6uDb0t5CTdF+Uu+vZyInLMTLvbmooY73e1PpD1F5x4q5
-         Y0Uz7qgb0x2O9dMFy6EdTCfguGylgeNiy0tzqprCzK5nX+QEsFcH4xQEIlMprQxxpGV2
-         8wvUbnFu434GgMPg4qvIORiPpmrCDPWoB454/fruDPEtZaQwxGcgL0FUdWLUgH75CiVa
-         wJpZ2Fn7WDuhfc5EP8ab0rYCy08gTgVbhTeaAwBB/IdFTsbV5UhH5iGclZCW+HvAct43
-         TKEg==
+        bh=Qhsxdhz/+tQnKkwaHTRJI1X9IRPCLiWl6pG+bhVwHd4=;
+        b=B7BsXm5xayhkvEOod2UYOa+C2Ew5MQfw/68LDOnjuP5Jc42V+Vt2FmGffr5srTqX87
+         D02PehdfgswzNUzrR4kJtAUnFwtKrzsrgy1E/MhoZ+GUZEGvS381fjUGUY6FNoyoTJU9
+         x1AkJodnxniN4Wt9HovskR81c2Q/oWLohSu+0q2FXPi4EoJkDKdGXT8sN3Urb9NwVBTK
+         CX9gbS3zEdRg8begUwEScoHjaDMn8PE1A3M4pi1HQIMHTWX9h5GwlsAF/6IGLatYUBoF
+         GQxQOXfGX7nYPEfR82wHvQRGQwDnS67QcSd6srEw82Jap5j9ta8oJ1a7o6Mj2B8cZGJo
+         tw0w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=FC+tjslz;
+       dkim=pass header.i=@kernel.org header.s=default header.b=avQgHdfr;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n3si18267438pgk.405.2019.01.28.08.10.43
+        by mx.google.com with ESMTPS id m78si11494298pfj.48.2019.01.28.08.10.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 08:10:44 -0800 (PST)
+        Mon, 28 Jan 2019 08:10:58 -0800 (PST)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=FC+tjslz;
+       dkim=pass header.i=@kernel.org header.s=default header.b=avQgHdfr;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8DF8A2084A;
-	Mon, 28 Jan 2019 16:10:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 264912175B;
+	Mon, 28 Jan 2019 16:10:54 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1548691843;
-	bh=iMPET4x1Ri3FMmeFZ87YAw+rJQU9OwKtkcfiyE1nWo8=;
+	s=default; t=1548691858;
+	bh=aEWnACEXuAjnas7RCyqo+LR5iDP9OLbY564td9odYRQ=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=FC+tjslzyI5EGb9RLk2BMcsJ16icWWiZPVjxrPaypOhQUTQEQD8FCx7QeLTnqmhi4
-	 T4RD5T+kKtrclpPuoFGhSOmlRYGHh90nG1A+dQVvknFB4RO7Uyi2G1nTdhQnuu/lS4
-	 nKHAcgeU4lMQH1K0WqMqpWDiWI1FIh/BYXKUD80Y=
+	b=avQgHdfruHG93CI7vJDiQH5um8AUAdRoZlxocnDglRClEjU6x6K4ITa47XQuWK3TT
+	 cFKOtMW+uZAbYVs/CI/0fMBj1WSoyuOqh0Ihg+19a0wWnKHG2Yty7lDidrp04IiWkd
+	 1fyWmyUf0BS4cxo/T1gqfbRGYdAiAiYVXlxFF4ME=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Miles Chen <miles.chen@mediatek.com>,
-	Joe Perches <joe@perches.com>,
-	Matthew Wilcox <willy@infradead.org>,
+Cc: Waiman Long <longman@redhat.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Alexander Potapenko <glider@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Pasha Tatashin <Pavel.Tatashin@microsoft.com>,
+	Oscar Salvador <osalvador@suse.de>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.19 235/258] mm/page_owner: clamp read count to PAGE_SIZE
-Date: Mon, 28 Jan 2019 10:59:01 -0500
-Message-Id: <20190128155924.51521-235-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 238/258] mm/page_alloc.c: don't call kasan_free_pages() at deferred mem init
+Date: Mon, 28 Jan 2019 10:59:04 -0500
+Message-Id: <20190128155924.51521-238-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190128155924.51521-1-sashal@kernel.org>
 References: <20190128155924.51521-1-sashal@kernel.org>
@@ -118,44 +122,140 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190128155901.ldFAbGdyX-I2-oraKjLUmkDMgIARvpwUkUrmPgSsTSA@z>
+Message-ID: <20190128155904.ilYTVtNRe0XdRxAOV6sPY52wjdhUzN7yy5Am_FGvQxQ@z>
 
-From: Miles Chen <miles.chen@mediatek.com>
+From: Waiman Long <longman@redhat.com>
 
-[ Upstream commit c8f61cfc871fadfb73ad3eacd64fda457279e911 ]
+[ Upstream commit 3c0c12cc8f00ca5f81acb010023b8eb13e9a7004 ]
 
-The (root-only) page owner read might allocate a large size of memory with
-a large read count.  Allocation fails can easily occur when doing high
-order allocations.
+When CONFIG_KASAN is enabled on large memory SMP systems, the deferrred
+pages initialization can take a long time.  Below were the reported init
+times on a 8-socket 96-core 4TB IvyBridge system.
 
-Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
-and avoid allocation fails due to high order allocation.
+  1) Non-debug kernel without CONFIG_KASAN
+     [    8.764222] node 1 initialised, 132086516 pages in 7027ms
 
-[akpm@linux-foundation.org: use min_t()]
-Link: http://lkml.kernel.org/r/1541091607-27402-1-git-send-email-miles.chen@mediatek.com
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Joe Perches <joe@perches.com>
-Cc: Matthew Wilcox <willy@infradead.org>
+  2) Debug kernel with CONFIG_KASAN
+     [  146.288115] node 1 initialised, 132075466 pages in 143052ms
+
+So the page init time in a debug kernel was 20X of the non-debug kernel.
+The long init time can be problematic as the page initialization is done
+with interrupt disabled.  In this particular case, it caused the
+appearance of following warning messages as well as NMI backtraces of all
+the cores that were doing the initialization.
+
+[   68.240049] rcu: INFO: rcu_sched detected stalls on CPUs/tasks:
+[   68.241000] rcu: 	25-...0: (100 ticks this GP) idle=b72/1/0x4000000000000000 softirq=915/915 fqs=16252
+[   68.241000] rcu: 	44-...0: (95 ticks this GP) idle=49a/1/0x4000000000000000 softirq=788/788 fqs=16253
+[   68.241000] rcu: 	54-...0: (104 ticks this GP) idle=03a/1/0x4000000000000000 softirq=721/825 fqs=16253
+[   68.241000] rcu: 	60-...0: (103 ticks this GP) idle=cbe/1/0x4000000000000000 softirq=637/740 fqs=16253
+[   68.241000] rcu: 	72-...0: (105 ticks this GP) idle=786/1/0x4000000000000000 softirq=536/641 fqs=16253
+[   68.241000] rcu: 	84-...0: (99 ticks this GP) idle=292/1/0x4000000000000000 softirq=537/537 fqs=16253
+[   68.241000] rcu: 	111-...0: (104 ticks this GP) idle=bde/1/0x4000000000000000 softirq=474/476 fqs=16253
+[   68.241000] rcu: 	(detected by 13, t=65018 jiffies, g=249, q=2)
+
+The long init time was mainly caused by the call to kasan_free_pages() to
+poison the newly initialized pages.  On a 4TB system, we are talking about
+almost 500GB of memory probably on the same node.
+
+In reality, we may not need to poison the newly initialized pages before
+they are ever allocated.  So KASAN poisoning of freed pages before the
+completion of deferred memory initialization is now disabled.  Those pages
+will be properly poisoned when they are allocated or freed after deferred
+pages initialization is done.
+
+With this change, the new page initialization time became:
+
+[   21.948010] node 1 initialised, 132075466 pages in 18702ms
+
+This was still about double the non-debug kernel time, but was much
+better than before.
+
+Link: http://lkml.kernel.org/r/1544459388-8736-1-git-send-email-longman@redhat.com
+Signed-off-by: Waiman Long <longman@redhat.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+Cc: Oscar Salvador <osalvador@suse.de>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/page_owner.c | 1 +
- 1 file changed, 1 insertion(+)
+ mm/page_alloc.c | 37 +++++++++++++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 8 deletions(-)
 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index d80adfe702d3..9ad588444671 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -351,6 +351,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 		.skip = 0
- 	};
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 93e73ccb4dec..b87dc47db5ed 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -294,6 +294,32 @@ EXPORT_SYMBOL(nr_online_nodes);
+ int page_group_by_mobility_disabled __read_mostly;
  
-+	count = min_t(size_t, count, PAGE_SIZE);
- 	kbuf = kmalloc(count, GFP_KERNEL);
- 	if (!kbuf)
- 		return -ENOMEM;
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++/*
++ * During boot we initialize deferred pages on-demand, as needed, but once
++ * page_alloc_init_late() has finished, the deferred pages are all initialized,
++ * and we can permanently disable that path.
++ */
++static DEFINE_STATIC_KEY_TRUE(deferred_pages);
++
++/*
++ * Calling kasan_free_pages() only after deferred memory initialization
++ * has completed. Poisoning pages during deferred memory init will greatly
++ * lengthen the process and cause problem in large memory systems as the
++ * deferred pages initialization is done with interrupt disabled.
++ *
++ * Assuming that there will be no reference to those newly initialized
++ * pages before they are ever allocated, this should have no effect on
++ * KASAN memory tracking as the poison will be properly inserted at page
++ * allocation time. The only corner case is when pages are allocated by
++ * on-demand allocation and then freed again before the deferred pages
++ * initialization is done, but this is not likely to happen.
++ */
++static inline void kasan_free_nondeferred_pages(struct page *page, int order)
++{
++	if (!static_branch_unlikely(&deferred_pages))
++		kasan_free_pages(page, order);
++}
++
+ /* Returns true if the struct page for the pfn is uninitialised */
+ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
+ {
+@@ -326,6 +352,8 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+ 	return true;
+ }
+ #else
++#define kasan_free_nondeferred_pages(p, o)	kasan_free_pages(p, o)
++
+ static inline bool early_page_uninitialised(unsigned long pfn)
+ {
+ 	return false;
+@@ -1030,7 +1058,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ 	arch_free_page(page, order);
+ 	kernel_poison_pages(page, 1 << order, 0);
+ 	kernel_map_pages(page, 1 << order, 0);
+-	kasan_free_pages(page, order);
++	kasan_free_nondeferred_pages(page, order);
+ 
+ 	return true;
+ }
+@@ -1593,13 +1621,6 @@ static int __init deferred_init_memmap(void *data)
+ 	return 0;
+ }
+ 
+-/*
+- * During boot we initialize deferred pages on-demand, as needed, but once
+- * page_alloc_init_late() has finished, the deferred pages are all initialized,
+- * and we can permanently disable that path.
+- */
+-static DEFINE_STATIC_KEY_TRUE(deferred_pages);
+-
+ /*
+  * If this zone has deferred pages, try to grow it by initializing enough
+  * deferred pages to satisfy the allocation specified by order, rounded up to
 -- 
 2.19.1
 
