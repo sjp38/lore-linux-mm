@@ -1,85 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 671CA8E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:52:13 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id d41so6567214eda.12
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:52:13 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 84E748E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:53:26 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c34so6563060edb.8
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:53:26 -0800 (PST)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u28si901768edi.62.2019.01.28.06.52.12
+        by mx.google.com with ESMTPS id w5-v6si1450070eja.270.2019.01.28.06.53.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 06:52:12 -0800 (PST)
-Date: Mon, 28 Jan 2019 15:52:10 +0100
+        Mon, 28 Jan 2019 06:53:25 -0800 (PST)
+Date: Mon, 28 Jan 2019 15:53:23 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190128145210.GM18811@dhcp22.suse.cz>
-References: <20190124082252.GD4087@dhcp22.suse.cz>
- <20190124160009.GA12436@cmpxchg.org>
- <20190124170117.GS4087@dhcp22.suse.cz>
- <20190124182328.GA10820@cmpxchg.org>
- <20190125074824.GD3560@dhcp22.suse.cz>
- <20190125165152.GK50184@devbig004.ftw2.facebook.com>
- <20190125173713.GD20411@dhcp22.suse.cz>
- <20190125182808.GL50184@devbig004.ftw2.facebook.com>
- <20190128125151.GI18811@dhcp22.suse.cz>
- <20190128142816.GM50184@devbig004.ftw2.facebook.com>
+Subject: Re: [PATCH RFC] mm: migrate: don't rely on PageMovable() of newpage
+ after unlocking it
+Message-ID: <20190128145323.GN18811@dhcp22.suse.cz>
+References: <20190128121609.9528-1-david@redhat.com>
+ <20190128130709.GJ18811@dhcp22.suse.cz>
+ <b03cae19-d02a-0ba2-69a1-010ee76748e7@redhat.com>
+ <20190128132146.GK18811@dhcp22.suse.cz>
+ <17e7d7e4-f4ca-a681-93e5-92a0c285be14@redhat.com>
+ <20190128133514.GL18811@dhcp22.suse.cz>
+ <cb3eccaf-0fbf-f3b8-dbbe-070acb9837be@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190128142816.GM50184@devbig004.ftw2.facebook.com>
+In-Reply-To: <cb3eccaf-0fbf-f3b8-dbbe-070acb9837be@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jan Kara <jack@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Matthew Wilcox <willy@infradead.org>, Vratislav Bendel <vbendel@redhat.com>, Rafael Aquini <aquini@redhat.com>
 
-On Mon 28-01-19 06:28:16, Tejun Heo wrote:
-> Hello, Michal.
-> 
-> On Mon, Jan 28, 2019 at 01:51:51PM +0100, Michal Hocko wrote:
-> > > For example, a workload manager watching over a subtree for a job with
-> > > nested memory limits set by the job itself.  It wants to take action
-> > > (reporting and possibly other remediative actions) when something goes
-> > > wrong in the delegated subtree but isn't involved in how the subtree
-> > > is configured inside.
+On Mon 28-01-19 15:38:38, David Hildenbrand wrote:
+> On 28.01.19 14:35, Michal Hocko wrote:
+> > On Mon 28-01-19 14:22:52, David Hildenbrand wrote:
+> >> On 28.01.19 14:21, Michal Hocko wrote:
+> >>> On Mon 28-01-19 14:14:28, David Hildenbrand wrote:
+> >>>> On 28.01.19 14:07, Michal Hocko wrote:
+> >>>>> On Mon 28-01-19 13:16:09, David Hildenbrand wrote:
+> >>>>> [...]
+> >>>>>> My theory:
+> >>>>>>
+> >>>>>> In __unmap_and_move(), we lock the old and newpage and perform the
+> >>>>>> migration. In case of vitio-balloon, the new page will become
+> >>>>>> movable, the old page will no longer be movable.
+> >>>>>>
+> >>>>>> However, after unlocking newpage, I think there is nothing stopping
+> >>>>>> the newpage from getting dequeued and freed by virtio-balloon. This
+> >>>>>> will result in the newpage
+> >>>>>> 1. No longer having PageMovable()
+> >>>>>> 2. Getting moved to the local list before finally freeing it (using
+> >>>>>>    page->lru)
+> >>>>>
+> >>>>> Does that mean that the virtio-balloon can change the Movable state
+> >>>>> while there are other users of the page? Can you point to the code that
+> >>>>> does it? How come this can be safe at all? Or is the PageMovable stable
+> >>>>> only under the page lock?
+> >>>>>
+> >>>>
+> >>>> PageMovable is stable under the lock. The relevant instructions are in
+> >>>>
+> >>>> mm/balloon_compaction.c and include/linux/balloon_compaction.h
+> >>>
+> >>> OK, I have just checked __ClearPageMovable and it indeed requires
+> >>> PageLock. Then we also have to move is_lru = __PageMovable(page) after
+> >>> the page lock.
+> >>>
+> >>
+> >> I assume that is fine as is as the page is isolated? (yes, it will be
+> >> modified later when moving but we are interested in the original state)
 > > 
-> > Yes, I understand this part, but it is not clear to me, _how_ to report
-> > anything sensible without knowing _what_ has caused the event. You can
-> > walk the cgroup hierarchy and compare cached results with new ones but
-> > this is a) racy and b) clumsy.
-> 
-> All .events files generate aggregated stateful notifications.  For
-> anyone to do anything, they'd have to remember the previous state to
-> identify what actually happened.  Being hierarchical, it'd of course
-> need to walk down when an event triggers.
-
-And how do you do that in a raceless fashion?
-
-> > > That sure is an option for use cases like above but it has the
-> > > downside of carrying over the confusing interface into the indefinite
-> > > future.
+> > OK, I've missed that the page is indeed isolated. Then the patch makes
+> > sense to me.
 > > 
-> > I actually believe that this is not such a big deal. For one thing the
-> > current events are actually helpful to watch the reclaim/setup behavior.
 > 
-> Sure, it isn't something critical.  It's just confusing and I think
-> it'd be better to improve.
-> 
-> > I do not really think you can go back. You cannot simply change semantic
-> > back and forth because you just break new users.
-> > 
-> > Really, I do not see the semantic changing after more than 3 years of
-> > production ready interface. If you really believe we need a hierarchical
-> > notification mechanism for the reclaim activity then add a new one.
-> 
-> I don't see it as black and white as you do.  Let's agree to disagree.
-> I'll ack the patch and note the disagreement.
+> Thanks Michal. I assume this has broken ever since balloon compaction
+> was introduced. I'll wait a little more and then resend as !RFC with a
+> cc-stable tag.
 
-Considering the justification behhind this change I really do not see
-other option than nack this change. There is simply no _strong_ reason
-to change the behavior. Even if the current behavior is confusing, the
-documentation can be improved to be more specific. If there is a strong
-demand for hierarchical reporting then add a new interface. But I have
-to say that I would consider such a reporting clumsy at best.
+Please make sure to CC Minchan when reposting.
+
+Btw.
+Acked-by: Michal Hocko <mhocko@suse.com>
 -- 
 Michal Hocko
 SUSE Labs
