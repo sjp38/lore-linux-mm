@@ -1,39 +1,63 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 17C048E0004
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2019 19:06:06 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id k22-v6so4161428ljk.12
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 16:06:06 -0800 (PST)
-Received: from nautica.notk.org (ipv6.notk.org. [2001:41d0:1:7a93::1])
-        by mx.google.com with ESMTPS id o187si14287722lfa.35.2019.01.27.16.06.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Jan 2019 16:06:04 -0800 (PST)
-Date: Mon, 28 Jan 2019 01:05:48 +0100
-From: Dominique Martinet <asmadeus@codewreck.org>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-Message-ID: <20190128000547.GA25155@nautica>
-References: <nycvar.YFH.7.76.1901240009560.6626@cbobk.fhfr.pm>
- <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
- <20190124002455.GA23181@nautica>
- <20190124124501.GA18012@nautica>
- <nycvar.YFH.7.76.1901241523500.6626@cbobk.fhfr.pm>
- <nycvar.YFH.7.76.1901272335040.6626@cbobk.fhfr.pm>
+Return-Path: <linux-kernel-owner@vger.kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <nycvar.YFH.7.76.1901272335040.6626@cbobk.fhfr.pm>
-Sender: owner-linux-mm@kvack.org
+References: <20190111150933.GA2760@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20190111150933.GA2760@jordon-HP-15-Notebook-PC>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 28 Jan 2019 12:01:12 +0530
+Message-ID: <CAFqt6zYcd6XgFDz1vGcZpoeDPCpr5sODdUQ=3WF1z8ZKLxUBOQ@mail.gmail.com>
+Subject: Re: [PATCH 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use vm_insert_range
+Content-Type: text/plain; charset="UTF-8"
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, hjc@rock-chips.com, Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com
+Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-Jiri Kosina wrote on Sun, Jan 27, 2019:
-> So, any objections to aproaching it this way?
+On Fri, Jan 11, 2019 at 8:35 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>
+> Convert to use vm_insert_range() to map range of kernel
+> memory to user vma.
+>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-I'm not sure why I'm the main recipient of that mail but answering
-because I am -- let's get these patches in through the regular -mm tree
-though
+Any comment on this patch ?
 
--- 
-Dominique
+> ---
+>  drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 17 ++---------------
+>  1 file changed, 2 insertions(+), 15 deletions(-)
+>
+> diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+> index a8db758..c9e207f 100644
+> --- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+> +++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+> @@ -221,26 +221,13 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+>                                               struct vm_area_struct *vma)
+>  {
+>         struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+> -       unsigned int i, count = obj->size >> PAGE_SHIFT;
+> +       unsigned int count = obj->size >> PAGE_SHIFT;
+>         unsigned long user_count = vma_pages(vma);
+> -       unsigned long uaddr = vma->vm_start;
+> -       unsigned long offset = vma->vm_pgoff;
+> -       unsigned long end = user_count + offset;
+> -       int ret;
+>
+>         if (user_count == 0)
+>                 return -ENXIO;
+> -       if (end > count)
+> -               return -ENXIO;
+>
+> -       for (i = offset; i < end; i++) {
+> -               ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
+> -               if (ret)
+> -                       return ret;
+> -               uaddr += PAGE_SIZE;
+> -       }
+> -
+> -       return 0;
+> +       return vm_insert_range(vma, rk_obj->pages, count);
+>  }
+>
+>  static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
+> --
+> 1.9.1
+>
