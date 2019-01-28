@@ -1,32 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FC908E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 02:04:25 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id v16so6193317wru.8
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 23:04:25 -0800 (PST)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 69si46414889wma.111.2019.01.27.23.04.23
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 88D618E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 02:04:32 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id v11so11216779ply.4
+        for <linux-mm@kvack.org>; Sun, 27 Jan 2019 23:04:32 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d8si8009638plo.196.2019.01.27.23.04.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Jan 2019 23:04:23 -0800 (PST)
-Date: Mon, 28 Jan 2019 08:04:22 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: use generic DMA mapping code in powerpc V4
-Message-ID: <20190128070422.GA2772@lst.de>
-References: <20190118125500.GA15657@lst.de> <e11e61b1-6468-122e-fc2b-3b3f857186bb@xenosoft.de> <f39d4fc6-7e4e-9132-c03f-59f1b52260e0@xenosoft.de> <b9e5e081-a3cc-2625-4e08-2d55c2ba224b@xenosoft.de> <20190119130222.GA24346@lst.de> <20190119140452.GA25198@lst.de> <bfe4adcc-01c1-7b46-f40a-8e020ff77f58@xenosoft.de> <8434e281-eb85-51d9-106f-f4faa559e89c@xenosoft.de> <4d8d4854-dac9-a78e-77e5-0455e8ca56c4@xenosoft.de> <1dec2fbe-f654-dac7-392a-93a5d20e3602@xenosoft.de>
+        Sun, 27 Jan 2019 23:04:31 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0S73i0G080115
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 02:04:30 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2q9u01m2ge-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 02:04:30 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 28 Jan 2019 07:04:28 -0000
+Date: Mon, 28 Jan 2019 09:04:22 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+Subject: [LSF/MM TOPIC]: mm documentation
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1dec2fbe-f654-dac7-392a-93a5d20e3602@xenosoft.de>
+Message-Id: <20190128070421.GA2470@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Zigotzky <chzigotzky@xenosoft.de>
-Cc: Christoph Hellwig <hch@lst.de>, linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>, linuxppc-dev@lists.ozlabs.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Sun, Jan 27, 2019 at 02:13:09PM +0100, Christian Zigotzky wrote:
-> Christoph,
->
-> What shall I do next?
+Hi,
 
-I'll need to figure out what went wrong with the new zone selection
-on powerpc and give you another branch to test.
+At the last Plumbers plenary there was a discussion about the
+documentation and one of the questions to the panel was "Is it better
+to have outdated documentation or no documentation at all?" And, not
+surprisingly, they've answered, "No documentation is better than
+outdated".
+
+The mm documentation is, well, not entirely up to date. We can opt for
+dropping the outdated parts, which would generate a nice negative
+diffstat, but identifying the outdated documentation requires nearly
+as much effort as updating it, so I think that making and keeping
+the docs up to date would be a better option.
+
+I'd like to discuss what can be done process-wise to improve the
+situation.
+
+Some points I had in mind:
+
+* Pay more attention to docs during review
+* Set an expectation level for docs accompanying a changeset
+* Add automation to aid spotting inconsistencies between the code and
+  the docs
+* Spend some cycles to review and update the existing docs
+* Spend some more cycles to add new documentation
+
+I'd appreciate a discussion about how we can get to the second edition
+of "Understanding the Linux Virtual Memory Manager", what are the gaps
+(although they are too many), and what would be the best way to close
+these gaps.
+
+-- 
+Sincerely yours,
+Mike.
