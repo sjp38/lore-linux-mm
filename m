@@ -2,163 +2,127 @@ Return-Path: <SRS0=rmuZ=QE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61D63C282C8
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:49:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C61DBC282C8
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:50:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB9F62175B
-	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:49:10 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lVQH1nAe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB9F62175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8C1C320881
+	for <linux-mm@archiver.kernel.org>; Mon, 28 Jan 2019 17:50:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C1C320881
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F3248E0002; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
+	id 1A5E68E0002; Mon, 28 Jan 2019 12:50:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A0638E0001; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
+	id 155BF8E0001; Mon, 28 Jan 2019 12:50:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2696B8E0002; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
+	id 046518E0002; Mon, 28 Jan 2019 12:50:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 023168E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:49:10 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id p8so6600784ybb.4
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:49:09 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B97878E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 12:50:57 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id b24so12254051pls.11
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:50:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=RDoi/eLjxnbObU8/lFllv41Z8VtANrIPfKdXbpygwCE=;
-        b=tKsadUOYaOtLYpwJv6Q9usFa4JcngfKaHvqX7m49Yr4Ox2laqWkhcsjlp/v80M/+vh
-         iU9tge0huW1JDAbTdVxYr6gJj2YlC+Xhplybx7B6S45LbUDJAACk5pQV6HRyXo+onEZW
-         EYpz+mHVrAn67cnCke6P1O4cLp1q50NWJezFHV1S9MwiOjly3TZ1zj2Sjf98ydUtn8Xh
-         VqhLYhSp9fcQGDwD22nXNi1O9+J7VSMp0+LT3cc1kfFQA6P+kcQu+hLwHXbS5+tqjXim
-         HwXGrZ4myislm08Nl6c6YZ25Is/yB+lUh8fYIM1n1eqNcjtHGsYQ1PCjqFIZzzM51Ho6
-         v49w==
-X-Gm-Message-State: AJcUukfUMM1v5IISC2tPOTijX2DStdxqZ7s6bkgn0O2pmvzenmKW7kzw
-	BVB763Owta10n4EsTY1PHZ0LjQ+NLOWH4FPIj6wPzooGVg9r9RXvgtCV77ZP6G2OLsEFwxzO2OT
-	EdwxTmgIFk+cmXhD/X5WeNFoAVUBtn9CQmD8UrqdWKWuWMS0YlqZAleAWR9jbZVeHUmoksIvw01
-	96q3EfsFGW0O61Elk6mtuc/ilReA6OdqsMEUu8ETOn5YLIqx6ekqWLmtdMoYBtCrUUO/vm5oPrV
-	3Y+tgungu5FHbShTFVlMJJ2sT8z2eF2o5kwwGMfk13Off+S+T6Jo2S3kRWmV5F5hU2AHuzchvps
-	KHwxUjI1Sl3D2ipq4H9k9AJlrQYglcwx/Lqy5KU4r/PBv0JGw9rKOB185shgBeQmetpyUiKhww=
-	=
-X-Received: by 2002:a25:7909:: with SMTP id u9mr21396535ybc.451.1548697749375;
-        Mon, 28 Jan 2019 09:49:09 -0800 (PST)
-X-Received: by 2002:a25:7909:: with SMTP id u9mr21396496ybc.451.1548697748663;
-        Mon, 28 Jan 2019 09:49:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548697748; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=tiKrXRWXcQKuiQfu4b4nOKmW+HrB+aDLZqiEfbD/xpY=;
+        b=eynZcaEAZN7NRkDjG9j8kBdQ0DgtghQtIZYZlERWN/xewPZrCn0mhI96O7X2D1Up92
+         Khh40cl0cZKPRILom5ikeXWlbGOe2p7F/wbx/5A7KLeoRt7VispyaOHcnOy92kWQUDuq
+         TcKlmH7iKBShKQlBXGSU07fJZBS1W++eSikzLQ+t0Z1l45a4PkqNbvYr8weRbcaxDFng
+         GuS1HZJwBtjktusVG7nDr4wIXrvTf1hWf/B1l4cK/5lw4DdiepMwUauQDr8F0XKOIgVy
+         62CMd9zR0KMqLpA18pg9vWVKXBcgL90/Em0BcKoBYtbUJJ5X4KGgvr0nfTTOfswbuOnU
+         jsNg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AJcUukeH/ihtZSG8tpqB9pIIjJHSNqSUrLr/IQpT3CfoYmpQyWC7fBX4
+	pg1hZeizMAOnK8KfNmrNBjIFaKIQ9QScYrRjzsPBJANKTN0HeyppfGQPpQje+VmQyHWUbdiSe3P
+	WmCtYFeDPsHpcuO+bn3uYq7NqKw9zFawnuRvvqs9DeiRdEzErte+YlYM9InJacIgDDQ==
+X-Received: by 2002:a17:902:a70b:: with SMTP id w11mr22535512plq.84.1548697857366;
+        Mon, 28 Jan 2019 09:50:57 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN517Q4NuYyovx7Z1O6OmNcYp1iTj3kA8lXGWVOH2BcUDpmdGN0IUuxCbEABRHpAjDjVxNgi
+X-Received: by 2002:a17:902:a70b:: with SMTP id w11mr22535479plq.84.1548697856381;
+        Mon, 28 Jan 2019 09:50:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548697856; cv=none;
         d=google.com; s=arc-20160816;
-        b=eLnqKgexPpou4P5l5LQJjQ9ddlhZ2p0UsA6Q4UipjU215D8TMlkl5lpBlLKq/qIRMv
-         83nfzjjTT+VjO0XiFXTSLyjb56C8RkLCtkig1B5HmsBugCnHcCFEURskMpX5O2QHCkBU
-         Jswz7XEQ9vdD39WNGVoajKZwGwoP/0K+FhebZcq8xv0wwCzQatXC4Zg0q7QBov6fbyMz
-         O397l/9TJgwZBfV+z4SOYTtrLqonSUP1+ZpTC7R4u/Yz9ITPP04ytU1uR12OzRSg0Ptk
-         C/F/aJ2262VueGz6cYCl2GZkfYjx8KooPUoAN40oOGjtkUBY33ArfcUOw1tdl0PV8gno
-         Qknw==
+        b=WBMaa4qASzZpBpxETT4ndJ9NItuhKDwLnd5uwYH5HBK6dW8mPTD5ZNZgF/xdPB6mEp
+         GtKXEN/mxONT1QVWcb0HGzA9zrbctbgSTLv7wIwDIOI1BbDmone7SZaSNCXUj+8hLEe5
+         NVVW1Rk+vSHXUXeUOd1tPZV4VjLn/0wzNfxNINF4UnNoRgB77hRYn0gXuyu77g+J6EWl
+         YaO1SCKaSPHQGknKcT/HNuiFFBk6a7MVlMfQJ/M5R9ksbgYmH1lLBJeHndGzhMhWv9wo
+         EF8WwHkBkpFvA3Xy0eFw4Ue/adGz5T8DX8mk9udyhikbCKdqv/SMaBa0W83g4pSpYkLG
+         9l/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=RDoi/eLjxnbObU8/lFllv41Z8VtANrIPfKdXbpygwCE=;
-        b=ZuQHemSKOb6cQm5ob5HWKBjHczONWew8B+HFf9aZQjcR29lkZNuQwGYVF4h6eyoMJk
-         RcjfOP1jfQ8TiPBtul+s7CiKCyYmbfuwfR0N2lDPoos0XEC7k7Bapn2WyIHsEkpkFjEn
-         yA2bPjVIf2z4Q33Ud8Lp/eE07Wr2+SGcdNxJ7yRQGDUnpthp7v9egzPfHi1nys2YUGbu
-         jNNHRzovuzGhccFXPhUuPKKNX/bbBJ/4iBAAtV2oFCybCajhfhVDgfPJLkxdTK3cYsE+
-         X2l0xJsI/+AVWPawHFonbgk5AiXVg+yimZB7O8tUeM2jQJjDZC7DtWW1VZ+OWzRpGMui
-         TeqQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=tiKrXRWXcQKuiQfu4b4nOKmW+HrB+aDLZqiEfbD/xpY=;
+        b=K01SZ4Yn1j8HyqFsls5LkEtfPZjNLjne39eZgiJFHJqiOPnj5NqRi6pW0xAnGRYrvz
+         D5wAbDwgLHF5BI4hBV4AewqZ6Ma9Y3x74yDlcDd3a+IOVbjyDC22U74D7/H5o55Gq0OO
+         7Iyl0wniRxIaNaUZ2gIeMfLzIN+xXIq8kzBdCuwixqVFKZqaEP5K0/ZRrEyYSedDkJHK
+         qeB6wwXlJvIYOSzTLVyCk985Qa7UgARNFTNG46PGl7EHPXFL+8OyQScogpZDn9Ps3s/+
+         YlOE4W3dyTTBGx3AWeqr20GmXNuIQb99TKcL8fe0I4Br0A3xXbVTXwZazzgKpjKayFo5
+         2njA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lVQH1nAe;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p130sor4419008ywb.39.2019.01.28.09.49.08
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 28si26380103pgz.593.2019.01.28.09.50.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 28 Jan 2019 09:49:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lVQH1nAe;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=RDoi/eLjxnbObU8/lFllv41Z8VtANrIPfKdXbpygwCE=;
-        b=lVQH1nAeTUapo+A78necDxJ89EsWzDvsbvfeD3DQE7e36L5IebWuxztHjBVoiEnB3H
-         JeYQjUy2zp7nWDkKEDHWbhMsmEV1MFDjEeVeJ8VygkmA3LoR71R+X5dLBG4+lqqUOaWi
-         02xvs+8jBWBa+6eYq8LBoIGsolX6zO1GdwGD3IFAMWM8PbB4KrSsY+KxY9yeJ7jCBhY1
-         0UCJptuXx2QuyCQjU/AzkD5lNtgIKEWL2Qosqrg5N6HL8+iL2cLg8oWv6QbP1rznpvTm
-         cFlCvSg7b/VQb0x4QHr+rmpIWzqsN5L/045u6n82TWmN4rcvRTAXhNjm1X1Hcwgj+I2M
-         YJUg==
-X-Google-Smtp-Source: ALg8bN4UwYkLurYiTtunS7LxeB7dpx1z6ERbMLfdg4VnL53YCm4TRhvjnIQJ3e8G5n+bKLi2/RRHFA==
-X-Received: by 2002:a81:4f97:: with SMTP id d145mr21795942ywb.198.1548697748275;
-        Mon, 28 Jan 2019 09:49:08 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::7:31a1])
-        by smtp.gmail.com with ESMTPSA id n16sm15879617ywn.31.2019.01.28.09.49.07
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 09:49:07 -0800 (PST)
-Date: Mon, 28 Jan 2019 09:49:05 -0800
-From: Tejun Heo <tj@kernel.org>
+        Mon, 28 Jan 2019 09:50:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id D08CF2541;
+	Mon, 28 Jan 2019 17:50:55 +0000 (UTC)
+Date: Mon, 28 Jan 2019 09:50:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190128174905.GU50184@devbig004.ftw2.facebook.com>
-References: <20190125165152.GK50184@devbig004.ftw2.facebook.com>
- <20190125173713.GD20411@dhcp22.suse.cz>
- <20190125182808.GL50184@devbig004.ftw2.facebook.com>
- <20190128125151.GI18811@dhcp22.suse.cz>
- <20190128142816.GM50184@devbig004.ftw2.facebook.com>
- <20190128145210.GM18811@dhcp22.suse.cz>
- <20190128145407.GP50184@devbig004.ftw2.facebook.com>
- <20190128151859.GO18811@dhcp22.suse.cz>
- <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
- <20190128170526.GQ18811@dhcp22.suse.cz>
-MIME-Version: 1.0
+Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>, Mikhail Gavrilov
+ <mikhail.v.gavrilov@gmail.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
+ schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com,
+ gerald.schaefer@de.ibm.com, <linux-mm@kvack.org>, LKML
+ <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 0/2] mm, memory_hotplug: fix uninitialized pages
+ fallouts.
+Message-Id: <20190128095054.4103093dec81f1c904df7929@linux-foundation.org>
+In-Reply-To: <20190128144506.15603-1-mhocko@kernel.org>
+References: <20190128144506.15603-1-mhocko@kernel.org>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-In-Reply-To: <20190128170526.GQ18811@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190128174905.BMCVG1w1ppsdW1mCClvABHA0kKw0S0ABSAHcN2OJ61Y@z>
+Message-ID: <20190128175054.1G-oldxo1UIxrn3Ca_oCdLnf2B_xIqL_c8V7xpSYNsk@z>
 
-Hello, Michal.
+On Mon, 28 Jan 2019 15:45:04 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-On Mon, Jan 28, 2019 at 06:05:26PM +0100, Michal Hocko wrote:
-> Yeah, that is quite clear. But it also assumes that the hierarchy is
-> pretty stable but cgroups might go away at any time. I am not saying
-> that the aggregated events are not useful I am just saying that it is
-> quite non-trivial to use and catch all potential corner cases. Maybe I
+> Mikhail has posted fixes for the two bugs quite some time ago [1]. I
+> have pushed back on those fixes because I believed that it is much
+> better to plug the problem at the initialization time rather than play
+> whack-a-mole all over the hotplug code and find all the places which
+> expect the full memory section to be initialized. We have ended up with
+> 2830bf6f05fb ("mm, memory_hotplug: initialize struct pages for the full
+> memory section") merged and cause a regression [2][3]. The reason is
+> that there might be memory layouts when two NUMA nodes share the same
+> memory section so the merged fix is simply incorrect.
+> 
+> In order to plug this hole we really have to be zone range aware in
+> those handlers. I have split up the original patch into two. One is
+> unchanged (patch 2) and I took a different approach for `removable'
+> crash. It would be great if Mikhail could test it still works for his
+> memory layout.
+> 
+> [1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
+> [2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
+> [3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
 
-It really isn't complicated and doesn't require stable subtree.
-
-> am overcomplicating it but one thing is quite clear to me. The existing
-> semantic is really useful to watch for the reclaim behavior at the
-> current level of the tree. You really do not have to care what is
-> happening in the subtree when it is clear that the workload itself
-> is underprovisioned etc. Considering that such a semantic already
-> existis, somebody might depend on it and we likely want also aggregated
-> semantic then I really do not see why to risk regressions rather than
-> add a new memory.hierarchy_events and have both.
-
-The problem then is that most other things are hierarchical including
-some fields in .events files, so if we try to add local stats and
-events, there's no good way to add them.
-
-Thanks.
-
--- 
-tejun
+Any thoughts on which kernel version(s) need these patches?
 
