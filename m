@@ -1,52 +1,48 @@
-From: Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 4.9 095/107] mm/page_owner: clamp read count to PAGE_SIZE
-Date: Mon, 28 Jan 2019 11:19:35 -0500
-Message-ID: <20190128161947.57405-95-sashal@kernel.org>
-References: <20190128161947.57405-1-sashal@kernel.org>
+From: Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>
+Subject: Re: use generic DMA mapping code in powerpc V4
+Date: Mon, 28 Jan 2019 17:22:56 +0100
+Message-ID: <20190128162256.GA11737@lst.de>
+References: <e11e61b1-6468-122e-fc2b-3b3f857186bb@xenosoft.de>
+	<f39d4fc6-7e4e-9132-c03f-59f1b52260e0@xenosoft.de>
+	<b9e5e081-a3cc-2625-4e08-2d55c2ba224b@xenosoft.de>
+	<20190119130222.GA24346@lst.de> <20190119140452.GA25198@lst.de>
+	<bfe4adcc-01c1-7b46-f40a-8e020ff77f58@xenosoft.de>
+	<8434e281-eb85-51d9-106f-f4faa559e89c@xenosoft.de>
+	<4d8d4854-dac9-a78e-77e5-0455e8ca56c4@xenosoft.de>
+	<1dec2fbe-f654-dac7-392a-93a5d20e3602@xenosoft.de>
+	<20190128070422.GA2772@lst.de>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Return-path: <stable-owner@vger.kernel.org>
-In-Reply-To: <20190128161947.57405-1-sashal@kernel.org>
-Sender: stable-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: Miles Chen <miles.chen@mediatek.com>, Joe Perches <joe@perches.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Content-Disposition: inline
+In-Reply-To: <20190128070422.GA2772-jcswGhMUV9g@public.gmane.org>
+List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
+List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: Christian Zigotzky <chzigotzky-KCoaydhb8eAb1SvskN2V4Q@public.gmane.org>
+Cc: linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Darren Stevens <darren-YHtdit1eIT3easaKlIn9Lw@public.gmane.org>, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Julian Margetson <runaway-zqC88Q5qmK4@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Paul Mackerras <paulus-eUNUBHrolfbYtjvyW6yDsg@public.gmane.org>, linuxppc-dev-uLR06cmDAlY/bJ5BZ2RsiQ@public.gmane.org, Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>
 List-Id: linux-mm.kvack.org
 
-From: Miles Chen <miles.chen@mediatek.com>
+On Mon, Jan 28, 2019 at 08:04:22AM +0100, Christoph Hellwig wrote:
+> On Sun, Jan 27, 2019 at 02:13:09PM +0100, Christian Zigotzky wrote:
+> > Christoph,
+> >
+> > What shall I do next?
+> 
+> I'll need to figure out what went wrong with the new zone selection
+> on powerpc and give you another branch to test.
 
-[ Upstream commit c8f61cfc871fadfb73ad3eacd64fda457279e911 ]
+Can you try the new powerpc-dma.6-debug.2 branch:
 
-The (root-only) page owner read might allocate a large size of memory with
-a large read count.  Allocation fails can easily occur when doing high
-order allocations.
+    git://git.infradead.org/users/hch/misc.git powerpc-dma.6-debug.2
 
-Clamp buffer size to PAGE_SIZE to avoid arbitrary size allocation
-and avoid allocation fails due to high order allocation.
+Gitweb:
 
-[akpm@linux-foundation.org: use min_t()]
-Link: http://lkml.kernel.org/r/1541091607-27402-1-git-send-email-miles.chen@mediatek.com
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Joe Perches <joe@perches.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- mm/page_owner.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 60634dc53a88..f3e527d95ab6 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -334,6 +334,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 		.skip = 0
- 	};
- 
-+	count = min_t(size_t, count, PAGE_SIZE);
- 	kbuf = kmalloc(count, GFP_KERNEL);
- 	if (!kbuf)
- 		return -ENOMEM;
--- 
-2.19.1
+    http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6-debug.2
