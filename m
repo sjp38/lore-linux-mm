@@ -1,77 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EC6938E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:45:18 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id e29so6777052ede.19
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:45:18 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a37sor29758587edd.23.2019.01.28.06.45.17
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 671CA8E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:52:13 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id d41so6567214eda.12
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:52:13 -0800 (PST)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u28si901768edi.62.2019.01.28.06.52.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 28 Jan 2019 06:45:17 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jan 2019 06:52:12 -0800 (PST)
+Date: Mon, 28 Jan 2019 15:52:10 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, memory_hotplug: test_pages_in_a_zone do not pass the end of zone
-Date: Mon, 28 Jan 2019 15:45:06 +0100
-Message-Id: <20190128144506.15603-3-mhocko@kernel.org>
-In-Reply-To: <20190128144506.15603-1-mhocko@kernel.org>
-References: <20190128144506.15603-1-mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190128145210.GM18811@dhcp22.suse.cz>
+References: <20190124082252.GD4087@dhcp22.suse.cz>
+ <20190124160009.GA12436@cmpxchg.org>
+ <20190124170117.GS4087@dhcp22.suse.cz>
+ <20190124182328.GA10820@cmpxchg.org>
+ <20190125074824.GD3560@dhcp22.suse.cz>
+ <20190125165152.GK50184@devbig004.ftw2.facebook.com>
+ <20190125173713.GD20411@dhcp22.suse.cz>
+ <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+ <20190128125151.GI18811@dhcp22.suse.cz>
+ <20190128142816.GM50184@devbig004.ftw2.facebook.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190128142816.GM50184@devbig004.ftw2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikhail Zaslonko <zaslonko@linux.ibm.com>, Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@soleen.com>, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+On Mon 28-01-19 06:28:16, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Mon, Jan 28, 2019 at 01:51:51PM +0100, Michal Hocko wrote:
+> > > For example, a workload manager watching over a subtree for a job with
+> > > nested memory limits set by the job itself.  It wants to take action
+> > > (reporting and possibly other remediative actions) when something goes
+> > > wrong in the delegated subtree but isn't involved in how the subtree
+> > > is configured inside.
+> > 
+> > Yes, I understand this part, but it is not clear to me, _how_ to report
+> > anything sensible without knowing _what_ has caused the event. You can
+> > walk the cgroup hierarchy and compare cached results with new ones but
+> > this is a) racy and b) clumsy.
+> 
+> All .events files generate aggregated stateful notifications.  For
+> anyone to do anything, they'd have to remember the previous state to
+> identify what actually happened.  Being hierarchical, it'd of course
+> need to walk down when an event triggers.
 
-If memory end is not aligned with the sparse memory section boundary, the
-mapping of such a section is only partly initialized. This may lead to
-VM_BUG_ON due to uninitialized struct pages access from test_pages_in_a_zone()
-function triggered by memory_hotplug sysfs handlers.
+And how do you do that in a raceless fashion?
 
-Here are the the panic examples:
- CONFIG_DEBUG_VM_PGFLAGS=y
- kernel parameter mem=2050M
- --------------------------
- page:000003d082008000 is uninitialized and poisoned
- page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
- Call Trace:
- ([<0000000000385b26>] test_pages_in_a_zone+0xde/0x160)
-  [<00000000008f15c4>] show_valid_zones+0x5c/0x190
-  [<00000000008cf9c4>] dev_attr_show+0x34/0x70
-  [<0000000000463ad0>] sysfs_kf_seq_show+0xc8/0x148
-  [<00000000003e4194>] seq_read+0x204/0x480
-  [<00000000003b53ea>] __vfs_read+0x32/0x178
-  [<00000000003b55b2>] vfs_read+0x82/0x138
-  [<00000000003b5be2>] ksys_read+0x5a/0xb0
-  [<0000000000b86ba0>] system_call+0xdc/0x2d8
- Last Breaking-Event-Address:
-  [<0000000000385b26>] test_pages_in_a_zone+0xde/0x160
- Kernel panic - not syncing: Fatal exception: panic_on_oops
+> > > That sure is an option for use cases like above but it has the
+> > > downside of carrying over the confusing interface into the indefinite
+> > > future.
+> > 
+> > I actually believe that this is not such a big deal. For one thing the
+> > current events are actually helpful to watch the reclaim/setup behavior.
+> 
+> Sure, it isn't something critical.  It's just confusing and I think
+> it'd be better to improve.
+> 
+> > I do not really think you can go back. You cannot simply change semantic
+> > back and forth because you just break new users.
+> > 
+> > Really, I do not see the semantic changing after more than 3 years of
+> > production ready interface. If you really believe we need a hierarchical
+> > notification mechanism for the reclaim activity then add a new one.
+> 
+> I don't see it as black and white as you do.  Let's agree to disagree.
+> I'll ack the patch and note the disagreement.
 
-Fix this by checking whether the pfn to check is within the zone.
-
-[mhocko@suse.com: separated this change from
-http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com]
-Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/memory_hotplug.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 07872789d778..7711d0e327b6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1274,6 +1274,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
- 				i++;
- 			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
- 				continue;
-+			/* Check if we got outside of the zone */
-+			if (zone && !zone_spans_pfn(zone, pfn + i))
-+				return 0;
- 			page = pfn_to_page(pfn + i);
- 			if (zone && page_zone(page) != zone)
- 				return 0;
+Considering the justification behhind this change I really do not see
+other option than nack this change. There is simply no _strong_ reason
+to change the behavior. Even if the current behavior is confusing, the
+documentation can be improved to be more specific. If there is a strong
+demand for hierarchical reporting then add a new interface. But I have
+to say that I would consider such a reporting clumsy at best.
 -- 
-2.20.1
+Michal Hocko
+SUSE Labs
