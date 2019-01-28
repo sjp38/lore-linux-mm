@@ -1,46 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 490D08E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 04:25:53 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c53so6439593edc.9
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 01:25:53 -0800 (PST)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c23si384268edn.65.2019.01.28.01.25.51
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ADB8B8E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 05:51:54 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id bj3so11521377plb.17
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 02:51:54 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 73sor45444474plf.73.2019.01.28.02.51.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 01:25:52 -0800 (PST)
-Date: Mon, 28 Jan 2019 10:25:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal
- RAM
-Message-ID: <20190128092549.GF18811@dhcp22.suse.cz>
-References: <20190124231441.37A4A305@viggo.jf.intel.com>
- <20190124231448.E102D18E@viggo.jf.intel.com>
- <0852310e-41dc-dc96-2da5-11350f5adce6@oracle.com>
- <CAPcyv4hjJhUQpMy1CVJZur0Ssr7Cr2fkcD50L5gzx6v_KY14vg@mail.gmail.com>
- <5A90DA2E42F8AE43BC4A093BF067884825733A5B@SHSMSX104.ccr.corp.intel.com>
- <CAPcyv4ikXD8rJAmV6tGNiq56m_ZXPZNrYkTwOSUJ7D1O_M5s=w@mail.gmail.com>
- <b7d45d83a314955e7dff25401dfc0d4f4247cfcd.camel@intel.com>
- <dc7d8190-2c94-9bdb-fb5b-a80a3fb55822@oracle.com>
- <CAPcyv4hEyG-1hC=20M7YGFG-BF7yvNcG7EkLurAfysHHB2yXBA@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 28 Jan 2019 02:51:53 -0800 (PST)
+Date: Mon, 28 Jan 2019 19:51:48 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [linux-next] kcompactd0 stuck in a CPU-burning loop
+Message-ID: <20190128105148.GA15887@jagdpanzerIV>
+References: <20190128085747.GA14454@jagdpanzerIV>
+ <5e98c5e9-9a8a-70db-c991-a5ca9c501e83@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4hEyG-1hC=20M7YGFG-BF7yvNcG7EkLurAfysHHB2yXBA@mail.gmail.com>
+In-Reply-To: <5e98c5e9-9a8a-70db-c991-a5ca9c501e83@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jane Chu <jane.chu@oracle.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Du, Fan" <fan.du@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "tiwai@suse.de" <tiwai@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jglisse@redhat.com" <jglisse@redhat.com>, "zwisler@kernel.org" <zwisler@kernel.org>, "baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>, "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "Huang, Ying" <ying.huang@intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jan Kara <jack@suse.cz>
 
-On Fri 25-01-19 11:15:08, Dan Williams wrote:
-[...]
-> However, we should consider this along with the userspace enabling to
-> control which device-dax instances are set aside for hotplug. It would
-> make sense to have a "clear errors before hotplug" configuration
-> option.
+On (01/28/19 10:18), Vlastimil Babka wrote:
+> On 1/28/19 9:57 AM, Sergey Senozhatsky wrote:
+> > Hello,
+> > 
+> > next-20190125
+> > 
+> > kcompactd0 is spinning on something, burning CPUs in the meantime:
+> 
+> Hi, could you check/add this to the earlier thread? Thanks.
+> 
+> https://lore.kernel.org/lkml/20190126200005.GB27513@amd/T/#u
 
-I am not sure I understand. Do you mean to clear HWPoison when the
-memory is hotadded (add_pages) or onlined (resp. move_pfn_range_to_zone)?
--- 
-Michal Hocko
-SUSE Labs
+Hi,
+
+Will reply here.
+Thanks for  the link, Vlastimil.
+
+Will "test" Jan's patch (don't have a reproducer yet).
+So far, I can confirm that
+
+	echo 3 > /proc/sys/vm/drop_caches
+
+mentioned in that thread does "solve" the issue.
+
+	-ss
