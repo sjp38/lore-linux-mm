@@ -1,56 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E6538E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:30:37 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id 201so9696779ywp.13
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:30:37 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z127sor4353304ywb.28.2019.01.28.06.30.36
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B7228E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 09:38:52 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id w1so20468100qta.12
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 06:38:52 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s16si1158403qtq.248.2019.01.28.06.38.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 28 Jan 2019 06:30:36 -0800 (PST)
-Date: Mon, 28 Jan 2019 06:30:33 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190128143033.GN50184@devbig004.ftw2.facebook.com>
-References: <20190123223144.GA10798@chrisdown.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jan 2019 06:38:51 -0800 (PST)
+Subject: Re: [PATCH RFC] mm: migrate: don't rely on PageMovable() of newpage
+ after unlocking it
+References: <20190128121609.9528-1-david@redhat.com>
+ <20190128130709.GJ18811@dhcp22.suse.cz>
+ <b03cae19-d02a-0ba2-69a1-010ee76748e7@redhat.com>
+ <20190128132146.GK18811@dhcp22.suse.cz>
+ <17e7d7e4-f4ca-a681-93e5-92a0c285be14@redhat.com>
+ <20190128133514.GL18811@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <cb3eccaf-0fbf-f3b8-dbbe-070acb9837be@redhat.com>
+Date: Mon, 28 Jan 2019 15:38:38 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190123223144.GA10798@chrisdown.name>
+In-Reply-To: <20190128133514.GL18811@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Down <chris@chrisdown.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jan Kara <jack@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Dominik Brodowski <linux@dominikbrodowski.net>, Matthew Wilcox <willy@infradead.org>, Vratislav Bendel <vbendel@redhat.com>, Rafael Aquini <aquini@redhat.com>
 
-On Wed, Jan 23, 2019 at 05:31:44PM -0500, Chris Down wrote:
-> memory.stat and other files already consider subtrees in their output,
-> and we should too in order to not present an inconsistent interface.
+On 28.01.19 14:35, Michal Hocko wrote:
+> On Mon 28-01-19 14:22:52, David Hildenbrand wrote:
+>> On 28.01.19 14:21, Michal Hocko wrote:
+>>> On Mon 28-01-19 14:14:28, David Hildenbrand wrote:
+>>>> On 28.01.19 14:07, Michal Hocko wrote:
+>>>>> On Mon 28-01-19 13:16:09, David Hildenbrand wrote:
+>>>>> [...]
+>>>>>> My theory:
+>>>>>>
+>>>>>> In __unmap_and_move(), we lock the old and newpage and perform the
+>>>>>> migration. In case of vitio-balloon, the new page will become
+>>>>>> movable, the old page will no longer be movable.
+>>>>>>
+>>>>>> However, after unlocking newpage, I think there is nothing stopping
+>>>>>> the newpage from getting dequeued and freed by virtio-balloon. This
+>>>>>> will result in the newpage
+>>>>>> 1. No longer having PageMovable()
+>>>>>> 2. Getting moved to the local list before finally freeing it (using
+>>>>>>    page->lru)
+>>>>>
+>>>>> Does that mean that the virtio-balloon can change the Movable state
+>>>>> while there are other users of the page? Can you point to the code that
+>>>>> does it? How come this can be safe at all? Or is the PageMovable stable
+>>>>> only under the page lock?
+>>>>>
+>>>>
+>>>> PageMovable is stable under the lock. The relevant instructions are in
+>>>>
+>>>> mm/balloon_compaction.c and include/linux/balloon_compaction.h
+>>>
+>>> OK, I have just checked __ClearPageMovable and it indeed requires
+>>> PageLock. Then we also have to move is_lru = __PageMovable(page) after
+>>> the page lock.
+>>>
+>>
+>> I assume that is fine as is as the page is isolated? (yes, it will be
+>> modified later when moving but we are interested in the original state)
 > 
-> The current situation is fairly confusing, because people interacting
-> with cgroups expect hierarchical behaviour in the vein of memory.stat,
-> cgroup.events, and other files. For example, this causes confusion when
-> debugging reclaim events under low, as currently these always read "0"
-> at non-leaf memcg nodes, which frequently causes people to misdiagnose
-> breach behaviour. The same confusion applies to other counters in this
-> file when debugging issues.
+> OK, I've missed that the page is indeed isolated. Then the patch makes
+> sense to me.
 > 
-> Aggregation is done at write time instead of at read-time since these
-> counters aren't hot (unlike memory.stat which is per-page, so it does it
-> at read time), and it makes sense to bundle this with the file
-> notifications.
-...
-> Signed-off-by: Chris Down <chris@chrisdown.name>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Acked-by: Tejun Heo <tj@kernel.org>
-
-Michal has a valid counterpoint that this is a change in userland
-visible behavior but to me this patch seems to be more of a bug fix
-than anything else in that it's addressing an obvious inconsistency in
-the interface.
-
-Thanks.
+Thanks Michal. I assume this has broken ever since balloon compaction
+was introduced. I'll wait a little more and then resend as !RFC with a
+cc-stable tag.
 
 -- 
-tejun
+
+Thanks,
+
+David / dhildenb
