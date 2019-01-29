@@ -4,83 +4,83 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E42ECC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B49BC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A3BA820844
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3BA820844
+	by mail.kernel.org (Postfix) with ESMTP id 3856620844
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3856620844
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 38BFC8E0017; Tue, 29 Jan 2019 13:50:40 -0500 (EST)
+	id EA9F18E0018; Tue, 29 Jan 2019 13:50:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 337C18E0015; Tue, 29 Jan 2019 13:50:40 -0500 (EST)
+	id E5E7D8E0015; Tue, 29 Jan 2019 13:50:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 227038E0017; Tue, 29 Jan 2019 13:50:40 -0500 (EST)
+	id CD3D48E0018; Tue, 29 Jan 2019 13:50:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B35FA8E0015
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:39 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id z10so8314133edz.15
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:39 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 682CA8E0015
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:42 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id z10so8314183edz.15
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=QOY/2hNJALFKKfjWnlCJcXzlT4qedTCy7caAQiFnm7o=;
-        b=Ns6punK9vjU1uk3XUOPTB6MJkZ7dpbhj9DG0NSVUU7shbY1luzMRlOtoAqJWAPQeIm
-         U7WCThHSDoDoFWKK7YycG6DsBQlyqDoFchIjxAS4az9LriZ3r0lBviuj5Bi+my2mzwcQ
-         KHfryjytKsrGczE5Ba5fxyD+ZxztzgBtZDovWPRQXEG9U/p/reRD1G61eT+nDxjwSRH5
-         3TEQaKwNbBqb4U1QBujlqKo3cyp3d7747QQqpnISYd4OG/ttTawM3adTD5Z/KfZPYmvJ
-         SJrHzJODGPU4nzNleyRtuQ/QqOP6DgWSzERpMu1DIrMmxXcO8csheMdMkUCcgCCif/x8
-         skBg==
+        bh=WYxvlKVfAa6t/tNZfSF0UteJyG2GjojemqgH68lA8Pg=;
+        b=SHqvSRV7pePnHY/ESayS6lbzy59eds5OrGCaVkDNtqnT8f7GM6Zcze/VGDGAZ7NHK7
+         xeGZHaNrj3roX6f95JIwwK6OEMJdwBDYddlV0v4sDCjke96xLDMMf5YgE1t/Z/bmrbRt
+         jypKhvdfSUCiugr2Vu9j3KnVmpiV03+eq3GDyubIf2XgqF4LmFRqq877uDrHBDXvfNNE
+         3TuNhklvme8uMakY7+no0e+uqz80oHBHOyQOb/ROKcv+ziqUL5lmKBPFNvx7TEequC6S
+         IyuitJ2dQXAPX2hu1Y5wLv8wpTcoiAttP3E8JQS3CVz3MRFjxNxUOIMmT8YL1I7yXZqV
+         Di8g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-X-Gm-Message-State: AJcUukfbdxeFpUVxVMEcvQr+Us35v0u6TtkvRNOyt9HcM3MLMD7TOmEa
-	aRz2/FQ0CCvk5wQAsto66x061K3U/viWgBdmurU9vNuD6YfSmGyhlpmNDo4CXYgAX2lDE4kDr0b
-	8HxBV0sB01sr2ZDFoNA252/mPrINtm/RyivdibSBRC81fFY1uLhrdGUuxOi+OYjzaMA==
-X-Received: by 2002:a50:9315:: with SMTP id m21mr26049245eda.58.1548787839239;
-        Tue, 29 Jan 2019 10:50:39 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5ZxEbhRj1h2YKyVYmo8FdERc4hWsLzhD1/cO6YnBT8gYhOXo0c3jachEJBRUhHjcnKfozq
-X-Received: by 2002:a50:9315:: with SMTP id m21mr26049194eda.58.1548787838296;
-        Tue, 29 Jan 2019 10:50:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548787838; cv=none;
+X-Gm-Message-State: AJcUukffIE7vPINPyvbqVTL2hWvDPcVG0IuN3yTiTCeqRvDTLNMrl0SY
+	c8UPi5yKQvkOrV8hzSKM2oRivRmbBPuT71PqxhMrWFESgSw9PAl5iglnSBYylmy1K58ZbF2Jnrj
+	5AoyZbuMRiQ3J61vT/1EY+y7+YyIWGqAkqL5Bdd8BsWV5gMxhD18am0/C6qzC1mnxKw==
+X-Received: by 2002:a50:8bb5:: with SMTP id m50mr26055827edm.211.1548787841916;
+        Tue, 29 Jan 2019 10:50:41 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN78iubkW52z6ZRzrhkUlJe+7fGrtPeVkemVmbIUf57+53oBsEfRBu83wDl8BZi+1KH1kpXc
+X-Received: by 2002:a50:8bb5:: with SMTP id m50mr26055777edm.211.1548787840950;
+        Tue, 29 Jan 2019 10:50:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548787840; cv=none;
         d=google.com; s=arc-20160816;
-        b=mHbhY/ACnWpIoUJXDNfQ+M2Aqi174oKXhXVEW3bWpT4BpGwuMEjmPcJyaPCGPCk+1H
-         LWrsLc6umV05bNy2HQugtDjb1h8/ysuCrdejt+V+l0DkbQVgi2X1PiBWZdQbTx0wQ9IP
-         BjIVwwIp8LQgWrxX00z++XQFqX+oMf6z3FJDXLFqfw3mwWT60JyPCBQzgqQXwAkFnUS4
-         ibUafSLG7f1MPr3ilSg98adm7SBPFWv+M4ZGgyEgQ3oFPSZLpuxMIz9TytpZYPt6aNsK
-         uTlA5yZ2k/3KCVFYKMaWDIafNKcuxNH6J94mxucJWZxnWnMosT/6d+TsmH56Q4gkf5bz
-         RPdA==
+        b=u5V59hJBWUsGjdzwTMY7ZEuWrWYpj/Gdnf6/7RFml/vKRQuhJb9kVo0ZRLncU1BKF9
+         Xd131XWb/iNe+qMWmBJdFhhOGQWoVOg0hmdRwGKuvnoZFPxyJkhNEe/Z4xSwe9Z+KQjj
+         IzEX/qBDFzKrh4D/71xaGISe1GR1BlzZqNNinoaWl+V/IP83KHvX5UBl4FKyEj6EoU0F
+         YMFttkfNtRF1Y9t+ps8/lBgMa1RxqqB9MBK9U/HniQxbeeDJcnTxvv+Wv+DQiFdg2XsD
+         b2X1GBLvPuPz5bK/iWiSnVAszdNTwdEE1DOi3zi1bp9RWlEmNftyNu5s3jH1EEi/ri7e
+         Zz7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=QOY/2hNJALFKKfjWnlCJcXzlT4qedTCy7caAQiFnm7o=;
-        b=t9QtGIe2nYNPHnj7M/XO3vNQ3fuZ0D23dD0YabV8/327pMi3T28YhGsEuhAKEeBJut
-         DFCgwt5xQFbjen2dQAqRaaqZm3CVaBkxal/jlEl0tVWHd2io2IZLhuzlRM1bUZ4F7lD6
-         0Rr4yBOavas94c3AtBR47koOOIwZhPamowu8K+wZm1RrfUKNAk+WYnjbcPWs5ofjJLvN
-         W5XNZfY5T+ZaebzaMJiSr07QhnvL5uHf53gtQ/92fw8HBpod+q505xTg6J4S+HT5BCqQ
-         TU4j3vT5ogWWb2xLw1RozVt1/nlXF6xkGsLxHTEEXEpWfBfeciNaiVveIzAy1WqVG/zr
-         O0aA==
+        bh=WYxvlKVfAa6t/tNZfSF0UteJyG2GjojemqgH68lA8Pg=;
+        b=oiHGgNNWGYvh7cSj90lgrMRZhj+oKKEHzXzsSyPNQvGK1BR840qUYI9gw8x8tT1eQR
+         kExLHXYnMJUVN77LtKDx/XztEUYEc7CYZ542/G6HCrj/4iQ3Q28Dgolgb4/TE97u+6Cs
+         ONHZsRx9IixjPgttj2XQZdUFHvdAwHQdeH0crLaTKqn+y/qP5fYVYgXwioaAAktHSdtR
+         UbZkbdHh7lU3sqyUbp1ZsnPfem6PnuKALOBWS4PxrquluxfpCO89VVRLUOF62utvTl2q
+         9ejEvqK8Zdzq4zUgtxPItPtosux9iAMff0fun6seUG5D6CAjPuxdnBHN3fNu/0lwj8iw
+         NGMw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f7si3189875eda.363.2019.01.29.10.50.37
+        by mx.google.com with ESMTP id v4si3967773edy.314.2019.01.29.10.50.40
         for <linux-mm@kvack.org>;
-        Tue, 29 Jan 2019 10:50:38 -0800 (PST)
+        Tue, 29 Jan 2019 10:50:40 -0800 (PST)
 Received-SPF: pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2FA8F15AB;
-	Tue, 29 Jan 2019 10:50:37 -0800 (PST)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1B90315AB;
+	Tue, 29 Jan 2019 10:50:40 -0800 (PST)
 Received: from eglon.cambridge.arm.com (eglon.cambridge.arm.com [10.1.196.105])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 827933F557;
-	Tue, 29 Jan 2019 10:50:34 -0800 (PST)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6E72A3F557;
+	Tue, 29 Jan 2019 10:50:37 -0800 (PST)
 From: James Morse <james.morse@arm.com>
 To: linux-acpi@vger.kernel.org
 Cc: kvmarm@lists.cs.columbia.edu,
@@ -98,9 +98,9 @@ Cc: kvmarm@lists.cs.columbia.edu,
 	Dongjiu Geng <gengdongjiu@huawei.com>,
 	Xie XiuQi <xiexiuqi@huawei.com>,
 	james.morse@arm.com
-Subject: [PATCH v8 20/26] ACPI / APEI: Only use queued estatus entry during in_nmi_queue_one_entry()
-Date: Tue, 29 Jan 2019 18:48:56 +0000
-Message-Id: <20190129184902.102850-21-james.morse@arm.com>
+Subject: [PATCH v8 21/26] ACPI / APEI: Use separate fixmap pages for arm64 NMI-like notifications
+Date: Tue, 29 Jan 2019 18:48:57 +0000
+Message-Id: <20190129184902.102850-22-james.morse@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190129184902.102850-1-james.morse@arm.com>
 References: <20190129184902.102850-1-james.morse@arm.com>
@@ -112,128 +112,66 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Each struct ghes has an worst-case sized buffer for storing the
-estatus. If an error is being processed by ghes_proc() in process
-context this buffer will be in use. If the error source then triggers
-an NMI-like notification, the same buffer will be used by
-in_nmi_queue_one_entry() to stage the estatus data, before
-__process_error() copys it into a queued estatus entry.
+Now that ghes notification helpers provide the fixmap slots and
+take the lock themselves, multiple NMI-like notifications can
+be used on arm64.
 
-Merge __process_error()s work into in_nmi_queue_one_entry() so that
-the queued estatus entry is used from the beginning. Use the new
-ghes_peek_estatus() to know how much memory to allocate from
-the ghes_estatus_pool before reading the records.
+These should be named after their notification method as they can't
+all be called 'NMI'. x86's NOTIFY_NMI already is, change the SEA
+fixmap entry to be called FIX_APEI_GHES_SEA.
 
-Reported-by: Borislav Petkov <bp@suse.de>
+Future patches can add support for FIX_APEI_GHES_SEI and
+FIX_APEI_GHES_SDEI_{NORMAL,CRITICAL}.
+
+Because all of ghes.c builds on both architectures, provide a
+constant for each fixmap entry that the architecture will never
+use.
+
 Signed-off-by: James Morse <james.morse@arm.com>
-Reviewed-by: Borislav Petkov <bp@suse.de>
 
-Change since v6:
- * Added a comment explaining the 'ack-error, then goto no_work'.
- * Added missing esatus-clearing, which is necessary after reading the GAS,
 ---
- drivers/acpi/apei/ghes.c | 64 +++++++++++++++++++++++-----------------
- 1 file changed, 37 insertions(+), 27 deletions(-)
+Changes since v7:
+ * Removed v6's #ifdefs, these aren't needed now that SEA/NMI can't be
+   turned off on their respective architectures.
 
+Changes since v6:
+ * Added #ifdef definitions of each missing fixmap entry.
+
+Changes since v3:
+ * idx/lock are now in a separate struct.
+ * Add to the comment above ghes_fixmap_lock_irq so that it makes more
+   sense in isolation.
+---
+ arch/arm64/include/asm/fixmap.h | 2 +-
+ drivers/acpi/apei/ghes.c        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/include/asm/fixmap.h b/arch/arm64/include/asm/fixmap.h
+index ec1e6d6fa14c..966dd4bb23f2 100644
+--- a/arch/arm64/include/asm/fixmap.h
++++ b/arch/arm64/include/asm/fixmap.h
+@@ -55,7 +55,7 @@ enum fixed_addresses {
+ #ifdef CONFIG_ACPI_APEI_GHES
+ 	/* Used for GHES mapping from assorted contexts */
+ 	FIX_APEI_GHES_IRQ,
+-	FIX_APEI_GHES_NMI,
++	FIX_APEI_GHES_SEA,
+ #endif /* CONFIG_ACPI_APEI_GHES */
+ 
+ #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index 12375a82fa03..957c1559ebf5 100644
+index 957c1559ebf5..e6f0d176b245 100644
 --- a/drivers/acpi/apei/ghes.c
 +++ b/drivers/acpi/apei/ghes.c
-@@ -862,57 +862,67 @@ static void ghes_print_queued_estatus(void)
- 	}
- }
+@@ -958,7 +958,7 @@ int ghes_notify_sea(void)
+ 	int rv;
  
--/* Save estatus for further processing in IRQ context */
--static void __process_error(struct ghes *ghes,
--			    struct acpi_hest_generic_status *src_estatus)
-+static int ghes_in_nmi_queue_one_entry(struct ghes *ghes,
-+				       enum fixed_addresses fixmap_idx)
- {
--	u32 len, node_len;
-+	struct acpi_hest_generic_status *estatus, tmp_header;
- 	struct ghes_estatus_node *estatus_node;
--	struct acpi_hest_generic_status *estatus;
-+	u32 len, node_len;
-+	u64 buf_paddr;
-+	int sev, rc;
+ 	raw_spin_lock(&ghes_notify_lock_sea);
+-	rv = ghes_in_nmi_spool_from_list(&ghes_sea, FIX_APEI_GHES_NMI);
++	rv = ghes_in_nmi_spool_from_list(&ghes_sea, FIX_APEI_GHES_SEA);
+ 	raw_spin_unlock(&ghes_notify_lock_sea);
  
- 	if (!IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG))
--		return;
-+		return -EOPNOTSUPP;
- 
--	if (ghes_estatus_cached(src_estatus))
--		return;
-+	rc = __ghes_peek_estatus(ghes, &tmp_header, &buf_paddr, fixmap_idx);
-+	if (rc) {
-+		ghes_clear_estatus(ghes, &tmp_header, buf_paddr, fixmap_idx);
-+		return rc;
-+	}
- 
--	len = cper_estatus_len(src_estatus);
--	node_len = GHES_ESTATUS_NODE_LEN(len);
-+	rc = __ghes_check_estatus(ghes, &tmp_header);
-+	if (rc) {
-+		ghes_clear_estatus(ghes, &tmp_header, buf_paddr, fixmap_idx);
-+		return rc;
-+	}
- 
-+	len = cper_estatus_len(&tmp_header);
-+	node_len = GHES_ESTATUS_NODE_LEN(len);
- 	estatus_node = (void *)gen_pool_alloc(ghes_estatus_pool, node_len);
- 	if (!estatus_node)
--		return;
-+		return -ENOMEM;
- 
- 	estatus_node->ghes = ghes;
- 	estatus_node->generic = ghes->generic;
- 	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
--	memcpy(estatus, src_estatus, len);
--	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
--}
- 
--static int ghes_in_nmi_queue_one_entry(struct ghes *ghes,
--				       enum fixed_addresses fixmap_idx)
--{
--	struct acpi_hest_generic_status *estatus = ghes->estatus;
--	u64 buf_paddr;
--	int sev;
--
--	if (ghes_read_estatus(ghes, estatus, &buf_paddr, fixmap_idx)) {
-+	if (__ghes_read_estatus(estatus, buf_paddr, fixmap_idx, len)) {
- 		ghes_clear_estatus(ghes, estatus, buf_paddr, fixmap_idx);
--		return -ENOENT;
-+		rc = -ENOENT;
-+		goto no_work;
- 	}
- 
- 	sev = ghes_severity(estatus->error_severity);
- 	if (sev >= GHES_SEV_PANIC) {
- 		ghes_print_queued_estatus();
- 		__ghes_panic(ghes, estatus, buf_paddr, fixmap_idx);
--
- 	}
- 
--	__process_error(ghes, estatus);
--	ghes_clear_estatus(ghes, estatus, buf_paddr, fixmap_idx);
-+	ghes_clear_estatus(ghes, &tmp_header, buf_paddr, fixmap_idx);
- 
--	return 0;
-+	/* This error has been reported before, don't process it again. */
-+	if (ghes_estatus_cached(estatus))
-+		goto no_work;
-+
-+	llist_add(&estatus_node->llnode, &ghes_estatus_llist);
-+
-+	return rc;
-+
-+no_work:
-+	gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
-+		      node_len);
-+
-+	return rc;
- }
- 
- static int ghes_in_nmi_spool_from_list(struct list_head *rcu_list,
+ 	return rv;
 -- 
 2.20.1
 
