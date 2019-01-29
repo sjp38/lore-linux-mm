@@ -2,169 +2,397 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CBBDC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:36:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAE32C282D0
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:41:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA7EB2080F
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:36:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA7EB2080F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
+	by mail.kernel.org (Postfix) with ESMTP id 521AF20856
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:41:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="C9iTEo72"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 521AF20856
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 712A08E0003; Tue, 29 Jan 2019 13:36:47 -0500 (EST)
+	id DC52A8E0002; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6999C8E0001; Tue, 29 Jan 2019 13:36:47 -0500 (EST)
+	id D73C28E0001; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 53DDD8E0003; Tue, 29 Jan 2019 13:36:47 -0500 (EST)
+	id C3CF08E0002; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 25ADC8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:36:47 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id u2so17255851iob.7
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:36:47 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C44E8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id w24so8046495otk.22
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:41:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:subject;
-        bh=V6Z/wRHo/U8m5UN+kVHpwNydZnYAX4xhGlD7cv4FSiU=;
-        b=sXDMaIeltYrgmv041NHsJvFK5eNaQGsgkHwB2iGf++AZbQsjFEwR8Nl//rXhV78M8N
-         TFV3VAUSTumf8q0YGKUybUtwCmH5GR3LR0EnZBHe42BO+x7w3ZBfAfzGAyHz7mMFgyrR
-         ztyyYLVh2a8lL28LV5hNMB32PZ/G2rjjFhJ5KiiK/FvU8V8lrxKe3Ka5XDpH0+VmHNCq
-         ApPesFkVsZzPyN4P21D7THPD2YkSeaEw+7ka9S43axMDP5hclwrQ8oA/2E7jDCr4WLxa
-         HbvdnsNVd5aqMvOw06ugE8cAZI6U9ucs4wwx7sPrrTRB7x+ppf7bNShfLozrzQynYFFM
-         kluQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-X-Gm-Message-State: AHQUAuZJPXkrMpZEKrUh1R7R6RNCz1AY3ZC0Qtp9sdhYYFpKmmZNt/0h
-	rA3qf4lz5ocRS171Ro50RNDOMnAGTYP60hTXhkXUzkv6/yS8FM+MLJXbXc6t1M0jXHKPq4DNz4N
-	C+LxOTRZzYYV9gLYXRncxyqsldVcPDyVjWszaJJfUL7U0l08st1psZ/KyOdXBQF3NxQ==
-X-Received: by 2002:a6b:c402:: with SMTP id y2mr17154137ioa.77.1548787006883;
-        Tue, 29 Jan 2019 10:36:46 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5STPLyRP/cUntuL/a0fN9vlSoRQey8E2/JUx101SYbAsKAwcdGalQZiR/rVsuGvGPsjeJm
-X-Received: by 2002:a6b:c402:: with SMTP id y2mr17154117ioa.77.1548787006139;
-        Tue, 29 Jan 2019 10:36:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548787006; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=HL83ygIqpSTTKGQg55ygGuyvC6iG0KJllUYn+t+L7fo=;
+        b=HRDNHzB2sveNaEhk02urUulSPNReJLeem0SlyzJCRG8SxIWc/IvZNeSGtuWZWY8lc2
+         AzGwmslI1nirvg/YhRXAlfh6SxsxmPG8NUwpASvqYlQYv4WpDYzDR4eF9XvHCl8kHyRI
+         MXa8J9SqW2MX7N6bXsrG3LGDfCZ5v8qW+eDbyjvT45M8uUe/MGwbjET+TjalQm9fuUKU
+         dmhsHqewGCBUzJSFcQy61bkLdaohMjNrGnokKr5P1U7972x60yHfpCZ2DTAeag6MY91O
+         fczQzi6gC6Rm83WC6ZkMswvLKX4taZDGVKrgqSxboVoLk7L6I4Cw+7t+qmPqFAHZx9Wc
+         R+GA==
+X-Gm-Message-State: AJcUukdJ1T0SAfBYq/VUbC5MPTNNFLupKQAZ9YWTYXi7WZzRecvTXXZk
+	2nGTpPN2QNpB65CxMSSPXhpOcF3Ih32SiYj12L/tu0aaiOyFln9tW4g85OG9Lr1Le8cx24nfz8F
+	qmwrzKAkwejG1E8bl8UmAkVCMGhgqVPXQIhzlAoJQXdKrwcZxciJ6pVE8C7/xCPOwGNI+uJtG8U
+	Ygfenf9HBOrIuuHiNUSV9MenG+DPTxrqNhQhV92EOA0Fu1nyGVOqZTT1fI5F47at0HtHG8k4jVT
+	/fgd3+ay9IfyNfb6QOG6x4XnrEmDAZ+KxpJLImdr52mvB/4ymxdthmE1t5xG9Q8uycNCBd+75eP
+	AsnprMsJmKlGcWWKH6rOmY0La08mNoN/h/VgZTBJf/8eZnbxzWY8mylB6GsVDqESU6xHcbhQR0w
+	O
+X-Received: by 2002:a9d:7997:: with SMTP id h23mr19286241otm.362.1548787297258;
+        Tue, 29 Jan 2019 10:41:37 -0800 (PST)
+X-Received: by 2002:a9d:7997:: with SMTP id h23mr19286176otm.362.1548787295427;
+        Tue, 29 Jan 2019 10:41:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548787295; cv=none;
         d=google.com; s=arc-20160816;
-        b=e2QDcpwcahUfTpUWoRcFmlXCp23hV/9+F1hFwIqwsKc8wKoJP7NRgj1NmXYpUeyhPM
-         qxIDppEyyiRc+sVZgLTtBwuOXXjfw75+nnaxwT5KdV0Mn/Pq68ht+hRpUiH9NJPSnoH7
-         XVBUXbSzlx9zmtaexLaLgJ627dAwFMO+IT2/LSb8mGJxLc/uE+8kxqSNXa1E4CRp+jfh
-         2y7m01mSTX7WGsYZxTpOXRWbcJGz5fetqcn7ee8KdwOLqjcaTKnFNvOEKuJyOs9udRVI
-         qhANp9R0ayaUJniYmTecoksxpPfxbnerNUIgO8Fcb5nU6eLM7/Q9X6mdz6VsMHPrpJhr
-         L69w==
+        b=ymiIUmNw1yvb3qrjRvIH69JcWJ9jaJ7nXNeLNSR5YVn0syXpas41OeB/OifdW1Rc4e
+         rUWEjPWmIJJMUf2KvISAO4DkHhzVilqju9NsVMrfO3Z/N8DHQGENCqUYVRySAEfixoUT
+         YRbDXIs0DH3vxi1X+ZvBItl6xSjnVT2RuihKbtWTMjTHUOfms9htcJj3EwlBiFgeUXSN
+         cWhsXX0e3hnTEWZurdEM3xa6j4DU5i+3bwfczP25FdPim/PQYZBQREG1C/LlE4ATRG+V
+         gUPiB8cz4mcWQYGUTgc2rIO31lMr7JaFUaOXGYXbEWjO9UbBShGUOvGNjckkqpDD4XTj
+         9VYw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=subject:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to;
-        bh=V6Z/wRHo/U8m5UN+kVHpwNydZnYAX4xhGlD7cv4FSiU=;
-        b=tD2npavDh3T0oOOAl63TqUZ+pjRFf2Z8S0ePIviXu6zIqbnIbNWlmmo0qycLNNdNWN
-         KOSiAatgVDs9NNgpb2Dyxwe3laa0F4l1eQVkViboMfDdG8FlOWTZ4IsHLvViLnN/ecIG
-         kl6wO9uQXaotefodEM/+iH8ysYOGdNls8fyES9DRTJLLqQG4rZSnoJ2Wx/cAzjXWzXl3
-         NJmcfyB3f7MRXiivIskMCvvMh8kztQ33p/mBPAWkJUXywx932tt5jVyXZdW2u4csHBIK
-         Sq2kdfoAj6xUUsFj1xhd8/bESBU2m8jNgaOcgB2TbrI3TB2ukqatccgUDJGExmTKQ6Ve
-         Hz6w==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=HL83ygIqpSTTKGQg55ygGuyvC6iG0KJllUYn+t+L7fo=;
+        b=fKWi/j5wNkX5QwVqnh3/meBcrro5cwZz5wGYfk1dUV1T8uxyx65Q+g6+BLk+5EpntT
+         dyU1ewhf5uJ+d80MFzs7/LV8C3RyImB+VedCP0RCxEGlPuFPs3Q9YlhuwSXhNBvQ7oaX
+         nAFUdryNw/Jsvub64hYqSW3KBtJmzC6O8YlSevPGxQzP8Q4U5P9oAzHKVAcyzPkjSMzV
+         FdI3pg++4V/5hieo8U6cjxMA7sIzgHV86VSa54MjHDaRPONC88vke+Tv6b1UlvcA5E2A
+         qyh+OMuZwX8CdQQ+nefDz2TeuRT8GJYQzbm/jPXTGcey3DR+IOQTd+YJj/BRb7e/ltG1
+         FQqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id l20si4177590iob.67.2019.01.29.10.36.45
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=C9iTEo72;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i130sor8239272oif.95.2019.01.29.10.41.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Jan 2019 10:36:46 -0800 (PST)
-Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
+        (Google Transport Security);
+        Tue, 29 Jan 2019 10:41:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from guinness.priv.deltatee.com ([172.16.1.162])
-	by ale.deltatee.com with esmtp (Exim 4.89)
-	(envelope-from <logang@deltatee.com>)
-	id 1goYFK-00057p-St; Tue, 29 Jan 2019 11:36:31 -0700
-To: jglisse@redhat.com, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn Helgaas
- <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
- Felix Kuehling <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>,
- linux-pci@vger.kernel.org, dri-devel@lists.freedesktop.org,
- Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>,
- Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
- iommu@lists.linux-foundation.org
-References: <20190129174728.6430-1-jglisse@redhat.com>
- <20190129174728.6430-4-jglisse@redhat.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
-Date: Tue, 29 Jan 2019 11:36:29 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=C9iTEo72;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=HL83ygIqpSTTKGQg55ygGuyvC6iG0KJllUYn+t+L7fo=;
+        b=C9iTEo72hAQPj1VLygRAYbRemfwQw/wdjdXDB3e/eclhA3asML1sVcibMctJEo6uvM
+         UzOOCIoV4igwfhs+BOKVOb0NxKQHX2mLoe8zTN3ipepSsA7CJPAms4TelPvV+lEjs7NS
+         pusDqWXYQz/xLw4ddjbankm+UWcc6n3w2WKfNtD2q98fMZLd/SmA2TGcs+1zSKGaGNbB
+         Jw5Wu0qyfVYCB6sDA9JS9NCp+tKRnBCdViSIy6ksZVgWPNi+MGPcLByDcG16oUtSJCp6
+         GG09SsSyEVlXkjPiF7ZobCb6Pwh05ezDJtreAqFoLVpnb+I50qvxDtXBG+iI7KAoqZmr
+         IxGg==
+X-Google-Smtp-Source: AHgI3IYljlwfixZbEW9k35QADvn426C06Y3dCzjYEAwUUk9JxY2Lr5SqZvdOmBetvdgd9kgxSjPcJbFa3Dw6Aldoo9c=
+X-Received: by 2002:aca:d905:: with SMTP id q5mr10434566oig.0.1548787294934;
+ Tue, 29 Jan 2019 10:41:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190129174728.6430-4-jglisse@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
-X-SA-Exim-Connect-IP: 172.16.1.162
-X-SA-Exim-Rcpt-To: iommu@lists.linux-foundation.org, jroedel@suse.de, robin.murphy@arm.com, m.szyprowski@samsung.com, hch@lst.de, dri-devel@lists.freedesktop.org, linux-pci@vger.kernel.org, jgg@mellanox.com, Felix.Kuehling@amd.com, christian.koenig@amd.com, bhelgaas@google.com, rafael@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com
-X-SA-Exim-Mail-From: logang@deltatee.com
-Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
-X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
+References: <20190129165428.3931-1-jglisse@redhat.com> <20190129165428.3931-10-jglisse@redhat.com>
+In-Reply-To: <20190129165428.3931-10-jglisse@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 29 Jan 2019 10:41:23 -0800
+Message-ID: <CAPcyv4gNtDQf0mHwhZ8g3nX6ShsjA1tx2KLU_ZzTH1Z1AeA_CA@mail.gmail.com>
+Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
+ backed filesystem
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Cc: Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jan 29, 2019 at 8:54 AM <jglisse@redhat.com> wrote:
+>
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>
+> This add support to mirror vma which is an mmap of a file which is on
+> a filesystem that using a DAX block device. There is no reason not to
+> support that case.
+>
 
+The reason not to support it would be if it gets in the way of future
+DAX development. How does this interact with MAP_SYNC? I'm also
+concerned if this complicates DAX reflink support. In general I'd
+rather prioritize fixing the places where DAX is broken today before
+adding more cross-subsystem entanglements. The unit tests for
+filesystems (xfstests) are readily accessible. How would I go about
+regression testing DAX + HMM interactions?
 
-On 2019-01-29 10:47 a.m., jglisse@redhat.com wrote:
-
-> +	/*
-> +	 * Optional for device driver that want to allow peer to peer (p2p)
-> +	 * mapping of their vma (which can be back by some device memory) to
-> +	 * another device.
-> +	 *
-> +	 * Note that the exporting device driver might not have map anything
-> +	 * inside the vma for the CPU but might still want to allow a peer
-> +	 * device to access the range of memory corresponding to a range in
-> +	 * that vma.
-> +	 *
-> +	 * FOR PREDICTABILITY IF DRIVER SUCCESSFULY MAP A RANGE ONCE FOR A
-> +	 * DEVICE THEN FURTHER MAPPING OF THE SAME IF THE VMA IS STILL VALID
-> +	 * SHOULD ALSO BE SUCCESSFUL. Following this rule allow the importing
-> +	 * device to map once during setup and report any failure at that time
-> +	 * to the userspace. Further mapping of the same range might happen
-> +	 * after mmu notifier invalidation over the range. The exporting device
-> +	 * can use this to move things around (defrag BAR space for instance)
-> +	 * or do other similar task.
-> +	 *
-> +	 * IMPORTER MUST OBEY mmu_notifier NOTIFICATION AND CALL p2p_unmap()
-> +	 * WHEN A NOTIFIER IS CALL FOR THE RANGE ! THIS CAN HAPPEN AT ANY
-> +	 * POINT IN TIME WITH NO LOCK HELD.
-> +	 *
-> +	 * In below function, the device argument is the importing device,
-> +	 * the exporting device is the device to which the vma belongs.
-> +	 */
-> +	long (*p2p_map)(struct vm_area_struct *vma,
-> +			struct device *device,
-> +			unsigned long start,
-> +			unsigned long end,
-> +			dma_addr_t *pa,
-> +			bool write);
-> +	long (*p2p_unmap)(struct vm_area_struct *vma,
-> +			  struct device *device,
-> +			  unsigned long start,
-> +			  unsigned long end,
-> +			  dma_addr_t *pa);
-
-I don't understand why we need new p2p_[un]map function pointers for
-this. In subsequent patches, they never appear to be set anywhere and
-are only called by the HMM code. I'd have expected it to be called by
-some core VMA code and set by HMM as that's what vm_operations_struct is
-for.
-
-But the code as all very confusing, hard to follow and seems to be
-missing significant chunks. So I'm not really sure what is going on.
-
-Logan
+> Note that unlike GUP code we do not take page reference hence when we
+> back-off we have nothing to undo.
+>
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  mm/hmm.c | 133 ++++++++++++++++++++++++++++++++++++++++++++++---------
+>  1 file changed, 112 insertions(+), 21 deletions(-)
+>
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 8b87e1813313..1a444885404e 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -334,6 +334,7 @@ EXPORT_SYMBOL(hmm_mirror_unregister);
+>
+>  struct hmm_vma_walk {
+>         struct hmm_range        *range;
+> +       struct dev_pagemap      *pgmap;
+>         unsigned long           last;
+>         bool                    fault;
+>         bool                    block;
+> @@ -508,6 +509,15 @@ static inline uint64_t pmd_to_hmm_pfn_flags(struct h=
+mm_range *range, pmd_t pmd)
+>                                 range->flags[HMM_PFN_VALID];
+>  }
+>
+> +static inline uint64_t pud_to_hmm_pfn_flags(struct hmm_range *range, pud=
+_t pud)
+> +{
+> +       if (!pud_present(pud))
+> +               return 0;
+> +       return pud_write(pud) ? range->flags[HMM_PFN_VALID] |
+> +                               range->flags[HMM_PFN_WRITE] :
+> +                               range->flags[HMM_PFN_VALID];
+> +}
+> +
+>  static int hmm_vma_handle_pmd(struct mm_walk *walk,
+>                               unsigned long addr,
+>                               unsigned long end,
+> @@ -529,8 +539,19 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
+>                 return hmm_vma_walk_hole_(addr, end, fault, write_fault, =
+walk);
+>
+>         pfn =3D pmd_pfn(pmd) + pte_index(addr);
+> -       for (i =3D 0; addr < end; addr +=3D PAGE_SIZE, i++, pfn++)
+> +       for (i =3D 0; addr < end; addr +=3D PAGE_SIZE, i++, pfn++) {
+> +               if (pmd_devmap(pmd)) {
+> +                       hmm_vma_walk->pgmap =3D get_dev_pagemap(pfn,
+> +                                             hmm_vma_walk->pgmap);
+> +                       if (unlikely(!hmm_vma_walk->pgmap))
+> +                               return -EBUSY;
+> +               }
+>                 pfns[i] =3D hmm_pfn_from_pfn(range, pfn) | cpu_flags;
+> +       }
+> +       if (hmm_vma_walk->pgmap) {
+> +               put_dev_pagemap(hmm_vma_walk->pgmap);
+> +               hmm_vma_walk->pgmap =3D NULL;
+> +       }
+>         hmm_vma_walk->last =3D end;
+>         return 0;
+>  }
+> @@ -617,10 +638,24 @@ static int hmm_vma_handle_pte(struct mm_walk *walk,=
+ unsigned long addr,
+>         if (fault || write_fault)
+>                 goto fault;
+>
+> +       if (pte_devmap(pte)) {
+> +               hmm_vma_walk->pgmap =3D get_dev_pagemap(pte_pfn(pte),
+> +                                             hmm_vma_walk->pgmap);
+> +               if (unlikely(!hmm_vma_walk->pgmap))
+> +                       return -EBUSY;
+> +       } else if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) && pte_special=
+(pte)) {
+> +               *pfn =3D range->values[HMM_PFN_SPECIAL];
+> +               return -EFAULT;
+> +       }
+> +
+>         *pfn =3D hmm_pfn_from_pfn(range, pte_pfn(pte)) | cpu_flags;
+>         return 0;
+>
+>  fault:
+> +       if (hmm_vma_walk->pgmap) {
+> +               put_dev_pagemap(hmm_vma_walk->pgmap);
+> +               hmm_vma_walk->pgmap =3D NULL;
+> +       }
+>         pte_unmap(ptep);
+>         /* Fault any virtual address we were asked to fault */
+>         return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
+> @@ -708,12 +743,84 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
+>                         return r;
+>                 }
+>         }
+> +       if (hmm_vma_walk->pgmap) {
+> +               put_dev_pagemap(hmm_vma_walk->pgmap);
+> +               hmm_vma_walk->pgmap =3D NULL;
+> +       }
+>         pte_unmap(ptep - 1);
+>
+>         hmm_vma_walk->last =3D addr;
+>         return 0;
+>  }
+>
+> +static int hmm_vma_walk_pud(pud_t *pudp,
+> +                           unsigned long start,
+> +                           unsigned long end,
+> +                           struct mm_walk *walk)
+> +{
+> +       struct hmm_vma_walk *hmm_vma_walk =3D walk->private;
+> +       struct hmm_range *range =3D hmm_vma_walk->range;
+> +       struct vm_area_struct *vma =3D walk->vma;
+> +       unsigned long addr =3D start, next;
+> +       pmd_t *pmdp;
+> +       pud_t pud;
+> +       int ret;
+> +
+> +again:
+> +       pud =3D READ_ONCE(*pudp);
+> +       if (pud_none(pud))
+> +               return hmm_vma_walk_hole(start, end, walk);
+> +
+> +       if (pud_huge(pud) && pud_devmap(pud)) {
+> +               unsigned long i, npages, pfn;
+> +               uint64_t *pfns, cpu_flags;
+> +               bool fault, write_fault;
+> +
+> +               if (!pud_present(pud))
+> +                       return hmm_vma_walk_hole(start, end, walk);
+> +
+> +               i =3D (addr - range->start) >> PAGE_SHIFT;
+> +               npages =3D (end - addr) >> PAGE_SHIFT;
+> +               pfns =3D &range->pfns[i];
+> +
+> +               cpu_flags =3D pud_to_hmm_pfn_flags(range, pud);
+> +               hmm_range_need_fault(hmm_vma_walk, pfns, npages,
+> +                                    cpu_flags, &fault, &write_fault);
+> +               if (fault || write_fault)
+> +                       return hmm_vma_walk_hole_(addr, end, fault,
+> +                                               write_fault, walk);
+> +
+> +               pfn =3D pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT)=
+;
+> +               for (i =3D 0; i < npages; ++i, ++pfn) {
+> +                       hmm_vma_walk->pgmap =3D get_dev_pagemap(pfn,
+> +                                             hmm_vma_walk->pgmap);
+> +                       if (unlikely(!hmm_vma_walk->pgmap))
+> +                               return -EBUSY;
+> +                       pfns[i] =3D hmm_pfn_from_pfn(range, pfn) | cpu_fl=
+ags;
+> +               }
+> +               if (hmm_vma_walk->pgmap) {
+> +                       put_dev_pagemap(hmm_vma_walk->pgmap);
+> +                       hmm_vma_walk->pgmap =3D NULL;
+> +               }
+> +               hmm_vma_walk->last =3D end;
+> +               return 0;
+> +       }
+> +
+> +       split_huge_pud(vma, pudp, addr);
+> +       if (pud_none(*pudp))
+> +               goto again;
+> +
+> +       pmdp =3D pmd_offset(pudp, addr);
+> +       do {
+> +               next =3D pmd_addr_end(addr, end);
+> +               ret =3D hmm_vma_walk_pmd(pmdp, addr, next, walk);
+> +               if (ret)
+> +                       return ret;
+> +       } while (pmdp++, addr =3D next, addr !=3D end);
+> +
+> +       return 0;
+> +}
+> +
+>  static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
+>                                       unsigned long start, unsigned long =
+end,
+>                                       struct mm_walk *walk)
+> @@ -786,14 +893,6 @@ static void hmm_pfns_clear(struct hmm_range *range,
+>                 *pfns =3D range->values[HMM_PFN_NONE];
+>  }
+>
+> -static void hmm_pfns_special(struct hmm_range *range)
+> -{
+> -       unsigned long addr =3D range->start, i =3D 0;
+> -
+> -       for (; addr < range->end; addr +=3D PAGE_SIZE, i++)
+> -               range->pfns[i] =3D range->values[HMM_PFN_SPECIAL];
+> -}
+> -
+>  /*
+>   * hmm_range_register() - start tracking change to CPU page table over a=
+ range
+>   * @range: range
+> @@ -911,12 +1010,6 @@ long hmm_range_snapshot(struct hmm_range *range)
+>                 if (vma =3D=3D NULL || (vma->vm_flags & device_vma))
+>                         return -EFAULT;
+>
+> -               /* FIXME support dax */
+> -               if (vma_is_dax(vma)) {
+> -                       hmm_pfns_special(range);
+> -                       return -EINVAL;
+> -               }
+> -
+>                 if (is_vm_hugetlb_page(vma)) {
+>                         struct hstate *h =3D hstate_vma(vma);
+>
+> @@ -940,6 +1033,7 @@ long hmm_range_snapshot(struct hmm_range *range)
+>                 }
+>
+>                 range->vma =3D vma;
+> +               hmm_vma_walk.pgmap =3D NULL;
+>                 hmm_vma_walk.last =3D start;
+>                 hmm_vma_walk.fault =3D false;
+>                 hmm_vma_walk.range =3D range;
+> @@ -951,6 +1045,7 @@ long hmm_range_snapshot(struct hmm_range *range)
+>                 mm_walk.pte_entry =3D NULL;
+>                 mm_walk.test_walk =3D NULL;
+>                 mm_walk.hugetlb_entry =3D NULL;
+> +               mm_walk.pud_entry =3D hmm_vma_walk_pud;
+>                 mm_walk.pmd_entry =3D hmm_vma_walk_pmd;
+>                 mm_walk.pte_hole =3D hmm_vma_walk_hole;
+>                 mm_walk.hugetlb_entry =3D hmm_vma_walk_hugetlb_entry;
+> @@ -1018,12 +1113,6 @@ long hmm_range_fault(struct hmm_range *range, bool=
+ block)
+>                 if (vma =3D=3D NULL || (vma->vm_flags & device_vma))
+>                         return -EFAULT;
+>
+> -               /* FIXME support dax */
+> -               if (vma_is_dax(vma)) {
+> -                       hmm_pfns_special(range);
+> -                       return -EINVAL;
+> -               }
+> -
+>                 if (is_vm_hugetlb_page(vma)) {
+>                         struct hstate *h =3D hstate_vma(vma);
+>
+> @@ -1047,6 +1136,7 @@ long hmm_range_fault(struct hmm_range *range, bool =
+block)
+>                 }
+>
+>                 range->vma =3D vma;
+> +               hmm_vma_walk.pgmap =3D NULL;
+>                 hmm_vma_walk.last =3D start;
+>                 hmm_vma_walk.fault =3D true;
+>                 hmm_vma_walk.block =3D block;
+> @@ -1059,6 +1149,7 @@ long hmm_range_fault(struct hmm_range *range, bool =
+block)
+>                 mm_walk.pte_entry =3D NULL;
+>                 mm_walk.test_walk =3D NULL;
+>                 mm_walk.hugetlb_entry =3D NULL;
+> +               mm_walk.pud_entry =3D hmm_vma_walk_pud;
+>                 mm_walk.pmd_entry =3D hmm_vma_walk_pmd;
+>                 mm_walk.pte_hole =3D hmm_vma_walk_hole;
+>                 mm_walk.hugetlb_entry =3D hmm_vma_walk_hugetlb_entry;
+> --
+> 2.17.2
+>
 
