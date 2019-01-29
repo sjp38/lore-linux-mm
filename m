@@ -2,184 +2,145 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74F01C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:24:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CDFE3C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:25:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3173B20880
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:24:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3173B20880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8C2AA20880
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:25:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C2AA20880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC4518E0003; Tue, 29 Jan 2019 15:24:44 -0500 (EST)
+	id 400EB8E0004; Tue, 29 Jan 2019 15:25:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D73368E0001; Tue, 29 Jan 2019 15:24:44 -0500 (EST)
+	id 3AEB88E0001; Tue, 29 Jan 2019 15:25:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C65B68E0003; Tue, 29 Jan 2019 15:24:44 -0500 (EST)
+	id 2A1088E0004; Tue, 29 Jan 2019 15:25:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B7DB8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:24:44 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id t7so8387859edr.21
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:24:44 -0800 (PST)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F1A928E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:25:03 -0500 (EST)
+Received: by mail-io1-f72.google.com with SMTP id s3so17611733iob.15
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:25:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=AqxO8IwKAG+CaGTTOIHDlBdneEiO5EciQE4lrGbpXL0=;
-        b=cnwQASgJlG0GIKK5viQP2+v9TdvATVzEdkVVpZ8/JYzS0JuPVaI/RSOiJMkNhFBSIA
-         fOxdH6Y7rkZEdC6CjUbEaAA673c/OrDkTyQCmMxxPaTA3Vn447FGLLnyXMdQTY3QGFEf
-         i6VAVPnzr1GkIGSu5srgoVpxIwSUZka9I9G5FNT2/9jR45iq6sPhbccAgjZKDaWArhyw
-         orazq1WL/LpK4r8c6gEIPHkCUAKX2lNoARB39LR01sOrJU1KnsKf+FN0ycVYKXOi3Vjn
-         nGNBoYLmPNNl30JoK8nmzGuWbR7j+L5Yi3U1zttCe/+dd6KZVaMtzInDmXYuDcqIbLm6
-         Q+rQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukf3KBxBa/bZSqMo7MZY5Pkpdurn2SmydbJLfrlIUDoL8EZ8iYjU
-	STOlk910vG+SE/OA8X0OicDUfnezdsJhSagFp3yLb4t0Ue9t+Joq7cevwfIsg2Ua+AGVwWJWTqR
-	izkIcFvPMdAbcwqkxIj4Mv5tuVfk232GuPv+cub0NtMnSiodBid0r6eVQ1XY/SYk=
-X-Received: by 2002:a17:906:9259:: with SMTP id c25mr8295609ejx.31.1548793483961;
-        Tue, 29 Jan 2019 12:24:43 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaY0XyVukkt0ovg9uEFUTce/UCqvMmFhtbYKoeF+xhJG+iLyklKBfZo6niNMY2gwbBnxi6n
-X-Received: by 2002:a17:906:9259:: with SMTP id c25mr8295566ejx.31.1548793482953;
-        Tue, 29 Jan 2019 12:24:42 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548793482; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:subject;
+        bh=DAbYKTTDsRFKBrrEeJAxFsfJ5sQigQTed9Xbt6PPYHY=;
+        b=BJlEpaw3Y05MFSdw5Y7Cz/l2VSNp4wOaS6f7YU8JGLukpeeh08ZisPIbX7MgSik6HV
+         gofaivC+K6DinA3qlM4ZcfdWp7N4PSWqKtkTQNBT10Z1QJ2YmlR3Zx9Lf7xl//nY00eN
+         UYlljoWYUccqjS3nasVsSlChysqVAlB7bYZX5ET/E7SeGCFLXveC7hVyGP/BqgWqg38G
+         1a8A5FblTa/jpmN9u4KTMj92fkYF1UOMKdSpTn2YDcZJEv6b8P27WYw2TPpwb2pZER7G
+         5EAMP58p9/jlX5Fx+Z7JJz3gxHBYh7q6TQ+yWteEiTyVsJyR/vyhK7xBOwiLwVk6TARC
+         zxvA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+X-Gm-Message-State: AJcUukdkGi7ufNbefuMvqvsB804OzP5J8IVbrZqziG88GdXvqdGJtqwn
+	wUcSXA4Kc5Irq7RBwNVqzA1GE0fcpMbstptTR5d9s1K16BwFRx8/Bhq6hSpnrUwViRypS4RCZcv
+	7+lAzBMet6/jmC35upL/t6RYZKY7HMqp2euLOjAdZPXmMeovqU2S+iZmFUI6njZj+Fg==
+X-Received: by 2002:a24:97c3:: with SMTP id k186mr15137807ite.125.1548793503772;
+        Tue, 29 Jan 2019 12:25:03 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4L8R6sxos7PLYFaxYvOD7qtwE87FnY14sZFUbQTdXKFP5UazSrZtf95JpatTItfsjs0+xb
+X-Received: by 2002:a24:97c3:: with SMTP id k186mr15137764ite.125.1548793502683;
+        Tue, 29 Jan 2019 12:25:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548793502; cv=none;
         d=google.com; s=arc-20160816;
-        b=tczigVeFYQ452KqZJMajq6yu+MZDXCUnUHTy+3AjfjThTScXha2AdbPctgdhLQdLVs
-         NtJYokXrIHs8OPVDZaKg3JgnM2atPBR5yArzDj9gUdmq98jpk241QCz53kFCEfXeXQA3
-         8wC0+w6d/Is8pU78gxnn1wDjQVwbc1+PXT0nRReRnbgD3cLn04Gv1FaCVWocg9EfTKPT
-         RCCc3eCDp24pLUP637+R7aurRfO3BhQ7iGBwWx74+ijFXgPEvqEVNFR3t516nci1JiXG
-         AJwGLtCN8alNalMx3QfgAe4I5WLPHYI9tsG0u5sMcORTqGa2uI5xWs3OHsoNjicZECcW
-         E/fQ==
+        b=G5em99wFBl1M9pVYoxrnBrRjgPjFpVsglV5YGNU5d8OvHFSVFyBjiLqkuXetxRhq37
+         YQ/V57O+Mu6EgKG5ZYbZrSYJzvNP0cHB+gJA8jxggyNzUENzz9CEKnXP98HyhizvY+ev
+         W95bIm7jU4cE2Cd7F5Rk60GsiECpN2Mef7uwuxbROvL9cL/YZnoDAV6hpUk+WkPLD5sM
+         0G1JTcs24z9aMHd4Bl6soIwGoikp/DXHWoZkrS8wyp7YT/Hz1QDMyfRWOtuRpVv+gyNj
+         t2PnX/7MIj206p6rtK3LKk3Ir1P7+mIq9d6eopEs3Of4fm8xbC+wzm5iJ0gdMaMY/Fbk
+         MY7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=AqxO8IwKAG+CaGTTOIHDlBdneEiO5EciQE4lrGbpXL0=;
-        b=knrKYZYk2DNSRG5VW/Keb1ErrW++fCAQtMBJcXYnGO14Ada/QXYYdiLosYJEfIrp87
-         VDi0hXuugdcqO705U01hj6YPHV/uEJqW1udZoYr3W7bZ7RxwvfZKlhpIZANdgYZRN8/X
-         sYmu1JY5bAkk7kvA6eks0koq7m45ugQN7evl384EULhOHRIc/d2V1tAJFlzY2NDe9Mk/
-         WSnxQ3RCwom64jV2BaFLWAoUj75/Od5cnWbL+cWg6D0YiZGgWrWC7KvDada9xmrF9TYG
-         8NxyCr2HqjJuuZGS/oXuHdmrnKQu5/HI4pd7qGW50f+f7t0719INJzgENCcqyqBsvhLH
-         eWTw==
+        h=subject:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:message-id:from:references:cc:to;
+        bh=DAbYKTTDsRFKBrrEeJAxFsfJ5sQigQTed9Xbt6PPYHY=;
+        b=MDnGOm3Wh7xs78g7VEWF/q9JbvSabmKCz1rynxCdD9IagiSRrT7LRfZLQThtq7VGrN
+         RNT78qCTFRqY7LxdsuCkfDrjgAj57oSYVeGW3DT8APqsVaxImbmmeDAv3I9GwkWDuF2q
+         9lsxLpJz1oECcK9catAfMjbWyh/81SPmx8hU51gSmKN+wYz3R+H0qw6rsVwM2znuQPsU
+         Faral7US21nk/6aEE0S4vmrqPb8XCvqRumx0aIFIomzmYa1jhzoRnja5TqfWEV7ab2RO
+         HwBuaHyMDH6AN5ijPEb+sVcQ+Jtx8iAPU+9Jsg4B8d2q9LqNCt+xIIapkEqAqwyBmYFy
+         s8wg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y9si897885ejr.173.2019.01.29.12.24.42
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id l187si21430385iof.132.2019.01.29.12.25.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 12:24:42 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Jan 2019 12:25:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 60854AA71;
-	Tue, 29 Jan 2019 20:24:42 +0000 (UTC)
-Date: Tue, 29 Jan 2019 21:24:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>,
-	Mikhail Zaslonko <zaslonko@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>, schwidefsky@de.ibm.com,
-	heiko.carstens@de.ibm.com, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 0/2] mm, memory_hotplug: fix uninitialized pages fallouts.
-Message-ID: <20190129202440.GP18811@dhcp22.suse.cz>
-References: <20190128144506.15603-1-mhocko@kernel.org>
- <20190129141447.34aa9d0c@thinkpad>
- <20190129134920.GM18811@dhcp22.suse.cz>
- <CABXGCsPM-JrdxN9t-HjkWxJJzdGHiJZOYD5p-CsjGEFSQ=+DwQ@mail.gmail.com>
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from guinness.priv.deltatee.com ([172.16.1.162])
+	by ale.deltatee.com with esmtp (Exim 4.89)
+	(envelope-from <logang@deltatee.com>)
+	id 1goZwA-0006Yf-64; Tue, 29 Jan 2019 13:24:51 -0700
+To: Alex Deucher <alexdeucher@gmail.com>, Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, Joerg Roedel <jroedel@suse.de>,
+ "Rafael J . Wysocki" <rafael@kernel.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Felix Kuehling <Felix.Kuehling@amd.com>, LKML
+ <linux-kernel@vger.kernel.org>,
+ Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
+ Christoph Hellwig <hch@lst.de>, iommu@lists.linux-foundation.org,
+ Jason Gunthorpe <jgg@mellanox.com>, Linux PCI <linux-pci@vger.kernel.org>,
+ Bjorn Helgaas <bhelgaas@google.com>, Robin Murphy <robin.murphy@arm.com>,
+ Christian Koenig <christian.koenig@amd.com>,
+ Marek Szyprowski <m.szyprowski@samsung.com>
+References: <20190129174728.6430-1-jglisse@redhat.com>
+ <20190129174728.6430-2-jglisse@redhat.com>
+ <CADnq5_N8QLA_80j+iCtMHvSZhc-WFpzdZhpk6jR9yhoNoUDFZA@mail.gmail.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <83acb590-25a5-f8ae-1616-bdb8b069fa0f@deltatee.com>
+Date: Tue, 29 Jan 2019 13:24:48 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CABXGCsPM-JrdxN9t-HjkWxJJzdGHiJZOYD5p-CsjGEFSQ=+DwQ@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CADnq5_N8QLA_80j+iCtMHvSZhc-WFpzdZhpk6jR9yhoNoUDFZA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
+X-SA-Exim-Connect-IP: 172.16.1.162
+X-SA-Exim-Rcpt-To: m.szyprowski@samsung.com, christian.koenig@amd.com, robin.murphy@arm.com, bhelgaas@google.com, linux-pci@vger.kernel.org, jgg@mellanox.com, iommu@lists.linux-foundation.org, hch@lst.de, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, Felix.Kuehling@amd.com, gregkh@linuxfoundation.org, rafael@kernel.org, jroedel@suse.de, linux-mm@kvack.org, jglisse@redhat.com, alexdeucher@gmail.com
+X-SA-Exim-Mail-From: logang@deltatee.com
+Subject: Re: [RFC PATCH 1/5] pci/p2p: add a function to test peer to peer
+ capability
+X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
+X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 29-01-19 22:38:19, Mikhail Gavrilov wrote:
-> On Tue, 29 Jan 2019 at 18:49, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Tue 29-01-19 14:14:47, Gerald Schaefer wrote:
-> > > On Mon, 28 Jan 2019 15:45:04 +0100
-> > > Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > > Hi,
-> > > > Mikhail has posted fixes for the two bugs quite some time ago [1]. I
-> > > > have pushed back on those fixes because I believed that it is much
-> > > > better to plug the problem at the initialization time rather than play
-> > > > whack-a-mole all over the hotplug code and find all the places which
-> > > > expect the full memory section to be initialized. We have ended up with
-> > > > 2830bf6f05fb ("mm, memory_hotplug: initialize struct pages for the full
-> > > > memory section") merged and cause a regression [2][3]. The reason is
-> > > > that there might be memory layouts when two NUMA nodes share the same
-> > > > memory section so the merged fix is simply incorrect.
-> > > >
-> > > > In order to plug this hole we really have to be zone range aware in
-> > > > those handlers. I have split up the original patch into two. One is
-> > > > unchanged (patch 2) and I took a different approach for `removable'
-> > > > crash. It would be great if Mikhail could test it still works for his
-> > > > memory layout.
-> > > >
-> > > > [1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
-> > > > [2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
-> > > > [3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
-> > >
-> > > I verified that both patches fix the issues we had with valid_zones
-> > > (with mem=2050M) and removable (with mem=3075M).
-> > >
-> > > However, the call trace in the description of your patch 1 is wrong.
-> > > You basically have the same call trace for test_pages_in_a_zone in
-> > > both patches. The "removable" patch should have the call trace for
-> > > is_mem_section_removable from Mikhails original patches:
-> >
-> > Thanks for testing. Can I use you Tested-by?
-> >
-> > >  CONFIG_DEBUG_VM_PGFLAGS=y
-> > >  kernel parameter mem=3075M
-> > >  --------------------------
-> > >  page:000003d08300c000 is uninitialized and poisoned
-> > >  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
-> > >  Call Trace:
-> > >  ([<000000000038596c>] is_mem_section_removable+0xb4/0x190)
-> > >   [<00000000008f12fa>] show_mem_removable+0x9a/0xd8
-> > >   [<00000000008cf9c4>] dev_attr_show+0x34/0x70
-> > >   [<0000000000463ad0>] sysfs_kf_seq_show+0xc8/0x148
-> > >   [<00000000003e4194>] seq_read+0x204/0x480
-> > >   [<00000000003b53ea>] __vfs_read+0x32/0x178
-> > >   [<00000000003b55b2>] vfs_read+0x82/0x138
-> > >   [<00000000003b5be2>] ksys_read+0x5a/0xb0
-> > >   [<0000000000b86ba0>] system_call+0xdc/0x2d8
-> > >  Last Breaking-Event-Address:
-> > >   [<000000000038596c>] is_mem_section_removable+0xb4/0x190
-> > >  Kernel panic - not syncing: Fatal exception: panic_on_oops
-> >
-> > Yeah, this is c&p mistake on my end. I will use this trace instead.
-> > Thanks for spotting.
+
+
+On 2019-01-29 12:56 p.m., Alex Deucher wrote:
+> On Tue, Jan 29, 2019 at 12:47 PM <jglisse@redhat.com> wrote:
+>>
+>> From: Jérôme Glisse <jglisse@redhat.com>
+>>
+>> device_test_p2p() return true if two devices can peer to peer to
+>> each other. We add a generic function as different inter-connect
+>> can support peer to peer and we want to genericaly test this no
+>> matter what the inter-connect might be. However this version only
+>> support PCIE for now.
+>>
 > 
-> 
-> Michal, I am late?
+> What about something like these patches:
+> https://cgit.freedesktop.org/~deathsimple/linux/commit/?h=p2p&id=4fab9ff69cb968183f717551441b475fabce6c1c
+> https://cgit.freedesktop.org/~deathsimple/linux/commit/?h=p2p&id=f90b12d41c277335d08c9dab62433f27c0fadbe5
+> They are a bit more thorough.
 
-I do not think so. I plan to repost tomorrow with the updated changelog
-and gathered review and tested-by tags. Can I assume yours as well?
+Those new functions seem to have a lot of overlap with the code that is
+already upstream in p2pdma.... Perhaps you should be improving the
+p2pdma functions if they aren't suitable for what you want already
+instead of creating new ones.
 
-> I am also tested these patches and can confirm that issue fixed again
-> with new approach.
-> I also attach two dmesg first when issue was reproduced and second
-> with applied patch (problem not reproduced).
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Logan
 
