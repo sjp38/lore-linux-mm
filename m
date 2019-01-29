@@ -6,81 +6,81 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E81DC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2ECBC282D0
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E575520844
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E575520844
+	by mail.kernel.org (Postfix) with ESMTP id 854AC20844
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 854AC20844
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D21A68E0019; Tue, 29 Jan 2019 13:50:45 -0500 (EST)
+	id 8405B8E0006; Tue, 29 Jan 2019 13:50:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD3A28E0015; Tue, 29 Jan 2019 13:50:45 -0500 (EST)
+	id 7C8A48E0015; Tue, 29 Jan 2019 13:50:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B72E78E0019; Tue, 29 Jan 2019 13:50:45 -0500 (EST)
+	id 6DEC88E0006; Tue, 29 Jan 2019 13:50:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AC4A8E0015
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:45 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e29so8407931ede.19
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:45 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1017C8E0015
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:49 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id b3so8352877edi.0
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=6iae2T6BHQ6iX37iUpuGhQgLV/NJrmVS4ISG/YiCITg=;
-        b=hsf5bfuBvUqfDHudQavnAEnAkg+tOOij+NcG+0wXUQLniB30Cx54MytJRQpBgJiFls
-         7DoDOZFMNjbjb9mObv+LBEPVpQcQEnHHBBpHN9pu18oRxcLujQ7C6yoNzWFrb9+pFr0z
-         wrQmq29KuV7b87kKBoRQE1rJjVKwxgCzpet7bryffSrF37ms9vh3RO+joKvcg2JGAvRt
-         +PInc6q5dWc6Z2VFhfiJt8nRXvLlFRnvoHBoiCSrRg6zgfoxF58kXHcJKwDh9nxyYF5T
-         TsOjJwBG3YM4Mxtl8Qq81DUd99XkipuszvZ4lmu/4RXc03UkmCYgZTr7YnKJX696/YCv
-         mhGw==
+        bh=cGyWsH8E5iMe5/JM/wndPOtcKX97fv1WfR21Y9tGLcE=;
+        b=D/E2m/BmxoK90R+YHBqIEI9y50zBb1XykUVbANQrwvOdkeU1PQykmQhXHzoztW9bfk
+         DuXCfI9PGtpzBLqVQL7/vFJRDJOWlIiCSA7tzVISWHzoOiGklX4g2Q9Ggny3uCBPx05r
+         8LggyhFKOpH2Wrq5li1fn/6u+xxvTzqqeW++hFWY6pTp/vqwGz7qhCxg/vVQfCOssF3B
+         1rmL/wr24ziw55b9QsweRVDc1hjLfJsGtUnpZogBGh/g4Sxg0rOFmjS7Nzns0qmzSTOF
+         3m9nyO0llGdnUnUuHKxyeC7UY3moKhqJ0YdZM1G6LZexgtHXEls14CcXrrJJiWcGokUL
+         ruBg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-X-Gm-Message-State: AJcUukdj5JsRJ0qaf7UxinjcoNRL6frLZR51IQePOIsPYL0mSSVe/EH7
-	Xicecujfnag2frl/Jjara0v+OE8Drm6P2LkGxP7g1X8ZUQr+odTMNwMq5yQyywj4V84zNPTJDZq
-	rhKhQgoOhNP2VRSde13u3Yxhxdlm7PDH70mSgf/A4/JC42OKEL94wQgbeZq5Zj2QP0g==
-X-Received: by 2002:a17:906:7f01:: with SMTP id d1mr23564131ejr.244.1548787844845;
-        Tue, 29 Jan 2019 10:50:44 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6J4uY2/pLp3HOYLpLuRNkCA1Qm/btC4gSyBnCQx+vgTH+WG/w/KECmDPk7ywoYcf8EBrdF
-X-Received: by 2002:a17:906:7f01:: with SMTP id d1mr23564078ejr.244.1548787843858;
-        Tue, 29 Jan 2019 10:50:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548787843; cv=none;
+X-Gm-Message-State: AJcUukcIAYsdGM6C2a88GywGWuNvcdq3b4t9XC+Aa26meTAtURYiMngl
+	GcQeNyTowi/N8vLxHQmkMMpia3p2H2vo/z7/bEdCTzY2WVSfKbgJvXIn7FUhM6AccTdhTIcdWw2
+	adnpXMzCT1iC1+gO0lFoI/VKDTl3hen96Gczr2DwoAHVFkVYv+DwqRF5YSqB2rYOSDg==
+X-Received: by 2002:a50:d797:: with SMTP id w23mr27424729edi.19.1548787848526;
+        Tue, 29 Jan 2019 10:50:48 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4rrLs8vdEs+VUvreeQeYqoFsD73eA6iERsY68nzHu0bA4fA3tb0fpOiIsR/FY927pDTNZ9
+X-Received: by 2002:a50:d797:: with SMTP id w23mr27424644edi.19.1548787846920;
+        Tue, 29 Jan 2019 10:50:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548787846; cv=none;
         d=google.com; s=arc-20160816;
-        b=Sh35786+oTomw82op0Bo6fx9QZ/EJm97jZYDu8l32k/5ucMI+kutLBW7ROwc5EmL1S
-         qHqWRh+kdSCtoX/7rs91CdebEUa/liEKkJKqfQ60sJnoD6Kqb828Fcpf17vie5cVQ4MJ
-         eFxFPpdJDVvh/v7knmJiUn7GFSkH6AC6bPGmch2g/YJAw/OoKQFMsGXFKWMOPTUNma0T
-         XXsB8S8VFDr6PAIUCH1K52PwEjtu5AxdAOevlobmmlvSD/0q0kBWgRFACfiz43EyDzKs
-         RSfcf5sEZwe08OmeablUyKvitemnCWRxCwu8R8+wqlXPmn6R0NvkKEhOBAlk55mNk6v/
-         zJ5A==
+        b=DawYX0yIBME5nopyY0S+EZ1JEYgHGhE1qPhm1vs6n8oyVItacqoM0uREc24mFS27FU
+         T2oaGpCqoTTwzSWOuABixCZMjXAjzpzz+CjoNSDRjDHt5aI1gEDOWVWZFr82wrLmyOms
+         7pDIxtY0SQdYxSrPsJPjTtkdlWNg6c1HK8BhyuL8TWTHj3oGghDQppZr3f7IbojL1qCk
+         cAcP2Ysd9QcEOBN4fGntrpMAHkFbBDK2m/D19DdJ/lJen0/w5kGxsc8CH/FtuCCkXW26
+         N7JbAb5PmLn//ZyV5ABi+W13/G+eucr5Me5SUXCK1yBliQ9sBhFENiL+gQcjFTYFOa8r
+         d5vA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=6iae2T6BHQ6iX37iUpuGhQgLV/NJrmVS4ISG/YiCITg=;
-        b=YHk3UYhav3MdARLfkDtt/+CG8vFi9WFBJS8hCMRS7vtg58HnsA6zmxvMPBif7yQgc6
-         /kxe5swEGQFVhDb+eyF9zuoqUxIy7gcb9OSWotR279Bb6JZAER+LRv08pmr4zg3dGOqq
-         nNRzI/U3Kfscs03vBylByZz/qCR5nKFm4zcKsmSDFVRtMHbmOIK3fWod+ydaQjeL2Snc
-         5spmd8DbZqg88Y4h6j7z4LmjsA9Yo3UAatSwnPhoAr39+zEYA3oEa1nUlIYJlS+0K9DX
-         pW4fka2WF+vq87kKFnZhuKUfdfu8V+Iyv2Bgu0Spoef+bTTFkP8n+YBx/BOru1pxPiVp
-         PBqQ==
+        bh=cGyWsH8E5iMe5/JM/wndPOtcKX97fv1WfR21Y9tGLcE=;
+        b=d59fO3+N7M3Bgw0BLGJ6/4j0ke3TlupMUVeJ8GAeRrfCDQ8XYNFJxM6h4UbNuw5nxE
+         cEjMeBEk87XwKcZ20KnKnaSfZb6eHFCRLK8Gl++o/SNJhQ2nI6VClJ32nPE/ZWQ9Ti6B
+         DICUABfynCNcrfPD5xOiAAJFfRlSK29PSqFfm63OVUjHLKsrMCEk3dDzVdHR9arkZ1S6
+         bNClMNke2TxQs5+f5RbrMc36J8oF2Ita1ETdeKiTTvc+kseWgHhIjJbxNrOr1c78wR8f
+         0AnkBb7QnKib36HyzeCiLsohKK+fmgTv2tGw7rcG/F2b9iWVvCYewTVAa7sSJDmx7Vj/
+         x+BQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l22si2236282edj.93.2019.01.29.10.50.43
+        by mx.google.com with ESMTP id g41si7684527eda.198.2019.01.29.10.50.46
         for <linux-mm@kvack.org>;
-        Tue, 29 Jan 2019 10:50:43 -0800 (PST)
+        Tue, 29 Jan 2019 10:50:46 -0800 (PST)
 Received-SPF: pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 078BAA78;
-	Tue, 29 Jan 2019 10:50:43 -0800 (PST)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E7D8B15AB;
+	Tue, 29 Jan 2019 10:50:45 -0800 (PST)
 Received: from eglon.cambridge.arm.com (eglon.cambridge.arm.com [10.1.196.105])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5A5903F557;
-	Tue, 29 Jan 2019 10:50:40 -0800 (PST)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 46AB93F557;
+	Tue, 29 Jan 2019 10:50:43 -0800 (PST)
 From: James Morse <james.morse@arm.com>
 To: linux-acpi@vger.kernel.org
 Cc: kvmarm@lists.cs.columbia.edu,
@@ -98,9 +98,9 @@ Cc: kvmarm@lists.cs.columbia.edu,
 	Dongjiu Geng <gengdongjiu@huawei.com>,
 	Xie XiuQi <xiexiuqi@huawei.com>,
 	james.morse@arm.com
-Subject: [PATCH v8 22/26] mm/memory-failure: Add memory_failure_queue_kick()
-Date: Tue, 29 Jan 2019 18:48:58 +0000
-Message-Id: <20190129184902.102850-23-james.morse@arm.com>
+Subject: [PATCH v8 23/26] ACPI / APEI: Kick the memory_failure() queue for synchronous errors
+Date: Tue, 29 Jan 2019 18:48:59 +0000
+Message-Id: <20190129184902.102850-24-james.morse@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190129184902.102850-1-james.morse@arm.com>
 References: <20190129184902.102850-1-james.morse@arm.com>
@@ -112,72 +112,222 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The GHES code calls memory_failure_queue() from IRQ context to schedule
-work on the current CPU so that memory_failure() can sleep.
+memory_failure() offlines or repairs pages of memory that have been
+discovered to be corrupt. These may be detected by an external
+component, (e.g. the memory controller), and notified via an IRQ.
+In this case the work is queued as not all of memory_failure()s work
+can happen in IRQ context.
 
-For synchronous memory errors the arch code needs to know any signals
-that memory_failure() will trigger are pending before it returns to
-user-space, possibly when exiting from the IRQ.
+If the error was detected as a result of user-space accessing a
+corrupt memory location the CPU may take an abort instead. On arm64
+this is a 'synchronous external abort', and on a firmware first
+system it is replayed using NOTIFY_SEA.
 
-Add a helper to kick the memory failure queue, to ensure the scheduled
-work has happened. This has to be called from process context, so may
-have been migrated from the original cpu. Pass the cpu the work was
-queued on.
+This notification has NMI like properties, (it can interrupt
+IRQ-masked code), so the memory_failure() work is queued. If we
+return to user-space before the queued memory_failure() work is
+processed, we will take the fault again. This loop may cause platform
+firmware to exceed some threshold and reboot when Linux could have
+recovered from this error.
 
-Change memory_failure_work_func() to permit being called on the 'wrong'
-cpu.
+For NMIlike notifications keep track of whether memory_failure() work
+was queued, and make task_work pending to flush out the queue.
+To save memory allocations, the task_work is allocated as part of
+the ghes_estatus_node, and free()ing it back to the pool is deferred.
 
 Signed-off-by: James Morse <james.morse@arm.com>
----
- include/linux/mm.h  |  1 +
- mm/memory-failure.c | 15 ++++++++++++++-
- 2 files changed, 15 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe73..b33bededc69d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2743,6 +2743,7 @@ enum mf_flags {
- };
- extern int memory_failure(unsigned long pfn, int flags);
- extern void memory_failure_queue(unsigned long pfn, int flags);
-+extern void memory_failure_queue_kick(int cpu);
- extern int unpoison_memory(unsigned long pfn);
- extern int get_hwpoison_page(struct page *page);
- #define put_hwpoison_page(page)	put_page(page)
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 6379fff1a5ff..9b4705a53fed 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1494,7 +1494,7 @@ static void memory_failure_work_func(struct work_struct *work)
- 	unsigned long proc_flags;
- 	int gotten;
+---
+current->mm == &init_mm ? I couldn't find a helper for this.
+The intent is not to set TIF flags on kernel threads. What happens
+if a kernel-thread takes on of these? Its just one of the many
+not-handled-very-well cases we have already, as memory_failure()
+puts it: "try to be lucky".
+
+I assume that if NOTIFY_NMI is coming from SMM it must suffer from
+this problem too.
+
+Changes since v7:
+ * Don't allocate memory, stuff it in estatus_node. This means passing
+   back a 'queued' flag to ghes_proc_in_irq() which holds the estatus_node.
+---
+ drivers/acpi/apei/ghes.c | 68 +++++++++++++++++++++++++++++++++-------
+ include/acpi/ghes.h      |  3 ++
+ 2 files changed, 60 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index e6f0d176b245..dfa8f155f964 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -47,6 +47,7 @@
+ #include <linux/sched/clock.h>
+ #include <linux/uuid.h>
+ #include <linux/ras.h>
++#include <linux/task_work.h>
  
--	mf_cpu = this_cpu_ptr(&memory_failure_cpu);
-+	mf_cpu = container_of(work, struct memory_failure_cpu, work);
- 	for (;;) {
- 		spin_lock_irqsave(&mf_cpu->lock, proc_flags);
- 		gotten = kfifo_get(&mf_cpu->fifo, &entry);
-@@ -1508,6 +1508,19 @@ static void memory_failure_work_func(struct work_struct *work)
- 	}
+ #include <acpi/actbl1.h>
+ #include <acpi/ghes.h>
+@@ -399,23 +400,46 @@ static void ghes_clear_estatus(struct ghes *ghes,
+ 		ghes_ack_error(ghes->generic_v2);
  }
  
+-static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int sev)
 +/*
-+ * Process memory_failure work queued on the specified CPU.
-+ * Used to avoid return-to-userspace racing with the memory_failure workqueue.
++ * Called as task_work before returning to user-space.
++ * Ensure any queued work has been done before we return to the context that
++ * triggered the notification.
 + */
-+void memory_failure_queue_kick(int cpu)
++static void ghes_kick_task_work(struct callback_head *head)
 +{
-+	struct memory_failure_cpu *mf_cpu;
++	struct acpi_hest_generic_status *estatus;
++	struct ghes_estatus_node *estatus_node;
++	u32 node_len;
 +
-+	mf_cpu = &per_cpu(memory_failure_cpu, cpu);
-+	cancel_work_sync(&mf_cpu->work);
-+	memory_failure_work_func(&mf_cpu->work);
++	estatus_node = container_of(head, struct ghes_estatus_node, task_work);
++	memory_failure_queue_kick(estatus_node->task_work_cpu);
++
++	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
++	node_len = GHES_ESTATUS_NODE_LEN(cper_estatus_len(estatus));
++	gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node, node_len);
 +}
 +
- static int __init memory_failure_init(void)
++static bool ghes_handle_memory_failure(struct ghes *ghes,
++				       struct acpi_hest_generic_data *gdata,
++				       int sev)
  {
- 	struct memory_failure_cpu *mf_cpu;
+-#ifdef CONFIG_ACPI_APEI_MEMORY_FAILURE
+ 	unsigned long pfn;
+ 	int flags = -1;
+ 	int sec_sev = ghes_severity(gdata->error_severity);
+ 	struct cper_sec_mem_err *mem_err = acpi_hest_get_payload(gdata);
+ 
++	if (!IS_ENABLED(CONFIG_ACPI_APEI_MEMORY_FAILURE))
++		return false;
++
+ 	if (!(mem_err->validation_bits & CPER_MEM_VALID_PA))
+-		return;
++		return false;
+ 
+ 	pfn = mem_err->physical_addr >> PAGE_SHIFT;
+ 	if (!pfn_valid(pfn)) {
+ 		pr_warn_ratelimited(FW_WARN GHES_PFX
+ 		"Invalid address in generic error data: %#llx\n",
+ 		mem_err->physical_addr);
+-		return;
++		return false;
+ 	}
+ 
+ 	/* iff following two events can be handled properly by now */
+@@ -425,9 +449,12 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
+ 	if (sev == GHES_SEV_RECOVERABLE && sec_sev == GHES_SEV_RECOVERABLE)
+ 		flags = 0;
+ 
+-	if (flags != -1)
++	if (flags != -1) {
+ 		memory_failure_queue(pfn, flags);
+-#endif
++		return true;
++	}
++
++	return false;
+ }
+ 
+ /*
+@@ -475,11 +502,12 @@ static void ghes_handle_aer(struct acpi_hest_generic_data *gdata)
+ #endif
+ }
+ 
+-static void ghes_do_proc(struct ghes *ghes,
++static bool ghes_do_proc(struct ghes *ghes,
+ 			 const struct acpi_hest_generic_status *estatus)
+ {
+ 	int sev, sec_sev;
+ 	struct acpi_hest_generic_data *gdata;
++	bool work_queued = false;
+ 	guid_t *sec_type;
+ 	guid_t *fru_id = &NULL_UUID_LE;
+ 	char *fru_text = "";
+@@ -500,7 +528,8 @@ static void ghes_do_proc(struct ghes *ghes,
+ 			ghes_edac_report_mem_error(sev, mem_err);
+ 
+ 			arch_apei_report_mem_error(sev, mem_err);
+-			ghes_handle_memory_failure(gdata, sev);
++			if (ghes_handle_memory_failure(ghes, gdata, sev))
++				work_queued = true;
+ 		}
+ 		else if (guid_equal(sec_type, &CPER_SEC_PCIE)) {
+ 			ghes_handle_aer(gdata);
+@@ -517,6 +546,8 @@ static void ghes_do_proc(struct ghes *ghes,
+ 					       gdata->error_data_length);
+ 		}
+ 	}
++
++	return work_queued;
+ }
+ 
+ static void __ghes_print_estatus(const char *pfx,
+@@ -812,7 +843,9 @@ static void ghes_proc_in_irq(struct irq_work *irq_work)
+ 	struct ghes_estatus_node *estatus_node;
+ 	struct acpi_hest_generic *generic;
+ 	struct acpi_hest_generic_status *estatus;
++	bool task_work_pending;
+ 	u32 len, node_len;
++	int ret;
+ 
+ 	llnode = llist_del_all(&ghes_estatus_llist);
+ 	/*
+@@ -827,14 +860,26 @@ static void ghes_proc_in_irq(struct irq_work *irq_work)
+ 		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+ 		len = cper_estatus_len(estatus);
+ 		node_len = GHES_ESTATUS_NODE_LEN(len);
+-		ghes_do_proc(estatus_node->ghes, estatus);
++		task_work_pending = ghes_do_proc(estatus_node->ghes, estatus);
+ 		if (!ghes_estatus_cached(estatus)) {
+ 			generic = estatus_node->generic;
+ 			if (ghes_print_estatus(NULL, generic, estatus))
+ 				ghes_estatus_cache_add(generic, estatus);
+ 		}
+-		gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
+-			      node_len);
++
++		if (task_work_pending && current->mm != &init_mm) {
++			estatus_node->task_work.func = ghes_kick_task_work;
++			estatus_node->task_work_cpu = smp_processor_id();
++			ret = task_work_add(current, &estatus_node->task_work,
++					    true);
++			if (ret)
++				estatus_node->task_work.func = NULL;
++		}
++
++		if (!estatus_node->task_work.func)
++			gen_pool_free(ghes_estatus_pool,
++				      (unsigned long)estatus_node, node_len);
++
+ 		llnode = next;
+ 	}
+ }
+@@ -894,6 +939,7 @@ static int ghes_in_nmi_queue_one_entry(struct ghes *ghes,
+ 
+ 	estatus_node->ghes = ghes;
+ 	estatus_node->generic = ghes->generic;
++	estatus_node->task_work.func = NULL;
+ 	estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+ 
+ 	if (__ghes_read_estatus(estatus, buf_paddr, fixmap_idx, len)) {
+diff --git a/include/acpi/ghes.h b/include/acpi/ghes.h
+index e3f1cddb4ac8..517a5231cc1b 100644
+--- a/include/acpi/ghes.h
++++ b/include/acpi/ghes.h
+@@ -33,6 +33,9 @@ struct ghes_estatus_node {
+ 	struct llist_node llnode;
+ 	struct acpi_hest_generic *generic;
+ 	struct ghes *ghes;
++
++	int task_work_cpu;
++	struct callback_head task_work;
+ };
+ 
+ struct ghes_estatus_cache {
 -- 
 2.20.1
 
