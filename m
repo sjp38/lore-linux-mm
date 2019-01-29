@@ -3,75 +3,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA80AC4151A
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:52:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B4F1C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:56:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 92C282177E
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:52:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92C282177E
+	by mail.kernel.org (Postfix) with ESMTP id 5EDB420869
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:56:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EDB420869
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36BED8E0003; Tue, 29 Jan 2019 04:52:35 -0500 (EST)
+	id 0CEDD8E0004; Tue, 29 Jan 2019 04:56:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2F3078E0001; Tue, 29 Jan 2019 04:52:35 -0500 (EST)
+	id 07F2D8E0001; Tue, 29 Jan 2019 04:56:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A2358E0003; Tue, 29 Jan 2019 04:52:35 -0500 (EST)
+	id E88AC8E0004; Tue, 29 Jan 2019 04:56:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C3C278E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 04:52:34 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id 82so16453355pfs.20
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 01:52:34 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A6CBB8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 04:56:58 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id 89so13889162ple.19
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 01:56:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=e5JIdfOLXA7vK5jRrayApluVxSs2X8eqtZM51YBaQSk=;
-        b=L5xpyNi6q1/MwcDRaPkikzH3MJAllQR+AqBRL5ohw0yRQ5wVadpeLH/B3PZFHg1uRQ
-         QBNIJcK6fmMBvhpPMNJCXQhy4pD8xgal7njQnjz4DGarye3zFzNgs+/eCtRMCFFlQo5G
-         NfsdvojEow7uzopFzTM9DLiciP7axZ4ie8sV4lpTpsqgPxbqBjHl6/JAKpLTzykUfBWR
-         wVUVOV8+sHEAFl+1E9mN15Lb1roIDRGgPNBzFCy5l0zJ3NjEuUeh7LcuK7WINvXl3ziE
-         c73YjI119TY/ab7L6DgxqNglrCjjTdaUM9c/ZVV4BxtzuG1e4xJZhQqGrZ2KCU6Nhh/i
-         cjPg==
+        bh=WbE8t9KAvtVePuQuvsmVC/LGoOb3TuwrhK/Zmu4WaXI=;
+        b=ujtzXhe8i37q34Y1HiCTXVzV1pSW1fN+XNXSUlNywpA/iAG6L8C0n3Xh5P6kAT1Si5
+         Jhem/hdU7c9USO06Vd+FjfUx7PiST4XJSmYHkM8FkNEkuOhMnTw6VkMMP6gjJUKq4G7O
+         +SHesute2sO4oDBsUWn85IzLo7EBQ5FHDphWZyoQg1KLIThW/xg/lM5eU2NYuJGZ0KqD
+         wLoew3cmR9tKEGiBRDY8haqm/NKEPrEJMoegB70n0VU0QmaNlGyy40RMzzbYBsqKPW0X
+         WtNaB/ZS2L8i77jcr0RgIUCzerjKbfCBlL5X7QD5IfO1bFUS3FSRYKCDS1Qo4wqXyuMF
+         AxXA==
 X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AJcUukfaaN1uX2oSnqDdUDpIR7JkI8yL3KAKuZO/+u5roOZKJmdUI5eg
-	7l1FjdkmTfrmcwaemdzJsr9yMby78jTWx58f1FHDFMqTChn6GZErb2UuzFWuJ5gZbplK5QycFRV
-	npQ9mfW9j/255SugfXHyJQYs+5aaSYVZ6noruXnFDfFyXWVHxSHc8ZuiIRuUDbCk=
-X-Received: by 2002:a63:2bc4:: with SMTP id r187mr22883916pgr.306.1548755554487;
-        Tue, 29 Jan 2019 01:52:34 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4mWRjX+GCMnFmvvezH5oXmj/myeIh+lPUB9SUWHDfuabca5gvTvvbFhW9RGnUgKNFO/F2V
-X-Received: by 2002:a63:2bc4:: with SMTP id r187mr22883887pgr.306.1548755553664;
-        Tue, 29 Jan 2019 01:52:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548755553; cv=none;
+X-Gm-Message-State: AJcUukeXZZls0ra3PkxsTlle1AkyZunCoZ181m+02PdcDsEPdgd8OfQ1
+	0oO0FqdSYGsv6FJzsjTJ+YlwkV49kLT63CoNlpr4QoWYNCM6r8gK8YVmLIH2atjJHD+rP+KRR/h
+	zRWFjS04+2e0D1lLDLRjM2Y9+XKQTdHl9YtUeximmlz387q9k6jr46w5pSBUgyoU=
+X-Received: by 2002:a63:5346:: with SMTP id t6mr23420320pgl.40.1548755818285;
+        Tue, 29 Jan 2019 01:56:58 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5aaeFuhGGnCKsBzSAKvitq9a8ntT8MR72phmBSbNBiRS0LZ5wjB5RK4bbkc6VaWYjCls0x
+X-Received: by 2002:a63:5346:: with SMTP id t6mr23420299pgl.40.1548755817694;
+        Tue, 29 Jan 2019 01:56:57 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548755817; cv=none;
         d=google.com; s=arc-20160816;
-        b=sJSlZZrbVa7H/vKorKzaxSQH1Ci0rodIjbl4R5SSEP0ThzrW0qc6pOmvkgYen6Gr/j
-         AXKi21FE8JgkStqN/nc6FVN0KZS4X/NCETJGrmwHS7b5fbKDZrRFzrVcJg3X8PA5xLAs
-         f+pFs6tXg2JUI4JjoJwO2gZXeb5i0ZRzVPBCOsTTQgNf1gu5bjBYohQpWq1pKw97mRGc
-         yVC1+t3XARWDdpzCSBnbunbraTN7Xp2krqpnaGH/Lm0FCkSgVkGq/hk68yocyDgX7sCM
-         dXD1D+PlgJxzqm/FarjkfBkyUBfplYHTFrG1Q4Hrzb5keP4ehH1UzpdzIv0ftPlhZ2WN
-         kmBQ==
+        b=Qz1nvgFHdZW3vDnjmUuuI6Eyk9Dt4PNrDC6IHK0/gBk6cj0rFW2S0fI54frEW9Qb34
+         Rxv0mv81BkcVCbuzWNrd0sN6wUbibClQpph3GxdgnGjThTxfVAhPHAdLxosS/pJDYtQz
+         wyxppEdINHcoa33rX+mJZXqzAvHO+VGut0AXuTyvpxLiIJJANHyZNVQKtmHmFnJZAHjE
+         7BMQWddQkz3e5BqJfZwVgVQnV65huhARD0bsA+JPmiTvrWpT+YUVIgFqfK5SUgIWX+oL
+         GWEnGBWC19h2L6xdmOvcAstzrlXHPryu63QEwBod//YjrU2w7N7pBAY1LsB8Rm+bcqcK
+         FONg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
          :from;
-        bh=e5JIdfOLXA7vK5jRrayApluVxSs2X8eqtZM51YBaQSk=;
-        b=GCRyzLIWP1D8/YN5h+RTkEfjQkqIRDyscm27ziLveSfOQhAU43WscLvhGfhoBTLg4l
-         00xa4vr32UvGYTPdOWt0/kpqbkn/weqnBTfIC3Z0ZrwK03jzPFDcfWTvTXhwg5YMH8oM
-         mqoensUxPwg54NNWhzOHRVBlC8YtqG5Y/WmkFNlOB2Mx9RIMVo57jtOCwcc4p3yWCfi/
-         DgMeFHMGR0oLv0JDTZmcV8VZ7mf/UDeq4f2Sxkb9HzV66D1oSNcooJS9B8elc8swNgdh
-         h6yGbQOfJMkAucGJJUxTmIsSYqC/MfcZBlE85N/3nyfChNffmNICI3Eb254iAsQuEn4S
-         +4Gg==
+        bh=WbE8t9KAvtVePuQuvsmVC/LGoOb3TuwrhK/Zmu4WaXI=;
+        b=nNa7OlyKFev4ZeduFZ4NGxCuz2M14GtrhZ/II0G+zWyQbaXXvH7hE8XdpwKcHjcf0/
+         Sq1XlGGcD7n7GZRCuEHaBXvYeoWFmJ9FisIw2rwklWtCEFKzw4zzlbj2/NP3gjhdLTLv
+         nQxltqvh1we4vKP8qcDSL7amZnhNfP7YGcdb5tk/l+zMkioYESQmM+2K4rWg8aMgaiS4
+         GeY1jFWyLTpMDC/Q53Xw+cK62NzdKxcA/jFjsEPDX0LanD04YvWuKA6/1gEYTT7OjetF
+         LfoYc1Y7UP2OsjV0jd8GSGe9Z8d9pvzo5olERwgx2ACRH/f/ooj05F9AaVL09UghJPOw
+         Pwgg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
 Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id j65si34744650pge.444.2019.01.29.01.52.33
+        by mx.google.com with ESMTPS id k5si33004870pfi.176.2019.01.29.01.56.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Jan 2019 01:52:33 -0800 (PST)
+        Tue, 29 Jan 2019 01:56:57 -0800 (PST)
 Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
        spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
@@ -79,8 +79,8 @@ Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
 	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
 	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
 	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 43phcK6Xzfz9s9h;
-	Tue, 29 Jan 2019 20:52:17 +1100 (AEDT)
+	by ozlabs.org (Postfix) with ESMTPSA id 43phjg3h9Pz9sDr;
+	Tue, 29 Jan 2019 20:56:55 +1100 (AEDT)
 From: Michael Ellerman <mpe@ellerman.id.au>
 To: Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas
@@ -106,13 +106,13 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas
  linux-usb@vger.kernel.org, linux-xtensa@linux-xtensa.org,
  linuxppc-dev@lists.ozlabs.org, openrisc@lists.librecores.org,
  sparclinux@vger.kernel.org, uclinux-h8-devel@lists.sourceforge.jp,
- x86@kernel.org, xen-devel@lists.xenproject.org, Christophe Leroy
- <christophe.leroy@c-s.fr>, Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH v2 02/21] powerpc: use memblock functions returning virtual address
-In-Reply-To: <1548057848-15136-3-git-send-email-rppt@linux.ibm.com>
-References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com> <1548057848-15136-3-git-send-email-rppt@linux.ibm.com>
-Date: Tue, 29 Jan 2019 20:52:17 +1100
-Message-ID: <871s4vssdq.fsf@concordia.ellerman.id.au>
+ x86@kernel.org, xen-devel@lists.xenproject.org, Mike Rapoport
+ <rppt@linux.ibm.com>
+Subject: Re: [PATCH v2 06/21] memblock: memblock_phys_alloc_try_nid(): don't panic
+In-Reply-To: <1548057848-15136-7-git-send-email-rppt@linux.ibm.com>
+References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com> <1548057848-15136-7-git-send-email-rppt@linux.ibm.com>
+Date: Tue, 29 Jan 2019 20:56:54 +1100
+Message-ID: <87y373rdll.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
 Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -123,30 +123,21 @@ List-ID: <linux-mm.kvack.org>
 
 Mike Rapoport <rppt@linux.ibm.com> writes:
 
-> From: Christophe Leroy <christophe.leroy@c-s.fr>
->
-> Since only the virtual address of allocated blocks is used,
-> lets use functions returning directly virtual address.
->
-> Those functions have the advantage of also zeroing the block.
->
-> [ MR:
->  - updated error message in alloc_stack() to be more verbose
->  - convereted several additional call sites ]
->
-> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> ---
->  arch/powerpc/kernel/dt_cpu_ftrs.c |  3 +--
->  arch/powerpc/kernel/irq.c         |  5 -----
->  arch/powerpc/kernel/paca.c        |  6 +++++-
->  arch/powerpc/kernel/prom.c        |  5 ++++-
->  arch/powerpc/kernel/setup_32.c    | 26 ++++++++++++++++----------
->  5 files changed, 26 insertions(+), 19 deletions(-)
+> diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
+> index ae34e3a..2c61ea4 100644
+> --- a/arch/arm64/mm/numa.c
+> +++ b/arch/arm64/mm/numa.c
+> @@ -237,6 +237,10 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+>  		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
+>  
+>  	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+> +	if (!nd_pa)
+> +		panic("Cannot allocate %zu bytes for node %d data\n",
+> +		      nd_size, nid);
+> +
+>  	nd = __va(nd_pa);
 
-LGTM.
-
-Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
 
 cheers
 
