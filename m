@@ -2,246 +2,234 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A03FC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 17:39:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B816C282C7
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 17:47:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E57F20857
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 17:39:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="AruFYuA6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E57F20857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 04BA9214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 17:47:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04BA9214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6C8E8E0002; Tue, 29 Jan 2019 12:39:49 -0500 (EST)
+	id 70FCB8E0002; Tue, 29 Jan 2019 12:47:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C1BFB8E0001; Tue, 29 Jan 2019 12:39:49 -0500 (EST)
+	id 6BF718E0001; Tue, 29 Jan 2019 12:47:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE7568E0002; Tue, 29 Jan 2019 12:39:49 -0500 (EST)
+	id 5ADC58E0002; Tue, 29 Jan 2019 12:47:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 420C58E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:39:49 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id f22-v6so5961085lja.7
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 09:39:49 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D5CB8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:47:40 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id j5so25265364qtk.11
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 09:47:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=KIaWr0Zq9+BtRkxw1MjIPRqsGQx0NbC1v2Rp0V9/A/c=;
-        b=FEvPWPHkVub2K8tvLbquimcdMCJLzp+eGwd8fe61XvEMvNPk0WS3RAidTx6cQf+aGq
-         5QJjiV+CR36tv0R1jQ51Ytb7dW2Fgrp1I8Np/oab7HUF/UnFzEpNFepcBTABIPpn2N0Y
-         Rxjid/CXqFH7S6aFCUbarfRD+GrLZ6fwt4gOpH9+ENyQNEdcZesxpKsDKwcCaaN/JTHK
-         ruCZ2FOItHps8dRc+c4Js43oJbtXaYbOfXguey4gPVk4TAX6QdF1Bs6PEmKwqgDJ46TK
-         MFV1Xwxfng6FNRgjf1JsH9nfcU22qqFubRiWKWLYor2kwHCEYn4lYjvQD1cwXVgk1DhA
-         fmUw==
-X-Gm-Message-State: AJcUukdEyKm5UMlAj2f88QdN38yEKJaNjaGcGd64ZUnr5+oHFqc57BQx
-	4qheo0J8toSuv2/DuV55wrI+9BJ9pKqPn1d+1sfaxzUvup2E8BmL1DX4oC7DvYsuFnuccFnEx1h
-	VVSyUE0waCU2/jtnOcnl6rV4htkmCWgLQQeUiyBfLz4HLhuXPxkCmGyS8VZ8VEho0sSRS814ggr
-	EBT2vr+U9UpYxmuXfVrCvZbroAgegIDHh7YxPxudAlTdwwNq/DQEdG094Es1Lfw17NPGaeH4at5
-	DFZhngTSV+UcfeiocLkmfTWab5kfO3MIL+igBo2ELuAf9ccTvYuTJI9J68EYGGq5Trx01b0ncz5
-	6lcfqWQvM70HNHnRYuli4fKXSgIDZPY8QbL3wZt68KLwBD7cRS1Loeqy/D63m/gfo/gkYQ8+mff
-	L
-X-Received: by 2002:a2e:568d:: with SMTP id k13-v6mr23122198lje.105.1548783588500;
-        Tue, 29 Jan 2019 09:39:48 -0800 (PST)
-X-Received: by 2002:a2e:568d:: with SMTP id k13-v6mr23122144lje.105.1548783587348;
-        Tue, 29 Jan 2019 09:39:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548783587; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=7t824AnphP/zqnjb4IosB6tDF0+Ohdb/AEh+UEV+FqI=;
+        b=JjB7wQd3e10VfJweR1mW2Arnfy75kTdlE880neJbPuW8DmcAmSiJyF08gI/6aoM9Bo
+         Jq0FNW+ufVPI5GRfKyPQm9HHwjagOM/ZTCQYJRZDJal4wMhA6A9hHlwpN3Jn2AgrVmMs
+         AApViT66YF1fH9PcchO4OkCj0f5RgJtJjBqrJtXt4KTd7KCrhjYMSYS9awZJBOTYQ4us
+         1HwmC4XW/+Op9TfayB59TGAu0zm/mv66w7JC5PPVCmIwrcALgWuDoSlrv5jo08kFAj35
+         P6Z/koHPCzEoCNNQQ9JS+jirFKfdBRaRK/OW+zeRFatLpkhbWZOfLG5fo8a12t01rrUI
+         Erlg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukegJUw4dqA3OBfsDFKTb0buepWxVT8ed15niBv8tTjTknBOeEK/
+	K0jOWaKOYE0yJNYjNohutRCu8mzLeOzEsZrG+Wtipcb+bG9hnuERZQoxxjuSG4koe5cyDAWPPDE
+	4ors1NV7Oj4dJuHbrYUYYZYEfnMmXQP5elMSNBStiol+6EkB7QKEp6UUrY3N/yrDVGw==
+X-Received: by 2002:ac8:4884:: with SMTP id i4mr26346592qtq.219.1548784059920;
+        Tue, 29 Jan 2019 09:47:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4Fp7DvRwcwaoiVrvb9S60cntL08M+DCHFcwOY2EHgyKYkNQmqnNLQHbOltuE/oFHC4a/kQ
+X-Received: by 2002:ac8:4884:: with SMTP id i4mr26346552qtq.219.1548784059213;
+        Tue, 29 Jan 2019 09:47:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548784059; cv=none;
         d=google.com; s=arc-20160816;
-        b=rCN9DKM3nSpcQlu+VHuhrS/O6t9NhHzvGPQIBPzTURj8tMEuOUhLTjAcd2xMNgKJFi
-         xMW7smB2mWIC+oKPw8w0KpbQRGg1y1jn5Pmib0FIcwnUchu1ozvWn30Eglm848yPx/lD
-         jTl9rdDxGOYaVaEp5+sHzZ/VxYpMVGMOqylI60g/9BYn4SzeofLQKIdlDbHQy5ApoG/f
-         HSpjGeirUc1CW5GYctTPL7b4Ggy3QuQ9H0LEhah9u3mVF6tdrHUC+76/iR2JWQI5lAIw
-         ncASaXWjfG589s8OxUgAqJGnWLue9q/rYwsaJ+I2pcEmyCb3a7rFIvirQxGFzj9efia9
-         CMog==
+        b=bFxElqjR9/CrET6c7zCuHfg/diG2u++4nZ+Ba+V09v9HMjLpFvOt5rESX9SEEi0ric
+         QBC8rgViqzWTNAbO+9vShER0+B0z4eS76DTBLmK3eOEhC5rw9jO8cuSu9xAmChgMgAWc
+         FbAFAZv9ai5IvNK3hJFk1FJM3tSRbU4qjbsS4lERgQCtGudBUKyRKr0psRSqHkHeTXqH
+         Nkd2va7yFIAE13Gq4Trsf/dos4iOvVR1G6+OXZBCvs+/gK/NJAkpgRlBfPEYCXd2TTFp
+         AH6ddMkCcN5FCGJ1WiyEmFoPgky43BDshX1jrWvRNhUNTJg+OSl+9WwM20UnBcqht4wv
+         9tMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=KIaWr0Zq9+BtRkxw1MjIPRqsGQx0NbC1v2Rp0V9/A/c=;
-        b=hSaAABpWIKJ1P1NvojPf/JpajdPV8vmbi39JeQYUFIaOpvAznmg4ngfjDaWgnXIcH9
-         B+6zrRPHqSDTzTzBf5jkO9IRf7sqtc0o3a4/Qo+do/rKir+JFCKn70UfdVoG7fVF/OT4
-         oOjDW6rz2RWGhkXNpxs3s8ErFuZ/IorPFwDtf/zUKW48cL0IsuEkprF6Llyx534bs+c8
-         hF+xmQVbnsBXLyvk+2rk9lqmJWN4CVJWeqQ+RxTr9xOZYS6h/kM6lYNHNskiQQcuZq1C
-         gNjQkCthFAK/DkP++M8dvFUPK2uaWysB5jNzUwItUa2qxbVgLaSg3qFWIcejOIsxvwpQ
-         EkKQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=7t824AnphP/zqnjb4IosB6tDF0+Ohdb/AEh+UEV+FqI=;
+        b=HfjoztIaarBYnH8rm13SlId+l1j7qOVC36JyLVGdWBqTM/LvrgDxmZXHJSKHGvcboG
+         UyepHHbgmSt+LAkTRQseeHVfCp+R18gCImfy1gt7FE29G/AGgp3MTaB5avt/da2yZyFb
+         AhRwGBMbe0422t/APsNUE1gE3dk0eakIoUU4UlB+Z22VOxDMFpxVIsxfgipZdJhnRNJk
+         nBaU4XX9yR8EvpmRzhMCHr3BEUnFh8GDDuutghgTnlOdgreqicKBQbsYj5w2J9lGWnvd
+         KVKV4D47oiD0v4oxE1mXmiSRSjfz5GWxlVeMb0v6gT7crFnLCyT8vH6RrSt+yrhqJlWH
+         qNzQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AruFYuA6;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o22-v6sor13166778lji.38.2019.01.29.09.39.47
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d2si3373652qtl.198.2019.01.29.09.47.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 09:39:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 09:47:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AruFYuA6;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=KIaWr0Zq9+BtRkxw1MjIPRqsGQx0NbC1v2Rp0V9/A/c=;
-        b=AruFYuA615iqmLt6moyy7Tr8BAEm5qxgDyZzBrSBg6C2Jh3ZJE2PgHzTmAQZhRXkZQ
-         fqBrdqqReYLN40c6roqStJJcfijWgr1eXjJC0+9x7IvCgpPCvYynxOemgUspEWGjsLFf
-         w5tyLM/4WD3zFo+xuKTbOb8P9OWPmIpHFUehuicWryw6KwRm6xlbhTx3pDTAL5GKLzO+
-         yC5AEqAnlROh0B3rH+GDChw5a+5tJc7gVdgu8odLXPzVdG3NTRdqemNu385kw5npus0S
-         OpwwN0RBjuI3O0apN66HWAJg8zRhKiaLQZUBIzP1XjYXx/FU39AgOt0q4SNCPwiZ24jd
-         IBww==
-X-Google-Smtp-Source: ALg8bN7W6EIoEIQoFEsV3JNk/AtCA2tr4O0YD6DSYh1j8+wPjM/kByazFbNqyIb8ydT1zvuH61jN1w==
-X-Received: by 2002:a2e:3a04:: with SMTP id h4-v6mr23245958lja.81.1548783586715;
-        Tue, 29 Jan 2019 09:39:46 -0800 (PST)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id l17sm3553290lfk.40.2019.01.29.09.39.45
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Jan 2019 09:39:45 -0800 (PST)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Tue, 29 Jan 2019 18:39:36 +0100
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v1 2/2] mm: add priority threshold to
- __purge_vmap_area_lazy()
-Message-ID: <20190129173936.4sscooiybzbhos77@pc636>
-References: <20190124115648.9433-1-urezki@gmail.com>
- <20190124115648.9433-3-urezki@gmail.com>
- <20190128224528.GB38107@google.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id ADC1D9B308;
+	Tue, 29 Jan 2019 17:47:37 +0000 (UTC)
+Received: from localhost.localdomain.com (ovpn-122-2.rdu2.redhat.com [10.10.122.2])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 0B55B5D97E;
+	Tue, 29 Jan 2019 17:47:32 +0000 (UTC)
+From: jglisse@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J . Wysocki" <rafael@kernel.org>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Christian Koenig <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	linux-pci@vger.kernel.org,
+	dri-devel@lists.freedesktop.org,
+	Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Joerg Roedel <jroedel@suse.de>,
+	iommu@lists.linux-foundation.org
+Subject: [RFC PATCH 0/5] Device peer to peer (p2p) through vma
+Date: Tue, 29 Jan 2019 12:47:23 -0500
+Message-Id: <20190129174728.6430-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190128224528.GB38107@google.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 29 Jan 2019 17:47:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 28, 2019 at 05:45:28PM -0500, Joel Fernandes wrote:
-> On Thu, Jan 24, 2019 at 12:56:48PM +0100, Uladzislau Rezki (Sony) wrote:
-> > commit 763b218ddfaf ("mm: add preempt points into
-> > __purge_vmap_area_lazy()")
-> > 
-> > introduced some preempt points, one of those is making an
-> > allocation more prioritized over lazy free of vmap areas.
-> > 
-> > Prioritizing an allocation over freeing does not work well
-> > all the time, i.e. it should be rather a compromise.
-> > 
-> > 1) Number of lazy pages directly influence on busy list length
-> > thus on operations like: allocation, lookup, unmap, remove, etc.
-> > 
-> > 2) Under heavy stress of vmalloc subsystem i run into a situation
-> > when memory usage gets increased hitting out_of_memory -> panic
-> > state due to completely blocking of logic that frees vmap areas
-> > in the __purge_vmap_area_lazy() function.
-> > 
-> > Establish a threshold passing which the freeing is prioritized
-> > back over allocation creating a balance between each other.
-> 
-> I'm a bit concerned that this will introduce the latency back if vmap_lazy_nr
-> is greater than half of lazy_max_pages(). Which IIUC will be more likely if
-> the number of CPUs is large.
-> 
-The threshold that we establish is two times more than lazy_max_pages(),
-i.e. in case of 4 system CPUs lazy_max_pages() is 24576, therefore the
-threshold is 49152, if PAGE_SIZE is 4096.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-It means that we allow rescheduling if vmap_lazy_nr < 49152. If vmap_lazy_nr 
-is higher then we forbid rescheduling and free areas until it becomes lower
-again to stabilize the system. By doing that, we will not allow vmap_lazy_nr
-to be enormously increased.
+This patchset add support for peer to peer between device in two manner.
+First for device memory use through HMM in process regular address space
+(ie inside a regular vma that is not an mmap of device file or special
+file). Second for special vma ie mmap of a device file, in this case some
+device driver might want to allow other device to directly access memory
+use for those special vma (not that the memory might not even be map to
+CPU in this case).
 
->
-> In fact, when vmap_lazy_nr is high, that's when the latency will be the worst
-> so one could say that that's when you *should* reschedule since the frees are
-> taking too long and hurting real-time tasks.
-> 
-> Could this be better solved by tweaking lazy_max_pages() such that purging is
-> more aggressive?
-> 
-> Another approach could be to detect the scenario you brought up (allocations
-> happening faster than free), somehow, and avoid a reschedule?
-> 
-This is what i am trying to achieve by this change. 
+They are many use cases for this they mainly fall into 2 category:
+[A]-Allow device to directly map and control another device command
+    queue.
 
-Thank you for your comments.
+[B]-Allow device to access another device memory without disrupting
+    the other device computation.
 
---
-Vlad Rezki
-> > 
-> > Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
-> > ---
-> >  mm/vmalloc.c | 18 ++++++++++++------
-> >  1 file changed, 12 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> > index fb4fb5fcee74..abe83f885069 100644
-> > --- a/mm/vmalloc.c
-> > +++ b/mm/vmalloc.c
-> > @@ -661,23 +661,27 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
-> >  	struct llist_node *valist;
-> >  	struct vmap_area *va;
-> >  	struct vmap_area *n_va;
-> > -	bool do_free = false;
-> > +	int resched_threshold;
-> >  
-> >  	lockdep_assert_held(&vmap_purge_lock);
-> >  
-> >  	valist = llist_del_all(&vmap_purge_list);
-> > +	if (unlikely(valist == NULL))
-> > +		return false;
-> > +
-> > +	/*
-> > +	 * TODO: to calculate a flush range without looping.
-> > +	 * The list can be up to lazy_max_pages() elements.
-> > +	 */
-> >  	llist_for_each_entry(va, valist, purge_list) {
-> >  		if (va->va_start < start)
-> >  			start = va->va_start;
-> >  		if (va->va_end > end)
-> >  			end = va->va_end;
-> > -		do_free = true;
-> >  	}
-> >  
-> > -	if (!do_free)
-> > -		return false;
-> > -
-> >  	flush_tlb_kernel_range(start, end);
-> > +	resched_threshold = (int) lazy_max_pages() << 1;
-> >  
-> >  	spin_lock(&vmap_area_lock);
-> >  	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
-> > @@ -685,7 +689,9 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
-> >  
-> >  		__free_vmap_area(va);
-> >  		atomic_sub(nr, &vmap_lazy_nr);
-> > -		cond_resched_lock(&vmap_area_lock);
-> > +
-> > +		if (atomic_read(&vmap_lazy_nr) < resched_threshold)
-> > +			cond_resched_lock(&vmap_area_lock);
-> >  	}
-> >  	spin_unlock(&vmap_area_lock);
-> >  	return true;
-> > -- 
-> > 2.11.0
-> > 
+Corresponding workloads:
+
+[1]-Network device directly access an control a block device command
+    queue so that it can do storage access without involving the CPU.
+    This fall into [A]
+[2]-Accelerator device doing heavy computation and network device is
+    monitoring progress. Direct accelerator's memory access by the
+    network device avoid the need to use much slower system memory.
+    This fall into [B].
+[3]-Accelerator device doing heavy computation and network device is
+    streaming out the result. This avoid the need to first bounce the
+    result through system memory (it saves both system memory and
+    bandwidth). This fall into [B].
+[4]-Chaining device computation. For instance a camera device take a
+    picture, stream it to a color correction device that stream it
+    to final memory. This fall into [A and B].
+
+People have more ideas on how to use this than i can list here. The
+intention of this patchset is to provide the means to achieve those
+and much more.
+
+I have done a testing using nouveau and Mellanox mlx5 where the mlx5
+device can directly access GPU memory [1]. I intend to use this inside
+nouveau and help porting AMD ROCm RDMA to use this [2]. I believe
+other people have express interest in working on using this with
+network device and block device.
+
+From implementation point of view this just add 2 new call back to
+vm_operations struct (for special device vma support) and 2 new call
+back to HMM device memory structure for HMM device memory support.
+
+For now it needs IOMMU off with ACS disabled and for both device to
+be on same PCIE sub-tree (can not cross root complex). However the
+intention here is different from some other peer to peer work in that
+we do want to support IOMMU and are fine with going through the root
+complex in that case. In other words, the bandwidth advantage of
+avoiding the root complex is of less importance than the programming
+model for the feature. We do actualy expect that this will be use
+mostly with IOMMU enabled and thus with having to go through the root
+bridge.
+
+Another difference from other p2p solution is that we do require that
+the importing device abide to mmu notifier invalidation so that the
+exporting device can always invalidate a mapping at any point in time.
+For this reasons we do not need a struct page for the device memory.
+
+Also in all the cases the policy and final decision on wether to map
+or not is solely under the control of the exporting device.
+
+Finaly the device memory might not even be map to the CPU and thus
+we have to go through the exporting device driver to get the physical
+address at which the memory is accessible.
+
+The core change are minimal (adding new call backs to some struct).
+IOMMU support will need little change too. Most of the code is in
+driver to implement export policy and BAR space management. Very gross
+playground with IOMMU support in [3] (top 3 patches).
+
+Cheers,
+Jérôme
+
+[1] https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-p2p
+[2] https://github.com/RadeonOpenCompute/ROCnRDMA
+[3] https://cgit.freedesktop.org/~glisse/linux/log/?h=wip-hmm-p2p
+
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Rafael J. Wysocki <rafael@kernel.org>
+Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: Christian Koenig <christian.koenig@amd.com>
+Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: linux-pci@vger.kernel.org
+Cc: dri-devel@lists.freedesktop.org
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Robin Murphy <robin.murphy@arm.com>
+Cc: Joerg Roedel <jroedel@suse.de>
+Cc: iommu@lists.linux-foundation.org
+
+Jérôme Glisse (5):
+  pci/p2p: add a function to test peer to peer capability
+  drivers/base: add a function to test peer to peer capability
+  mm/vma: add support for peer to peer to device vma
+  mm/hmm: add support for peer to peer to HMM device memory
+  mm/hmm: add support for peer to peer to special device vma
+
+ drivers/base/core.c        |  20 ++++
+ drivers/pci/p2pdma.c       |  27 +++++
+ include/linux/device.h     |   1 +
+ include/linux/hmm.h        |  53 +++++++++
+ include/linux/mm.h         |  38 +++++++
+ include/linux/pci-p2pdma.h |   6 +
+ mm/hmm.c                   | 219 ++++++++++++++++++++++++++++++-------
+ 7 files changed, 325 insertions(+), 39 deletions(-)
+
+-- 
+2.17.2
 
