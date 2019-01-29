@@ -2,135 +2,183 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA413C282C7
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 03:46:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DD3AC4151A
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 04:46:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF45E2175B
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 03:46:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF45E2175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id DD219217F5
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 04:46:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="AhB3TneB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD219217F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2358D8E0002; Mon, 28 Jan 2019 22:46:04 -0500 (EST)
+	id 3B5448E0002; Mon, 28 Jan 2019 23:46:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1BD018E0001; Mon, 28 Jan 2019 22:46:04 -0500 (EST)
+	id 3649E8E0001; Mon, 28 Jan 2019 23:46:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 085F88E0002; Mon, 28 Jan 2019 22:46:04 -0500 (EST)
+	id 27AE38E0002; Mon, 28 Jan 2019 23:46:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B423F8E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 22:46:03 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id r9so15787709pfb.13
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 19:46:03 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC018E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 23:46:10 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id q64so15824144pfa.18
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 20:46:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=uIOdpABK+KWz0Ov8vP0byx8Zltq05uoyA1KXJEKJv/w=;
-        b=KCUFDGLXJiR47sDrNM1OqP2a50l2bAP/kgI9QwyzbZ7mCYsqq/Pw9N1GpsobVNtcYz
-         zCR6qb87+Gv0irebRble3z0L6lIKT1NGn/GjbaU+VPZHxhot+Yl8xJGbZVjoiotBRluP
-         0O7z7IkcmhQJ7RApx+mXu79cut/OVZqvxIAQJJnNcARI+hCM9d6kZKBXbI5obEMXCtKf
-         GOOm7K8RGzaqVBPWzNbsWC4XUo0E+dAFTxb/FOrNL7O7vTgPPJhlDBFsY4NzPzh7YGBI
-         eR6PMuQq2TqOoy2Cq57whv8GGjdg24ye39mxsS6yyU37YaSX1N6c9WuIz3RA5rBs3BB2
-         O3+g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-X-Gm-Message-State: AJcUukfJdARkj/Tm4UkVmB3DPH3t+QNIQ50CKEXyKKmSJgaebOpVxiNE
-	bhANG62pyAYRY44x5rKobz/Yq82R7QEN5AvpN37y0ED+TsEV3i5MJue84QAsJZJ2jIE03b+ygi+
-	VJEs5OQy9nWdbyj+WXHvv/jPv6/yzV6D9OTCDq/m6ytgkqsWTem8aj7mrVTNZyN1Kfw==
-X-Received: by 2002:a62:be0c:: with SMTP id l12mr23922609pff.51.1548733563397;
-        Mon, 28 Jan 2019 19:46:03 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6vCiaPg6ErTokWkrndkVBhiFOrL64hAa6Ut1NzPz/U58eWo4guH8bh0EA52kuiGmnczM+h
-X-Received: by 2002:a62:be0c:: with SMTP id l12mr23922573pff.51.1548733562641;
-        Mon, 28 Jan 2019 19:46:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548733562; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=eVdQI+bKFnHxHsyrWVjxAl5UcBq6aUXQPMqjgJnSXMU=;
+        b=kZWJMYW2L+G+/GAekXiB88i0R42FFDxLmM4wX/mZRfPJGz3mamx27ibu2+BRMFsf0K
+         dCifXTY6xhAlbNoA7ew1YpP3bLjpPKezfeBjosZimZ69onZUaxPBYuzmYbxwaNcNsmOj
+         fOMyxFmazQA7pFsZ9GpXsyIhopofAfF2k05zET3yfVuWZEk5bRv41fsWjBB9QCpDWwDw
+         OPlCc6PpxRbX/+OpqYbiiL3qVUIYzni53ufteo60WIihXj8tK3tT6Jylbo8FPreL2XSD
+         z/eW+vfjpxDEM8cgchb9/0wIAyh9MLAfFQxVx839anXGbZjXKnPJaQ+XkvcZdwY0s51d
+         VSnw==
+X-Gm-Message-State: AJcUukeTYhBpoUUIk1Z1/6bN0r2cjNtEUnsrFGrrJ2KUp7L/zGvUryM+
+	zSEloNi74yQ1226pJPlTQZr+xmWPP78BepRtoRYnkpXqGqYymV2gZiAqoAb4agzhKaXKix8SD1E
+	dlRqqkevVa9EWTLUWj4aUvT6bPtK2dyXfO+sIEjWHRLcfvvUMNUsMCcqxyLLo78mct0OYOKtwcg
+	sC4Id3iaijtZT+CSMJTP9xSquHc4ctpHsO52YYb9eUATio7XZ5OfDoIqjU0WCLPPv9NEM35oNeJ
+	Hc0lGSNb0xtiQWopOHfc6wu9Ad52RyKnF4SVoVMmbmXAAZ7rKRXGPOiE8plnSeSujd43uwkE1eo
+	Z0yLLlprSkOXQuGAc+6c2vKMfjwkf99da92OmVggv9jKqDeiVCCqzRjIZ334tBBAsZXH2K9dbHx
+	S
+X-Received: by 2002:a63:ff16:: with SMTP id k22mr22515823pgi.244.1548737170481;
+        Mon, 28 Jan 2019 20:46:10 -0800 (PST)
+X-Received: by 2002:a63:ff16:: with SMTP id k22mr22515795pgi.244.1548737169667;
+        Mon, 28 Jan 2019 20:46:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548737169; cv=none;
         d=google.com; s=arc-20160816;
-        b=pO/LBAKXLsmXuwepYtNfhXm/cPX5SGj9KmexT4/ugfXkZOS2QMTT30D2chTYOuDsHM
-         lnAnPfq/SSFYBvNrHZHocjM+BjRUjYgrlhBnTROhs3fsCfaZrp/G6OBgMY6O00rIFlNX
-         9dp9pPrzJGraHxhCZkZKdWVmBQXxUGztSCLlMGqktkxmJD3ZgrPywNgt3GlA9tfU6YE+
-         8jei0fOAnwENXK4sQln9dAH+Gq5fSGhrGsuaoDNyTsy6juXIitzYh/wInalmSbO7ghUZ
-         0HTcUD5YHzAZS0adwU0GhO3loq49DgghkXBWwZjQsQVdKJN7EWTFYnVXY/8yo6nTP0CW
-         nDCA==
+        b=Mfcgx6djUqlbsSwdBKQGGY7Oz7SrdZSjQk43ujt/+Tyvp4fWlo0xPt+5qv5WqjbasV
+         LO6slL0xlI1fGDaWLbjFxZ4rd+xXoP8tJE/kCLsLVMtxH5Cineb2IklpAQbHt2lM6/E3
+         psbD+KgHeIo+2mxBia212cBEj5DOggC4OBjZLavD8Rp84mL+P4MRCchfREcnntd+iFlB
+         faSUI/M74XKxviRoiLxg2ZtqoDJ2IWvd4yaCbdQHLIB2gGPF3/2JATDlRWEo7Yq8vR47
+         2XgiV6VEU7wMLkIWN7/TGgT4w/aZDAJ8AXCjEPNgOUZIPSwSnUrWzGXsm25jURp1rDUY
+         p6UQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=uIOdpABK+KWz0Ov8vP0byx8Zltq05uoyA1KXJEKJv/w=;
-        b=sli8kcMwbCG/eTwFsCL4fFxYldIAsyOBY7AwivbOWn7QtTkqiEWox15QVCDfE24uZE
-         ekx1zxfNOg1Idmtanc4ixvOdjP0IsuMd0ku2cav+A5rsTR/DVch1BKXPcMWBSAdvjzT4
-         EDJDF1+/MJdYRX4VB8sk9V7fbtgyAO1m9Fftu/YVPHihGCLEBVfyZ9RZ9QEph/eGELQn
-         dtBI995+esgCutWjD7AtrSlh9S/kifm6FjH1uNs5xq7cP/+7roYFCV6CkzJD69218Fvn
-         1l6yp3rMreg7X0nOCeHtY6rKfvt1XlKDluU76bHqUP7mSmAtlxTNxhWT2czcEhV0+loN
-         Gzjw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=eVdQI+bKFnHxHsyrWVjxAl5UcBq6aUXQPMqjgJnSXMU=;
+        b=o3aE7gALjjHt43p3op+AIpIMlEaykOI6Mbj6aUns3y6CANWCezEg5TK/cZ7ILLXfxn
+         20wAL53NoyXiYnWo6f6pjSrz+2vhJs+GajAtcfbTmgEuzVn6KNnLUKTuhk9Fv9ZjD05I
+         bow3NaQ55G9sed28vqSPAHBhH9oe93NdgmBz4QJIRUHarqW9e3L1Uri2vHR1j4+SBwHF
+         I5P9l39Kq1lPMZIAFFOAH0yhufAOBgQp8W1P2htMjHNj4pFcoBeO2v4oGe1/0OUoAr9E
+         PjRaIgCB7CdZeih9kt7WjcUVQa+8hn0Bt7Bca+nWYdIto7QMDi1O+/bXBhrXEe/rzGSa
+         Qk3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTPS id j24si30512015pgh.362.2019.01.28.19.46.02
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=AhB3TneB;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i98sor4254548plb.48.2019.01.28.20.46.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 19:46:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
+        (Google Transport Security);
+        Mon, 28 Jan 2019 20:46:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-X-UUID: a032271e0a8644039eaab1da89e4fc61-20190129
-X-UUID: a032271e0a8644039eaab1da89e4fc61-20190129
-Received: from mtkcas06.mediatek.inc [(172.21.101.30)] by mailgw02.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1622491935; Tue, 29 Jan 2019 11:45:58 +0800
-Received: from mtkcas08.mediatek.inc (172.21.101.126) by
- mtkexhb01.mediatek.inc (172.21.101.102) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Tue, 29 Jan 2019 11:45:57 +0800
-Received: from [172.21.77.33] (172.21.77.33) by mtkcas08.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Tue, 29 Jan 2019 11:45:57 +0800
-Message-ID: <1548733557.9796.13.camel@mtkswgap22>
-Subject: Re: [PATCH v2] mm/slub: introduce SLAB_WARN_ON_ERROR
-From: Miles Chen <miles.chen@mediatek.com>
-To: David Rientjes <rientjes@google.com>
-CC: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton
-	<akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>,
-	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	<linux-mediatek@lists.infradead.org>
-Date: Tue, 29 Jan 2019 11:45:57 +0800
-In-Reply-To: <alpine.DEB.2.21.1901281739230.216488@chino.kir.corp.google.com>
-References: <1548313223-17114-1-git-send-email-miles.chen@mediatek.com>
-	 <alpine.DEB.2.21.1901281739230.216488@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=AhB3TneB;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=eVdQI+bKFnHxHsyrWVjxAl5UcBq6aUXQPMqjgJnSXMU=;
+        b=AhB3TneBFy5a0D3ECmn3nW0DFD00d64H7KXVKa2rW5c8hyVHul1zsyPBj53m+pAEn6
+         a3VzM3KcH8t2Btm5Qz/EHVh0SVk4D/dz+4lBGsMUPMlsQY7JrJpIoUhRX3JvrLBTtrUF
+         hu+ABju5baJzTV6C6u2plaAYJbka1voJWQK4d1xS/t+oGAV5rgNy1Wtb9AmimQz9rDcn
+         NK9GIET8z8CNIMWhVivUtsc+vbDm3xHvUKYhE4pCMl18Fbj0RGgcb2b6wstWaTY5SErZ
+         eiwjt4GAeq78cF/eTYNjn5r5B/vr9moiRWvzJT1X3iffiFSmAiFT86VT01lQvrj8sZQe
+         VY+Q==
+X-Google-Smtp-Source: ALg8bN7+HaiY1XsTWvzakNPi7ADMWJt74gu5PpijmJ/RQm9hMIALtHjokkF1/++wIReWRCu9PvwyWQ==
+X-Received: by 2002:a17:902:7c05:: with SMTP id x5mr24101332pll.273.1548737169100;
+        Mon, 28 Jan 2019 20:46:09 -0800 (PST)
+Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
+        by smtp.gmail.com with ESMTPSA id h128sm66270847pgc.15.2019.01.28.20.46.08
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 28 Jan 2019 20:46:08 -0800 (PST)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1goLHj-00040F-Du; Mon, 28 Jan 2019 21:46:07 -0700
+Date: Mon, 28 Jan 2019 21:46:07 -0700
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, dledford@redhat.com, jack@suse.de,
+	ira.weiny@intel.com, linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, dennis.dalessandro@intel.com,
+	mike.marciniszyn@intel.com, Davidlohr Bueso <dbueso@suse.de>
+Subject: Re: [PATCH 3/6] drivers/IB,qib: do not use mmap_sem
+Message-ID: <20190129044607.GL25106@ziepe.ca>
+References: <20190121174220.10583-1-dave@stgolabs.net>
+ <20190121174220.10583-4-dave@stgolabs.net>
+ <20190128233140.GA12530@ziepe.ca>
 MIME-Version: 1.0
-X-MTK: N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190128233140.GA12530@ziepe.ca>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-01-28 at 17:41 -0800, David Rientjes wrote:
-> On Thu, 24 Jan 2019, miles.chen@mediatek.com wrote:
-> 
-> > From: Miles Chen <miles.chen@mediatek.com>
+On Mon, Jan 28, 2019 at 04:31:40PM -0700, Jason Gunthorpe wrote:
+> On Mon, Jan 21, 2019 at 09:42:17AM -0800, Davidlohr Bueso wrote:
+> > The driver uses mmap_sem for both pinned_vm accounting and
+> > get_user_pages(). By using gup_fast() and letting the mm handle
+> > the lock if needed, we can no longer rely on the semaphore and
+> > simplify the whole thing as the pinning is decoupled from the lock.
 > > 
-> > When debugging slab errors in slub.c, sometimes we have to trigger
-> > a panic in order to get the coredump file. Add a debug option
-> > SLAB_WARN_ON_ERROR to toggle WARN_ON() when the option is set.
+> > This also fixes a bug that __qib_get_user_pages was not taking into
+> > account the current value of pinned_vm.
 > > 
+> > Cc: dennis.dalessandro@intel.com
+> > Cc: mike.marciniszyn@intel.com
+> > Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+> > Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+> >  drivers/infiniband/hw/qib/qib_user_pages.c | 67 ++++++++++--------------------
+> >  1 file changed, 22 insertions(+), 45 deletions(-)
 > 
-> Wouldn't it be better to enable/disable this for all slab caches instead 
-> of individual caches at runtime?  I'm not sure excluding some caches 
-> because you know they'll WARN and trigger panic_on_warn unnecessarily is 
-> valid since it could be enabled for that cache as well through this 
-> interface.
+> I need you to respin this patch/series against the latest rdma tree:
+> 
+> git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git
+> 
+> branch for-next
+> 
+> > diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
+> > -static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
+> > -				struct page **p)
+> > -{
+> > -	unsigned long lock_limit;
+> > -	size_t got;
+> > -	int ret;
+> > -
+> > -	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> > -
+> > -	if (num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
+> > -		ret = -ENOMEM;
+> > -		goto bail;
+> > -	}
+> > -
+> > -	for (got = 0; got < num_pages; got += ret) {
+> > -		ret = get_user_pages(start_page + got * PAGE_SIZE,
+> > -				     num_pages - got,
+> > -				     FOLL_WRITE | FOLL_FORCE,
+> > -				     p + got, NULL);
+> 
+> As this has been rightly changed to get_user_pages_longterm, and I
+> think the right answer to solve the conflict is to discard some of
+> this patch?
 
-We can enable this option only for specific slab(s).
-e.g., slub_debug=W,dentry
-or
-enable this option for all slabs
-e.g., slub_debug=W
+.. and I'm looking at some of the other conversions here.. *most
+likely* any caller that is manipulating rlimit for get_user_pages
+should really be calling get_user_pages_longterm, so they should not
+be converted to use _fast?
+
+Jason
 
