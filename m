@@ -2,198 +2,192 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C256C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:43:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F74EC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:44:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4FFC72148E
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:43:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FFC72148E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7698920881
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:44:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7698920881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF2478E0003; Tue, 29 Jan 2019 05:43:58 -0500 (EST)
+	id 232358E0004; Tue, 29 Jan 2019 05:44:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA13E8E0001; Tue, 29 Jan 2019 05:43:58 -0500 (EST)
+	id 1E3108E0001; Tue, 29 Jan 2019 05:44:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C91E78E0003; Tue, 29 Jan 2019 05:43:58 -0500 (EST)
+	id 122858E0004; Tue, 29 Jan 2019 05:44:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A96C8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:43:58 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 82so16553681pfs.20
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:43:58 -0800 (PST)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE44E8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:44:09 -0500 (EST)
+Received: by mail-oi1-f198.google.com with SMTP id w124so10646270oif.3
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:44:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=6tw/Spgorzr+z46ez+p1qLoKZbkKiDIsWtkcQMgZTCU=;
-        b=s9Xg6RYaXFBOPSfudHPMyKqkFJxWSIANxihe55QCmteWkH45sFhL2x2sFxcCaLzVpP
-         g7tM511F9Db5DKfOtcb+pgcZMOyR0gYZV5AVmAkdtSj/90OlTxSpXnW/0qjSsYcPOPQ6
-         ar+PSPXc3zB/pDlU9UdKvMD7dzgr9f6B9NBlpVxPL6IRtN8TGQVZYeFBlcWHVCWCpzWu
-         G5GdyT34oFW5pe4wIOW97hLPnaRW7umVWODzE9CJsGv93XI1h95Rlhqp27sjuUX6DGS2
-         p/Br2uKW2RI2g0NH8UMfae8cR0COaEYBt4iYPHpVIVqzS9JG0jf18o7IJ+jEpik+TL0j
-         Ww1A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AJcUukcuo/ES0vifM9JAIpPRZS/D+0YvkbWIvAaxE8xHG3zPZPG+EFnX
-	rpGUQdFKGqR3q+zZeqT9x3hcxodB4bfO6CCzuJjcZoTT5z7qxoGpHPs1/1DXIKqjOV+oGYX1+NT
-	Yqzy2sl22+naxbWBlvKhflKEj59UWF6XQ7YUwa40rgXz9DcdDbC5KQgozmmvR2uUQEw==
-X-Received: by 2002:a62:5797:: with SMTP id i23mr12960287pfj.162.1548758638260;
-        Tue, 29 Jan 2019 02:43:58 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4sgJOQvIgDIyp/0FedR4vSZghrTOyo1FtTbX5/Y4JyLCdItBczGh3NkJ17B0/WGLeJCxBd
-X-Received: by 2002:a62:5797:: with SMTP id i23mr12960245pfj.162.1548758637459;
-        Tue, 29 Jan 2019 02:43:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548758637; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1Tqi37HP9mPnihzMYQj5eW8A7xelvMeutivY1c5N0Zs=;
+        b=FvoxAOp0yY5jwkZT5wW7ste/t6R/6OKPeVZ/36F09M99WMuf8lOU0dMEBIN6mlVGYp
+         YgaTa4o+AFRFnBiigO+9Mr1YV1Dp22VQibDAi7yBspwLDJsJa7QKpqVOFY1ZoyehP2qr
+         aVizyNaXUO1yI7ZGREjh5fb2m+JdXVvJ0w+qZXkrSRNFpdW2Rxb/EqInGEXE/+p1e+VG
+         ISipPSUoGxEfXVP/Sn3noG55XE6agsI6/SbU/qgLK50S3VEpli1pe/vPKHJuHxygpZ1m
+         tz6qaTFF2xJ70cWwosLYr0+3S+98YSyakXQLnZz6t7poNWhDUuiegiFtycm5CNtXxFfw
+         pRuw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: AJcUukfaHh7X5IRS6654tyTEzMi+HRiKwhGvg16NqSWhqsE1ChYIb5vB
+	YX3YWIXHqmyutREojQnMDu+lRWJr+PKF+OY9FTFynxkuGrYlXguqG4DZzyp/ErXTXniEysj3/3t
+	Ww/y1a9pPn4BqtGWjpR4GiYbrnYJYrdugubfbEgHRuLhJiHGnLeKytJHu+Sam8B+YBw==
+X-Received: by 2002:a9d:781:: with SMTP id 1mr18240376oto.250.1548758649665;
+        Tue, 29 Jan 2019 02:44:09 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7UYxMOoybr7TQbqUkBROh1o0HYMd50a4n1HM//++2RTBL4qEeClbwR6G79U93HjhUWqq5Z
+X-Received: by 2002:a9d:781:: with SMTP id 1mr18240326oto.250.1548758648048;
+        Tue, 29 Jan 2019 02:44:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548758648; cv=none;
         d=google.com; s=arc-20160816;
-        b=PJyN5z6ldkagnOEXxx9kamBFaCRLF4Y/WLctmiu2csuoMLA0d4CiSwzIikJW2mKzF1
-         zs8xDF73ShBtO1GlKmXZpY17INsFmDslxzyr0dsS4lLBbapwZuUx8HMMR9jfNF71MXKR
-         86ExMVihLRrH0u6/Fj/7SXC1efWQfSCOy2+pka3q2hcsS5tyQ9OObGMy3lUDMEHgMNKN
-         wNBhRa6rMR27KO3+BBycqIWiEhuUs8wA1mCjJPdqbHWJ5zbn6+adZTgAIsd92yAMyxnJ
-         j8QfY/beYN6sWCSiObMafNAPL7x2EbHxOpZdZNG5F10FjhlKHfKNKWSXaMRmS1WjxbXr
-         w/ew==
+        b=w1xyOTrA2ObXDTe4jC3APA2c+D3MD5Akmlehp8o3sVrwRVGumd9fJQ+N28Gg3OKhhj
+         RJQn2bnTPZAfS91mD0LXdV1j+TJLzXXZLc6MsQ/8M89TrPeOGmtGQ09zkdEedVmmTbp8
+         uOny+rH3Z2am7wFzHXndGjsgy4iQtqwrQ+vIM2M0vDztEp2t1bzr2jjX9NDyqhjdM5bX
+         kLw7MnFmGSrewTmLtBaXqLfPcV8guv8dPOFZVeri7PCQtrht7kNVmTJ0uP0gq4OLb139
+         Z+2dkpTgv6eDYLTwaBr9+CLq1x+EYGGETlFZ6aD6YnMR4DUF2Zrm2xquQlNuHOH0Mfrq
+         lqYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=6tw/Spgorzr+z46ez+p1qLoKZbkKiDIsWtkcQMgZTCU=;
-        b=Sl73HLtTtEGX3Q3419Qmj2ULPjLkkw2wMagwIvxxwoIYLh8vt/u5bHviv8Xy7pkzLS
-         3wY6BkrhjvBP+/lbNeLIEyYeFHY+MhcpIDZOl2VLdYOujLJsvCdZc13GwVyldV1R415F
-         aZM21Fq0C+s1Mqo8FajqBPawECywV5Zr9FFQfTQlTSxa4XqcAtPxGJa8LkeGJZQ3kwLX
-         x/ytmJgF5Le48XjlVu9ICgkzkTGsvPnpgXcbFsdhZl51c+kj7G9DCyYmvEth3sksFjkR
-         ihO6NJ8MqFE2Jub9tArqupxleycpysLKhxcnp0TZ78VkRXBIrJzt3qn1EUlLmdFPT2i8
-         GD9g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1Tqi37HP9mPnihzMYQj5eW8A7xelvMeutivY1c5N0Zs=;
+        b=RfD+2vEuyV7noH84H8iAPafVoffYZ4caXTX207SV1vwYhLX2uPP6ctykwevf9bGuSe
+         HSTcFLb6CS7sUxCc1IYTW9oCQu4+FoVlRbuy5Gx2KvzkBKVDO3UPuxkj2Qd5QvcIKXm9
+         bD/yA58qMoJJhjhAZuJmIeHW7C2Hz5Khjj7N1wKHJ379v5m6Ixo+Q0Gu8FUcIEIKmcKr
+         6H1yTm/fgz7xLEsyHKTk6lnL2zQ5KF0WD+lFFg9O5FlEAl6+8Ib4/tYxRbzYtuTDy8m4
+         mZAQuhx9ZIvbJxFJ5+LgxDNfxgZCTguvJd3YktFsP6bfQzsS6PAMcBW4uUkosEqWmcEy
+         eYRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u22si4004730pgk.335.2019.01.29.02.43.57
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-57.freemail.mail.aliyun.com (out30-57.freemail.mail.aliyun.com. [115.124.30.57])
+        by mx.google.com with ESMTPS id t4si5942812otq.281.2019.01.29.02.44.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 02:43:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 29 Jan 2019 02:44:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.57 as permitted sender) client-ip=115.124.30.57;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0TAdhvr100062
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:43:56 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qambubnt9-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:43:56 -0500
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 29 Jan 2019 10:43:54 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 29 Jan 2019 10:43:50 -0000
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x0TAhnFc56950932
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Tue, 29 Jan 2019 10:43:49 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5373F11C04A;
-	Tue, 29 Jan 2019 10:43:49 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 3D1C511C05B;
-	Tue, 29 Jan 2019 10:43:47 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.85.71.101])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue, 29 Jan 2019 10:43:47 +0000 (GMT)
-X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org,
-        mpe@ellerman.id.au, akpm@linux-foundation.org, x86@kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
-Subject: Re: [PATCH V5 0/5] NestMMU pte upgrade workaround for mprotect
-In-Reply-To: <20190116085035.29729-1-aneesh.kumar@linux.ibm.com>
-References: <20190116085035.29729-1-aneesh.kumar@linux.ibm.com>
-Date: Tue, 29 Jan 2019 16:13:45 +0530
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R231e4;CH=green;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01451;MF=joseph.qi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TJDFCqW_1548758633;
+Received: from JosephdeMacBook-Pro.local(mailfrom:joseph.qi@linux.alibaba.com fp:SMTPD_---0TJDFCqW_1548758633)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 29 Jan 2019 18:43:54 +0800
+Subject: Re: [PATCH] mm: fix sleeping function warning in alloc_swap_info
+To: Aaron Lu <aaron.lu@linux.alibaba.com>,
+ Jiufei Xue <jiufei.xue@linux.alibaba.com>, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
+ Vasily Averin <vvs@virtuozzo.com>
+References: <20190129072154.63783-1-jiufei.xue@linux.alibaba.com>
+ <f174c414-ed81-11a7-02cd-b024ef75d61f@linux.alibaba.com>
+From: Joseph Qi <joseph.qi@linux.alibaba.com>
+Message-ID: <d1bb1729-e742-6d30-539d-5b45cc1ddb72@linux.alibaba.com>
+Date: Tue, 29 Jan 2019 18:43:53 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:60.0)
+ Gecko/20100101 Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19012910-0020-0000-0000-0000030D407E
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19012910-0021-0000-0000-0000215E4385
-Message-Id: <87va27agm6.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-01-29_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=519 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1901290082
+In-Reply-To: <f174c414-ed81-11a7-02cd-b024ef75d61f@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-Andrew,
+On 19/1/29 16:53, Aaron Lu wrote:
+> On 2019/1/29 15:21, Jiufei Xue wrote:
+>> Trinity reports BUG:
+>>
+>> sleeping function called from invalid context at mm/vmalloc.c:1477
+>> in_atomic(): 1, irqs_disabled(): 0, pid: 12269, name: trinity-c1
+>>
+>> [ 2748.573460] Call Trace:
+>> [ 2748.575935]  dump_stack+0x91/0xeb
+>> [ 2748.578512]  ___might_sleep+0x21c/0x250
+>> [ 2748.581090]  remove_vm_area+0x1d/0x90
+>> [ 2748.583637]  __vunmap+0x76/0x100
+>> [ 2748.586120]  __se_sys_swapon+0xb9a/0x1220
+>> [ 2748.598973]  do_syscall_64+0x60/0x210
+>> [ 2748.601439]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>>
+>> This is triggered by calling kvfree() inside spinlock() section in
+>> function alloc_swap_info().
+>> Fix this by moving the kvfree() after spin_unlock().
+> 
+> The fix looks good to me.
+> 
+> BTW, swap_info_struct's size has been reduced to its original size:
+> 272 bytes by commit 66f71da9dd38("mm/swap: use nr_node_ids for
+> avail_lists in swap_info_struct"). I didn't use back kzalloc/kfree
+> in that commit since I don't see any any harm by keep using
+> kvzalloc/kvfree, but now looks like they're causing some trouble.
+> 
+> So what about using back kzalloc/kfree for swap_info_struct instead?
+> Can save one local variable and using kvzalloc/kvfree for a struct
+> that is 272 bytes doesn't really have any benefit.
+> 
+avail_lists in swap_info_struct is dynamic allocated.
+So if we use back kzalloc/kfree, how to deal with the case that
+nr_node_ids is big?
 
-How do you want to merge this? Michael Ellerman suggests this should go
-via -mm tree.
+Thanks,
+Joseph
 
--aneesh
-
-
-"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
-
-> We can upgrade pte access (R -> RW transition) via mprotect. We need
-> to make sure we follow the recommended pte update sequence as outlined in
-> commit bd5050e38aec ("powerpc/mm/radix: Change pte relax sequence to handle nest MMU hang")
-> for such updates. This patch series do that.
->
-> Changes from V4:
-> * Drop EXPORT_SYMBOL 
->
-> Changes from V3:
-> * Build fix for x86
->
-> Changes from V2:
-> * Update commit message for patch 4
-> * use radix tlb flush routines directly.
->
-> Changes from V1:
-> * Restrict ths only for R->RW upgrade. We don't need to do this for Autonuma
-> * Restrict this only for radix translation mode.
->
->
-> Aneesh Kumar K.V (5):
->   mm: Update ptep_modify_prot_start/commit to take vm_area_struct as arg
->   mm: update ptep_modify_prot_commit to take old pte value as arg
->   arch/powerpc/mm: Nest MMU workaround for mprotect RW upgrade.
->   mm/hugetlb: Add prot_modify_start/commit sequence for hugetlb update
->   arch/powerpc/mm/hugetlb: NestMMU workaround for hugetlb mprotect RW
->     upgrade
->
->  arch/powerpc/include/asm/book3s/64/hugetlb.h | 12 ++++++++++
->  arch/powerpc/include/asm/book3s/64/pgtable.h | 18 ++++++++++++++
->  arch/powerpc/include/asm/book3s/64/radix.h   |  4 ++++
->  arch/powerpc/mm/hugetlbpage-hash64.c         | 25 ++++++++++++++++++++
->  arch/powerpc/mm/hugetlbpage-radix.c          | 17 +++++++++++++
->  arch/powerpc/mm/pgtable-book3s64.c           | 25 ++++++++++++++++++++
->  arch/powerpc/mm/pgtable-radix.c              | 18 ++++++++++++++
->  arch/s390/include/asm/pgtable.h              |  5 ++--
->  arch/s390/mm/pgtable.c                       |  8 ++++---
->  arch/x86/include/asm/paravirt.h              | 13 +++++-----
->  arch/x86/include/asm/paravirt_types.h        |  5 ++--
->  arch/x86/xen/mmu.h                           |  4 ++--
->  arch/x86/xen/mmu_pv.c                        |  8 +++----
->  fs/proc/task_mmu.c                           |  8 ++++---
->  include/asm-generic/pgtable.h                | 18 +++++++-------
->  include/linux/hugetlb.h                      | 20 ++++++++++++++++
->  mm/hugetlb.c                                 |  8 ++++---
->  mm/memory.c                                  |  8 +++----
->  mm/mprotect.c                                |  6 ++---
->  19 files changed, 189 insertions(+), 41 deletions(-)
->
-> -- 
-> 2.20.1
+> Thanks,
+> Aaron
+> 
+>>
+>> Fixes: 873d7bcfd066 ("mm/swapfile.c: use kvzalloc for swap_info_struct allocation")
+>> Cc: <stable@vger.kernel.org>
+>> Reviewed-by: Joseph Qi <joseph.qi@linux.alibaba.com>
+>> Signed-off-by: Jiufei Xue <jiufei.xue@linux.alibaba.com>
+>> ---
+>>  mm/swapfile.c | 6 ++++--
+>>  1 file changed, 4 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/swapfile.c b/mm/swapfile.c
+>> index dbac1d49469d..d26c9eac3d64 100644
+>> --- a/mm/swapfile.c
+>> +++ b/mm/swapfile.c
+>> @@ -2810,7 +2810,7 @@ late_initcall(max_swapfiles_check);
+>>  
+>>  static struct swap_info_struct *alloc_swap_info(void)
+>>  {
+>> -	struct swap_info_struct *p;
+>> +	struct swap_info_struct *p, *tmp = NULL;
+>>  	unsigned int type;
+>>  	int i;
+>>  	int size = sizeof(*p) + nr_node_ids * sizeof(struct plist_node);
+>> @@ -2840,7 +2840,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+>>  		smp_wmb();
+>>  		nr_swapfiles++;
+>>  	} else {
+>> -		kvfree(p);
+>> +		tmp = p;
+>>  		p = swap_info[type];
+>>  		/*
+>>  		 * Do not memset this entry: a racing procfs swap_next()
+>> @@ -2853,6 +2853,8 @@ static struct swap_info_struct *alloc_swap_info(void)
+>>  		plist_node_init(&p->avail_lists[i], 0);
+>>  	p->flags = SWP_USED;
+>>  	spin_unlock(&swap_lock);
+>> +	kvfree(tmp);
+>> +
+>>  	spin_lock_init(&p->lock);
+>>  	spin_lock_init(&p->cont_lock);
+>>  
+>>
 
