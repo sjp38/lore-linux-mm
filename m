@@ -6,81 +6,81 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC0A5C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 093BBC3E8A4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 634DD20844
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 634DD20844
+	by mail.kernel.org (Postfix) with ESMTP id B75A22184D
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B75A22184D
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B260B8E0005; Tue, 29 Jan 2019 13:50:25 -0500 (EST)
+	id C85FB8E0012; Tue, 29 Jan 2019 13:50:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AFFFF8E0003; Tue, 29 Jan 2019 13:50:25 -0500 (EST)
+	id C16898E0003; Tue, 29 Jan 2019 13:50:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 979118E0005; Tue, 29 Jan 2019 13:50:25 -0500 (EST)
+	id A13188E0012; Tue, 29 Jan 2019 13:50:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 36CF78E0003
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:25 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id l45so8325822edb.1
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:25 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C138E0003
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:28 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id d41so8139751eda.12
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=XZL3kiVvEBTmTsFpHsmD8zXMGbIAxkgsYweoSP+KAII=;
-        b=jXo/vHtpf/EunBjDN1ZCwJ8oznL6dGURfOQXPXo4024JnyhiLyALEwfirYYd4XLlrY
-         7bucrzuaryxdTYH+3Fji4TrDIAQuhdBLx+hzEPBw/sqILd4s+l7m4VjfXoh74/Q+v9wc
-         rAPAE3Blz7FS24kWutsgo89evuWv9GeLSHzy6qAsf8UvFKyliDvGjsYt5Ia/obN3A+YC
-         N5kVZLcTNnVp2aSNPPWTcDcSP+GyK+zCkobljxmrktftX4wpznQMdog6RG84R1yFzgjf
-         zeBbKaAeIuvw3mDY4FtNcm3rw6mtUsS1pEL4JuqJQKnYv4uxKPQfu8TQN/HCqKzoqwJ7
-         R3xg==
+        bh=+/VkkUETllQIA07Icbpa2r7ErALoSIv6fRodU1kN9Fs=;
+        b=SkIO++l8N8LJTe2DI7FFBWPLfVvHvzi7Huth+JL8IFMnIxA9sMnZz8PQoGNHD5cTNM
+         cRTgSsgZYka0LVrIWjHLRpl87zLNSROmC1Fmkjb1Lvg7wpTguLj+nfsOL9SomK0fWHiJ
+         iTpR4YXcBNJJz52l92sDHvzk8HXBm/8ikBR3CPrb558SHRBWA7cPW9y5dt42CWEXdwWm
+         u7qQ6tQ3J6KAtMhzV0tJMC3ZP7kDeWkZqUa4frhrehz/AJHYJSoVF/ZzGLrqX5pg+xwc
+         N8r2SsUQt+s5R6WwBQDLlzyxRPDXWUFYL/hbzG3iyzfseSF5ew90NzABQ0B81PDqtR52
+         yyQw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-X-Gm-Message-State: AJcUukf9kVXHKQikxvvWs4sHHtUjbIEW2QmYjdahon2A91xE4wHZp/MJ
-	x76OpD9E9fehdKBDDRS1eU2Aa/YyRYmPJmzao+L5MgOGMQkf/L2Qjlxl4RTm0UP8QDOc9WxcLZK
-	Q5LF2d/83IpWpUWi377eNA5QME6vvn+6fcnoM+klQrk4V31HdYSrjJ99db8P6Ol4IRw==
-X-Received: by 2002:a17:906:b749:: with SMTP id fx9mr6292147ejb.38.1548787824686;
-        Tue, 29 Jan 2019 10:50:24 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6vmNWWDRHaGcaUHZETjUywlAhL4dF8nuFQEzzKaqncD2x6uhLU1EFom2hj2g1EH7mC/OoP
-X-Received: by 2002:a17:906:b749:: with SMTP id fx9mr6292080ejb.38.1548787823458;
-        Tue, 29 Jan 2019 10:50:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548787823; cv=none;
+X-Gm-Message-State: AJcUukcMknXg1PTQMyXu7nxveEWLxQausaagpi3tnoui9G8P0nhBdToL
+	Z1Rkg0VQPRiVSc2fmMEu9K0wl7VSsrkI7axpQVwrcweGS7M38WUIUEcrvHHdgWF9D+YtkY3K9mm
+	1DG+28njrGa87ab3iLe8xdKs2XovHdmgBYIW0wAe2kfryOReaR9HcUGvsPkjzsrPxYg==
+X-Received: by 2002:a50:8bc9:: with SMTP id n9mr26805189edn.41.1548787827681;
+        Tue, 29 Jan 2019 10:50:27 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6WZd1QvS2HSl0JR48aBN/S5MkzuN4LLc3/R+O8eg4j5u3z4Rh5iQfeSAFAryu2vkrvERRG
+X-Received: by 2002:a50:8bc9:: with SMTP id n9mr26805123edn.41.1548787826561;
+        Tue, 29 Jan 2019 10:50:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548787826; cv=none;
         d=google.com; s=arc-20160816;
-        b=zcfTQkBCejQMKVAc3w8Eng2HxbyHWHE38TUOXBpE/aWkRaRX0WiFXruLzAxyv/lhNG
-         KeK5vz4IcDL0Qh0PnL+8ROhD8dXlywyAnTt8J1wqO64pjPhmMbDpNT6N3do9NUlsfc50
-         I63fwONQ7M/q82B0gH6BX9bCQGMR21GNdq6fhxGikTxaEp2Oz3jUb3CXGLdRejq1eoX0
-         9EZ0XuMbZD2+eRGvVBjb5/043yb0QVzfemqKnCLs4Pu+hRvxYOUJ8FfVJN5ijydW96yz
-         Z4FKjflfaUVajyt2PBJPbE2xsS2w5nkqSGhoaO5Ktq8ZsBei0MPivCCctYHm1iWB3zOv
-         vDQg==
+        b=lf+9TlL4ygzuI4nSpqjKuyWqkTmD4TIkCG0BQXv0XsG9/sXuWDV6awb0Pyuci+867D
+         fY/ZL/T1YH1GMqqUSX8ly59kErJPdzYtG2udXNCz5S6YHwBj5zJ7uZmqA9UBscL05/sw
+         QGdyHxwNkVvkA5Gp1kY0cSklCQVNwrV9mW31fncOUGWWC/+WS5iItC66Pq2dBYbqQ+Em
+         b3vHdetIoxr7sH1CwZ6d7C9GWcejsrVPquTQaMp4hbxBHwNMTU+52Ey/KiaN7ZWmv5hd
+         INFn156ommAtYGqpbl6x/oQXxmwOJVdrul1AvYYQCK4Igob0FaAWl4kLPLMFJKUZYgwZ
+         b8wg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=XZL3kiVvEBTmTsFpHsmD8zXMGbIAxkgsYweoSP+KAII=;
-        b=05L35U9Wi/rVSafXQadxOltt3DS3BMZ+rRGZJ9VtKclgr8Z2wlmCP2BaXO2sArm6Nz
-         xJPa1H+6Br3ZYtXkit+zaxBDhGVdokaNOkfMoPo4tPPr8iW/S+bT70+OvxBhAS4K982B
-         KyrL7XbS5H1D0fJdXcT2ORZ7lTSNCoX8DMgnMTz3utatLuZAigIBy8fNgAtlJYI0S4pa
-         eeMlRcm+DzyQJX09/wi+bvFB0ABg0EqqwlycPrEGWiClx0odwM3kxECIBvsr3ACVpYYd
-         MLnOXp9IbPTrrUEC5RESaWTQbbvYXpKHZ777J2e2xcKHcBxtdFShCHg8/mEKo23rZSzk
-         0Lmw==
+        bh=+/VkkUETllQIA07Icbpa2r7ErALoSIv6fRodU1kN9Fs=;
+        b=Mdq6Ggsug2gBIJ2w0zUhIw0dT70cbi70KOB8bMVfhR69IhmJv2dApUCsO/v24WuegA
+         FYfNWb/GBM2Af2V8PuI4HjkkkKBxhCfwrvYR6aaNPqTg+MV3ZxcCh57znYMYtytEOdVR
+         x5d+ArOP8uqfR0WASNwR4+BjPY32WVDCS/3D382SEN3iW0nsA71CeGtNE0/VgR8vPaCI
+         VDik0aC9AWyFBe1k0vg1ncaEP6TgRT7jNowA3oNxvh8APm+N9KScta8xiNVxicktMb2V
+         ocLFl+RXP4dp1lo1F9SGCG5GdOZcJuf9cj9Dq+c8fWeXsNGEDkwVzF20H3pK1DyCXW4u
+         z35w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u37si2009610edm.419.2019.01.29.10.50.23
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f22si1914677ejw.196.2019.01.29.10.50.26
         for <linux-mm@kvack.org>;
-        Tue, 29 Jan 2019 10:50:23 -0800 (PST)
+        Tue, 29 Jan 2019 10:50:26 -0800 (PST)
 Received-SPF: pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 722A61650;
-	Tue, 29 Jan 2019 10:50:22 -0800 (PST)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 815EB15AB;
+	Tue, 29 Jan 2019 10:50:25 -0800 (PST)
 Received: from eglon.cambridge.arm.com (eglon.cambridge.arm.com [10.1.196.105])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C530E3F557;
-	Tue, 29 Jan 2019 10:50:19 -0800 (PST)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B11E93F557;
+	Tue, 29 Jan 2019 10:50:22 -0800 (PST)
 From: James Morse <james.morse@arm.com>
 To: linux-acpi@vger.kernel.org
 Cc: kvmarm@lists.cs.columbia.edu,
@@ -98,9 +98,9 @@ Cc: kvmarm@lists.cs.columbia.edu,
 	Dongjiu Geng <gengdongjiu@huawei.com>,
 	Xie XiuQi <xiexiuqi@huawei.com>,
 	james.morse@arm.com
-Subject: [PATCH v8 15/26] ACPI / APEI: Move locking to the notification helper
-Date: Tue, 29 Jan 2019 18:48:51 +0000
-Message-Id: <20190129184902.102850-16-james.morse@arm.com>
+Subject: [PATCH v8 16/26] ACPI / APEI: Let the notification helper specify the fixmap slot
+Date: Tue, 29 Jan 2019 18:48:52 +0000
+Message-Id: <20190129184902.102850-17-james.morse@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190129184902.102850-1-james.morse@arm.com>
 References: <20190129184902.102850-1-james.morse@arm.com>
@@ -112,178 +112,277 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ghes_copy_tofrom_phys() takes different locks depending on in_nmi().
-This doesn't work if there are multiple NMI-like notifications, that
-can interrupt each other.
+ghes_copy_tofrom_phys() uses a different fixmap slot depending on in_nmi().
+This doesn't work when there are multiple NMI-like notifications, that
+could interrupt each other.
 
-Now that NOTIFY_SEA is always called in the same context, move the
-lock-taking to the notification helper. The helper will always know
-which lock to take. This avoids ghes_copy_tofrom_phys() taking a guess
-based on in_nmi().
+As with the locking, move the chosen fixmap_idx to the notification helper.
+This only matters for NMI-like notifications, anything calling
+ghes_proc() can use the IRQ fixmap slot as its already holding an irqsave
+spinlock.
 
-This splits NOTIFY_NMI and NOTIFY_SEA to use different locks. All
-the other notifications use ghes_proc(), and are called in process
-or IRQ context. Move the spin_lock_irqsave() around their ghes_proc()
-calls.
+This lets us collapse the ghes_ioremap_pfn_*() helpers.
 
 Signed-off-by: James Morse <james.morse@arm.com>
 Reviewed-by: Borislav Petkov <bp@suse.de>
 ---
 
-Changes since v7:
- * Moved the locks into the function that uses them to make it clearer this
-   is only use in_nmi().
+The fixmap-idx and vaddr are passed back to ghes_unmap()
+to allow ioremap() to be used in process context in the
+future. This will let us send tlbi-ipi for notifications
+that don't mask irqs.
 
-Changes since v6:
- * Tinkered with the commit message
- * Lock definitions have moved due to the #ifdefs
+Changes since v7:
+ * Wwitched unmap arg order for concistency, p/v addr is always first
+ * use the enum name for the fixmap_idx, in the hope the compiler validates it.
 ---
- drivers/acpi/apei/ghes.c | 34 +++++++++++++++++++++++++---------
- 1 file changed, 25 insertions(+), 9 deletions(-)
+ drivers/acpi/apei/ghes.c | 92 +++++++++++++++++-----------------------
+ 1 file changed, 39 insertions(+), 53 deletions(-)
 
 diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index ab794ab29554..c6bc73281d6a 100644
+index c6bc73281d6a..ccad57468ab7 100644
 --- a/drivers/acpi/apei/ghes.c
 +++ b/drivers/acpi/apei/ghes.c
-@@ -114,11 +114,10 @@ static DEFINE_MUTEX(ghes_list_mutex);
-  * handler, but general ioremap can not be used in atomic context, so
-  * the fixmap is used instead.
-  *
-- * These 2 spinlocks are used to prevent the fixmap entries from being used
-+ * This spinlock is used to prevent the fixmap entry from being used
-  * simultaneously.
-  */
--static DEFINE_RAW_SPINLOCK(ghes_ioremap_lock_nmi);
--static DEFINE_SPINLOCK(ghes_ioremap_lock_irq);
-+static DEFINE_SPINLOCK(ghes_notify_lock_irq);
+@@ -41,6 +41,7 @@
+ #include <linux/llist.h>
+ #include <linux/genalloc.h>
+ #include <linux/pci.h>
++#include <linux/pfn.h>
+ #include <linux/aer.h>
+ #include <linux/nmi.h>
+ #include <linux/sched/clock.h>
+@@ -127,38 +128,24 @@ static atomic_t ghes_estatus_cache_alloced;
  
- static struct gen_pool *ghes_estatus_pool;
- static unsigned long ghes_estatus_pool_size_request;
-@@ -287,7 +286,6 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
- 				  int from_phys)
+ static int ghes_panic_timeout __read_mostly = 30;
+ 
+-static void __iomem *ghes_ioremap_pfn_nmi(u64 pfn)
++static void __iomem *ghes_map(u64 pfn, enum fixed_addresses fixmap_idx)
+ {
+ 	phys_addr_t paddr;
+ 	pgprot_t prot;
+ 
+-	paddr = pfn << PAGE_SHIFT;
++	paddr = PFN_PHYS(pfn);
+ 	prot = arch_apei_get_mem_attribute(paddr);
+-	__set_fixmap(FIX_APEI_GHES_NMI, paddr, prot);
++	__set_fixmap(fixmap_idx, paddr, prot);
+ 
+-	return (void __iomem *) fix_to_virt(FIX_APEI_GHES_NMI);
++	return (void __iomem *) __fix_to_virt(fixmap_idx);
+ }
+ 
+-static void __iomem *ghes_ioremap_pfn_irq(u64 pfn)
++static void ghes_unmap(void __iomem *vaddr, enum fixed_addresses fixmap_idx)
+ {
+-	phys_addr_t paddr;
+-	pgprot_t prot;
+-
+-	paddr = pfn << PAGE_SHIFT;
+-	prot = arch_apei_get_mem_attribute(paddr);
+-	__set_fixmap(FIX_APEI_GHES_IRQ, paddr, prot);
++	int _idx = virt_to_fix((unsigned long)vaddr);
+ 
+-	return (void __iomem *) fix_to_virt(FIX_APEI_GHES_IRQ);
+-}
+-
+-static void ghes_iounmap_nmi(void)
+-{
+-	clear_fixmap(FIX_APEI_GHES_NMI);
+-}
+-
+-static void ghes_iounmap_irq(void)
+-{
+-	clear_fixmap(FIX_APEI_GHES_IRQ);
++	WARN_ON_ONCE(fixmap_idx != _idx);
++	clear_fixmap(fixmap_idx);
+ }
+ 
+ int ghes_estatus_pool_init(int num_ghes)
+@@ -283,20 +270,16 @@ static inline int ghes_severity(int severity)
+ }
+ 
+ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+-				  int from_phys)
++				  int from_phys,
++				  enum fixed_addresses fixmap_idx)
  {
  	void __iomem *vaddr;
--	unsigned long flags = 0;
- 	int in_nmi = in_nmi();
+-	int in_nmi = in_nmi();
  	u64 offset;
  	u32 trunk;
-@@ -295,10 +293,8 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+ 
  	while (len > 0) {
  		offset = paddr - (paddr & PAGE_MASK);
- 		if (in_nmi) {
--			raw_spin_lock(&ghes_ioremap_lock_nmi);
- 			vaddr = ghes_ioremap_pfn_nmi(paddr >> PAGE_SHIFT);
- 		} else {
--			spin_lock_irqsave(&ghes_ioremap_lock_irq, flags);
- 			vaddr = ghes_ioremap_pfn_irq(paddr >> PAGE_SHIFT);
- 		}
+-		if (in_nmi) {
+-			vaddr = ghes_ioremap_pfn_nmi(paddr >> PAGE_SHIFT);
+-		} else {
+-			vaddr = ghes_ioremap_pfn_irq(paddr >> PAGE_SHIFT);
+-		}
++		vaddr = ghes_map(PHYS_PFN(paddr), fixmap_idx);
  		trunk = PAGE_SIZE - offset;
-@@ -312,10 +308,8 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+ 		trunk = min(trunk, len);
+ 		if (from_phys)
+@@ -306,15 +289,13 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
+ 		len -= trunk;
+ 		paddr += trunk;
  		buffer += trunk;
- 		if (in_nmi) {
- 			ghes_iounmap_nmi();
--			raw_spin_unlock(&ghes_ioremap_lock_nmi);
- 		} else {
- 			ghes_iounmap_irq();
--			spin_unlock_irqrestore(&ghes_ioremap_lock_irq, flags);
- 		}
+-		if (in_nmi) {
+-			ghes_iounmap_nmi();
+-		} else {
+-			ghes_iounmap_irq();
+-		}
++		ghes_unmap(vaddr, fixmap_idx);
  	}
  }
-@@ -729,8 +723,11 @@ static void ghes_add_timer(struct ghes *ghes)
- static void ghes_poll_func(struct timer_list *t)
- {
- 	struct ghes *ghes = from_timer(ghes, t, timer);
-+	unsigned long flags;
  
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	ghes_proc(ghes);
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
- 	if (!(ghes->flags & GHES_EXITING))
- 		ghes_add_timer(ghes);
- }
-@@ -738,9 +735,12 @@ static void ghes_poll_func(struct timer_list *t)
- static irqreturn_t ghes_irq_func(int irq, void *data)
+-static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
++static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr,
++			     enum fixed_addresses fixmap_idx)
++
  {
- 	struct ghes *ghes = data;
-+	unsigned long flags;
+ 	struct acpi_hest_generic *g = ghes->generic;
+ 	u32 len;
+@@ -332,7 +313,7 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ 		return -ENOENT;
+ 
+ 	ghes_copy_tofrom_phys(ghes->estatus, *buf_paddr,
+-			      sizeof(*ghes->estatus), 1);
++			      sizeof(*ghes->estatus), 1, fixmap_idx);
+ 	if (!ghes->estatus->block_status) {
+ 		*buf_paddr = 0;
+ 		return -ENOENT;
+@@ -348,7 +329,7 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ 		goto err_read_block;
+ 	ghes_copy_tofrom_phys(ghes->estatus + 1,
+ 			      *buf_paddr + sizeof(*ghes->estatus),
+-			      len - sizeof(*ghes->estatus), 1);
++			      len - sizeof(*ghes->estatus), 1, fixmap_idx);
+ 	if (cper_estatus_check(ghes->estatus))
+ 		goto err_read_block;
+ 	rc = 0;
+@@ -361,7 +342,8 @@ static int ghes_read_estatus(struct ghes *ghes, u64 *buf_paddr)
+ 	return rc;
+ }
+ 
+-static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr)
++static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr,
++			       enum fixed_addresses fixmap_idx)
+ {
+ 	ghes->estatus->block_status = 0;
+ 
+@@ -369,7 +351,8 @@ static void ghes_clear_estatus(struct ghes *ghes, u64 buf_paddr)
+ 		return;
+ 
+ 	ghes_copy_tofrom_phys(ghes->estatus, buf_paddr,
+-			      sizeof(ghes->estatus->block_status), 0);
++			      sizeof(ghes->estatus->block_status), 0,
++			      fixmap_idx);
+ 
+ 	/*
+ 	 * GHESv2 type HEST entries introduce support for error acknowledgment,
+@@ -668,11 +651,12 @@ static void ghes_estatus_cache_add(
+ 	rcu_read_unlock();
+ }
+ 
+-static void __ghes_panic(struct ghes *ghes, u64 buf_paddr)
++static void __ghes_panic(struct ghes *ghes, u64 buf_paddr,
++			 enum fixed_addresses fixmap_idx)
+ {
+ 	__ghes_print_estatus(KERN_EMERG, ghes->generic, ghes->estatus);
+ 
+-	ghes_clear_estatus(ghes, buf_paddr);
++	ghes_clear_estatus(ghes, buf_paddr, fixmap_idx);
+ 
+ 	/* reboot to log the error! */
+ 	if (!panic_timeout)
+@@ -685,12 +669,12 @@ static int ghes_proc(struct ghes *ghes)
+ 	u64 buf_paddr;
  	int rc;
  
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	rc = ghes_proc(ghes);
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
+-	rc = ghes_read_estatus(ghes, &buf_paddr);
++	rc = ghes_read_estatus(ghes, &buf_paddr, FIX_APEI_GHES_IRQ);
  	if (rc)
- 		return IRQ_NONE;
+ 		goto out;
  
-@@ -751,14 +751,17 @@ static int ghes_notify_hed(struct notifier_block *this, unsigned long event,
- 			   void *data)
- {
- 	struct ghes *ghes;
-+	unsigned long flags;
- 	int ret = NOTIFY_DONE;
- 
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(ghes, &ghes_hed, list) {
- 		if (!ghes_proc(ghes))
- 			ret = NOTIFY_OK;
+ 	if (ghes_severity(ghes->estatus->error_severity) >= GHES_SEV_PANIC) {
+-		__ghes_panic(ghes, buf_paddr);
++		__ghes_panic(ghes, buf_paddr, FIX_APEI_GHES_IRQ);
  	}
- 	rcu_read_unlock();
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
  
- 	return ret;
+ 	if (!ghes_estatus_cached(ghes->estatus)) {
+@@ -700,7 +684,7 @@ static int ghes_proc(struct ghes *ghes)
+ 	ghes_do_proc(ghes, ghes->estatus);
+ 
+ out:
+-	ghes_clear_estatus(ghes, buf_paddr);
++	ghes_clear_estatus(ghes, buf_paddr, FIX_APEI_GHES_IRQ);
+ 
+ 	return rc;
  }
-@@ -913,7 +916,14 @@ static LIST_HEAD(ghes_sea);
-  */
- int ghes_notify_sea(void)
- {
--	return ghes_in_nmi_spool_from_list(&ghes_sea);
-+	static DEFINE_RAW_SPINLOCK(ghes_notify_lock_sea);
-+	int rv;
-+
-+	raw_spin_lock(&ghes_notify_lock_sea);
-+	rv = ghes_in_nmi_spool_from_list(&ghes_sea);
-+	raw_spin_unlock(&ghes_notify_lock_sea);
-+
-+	return rv;
+@@ -866,36 +850,38 @@ static void __process_error(struct ghes *ghes)
+ #endif
  }
  
- static void ghes_sea_add(struct ghes *ghes)
-@@ -946,14 +956,17 @@ static LIST_HEAD(ghes_nmi);
- 
- static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+-static int ghes_in_nmi_queue_one_entry(struct ghes *ghes)
++static int ghes_in_nmi_queue_one_entry(struct ghes *ghes,
++				       enum fixed_addresses fixmap_idx)
  {
-+	static DEFINE_RAW_SPINLOCK(ghes_notify_lock_nmi);
- 	int err, ret = NMI_DONE;
+ 	u64 buf_paddr;
+ 	int sev;
  
- 	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
- 		return ret;
+-	if (ghes_read_estatus(ghes, &buf_paddr)) {
+-		ghes_clear_estatus(ghes, buf_paddr);
++	if (ghes_read_estatus(ghes, &buf_paddr, fixmap_idx)) {
++		ghes_clear_estatus(ghes, buf_paddr, fixmap_idx);
+ 		return -ENOENT;
+ 	}
  
-+	raw_spin_lock(&ghes_notify_lock_nmi);
- 	err = ghes_in_nmi_spool_from_list(&ghes_nmi);
- 	if (!err)
- 		ret = NMI_HANDLED;
-+	raw_spin_unlock(&ghes_notify_lock_nmi);
+ 	sev = ghes_severity(ghes->estatus->error_severity);
+ 	if (sev >= GHES_SEV_PANIC) {
+ 		ghes_print_queued_estatus();
+-		__ghes_panic(ghes, buf_paddr);
++		__ghes_panic(ghes, buf_paddr, fixmap_idx);
+ 	}
  
- 	atomic_dec(&ghes_in_nmi);
- 	return ret;
-@@ -995,6 +1008,7 @@ static int ghes_probe(struct platform_device *ghes_dev)
- {
- 	struct acpi_hest_generic *generic;
- 	struct ghes *ghes = NULL;
-+	unsigned long flags;
- 
- 	int rc = -EINVAL;
- 
-@@ -1097,7 +1111,9 @@ static int ghes_probe(struct platform_device *ghes_dev)
- 	ghes_edac_register(ghes, &ghes_dev->dev);
- 
- 	/* Handle any pending errors right away */
-+	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
- 	ghes_proc(ghes);
-+	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
+ 	__process_error(ghes);
+-	ghes_clear_estatus(ghes, buf_paddr);
++	ghes_clear_estatus(ghes, buf_paddr, fixmap_idx);
  
  	return 0;
+ }
  
+-static int ghes_in_nmi_spool_from_list(struct list_head *rcu_list)
++static int ghes_in_nmi_spool_from_list(struct list_head *rcu_list,
++				       enum fixed_addresses fixmap_idx)
+ {
+ 	int err, ret = -ENOENT;
+ 	struct ghes *ghes;
+ 
+ 	rcu_read_lock();
+ 	list_for_each_entry_rcu(ghes, rcu_list, list) {
+-		err = ghes_in_nmi_queue_one_entry(ghes);
++		err = ghes_in_nmi_queue_one_entry(ghes, fixmap_idx);
+ 		if (!err)
+ 			ret = 0;
+ 	}
+@@ -920,7 +906,7 @@ int ghes_notify_sea(void)
+ 	int rv;
+ 
+ 	raw_spin_lock(&ghes_notify_lock_sea);
+-	rv = ghes_in_nmi_spool_from_list(&ghes_sea);
++	rv = ghes_in_nmi_spool_from_list(&ghes_sea, FIX_APEI_GHES_NMI);
+ 	raw_spin_unlock(&ghes_notify_lock_sea);
+ 
+ 	return rv;
+@@ -963,7 +949,7 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+ 		return ret;
+ 
+ 	raw_spin_lock(&ghes_notify_lock_nmi);
+-	err = ghes_in_nmi_spool_from_list(&ghes_nmi);
++	err = ghes_in_nmi_spool_from_list(&ghes_nmi, FIX_APEI_GHES_NMI);
+ 	if (!err)
+ 		ret = NMI_HANDLED;
+ 	raw_spin_unlock(&ghes_notify_lock_nmi);
 -- 
 2.20.1
 
