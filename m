@@ -6,64 +6,64 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CFBF7C3E8A4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6300BC282CD
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97A7F2184D
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97A7F2184D
+	by mail.kernel.org (Postfix) with ESMTP id 15E9A20870
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15E9A20870
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 282628E0008; Mon, 28 Jan 2019 19:39:14 -0500 (EST)
+	id 500B88E0004; Mon, 28 Jan 2019 19:39:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1F9318E0007; Mon, 28 Jan 2019 19:39:14 -0500 (EST)
+	id 491888E0009; Mon, 28 Jan 2019 19:39:14 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 112428E0006; Mon, 28 Jan 2019 19:39:14 -0500 (EST)
+	id 26E908E0006; Mon, 28 Jan 2019 19:39:14 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C0CAF8E0001
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CB3768E0003
 	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 19:39:13 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id p15so15383073pfk.7
+Received: by mail-pl1-f198.google.com with SMTP id p3so13023025plk.9
         for <linux-mm@kvack.org>; Mon, 28 Jan 2019 16:39:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=MIEM7tFANWCvfO0km255hENS9lmP/VKfFRdymqsmEG4=;
-        b=LBHmsfyv/LCx6Jt9Ckok6Im5Lv1xPZ8Y+utaYlbt3nRXBrCIm6lOvYeAas2J+ci5Fo
-         JOo+zdw0mAfwl1Pj6xSrM5tVsEsOeTOGL5V5kN0/5yVp0neIDgLUdzLsE8YsPwtTaHCe
-         SyCjqKSXmeIXGA71dXnUkCszIg1e1CYxigXfOMqeeGzqTFoJezSzyV1QLrIychvZF2n0
-         z64hXnuzAsi/judViyW2A30tTziQDCLQ5LPd5vyf4R8ZJ5DeOOGC4gXG91SeKv6k68zL
-         lPkfyaUsSCvkhaUOdmINrMtdAJlVDf4xSrmqKk7p0KQyVvi1xAlTMcPEL+dU0UpSRccQ
-         TNJg==
+        bh=YsGRUJOea66o8yQ6mNkBDAZI1aC2dZ1ziRGeicCYzT8=;
+        b=NDBDCBLVTGFAu94sY0luW+5ijP4E95t9I04kXlGkMFKLELmp++Bf+eQtOsP6HLIahm
+         F5IpN5aXUXQr7ClZdY84BJ5z8yCiKEosJzBUu5nguetZ+AxOQmDFgGJCuETMWW7069Yl
+         nsTsaDqMC9SX+CRk7nlU+4AeO99Mmq7vPPdt56e5RVRasydhn89rrgHk/rYiCvGlj4mx
+         pIVmmSKq3KllrDx48b5aJM5XY4MVroDtMZTFzYQ3orhGpuSqQdXUjhF1mis7HktOyWq3
+         M9VceJwRWzb/d7CcgNRWJIo50kmNZoVWuF2SvpaI8fWUbqU4N2x5qw3UG16w47xmc+Oo
+         SIlQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukflHXBBWw73UDPhr4TA/r1JmHI5wl32r3A10Tu7e+91BUWze3LJ
-	OWe8RzO4SVaxJ1tS/M1I1YxddLMoE33n6peyM0PMYnQEVes9dxf7XEKBC2/75+WpmKyP6rXgRUI
-	sCkGJuqZVs+DcJ3MHcNv+tz0Z+tQtmUAQBFURXliSYHpOBgHUJMkAnGHQtrauKY0JBQ==
-X-Received: by 2002:a17:902:c05:: with SMTP id 5mr24106496pls.155.1548722353450;
+X-Gm-Message-State: AJcUukczE0gwddW6faiF9gsyVoyba5qP97VLzcEHiFmYYZmDqAyiOrNB
+	NIXOsu1cMhkrN8arg2pDL8vp7p7K4b7JhJJFcTDmq0B1q38bT1jTj0rZdB6vzzgWt3z7S+qNZ+X
+	I/K1+oId7+QfkGWKOARGE5c1FZKQtL3piZlXilfhyl6NUbFONpbGWUKYGJf0nTuot2Q==
+X-Received: by 2002:a63:24c2:: with SMTP id k185mr21083104pgk.406.1548722353449;
         Mon, 28 Jan 2019 16:39:13 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN51RWJbF4K+0gtIldLEJvGY0Ez67nKfgyHYuP4+WVi6SnGB7nc76EDOzCyKdxFGumAggyl8
-X-Received: by 2002:a17:902:c05:: with SMTP id 5mr24106466pls.155.1548722352785;
+X-Google-Smtp-Source: ALg8bN4hv2M8oWcfpCTcid7Tf0mUgFP65LhyIZNWoEjaOFPaEyiY985PINGorpsBKnVYPcjfFF2D
+X-Received: by 2002:a63:24c2:: with SMTP id k185mr21083056pgk.406.1548722352459;
         Mon, 28 Jan 2019 16:39:12 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1548722352; cv=none;
         d=google.com; s=arc-20160816;
-        b=pyzKWu4aOoGqq4iivSy6Xiw42iWnMnY8eaxl6KSIGklR+YprG9uLgKpQp6ZS9dzS7n
-         +5cD+3ZZgx29Q+d2TkyDCX3lYj77+YKt2G1tgAAAsSAPA0GowqrHUgwgJbtjPXlBLwVl
-         SubsEF1ZGRNuUUxE7iVyrSNmIZzfZnXemECkYWeHheSX34SaEJ15b2mDmMZ1OGpUwODI
-         8r51IPAhnbDBm/CKFzkFypFSFC1UGXqsKZVOhQrO4HecnEpU3jmtbrN7t4/aJ7qnpIpz
-         LSeQXKMPrQnrG5CMdTtJgae+A+WCdyUwt6++Krjux2c+8bnutSPxCwYAdbFN3lUrrICR
-         RVlw==
+        b=BAuDLbGogrFA1vdIGkMmG4ltwl/xILVR9/WEXGacImCmcwEnQdvmi9KsNKSN1iWwYM
+         cJvp64HwMMm81nFBvc5UzaRURpnatQHv4UsgglcwQJq85UhClWfbxr4LvFkf7ME/d66p
+         2JuJNCcklIE/CLiNTLROoO0fMtcnVnha2R1ZmlOh0QTq5elYOjeAElB9IW8IKvKyYqvt
+         VxSZaS9Gzn6PSBqcDlTUQD6SIiidkWxbfMRJsiwUdEnJwEBB/GQPSXCPjYvsBSQJEc5D
+         YV/XaP8cxaK+fJxpJE/vWRsXj4e3hwc8E8DyyJ1IP0y5NrchF3frQQrzpvWdU4ph6kA7
+         9tGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=MIEM7tFANWCvfO0km255hENS9lmP/VKfFRdymqsmEG4=;
-        b=fEn2iEQ+WRFtV2jwvTfGx4PqL416jrHGfzTlsUMQweAvMgMiy3zo4ctprgwIDbBHSY
-         gH8DzkxWsLs82yixPul6UhChBIrPFri8fBamf0v2KLtSB5TJnmssebjG5LF2/ciJDZOd
-         4FaAKRvfwu6YrAzwViSXnJl+hWNwNcYR5oItxZhXDiIb6pN/rtW1TmlYqNKnvCHcnFWR
-         /Oeu0g6u3YDLs9Dvk0mcgPFMiMXpFZ6FJGxvyYLPMMpWsiI8xRksPwFEMpTuTqmXI1/r
-         7573d+fAiX2EHduNkY3faGbqZY7RrHPIiWrUQkEqAyMfiJr1is5zuC86qDokP0V5QJM+
-         ddnQ==
+        bh=YsGRUJOea66o8yQ6mNkBDAZI1aC2dZ1ziRGeicCYzT8=;
+        b=VNPfkVGlhooGL3Fdp+BV2f8kJP/LepaUXrQmcdCtXJTKeyr30WGCVtLJ+TDdWaH++5
+         bmUJJj5+42SYRwuS+KvII6BwXh9WV0A4xw+ErJv37a2a2M5nsloy4ZSHUdxjZEMC4riS
+         AONHi+bMlX7ciH34QNh4Z0TmibZeVZqLoolUKR9ec1DAyQZhuQD5H3xQmGEYJQXVy/P2
+         HK2HvcIQjMQ9WJmwyYTijk8s97TREUQwcv3Kvll5LzlG+JtqcgdDH0wo5ZLG3eAbSMrs
+         83NjHDFO3UFoynY5IbVPGjAMhXtISwAp3c4mxImZwO/xaz1YCyNRfNnyKl2Bcj4F2r3K
+         7siw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -82,7 +82,7 @@ Received: from orsmga001.jf.intel.com ([10.7.209.18])
   by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jan 2019 16:39:11 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.56,535,1539673200"; 
-   d="scan'208";a="133921888"
+   d="scan'208";a="133921886"
 Received: from rpedgeco-desk5.jf.intel.com ([10.54.75.79])
   by orsmga001.jf.intel.com with ESMTP; 28 Jan 2019 16:39:11 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -111,9 +111,9 @@ Cc: linux-kernel@vger.kernel.org,
 	Dave Hansen <dave.hansen@intel.com>,
 	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v2 02/20] x86/jump_label: Use text_poke_early() during early init
-Date: Mon, 28 Jan 2019 16:34:04 -0800
-Message-Id: <20190129003422.9328-3-rick.p.edgecombe@intel.com>
+Subject: [PATCH v2 01/20] Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+Date: Mon, 28 Jan 2019 16:34:03 -0800
+Message-Id: <20190129003422.9328-2-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
 References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
@@ -125,44 +125,165 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-There is no apparent reason not to use text_poke_early() while we are
-during early-init and we do not patch code that might be on the stack
-(i.e., we'll return to the middle of the patched code). This appears to
-be the case of jump-labels, so do so.
+text_mutex is currently expected to be held before text_poke() is
+called, but we kgdb does not take the mutex, and instead *supposedly*
+ensures the lock is not taken and will not be acquired by any other core
+while text_poke() is running.
 
-This is required for the next patches that would set a temporary mm for
-patching, which is initialized after some static-keys are
-enabled/disabled.
+The reason for the "supposedly" comment is that it is not entirely clear
+that this would be the case if kgdb_do_roundup is zero.
+
+Create two wrapper functions, text_poke() and text_poke_kgdb() which do
+or do not run the lockdep assertion respectively.
+
+While we are at it, change the return code of text_poke() to something
+meaningful. One day, callers might actually respect it and the existing
+BUG_ON() when patching fails could be removed. For kgdb, the return
+value can actually be used.
 
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Kees Cook <keescook@chromium.org>
 Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Fixes: 9222f606506c ("x86/alternatives: Lockdep-enforce text_mutex in text_poke*()")
+Suggested-by: Peter Zijlstra <peterz@infradead.org>
+Acked-by: Jiri Kosina <jkosina@suse.cz>
 Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/jump_label.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ arch/x86/include/asm/text-patching.h |  1 +
+ arch/x86/kernel/alternative.c        | 52 ++++++++++++++++++++--------
+ arch/x86/kernel/kgdb.c               | 11 +++---
+ 3 files changed, 45 insertions(+), 19 deletions(-)
 
-diff --git a/arch/x86/kernel/jump_label.c b/arch/x86/kernel/jump_label.c
-index f99bd26bd3f1..e36cfec0f35e 100644
---- a/arch/x86/kernel/jump_label.c
-+++ b/arch/x86/kernel/jump_label.c
-@@ -50,7 +50,12 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
- 	jmp.offset = jump_entry_target(entry) -
- 		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
+diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
+index e85ff65c43c3..f8fc8e86cf01 100644
+--- a/arch/x86/include/asm/text-patching.h
++++ b/arch/x86/include/asm/text-patching.h
+@@ -35,6 +35,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
+  * inconsistent instruction while you patch.
+  */
+ extern void *text_poke(void *addr, const void *opcode, size_t len);
++extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
+ extern int poke_int3_handler(struct pt_regs *regs);
+ extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
+ extern int after_bootmem;
+diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+index d458c7973c56..12fddbc8c55b 100644
+--- a/arch/x86/kernel/alternative.c
++++ b/arch/x86/kernel/alternative.c
+@@ -678,18 +678,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
+ 	return addr;
+ }
  
--	if (early_boot_irqs_disabled)
-+	/*
-+	 * As long as we're UP and not yet marked RO, we can use
-+	 * text_poke_early; SYSTEM_BOOTING guarantees both, as we switch to
-+	 * SYSTEM_SCHEDULING before going either.
-+	 */
-+	if (system_state == SYSTEM_BOOTING)
- 		poker = text_poke_early;
+-/**
+- * text_poke - Update instructions on a live kernel
+- * @addr: address to modify
+- * @opcode: source of the copy
+- * @len: length to copy
+- *
+- * Only atomic text poke/set should be allowed when not doing early patching.
+- * It means the size must be writable atomically and the address must be aligned
+- * in a way that permits an atomic write. It also makes sure we fit on a single
+- * page.
+- */
+-void *text_poke(void *addr, const void *opcode, size_t len)
++static void *__text_poke(void *addr, const void *opcode, size_t len)
+ {
+ 	unsigned long flags;
+ 	char *vaddr;
+@@ -702,8 +691,6 @@ void *text_poke(void *addr, const void *opcode, size_t len)
+ 	 */
+ 	BUG_ON(!after_bootmem);
  
- 	if (type == JUMP_LABEL_JMP) {
+-	lockdep_assert_held(&text_mutex);
+-
+ 	if (!core_kernel_text((unsigned long)addr)) {
+ 		pages[0] = vmalloc_to_page(addr);
+ 		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
+@@ -732,6 +719,43 @@ void *text_poke(void *addr, const void *opcode, size_t len)
+ 	return addr;
+ }
+ 
++/**
++ * text_poke - Update instructions on a live kernel
++ * @addr: address to modify
++ * @opcode: source of the copy
++ * @len: length to copy
++ *
++ * Only atomic text poke/set should be allowed when not doing early patching.
++ * It means the size must be writable atomically and the address must be aligned
++ * in a way that permits an atomic write. It also makes sure we fit on a single
++ * page.
++ */
++void *text_poke(void *addr, const void *opcode, size_t len)
++{
++	lockdep_assert_held(&text_mutex);
++
++	return __text_poke(addr, opcode, len);
++}
++
++/**
++ * text_poke_kgdb - Update instructions on a live kernel by kgdb
++ * @addr: address to modify
++ * @opcode: source of the copy
++ * @len: length to copy
++ *
++ * Only atomic text poke/set should be allowed when not doing early patching.
++ * It means the size must be writable atomically and the address must be aligned
++ * in a way that permits an atomic write. It also makes sure we fit on a single
++ * page.
++ *
++ * Context: should only be used by kgdb, which ensures no other core is running,
++ *	    despite the fact it does not hold the text_mutex.
++ */
++void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
++{
++	return __text_poke(addr, opcode, len);
++}
++
+ static void do_sync_core(void *info)
+ {
+ 	sync_core();
+diff --git a/arch/x86/kernel/kgdb.c b/arch/x86/kernel/kgdb.c
+index 5db08425063e..1461544cba8b 100644
+--- a/arch/x86/kernel/kgdb.c
++++ b/arch/x86/kernel/kgdb.c
+@@ -758,13 +758,13 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
+ 	if (!err)
+ 		return err;
+ 	/*
+-	 * It is safe to call text_poke() because normal kernel execution
++	 * It is safe to call text_poke_kgdb() because normal kernel execution
+ 	 * is stopped on all cores, so long as the text_mutex is not locked.
+ 	 */
+ 	if (mutex_is_locked(&text_mutex))
+ 		return -EBUSY;
+-	text_poke((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
+-		  BREAK_INSTR_SIZE);
++	text_poke_kgdb((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
++		       BREAK_INSTR_SIZE);
+ 	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
+ 	if (err)
+ 		return err;
+@@ -783,12 +783,13 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
+ 	if (bpt->type != BP_POKE_BREAKPOINT)
+ 		goto knl_write;
+ 	/*
+-	 * It is safe to call text_poke() because normal kernel execution
++	 * It is safe to call text_poke_kgdb() because normal kernel execution
+ 	 * is stopped on all cores, so long as the text_mutex is not locked.
+ 	 */
+ 	if (mutex_is_locked(&text_mutex))
+ 		goto knl_write;
+-	text_poke((void *)bpt->bpt_addr, bpt->saved_instr, BREAK_INSTR_SIZE);
++	text_poke_kgdb((void *)bpt->bpt_addr, bpt->saved_instr,
++		       BREAK_INSTR_SIZE);
+ 	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
+ 	if (err || memcmp(opc, bpt->saved_instr, BREAK_INSTR_SIZE))
+ 		goto knl_write;
 -- 
 2.17.1
 
