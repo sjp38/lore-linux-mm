@@ -2,304 +2,145 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2AE1AC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 14:20:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D28C6C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 14:43:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAC0020870
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 14:20:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAC0020870
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9906420989
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 14:43:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9906420989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5FAA88E0002; Tue, 29 Jan 2019 09:20:10 -0500 (EST)
+	id 352778E0002; Tue, 29 Jan 2019 09:43:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5AA2D8E0001; Tue, 29 Jan 2019 09:20:10 -0500 (EST)
+	id 30BB48E0001; Tue, 29 Jan 2019 09:43:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C06A8E0002; Tue, 29 Jan 2019 09:20:10 -0500 (EST)
+	id 1F09E8E0002; Tue, 29 Jan 2019 09:43:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF7F8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 09:20:10 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id q63so16987475pfi.19
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 06:20:10 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D2EF78E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 09:43:11 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id f125so14031455pgc.20
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 06:43:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :content-transfer-encoding:to:from:organization:in-reply-to:cc
-         :references:message-id:user-agent:subject:date;
-        bh=WpNPsCJ3M0BUB0vNosdbCbR/vzU8wN9Zrw5bwuDaXns=;
-        b=gC3eGazphTBBMQza5UcJgrCLC0+pgvwdDrEesPevfEUcbUJm/N42AOyhiuUytg7pFG
-         GtFOphRc8MJunVcXBrFK8LZgoUJr9Wf0paDK10PI8oKkqh+7yADr1jQcQuyUW3LrOABX
-         OS80nT/fPTpneVfzEnZmLfsIH/wxm3i0WsMvAePExfs1DztdMOe4gIxTFPahQr2cBPTH
-         jESOSuo4EP7XKG81ZZMmdAruB7rmdsNyCPfQaMmwzy8im563UbarRVuJ5J6UPrZnwUFH
-         vhTiOZ+7PeS+kgFQ4vsJFNKmm6w8F+p7gdXyK3x7w9olidsLTGz7KyzuYc6F9H5IHo6H
-         RfNg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of joonas.lahtinen@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=joonas.lahtinen@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukcRmYwBDtgFXYV6R/vSyO8jKrxSfouRGkHrdZ3Phu8wQz8z8kJV
-	rsAJuF0AKiOXeKfqpo5FjAd4t2McVNhzqWW31t40M5mLw9EkzUoCLPEB5AFpXxCZo8WHWAWsXeG
-	Hh9pUD7ojxmnIIxqXIrHgbabuEikNNk5SN+Frsz05Eqe0jhIM/HQrX7q7ZppF04c/Ow==
-X-Received: by 2002:a63:f141:: with SMTP id o1mr24133705pgk.134.1548771609656;
-        Tue, 29 Jan 2019 06:20:09 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7tIV32Jq4+/VIwQszE7aedBUTY0Sabwb+C4X3gjUvVPcwMo3f1AfivcsgKkD0q/QTer0QK
-X-Received: by 2002:a63:f141:: with SMTP id o1mr24133649pgk.134.1548771608699;
-        Tue, 29 Jan 2019 06:20:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548771608; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Lf+lYekVrX5peqJ1BYuI15TXxt8cAjECIxDDnxjSpnY=;
+        b=AuFo+Orf69VsGI/IvMmNExaGHV8bGyAr1/jd0QrgHj9jxsC1XH5E7Nyk8+UNezhH0w
+         8yEbOZQlHpEdvVDB9okkdyUjQ4KjG4kMplYvQ8rXFt0tegEEBzIBkopDAN09/tbXj2dx
+         A/GGOR26DaykQ5p31tZ1iAkVs8dHnk7reI92zlpphOnfoQMMUwHElmKVWYj3691OOQI/
+         W7LuDq0XQFi99trauEifV2dMSp8S0i45Xwl1kVFKJWAb+yAsRrfLoQXKN0tXb4Dz6ryc
+         ZOVnWL1ZaiEZ1DmDC9WhOWwKgTOt0yGIrrIZ1nLF+6eYxZYj5hGtNtruqhfFvJQhWRBs
+         kv2g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukeoPSzs38AqysfaMw8EURtlgnWayPlS6PYQULIYOKjDsK6IQwyM
+	kvCYRxAcK0dvyeSfpahUJLqwlNgtphV3Gt8TOvUwx5iWdKzcFu7dtMkqDV2tRbZpNY5xGvoIfTy
+	PnUpum6ubLl7IPuKsWlcBuumil7PktI1Q4zYqrkCREO3zsYt0e3U7uk5IRDbl8+g=
+X-Received: by 2002:a63:e40c:: with SMTP id a12mr24075661pgi.28.1548772991526;
+        Tue, 29 Jan 2019 06:43:11 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7vGiKKtuS6sdEET1+ePRjmh/XHf83ggTjpFucOmPltSobSPy27Frj+ZkqExvmHAjg/jp2c
+X-Received: by 2002:a63:e40c:: with SMTP id a12mr24075623pgi.28.1548772990691;
+        Tue, 29 Jan 2019 06:43:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548772990; cv=none;
         d=google.com; s=arc-20160816;
-        b=HdOZdiOD+cl5ChdW+8QAkHKQPUlaeXwKP4FQwf8ppteSRWSXR3nDKClMCzJcC22x89
-         t19AMfJh0Ut/rVO0l7W54/QgUetU53HahYSSUTdSY+jpGCjG3PLwJ5EELKz1xr0/lwa5
-         ukLD1GoRj8Q0jPVfAzdE+xrWv3QUX0l3MnP0491E5PKnXpj6tmzTaihXJgfeWkpXtE5Y
-         oNkTImMiex8miMx8ltX5RDsnYpKtckxeJD2+0gWomU5U12//JfOhLjodrPg1TP8TStV2
-         KdFpCAj5IE+f3BQwhkhN87HPxICtWohlP3dAdFxWayTeVunv612XWNLxb3xQGBXWa/Dm
-         VKLg==
+        b=IOSeGFVnM4s0JK3RbKm6GWG8AIQ9zFKO/mZZG4yD7lKXX6raeu/SF/HI0Nh0dXNqz/
+         BrMjItwUysEf4risJ44iyYSb/8dRsw3I2dCoruQLatp3vzXnnUrX/merBqe+A298/Z7i
+         tXAMwR1Ae5w1iy9tT8cATBoOJqAXvKnYLiXMO+oR6L2emV6TqWxS3t9lTuGAQDTghTrt
+         eSlAcZ2aMhCgENOj6vDnIlA4IhjdSBUY3HF0ug2thQw+5/WyzB9gxYs6XLy755zLe2WG
+         B8mEl+paucoAcn7CiHjfp1LB2BzUbIZXk0JisH/qRtVn+HBSf4jr0DxulOlFsnX3Cz4y
+         IgXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=date:subject:user-agent:message-id:references:cc:in-reply-to
-         :organization:from:to:content-transfer-encoding:mime-version;
-        bh=WpNPsCJ3M0BUB0vNosdbCbR/vzU8wN9Zrw5bwuDaXns=;
-        b=SmzZU/3DA4WqXeHlVDRe/rTV/KvucEaoIJVSuE3wDdeIff4rUJmPvNacFWjfK1dXE5
-         cjfWF33ZsxTRvV9ZM5LOQk7RKYEHQ8pLJJrtHjwhQ/UcynMczOClmyERNw4kJEtkwUW+
-         wdSQion4U31zkE/Ud4oXsqzKYD80p/JIsoJ9UT/SbivxMs2ONcP0GuwtvXdeOhZn3Ms4
-         fGDMU55l3yaHVonREeX7hG9vXL3yx81dywfl71Ds58dN5AQyWeGcWJP03OE7UR6ZAHUo
-         Heg1lKvgu7gADQdEkKYmTIsubW0FmMrIRhI4NTVJV1AO1wLQf5CdyIjIZemhaPvmpHPK
-         1gtQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Lf+lYekVrX5peqJ1BYuI15TXxt8cAjECIxDDnxjSpnY=;
+        b=Uy1gAEzGb4tJpFlHXyd/M10hD29AW2Xbpq4LiVW8gf8aIsgcmfY34rz0eNXR2BN7qy
+         j7D81zwhVDgmoiWeqxxVTLmcaqTcY4ElxLd5fRRYMfHWiQJQpfzAfDPyiA4hvYyEd6m6
+         2qP75lU5vHNi/1kmHSADTtC8CaGYVAtX9BcnAymAn4X5VBbSyTLRo8ooMxhD3UKwyq9h
+         d5VoRWULgBqX4PlULnE++etYSvGDOa1X8GLA1dRVVpkEnGWHKvZPhj34QOAP3BstxNW/
+         /hkZ41u9Cnp6z3tjjFf3cclN5OMp+phUHqWwSXKaZGETVpZZfHJaLZdCkp11ozV2CvwW
+         nyWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of joonas.lahtinen@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=joonas.lahtinen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id x66si35538055pfk.73.2019.01.29.06.20.08
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 12si4391418pfx.102.2019.01.29.06.43.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 06:20:08 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of joonas.lahtinen@linux.intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Tue, 29 Jan 2019 06:43:10 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of joonas.lahtinen@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=joonas.lahtinen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Jan 2019 06:20:08 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,537,1539673200"; 
-   d="scan'208";a="110714506"
-Received: from jlahtine-desk.ger.corp.intel.com (HELO localhost) ([10.251.87.6])
-  by orsmga007.jf.intel.com with ESMTP; 29 Jan 2019 06:20:00 -0800
-Content-Type: text/plain; charset="utf-8"
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 2BBAFB049;
+	Tue, 29 Jan 2019 14:43:08 +0000 (UTC)
+Date: Tue, 29 Jan 2019 15:43:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, kernel-team@fb.com
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190129144306.GO18811@dhcp22.suse.cz>
+References: <20190125173713.GD20411@dhcp22.suse.cz>
+ <20190125182808.GL50184@devbig004.ftw2.facebook.com>
+ <20190128125151.GI18811@dhcp22.suse.cz>
+ <20190128142816.GM50184@devbig004.ftw2.facebook.com>
+ <20190128145210.GM18811@dhcp22.suse.cz>
+ <20190128145407.GP50184@devbig004.ftw2.facebook.com>
+ <20190128151859.GO18811@dhcp22.suse.cz>
+ <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
+ <20190128170526.GQ18811@dhcp22.suse.cz>
+ <20190128174905.GU50184@devbig004.ftw2.facebook.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-To: Jerome Glisse <jglisse@redhat.com>
-From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Organization: Intel Finland Oy - BIC 0357606-4 - Westendinkatu 7, 02160 Espoo
-In-Reply-To: <20190124153032.GA5030@redhat.com>
-Cc: linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>,
- Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, kvm@vger.kernel.org,
- Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma@vger.kernel.org,
- John Hubbard <jhubbard@nvidia.com>, Felix Kuehling <Felix.Kuehling@amd.com>,
- =?utf-8?b?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
- Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org,
- dri-devel@lists.freedesktop.org, Michal Hocko <mhocko@kernel.org>,
- Jason Gunthorpe <jgg@mellanox.com>, Ross Zwisler <zwisler@kernel.org>,
- linux-fsdevel@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- =?utf-8?q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>
-References: <20190123222315.1122-1-jglisse@redhat.com>
- <20190123222315.1122-9-jglisse@redhat.com>
- <154833175216.4120.925061299171157938@jlahtine-desk.ger.corp.intel.com>
- <20190124153032.GA5030@redhat.com>
-Message-ID: <154877159986.4387.16328989441685542244@jlahtine-desk.ger.corp.intel.com>
-User-Agent: alot/0.6
-Subject: Re: [PATCH v4 8/9] gpu/drm/i915: optimize out the case when a range is
- updated to read only
-Date: Tue, 29 Jan 2019 16:20:00 +0200
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190128174905.GU50184@devbig004.ftw2.facebook.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Quoting Jerome Glisse (2019-01-24 17:30:32)
-> On Thu, Jan 24, 2019 at 02:09:12PM +0200, Joonas Lahtinen wrote:
-> > Hi Jerome,
-> > =
+On Mon 28-01-19 09:49:05, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Mon, Jan 28, 2019 at 06:05:26PM +0100, Michal Hocko wrote:
+> > Yeah, that is quite clear. But it also assumes that the hierarchy is
+> > pretty stable but cgroups might go away at any time. I am not saying
+> > that the aggregated events are not useful I am just saying that it is
+> > quite non-trivial to use and catch all potential corner cases. Maybe I
+> 
+> It really isn't complicated and doesn't require stable subtree.
+> 
+> > am overcomplicating it but one thing is quite clear to me. The existing
+> > semantic is really useful to watch for the reclaim behavior at the
+> > current level of the tree. You really do not have to care what is
+> > happening in the subtree when it is clear that the workload itself
+> > is underprovisioned etc. Considering that such a semantic already
+> > existis, somebody might depend on it and we likely want also aggregated
+> > semantic then I really do not see why to risk regressions rather than
+> > add a new memory.hierarchy_events and have both.
+> 
+> The problem then is that most other things are hierarchical including
+> some fields in .events files, so if we try to add local stats and
+> events, there's no good way to add them.
 
-> > This patch seems to have plenty of Cc:s, but none of the right ones :)
-> =
-
-> So sorry, i am bad with git commands.
-> =
-
-> > For further iterations, I guess you could use git option --cc to make
-> > sure everyone gets the whole series, and still keep the Cc:s in the
-> > patches themselves relevant to subsystems.
-> =
-
-> Will do.
-> =
-
-> > This doesn't seem to be on top of drm-tip, but on top of your previous
-> > patches(?) that I had some comments about. Could you take a moment to
-> > first address the couple of question I had, before proceeding to discuss
-> > what is built on top of that base.
-> =
-
-> It is on top of Linus tree so roughly ~ rc3 it does not depend on any
-> of the previous patch i posted.
-
-You actually managed to race a point in time just when Chris rewrote much
-of the userptr code in drm-tip, which I didn't remember of. My bad.
-
-Still interested to hearing replies to my questions in the previous
-thread, if the series is still relevant. Trying to get my head around
-how the different aspects of HMM pan out for devices without fault handling.
-
-> I still intended to propose to remove
-> GUP from i915 once i get around to implement the equivalent of GUP_fast
-> for HMM and other bonus cookies with it.
-> =
-
-> The plan is once i have all mm bits properly upstream then i can propose
-> patches to individual driver against the proper driver tree ie following
-> rules of each individual device driver sub-system and Cc only people
-> there to avoid spamming the mm folks :)
-
-Makes sense, as we're having tons of changes in this field in i915, the
-churn to rebase on top of them will be substantial.
-
-Regards, Joonas
-
-PS. Are you by any chance attending FOSDEM? Would be nice to chat about
-this.
-
-> =
-
-> =
-
-> > =
-
-> > My reply's Message-ID is:
-> > 154289518994.19402.3481838548028068213@jlahtine-desk.ger.corp.intel.com
-> > =
-
-> > Regards, Joonas
-> > =
-
-> > PS. Please keep me Cc:d in the following patches, I'm keen on
-> > understanding the motive and benefits.
-> > =
-
-> > Quoting jglisse@redhat.com (2019-01-24 00:23:14)
-> > > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> > > =
-
-> > > When range of virtual address is updated read only and corresponding
-> > > user ptr object are already read only it is pointless to do anything.
-> > > Optimize this case out.
-> > > =
-
-> > > Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> > > Cc: Christian K=C3=B6nig <christian.koenig@amd.com>
-> > > Cc: Jan Kara <jack@suse.cz>
-> > > Cc: Felix Kuehling <Felix.Kuehling@amd.com>
-> > > Cc: Jason Gunthorpe <jgg@mellanox.com>
-> > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> > > Cc: Ross Zwisler <zwisler@kernel.org>
-> > > Cc: Dan Williams <dan.j.williams@intel.com>
-> > > Cc: Paolo Bonzini <pbonzini@redhat.com>
-> > > Cc: Radim Kr=C4=8Dm=C3=A1=C5=99 <rkrcmar@redhat.com>
-> > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > Cc: Ralph Campbell <rcampbell@nvidia.com>
-> > > Cc: John Hubbard <jhubbard@nvidia.com>
-> > > Cc: kvm@vger.kernel.org
-> > > Cc: dri-devel@lists.freedesktop.org
-> > > Cc: linux-rdma@vger.kernel.org
-> > > Cc: linux-fsdevel@vger.kernel.org
-> > > Cc: Arnd Bergmann <arnd@arndb.de>
-> > > ---
-> > >  drivers/gpu/drm/i915/i915_gem_userptr.c | 16 ++++++++++++++++
-> > >  1 file changed, 16 insertions(+)
-> > > =
-
-> > > diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/dr=
-m/i915/i915_gem_userptr.c
-> > > index 9558582c105e..23330ac3d7ea 100644
-> > > --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> > > @@ -59,6 +59,7 @@ struct i915_mmu_object {
-> > >         struct interval_tree_node it;
-> > >         struct list_head link;
-> > >         struct work_struct work;
-> > > +       bool read_only;
-> > >         bool attached;
-> > >  };
-> > >  =
-
-> > > @@ -119,6 +120,7 @@ static int i915_gem_userptr_mn_invalidate_range_s=
-tart(struct mmu_notifier *_mn,
-> > >                 container_of(_mn, struct i915_mmu_notifier, mn);
-> > >         struct i915_mmu_object *mo;
-> > >         struct interval_tree_node *it;
-> > > +       bool update_to_read_only;
-> > >         LIST_HEAD(cancelled);
-> > >         unsigned long end;
-> > >  =
-
-> > > @@ -128,6 +130,8 @@ static int i915_gem_userptr_mn_invalidate_range_s=
-tart(struct mmu_notifier *_mn,
-> > >         /* interval ranges are inclusive, but invalidate range is exc=
-lusive */
-> > >         end =3D range->end - 1;
-> > >  =
-
-> > > +       update_to_read_only =3D mmu_notifier_range_update_to_read_onl=
-y(range);
-> > > +
-> > >         spin_lock(&mn->lock);
-> > >         it =3D interval_tree_iter_first(&mn->objects, range->start, e=
-nd);
-> > >         while (it) {
-> > > @@ -145,6 +149,17 @@ static int i915_gem_userptr_mn_invalidate_range_=
-start(struct mmu_notifier *_mn,
-> > >                  * object if it is not in the process of being destro=
-yed.
-> > >                  */
-> > >                 mo =3D container_of(it, struct i915_mmu_object, it);
-> > > +
-> > > +               /*
-> > > +                * If it is already read only and we are updating to
-> > > +                * read only then we do not need to change anything.
-> > > +                * So save time and skip this one.
-> > > +                */
-> > > +               if (update_to_read_only && mo->read_only) {
-> > > +                       it =3D interval_tree_iter_next(it, range->sta=
-rt, end);
-> > > +                       continue;
-> > > +               }
-> > > +
-> > >                 if (kref_get_unless_zero(&mo->obj->base.refcount))
-> > >                         queue_work(mn->wq, &mo->work);
-> > >  =
-
-> > > @@ -270,6 +285,7 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i9=
-15_gem_object *obj,
-> > >         mo->mn =3D mn;
-> > >         mo->obj =3D obj;
-> > >         mo->it.start =3D obj->userptr.ptr;
-> > > +       mo->read_only =3D i915_gem_object_is_readonly(obj);
-> > >         mo->it.last =3D obj->userptr.ptr + obj->base.size - 1;
-> > >         INIT_WORK(&mo->work, cancel_userptr);
-> > >  =
-
-> > > -- =
-
-> > > 2.17.2
-> > > =
-
-> > > _______________________________________________
-> > > dri-devel mailing list
-> > > dri-devel@lists.freedesktop.org
-> > > https://lists.freedesktop.org/mailman/listinfo/dri-devel
+All memcg events are represented non-hierarchical AFAICS
+memcg_memory_event() simply accounts at the level when it happens. Or do
+I miss something? Or are you talking about .events files for other
+controllers?
+-- 
+Michal Hocko
+SUSE Labs
 
