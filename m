@@ -2,186 +2,251 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BF91FC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:58:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 40BF4C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:58:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A84520869
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:58:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E312220869
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:58:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="wPIJ6s3R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A84520869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="atRWCQe0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E312220869
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 238BB8E0003; Tue, 29 Jan 2019 15:58:40 -0500 (EST)
+	id 853358E0004; Tue, 29 Jan 2019 15:58:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E8048E0001; Tue, 29 Jan 2019 15:58:40 -0500 (EST)
+	id 802868E0001; Tue, 29 Jan 2019 15:58:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B1448E0003; Tue, 29 Jan 2019 15:58:40 -0500 (EST)
+	id 6F2628E0004; Tue, 29 Jan 2019 15:58:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A53958E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:58:39 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c3so8567446eda.3
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:58:39 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A6C88E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:58:55 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id t9so543387ybd.5
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:58:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=crFkFDL6HoTHuo/PPx9XXMrngUcivpMe02RcQCcP4Dw=;
-        b=HMdYyk3uS0Oe6ATXFGhDepKTMyLrI6LcgVTHUBMUMt8WagMcrvnjr5udGIs+xjMsHx
-         hROrtk5ZVcOFWkxXkMruaKcsoJA4WcySNFvME8WRbSwJySbLVZ8CCNe4GePANNDX6Z7S
-         zULx1iYUrqLcvh6TJE9r1ouNTbKkLl9q9VKgJSE5u7RnZCUNGC6pxC1pf/Q857GtVXfS
-         j6CWxOonKlrksXSbiaRYI+HjTnm4AltrupQOSEHEZHEGhw3u5dfY/GdK6cTdLMNLS2U/
-         LyxRWIJvPqCZ6bmC9i0kJ654sT+v2lE4He/6b/N52Zg6/BH/Bz2nDWyogO+U1OgWDvp5
-         f7Tg==
-X-Gm-Message-State: AJcUukdCoFuYp9rv3diaysrHFNT1zb77lbSrhRFlLTqU+//IkrXY3mUl
-	t/cGBfUtGbe/4PpHpXbQoRn9Zulny30H7F8wg3NQ2OOAkFXwFQSzsr/TNnkDUdBLzbvs7DuwJj4
-	l2N7YNt1JoVBIAcPpQ4cbe/COnNVCeQQUK8a93O9F17zNBzpLHCGkxmbvcztFNYrN/g==
-X-Received: by 2002:a50:ae8f:: with SMTP id e15mr27477871edd.250.1548795519252;
-        Tue, 29 Jan 2019 12:58:39 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5niyFg4SqUdNPxcmxcrZ1gAUngD/wRV4AvcTQx6pcnfMQt6TfbHfd2meNcIgVz4j5X4b+R
-X-Received: by 2002:a50:ae8f:: with SMTP id e15mr27477838edd.250.1548795518549;
-        Tue, 29 Jan 2019 12:58:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548795518; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:user-agent;
+        bh=+lCxnlIZUJU9pZqCTFE3c/UHyRafPDqnnoPq+cvx5Es=;
+        b=UhncErmh3URRny7ATwRyqYLJ0o+WxdE9jU6Ir8b7l6lMT2TaxzMY85JGXNudcHT/DV
+         4Va41CascmlAbc7cDqf9iAooQnsgBOBEFOmFeFjo3lIgnHYGD6/oMFF19Ef/ecvDH/sV
+         Nvef0evJAZ79PswxQ26LaukcJXwjZVfxaolMNjGpRPCADh+tmbrusgAWy59SwXKnjzxa
+         Yl8uvz5riAguxEL2XjyOPyigIxmvvNpJbWz3eayFh9cMAHfBzoTrPEJuv+ZBppieI82l
+         qGzo71/R+n35+6Aawf8hw0lmfUItd9ekxt7VMn5GcYlGd2fvcBUHOA3qiIrWB0igt/Qp
+         4t1Q==
+X-Gm-Message-State: AJcUukeJi0FRPBxqtgHj+hf+s+1/B850npCP96ZDDpfyrmuisInegKXI
+	MkCw+cA/c6pRl0wHdb3gfqX9VNbD2a+TWjxcSdnFDsv/T1vtmONkNzuYPZt0Wp8UJtn023NCQnh
+	7qgO7XYgyKk5pa1AQRR81FJ3hutjdk9B5ujrjWSVqCBP7h+Q/RvEzr48I9lchtiEKiqlXchTcWP
+	3gOXQ5nTXgBhOpcO5gTb/0jJnsqArPRHxkkXzMU5641IJk+K2siM9mGgbRW79pqe2lCH9MzqShj
+	cYR8LFIusMMPXCUhob3C4uZBZsjEUGLYdivkTRx1yEkB0KveI64q0QnXzOnRi6smZ87g0Xb9DI5
+	XTBAkdUONt0eWGc2KCIVSrNA1xZ0QdaDpHBCoPWzzDu9JseW6fkMK3USqYgZcLEGim/HSgPOba3
+	z
+X-Received: by 2002:a81:2fce:: with SMTP id v197mr27898095ywv.173.1548795534924;
+        Tue, 29 Jan 2019 12:58:54 -0800 (PST)
+X-Received: by 2002:a81:2fce:: with SMTP id v197mr27898058ywv.173.1548795534183;
+        Tue, 29 Jan 2019 12:58:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548795534; cv=none;
         d=google.com; s=arc-20160816;
-        b=B6C9oRCeRg3lV9WzpLvP0OYG05xoy2rhvfRfndZaUhF7I+qUHZ5dWLlw/swBNKtVPJ
-         112sfr7BdNkucNll92BM499pDQv2f7lBEgkP/XAfxhPm2XouWNwMc6JLhBj2WmLY1T+p
-         SrcqwTAaOjARKhPo9NalyL1d2Vl4BnbPrYqcRJyJBboGeIZ/CvGE+2W7CSY3QyalQonK
-         L2E+2o23Q8qb3JgKqyO2ldOuCxbyVbJY9dlOWaKeQvMQgksQy5EIOJ5b6Msf8q4R2+CG
-         w/FHX4UwbRNt645Vnb+eGo9GPKkn0g3jv4/Ns3xyJ4PqTnuy5WYeXYH9w9yD5C/6J+lp
-         ndnA==
+        b=fADEZMyECPKmIncsLVj34pnV9bTkxnkGf02HHEiVnh+0PpKiotjauL5Ykui0ttwdDj
+         1BqtCgVWvN+eSax+Sldv3wHu97fbU0Rbn1e49KfiSPOMQ/j5vaj0bsfbSRmLyH/eOy/U
+         niw+0uBrQ2eP75htCfL+XCTQKAt8Iq44Rcfnh+nfvUm+eiFyH4sCoTniQNduB86kD+s0
+         KSwsIIq333R49nlzJ4xAllAgTHE6uUtJZTaFzg99GLDEj3Rk9Vs3SzqP6i2a9g4vvXkb
+         lByPcVlLTrPfFbt44Wcp+7imUGmIMp0jN2QEzei7OioQtmY6GPweZt12REkrEf+apn/K
+         prZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=crFkFDL6HoTHuo/PPx9XXMrngUcivpMe02RcQCcP4Dw=;
-        b=05Wi7CSfsDJAdgK/qps8fDyvXQ8aWKVo6//MOmguHlcaZ9IL0xjCnt6sVnfd5RQ22o
-         jqN2H2V123zP9NQ0TKrEJ9UWr69DERMWEnbaE15p81yHRkDBOr0Zmv/xYAiCE9Akbz2R
-         lzHu4aOmvJP1DQ8d9xDrG2VkvyNZ1yefXSkhk6ZvEE5b2K2wwjD1fOIlH+kfxAxZadx/
-         h7nW5NmwEVB3E/732XpLdadjK8XtWmIStW42jawa8wThsMJjihjS0nEovTzsmzFqRF9f
-         fka6MIxHyq1zV4E+l49UzN/+SZrHTbQhxIqjVJ7OcbhjSU0B3YARwVOmYr48huaaMHKK
-         +08Q==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=+lCxnlIZUJU9pZqCTFE3c/UHyRafPDqnnoPq+cvx5Es=;
+        b=0bNKIQd2C6n0B33Ntc6Ume+jq3CaeLVLVRwQhpehoy2Z2tr0Iy8i/M21e7WgpgKXRL
+         3u1hhFAyQnaJCTUlCzJ/w15g1tcH8Dsaty864JuY/w+uDNR8+CdR4A3xjZtubSq0ZtH7
+         K1/y0/LTdEENXgKB6PCqWlEIc3KKrjwYugjyAaohIX+uZUFbpuyXr22yVLkSgEVKypkL
+         jb781+WxLtsEJAERxK7Ir/UCm6Z/8HqpAHlZbTFQBM2M/6Hbc7T8aW0/EVV3GMiJnXuE
+         uUydAniiEmm9cGR3e9k5bYM9gCBxD26egla1IJ1tDvEfSBjYu+czJehyVIzkES6a/i7r
+         rLQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=wPIJ6s3R;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.64 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10064.outbound.protection.outlook.com. [40.107.1.64])
-        by mx.google.com with ESMTPS id y17si1989880ejq.230.2019.01.29.12.58.38
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=atRWCQe0;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r65sor6549507ywr.90.2019.01.29.12.58.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 12:58:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.1.64 as permitted sender) client-ip=40.107.1.64;
+        (Google Transport Security);
+        Tue, 29 Jan 2019 12:58:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=wPIJ6s3R;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.64 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=crFkFDL6HoTHuo/PPx9XXMrngUcivpMe02RcQCcP4Dw=;
- b=wPIJ6s3RufR9eRbueTSWeYwDR/GduiVw4YBfIt4Hyv9t8mxhipnmT5x+xctLElvR2StMFXmoL+54HR39tshJXNDeRAUC7vxl1XAhC3X1Cy+PX0q3j55ctAuvbG2JWYZaSrveE1JqsT7JaAkCLQX6COW0eFAJfxAcPDrDLKf+Uoc=
-Received: from DBBPR05MB6426.eurprd05.prod.outlook.com (20.179.42.80) by
- DBBPR05MB6316.eurprd05.prod.outlook.com (20.179.40.210) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1558.17; Tue, 29 Jan 2019 20:58:35 +0000
-Received: from DBBPR05MB6426.eurprd05.prod.outlook.com
- ([fe80::24c2:321d:8b27:ae59]) by DBBPR05MB6426.eurprd05.prod.outlook.com
- ([fe80::24c2:321d:8b27:ae59%5]) with mapi id 15.20.1580.017; Tue, 29 Jan 2019
- 20:58:35 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Logan Gunthorpe <logang@deltatee.com>
-CC: Jerome Glisse <jglisse@redhat.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, Greg Kroah-Hartman
-	<gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn
- Helgaas <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>, "linux-pci@vger.kernel.org"
-	<linux-pci@vger.kernel.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, Christoph Hellwig <hch@lst.de>, Marek
- Szyprowski <m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>,
-	Joerg Roedel <jroedel@suse.de>, "iommu@lists.linux-foundation.org"
-	<iommu@lists.linux-foundation.org>
-Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-Thread-Topic: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-Thread-Index: AQHUt/rA/dLikqWEmEaIytHIBNLPlqXGkyOAgAAJwICAAAX+AIAAEreAgAAFNYA=
-Date: Tue, 29 Jan 2019 20:58:35 +0000
-Message-ID: <20190129205827.GM10108@mellanox.com>
-References: <20190129174728.6430-1-jglisse@redhat.com>
- <20190129174728.6430-4-jglisse@redhat.com>
- <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
- <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com>
- <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
-In-Reply-To: <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: MWHPR1201CA0011.namprd12.prod.outlook.com
- (2603:10b6:301:4a::21) To DBBPR05MB6426.eurprd05.prod.outlook.com
- (2603:10a6:10:c9::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [174.3.196.123]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;DBBPR05MB6316;6:oqhIb0u9iptFxG72au529ZElgzV0PiVBxK/BUGjyuI0YWtygReVbXKYKW3hiA8m+IVK+0SFb6W1wgtkImociII9p7vPFvA/csJ+MIO+2AcIrat/Cv1ro7aVGBCZ9JLI/f2mAsxy+NXO0JoBMr14Zbruj/olZwdNnJisjxghVN70HHDVxkwGKi5K7Vewc/hjoUS7KVVRI/0KAgjBCid7JnnxZaGUeXEcH62BwGKSrxEun8dlMa71S7s49+67/AStBqrpovQ8q1R6AeAnll99kItv1NGVxXJ+Nz10xQ8l3tHSBQwYVq/pTPajSfBLUiWQmEXU1vWJb80z5zw8KX3TXFFOPn6aNK4tNSdmFayPKpvYmAQRh4wQXDU00yB7k9nC+kMgesjZlHPR4LAiWtHaM+C0FtLCA+I6ZYeXLF8am1C4Y9lcFxXKKhYArAldb6us/QY15wHfH0hm6D1vVNj+MAg==;5:+qE1CX8Kk+8ReQpRlS9HfuhUYonq7jwd+vRqR6f1izm8h/9WN78KeScFAqKM1e3ldeMIFVXcYweGEZXO3LFWwik5+lVIWQAtsWuwHdX++MD2anPBrMxpjK2HuVgK+OW/oqiMLALtb7/FiJvoOaOAQQukUaGoAAABeLpf88VA+DvwMxqivpdilw8+6+9rC9zYAhySs0YQLxCKhGSlF3ggGQ==;7:6S4/VJX86as4RyCmbY495fgr1tkTVPeh/uwmayYoKNFOtL63/sHtAdqur7XksCQmMIbNs6NWvAOYDeAqpi7WKKkshr2M97phnp69DfWJ4YM/yulf948+GzilfzgXrsl6ogQlZgfdMCNV6lvef56Ovg==
-x-ms-office365-filtering-correlation-id: f87fd651-db10-4ec2-3559-08d6862c8860
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:DBBPR05MB6316;
-x-ms-traffictypediagnostic: DBBPR05MB6316:
-x-microsoft-antispam-prvs:
- <DBBPR05MB6316862A459C5F52DA1CEDC0CF970@DBBPR05MB6316.eurprd05.prod.outlook.com>
-x-forefront-prvs: 093290AD39
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(396003)(136003)(39860400002)(346002)(366004)(376002)(189003)(199004)(446003)(11346002)(54906003)(26005)(217873002)(6512007)(2616005)(476003)(66066001)(229853002)(186003)(4744005)(486006)(14454004)(8936002)(386003)(6506007)(36756003)(102836004)(93886005)(6116002)(256004)(3846002)(316002)(8676002)(81166006)(81156014)(478600001)(6916009)(71190400001)(71200400001)(7736002)(305945005)(4326008)(86362001)(76176011)(2906002)(97736004)(99286004)(52116002)(6436002)(6486002)(53936002)(6246003)(1076003)(33656002)(105586002)(25786009)(106356001)(7416002)(68736007);DIR:OUT;SFP:1101;SCL:1;SRVR:DBBPR05MB6316;H:DBBPR05MB6426.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- IP3i1PaWZXDdSoMl6tt0T0n/TmKuOYDAq7AG5E/7PwNXD7FQSSlN6BI+tdiFth23Ut+YfpcTJq4lnjUNN8O0OAqokO0wqL6QVMbrHCbj4VLUmY56jFi0UXrjgtzx3h88yzuwKOc6AOkb5qfmKADJvTaQWvyV8eSM9ujt8GRh2qBN+viGHs8Gk/5xXBX2VZCHJxNN8c3bg9BFr6Gzx5wwhgObARcALYbmAu6BXnYEODItf7aaTmxJi0Kz0+ejh9OueWOBcZIP3guQVJXV14K2mjtKk7IgJzUUI1eXdKN7rU1p0HwZAwz3rUMhaRlvRkKgz1AnBPGMjPFzHbheB6Hcv0i72sMMW9nJftY7jzvndr9mPBPgOjMXNgHGGXZ/tnUmLLY0BrzgESVZ6MBhzo/qAcprtqzp0+qN33lFGGe5RwI=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <C53BE3538A37714BBCD7EECA0BFDFC44@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=atRWCQe0;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :user-agent;
+        bh=+lCxnlIZUJU9pZqCTFE3c/UHyRafPDqnnoPq+cvx5Es=;
+        b=atRWCQe0OXSmeZ8tI433nmuVXC9/nf3+BVa2GFc+cDVIopGZtz4CpjFyBmLV5vlmE6
+         f5YbVCdzOSSXQtZpiK7XBBVdOuoKCkdmprZnxWY0zYoyQYZDgU40xLVWJfPGojBjisSe
+         /K00diZPmknhspvWEuz7lQEQrLtL1JiUXq/nU=
+X-Google-Smtp-Source: ALg8bN4bAFXvrX7xlnWLrEOHHMCEQ5DrTKaHs+SvByRcm7HBXudGSe/5DtonJU5ERb3hIgHUIINucQ==
+X-Received: by 2002:a81:7d0b:: with SMTP id y11mr25566161ywc.442.1548795533500;
+        Tue, 29 Jan 2019 12:58:53 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::6:f1fc])
+        by smtp.gmail.com with ESMTPSA id o14sm27932586ywo.52.2019.01.29.12.58.52
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 29 Jan 2019 12:58:52 -0800 (PST)
+Date: Tue, 29 Jan 2019 15:58:52 -0500
+From: Chris Down <chris@chrisdown.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+Subject: [PATCH] mm: memcontrol: Expose THP events on a per-memcg basis
+Message-ID: <20190129205852.GA7310@chrisdown.name>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: f87fd651-db10-4ec2-3559-08d6862c8860
-X-MS-Exchange-CrossTenant-originalarrivaltime: 29 Jan 2019 20:58:34.4173
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DBBPR05MB6316
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 01:39:49PM -0700, Logan Gunthorpe wrote:
+Currently THP allocation events data is fairly opaque, since you can
+only get it system-wide. This patch makes it easier to reason about
+transparent hugepage behaviour on a per-memcg basis.
 
-> implement the mapping. And I don't think we should have 'special' vma's
-> for this (though we may need something to ensure we don't get mapping
-> requests mixed with different types of pages...).
+For anonymous THP-backed pages, we already have MEMCG_RSS_HUGE in v1,
+which is used for v1's rss_huge [sic]. This is reused here as it's
+fairly involved to untangle NR_ANON_THPS right now to make it
+per-memcg, since right now some of this is delegated to rmap before we
+have any memcg actually assigned to the page. It's a good idea to rework
+that, but let's leave untangling THP allocation for a future patch.
 
-I think Jerome explained the point here is to have a 'special vma'
-rather than a 'special struct page' as, really, we don't need a
-struct page at all to make this work.
+Signed-off-by: Chris Down <chris@chrisdown.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: kernel-team@fb.com
+---
+ Documentation/admin-guide/cgroup-v2.rst | 14 ++++++++++++++
+ mm/huge_memory.c                        |  2 ++
+ mm/khugepaged.c                         |  2 ++
+ mm/memcontrol.c                         | 13 +++++++++++++
+ 4 files changed, 31 insertions(+)
 
-If I recall your earlier attempts at adding struct page for BAR
-memory, it ran aground on issues related to O_DIRECT/sgls, etc, etc.
-
-This does seem to avoid that pitfall entirely as we can never
-accidently get into the SGL system with this kind of memory or VMA?
-
-Jason
+diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+index 7bf3f129c68b..b6989b39ed8e 100644
+--- a/Documentation/admin-guide/cgroup-v2.rst
++++ b/Documentation/admin-guide/cgroup-v2.rst
+@@ -1189,6 +1189,10 @@ PAGE_SIZE multiple when read back.
+ 		Amount of cached filesystem data that was modified and
+ 		is currently being written back to disk
+ 
++	  anon_thp
++		Amount of memory used in anonymous mappings backed by
++		transparent hugepages
++
+ 	  inactive_anon, active_anon, inactive_file, active_file, unevictable
+ 		Amount of memory, swap-backed and filesystem-backed,
+ 		on the internal memory management lists used by the
+@@ -1248,6 +1252,16 @@ PAGE_SIZE multiple when read back.
+ 
+ 		Amount of reclaimed lazyfree pages
+ 
++	  thp_fault_alloc
++
++		Number of transparent hugepages which were allocated to satisfy
++		a page fault, including COW faults
++
++	  thp_collapse_alloc
++
++		Number of transparent hugepages which were allocated to
++		allow collapsing an existing range of pages
++
+   memory.swap.current
+ 	A read-only single value file which exists on non-root
+ 	cgroups.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index f5f1d4324fe2..6cb7a748aa33 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -617,6 +617,7 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+ 		mm_inc_nr_ptes(vma->vm_mm);
+ 		spin_unlock(vmf->ptl);
+ 		count_vm_event(THP_FAULT_ALLOC);
++		count_memcg_events(memcg, THP_FAULT_ALLOC, 1);
+ 	}
+ 
+ 	return 0;
+@@ -1339,6 +1340,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 	}
+ 
+ 	count_vm_event(THP_FAULT_ALLOC);
++	count_memcg_events(memcg, THP_FAULT_ALLOC, 1);
+ 
+ 	if (!page)
+ 		clear_huge_page(new_page, vmf->address, HPAGE_PMD_NR);
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index ceb242ca6ef6..54f3d33f897a 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1075,6 +1075,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	BUG_ON(!pmd_none(*pmd));
+ 	page_add_new_anon_rmap(new_page, vma, address, true);
+ 	mem_cgroup_commit_charge(new_page, memcg, false, true);
++	count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
+ 	lru_cache_add_active_or_unevictable(new_page, vma);
+ 	pgtable_trans_huge_deposit(mm, pmd, pgtable);
+ 	set_pmd_at(mm, address, pmd, _pmd);
+@@ -1503,6 +1504,7 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		page_ref_add(new_page, HPAGE_PMD_NR - 1);
+ 		set_page_dirty(new_page);
+ 		mem_cgroup_commit_charge(new_page, memcg, false, true);
++		count_memcg_events(memcg, THP_COLLAPSE_ALLOC, 1);
+ 		lru_cache_add_anon(new_page);
+ 
+ 		/*
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 18f4aefbe0bf..2f4fe2fb9046 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5603,6 +5603,15 @@ static int memory_stat_show(struct seq_file *m, void *v)
+ 	seq_printf(m, "file_writeback %llu\n",
+ 		   (u64)acc.stat[NR_WRITEBACK] * PAGE_SIZE);
+ 
++	/*
++	 * TODO: We should eventually replace our own MEMCG_RSS_HUGE counter
++	 * with the NR_ANON_THP vm counter, but right now it's a pain in the
++	 * arse because it requires migrating the work out of rmap to a place
++	 * where the page->mem_cgroup is set up and stable.
++	 */
++	seq_printf(m, "anon_thp %llu\n",
++		   (u64)acc.stat[MEMCG_RSS_HUGE] * PAGE_SIZE);
++
+ 	for (i = 0; i < NR_LRU_LISTS; i++)
+ 		seq_printf(m, "%s %llu\n", mem_cgroup_lru_names[i],
+ 			   (u64)acc.lru_pages[i] * PAGE_SIZE);
+@@ -5634,6 +5643,10 @@ static int memory_stat_show(struct seq_file *m, void *v)
+ 	seq_printf(m, "pglazyfree %lu\n", acc.events[PGLAZYFREE]);
+ 	seq_printf(m, "pglazyfreed %lu\n", acc.events[PGLAZYFREED]);
+ 
++	seq_printf(m, "thp_fault_alloc %lu\n", acc.events[THP_FAULT_ALLOC]);
++	seq_printf(m, "thp_collapse_alloc %lu\n",
++		   acc.events[THP_COLLAPSE_ALLOC]);
++
+ 	return 0;
+ }
+ 
+-- 
+2.20.1
 
