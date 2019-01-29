@@ -2,159 +2,142 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A1E2C282CD
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:41:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A60B2C282CD
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 01:18:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CC7A2177E
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:41:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CC7A2177E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 67861214DA
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 01:18:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67861214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B47D48E0014; Mon, 28 Jan 2019 19:41:17 -0500 (EST)
+	id DEB958E0003; Mon, 28 Jan 2019 20:18:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AF8978E0008; Mon, 28 Jan 2019 19:41:17 -0500 (EST)
+	id D75478E0001; Mon, 28 Jan 2019 20:18:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A0ED68E0014; Mon, 28 Jan 2019 19:41:17 -0500 (EST)
+	id C3D3C8E0003; Mon, 28 Jan 2019 20:18:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D01A8E0008
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 19:41:17 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id v72so12685358pgb.10
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 16:41:17 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 7C6E48E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 20:18:16 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id x26so12787005pgc.5
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 17:18:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=f0ndo1Xal1a6v/4PjrGdAuv0FcoU8GzPJ1j2wQZwxYY=;
-        b=ULQvnqsZ/VE+Lv5cA2/hWFeykoyJAsR+gQydP1Gy19IqVUed9lC0VrRlIMJ4zLQGJ3
-         7/g7F4QEocfPeaMH5uFqry3jCwGJ4Ynzg3GzQW6JU+o7CdzWyN306GEhg0go1rOSSu1r
-         uIpXLK0UkXkWzZI758W+zPyC/FhJ+kXxhALbfFUc9E+s+jjRmzmt2xAJhsUR1pSQyJuw
-         qqN9S9FPeW3OwxDGFCf5xZFgGFdIEc+DQReCWdCNOME6nBaYa8eAwEBt4E3U6wZLClwe
-         KMC1WucMQ1wSICRNAnb+31pPaemwvZHLrkUBWEVfSnnlhVEzUjNROORTGDxAsw73TRlf
-         wYWA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukfgKQcPpmQtqBX8bdPoFT6VIa5e5F/XpscfNRqFDDaDyqZvMa+d
-	QMWGKGtyt+FD4G6DQqsFYhecnd0hjauF9qbG71cJU+Dx7psKBxF5Q7kyXjFAYp5smL5bPykkLRo
-	zO2flukhJBs1BVI2deBwRmc/s9gXI0uEgLFPBySv6j4KBt1vGWZPyjFkwhJ+z7g6ipg==
-X-Received: by 2002:a62:8dd9:: with SMTP id p86mr23709382pfk.143.1548722477018;
-        Mon, 28 Jan 2019 16:41:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6m/eC68OJKOYsg+BCOQHBSL4u/pp7zw+nFgBbt0xobQ+qneQIoiIFOkCDj8ozCSDeH+Rf+
-X-Received: by 2002:a62:8dd9:: with SMTP id p86mr23703056pfk.143.1548722354158;
-        Mon, 28 Jan 2019 16:39:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548722354; cv=none;
+         :subject:in-reply-to:references:date:message-id:mime-version;
+        bh=a+2blrXX59xEskjaE8gYIMdcuinaNPOCZz8mlE3lSzc=;
+        b=F++4IhIan/IhN1pNaSUmLRLGJW5+eh5oi4UXXQBVufTiu1fxiPMnz3quWHoeIS8wzb
+         th9tukZB/e8kVAmvJmAUHk7iDQKyBfKKd8cl/NoNb3awYf+/ewuIjZDRovHH2IMDmMlC
+         IH/HfMGbRIGfZPJnQtm10IsdtyA/mMS000yap6rszuCRoOHGtYeURmQnfjCdAe7ztR4+
+         b+6AARrEK1owqU7gDXMYB0JfYHtaLHUj36xAng7C7KgZdKu+vy5YEXgFIbTFQWMeOKbg
+         KHAqXvcsczNN+K879qQ7vJT1wDsfmZV/e4YmCXhNP8YbNEaLXYTCe36eMqiy51K9Kksg
+         cmgA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+X-Gm-Message-State: AJcUukfY0EGljpS2Eomemk8dbMoxweVPp5atHBpx4+cH1wHI23h1H9KK
+	nnq0/2x8oODc8jVI82ECd6NV4HpYLrou4UC1w3Ymbe5JeEf1oUewWoNXcMNGaL5t9f/+e9J254v
+	V5J+G3FaguvGhUuXeChIvWpG88MK76VpkrzReciHlwkfb6ld98tgTIwstx5uCR9g=
+X-Received: by 2002:a63:5320:: with SMTP id h32mr21886363pgb.414.1548724696184;
+        Mon, 28 Jan 2019 17:18:16 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4n8RfeNBQAzu/ngrMjJoG6CP2UjyZVAq5D+jXzgzMCBbSDi7Eeyq8hCYhhXszdjGGi8iBJ
+X-Received: by 2002:a63:5320:: with SMTP id h32mr21886325pgb.414.1548724695241;
+        Mon, 28 Jan 2019 17:18:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548724695; cv=none;
         d=google.com; s=arc-20160816;
-        b=BHfe1bm2/4/MDhZt6y0bKiP58pZhZM+lfaOzT4ntLfP4Rs036rut2o/FlCo+PEu1XZ
-         pgSknASDvPWbrpBLRDQG501StTK0Ovw8sBC4B1EhqwHqpcROCkameTl7fAFfBWRyQFJt
-         gt/mpNTFqcib14v/+5Rv6bAXzj4DBF7nXrz9GnV0zXjDzmrR+RSG7JcEGGslyGFG/HBw
-         sQPW4VYgUEqNmmHZpoE0/fLkZTBr0GJozxSon3oQMgQqH/GSFISFrkGKeRkfy8r9qU/S
-         9TCpV1yMW/G2TGi/lg2NZbKtVPZFzTQEoDjRslHKsEgbW8mjapdC4aTYlAmOiCR2CJ84
-         XWjw==
+        b=XMXpFxHRKSSSle6TDMawjfiijYHHwgDB5GVzJY0uvpKZk3XOGGuJsbHfsDcRqAWsxg
+         WWicjUhryIQ130KFifLYxsY7rZeGbd12yG+ZKZ/0ntcdMtV3tlQ9AGJG46UYWNRbZBay
+         69sSFHbO8ltGSKTJDAOqB+XJLq51YgYWWoaTjJrWW4QVu7J9OoH4BMAaaie3QVUJZ+QN
+         z/zlUn/IzEKBbjs2XphF3oUPDhk09Tz9ag2/cDpYc5rWflApC+OI+4h7uNdcrdAA0S5M
+         cWxRYP4BKaVuxATErsJUyeOj79IkXbpQEU28gJ0mgra/PfTz3pGowu6njiP90gWsy+Na
+         5TYw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=f0ndo1Xal1a6v/4PjrGdAuv0FcoU8GzPJ1j2wQZwxYY=;
-        b=UspSNeE+oGmgHBl61SDi7HtUFSwfJcMvlSn5nR5/dLUERs6SAegno3FcTxq7KS/l3j
-         iYkCKFWcTQ/oG7M/gwVjjV1uTTn9O7owxHTtaNt+rx/CO1cVhTbS3rQ0y8Gx4eIkNYxG
-         qaY13IvQbMZzkSxYtFKNfew7kG/lJc2kpWECd90TkTy06NEQmLGIZuM5yE4QpS/MW4bB
-         vabIv9oUZst5ak/tf5SUGsKHWWAo25dXib4ofS7p1Z+Nk2OtLpFTq68cD6u4EgUzcz7D
-         rxsZIpal2v+896Eoyi4TU6djegG7ANPdCz3dNqhMLNEwuCTkfuva7gGPkbOIOrStvu6/
-         95Fw==
+        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=a+2blrXX59xEskjaE8gYIMdcuinaNPOCZz8mlE3lSzc=;
+        b=gMb3gN64b5cZPz8ImWBIiofO53+74uN18PoJrIfPb1iItJgCg+YoY1Imf1PWcuE2vQ
+         toXSqf6yaUonmBjryTSLWy0mjQLPfZDYtlTW1Ar9fa7mrkmXBuY8iywhFv2duqIVmBrN
+         qQL2PD0eaH7lpg9G5+14Q9+DUX6bKBHbGmLIZTnWVDmTq0ErkJ3IktbWRnWTqhvUbUhK
+         ywhZEhwV5jv7ex9SOas6AIBrIw9aZG3IVlQusC94nkgMk2OT9keujxhThDYnzulbxSkF
+         7lAceXfIvYpyGLdtR2DNVSioSzyo8Cvso0T0RbJXkT+PhMwRaTM9rG7EClt3n10oMpeW
+         z+ZA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id i9si7660357plb.35.2019.01.28.16.39.13
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id m14si34223879pgd.326.2019.01.28.17.18.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 16:39:14 -0800 (PST)
-Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 28 Jan 2019 17:18:15 -0800 (PST)
+Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jan 2019 16:39:12 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,535,1539673200"; 
-   d="scan'208";a="133921942"
-Received: from rpedgeco-desk5.jf.intel.com ([10.54.75.79])
-  by orsmga001.jf.intel.com with ESMTP; 28 Jan 2019 16:39:12 -0800
-From: Rick Edgecombe <rick.p.edgecombe@intel.com>
-To: Andy Lutomirski <luto@kernel.org>,
-	Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org,
-	x86@kernel.org,
-	hpa@zytor.com,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Borislav Petkov <bp@alien8.de>,
-	Nadav Amit <nadav.amit@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	linux_dti@icloud.com,
-	linux-integrity@vger.kernel.org,
-	linux-security-module@vger.kernel.org,
-	akpm@linux-foundation.org,
-	kernel-hardening@lists.openwall.com,
-	linux-mm@kvack.org,
-	will.deacon@arm.com,
-	ard.biesheuvel@linaro.org,
-	kristen@linux.intel.com,
-	deneen.t.dock@intel.com,
-	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>
-Subject: [PATCH v2 19/20] x86/kprobes: Use vmalloc special flag
-Date: Mon, 28 Jan 2019 16:34:21 -0800
-Message-Id: <20190129003422.9328-20-rick.p.edgecombe@intel.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
-References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
+	(No client certificate requested)
+	by ozlabs.org (Postfix) with ESMTPSA id 43pTC33jzjz9sCX;
+	Tue, 29 Jan 2019 12:18:06 +1100 (AEDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: Dave Hansen <dave.hansen@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>, Dave Jiang <dave.jiang@intel.com>, zwisler@kernel.org, vishal.l.verma@intel.com, thomas.lendacky@amd.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, baiyaowei@cmss.chinamobile.com, Takashi Iwai <tiwai@suse.de>, Jerome Glisse <jglisse@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
+Subject: Re: [PATCH 1/5] mm/resource: return real error codes from walk failures
+In-Reply-To: <4898e064-5298-6a82-83ea-23d16f3dfb3d@intel.com>
+References: <20190124231441.37A4A305@viggo.jf.intel.com> <20190124231442.EFD29EE0@viggo.jf.intel.com> <CAErSpo7kMjfi-1r8ZyGbheWzo+JCFkDZ1zpVhyNV7VVy8NOV7g@mail.gmail.com> <4898e064-5298-6a82-83ea-23d16f3dfb3d@intel.com>
+Date: Tue, 29 Jan 2019 12:18:05 +1100
+Message-ID: <87k1ios1ma.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Use new flag VM_HAS_SPECIAL_PERMS for handling freeing of special
-permissioned memory in vmalloc and remove places where memory was set NX
-and RW before freeing which is no longer needed.
+Dave Hansen <dave.hansen@intel.com> writes:
+> On 1/25/19 1:02 PM, Bjorn Helgaas wrote:
+>>> @@ -453,7 +453,7 @@ int walk_system_ram_range(unsigned long
+>>>         unsigned long flags;
+>>>         struct resource res;
+>>>         unsigned long pfn, end_pfn;
+>>> -       int ret = -1;
+>>> +       int ret = -EINVAL;
+>> Can you either make a similar change to the powerpc version of
+>> walk_system_ram_range() in arch/powerpc/mm/mem.c or explain why it's
+>> not needed?  It *seems* like we'd want both versions of
+>> walk_system_ram_range() to behave similarly in this respect.
+>
+> Sure.  A quick grep shows powerpc being the only other implementation.
 
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
----
- arch/x86/kernel/kprobes/core.c | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+Ugh gross, why are we reimplementing it? ...
 
-diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
-index fac692e36833..f2fab35bcb82 100644
---- a/arch/x86/kernel/kprobes/core.c
-+++ b/arch/x86/kernel/kprobes/core.c
-@@ -434,6 +434,7 @@ void *alloc_insn_page(void)
- 	if (page == NULL)
- 		return NULL;
- 
-+	set_vm_special(page);
- 	/*
- 	 * First make the page read-only, and then only then make it executable
- 	 * to prevent it from being W+X in between.
-@@ -452,12 +453,6 @@ void *alloc_insn_page(void)
- /* Recover page to RW mode before releasing it */
- void free_insn_page(void *page)
- {
--	/*
--	 * First make the page non-executable, and then only then make it
--	 * writable to prevent it from being W+X in between.
--	 */
--	set_memory_nx((unsigned long)page, 1);
--	set_memory_rw((unsigned long)page, 1);
- 	module_memfree(page);
- }
- 
--- 
-2.17.1
+Oh right, memblock vs iomem. We should fix that one day :/
+
+> I'll just add this hunk:
+>
+>> diff -puN arch/powerpc/mm/mem.c~memory-hotplug-walk_system_ram_range-returns-neg-1 arch/powerpc/mm/mem.c
+>> --- a/arch/powerpc/mm/mem.c~memory-hotplug-walk_system_ram_range-returns-neg-1  2019-01-25 12:57:00.000004446 -0800
+>> +++ b/arch/powerpc/mm/mem.c     2019-01-25 12:58:13.215004263 -0800 
+>> @@ -188,7 +188,7 @@ walk_system_ram_range(unsigned long star 
+>>         struct memblock_region *reg; 
+>>         unsigned long end_pfn = start_pfn + nr_pages; 
+>>         unsigned long tstart, tend; 
+>> -       int ret = -1; 
+>> +       int ret = -EINVAL; 
+>
+> I'll also dust off the ol' cross-compiler and make sure I didn't
+> fat-finger anything.
+
+Modern Fedora & Ubuntu have packaged cross toolchains. Otherwise there's
+the kernel.org ones, or bootlin has versions with libc if you need it.
+
+Patch looks fine. That value could only get to userspace if we have no
+memory, which would be interesting.
+
+Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
+
+cheers
 
