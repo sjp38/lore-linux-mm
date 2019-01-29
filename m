@@ -2,158 +2,166 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 662C1C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 07:22:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 327B0C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 07:33:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB31D2147A
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 07:21:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB31D2147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id EE7F02177E
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 07:33:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE7F02177E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 674088E0003; Tue, 29 Jan 2019 02:21:59 -0500 (EST)
+	id 7F2748E0002; Tue, 29 Jan 2019 02:33:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6230F8E0001; Tue, 29 Jan 2019 02:21:59 -0500 (EST)
+	id 77BB28E0001; Tue, 29 Jan 2019 02:33:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 512488E0003; Tue, 29 Jan 2019 02:21:59 -0500 (EST)
+	id 6450F8E0002; Tue, 29 Jan 2019 02:33:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FEBF8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:21:59 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id a2so13273181pgt.11
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 23:21:59 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E9E38E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:33:38 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id m13so13691242pls.15
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 23:33:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=dq2yKUrWBHVGOOox1hxuFbGdo+Aafr7NyCejs12yors=;
-        b=tVQP36ql6a7ejM+nk6/zQIHjnCfzDMVt1XDcR+JMXQS+SV96zbezcYg8l6lCRBPSlM
-         /gB6jQE4kLS4MFSjjK+dEZCa/SQO0O3R55DeRx6ZI1Cn1mD7DTUHzp01mGy6e5MlJjcV
-         AfddWvTkYmbNjHFBtPy2xc7kPEHSTTKuooFvtAKNppxO1H1CciQ7nTDuYOxJH+y2XmFD
-         s8cF61fLgQwzQsEzSDkdBk5w/5WvWytMRoxa+emhINagug38r1H4hr7zHCAaBtYS8TcU
-         WIovage4z2aWqJ5SdgnFxeGxV5/yyFnMNLdUmHC0j8x5UzoSaoI8CbgNRzMFtx4qEz2V
-         81mw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: AJcUukdV/Z+FxoqhB6ZpTEJyTPU9M3cvzIRrsf7MoABPdRojIVLJClsm
-	d6SUvMKYSUqa+r+v7x9HuFfHkmR/RQ83W+3fv0fEBIjuVOFVTUFEK6zh/yBQPIRzCrISwJGxcHl
-	lLfBnRisoqDjrNrz0Hnd0RdLWhhWxp7JR4wPf9ZrxJKGhx0tVBF1icXj5+6p9hUtO+w==
-X-Received: by 2002:a17:902:b090:: with SMTP id p16mr24988019plr.190.1548746518684;
-        Mon, 28 Jan 2019 23:21:58 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6VjoiA1YumMYTINYBYsrcUdaIlZrbK5uAYsLC6WW/f8PyFigQOXhooTJzicRn6TB4mAI/j
-X-Received: by 2002:a17:902:b090:: with SMTP id p16mr24987969plr.190.1548746517529;
-        Mon, 28 Jan 2019 23:21:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548746517; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=PBNiN+7bZkqEptaRmsPd3lc5ddPmifnQ0l7PtW/87TY=;
+        b=G5Gm95LAR0JcFfNPLExRw2OPeaK5UxZB1IE0k/3VKviRsPbQ9ngPaeL4qSTYTFPi8C
+         Ilb3coVDjvUuIYlw8RvIKRGYgcPj1hfXdElv4zOmojztIIqp94BrPx5dkdvODsE/fs3o
+         B8h3M3rEZZP9PdqP6fSs9A2hdwk2j3oMz124o2WMAK0z1Lg+qd2wnDN21LPSUQ2EWnwu
+         f3s+RA9B81iX/ItnLQL3/IgUQYZ7EJx9vTvZR/pMY3lM2OvIPMN5bzgkqEETRE6N0Fks
+         G0UQNvfyS8VzH/khRg2jMuiqCnG4y2P52ffJy8F2lOCdCE/s9d4mtGa/Fbj6GdXLUdrW
+         6RHA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukcr9DNmqGSd8MPj3C9Tal1nJ2c9RXqJ98eADPKI6/Zd7+8tlQgC
+	AE2AAiWyYLwlQD0chIbS/aQULQv/M4YXtwIgObP6htSJqiHrcVRzLLMEufpV9VGWjkepXHfdtP/
+	+n+6R9FYMUSB+kp9df1tSI5R7huw+u8KiSyFFP2hlvaErl3EYMw2YRCVSKYeZnBk=
+X-Received: by 2002:aa7:8758:: with SMTP id g24mr24594351pfo.250.1548747217797;
+        Mon, 28 Jan 2019 23:33:37 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6Gi3r18hG3XKYr46gUXFEflAoZ0rOPuXztCmWAdmJXoz48eJOlS1xmB+TjpSfZU0mF7w4U
+X-Received: by 2002:aa7:8758:: with SMTP id g24mr24594311pfo.250.1548747217106;
+        Mon, 28 Jan 2019 23:33:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548747217; cv=none;
         d=google.com; s=arc-20160816;
-        b=V41fW0HuoQ4QdVLDB1pkbFFXcS3J3w6Uz5ecZd3mspG+DLd0He3A/RoXXtEbQ1IU9r
-         AriBuZNkcHWWTcAnWd/5JcPKhJaoM22lAkVcCOXU+b35s7uWHlaieIf4/KbiDCIWLgCk
-         Y4raXm0XmkOxJ/GIZJ+6z2WkfA1nKAAJWTZKBQekp9aomkQ4cZnvjtXjQo41tecsSVhN
-         hfuVl6ngUhUANKtg2DaP6M7StQRnabG3TcKmmhYBp4ZjlY91+Rtd4sCyFRagixYadIZb
-         wvktImx+C3R37vtoCW9WYx4I1ywpAc/eZVowjwksUBi9znrEJ/nwo1kQkd/qbfojsV6G
-         fXUQ==
+        b=NdqWYcEi4vQIYVVO4MJXpZEfTZNVMH6MfvVeu8z2s2/RkaaM00sJ+7CtyXkTKm2Vu+
+         NWe92KvX6vU6clDilaB62sb4DZl0PoygmwdproT7PadjtzJt2UQmYyD79AEdAQ55YstA
+         0PWj/qvae56x9aNa5kCCA2O2gctK5mcmvJhqPHfgBCUcJmnWX7YVv7KUwERUNmMoW5QH
+         mtCL4zqKp+gFzfF6aTqgokxZ4yAEwDEOEfe48WuMryF0uUmzVtLAgmKpMyv2MJAYCmLX
+         LSWrkxzTGk5viPIroLFsjcyyDv6foxpyoZgYeFJvGI9mBNw3yZpMURPVCH3JUbftQ5OY
+         AsAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=dq2yKUrWBHVGOOox1hxuFbGdo+Aafr7NyCejs12yors=;
-        b=PZSdLs5jr93Ntq2BsBArMkDRATurxFiiL7iWqQfauDoVAgzHrKEtOFhB0UtPDr0EZh
-         h0/YZa9wrfdOjpz0oXM27vJ7fNUsiMJM3TjKQRXLBrLVApPPqfnAoP5qB23wPSrKiFKx
-         eL7oBH3iRb2VLOC7vdORqffyAy0zGEoxGyUgPys8VNaJiwSs3Gk/JdLztuLLnxDQQSNK
-         0acwva16eMYf3pjYJY1RBLYs1zhn9lLT6E7avy2FsucbvotKmVPlpcsWpuXMrrt9DzoE
-         wOR4aGXuS1m3MU39870y7yT9lXWdQJeTbamfnShThEO9K9SoHX2QK/Jxu8dkqBjQBy1g
-         f/yg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=PBNiN+7bZkqEptaRmsPd3lc5ddPmifnQ0l7PtW/87TY=;
+        b=VapMifa/HAZnm4Rqi/ftK2WQLMECX2iHBdpUNEyrN9Ux4tHShXCeNwpk6CZbHvEnRM
+         CoQeCJYaYGXoOMTEqb4Wxx6l43Y3u0l1R/DdpDPz2xAMxGHx0OIn64WoN+s+QEZtkJ8/
+         2IsZdQ39/I/lPHlIAzwMxl39SbRdLIQZY60hbmaeXAhH6FMbkXqTSaPCgNt4yaaTgxfD
+         YpmqhpWL7THNYZ/bfVJ2DKc46SgqQPcWhxqMCUCwYPgFZ5zoex75jih93pf0pg4EWPvM
+         V/U3ECwGDC9NsdTIz/mh+6DtEzpMaue2jHM66vISfyJbE03YvLPCOVTNCEAJCac3138P
+         aMRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id a35si27417468pla.226.2019.01.28.23.21.56
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 2si31761060pgw.13.2019.01.28.23.33.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 23:21:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        Mon, 28 Jan 2019 23:33:37 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R751e4;CH=green;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01353;MF=jiufei.xue@linux.alibaba.com;NM=1;PH=DS;RN=3;SR=0;TI=SMTPD_---0TJC-u1B_1548746514;
-Received: from localhost(mailfrom:jiufei.xue@linux.alibaba.com fp:SMTPD_---0TJC-u1B_1548746514)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 29 Jan 2019 15:21:55 +0800
-From: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	joseph.qi@linux.alibaba.com
-Subject: [PATCH] mm: fix sleeping function warning in alloc_swap_info
-Date: Tue, 29 Jan 2019 15:21:54 +0800
-Message-Id: <20190129072154.63783-1-jiufei.xue@linux.alibaba.com>
-X-Mailer: git-send-email 2.19.1.856.g8858448bb
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 0B807AE60;
+	Tue, 29 Jan 2019 07:33:34 +0000 (UTC)
+Date: Tue, 29 Jan 2019 08:33:32 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <osalvador@suse.de>,
+	David Hildenbrand <david@redhat.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm,memory_hotplug: Fix scan_movable_pages for gigantic
+ hugepages
+Message-ID: <20190129073332.GB18811@dhcp22.suse.cz>
+References: <20190122154407.18417-1-osalvador@suse.de>
+ <5368e2b4-5aca-40dd-fe18-67d861a04a29@redhat.com>
+ <20190125075830.6mqw2io4rwz7wxx5@d104.suse.de>
+ <20190128145309.c7dcf075b469d6a54694327d@linux-foundation.org>
+ <20190128145617.069b3a5436fc7e34bdebb104@linux-foundation.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190128145617.069b3a5436fc7e34bdebb104@linux-foundation.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Trinity reports BUG:
+On Mon 28-01-19 14:56:17, Andrew Morton wrote:
+[...]
+> --- a/mm/memory_hotplug.c~mmmemory_hotplug-fix-scan_movable_pages-for-gigantic-hugepages-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -1305,28 +1305,27 @@ int test_pages_in_a_zone(unsigned long s
+>  static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>  {
+>  	unsigned long pfn;
+> -	struct page *page;
+> +
+>  	for (pfn = start; pfn < end; pfn++) {
+> -		if (pfn_valid(pfn)) {
+> -			page = pfn_to_page(pfn);
+> -			if (PageLRU(page))
+> -				return pfn;
+> -			if (__PageMovable(page))
+> -				return pfn;
+> -			if (PageHuge(page)) {
+> -				struct page *head = compound_head(page);
+> +		struct page *page, *head;
+> +		unsigned long skip;
+>  
+> -				if (hugepage_migration_supported(page_hstate(head)) &&
+> -				    page_huge_active(head))
+> -					return pfn;
+> -				else {
+> -					unsigned long skip;
+> +		if (!pfn_valid(pfn))
+> +			continue;
+> +		page = pfn_to_page(pfn);
+> +		if (PageLRU(page))
+> +			return pfn;
+> +		if (__PageMovable(page))
+> +			return pfn;
+>  
+> -					skip = (1 << compound_order(head)) - (page - head);
+> -					pfn += skip - 1;
+> -				}
+> -			}
+> -		}
+> +		if (!PageHuge(page))
+> +			continue;
+> +		head = compound_head(page);
+> +		if (hugepage_migration_supported(page_hstate(head)) &&
+> +		    page_huge_active(head))
+> +			return pfn;
+> +		skip = (1 << compound_order(head)) - (page - head);
+> +		pfn += skip - 1;
+>  	}
+>  	return 0;
+>  }
+> _
+> 
 
-sleeping function called from invalid context at mm/vmalloc.c:1477
-in_atomic(): 1, irqs_disabled(): 0, pid: 12269, name: trinity-c1
-
-[ 2748.573460] Call Trace:
-[ 2748.575935]  dump_stack+0x91/0xeb
-[ 2748.578512]  ___might_sleep+0x21c/0x250
-[ 2748.581090]  remove_vm_area+0x1d/0x90
-[ 2748.583637]  __vunmap+0x76/0x100
-[ 2748.586120]  __se_sys_swapon+0xb9a/0x1220
-[ 2748.598973]  do_syscall_64+0x60/0x210
-[ 2748.601439]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-This is triggered by calling kvfree() inside spinlock() section in
-function alloc_swap_info().
-Fix this by moving the kvfree() after spin_unlock().
-
-Fixes: 873d7bcfd066 ("mm/swapfile.c: use kvzalloc for swap_info_struct allocation")
-Cc: <stable@vger.kernel.org>
-Reviewed-by: Joseph Qi <joseph.qi@linux.alibaba.com>
-Signed-off-by: Jiufei Xue <jiufei.xue@linux.alibaba.com>
----
- mm/swapfile.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index dbac1d49469d..d26c9eac3d64 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2810,7 +2810,7 @@ late_initcall(max_swapfiles_check);
- 
- static struct swap_info_struct *alloc_swap_info(void)
- {
--	struct swap_info_struct *p;
-+	struct swap_info_struct *p, *tmp = NULL;
- 	unsigned int type;
- 	int i;
- 	int size = sizeof(*p) + nr_node_ids * sizeof(struct plist_node);
-@@ -2840,7 +2840,7 @@ static struct swap_info_struct *alloc_swap_info(void)
- 		smp_wmb();
- 		nr_swapfiles++;
- 	} else {
--		kvfree(p);
-+		tmp = p;
- 		p = swap_info[type];
- 		/*
- 		 * Do not memset this entry: a racing procfs swap_next()
-@@ -2853,6 +2853,8 @@ static struct swap_info_struct *alloc_swap_info(void)
- 		plist_node_init(&p->avail_lists[i], 0);
- 	p->flags = SWP_USED;
- 	spin_unlock(&swap_lock);
-+	kvfree(tmp);
-+
- 	spin_lock_init(&p->lock);
- 	spin_lock_init(&p->cont_lock);
- 
+LGTM
 -- 
-2.19.1.856.g8858448bb
+Michal Hocko
+SUSE Labs
 
