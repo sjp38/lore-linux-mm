@@ -6,64 +6,64 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EFF89C282CD
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:40:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F6E4C282CD
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:40:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A4C592177E
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:40:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4C592177E
+	by mail.kernel.org (Postfix) with ESMTP id 28285217F5
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:40:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28285217F5
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 556068E0002; Mon, 28 Jan 2019 19:40:46 -0500 (EST)
+	id BE9698E0004; Mon, 28 Jan 2019 19:40:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 504D78E0001; Mon, 28 Jan 2019 19:40:46 -0500 (EST)
+	id B6E778E0001; Mon, 28 Jan 2019 19:40:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 41B9E8E0002; Mon, 28 Jan 2019 19:40:46 -0500 (EST)
+	id A86318E0004; Mon, 28 Jan 2019 19:40:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F20178E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 19:40:45 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id d3so12640062pgv.23
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 16:40:45 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 659508E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 19:40:48 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id p4so12659084pgj.21
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 16:40:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=9618xtgXUZ8Ek1wm3UNb4fJDvCUikNkBQc6KAG864pg=;
-        b=PqUchcSkoHXgLa2F6rSIUQLXQoKo+P/ycu5z24LeowLrsel6rUwn06Y0R48oT3Dh1T
-         ELqr1eO/0zPKbUMaD5soBBYQfJkOrlLLIGVHI8v787EuFvvxlg3VOd7hjJXzxlTursJa
-         BNY2POKduL7Fj33mbvjyEZNAxjUt5iAhrjz9wRsrG32iX8Ws2P1nE8M5H9DB0vhNIVGb
-         noz0ymBVxd+ux/avvT4qIsJmtO9UKzG2mPs7Li0kU3FPupr6ti/ljXf+mT+t7sYSSKXa
-         IjzFjJg9Q7ntHenbdgL364TNMYxHjRbRj3DiAAdoB+ycCh3dXcZlHZ1BRQKt/yi4mvN5
-         1BVA==
+        bh=Y027RJiR9dYgsRTHYJcUS1hjFZKi3qjEOVY152/wOMs=;
+        b=rMvBrZke5ALQI4QQFV8ThUfwAm2mZ18cPVJX2ybXKdwLaFLqftaYZWt9AOoco4vGKC
+         JQQWRYeg7z8IvFOnquYyD1USnuAvoIw+g3B7FycingnvGm2B/ZFuZfAeLo6Lmaxwv4x/
+         K7qyd395J8hdcrbbZUSfJD1KsTCco889u8MfhibpzNlGsm2VAydzov07w7zRgBsv0qUR
+         eQq4h7KOageaI2HAj1GdKJcHRF7I9ePB4S+myDh1mHW+XOTGFwXp7HEo/ESyiqfyPqwJ
+         JLXEXwU08ankGA3fpn11fVSIV3jjRvx8SkAXwCbOpIbrkynCFtgSGc9UZM4IId2HbRFn
+         k33Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukfj5IfG8v2xdW96BS3Sp/y4WHdRsmyP8xU8W4f+gWFbOhwINo5W
-	pWxJQQCDaGJJMuxBk3/FWigDORvEhAbrM/c6+yb2RifhLAPTEzviEPAqeGQRrjov/3OuPzsccsx
-	Hkuwz2UTNIeqwlLcBz19fOSpeRN+pQdIrOYVpNUumAf1WPeFBhGHV1CWhDG3WK9V77A==
-X-Received: by 2002:a62:9f1b:: with SMTP id g27mr23311351pfe.87.1548722445642;
-        Mon, 28 Jan 2019 16:40:45 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5iI6amSwTGwJbLBEOH1oe08f84a01Z1ups8g49tB4v8QSP79plwyyao2jCgURN5W1eDvWm
-X-Received: by 2002:a62:9f1b:: with SMTP id g27mr23306610pfe.87.1548722353321;
+X-Gm-Message-State: AJcUukfSy0h3Tys8UQ5u9kJQFaX1Nj8xFJKxZwapl0koAYrMwuE3FAco
+	k058IeKoUQeqBypRCdnfDjD6xcEq77/6r8Tlz43BQhRV9QbMu4OyTmYSnAAb0qZwDSaokL5hclW
+	3GNCjS4Z9pa7LQRpI2qgFJalARZ1DIMvMkqaDdb8gdzmBiuH2pBiNU227jQq1x0jcCw==
+X-Received: by 2002:a63:304:: with SMTP id 4mr19893574pgd.99.1548722448059;
+        Mon, 28 Jan 2019 16:40:48 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN48o1HRcT06+m4qjR4g8R7v72g9wmAQ1oE/wRNA67RCPxIc0M7bV2Vh5vVHmZkJlDxUEudv
+X-Received: by 2002:a63:304:: with SMTP id 4mr19889583pgd.99.1548722353604;
         Mon, 28 Jan 2019 16:39:13 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1548722353; cv=none;
         d=google.com; s=arc-20160816;
-        b=cRvVn2QOHrVfduEpwC8o4zvTF3fGigPAfWFQBTdsfq56l3hp91QFerkop9qnEKh0c2
-         ZqJYS1nVvtIyyKhflZWYWI6V/fOMM7imh1y+XwGyelKv8BJvLKbBd78+Tni0H6xDleNR
-         fGvqJYhWrgXqQNjW3CkyAvy/Jd003IPmSkRTixVLXC+7MQKnpmrwY76nMFsGGn8DUJ7S
-         dMbG2AiByP2IYIgCldkQePpx/pR8ieSQgullWvvM2wpkJPoI+lB9ea6nwHKbU0mI9COk
-         xPDHOSvlAdvzJcbfOxYI0Mcxf9A+5Pdvngs2gmts40D/V0eeGbIl+quqzQCpXnluhkEN
-         qh9Q==
+        b=xdiZl/wv9/0dun/O7MhDBAwEC7V7SEtZB9N9ZQD29Afz8RB20pNI2+LtxGXsC+QlSy
+         9hzCzBSNtE4IRXR02ujxjq9a4W/jBY10jWoY5JeGdSkn2t3VsGJCTwJpKmjobINVK8ej
+         ab4KaInPf0xbeuOxh1Ycns9vHAslNOXTnz+WZYxobd0u1wGzi9rD15jMi7JODXfSV6eI
+         CqjXkAHlF6EGX0sO8HZqKdKc1O/PGFCI1AbnPBS67yoacUV2IGe8N0dB0bvcszCgfYJK
+         fK3XhYrIOzlXYWdv8lRUIPqQeOqra+JBEVjQLAiJ0Wxv+6iEekLeZUBnXSf4yyG93r/o
+         A8iw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=9618xtgXUZ8Ek1wm3UNb4fJDvCUikNkBQc6KAG864pg=;
-        b=xTaZmmL4A/gOybMIKTDWf4fxl2MrjNyrSIYEFYqeAdEjtalI/jZBgCCvvD3kmTCS7x
-         EzRzTAhJ+8dCF+3rjqlbEFWDTVeMyanwNGOj8rQe9dwtl/Pn6jBE2rpTzxWk0aFhf8UE
-         2BEaAKHa54SneqxRkCmXywo1UeOVfLMz/pZYmOb8cCU5RRYEafni+QbyuIYxJzpHX/0/
-         w50OqRtk2Qvi1FcmOTZ5TtS65i3scTMZ5g7n1E81Dch2s3J4UnCz3FN7ouJ0J2AiEne6
-         VCdUMA0fIs9Yz8qTb5mdHyi9pn+WcTcZ3L9PxJC96QNEMklqRephbOfeQ6F5RCQHEl4W
-         Anng==
+        bh=Y027RJiR9dYgsRTHYJcUS1hjFZKi3qjEOVY152/wOMs=;
+        b=hzP/K5vbjWDi3Ab9z1/Jy4f/ztilNQknAvbaCFIs4b9E1rY4LUx2XiOuq7iXkag1fI
+         pxQd7N4b9caZGlqzJfvnH1EDxlukSIWI89bj8x+h+3wHc0619wnKZtC5ABWebjoCml1g
+         HxjkSQmHo737OKemTKOS8/mZCxr9Hl2qDn1CTZ23nqt0gcyRqUQQkgYMF12ZOb+WU+Lt
+         LBgUEAPKC9xiZSzGuuAYKmbC9lD8B5VbwiDsmrlK2grGaM7UAWu0inJXuQQre+qcAlQx
+         fsy0IS3ivHLnZMsCsdXyaRVaLKLyFDxm7DsBVco3Jr5+ORXNGUeIaHQf6pgxFKaRiwAP
+         5c3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -82,7 +82,7 @@ Received: from orsmga001.jf.intel.com ([10.7.209.18])
   by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jan 2019 16:39:12 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.56,535,1539673200"; 
-   d="scan'208";a="133921919"
+   d="scan'208";a="133921922"
 Received: from rpedgeco-desk5.jf.intel.com ([10.54.75.79])
   by orsmga001.jf.intel.com with ESMTP; 28 Jan 2019 16:39:12 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -106,14 +106,10 @@ Cc: linux-kernel@vger.kernel.org,
 	ard.biesheuvel@linaro.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
-	Nadav Amit <namit@vmware.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v2 12/20] x86/alternative: Remove the return value of text_poke_*()
-Date: Mon, 28 Jan 2019 16:34:14 -0800
-Message-Id: <20190129003422.9328-13-rick.p.edgecombe@intel.com>
+Subject: [PATCH v2 13/20] Add set_alias_ function and x86 implementation
+Date: Mon, 28 Jan 2019 16:34:15 -0800
+Message-Id: <20190129003422.9328-14-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
 References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
@@ -123,94 +119,130 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Nadav Amit <namit@vmware.com>
+This adds two new functions set_alias_default_noflush and
+set_alias_nv_noflush for setting the alias mapping for the page to its
+default valid permissions and to an invalid state that cannot be cached in
+a TLB, respectively. These functions to not flush the TLB.
 
-The return value of text_poke_early() and text_poke_bp() is useless.
-Remove it.
+Note, __kernel_map_pages does something similar but flushes the TLB and
+doesn't reset the permission bits to default on all architectures.
 
+There is also an ARCH config ARCH_HAS_SET_ALIAS for specifying whether
+these have an actual implementation or a default empty one.
+
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Signed-off-by: Nadav Amit <namit@vmware.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/text-patching.h |  4 ++--
- arch/x86/kernel/alternative.c        | 11 ++++-------
- 2 files changed, 6 insertions(+), 9 deletions(-)
+ arch/Kconfig                      |  4 ++++
+ arch/x86/Kconfig                  |  1 +
+ arch/x86/include/asm/set_memory.h |  3 +++
+ arch/x86/mm/pageattr.c            | 14 +++++++++++---
+ include/linux/set_memory.h        | 10 ++++++++++
+ 5 files changed, 29 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
-index a75eed841eed..c90678fd391a 100644
---- a/arch/x86/include/asm/text-patching.h
-+++ b/arch/x86/include/asm/text-patching.h
-@@ -18,7 +18,7 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
- #define __parainstructions_end	NULL
- #endif
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 4cfb6de48f79..4ef9db190f2d 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -249,6 +249,10 @@ config ARCH_HAS_FORTIFY_SOURCE
+ config ARCH_HAS_SET_MEMORY
+ 	bool
  
--extern void *text_poke_early(void *addr, const void *opcode, size_t len);
-+extern void text_poke_early(void *addr, const void *opcode, size_t len);
++# Select if arch has all set_alias_nv/default() functions
++config ARCH_HAS_SET_ALIAS
++	bool
++
+ # Select if arch init_task must go in the __init_task_data section
+ config ARCH_TASK_STRUCT_ON_STACK
+        bool
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 26387c7bf305..42bb1df4ea94 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -66,6 +66,7 @@ config X86
+ 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
+ 	select ARCH_HAS_UACCESS_MCSAFE		if X86_64 && X86_MCE
+ 	select ARCH_HAS_SET_MEMORY
++	select ARCH_HAS_SET_ALIAS
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
+diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
+index 07a25753e85c..2ef4e4222df1 100644
+--- a/arch/x86/include/asm/set_memory.h
++++ b/arch/x86/include/asm/set_memory.h
+@@ -85,6 +85,9 @@ int set_pages_nx(struct page *page, int numpages);
+ int set_pages_ro(struct page *page, int numpages);
+ int set_pages_rw(struct page *page, int numpages);
  
- /*
-  * Clear and restore the kernel write-protection flag on the local CPU.
-@@ -37,7 +37,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
- extern void *text_poke(void *addr, const void *opcode, size_t len);
- extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
- extern int poke_int3_handler(struct pt_regs *regs);
--extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
-+extern void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
- extern int after_bootmem;
- extern __ro_after_init struct mm_struct *poking_mm;
- extern __ro_after_init unsigned long poking_addr;
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index 69f3e650ada8..81876e3ef3fd 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -264,7 +264,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
- 
- extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
- extern s32 __smp_locks[], __smp_locks_end[];
--void *text_poke_early(void *addr, const void *opcode, size_t len);
-+void text_poke_early(void *addr, const void *opcode, size_t len);
- 
- /*
-  * Are we looking at a near JMP with a 1 or 4-byte displacement.
-@@ -666,8 +666,8 @@ void __init alternative_instructions(void)
-  * instructions. And on the local CPU you need to be protected again NMI or MCE
-  * handlers seeing an inconsistent instruction while you patch.
-  */
--void *__init_or_module text_poke_early(void *addr, const void *opcode,
--				       size_t len)
-+void __init_or_module text_poke_early(void *addr, const void *opcode,
-+				      size_t len)
- {
- 	unsigned long flags;
- 
-@@ -690,7 +690,6 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
- 		 * that causes hangs on some VIA CPUs.
- 		 */
- 	}
--	return addr;
++int set_alias_nv_noflush(struct page *page);
++int set_alias_default_noflush(struct page *page);
++
+ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 4f8972311a77..3a51915a1410 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -2209,8 +2209,6 @@ int set_pages_rw(struct page *page, int numpages)
+ 	return set_memory_rw(addr, numpages);
  }
  
- __ro_after_init struct mm_struct *poking_mm;
-@@ -890,7 +889,7 @@ int poke_int3_handler(struct pt_regs *regs)
-  *	  replacing opcode
-  *	- sync cores
-  */
--void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
-+void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
- {
- 	unsigned char int3 = 0xcc;
- 
-@@ -932,7 +931,5 @@ void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
- 	 * the writing of the new instruction.
- 	 */
- 	bp_patching_in_progress = false;
+-#ifdef CONFIG_DEBUG_PAGEALLOC
 -
--	return addr;
+ static int __set_pages_p(struct page *page, int numpages)
+ {
+ 	unsigned long tempaddr = (unsigned long) page_address(page);
+@@ -2249,6 +2247,17 @@ static int __set_pages_np(struct page *page, int numpages)
+ 	return __change_page_attr_set_clr(&cpa, 0);
  }
  
++int set_alias_nv_noflush(struct page *page)
++{
++	return __set_pages_np(page, 1);
++}
++
++int set_alias_default_noflush(struct page *page)
++{
++	return __set_pages_p(page, 1);
++}
++
++#ifdef CONFIG_DEBUG_PAGEALLOC
+ void __kernel_map_pages(struct page *page, int numpages, int enable)
+ {
+ 	if (PageHighMem(page))
+@@ -2282,7 +2291,6 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
+ }
+ 
+ #ifdef CONFIG_HIBERNATION
+-
+ bool kernel_page_present(struct page *page)
+ {
+ 	unsigned int level;
+diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
+index 2a986d282a97..d19481ac6a8f 100644
+--- a/include/linux/set_memory.h
++++ b/include/linux/set_memory.h
+@@ -10,6 +10,16 @@
+ 
+ #ifdef CONFIG_ARCH_HAS_SET_MEMORY
+ #include <asm/set_memory.h>
++#ifndef CONFIG_ARCH_HAS_SET_ALIAS
++static inline int set_alias_nv_noflush(struct page *page)
++{
++	return 0;
++}
++static inline int set_alias_default_noflush(struct page *page)
++{
++	return 0;
++}
++#endif
+ #else
+ static inline int set_memory_ro(unsigned long addr, int numpages) { return 0; }
+ static inline int set_memory_rw(unsigned long addr, int numpages) { return 0; }
 -- 
 2.17.1
 
