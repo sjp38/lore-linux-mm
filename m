@@ -2,143 +2,164 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4ADA4C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:30:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 365BEC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:31:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 159942087E
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:30:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 159942087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E9C3D2080F
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:31:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="J+vXHO/c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9C3D2080F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AE5C78E0003; Tue, 29 Jan 2019 13:30:27 -0500 (EST)
+	id 9D3948E0002; Tue, 29 Jan 2019 13:31:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A95FD8E0001; Tue, 29 Jan 2019 13:30:27 -0500 (EST)
+	id 9837A8E0001; Tue, 29 Jan 2019 13:31:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 938238E0003; Tue, 29 Jan 2019 13:30:27 -0500 (EST)
+	id 8735C8E0002; Tue, 29 Jan 2019 13:31:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A878E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:30:27 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id a10so14857821plp.14
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:30:27 -0800 (PST)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A0BA8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:31:53 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id v16so8108035wru.8
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:31:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Kvykgcx5P0cYGXPI+570bojs50U/deA7Qz53XCWYGcM=;
-        b=r9nG5dtjx24FxW/AsrihdmWDStnHqmXrGMk7okPYtpiTOYIoTjZLFVJFYpcSCeYyxF
-         oO/p76S3ix2NXDS96UyX9PVb07AytxfNjMTa7al2Qyvkoo31yz98V6ypRnHab8rZewCC
-         xO2ZzdAlYcZvS2fTrH/cbT2iXksKUV44h2AOWCVG7zTJAjry8QBEj+X4G4waafFfmZvM
-         Pt3xU7e0awMtGVjXjc+WeDYApUfOSOMpuYS+rFuRbLUg3FeOYeKm6t9MwN4Am18ZjwT1
-         EvVZSd9GZljE1yvJnOmQ2mDisul7pu1qQUWiE4UayTzioH9cgGJGlsL9Oiz0i9GFnPqL
-         5Ggg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukd9lj1xr6f+AivM0btRmFm6eV/u6zfr9+SN7++h4RqI6T9+LhHw
-	JBrUWfUIKL+LFJecOMLmA56+wC9RYJPVef0/AAv/h7Dn0bkcpIBbAO1U3eeuRty7myt5oSgqK0V
-	resE8CJFe4PK8e7nMSKzemUHO5jvfnT9kwE4LJpE2FLRhN3XPgMgB4qoDyZcQk67rmA==
-X-Received: by 2002:a63:3703:: with SMTP id e3mr24285211pga.348.1548786627024;
-        Tue, 29 Jan 2019 10:30:27 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4ZmfZCnpP33vpFWudXCIU8ztUtoMETey8tBRsFkr61s+8BjQm8GIaWaAd6MKp9RpsOZsle
-X-Received: by 2002:a63:3703:: with SMTP id e3mr24285176pga.348.1548786626394;
-        Tue, 29 Jan 2019 10:30:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548786626; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=0m3skRRv8gGXarJnQx7v/9n5i4k4SmQKxcZwANz4wvY=;
+        b=MxPxoZm0TC0Ia2NlAire6N1drHfixhqtb4e9a1uOskwUfkK3bvLHx0hOR5bes8N+Ac
+         egv8BzhGJwLO1s40xrJgMWDHqeYlWQHVo0jC1noTV7a/zhfs/xYBiBpKCbsME0nhMiEf
+         jV9y1LSxeOk4hFa3km0ooLDk9HTOG9iA53DjXTJz4t6WuYm7dlHUUnA3d8eRq0+1h6em
+         3KWhsctQxg8T6fy3E31s1qHKrJvWSHLAUECLxoAJUNVLR22FXMJDYf237OeUCVX8DaYw
+         EOkQmapOwT51o6vUpKP225uj4wWvB2bOnFekg86DiC+yFT8MTkioMLk5/9lYCv0KhgCi
+         chEQ==
+X-Gm-Message-State: AJcUukdwgvHQaGrqw9qSd0ftDeY+Df47A3p6b1Z5cno6y4MAc3PbWkDW
+	CFY80qwm7x5Rvzh1qjAs8vn2ag0ncyG/hsFD1YUuty/Wv573u/H3X5nTVgFCzC5LskK0rzUVbdW
+	3OGIijKTuCcMvOwsBPNRXSwkYmnxiy2FpOmvreJZ8TLUbjEuc25mz0biXgTaAGeQyx6tUh64PBd
+	OPaAoYZ6HsaXLo5oJo8NOTUs18bK4ugujHmcwOJ/hNNc/epoNU+skoOqln6TSBcX8SJytVZASRy
+	/aG6xPuvHGLY302TkSI0W1qED3vr1ErnrHEAomfv6Hjiy1wZ2yiHXbR/V1iFKLaKXAkZfeSvKOW
+	LCNG/KKEdJ9+lNS4ZamMEfuDKBhhWn5e0ny8jKe4N+KOUZU/EDpTP5M34G6ZnAkgzibNpP4BbMK
+	Z
+X-Received: by 2002:a1c:b456:: with SMTP id d83mr23172504wmf.115.1548786712710;
+        Tue, 29 Jan 2019 10:31:52 -0800 (PST)
+X-Received: by 2002:a1c:b456:: with SMTP id d83mr23172473wmf.115.1548786711961;
+        Tue, 29 Jan 2019 10:31:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548786711; cv=none;
         d=google.com; s=arc-20160816;
-        b=BpVtaQswy2alZJaTsdLCC5na3KomIlHVuQiDJmx4BSezoEkZW+Dy1vsGSzmF6lOvZv
-         3jdXxEgNccIK4NGMGPtrr6DP0/2/ZEOJiVc/tCQZZBPJcjIBjSvrYqgPcgSNaVB7XEOG
-         2GM8JrJu34sjcnASzAj6CrlEjmbEnb9LBkOAIcF86L0CD4EZXoHzImCK8K74FY4Ryvmo
-         QLpxIEwRy2BTXmWFTw0vz/Y5/26QRvnDe+2a938zSoTitLzj7KyTggqzCTtplv2z6Ofx
-         BNyg9LFG++L6FUd8ZkfvkvkS4q1fohw5SbcTF9PTkoRdv9bL8VJOvwrq9u+7q7mAzeCZ
-         saXg==
+        b=ndiPxRDrYK4rzfBEqz6dMsNwEgF95N5Ywh/+4Xc0rHsrpJChJz3TEez7mJ60bGYbSx
+         ZmN2SueV3FfsMTWrVjEs2lcOY9/fnbCVPXReicHYLDvy3QfKvpma8w7jpgL72vLf/B82
+         iEy5apoaff7+Yya5QIIvK8OqZJHICALr5oSHQ77xCY47kauykO3IdO+3ZVK1A/rOjlQE
+         DHS6JMdiYaq9d8UuVM1GR09ef+DPBQa1kpiEqkxyaM2F01hQKfaPwcOxJAuM70guhZ7y
+         ZD3obQh+4kYlj6Gl5/V7i/96jEVPK/UM6si57U+alN6ZdPiXyZ1vd9+u+DaCuBGFarNW
+         dVUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Kvykgcx5P0cYGXPI+570bojs50U/deA7Qz53XCWYGcM=;
-        b=SC4aCYV0LoNvzZFZc5Sm07KlIr0q10jHjoYk0aQrncgz3LjIfIxzZYbVsOtiZqrMqU
-         xFbb6GDiEiV0cO1MDX5CkHHEmkeB90TcKYyB0z8rdSoBnPeD8FdnkT6HIY59IXDRASls
-         rLPItQQp8kPTGgRjrs4oC2AjWTRyDVQcN0DpG93eG6fHhMCx89OlEEyHsg0KYvCrRlep
-         Z2k21GNz8DZS0I0OeZWogTOS9G7D90+UNqWyLge3t8HC6NgUCaXO2qrW6ibX/0M4JuzT
-         YS/9IOrSMI53L6JzS80tomSelpoCuNgUc8QFGnOwxhZYoAawa2BUOf4FlHNEljfzsXID
-         fjDw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=0m3skRRv8gGXarJnQx7v/9n5i4k4SmQKxcZwANz4wvY=;
+        b=QV17TnLe19QmPfrAYztPEIFbOe1M/8TcyW2H+Pk4XU3h56SwT0m+0IZJYIx5VKLPsT
+         MY8cmeR8VkomBDBz2MOf3nXoh/SK1uB1pARIjY7RlFbzoMrwNk44d4DwOMsoiLLe1j92
+         xJtz+aR4rSVDWLr7CiMlnwfLYMQvShtiK+he/rA1wjinHGzVVBK4BseL0zJau3yTpBhh
+         5Q1vPQYMkWVEiDiy6le5v4+yBakbDoMaSFgT3l5MPApZSCjYrVm6wCE2bIY/thh6bHfc
+         MyPKXoCLIu82qFXDwZ0y687W+cu/IdhwvBwvSy1y+XxbdHvNhXkDFuIPW4KhljoPGkIh
+         qulg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id t75si36423345pfa.170.2019.01.29.10.30.26
+       dkim=pass header.i=@google.com header.s=20161025 header.b="J+vXHO/c";
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 93sor82115566wrb.13.2019.01.29.10.31.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 10:30:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        (Google Transport Security);
+        Tue, 29 Jan 2019 10:31:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Jan 2019 10:30:25 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,537,1539673200"; 
-   d="scan'208";a="112066405"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga006.jf.intel.com with ESMTP; 29 Jan 2019 10:30:24 -0800
-Date: Tue, 29 Jan 2019 10:29:56 -0800
-From: Ira Weiny <ira.weiny@intel.com>
-To: Joel Nider <joeln@il.ibm.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Leon Romanovsky <leon@kernel.org>,
-	Doug Ledford <dledford@redhat.com>,
-	Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org,
-	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 3/5] RDMA/uverbs: add owner parameter to ib_umem_get
-Message-ID: <20190129182954.GA10129@iweiny-DESK2.sc.intel.com>
-References: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
- <1548768386-28289-4-git-send-email-joeln@il.ibm.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b="J+vXHO/c";
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=0m3skRRv8gGXarJnQx7v/9n5i4k4SmQKxcZwANz4wvY=;
+        b=J+vXHO/cVQyn/1ZJqpK6skQGqPQVpUQSFTHNxOQ/z+6XxcF12Z91kemu2Nn9BKNMUz
+         VP2EBsuvQUqdG6OJx/S2GiAKnWo+P7aQJs+XX8IYSA27JNRhIyd5zPGOuA4KgMsq7Kee
+         QiadlZ0vaoAxeOniQYEFw+UqJTxEOOafgjs+b2yXFkK417Qtr48IV6RG7VIffB2j+Njb
+         c7cVImBJqH3RrxBu4gbUXHt5GgzGTblW6m3mg+uCtQfvUNk0vGUqQKmZ3QJ8lvIbM0cH
+         QoErGjgId+U39N2tUYBt2csNLu2AJeqjLyj3WU/Qlx6fW9iBFyqFB9iWtV5dL84G55L8
+         HcUw==
+X-Google-Smtp-Source: AHgI3Ibx6/OVbETdDnoEV80C1606vDQP1T/8S7POacnT0d0ekLrAVuNZHS4p8b+VSew2Gru4p8xK+9b8kamEI0pS2KE=
+X-Received: by 2002:adf:dc4e:: with SMTP id m14mr7291068wrj.107.1548786711280;
+ Tue, 29 Jan 2019 10:31:51 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1548768386-28289-4-git-send-email-joeln@il.ibm.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+References: <20190124211518.244221-1-surenb@google.com> <20190124211518.244221-6-surenb@google.com>
+ <20190129123843.GK28467@hirez.programming.kicks-ass.net> <CAJuCfpGxtGHsow002nd8Ao8mo9MaZQqZau_NLTMrZ8=aypTkig@mail.gmail.com>
+In-Reply-To: <CAJuCfpGxtGHsow002nd8Ao8mo9MaZQqZau_NLTMrZ8=aypTkig@mail.gmail.com>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Tue, 29 Jan 2019 10:31:40 -0800
+Message-ID: <CAJuCfpHdtY7cRBfVP-+e9hQrTigStj2XK_qpk8z91HSKW+Y5WA@mail.gmail.com>
+Subject: Re: [PATCH v3 5/5] psi: introduce psi monitor
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, lizefan@huawei.com, 
+	Johannes Weiner <hannes@cmpxchg.org>, axboe@kernel.dk, dennis@kernel.org, 
+	Dennis Zhou <dennisszhou@gmail.com>, Ingo Molnar <mingo@redhat.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org, 
+	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, 
+	LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 03:26:24PM +0200, Joel Nider wrote:
-> ib_umem_get is a core function used by drivers that support RDMA.
-> The 'owner' parameter signifies the process that owns the memory.
-> Until now, it was assumed that the owning process was the current
-> process. This adds the flexibility to specify a process other than
-> the current process. All drivers that call this function are also
-> updated, but the default behaviour is to keep backwards
-> compatibility by assuming the current process is the owner when
-> the 'owner' parameter is NULL.
-> 
-> Signed-off-by: Joel Nider <joeln@il.ibm.com>
-> ---
+On Tue, Jan 29, 2019 at 10:18 AM Suren Baghdasaryan <surenb@google.com> wrote:
+>
+> On Tue, Jan 29, 2019 at 4:38 AM Peter Zijlstra <peterz@infradead.org> wrote:
+> >
+> > On Thu, Jan 24, 2019 at 01:15:18PM -0800, Suren Baghdasaryan wrote:
+> > > +                     atomic_set(&group->polling, polling);
+> > > +                     /*
+> > > +                      * Memory barrier is needed to order group->polling
+> > > +                      * write before times[] read in collect_percpu_times()
+> > > +                      */
+> > > +                     smp_mb__after_atomic();
+> >
+> > That's broken, smp_mb__{before,after}_atomic() can only be used on
+> > atomic RmW operations, something atomic_set() is _not_.
+>
+> Oh, I didn't realize that. After reading the following example from
+> atomic_ops.txt I was under impression that smp_mb__after_atomic()
+> would make changes done by atomic_set() visible:
+>
+> /* All memory operations before this call will
+> * be globally visible before the clear_bit().
+> */
+> smp_mb__before_atomic();
+> clear_bit( ... );
+> /* The clear_bit() will be visible before all
+> * subsequent memory operations.
+> */
+> smp_mb__after_atomic();
+>
+> but I'm probably missing something. Is there a more detailed
+> description of these rules anywhere else?
 
-[snip]
+I was referred to memory-barriers.txt that explains this clearly
+stating that "These functions do not imply memory barriers.". Thanks
+for noticing! Will change to smp_mb().
 
-> @@ -183,10 +196,11 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
->  
->  	while (npages) {
->  		down_read(&mm->mmap_sem);
-> -		ret = get_user_pages_longterm(cur_base,
-> +		ret = get_user_pages_remote_longterm(owner_task,
-> +				     mm, cur_base,
->  				     min_t(unsigned long, npages,
-> -					   PAGE_SIZE / sizeof (struct page *)),
-> -				     gup_flags, page_list, vma_list);
-> +				     PAGE_SIZE / sizeof(struct page *)),
-> +				     gup_flags, page_list, vma_list, NULL);
-
-qib was recently converted to get_user_pages_longterm.  So qib would need to
-be updated as well.
-
-Ira
+> Meanwhile I'll change smp_mb__after_atomic() into smp_mb(). Would that
+> fix the ordering?
+>
+> > --
+> > You received this message because you are subscribed to the Google Groups "kernel-team" group.
+> > To unsubscribe from this group and stop receiving emails from it, send an email to kernel-team+unsubscribe@android.com.
+> >
 
