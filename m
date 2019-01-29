@@ -2,153 +2,128 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B2C4FC282C7
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:15:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B34CC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:52:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A71A21473
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:15:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="Wplr7vFt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A71A21473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 2077420882
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:52:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2077420882
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D8A28E0002; Tue, 29 Jan 2019 17:15:55 -0500 (EST)
+	id B0C338E0002; Tue, 29 Jan 2019 17:52:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 187A98E0001; Tue, 29 Jan 2019 17:15:55 -0500 (EST)
+	id ABB138E0001; Tue, 29 Jan 2019 17:52:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 050BC8E0002; Tue, 29 Jan 2019 17:15:55 -0500 (EST)
+	id 9D1638E0002; Tue, 29 Jan 2019 17:52:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C82028E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 17:15:54 -0500 (EST)
-Received: by mail-yb1-f199.google.com with SMTP id y4so3896056ybi.0
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:15:54 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 557078E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 17:52:56 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id 202so14916752pgb.6
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:52:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=cjPKJoHf3Gll+qk80dZ1zwwaf8+ItgdBe9DjCPAWJDM=;
-        b=W7MJDfMmLO+cLo+rAyt5AVI1x3SxBwY7y4yqh6NKBQ83b0pW7fXU/qj0lGGX4hLAkT
-         AhF4AKaGQytWWF+pTH4TVQ/LZewPEabEii6+g8LuJS4uwnB+275LM+ofREP81WDxWEJw
-         WS9INmB/z+/p64Jrivp6E8LT5Qrf6OROz7cY6RNOTuh0WBeqZBflerDm5wVzwmX3iGrb
-         1HIKcjD9FE2xvCy39N0IauPpdJOrhJtu7ilCoImxFzaBF7yGd+jme+SrxC8I4qvSzP3G
-         oKkHX7Rra6cG4C1yBU5ZEiFiHnHey2m7J2kmxfIL441nLDe1uQWZ9DGGWXFoe8wyZH7Q
-         sMNg==
-X-Gm-Message-State: AJcUukdcUVutUVF+Rfui/EZW2K5wSsiac9oRipzPjylWKYk9XxbuU99M
-	G2DAbQGemxUBaIc+/jkQ4vR4pWMBlPWYEuU0czkxflM9aYQRZb0N0qAJquhNzgU9b2mzK6HHA/K
-	spXLCsE6SXqrUZfCO7IRVK2ptUJe15yzkWbYiG3bfgRCmraldOvj0Vn+/fIOBgIdl7k85FZNVMp
-	tOT16V/KYoKQsjGyrVqMINWWWWEecZhJWxRSSQ3ZgYAaZmlQ2cb58fvtR4jVllBtzSe9ZxYoLpl
-	+KkIisuMU3NJf5AHg+xn3/hAnoI6n6EsC0ZpEow1jbFyG5581ZSSxcl7+iknumtmj5yDWYixt5r
-	12ZrQtGDxJuxOPTVHn+9tRYvl8Te0aFe5VhnKh3pg87IyuZrCbR7N2F5PCuzTaIJisFoaw7ppTA
-	4
-X-Received: by 2002:a25:1407:: with SMTP id 7mr26048186ybu.33.1548800154405;
-        Tue, 29 Jan 2019 14:15:54 -0800 (PST)
-X-Received: by 2002:a25:1407:: with SMTP id 7mr26048156ybu.33.1548800153840;
-        Tue, 29 Jan 2019 14:15:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548800153; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=lzafb5HEhSp1SvuqZN9W1QfMlYhCd9ZnKkB9ve3t/oY=;
+        b=FiWZe8xKxq0zpNE9wAtfVJuBpI8vbSkeMUMjM+R+I59GBlXt9zmB0JYj3eff6iQtvV
+         Jg7j8qUaCka8sG6lpmdxodHPCyNfRz0bMEEF+ItT0VUJCFRi465BGB487bkpTWJ6xyt5
+         t/TkFCsG7dRCKCm1gJxHtEcJ4oVUIlRFoWQ4iE94LtOpL2aHgpBGT7A054VuE4Kk541l
+         8lr4oGU40e3f6D7291nQ79QwPZzqE86ttuZwgVI092DFLDdEoXakTTSWGACDliLwfyo6
+         Pzw6Y+gl33QWPq0icUyowuadSrw+GcB2aMfIy+zRimkkL4tKy2/1sNHU4GvcTpogDpS/
+         QSng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AJcUukeDggpoOgaXbs6F8tJ0CE5IezUd8QIzb5lE4v6ykTbzN/pcq7wy
+	q69ayMaEwlsEHYWyJKc+OFRc3GInFb+OBAu1WrmJNs9pvzeA8EOj3alczrQODvis5T0EWZVSWYz
+	y2+64oLAqgeQoghf4Mh+ryE/uIEmibbVTqluHVXMeJpI00sqrR3HLetv51vdw+7i1Ug==
+X-Received: by 2002:a17:902:7201:: with SMTP id ba1mr27751001plb.105.1548802375915;
+        Tue, 29 Jan 2019 14:52:55 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4Ycl1wwt0T70FYG1EdyycOhSXRevDLBb/OSrCAx+NYHg/QUS/yjPuHGiaPSr+yCr0IbtG3
+X-Received: by 2002:a17:902:7201:: with SMTP id ba1mr27750973plb.105.1548802375158;
+        Tue, 29 Jan 2019 14:52:55 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548802375; cv=none;
         d=google.com; s=arc-20160816;
-        b=QyFqfYoOW1XsmXttW0BbWgl6HrlEVXn7pTvRfEHJ8VWdjCYw//S+1pD0du38i0lRAL
-         Sp45U3MVJLaDjkI0K0bzAOIs6GEsL5KcNdTUdhIrpVBPfoKgY2YEZWwd3ZbeDqUC4qpY
-         OB3A/XV02Cfvzsl5zZDJ0nYJtZtRgmMmHXIoKR3KkisQgxaBXqBkR0L+MGeIHlXy3zYm
-         PDooGQm+FTiOjxqIkhesq/wekoSEwvGzY3jGRx5EZ+pJmaUv/smCddZQ4yESCCxaZVpx
-         tpZCuvYZvD31XGY4g4cj9BY/Q0urnDeO+fuIRFATSkfY92G8LajSJ9fZzNmcUhLm7yLc
-         2Pwg==
+        b=Oegmtzme6d2JGjHjV+7mztYKqZAvrr09OFetwnJJcCO9ocqUd55w7k5zGz3KCyAA4F
+         rJl5W03VbgvmzZtVQiyKuDi+sPu/pWtoNxgZ6ol7u24Ggpbp1oWd5dpNcG7LVwI6DosD
+         7DoO8EOo6vfiGiG3TI8ZMih8HoT0dUiVKRiZnpiHHLWFhATCuy3tkfraUemuB/3vFJkU
+         mZw2NdMTlwlO/CQPPnhR7ZjbJfa9r8h96kaGD3kzTukYse7yVl0qHgj45jhbCsgLm6ya
+         rw35xeiKy6VJrOubnjd2Gy6sFucS6zX8FIwBjFIru0FNNB+wIWScK7zUp8KLwz1rZ64X
+         hFGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=cjPKJoHf3Gll+qk80dZ1zwwaf8+ItgdBe9DjCPAWJDM=;
-        b=Trdc7LZsBw6TWUslKdj5gJrIjXEuy4b5zO4wi01+ueUBUGFwwFxpv2Swl+VpXyoFth
-         stSE3hNC6PJRC9/T5NJibCtNVI+0TndNslHEy9W7S0WJumWFcQGyirONi9BO3Cazd/hR
-         W1+3SvjeL9REb422rp+8r8j4BNqCted7Tuzzu/9G2/qAEURxwyCLH58CCDQdSao5W374
-         t43BxWIFiKxtM9jBvGyLEKU3KfwD/ExcVVDTX4kgLj78MxTOY5JEZmzul2aPrT8VQEYG
-         95hI16ajRqJKSEMo2GLK6/xxdgtMs09IAEiW/kcDyY3OiqucTAxDylgUBF9iFmdEntd7
-         FQqA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=lzafb5HEhSp1SvuqZN9W1QfMlYhCd9ZnKkB9ve3t/oY=;
+        b=LozIMJGLdWV+NzDsLbgOuZ0EOBn9JyvDPoXaNQLUovPbW2OKMOXdBW7cj7y0QjZOA0
+         22BnZfx9IvOh4S9qE0EJV4zGUahIYBLmXl9iOkdswvYLCHmNle7LWCWAEf1VAgFMKgOI
+         zDSJ0d1IAJfcQo64J2VugcSrgcoXy+4NPP125ktXH9mC/dYs4HgQk1Jmqi1cHLVKi/WP
+         g5vYI5SlB3zY9RTv1D/Hc+UBiW+Z+q2HqLRzR+HjTvc0u5UYMUG3xpxajJcmSstGLQWn
+         Pb4KPoa2U28gkCp0LP9bpq6IE7zVxmAoh2xxJmAtKJmcFi90qfVZCJdjOehP5tm2PazQ
+         llig==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=Wplr7vFt;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x1sor6549693ywl.47.2019.01.29.14.15.51
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y189si37686578pfg.75.2019.01.29.14.52.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 14:15:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 14:52:55 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=Wplr7vFt;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=cjPKJoHf3Gll+qk80dZ1zwwaf8+ItgdBe9DjCPAWJDM=;
-        b=Wplr7vFthNztMxNfahA1bdj2lR3+YAdLQRgxzerOl/TRr5R4rFJx8TUrvIk1v7GEmQ
-         kW80/oYXICrRj09V7xe49KhmG2HZE1rJdek1rUmiqrM2TA1ik6ZtsJgqvXoDfbFUOR+S
-         r4jYBxwP6P+szzZp1EYHRu4AAGuOv48jtQZkBrJIuIK+HpL2oLgfyUT6VPMjGkKDonHS
-         muByxxO7QtKKoPg2xVphTkV4PvV79xkf5ySxjt/21cxk5LPq3n5eJ1Ke3iNPGFjjCCDn
-         eVLHYSC/VtVDEYZMxvnvbWN0zOjJl29ex2JcIHoqtd4k3gYMyhNO+XXv3bD3rnJ2e43X
-         LLtA==
-X-Google-Smtp-Source: ALg8bN7irhuyfL8ClWcmZz429auZ4MvffBQRSq6hSXFkHXRmgB0027WWy+O8lD2sUt1XagmxX0AEHg==
-X-Received: by 2002:a81:1282:: with SMTP id 124mr27709051yws.154.1548800151050;
-        Tue, 29 Jan 2019 14:15:51 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::4:1d25])
-        by smtp.gmail.com with ESMTPSA id e189sm14009152ywc.101.2019.01.29.14.15.49
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Jan 2019 14:15:50 -0800 (PST)
-Date: Tue, 29 Jan 2019 17:15:49 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Chris Down <chris@chrisdown.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>,
-	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH] mm: memcontrol: Expose THP events on a per-memcg basis
-Message-ID: <20190129221549.GA13066@cmpxchg.org>
-References: <20190129205852.GA7310@chrisdown.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190129205852.GA7310@chrisdown.name>
-User-Agent: Mutt/1.11.2 (2019-01-07)
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 8B9F834A2;
+	Tue, 29 Jan 2019 22:52:54 +0000 (UTC)
+Date: Tue, 29 Jan 2019 14:52:53 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>,
+ David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli
+ <aarcange@redhat.com>, mpe@ellerman.id.au, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH V7 1/4] mm/cma: Add PF flag to force non cma alloc
+Message-Id: <20190129145253.8ac345bf7ca6e66cf08bd985@linux-foundation.org>
+In-Reply-To: <20190114095438.32470-2-aneesh.kumar@linux.ibm.com>
+References: <20190114095438.32470-1-aneesh.kumar@linux.ibm.com>
+	<20190114095438.32470-2-aneesh.kumar@linux.ibm.com>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 03:58:52PM -0500, Chris Down wrote:
-> Currently THP allocation events data is fairly opaque, since you can
-> only get it system-wide. This patch makes it easier to reason about
-> transparent hugepage behaviour on a per-memcg basis.
+On Mon, 14 Jan 2019 15:24:33 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
+
+> This patch adds PF_MEMALLOC_NOCMA which make sure any allocation in that context
+> is marked non-movable and hence cannot be satisfied by CMA region.
 > 
-> For anonymous THP-backed pages, we already have MEMCG_RSS_HUGE in v1,
-> which is used for v1's rss_huge [sic]. This is reused here as it's
-> fairly involved to untangle NR_ANON_THPS right now to make it
-> per-memcg, since right now some of this is delegated to rmap before we
-> have any memcg actually assigned to the page. It's a good idea to rework
-> that, but let's leave untangling THP allocation for a future patch.
+> This is useful with get_user_pages_longterm where we want to take a page pin by
+> migrating pages from CMA region. Marking the section PF_MEMALLOC_NOCMA ensures
+> that we avoid unnecessary page migration later.
+> 
+> ...
 >
-> Signed-off-by: Chris Down <chris@chrisdown.name>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Roman Gushchin <guro@fb.com>
-> Cc: linux-kernel@vger.kernel.org
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: kernel-team@fb.com
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1406,6 +1406,7 @@ extern struct pid *cad_pid;
+>  #define PF_RANDOMIZE		0x00400000	/* Randomize virtual address space */
+>  #define PF_SWAPWRITE		0x00800000	/* Allowed to write to swap */
+>  #define PF_MEMSTALL		0x01000000	/* Stalled due to lack of memory */
+> +#define PF_MEMALLOC_NOCMA	0x02000000	/* All allocation request will have _GFP_MOVABLE cleared */
+>  #define PF_NO_SETAFFINITY	0x04000000	/* Userland is not allowed to meddle with cpus_allowed */
+>  #define PF_MCE_EARLY		0x08000000      /* Early kill for mce process policy */
+>  #define PF_MUTEX_TESTER		0x20000000	/* Thread belongs to the rt mutex tester */
 
-Looks good to me. It's useful to know if a cgroup is getting the THP
-coverage and allocation policy it's asking for.
+This flag has been taken by PF_UMH so I moved it to 0x10000000.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-The fallback numbers could be useful as well, but they're tricky to
-obtain as there isn't an obvious memcg context. We can do them later.
+And we have now run out of PF_ flags.
 
