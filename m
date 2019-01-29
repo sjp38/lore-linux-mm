@@ -6,64 +6,64 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C77F9C282CD
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34E2BC282CD
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7FB1921841
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FB1921841
+	by mail.kernel.org (Postfix) with ESMTP id F2AAA21841
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 00:39:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2AAA21841
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89D6B8E0006; Mon, 28 Jan 2019 19:39:15 -0500 (EST)
+	id B32A48E0009; Mon, 28 Jan 2019 19:39:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 68D5F8E000C; Mon, 28 Jan 2019 19:39:15 -0500 (EST)
+	id 818208E000E; Mon, 28 Jan 2019 19:39:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 331E88E000E; Mon, 28 Jan 2019 19:39:15 -0500 (EST)
+	id 5A37C8E0006; Mon, 28 Jan 2019 19:39:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B50E38E000B
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E14EC8E0006
 	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 19:39:14 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id p3so13023055plk.9
+Received: by mail-pg1-f199.google.com with SMTP id r13so12656765pgb.7
         for <linux-mm@kvack.org>; Mon, 28 Jan 2019 16:39:14 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=EyhXd8rZ4nSo/EtAgiNf2g+ELch4cYLylR2UlgOhqZY=;
-        b=qWSDWqg7mH6wycwxkuf44jCzNMYiX/VO5ZCm1OS0YEYh9hf8Hr832Nqr/6nsllaDWH
-         F5y/jR2RjNRv1IYL8doguN7vQyV5kn6JluMUAppUjYzUMGYrWgJHto6z+EfzdnPFUm3c
-         ddP2Udy5MRCpQm/JVav2IrFFEpSqC5F2aqvSzdTu9CnEIg7X6SGQ4IaRST+lbB4d9dA5
-         uWF8KKcM9Bxyw+h9HRsXA4Mz1CMP6FNLM8iClQqKN/eB0WGRlfxm6OkDaSPToZm9bEln
-         vtf3pq+puBIngFaJJ7sRxZPhTxrgwpB3bTD0VIONAFHoZB/ukQVPI1BlvYrG3FEkLqCn
-         JnOg==
+        bh=Vw4Tc9/qTce/ps387hTBEGuO1Y4CjbTaT+4DjGZJWvU=;
+        b=T5boXAyUMQEKpbIXOvfNnyOC884jzm7P9k8qm/vwSIriGX82anwDDkI556hviD7z3w
+         GnfzLE1bxdEhBxzoBfB4JENPl/B84ouUKbGWMN3yCaq0pbX6QyzI1PxVdG53DUO1MQsB
+         r8pNYAiAOF2kOZHo5Qf6YT/lMk82lQx8Za4+CuYe+GfMQRYoU6D4KNau9O9v9znpqQow
+         GSbpL9T1A7u81rbzBN0NBj2ohht30Ph/VxSPDD6f+VqCtyMxGqm54+REEvRQGDIi9f/t
+         8RrhBBu7N1vEVR+yQ+XeTVSQWNitMdUF3NakzNSfrXukyEpcOmZpvjFARyfFmve4K9JH
+         0L+w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukfJeALEC87uatVpbJ+yahE5syqbjx4tNOtkI1J61ISWRB2Ie/Rz
-	odM9EJW3JSwv3YgEB6DkjYS9WG0WQIOw4pk1jiWEpxvbz7994ZxNqsZqEupzybOlD7F7Lk4sOHF
-	peik9Ga67UMA9bDNpe7VdCoOA6dvjO8lxQ74nydG93puKyVagwAgQ3cpcSfgvDvXWkA==
-X-Received: by 2002:a62:6dc7:: with SMTP id i190mr23997750pfc.166.1548722354367;
+X-Gm-Message-State: AJcUuke9q+5Pgx+QDTXT21kE+iW5XxzUuXCCVF6ESRpLzU8SrqChaI4y
+	yw1cIu7JXQ0zWLbhKaGIJ4EPdxagCQVDlMuTwWKWph0pIFE6+WrUElk3dfEyn9VVZbqfOz7IwQs
+	K+jtYMyq4l5DtaJLCmLbLm2YXYmoDHK2VSmHnF2Um+HCaoEgfqV7BpnVezkcTeD1TLQ==
+X-Received: by 2002:a17:902:bd46:: with SMTP id b6mr23794256plx.231.1548722354605;
         Mon, 28 Jan 2019 16:39:14 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4xM2gDU0aK6MEqglVw0ed5ebDxS8spWJExZX/iiFoW9aTktx7O65qJWFCIu42zI5CeKQcC
-X-Received: by 2002:a62:6dc7:: with SMTP id i190mr23997692pfc.166.1548722353470;
+X-Google-Smtp-Source: ALg8bN7HcAIhcAgWkYG36PqXjWXi9LhFTeeznhI4+kjWdpIyeohcwpZTzf0EUwlxh27kmjdDeOYV
+X-Received: by 2002:a17:902:bd46:: with SMTP id b6mr23794223plx.231.1548722353858;
         Mon, 28 Jan 2019 16:39:13 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1548722353; cv=none;
         d=google.com; s=arc-20160816;
-        b=V5QJow5rlBMC1hgpFYlFqD/mNvKhKAQhGbaXFGZU8Vao+KDFObrJV3uCrl/Pei92ja
-         yWZJm91FPf+ah1p+xvX6ZWSWK13z0pcpF2NjEqL0OWfti/DWBnxXAypEtQWxFJ1xpvfh
-         HPyGQ0GDH9Qfoj+bRyOwnMDZ4fNfZAGAtBx3tX9nLCpi2rmWUdDGuNrVAEvp5zyOZTJj
-         UYsNpUdHpbgvPN10mpcFjflL9kvAT95yhCeaL6uHvyx8KR7tN4xXcnC5q8qrpncEqelV
-         1SQ727kJ7l4AbKOBwkXWhTMYPxNAl9d4mETvnIix5x3ox9ivrpaKvKxl/pJ4U6V92N2I
-         9WBg==
+        b=eG5MIpsKDRmUbEb4wVEEhZE0EoG5HF7w4Odc6WZuwqJD5JPi5hw49HL/DrHJT5bI7p
+         HbOThegSC+wVRlsQpVUw1KJoTo0gmHyIasvxfZdISk51PVG9AQDqiYliahuoEDCgM2NO
+         cbkcDaJTqyOPkWwRzrWsa1+z0k0rZVUrxVvS060Z/Zj6xuu/OM1kPdPTtcWL1FJknwfI
+         jMyMIDQv3h+hHh6qTOALL4DCfNQO0woewfMHroyYX7KrxD4UrU9Rx29lDjPQXV/Glx6V
+         b6l5bu+7hzlvfiecULUs1PXXnQ617n4gHPOUk4/n+zrONwBG6AyL23UWWPQV6b94YnzX
+         ZcrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=EyhXd8rZ4nSo/EtAgiNf2g+ELch4cYLylR2UlgOhqZY=;
-        b=EG+BMZlu9R/IHA2FsTwW7PLLCANRRx054/h6XHtvZiqfuEtTFIcJUhl0G2qq7Ac7HZ
-         H7qZY7ZHknUr33YUemJ9jQm/sjgNPp9BA5PctYTA6ova89nXqewPsGl6rQgFvKtV9L3Z
-         DjHLToPbwjnskReX58UFuC1vBtC/NhTtWXwUrvDinhb9L4r9g10qqmEhmwQ06YG9wafs
-         LiwRwDycUowNZkK/bEiERzxOBHuqJPDaJ9vn0EwS5f5t6QEMw1120gFgJcBEZZ/jm1NR
-         rMWR6Jf8JvN1ITJJ7UvMpGTZu2sM+gzbOOoufR6LOEEwdpFLfiRvgkxphGpDDg2BKSun
-         9cow==
+        bh=Vw4Tc9/qTce/ps387hTBEGuO1Y4CjbTaT+4DjGZJWvU=;
+        b=dCJv8KXd4wEBvk0l1qdtnFVO5DCtmbWz/VqbH+m4HDGEUZcTSrSU2PTt5M6F2IQIFq
+         LqysW+gvU1mdq47OIj+2yZaiDNOzc7l79Sp3CvoDm8iGsjPxrQkiLFCbzMg2p/9CcXT/
+         trlH0IH/q5pmmb9NRAdjM9TCaACX0TWdFJlPIu9kAqQSGji2cYSFul/wmBsYhYfZNvdF
+         7XGm1qyxBWPBNMOIxG/SGD2YfD07UHnAcOwth7e8uc5iAdd3/8rjntyivg4hS7jOAIho
+         sBvEL9VPkVFO7iBinN6I56bc6df86wze9OTmBfbwBv6Od+5e6yDvN77ePwXNEpivB07G
+         M20Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -82,7 +82,7 @@ Received: from orsmga001.jf.intel.com ([10.7.209.18])
   by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jan 2019 16:39:12 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.56,535,1539673200"; 
-   d="scan'208";a="133921901"
+   d="scan'208";a="133921906"
 Received: from rpedgeco-desk5.jf.intel.com ([10.54.75.79])
   by orsmga001.jf.intel.com with ESMTP; 28 Jan 2019 16:39:11 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -107,13 +107,11 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Nadav Amit <namit@vmware.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v2 06/20] x86/alternative: use temporary mm for text poking
-Date: Mon, 28 Jan 2019 16:34:08 -0800
-Message-Id: <20190129003422.9328-7-rick.p.edgecombe@intel.com>
+Subject: [PATCH v2 08/20] x86/ftrace: set trampoline pages as executable
+Date: Mon, 28 Jan 2019 16:34:10 -0800
+Message-Id: <20190129003422.9328-9-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
 References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
@@ -125,197 +123,52 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-text_poke() can potentially compromise the security as it sets temporary
-PTEs in the fixmap. These PTEs might be used to rewrite the kernel code
-from other cores accidentally or maliciously, if an attacker gains the
-ability to write onto kernel memory.
+Since alloc_module() will not set the pages as executable soon, we need
+to do so for ftrace trampoline pages after they are allocated.
 
-Moreover, since remote TLBs are not flushed after the temporary PTEs are
-removed, the time-window in which the code is writable is not limited if
-the fixmap PTEs - maliciously or accidentally - are cached in the TLB.
-To address these potential security hazards, we use a temporary mm for
-patching the code.
+For the time being, we do not change ftrace to use the text_poke()
+interface. As a result, ftrace breaks still breaks W^X.
 
-Finally, text_poke() is also not conservative enough when mapping pages,
-as it always tries to map 2 pages, even when a single one is sufficient.
-So try to be more conservative, and do not map more than needed.
-
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/fixmap.h |   2 -
- arch/x86/kernel/alternative.c | 106 +++++++++++++++++++++++++++-------
- arch/x86/xen/mmu_pv.c         |   2 -
- 3 files changed, 84 insertions(+), 26 deletions(-)
+ arch/x86/kernel/ftrace.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
-index 50ba74a34a37..9da8cccdf3fb 100644
---- a/arch/x86/include/asm/fixmap.h
-+++ b/arch/x86/include/asm/fixmap.h
-@@ -103,8 +103,6 @@ enum fixed_addresses {
- #ifdef CONFIG_PARAVIRT
- 	FIX_PARAVIRT_BOOTMAP,
- #endif
--	FIX_TEXT_POKE1,	/* reserve 2 pages for text_poke() */
--	FIX_TEXT_POKE0, /* first page is last, because allocation is backward */
- #ifdef	CONFIG_X86_INTEL_MID
- 	FIX_LNW_VRTC,
- #endif
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index ae05fbb50171..76d482a2b716 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -11,6 +11,7 @@
- #include <linux/stop_machine.h>
- #include <linux/slab.h>
- #include <linux/kdebug.h>
-+#include <linux/mmu_context.h>
- #include <asm/text-patching.h>
- #include <asm/alternative.h>
- #include <asm/sections.h>
-@@ -683,41 +684,102 @@ __ro_after_init unsigned long poking_addr;
+diff --git a/arch/x86/kernel/ftrace.c b/arch/x86/kernel/ftrace.c
+index 8257a59704ae..13c8249b197f 100644
+--- a/arch/x86/kernel/ftrace.c
++++ b/arch/x86/kernel/ftrace.c
+@@ -742,6 +742,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+ 	unsigned long end_offset;
+ 	unsigned long op_offset;
+ 	unsigned long offset;
++	unsigned long npages;
+ 	unsigned long size;
+ 	unsigned long retq;
+ 	unsigned long *ptr;
+@@ -774,6 +775,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+ 		return 0;
  
- static void *__text_poke(void *addr, const void *opcode, size_t len)
- {
-+	bool cross_page_boundary = offset_in_page(addr) + len > PAGE_SIZE;
-+	temporary_mm_state_t prev;
-+	struct page *pages[2] = {NULL};
- 	unsigned long flags;
--	char *vaddr;
--	struct page *pages[2];
--	int i;
-+	pte_t pte, *ptep;
-+	spinlock_t *ptl;
-+	pgprot_t prot;
+ 	*tramp_size = size + RET_SIZE + sizeof(void *);
++	npages = DIV_ROUND_UP(*tramp_size, PAGE_SIZE);
  
- 	/*
--	 * While boot memory allocator is runnig we cannot use struct
--	 * pages as they are not yet initialized.
-+	 * While boot memory allocator is running we cannot use struct pages as
-+	 * they are not yet initialized.
- 	 */
- 	BUG_ON(!after_bootmem);
+ 	/* Copy ftrace_caller onto the trampoline memory */
+ 	ret = probe_kernel_read(trampoline, (void *)start_offset, size);
+@@ -818,6 +820,12 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+ 	/* ALLOC_TRAMP flags lets us know we created it */
+ 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
  
- 	if (!core_kernel_text((unsigned long)addr)) {
- 		pages[0] = vmalloc_to_page(addr);
--		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
-+		if (cross_page_boundary)
-+			pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
- 	} else {
- 		pages[0] = virt_to_page(addr);
- 		WARN_ON(!PageReserved(pages[0]));
--		pages[1] = virt_to_page(addr + PAGE_SIZE);
-+		if (cross_page_boundary)
-+			pages[1] = virt_to_page(addr + PAGE_SIZE);
- 	}
--	BUG_ON(!pages[0]);
-+	BUG_ON(!pages[0] || (cross_page_boundary && !pages[1]));
-+
- 	local_irq_save(flags);
--	set_fixmap(FIX_TEXT_POKE0, page_to_phys(pages[0]));
--	if (pages[1])
--		set_fixmap(FIX_TEXT_POKE1, page_to_phys(pages[1]));
--	vaddr = (char *)fix_to_virt(FIX_TEXT_POKE0);
--	memcpy(&vaddr[(unsigned long)addr & ~PAGE_MASK], opcode, len);
--	clear_fixmap(FIX_TEXT_POKE0);
--	if (pages[1])
--		clear_fixmap(FIX_TEXT_POKE1);
--	local_flush_tlb();
--	sync_core();
--	/* Could also do a CLFLUSH here to speed up CPU recovery; but
--	   that causes hangs on some VIA CPUs. */
--	for (i = 0; i < len; i++)
--		BUG_ON(((char *)addr)[i] != ((char *)opcode)[i]);
-+
 +	/*
-+	 * The lock is not really needed, but this allows to avoid open-coding.
++	 * Module allocation needs to be completed by making the page
++	 * executable. The page is still writable, which is a security hazard,
++	 * but anyhow ftrace breaks W^X completely.
 +	 */
-+	ptep = get_locked_pte(poking_mm, poking_addr, &ptl);
-+
-+	/*
-+	 * This must not fail; preallocated in poking_init().
-+	 */
-+	VM_BUG_ON(!ptep);
-+
-+	/*
-+	 * flush_tlb_mm_range() would be called when the poking_mm is not
-+	 * loaded. When PCID is in use, the flush would be deferred to the time
-+	 * the poking_mm is loaded again. Set the PTE as non-global to prevent
-+	 * it from being used when we are done.
-+	 */
-+	prot = __pgprot(pgprot_val(PAGE_KERNEL) & ~_PAGE_GLOBAL);
-+
-+	pte = mk_pte(pages[0], prot);
-+	set_pte_at(poking_mm, poking_addr, ptep, pte);
-+
-+	if (cross_page_boundary) {
-+		pte = mk_pte(pages[1], prot);
-+		set_pte_at(poking_mm, poking_addr + PAGE_SIZE, ptep + 1, pte);
-+	}
-+
-+	/*
-+	 * Loading the temporary mm behaves as a compiler barrier, which
-+	 * guarantees that the PTE will be set at the time memcpy() is done.
-+	 */
-+	prev = use_temporary_mm(poking_mm);
-+
-+	kasan_disable_current();
-+	memcpy((u8 *)poking_addr + offset_in_page(addr), opcode, len);
-+	kasan_enable_current();
-+
-+	/*
-+	 * Ensure that the PTE is only cleared after the instructions of memcpy
-+	 * were issued by using a compiler barrier.
-+	 */
-+	barrier();
-+
-+	pte_clear(poking_mm, poking_addr, ptep);
-+	if (cross_page_boundary)
-+		pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
-+
-+	/*
-+	 * Loading the previous page-table hierarchy requires a serializing
-+	 * instruction that already allows the core to see the updated version.
-+	 * Xen-PV is assumed to serialize execution in a similar manner.
-+	 */
-+	unuse_temporary_mm(prev);
-+
-+	/*
-+	 * Flushing the TLB might involve IPIs, which would require enabled
-+	 * IRQs, but not if the mm is not used, as it is in this point.
-+	 */
-+	flush_tlb_mm_range(poking_mm, poking_addr, poking_addr +
-+			   (cross_page_boundary ? 2 : 1) * PAGE_SIZE,
-+			   PAGE_SHIFT, false);
-+
-+	pte_unmap_unlock(ptep, ptl);
-+	/*
-+	 * If the text doesn't match what we just wrote; something is
-+	 * fundamentally screwy, there's nothing we can really do about that.
-+	 */
-+	BUG_ON(memcmp(addr, opcode, len));
-+
- 	local_irq_restore(flags);
- 	return addr;
- }
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index 0f4fe206dcc2..82b181fcefe5 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -2319,8 +2319,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
- #elif defined(CONFIG_X86_VSYSCALL_EMULATION)
- 	case VSYSCALL_PAGE:
- #endif
--	case FIX_TEXT_POKE0:
--	case FIX_TEXT_POKE1:
- 		/* All local page mappings */
- 		pte = pfn_pte(phys, prot);
- 		break;
++	set_memory_x((unsigned long)trampoline, npages);
+ 	return (unsigned long)trampoline;
+ fail:
+ 	tramp_free(trampoline, *tramp_size);
 -- 
 2.17.1
 
