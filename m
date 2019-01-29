@@ -2,136 +2,136 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 16689C282D0
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 05:38:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 029C2C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 05:46:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C6CD52175B
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 05:38:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9471420989
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 05:46:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="jDg0qNhQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6CD52175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="KWDKmtCf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9471420989
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5B0198E0002; Tue, 29 Jan 2019 00:38:36 -0500 (EST)
+	id E35CF8E0002; Tue, 29 Jan 2019 00:46:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5605F8E0001; Tue, 29 Jan 2019 00:38:36 -0500 (EST)
+	id DE5278E0001; Tue, 29 Jan 2019 00:46:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 475C28E0002; Tue, 29 Jan 2019 00:38:36 -0500 (EST)
+	id CFB2E8E0002; Tue, 29 Jan 2019 00:46:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 068258E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 00:38:36 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id f69so16008755pff.5
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 21:38:35 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A6C428E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 00:46:35 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id u20so23393344qtk.6
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 21:46:35 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=t8fkzWMHxXDIkytKtq4mCKfuJ+XlIbmSP26+VZ3R6Tw=;
-        b=Sdq6cQ1+czaPjNWEnkl2rzmtOGOnqGa1dK6ZQqu+k5KFEEem6bhgngdHOhPs93lrFW
-         DGwWLbQAHnirX6ASxRj5GzyvZ68JjX1yUtRn8GQO/+YYVcCv/O7IT2YwjpSW7tPsdlWv
-         LozqiASf6ZjKNtD1S4gSGo2Gkp4Yx0LGNHP+mqLt9r+xGQo1puPCeXIyKiZmQjlrUCr8
-         XVLJoJxbfj3ha42eMadrO2NQpGasc84VBu6Pk3TL/I6QSMwnFqRpIPyt+6LOAGrGKY1f
-         h0lbfjPs9cqbQsi9oo7gQ4dC5q4/Nb00Vt1bKklFcMuGDluou7hCSNkWGknQ6b575HMn
-         UtgA==
-X-Gm-Message-State: AJcUukdTh4TyMNWP28UEBh2wz9WDAjCW6myfwZ/zngtE88udzWReMlhQ
-	nCv+e3TvvekSz/BvlieLFddbIcAr14JIZe7STWhrcDB/gB1QRRPZb4S0Cw2k+dCgoBQPdYDNBlA
-	1c4fuKPm1DcA/R1t5p9ObWtVv9UtnwHfehuX+ecE2YFBc6hTPE6IN7+1/1Nbg4wSa7w==
-X-Received: by 2002:a62:868b:: with SMTP id x133mr26051215pfd.252.1548740315613;
-        Mon, 28 Jan 2019 21:38:35 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4j3sjzw9fjDyAtV7PHz1xX34bK6cp68aWOW5YBb4ZAm4mLxflH/+Y/sD0iS+84hH0X/J6o
-X-Received: by 2002:a62:868b:: with SMTP id x133mr26051182pfd.252.1548740314806;
-        Mon, 28 Jan 2019 21:38:34 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548740314; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=bB1FCkNUdswjLFqFVeg1iGIzwpsiuISE6MtB5gKVSTY=;
+        b=c21YReJB0ONXSrC9ic/yCRDNTGdQWzBWlSMfAdA9JlIGWZs96hG08BQiax8z+S/jBR
+         PYkPXpvVbr99HlagTIEYwA8PElugblTgSSnelYHaJVRvEHJOudUJrXpoiSO0z6FiGFbR
+         D+/iFBh5giyUbAwGLYud8ZO7f+IYMUaUXhozqPOThenBDqZGoU4OXApZJMPtM1pcKLE3
+         howPFFfiYVYep9TOfjCbwYzfh0tL6ucArFVidCwl+Zb9QK5Ob9mVzq14e4fO0BYPHU7/
+         lgPXQM4yPCazAwr3dViQetBb3H+2K5BVkPG9EkrjtNtWcMvz39jO20qVP90i4L8V7koD
+         szug==
+X-Gm-Message-State: AJcUukch4j7hBoQRilFh3dW4WCwXMjncaCxvaMSfHaAVDc1a3Li6weQH
+	nMTr2t/NqY1mkn4J0pkcOAoYlojgln/sPhQVritOMNrDay19RjijI+jtTILfE6qsNaiyxqTZI2I
+	37R+OsMptSReztQ2noatbsTVpktWd7ITUxBp6mOMYCvnrRHPPcZSbQ4FumHI3Lcs=
+X-Received: by 2002:ac8:2281:: with SMTP id f1mr24120228qta.197.1548740795339;
+        Mon, 28 Jan 2019 21:46:35 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN60wPaR/ksOBSv/P/bKOqEmPFWokHmtnU7Sg7h1mejm2fOdmnhpDstNt7EWsRZlMp0SWa/X
+X-Received: by 2002:ac8:2281:: with SMTP id f1mr24120214qta.197.1548740794880;
+        Mon, 28 Jan 2019 21:46:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548740794; cv=none;
         d=google.com; s=arc-20160816;
-        b=ri9v3Thxxki/Z1nqYY26c5/A+bi56QHNiIt01SSopc/Y4rvkVgDx3v6CMRnNAL96XA
-         Lb6CIk1McOMGYyKSaEfU5N/4uTe/BNE8G4PR6vCqDq39rfBMPyszVlsGU6kEFCTDX8bw
-         vJCxJntZB1LtgSJxlXb89w4tyHlIQOS5qFv5lRwRkb3d9tF/9jtK4lCy8riW9tU+3e01
-         R9/oRt9GhDX0z/l95rsbR3y7/aFRglZdpBKyo7Epri697t1P0dBpuOk9veZvoWQl6ANl
-         9mheBEKMGegLkay1CliAL/eP7ntdd77sKwE3DdgT3mzcD1/zgE6eT049d+4UmrJh8bl9
-         Yt2g==
+        b=uv359N6BtDiflksMKX+ahtheY40x0hMA0K8AMlzpUGMttLRcY0KI4onP1biao5BaAX
+         yGYbUU2I96jugtm+R+QdKLH3cPxoJ0DtY3O1IZ9f19tB7AgsjggzWFyK+ln9G0OQEvBM
+         8H5RXgX0sVHjaIlzoC52onJxd6NZDYwXy8w0cLtQjFPq8nQZNKZ6/8c2Yb50AMbcqSqu
+         7mkTEJSFMxqkHa7uq4JoF6dfi1rfdVxS9dY6Pfk/7HAn0+C/y6yq2CB8kNhnePtKRcIi
+         KnWre2pohHydqm/JVph0kCmLE6ifd5GYuY9TlhXBg11/aOfkDcXA8TxtOqcrsq+kUayV
+         11xA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=t8fkzWMHxXDIkytKtq4mCKfuJ+XlIbmSP26+VZ3R6Tw=;
-        b=FIHRg52l1kRt27m0Pt4eht76AxbYIXcbMTw7fpDIY5cnk4/0xMSDxKqZ0/hU3R4NBl
-         hd9/kd8rVNjaPL4DHs+gR4lfdZ4kFwQPhOwhOJkgFBDdvZXtP+EHX3x3akfHeMViXuiH
-         3H/bF9vG0U2UKbEFWaYZdokwlhlzvizmFYFbworizEFxnjEqZAKoguZSAks2xSVNnC8q
-         rJxnd66SRFkBcgZop7j8kIWEPLIT7A2/B7zmWkt2DWh5hEkP6Z11B4i28JXMR0hN5Dzp
-         a0m8y/mlp48NuLlPMcTWI/Jqarayg/NrOOMQAFTyiZay76uZHALwFtJACo6zP6NKXW1i
-         ftxQ==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=bB1FCkNUdswjLFqFVeg1iGIzwpsiuISE6MtB5gKVSTY=;
+        b=Fz7kytdpubIivk3poARM+h+IyT0Bv191g/Kbk5v7e0xujU7ymcrxQY9cbby4jmLqg5
+         5LZf6Qid/cyCJKaz+luyLjrMWtKpwu/uBt/fHAknekfZ+dWcOON7sTHf6ugcgYcE95CC
+         w8pbCYeJUwF9ETQTGDJzV4lIJmaoYaRKasAbMZsh10KZ7Ngcb7sXtHizTdoCdXhIY2Tf
+         6OFsIf35j+M9FKkcPoGZYHodlPooTNGuimJEIHvB8aeG/jQ4Qblel9P++6PSkC8qKGZ6
+         yrumHBrT8DCS6gXsdRkDgV4g6jIl3A62S7jLI/8C5pA2NsGbDBkGawG1s7hR0AhHiaJk
+         vQFg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jDg0qNhQ;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d14si31553429pgi.158.2019.01.28.21.38.34
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=KWDKmtCf;
+       spf=pass (google.com: domain of 0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@amazonses.com
+Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
+        by mx.google.com with ESMTPS id 34si172765qvq.116.2019.01.28.21.46.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 28 Jan 2019 21:38:34 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 28 Jan 2019 21:46:34 -0800 (PST)
+Received-SPF: pass (google.com: domain of 0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@amazonses.com designates 54.240.9.30 as permitted sender) client-ip=54.240.9.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jDg0qNhQ;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Message-Id:Date:Subject:Cc:To:From:
-	Sender:Reply-To:MIME-Version:Content-Type:Content-Transfer-Encoding:
-	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
-	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=t8fkzWMHxXDIkytKtq4mCKfuJ+XlIbmSP26+VZ3R6Tw=; b=jDg0qNhQ8VD/4F9eDb3TAcCXx
-	KgrHXFD4VUcQ7FG4aqXzx+03Sz9cGxs8Fu1XTbjulAd4M9G9ltw8J72wpUM4eG8/t3t26w6TYpkZ+
-	9j0Di4upLo9PJrngncDKQ60gYIFuZITAk1kfiOHP6UwoEHolJKTbn3p4iK2STBQpOh+bhac4NIyhr
-	Srd2fjPNNoh/yaxeszJy1KPd41ffdRnUZ0VEWvUHxnsiAkVS2CI2HQaqK+6A9DdWP0pGCsjSU1rkA
-	wuDjExz/IA8gHWwZ0TjoqfdZ7sVZ1TM3TjwAyCAaSW2NrFESAE5jqaGaCohDGut/W01IpjUZFZdZz
-	W3aRK/IkA==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1goM6T-0000zO-1P; Tue, 29 Jan 2019 05:38:33 +0000
-From: Matthew Wilcox <willy@infradead.org>
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=KWDKmtCf;
+       spf=pass (google.com: domain of 0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1548740794;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=bB1FCkNUdswjLFqFVeg1iGIzwpsiuISE6MtB5gKVSTY=;
+	b=KWDKmtCftgtgM2ZJcqVw4AL9rYmnXIGiC3KihZlVuwymWamuVEOrIzQAWGDPCMyK
+	v01J/DJUit96069vJpL7d1G4EeFObs09La7bxos9AZ1B9iRWw9JK3IJFv9xYB6pC//f
+	8F7sWarq8ACrydMAfd5INljkzut40byhQoc4/ZPM=
+Date: Tue, 29 Jan 2019 05:46:34 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	kernel-hardening@lists.openwall.com,
-	Kees Cook <keescook@chromium.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Will Deacon <will.deacon@arm.com>
-Subject: [PATCH] mm: Prevent mapping typed pages to userspace
-Date: Mon, 28 Jan 2019 21:38:30 -0800
-Message-Id: <20190129053830.3749-1-willy@infradead.org>
-X-Mailer: git-send-email 2.14.5
+cc: miles.chen@mediatek.com, Pekka Enberg <penberg@kernel.org>, 
+    David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+    Jonathan Corbet <corbet@lwn.net>, linux-mm@kvack.org, 
+    linux-kernel@vger.kernel.org, linux-mediatek@lists.infradead.org
+Subject: Re: [PATCH v2] mm/slub: introduce SLAB_WARN_ON_ERROR
+In-Reply-To: <20190128122954.949c2e6699d6e5ef060a325c@linux-foundation.org>
+Message-ID: <0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@email.amazonses.com>
+References: <1548313223-17114-1-git-send-email-miles.chen@mediatek.com> <20190128122954.949c2e6699d6e5ef060a325c@linux-foundation.org>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.01.29-54.240.9.30
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pages which use page_type must never be mapped to userspace as it would
-destroy their page type.  Add an explicit check for this instead of
-assuming that kernel drivers always get this right.
+On Mon, 28 Jan 2019, Andrew Morton wrote:
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
----
- mm/memory.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> > When debugging slab errors in slub.c, sometimes we have to trigger
+> > a panic in order to get the coredump file. Add a debug option
+> > SLAB_WARN_ON_ERROR to toggle WARN_ON() when the option is set.
+> >
+> > Change since v1:
+> > 1. Add a special debug option SLAB_WARN_ON_ERROR and toggle WARN_ON()
+> > if it is set.
+> > 2. SLAB_WARN_ON_ERROR can be set by kernel parameter slub_debug.
+> >
+>
+> Hopefully the slab developers will have an opinion on this.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index ce8c90b752be..db3534bbd652 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1451,7 +1451,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
- 	spinlock_t *ptl;
- 
- 	retval = -EINVAL;
--	if (PageAnon(page) || PageSlab(page))
-+	if (PageAnon(page) || PageSlab(page) || page_has_type(page))
- 		goto out;
- 	retval = -ENOMEM;
- 	flush_dcache_page(page);
--- 
-2.20.1
+Debugging slab itself is usually done in kvm or some other virtualized
+environment. Then gdb can be used to set breakpoints. Otherwise one may
+add printks and stuff to the allocators to figure out more or use perf.
+
+What you are changing here is the debugging for data corruption within
+objects managed by slub or the metadata. Slub currently outputs extensive
+data about the metadata corruption (typically caused by a user of
+slab allocation) which should allow you to set a proper
+breakpoint not in the allocator but in the subsystem where the corruption
+occurs.
+
 
