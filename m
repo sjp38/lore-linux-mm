@@ -2,123 +2,166 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48B18C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:44:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4A44C282D0
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:54:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FB3C2083B
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:44:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FB3C2083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=opengridcomputing.com
+	by mail.kernel.org (Postfix) with ESMTP id A745E2175B
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:54:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A745E2175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C6788E0002; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
+	id 33EEC8E0002; Tue, 29 Jan 2019 11:54:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8741F8E0001; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
+	id 2EDB98E0001; Tue, 29 Jan 2019 11:54:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73BF18E0002; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
+	id 1DEB98E0002; Tue, 29 Jan 2019 11:54:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF218E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id z6so8020318otm.10
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:44:47 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E11778E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:54:39 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id 42so25058292qtr.7
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:54:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=3sYl/7gEMvShHwWIg2qEK89zeqoWynQRLaplUQrrcS4=;
-        b=MOr9vlBcp3E4+RnxkO/KMpInOR9jsne6pUHDecIHuFLsHs8WaZyU7zea37CgCg4+gk
-         sXPxkycQgUA5iinGuc5FHAOeJGOms8t18fDHE1Et/cZ+C8qqX651QC9qBpB4Nc56ry4D
-         5sR2GZ9e2dfl9tdlONwV8Ro6jEoGwBBKTeOg2mqCyCxwaGMfvTKEaWY0eY6U4ZyRzGEb
-         YQ732SZlrkHXI8CQIYtsxivpggetURN56uPCS9lkBwh+5roFb0L84UjzgJ8mubf3O/ja
-         WI2fUjfu/dSqzwHFDnlj51t8Zny4T/PwYcOCdtbEtr+JMW+s8u+0UaxJfDRDnJu2iYac
-         Z/3w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) smtp.mailfrom=swise@opengridcomputing.com
-X-Gm-Message-State: AJcUukddZ6LCv6ELBZIyl7FMHaZge9BfE3f3miro81h1C9IjVn2MFLu7
-	0SZCfJIV9sm2vXe/6YcgzDmBrvvrXBkdBxVeE+HdbQ4igwKijT6cjJvcGQ84QiWgWveXuy3MwfF
-	z3jT7OiofFXIxdIyVaH4CwAQHsWgRhzH3gnXoQwkJi3Aid4+n+krUO5tng2K17O6coA==
-X-Received: by 2002:a9d:46b:: with SMTP id 98mr20572334otc.339.1548780286882;
-        Tue, 29 Jan 2019 08:44:46 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6AJOH7fYGkqvmFBmgfIHh98gFFtOe0wDIkeDtEwm4YzyjmoJMwGcBTpIoNDdcjv2yYJwAw
-X-Received: by 2002:a9d:46b:: with SMTP id 98mr20572310otc.339.1548780286352;
-        Tue, 29 Jan 2019 08:44:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548780286; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=6qZJ9FGK6M6T3WrHuVkIvc+3dyZ5WXldhn9HnJDuq/A=;
+        b=Kctpwk0anvQLmlatj4SI01pDSc+UIXGtmcVEnyBGSx3SKPFW+xDPo1ZsvdD2MS1wng
+         x8hqkESA6Hj/ekVViUEW9kpmEZ+dkP8X6kfJQmeDfCP0ux3yA/Lg7oFGsRMUtS3fOhpk
+         i+MYNOZbLnSXRAS1PeU72zD5UPu5RAtn9XHf1mSBZJ6xanMVO/1ooLTWA/EfJ/CCR3lR
+         q9hDoxJCeaC6wRvTjlra85W700wM33eE10P2dMJdvKO5wVtdhC7slbZYbAQ67DkpxTfP
+         PdQps3fSHMXGhZ0wKPuzIwhBS2hTIVO0TmvB6bhmkOXEuiPGKu0UH5psrerpH7sI2RdV
+         b0rA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukfaeHlUIIQP+2v2hmPlJ6PdBTYwoGXEtpHdD1ifqGZwhtZC7Cw8
+	dK28V1/KvK50+IVqzGxX5uTmGp8IhEwzsTggMWWhanGWja6IJiqpViyylpUNf+lHX9ByIbFhgin
+	hhtNCXhwq6b9CKzLfnm5Qw/PPRXxqOmlDHYQRSs+SeEY76mZwvqd/2GlwW0FrWt0Ovw==
+X-Received: by 2002:a37:6352:: with SMTP id x79mr23890645qkb.52.1548780879678;
+        Tue, 29 Jan 2019 08:54:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4Vplmh0SKuMHQoR2i0TkOwcfzzkOX8F7YYnPACMQDL7WbQ3MGEvOrOg6XpKejWCeg8KFPF
+X-Received: by 2002:a37:6352:: with SMTP id x79mr23890612qkb.52.1548780879131;
+        Tue, 29 Jan 2019 08:54:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548780879; cv=none;
         d=google.com; s=arc-20160816;
-        b=catdk4yHnkkh+FAgucsrb9fQ3W96RurVwp9eK4tl4XVO9V9rKMqhEC+Z7Cr6H22war
-         a7ihnEq+ozyyguFCkxVPdouijw8/NgMUjNXg8X28ZBAucpEu3Vq+4jklmIL0v5vpH4sH
-         rWXWRgDYkJ+332nDscsR6BrhD390Z9OOmlXHpXvc6y4AoCCANIu+TEeHzuIG+5etJoFc
-         xcCTFRJyBVf+A5f7qK+mLVytHM1l733Qf8A8uuvAK2uKMUeUJ0sELwOfIZMNxZlryvt+
-         Eo0y8K+vdVPg/H/hRVq6ijC+EqTpsuoq8IwtHetu2+ADMo5b1p4/BMKbBboRpgDimc3b
-         xdPw==
+        b=LMZEPCgyhzA/K1SLcBqEPD7Sp3oTFfgVoJsXK6bTYqsZrBomBRH7Z7V/b0azYl9NmP
+         2qwjwC3QKUdMuRgcXYPQfFJXTS5P/8NUVYlGAbjohhamoHn6Qq/HAxJl8pZKm/sD8Qf4
+         wsPKV+ahMZtIgWkavW6fBCTdgmvj+o6UsWwEUJSz5v5BMw1Y/Pk4Tuaf3KwAgur3mi8M
+         kwCeB7b9atqMimQuElz2lMU+gHTROYHqOQvHAoiWR7VGdXzLmm7EmBx02/hBpT42oJNv
+         yj2qfQP6/z7AN2gzaR5teYQEoR0EIXAfKNhTnZRj0IbuKQBK/vqQVO14F7nnVvtuq9PM
+         lZMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=3sYl/7gEMvShHwWIg2qEK89zeqoWynQRLaplUQrrcS4=;
-        b=BBzp65hHwSlrozopZ5A4WG+EXY3Re40o0HY001U73KZQUqDLj94QcfXl6GrcmD2dVW
-         g61bH2dyTwViils5dW9B4thh5KbLlQhH5m/XL+xYRM3SlY8vN945p6h6j+0JtIHlCFyy
-         VOZIIilpiqfRRgBCbcA33e+i/MOi48dwdPBa5qoAXIowl2Wo/6zxKYdJBaBGA0jybIrn
-         asxb77rVM6oKIkrvHOSTwqfi2EeMaqCEHBE8FtSogAyOR1HB/ktWlzUrHKzrTRcSGaNb
-         EMqLU+lCAI3h5LXtuiBzx2NgA33WTT2Nn+mpZT7jFQU4C+CqFW4I1dSnQ/oQnkm7zNvG
-         v7qQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=6qZJ9FGK6M6T3WrHuVkIvc+3dyZ5WXldhn9HnJDuq/A=;
+        b=Tw6y8zU5IvKNuss78zsrGCHYakWB3osfGkY0BQwSniR7gQWKPDA5uakjbWOaJ6oV99
+         QAjGB5JwwrlL+hOOmcumd1nUZlrw/F9hkliK8Pydfac5ik3G3mtm3QVM12dDMSbZhYHp
+         qL5hCLz8fv9/z3Qw+JY92N6uy3yJmntyfeR+LrtfEcIf6qETUyYQfasVOVQ7+5qi0mwa
+         EQitSVJwO/UkrGfwFJvp5tuIquLwz2Y05EcvJ+XB3bUz1FQyfjk5RC04MEF8ZLDHPXEf
+         4ByOLic9+5N257Tuyyyphpa7kwcdOeaZAF2wixBDp9eq9kJBM7ibybzoRWPT08JSrNZU
+         uAfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) smtp.mailfrom=swise@opengridcomputing.com
-Received: from smtp.opengridcomputing.com (opengridcomputing.com. [72.48.214.68])
-        by mx.google.com with ESMTPS id i3si6603942oib.163.2019.01.29.08.44.46
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t64si1705792qka.35.2019.01.29.08.54.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 08:44:46 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) client-ip=72.48.214.68;
+        Tue, 29 Jan 2019 08:54:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) smtp.mailfrom=swise@opengridcomputing.com
-Received: from [10.10.0.239] (cody.ogc.int [10.10.0.239])
-	by smtp.opengridcomputing.com (Postfix) with ESMTPSA id B9D0122666;
-	Tue, 29 Jan 2019 10:44:45 -0600 (CST)
-Subject: Re: [PATCH 0/5] RDMA: reg_remote_mr
-To: Joel Nider <joeln@il.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Leon Romanovsky <leon@kernel.org>, Doug Ledford <dledford@redhat.com>,
- Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org,
- linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org
-References: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
-From: Steve Wise <swise@opengridcomputing.com>
-Message-ID: <8cdb77b6-c160-81d0-62be-5bbf84a98d69@opengridcomputing.com>
-Date: Tue, 29 Jan 2019 10:44:48 -0600
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 2D4CA81F09;
+	Tue, 29 Jan 2019 16:54:38 +0000 (UTC)
+Received: from localhost.localdomain.com (ovpn-122-2.rdu2.redhat.com [10.10.122.2])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 9E319102BCEB;
+	Tue, 29 Jan 2019 16:54:36 +0000 (UTC)
+From: jglisse@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: [PATCH 00/10] HMM updates for 5.1
+Date: Tue, 29 Jan 2019 11:54:18 -0500
+Message-Id: <20190129165428.3931-1-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 29 Jan 2019 16:54:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+From: Jérôme Glisse <jglisse@redhat.com>
 
-On 1/29/2019 7:26 AM, Joel Nider wrote:
-> As discussed at LPC'18, there is a need to be able to register a memory
-> region (MR) on behalf of another process. One example is the case of
-> post-copy container migration, in which CRIU is responsible for setting
-> up the migration, but the contents of the memory are from the migrating
-> process. In this case, we want all RDMA READ requests to be served by
-> the address space of the migration process directly (not by CRIU). This
-> patchset implements a new uverbs command which allows an application to
-> register a memory region in the address space of another process.
+This patchset improves the HMM driver API and add support for hugetlbfs
+and DAX mirroring. The improvement motivation was to make the ODP to HMM
+conversion easier [1]. Because we have nouveau bits schedule for 5.1 and
+to avoid any multi-tree synchronization this patchset adds few lines of
+inline function that wrap the existing HMM driver API to the improved
+API. The nouveau driver was tested before and after this patchset and it
+builds and works on both case so there is no merging issue [2]. The
+nouveau bit are queue up for 5.1 so this is why i added those inline.
 
-Hey Joel,
+If this get merge in 5.1 the plans is to merge the HMM to ODP in 5.2 or
+5.3 if testing shows any issues (so far no issues has been found with
+limited testing but Mellanox will be running heavier testing for longer
+time).
 
-Dumb question:
+To avoid spamming mm i would like to not cc mm on ODP or nouveau patches,
+however if people prefer to see those on mm mailing list then i can keep
+it cced.
 
-Doesn't this open a security hole by allowing any process to register
-memory in any other process?
+This is also what i intend to use as a base for AMD and Intel patches
+(v2 with more thing of some rfc which were already posted in the past).
 
-Steve.
+[1] https://cgit.freedesktop.org/~glisse/linux/log/?h=odp-hmm
+[2] https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-for-5.1
 
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+Cc: Christian König <christian.koenig@amd.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+
+Jérôme Glisse (10):
+  mm/hmm: use reference counting for HMM struct
+  mm/hmm: do not erase snapshot when a range is invalidated
+  mm/hmm: improve and rename hmm_vma_get_pfns() to hmm_range_snapshot()
+  mm/hmm: improve and rename hmm_vma_fault() to hmm_range_fault()
+  mm/hmm: improve driver API to work and wait over a range
+  mm/hmm: add default fault flags to avoid the need to pre-fill pfns
+    arrays.
+  mm/hmm: add an helper function that fault pages and map them to a
+    device
+  mm/hmm: support hugetlbfs (snap shoting, faulting and DMA mapping)
+  mm/hmm: allow to mirror vma of a file on a DAX backed filesystem
+  mm/hmm: add helpers for driver to safely take the mmap_sem
+
+ include/linux/hmm.h |  290 ++++++++++--
+ mm/hmm.c            | 1060 +++++++++++++++++++++++++++++--------------
+ 2 files changed, 983 insertions(+), 367 deletions(-)
+
+-- 
+2.17.2
 
