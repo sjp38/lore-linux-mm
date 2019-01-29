@@ -2,165 +2,162 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 850FCC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 07:53:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DC96C4151A
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 08:09:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B4DC2177E
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 07:53:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B4DC2177E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 1585E217F5
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 08:09:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="Yfe/lYWx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1585E217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8A528E0002; Tue, 29 Jan 2019 02:53:53 -0500 (EST)
+	id 89B048E0002; Tue, 29 Jan 2019 03:09:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D39968E0001; Tue, 29 Jan 2019 02:53:53 -0500 (EST)
+	id 84B138E0001; Tue, 29 Jan 2019 03:09:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4EE38E0002; Tue, 29 Jan 2019 02:53:53 -0500 (EST)
+	id 7137E8E0002; Tue, 29 Jan 2019 03:09:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8423C8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:53:53 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id l76so16272700pfg.1
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 23:53:53 -0800 (PST)
+Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3966C8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 03:09:45 -0500 (EST)
+Received: by mail-vs1-f71.google.com with SMTP id g5so962969vsi.2
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 00:09:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=qj1WTzUupQDTUvo33lKDCW8heb3e9/5rpSCHgbR9lf8=;
-        b=eI/4sQCA2SegUcRH/1F2K3UPFeeR01s8DdUzGrIVWvzf8s8Y4mLMw2ClITp4+eHecJ
-         cF731zdQ7QIiZfsfG9tV+B3v0EwlNzPPKouVT56F8GSrBy+FZVCRJ1RM2EZe/OdYI6vt
-         sgmUJTorX7tg9s+7Xwty36JMDzn3jrkOWVQp5o0jglCmQGPkVX8q5589JEkENH+6ereH
-         9zD3F35FAOJBljCrG6eFbe0ThF85U8OfTvTz7g76eTtETKJeQIxWy6raSL74wq2w6drh
-         b3I7S8ySDxL16esHdGYRuMiDLdhuEGVH7hTOjEg2NU2Qld/xYFg7zp/pA8TBvaHcdjya
-         Mvig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-X-Gm-Message-State: AJcUukdqhboQMciGKxNC6MNGoW1OHkXyNu5BX4OAchf8CtxnUTvbMiqC
-	LmWpKglGYccTYYnxevSZmSFadPYOtW6z58R0CYqFBD7rLSlUJT09pPv/1EjBvdMMzRGbNiG5IOA
-	D1M+WH4UDZ6woQZ7iF/iFOcv7wqh1CgdO33MxQRR/OAW4tcyUTAs/5ZS6Nnt+Qoa1Mw==
-X-Received: by 2002:a65:41c2:: with SMTP id b2mr22507132pgq.67.1548748433174;
-        Mon, 28 Jan 2019 23:53:53 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4vdbw9OLgGbngNOjXLfRNnrwhmDj6PLERWqpva1ZjVgCkJE3M8TTJ4Hb3pBaap7saidLAZ
-X-Received: by 2002:a65:41c2:: with SMTP id b2mr22507107pgq.67.1548748432373;
-        Mon, 28 Jan 2019 23:53:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548748432; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=HskzooTvMqAmijkoLembaa8q/EUEh+gg5JDbqI0lirU=;
+        b=IpCPuYcCxU7G6MLZ+5hyvIiQmJ5z2dwqZgJhCMPF5Mm8ShwjMEOvMZDnxE5wLmNDHs
+         LQUWDYa75k00J02N4nuhN2maH1agcsIxcZi1YYSlSUyCJJfwF4mex+sZ36Ejuh8qh1Vg
+         IZnXUQ44Py8+dworejzLA+BUYfDSVQghPwKF4toLXtgGeOUxMs2ffEHFjQl95uZbwduy
+         QKewCG2cAQxDqy2ybDb1ggL5lpYqIoHQHgh18SfhkN3bHG++9ZAAacT3HA3iGuCUTdBI
+         U+unuT4T7XJIoMCqzpj5OuBR+qvl23+DLfDTOPoq8ZwurlIrqTUqEm1GBNnPI1iwyfWi
+         XbZQ==
+X-Gm-Message-State: AJcUukcWXnoce7OXj3WscnpCF8grlYo2r2RAKRLkJ8ck8e3yGxhVfhCO
+	cvzsBW5ZJNRg4Rp9jiTKTuyeQUd61clTi5aIcQtspjEsbh/8/RDaa0vgLSTQJKOsPxXT6kcG+sZ
+	lAqVWYM7lQOJ8TphzC0irV/DIGxAytADsAianakcumLOavFIK5QM7j8s7O5/Hvx2JidKc2Dn2S1
+	qSpIGecCzRsWT6ZL5MeDJDeU4r7oJnSFVytHHVoAmBXixeD8MoFhtIDX/RQWxijoFF13L4ESiK2
+	o34mjwt5gZoN61GfTWgqiQMzJKRUeF3vjCd7GOHj/OlbknWyzxvMXCyEe300jbG7Kzt5HcMM2S+
+	XHnQUsVCOMlkRbFnxH4cpoPEob4TtrW2T9aRTJwt0luaPaEx6X6QC6p0yW/SBm8+A4/QF9xd36m
+	6
+X-Received: by 2002:a67:edd8:: with SMTP id e24mr10986676vsp.169.1548749384853;
+        Tue, 29 Jan 2019 00:09:44 -0800 (PST)
+X-Received: by 2002:a67:edd8:: with SMTP id e24mr10986658vsp.169.1548749384357;
+        Tue, 29 Jan 2019 00:09:44 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548749384; cv=none;
         d=google.com; s=arc-20160816;
-        b=ABt9/6Hxwq2G1gquMM/a397FEle1ESN3nxDlQTgE34IcknhhXMonfxSAwzy7KErKQw
-         xzJPeMEXmlc5tlrKSYpZRm2FexmQdQWx0kHQuHfzkXTU53YMNmBy2b2ycH8bnSG2P7HI
-         AjQgRpzJf+8AvflJgBnwncwCFGehKK3DL5MLcfJqLWPc8tI/YAcDwuGcSso3nPiZXD5b
-         25xiQjX4gQ5KQSXMzzcI9SovXGT8vaH0dhmy3iFdXVPPd4WtGZ12zq8mzktREiBw6fQo
-         wjabQb2MejbfUTgmw3pX3Lz35IlVTV6/nA1QRkUqj4oe+eagi6LDt7Xia7w1lsdGOH9l
-         ieEw==
+        b=K2jNoH8TOwnTyyzvobhtqP9OiJ7o8CKDpYSbSbEihwztmhXOOlGFQ+TMpleHyXP6XS
+         wQF6VwB5S2YqlFuznbRv4SxE0bJ5ga9nkB809DsM3SSqywV/gZW2FB6unh81uUZD71mB
+         QzvMzGPwDyKw0tMN8niR9YftztU+NcPtKbY6sH3OgkQQI8Cki2n73BsaJP36T7ZXO3v3
+         I6y/xq8apjBa8SR0tOnOeXiGiaWX/PBASa0Q6ok6FLIuJlpMQi6Z9cnTrNIbfcvYv5VA
+         PINfwNmNAxvXXpxFB9mMF31HHgK3gns0H+yRSpVaIvcw1r70yCos2JuABhJ0wAOcmJtD
+         /OGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=qj1WTzUupQDTUvo33lKDCW8heb3e9/5rpSCHgbR9lf8=;
-        b=YS/glSiDl1r18wbOHmZBdanFGMF0IFVT+rRzlbqOQ3GN8IqVeRsv7btUeaaPJvZdUo
-         9O1yMxBKHHCtVvlTe4ZAu0TRH/E/CyZbemOEfmAbOZ9JtfPjCbfBkpaFkor6I/WmB07O
-         KJ4Uyz/k4sZbr+LpOFE89qyu4YbjnllIuLDkBXYYLJEXLQQO9KcqIbJj3DpHEfBIavSr
-         dAkgrSxXdxtmgLHnLB0H0JaYHgcMk0Sz3ZCu/dJ17TXQMXHRsJPQmBSc0X7BuKydwA1t
-         mYicnrOcHfpCm9S62r9oqM+7/mLb/nMROGp5i3+IYiDvOhVc6nZXgNKyW6WFHV9D1BTQ
-         fSnw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=HskzooTvMqAmijkoLembaa8q/EUEh+gg5JDbqI0lirU=;
+        b=Db8j/jrtWkibixkgMGvDItRALCnqP5d36gAfk3lOewp4bTf3f7WbfVTQyBDSkSNg+f
+         GYGHjSg/6vgXjt+XgdcdTzzzlqjv0yEF0XfIXnd6LwdMKDQFs6nt5CmUwniJnB9YhDSL
+         vYkABbskYhktMN5JyXGr2DiCvBSokVALUjlwsD1cCAfK/hAlnUWFTsw1Y9yLTNHt02Vz
+         gYYGrNp5ZRAgnX4VsRr0C5LdtaHdF3D331n0/AwP3dgmDc/L+iiZPhtKEIMjBAbTr6TI
+         Rj+HiszST3IwTHqX+R6OEYR3mwEllDb4yzveY6S2BC9ICsrRy6lzvQnlS7ViCxGcebTd
+         hhRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id p4si30316376pgm.342.2019.01.28.23.53.51
+       dkim=pass header.i=@chromium.org header.s=google header.b="Yfe/lYWx";
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h75sor22625982vsg.0.2019.01.29.00.09.44
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 29 Jan 2019 00:09:44 -0800 (PST)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@chromium.org header.s=google header.b="Yfe/lYWx";
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=HskzooTvMqAmijkoLembaa8q/EUEh+gg5JDbqI0lirU=;
+        b=Yfe/lYWx+W08Wnk0LT/9pDOe33v6r/YJCX5FHNL8f7PXRPgQ1pULitx5UhzCxQozax
+         sUmP0OKPSRBgz5/GAzgXWKinyALuD6Rusi8YhMCk2/sHGw9Yt1IqU4RuXsexPaHqYRN2
+         vnrz1YDb7OGnn7mAzynSfkfNPRgP+5JqFpt78=
+X-Google-Smtp-Source: ALg8bN7sVVE7ciRiR4XoigIHgE0fU2mMLar/zkbfwI4s6K2j4QCRS3h1Z5YKgKbfeV1pRchIgv93+A==
+X-Received: by 2002:a67:334a:: with SMTP id z71mr10800052vsz.40.1548749383751;
+        Tue, 29 Jan 2019 00:09:43 -0800 (PST)
+Received: from mail-ua1-f46.google.com (mail-ua1-f46.google.com. [209.85.222.46])
+        by smtp.gmail.com with ESMTPSA id y195sm72854468vkd.0.2019.01.29.00.09.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 23:53:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
-X-UUID: e8a2e2ae80eb48a2b6588bf2cc31fd75-20190129
-X-UUID: e8a2e2ae80eb48a2b6588bf2cc31fd75-20190129
-Received: from mtkcas09.mediatek.inc [(172.21.101.178)] by mailgw01.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1798808927; Tue, 29 Jan 2019 15:53:46 +0800
-Received: from MTKCAS06.mediatek.inc (172.21.101.30) by mtkexhb01.mediatek.inc
- (172.21.101.102) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Tue, 29 Jan
- 2019 15:53:44 +0800
-Received: from [172.21.77.33] (172.21.77.33) by MTKCAS06.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Tue, 29 Jan 2019 15:53:44 +0800
-Message-ID: <1548748424.18511.34.camel@mtkswgap22>
-Subject: Re: [PATCH v2] mm/slub: introduce SLAB_WARN_ON_ERROR
-From: Miles Chen <miles.chen@mediatek.com>
-To: Christopher Lameter <cl@linux.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg
-	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
-	<iamjoonsoo.kim@lge.com>, Jonathan Corbet <corbet@lwn.net>,
-	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	<linux-mediatek@lists.infradead.org>
-Date: Tue, 29 Jan 2019 15:53:44 +0800
-In-Reply-To: <0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@email.amazonses.com>
-References: <1548313223-17114-1-git-send-email-miles.chen@mediatek.com>
-	 <20190128122954.949c2e6699d6e5ef060a325c@linux-foundation.org>
-	 <0100016898251824-359bbfae-e32b-43a6-8c58-8811a7b24520-000000@email.amazonses.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+        Tue, 29 Jan 2019 00:09:42 -0800 (PST)
+Received: by mail-ua1-f46.google.com with SMTP id c12so6545087uas.6
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 00:09:42 -0800 (PST)
+X-Received: by 2002:ab0:470d:: with SMTP id h13mr10723029uac.122.1548749382268;
+ Tue, 29 Jan 2019 00:09:42 -0800 (PST)
 MIME-Version: 1.0
-X-MTK: N
+References: <20190129053830.3749-1-willy@infradead.org>
+In-Reply-To: <20190129053830.3749-1-willy@infradead.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 29 Jan 2019 21:09:30 +1300
+X-Gmail-Original-Message-ID: <CAGXu5jLbC1-T9JbYcDcXjA2G3jv3DLCWSUvJf3KiA8so2XC19g@mail.gmail.com>
+Message-ID: <CAGXu5jLbC1-T9JbYcDcXjA2G3jv3DLCWSUvJf3KiA8so2XC19g@mail.gmail.com>
+Subject: Re: [PATCH] mm: Prevent mapping typed pages to userspace
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, Michael Ellerman <mpe@ellerman.id.au>, 
+	Will Deacon <will.deacon@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-01-29 at 05:46 +0000, Christopher Lameter wrote:
-> On Mon, 28 Jan 2019, Andrew Morton wrote:
-> 
-> > > When debugging slab errors in slub.c, sometimes we have to trigger
-> > > a panic in order to get the coredump file. Add a debug option
-> > > SLAB_WARN_ON_ERROR to toggle WARN_ON() when the option is set.
-> > >
-> > > Change since v1:
-> > > 1. Add a special debug option SLAB_WARN_ON_ERROR and toggle WARN_ON()
-> > > if it is set.
-> > > 2. SLAB_WARN_ON_ERROR can be set by kernel parameter slub_debug.
-> > >
-> >
-> > Hopefully the slab developers will have an opinion on this.
-> 
-> Debugging slab itself is usually done in kvm or some other virtualized
-> environment. Then gdb can be used to set breakpoints. Otherwise one may
-> add printks and stuff to the allocators to figure out more or use perf.
-> 
-> 
-> What you are changing here is the debugging for data corruption within
-> objects managed by slub or the metadata. Slub currently outputs extensive
-> data about the metadata corruption (typically caused by a user of
-> slab allocation) which should allow you to set a proper
-> breakpoint not in the allocator but in the subsystem where the corruption
-> occurs.
-> 
-Thanks for your comments. The real problems the change can help are:
+On Tue, Jan 29, 2019 at 6:38 PM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> Pages which use page_type must never be mapped to userspace as it would
+> destroy their page type.  Add an explicit check for this instead of
+> assuming that kernel drivers always get this right.
+>
+> Signed-off-by: Matthew Wilcox <willy@infradead.org>
 
-a) classic slub issue. e.g., use-after-free, redzone overwritten. It's
-more efficient to report a issue as soon as slub detects it. (comparing
-to monitor the log, set a breakpoint, and re-produce the issue). With
-the coredump file, we can analyze the issue.
+Reviewed-by: Kees Cook <keescook@chromium.org>
 
-b) memory corruption issues caused by h/w write. e.g., memory
-overwritten by a DMA engine. Memory corruptions may or may not related
-to the slab cache that reports any error. For example: kmalloc-256 or
-dentry may report the same errors. If we can preserve the the coredump
-file without any restore/reset processing in slub, we could have more
-information of this memory corruption.
+-Kees
 
-c) memory corruption issues caused by unstable h/w. e.g., bit flipping
-because of xxxx DRAM die or applying new power settings. It's hard to
-re-produce this kind of issue and it much easier to tell this kind of
-issue in the coredump file without any restore/reset processing.
+> ---
+>  mm/memory.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/memory.c b/mm/memory.c
+> index ce8c90b752be..db3534bbd652 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1451,7 +1451,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+>         spinlock_t *ptl;
+>
+>         retval = -EINVAL;
+> -       if (PageAnon(page) || PageSlab(page))
+> +       if (PageAnon(page) || PageSlab(page) || page_has_type(page))
+>                 goto out;
+>         retval = -ENOMEM;
+>         flush_dcache_page(page);
+> --
+> 2.20.1
+>
 
-Users can set the option by slub_debug. We can still have the original
-behavior(keep the system alive) if the option is not set. We can turn on
-the option when we need the coredump file. (with panic_on_warn is set,
-of course).
+
+-- 
+Kees Cook
 
