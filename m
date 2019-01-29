@@ -2,202 +2,178 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7AFBC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:56:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 781D3C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:58:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 89E2920989
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:56:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="NMbkgebY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89E2920989
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 34BF02087F
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:58:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34BF02087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B3D18E0004; Tue, 29 Jan 2019 11:56:23 -0500 (EST)
+	id D50C08E0004; Tue, 29 Jan 2019 11:58:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38AA08E0002; Tue, 29 Jan 2019 11:56:23 -0500 (EST)
+	id CFCB98E0002; Tue, 29 Jan 2019 11:58:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 279B68E0004; Tue, 29 Jan 2019 11:56:23 -0500 (EST)
+	id BEC6A8E0004; Tue, 29 Jan 2019 11:58:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DE58D8E0002
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:56:22 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id a18so14246591pga.16
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:56:22 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 986DA8E0002
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:58:48 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id 42so25072965qtr.7
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:58:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=vql8U89T/hHjjSzQxptcPZRte1dCUtGT4jirdck/APc=;
-        b=tA49YCAhVVxuHGCPmS6TfGFaH+sSD7Ysb2QRDQHkrUsUQzFMIp7dvLhzwtGEYzYUPz
-         9wNpySUv9au88+frOD4pTMIc5T+Gg/jRJj0/yB+b3IdOVJeuqKwK7m0a1hIGhuGf+mpx
-         SanVl3PlUlROWttcR64dZgq+j0CBDaPmtlPdF40rJU1NG6tvO4aF5ow7EtG++40X2reR
-         xTU4gODklO0zwRDUBJeOqiTSIkU7cYkTcpaYA2J2cZ/3UCfUklWsaLUfGLM9vYx/euXO
-         J7z+AlWbqxaStee4Y85oLagKQo0Fl9kSy6cf8pzwdwi9FLcbETqSYwKKeX9WCOp14/Rq
-         ktIg==
-X-Gm-Message-State: AJcUukeSe+SKlbnwTxdJcWuIy0/48Ct1CD9iNy8M05JCBbNUyO6s9v/3
-	FS8Y6D05djPktldp/vMqqbULsNDumrGlstOTxe5GofG/nef5h80ojM7lo8+69nYt45s5UervVdc
-	qBIxcAb42USF/VFVmHvWosV919a4TQnkregd8PhOiuKFboTUfEv6mDrB3DHN/NMrKZmquY6K3Hp
-	FapGve6UBlVKY5UXiqo1NOwWDfLCh3F4rMZNrO84QjQGJS3EcQUCccUYRE3OghINl2ra9zXOQSb
-	/IAdSdVT8pHn+Ia6lmbe/jd1yC33EgJCMB81mxgUF0pUjsVyUDxww8x8Bf2GM2LgAbiaqTEX8KH
-	Yx0KsP7FMgo1KMBaWTvf0FruN7olp6fWiIeuYCCYVLZoV2CUBECBCcXi8HuJK2DIBT2CkHFYJkR
-	0
-X-Received: by 2002:a63:4926:: with SMTP id w38mr23308059pga.353.1548780982581;
-        Tue, 29 Jan 2019 08:56:22 -0800 (PST)
-X-Received: by 2002:a63:4926:: with SMTP id w38mr23308034pga.353.1548780981808;
-        Tue, 29 Jan 2019 08:56:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548780981; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=4RtpYwDFFr6LuEfTx6X1rIILNtZpbTp/F1i5xvBvPw0=;
+        b=AkVjyqEYgGV/+fnNe6gfdODpPB/Ft/kImrYwJO/IDOA0wDxyjpyEIbFI96jfmwv3CW
+         1WOkfYDoOgghscmldrrGoxy+T9e8BUe4H5i0D81r1ODljnpfeCtnOhSbuf8+eWtYoDEJ
+         MrT2duBjl/KRAsr4S66GkZ2ASglUvGl5nuJjikEBwZNZEwbAw0/Mq5GL+l/ecHgdK9H1
+         39hgMIW7rQxpOaXTU334ZYyvVT/X02UURkE45SNMZ/ZWVioopVkl3V0Ql4VPx7g6xA3d
+         9cQgsrSLNbJIacbT8vSPSYl0pSoYPZhGWCcGkRpX1nnZuVjE4sDlDevHosHKDo/L1qtD
+         h6ig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukc2WMatvgeSQjfSlKBf/SuS3m4txF/U7bxbwzVgJFN1pe+NbXGi
+	1FWWjPlwxC8NWZTS8MaE53L9Nuut6Qd70r5fu7lZyxAFuLIYKNDn8HRkLhOMqqii6vEHvmavq+v
+	EnthpYZ1nFB7/ohFbXl5gBk9U7T1Roc7ByVkn16Ba3cQy1hxkRC6HwKakcjL3/SSKfw==
+X-Received: by 2002:a37:9d10:: with SMTP id g16mr23327292qke.53.1548781128394;
+        Tue, 29 Jan 2019 08:58:48 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6HlP9vGQW7in+OGj0Nv4LxA/7SUyOh4jpqKXP/bxlZBRCvA64jQ4QW9rSVBpq/TfcwCbZu
+X-Received: by 2002:a37:9d10:: with SMTP id g16mr23327258qke.53.1548781127903;
+        Tue, 29 Jan 2019 08:58:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548781127; cv=none;
         d=google.com; s=arc-20160816;
-        b=QTQehLETFOXCxpKeoQJX9boRbF/2kgRovkeNnuX1rTPxRr61qhnWRniKEnCjDFUn29
-         0P8gI4F4M6uxa0z92JON1zZEGU4s74H8EDPJ6VuxjzxF0PnQYymisEnKJ0MGJWJJLTDs
-         NqLG0A9OC06XZW8RiSl8i83Ndhb9O2JiVgrrhQ7vqZAOHwcfM2ZOn42VbsIv38BBMwB7
-         oQ1MJLJ9RhvuTohkS4Z53Gpui22WBvWk+MePgv4LB7lXsf8veK0lsan5Dtff5dq8yHRD
-         OiGx+zQJ4A98T93ZksJG4CwdApGUiBJJc2GwGFZDW6MwGPAPPmmDItxRjr9Z/hfX0agZ
-         dMFA==
+        b=N8orgvm49+CHdnCGMg2170YUbe/b71gShTYTV7CEedJYnQOpYtQEtMZWoZvZPMlat4
+         BfS3yq7JBOPN0KRVRJ6h9q5rd3xXlxdgsf7aT2Tdkxn4qWYfKTKu9pnCHbkcGuawUy67
+         ssCObc/r/XZJTg1KN5eIJ6oyvf9t44QtuSWUZYLrdg01Fz6XIuxUxJELaJPs2Yhb3IeC
+         zFDAWAHNJuvg6KGwpjM8zkqOUSMvfYcH42j2e5bkEZnQkojL4+xqIYbbpRAophX5AQ7I
+         xNTN26IdZ45P0CgEiFPIy/PjypW9Z81zqDh120Q1Waxjy0t+rJn1Ni+GwdJW45e0ACNJ
+         jbVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=vql8U89T/hHjjSzQxptcPZRte1dCUtGT4jirdck/APc=;
-        b=qtFHLndwJcGCIotAckCrFOjWY7P2HaidnzJnbFn/Ow5QEezM4aX8UKqddCNo+2P6o0
-         vgY9Q1UzAZ2CmLmvm5UUzIHLFNWiIfxgAhwS4S1ueMXCO61VeEYJqoLyyJ4gDvQprIiV
-         nu2oF5MJWuCFdJpBFNKfIgC8U3DdDDhF6G/HCLlF8kWOlfNcYXJWDb5Og/okT4/jX8V6
-         kFPIjbZ3ZLMte3Sr5UW3vAQTD+fRkPlLolRAPf3v8e3J5HfJM0LJ1cp8FlcnM1Lp1cOD
-         o06TMWGKq5CNSqJdI+L/04c5HOhyupxLA/U0WgMa2jW+QeY9uSt7zARS9rhBrMMlcFzk
-         vVWA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=4RtpYwDFFr6LuEfTx6X1rIILNtZpbTp/F1i5xvBvPw0=;
+        b=HDRW7PL92QKcRgl6fhbseOKYkxQuSP+DgJY66RPSD7JBXLt/PXQBjPqHasM4yjZgr3
+         kn8EuX22KaGzv7LVPQwflg+d3AccCZyU2sKnlS/LSfR3H3mQk1DPxe81BiQTw1Pv4Ftg
+         8i50y0kL4/jk5jSGnHxwrHL3T3WH1rcOAkB1FQhHrBa9Qs/KJQx0BrUzS6CkL2ec/Fo5
+         L5+e8+v7K04Ojl5pYACUjW7vQVeL6VamIpEh4pxex6wfb4AEBKZCIA3K/2XRfIjkA3sP
+         T+qZwZ0cWcgq5Y7v7IcfgfO9N3LHSxX0SoOG3VoS63GKv4Z6900yeb73wMhHBZ5iEWFx
+         K7NQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=NMbkgebY;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a72sor55369622pge.21.2019.01.29.08.56.21
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p3si4694215qtp.114.2019.01.29.08.58.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 08:56:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 08:58:47 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=NMbkgebY;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=vql8U89T/hHjjSzQxptcPZRte1dCUtGT4jirdck/APc=;
-        b=NMbkgebY4EHpMOLHRgtVlKvOjuX6dyFymsNZhkYtjK443i2AjiQt+z6bxBHHct8Bww
-         wzsMnAoS90uq9JaU2oJNE5Dj2Fv5HyJwccSs2JZtgphXK2yxoG0yPBFToljtFTmEtS1J
-         3H6QOdODDPg0gppQzDjVY8zf2ZEMysqVYB9fTESNjD+HSo5sBm9hv1NFY4phiHAh/bFS
-         Z896B5MgcgR5WxlxIKu7EXEH8JUxhIRJzQyA+vv6sX3qTwfyyVyofRGenZynTxV/m5Zu
-         z7eEt7kT/xq2jWrr4bHJhiZTYNyNozTc2rRc4kRHcEOT9sUrDDzrxgf7FcZMSBGxgwZQ
-         PGIQ==
-X-Google-Smtp-Source: ALg8bN7ptJmZpJU3paI7ZW9MPDibRYYoJVCL3anlb16ShHdSnpfegJMezROCztjWwoW943HbFr5O6g==
-X-Received: by 2002:a63:e915:: with SMTP id i21mr23854042pgh.409.1548780981421;
-        Tue, 29 Jan 2019 08:56:21 -0800 (PST)
-Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
-        by smtp.gmail.com with ESMTPSA id v9sm47049062pfe.49.2019.01.29.08.56.20
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Jan 2019 08:56:20 -0800 (PST)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1goWgO-0003Dw-05; Tue, 29 Jan 2019 09:56:20 -0700
-Date: Tue, 29 Jan 2019 09:56:19 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Joel Nider <joeln@il.ibm.com>
-Cc: Leon Romanovsky <leon@kernel.org>, Doug Ledford <dledford@redhat.com>,
-	Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org,
-	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 3/5] RDMA/uverbs: add owner parameter to ib_umem_get
-Message-ID: <20190129165619.GC10094@ziepe.ca>
-References: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
- <1548768386-28289-4-git-send-email-joeln@il.ibm.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E96B881F0B;
+	Tue, 29 Jan 2019 16:58:46 +0000 (UTC)
+Received: from localhost.localdomain.com (ovpn-122-2.rdu2.redhat.com [10.10.122.2])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 632585F7E7;
+	Tue, 29 Jan 2019 16:58:45 +0000 (UTC)
+From: jglisse@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	linux-rdma@vger.kernel.org,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Leon Romanovsky <leonro@mellanox.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Artemy Kovalyov <artemyko@mellanox.com>,
+	Moni Shoua <monis@mellanox.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Kaike Wan <kaike.wan@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>
+Subject: [RFC PATCH 0/1] Use HMM for ODP
+Date: Tue, 29 Jan 2019 11:58:38 -0500
+Message-Id: <20190129165839.4127-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1548768386-28289-4-git-send-email-joeln@il.ibm.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 29 Jan 2019 16:58:47 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 03:26:24PM +0200, Joel Nider wrote:
-> ib_umem_get is a core function used by drivers that support RDMA.
-> The 'owner' parameter signifies the process that owns the memory.
-> Until now, it was assumed that the owning process was the current
-> process. This adds the flexibility to specify a process other than
-> the current process. All drivers that call this function are also
-> updated, but the default behaviour is to keep backwards
-> compatibility by assuming the current process is the owner when
-> the 'owner' parameter is NULL.
-> 
-> Signed-off-by: Joel Nider <joeln@il.ibm.com>
->  drivers/infiniband/core/umem.c                | 26 ++++++++++++++++++++------
->  drivers/infiniband/hw/bnxt_re/ib_verbs.c      | 10 +++++-----
->  drivers/infiniband/hw/cxgb3/iwch_provider.c   |  3 ++-
->  drivers/infiniband/hw/cxgb4/mem.c             |  3 ++-
->  drivers/infiniband/hw/hns/hns_roce_cq.c       |  2 +-
->  drivers/infiniband/hw/hns/hns_roce_db.c       |  2 +-
->  drivers/infiniband/hw/hns/hns_roce_mr.c       |  4 ++--
->  drivers/infiniband/hw/hns/hns_roce_qp.c       |  2 +-
->  drivers/infiniband/hw/hns/hns_roce_srq.c      |  2 +-
->  drivers/infiniband/hw/i40iw/i40iw_verbs.c     |  2 +-
->  drivers/infiniband/hw/mlx4/cq.c               |  2 +-
->  drivers/infiniband/hw/mlx4/doorbell.c         |  2 +-
->  drivers/infiniband/hw/mlx4/mr.c               |  2 +-
->  drivers/infiniband/hw/mlx4/qp.c               |  2 +-
->  drivers/infiniband/hw/mlx4/srq.c              |  2 +-
->  drivers/infiniband/hw/mlx5/cq.c               |  4 ++--
->  drivers/infiniband/hw/mlx5/devx.c             |  2 +-
->  drivers/infiniband/hw/mlx5/doorbell.c         |  2 +-
->  drivers/infiniband/hw/mlx5/mr.c               | 15 ++++++++-------
->  drivers/infiniband/hw/mlx5/odp.c              |  5 +++--
->  drivers/infiniband/hw/mlx5/qp.c               |  4 ++--
->  drivers/infiniband/hw/mlx5/srq.c              |  2 +-
->  drivers/infiniband/hw/mthca/mthca_provider.c  |  2 +-
->  drivers/infiniband/hw/nes/nes_verbs.c         |  3 ++-
->  drivers/infiniband/hw/ocrdma/ocrdma_verbs.c   |  3 ++-
->  drivers/infiniband/hw/qedr/verbs.c            |  8 +++++---
->  drivers/infiniband/hw/vmw_pvrdma/pvrdma_cq.c  |  2 +-
->  drivers/infiniband/hw/vmw_pvrdma/pvrdma_mr.c  |  2 +-
->  drivers/infiniband/hw/vmw_pvrdma/pvrdma_qp.c  |  5 +++--
->  drivers/infiniband/hw/vmw_pvrdma/pvrdma_srq.c |  2 +-
->  drivers/infiniband/sw/rdmavt/mr.c             |  2 +-
->  drivers/infiniband/sw/rxe/rxe_mr.c            |  3 ++-
->  include/rdma/ib_umem.h                        |  3 ++-
->  33 files changed, 80 insertions(+), 55 deletions(-)
-> 
-> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-> index c6144df..9646cee 100644
-> +++ b/drivers/infiniband/core/umem.c
-> @@ -71,15 +71,21 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
->   *
->   * If access flags indicate ODP memory, avoid pinning. Instead, stores
->   * the mm for future page fault handling in conjunction with MMU notifiers.
-> + * If the process doing the pinning is the same as the process that owns
-> + * the memory being pinned, 'owner' should be NULL. Otherwise, 'owner' should
-> + * be the process ID of the owning process. The process ID must be in the
-> + * same PID namespace as the calling userspace context.
->   *
-> - * @context: userspace context to pin memory for
-> + * @context: userspace context that is pinning the memory
->   * @addr: userspace virtual address to start at
->   * @size: length of region to pin
->   * @access: IB_ACCESS_xxx flags for memory being pinned
->   * @dmasync: flush in-flight DMA when the memory region is written
-> + * @owner: the ID of the process that owns the memory being pinned
->   */
->  struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
-> -			    size_t size, int access, int dmasync)
-> +			    size_t size, int access, int dmasync,
-> +			    struct pid *owner)
+From: Jérôme Glisse <jglisse@redhat.com>
 
-You need to rebase this patch on rdma's for-next tree, the signature is
-different.
+This patchset convert RDMA ODP to use HMM underneath this is motivated
+by stronger code sharing for same feature (share virtual memory SVM or
+Share Virtual Address SVA) and also stronger integration with mm code to
+achieve that. It depends on HMM patchset posted for inclusion in 5.1 so
+earliest target for this should be 5.2. I welcome any testing people can
+do on this.
 
-Jason
+Moreover they are some features of HMM in the works like peer to peer
+support, fast CPU page table snapshot, fast IOMMU mapping update ...
+It will be easier for RDMA devices with ODP to leverage those if they
+use HMM underneath.
+
+Quick summary of what HMM is:
+    HMM is a toolbox for device driver to implement software support for
+    Share Virtual Memory (SVM). Not only it provides helpers to mirror a
+    process address space on a device (hmm_mirror). It also provides
+    helper to allow to use device memory to back regular valid virtual
+    address of a process (any valid mmap that is not an mmap of a device
+    or a DAX mapping). They are two kinds of device memory. Private memory
+    that is not accessible to CPU because it does not have all the expected
+    properties (this is for all PCIE devices) or public memory which can
+    also be access by CPU without restriction (with OpenCAPI or CCIX or
+    similar cache-coherent and atomic inter-connect).
+
+    Device driver can use each of HMM tools separatly. You do not have to
+    use all the tools it provides.
+
+For RDMA device i do not expect a need to use the device memory support
+of HMM. This device memory support is geared toward accelerator like GPU.
+
+
+You can find a branch [1] with all the prerequisite in. This patch is on
+top of 5.0rc2+ but i can rebase it on any specific branch before it is
+consider for inclusion (5.2 at best).
+
+Questions and reviews are more than welcome.
+
+[1] https://cgit.freedesktop.org/~glisse/linux/log/?h=odp-hmm
+[2] https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-for-5.1
+
+Cc: linux-rdma@vger.kernel.org
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Leon Romanovsky <leonro@mellanox.com>
+Cc: Doug Ledford <dledford@redhat.com>
+Cc: Artemy Kovalyov <artemyko@mellanox.com>
+Cc: Moni Shoua <monis@mellanox.com>
+Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
+Cc: Kaike Wan <kaike.wan@intel.com>
+Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
+
+Jérôme Glisse (1):
+  RDMA/odp: convert to use HMM for ODP
+
+ drivers/infiniband/core/umem_odp.c | 483 ++++++++---------------------
+ drivers/infiniband/hw/mlx5/mem.c   |  20 +-
+ drivers/infiniband/hw/mlx5/mr.c    |   2 +-
+ drivers/infiniband/hw/mlx5/odp.c   |  95 +++---
+ include/rdma/ib_umem_odp.h         |  54 +---
+ 5 files changed, 202 insertions(+), 452 deletions(-)
+
+-- 
+2.17.2
 
