@@ -6,78 +6,78 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CAC95C4151A
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:06:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AD50C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:09:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A1972084A
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:06:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A1972084A
+	by mail.kernel.org (Postfix) with ESMTP id 4193C2084A
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 09:09:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4193C2084A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1967F8E0001; Tue, 29 Jan 2019 04:06:09 -0500 (EST)
+	id C665E8E0003; Tue, 29 Jan 2019 04:09:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 11C588E0003; Tue, 29 Jan 2019 04:06:09 -0500 (EST)
+	id C14878E0002; Tue, 29 Jan 2019 04:09:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F013E8E0002; Tue, 29 Jan 2019 04:06:08 -0500 (EST)
+	id AB6D48E0003; Tue, 29 Jan 2019 04:09:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 947288E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 04:06:08 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id t2so7537497edb.22
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 01:06:08 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C3DC8E0002
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 04:09:11 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id b3so7687198edi.0
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 01:09:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=pAJjSuKvI34M/iyG8S5BJb1SVQf85IE8g3eQLQtREuM=;
-        b=mmpG8OnxyLdlZiFeEy1XRcQfkC8VdzkvhsXokQhRa20J2a6B9BL+EIJAK9adrU4nIw
-         xF+MPlPWxu32hp9xfJB/pAOKEq+vVLUwHykzp7agT7zG7/MwbAxD0Y9h8lsZ05ms06fI
-         MJt/aBd8qDk56fQsNwVuJSguM6GyZehS47iEGF5Xsi3Uv+Wr5fZMb/vZ14ixU2p3qSXv
-         XtcmeBKHUakRK3baQlg51g/8n/qjs88/pne0jOVyfeB2Kv0RATx6Q+olzSU79KtUdsAZ
-         4vKyul7GdhkJYCicL2TqZccDJQN/1Qo8kAh3NtPuRhDhBNDRWYwfwMwj67bMopytclC2
-         rcAA==
+        bh=f2Z+gL14Vr5FSP+ZhHPGeiPYAVo5PvRL7oKYDcN8VQg=;
+        b=KuJviI+y/ayOg7t00abGBD9lUM0aUCrDZ1E575mdW42PKsgN3qrYPlrN+tvhe3UjlE
+         uxgRQ8lIRDFPUw0M+Mxwv1RE86aMLxPd2Hdr7nRLnRfhWJ6g/w8jfjbKL4nlYZOeg4B0
+         sei+MKYOCMAWJaPItIxvlWFfyDl8PwQtXjBYaXU4nKNM29+2+MFDG9OZ6JEI6nIXjxDT
+         cbbvpQaRw1IKWXWAjSTLRdR1zQu9xVDsi8V4Brin8dE+FLlx3CEqOiLSJ/bdXFQbTRm4
+         YSpJvzqnVyTe2zKtFRv8ovduAUU3hgx+4o5R3VxyZRXMAq0/7encGqkUd1b+aDn2ctK0
+         NVVQ==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: AJcUukfKTe8G8Px0fzLqDsutziKaA/SlUIrnzVfBdiPiQywY7OkE6mZX
-	YKylDiNoj7GGFIEXaY8Rmb1N/0ly9x3UBbYf7razOMC1eJTsnjYxWRRzHaVjQRW31ZSoJwkQgkZ
-	oMk6PcqzSJtYkFtSeqbJ1syNdwWk3gW5rpubSYfXucBg3jDAfFuFF4CoxPb7ILGI=
-X-Received: by 2002:a50:a8c3:: with SMTP id k61mr24416388edc.296.1548752768147;
-        Tue, 29 Jan 2019 01:06:08 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4iMRWN8bviHlmZ7g71Yn2cxfLT15VgRzauA3vkO7m2k0r80z3//7HvhIoRqEM/zpSeIM/p
-X-Received: by 2002:a50:a8c3:: with SMTP id k61mr24416349edc.296.1548752767133;
-        Tue, 29 Jan 2019 01:06:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548752767; cv=none;
+X-Gm-Message-State: AJcUukeiZKmKbB5G6kO3V3i9G23aS5AFPqdcgtS7sJKGEsitVWwpXLrI
+	qNrtjFxSp7scwSmKgdy1NRriXpBmL8vj68pQebnUiz2Y8xc06kQMfQcZ50xoRfySqk/bZQ6owKe
+	ICGkI/lrfgvzBSgctIHt1BzBOSHDvvqeU7xU6Wh/lSmS2DrKneMQSS3XOBl2Dm08=
+X-Received: by 2002:a17:906:3e48:: with SMTP id t8mr14780203eji.149.1548752950863;
+        Tue, 29 Jan 2019 01:09:10 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7Qwu5vRab920SBC+GBEJAhvYHWrz1cjYLZUeOfGmOVBe5/WmpIPY0zWmQGKudbO/mvLany
+X-Received: by 2002:a17:906:3e48:: with SMTP id t8mr14780173eji.149.1548752950044;
+        Tue, 29 Jan 2019 01:09:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548752950; cv=none;
         d=google.com; s=arc-20160816;
-        b=y2pGf8UUxof4l9itT5MsXPOXSLRah4E4dPPrpM0OTBAqVvrQVtv+BH9kO/wZg5rFbu
-         Vc0uEm0KBLpGeofXVa22stnEhaj6VNnZm+v8/IAizvePSEzXCdN7fEBT4RnhlpyPjvyv
-         Q6cQzcVeZaacFN8+N4h5IPO60liQSH7oOmQjsW0NPQTB4lZdCsGLAThBIHUBilX8FcYV
-         3SWVSHZ2uOhYezQeTBYKrxuF/eJFeHeFhTdsVPvB+LUOP6k44dNWEyoW8QXiqq24fNt4
-         I8ghJaPQRKcQK3qO4FQxTxIdXxqL6qM0DEJyGTlBJhMZPpvPsZ2kLlhHL9MzR+ZcwGe2
-         cUpQ==
+        b=Tf/qRcFZiD9paP8k48bYidb9f9QcrU6Akxd+s4vrfscxbap1AZpGhkfb8akRnxSGmp
+         2PN44nwVg01g0na318ylXC6EPde+r/ClFSIXz562K8gJ8nEnnYI0ABrIRRfW+B1Stssc
+         2cBrU59KoECSfUj/ZfYZDfqbRVwq557HvMdiCdXeuqYJVs2yh6SE9sLDa+1BdbBO+Z9Y
+         ajJBX9mcb42+uscqYWfIgmNshbhcCwuUMsxFn46DoHeyjoRPyMk3MdCG3DLc5olKVaG+
+         7kARE1FxABWsLiL3u6QxqLYt1jfcAK171k1xJU/Kl0XJzBPfqo5+/ODsbTxdgNMEh0lt
+         FMqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=pAJjSuKvI34M/iyG8S5BJb1SVQf85IE8g3eQLQtREuM=;
-        b=Ebqse9sSRAngDrxjEU46rs5udK+sHwLwYpNfSQtA3+qZZIZlqbOBgoDh5vM0566M+g
-         8Xfw+Ih7dOZvw2fzzUJrv3uVC7HTF0h8D+9MtS6+WdKphUD57PFcnJHtSREpZ+GBLGCt
-         wuuA52tyNsvQw9uYb4HjWVC9B+dd2QNO0ZU6FFyEXB3GU8lsDjER77PA9V9GOl94DiV5
-         ek5v6O/c4pRtNfY2CId+bniyyvhx/sV2FyAh1TcawSd93jhP6cDcqYBswHYbbQp4aWaw
-         14PjCmjmhNGv5rEFQXsla2EJlLgp4PUK5Ohq0TdgF94f6D7fycCdQV3CzevKm+ra3H1y
-         wV9A==
+        bh=f2Z+gL14Vr5FSP+ZhHPGeiPYAVo5PvRL7oKYDcN8VQg=;
+        b=Z16zxxUOHYRjXx1Q8AEVrF9W+rzgKuvFza06IANbKI0Q5tRDzLjz23KiTEOMltO4Wg
+         LqjG/AV2tZ1AAcKdUyLZl+0Whcfn4XpVjD2848VStc7NJsb0nvBumlj8d5ItZYuHGdXd
+         iXzsug8hIPutm9TOGPOIfhabMuDPXcKl/NJw0mBj5rpxhpco9xw86WdSmA8r8PFMl0tf
+         BKPx0O6AAQelxw660CKQjq1e+gkZO0EiS0Rfp8U0m/K+Dz7tFluNY47Xr5M/wZx2HEzd
+         XKvHoD8sS2VLZz2nM89NCPLsMysC+wIry7JB6rJDiVgPjWfPCe2wcTdWEaXuaaiorM9z
+         mwsg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id o25si690329edf.159.2019.01.29.01.06.06
+        by mx.google.com with ESMTP id p16si5548173ejq.42.2019.01.29.01.09.09
         for <linux-mm@kvack.org>;
-        Tue, 29 Jan 2019 01:06:06 -0800 (PST)
+        Tue, 29 Jan 2019 01:09:10 -0800 (PST)
 Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: by suse.de (Postfix, from userid 1000)
-	id 4A06040B1; Tue, 29 Jan 2019 10:06:05 +0100 (CET)
-Date: Tue, 29 Jan 2019 10:06:05 +0100
+	id 559E540B3; Tue, 29 Jan 2019 10:09:09 +0100 (CET)
+Date: Tue, 29 Jan 2019 10:09:08 +0100
 From: Oscar Salvador <osalvador@suse.de>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>,
@@ -87,15 +87,15 @@ Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>,
 	heiko.carstens@de.ibm.com, gerald.schaefer@de.ibm.com,
 	linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>,
 	Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: is_mem_section_removable do not
- pass the end of a zone
-Message-ID: <20190129090605.lenisalq2zxtck3u@d104.suse.de>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: test_pages_in_a_zone do not pass
+ the end of zone
+Message-ID: <20190129090908.oms43oyjicozkvzu@d104.suse.de>
 References: <20190128144506.15603-1-mhocko@kernel.org>
- <20190128144506.15603-2-mhocko@kernel.org>
+ <20190128144506.15603-3-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190128144506.15603-2-mhocko@kernel.org>
+In-Reply-To: <20190128144506.15603-3-mhocko@kernel.org>
 User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -103,11 +103,18 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 28, 2019 at 03:45:05PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Mon, Jan 28, 2019 at 03:45:06PM +0100, Michal Hocko wrote:
+> From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
 > 
-> Mikhail has reported the following VM_BUG_ON triggered when reading
-> sysfs removable state of a memory block:
+> If memory end is not aligned with the sparse memory section boundary, the
+> mapping of such a section is only partly initialized. This may lead to
+> VM_BUG_ON due to uninitialized struct pages access from test_pages_in_a_zone()
+> function triggered by memory_hotplug sysfs handlers.
+> 
+> Here are the the panic examples:
+>  CONFIG_DEBUG_VM_PGFLAGS=y
+>  kernel parameter mem=2050M
+>  --------------------------
 >  page:000003d082008000 is uninitialized and poisoned
 >  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
 >  Call Trace:
@@ -124,39 +131,39 @@ On Mon, Jan 28, 2019 at 03:45:05PM +0100, Michal Hocko wrote:
 >   [<0000000000385b26>] test_pages_in_a_zone+0xde/0x160
 >  Kernel panic - not syncing: Fatal exception: panic_on_oops
 > 
-> The reason is that the memory block spans the zone boundary and we are
-> stumbling over an unitialized struct page. Fix this by enforcing zone
-> range in is_mem_section_removable so that we never run away from a
-> zone.
-
-Does that mean that the remaining pages(escaping from the current zone) are not tied to
-any other zone? Why? Are these pages "holes" or how that came to be?
-
+> Fix this by checking whether the pfn to check is within the zone.
 > 
-> Reported-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-> Debugged-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+> [mhocko@suse.com: separated this change from
+> http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com]
+> Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
+
+Looks good to me:
+
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+
 > ---
->  mm/memory_hotplug.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>  mm/memory_hotplug.c | 3 +++
+>  1 file changed, 3 insertions(+)
 > 
 > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b9a667d36c55..07872789d778 100644
+> index 07872789d778..7711d0e327b6 100644
 > --- a/mm/memory_hotplug.c
 > +++ b/mm/memory_hotplug.c
-> @@ -1233,7 +1233,8 @@ static bool is_pageblock_removable_nolock(struct page *page)
->  bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
->  {
->  	struct page *page = pfn_to_page(start_pfn);
-> -	struct page *end_page = page + nr_pages;
-> +	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
-> +	struct page *end_page = pfn_to_page(end_pfn);
->  
->  	/* Check the starting page of each pageblock within the range */
->  	for (; page < end_page; page = next_active_pageblock(page)) {
-> -- 
-> 2.20.1
-> 
+> @@ -1274,6 +1274,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+>  				i++;
+>  			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
+>  				continue;
+> +			/* Check if we got outside of the zone */
+> +			if (zone && !zone_spans_pfn(zone, pfn + i))
+> +				return 0;
+>  			page = pfn_to_page(pfn + i);
+
+Since we are already checking if the zone spans that pfn, is it safe to get
+rid of the below check? Or maybe not because we might have intersected zones?
+
+>  			if (zone && page_zone(page) != zone)
+>  				return 0;
 
 -- 
 Oscar Salvador
