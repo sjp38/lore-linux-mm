@@ -2,285 +2,235 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77527C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:02:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 38976C282D0
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:06:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2941920844
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:02:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C521320869
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:06:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="FmvuaGhH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2941920844
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="GukueZty"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C521320869
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB9498E000A; Tue, 29 Jan 2019 14:02:57 -0500 (EST)
+	id 683388E0015; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B41208E0001; Tue, 29 Jan 2019 14:02:57 -0500 (EST)
+	id 634208E0001; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A0AE48E000A; Tue, 29 Jan 2019 14:02:57 -0500 (EST)
+	id 522908E0015; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D3028E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:02:57 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id q82so11729888ywg.22
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:02:57 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 12ABC8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id a2so14472863pgt.11
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:06:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=3gdtZ03l2f09FV33buLEaZQuZ0ElvMotUvVTz5rqqWI=;
-        b=Z3M4mWz2OjcU6+USh6w1Q5sDLL0z3gqqwc/GiSs6FcRLOcOhU2a9N+Gbd41el0ib7v
-         pIDSLUuUEr1caZAN28lWA7bOu1ATTI6Fvm6tTE1pmMdBJuuQHQHAEPtdS5XPF7dHgUFt
-         I+OWF+Lj2GDGx1b0oGuNzzcjKEMtTM3JncI+9PmEt0wzF4sr56GUrXZcs8Sim3fTU5pP
-         BEkFO1cdE6Jwbs3W8s/yg8BuD1JBfY0hsWhYLAB3rAgmF5fU8wPjVNiQaSzu8a87kUy+
-         C201HwYj0TnL71xUkuUkOG4s/osx5Gip0vk9fPM3QldqxT+RN9owBwSf3UglqMWks+eA
-         1Iqw==
-X-Gm-Message-State: AJcUukf7WQ4IxLY27fVLprmQkFBQZiUD0F2esJTV8IIQuyrLtveoqd3h
-	sCRv2GVRjvfZ6DqkutKe6VYJPo5aGfg2ILQawFvTd0KdYFPTUXQuho++9yuzmViaOLX1BJeih6s
-	dGniWp72ehYll6tl2yNADexn+K3Iq3MbOe6vSht9GBW6efUUQ/M/uzYJQpBRj+6cdn9BWq9HWS1
-	I3T8S1NvyQDFCvRA7GCtGT1MJ9NedwR/or5NjimqR8XDPLWRIqvMANeN31oIDO9k9rZHjuvuwS/
-	DYpz3jiIW7LxeLEKfjmdSZBoDDuHJeZG4kZgnkhRuBM3KgF9Yyk7yKCiUV0d9ExU1Hh4IiN9Z+q
-	9UFOOKCsUNLY2G3p6N5FNExa5/kaM4pwPMUOKp1n7+ugeTk9YVuygKQKvJfLk4YIrGRWxcHYSko
-	5
-X-Received: by 2002:a5b:b86:: with SMTP id l6mr25057763ybq.233.1548788576976;
-        Tue, 29 Jan 2019 11:02:56 -0800 (PST)
-X-Received: by 2002:a5b:b86:: with SMTP id l6mr25057695ybq.233.1548788576133;
-        Tue, 29 Jan 2019 11:02:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548788576; cv=none;
+        bh=emE0zrfW1fDVIWi7LXkvkp732fT69w6QDDr/ZB5SXR4=;
+        b=Hv2LMIOOGG+Gz/0SotcpISvzDIDnyIql/qKxejiDfotUatyVS/MTWaFBBcAfesbjb0
+         iTuK/czJrHWj91D64VZ4+JnNVWiLnMbqFD3tF0xn84XfSe9FXKev4dWYltS5JVgPrnn2
+         K3flWWaIssrH5rZ8mELens29vGG8M3uKKhZSCkPkgPcDXtyUIPy1skFGCuQ80uFjJNj5
+         5sUcKbpmpUegB9GyxbB3HAGQTiRTFTtowblUEHAQ6eD7vji5KfSOY3b7Ajpzf7zHwlmz
+         wfbSt4JKTpcUJ5ei9nTg0SpD8Aym9HqwaGijq+yr9QTOkJNNP31S/8/K0l8iHvy6B23U
+         MYhQ==
+X-Gm-Message-State: AJcUukdPm7GLXRBAEAUBMiPFOuPbyuhb23xvKHBy7QknJ7/ijuEVYZ80
+	c1iaK8Ohx813J4cziSifyntn95V+yIuaZBpv+X6kggR/suKwAAWywR4Z2YCVOfVGVXjPTh9+YgM
+	Kg1UHvdJA0WLc3spQfbjorm1ZtY7YYyJhgONMBhOUKrCE9e9sfP2gq8Yk+fZ67Vt6Zg==
+X-Received: by 2002:a63:94:: with SMTP id 142mr24233000pga.74.1548788760561;
+        Tue, 29 Jan 2019 11:06:00 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6j/xmMnReiAnzONXXXLoVkY36a2gwZcTp23tz6Gi6qWMPJJS6a1lPUWh7Omym6MSjEf27Q
+X-Received: by 2002:a63:94:: with SMTP id 142mr24232930pga.74.1548788759614;
+        Tue, 29 Jan 2019 11:05:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548788759; cv=none;
         d=google.com; s=arc-20160816;
-        b=YdzK/XOGI/Rp1kz/tcmC4vqKwSo7WS0eVxOUkqwyskqrmSYI7EIIHaYw40TYR/g7Ib
-         kbFxG3Rwf21y2nQMM/Xd+xOkpfqoBRLgsefZehO2vQd2e58KgzpQGwhubCY6rFAH6IYq
-         TZHyhROnMPMYhsarbaQ+8HGAQhcudkQGUk+L5l6fWmBmCN6+WOVOWWEyputTIF7Luxkm
-         e3PGnCGJHOePTCZCAdnOWEXsA+tVcd/XtFhu5meJOcEkrYR9RrPUhTUEQbTN0zEK2Kin
-         hf5J8ZGqWo8seWGGxz4Na3J9cs5oLfQYI/TD28uHZaDOMK+HwdbA8ia9QKW95tsCCZFG
-         vOHg==
+        b=DeyjCfeROl2kzowhn/a75D5jfJu1pEgOzXoZt+xbXha4CaczmbPEP+8nw2G2AKl8hp
+         s+nkUUDrz+RzUIUahbdt70SffcuifumLe8r1vfw7GhJ2IsUpgawWM/AOg6vlYjbwdTAT
+         zXMfX+wmrOsAYnD1e13zBp7ZSZNeux9xC9RhPRXWT8lB0QmEEiEK0jF4y9r8ucqr6SZe
+         hHoMFhzgbFR6j5fFN/JCofkPQLc5alLDStzaLo2U+C9AS1Zd7ay3Vouz2AANcVynHSZC
+         r9xfTP92l9AlH92Uc/PBXHpnOpfE4UMx/52ep2rMh/2fa1OI3WF+lY/FHNscAegA6oJK
+         hkzQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=3gdtZ03l2f09FV33buLEaZQuZ0ElvMotUvVTz5rqqWI=;
-        b=Q7Q1uP2787mrSfat206LAPmx5jHAAQ3p9bklmPff/Oh84sAHOwZx8JU/maFbSbuzdU
-         H8oeBuwsEoa5EVQJtJZk4tKtypu2Hi9fW0JnHLuZ+yaWWmJFYeEDVImRHlDbjfv5yifV
-         Xoqde88hmEC51aMcDgaRojivtYBudBCn7IAxYEiVyp9BjYSDWzKHBT4/46IaY5gZTUAO
-         tmH+oUcqcKDpv3mm47/PrRk5lctE3uDy/J8NVBE77QKHONXpkMFO+F6+NGsDOBrqphSC
-         e/oeqw1lqr1wHKoIlvqz3bAhqB+90BUFChzR0+TylwFVZ7eyBR9cHXMpcMGMVCXefycG
-         Zc5Q==
+        bh=emE0zrfW1fDVIWi7LXkvkp732fT69w6QDDr/ZB5SXR4=;
+        b=a8GuydG7ilZwJOVsKXvN2HOWq8whuYCqFnl+sNsYc7FVl59rVVYdRpd/4lrc/HNf7f
+         ro4aM19pwFooDaA1g9KHsdaae+Cmv7FXKqXHvKC1Xk+kK60vfSW7znNYQi8oT9Prl1e3
+         0hv6t8bVY2seRDknCTkwdbOo4N7u398hRrmnJ6IbcEjqrSGaoDMfLZgCNgIU0d+EHpXx
+         YC6lqh2egVvcPueknGYv2I4JZAUF/7idn8dOLyinwx+HQlr6E+bNxzXLKY5YFwISTGaP
+         eXoh1msM6pDA9+/5YGdy7vHaciTp8ra1maClbWmAImamhV5rCn7pNv/lRcTjVt1hWSLc
+         5zNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=FmvuaGhH;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j12sor6450789ywg.21.2019.01.29.11.02.55
+       dkim=pass header.i=@kernel.org header.s=default header.b=GukueZty;
+       spf=pass (google.com: domain of helgaas@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=helgaas@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g98si23309693plb.99.2019.01.29.11.05.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 11:02:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 11:05:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of helgaas@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=FmvuaGhH;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=3gdtZ03l2f09FV33buLEaZQuZ0ElvMotUvVTz5rqqWI=;
-        b=FmvuaGhHYkeGQR7XrL3kOAVN2hLkm1dLgt4yjRcmvNKKaAXNKs/3aZcp9acw6kCdKl
-         52thlhVAXh+MXCF5Ppr+lrYsioFZPgPXpgBJhqA6kI1eaWJjuYwqOrLRtovYfyIY9Fza
-         3KjpC0gBjSOfGkTUz6eH5W8m49KzxUzh6fj98=
-X-Google-Smtp-Source: ALg8bN4AYRIpJa263wzK5jgww4Y8DEJmewRQGQ7X/LrIKkYouefQiRMEQd2WIPGVdJWxCuNpWOu3tA==
-X-Received: by 2002:a81:5fd5:: with SMTP id t204mr25498495ywb.312.1548788575338;
-        Tue, 29 Jan 2019 11:02:55 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::6:f1fc])
-        by smtp.gmail.com with ESMTPSA id q24sm15181056ywa.95.2019.01.29.11.02.54
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 29 Jan 2019 11:02:54 -0800 (PST)
-Date: Tue, 29 Jan 2019 14:02:53 -0500
-From: Chris Down <chris@chrisdown.name>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-	Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>,
-	Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
-Subject: [PATCH v2] mm: Make memory.emin the baseline for utilisation
- determination
-Message-ID: <20190129190253.GA10430@chrisdown.name>
-References: <20190129182516.GA1834@chrisdown.name>
+       dkim=pass header.i=@kernel.org header.s=default header.b=GukueZty;
+       spf=pass (google.com: domain of helgaas@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=helgaas@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (156.sub-174-234-151.myvzw.com [174.234.151.156])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id A307920844;
+	Tue, 29 Jan 2019 19:05:58 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1548788759;
+	bh=C/ElWr39C7348LPT6M9EQw73AUPUHuuyi4qzDK3KsaE=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=GukueZtyeyVUCdD3XNXwmMmJWPqwXf7xLKyMITqxaEU1I8qWgjsoNgvQELWnYv2Ek
+	 UgYIpgB3sZjZfcJvJ6uIrB3wRHMpp764N+VXhzVXQPI2M7R8LXQ9j6HLFQeTZ0NgpH
+	 BaZaUi4Rj09eNxdClryXzPSMhP0W15xYwlq9e9CM=
+Date: Tue, 29 Jan 2019 13:05:56 -0600
+From: Bjorn Helgaas <helgaas@kernel.org>
+To: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-pci@vger.kernel.org,
+	x86@kernel.org, linuxarm@huawei.com, Ingo Molnar <mingo@kernel.org>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Martin =?iso-8859-1?Q?Hundeb=F8ll?= <martin@geanix.com>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	ACPI Devel Mailing List <linux-acpi@vger.kernel.org>
+Subject: Re: [PATCH V2] x86: Fix an issue with invalid ACPI NUMA config
+Message-ID: <20190129190556.GB91506@google.com>
+References: <20181211094737.71554-1-Jonathan.Cameron@huawei.com>
+ <a5a938d3-ecc9-028a-3b28-610feda8f3f8@intel.com>
+ <20181212093914.00002aed@huawei.com>
+ <20181220151225.GB183878@google.com>
+ <65f5bb93-b6be-d6dd-6976-e2761f6f2a7b@intel.com>
+ <20181220195714.GE183878@google.com>
+ <20190128112904.0000461a@huawei.com>
+ <20190128231322.GA91506@google.com>
+ <20190129095105.00000374@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190129182516.GA1834@chrisdown.name>
-User-Agent: Mutt/1.11.2 (2019-01-07)
+In-Reply-To: <20190129095105.00000374@huawei.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Roman points out that when when we do the low reclaim pass, we scale the
-reclaim pressure relative to position between 0 and the maximum
-protection threshold.
+On Tue, Jan 29, 2019 at 09:51:05AM +0000, Jonathan Cameron wrote:
+> On Mon, 28 Jan 2019 17:13:22 -0600
+> Bjorn Helgaas <helgaas@kernel.org> wrote:
+> > On Mon, Jan 28, 2019 at 11:31:08AM +0000, Jonathan Cameron wrote:
+> > > On Thu, 20 Dec 2018 13:57:14 -0600
+> > > Bjorn Helgaas <helgaas@kernel.org> wrote:  
+> > > > On Thu, Dec 20, 2018 at 09:13:12AM -0800, Dave Hansen wrote:  
+> > > > > On 12/20/18 7:12 AM, Bjorn Helgaas wrote:    
 
-However, if the maximum protection is based on memory.elow, and
-memory.emin is above zero, this means we still may get binary behaviour
-on second-pass low reclaim. This is because we scale starting at 0, not
-starting at memory.emin, and since we don't scan at all below emin, we
-end up with cliff behaviour.
+> > The current patch proposes setting "numa_off=1" in the x86 version of
+> > dummy_numa_init(), on the assumption (from the changelog) that:
+> > 
+> >   It is invalid under the ACPI spec to specify new NUMA nodes using
+> >   _PXM if they have no presence in SRAT.
+> > 
+> > Do you have a reference for this?  I looked and couldn't find a clear
+> > statement in the spec to that effect.  The _PXM description (ACPI
+> > v6.2, sec 6.1.14) says that two devices with the same _PXM value are
+> > in the same proximity domain, but it doesn't seem to require an SRAT.
+> 
+> No comment (feel free to guess why). *sigh*
 
-This should be a fairly uncommon case since usually we don't go into the
-second pass, but it makes sense to scale our low reclaim pressure
-starting at emin.
+Secret interpretations of the spec are out of bounds.  But I think
+it's a waste of time to argue about whether _PXM without SRAT is
+valid.  Systems like that exist, and I think it's possible to do
+something sensible with them.
 
-You can test this by catting two large sparse files, one in a cgroup
-with emin set to some moderate size compared to physical RAM, and
-another cgroup without any emin. In both cgroups, set an elow larger
-than 50% of physical RAM. The one with emin will have less page
-scanning, as reclaim pressure is lower.
+> > Maybe it results in an issue when we call kmalloc_node() using this
+> > _PXM value that SRAT didn't tell us about?  If so, that's reminiscent
+> > of these earlier discussions about kmalloc_node() returning something
+> > useless if the requested node is not online:
+> > 
+> >   https://lkml.kernel.org/r/1527768879-88161-2-git-send-email-xiexiuqi@huawei.com
+> >   https://lore.kernel.org/linux-arm-kernel/20180801173132.19739-1-punit.agrawal@arm.com/
+> > 
+> > As far as I know, that was never really resolved.  The immediate
+> > problem of using passing an invalid node number to kmalloc_node() was
+> > avoided by using kmalloc() instead.
+> 
+> Yes, that's definitely still a problem (or was last time I checked)
+> 
+> > > Dave's response was that we needed to fix the underlying issue of
+> > > trying to allocate from non existent NUMA nodes.  
 
-Signed-off-by: Chris Down <chris@chrisdown.name>
-Suggested-by: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Dennis Zhou <dennis@kernel.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: kernel-team@fb.com
----
- include/linux/memcontrol.h | 12 ++++++---
- mm/vmscan.c                | 55 +++++++++++++++++++++++---------------
- 2 files changed, 41 insertions(+), 26 deletions(-)
+> > Bottom line, I totally agree that it would be better to fix the
+> > underlying issue without trying to avoid it by disabling NUMA.
+> 
+> I don't agree on this point.  I think two layers make sense.
+> 
+> If there is no NUMA description in DT or ACPI, why not just stop anything
+> from using it at all?  The firmware has basically declared there is no
+> point, why not save a bit of complexity (and use an existing tested code
+> path) but setting numa_off?
 
-I'm an idiot and forgot to also update the !CONFIG_MEMCG definition for
-mem_cgroup_protection. This is the fixed version.
+Firmware with a _PXM does have a NUMA description.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 290cfbfd60cd..ba99d25d2a98 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -333,9 +333,11 @@ static inline bool mem_cgroup_disabled(void)
- 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
- }
- 
--static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
-+static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
-+					 unsigned long *min, unsigned long *low)
- {
--	return max(READ_ONCE(memcg->memory.emin), READ_ONCE(memcg->memory.elow));
-+	*min = READ_ONCE(memcg->memory.emin);
-+	*low = READ_ONCE(memcg->memory.elow);
- }
- 
- enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
-@@ -826,9 +828,11 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
- {
- }
- 
--static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
-+static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
-+					 unsigned long *min, unsigned long *low)
- {
--	return 0;
-+	*min = NULL;
-+	*low = NULL;
- }
- 
- static inline enum mem_cgroup_protection mem_cgroup_protected(
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 549251818605..f7c4ab39d5d0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2447,12 +2447,12 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		int file = is_file_lru(lru);
- 		unsigned long lruvec_size;
- 		unsigned long scan;
--		unsigned long protection;
-+		unsigned long min, low;
- 
- 		lruvec_size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
--		protection = mem_cgroup_protection(memcg);
-+		mem_cgroup_protection(memcg, &min, &low);
- 
--		if (protection > 0) {
-+		if (min || low) {
- 			/*
- 			 * Scale a cgroup's reclaim pressure by proportioning
- 			 * its current usage to its memory.low or memory.min
-@@ -2467,28 +2467,38 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			 * set it too low, which is not ideal.
- 			 */
- 			unsigned long cgroup_size = mem_cgroup_size(memcg);
--			unsigned long baseline = 0;
- 
- 			/*
--			 * During the reclaim first pass, we only consider
--			 * cgroups in excess of their protection setting, but if
--			 * that doesn't produce free pages, we come back for a
--			 * second pass where we reclaim from all groups.
-+			 * If there is any protection in place, we adjust scan
-+			 * pressure in proportion to how much a group's current
-+			 * usage exceeds that, in percent.
- 			 *
--			 * To maintain fairness in both cases, the first pass
--			 * targets groups in proportion to their overage, and
--			 * the second pass targets groups in proportion to their
--			 * protection utilization.
--			 *
--			 * So on the first pass, a group whose size is 130% of
--			 * its protection will be targeted at 30% of its size.
--			 * On the second pass, a group whose size is at 40% of
--			 * its protection will be
--			 * targeted at 40% of its size.
-+			 * There is one special case: in the first reclaim pass,
-+			 * we skip over all groups that are within their low
-+			 * protection. If that fails to reclaim enough pages to
-+			 * satisfy the reclaim goal, we come back and override
-+			 * the best-effort low protection. However, we still
-+			 * ideally want to honor how well-behaved groups are in
-+			 * that case instead of simply punishing them all
-+			 * equally. As such, we reclaim them based on how much
-+			 * of their best-effort protection they are using. Usage
-+			 * below memory.min is excluded from consideration when
-+			 * calculating utilisation, as it isn't ever
-+			 * reclaimable, so it might as well not exist for our
-+			 * purposes.
- 			 */
--			if (!sc->memcg_low_reclaim)
--				baseline = lruvec_size;
--			scan = lruvec_size * cgroup_size / protection - baseline;
-+			if (sc->memcg_low_reclaim && low > min) {
-+				/*
-+				 * Reclaim according to utilisation between min
-+				 * and low
-+				 */
-+				scan = lruvec_size * (cgroup_size - min) /
-+					(low - min);
-+			} else {
-+				/* Reclaim according to protection overage */
-+				scan = lruvec_size * cgroup_size /
-+					max(min, low) - lruvec_size;
-+			}
- 
- 			/*
- 			 * Don't allow the scan target to exceed the lruvec
-@@ -2504,7 +2514,8 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			 * some cases in the case of large overages.
- 			 *
- 			 * Also, minimally target SWAP_CLUSTER_MAX pages to keep
--			 * reclaim moving forwards.
-+			 * reclaim moving forwards, avoiding decremeting
-+			 * sc->priority further than desirable.
- 			 */
- 			scan = clamp(scan, SWAP_CLUSTER_MAX, lruvec_size);
- 		} else {
--- 
-2.20.1
+> However, if there is NUMA description, but with bugs then we should
+> protect in depth.  A simple example being that we declare 2 nodes, but
+> then use _PXM for a third. I've done that by accident and blows up
+> in a nasty fashion (not done it for a while, but probably still true).
+> 
+> Given DSDT is only parsed long after SRAT we can just check on _PXM
+> queries.  Or I suppose we could do a verification parse for all _PXM
+> entries and put out some warnings if they don't match SRAT entries?
+
+I'm assuming the crash happens when we call kmalloc_node() with a node
+not mentioned in SRAT.  I think that's just sub-optimal implementation
+in kmalloc_node().
+
+We *could* fail the allocation and return a NULL pointer, but I think
+even that is excessive.  I think we should simply fall back to
+kmalloc().  We could print a one-time warning if that's useful.
+
+If kmalloc_node() for an unknown node fell back to kmalloc(), would
+anything else be required?
+
+> > > Whilst I agree with that in principle (having managed to provide
+> > > tables doing exactly that during development a few times!), I'm not
+> > > sure the path to doing so is clear and so this has been stalled for
+> > > a few months.  There is to my mind still a strong argument, even
+> > > with such protection in place, that we should still be short cutting
+> > > it so that you get the same paths if you deliberately disable numa,
+> > > and if you have no SRAT and hence can't have NUMA.  
+> > 
+> > I guess we need to resolve the question of whether NUMA without SRAT
+> > is possible.
+> 
+> It's certainly unclear of whether it has any meaning.  If we allow for
+> the fact that the intent of ACPI was never to allow this (and a bit
+> of history checking verified this as best as anyone can remember),
+> then what do we do with the few platforms that do use _PXM to nodes that
+> haven't been defined?
+
+We *could* ignore any _PXM that mentions a proximity domain not
+mentioned by an SRAT.  That seems a little heavy-handed because it
+means every possible proximity domain must be described up front in
+the SRAT, which limits the flexibility of hot-adding entire nodes
+(CPU/memory/IO).
+
+But I think it's possible to make sense of a _PXM that adds a
+proximity domain not mentioned in an SRAT, e.g., if a new memory
+device and a new I/O device supply the same _PXM value, we can assume
+they're close together.  If a new I/O device has a previously unknown
+_PXM, we may not be able to allocate memory near it, but we should at
+least be able to allocate from a default zone.
+
+Bjorn
 
