@@ -2,397 +2,253 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AAE32C282D0
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:41:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5158AC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:45:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 521AF20856
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:41:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 01AE52087F
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:45:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="C9iTEo72"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 521AF20856
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="OJ4dtljH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 01AE52087F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC52A8E0002; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
+	id A8D1A8E0002; Tue, 29 Jan 2019 13:45:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D73C28E0001; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
+	id A15688E0001; Tue, 29 Jan 2019 13:45:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3CF08E0002; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
+	id 8DEBD8E0002; Tue, 29 Jan 2019 13:45:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C44E8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:41:37 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id w24so8046495otk.22
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:41:37 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D4598E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:45:49 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id p24so25871926qtl.2
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:45:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=HL83ygIqpSTTKGQg55ygGuyvC6iG0KJllUYn+t+L7fo=;
-        b=HRDNHzB2sveNaEhk02urUulSPNReJLeem0SlyzJCRG8SxIWc/IvZNeSGtuWZWY8lc2
-         AzGwmslI1nirvg/YhRXAlfh6SxsxmPG8NUwpASvqYlQYv4WpDYzDR4eF9XvHCl8kHyRI
-         MXa8J9SqW2MX7N6bXsrG3LGDfCZ5v8qW+eDbyjvT45M8uUe/MGwbjET+TjalQm9fuUKU
-         dmhsHqewGCBUzJSFcQy61bkLdaohMjNrGnokKr5P1U7972x60yHfpCZ2DTAeag6MY91O
-         fczQzi6gC6Rm83WC6ZkMswvLKX4taZDGVKrgqSxboVoLk7L6I4Cw+7t+qmPqFAHZx9Wc
-         R+GA==
-X-Gm-Message-State: AJcUukdJ1T0SAfBYq/VUbC5MPTNNFLupKQAZ9YWTYXi7WZzRecvTXXZk
-	2nGTpPN2QNpB65CxMSSPXhpOcF3Ih32SiYj12L/tu0aaiOyFln9tW4g85OG9Lr1Le8cx24nfz8F
-	qmwrzKAkwejG1E8bl8UmAkVCMGhgqVPXQIhzlAoJQXdKrwcZxciJ6pVE8C7/xCPOwGNI+uJtG8U
-	Ygfenf9HBOrIuuHiNUSV9MenG+DPTxrqNhQhV92EOA0Fu1nyGVOqZTT1fI5F47at0HtHG8k4jVT
-	/fgd3+ay9IfyNfb6QOG6x4XnrEmDAZ+KxpJLImdr52mvB/4ymxdthmE1t5xG9Q8uycNCBd+75eP
-	AsnprMsJmKlGcWWKH6rOmY0La08mNoN/h/VgZTBJf/8eZnbxzWY8mylB6GsVDqESU6xHcbhQR0w
-	O
-X-Received: by 2002:a9d:7997:: with SMTP id h23mr19286241otm.362.1548787297258;
-        Tue, 29 Jan 2019 10:41:37 -0800 (PST)
-X-Received: by 2002:a9d:7997:: with SMTP id h23mr19286176otm.362.1548787295427;
-        Tue, 29 Jan 2019 10:41:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548787295; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=iEbt3vOpW1vSXw8Y1FUZOQX7cwVTiCMvjhJS6q091Dw=;
+        b=VYGVWfbvYLAeTsoDxn7ghXUWdD+6qilHcsootHP3H5R4WYJ3Fklv3EaZUgHOT8ejyS
+         N41ysOHU3ScvClmOy0icaL1Z/IlDpwyIhSf+8rNYEoVGkWhkILhTznU7FEG83coIs3LA
+         yBpYC/qcn+8eV/ui/f8hJ5XrLpuwkJLNJ/VUU+8YuHboZKni67kn7N87ygk3r6hrHY/6
+         0KBYJDJyfnOR8zvF8d0C2W7zxPAN6iIET5wFY6pZnh4y6ScHf6AcOUURIsqp89NNa5u/
+         bimDQ2BR2ufwM3hPGT4E8NNHo/qUk5YjwJA6g6EaKP0Haoo1WgCRMacKRvv59y489eRs
+         NH+Q==
+X-Gm-Message-State: AJcUukdlRPWXMVQ7EwLduVtXd8R1mgUsIq6p6VbauoBovasb8OmUQr4d
+	s+TRDNO6EcwMTIgi/gtN9iSSGMT8lPHs0hERi1QunnIrcCDno87rzpE1vMnB4NlHHzXmHNy8lPX
+	+xcfwYKX9HsFbasBOQa7b4kpcMQz3r3j3WrwUGKYLvNrDhStDwr6prUq8ecyzBH+m/UxGox7kE9
+	FHSWQtngqsVJeSel5qsMnZ1l3opP4YO9La2Nl4LZsrNO29zmsp0BJM347/fn44kpFgspKulYFiM
+	csbCKnTWVsevdMu5fPrGzFVlhnJSJIcFikxE+xibnsJ1EXqSmYjgMcXPs9ijvNKGRsWv4z54W20
+	aTvDJSs0NjoiPJWW4h3tjOMfX8xTa11OklXVHjz27AT8g0VeBuWUXV0BcnF5H3OaKf2pZNz1OLz
+	R
+X-Received: by 2002:ac8:1617:: with SMTP id p23mr27205889qtj.239.1548787549047;
+        Tue, 29 Jan 2019 10:45:49 -0800 (PST)
+X-Received: by 2002:ac8:1617:: with SMTP id p23mr27205832qtj.239.1548787548216;
+        Tue, 29 Jan 2019 10:45:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548787548; cv=none;
         d=google.com; s=arc-20160816;
-        b=ymiIUmNw1yvb3qrjRvIH69JcWJ9jaJ7nXNeLNSR5YVn0syXpas41OeB/OifdW1Rc4e
-         rUWEjPWmIJJMUf2KvISAO4DkHhzVilqju9NsVMrfO3Z/N8DHQGENCqUYVRySAEfixoUT
-         YRbDXIs0DH3vxi1X+ZvBItl6xSjnVT2RuihKbtWTMjTHUOfms9htcJj3EwlBiFgeUXSN
-         cWhsXX0e3hnTEWZurdEM3xa6j4DU5i+3bwfczP25FdPim/PQYZBQREG1C/LlE4ATRG+V
-         gUPiB8cz4mcWQYGUTgc2rIO31lMr7JaFUaOXGYXbEWjO9UbBShGUOvGNjckkqpDD4XTj
-         9VYw==
+        b=YErRRLZXF5EvEBeetg1Pvnwjt9giKPR+aEW13I2rbYLdaZv9GPsDgBp/B8gFioPBNn
+         NrNth14q2OEiJKA9zBRpf0+jxChMU0t+m5gjKIDJWof3LsXsKyq1Ns4u5dd71/1ZZQgN
+         aQa2gU9THjOz4l1Da0AOSOLc40mXYT0y3Roh4Fbdy1XRxQFApQozM8rAl7z9dQJkK/Wy
+         y+N4ze9WiNnpcER+EKD1yUhhC2R/lp8A3FZwCF4I3wp/DwP+py3PXxk+qICjiGbKPG9w
+         PTzzyCrDuK42GaUTnHCcXBSJZBmH+GsHrU3imszi/4BwOX92U68PVRIAfS1wORyCaBop
+         L+dA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=HL83ygIqpSTTKGQg55ygGuyvC6iG0KJllUYn+t+L7fo=;
-        b=fKWi/j5wNkX5QwVqnh3/meBcrro5cwZz5wGYfk1dUV1T8uxyx65Q+g6+BLk+5EpntT
-         dyU1ewhf5uJ+d80MFzs7/LV8C3RyImB+VedCP0RCxEGlPuFPs3Q9YlhuwSXhNBvQ7oaX
-         nAFUdryNw/Jsvub64hYqSW3KBtJmzC6O8YlSevPGxQzP8Q4U5P9oAzHKVAcyzPkjSMzV
-         FdI3pg++4V/5hieo8U6cjxMA7sIzgHV86VSa54MjHDaRPONC88vke+Tv6b1UlvcA5E2A
-         qyh+OMuZwX8CdQQ+nefDz2TeuRT8GJYQzbm/jPXTGcey3DR+IOQTd+YJj/BRb7e/ltG1
-         FQqg==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=iEbt3vOpW1vSXw8Y1FUZOQX7cwVTiCMvjhJS6q091Dw=;
+        b=k5J+GQd1aH2g0IZUwGa4GIknxMV+AjwuS4bk9cqvUJloCf7OInCSKjGO+oBnQ8PxR3
+         XeLvZL8Kzk5P0t1kb+RakUded9/+how7K9pq8f/n4EDV6z8v/iEuXfCqBmCZ6OCQ2I9x
+         HXPnfRaxdtsqcEb87EYnMwBWrqQkZ3kBdr2duKKSZbmY1hwHlMNbxywfoA9YA7F1Gd4m
+         AREbZqFsuGBqcMFFXscOseSzodFgeOu350ShIWhsoQouws4IXlNe+zFvg4pupx0m7iTf
+         z5PD/gsbOYf0gv77tJT/g+t4xW9zXv08rHKxPPsZt3NWQmWw/alDrMu4RX28vTFXVf66
+         Fr3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=C9iTEo72;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=OJ4dtljH;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i130sor8239272oif.95.2019.01.29.10.41.35
+        by mx.google.com with SMTPS id j12sor69050609qkk.101.2019.01.29.10.45.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 29 Jan 2019 10:41:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 29 Jan 2019 10:45:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=C9iTEo72;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=OJ4dtljH;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=HL83ygIqpSTTKGQg55ygGuyvC6iG0KJllUYn+t+L7fo=;
-        b=C9iTEo72hAQPj1VLygRAYbRemfwQw/wdjdXDB3e/eclhA3asML1sVcibMctJEo6uvM
-         UzOOCIoV4igwfhs+BOKVOb0NxKQHX2mLoe8zTN3ipepSsA7CJPAms4TelPvV+lEjs7NS
-         pusDqWXYQz/xLw4ddjbankm+UWcc6n3w2WKfNtD2q98fMZLd/SmA2TGcs+1zSKGaGNbB
-         Jw5Wu0qyfVYCB6sDA9JS9NCp+tKRnBCdViSIy6ksZVgWPNi+MGPcLByDcG16oUtSJCp6
-         GG09SsSyEVlXkjPiF7ZobCb6Pwh05ezDJtreAqFoLVpnb+I50qvxDtXBG+iI7KAoqZmr
-         IxGg==
-X-Google-Smtp-Source: AHgI3IYljlwfixZbEW9k35QADvn426C06Y3dCzjYEAwUUk9JxY2Lr5SqZvdOmBetvdgd9kgxSjPcJbFa3Dw6Aldoo9c=
-X-Received: by 2002:aca:d905:: with SMTP id q5mr10434566oig.0.1548787294934;
- Tue, 29 Jan 2019 10:41:34 -0800 (PST)
-MIME-Version: 1.0
-References: <20190129165428.3931-1-jglisse@redhat.com> <20190129165428.3931-10-jglisse@redhat.com>
-In-Reply-To: <20190129165428.3931-10-jglisse@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 29 Jan 2019 10:41:23 -0800
-Message-ID: <CAPcyv4gNtDQf0mHwhZ8g3nX6ShsjA1tx2KLU_ZzTH1Z1AeA_CA@mail.gmail.com>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=iEbt3vOpW1vSXw8Y1FUZOQX7cwVTiCMvjhJS6q091Dw=;
+        b=OJ4dtljHU/GaBSQ1XRjhb/W9DwqesGympfaceTTQ9inAck7wQDCx6/0GoiFpqBG9Ak
+         VYht6J9mQuugLbztmDbaDXbdaMSH3GQdZwOpPYXp39L0kOoDEdu4+zGBUQykG0BU6D0o
+         yAiQ3nqKdBxlWsj8RkHOLbd2s5x2opM6bBm6ekQUKqtyxsawGEuUQapk8NJaZ1vwBlQz
+         S+fd+Wt0GldHZbPodclvSu+H4xCKBBNIaGyIfs/tT7avBzmJAI3sfOOU68MbpfkC+k40
+         5C0pWlSojO3qEAx/7bvpZf6rJlQNvUPHilysxSjvNMqu9u3GJKVwQiS4FzLnWEd2as7g
+         VPFw==
+X-Google-Smtp-Source: ALg8bN45Y/qnFMooUeuMv0mD+Z0m46goUL1Y3DSegIXG5W/cVMF9mYtAvtUCifDRv6J9anakjWR2Mg==
+X-Received: by 2002:ae9:d804:: with SMTP id u4mr25088511qkf.322.1548787547783;
+        Tue, 29 Jan 2019 10:45:47 -0800 (PST)
+Received: from ovpn-120-54.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id e4sm94874234qka.31.2019.01.29.10.45.46
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 10:45:47 -0800 (PST)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: catalin.marinas@arm.com,
+	cl@linux.com,
+	iamjoonsoo.kim@lge.com,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	penberg@kernel.org,
+	rientjes@google.com,
+	Qian Cai <cai@lca.pw>
+Subject: [RESEND PATCH] slab: kmemleak no scan alien caches
+Date: Tue, 29 Jan 2019 13:45:18 -0500
+Message-Id: <20190129184518.39808-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 8:54 AM <jglisse@redhat.com> wrote:
->
-> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->
-> This add support to mirror vma which is an mmap of a file which is on
-> a filesystem that using a DAX block device. There is no reason not to
-> support that case.
->
+Kmemleak throws endless warnings during boot due to in
+__alloc_alien_cache(),
 
-The reason not to support it would be if it gets in the way of future
-DAX development. How does this interact with MAP_SYNC? I'm also
-concerned if this complicates DAX reflink support. In general I'd
-rather prioritize fixing the places where DAX is broken today before
-adding more cross-subsystem entanglements. The unit tests for
-filesystems (xfstests) are readily accessible. How would I go about
-regression testing DAX + HMM interactions?
+alc = kmalloc_node(memsize, gfp, node);
+init_arraycache(&alc->ac, entries, batch);
+kmemleak_no_scan(ac);
 
-> Note that unlike GUP code we do not take page reference hence when we
-> back-off we have nothing to undo.
->
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> ---
->  mm/hmm.c | 133 ++++++++++++++++++++++++++++++++++++++++++++++---------
->  1 file changed, 112 insertions(+), 21 deletions(-)
->
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 8b87e1813313..1a444885404e 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -334,6 +334,7 @@ EXPORT_SYMBOL(hmm_mirror_unregister);
->
->  struct hmm_vma_walk {
->         struct hmm_range        *range;
-> +       struct dev_pagemap      *pgmap;
->         unsigned long           last;
->         bool                    fault;
->         bool                    block;
-> @@ -508,6 +509,15 @@ static inline uint64_t pmd_to_hmm_pfn_flags(struct h=
-mm_range *range, pmd_t pmd)
->                                 range->flags[HMM_PFN_VALID];
->  }
->
-> +static inline uint64_t pud_to_hmm_pfn_flags(struct hmm_range *range, pud=
-_t pud)
-> +{
-> +       if (!pud_present(pud))
-> +               return 0;
-> +       return pud_write(pud) ? range->flags[HMM_PFN_VALID] |
-> +                               range->flags[HMM_PFN_WRITE] :
-> +                               range->flags[HMM_PFN_VALID];
-> +}
-> +
->  static int hmm_vma_handle_pmd(struct mm_walk *walk,
->                               unsigned long addr,
->                               unsigned long end,
-> @@ -529,8 +539,19 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
->                 return hmm_vma_walk_hole_(addr, end, fault, write_fault, =
-walk);
->
->         pfn =3D pmd_pfn(pmd) + pte_index(addr);
-> -       for (i =3D 0; addr < end; addr +=3D PAGE_SIZE, i++, pfn++)
-> +       for (i =3D 0; addr < end; addr +=3D PAGE_SIZE, i++, pfn++) {
-> +               if (pmd_devmap(pmd)) {
-> +                       hmm_vma_walk->pgmap =3D get_dev_pagemap(pfn,
-> +                                             hmm_vma_walk->pgmap);
-> +                       if (unlikely(!hmm_vma_walk->pgmap))
-> +                               return -EBUSY;
-> +               }
->                 pfns[i] =3D hmm_pfn_from_pfn(range, pfn) | cpu_flags;
-> +       }
-> +       if (hmm_vma_walk->pgmap) {
-> +               put_dev_pagemap(hmm_vma_walk->pgmap);
-> +               hmm_vma_walk->pgmap =3D NULL;
-> +       }
->         hmm_vma_walk->last =3D end;
->         return 0;
->  }
-> @@ -617,10 +638,24 @@ static int hmm_vma_handle_pte(struct mm_walk *walk,=
- unsigned long addr,
->         if (fault || write_fault)
->                 goto fault;
->
-> +       if (pte_devmap(pte)) {
-> +               hmm_vma_walk->pgmap =3D get_dev_pagemap(pte_pfn(pte),
-> +                                             hmm_vma_walk->pgmap);
-> +               if (unlikely(!hmm_vma_walk->pgmap))
-> +                       return -EBUSY;
-> +       } else if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) && pte_special=
-(pte)) {
-> +               *pfn =3D range->values[HMM_PFN_SPECIAL];
-> +               return -EFAULT;
-> +       }
-> +
->         *pfn =3D hmm_pfn_from_pfn(range, pte_pfn(pte)) | cpu_flags;
->         return 0;
->
->  fault:
-> +       if (hmm_vma_walk->pgmap) {
-> +               put_dev_pagemap(hmm_vma_walk->pgmap);
-> +               hmm_vma_walk->pgmap =3D NULL;
-> +       }
->         pte_unmap(ptep);
->         /* Fault any virtual address we were asked to fault */
->         return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
-> @@ -708,12 +743,84 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
->                         return r;
->                 }
->         }
-> +       if (hmm_vma_walk->pgmap) {
-> +               put_dev_pagemap(hmm_vma_walk->pgmap);
-> +               hmm_vma_walk->pgmap =3D NULL;
-> +       }
->         pte_unmap(ptep - 1);
->
->         hmm_vma_walk->last =3D addr;
->         return 0;
->  }
->
-> +static int hmm_vma_walk_pud(pud_t *pudp,
-> +                           unsigned long start,
-> +                           unsigned long end,
-> +                           struct mm_walk *walk)
-> +{
-> +       struct hmm_vma_walk *hmm_vma_walk =3D walk->private;
-> +       struct hmm_range *range =3D hmm_vma_walk->range;
-> +       struct vm_area_struct *vma =3D walk->vma;
-> +       unsigned long addr =3D start, next;
-> +       pmd_t *pmdp;
-> +       pud_t pud;
-> +       int ret;
-> +
-> +again:
-> +       pud =3D READ_ONCE(*pudp);
-> +       if (pud_none(pud))
-> +               return hmm_vma_walk_hole(start, end, walk);
-> +
-> +       if (pud_huge(pud) && pud_devmap(pud)) {
-> +               unsigned long i, npages, pfn;
-> +               uint64_t *pfns, cpu_flags;
-> +               bool fault, write_fault;
-> +
-> +               if (!pud_present(pud))
-> +                       return hmm_vma_walk_hole(start, end, walk);
-> +
-> +               i =3D (addr - range->start) >> PAGE_SHIFT;
-> +               npages =3D (end - addr) >> PAGE_SHIFT;
-> +               pfns =3D &range->pfns[i];
-> +
-> +               cpu_flags =3D pud_to_hmm_pfn_flags(range, pud);
-> +               hmm_range_need_fault(hmm_vma_walk, pfns, npages,
-> +                                    cpu_flags, &fault, &write_fault);
-> +               if (fault || write_fault)
-> +                       return hmm_vma_walk_hole_(addr, end, fault,
-> +                                               write_fault, walk);
-> +
-> +               pfn =3D pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT)=
-;
-> +               for (i =3D 0; i < npages; ++i, ++pfn) {
-> +                       hmm_vma_walk->pgmap =3D get_dev_pagemap(pfn,
-> +                                             hmm_vma_walk->pgmap);
-> +                       if (unlikely(!hmm_vma_walk->pgmap))
-> +                               return -EBUSY;
-> +                       pfns[i] =3D hmm_pfn_from_pfn(range, pfn) | cpu_fl=
-ags;
-> +               }
-> +               if (hmm_vma_walk->pgmap) {
-> +                       put_dev_pagemap(hmm_vma_walk->pgmap);
-> +                       hmm_vma_walk->pgmap =3D NULL;
-> +               }
-> +               hmm_vma_walk->last =3D end;
-> +               return 0;
-> +       }
-> +
-> +       split_huge_pud(vma, pudp, addr);
-> +       if (pud_none(*pudp))
-> +               goto again;
-> +
-> +       pmdp =3D pmd_offset(pudp, addr);
-> +       do {
-> +               next =3D pmd_addr_end(addr, end);
-> +               ret =3D hmm_vma_walk_pmd(pmdp, addr, next, walk);
-> +               if (ret)
-> +                       return ret;
-> +       } while (pmdp++, addr =3D next, addr !=3D end);
-> +
-> +       return 0;
-> +}
-> +
->  static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
->                                       unsigned long start, unsigned long =
-end,
->                                       struct mm_walk *walk)
-> @@ -786,14 +893,6 @@ static void hmm_pfns_clear(struct hmm_range *range,
->                 *pfns =3D range->values[HMM_PFN_NONE];
->  }
->
-> -static void hmm_pfns_special(struct hmm_range *range)
-> -{
-> -       unsigned long addr =3D range->start, i =3D 0;
-> -
-> -       for (; addr < range->end; addr +=3D PAGE_SIZE, i++)
-> -               range->pfns[i] =3D range->values[HMM_PFN_SPECIAL];
-> -}
-> -
->  /*
->   * hmm_range_register() - start tracking change to CPU page table over a=
- range
->   * @range: range
-> @@ -911,12 +1010,6 @@ long hmm_range_snapshot(struct hmm_range *range)
->                 if (vma =3D=3D NULL || (vma->vm_flags & device_vma))
->                         return -EFAULT;
->
-> -               /* FIXME support dax */
-> -               if (vma_is_dax(vma)) {
-> -                       hmm_pfns_special(range);
-> -                       return -EINVAL;
-> -               }
-> -
->                 if (is_vm_hugetlb_page(vma)) {
->                         struct hstate *h =3D hstate_vma(vma);
->
-> @@ -940,6 +1033,7 @@ long hmm_range_snapshot(struct hmm_range *range)
->                 }
->
->                 range->vma =3D vma;
-> +               hmm_vma_walk.pgmap =3D NULL;
->                 hmm_vma_walk.last =3D start;
->                 hmm_vma_walk.fault =3D false;
->                 hmm_vma_walk.range =3D range;
-> @@ -951,6 +1045,7 @@ long hmm_range_snapshot(struct hmm_range *range)
->                 mm_walk.pte_entry =3D NULL;
->                 mm_walk.test_walk =3D NULL;
->                 mm_walk.hugetlb_entry =3D NULL;
-> +               mm_walk.pud_entry =3D hmm_vma_walk_pud;
->                 mm_walk.pmd_entry =3D hmm_vma_walk_pmd;
->                 mm_walk.pte_hole =3D hmm_vma_walk_hole;
->                 mm_walk.hugetlb_entry =3D hmm_vma_walk_hugetlb_entry;
-> @@ -1018,12 +1113,6 @@ long hmm_range_fault(struct hmm_range *range, bool=
- block)
->                 if (vma =3D=3D NULL || (vma->vm_flags & device_vma))
->                         return -EFAULT;
->
-> -               /* FIXME support dax */
-> -               if (vma_is_dax(vma)) {
-> -                       hmm_pfns_special(range);
-> -                       return -EINVAL;
-> -               }
-> -
->                 if (is_vm_hugetlb_page(vma)) {
->                         struct hstate *h =3D hstate_vma(vma);
->
-> @@ -1047,6 +1136,7 @@ long hmm_range_fault(struct hmm_range *range, bool =
-block)
->                 }
->
->                 range->vma =3D vma;
-> +               hmm_vma_walk.pgmap =3D NULL;
->                 hmm_vma_walk.last =3D start;
->                 hmm_vma_walk.fault =3D true;
->                 hmm_vma_walk.block =3D block;
-> @@ -1059,6 +1149,7 @@ long hmm_range_fault(struct hmm_range *range, bool =
-block)
->                 mm_walk.pte_entry =3D NULL;
->                 mm_walk.test_walk =3D NULL;
->                 mm_walk.hugetlb_entry =3D NULL;
-> +               mm_walk.pud_entry =3D hmm_vma_walk_pud;
->                 mm_walk.pmd_entry =3D hmm_vma_walk_pmd;
->                 mm_walk.pte_hole =3D hmm_vma_walk_hole;
->                 mm_walk.hugetlb_entry =3D hmm_vma_walk_hugetlb_entry;
-> --
-> 2.17.2
->
+Kmemleak does not track the array cache (alc->ac) but the alien cache
+(alc) instead, so let it track the later by lifting kmemleak_no_scan()
+out of init_arraycache().
+
+There is another place calls init_arraycache(), but
+alloc_kmem_cache_cpus() uses the percpu allocation where will never be
+considered as a leak.
+
+[   32.258841] kmemleak: Found object by alias at 0xffff8007b9aa7e38
+[   32.258847] CPU: 190 PID: 1 Comm: swapper/0 Not tainted 5.0.0-rc2+ #2
+[   32.258851] Call trace:
+[   32.258858]  dump_backtrace+0x0/0x168
+[   32.258863]  show_stack+0x24/0x30
+[   32.258868]  dump_stack+0x88/0xb0
+[   32.258873]  lookup_object+0x84/0xac
+[   32.258877]  find_and_get_object+0x84/0xe4
+[   32.258882]  kmemleak_no_scan+0x74/0xf4
+[   32.258887]  setup_kmem_cache_node+0x2b4/0x35c
+[   32.258892]  __do_tune_cpucache+0x250/0x2d4
+[   32.258896]  do_tune_cpucache+0x4c/0xe4
+[   32.258901]  enable_cpucache+0xc8/0x110
+[   32.258905]  setup_cpu_cache+0x40/0x1b8
+[   32.258909]  __kmem_cache_create+0x240/0x358
+[   32.258913]  create_cache+0xc0/0x198
+[   32.258918]  kmem_cache_create_usercopy+0x158/0x20c
+[   32.258922]  kmem_cache_create+0x50/0x64
+[   32.258928]  fsnotify_init+0x58/0x6c
+[   32.258932]  do_one_initcall+0x194/0x388
+[   32.258937]  kernel_init_freeable+0x668/0x688
+[   32.258941]  kernel_init+0x18/0x124
+[   32.258946]  ret_from_fork+0x10/0x18
+[   32.258950] kmemleak: Object 0xffff8007b9aa7e00 (size 256):
+[   32.258954] kmemleak:   comm "swapper/0", pid 1, jiffies 4294697137
+[   32.258958] kmemleak:   min_count = 1
+[   32.258962] kmemleak:   count = 0
+[   32.258965] kmemleak:   flags = 0x1
+[   32.258969] kmemleak:   checksum = 0
+[   32.258972] kmemleak:   backtrace:
+[   32.258977]      kmemleak_alloc+0x84/0xb8
+[   32.258982]      kmem_cache_alloc_node_trace+0x31c/0x3a0
+[   32.258987]      __kmalloc_node+0x58/0x78
+[   32.258991]      setup_kmem_cache_node+0x26c/0x35c
+[   32.258996]      __do_tune_cpucache+0x250/0x2d4
+[   32.259001]      do_tune_cpucache+0x4c/0xe4
+[   32.259005]      enable_cpucache+0xc8/0x110
+[   32.259010]      setup_cpu_cache+0x40/0x1b8
+[   32.259014]      __kmem_cache_create+0x240/0x358
+[   32.259018]      create_cache+0xc0/0x198
+[   32.259022]      kmem_cache_create_usercopy+0x158/0x20c
+[   32.259026]      kmem_cache_create+0x50/0x64
+[   32.259031]      fsnotify_init+0x58/0x6c
+[   32.259035]      do_one_initcall+0x194/0x388
+[   32.259039]      kernel_init_freeable+0x668/0x688
+[   32.259043]      kernel_init+0x18/0x124
+[   32.259048] kmemleak: Not scanning unknown object at 0xffff8007b9aa7e38
+[   32.259052] CPU: 190 PID: 1 Comm: swapper/0 Not tainted 5.0.0-rc2+ #2
+[   32.259056] Call trace:
+[   32.259060]  dump_backtrace+0x0/0x168
+[   32.259065]  show_stack+0x24/0x30
+[   32.259070]  dump_stack+0x88/0xb0
+[   32.259074]  kmemleak_no_scan+0x90/0xf4
+[   32.259078]  setup_kmem_cache_node+0x2b4/0x35c
+[   32.259083]  __do_tune_cpucache+0x250/0x2d4
+[   32.259088]  do_tune_cpucache+0x4c/0xe4
+[   32.259092]  enable_cpucache+0xc8/0x110
+[   32.259096]  setup_cpu_cache+0x40/0x1b8
+[   32.259100]  __kmem_cache_create+0x240/0x358
+[   32.259104]  create_cache+0xc0/0x198
+[   32.259108]  kmem_cache_create_usercopy+0x158/0x20c
+[   32.259112]  kmem_cache_create+0x50/0x64
+[   32.259116]  fsnotify_init+0x58/0x6c
+[   32.259120]  do_one_initcall+0x194/0x388
+[   32.259125]  kernel_init_freeable+0x668/0x688
+[   32.259129]  kernel_init+0x18/0x124
+[   32.259133]  ret_from_fork+0x10/0x18
+
+Fixes: 1fe00d50a9e8 (slab: factor out initialization of array cache)
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/slab.c | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 78eb8c5bf4e4..0aff454f007b 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -550,14 +550,6 @@ static void start_cpu_timer(int cpu)
+ 
+ static void init_arraycache(struct array_cache *ac, int limit, int batch)
+ {
+-	/*
+-	 * The array_cache structures contain pointers to free object.
+-	 * However, when such objects are allocated or transferred to another
+-	 * cache the pointers are not cleared and they could be counted as
+-	 * valid references during a kmemleak scan. Therefore, kmemleak must
+-	 * not scan such objects.
+-	 */
+-	kmemleak_no_scan(ac);
+ 	if (ac) {
+ 		ac->avail = 0;
+ 		ac->limit = limit;
+@@ -573,6 +565,14 @@ static struct array_cache *alloc_arraycache(int node, int entries,
+ 	struct array_cache *ac = NULL;
+ 
+ 	ac = kmalloc_node(memsize, gfp, node);
++	/*
++	 * The array_cache structures contain pointers to free object.
++	 * However, when such objects are allocated or transferred to another
++	 * cache the pointers are not cleared and they could be counted as
++	 * valid references during a kmemleak scan. Therefore, kmemleak must
++	 * not scan such objects.
++	 */
++	kmemleak_no_scan(ac);
+ 	init_arraycache(ac, entries, batchcount);
+ 	return ac;
+ }
+@@ -667,6 +667,7 @@ static struct alien_cache *__alloc_alien_cache(int node, int entries,
+ 
+ 	alc = kmalloc_node(memsize, gfp, node);
+ 	if (alc) {
++		kmemleak_no_scan(alc);
+ 		init_arraycache(&alc->ac, entries, batch);
+ 		spin_lock_init(&alc->lock);
+ 	}
+-- 
+2.17.2 (Apple Git-113)
 
