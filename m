@@ -2,276 +2,268 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD490C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:18:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18917C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:21:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B77E2087F
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:18:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="a1u6VfbH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B77E2087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id C9A222175B
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:21:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9A222175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D6138E0002; Tue, 29 Jan 2019 11:18:08 -0500 (EST)
+	id 7EBDC8E0002; Tue, 29 Jan 2019 11:21:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 183808E0001; Tue, 29 Jan 2019 11:18:08 -0500 (EST)
+	id 7C21F8E0001; Tue, 29 Jan 2019 11:21:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 026698E0002; Tue, 29 Jan 2019 11:18:07 -0500 (EST)
+	id 6B1B68E0002; Tue, 29 Jan 2019 11:21:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 867308E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:18:07 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id 2-v6so6018803ljs.15
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:18:07 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DCDA8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:21:20 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id s70so22384265qks.4
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:21:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=zQ9HptmdOWJ9u9idVqDsmESiFBgfBiqm+pbhrVDO9qE=;
-        b=OUp/9ARGRYr/0Q2MBDmzkJjucSDrbnDOEBQeURv0GS9s6kYoE6KnFTvblAzHU/GvXu
-         3yW+1NtOYwPZ+oUZ2SDZBBiU1sHExyneHuRx1T0IcAXNQy0Rl1DqT2xp2a4GJyvl/AAY
-         bCMdyIgS4v95NuEGHsTuKLXczLqrt9us4FTPQuKQYWhVrxGb9rT0hxKq+/jzgsf/n8qM
-         ePxczi37zyYtGQAnbfrQ3XpdF1EiPc2eaDTo7+HpL7aExdEGVXfc2f75CjcErndpB1tH
-         G4iQjdF12j5RyY6CSTg+CzoxGu29n5jMc5M+uH4cK1KrxzJZxk/WhT3cw2PU8Sh0UpkV
-         ltKg==
-X-Gm-Message-State: AJcUukf/OoRnUQihq5Lqxo7ds02KFvpoKGs9jxTGbGpnJvBTaSCLOUIT
-	xmjC6Knx7N70/VUoU6KUPcpB+kr8Gg9fxQitAA/O13dhDiNpMtvWnzkZE6Ht0/j/rCKcDjOJwsj
-	cxW/jKMrVF89CQpjYaPIflR5E3Fugfx2dfAXZjkL22uZydyHch1/oIhcyVosTS2116ecFqP7q8C
-	U8uqqXyFv0y0KR72yYNmrzoV7SqqM0mwEEK4VF8vXpSENM/dyKyIxz1m9ZlM+9Yi6gOqxiX3PSw
-	WMo2gYPRSyjfGOtisb2Pxsgu1DL6VuAG1K801xkxjjL8XtWDVFB6rqY+iNN6OjnT9vn/z5tQew5
-	0/gjIN50sGUAlWdZTPH3IPjqPvc7knlWNf/7rWqmMY2WQfLEgMj9PUQWx3jv21sSSAtQprqtaEY
-	x
-X-Received: by 2002:a2e:9e16:: with SMTP id e22-v6mr21492284ljk.4.1548778686568;
-        Tue, 29 Jan 2019 08:18:06 -0800 (PST)
-X-Received: by 2002:a2e:9e16:: with SMTP id e22-v6mr21492230ljk.4.1548778685375;
-        Tue, 29 Jan 2019 08:18:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548778685; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=Wn4mNasI+VoafuDA+rRPeKct8MR8jc/exxAizE97c18=;
+        b=kH1eYKQV1bXYY1tHuaNYXvA65Jz8u8mUj1piimKsdSkxsuw8vMQt7HLn86EHocBVMu
+         i40nm6Wtq9x0I+XgMRR8a64fSA8Sf6Fmgx+O9PdxX1t06xWTSA8LL58dS5UDUt1bOcb2
+         ZHHAOS0KyPsiPTYR7IXE2Roei4zDxvcHuiXxw2wuOAWroJrj4gzSHD3EeP/JqqBTkSA6
+         Wwvb8fe8HGwKt0RLPNt4wPWqY7gDc82y+V0q1X3ZYjbXsWq0X0NqSI09qht0ii6/Tb7y
+         HLRvCEGa0m2gldftZ1XpDhvaxCMdxpCEVi9wSwbSjfOL8g+mATJKz6NeSwT3XP78J5gt
+         qRRw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukf2xfdlTSIukHQcAJCI6A3Y+sFNMk2GXYEan7LBOtKi+lThtsaB
+	DP2HsWC+c3iaxpn29Ke64u2SOqfYZLTr3C1g0qIfEYanITj6NsMZFPrik2dzoBBUyfSgRZtAGev
+	jMRRWRqxF+Ahn5ztW4pGQs+hQm5Cma0fd2VS2R7NdLpgxR05qZ6d2b1YIB0Iq9rNuvg==
+X-Received: by 2002:ac8:2e6a:: with SMTP id s39mr26705842qta.355.1548778879956;
+        Tue, 29 Jan 2019 08:21:19 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5CDrF3L02ZTyXMUtcn/7sT7uA8fOXUTz7Co0rwd+UemFclaQgJRfNGDG7/C7XcJ57SuINJ
+X-Received: by 2002:ac8:2e6a:: with SMTP id s39mr26705794qta.355.1548778879127;
+        Tue, 29 Jan 2019 08:21:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548778879; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hz83uDdxwcCzdhMfryEjlY24OwG5Bu615UGJFzRJNSVKSPTNYNkuR9HNkiSvuMi+TJ
-         /W6cvup9fxEmzXG2W56SO/OSOjCyaqbOrCT9dXhXJhDlfORRn9EwI5RiO7yEevelE8Gg
-         KLBHhddqr7Dlyl3rBYYJC2RTKxh142m2VxQ3bDTm4qzIa8BM6iLUr1f7k/2sTrFyQith
-         av5ByaRcUWGYkRlTkJWEHm9XqY8mV3zv8ClJepmZPLpRU3X2dyxzzzpuvBqtsc2fAyyb
-         mumXWM3S20NkDjYtG+fQ/pTZBkUJYtf9ZInb2xSo7UMlZW8fltYxWQ+bAIUqY9YzlCWh
-         Tvbg==
+        b=ys9JluTPZy7RaUZ+5cTNDMZe3bq/WLqxUwQF2HGsyE6lTyTWEmI2dAcTcKei/C/RsN
+         EfReLLIt67L9Qw2a4kauqroFG+mIHlV8apIPsh8HAmRBVOkYDz+JdWSjX4BuMfhkMVZ4
+         wmjcOSqPzqblSyB/P7AChLD+eP9EVxn1tRoG08WHKQ5ZpbRKyLedlhjUD2CkKb7N0dgM
+         Tn9LCk1RsYu02KWW242Bs5HL8cY8ElUSYHzs3/AHFKCFPPf8lWmtPRQ48RKVgtHbE826
+         rjeAK38nR8ZyePG5Ty0yMhkxSoIg5MOyRdFgqPSgoCS3XWzOdTcuo1pECDu4q12INBjt
+         8e1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=zQ9HptmdOWJ9u9idVqDsmESiFBgfBiqm+pbhrVDO9qE=;
-        b=yeHHoB/1qlnUFLAPkXZ13AmUNENnjALtFR4xhSGODRWsYAzsvBvYMpWquFh2lxZp2U
-         SXzdzQ5YruuKUYSuqFi0Y7l8HBsAdEIt1b/G41bKCcisfyRwsOUQwXhZAN8nmPlGhdYx
-         kjAjwrqKo8HWVD8msTSvs5XxrsOnqXRKAabtd1ZKt4FyId3O0Dm/ln/Ylu3X9+WyGnCK
-         lIqapLoCqCcEseX7D7dbwpxcA0+LbvbMzgqn687Fu3dQj4ObVUyv9EkOqrqTP5OGLi+R
-         nLICsQVVM/UNjk2LeVWJghaCkTHs5bf9PTFby3LW+j0kYpbSdpSd+bgCgu8eNcBXufOu
-         HmpA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=Wn4mNasI+VoafuDA+rRPeKct8MR8jc/exxAizE97c18=;
+        b=s0Iml1A0SAm/yaNs8thaUKW9SWggkUUQMeO4k9m4yviazsnqyxIEEpf+/9SVAoUUCx
+         PbOg52CaSWLUL8/yj1o4F349nMalem3t2TqoXa4zuneZLwBJieWsT/YR+RSZAK7yOmXP
+         QisJPtE5XeXS39B3rFzkMyrFZfTIqSxBACf2eUjl4lzl7rg2M7+duEA/PXXhQtvDSteb
+         DFMSzFhg0I0yxHLFBkcr9XR20lqEd4B9O/PS60LYo5DvJEg3GFBueLMGesAeM91wEQN/
+         xzZbwB+YKiuDmzxmfIA/xpOgb5fSOycGSU+K8D676Us+Bf/TLUY00do0AQsbQfIP2PKh
+         zdaA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=a1u6VfbH;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h84sor5913606lfb.42.2019.01.29.08.18.05
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p64si168874qka.149.2019.01.29.08.21.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 08:18:05 -0800 (PST)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 08:21:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=a1u6VfbH;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=zQ9HptmdOWJ9u9idVqDsmESiFBgfBiqm+pbhrVDO9qE=;
-        b=a1u6VfbHu0XhUBPA9meYk+NPYYvfrvLI3EffjAPM+xeblatTcIdmuwE16U85fJqHRR
-         N+Yo2eSJ5GeJTJtgJgfL0Xwm0HNhKf7ZDqJQqoo+cockoPVGkEtJZLx5y9v7GT58YGkO
-         N4urZ4CT1vFCWlPaUg6X2h2lwi6NHfhgVKce3BvGRRShEhgwQDPhljs2pspkShLfD4XV
-         z5bNvK1VqKLslqvC16hKcZuyFQV1EWR1yP4pKSZyNGPFJjjgtY0G2cr52+iCB7d8Zb4C
-         utpHNl/KE66ZFJnUXEN/t7XaIzoQ1o2PpX83KUmM2XxMJHP9fuS9Gr24lYV8gHU/4XCZ
-         TtIQ==
-X-Google-Smtp-Source: AHgI3IZU9GTIu2eWt3iCt52xb3nejqK0a2b3uXyjkGCOLMVKz7o+u7T3hQWCgTTA/SXIlvAi9SYf7w==
-X-Received: by 2002:ac2:4243:: with SMTP id m3mr2329267lfl.5.1548778684646;
-        Tue, 29 Jan 2019 08:18:04 -0800 (PST)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id x24-v6sm3974681ljc.54.2019.01.29.08.18.02
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Jan 2019 08:18:03 -0800 (PST)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Tue, 29 Jan 2019 17:17:54 +0100
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v1 2/2] mm: add priority threshold to
- __purge_vmap_area_lazy()
-Message-ID: <20190129161754.phdr3puhp4pjrnao@pc636>
-References: <20190124115648.9433-1-urezki@gmail.com>
- <20190124115648.9433-3-urezki@gmail.com>
- <20190128120429.17819bd348753c2d7ed3a7b9@linux-foundation.org>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id BFE45CD243;
+	Tue, 29 Jan 2019 16:21:17 +0000 (UTC)
+Received: from redhat.com (ovpn-123-178.rdu2.redhat.com [10.10.123.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 39DC219743;
+	Tue, 29 Jan 2019 16:21:15 +0000 (UTC)
+Date: Tue, 29 Jan 2019 11:21:13 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>,
+	Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>,
+	kvm@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>,
+	linux-rdma@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Ross Zwisler <zwisler@kernel.org>, linux-fsdevel@vger.kernel.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>
+Subject: Re: [PATCH v4 8/9] gpu/drm/i915: optimize out the case when a range
+ is updated to read only
+Message-ID: <20190129162112.GA3194@redhat.com>
+References: <20190123222315.1122-1-jglisse@redhat.com>
+ <20190123222315.1122-9-jglisse@redhat.com>
+ <154833175216.4120.925061299171157938@jlahtine-desk.ger.corp.intel.com>
+ <20190124153032.GA5030@redhat.com>
+ <154877159986.4387.16328989441685542244@jlahtine-desk.ger.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190128120429.17819bd348753c2d7ed3a7b9@linux-foundation.org>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <154877159986.4387.16328989441685542244@jlahtine-desk.ger.corp.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Tue, 29 Jan 2019 16:21:18 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 28, 2019 at 12:04:29PM -0800, Andrew Morton wrote:
-> On Thu, 24 Jan 2019 12:56:48 +0100 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
-> 
-> > commit 763b218ddfaf ("mm: add preempt points into
-> > __purge_vmap_area_lazy()")
+On Tue, Jan 29, 2019 at 04:20:00PM +0200, Joonas Lahtinen wrote:
+> Quoting Jerome Glisse (2019-01-24 17:30:32)
+> > On Thu, Jan 24, 2019 at 02:09:12PM +0200, Joonas Lahtinen wrote:
+> > > Hi Jerome,
+> > > 
+> > > This patch seems to have plenty of Cc:s, but none of the right ones :)
 > > 
-> > introduced some preempt points, one of those is making an
-> > allocation more prioritized over lazy free of vmap areas.
+> > So sorry, i am bad with git commands.
 > > 
-> > Prioritizing an allocation over freeing does not work well
-> > all the time, i.e. it should be rather a compromise.
+> > > For further iterations, I guess you could use git option --cc to make
+> > > sure everyone gets the whole series, and still keep the Cc:s in the
+> > > patches themselves relevant to subsystems.
 > > 
-> > 1) Number of lazy pages directly influence on busy list length
-> > thus on operations like: allocation, lookup, unmap, remove, etc.
+> > Will do.
 > > 
-> > 2) Under heavy stress of vmalloc subsystem i run into a situation
-> > when memory usage gets increased hitting out_of_memory -> panic
-> > state due to completely blocking of logic that frees vmap areas
-> > in the __purge_vmap_area_lazy() function.
+> > > This doesn't seem to be on top of drm-tip, but on top of your previous
+> > > patches(?) that I had some comments about. Could you take a moment to
+> > > first address the couple of question I had, before proceeding to discuss
+> > > what is built on top of that base.
 > > 
-> > Establish a threshold passing which the freeing is prioritized
-> > back over allocation creating a balance between each other.
+> > It is on top of Linus tree so roughly ~ rc3 it does not depend on any
+> > of the previous patch i posted.
 > 
-> It would be useful to credit the vmalloc test driver for this
-> discovery, and perhaps to identify specifically which test triggered
-> the kernel misbehaviour.  Please send along suitable words and I'll add
-> them.
+> You actually managed to race a point in time just when Chris rewrote much
+> of the userptr code in drm-tip, which I didn't remember of. My bad.
 > 
-Please see below more detail of testing:
+> Still interested to hearing replies to my questions in the previous
+> thread, if the series is still relevant. Trying to get my head around
+> how the different aspects of HMM pan out for devices without fault handling.
 
-<snip>
-Using vmalloc test driver in "stress mode", i.e. When all available test
-cases are run simultaneously on all online CPUs applying a pressure on the
-vmalloc subsystem, my HiKey 960 board runs out of memory due to the fact
-that __purge_vmap_area_lazy() logic simply is not able to free pages in
-time.
+HMM mirror does not need page fault handling for everything and in fact
+for user ptr you can use HMM mirror without page fault support in hardware.
+Page fault requirement is more like a __very__ nice to have feature.
 
-How i run it:
+So sorry i missed that mail i must had it in a middle of bugzilla spam
+and deleted it. So here is a paste of it and answer. This was for a
+patch to convert i915 to use HMM mirror instead of having i915 does it
+own thing with GUP (get_user_page).
 
-1) You should build your kernel with CONFIG_TEST_VMALLOC=m
-2) ./tools/testing/selftests/vm/test_vmalloc.sh stress
+> Bit late reply, but here goes :)
+>
+> We're working quite hard to avoid pinning any pages unless they're in
+> the GPU page tables. And when they are in the GPU page tables, they must
+> be pinned for whole of that duration, for the reason that our GPUs can
+> not take a fault. And to avoid thrashing GPU page tables, we do leave
+> objects in page tables with the expectation that smart userspace
+> recycles buffers.
 
-during this test "vmap_lazy_nr" pages will go far beyond acceptable
-lazy_max_pages() threshold, that will lead to enormous busy list size
-and other problems including allocation time and so on.
-<snip>
+You do not need to pin the page because you obey to mmu notifier ie
+it is perfectly fine for you to keep the page map into the GPU until
+you get an mmu notifier call back for the range of virtual address.
+
+The pin from GUP in fact does not protect you from anything. GUP is
+really misleading, by the time GUP return the page you get might not
+correspond to the memory backing the virtual address.
+
+In i915 code this is not an issue because you synchronize against
+mmu notifier call back.
+
+So my intention in converting GPU driver from GUP to HMM mirror is
+just to avoid the useless page pin. As long as you obey the mmu
+notifier call back (or HMM sync page table call back) then you are
+fine.
+
+> So what I understand of your proposal, it wouldn't really make a
+> difference for us in the amount of pinned pages (which I agree,
+> we'd love to see going down). When we're unable to take a fault,
+> the first use effectively forces us to pin any pages and keep them
+> pinned to avoid thrashing GPU page tables.
+
+With HMM there is no pin, we never pin the page ie we never increment
+the refcount on the page as it is useless to do so if you abide by
+mmu notifier. Again the pin GUP take is misleading it does not block
+mm event.
+
+However Without pin and still abiding to mmu notifier you will not
+see any difference in thrashing ie number of time you will get a mmu
+notifier call back. As really those call back happens for good reasons.
+For instance running out of memory and kernel trying to reclaim or
+because userspace did a syscall that affect the range of virtual address.
+
+This should not happen in regular workload and when they happen the pin
+from GUP will not inhibit those either. In the end you will get the exact
+same amount of trashing but you will inhibit thing like memory compaction
+or migration while HMM does not block those (ie HMM is a good citizen ;)
+while GUP user are not).
+
+Also we are in the process of changing GUP and GUP will now have more
+profound impact to filesystem and mm (inhibiting and breaking some of
+the filesystem behavior). Converting GPU driver to HMM will avoid those
+adverse impact and it is one of the motivation behind my crusade to
+convert all GUP user that abide by mmu notifier to use HMM instead.
+
+
+> So from i915 perspective, it just seems to be mostly an exchange of
+> an API to an another for getting the pages. You already mentioned
+> the fast path is being worked on, which is an obvious difference.
+> But is there some other improvement one would be expecting, beyond
+> the page pinning?
+
+So for HMM i have a bunch of further optimization and new feature.
+Using HMM would make it easier for i915 to leverage those.
+
+> Also, is the requirement for a single non-file-backed VMA in the
+> plans of being eliminated or is that inherent restriction of the
+> HMM_MIRROR feature? We're currently not imposing such a limitation.
+
+HMM does not have that limitation, never did. It seems that i915
+unlike other driver does allow GUP on file back page, while other
+GPU driver do not. So i made the assumption the i915 did have that
+limitation without checking the code.
+
+
+> > I still intended to propose to remove
+> > GUP from i915 once i get around to implement the equivalent of GUP_fast
+> > for HMM and other bonus cookies with it.
+> > 
+> > The plan is once i have all mm bits properly upstream then i can propose
+> > patches to individual driver against the proper driver tree ie following
+> > rules of each individual device driver sub-system and Cc only people
+> > there to avoid spamming the mm folks :)
 > 
-> > --- a/mm/vmalloc.c
-> > +++ b/mm/vmalloc.c
-> > @@ -661,23 +661,27 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
-> >  	struct llist_node *valist;
-> >  	struct vmap_area *va;
-> >  	struct vmap_area *n_va;
-> > -	bool do_free = false;
-> > +	int resched_threshold;
-> >  
-> >  	lockdep_assert_held(&vmap_purge_lock);
-> >  
-> >  	valist = llist_del_all(&vmap_purge_list);
-> > +	if (unlikely(valist == NULL))
-> > +		return false;
+> Makes sense, as we're having tons of changes in this field in i915, the
+> churn to rebase on top of them will be substantial.
+
+I am posting more HMM bits today for 5.1, i will probably post another i915
+patchset in coming weeks. I will try to base it on for-5.1-drm tree as i am
+not only doing i915 but amd too and it is easier if i can do all of them in
+just one tree so i only have to switch GPU not kernel too for testing :)
+
 > 
-> Why this change?
+> Regards, Joonas
 > 
-I decided to refactor a bit, simplify and get rid of unneeded
-do_free check logic. I think it is more straightforward just to
-check if list is empty or not, instead of accessing to "do_free"
-"n" times in a loop.
+> PS. Are you by any chance attending FOSDEM? Would be nice to chat about
+> this.
 
-I can drop it, or upload as separate patch. What is your view?
+No i am not going to fosdem :(
 
-> > +	/*
-> > +	 * TODO: to calculate a flush range without looping.
-> > +	 * The list can be up to lazy_max_pages() elements.
-> > +	 */
-> 
-> How important is this?
-> 
-It depends on vmap_lazy_nr pages in the list we iterate. For example
-on my ARM 8 cores with 4Gb system i see that __purge_vmap_area_lazy()
-can take up to 12 milliseconds because of long list. That is why there
-is the cond_resched_lock().
-
-As for this first loop's time execution, it takes ~4/5 milliseconds to
-find out the flush range. Probably it is not so important since it is
-not done in atomic context means it can be interrupted or preempted.
-So, it will increase execution time of the current process that does:
-
-vfree()/etc -> __purge_vmap_area_lazy().
-
-From the other hand if we could calculate that range in runtime, i
-mean when we add a VA to the vmap_purge_list checking va->va_start
-and va->va_end with min/max we could get rid of that loop. But this
-is just an idea.
-
-> >  	llist_for_each_entry(va, valist, purge_list) {
-> >  		if (va->va_start < start)
-> >  			start = va->va_start;
-> >  		if (va->va_end > end)
-> >  			end = va->va_end;
-> > -		do_free = true;
-> >  	}
-> >  
-> > -	if (!do_free)
-> > -		return false;
-> > -
-> >  	flush_tlb_kernel_range(start, end);
-> > +	resched_threshold = (int) lazy_max_pages() << 1;
-> 
-> Is the typecast really needed?
-> 
-> Perhaps resched_threshold shiould have unsigned long type and perhaps
-> vmap_lazy_nr should be atomic_long_t?
-> 
-I think so. Especially that atomit_t is 32 bit integer value on both 32
-and 64 bit systems. lazy_max_pages() deals with unsigned long that is 8
-bytes on 64 bit system, thus vmap_lazy_nr should be 8 bytes on 64 bit
-as well.
-
-Should i send it as separate patch? What is your view?
-
-> >  	spin_lock(&vmap_area_lock);
-> >  	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
-> > @@ -685,7 +689,9 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
-> >  
-> >  		__free_vmap_area(va);
-> >  		atomic_sub(nr, &vmap_lazy_nr);
-> > -		cond_resched_lock(&vmap_area_lock);
-> > +
-> > +		if (atomic_read(&vmap_lazy_nr) < resched_threshold)
-> > +			cond_resched_lock(&vmap_area_lock);
-> >  	}
-> >  	spin_unlock(&vmap_area_lock);
-> >  	return true;
-> 
-
-Thank you for your comments and review.
-
---
-Vlad Rezki
+Cheers,
+Jérôme
 
