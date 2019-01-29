@@ -2,199 +2,176 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-13.5 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C9A5C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6AC69C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6537420989
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6537420989
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2CBD321852
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:50:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CBD321852
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4E83A8E0014; Tue, 29 Jan 2019 13:50:34 -0500 (EST)
+	id 4E2E58E0016; Tue, 29 Jan 2019 13:50:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 494D78E0003; Tue, 29 Jan 2019 13:50:34 -0500 (EST)
+	id 493B78E0003; Tue, 29 Jan 2019 13:50:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 362FB8E0014; Tue, 29 Jan 2019 13:50:34 -0500 (EST)
+	id 2EAC98E0016; Tue, 29 Jan 2019 13:50:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CE81D8E0003
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:33 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id c34so8136849edb.8
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:33 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D86F78E0015
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:50:36 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id a23so17624093pfo.2
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:50:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=81UVWBzuiiLWxlt5Zhyss5LIIbWmTL+dhjejw8e0YyU=;
-        b=b0uX+mMOM/OaUwooOQgxTVvrcBPpFVfK2OXYYlKkrZyr/6rmEf3aMHftDG49gGOnm0
-         kj1iRZWeOWzGkxP60njq0vrfS2FnvFjWafxMeJura1XxpgkkluRIcjEIrFsb5f07xDA+
-         NULj3wRk+Bk0JILoQtsTqi1xp3XmscvcaCIkkyoxNnokSugWFQRoFEAbE+c20RrfbzUB
-         8JBn+R8mw6UkEeysFwiczyBWBJzlbLVQymk0wYb6hAq8nTsGi6kJ/deOA6z51+dgZQwO
-         7dTCCEtrwX0xOh5HsmLn0KnKg0bwsvEWpsWP2MeoDvnHgb5ETyFGQoEZBS7gNiLi5uRu
-         hVNw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-X-Gm-Message-State: AJcUukc096SzJoODO6DHUjxEB3YzJUVqcdJz8igPVFhXyDO4exuLIB11
-	AqsVCbCcuAH1y8qPsux0yMBqdC4OPml6DpYa4NkHxq9TgNS4QRQ4WkohmrOY9kQAnEBM90K/FH1
-	6mmho9FpAc5YFXHrnA2lz23n6uxP7YtXIfr3lERpn9nTv8WSV1PcXAaBCNfJXBKJXGQ==
-X-Received: by 2002:a05:6402:8d2:: with SMTP id d18mr27058927edz.119.1548787833349;
-        Tue, 29 Jan 2019 10:50:33 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Ue/JKRduXMJ0TgtL2FAfHvCY5OPa2F0ZayK2pc7JEfY/6lEGZekwMl161EwcdJULQKXU7
-X-Received: by 2002:a05:6402:8d2:: with SMTP id d18mr27058864edz.119.1548787832296;
-        Tue, 29 Jan 2019 10:50:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548787832; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=LO6uE/n1t+5ifcz3BMGrSt1mWI6jQqx2BZkjkAw/sGQ=;
+        b=BxzVy5iec2c9ykUr/Jm3XxDLFxSmxIjcmxT5Tr8fes0Ju+SiRWwyhJZxyVYL2NOaGR
+         vKRYzBzOP+V3zPSOLSPWDQN1ArPUSBSFlAfbtbUdisPk+WEEMRNVLwACzFd/vXO7+wiq
+         wzGlW1SvLHyMBJX7UtQGoX9zuSR5gXJ8w0a37LVMQObi9YTKBDdFSIwtnHb/1hmSY+VE
+         SYPkzYAOaeHj24ymtlPYnNcpY6ZHHfEoUHJC51o8RExavo3qGqKjLGBlJ/yO4P5LxSXF
+         NxeOvhmXYdcoWDrDchVDCT14vx7KcvjEERGtOUMUxd15sxanrvygGWJGE7lnLd3sEHvi
+         V8CA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukfF1PBuD3IHtEzMi6g9Q0zfVoSaL61dVYV4AUVOg+dxXSVhCOX0
+	SwxHuTx9HBsEMUg3eL6WKX5uEca8hzLtCzFdlCfOcIub8toShLgz3wy0WH9m33eBZWT1zqP54/a
+	xG9wvVvBtlZXr4DZo5uoy/U55tz2yMkF4BFzqbJtfUEaqbEqpSqF0jnK6I9mXivpoCw==
+X-Received: by 2002:a63:83:: with SMTP id 125mr24209781pga.343.1548787836547;
+        Tue, 29 Jan 2019 10:50:36 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6aF6FQ+NoS8kzwtSqWW3LcHz8jF79ac7NATd0BuByTDD/Q4c3wTZuVKIKglI7neTt5/wsW
+X-Received: by 2002:a63:83:: with SMTP id 125mr24209739pga.343.1548787835860;
+        Tue, 29 Jan 2019 10:50:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548787835; cv=none;
         d=google.com; s=arc-20160816;
-        b=v7+Vi8YI79gVKRk5mQe7rkVcCEYwAhbecR4mKIBdstGme1iizH80yqq/76n8dtq+Mi
-         hsUenK4oHaCOv9nvc9qDy6fSTGiIf0vPUMSunfRCjsnUjeP4IN0XAIg6DtE+jz1OMlsa
-         q9vkELXH3V2sFCr87Xwjr5xIMbIgEnGN3x42uEdmNbSsSTNlDau0J+v0yqF0EVRMu/sD
-         MwkGU7rOAkAdxum+6PR6bAbpWXvA+uCRgIxliw7swijl/yT5icFf0vAx0i343s5kGPoZ
-         8TR56f9Xv61IZbTBfIKC1So/8oldroZjhzN/kLUWjiUBK9X8hXRHmJqrZ0lp3z4KE5+T
-         T46w==
+        b=gGcwE4W5thNKKfiRmZAeR5Dg7LJ1dhdckeQWZ+MQsdVvaaDxTtp8bk7L+nGbomneoQ
+         NEvl7CuTnbgvWKTlKLmp+PcNYdQDhU6xRIkrlcqKiLTEVAhxTdPgwbgdWe7i0Bmdcsep
+         hH/v90m3d6ucmnQpYmG+VEu/gaZn34CuU25PXcGxjNrY1JhWXvwXCXoKYm0+dQYJdVAo
+         UNtCli2BHQ7ZwExjwVH3gBUpYVghbEshf1Ey59+1GmFdWdgrQ+JAX+8uRXyY6/rr7eIW
+         FuZkVek2t7FfzRWGv7S5e68Evf912fTy/xOA3SRRhv1l1McjSFOM26nw8EhkD/SFvdRJ
+         tesw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=81UVWBzuiiLWxlt5Zhyss5LIIbWmTL+dhjejw8e0YyU=;
-        b=0oNuboi1A5uKsh0RtKN8M5/knbU5I7tT2gJjoWN/BdRPR5q9l36qvYUee6vatn4jjJ
-         0UXh4TgFP/1MGYD1oGDLc09XRb14AmBdqrDcw/SMnib94Kz+aSjpDFY5fFogH+4PBWx7
-         psTURinZmwOV9xAc8xfxfr3TPbKgOu5hgboX3Xfe5Pqq+PEwtpXD09eNyCnTSgdhJP04
-         e+DW8e2kWy47CnoOtoliwFP1JesMLv30KqZcmmWMmL7QGhUZRTEBqOyuk3oAndypFZgL
-         e+i84BSRxxOJZufioK6OM+jc5+TopEVZMHCjwq6+lVO/8GPXPv8wS9xVTB4zn3IczdtJ
-         wyjg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=LO6uE/n1t+5ifcz3BMGrSt1mWI6jQqx2BZkjkAw/sGQ=;
+        b=UGOTCjcZGlUbGT3VGSfSn+bhcn/vUBNZlEmMCZHbaqUFtrVZAjM0q50n3iQCH/YEX2
+         0wGeCASXkAdii/da2eekN/c85a5N5snBzlYB12CBZI0l8jVdweN96Da1eKTajRH3LPS+
+         VxsP7m0ie9V/lODxvYUVr8tx9oLS7S20WTjkIxXuoKHCC2utNfP+a2fdhRBIwZ4aqHjF
+         yNUjTqEHKje+RELMkaEDmnBPJDORg81DcwfVwlCu2LPAskJ/7u2GqgqQZMe6431skfYG
+         liDa7n0g49TvMs3bKuwkPW2zw0YZjfKR1I07HCVbPIH4BCXr+IDYZJ2gRDTCyYGbv6+9
+         D2kQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d15si1130618eds.170.2019.01.29.10.50.32
-        for <linux-mm@kvack.org>;
-        Tue, 29 Jan 2019 10:50:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id s71si35982526pfk.105.2019.01.29.10.50.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 10:50:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5894715AB;
-	Tue, 29 Jan 2019 10:50:31 -0800 (PST)
-Received: from eglon.cambridge.arm.com (eglon.cambridge.arm.com [10.1.196.105])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AB9013F557;
-	Tue, 29 Jan 2019 10:50:28 -0800 (PST)
-From: James Morse <james.morse@arm.com>
-To: linux-acpi@vger.kernel.org
-Cc: kvmarm@lists.cs.columbia.edu,
-	linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org,
-	Borislav Petkov <bp@alien8.de>,
-	Marc Zyngier <marc.zyngier@arm.com>,
-	Christoffer Dall <christoffer.dall@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Rafael Wysocki <rjw@rjwysocki.net>,
-	Len Brown <lenb@kernel.org>,
-	Tony Luck <tony.luck@intel.com>,
-	Dongjiu Geng <gengdongjiu@huawei.com>,
-	Xie XiuQi <xiexiuqi@huawei.com>,
-	james.morse@arm.com
-Subject: [PATCH v8 18/26] ACPI / APEI: Make GHES estatus header validation more user friendly
-Date: Tue, 29 Jan 2019 18:48:54 +0000
-Message-Id: <20190129184902.102850-19-james.morse@arm.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190129184902.102850-1-james.morse@arm.com>
-References: <20190129184902.102850-1-james.morse@arm.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Jan 2019 10:50:35 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,537,1539673200"; 
+   d="scan'208";a="295436405"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga005.jf.intel.com with ESMTP; 29 Jan 2019 10:50:34 -0800
+Date: Tue, 29 Jan 2019 10:50:05 -0800
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Davidlohr Bueso <dave@stgolabs.net>, akpm@linux-foundation.org,
+	dledford@redhat.com, jack@suse.de, linux-rdma@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	dennis.dalessandro@intel.com, mike.marciniszyn@intel.com,
+	Davidlohr Bueso <dbueso@suse.de>
+Subject: Re: [PATCH 3/6] drivers/IB,qib: do not use mmap_sem
+Message-ID: <20190129185005.GC10129@iweiny-DESK2.sc.intel.com>
+References: <20190121174220.10583-1-dave@stgolabs.net>
+ <20190121174220.10583-4-dave@stgolabs.net>
+ <20190128233140.GA12530@ziepe.ca>
+ <20190129044607.GL25106@ziepe.ca>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190129044607.GL25106@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ghes_read_estatus() checks various lengths in the top-level header to
-ensure the CPER records to be read aren't obviously corrupt.
+On Mon, Jan 28, 2019 at 09:46:07PM -0700, Jason Gunthorpe wrote:
+> On Mon, Jan 28, 2019 at 04:31:40PM -0700, Jason Gunthorpe wrote:
+> > On Mon, Jan 21, 2019 at 09:42:17AM -0800, Davidlohr Bueso wrote:
+> > > The driver uses mmap_sem for both pinned_vm accounting and
+> > > get_user_pages(). By using gup_fast() and letting the mm handle
+> > > the lock if needed, we can no longer rely on the semaphore and
+> > > simplify the whole thing as the pinning is decoupled from the lock.
+> > > 
+> > > This also fixes a bug that __qib_get_user_pages was not taking into
+> > > account the current value of pinned_vm.
+> > > 
+> > > Cc: dennis.dalessandro@intel.com
+> > > Cc: mike.marciniszyn@intel.com
+> > > Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+> > > Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+> > >  drivers/infiniband/hw/qib/qib_user_pages.c | 67 ++++++++++--------------------
+> > >  1 file changed, 22 insertions(+), 45 deletions(-)
+> > 
+> > I need you to respin this patch/series against the latest rdma tree:
+> > 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git
+> > 
+> > branch for-next
+> > 
+> > > diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
+> > > -static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
+> > > -				struct page **p)
+> > > -{
+> > > -	unsigned long lock_limit;
+> > > -	size_t got;
+> > > -	int ret;
+> > > -
+> > > -	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> > > -
+> > > -	if (num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
+> > > -		ret = -ENOMEM;
+> > > -		goto bail;
+> > > -	}
+> > > -
+> > > -	for (got = 0; got < num_pages; got += ret) {
+> > > -		ret = get_user_pages(start_page + got * PAGE_SIZE,
+> > > -				     num_pages - got,
+> > > -				     FOLL_WRITE | FOLL_FORCE,
+> > > -				     p + got, NULL);
+> > 
+> > As this has been rightly changed to get_user_pages_longterm, and I
+> > think the right answer to solve the conflict is to discard some of
+> > this patch?
+> 
+> .. and I'm looking at some of the other conversions here.. *most
+> likely* any caller that is manipulating rlimit for get_user_pages
+> should really be calling get_user_pages_longterm, so they should not
+> be converted to use _fast?
 
-Take the opportunity to make this more user-friendly, printing a
-(ratelimited) message about the nature of the header format error.
+Is this a question?  I'm not sure I understand the meaning here?
 
-Suggested-by: Borislav Petkov <bp@alien8.de>
-Signed-off-by: James Morse <james.morse@arm.com>
----
- drivers/acpi/apei/ghes.c | 46 ++++++++++++++++++++++++++++------------
- 1 file changed, 32 insertions(+), 14 deletions(-)
+Ira
 
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index f95db2398dd5..9391fff71344 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -293,6 +293,30 @@ static void ghes_copy_tofrom_phys(void *buffer, u64 paddr, u32 len,
- 	}
- }
- 
-+/* Check the top-level record header has an appropriate size. */
-+int __ghes_check_estatus(struct ghes *ghes,
-+			 struct acpi_hest_generic_status *estatus)
-+{
-+	u32 len = cper_estatus_len(estatus);
-+
-+	if (len < sizeof(*estatus)) {
-+		pr_warn_ratelimited(FW_WARN GHES_PFX "Truncated error status block!\n");
-+		return -EIO;
-+	}
-+
-+	if (len > ghes->generic->error_block_length) {
-+		pr_warn_ratelimited(FW_WARN GHES_PFX "Invalid error status block length!\n");
-+		return -EIO;
-+	}
-+
-+	if (cper_estatus_check_header(estatus)) {
-+		pr_warn_ratelimited(FW_WARN GHES_PFX "Invalid CPER header!\n");
-+		return -EIO;
-+	}
-+
-+	return 0;
-+}
-+
- static int ghes_read_estatus(struct ghes *ghes,
- 			     struct acpi_hest_generic_status *estatus,
- 			     u64 *buf_paddr, enum fixed_addresses fixmap_idx)
-@@ -319,27 +343,21 @@ static int ghes_read_estatus(struct ghes *ghes,
- 		return -ENOENT;
- 	}
- 
--	rc = -EIO;
-+	rc = __ghes_check_estatus(ghes, estatus);
-+	if (rc)
-+		return rc;
-+
- 	len = cper_estatus_len(estatus);
--	if (len < sizeof(*estatus))
--		goto err_read_block;
--	if (len > ghes->generic->error_block_length)
--		goto err_read_block;
--	if (cper_estatus_check_header(estatus))
--		goto err_read_block;
- 	ghes_copy_tofrom_phys(estatus + 1,
- 			      *buf_paddr + sizeof(*estatus),
- 			      len - sizeof(*estatus), 1, fixmap_idx);
--	if (cper_estatus_check(estatus))
--		goto err_read_block;
--	rc = 0;
--
--err_read_block:
--	if (rc)
-+	if (cper_estatus_check(estatus)) {
- 		pr_warn_ratelimited(FW_WARN GHES_PFX
- 				    "Failed to read error status block!\n");
-+		return -EIO;
-+	}
- 
--	return rc;
-+	return 0;
- }
- 
- static void ghes_clear_estatus(struct ghes *ghes,
--- 
-2.20.1
+> 
+> Jason
 
