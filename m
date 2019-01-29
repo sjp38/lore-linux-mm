@@ -2,79 +2,80 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD5BCC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:01:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3221AC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:04:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A550520870
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:01:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A550520870
+	by mail.kernel.org (Postfix) with ESMTP id DA19B20880
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:04:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA19B20880
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 204518E0003; Tue, 29 Jan 2019 05:01:42 -0500 (EST)
+	id 7817B8E0002; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 18D7D8E0001; Tue, 29 Jan 2019 05:01:42 -0500 (EST)
+	id 7308F8E0001; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 02FBF8E0003; Tue, 29 Jan 2019 05:01:41 -0500 (EST)
+	id 5D0988E0002; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C87148E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:01:41 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id z11so21321900qkf.19
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:01:41 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EAC98E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id f2so24143660qtg.14
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:04:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+        h=x-original-authentication-results:x-gm-message-state:subject:to
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=5i5ehniMTPZGh/ehoxiSSdAez0EbjzZbt6w+xmG76Dk=;
-        b=Bhj6dRlWije4igj8N1+ozaIFEajPFXfnkdcOE1WUe5LVQJP2K2BTbMKUf5Nyfr5JH1
-         Vxkv9qDMaGMHeM3TQZktx5nnSrUUpoCTdL/6RKeGF5CepLrB+myuaTyl4b12b3iOCDKH
-         Sv4aI9hKoGD0elwNK+tgRz6otRyKp/5BjVUDvIWqegAuQJGSCnEAdCcMhjaBxclsCGda
-         h0Lx1MA94IDizzK/c413qHEFbMjW+TihYDTb/UHRhx7tEYvp8k4AYvmWEJozoKIVDj1/
-         xtxv8QAq7EdJCqDKW09wBr/0eQCnUayz0baX/h8EIMRAqXHJzO4Yjo64NBVT07E1nI+v
-         hzqQ==
+        bh=FEpWE/UBF9XRkiitEFXa2ZxM2PxMPcoyogjzf3nVjZs=;
+        b=XdE67Z7mvpdNd/5dwkmjwPkgrid5vemC/ZdQTv6zr41jUn/zJ1hGFVI/Qtk9nLtiH3
+         vN4+g/NlsbSxrIsfAMhv0YgNUvawoobNMHm0R9Zw4qidcpMInojPJLNogJm36ry7rQq+
+         FyQMXQAOw3EMKnZ7JK3e3ZD+TQ3dlBGJMMSvHBQZB78Lfka4G+qYAnBzwXnBm39CeBbT
+         0KxSAaKefnR+oDj4rTUcMpVaMQjiAHtvevkbVxP+cgi0i0ZA3VHBhNA6yckBnJcq8xNN
+         JimO4ssl/Ec4rmGB9AbWpmv5Txum1E1mil5tOtSgqj5PqyrdjTAEgYS7hRQEGtPfbBD0
+         34Tw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukf4uiMyo/mvJsA5zJ4te212QYYFD71mUnXk+Q52dMmmv3dPrUho
-	CPZhOEHKcnXmrGfrftjjTH6Klk5ItWdzjeF/r946JK8ufSdNOXuVqS/V5l0MfgfQ1Ont5yYZF+V
-	ueapKUL1JYHx79sAOm+xiW+Lxyolk/Te0Nz91RW04rSYyWy0Z72w0yo3gdzGroZ5bDQ==
-X-Received: by 2002:a37:7707:: with SMTP id s7mr22986351qkc.252.1548756101561;
-        Tue, 29 Jan 2019 02:01:41 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7H4/ZvC0ZLyQO26AyCJetC1yswbk0MvsNh+f8wvbXvlZVkbjvT9ehqYpr4jW9F9YvD4AJ7
-X-Received: by 2002:a37:7707:: with SMTP id s7mr22986328qkc.252.1548756101080;
-        Tue, 29 Jan 2019 02:01:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548756101; cv=none;
+X-Gm-Message-State: AHQUAuZ50EsuzO0j1RiMU9nQwhJGgT3WpKxCD1RTfB1DhRACoj2aWnCi
+	E+4N+5DMDwes8kjavz0lpAwDH9z7oNkDGjdFZpY1JBtGA4MK7ls6dfZxcNCMWmfLJvZq7nXT23I
+	oK1W2msN6FI4AgbIUHIdthqOOBls5odVm0Qaqet8GHOD1rak5oYtFJ90cT4ORrzHhag==
+X-Received: by 2002:ac8:4284:: with SMTP id o4mr3999024qtl.389.1548756239961;
+        Tue, 29 Jan 2019 02:03:59 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY8WlSL05QKTX41XjbXbNHwcR+b2iCRBWchJGhD5tu5QpeR15YlRY1NtfPBiWzTlj8Ti+TC
+X-Received: by 2002:ac8:4284:: with SMTP id o4mr3998987qtl.389.1548756239285;
+        Tue, 29 Jan 2019 02:03:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548756239; cv=none;
         d=google.com; s=arc-20160816;
-        b=kDmfOZ0Tzq08/y8vbQaw2j6ORjV/ARf3AFk+ipP072D1zjA0IVc7xOWbI+CNbDeY0B
-         UnP4sJRNj57N/uNLXoCChG2zOHS6xkX50AISNcKY35/y/GteDpyHINb4s8lWVg56/kfi
-         FbDyLwK8lauH52L2KMGOINhBV0JkvgRA5gxR929rTDRPWTcBPKCMIYOKmqPaeQUi6n9r
-         2McFPXsU9k5pvBUPS9mEoeiKpAlX60YQGCwVAa2VdUJBL7pqCekzKoR9vXLCBsGTdyvQ
-         qab/Yh6ibE6bite5gYXNGCajaI+b0mYHaUSVayDVNDfkCyLLRJwhcHRM2xiSbVc9dwVb
-         agow==
+        b=R96sqiyoCMlOP7N+b5+YXOkZ6nMKWzOMhbbDym7WiFWZM0UlcVKENaipOaX5RSBZgO
+         O2VthEpClddjaDI8v/J41oAJoXPG4QHUybcRRJ/NdrM5EHe8BTxD0iChAjyr4swcTb5R
+         iof02o7OIQEiOU02WxJOeK+3U8xDniZI5FtSUJS1Z0NhMw9/MRqY/pA+44RmsFSSRTho
+         q8JkH71w3JMWoQq3HKfQhPV/3tA4Ottd8nxVlq2supSW4NJ1AGiRK2u+MvrGluNWrWbb
+         7AGRZpZf2F9ZsfE5HAN7n2ukztRJKZTmpuw3dT/E3XRWZSTi/70Au0oiS/pVzvkWaltV
+         n4zQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=5i5ehniMTPZGh/ehoxiSSdAez0EbjzZbt6w+xmG76Dk=;
-        b=wLvUfewlwwGagr49VZvbQ25JJZoV831TAjz5/VOBWJMxLK8BR6Sx2+2ipbnWBP3bHx
-         GYujf0g8xJNqdSrxmzh/4GiitoGo6yaq9jZiSbWWdBnAzOIfp6Ey7aiIPcB92CMu3Gam
-         CXCKlNVjn4KswpjWMSoynwyhyfbnYhGHDBtCqhKCKBaZn08Gtcw4eMYrzT9+/j6rUljz
-         DTVl8zTqRHGyBjdyQ3u9qB8A7ojUsqmlw3ZSQcHa5Q3m7zPqXdtWxNyVBUDoCYciFWvP
-         ASjCtQHb2iQkc+sf1nkxF+onMsa1Y/Ip34bbFMs98cn1Nx8zYbIhRiPTzQU+/bvONNjZ
-         sIWg==
+         :references:to:subject;
+        bh=FEpWE/UBF9XRkiitEFXa2ZxM2PxMPcoyogjzf3nVjZs=;
+        b=Fr1pDPoPhiwgXfqbiI3dA7tm/apOAGE9TEkq97jiRIl0PcE0dXJ89HSmnhI4fUQ/KM
+         Rabu8JMorBV6MP6aD4pLfa+9RHMhvnQO2Nku/2Ppppd+V4nl67cNT4ReL+V8uUrzrlCI
+         QYfs193IhuW3YjFK9SQUXFvi6NVgbVHrecqGBjz2Lb6npUAvcrKY0yXuAM5Or/JicmIN
+         03zRal3fC4SPmbrixRVR3o20zjftMoQ825sC02K/Kj5ojUVcriMBG1gMfUz5SDA+gITS
+         l7eFmSvieAeTUNXcLt+1MT/9wRO/Ky3x83VBVIJYAvacAbLfQIOTvD5nc3ZSVsuV5cXz
+         BncA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a22si3251831qtc.162.2019.01.29.02.01.40
+        by mx.google.com with ESMTPS id u198si2182840qka.181.2019.01.29.02.03.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 02:01:41 -0800 (PST)
+        Tue, 29 Jan 2019 02:03:59 -0800 (PST)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -82,30 +83,21 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BD6CE88E57;
-	Tue, 29 Jan 2019 10:01:39 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5808CC7A07;
+	Tue, 29 Jan 2019 10:03:58 +0000 (UTC)
 Received: from [10.36.118.12] (unknown [10.36.118.12])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 564F73780;
-	Tue, 29 Jan 2019 10:01:36 +0000 (UTC)
-Subject: Re: [PATCH v1] mm: migrate: don't rely on PageMovable() of newpage
- after unlocking it
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Andrew Morton <akpm@linux-foundation.org>,
- Mel Gorman <mgorman@techsingularity.net>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jan Kara <jack@suse.cz>,
- Andrea Arcangeli <aarcange@redhat.com>,
- Dominik Brodowski <linux@dominikbrodowski.net>,
- Matthew Wilcox <willy@infradead.org>, Vratislav Bendel <vbendel@redhat.com>,
- Rafael Aquini <aquini@redhat.com>,
- Konstantin Khlebnikov <k.khlebnikov@samsung.com>,
- Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org
-References: <20190128160403.16657-1-david@redhat.com>
- <e3247625-b25c-a18a-a494-f1e9a0148932@redhat.com>
- <20190128201902.GW18811@dhcp22.suse.cz>
- <725cd2b9-984f-d69b-1967-660d32858ce4@redhat.com>
- <20190129071837.GZ18811@dhcp22.suse.cz>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id EC295176AE;
+	Tue, 29 Jan 2019 10:03:56 +0000 (UTC)
+Subject: Re: [PATCH] mm,memory_hotplug: Fix scan_movable_pages for gigantic
+ hugepages
+To: Andrew Morton <akpm@linux-foundation.org>,
+ Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, mhocko@suse.com
+References: <20190122154407.18417-1-osalvador@suse.de>
+ <5368e2b4-5aca-40dd-fe18-67d861a04a29@redhat.com>
+ <20190125075830.6mqw2io4rwz7wxx5@d104.suse.de>
+ <20190128145309.c7dcf075b469d6a54694327d@linux-foundation.org>
+ <20190128145617.069b3a5436fc7e34bdebb104@linux-foundation.org>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -152,44 +144,165 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <8830012a-1fc6-f937-d72c-b61af03d5913@redhat.com>
-Date: Tue, 29 Jan 2019 11:01:35 +0100
+Message-ID: <33fdaa38-6204-bef0-b12f-0416f16dc165@redhat.com>
+Date: Tue, 29 Jan 2019 11:03:56 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.3.1
 MIME-Version: 1.0
-In-Reply-To: <20190129071837.GZ18811@dhcp22.suse.cz>
+In-Reply-To: <20190128145617.069b3a5436fc7e34bdebb104@linux-foundation.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Tue, 29 Jan 2019 10:01:40 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 29 Jan 2019 10:03:58 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29.01.19 08:18, Michal Hocko wrote:
-> On Mon 28-01-19 22:09:14, David Hildenbrand wrote:
->> On 28.01.19 21:19, Michal Hocko wrote:
-> [...]
->>> David, could you reformulate the changelog accordingly please? My ack
->>> still holds.
+On 28.01.19 23:56, Andrew Morton wrote:
+> On Mon, 28 Jan 2019 14:53:09 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+>> On Fri, 25 Jan 2019 08:58:33 +0100 Oscar Salvador <osalvador@suse.de> wrote:
 >>
->> You mean reformulating + resending for stable kernels only?
+>>> On Wed, Jan 23, 2019 at 11:33:56AM +0100, David Hildenbrand wrote:
+>>>> If you use {} for the else case, please also do so for the if case.
+>>>
+>>> Diff on top:
+>>>
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 25aee4f04a72..d5810e522b72 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -1338,9 +1338,9 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>>>  				struct page *head = compound_head(page);
+>>>  
+>>>  				if (hugepage_migration_supported(page_hstate(head)) &&
+>>> -				    page_huge_active(head))
+>>> +				    page_huge_active(head)) {
+>>>  					return pfn;
+>>> -				else {
+>>> +				} else {
+>>>  					unsigned long skip;
+>>>  
+>>>  					skip = (1 << compound_order(head)) - (page - head);
+>>>
+>>
+>> The indenting is getting a bit deep also, so how about this?
+>>
+>> static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>> {
+>> 	unsigned long pfn;
+>>
+>> 	for (pfn = start; pfn < end; pfn++) {
+>> 		struct page *page, *head;
+>> 	
+>> 		if (!pfn_valid(pfn))
+>> 			continue;
+>> 		page = pfn_to_page(pfn);
+>> 		if (PageLRU(page))
+>> 			return pfn;
+>> 		if (__PageMovable(page))
+>> 			return pfn;
+>>
+>> 		if (!PageHuge(page))
+>> 			continue;
+>> 		head = compound_head(page);
+>> 		if (hugepage_migration_supported(page_hstate(head)) &&
+>> 		    page_huge_active(head)) {
+>> 			return pfn;
 > 
-> I would merge your patch even if it doesn't fix any real problem _now_.
-> If for not other reasons it makes the code less subtle because we no
-> longer depend on this crazy __PageMovable is special. If the movable
-> flag is supposed to be synchronized with the page lock then do not do
-> tricks and make code more robust because the next time somebody would
-> like to fix up the current semantic he might reintroduce the bug easily.
+> checkpatch pointed out that else-after-return isn't needed so we can do
+> 
+> static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+> {
+> 	unsigned long pfn;
+> 
+> 	for (pfn = start; pfn < end; pfn++) {
+> 		struct page *page, *head;
+> 		unsigned long skip;
+> 
+> 		if (!pfn_valid(pfn))
+> 			continue;
+> 		page = pfn_to_page(pfn);
+> 		if (PageLRU(page))
+> 			return pfn;
+> 		if (__PageMovable(page))
+> 			return pfn;
+> 
+> 		if (!PageHuge(page))
+> 			continue;
+> 		head = compound_head(page);
+> 		if (hugepage_migration_supported(page_hstate(head)) &&
+> 		    page_huge_active(head))
+> 			return pfn;
+> 		skip = (1 << compound_order(head)) - (page - head);
+> 		pfn += skip - 1;
+> 	}
+> 	return 0;
+> }
+> 
+> --- a/mm/memory_hotplug.c~mmmemory_hotplug-fix-scan_movable_pages-for-gigantic-hugepages-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -1305,28 +1305,27 @@ int test_pages_in_a_zone(unsigned long s
+>  static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>  {
+>  	unsigned long pfn;
+> -	struct page *page;
+> +
+>  	for (pfn = start; pfn < end; pfn++) {
+> -		if (pfn_valid(pfn)) {
+> -			page = pfn_to_page(pfn);
+> -			if (PageLRU(page))
+> -				return pfn;
+> -			if (__PageMovable(page))
+> -				return pfn;
+> -			if (PageHuge(page)) {
+> -				struct page *head = compound_head(page);
+> +		struct page *page, *head;
+> +		unsigned long skip;
+>  
+> -				if (hugepage_migration_supported(page_hstate(head)) &&
+> -				    page_huge_active(head))
+> -					return pfn;
+> -				else {
+> -					unsigned long skip;
+> +		if (!pfn_valid(pfn))
+> +			continue;
+> +		page = pfn_to_page(pfn);
+> +		if (PageLRU(page))
+> +			return pfn;
+> +		if (__PageMovable(page))
+> +			return pfn;
+>  
+> -					skip = (1 << compound_order(head)) - (page - head);
+> -					pfn += skip - 1;
+> -				}
+> -			}
+> -		}
+> +		if (!PageHuge(page))
+> +			continue;
+> +		head = compound_head(page);
+> +		if (hugepage_migration_supported(page_hstate(head)) &&
+> +		    page_huge_active(head))
+> +			return pfn;
+> +		skip = (1 << compound_order(head)) - (page - head);
+> +		pfn += skip - 1;
+
+Not sure if encoding the -1 in the previous line is even better now that
+we have more space
+
+skip = (1 << compound_order(head)) - (page - head + 1);
+
+Looks good to me.
+
+>  	}
+>  	return 0;
+>  }
+> _
 > 
 
-Sounds good to me, I'll rephrase and resend. I'll also have a look if I
-can easily refactor the whole PageMovable logic or if this is more involved.
-
-Thanks!
 
 -- 
 
