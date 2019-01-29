@@ -2,159 +2,149 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5193EC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:18:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FE5DC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:24:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 105F620857
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:18:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="wU/63d3B"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 105F620857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 6A0F720869
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 18:24:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A0F720869
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AF2798E0002; Tue, 29 Jan 2019 13:18:34 -0500 (EST)
+	id EE2428E0002; Tue, 29 Jan 2019 13:24:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A77FD8E0001; Tue, 29 Jan 2019 13:18:34 -0500 (EST)
+	id E91CD8E0001; Tue, 29 Jan 2019 13:24:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9400C8E0002; Tue, 29 Jan 2019 13:18:34 -0500 (EST)
+	id D815C8E0002; Tue, 29 Jan 2019 13:24:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 309F88E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:18:34 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id m4so8354878wrr.4
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:18:34 -0800 (PST)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B19718E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 13:24:34 -0500 (EST)
+Received: by mail-io1-f69.google.com with SMTP id s3so17349463iob.15
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:24:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=+GxBm8s8C6x84ozFyjXoCsKwNqijbNBimqTvowaT6HA=;
-        b=R3cU2BuPjMNAcnhFU38ZgMTKRCkYhLzZpdQFTJWGMVGb6hZdGMRgLP4oMZhwY8vaA8
-         0UgbmbuYFQ/KWL+9MtO29Ynd2CtM1LTR3PA2bEvbCEyWtsWnPq5mvXZAJxbzU+XAy2YJ
-         UM9AMtBJVkiOOK/HFqr4SrbTTDPx4QXH7FlqiLR3wADDJ6k/DChhwWJLyYWX9ox5ExAO
-         a8nmN5E+mHW9GsWWoB6S0XwIfeNNomQ9mnelHSja5wm60MlCml1HGU3Pihem7RvtJ6Sn
-         P7QI/q68IQct/TAg0p29P6zJy04Fh0+J8GTNKZsitZ5Ob8pH0rAe1dx8vTuGGWMlb2mM
-         QSdA==
-X-Gm-Message-State: AJcUukfHE2gBAK1aya7SC7cIjgPjiL4uKkmCeAMBNpnkFNZOrs6GMBx4
-	4Xf0j1mFbWe5vekfOcbQz2EfMl4X+vOUcEwLfOgdAk4+wOWAFAvT0xwNoS5R8hgV7uKQxLjmd98
-	VoRe+xhfscsjAPqPOgrUESf+tbgpEqbe+mjZmagY1sF85nHlhkA5dYRJECp+jAyrtHZPupPeeTl
-	+W9GkdagNdbhz57CbRBjbU3bA8spHV3D+zJ/ne3TdX6Fe4/1XhgzevFWFZ1iiiPH31l3yDpWUuE
-	mL2HE1LO0bpEQIGICobAaVVNxvPeXEhpov4XHY5otUHWR6ZUh8au5xpxPy75Fjldx9yOCctt0lc
-	7k9kDUT/uP3qnnCusAEB8ViThf7xsbMr9Uanr/zt+yRDdanpDSO6odKg6nc5ibGeWcr1Hy0sQTE
-	V
-X-Received: by 2002:a1c:f207:: with SMTP id s7mr21728676wmc.87.1548785913598;
-        Tue, 29 Jan 2019 10:18:33 -0800 (PST)
-X-Received: by 2002:a1c:f207:: with SMTP id s7mr21728623wmc.87.1548785912367;
-        Tue, 29 Jan 2019 10:18:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548785912; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:subject;
+        bh=824iHOQ6ZVTZGDGOFtGGbG4bABFEft3RPBzbH2O99Bw=;
+        b=ao+W6BJuUvRFpJgApbcgnCvDfhDdv9yjvuZwxNkXP1KjHiOVBlbfVFOkXHcNZNqX0d
+         In3/rtug8M3UYHwKxh/+QzHLFPWTSUudG6JGjvI3Bevn/r7eTlvxFVl7pSFmCSle1vk1
+         fHFsZfaT9AXqWxoQ+JuIE7c85H+bcx6cvE4aQVm2qx/DMOf/A6YhllJXtJ6KDzwbRa4j
+         UFkzkLbCQiaxBhJTS/hkaRdlsVf9hnB9f/S49rk1/pHqtfiH1uEI1kmnqlhq8nuWzG8e
+         md2jTGbxjJGG5k0wQ1mOVadwry00ksgzSSf2aQNDsk2+q4lkwwtcp222WZ7Azn4J/mQx
+         LFzQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+X-Gm-Message-State: AHQUAuYQyhcWnVY4WiWQtmY024uEcYKN/KA7CsnGhpe2/CsD5v+Zng0t
+	ik7EXhrIrYX5h4+IA2LJEvv3UOUS8zRluG7aBW4vi9PkHFaF9cnY6sXdLccST2z/sGSbqyMlrOE
+	SjnBqrt7Eryn63myvVXfFMiB0+FZd6z7fzJxDnlzrGXRmQa/Y06g0tcnThRWycOtUCA==
+X-Received: by 2002:a24:81d4:: with SMTP id q203mr14873864itd.23.1548786274501;
+        Tue, 29 Jan 2019 10:24:34 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5dVlHCEI97hqTVk8te3Ziq74j3WLIbkgO+bjfHg5l/G23P52XRDfQCExbphyKlUK694gWw
+X-Received: by 2002:a24:81d4:: with SMTP id q203mr14873841itd.23.1548786273878;
+        Tue, 29 Jan 2019 10:24:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548786273; cv=none;
         d=google.com; s=arc-20160816;
-        b=wcZL4s4cVC1aHHUPjJwE0lZQQdMSqmvC460n7PcSylp8n3LkjVoQ6NekG52Bg0TGVA
-         12/xEeJekW83NE0jAvpxCJLHAT4MNbPqS/NTTkV8iMuv69rDa1/7jWY1/+iJZRo2nXqb
-         GgM2nBgUxjnjvUzVxAs9cF78I/eurxJ5vlYpQ1qmlZ9RXMxaQlU66y+/2Ydj/iHbHu/w
-         xBC6Zie9empaEAPYZG5lZHEetyirgzq9P3YjveOJpTGEQ1SxPuXrm3i4nBqlDKQdKOnw
-         k7RNMBkxtcKwxgNafPWK2NLjBeSmezp8jy84zdM1TmUPMFfnN9YjYUnbFXmFWqFwI0Pm
-         Y8Dw==
+        b=UMq155/JsT3lB5lv40IYLJkwWkKxXZMn27nOPVmGx8JzrF6btvxu33lXxDVwphtHvP
+         7ccFuFKYJis7PT76+0Fy+AVVPI4g7qOFb2YNlqK+ekXSuxznJHXeBBl8oE9iWByUs4Io
+         AWVfji54pGPF6kVqUl5N74mEhKh3J5vboHrUxVQcAcyMpYR6KBhVKPmAsfWCShodZ8e+
+         18JXPyuJmJfLn/AAdWfhEa00LntwlVWjt7yNejaTscn4ZKzn725afMedz/QdzjxuhkYa
+         doYLs5Ie4+S6ID693R5OkHMSBMdTdKcRrGavecSuVIcXyacBfOMb/l5tCNjTEGPyT+rU
+         XE8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=+GxBm8s8C6x84ozFyjXoCsKwNqijbNBimqTvowaT6HA=;
-        b=F98NGKZpxH3t6s7mn2l44IyDvE34FE+GHKEcvShznxRPM4Z7wB7+AUPPCPmGodBpZx
-         9pkLk0Z9H3x0OsPG3Yh2upH9qqVN/vX/O0UzmKW0J2V9/6qvdIb//gb78hzdM7zoINjL
-         1pHXYLN8O7edtGovllpe3vOqc7Pt5lDlBm54uLF0YBFf5WxfnPRxZv52As9XOBQtLBAq
-         4UG/AwobAYSWaW8IfomlFiakfdMjpqtUTy0VC7DiPZPAIwJy2h6FcA8RceH4kdCC8bbL
-         o7uUAhet7en2aQHLNz/lJsjQXsmL0LQFnf91y5enDgSTvWXwDYUi35osE73vm5Lf8IYa
-         cnIA==
+        h=subject:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:message-id:from:references:cc:to;
+        bh=824iHOQ6ZVTZGDGOFtGGbG4bABFEft3RPBzbH2O99Bw=;
+        b=BSmxhqI/osXK71241lrrkPTpks7qUtiIHMTwCEGLQBf1j9DZpoinwewQX+D/6XkcP/
+         S4+6C8AofaOhmTnD5ZhrWmrtCpcwW9fzXPaZvgBU20LjQVRzsbY6oKjsrI1sczs91lAT
+         M5eWuEo1OFlv+jmtAOjqkYWGM3OwHK+lIWzH5zPa03Fk/dZ1TkYrwID7Virh3gs9/pcD
+         ecVpUFaGdiXk/MYasWMILEOepg+shR7CSxY4CeS8mv4iQTGJCaLE3GWYKfj5r8FR9lLX
+         c4xoA/uDsyBuIgXnhj23kJAFimd2FVYDjnGQTU+UX5ypqYo1BqMlxibeRqp+CuxpIiko
+         RyNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="wU/63d3B";
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c1sor60714808wrx.39.2019.01.29.10.18.32
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id a16si1937970itc.15.2019.01.29.10.24.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 10:18:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Jan 2019 10:24:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="wU/63d3B";
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=+GxBm8s8C6x84ozFyjXoCsKwNqijbNBimqTvowaT6HA=;
-        b=wU/63d3BqpbaETl1R60YuKHDVlM6oWOlycD365weCHPw8D4pDzyh2VmzYqavACHnQy
-         2E0vBCvdlWBdD0etwek0HhdNqKvPtKLOAlQFgRzID0mB2cjaCZJAIigmbf1v4lWqUmwF
-         JYp4Lm4pJN4DP1NeOojB4yAKbERZnHYyTY/xV0SnPKvVMxwa0YihtVntVY4dx1P0s7Xv
-         4qCpYp2b+meS9qpg6uaMXpF6iwtg2kmE0QFWzaul4ag1gf7tCHOCDFeIDiSALdVR1tN1
-         YAYiKWKxmIsV+dTX2MeLcYGkNN7xNy2V9BjAvc+Yg3lghhd8r0GW1PvEMaDY7CwEZJHL
-         Tr5A==
-X-Google-Smtp-Source: ALg8bN4cRFK+VVM41OOXWUgll/3WKZxT3SdKfFLzYyHoHPggY6R004Qc5iemMNf5Igp61Tl5EGthoyMNhU9XqAws9iQ=
-X-Received: by 2002:a5d:4e82:: with SMTP id e2mr26340980wru.291.1548785911774;
- Tue, 29 Jan 2019 10:18:31 -0800 (PST)
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from guinness.priv.deltatee.com ([172.16.1.162])
+	by ale.deltatee.com with esmtp (Exim 4.89)
+	(envelope-from <logang@deltatee.com>)
+	id 1goY3S-000521-OA; Tue, 29 Jan 2019 11:24:15 -0700
+To: jglisse@redhat.com, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn Helgaas
+ <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
+ Felix Kuehling <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>,
+ linux-pci@vger.kernel.org, dri-devel@lists.freedesktop.org,
+ Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>,
+ Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
+ iommu@lists.linux-foundation.org
+References: <20190129174728.6430-1-jglisse@redhat.com>
+ <20190129174728.6430-2-jglisse@redhat.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <f66ba584-9c4a-f6cd-c647-9b32a93be807@deltatee.com>
+Date: Tue, 29 Jan 2019 11:24:09 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <20190124211518.244221-1-surenb@google.com> <20190124211518.244221-6-surenb@google.com>
- <20190129123843.GK28467@hirez.programming.kicks-ass.net>
-In-Reply-To: <20190129123843.GK28467@hirez.programming.kicks-ass.net>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Tue, 29 Jan 2019 10:18:20 -0800
-Message-ID: <CAJuCfpGxtGHsow002nd8Ao8mo9MaZQqZau_NLTMrZ8=aypTkig@mail.gmail.com>
-Subject: Re: [PATCH v3 5/5] psi: introduce psi monitor
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, lizefan@huawei.com, 
-	Johannes Weiner <hannes@cmpxchg.org>, axboe@kernel.dk, dennis@kernel.org, 
-	Dennis Zhou <dennisszhou@gmail.com>, Ingo Molnar <mingo@redhat.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org, 
-	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, 
-	LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190129174728.6430-2-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
+X-SA-Exim-Connect-IP: 172.16.1.162
+X-SA-Exim-Rcpt-To: iommu@lists.linux-foundation.org, jroedel@suse.de, robin.murphy@arm.com, m.szyprowski@samsung.com, hch@lst.de, dri-devel@lists.freedesktop.org, linux-pci@vger.kernel.org, jgg@mellanox.com, Felix.Kuehling@amd.com, christian.koenig@amd.com, bhelgaas@google.com, rafael@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com
+X-SA-Exim-Mail-From: logang@deltatee.com
+Subject: Re: [RFC PATCH 1/5] pci/p2p: add a function to test peer to peer
+ capability
+X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
+X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 4:38 AM Peter Zijlstra <peterz@infradead.org> wrote:
->
-> On Thu, Jan 24, 2019 at 01:15:18PM -0800, Suren Baghdasaryan wrote:
-> > +                     atomic_set(&group->polling, polling);
-> > +                     /*
-> > +                      * Memory barrier is needed to order group->polling
-> > +                      * write before times[] read in collect_percpu_times()
-> > +                      */
-> > +                     smp_mb__after_atomic();
->
-> That's broken, smp_mb__{before,after}_atomic() can only be used on
-> atomic RmW operations, something atomic_set() is _not_.
 
-Oh, I didn't realize that. After reading the following example from
-atomic_ops.txt I was under impression that smp_mb__after_atomic()
-would make changes done by atomic_set() visible:
 
-/* All memory operations before this call will
-* be globally visible before the clear_bit().
-*/
-smp_mb__before_atomic();
-clear_bit( ... );
-/* The clear_bit() will be visible before all
-* subsequent memory operations.
-*/
-smp_mb__after_atomic();
+On 2019-01-29 10:47 a.m., jglisse@redhat.com wrote:
+> +bool pci_test_p2p(struct device *devA, struct device *devB)
+> +{
+> +	struct pci_dev *pciA, *pciB;
+> +	bool ret;
+> +	int tmp;
+> +
+> +	/*
+> +	 * For now we only support PCIE peer to peer but other inter-connect
+> +	 * can be added.
+> +	 */
+> +	pciA = find_parent_pci_dev(devA);
+> +	pciB = find_parent_pci_dev(devB);
+> +	if (pciA == NULL || pciB == NULL) {
+> +		ret = false;
+> +		goto out;
+> +	}
+> +
+> +	tmp = upstream_bridge_distance(pciA, pciB, NULL);
+> +	ret = tmp < 0 ? false : true;
+> +
+> +out:
+> +	pci_dev_put(pciB);
+> +	pci_dev_put(pciA);
+> +	return false;
+> +}
+> +EXPORT_SYMBOL_GPL(pci_test_p2p);
 
-but I'm probably missing something. Is there a more detailed
-description of these rules anywhere else?
+This function only ever returns false....
 
-Meanwhile I'll change smp_mb__after_atomic() into smp_mb(). Would that
-fix the ordering?
-
-> --
-> You received this message because you are subscribed to the Google Groups "kernel-team" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kernel-team+unsubscribe@android.com.
->
+Logan
 
