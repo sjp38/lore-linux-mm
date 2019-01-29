@@ -2,80 +2,80 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3221AC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:04:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 43BC8C282D0
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:08:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA19B20880
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:04:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA19B20880
+	by mail.kernel.org (Postfix) with ESMTP id F311B20989
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 10:08:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F311B20989
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7817B8E0002; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
+	id 867748E0003; Tue, 29 Jan 2019 05:08:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7308F8E0001; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
+	id 817A88E0001; Tue, 29 Jan 2019 05:08:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D0988E0002; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
+	id 6DF638E0003; Tue, 29 Jan 2019 05:08:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EAC98E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:04:00 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id f2so24143660qtg.14
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:04:00 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 405E58E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 05:08:37 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id b16so23763621qtc.22
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 02:08:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=FEpWE/UBF9XRkiitEFXa2ZxM2PxMPcoyogjzf3nVjZs=;
-        b=XdE67Z7mvpdNd/5dwkmjwPkgrid5vemC/ZdQTv6zr41jUn/zJ1hGFVI/Qtk9nLtiH3
-         vN4+g/NlsbSxrIsfAMhv0YgNUvawoobNMHm0R9Zw4qidcpMInojPJLNogJm36ry7rQq+
-         FyQMXQAOw3EMKnZ7JK3e3ZD+TQ3dlBGJMMSvHBQZB78Lfka4G+qYAnBzwXnBm39CeBbT
-         0KxSAaKefnR+oDj4rTUcMpVaMQjiAHtvevkbVxP+cgi0i0ZA3VHBhNA6yckBnJcq8xNN
-         JimO4ssl/Ec4rmGB9AbWpmv5Txum1E1mil5tOtSgqj5PqyrdjTAEgYS7hRQEGtPfbBD0
-         34Tw==
+        bh=tQ4FgS49orbyn/xMzcpKA/ZVOiU6LEzkZ29/tc8EBNE=;
+        b=oa73aJQZMHxUrrkbF3c6cNC05uBfnzR7ik2NcFbBV/H7dttVWkg2WSF7G89fGX2pyw
+         ZQnbOhcmtPD0i+SUOnSkq2HPPjc8+0jEEV/l72q2EFSgvj0rU6tKl3sxSwN/X7Cbv0CI
+         Uh5mJg2vMbKCt72ddFEouAVzX89MmL0vL3GA8KCb3+E898KGINzTdvKsUVB3oQbYBNmY
+         3cBI8K5RdE0URo80Z7kdVFH4+kB+rzjt1LaJD9EtaS28iyPQ8JCLMiyI5qcXmFutcNJH
+         OO5E/4GKSIlFjqSkst3qs9l7FcPxY/2d09vDjPao97BdIdH9WlHG7nKG5Z0UE5hkL2lV
+         CS7w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZ50EsuzO0j1RiMU9nQwhJGgT3WpKxCD1RTfB1DhRACoj2aWnCi
-	E+4N+5DMDwes8kjavz0lpAwDH9z7oNkDGjdFZpY1JBtGA4MK7ls6dfZxcNCMWmfLJvZq7nXT23I
-	oK1W2msN6FI4AgbIUHIdthqOOBls5odVm0Qaqet8GHOD1rak5oYtFJ90cT4ORrzHhag==
-X-Received: by 2002:ac8:4284:: with SMTP id o4mr3999024qtl.389.1548756239961;
-        Tue, 29 Jan 2019 02:03:59 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY8WlSL05QKTX41XjbXbNHwcR+b2iCRBWchJGhD5tu5QpeR15YlRY1NtfPBiWzTlj8Ti+TC
-X-Received: by 2002:ac8:4284:: with SMTP id o4mr3998987qtl.389.1548756239285;
-        Tue, 29 Jan 2019 02:03:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548756239; cv=none;
+X-Gm-Message-State: AJcUukebG1XbznDQCYUeWi9f5hCar/f/cAB/2QQ8AhLXeo0FheQI2xbN
+	0m+sNJY0rW8L+EfQzIXFH+2+H0AG9DZ6V9ZJpoyBOKIvXjzXrPfsKXMZpvjsObEUXjlfNuAyGKz
+	N0hLadRVuCh+HaSGKO8UTWIapCgWq/JYXb1w2/ddbbx8128glh1Yx7VgWC58zMdBxlw==
+X-Received: by 2002:a37:9bc3:: with SMTP id d186mr22520039qke.22.1548756516989;
+        Tue, 29 Jan 2019 02:08:36 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7Sq0ln3gTvcQ9h2naok5OtaFDGepi2exQ77jtVfcNL/4ELFZ8w4ngjKM3wJOamCX1rAFMr
+X-Received: by 2002:a37:9bc3:: with SMTP id d186mr22520001qke.22.1548756516379;
+        Tue, 29 Jan 2019 02:08:36 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548756516; cv=none;
         d=google.com; s=arc-20160816;
-        b=R96sqiyoCMlOP7N+b5+YXOkZ6nMKWzOMhbbDym7WiFWZM0UlcVKENaipOaX5RSBZgO
-         O2VthEpClddjaDI8v/J41oAJoXPG4QHUybcRRJ/NdrM5EHe8BTxD0iChAjyr4swcTb5R
-         iof02o7OIQEiOU02WxJOeK+3U8xDniZI5FtSUJS1Z0NhMw9/MRqY/pA+44RmsFSSRTho
-         q8JkH71w3JMWoQq3HKfQhPV/3tA4Ottd8nxVlq2supSW4NJ1AGiRK2u+MvrGluNWrWbb
-         7AGRZpZf2F9ZsfE5HAN7n2ukztRJKZTmpuw3dT/E3XRWZSTi/70Au0oiS/pVzvkWaltV
-         n4zQ==
+        b=iNbri5viwVN6JR3SMCljnAZIQ697ipi9pXzzjOliBREpw8BLSbX7UWbh3tGzCx3jyV
+         bQETmeeozuNhk+OGdF/rs3fzGjzqbdf3PL46omfcUCC6OreQBRcnPsSHAUXnn4e6s1c1
+         F06RwIVVCWCXmef+c6d1DfiXueNSRjJpWb2aJ54snbsnhLjXxoDMTnFXPtzSsbkxMB58
+         TiKIqmD8KDJKsB80R68ae9yq8SooIWN7xfVpAe34QCf4PjCPpmLfe2P/JPwVD4IdZjx5
+         HgqUQbIFDeYZbw3sv6xWYDiVUry5qrIPDEl3iiiNqXbZ1V/ay2JMM5m/ixXSI7pnD4XK
+         +ibA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:to:subject;
-        bh=FEpWE/UBF9XRkiitEFXa2ZxM2PxMPcoyogjzf3nVjZs=;
-        b=Fr1pDPoPhiwgXfqbiI3dA7tm/apOAGE9TEkq97jiRIl0PcE0dXJ89HSmnhI4fUQ/KM
-         Rabu8JMorBV6MP6aD4pLfa+9RHMhvnQO2Nku/2Ppppd+V4nl67cNT4ReL+V8uUrzrlCI
-         QYfs193IhuW3YjFK9SQUXFvi6NVgbVHrecqGBjz2Lb6npUAvcrKY0yXuAM5Or/JicmIN
-         03zRal3fC4SPmbrixRVR3o20zjftMoQ825sC02K/Kj5ojUVcriMBG1gMfUz5SDA+gITS
-         l7eFmSvieAeTUNXcLt+1MT/9wRO/Ky3x83VBVIJYAvacAbLfQIOTvD5nc3ZSVsuV5cXz
-         BncA==
+         :references:cc:to:subject;
+        bh=tQ4FgS49orbyn/xMzcpKA/ZVOiU6LEzkZ29/tc8EBNE=;
+        b=E+T+OvBoTCocuX7PyDE8ByRFrHmmYXuxKnVmfmfnVU/omSACjxUYxJUQSLwkwU9fOx
+         lRmLHOCDC3N4RX6teaj4RpuPCvDEdjbcRo+YqnRvg5cC71Yooi05TIbAqicQk1rNgcsM
+         N5H8+D4BUsoFyRi75lnjyAdHxoU/cw2yLhgyXCPpJSJtwfOcqcDLgibXP5d7KJ+bOE/q
+         pP8xrBVLDOjiK474gMbaZrHaxMm45Z3ZCT+RF9Iqp1AK/7YBXF2YnxsooeCCQ1o1PB/j
+         NmngArSri064o3DqwixQcp6qb/fVS+pIi/5iBrBN6VovS1BOm2eajGcnYBECntHA6Vxw
+         ej1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u198si2182840qka.181.2019.01.29.02.03.59
+        by mx.google.com with ESMTPS id j13si931973qtj.296.2019.01.29.02.08.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 02:03:59 -0800 (PST)
+        Tue, 29 Jan 2019 02:08:36 -0800 (PST)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -83,21 +83,20 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5808CC7A07;
-	Tue, 29 Jan 2019 10:03:58 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 74F76C05B039;
+	Tue, 29 Jan 2019 10:08:35 +0000 (UTC)
 Received: from [10.36.118.12] (unknown [10.36.118.12])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id EC295176AE;
-	Tue, 29 Jan 2019 10:03:56 +0000 (UTC)
-Subject: Re: [PATCH] mm,memory_hotplug: Fix scan_movable_pages for gigantic
- hugepages
-To: Andrew Morton <akpm@linux-foundation.org>,
- Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, mhocko@suse.com
-References: <20190122154407.18417-1-osalvador@suse.de>
- <5368e2b4-5aca-40dd-fe18-67d861a04a29@redhat.com>
- <20190125075830.6mqw2io4rwz7wxx5@d104.suse.de>
- <20190128145309.c7dcf075b469d6a54694327d@linux-foundation.org>
- <20190128145617.069b3a5436fc7e34bdebb104@linux-foundation.org>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BB6FD5D73F;
+	Tue, 29 Jan 2019 10:08:33 +0000 (UTC)
+Subject: Re: [RFC PATCH v2 0/4] mm, memory_hotplug: allocate memmap from
+ hotadded memory
+To: Oscar Salvador <osalvador@suse.de>
+Cc: linux-mm@kvack.org, mhocko@suse.com, dan.j.williams@intel.com,
+ Pavel.Tatashin@microsoft.com, linux-kernel@vger.kernel.org,
+ dave.hansen@intel.com, Vitaly Kuznetsov <vkuznets@redhat.com>
+References: <20190122103708.11043-1-osalvador@suse.de>
+ <d9dbefb8-052e-7cb5-3de4-245d05270ff9@redhat.com>
+ <20190129084359.65fzc4hqan265gii@d104.suse.de>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -144,163 +143,68 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <33fdaa38-6204-bef0-b12f-0416f16dc165@redhat.com>
-Date: Tue, 29 Jan 2019 11:03:56 +0100
+Message-ID: <23d64fa1-386d-bdbf-1546-77eb56fcebc6@redhat.com>
+Date: Tue, 29 Jan 2019 11:08:32 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.3.1
 MIME-Version: 1.0
-In-Reply-To: <20190128145617.069b3a5436fc7e34bdebb104@linux-foundation.org>
+In-Reply-To: <20190129084359.65fzc4hqan265gii@d104.suse.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 29 Jan 2019 10:03:58 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Tue, 29 Jan 2019 10:08:35 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 28.01.19 23:56, Andrew Morton wrote:
-> On Mon, 28 Jan 2019 14:53:09 -0800 Andrew Morton <akpm@linux-foundation.org> wrote:
+On 29.01.19 09:43, Oscar Salvador wrote:
+> On Fri, Jan 25, 2019 at 09:53:35AM +0100, David Hildenbrand wrote:
+> Hi David,
 > 
->> On Fri, 25 Jan 2019 08:58:33 +0100 Oscar Salvador <osalvador@suse.de> wrote:
->>
->>> On Wed, Jan 23, 2019 at 11:33:56AM +0100, David Hildenbrand wrote:
->>>> If you use {} for the else case, please also do so for the if case.
->>>
->>> Diff on top:
->>>
->>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>> index 25aee4f04a72..d5810e522b72 100644
->>> --- a/mm/memory_hotplug.c
->>> +++ b/mm/memory_hotplug.c
->>> @@ -1338,9 +1338,9 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
->>>  				struct page *head = compound_head(page);
->>>  
->>>  				if (hugepage_migration_supported(page_hstate(head)) &&
->>> -				    page_huge_active(head))
->>> +				    page_huge_active(head)) {
->>>  					return pfn;
->>> -				else {
->>> +				} else {
->>>  					unsigned long skip;
->>>  
->>>  					skip = (1 << compound_order(head)) - (page - head);
->>>
->>
->> The indenting is getting a bit deep also, so how about this?
->>
->> static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
->> {
->> 	unsigned long pfn;
->>
->> 	for (pfn = start; pfn < end; pfn++) {
->> 		struct page *page, *head;
->> 	
->> 		if (!pfn_valid(pfn))
->> 			continue;
->> 		page = pfn_to_page(pfn);
->> 		if (PageLRU(page))
->> 			return pfn;
->> 		if (__PageMovable(page))
->> 			return pfn;
->>
->> 		if (!PageHuge(page))
->> 			continue;
->> 		head = compound_head(page);
->> 		if (hugepage_migration_supported(page_hstate(head)) &&
->> 		    page_huge_active(head)) {
->> 			return pfn;
+>> I only had a quick glimpse. I would prefer if the caller of add_memory()
+>> can specify whether it would be ok to allocate vmmap from the range.
+>> This e.g. allows ACPI dimm code to allocate from the range, however
+>> other machanisms (XEN, hyper-v, virtio-mem) can allow it once they
+>> actually support it.
 > 
-> checkpatch pointed out that else-after-return isn't needed so we can do
-> 
-> static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
-> {
-> 	unsigned long pfn;
-> 
-> 	for (pfn = start; pfn < end; pfn++) {
-> 		struct page *page, *head;
-> 		unsigned long skip;
-> 
-> 		if (!pfn_valid(pfn))
-> 			continue;
-> 		page = pfn_to_page(pfn);
-> 		if (PageLRU(page))
-> 			return pfn;
-> 		if (__PageMovable(page))
-> 			return pfn;
-> 
-> 		if (!PageHuge(page))
-> 			continue;
-> 		head = compound_head(page);
-> 		if (hugepage_migration_supported(page_hstate(head)) &&
-> 		    page_huge_active(head))
-> 			return pfn;
-> 		skip = (1 << compound_order(head)) - (page - head);
-> 		pfn += skip - 1;
-> 	}
-> 	return 0;
-> }
-> 
-> --- a/mm/memory_hotplug.c~mmmemory_hotplug-fix-scan_movable_pages-for-gigantic-hugepages-fix
-> +++ a/mm/memory_hotplug.c
-> @@ -1305,28 +1305,27 @@ int test_pages_in_a_zone(unsigned long s
->  static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
->  {
->  	unsigned long pfn;
-> -	struct page *page;
-> +
->  	for (pfn = start; pfn < end; pfn++) {
-> -		if (pfn_valid(pfn)) {
-> -			page = pfn_to_page(pfn);
-> -			if (PageLRU(page))
-> -				return pfn;
-> -			if (__PageMovable(page))
-> -				return pfn;
-> -			if (PageHuge(page)) {
-> -				struct page *head = compound_head(page);
-> +		struct page *page, *head;
-> +		unsigned long skip;
->  
-> -				if (hugepage_migration_supported(page_hstate(head)) &&
-> -				    page_huge_active(head))
-> -					return pfn;
-> -				else {
-> -					unsigned long skip;
-> +		if (!pfn_valid(pfn))
-> +			continue;
-> +		page = pfn_to_page(pfn);
-> +		if (PageLRU(page))
-> +			return pfn;
-> +		if (__PageMovable(page))
-> +			return pfn;
->  
-> -					skip = (1 << compound_order(head)) - (page - head);
-> -					pfn += skip - 1;
-> -				}
-> -			}
-> -		}
-> +		if (!PageHuge(page))
-> +			continue;
-> +		head = compound_head(page);
-> +		if (hugepage_migration_supported(page_hstate(head)) &&
-> +		    page_huge_active(head))
-> +			return pfn;
-> +		skip = (1 << compound_order(head)) - (page - head);
-> +		pfn += skip - 1;
+> Well, I think this can be done, and it might make more sense, as we
+> would get rid of some other flags to prevent allocating vmemmap
+> besides mhp_restrictions.
 
-Not sure if encoding the -1 in the previous line is even better now that
-we have more space
+Maybe we can also start passing a struct to add_memory() to describe
+such properties. This would avoid having to change all the layers over
+and over again. We would just have to establish some rules to avoid
+breaking stuff. E.g. the struct always has to be initialized to 0 so new
+features won't break any caller not wanting to make use of that.
 
-skip = (1 << compound_order(head)) - (page - head + 1);
+E.g. memory block types (or if we come up with something better) would
+also have to add new parameters to add_memory() and friends.
 
-Looks good to me.
+> 
+>>
+>> Also, while s390x standby memory cannot support allocating from the
+>> range, virtio-mem could easily support it on s390x.
+>>
+>> Not sure how such an interface could look like, but I would really like
+>> to have control over that on the add_memory() interface, not per arch.
+> 
+> Let me try it out and will report back.
+> 
+> Btw, since you are a virt-guy, would it be do feasible for you to test the patchset
+> on hyper-v, xen or your virtio-mem driver?
 
->  	}
->  	return 0;
->  }
-> _
+I don't have a XEN or Hyper-V installation myself. cc-ing Vitaly, maybe
+he has time end resources to test on Hyper-V.
+
+I'll be reworking my virtio-mem prototype soon and try with this
+patchset than! But this could take a little bit longer as I have tons of
+other stuff on my plate :) So don't worry about virtio-mem too much for now.
+
+> 
+> Thanks David!
 > 
 
 
