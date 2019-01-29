@@ -2,219 +2,135 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44929C282D0
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 02:00:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA413C282C7
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 03:46:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 08667217F5
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 02:00:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08667217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id AF45E2175B
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 03:46:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF45E2175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 78B058E0004; Mon, 28 Jan 2019 21:00:51 -0500 (EST)
+	id 2358D8E0002; Mon, 28 Jan 2019 22:46:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 712AD8E0001; Mon, 28 Jan 2019 21:00:51 -0500 (EST)
+	id 1BD018E0001; Mon, 28 Jan 2019 22:46:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5DC048E0004; Mon, 28 Jan 2019 21:00:51 -0500 (EST)
+	id 085F88E0002; Mon, 28 Jan 2019 22:46:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C5538E0001
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 21:00:51 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id d71so12868431pgc.1
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 18:00:51 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B423F8E0001
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2019 22:46:03 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id r9so15787709pfb.13
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2019 19:46:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=PeKTcxMnZJXcL9dcx+8eWggHGYWs4wmiTTAsX0bL7D8=;
-        b=S2uCAeKbxqESb5B2m1S50dff+CpwPqYkBo0EhedP0yPkj64cyUWMDGH7hyGFwoREkf
-         BUzVxxgnxeKSgtTQusbSSAD9yzt1GkklDpzfDnjIsf4uSpsWKtYbC6Y9sFC4z53Ttcf0
-         mmJNu1ODKH6FhyKtvyVSO17uK9ZeTeqhGGzkq0njkQrI4rAw32csJIwlNUCegeh6vRcg
-         Je/hQx+anuoQ2I9+g2p+h8ZPuuhwFDMcUCmz4oRp9XKDmSXJpbeX8NEKJDEJ1FVZvuj5
-         8vKZ1hehmldCqzy1rNh3ckmuJptS21e6LgLS5ME5x54ZqluB+e4tV9inUWzvm2DXNpac
-         rjeQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AJcUukel+Kqz0yRHVznB/JaZk+aKZfKuCGO662rDFH8Z7vhQrVb4tC+Z
-	47Ts18BcDIBR33Spnsr3/M27JBdvvyx8hqpJlcGunBm9hDXltCtj8QJf7eMI77z4Dp0+3FIJNiv
-	98i72KOJXdvwSSOKhgcEJ12MY5JLpxQNwEHvOsekCLCJeFo/e7VupeCx6hQbfWiXMaw==
-X-Received: by 2002:a63:b94c:: with SMTP id v12mr21919624pgo.221.1548727250766;
-        Mon, 28 Jan 2019 18:00:50 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN78MoVNCv7T30PGT6R9ScgaWuPYab3hCtnGkIZs3J8xrRArWXp17qWX3nCiTijRyLMWjQRr
-X-Received: by 2002:a63:b94c:: with SMTP id v12mr21919578pgo.221.1548727249894;
-        Mon, 28 Jan 2019 18:00:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548727249; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references
+         :content-transfer-encoding:mime-version;
+        bh=uIOdpABK+KWz0Ov8vP0byx8Zltq05uoyA1KXJEKJv/w=;
+        b=KCUFDGLXJiR47sDrNM1OqP2a50l2bAP/kgI9QwyzbZ7mCYsqq/Pw9N1GpsobVNtcYz
+         zCR6qb87+Gv0irebRble3z0L6lIKT1NGn/GjbaU+VPZHxhot+Yl8xJGbZVjoiotBRluP
+         0O7z7IkcmhQJ7RApx+mXu79cut/OVZqvxIAQJJnNcARI+hCM9d6kZKBXbI5obEMXCtKf
+         GOOm7K8RGzaqVBPWzNbsWC4XUo0E+dAFTxb/FOrNL7O7vTgPPJhlDBFsY4NzPzh7YGBI
+         eR6PMuQq2TqOoy2Cq57whv8GGjdg24ye39mxsS6yyU37YaSX1N6c9WuIz3RA5rBs3BB2
+         O3+g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
+X-Gm-Message-State: AJcUukfJdARkj/Tm4UkVmB3DPH3t+QNIQ50CKEXyKKmSJgaebOpVxiNE
+	bhANG62pyAYRY44x5rKobz/Yq82R7QEN5AvpN37y0ED+TsEV3i5MJue84QAsJZJ2jIE03b+ygi+
+	VJEs5OQy9nWdbyj+WXHvv/jPv6/yzV6D9OTCDq/m6ytgkqsWTem8aj7mrVTNZyN1Kfw==
+X-Received: by 2002:a62:be0c:: with SMTP id l12mr23922609pff.51.1548733563397;
+        Mon, 28 Jan 2019 19:46:03 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6vCiaPg6ErTokWkrndkVBhiFOrL64hAa6Ut1NzPz/U58eWo4guH8bh0EA52kuiGmnczM+h
+X-Received: by 2002:a62:be0c:: with SMTP id l12mr23922573pff.51.1548733562641;
+        Mon, 28 Jan 2019 19:46:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548733562; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ya3ZXzX5kVC6wCDUka0i/HS3c2xEb5qN8MVJkJ1czjl2YAIaJEniyQSAVdTPJqBW97
-         TifI7PZCpFikgv/ra4HojW3iwK1kauZch8zHZcK2QDxzkQh2gSjgMJxB4ffRAPhTdVOp
-         HN8tLFE+Nc15UXaxRM7SzC5MVL8NyKF3xG4kuui6g3yFmbDghmnhUoAdQ0gBOYdzs/6+
-         /NXC7teAabB/342oUi87R8eYwD7XVoqnpGF4IEnmx1rDamDZiyiNG+Pv5GJavzaA42hN
-         7DUPa7E2xlal3zkzAdrRIqedM08vgRrMZKDNnGoWsyl9wxud7gONFOOwZKSo+eyvoKze
-         9Gcw==
+        b=pO/LBAKXLsmXuwepYtNfhXm/cPX5SGj9KmexT4/ugfXkZOS2QMTT30D2chTYOuDsHM
+         lnAnPfq/SSFYBvNrHZHocjM+BjRUjYgrlhBnTROhs3fsCfaZrp/G6OBgMY6O00rIFlNX
+         9dp9pPrzJGraHxhCZkZKdWVmBQXxUGztSCLlMGqktkxmJD3ZgrPywNgt3GlA9tfU6YE+
+         8jei0fOAnwENXK4sQln9dAH+Gq5fSGhrGsuaoDNyTsy6juXIitzYh/wInalmSbO7ghUZ
+         0HTcUD5YHzAZS0adwU0GhO3loq49DgghkXBWwZjQsQVdKJN7EWTFYnVXY/8yo6nTP0CW
+         nDCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=PeKTcxMnZJXcL9dcx+8eWggHGYWs4wmiTTAsX0bL7D8=;
-        b=TneM7297Z0+R+yX/EuZ/GSBJfq3xXiYqPRmmq18GxM4IU4N761jPs/hUp2X42hso6a
-         WbNHdng4fWb1bY7Zm9WEidcT1YR9pNojab3DNfpp1+U4Bs81fd1aC/0kGSODctZU+rGJ
-         k8mnVJ1taUcBy5/+WrCOV98kvEtdsQOWvMS/9JbH5RS8lNptFdDdCXaXymiz+cAMF5nd
-         11NsMDoUGUUmStjfqt7q1FPeo8EyMDD8FJ2W+s6Sa8svtGbyLIGi2VxcqFkzldL613Fs
-         CvCis40KAgTSIoL9GQkAaIVn3fgaCiPUnGdSxSSffUfgN6eB1PeeNEzknWAMPKs/ihIQ
-         Svjw==
+        h=mime-version:content-transfer-encoding:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=uIOdpABK+KWz0Ov8vP0byx8Zltq05uoyA1KXJEKJv/w=;
+        b=sli8kcMwbCG/eTwFsCL4fFxYldIAsyOBY7AwivbOWn7QtTkqiEWox15QVCDfE24uZE
+         ekx1zxfNOg1Idmtanc4ixvOdjP0IsuMd0ku2cav+A5rsTR/DVch1BKXPcMWBSAdvjzT4
+         EDJDF1+/MJdYRX4VB8sk9V7fbtgyAO1m9Fftu/YVPHihGCLEBVfyZ9RZ9QEph/eGELQn
+         dtBI995+esgCutWjD7AtrSlh9S/kifm6FjH1uNs5xq7cP/+7roYFCV6CkzJD69218Fvn
+         1l6yp3rMreg7X0nOCeHtY6rKfvt1XlKDluU76bHqUP7mSmAtlxTNxhWT2czcEhV0+loN
+         Gzjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 1si1932954plo.195.2019.01.28.18.00.49
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
+Received: from mailgw02.mediatek.com ([210.61.82.184])
+        by mx.google.com with ESMTPS id j24si30512015pgh.362.2019.01.28.19.46.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jan 2019 18:00:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Mon, 28 Jan 2019 19:46:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Jan 2019 18:00:49 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,535,1539673200"; 
-   d="scan'208";a="129312155"
-Received: from jpeng5-mobl1.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.211.249])
-  by FMSMGA003.fm.intel.com with ESMTP; 28 Jan 2019 18:00:45 -0800
-Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
-	(envelope-from <fengguang.wu@intel.com>)
-	id 1goIhg-0004lj-M2; Tue, 29 Jan 2019 10:00:44 +0800
-Date: Tue, 29 Jan 2019 10:00:44 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-To: Jonathan Cameron <jonathan.cameron@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Huang Ying <ying.huang@intel.com>,
-	Zhang Yi <yi.z.zhang@linux.intel.com>, kvm@vger.kernel.org,
-	Dave Hansen <dave.hansen@intel.com>,
-	Liu Jingqi <jingqi.liu@intel.com>, Fan Du <fan.du@intel.com>,
-	Dong Eddie <eddie.dong@intel.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	linux-accelerators@lists.ozlabs.org,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Peng Dong <dongx.peng@intel.com>, Yao Yuan <yuan.yao@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC][PATCH v2 00/21] PMEM NUMA node and hotness
- accounting/migration
-Message-ID: <20190129020044.a5h3wjjqsf4tnwbs@wfg-t540p.sh.intel.com>
-References: <20181226131446.330864849@intel.com>
- <20181227203158.GO16738@dhcp22.suse.cz>
- <20181228050806.ewpxtwo3fpw7h3lq@wfg-t540p.sh.intel.com>
- <20181228084105.GQ16738@dhcp22.suse.cz>
- <20181228094208.7lgxhha34zpqu4db@wfg-t540p.sh.intel.com>
- <20181228121515.GS16738@dhcp22.suse.cz>
- <20181228133111.zromvopkfcg3m5oy@wfg-t540p.sh.intel.com>
- <20181228195224.GY16738@dhcp22.suse.cz>
- <20190102122110.00000206@huawei.com>
- <20190128174239.0000636b@huawei.com>
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com
+X-UUID: a032271e0a8644039eaab1da89e4fc61-20190129
+X-UUID: a032271e0a8644039eaab1da89e4fc61-20190129
+Received: from mtkcas06.mediatek.inc [(172.21.101.30)] by mailgw02.mediatek.com
+	(envelope-from <miles.chen@mediatek.com>)
+	(mhqrelay.mediatek.com ESMTP with TLS)
+	with ESMTP id 1622491935; Tue, 29 Jan 2019 11:45:58 +0800
+Received: from mtkcas08.mediatek.inc (172.21.101.126) by
+ mtkexhb01.mediatek.inc (172.21.101.102) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Tue, 29 Jan 2019 11:45:57 +0800
+Received: from [172.21.77.33] (172.21.77.33) by mtkcas08.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Tue, 29 Jan 2019 11:45:57 +0800
+Message-ID: <1548733557.9796.13.camel@mtkswgap22>
+Subject: Re: [PATCH v2] mm/slub: introduce SLAB_WARN_ON_ERROR
+From: Miles Chen <miles.chen@mediatek.com>
+To: David Rientjes <rientjes@google.com>
+CC: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton
+	<akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>,
+	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
+	<linux-mediatek@lists.infradead.org>
+Date: Tue, 29 Jan 2019 11:45:57 +0800
+In-Reply-To: <alpine.DEB.2.21.1901281739230.216488@chino.kir.corp.google.com>
+References: <1548313223-17114-1-git-send-email-miles.chen@mediatek.com>
+	 <alpine.DEB.2.21.1901281739230.216488@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.2.3-0ubuntu6 
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20190128174239.0000636b@huawei.com>
-User-Agent: NeoMutt/20170609 (1.8.3)
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Jonathan,
+On Mon, 2019-01-28 at 17:41 -0800, David Rientjes wrote:
+> On Thu, 24 Jan 2019, miles.chen@mediatek.com wrote:
+> 
+> > From: Miles Chen <miles.chen@mediatek.com>
+> > 
+> > When debugging slab errors in slub.c, sometimes we have to trigger
+> > a panic in order to get the coredump file. Add a debug option
+> > SLAB_WARN_ON_ERROR to toggle WARN_ON() when the option is set.
+> > 
+> 
+> Wouldn't it be better to enable/disable this for all slab caches instead 
+> of individual caches at runtime?  I'm not sure excluding some caches 
+> because you know they'll WARN and trigger panic_on_warn unnecessarily is 
+> valid since it could be enabled for that cache as well through this 
+> interface.
 
-Thanks for showing the gap on tracking hot accesses from devices.
-
-On Mon, Jan 28, 2019 at 05:42:39PM +0000, Jonathan Cameron wrote:
->On Wed, 2 Jan 2019 12:21:10 +0000
->Jonathan Cameron <jonathan.cameron@huawei.com> wrote:
->
->> On Fri, 28 Dec 2018 20:52:24 +0100
->> Michal Hocko <mhocko@kernel.org> wrote:
->>
->> > [Ccing Mel and Andrea]
->> >
->
->Hi,
->
->I just wanted to highlight this section as I didn't feel we really addressed this
->in the earlier conversation.
->
->> * Hot pages may not be hot just because the host is using them a lot.  It would be
->>   very useful to have a means of adding information available from accelerators
->>   beyond simple accessed bits (dreaming ;)  One problem here is translation
->>   caches (ATCs) as they won't normally result in any updates to the page accessed
->>   bits.  The arm SMMU v3 spec for example makes it clear (though it's kind of
->>   obvious) that the ATS request is the only opportunity to update the accessed
->>   bit.  The nasty option here would be to periodically flush the ATC to force
->>   the access bit updates via repeats of the ATS request (ouch).
->>   That option only works if the iommu supports updating the accessed flag
->>   (optional on SMMU v3 for example).
-
-If ATS based updates are supported, we may trigger it when closing the
-/proc/pid/idle_pages file. We already do TLB flushes at that time. For
-example,
-
-[PATCH 15/21] ept-idle: EPT walk for virtual machine
-
-        ept_idle_release():
-          kvm_flush_remote_tlbs(kvm);
-
-[PATCH 17/21] proc: introduce /proc/PID/idle_pages
-
-        mm_idle_release():
-          flush_tlb_mm(mm);
-
-The flush cost is kind of "minimal necessary" in our current use
-model, where user space scan+migration daemon will do such loop:
-
-loop:
-        walk page table N times:
-                open,read,close /proc/PID/idle_pages
-                (flushes TLB on file close)
-                sleep for a short interval
-        sort and migrate hot pages
-        sleep for a while
-
->If we ignore the IOMMU hardware update issue which will simply need to be addressed
->by future hardware if these techniques become common, how do we address the
->Address Translation Cache issue without potentially causing big performance
->problems by flushing the cache just to force an accessed bit update?
->
->These devices are frequently used with PRI and Shared Virtual Addressing
->and can be accessing most of your memory without you having any visibility
->of it in the page tables (as they aren't walked if your ATC is well matched
->in size to your usecase.
->
->Classic example would be accelerated DB walkers like the the CCIX demo
->Xilinx has shown at a few conferences.   The whole point of those is that
->most of the time only your large set of database walkers is using your
->memory and they have translations cached for for a good part of what
->they are accessing.  Flushing that cache could hurt a lot.
->Pinning pages hurts for all the normal flexibility reasons.
->
->Last thing we want is to be migrating these pages that can be very hot but
->in an invisible fashion.
-
-If there are some other way to get hotness for special device memory,
-the user space daemon may be extended to cover that. Perhaps by
-querying another new kernel interface.
-
-By driving hotness accounting and migration in user space, we harvest
-this kind of flexibility. In the daemon POV, /proc/PID/idle_pages
-provides one common way to get "accessed" bits hence hotness, though
-the daemon does not need to depend solely on it.
-
-Thanks,
-Fengguang
+We can enable this option only for specific slab(s).
+e.g., slub_debug=W,dentry
+or
+enable this option for all slabs
+e.g., slub_debug=W
 
