@@ -2,157 +2,153 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 828B4C282D0
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:11:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B2C4FC282C7
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:15:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 46D7E21473
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:11:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46D7E21473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 6A71A21473
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 22:15:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="Wplr7vFt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A71A21473
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D73AF8E0002; Tue, 29 Jan 2019 17:11:28 -0500 (EST)
+	id 1D8A28E0002; Tue, 29 Jan 2019 17:15:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D24AC8E0001; Tue, 29 Jan 2019 17:11:28 -0500 (EST)
+	id 187A98E0001; Tue, 29 Jan 2019 17:15:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3A1A8E0002; Tue, 29 Jan 2019 17:11:28 -0500 (EST)
+	id 050BC8E0002; Tue, 29 Jan 2019 17:15:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8607A8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 17:11:28 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id p9so18023159pfj.3
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:11:28 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C82028E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 17:15:54 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id y4so3896056ybi.0
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:15:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=KPSrZsu84s7dG54VRtyqZJD1qBgDbiyWgneJSC8QgBs=;
-        b=MZwGhECM4afE+6/CrpyfZgh1V/dBRHWdciTFKmRZc2Dm4fxks3HFAxXJc0FBQcGu5B
-         EKbF61Ajv7dwxSQ7RoNpUblR5Y8lJtPQrA/H3JP2Gc9XZPxHuaMawBPQsVeMzQ5EpcYu
-         3NvWMuxnwPIFtsbN3xU4xSpOsfsNU3Ck+HdKrahiYz743vo/4HCyKcSoH428ZBJWrCTw
-         JfmRQRlJkXRmQkZF6swOb/5+X+lSU6n0WeAJmJxyQ7S3TBWdT3eXosrxf2BA/RlLtMf6
-         oVrQdKu79jqPlhqY56u6fo0tds9QCSiylOjTNxP4HxrQe98QTU2hFq3lcX6UB6mZFgGy
-         xcuQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: AJcUukcD5yPUq0R3naRB+nULuNtGOc5VaraYwKAaC/A72a8uoqm4n4gL
-	7lA62YJQLfALyIZxDJCwbB3hTXWm1Tqzxyvt+qPERmjcYOEYOKFp96lW8vy+RZF8dGZQxZXGmF+
-	27slMLN7dHvd4XxVpwm9D/y8bQrJ/ZDKFPfK7PqZIhWLZCWqH9KP3mYENNsUpFYR8UA==
-X-Received: by 2002:a62:5182:: with SMTP id f124mr28198030pfb.238.1548799888193;
-        Tue, 29 Jan 2019 14:11:28 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4HC+VVNykwET4PSMX2uX9DlLqw/ZO9O419EH7A7jJwaOxsUYWbboXpX8/VwQ5f6zGjOB9A
-X-Received: by 2002:a62:5182:: with SMTP id f124mr28197965pfb.238.1548799886925;
-        Tue, 29 Jan 2019 14:11:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548799886; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=cjPKJoHf3Gll+qk80dZ1zwwaf8+ItgdBe9DjCPAWJDM=;
+        b=W7MJDfMmLO+cLo+rAyt5AVI1x3SxBwY7y4yqh6NKBQ83b0pW7fXU/qj0lGGX4hLAkT
+         AhF4AKaGQytWWF+pTH4TVQ/LZewPEabEii6+g8LuJS4uwnB+275LM+ofREP81WDxWEJw
+         WS9INmB/z+/p64Jrivp6E8LT5Qrf6OROz7cY6RNOTuh0WBeqZBflerDm5wVzwmX3iGrb
+         1HIKcjD9FE2xvCy39N0IauPpdJOrhJtu7ilCoImxFzaBF7yGd+jme+SrxC8I4qvSzP3G
+         oKkHX7Rra6cG4C1yBU5ZEiFiHnHey2m7J2kmxfIL441nLDe1uQWZ9DGGWXFoe8wyZH7Q
+         sMNg==
+X-Gm-Message-State: AJcUukdcUVutUVF+Rfui/EZW2K5wSsiac9oRipzPjylWKYk9XxbuU99M
+	G2DAbQGemxUBaIc+/jkQ4vR4pWMBlPWYEuU0czkxflM9aYQRZb0N0qAJquhNzgU9b2mzK6HHA/K
+	spXLCsE6SXqrUZfCO7IRVK2ptUJe15yzkWbYiG3bfgRCmraldOvj0Vn+/fIOBgIdl7k85FZNVMp
+	tOT16V/KYoKQsjGyrVqMINWWWWEecZhJWxRSSQ3ZgYAaZmlQ2cb58fvtR4jVllBtzSe9ZxYoLpl
+	+KkIisuMU3NJf5AHg+xn3/hAnoI6n6EsC0ZpEow1jbFyG5581ZSSxcl7+iknumtmj5yDWYixt5r
+	12ZrQtGDxJuxOPTVHn+9tRYvl8Te0aFe5VhnKh3pg87IyuZrCbR7N2F5PCuzTaIJisFoaw7ppTA
+	4
+X-Received: by 2002:a25:1407:: with SMTP id 7mr26048186ybu.33.1548800154405;
+        Tue, 29 Jan 2019 14:15:54 -0800 (PST)
+X-Received: by 2002:a25:1407:: with SMTP id 7mr26048156ybu.33.1548800153840;
+        Tue, 29 Jan 2019 14:15:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548800153; cv=none;
         d=google.com; s=arc-20160816;
-        b=aeQzp/8DfxMgH6pizrJCG4IxGKXzLFTLBpoLudk5fcA8aClEzonRCrcazEwbXDbJSd
-         gncQa3JOglK/J/t/Qi1KYsNpplRSSve+kkHq7wAUYoESxvoLTNUi8ELBeBw2Z9b8U2kT
-         qbhZxbpPKwYFAwSRek+9lP7FYC7U169C5UeOxajePScuLxlo/n8FAK+YPLfeb9U6kdHI
-         YnXbGwWWudXZ7NXoa0aA6yVRyOIzgzjLgArODMkKQdLv33RQZLOZNvXG0AS+pzyFqHfh
-         z/9NXnhUYNMOe1S0Y60r2MRVgPI2WeBoWrQgrn1NtjKyqLCn2H6QiV81OfIJ1ezLPeo/
-         vDMg==
+        b=QyFqfYoOW1XsmXttW0BbWgl6HrlEVXn7pTvRfEHJ8VWdjCYw//S+1pD0du38i0lRAL
+         Sp45U3MVJLaDjkI0K0bzAOIs6GEsL5KcNdTUdhIrpVBPfoKgY2YEZWwd3ZbeDqUC4qpY
+         OB3A/XV02Cfvzsl5zZDJ0nYJtZtRgmMmHXIoKR3KkisQgxaBXqBkR0L+MGeIHlXy3zYm
+         PDooGQm+FTiOjxqIkhesq/wekoSEwvGzY3jGRx5EZ+pJmaUv/smCddZQ4yESCCxaZVpx
+         tpZCuvYZvD31XGY4g4cj9BY/Q0urnDeO+fuIRFATSkfY92G8LajSJ9fZzNmcUhLm7yLc
+         2Pwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=KPSrZsu84s7dG54VRtyqZJD1qBgDbiyWgneJSC8QgBs=;
-        b=CFeWiG6nBy7DJtk6r7DMuQm8AdDCr3GF18cONu4giukiXvqONhP+xIHyVR/SjKxH2h
-         zhKbsvLKiRd1rYrKj5vmTI6Qm6BsR8V4XZkjb3MPCOndNziXYu3w69c+/eMTKuQoj2Mh
-         lfPJIxiYkQiTWOu6CGO4Xu63JK+WvBeCGhqGexVzwv06xrkqVRsuGILZUJsvMMsAZqrC
-         OJPkrjQQ60Zsgzvq5PKfqMcK0TzIeLTBPCVn+Wxvz9prJQrt0SQqIynByGo9KYv1Za4A
-         /zAX94w0z+wppAMlCc/qhdwG3AsN4NDWiSo9gDdnw1Jwp4tE60jpFluXruJQYHgafdev
-         FfQg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=cjPKJoHf3Gll+qk80dZ1zwwaf8+ItgdBe9DjCPAWJDM=;
+        b=Trdc7LZsBw6TWUslKdj5gJrIjXEuy4b5zO4wi01+ueUBUGFwwFxpv2Swl+VpXyoFth
+         stSE3hNC6PJRC9/T5NJibCtNVI+0TndNslHEy9W7S0WJumWFcQGyirONi9BO3Cazd/hR
+         W1+3SvjeL9REb422rp+8r8j4BNqCted7Tuzzu/9G2/qAEURxwyCLH58CCDQdSao5W374
+         t43BxWIFiKxtM9jBvGyLEKU3KfwD/ExcVVDTX4kgLj78MxTOY5JEZmzul2aPrT8VQEYG
+         95hI16ajRqJKSEMo2GLK6/xxdgtMs09IAEiW/kcDyY3OiqucTAxDylgUBF9iFmdEntd7
+         FQqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id d11si37913241pla.335.2019.01.29.14.11.26
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=Wplr7vFt;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x1sor6549693ywl.47.2019.01.29.14.15.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 14:11:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        (Google Transport Security);
+        Tue, 29 Jan 2019 14:15:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R241e4;CH=green;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04400;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TJEMIga_1548799877;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TJEMIga_1548799877)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 30 Jan 2019 06:11:24 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: mhocko@suse.com,
-	hannes@cmpxchg.org,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [RFC v2 PATCH] mm: vmscan: do not iterate all mem cgroups for global direct reclaim
-Date: Wed, 30 Jan 2019 06:11:17 +0800
-Message-Id: <1548799877-10949-1-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=Wplr7vFt;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=cjPKJoHf3Gll+qk80dZ1zwwaf8+ItgdBe9DjCPAWJDM=;
+        b=Wplr7vFthNztMxNfahA1bdj2lR3+YAdLQRgxzerOl/TRr5R4rFJx8TUrvIk1v7GEmQ
+         kW80/oYXICrRj09V7xe49KhmG2HZE1rJdek1rUmiqrM2TA1ik6ZtsJgqvXoDfbFUOR+S
+         r4jYBxwP6P+szzZp1EYHRu4AAGuOv48jtQZkBrJIuIK+HpL2oLgfyUT6VPMjGkKDonHS
+         muByxxO7QtKKoPg2xVphTkV4PvV79xkf5ySxjt/21cxk5LPq3n5eJ1Ke3iNPGFjjCCDn
+         eVLHYSC/VtVDEYZMxvnvbWN0zOjJl29ex2JcIHoqtd4k3gYMyhNO+XXv3bD3rnJ2e43X
+         LLtA==
+X-Google-Smtp-Source: ALg8bN7irhuyfL8ClWcmZz429auZ4MvffBQRSq6hSXFkHXRmgB0027WWy+O8lD2sUt1XagmxX0AEHg==
+X-Received: by 2002:a81:1282:: with SMTP id 124mr27709051yws.154.1548800151050;
+        Tue, 29 Jan 2019 14:15:51 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::4:1d25])
+        by smtp.gmail.com with ESMTPSA id e189sm14009152ywc.101.2019.01.29.14.15.49
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Jan 2019 14:15:50 -0800 (PST)
+Date: Tue, 29 Jan 2019 17:15:49 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Chris Down <chris@chrisdown.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>,
+	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+Subject: Re: [PATCH] mm: memcontrol: Expose THP events on a per-memcg basis
+Message-ID: <20190129221549.GA13066@cmpxchg.org>
+References: <20190129205852.GA7310@chrisdown.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190129205852.GA7310@chrisdown.name>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In current implementation, both kswapd and direct reclaim has to iterate
-all mem cgroups.  It is not a problem before offline mem cgroups could
-be iterated.  But, currently with iterating offline mem cgroups, it
-could be very time consuming.  In our workloads, we saw over 400K mem
-cgroups accumulated in some cases, only a few hundred are online memcgs.
-Although kswapd could help out to reduce the number of memcgs, direct
-reclaim still get hit with iterating a number of offline memcgs in some
-cases.  We experienced the responsiveness problems due to this
-occassionally.
+On Tue, Jan 29, 2019 at 03:58:52PM -0500, Chris Down wrote:
+> Currently THP allocation events data is fairly opaque, since you can
+> only get it system-wide. This patch makes it easier to reason about
+> transparent hugepage behaviour on a per-memcg basis.
+> 
+> For anonymous THP-backed pages, we already have MEMCG_RSS_HUGE in v1,
+> which is used for v1's rss_huge [sic]. This is reused here as it's
+> fairly involved to untangle NR_ANON_THPS right now to make it
+> per-memcg, since right now some of this is delegated to rmap before we
+> have any memcg actually assigned to the page. It's a good idea to rework
+> that, but let's leave untangling THP allocation for a future patch.
+>
+> Signed-off-by: Chris Down <chris@chrisdown.name>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: kernel-team@fb.com
 
-A simple test with pref shows it may take around 220ms to iterate 8K memcgs
-in direct reclaim:
-             dd 13873 [011]   578.542919: vmscan:mm_vmscan_direct_reclaim_begin
-             dd 13873 [011]   578.758689: vmscan:mm_vmscan_direct_reclaim_end
-So for 400K, it may take around 11 seconds to iterate all memcgs.
+Looks good to me. It's useful to know if a cgroup is getting the THP
+coverage and allocation policy it's asking for.
 
-Here just break the iteration once it reclaims enough pages as what
-memcg direct reclaim does.  This may hurt the fairness among memcgs.  But
-the cached iterator cookie could help to achieve the fairness more or
-less.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
-v2: Added some test data in the commit log
-    Updated commit log about iterator cookie could maintain fairness
-    Dropped !global_reclaim() since !current_is_kswapd() is good enough
-
- mm/vmscan.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a714c4f..5e35796 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2764,16 +2764,15 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 				   sc->nr_reclaimed - reclaimed);
- 
- 			/*
--			 * Direct reclaim and kswapd have to scan all memory
--			 * cgroups to fulfill the overall scan target for the
--			 * node.
-+			 * Kswapd have to scan all memory cgroups to fulfill
-+			 * the overall scan target for the node.
- 			 *
- 			 * Limit reclaim, on the other hand, only cares about
- 			 * nr_to_reclaim pages to be reclaimed and it will
- 			 * retry with decreasing priority if one round over the
- 			 * whole hierarchy is not sufficient.
- 			 */
--			if (!global_reclaim(sc) &&
-+			if (!current_is_kswapd() &&
- 					sc->nr_reclaimed >= sc->nr_to_reclaim) {
- 				mem_cgroup_iter_break(root, memcg);
- 				break;
--- 
-1.8.3.1
+The fallback numbers could be useful as well, but they're tricky to
+obtain as there isn't an obvious memcg context. We can do them later.
 
