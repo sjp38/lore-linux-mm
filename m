@@ -2,288 +2,190 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08A59C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:05:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEF55C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:24:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A217D2087E
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:05:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 39E1220880
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 20:24:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="bkbfhBFn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A217D2087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="aB3pq3ex"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39E1220880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 410A88E0009; Tue, 29 Jan 2019 15:05:04 -0500 (EST)
+	id B058B8E0002; Tue, 29 Jan 2019 15:24:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3BE668E0002; Tue, 29 Jan 2019 15:05:04 -0500 (EST)
+	id AB47A8E0001; Tue, 29 Jan 2019 15:24:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2609F8E0009; Tue, 29 Jan 2019 15:05:04 -0500 (EST)
+	id 954C78E0002; Tue, 29 Jan 2019 15:24:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9278E0002
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:05:03 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id a3so8337858otl.9
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:05:03 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D63E8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:24:40 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c34so8233386edb.8
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 12:24:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=yrWDUDhoyYGIFap6yXSC0PKoELQ511iVKxMkPwh5BQs=;
-        b=CQzYPD+H3c3cF8DlTMyypEwO3BU/yEJO8rbei5UlTTlYCeHMVkdRWB3lBc/cDK66xN
-         XR4lzN/2BsDKhUnTSAxuPY+k7q49YNZYg+9qU1MkGSSpJt56827J4lqrJc9NpM/aLX4M
-         IV+rLFAbYvX9cuic62xW5aLZJC34dxex5dmAHAZVdYKgRiat0qnZ2zmgTSAFXSJnvzAe
-         DMnVUB2iYl36bqqoxlRMdtODdG7/J5paYh9EJlXfipFmpHGQkMLya70W4C5VYT634KO7
-         tRw6jdSQ6+RVcY6CLcIYva9bhFfjrES8wuNjvW13y9jIkC0erKM235iKLa2yG5/33BkM
-         VJLw==
-X-Gm-Message-State: AJcUukdfo+wn2+HNC+nH/idCSv99SjFt3FpjWqAMduMSQEeLZFW1nUKs
-	6uA/cUSXfVHIuoM/Dl3t2uBS2XF3MvczklhlJI5hBex9PNoeyjpwZj5nstvuZV6/NcrlgP68QFe
-	xHPBNDCkDu5fbmagU4ocFX/Z6ACi1/R/LhoKKJo1bv8TueyUuj+bRMCzRXaTtGsXOXLhndIKktt
-	L8GDnI/dBmaBw0hntQX3LOO4N06hhu0JqI27RyZP1/qKtjm3yVa+FY0AOlp5fU8KhOKShV9ickW
-	jj/t/Dvo8EO1CS8ocoZ2uxxXoB4MUAqSJTfET9q4elmbpi4eJuhCw42WUeE/oiNPH0WDQO/Fhp5
-	jJ32zQ62r5Xx063ovVTBpn19Jp7hefO49fEEl17QEgufx1r23j54QNBTIP7/d2E69gAMIysTvNG
-	8
-X-Received: by 2002:aca:a11:: with SMTP id 17mr10046147oik.15.1548792303680;
-        Tue, 29 Jan 2019 12:05:03 -0800 (PST)
-X-Received: by 2002:aca:a11:: with SMTP id 17mr10046100oik.15.1548792302756;
-        Tue, 29 Jan 2019 12:05:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548792302; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=kmmVGMwD1mPL/AeO91IMwfMJjZRXwgBGoiyZWxY2itE=;
+        b=HkqzUafrdFS601crAjHaUIYDG2UAzzErDVrf29h1NM9C+8fY0eeSI2dRRth11XtTSy
+         gTD3v5+Ic+gxmi+LVRB1VRpCuf4rdsC8PEaHy9ka9bl2P4n3bLlnDLNgnW288uZq9Gty
+         crm28/s7v0IJRbS71ThgvezzLoaN47HeUIIh6zhuWDFIZ7c/RcNXKUAdVjJC23g9uiOr
+         noegQur37SZhmZ6/Jg//Swb3meW7Qk0bKYMVhRkc1RNSRfR3fvRxRm433t5RX7zwcZI0
+         YR7CFgaPAjQMj0uiMB1g3B0upJVfoxbQbJP9gfVBu4SsMiMjYPY/QvMfTlNK8wPOXxZF
+         wbcA==
+X-Gm-Message-State: AHQUAuZe7TJAKcYXoNZjKNu2+d/L8K3gzjOHHhjlIWcKGIxSGZ8lomAs
+	PgnqDBTGIBkxtmxJjMXzPnZpGcpbo42dDHgfN81f9Pslk9PWu+/XoxYBgLtZWdgeUz7cqvsIZjc
+	kUZbDJI/EIzwGJbQC+x2Mda5BUmlZo8hXSRi7k4F7m65bGkhgpqymkQQQianqVEgmrg==
+X-Received: by 2002:aa7:c1d9:: with SMTP id d25mr4253568edp.283.1548793479781;
+        Tue, 29 Jan 2019 12:24:39 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Iaq+XAV6wrLLDxPK0u0ELs9acMIc1svawiebpytZaqWM8jEw+lXwubaRjwSoGrIizVVVZlU
+X-Received: by 2002:aa7:c1d9:: with SMTP id d25mr4253523edp.283.1548793478844;
+        Tue, 29 Jan 2019 12:24:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548793478; cv=none;
         d=google.com; s=arc-20160816;
-        b=Lxf+oJvAijVXTekfSLdyWxoHhkJIVyEByc708KcE83HtdMDkrNQFeUnEv29Cf/lKWA
-         K6XETmpuyT90n26pPaa8GshHvkD2CTvzzfKVi9pnqrCGmq7KEO6uRQusR2pa7m3Zotxd
-         zurBj5Jzp2lI9uMj30QsHygbAhWKFuQdKHn3ehhxZ906qcsVn8sKVpA6wjeGDOUx/Pby
-         vkxial5qXTClHK5zPVJ61TW909jYEcYJIrgPALhTwTxsPmh70vZQFkXKq4AJ6+IayokO
-         ap77juyIc6OpW0tqrXQYzwY9G9euGYCIWF1JHM8Lzb7TQfUwzQqEUDpsKnCK+D7RZhEK
-         Agig==
+        b=nc84jj4XQo9ziJRpGPhLMO40D6y9qXRFwB4g1Vj6mwnGpplYPYOn9+yUgFO3ac959M
+         3QrqvAZGY8SxQDsl3EoWm8cWT/Bs6ur3tML9GPX5Tspmz6piR7okAbQgx3lS+Rkf5KNl
+         3SAX0YyhhBQT8q9ZR/G2gmlZyM92jG2hRxAstwnfA1LCqFrVoocfeJcOiEXviv3ZcXdc
+         bDKXDsaZRleoS4IgAcSz33ASnZc3eNbFTUCTxCKnXFuENZzYVPvWfwj0xSWvxa5ytPL+
+         0zbd1MYNFdTVMUBBW4Ltw62fiAKyaX/IdldT4PGw3xKtLdFvr6rfv1qWqQd3bYXDQwQ2
+         qfIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=yrWDUDhoyYGIFap6yXSC0PKoELQ511iVKxMkPwh5BQs=;
-        b=dOBAXNKAOXokH2Q2mj4SIbGEfHyyP43nCUL+0d7RQ4oYl1up3IDdn5XLenqmmy5nmt
-         aUgdoieLD03QdLDKsnvf8YAuNCrCNnG1Ayx/BT/wxumfgvxymkRtAaUFoDOw7SCXCXsF
-         4seMrT8eXaAiyCe7F/cJzUcPF5hbYf5xIB7wieSa+am296GUm2rno4TI/Q7npVX3HhtF
-         MMAvKURdM92w+qRhnW+a1AqDhqlNnk2ioc1fm43g7D92BF0OhwzsTKacU4z/1qUJRLeh
-         pJnfsWUz9oZMR0PJr27ve7Rj9wY/u2JJ01DJbW4MdSXRfg7X7BTT3LazMBtUHihZ4AZh
-         r8Dw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=kmmVGMwD1mPL/AeO91IMwfMJjZRXwgBGoiyZWxY2itE=;
+        b=OYnVvRBZ+teVLZbePqwkYftyb7pX7spG8QLn+V+EyLvKJc+hu6VJS8DbFsUt9Yxy6P
+         yr1zQ0bP7q0NSyiUu39AuL+/sQsYfViFITThgKoylO2MFFmrOubGJDryFlZwIgX04PL8
+         MuwNJ4nd/sFiGPKXxVhwBiVZIXHUCUwsUr8Sdu0aADCSdfAd8PpN3Vj7vE5UlbRBRcjm
+         NmbTQPbwHTfdT/sIgDppl2pbkaDf3uE7/EbqwuoguYiDy6foLt8sdp1MjizDIgBz20ug
+         +DbGRol1xFTrFtOpQ9xEs6GejSwU2jX6cflyg1e3LcYYw2UncCxqEM1KRm7wccKnwdBb
+         Tu+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=bkbfhBFn;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m10sor7840827otf.124.2019.01.29.12.05.02
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=aB3pq3ex;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.70 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50070.outbound.protection.outlook.com. [40.107.5.70])
+        by mx.google.com with ESMTPS id p33si5415278eda.412.2019.01.29.12.24.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 12:05:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 12:24:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.5.70 as permitted sender) client-ip=40.107.5.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=bkbfhBFn;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=yrWDUDhoyYGIFap6yXSC0PKoELQ511iVKxMkPwh5BQs=;
-        b=bkbfhBFnweMgDSJIBVXJkp8NaQJKZ2j7s9SAip2zlBn9qIwrIzv9q+jmcCbYaDTNdj
-         OF/ashyFT5RdHTousv84tq6TkEAwiJJaaF67/1UqF6R9DAhfm8sA9QUS+p2RImf3n873
-         8EKm0PzBd0MPUYZ5v9EpPQ/NKqkW78ggwiTYj0phzsaWG7Fm+fdJe9g9dDFMsFMgjoQX
-         mLVPucdf4WBI7tBgnePkE5tzFWksqBoyfaxBl4Sb9gM9JqXjmsEdoaPggC2wYQ21+tuT
-         1wqVajtp5WQ/4QRPflJ/ykekjBjij8HfzLlNRFdILQQA0eFq1iux1Pux5WQictG9vyui
-         joOQ==
-X-Google-Smtp-Source: ALg8bN6Lo/HuIjb8whLk3ikPLOMecohVb2/LO+CsbKt0AskAyGaeacF1dESBod+UnOVnYRrk0yEA4Sv1SQGK4iNG6n8=
-X-Received: by 2002:a9d:7dd5:: with SMTP id k21mr21206645otn.214.1548792302276;
- Tue, 29 Jan 2019 12:05:02 -0800 (PST)
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=aB3pq3ex;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.70 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=kmmVGMwD1mPL/AeO91IMwfMJjZRXwgBGoiyZWxY2itE=;
+ b=aB3pq3exeOFhDaNBYfXwn79Y/6e8J4HJsQrltjNNAQiVsMKgtKZLd5El1MXyoROCd7updyJkXD+fPXMLg1kisJcQGd9ov3rpHv96cWeMM/EPKha7COQnZaxKnlzcWMsIGMP339IumOlNV7E0MLqCVgNhNFFEE2dlJtAvCkuadVE=
+Received: from DBBPR05MB6426.eurprd05.prod.outlook.com (20.179.42.80) by
+ DBBPR05MB6540.eurprd05.prod.outlook.com (20.179.43.211) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1558.19; Tue, 29 Jan 2019 20:24:36 +0000
+Received: from DBBPR05MB6426.eurprd05.prod.outlook.com
+ ([fe80::24c2:321d:8b27:ae59]) by DBBPR05MB6426.eurprd05.prod.outlook.com
+ ([fe80::24c2:321d:8b27:ae59%5]) with mapi id 15.20.1580.017; Tue, 29 Jan 2019
+ 20:24:36 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Jerome Glisse <jglisse@redhat.com>
+CC: Logan Gunthorpe <logang@deltatee.com>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Greg Kroah-Hartman
+	<gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn
+ Helgaas <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>, "linux-pci@vger.kernel.org"
+	<linux-pci@vger.kernel.org>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, Christoph Hellwig <hch@lst.de>, Marek
+ Szyprowski <m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>,
+	Joerg Roedel <jroedel@suse.de>, "iommu@lists.linux-foundation.org"
+	<iommu@lists.linux-foundation.org>
+Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
+ vma
+Thread-Topic: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
+ vma
+Thread-Index: AQHUt/rA/dLikqWEmEaIytHIBNLPlqXGkyOAgAAJwICAAAX+AIAABQ6AgAAJYIA=
+Date: Tue, 29 Jan 2019 20:24:36 +0000
+Message-ID: <20190129202429.GL10108@mellanox.com>
+References: <20190129174728.6430-1-jglisse@redhat.com>
+ <20190129174728.6430-4-jglisse@redhat.com>
+ <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
+ <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com>
+ <20190129195055.GH3176@redhat.com>
+In-Reply-To: <20190129195055.GH3176@redhat.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: MWHPR1201CA0007.namprd12.prod.outlook.com
+ (2603:10b6:301:4a::17) To DBBPR05MB6426.eurprd05.prod.outlook.com
+ (2603:10a6:10:c9::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [174.3.196.123]
+x-ms-publictraffictype: Email
+x-microsoft-exchange-diagnostics:
+ 1;DBBPR05MB6540;6:puCsVlOshOGcEPDBTq088yPYU6OduhwSj8GOl6yo6iwxd9ae0IyAh8ikWqbM28Fjn+fyvJKzqoms9f1OoB08HzZmWtaEjTwrGWr5oVsuIohT7Rhlm6vwI5ZBbN56FARje+L8go2KnvakpNzEE1Y8R3Djggi75Z7VYlreMHMxC9a+gqf92zSpl/LQlfw5Y01C/rtBfgoVV84Exsq5dH9kOvQBDASMBkjUM1S4cyOB+UeIO4UP7uonGPfuwXOPEx/alo1wWEsOn5WbMEON86E2294OUvwv/ogHK6jTEuEaQoEf++Y69+RxwzZhFqnmQze4HlSfdfN9aAW/eh+JgANQE+xO4oEnNvFq18ooBzwCawtEMZT6jemZyqd+a0+2VoJuMgDOz23E+IVuAZdasQDi0RvMoMkjCZlkD/Nbs2CYMjbnjEm509nxKsS4oFo3zOqpb890mb96Ymw1ZSnxwJ4DUw==;5:Ti8N3dgets0Im3zwXkF//R97pr9zDQmLhGmFHm8KhWz8SQDWfW5yKTlcw45RktABqo6WfwVLGvn9YCTbfL6EjXCARCndS3m7tCP+BUEouvLC3edOS3Ng5dMWeMWaCxMO++94i0s7nxllBCYsV5FFVgd6zJFCTC/Jx7BWld7HlORfhqhzsUlBLhhrr2eP7YvJXuNvENukvno5EqV4y4VsBA==;7:Ef5gTxnv45fVic8FN7EGf/uRPWQshv+DZVdsIrTdC3W1k9DYBOIe6JzpGANe7CEJgQZl8ppi+ylQ6wevtGQXV28dsu8GA8rI2htPMsN11shz+rid1HcgnDjTk1OwcUaGmPcJ+/rwQ9zXjMXdqEjkSw==
+x-ms-office365-filtering-correlation-id: 69084849-ff17-4294-ce41-08d68627c93c
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:DBBPR05MB6540;
+x-ms-traffictypediagnostic: DBBPR05MB6540:
+x-microsoft-antispam-prvs:
+ <DBBPR05MB65405EF636ECA08CE0FBD032CF970@DBBPR05MB6540.eurprd05.prod.outlook.com>
+x-forefront-prvs: 093290AD39
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(366004)(346002)(376002)(396003)(39860400002)(136003)(199004)(189003)(6116002)(1076003)(8676002)(6506007)(99286004)(102836004)(3846002)(305945005)(71190400001)(71200400001)(316002)(53936002)(25786009)(54906003)(106356001)(7416002)(6246003)(76176011)(105586002)(2616005)(2906002)(11346002)(86362001)(6916009)(486006)(14454004)(478600001)(52116002)(36756003)(68736007)(7736002)(81156014)(217873002)(93886005)(66066001)(81166006)(476003)(26005)(6512007)(446003)(33656002)(256004)(97736004)(6486002)(229853002)(6436002)(4326008)(386003)(8936002)(186003);DIR:OUT;SFP:1101;SCL:1;SRVR:DBBPR05MB6540;H:DBBPR05MB6426.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ RPfm+qgeyEoBIz3jtZycUska64Kw3tLGCx1hbAg0e/0sCkyxtdCUwnUZMxn7mrXppLdmVj5Ik6qC+QoWpD6PVQ+fnTNqO/YLRkcCq4PmkIbcndSRyufKFe426QIhA8sT/jXCkCODXbKOMv5rm4PJzT4JMrAUaNx186dYVDfO13sjRNsaMlAYl+dVnZBZzpp0S7b/sB2ypJ0rADRvNEO4itj2zlBBrd3By11jBZUzHp4ddIOIhAXf61s6rmXAMJcOQzZ+P1+h6cGluztAmf1OH8p3uRqtsbnrSDQBvQSdL77AIsgFH8vwEa2TDLO9m8ZPPTmBJYZnLo2IDak5B1W9X9EXWDU6g7Bj0Ylu2s3eOvkT+MdkqlotBnLMxE9MKYG6/eKiiDBaxZcEEHGcqRmlD3qEoxp+zJayYqkq7uK9awk=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <7B9013D8E8AFBE418AC181CA1F1B161F@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <154690326478.676627.103843791978176914.stgit@dwillia2-desk3.amr.corp.intel.com>
- <154690327057.676627.18166704439241470885.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190125142039.GN3560@dhcp22.suse.cz>
-In-Reply-To: <20190125142039.GN3560@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 29 Jan 2019 12:04:50 -0800
-Message-ID: <CAPcyv4hB0YPcuvMZSjbDXkhnvHnt49jzi-NvNnE-8--aFiZKwA@mail.gmail.com>
-Subject: Re: [PATCH v7 1/3] mm: Shuffle initial free memory to improve
- memory-side-cache utilization
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, 
-	Dave Hansen <dave.hansen@linux.intel.com>, Mike Rapoport <rppt@linux.ibm.com>, 
-	Keith Busch <keith.busch@intel.com>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
-Content-Type: text/plain; charset="UTF-8"
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 69084849-ff17-4294-ce41-08d68627c93c
+X-MS-Exchange-CrossTenant-originalarrivaltime: 29 Jan 2019 20:24:35.7535
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DBBPR05MB6540
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Whoops, did not reply to all your feedback, see below:
+On Tue, Jan 29, 2019 at 02:50:55PM -0500, Jerome Glisse wrote:
 
-On Fri, Jan 25, 2019 at 6:21 AM Michal Hocko <mhocko@kernel.org> wrote:
-[..]
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index cc4a507d7ca4..8c37a023a790 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -1272,6 +1272,10 @@ void sparse_init(void);
-> >  #else
-> >  #define sparse_init()        do {} while (0)
-> >  #define sparse_index_init(_sec, _nid)  do {} while (0)
-> > +static inline int pfn_present(unsigned long pfn)
-> > +{
-> > +     return 1;
-> > +}
->
-> Does this really make sense? Shouldn't this default to pfn_valid on
-> !sparsemem?
+> GPU driver do want more control :) GPU driver are moving things around
+> all the time and they have more memory than bar space (on newer platform
+> AMD GPU do resize the bar but it is not the rule for all GPUs). So
+> GPU driver do actualy manage their BAR address space and they map and
+> unmap thing there. They can not allow someone to just pin stuff there
+> randomly or this would disrupt their regular work flow. Hence they need
+> control and they might implement threshold for instance if they have
+> more than N pages of bar space map for peer to peer then they can decide
+> to fall back to main memory for any new peer mapping.
 
-Yes, I think it should be pfn_valid()
+But this API doesn't seem to offer any control - I thought that
+control was all coming from the mm/hmm notifiers triggering p2p_unmaps?
 
->
-> [...]
-> > +config SHUFFLE_PAGE_ALLOCATOR
-> > +     bool "Page allocator randomization"
-> > +     depends on ACPI_NUMA
-> > +     default SLAB_FREELIST_RANDOM
-> > +     help
-> > +       Randomization of the page allocator improves the average
-> > +       utilization of a direct-mapped memory-side-cache. See section
-> > +       5.2.27 Heterogeneous Memory Attribute Table (HMAT) in the ACPI
-> > +       6.2a specification for an example of how a platform advertises
-> > +       the presence of a memory-side-cache. There are also incidental
-> > +       security benefits as it reduces the predictability of page
-> > +       allocations to compliment SLAB_FREELIST_RANDOM, but the
-> > +       default granularity of shuffling on 4MB (MAX_ORDER) pages is
-> > +       selected based on cache utilization benefits.
-> > +
-> > +       While the randomization improves cache utilization it may
-> > +       negatively impact workloads on platforms without a cache. For
-> > +       this reason, by default, the randomization is enabled only
-> > +       after runtime detection of a direct-mapped memory-side-cache.
-> > +       Otherwise, the randomization may be force enabled with the
-> > +       'page_alloc.shuffle' kernel command line parameter.
-> > +
-> > +       Say Y if unsure.
->
-> Do we really need to make this a choice? Are any of the tiny systems
-> going to be NUMA? Why cannot we just make it depend on ACPI_NUMA?
+I would think that the importing driver can assume the BAR page is
+kept alive until it calls unmap (presumably triggered by notifiers)?
 
-Kees wants to use this on ARM and I removed the ACPI_NUMA dependency
-in v8 (you happened to review v7).
+ie the exporting driver sees the BAR page as pinned until unmap.
 
-Given the setting has performance impact I believe it should allow for
-being hard disabled at compile time, but I'll update the default to:
-
-    default SLAB_FREELIST_RANDOM && ACPI_NUMA
-
->
-> > +config SHUFFLE_PAGE_ORDER
-> > +     depends on SHUFFLE_PAGE_ALLOCATOR
-> > +     int "Page allocator shuffle order"
-> > +     range 0 10
-> > +     default 10
-> > +     help
-> > +       Specify the granularity at which shuffling (randomization) is
-> > +       performed. By default this is set to MAX_ORDER-1 to minimize
-> > +       runtime impact of randomization and with the expectation that
-> > +       SLAB_FREELIST_RANDOM mitigates heap attacks on smaller
-> > +       object granularities.
-> > +
->
-> and no, do not make this configurable here as already mentioned.
-
-Will remove.
-
-> > diff --git a/mm/memblock.c b/mm/memblock.c
-> > index 022d4cbb3618..3602f7a2eab4 100644
-> > --- a/mm/memblock.c
-> > +++ b/mm/memblock.c
-> > @@ -17,6 +17,7 @@
-> >  #include <linux/poison.h>
-> >  #include <linux/pfn.h>
-> >  #include <linux/debugfs.h>
-> > +#include <linux/shuffle.h>
-> >  #include <linux/kmemleak.h>
-> >  #include <linux/seq_file.h>
-> >  #include <linux/memblock.h>
-> > @@ -1929,9 +1930,16 @@ static unsigned long __init free_low_memory_core_early(void)
-> >        *  low ram will be on Node1
-> >        */
-> >       for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
-> > -                             NULL)
-> > +                             NULL) {
-> > +             pg_data_t *pgdat;
-> > +
-> >               count += __free_memory_core(start, end);
-> >
-> > +             for_each_online_pgdat(pgdat)
-> > +                     shuffle_free_memory(pgdat, PHYS_PFN(start),
-> > +                                     PHYS_PFN(end));
-> > +     }
-> > +
-> >       return count;
-> >  }
-> >
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index b9a667d36c55..7caffb9a91ab 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -23,6 +23,7 @@
-> >  #include <linux/highmem.h>
-> >  #include <linux/vmalloc.h>
-> >  #include <linux/ioport.h>
-> > +#include <linux/shuffle.h>
-> >  #include <linux/delay.h>
-> >  #include <linux/migrate.h>
-> >  #include <linux/page-isolation.h>
-> > @@ -895,6 +896,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
-> >       zone->zone_pgdat->node_present_pages += onlined_pages;
-> >       pgdat_resize_unlock(zone->zone_pgdat, &flags);
-> >
-> > +     shuffle_zone(zone, pfn, zone_end_pfn(zone));
-> > +
-> >       if (onlined_pages) {
-> >               node_states_set_node(nid, &arg);
-> >               if (need_zonelists_rebuild)
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index cde5dac6229a..2adcd6da8a07 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -61,6 +61,7 @@
-> >  #include <linux/sched/rt.h>
-> >  #include <linux/sched/mm.h>
-> >  #include <linux/page_owner.h>
-> > +#include <linux/shuffle.h>
-> >  #include <linux/kthread.h>
-> >  #include <linux/memcontrol.h>
-> >  #include <linux/ftrace.h>
-> > @@ -1634,6 +1635,8 @@ static int __init deferred_init_memmap(void *data)
-> >       }
-> >       pgdat_resize_unlock(pgdat, &flags);
-> >
-> > +     shuffle_zone(zone, first_init_pfn, zone_end_pfn(zone));
-> > +
-> >       /* Sanity check that the next zone really is unpopulated */
-> >       WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
->
-> I would prefer if would have less placess to place the shuffling. Why
-> cannot we have a single place for the bootup and one for onlining part?
-> page_alloc_init_late sounds like a good place for the later. You can
-> miss some early allocations but are those of a big interest?
-
-Ok, so you mean reduce the 3 callsites to 2. Replace the
-free_low_memory_core_early() and deferred_init_memmap() sites with a
-single shuffle call in page_alloc_init_late() after waiting for
-deferred_init_memmap() work to complete? I don't see any red flags
-with that, I'll give it a try.
-
-> I haven't checked the actual shuffling algorithm, I will trust you on
-> that part ;)
-
-The algorithm has proved reliable. The breakage has only arisen from
-missing locations that free large amounts of memory to the allocator
-and failing to re-randomize within a whole zone, i.e. not just the
-pages that were currently being hot-added.
+Jason
 
