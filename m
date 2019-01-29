@@ -2,211 +2,202 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 19693C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:55:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D7AFBC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:56:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D51F0214DA
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:55:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D51F0214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 89E2920989
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:56:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="NMbkgebY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89E2920989
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A4C3B8E000C; Tue, 29 Jan 2019 11:54:55 -0500 (EST)
+	id 3B3D18E0004; Tue, 29 Jan 2019 11:56:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97F958E0008; Tue, 29 Jan 2019 11:54:55 -0500 (EST)
+	id 38AA08E0002; Tue, 29 Jan 2019 11:56:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 825E98E000C; Tue, 29 Jan 2019 11:54:55 -0500 (EST)
+	id 279B68E0004; Tue, 29 Jan 2019 11:56:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AAD98E0008
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:54:55 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id d196so22331750qkb.6
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:54:55 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DE58D8E0002
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:56:22 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id a18so14246591pga.16
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:56:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=uF0Rg6OUe55CoYMP7oripH2m8c1bWkRZFMmBzBzXOKY=;
-        b=Tl9sPdDurS5fwUTcdKuUXAy6gdyYpXiLJM+jJYx2XcJaK7/PWmiS5upMcd0R/94zsX
-         IwD4SQ5yiFWfwIPaSLTxNlNm2bzNLyADUxIbwvSswWbfxBQAehcrWsGUxH0gkNlLC1L5
-         GziRh6I0CCkSskqhQ7HSXRoongMhcomu9rIkGGa12fAohrmvkjEZwqoDHaT53tMy2Dfk
-         pI0PqEPlfUt406XdzXH4pgnY0IQsP+NfTPGVy0YBzFcJRb+sJBWECe/1tb5Hw0Y/9VUS
-         dVeHIT69s+/Q/jG05AmJ7641DuLBDScXviYuxLd43TF2USAEyrIwf1R1g8/K1B0/WmIl
-         am6w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukdwZN1iDXTHUP9FXiCiNQ2JcCH4TxcuANeGuNmA7TSYKjEmDIPE
-	EYdYBnrg+25DJuYYlyePgnajf9PXLZ2d2py3GwlYWPCtPs5irhdFMNoL2CBKFPQKmy8xW4mvZL7
-	PPPwvSxgJImFLVSkeWIEGmHMlb44QMRHZsLGXM3mgSPvu3IbZNBHau5n3wxRHimPJpw==
-X-Received: by 2002:a0c:c192:: with SMTP id n18mr24139901qvh.99.1548780895045;
-        Tue, 29 Jan 2019 08:54:55 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7JR9s3tYoKsXJkJd3oerj4iXS/kFrzHaeiZjRpyIV46vVpamajUBRPY5hVJUWuj4q0dUkK
-X-Received: by 2002:a0c:c192:: with SMTP id n18mr24139884qvh.99.1548780894557;
-        Tue, 29 Jan 2019 08:54:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548780894; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=vql8U89T/hHjjSzQxptcPZRte1dCUtGT4jirdck/APc=;
+        b=tA49YCAhVVxuHGCPmS6TfGFaH+sSD7Ysb2QRDQHkrUsUQzFMIp7dvLhzwtGEYzYUPz
+         9wNpySUv9au88+frOD4pTMIc5T+Gg/jRJj0/yB+b3IdOVJeuqKwK7m0a1hIGhuGf+mpx
+         SanVl3PlUlROWttcR64dZgq+j0CBDaPmtlPdF40rJU1NG6tvO4aF5ow7EtG++40X2reR
+         xTU4gODklO0zwRDUBJeOqiTSIkU7cYkTcpaYA2J2cZ/3UCfUklWsaLUfGLM9vYx/euXO
+         J7z+AlWbqxaStee4Y85oLagKQo0Fl9kSy6cf8pzwdwi9FLcbETqSYwKKeX9WCOp14/Rq
+         ktIg==
+X-Gm-Message-State: AJcUukeSe+SKlbnwTxdJcWuIy0/48Ct1CD9iNy8M05JCBbNUyO6s9v/3
+	FS8Y6D05djPktldp/vMqqbULsNDumrGlstOTxe5GofG/nef5h80ojM7lo8+69nYt45s5UervVdc
+	qBIxcAb42USF/VFVmHvWosV919a4TQnkregd8PhOiuKFboTUfEv6mDrB3DHN/NMrKZmquY6K3Hp
+	FapGve6UBlVKY5UXiqo1NOwWDfLCh3F4rMZNrO84QjQGJS3EcQUCccUYRE3OghINl2ra9zXOQSb
+	/IAdSdVT8pHn+Ia6lmbe/jd1yC33EgJCMB81mxgUF0pUjsVyUDxww8x8Bf2GM2LgAbiaqTEX8KH
+	Yx0KsP7FMgo1KMBaWTvf0FruN7olp6fWiIeuYCCYVLZoV2CUBECBCcXi8HuJK2DIBT2CkHFYJkR
+	0
+X-Received: by 2002:a63:4926:: with SMTP id w38mr23308059pga.353.1548780982581;
+        Tue, 29 Jan 2019 08:56:22 -0800 (PST)
+X-Received: by 2002:a63:4926:: with SMTP id w38mr23308034pga.353.1548780981808;
+        Tue, 29 Jan 2019 08:56:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548780981; cv=none;
         d=google.com; s=arc-20160816;
-        b=PH5cg9miUCTKSUId1d0lHDzG4hvPHQlNBKcd7R6m8UT5Q9Cb6UqRtgWmZA6TNtJgGp
-         GDEFCA9ne81hvS3GlTGaujzY7CQvCfsvaaA0cfZP/C2wP1TEhr82AOrHeneYQukBCSZL
-         pGol0JU9S1Oe9A9aT4Req1sQu1g+Hgbg7GY0Wxi5ba+BK3aUeyj94DNKG+9sEADQu4U8
-         wEC1lUeApdwYNR5lUfs0RrBXBP7+DPvGrWijBE5T77ahITD31uUo3cmM5eO4HAJ+Xz15
-         V84uDKOGXKCs1ttrNPOHEIns/V8eHQaddw7Szu9GRL3tpvoSFpS7uYfw5Zw74YLuNSd2
-         OtbA==
+        b=QTQehLETFOXCxpKeoQJX9boRbF/2kgRovkeNnuX1rTPxRr61qhnWRniKEnCjDFUn29
+         0P8gI4F4M6uxa0z92JON1zZEGU4s74H8EDPJ6VuxjzxF0PnQYymisEnKJ0MGJWJJLTDs
+         NqLG0A9OC06XZW8RiSl8i83Ndhb9O2JiVgrrhQ7vqZAOHwcfM2ZOn42VbsIv38BBMwB7
+         oQ1MJLJ9RhvuTohkS4Z53Gpui22WBvWk+MePgv4LB7lXsf8veK0lsan5Dtff5dq8yHRD
+         OiGx+zQJ4A98T93ZksJG4CwdApGUiBJJc2GwGFZDW6MwGPAPPmmDItxRjr9Z/hfX0agZ
+         dMFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=uF0Rg6OUe55CoYMP7oripH2m8c1bWkRZFMmBzBzXOKY=;
-        b=Rz9XcH0ZXt5+uLQE9/5d2yg9B9crjxI7HVFPnO7uUnRpZecDjiDSvqhesA0y7/5tGz
-         GskPvdMG3+e+MOv/n2xUI2XyXZTjTheIbZ4O1TPOW1iO7FZqu7Z13MPcOVqfPF51va9V
-         kPnwbDUk3zImEYyzrRUOfHREqs80mDpvBTuW9Ci1C51BQFayI8s/l11HcK+3/tPPObvt
-         10ofUxyXoxtQN2l19/TzlorZFO5MDB/lbaYV7DfnI7jO3WSMQKtv1MfJhZgH00xqQJW1
-         W7TdfZBS6V8yyEE9Nxn78aW2p+7OQN4claSI/5xZRr0GugtQAg/FqKk03Ihaj45jKOmt
-         fsfA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=vql8U89T/hHjjSzQxptcPZRte1dCUtGT4jirdck/APc=;
+        b=qtFHLndwJcGCIotAckCrFOjWY7P2HaidnzJnbFn/Ow5QEezM4aX8UKqddCNo+2P6o0
+         vgY9Q1UzAZ2CmLmvm5UUzIHLFNWiIfxgAhwS4S1ueMXCO61VeEYJqoLyyJ4gDvQprIiV
+         nu2oF5MJWuCFdJpBFNKfIgC8U3DdDDhF6G/HCLlF8kWOlfNcYXJWDb5Og/okT4/jX8V6
+         kFPIjbZ3ZLMte3Sr5UW3vAQTD+fRkPlLolRAPf3v8e3J5HfJM0LJ1cp8FlcnM1Lp1cOD
+         o06TMWGKq5CNSqJdI+L/04c5HOhyupxLA/U0WgMa2jW+QeY9uSt7zARS9rhBrMMlcFzk
+         vVWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f57si963291qtf.362.2019.01.29.08.54.54
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=NMbkgebY;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a72sor55369622pge.21.2019.01.29.08.56.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 08:54:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 29 Jan 2019 08:56:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9CB7281DE9;
-	Tue, 29 Jan 2019 16:54:53 +0000 (UTC)
-Received: from localhost.localdomain.com (ovpn-122-2.rdu2.redhat.com [10.10.122.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 97C9D102BCEB;
-	Tue, 29 Jan 2019 16:54:52 +0000 (UTC)
-From: jglisse@redhat.com
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: [PATCH 10/10] mm/hmm: add helpers for driver to safely take the mmap_sem
-Date: Tue, 29 Jan 2019 11:54:28 -0500
-Message-Id: <20190129165428.3931-11-jglisse@redhat.com>
-In-Reply-To: <20190129165428.3931-1-jglisse@redhat.com>
-References: <20190129165428.3931-1-jglisse@redhat.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=NMbkgebY;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=vql8U89T/hHjjSzQxptcPZRte1dCUtGT4jirdck/APc=;
+        b=NMbkgebY4EHpMOLHRgtVlKvOjuX6dyFymsNZhkYtjK443i2AjiQt+z6bxBHHct8Bww
+         wzsMnAoS90uq9JaU2oJNE5Dj2Fv5HyJwccSs2JZtgphXK2yxoG0yPBFToljtFTmEtS1J
+         3H6QOdODDPg0gppQzDjVY8zf2ZEMysqVYB9fTESNjD+HSo5sBm9hv1NFY4phiHAh/bFS
+         Z896B5MgcgR5WxlxIKu7EXEH8JUxhIRJzQyA+vv6sX3qTwfyyVyofRGenZynTxV/m5Zu
+         z7eEt7kT/xq2jWrr4bHJhiZTYNyNozTc2rRc4kRHcEOT9sUrDDzrxgf7FcZMSBGxgwZQ
+         PGIQ==
+X-Google-Smtp-Source: ALg8bN7ptJmZpJU3paI7ZW9MPDibRYYoJVCL3anlb16ShHdSnpfegJMezROCztjWwoW943HbFr5O6g==
+X-Received: by 2002:a63:e915:: with SMTP id i21mr23854042pgh.409.1548780981421;
+        Tue, 29 Jan 2019 08:56:21 -0800 (PST)
+Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
+        by smtp.gmail.com with ESMTPSA id v9sm47049062pfe.49.2019.01.29.08.56.20
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Jan 2019 08:56:20 -0800 (PST)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1goWgO-0003Dw-05; Tue, 29 Jan 2019 09:56:20 -0700
+Date: Tue, 29 Jan 2019 09:56:19 -0700
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Joel Nider <joeln@il.ibm.com>
+Cc: Leon Romanovsky <leon@kernel.org>, Doug Ledford <dledford@redhat.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 3/5] RDMA/uverbs: add owner parameter to ib_umem_get
+Message-ID: <20190129165619.GC10094@ziepe.ca>
+References: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
+ <1548768386-28289-4-git-send-email-joeln@il.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Tue, 29 Jan 2019 16:54:53 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1548768386-28289-4-git-send-email-joeln@il.ibm.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jérôme Glisse <jglisse@redhat.com>
+On Tue, Jan 29, 2019 at 03:26:24PM +0200, Joel Nider wrote:
+> ib_umem_get is a core function used by drivers that support RDMA.
+> The 'owner' parameter signifies the process that owns the memory.
+> Until now, it was assumed that the owning process was the current
+> process. This adds the flexibility to specify a process other than
+> the current process. All drivers that call this function are also
+> updated, but the default behaviour is to keep backwards
+> compatibility by assuming the current process is the owner when
+> the 'owner' parameter is NULL.
+> 
+> Signed-off-by: Joel Nider <joeln@il.ibm.com>
+>  drivers/infiniband/core/umem.c                | 26 ++++++++++++++++++++------
+>  drivers/infiniband/hw/bnxt_re/ib_verbs.c      | 10 +++++-----
+>  drivers/infiniband/hw/cxgb3/iwch_provider.c   |  3 ++-
+>  drivers/infiniband/hw/cxgb4/mem.c             |  3 ++-
+>  drivers/infiniband/hw/hns/hns_roce_cq.c       |  2 +-
+>  drivers/infiniband/hw/hns/hns_roce_db.c       |  2 +-
+>  drivers/infiniband/hw/hns/hns_roce_mr.c       |  4 ++--
+>  drivers/infiniband/hw/hns/hns_roce_qp.c       |  2 +-
+>  drivers/infiniband/hw/hns/hns_roce_srq.c      |  2 +-
+>  drivers/infiniband/hw/i40iw/i40iw_verbs.c     |  2 +-
+>  drivers/infiniband/hw/mlx4/cq.c               |  2 +-
+>  drivers/infiniband/hw/mlx4/doorbell.c         |  2 +-
+>  drivers/infiniband/hw/mlx4/mr.c               |  2 +-
+>  drivers/infiniband/hw/mlx4/qp.c               |  2 +-
+>  drivers/infiniband/hw/mlx4/srq.c              |  2 +-
+>  drivers/infiniband/hw/mlx5/cq.c               |  4 ++--
+>  drivers/infiniband/hw/mlx5/devx.c             |  2 +-
+>  drivers/infiniband/hw/mlx5/doorbell.c         |  2 +-
+>  drivers/infiniband/hw/mlx5/mr.c               | 15 ++++++++-------
+>  drivers/infiniband/hw/mlx5/odp.c              |  5 +++--
+>  drivers/infiniband/hw/mlx5/qp.c               |  4 ++--
+>  drivers/infiniband/hw/mlx5/srq.c              |  2 +-
+>  drivers/infiniband/hw/mthca/mthca_provider.c  |  2 +-
+>  drivers/infiniband/hw/nes/nes_verbs.c         |  3 ++-
+>  drivers/infiniband/hw/ocrdma/ocrdma_verbs.c   |  3 ++-
+>  drivers/infiniband/hw/qedr/verbs.c            |  8 +++++---
+>  drivers/infiniband/hw/vmw_pvrdma/pvrdma_cq.c  |  2 +-
+>  drivers/infiniband/hw/vmw_pvrdma/pvrdma_mr.c  |  2 +-
+>  drivers/infiniband/hw/vmw_pvrdma/pvrdma_qp.c  |  5 +++--
+>  drivers/infiniband/hw/vmw_pvrdma/pvrdma_srq.c |  2 +-
+>  drivers/infiniband/sw/rdmavt/mr.c             |  2 +-
+>  drivers/infiniband/sw/rxe/rxe_mr.c            |  3 ++-
+>  include/rdma/ib_umem.h                        |  3 ++-
+>  33 files changed, 80 insertions(+), 55 deletions(-)
+> 
+> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+> index c6144df..9646cee 100644
+> +++ b/drivers/infiniband/core/umem.c
+> @@ -71,15 +71,21 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+>   *
+>   * If access flags indicate ODP memory, avoid pinning. Instead, stores
+>   * the mm for future page fault handling in conjunction with MMU notifiers.
+> + * If the process doing the pinning is the same as the process that owns
+> + * the memory being pinned, 'owner' should be NULL. Otherwise, 'owner' should
+> + * be the process ID of the owning process. The process ID must be in the
+> + * same PID namespace as the calling userspace context.
+>   *
+> - * @context: userspace context to pin memory for
+> + * @context: userspace context that is pinning the memory
+>   * @addr: userspace virtual address to start at
+>   * @size: length of region to pin
+>   * @access: IB_ACCESS_xxx flags for memory being pinned
+>   * @dmasync: flush in-flight DMA when the memory region is written
+> + * @owner: the ID of the process that owns the memory being pinned
+>   */
+>  struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
+> -			    size_t size, int access, int dmasync)
+> +			    size_t size, int access, int dmasync,
+> +			    struct pid *owner)
 
-The device driver context which holds reference to mirror and thus to
-core hmm struct might outlive the mm against which it was created. To
-avoid every driver to check for that case provide an helper that check
-if mm is still alive and take the mmap_sem in read mode if so. If the
-mm have been destroy (mmu_notifier release call back did happen) then
-we return -EINVAL so that calling code knows that it is trying to do
-something against a mm that is no longer valid.
+You need to rebase this patch on rdma's for-next tree, the signature is
+different.
 
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
----
- include/linux/hmm.h | 50 ++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 47 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index b3850297352f..4a1454e3efba 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -438,6 +438,50 @@ struct hmm_mirror {
- int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
- void hmm_mirror_unregister(struct hmm_mirror *mirror);
- 
-+/*
-+ * hmm_mirror_mm_down_read() - lock the mmap_sem in read mode
-+ * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
-+ * Returns: -EINVAL if the mm is dead, 0 otherwise (lock taken).
-+ *
-+ * The device driver context which holds reference to mirror and thus to core
-+ * hmm struct might outlive the mm against which it was created. To avoid every
-+ * driver to check for that case provide an helper that check if mm is still
-+ * alive and take the mmap_sem in read mode if so. If the mm have been destroy
-+ * (mmu_notifier release call back did happen) then we return -EINVAL so that
-+ * calling code knows that it is trying to do something against a mm that is
-+ * no longer valid.
-+ */
-+static inline int hmm_mirror_mm_down_read(struct hmm_mirror *mirror)
-+{
-+	struct mm_struct *mm;
-+
-+	/* Sanity check ... */
-+	if (!mirror || !mirror->hmm)
-+		return -EINVAL;
-+	/*
-+	 * Before trying to take the mmap_sem make sure the mm is still
-+	 * alive as device driver context might outlive the mm lifetime.
-+	 *
-+	 * FIXME: should we also check for mm that outlive its owning
-+	 * task ?
-+	 */
-+	mm = READ_ONCE(mirror->hmm->mm);
-+	if (mirror->hmm->dead || !mm)
-+		return -EINVAL;
-+
-+	down_read(&mm->mmap_sem);
-+	return 0;
-+}
-+
-+/*
-+ * hmm_mirror_mm_up_read() - unlock the mmap_sem from read mode
-+ * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
-+ */
-+static inline void hmm_mirror_mm_up_read(struct hmm_mirror *mirror)
-+{
-+	up_read(&mirror->hmm->mm->mmap_sem);
-+}
-+
- 
- /*
-  * To snapshot the CPU page table you first have to call hmm_range_register()
-@@ -463,7 +507,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
-  *          if (ret)
-  *              return ret;
-  *
-- *          down_read(mm->mmap_sem);
-+ *          hmm_mirror_mm_down_read(mirror);
-  *      again:
-  *
-  *          if (!hmm_range_wait_until_valid(&range, TIMEOUT)) {
-@@ -476,13 +520,13 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
-  *
-  *          ret = hmm_range_snapshot(&range); or hmm_range_fault(&range);
-  *          if (ret == -EAGAIN) {
-- *              down_read(mm->mmap_sem);
-+ *              hmm_mirror_mm_down_read(mirror);
-  *              goto again;
-  *          } else if (ret == -EBUSY) {
-  *              goto again;
-  *          }
-  *
-- *          up_read(&mm->mmap_sem);
-+ *          hmm_mirror_mm_up_read(mirror);
-  *          if (ret) {
-  *              hmm_range_unregister(range);
-  *              return ret;
--- 
-2.17.2
+Jason
 
