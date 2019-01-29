@@ -2,126 +2,123 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD0FAC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:34:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48B18C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:44:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 848F120869
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:34:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 848F120869
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 0FB3C2083B
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 16:44:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FB3C2083B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=opengridcomputing.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 106988E0002; Tue, 29 Jan 2019 11:34:18 -0500 (EST)
+	id 8C6788E0002; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 08CB18E0001; Tue, 29 Jan 2019 11:34:18 -0500 (EST)
+	id 8741F8E0001; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E98838E0002; Tue, 29 Jan 2019 11:34:17 -0500 (EST)
+	id 73BF18E0002; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EAC18E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:34:17 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id m4so8245312wrr.4
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:34:17 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DF218E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:44:47 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id z6so8020318otm.10
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 08:44:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=uH61313TFD91ho+K49QjrdMKVfDQiOi5MsFqQ/a27oQ=;
-        b=eo81cmKjO7ubSWPHX7dVeGCwn4Txe7Qmq2UmuQhYQ9Ppabzr6gH6VxLA04Vr1kysyD
-         E/lSgykUrFJgcG77Q0TeOvqQd8/NDj5+RoGe+Jt66257c7/UOPB6o6onXtuSH6pWn0l8
-         t5CuaEBtD4I8hetRXFuji3pC/ZPPFYF4lZ65zaQ2kKoXpgwNH0pkeYFnL+J7Dlg+DVbc
-         VpL8lpCG1DXuUiId/BJ9CPp5xTtAz317xHK3Y1nUAR1WKG0Z6+sNZvUbbQsZPmSv45Wr
-         zDixU72swCX1wiZNpwXJP4Q2qC0sSSlVKgk26Dc7mRgytZKV8tu/ybnVKKgn8+1jLxgm
-         HOdg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: AJcUukck3CtXC3bHsQVQsXHBHYrYuUGPxukCSNG+KToOuhUEUwio1iYn
-	hoZ9yFwC5ncPvP9A4YhOYw7shzDP3Gm+kyKS+dFjjwVk5/fsrNa9oSaDv6RBxNPqVQNGFrjJUit
-	vZtvZvh1ePL4I4+Am8Mf8flKWr+xvNWS2qDev+5TsAGuwgdNmh7jnFFN1+cSruYWaug==
-X-Received: by 2002:a5d:45d0:: with SMTP id b16mr25426586wrs.86.1548779657188;
-        Tue, 29 Jan 2019 08:34:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4h/xO3UvU3ZhBFAnc0aqJsUcZ/t6gp/nMbRT9ibogfIyRjla9GUQUIjEFcO+3Bwx5heT1F
-X-Received: by 2002:a5d:45d0:: with SMTP id b16mr25426511wrs.86.1548779655929;
-        Tue, 29 Jan 2019 08:34:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548779655; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=3sYl/7gEMvShHwWIg2qEK89zeqoWynQRLaplUQrrcS4=;
+        b=MOr9vlBcp3E4+RnxkO/KMpInOR9jsne6pUHDecIHuFLsHs8WaZyU7zea37CgCg4+gk
+         sXPxkycQgUA5iinGuc5FHAOeJGOms8t18fDHE1Et/cZ+C8qqX651QC9qBpB4Nc56ry4D
+         5sR2GZ9e2dfl9tdlONwV8Ro6jEoGwBBKTeOg2mqCyCxwaGMfvTKEaWY0eY6U4ZyRzGEb
+         YQ732SZlrkHXI8CQIYtsxivpggetURN56uPCS9lkBwh+5roFb0L84UjzgJ8mubf3O/ja
+         WI2fUjfu/dSqzwHFDnlj51t8Zny4T/PwYcOCdtbEtr+JMW+s8u+0UaxJfDRDnJu2iYac
+         Z/3w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) smtp.mailfrom=swise@opengridcomputing.com
+X-Gm-Message-State: AJcUukddZ6LCv6ELBZIyl7FMHaZge9BfE3f3miro81h1C9IjVn2MFLu7
+	0SZCfJIV9sm2vXe/6YcgzDmBrvvrXBkdBxVeE+HdbQ4igwKijT6cjJvcGQ84QiWgWveXuy3MwfF
+	z3jT7OiofFXIxdIyVaH4CwAQHsWgRhzH3gnXoQwkJi3Aid4+n+krUO5tng2K17O6coA==
+X-Received: by 2002:a9d:46b:: with SMTP id 98mr20572334otc.339.1548780286882;
+        Tue, 29 Jan 2019 08:44:46 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6AJOH7fYGkqvmFBmgfIHh98gFFtOe0wDIkeDtEwm4YzyjmoJMwGcBTpIoNDdcjv2yYJwAw
+X-Received: by 2002:a9d:46b:: with SMTP id 98mr20572310otc.339.1548780286352;
+        Tue, 29 Jan 2019 08:44:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548780286; cv=none;
         d=google.com; s=arc-20160816;
-        b=wyC+nhC1KT2IXPjQm3USlusjZKarUvctRC21El44sQTG4J7OQrbLie6AYzEEF3wa4l
-         QaOoaWogtCFLMXLHJJPej2+7g9KvEl+j23gLeAX2iPG94Tu2wjbCSnZwGKr/8ZPjwwYl
-         Q0QsrxbqJgiqn8ONOMBXPc+WiBy8QGL8nIgXlET36kPc88rlIXW5EQW41lqHHFqbBvUK
-         5yQ2J/UCRa/3V8WfuO6byWzuwb7ZHiwg9icxa+V1Y2HjJxWhpSGXbjAirPGeiLgLTyx5
-         kIG3uY3D4+RFy2V2HhajvAeQ3jIb5x85RLPvqM8muXwhxupOgn21FOI+NwZnoHkNVwFP
-         Lbkg==
+        b=catdk4yHnkkh+FAgucsrb9fQ3W96RurVwp9eK4tl4XVO9V9rKMqhEC+Z7Cr6H22war
+         a7ihnEq+ozyyguFCkxVPdouijw8/NgMUjNXg8X28ZBAucpEu3Vq+4jklmIL0v5vpH4sH
+         rWXWRgDYkJ+332nDscsR6BrhD390Z9OOmlXHpXvc6y4AoCCANIu+TEeHzuIG+5etJoFc
+         xcCTFRJyBVf+A5f7qK+mLVytHM1l733Qf8A8uuvAK2uKMUeUJ0sELwOfIZMNxZlryvt+
+         Eo0y8K+vdVPg/H/hRVq6ijC+EqTpsuoq8IwtHetu2+ADMo5b1p4/BMKbBboRpgDimc3b
+         xdPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=uH61313TFD91ho+K49QjrdMKVfDQiOi5MsFqQ/a27oQ=;
-        b=IhPQtbZZIQt/rLAwwNeZf1WA/4mrRzDoFyKGcUYGXKFTDjFYf+l3aSuhY9Gupr40IY
-         PzmNQe3Cwdyy1G+phU8Z1ZRZWHkeOeRgU14Oe9nT3qct0uDadaHe68bP66GBlzCRWjd8
-         N+/LxzEa7BBacDbOQbjxGhnfFUocLtdbmkZ1Ae0LbHBkC+mKfZ2mY+raWU8IkTcdQWMQ
-         OltvZ+BPFReNcQuBPokXiUgag9PfGgqNqfIhI7tQqqn/ziFh2qkHZg6NGnxgdIh6jjIY
-         Mb3WyzKAqo1FjEtVVf+coP9+dec4s8VI5MR3cVbFSvXO4SD8+a1L2WYN4pygc6dWpPrN
-         nqXg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=3sYl/7gEMvShHwWIg2qEK89zeqoWynQRLaplUQrrcS4=;
+        b=BBzp65hHwSlrozopZ5A4WG+EXY3Re40o0HY001U73KZQUqDLj94QcfXl6GrcmD2dVW
+         g61bH2dyTwViils5dW9B4thh5KbLlQhH5m/XL+xYRM3SlY8vN945p6h6j+0JtIHlCFyy
+         VOZIIilpiqfRRgBCbcA33e+i/MOi48dwdPBa5qoAXIowl2Wo/6zxKYdJBaBGA0jybIrn
+         asxb77rVM6oKIkrvHOSTwqfi2EeMaqCEHBE8FtSogAyOR1HB/ktWlzUrHKzrTRcSGaNb
+         EMqLU+lCAI3h5LXtuiBzx2NgA33WTT2Nn+mpZT7jFQU4C+CqFW4I1dSnQ/oQnkm7zNvG
+         v7qQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id z4si2259381wme.21.2019.01.29.08.34.15
+       spf=pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) smtp.mailfrom=swise@opengridcomputing.com
+Received: from smtp.opengridcomputing.com (opengridcomputing.com. [72.48.214.68])
+        by mx.google.com with ESMTPS id i3si6603942oib.163.2019.01.29.08.44.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 08:34:15 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Tue, 29 Jan 2019 08:44:46 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) client-ip=72.48.214.68;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 65E9768CEC; Tue, 29 Jan 2019 17:34:15 +0100 (CET)
-Date: Tue, 29 Jan 2019 17:34:15 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Christian Zigotzky <chzigotzky@xenosoft.de>
-Cc: Christoph Hellwig <hch@lst.de>, linux-arch@vger.kernel.org,
-	Darren Stevens <darren@stevens-zone.net>,
-	linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
-	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
-	Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
-	linuxppc-dev@lists.ozlabs.org
-Subject: Re: use generic DMA mapping code in powerpc V4
-Message-ID: <20190129163415.GA14529@lst.de>
-References: <20190119140452.GA25198@lst.de> <bfe4adcc-01c1-7b46-f40a-8e020ff77f58@xenosoft.de> <8434e281-eb85-51d9-106f-f4faa559e89c@xenosoft.de> <4d8d4854-dac9-a78e-77e5-0455e8ca56c4@xenosoft.de> <1dec2fbe-f654-dac7-392a-93a5d20e3602@xenosoft.de> <20190128070422.GA2772@lst.de> <20190128162256.GA11737@lst.de> <D64B1ED5-46F9-43CF-9B21-FABB2807289B@xenosoft.de> <6f2d6bc9-696b-2cb1-8a4e-df3da2bd6c0a@xenosoft.de> <20190129161411.GA14022@lst.de>
+       spf=pass (google.com: best guess record for domain of swise@opengridcomputing.com designates 72.48.214.68 as permitted sender) smtp.mailfrom=swise@opengridcomputing.com
+Received: from [10.10.0.239] (cody.ogc.int [10.10.0.239])
+	by smtp.opengridcomputing.com (Postfix) with ESMTPSA id B9D0122666;
+	Tue, 29 Jan 2019 10:44:45 -0600 (CST)
+Subject: Re: [PATCH 0/5] RDMA: reg_remote_mr
+To: Joel Nider <joeln@il.ibm.com>, Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Leon Romanovsky <leon@kernel.org>, Doug Ledford <dledford@redhat.com>,
+ Mike Rapoport <rppt@linux.ibm.com>, linux-mm@kvack.org,
+ linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org
+References: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
+From: Steve Wise <swise@opengridcomputing.com>
+Message-ID: <8cdb77b6-c160-81d0-62be-5bbf84a98d69@opengridcomputing.com>
+Date: Tue, 29 Jan 2019 10:44:48 -0600
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190129161411.GA14022@lst.de>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 05:14:11PM +0100, Christoph Hellwig wrote:
-> On Tue, Jan 29, 2019 at 04:03:32PM +0100, Christian Zigotzky wrote:
-> > Hi Christoph,
-> >
-> > I compiled kernels for the X5000 and X1000 from your new branch 
-> > 'powerpc-dma.6-debug.2' today. The kernels boot and the P.A. Semi Ethernet 
-> > works!
-> 
-> Thanks for testing!  I'll prepare a new series that adds the other
-> patches on top of this one.
 
-And that was easier than I thought - we just had a few patches left
-in powerpc-dma.6, so I've rebased that branch on top of
-powerpc-dma.6-debug.2:
+On 1/29/2019 7:26 AM, Joel Nider wrote:
+> As discussed at LPC'18, there is a need to be able to register a memory
+> region (MR) on behalf of another process. One example is the case of
+> post-copy container migration, in which CRIU is responsible for setting
+> up the migration, but the contents of the memory are from the migrating
+> process. In this case, we want all RDMA READ requests to be served by
+> the address space of the migration process directly (not by CRIU). This
+> patchset implements a new uverbs command which allows an application to
+> register a memory region in the address space of another process.
 
-    git://git.infradead.org/users/hch/misc.git powerpc-dma.6
+Hey Joel,
 
-Gitweb:
+Dumb question:
 
-    http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6
+Doesn't this open a security hole by allowing any process to register
+memory in any other process?
 
-I hope the other patches are simple enough, so just testing the full
-branch checkout should be fine for now.
+Steve.
+
 
