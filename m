@@ -2,161 +2,200 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FD71C282D0
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 23:36:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27030C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 23:41:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC0CE2082C
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 23:36:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="JnOTWShy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC0CE2082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id D341120881
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 23:41:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D341120881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 608378E0002; Tue, 29 Jan 2019 18:36:23 -0500 (EST)
+	id 6EC608E0002; Tue, 29 Jan 2019 18:41:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B8A58E0001; Tue, 29 Jan 2019 18:36:23 -0500 (EST)
+	id 69DD88E0001; Tue, 29 Jan 2019 18:41:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 481DD8E0002; Tue, 29 Jan 2019 18:36:23 -0500 (EST)
+	id 5DC248E0002; Tue, 29 Jan 2019 18:41:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 233C58E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 18:36:23 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id i2so6635540ybo.23
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:36:23 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 457788E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 18:41:03 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id b16so26364508qtc.22
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 15:41:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=ypcjhC5gLgv1najtmqf3KGwBGuKlXgrvvho14o6HPq4=;
-        b=UV82Zsykj53+88CenQfPMqZ7TGEI9ufcTCMKmAsEV1C71KRSkZCZLI0RSh86TJfSts
-         ZN3OtEbobxbnUlDHLi6vNX4zvO5ZFlU69N4qYleilwUNCDbr18li76obi6H9bwRd0jEn
-         C5Ch8ZGsAh5Di/9QDxa6eE7zsk5mdYbkhRmKL9XJtyAjJnCv7IbtfTWk2njN2e7kssmr
-         f2BtjoKDjiJLZDEzlIko7SbOzr6AJFLDfsN15iMXPZqiLFdyHOPnjvCJIRI3P5QbCplL
-         gA10ko5TIoRtaTBNJP9uDwlWQeUJv+jwZKJGlQWSqsjJPWjfO6gyWslbRBCr6fJF4wr1
-         s8RQ==
-X-Gm-Message-State: AJcUukdU9xg2WxFEEaQAcLANGJ3mqQqXdyZNHdhLZw53sLhHoG0JP4sV
-	vwSLmmBHF4hU1+iJ7EAP0XrWvvmrkR+pYl1Og4aZOl1xxsCsGYejV80eCnfESblGK5iz34GQ1yj
-	9WsxSBLUeipm4XWpLk9D/bsw5pvtgqr3eVDdmSl0dKmDGB4/OALWE0u7y5inwIDPUhn6RqNBW79
-	brY/dnKWd+P8tcDRxwqp9pwQe7W5mdFDDCtMzx4pcPLPakLmEbFYNwPfporKNJG51VHyHTfdxze
-	v/C7kPZbjH+RXQz6W02U3vyux9wL8+fREG5G1MhTUqwYfYgjZd6QTKhGiXLXkynD5/yYFlrhS5h
-	a88pbPwFIbjkh1A9udSf4pLvv194Wxd9XLNFdwZX5QWC33Wd4mb4rOAPnQ3I7lVIv+slER4Sa0v
-	E
-X-Received: by 2002:a81:650b:: with SMTP id z11mr26455797ywb.441.1548804982726;
-        Tue, 29 Jan 2019 15:36:22 -0800 (PST)
-X-Received: by 2002:a81:650b:: with SMTP id z11mr26455776ywb.441.1548804982064;
-        Tue, 29 Jan 2019 15:36:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548804982; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:mime-version:content-disposition:user-agent;
+        bh=PIsQixD5Tkp+1BKb6s8Xb53MCMHgYS1IcudttOLlDvQ=;
+        b=Z6iJWCWRQoE7XwyhbS+k9vZleQrMOnucua2YP3fJecsUt7YbBNzulG42fIHtylS63i
+         V/SZMnHJJRbGNLwua8w4U4VpMFDkvzCTFS1frsU4CPkSrht835veRZcqe4i7Cu1Y7Gw8
+         e5fnTZZpMHFAA5CGU/8yTzn79vCEQkoaTZkaht5Zu3n5CfAlzqup4pI33dTDHkSIClPS
+         3AD0GS6yHGs8qe3UUvJ21bvmGoQlU6/iAT/6/8t/jHFBS097s7+A8RkGgow3pKtCNh0o
+         cihBwirtLnKulz8h5dE67yInzb3PIhgiNM9oar7YQiMwdohV2S7B8FR19Hv3V1q+9GgO
+         NlEg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukdhS70vzRe1c7PYTwIqz6PRoa2hYMKFTlvtOAoesHN+07gcOhTV
+	MVou1RofJ2Ie53fsrznPqov3xaf+xlCYSUa8cFCBz/hVFQxfRoib6lHfOIbXy8FVNHMzTl2kYvX
+	G47bV5S4s5tlv1kATZvLNIzyCzjEQpe5eJynWkq62vuc8i0SWlkl5klkxDmy3MeEf5A==
+X-Received: by 2002:a37:ae87:: with SMTP id x129mr25989819qke.15.1548805262959;
+        Tue, 29 Jan 2019 15:41:02 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7v7IOnXwH6feC3uNYQTZ1pTKQo2TkaYHdx7EDw+k9f+5ZXaIj0NhwvTiyTVPjYDAqAw2Rx
+X-Received: by 2002:a37:ae87:: with SMTP id x129mr25989790qke.15.1548805262267;
+        Tue, 29 Jan 2019 15:41:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548805262; cv=none;
         d=google.com; s=arc-20160816;
-        b=aeMa4BZsPMQGGTITrNIiCG4R8U/9bmqHFzoKDlWfbqc/8PD3QtiG2ZVQZROpm24BDm
-         YK93uQ+AYeKdI5vI86Uxe9tcMNLoC9XqX0Esi64rmWglKCcuPVig5mCPHExMH4TjXKKn
-         i4RIWHwy3Mo3nvSVkeCWdypA5Q0K7Jp6CgO9rIuGcrH3vcYZQ3gKaHi6g0rApj3PCz2v
-         wCWmG2hUjbl5Lb5YnSMT9Q0bqoj6rjGXlVEuJmPCT5F92BBOu6MlM+P2cdyP5Hnip6fU
-         2ykF6PGdEVyXcq51HSZiflkGD8EV9wOuWBFMIa9X8JJy6weGHktQgztNip4kwzpjMcm7
-         4x0w==
+        b=v8FAnROj1KohvRj5g4iftL3l70+XBaoieHihAYJURU+/Uu3WgIt2+B5Y9xQ+/LrjA2
+         3xI+Nh4Px+1V2Ue1aidE/0Do+1b0NcQTi8QJHZjp+j/H9XXXDTAAd0slzebrnN5/G0Sq
+         lpOUAGXFSvcgN3DGAUADzTgn40F+lCFEliX1yOWtdaUoudDX/Y1vDdHYGnrU+95PTYBx
+         f8/eEJfxGhD+fbd6DOJVRRiaCwT012pQ/jgAOqoA6jIzkjgNXc+CDuIr9Mey5dSDh63J
+         RdnYFVLxvwWYuEikNszJxs2OZvfS48upUOIzNk+95c2n9efBw3VrtGX3uGadHOM2HX68
+         BwjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=ypcjhC5gLgv1najtmqf3KGwBGuKlXgrvvho14o6HPq4=;
-        b=EyUKwqElCE1BaEm8jxKghwiFFNJNBxZlNVqi3cEXwnNn7tcITSbZ/jXoV/Wil8kVqF
-         2PmWeX4DwB9nYJ0qFwyATwDPwidyhipBM4x7AEKgCWw6rY8DRMMqiN4EHwPE9FWrfEe+
-         lepzpOaI65CmbzheJ7Pc0qpqqG1B4tdlSJD0ldrZOUosQlZVFt7OdIj3lDc11D2wE/oP
-         KKheW34a8y7YV5/H0ycjw0o5hjZWifmU/JJv/5sD/pcxWs2Bp4NzPzjk2YctjEsjgIpZ
-         ORDEoI1mWguGZ5dwnkQKVCjqB3ae1b6GZyKlG4Y6b35WcHlPusOjPaUGYCsSv00CDA+2
-         Jwpg==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date;
+        bh=PIsQixD5Tkp+1BKb6s8Xb53MCMHgYS1IcudttOLlDvQ=;
+        b=ohQpP4P6g+1Mb+A8xDp3cdnoEe9l6h+9owo1dP+Ixn6vxz7qw8kEFHB8kUrvumyCgr
+         zsICuR3dAqYtSW5EwGFtAUYWDxr9w8ASiCk9yR8ngd2fFNQYJ7ECvbZyl5iIoc+VIxLX
+         O2kA4/iuNOYRyytiQT9dpVMuVefdegm9YiUaSt8QBTolRhhizy9PP+Kp6+5zLYKZiCFN
+         IEA1ZHNufLnrjNyiJT5V1CDQn1xQ6z3Q7uYZIS0PfvVVg+yiyEDweA+5l2mV6Mkv/ysj
+         BpASEunQ9bqVEsHPQXXucJ14jVvg7MHkORYf8XsX3qMG3g6yKxMTmcPDiuYvi+kgbfA9
+         pJvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=JnOTWShy;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f2sor4932221ywa.0.2019.01.29.15.36.19
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 49si4212719qts.164.2019.01.29.15.41.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Jan 2019 15:36:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jan 2019 15:41:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=JnOTWShy;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=ypcjhC5gLgv1najtmqf3KGwBGuKlXgrvvho14o6HPq4=;
-        b=JnOTWShy8zOoZyip47uhC8ph1M4XcBA2QNn/g34BScolFhs1qAn5yHiIAiYqNKjwHY
-         nmCc9DcEdq5jBZ8RAhFB/5J2py2kKU47cVjPJ+KWp/bwqEEe0RAxd5fOzNg1SVcsfEqK
-         v8j/SDr9HWejcaQ0n9k7CG7A6XP2mgL6JkcmWaE6BKnZLlr51syPc9bw0yQBJnsu/rUZ
-         EjMOSfq0hVZLVhf78Ieu+Vt168ODqC3uhSZlf9yg3mEfuw3Kwrh6XDmMMtkLHpSDDYiX
-         n+K+K7XRC38sbnnXxoPxYPA1ZiZ/17uZZd6rHcaGaqYcNDdPG/OsjrYY6EEKOBDiDuWO
-         bICA==
-X-Google-Smtp-Source: ALg8bN6PRN1HYwkcGXaRrY0s20nXRdjPrEH7n5y8QSD0tg5DA7sqfugxO+FQ+zN8x44L+qcnQSxumA==
-X-Received: by 2002:a81:6257:: with SMTP id w84mr27686832ywb.273.1548804979275;
-        Tue, 29 Jan 2019 15:36:19 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::4:1d25])
-        by smtp.gmail.com with ESMTPSA id j12sm16757805ywk.43.2019.01.29.15.36.18
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Jan 2019 15:36:18 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>,
-	linux-mm@kvack.org,
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 466A29B309;
+	Tue, 29 Jan 2019 23:41:01 +0000 (UTC)
+Received: from sky.random (ovpn-121-14.rdu2.redhat.com [10.10.121.14])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id DB1D6112C1A0;
+	Tue, 29 Jan 2019 23:40:58 +0000 (UTC)
+Date: Tue, 29 Jan 2019 18:40:58 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH] psi: clarify the Kconfig text for the default-disable option
-Date: Tue, 29 Jan 2019 18:36:17 -0500
-Message-Id: <20190129233617.16767-1-hannes@cmpxchg.org>
-X-Mailer: git-send-email 2.20.1
+Cc: Peter Xu <peterx@redhat.com>,
+	Blake Caldwell <blake.caldwell@colorado.edu>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	David Rientjes <rientjes@google.com>
+Subject: [LSF/MM TOPIC] NUMA remote THP vs NUMA local non-THP under
+ MADV_HUGEPAGE
+Message-ID: <20190129234058.GH31695@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.11.2 (2019-01-07)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 29 Jan 2019 23:41:01 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The current help text caused some confusion in online forums about
-whether or not to default-enable or default-disable psi in vendor
-kernels. This is because it doesn't communicate the reason for why we
-made this setting configurable in the first place: that the overhead
-is non-zero in an artificial scheduler stress test.
+Hello,
 
-Since this isn't representative of real workloads, and the effect was
-not measurable in scheduler-heavy real world applications such as the
-webservers and memcache installations at Facebook, it's fair to point
-out that this is a pretty cautious option to select.
+I'd like to attend the LSF/MM Summit 2019. I'm interested in most MM
+topics and it's enlightening to listen to the common non-MM topics
+too.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- init/Kconfig | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+One current topic that could be of interest is the THP / NUMA tradeoff
+in subject.
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 513fa544a134..ad3381e57402 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -512,6 +512,17 @@ config PSI_DEFAULT_DISABLED
- 	  per default but can be enabled through passing psi=1 on the
- 	  kernel commandline during boot.
- 
-+	  This feature adds some code to the task wakeup and sleep
-+	  paths of the scheduler. The overhead is too low to affect
-+	  common scheduling-intense workloads in practice (such as
-+	  webservers, memcache), but it does show up in artificial
-+	  scheduler stress tests, such as hackbench.
-+
-+	  If you are paranoid and not sure what the kernel will be
-+	  used for, say Y.
-+
-+	  Say N if unsure.
-+
- endmenu # "CPU/Task time and stats accounting"
- 
- config CPU_ISOLATION
--- 
-2.20.1
+One issue about a change in MADV_HUGEPAGE behavior made ~3 years ago
+kept floating around for the last 6 months (~12 months since it was
+initially reported as regression through an enterprise-like workload)
+and it was hot-fixed in commit
+ac5b2c18911ffe95c08d69273917f90212cf5659, but it got quickly reverted
+for various reasons.
+
+I posted some benchmark results showing that for tasks without strong
+NUMA locality the __GFP_THISNODE logic is not guaranteed to be optimal
+(and here of course I mean even if we ignore the large slowdown with
+swap storms at allocation time that might be caused by
+__GFP_THISNODE). The results also show NUMA remote THPs help
+intrasocket as well as intersocket.
+
+https://lkml.kernel.org/r/20181210044916.GC24097@redhat.com
+https://lkml.kernel.org/r/20181212104418.GE1130@redhat.com
+
+The following seems the interim conclusion which I happen to be in
+agreement with Michal and Mel:
+
+https://lkml.kernel.org/r/20181212095051.GO1286@dhcp22.suse.cz
+https://lkml.kernel.org/r/20181212170016.GG1130@redhat.com
+
+Hopefully this strict issue will be hot-fixed before April (like we
+had to hot-fix it in the enterprise kernels to avoid the 3 years old
+regression to break large workloads that can't fit it in a single NUMA
+node and I assume other enterprise distributions will follow suit),
+but whatever hot-fix will likely allow ample margin for discussions on
+what we can do better to optimize the decision between local non-THP
+and remote THP under MADV_HUGEPAGE.
+
+It is clear that the __GFP_THISNODE forced in the current code
+provides some minor advantage to apps using MADV_HUGEPAGE that can fit
+in a single NUMA node, but we should try to achieve it without major
+disadvantages to apps that can't fit in a single NUMA node.
+
+For example it was mentioned that we could allocate readily available
+already-free local 4k if local compaction fails and the watermarks
+still allows local 4k allocations without invoking reclaim, before
+invoking compaction on remote nodes. The same can be repeated at a
+second level with intra-socket non-THP memory before invoking
+compaction inter-socket. However we can't do things like that with the
+current page allocator workflow. It's possible some larger change is
+required than just sending a single gfp bitflag down to the page
+allocator that creates an implicit MPOL_LOCAL binding to make it
+behave like the obsoleted numa/zone reclaim behavior, but weirdly only
+applied to THP allocations.
+
+--
+
+In addition to the above "NUMA remote THP vs NUMA local non-THP
+tradeoff" topic, there are other developments in "userfaultfd" land that
+are approaching merge readiness and that would be possible to provide a
+short overview about:
+
+- Peter Xu made significant progress in finalizing the userfaultfd-WP
+  support over the last few months. That feature was planned from the
+  start and it will allow userland to do some new things that weren't
+  possible to achieve before. In addition to synchronously blocking
+  write faults to be resolved by an userland manager, it has also the
+  ability to obsolete the softdirty feature, because it can provide
+  the same information, but with O(1) complexity (as opposed of the
+  current softdirty O(N) complexity) similarly to what the Page
+  Modification Logging (PML) does in hardware for EPT write accesses.
+
+- Blake Caldwell maintained the UFFDIO_REMAP support to atomically
+  remove memory from a mapping with userfaultfd (which can't be done
+  with a copy as in UFFDIO_COPY and it requires a slow TLB flush to be
+  safe) as an alternative to host swapping (which of course also
+  requires a TLB flush for similar reasons). Notably UFFDIO_REMAP was
+  rightfully naked early on and quickly replaced by UFFDIO_COPY which
+  is more optimal to add memory to a mapping is small chunks, but we
+  can't remove memory with UFFDIO_COPY and UFFDIO_REMAP should be as
+  efficient as it gets when it comes to removing memory from a
+  mapping.
+
+Thank you,
+Andrea
 
