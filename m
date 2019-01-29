@@ -2,123 +2,122 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38976C282D0
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:06:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 13308C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:09:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C521320869
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:06:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C3AC220844
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 19:09:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="GukueZty"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C521320869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gVcqUjmO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3AC220844
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 683388E0015; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
+	id 5C1528E001C; Tue, 29 Jan 2019 14:09:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 634208E0001; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
+	id 56F988E0001; Tue, 29 Jan 2019 14:09:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 522908E0015; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
+	id 485068E001C; Tue, 29 Jan 2019 14:09:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 12ABC8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:06:01 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id a2so14472863pgt.11
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:06:01 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A2528E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 14:09:06 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id g188so14453920pgc.22
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 11:09:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=emE0zrfW1fDVIWi7LXkvkp732fT69w6QDDr/ZB5SXR4=;
-        b=Hv2LMIOOGG+Gz/0SotcpISvzDIDnyIql/qKxejiDfotUatyVS/MTWaFBBcAfesbjb0
-         iTuK/czJrHWj91D64VZ4+JnNVWiLnMbqFD3tF0xn84XfSe9FXKev4dWYltS5JVgPrnn2
-         K3flWWaIssrH5rZ8mELens29vGG8M3uKKhZSCkPkgPcDXtyUIPy1skFGCuQ80uFjJNj5
-         5sUcKbpmpUegB9GyxbB3HAGQTiRTFTtowblUEHAQ6eD7vji5KfSOY3b7Ajpzf7zHwlmz
-         wfbSt4JKTpcUJ5ei9nTg0SpD8Aym9HqwaGijq+yr9QTOkJNNP31S/8/K0l8iHvy6B23U
-         MYhQ==
-X-Gm-Message-State: AJcUukdPm7GLXRBAEAUBMiPFOuPbyuhb23xvKHBy7QknJ7/ijuEVYZ80
-	c1iaK8Ohx813J4cziSifyntn95V+yIuaZBpv+X6kggR/suKwAAWywR4Z2YCVOfVGVXjPTh9+YgM
-	Kg1UHvdJA0WLc3spQfbjorm1ZtY7YYyJhgONMBhOUKrCE9e9sfP2gq8Yk+fZ67Vt6Zg==
-X-Received: by 2002:a63:94:: with SMTP id 142mr24233000pga.74.1548788760561;
-        Tue, 29 Jan 2019 11:06:00 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6j/xmMnReiAnzONXXXLoVkY36a2gwZcTp23tz6Gi6qWMPJJS6a1lPUWh7Omym6MSjEf27Q
-X-Received: by 2002:a63:94:: with SMTP id 142mr24232930pga.74.1548788759614;
-        Tue, 29 Jan 2019 11:05:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548788759; cv=none;
+        bh=Cua5YyY3UCe/2GZUwqOSzY6Efy7wQkjzkYSxkI+PGIc=;
+        b=IadmxelqAMLUSH48mlzSjAxZT/a9MKypo0j6YtiO5kVtBd9w099G7QKogH2Y9usjl3
+         Nuj/mdhKZPce74bmV0LHvtIt2iEVz39JakJE3IorLc190ROtn/1kmWa003/3Dn43L4tW
+         +JqKRmCV7LptMK3tFNMZiuRQ6c918S+SBeHNH5w3b8NklrJniiqs9MGzn+TJ+W6GAfC9
+         H/ESmvvZyq9WP6nmQSDL4R9JwfBCywLK6ccrlvVqEGDbk70lacqcJFTzJp+paAsm9Ajd
+         ZtbwGs/0+8iPrrwaSi8abVgprXbyliFYlLcw81aNHObRCwOoPy4oTnIG17SwZ4CIgZZK
+         PuGA==
+X-Gm-Message-State: AJcUukeT64IxQwOrzL3W/dcg/9Tmzt09iwX+AuAR1NE0BRWUZ6QQBz+5
+	rKSeiCy18TsHPUjCaVxeh65b/AozItuSPpty4N2NDX8P+ur2GWHiilWIp4F24svXH+MHcICzsgP
+	dflPivrmNGtAm8+kXAvbc//thpvazNiDdcYn+1oChdwECYtX318H4Wv626+bBxDPnNw==
+X-Received: by 2002:a63:da45:: with SMTP id l5mr25013602pgj.111.1548788945681;
+        Tue, 29 Jan 2019 11:09:05 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4ojXjU0SRW36gzI5ggvtzdYw9xnOwErSa3B24x7mN7VJucJaR2DSY4Yi58Bw8DVijdJgPk
+X-Received: by 2002:a63:da45:: with SMTP id l5mr25013555pgj.111.1548788944916;
+        Tue, 29 Jan 2019 11:09:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548788944; cv=none;
         d=google.com; s=arc-20160816;
-        b=DeyjCfeROl2kzowhn/a75D5jfJu1pEgOzXoZt+xbXha4CaczmbPEP+8nw2G2AKl8hp
-         s+nkUUDrz+RzUIUahbdt70SffcuifumLe8r1vfw7GhJ2IsUpgawWM/AOg6vlYjbwdTAT
-         zXMfX+wmrOsAYnD1e13zBp7ZSZNeux9xC9RhPRXWT8lB0QmEEiEK0jF4y9r8ucqr6SZe
-         hHoMFhzgbFR6j5fFN/JCofkPQLc5alLDStzaLo2U+C9AS1Zd7ay3Vouz2AANcVynHSZC
-         r9xfTP92l9AlH92Uc/PBXHpnOpfE4UMx/52ep2rMh/2fa1OI3WF+lY/FHNscAegA6oJK
-         hkzQ==
+        b=JWum+LJdnjrZNHjSgHQrelKDyjI1G+vpIA28E/7o1a1W82/AfNcgMX949H9NPi8gc7
+         3rVoWfR2J6ZVx/ostEqgkt8Nq90IFZkrjU+wrhB1PTiOMyvDr99UuuI+buToN/sTXNXs
+         NgGMn6gOhZECEqf9WT6XCjUsMaH/SV7bEcsj/zIBeaQDgNnlFlYDoTLVSAcfvQNjAiSf
+         sdCtueBGKUItW/qT/jBq+KakBiJL7JkBTgozabSd7nVjWMmZlE+iVUs9LRhD2fQIAXYe
+         ciS9QsJ6mSP6Jom/YR1u9koBF2aYdW2qO6jDGAAFtuc/71DWHb8bPiWgn5tkevDwFYml
+         aRAQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=emE0zrfW1fDVIWi7LXkvkp732fT69w6QDDr/ZB5SXR4=;
-        b=a8GuydG7ilZwJOVsKXvN2HOWq8whuYCqFnl+sNsYc7FVl59rVVYdRpd/4lrc/HNf7f
-         ro4aM19pwFooDaA1g9KHsdaae+Cmv7FXKqXHvKC1Xk+kK60vfSW7znNYQi8oT9Prl1e3
-         0hv6t8bVY2seRDknCTkwdbOo4N7u398hRrmnJ6IbcEjqrSGaoDMfLZgCNgIU0d+EHpXx
-         YC6lqh2egVvcPueknGYv2I4JZAUF/7idn8dOLyinwx+HQlr6E+bNxzXLKY5YFwISTGaP
-         eXoh1msM6pDA9+/5YGdy7vHaciTp8ra1maClbWmAImamhV5rCn7pNv/lRcTjVt1hWSLc
-         5zNA==
+        bh=Cua5YyY3UCe/2GZUwqOSzY6Efy7wQkjzkYSxkI+PGIc=;
+        b=LDXlQCMGyh25va9XUOlKT1NX3vL10D5WoSk43nl2fBxTD73VuWzGoh5JAzGNE4IAwv
+         lnES2c/obhWnNUIBt2O6q4HRFe1wpQ3Cyog2ktIwM+hVT9MsTSWAByqigbpJccHv97V2
+         i36mk2RLy6W82dClgTqL8oDNHaUaZl0GC5p+hu7skvg81Em+a2PhSrkB6PyjvhRLhX+d
+         hA9H1Mj8odX1UFHHXvPY3FP9zLHk786Ml3ufik8U9unSf+VLQrawOhNxYnbNqy0SWXR+
+         P6KZ6YTjb87eWxEfypoHFSKeSamHtJDFGMsUmC9+mgmbvJJuYbjMk4pEtdPCGWOvW5XE
+         hfjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=GukueZty;
-       spf=pass (google.com: domain of helgaas@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=helgaas@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g98si23309693plb.99.2019.01.29.11.05.59
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gVcqUjmO;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id x1si38000238plb.366.2019.01.29.11.09.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 11:05:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of helgaas@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Jan 2019 11:09:04 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=GukueZty;
-       spf=pass (google.com: domain of helgaas@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=helgaas@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (156.sub-174-234-151.myvzw.com [174.234.151.156])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A307920844;
-	Tue, 29 Jan 2019 19:05:58 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1548788759;
-	bh=C/ElWr39C7348LPT6M9EQw73AUPUHuuyi4qzDK3KsaE=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=GukueZtyeyVUCdD3XNXwmMmJWPqwXf7xLKyMITqxaEU1I8qWgjsoNgvQELWnYv2Ek
-	 UgYIpgB3sZjZfcJvJ6uIrB3wRHMpp764N+VXhzVXQPI2M7R8LXQ9j6HLFQeTZ0NgpH
-	 BaZaUi4Rj09eNxdClryXzPSMhP0W15xYwlq9e9CM=
-Date: Tue, 29 Jan 2019 13:05:56 -0600
-From: Bjorn Helgaas <helgaas@kernel.org>
-To: Jonathan Cameron <jonathan.cameron@huawei.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-pci@vger.kernel.org,
-	x86@kernel.org, linuxarm@huawei.com, Ingo Molnar <mingo@kernel.org>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Martin =?iso-8859-1?Q?Hundeb=F8ll?= <martin@geanix.com>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	ACPI Devel Mailing List <linux-acpi@vger.kernel.org>
-Subject: Re: [PATCH V2] x86: Fix an issue with invalid ACPI NUMA config
-Message-ID: <20190129190556.GB91506@google.com>
-References: <20181211094737.71554-1-Jonathan.Cameron@huawei.com>
- <a5a938d3-ecc9-028a-3b28-610feda8f3f8@intel.com>
- <20181212093914.00002aed@huawei.com>
- <20181220151225.GB183878@google.com>
- <65f5bb93-b6be-d6dd-6976-e2761f6f2a7b@intel.com>
- <20181220195714.GE183878@google.com>
- <20190128112904.0000461a@huawei.com>
- <20190128231322.GA91506@google.com>
- <20190129095105.00000374@huawei.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gVcqUjmO;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=Cua5YyY3UCe/2GZUwqOSzY6Efy7wQkjzkYSxkI+PGIc=; b=gVcqUjmOXq5LVw8P80svC9HYP
+	AV8bRa1e6rYmZwXtE6cNeG0FGcm8XcguwKoNEFRTx7ABc+Nx/PtM4QjuVMLk/RfooU0lRdnkWxOqT
+	QRzoVNadl1qrmH2b/smBvJ9lU7mKAOS0dIfiwUBYj+kivO4cslH6ojOFJH/BPXeYDEcZWq2+4VDuH
+	KymK/JiSENNQxnkaa9PJ5pz11okYs9d5b4ZeGmCvOtzi8CKSuHWlJUnZhwhOn4KQ4rEiylU4FISEn
+	iLyexJFSEeziwNmFVxQ7FBZ122QdaCxlvNN0P6++7mqVuXcvrpnc6QI7RMXH5dLVQs1bJW0S+fMlb
+	WpgokPBRg==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1goYkf-0003Mo-DW; Tue, 29 Jan 2019 19:08:53 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 84A3F201EC171; Tue, 29 Jan 2019 20:08:51 +0100 (CET)
+Date: Tue, 29 Jan 2019 20:08:51 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Tejun Heo <tj@kernel.org>, lizefan@huawei.com,
+	Johannes Weiner <hannes@cmpxchg.org>, axboe@kernel.dk,
+	dennis@kernel.org, Dennis Zhou <dennisszhou@gmail.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jonathan Corbet <corbet@lwn.net>, cgroups@vger.kernel.org,
+	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>, kernel-team@android.com
+Subject: Re: [PATCH v3 5/5] psi: introduce psi monitor
+Message-ID: <20190129190851.GA2961@hirez.programming.kicks-ass.net>
+References: <20190124211518.244221-1-surenb@google.com>
+ <20190124211518.244221-6-surenb@google.com>
+ <20190129123843.GK28467@hirez.programming.kicks-ass.net>
+ <CAJuCfpGxtGHsow002nd8Ao8mo9MaZQqZau_NLTMrZ8=aypTkig@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190129095105.00000374@huawei.com>
+In-Reply-To: <CAJuCfpGxtGHsow002nd8Ao8mo9MaZQqZau_NLTMrZ8=aypTkig@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -126,111 +125,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 09:51:05AM +0000, Jonathan Cameron wrote:
-> On Mon, 28 Jan 2019 17:13:22 -0600
-> Bjorn Helgaas <helgaas@kernel.org> wrote:
-> > On Mon, Jan 28, 2019 at 11:31:08AM +0000, Jonathan Cameron wrote:
-> > > On Thu, 20 Dec 2018 13:57:14 -0600
-> > > Bjorn Helgaas <helgaas@kernel.org> wrote:  
-> > > > On Thu, Dec 20, 2018 at 09:13:12AM -0800, Dave Hansen wrote:  
-> > > > > On 12/20/18 7:12 AM, Bjorn Helgaas wrote:    
-
-> > The current patch proposes setting "numa_off=1" in the x86 version of
-> > dummy_numa_init(), on the assumption (from the changelog) that:
-> > 
-> >   It is invalid under the ACPI spec to specify new NUMA nodes using
-> >   _PXM if they have no presence in SRAT.
-> > 
-> > Do you have a reference for this?  I looked and couldn't find a clear
-> > statement in the spec to that effect.  The _PXM description (ACPI
-> > v6.2, sec 6.1.14) says that two devices with the same _PXM value are
-> > in the same proximity domain, but it doesn't seem to require an SRAT.
+On Tue, Jan 29, 2019 at 10:18:20AM -0800, Suren Baghdasaryan wrote:
+> On Tue, Jan 29, 2019 at 4:38 AM Peter Zijlstra <peterz@infradead.org> wrote:
+> >
+> > On Thu, Jan 24, 2019 at 01:15:18PM -0800, Suren Baghdasaryan wrote:
+> > > +                     atomic_set(&group->polling, polling);
+> > > +                     /*
+> > > +                      * Memory barrier is needed to order group->polling
+> > > +                      * write before times[] read in collect_percpu_times()
+> > > +                      */
+> > > +                     smp_mb__after_atomic();
+> >
+> > That's broken, smp_mb__{before,after}_atomic() can only be used on
+> > atomic RmW operations, something atomic_set() is _not_.
 > 
-> No comment (feel free to guess why). *sigh*
+> Oh, I didn't realize that. After reading the following example from
+> atomic_ops.txt 
 
-Secret interpretations of the spec are out of bounds.  But I think
-it's a waste of time to argue about whether _PXM without SRAT is
-valid.  Systems like that exist, and I think it's possible to do
-something sensible with them.
+That document it woefully out of date (and I should double check, but I
+think we can actually delete it now). Please see
+Documentation/atomic_t.txt
 
-> > Maybe it results in an issue when we call kmalloc_node() using this
-> > _PXM value that SRAT didn't tell us about?  If so, that's reminiscent
-> > of these earlier discussions about kmalloc_node() returning something
-> > useless if the requested node is not online:
-> > 
-> >   https://lkml.kernel.org/r/1527768879-88161-2-git-send-email-xiexiuqi@huawei.com
-> >   https://lore.kernel.org/linux-arm-kernel/20180801173132.19739-1-punit.agrawal@arm.com/
-> > 
-> > As far as I know, that was never really resolved.  The immediate
-> > problem of using passing an invalid node number to kmalloc_node() was
-> > avoided by using kmalloc() instead.
+> I was under impression that smp_mb__after_atomic()
+> would make changes done by atomic_set() visible:
 > 
-> Yes, that's definitely still a problem (or was last time I checked)
+> /* All memory operations before this call will
+> * be globally visible before the clear_bit().
+> */
+> smp_mb__before_atomic();
+> clear_bit( ... );
+> /* The clear_bit() will be visible before all
+> * subsequent memory operations.
+> */
+> smp_mb__after_atomic();
 > 
-> > > Dave's response was that we needed to fix the underlying issue of
-> > > trying to allocate from non existent NUMA nodes.  
+> but I'm probably missing something. Is there a more detailed
+> description of these rules anywhere else?
 
-> > Bottom line, I totally agree that it would be better to fix the
-> > underlying issue without trying to avoid it by disabling NUMA.
-> 
-> I don't agree on this point.  I think two layers make sense.
-> 
-> If there is no NUMA description in DT or ACPI, why not just stop anything
-> from using it at all?  The firmware has basically declared there is no
-> point, why not save a bit of complexity (and use an existing tested code
-> path) but setting numa_off?
+See atomic_t.txt; but the difference is that clear_bit() is a RmW, while
+atomic_set() is just a plain store.
 
-Firmware with a _PXM does have a NUMA description.
+> Meanwhile I'll change smp_mb__after_atomic() into smp_mb(). Would that
+> fix the ordering?
 
-> However, if there is NUMA description, but with bugs then we should
-> protect in depth.  A simple example being that we declare 2 nodes, but
-> then use _PXM for a third. I've done that by accident and blows up
-> in a nasty fashion (not done it for a while, but probably still true).
-> 
-> Given DSDT is only parsed long after SRAT we can just check on _PXM
-> queries.  Or I suppose we could do a verification parse for all _PXM
-> entries and put out some warnings if they don't match SRAT entries?
-
-I'm assuming the crash happens when we call kmalloc_node() with a node
-not mentioned in SRAT.  I think that's just sub-optimal implementation
-in kmalloc_node().
-
-We *could* fail the allocation and return a NULL pointer, but I think
-even that is excessive.  I think we should simply fall back to
-kmalloc().  We could print a one-time warning if that's useful.
-
-If kmalloc_node() for an unknown node fell back to kmalloc(), would
-anything else be required?
-
-> > > Whilst I agree with that in principle (having managed to provide
-> > > tables doing exactly that during development a few times!), I'm not
-> > > sure the path to doing so is clear and so this has been stalled for
-> > > a few months.  There is to my mind still a strong argument, even
-> > > with such protection in place, that we should still be short cutting
-> > > it so that you get the same paths if you deliberately disable numa,
-> > > and if you have no SRAT and hence can't have NUMA.  
-> > 
-> > I guess we need to resolve the question of whether NUMA without SRAT
-> > is possible.
-> 
-> It's certainly unclear of whether it has any meaning.  If we allow for
-> the fact that the intent of ACPI was never to allow this (and a bit
-> of history checking verified this as best as anyone can remember),
-> then what do we do with the few platforms that do use _PXM to nodes that
-> haven't been defined?
-
-We *could* ignore any _PXM that mentions a proximity domain not
-mentioned by an SRAT.  That seems a little heavy-handed because it
-means every possible proximity domain must be described up front in
-the SRAT, which limits the flexibility of hot-adding entire nodes
-(CPU/memory/IO).
-
-But I think it's possible to make sense of a _PXM that adds a
-proximity domain not mentioned in an SRAT, e.g., if a new memory
-device and a new I/O device supply the same _PXM value, we can assume
-they're close together.  If a new I/O device has a previously unknown
-_PXM, we may not be able to allocate memory near it, but we should at
-least be able to allocate from a default zone.
-
-Bjorn
+It would work here; but I'm still trying to actually understand all
+this. So while the detail would be fine, I'm not ready to judge the
+over-all thing.
 
