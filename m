@@ -2,163 +2,153 @@ Return-Path: <SRS0=Ydgi=QF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B8F0C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 15:51:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C58BAC282D0
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 15:52:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 275A1214DA
-	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 15:51:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="RzAlWWCf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 275A1214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 8C6122175B
+	for <linux-mm@archiver.kernel.org>; Tue, 29 Jan 2019 15:52:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C6122175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B85F08E0002; Tue, 29 Jan 2019 10:51:17 -0500 (EST)
+	id 2CFE98E0002; Tue, 29 Jan 2019 10:52:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B0C7B8E0001; Tue, 29 Jan 2019 10:51:17 -0500 (EST)
+	id 2803A8E0001; Tue, 29 Jan 2019 10:52:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D47F8E0002; Tue, 29 Jan 2019 10:51:17 -0500 (EST)
+	id 1489F8E0002; Tue, 29 Jan 2019 10:52:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C28D8E0001
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:51:17 -0500 (EST)
-Received: by mail-yb1-f199.google.com with SMTP id y6so10257846ybb.11
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 07:51:17 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A956B8E0001
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2019 10:52:24 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id x15so8153265edd.2
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 07:52:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=KPvAmBd7SxWszJX5z25Se4g5haPwrJDLEnstw64/0iE=;
-        b=YRAgtBu+Xp6v3x08e/SsD9KvfeeUj+wWkG2y3X2rthY6sBDZtaDEA/8x/nSZzIwHGQ
-         Eb3Wd1GNhQY+S7xAmF5UzhNasFH32No5m6z8NojRFZ6jPwpYEYO7R/6K+lyzdpWzd9Oy
-         ShnafDBbU9KrEmJmQk5v6xivVZ+lPK6XZOk8vLK8ozWqoaZUHQRIWWICpHN3JMirZnaV
-         d+T92T8jz2N5Pa8ObotyIL/0sEvn6IUKI9yIrZjJkinuchvP/shs9NjhNJtgiAxxzlo5
-         jKDltrA6ElCzsyzdVU3SfxG4xWfJinbjmoSI1oyQgA0sVk4lrz4PNcXMAffRSIr3ckKU
-         C8YQ==
-X-Gm-Message-State: AJcUukeKmk9iWdTctn8NzYjE4JX6fE/Tz8V31NplKfaqrslcSAYxITjK
-	3xhxim0UiKau6klFP1JHsgefVjZXKLd+CGLLl52c4UD0mHOBCfuRIWhiSpd+b1ZJflygOCdPG7B
-	fX99cK4lR9I52h1GmXIoaUZf2gxlolKmhYP17iMtXmxucxEmIny7b/8+EX1GSOQYu5Q==
-X-Received: by 2002:a81:7c04:: with SMTP id x4mr17427163ywc.264.1548777077081;
-        Tue, 29 Jan 2019 07:51:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4K6pm0EgPPELUcYgls/fkXHGqj4FX8mTF6OWw4Ag4Po3CduQN5KdkwOAM2GSeqaulxVE6+
-X-Received: by 2002:a81:7c04:: with SMTP id x4mr17427123ywc.264.1548777076489;
-        Tue, 29 Jan 2019 07:51:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548777076; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=tWWxSABfpXRajMhk7SnL8Dhl7wtX5UIR/JlHdPavfy8=;
+        b=Wr7y1g/wScj0tP7eUZL6OM+XoGltAwgCQUnNj/kMzr98mT82XNRNlYOZU+T7asj6OQ
+         1qrMnJp9XqNIXPXMUz4rjzg+CB4JpfTE1245kRGvkyYZ2MmEXLdiidKBUJwGier3gn+n
+         64y2XFUX3I4u0AoT44Cu+PS4bS8OOi01+xhbXvwyKxSSXTXidZcHT3xVDlkLf93X3whs
+         SyeknK4MH0HFBHhgddyemU5viwB/uDHuoRW8VNjf0qSrm0T7T2heTp+/FdkEyTypltp5
+         QLcDDQwsVD5Hlb/Ce8QolaMcFGP3XZt9XHBrAE75TJG/9J6RUwWCVCZFZwRBhvtBS8E8
+         xIEA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AJcUukdJi3OvIP8RWRi/YsBA847/FUW5yycJMrrO6L6ykvkhscPHXsLw
+	brhXyM3YeOqQp/fzgHfJQ7AgxcSNsGNttNHEO9jj9roAmk4FHFChDZr3MPLnHUELSd1dNCiEDkC
+	qRvX5Xu3S8eW6JNoNP0ahVFXnMm5RO2J4Sit5wgW1P7JojMYMVit1V/TxNITciFaipQ==
+X-Received: by 2002:a50:b4f1:: with SMTP id x46mr26515805edd.289.1548777144258;
+        Tue, 29 Jan 2019 07:52:24 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4+z6g/Rs5MtyocrVdOAq/0picdicqILPxav8WdZCeK7XuzWzNEOTc3uisgeibbAWps/4sf
+X-Received: by 2002:a50:b4f1:: with SMTP id x46mr26515758edd.289.1548777143353;
+        Tue, 29 Jan 2019 07:52:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548777143; cv=none;
         d=google.com; s=arc-20160816;
-        b=FTbNnSqVZt54109vK+D1Q7OuXSQWyHzTcguJnoJMoEXneB4TgTj41MeJXYHRxNRe/w
-         Rm3DJImoSmncg3jL9xe49eoBoJJEhMv0E10EnjhQsvmlRKVB/5cRY67YRtugj8Xn5IW1
-         kWxvWGVUwd0Jv2H4yYQJkNFq52QQEYf+Rl6tt2mtOAbdSJlvqAHpRpnVvoacbqNn2FDF
-         Xr9PNgXfyBRTm0jnEIdMNK2wPv5bKSz4tYFe0d6fY64uclD9FkJpYRGA1g+NHcK3WJiJ
-         lCxN7lDkPr+vxwEPFv5UlUcthiJe8+cCXyIDkN/Zy3bEqtC+WiPdgnUmCCcxdQdNZdj5
-         /bgQ==
+        b=DaoEjwXXQN+xGtA4IDNR5TS4rr//tJSaU8PzCTL5Qy8HKt46hsPvt4GpI9EhapFml+
+         OipMnVYIf2Rb3IPwcOHKIQTtpskT5PiGDzH+uyJ9ufklTvTKXa38N1Mjy2yxOXLI76Tu
+         9gA+1novZ+63hlpZw2/TPyhnJT/9xmA1Wo7Y1xyspkeYm1qYamSWauvkjrYXU9Vkxp/0
+         T86XDIBUkRRn6skTqqgIVS36OYgZbKxmJKIYznWAuMuRQEWLGwbANmlE1m8LP3nqYSA0
+         hPBYsFPm/Nr3uOikkd6UDDZTFh0g/luVKWwq+qKn2mbYfnm+EQ7dvU2E5b3rjkOFJ4bw
+         kegw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=KPvAmBd7SxWszJX5z25Se4g5haPwrJDLEnstw64/0iE=;
-        b=JYnzx1zSB075okxhvBZXckMMM/G/Ct3Yt5I1FbZQ/4s+8xie6iKEGncX7wggacZ1Zm
-         eBVPMGi+E9qSHxlTgxMkMr1ACZYewBtxQrqgxnBh/fPzPnpYeBTNcxXDGDr70I44G8pj
-         mlPlUTu8rRZcRr8WSCU2CYAcLhcQtJsbTZYteqjVRPsDGkWHPyGs8mMb7xsW0/kaOx3m
-         098Czljx0zI47MCFwUPE7MbN7ZdTM8/hRTbVmy+gT9QtPkfHCbpcyCjctDlGskLcMdIs
-         DRGQJ3kH3uEUjwukMlKoOT72hmALOmxfm74MqUO+QyCvbHWEkE74R8SRMXPLWPYiojX2
-         mVVQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=tWWxSABfpXRajMhk7SnL8Dhl7wtX5UIR/JlHdPavfy8=;
+        b=sZeuNQrEHP2VH7LEZAFDaJ6J0yx6LYc4AgQ5ByZr9mhhuSsa9cHOt7uRTHLI7c2VEq
+         iA1Si/lNigi7Ij4EmOrMzFR1ODROLzHXPkztArSvCljFCq0chnGihjf2jeKA2V+HnV/Z
+         8MY+OBDp0WEwTr4vAY8RHg8Qy/zfIXYfhIdbBSH9axq/tRe+Y38/ioQ+WhCVyHngnY6v
+         Sk5c53JhaM2HwflPWfVeBRLCpizLj9zef13bJCv+NGHRVYGC54JG0r5SD2ObKlqT+tTC
+         N1a8eJ/niSgZh9Qi8lbBEND1EUpQuWQ11Ex6hSCWZqtlgnIEZa3UZWYQ/WE32BSyN6Ru
+         Ti1g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=RzAlWWCf;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id v70si21061574ybg.50.2019.01.29.07.51.16
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n9-v6si2655258ejk.117.2019.01.29.07.52.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 07:51:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Tue, 29 Jan 2019 07:52:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=RzAlWWCf;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x0TFi7Tg175709;
-	Tue, 29 Jan 2019 15:51:11 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : mime-version : content-type; s=corp-2018-07-02;
- bh=KPvAmBd7SxWszJX5z25Se4g5haPwrJDLEnstw64/0iE=;
- b=RzAlWWCfOARACGa6A7lvdljgHCYFSyJubAzipcBJqX0AyvDMPxfd/L/kPXH4XULvu8G0
- 0IvlsIbFwCoti6KU/Jld+PepDpD2pKWrbSRZ4p2nhQKR9HzEebBdhdtaCRFalMKtSMNO
- x9fU288znIHEEnFwNEAKLW3847SeE+HVFYLW4NvpQx6hIOuf+rLRQG3URX+32yW9SW82
- dZL1rhbF2jp17+DB9+o9TX41oKUc3eteSApX55HjcMimY2xC6PZ3qs7IexXjZIatEZtg
- o2suCnGCOoH2cga5XQxxQNrlwKgOJ+1XvidH5HkF0w55MHOboqx6ZdQr1O6WTUCkFREB 9g== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2120.oracle.com with ESMTP id 2q8g6r55hg-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 29 Jan 2019 15:51:11 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x0TFpADc023200
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 29 Jan 2019 15:51:10 GMT
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x0TFp9QB004204;
-	Tue, 29 Jan 2019 15:51:10 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 29 Jan 2019 07:51:09 -0800
-Date: Tue, 29 Jan 2019 10:51:28 -0500
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, ben@communityfibre.ca, kirill@shutemov.name,
-        mgorman@suse.de, mhocko@kernel.org, riel@surriel.com,
-        daniel.m.jordan@oracle.com
-Subject: linux-mm for lore.kernel.org
-Message-ID: <20190129155128.kos4hp7rnqdg2csc@ca-dmjordan1.us.oracle.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D88CDB11F;
+	Tue, 29 Jan 2019 15:52:22 +0000 (UTC)
+Subject: Re: [PATCH] mm: proc: smaps_rollup: Fix pss_locked calculation
+To: Andrew Morton <akpm@linux-foundation.org>,
+ Sandeep Patil <sspatil@android.com>
+Cc: adobriyan@gmail.com, avagin@openvz.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org,
+ kernel-team@android.com, dancol@google.com
+References: <20190121011049.160505-1-sspatil@android.com>
+ <20190128161509.5085cacf939463f1c22e0550@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b15205cd-33e3-6cac-b6a4-65266be7a9c8@suse.cz>
+Date: Tue, 29 Jan 2019 16:52:21 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9150 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=1 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1901290118
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000079, version=1.2.4
+In-Reply-To: <20190128161509.5085cacf939463f1c22e0550@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 1/29/19 1:15 AM, Andrew Morton wrote:
+> On Sun, 20 Jan 2019 17:10:49 -0800 Sandeep Patil <sspatil@android.com> wrote:
+> 
+>> The 'pss_locked' field of smaps_rollup was being calculated incorrectly
+>> as it accumulated the current pss everytime a locked VMA was found.
+>> 
+>> Fix that by making sure we record the current pss value before each VMA
+>> is walked. So, we can only add the delta if the VMA was found to be
+>> VM_LOCKED.
+>> 
+>> ...
+>>
+>> --- a/fs/proc/task_mmu.c
+>> +++ b/fs/proc/task_mmu.c
+>> @@ -709,6 +709,7 @@ static void smap_gather_stats(struct vm_area_struct *vma,
+>>  #endif
+>>  		.mm = vma->vm_mm,
+>>  	};
+>> +	unsigned long pss;
+>>  
+>>  	smaps_walk.private = mss;
+>>  
+>> @@ -737,11 +738,12 @@ static void smap_gather_stats(struct vm_area_struct *vma,
+>>  		}
+>>  	}
+>>  #endif
+>> -
+>> +	/* record current pss so we can calculate the delta after page walk */
+>> +	pss = mss->pss;
+>>  	/* mmap_sem is held in m_start */
+>>  	walk_page_vma(vma, &smaps_walk);
+>>  	if (vma->vm_flags & VM_LOCKED)
+>> -		mss->pss_locked += mss->pss;
+>> +		mss->pss_locked += mss->pss - pss;
+>>  }
+> 
+> This seems to be a rather obscure way of accumulating
+> mem_size_stats.pss_locked.  Wouldn't it make more sense to do this in
+> smaps_account(), wherever we increment mem_size_stats.pss?
+> 
+> It would be a tiny bit less efficient but I think that the code cleanup
+> justifies such a cost?
 
-I'm working on adding linux-mm to lore.kernel.org, as previously discussed
-here[1], and seem to have a mostly complete archive, starting from the
-beginning in November '97.  My sources so far are the list admin's files
-(thanks Ben and Rik), gmane, and my own inbox.
+Yeah, Sandeep could you add 'bool locked' param to smaps_account() and check it
+there? We probably don't need the whole vma param yet.
 
-However, with disk corruption and downtime, it'd be great if people could pitch
-in with what they have to ensure nothing is missing.  lore.kernel.org has been
-archiving linux-mm since December 2018, so only messages before that date are
-needed.
-
-Instructions for contributing are here:
-
-  https://korg.wiki.kernel.org/userdoc/lore
-
-These are the message ids captured so far:
-
-  https://drive.google.com/file/d/1JdpS0X1P-r0sSDg2wE1IIzrAFNN8epIE/view?usp=sharing
-
-This uncompressed file may be passed to the -k switch of the tool in the
-instructions to filter out what's already been collected.
-
-Please tar up and xz -9 any resulting directories of mbox files and send them
-to me (via sharing link if > 1M) by Feb 12, when I plan to submit the archive.
-
-Suggestions for other sources also welcome.
-
-Thanks,
-Daniel
-
-[1] http://lkml.kernel.org/r/20180926130850.vk6y6zxppn7bkovk@kshutemo-mobl1
+Thanks.
 
