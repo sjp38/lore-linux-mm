@@ -2,177 +2,189 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71F6FC282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 22:52:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B895C282D8
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 22:58:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17EF1218D2
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 22:52:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17EF1218D2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
+	by mail.kernel.org (Postfix) with ESMTP id 320A120857
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 22:58:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 320A120857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC2418E0004; Wed, 30 Jan 2019 17:52:29 -0500 (EST)
+	id D81418E0002; Wed, 30 Jan 2019 17:58:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C71B48E0001; Wed, 30 Jan 2019 17:52:29 -0500 (EST)
+	id D09F18E0001; Wed, 30 Jan 2019 17:58:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B61998E0004; Wed, 30 Jan 2019 17:52:29 -0500 (EST)
+	id BAC2F8E0002; Wed, 30 Jan 2019 17:58:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 878058E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 17:52:29 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id o22so1003854iob.13
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 14:52:29 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A19C8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 17:58:57 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id f2so1437355qtg.14
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 14:58:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:subject;
-        bh=EdS938obF7AVtYIhYr5Ib63FEKUYdH54X0t0n3VoYKI=;
-        b=T6ThPRGfHE6F30Y6BDTUIHjJqoKj7/E4A3rfYgO6Sfde8ZCigTP/Li5u6wgwfpPgO4
-         8LPIDrxUK7NHTTrbnvtAlbPaDi9Z+6CnXvkax6Ql+7Ca+c2WR8L1XfIoYKq+rchye6BN
-         hxsH0WOhDisxYN7X+9gda7kFVneFBN+TTCiwk45QjaJKOnPtRWyUzS6JOPT1kZTpBLtw
-         w5C+HXd7QisEq0DMXOeklJTA1IGY9YOgnumcbOoVu/bDaHjrKt9iQ1Vz4Sviy8zg19yU
-         KyUzZhFZvjndMqcWT/wj58ByIorMtYKZTvfuvc5FQivFvVxeKC3dVDkkODQ4WGzle5zb
-         rjrw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-X-Gm-Message-State: AHQUAuZ2LYjpH9B5MCX8vF2OntKOM9UParN+wd+M6r3ZZX/gCjYlprKo
-	Kp3OQ2lrpQ9kYiG/g+knb9CKjerSjREBEIHcSF/wZQ5pzYYb1sDkgnu2G6lUKYju5KVXcp0BcGU
-	8ek/TZvYKOIqTvlGKLUBinY3HSMz/c0m//sh3D0U5a3bG9XEAXAyqWY514T17gh2PyA==
-X-Received: by 2002:a5e:df0d:: with SMTP id f13mr11997299ioq.153.1548888749293;
-        Wed, 30 Jan 2019 14:52:29 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYypgtNrH+8xu8ykTn58A3qLo1XU4Nuj8rTE/cg3/KPurRiLH3VgVxhm/3tIE36Waz6t6uJ
-X-Received: by 2002:a5e:df0d:: with SMTP id f13mr11997274ioq.153.1548888748644;
-        Wed, 30 Jan 2019 14:52:28 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548888748; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=SslJD5HCZnE33m8/+nrfokiGSZS9ZeZ9Mbb5q5yPKwc=;
+        b=CLeUd+m8L9JpOittDfm6q2t/lyS8jDkcMcYEnuUCVEYm55w0LK5w5uCfITNrkgqba4
+         IFG/TbrRmwq+hTP38uiDMTJcEnIyW5ximMyypsZcG/V2qhRvQZKTGSAtt5OJN+J0jKQd
+         Bo2jV3EE6mEbcLoxkpC2toTYlDsWigCwCbIljrIFdlFqvxriLd3tA/XM0P9KTWzjkjlK
+         u+aHo857YyQ1F98Nkjj5T52mjB1HBQdCqFpm0VAsvY/CVSCQD0uCP8XqtKb30Jii2k0t
+         SkrWr4wcZUBgnoG8bZ/svtHpuq/3wsNfEdd1aDDZ37y71IdtPaH7kZemS1Ghu5Hms8g8
+         oOPw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukd8MmVefApct/Tm4Df1my3xEHQO3x/APlOUYJXmxwdoz5xaH14N
+	y3vwyT+SZfx6y9Smx1MbYvqzmCq69MGSZgRNcb+HPWo1/JPjByLuBDh7z+rNEjOliRfDGDyTdL4
+	vmyuycjPzaZNTqCoRMpchAp2R7FuACb014eVmcUzhUvlnrcxOTK6h51c4yui+dvhdwg==
+X-Received: by 2002:ac8:ecf:: with SMTP id w15mr31712730qti.359.1548889137340;
+        Wed, 30 Jan 2019 14:58:57 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4zHcarRoXrgwC8gMaHdMfTeKxW4a7IyBzN0uFF+0Wq1h1ygwtueQ62eSZq02EJnGI0T+sm
+X-Received: by 2002:ac8:ecf:: with SMTP id w15mr31712705qti.359.1548889136720;
+        Wed, 30 Jan 2019 14:58:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548889136; cv=none;
         d=google.com; s=arc-20160816;
-        b=xNsv1RUnFd9dsobd0kJFRR2/1nC0G+kYxiwwhH8ByGQq0AuhNBqgiKl8a64VZfdYiY
-         FrkrTH+2kqWnMxH80d4BOViV+VUZElMUPuj4YjWtwZf/wWj4y4EwRVrXq4WFSHIrHnwq
-         n4f23p7qEwdrMMl9l1OoEybRlVrje3+GCosqL8TxC1agosOg4O7NMicWGZS6qs+BHh++
-         RCt3mZFH+v5NcGc9ZL00c417coZO6bj4rw6D4XSl7LYR2KeqdaDo1faKivtzeFQokZ2l
-         1DPNCprdO/f0V/kaFl5xQ3ZxjAWHsD3x/foX28VaVKBhGtX7bs3Doixj/mwR0V1rnSxD
-         y5kA==
+        b=HWqXhA7isND6xl8Z+DUHhSo83yvXQxH5TYOKNYU+YBs5FPT8nNtCNZR/6ZOhAzx8dg
+         k0CJU+dE6UDxI+NK+ickiHlkCpHLjWKYHRYY/Uki6doxHqc1lE6lIjwJB8oWAaZppFWd
+         jXN1LACeTILT6vTHdpeXRT67r06On+eN47y5ldXTBmeiJJkSEDlbgDX9oBGY1Qc0de7a
+         ZHOWf3w9AvZi6ulyzJ4zKYDc7I8F9TVb8GI7/6jO85EqsCh8sljL1pxTxn1llFbHMacU
+         Qt1fFhes+/yQnO0S3oFTotyaj0w6D5zl5oIY4XBjZXhPX04GEHmRdURaUfCR8/RcZbJM
+         nCqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=subject:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to;
-        bh=EdS938obF7AVtYIhYr5Ib63FEKUYdH54X0t0n3VoYKI=;
-        b=qfD4T0egx38zYpXVGqqZqfpS37nBVeXlauj2ncyjqISG7iQkUqhvQ3Xnmcjxj0aw2u
-         9Fj0H5suDpe6s6CuPuc3CdeZlhHmthIBfLyDB3AgmbE/ogL9mevcYF9tPSBf7jQqskkR
-         taQUoL2jKxPrRr8z/GOKxWQzQe1P+jtEz2SSeI5RP9u5fi4N6BOkuaR6VDi3/f/X5Msg
-         B+aVJTacieqZ0Ej1w8oGu9SHnDR06Njb0OLQTJwKyl2zq41gLknW9RsVBGewg4DKu7k1
-         U0P0wK5zqfYFUOF21s000hBrInNIHDrOyxJa1EkDGzTk2nbikUy8MgOykAYr7uwOVG+3
-         fn1w==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=SslJD5HCZnE33m8/+nrfokiGSZS9ZeZ9Mbb5q5yPKwc=;
+        b=E3tLzw8QZePCNC32gPKzW1evCNygEZGk7BurTDpOOSp23526B1oOFx3sB/ZmZu+p2d
+         krancRKyc7AHB1pB9gtbElskA9sSL2QUj+ccevmzOsNtR3azYGje0T5ZPA8n0p3BrYjg
+         jQG8fRdTl/v71YiAeRA9B6Uow76tHcvCCKdNBEjxDvylZ3j21nhMFxGo1speWWRIxVrb
+         SzjNB/HPi6LOqvI9/vyhRQUD0UYtjhm1CdZ+CAGdAsWR9ruTZPsc+yLFjmj2tIcI72Ts
+         s+BMielAxr5MpMGCjsoIo0rhbPc3FPBByk8DiudK0MSW9ETjbJBI18zGFElxnRM+pPd5
+         WnBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id 187si1976065itl.18.2019.01.30.14.52.28
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i54si2021229qvh.107.2019.01.30.14.58.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 Jan 2019 14:52:28 -0800 (PST)
-Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 14:58:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from s01061831bf6ec98c.cg.shawcable.net ([68.147.80.180] helo=[192.168.6.205])
-	by ale.deltatee.com with esmtpsa (TLS1.2:ECDHE_RSA_AES_128_GCM_SHA256:128)
-	(Exim 4.89)
-	(envelope-from <logang@deltatee.com>)
-	id 1goyiP-0002Sm-FK; Wed, 30 Jan 2019 15:52:18 -0700
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 80C3086671;
+	Wed, 30 Jan 2019 22:58:55 +0000 (UTC)
+Received: from redhat.com (ovpn-126-0.rdu2.redhat.com [10.10.126.0])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id EACAF608E5;
+	Wed, 30 Jan 2019 22:58:51 +0000 (UTC)
+Date: Wed, 30 Jan 2019 17:58:50 -0500
+From: Jerome Glisse <jglisse@redhat.com>
 To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Christoph Hellwig <hch@lst.de>, Jerome Glisse <jglisse@redhat.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn Helgaas
- <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
- Felix Kuehling <Felix.Kuehling@amd.com>,
- "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
- "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
- Marek Szyprowski <m.szyprowski@samsung.com>,
- Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
- "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
-References: <20190129215028.GQ3176@redhat.com>
- <deb7ba21-77f8-0513-2524-ee40a8ee35d5@deltatee.com>
- <20190129234752.GR3176@redhat.com>
- <655a335c-ab91-d1fc-1ed3-b5f0d37c6226@deltatee.com>
- <20190130041841.GB30598@mellanox.com> <20190130080006.GB29665@lst.de>
- <20190130190651.GC17080@mellanox.com>
- <840256f8-0714-5d7d-e5f5-c96aec5c2c05@deltatee.com>
- <20190130195900.GG17080@mellanox.com>
- <35bad6d5-c06b-f2a3-08e6-2ed0197c8691@deltatee.com>
- <20190130215019.GL17080@mellanox.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <07baf401-4d63-b830-57e1-5836a5149a0c@deltatee.com>
-Date: Wed, 30 Jan 2019 15:52:13 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
-MIME-Version: 1.0
-In-Reply-To: <20190130215019.GL17080@mellanox.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-SA-Exim-Connect-IP: 68.147.80.180
-X-SA-Exim-Rcpt-To: iommu@lists.linux-foundation.org, jroedel@suse.de, robin.murphy@arm.com, m.szyprowski@samsung.com, dri-devel@lists.freedesktop.org, linux-pci@vger.kernel.org, Felix.Kuehling@amd.com, christian.koenig@amd.com, bhelgaas@google.com, rafael@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, hch@lst.de, jgg@mellanox.com
-X-SA-Exim-Mail-From: logang@deltatee.com
+Cc: Logan Gunthorpe <logang@deltatee.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J . Wysocki" <rafael@kernel.org>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Christian Koenig <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
+	"iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
 Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
  vma
-X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
-X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
+Message-ID: <20190130225849.GJ5061@redhat.com>
+References: <db873687-ff80-4758-0b9f-973f27db5335@deltatee.com>
+ <20190130201114.GB17915@mellanox.com>
+ <20190130204332.GF5061@redhat.com>
+ <20190130204954.GI17080@mellanox.com>
+ <20190130214525.GG5061@redhat.com>
+ <20190130215600.GM17080@mellanox.com>
+ <20190130223027.GH5061@redhat.com>
+ <20190130223258.GB25486@mellanox.com>
+ <20190130224705.GI5061@redhat.com>
+ <20190130225148.GC25486@mellanox.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190130225148.GC25486@mellanox.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 30 Jan 2019 22:58:55 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 2019-01-30 2:50 p.m., Jason Gunthorpe wrote:
-> On Wed, Jan 30, 2019 at 02:01:35PM -0700, Logan Gunthorpe wrote:
+On Wed, Jan 30, 2019 at 10:51:55PM +0000, Jason Gunthorpe wrote:
+> On Wed, Jan 30, 2019 at 05:47:05PM -0500, Jerome Glisse wrote:
+> > On Wed, Jan 30, 2019 at 10:33:04PM +0000, Jason Gunthorpe wrote:
+> > > On Wed, Jan 30, 2019 at 05:30:27PM -0500, Jerome Glisse wrote:
+> > > 
+> > > > > What is the problem in the HMM mirror that it needs this restriction?
+> > > > 
+> > > > No restriction at all here. I think i just wasn't understood.
+> > > 
+> > > Are you are talking about from the exporting side - where the thing
+> > > creating the VMA can really only put one distinct object into it?
+> > 
+> > The message i was trying to get accross is that HMM mirror will
+> > always succeed for everything* except for special vma ie mmap of
+> > device file. For those it can only succeed if a p2p_map() call
+> > succeed.
+> > 
+> > So any user of HMM mirror might to know why the mirroring fail ie
+> > was it because something exceptional is happening ? Or is it because
+> > i was trying to map a special vma which can be forbiden.
+> > 
+> > Hence why i assume that you might want to know about such p2p_map
+> > failure at the time you create the umem odp object as it might be
+> > some failure you might want to report differently and handle
+> > differently. If you do not care about differentiating OOM or
+> > exceptional failure from p2p_map failure than you have nothing to
+> > worry about you will get the same error from HMM for both.
 > 
->> And I feel the GUP->SGL->DMA flow should still be what we are aiming
->> for. Even if we need a special GUP for special pages, and a special DMA
->> map; and the SGL still has to be homogenous....
+> I think my hope here was that we could have some kind of 'trial'
+> interface where very eary users can call
+> 'hmm_mirror_is_maybe_supported(dev, user_ptr, len)' and get a failure
+> indication.
 > 
-> *shrug* so what if the special GUP called a VMA op instead of
-> traversing the VMA PTEs today? Why does it really matter? It could
-> easily change to a struct page flow tomorrow..
+> We probably wouldn't call this on the full address space though
 
-Well it's so that it's composable. We want the SGL->DMA side to work for
-APIs from kernel space and not have to run a completely different flow
-for kernel drivers than from userspace memory.
+Yes we can do special wrapper around the general case that allow
+caller to differentiate failure. So at creation you call the
+special flavor and get proper distinction between error. Afterward
+during normal operation any failure is just treated in a same way
+no matter what is the reasons (munmap, mremap, mprotect, ...).
 
-For GUP to do a special VMA traversal it would now need to return
-something besides struct pages which means no SGL and it means a
-completely different DMA mapping call.
-> Would you feel better if this also came along with a:
+
+> Beyond that it is just inevitable there can be problems faulting if
+> the memory map is messed with after MR is created.
 > 
->   struct dma_sg_table *sgl_dma_map_user(struct device *dma_device, 
->              void __user *prt, size_t len)
+> And here again, I don't want to worry about any particular VMA
+> boundaries..
 
-That seems like a nice API. But certainly the implementation would need
-to use existing dma_map or pci_p2pdma_map calls, or whatever as part of
-it...
+You do not have to worry about boundaries HMM will return -EFAULT
+if there is no valid vma behind the address you are trying to map
+(or if the vma prot does not allow you to access it). So then you
+can handle that failure just like you do now and as my ODP HMM
+patch preserve.
 
-,
-> flow which returns a *DMA MAPPED* sgl that does not have struct page
-> pointers as another interface?
-> 
-> We can certainly call an API like this from RDMA for non-ODP MRs.
-> 
-> Eliminating the page pointers also eliminates the __iomem
-> problem. However this sgl object is not copyable or accessible from
-> the CPU, so the caller must be sure it doesn't need CPU access when
-> using this API. 
-
-We actually stopped caring about the __iomem problem. We are working
-under the assumption that pages returned by devm_memremap_pages() can be
-accessed as normal RAM and does not need the __iomem designation. The
-main problem now is that code paths need to know to use pci_p2pdma_map
-or not. And in theory this could be pushed into regular dma_map
-implementations but we'd have to get it into all of them which is a pain.
-
-Logan
+Cheers,
+Jérôme
 
