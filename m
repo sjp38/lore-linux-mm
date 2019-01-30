@@ -2,207 +2,172 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84A62C282D9
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:23:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E78DBC282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:59:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4CDCF20882
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:23:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CDCF20882
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6E8DB2080F
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:59:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="FgZnM72Z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E8DB2080F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D79D88E0002; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
+	id B625B8E0002; Wed, 30 Jan 2019 04:59:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D292E8E0001; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
+	id B12178E0001; Wed, 30 Jan 2019 04:59:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C40418E0002; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
+	id A28268E0002; Wed, 30 Jan 2019 04:59:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A3C18E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id w1so27675715qta.12
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 01:23:13 -0800 (PST)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3276D8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:59:10 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id f22-v6so6619793lja.7
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 01:59:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=VbAkpVm6aUtjplh15xW+8XFpBdphGmpE5hR4xv/5y9w=;
-        b=VfcOZf/wNKRLsC7queBLts1nzUL12huz9FWxm5uquoIIuhmr9erc6QNmKPDpAyWESt
-         l+YfA7GvDxLq9muZrZCc9ZuoREl6T1oMNoPDiOeZmDEv796LURWUo27NHC6tJl/PJp3F
-         yoYfN7hiS8tCVRjpXRoK9Q0uR1vb9EMs1AOsRPmeBejud7HMiOb16bWh/fDQUXi/eZN3
-         VeJgzZ1wDuUYGbEoEafqEtajs/wNiFP1GN60BdO8OTTjRJlqx6fLMocalfcl/i8wFwuK
-         ElLSW7lGWQKcw8w9bD1M4xi7JWFXea+X53Gg3iphDzc/BWJRbrbuOQdDVg3KHQ+oX8Dw
-         1JSA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukclau6VYV8NBmZkv9/a++7baDs0/uDh7JCm5yseWwIWihaX0rfs
-	o62pq5AigJGklsZI+O616H9JhhgQ7CYrygaQQrA9Dx68tyUP7J7orIvWOezjpfAo+zGwE3XYRua
-	kGiAzOAgTzCidDQkA+QwnXJ/z7sYFL4kvJ7RpNWtmFjBt6yNhmQICnB7/VN4a89AlJQ==
-X-Received: by 2002:a37:68a:: with SMTP id 132mr27583345qkg.89.1548840193338;
-        Wed, 30 Jan 2019 01:23:13 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4O+BZtG92PfWTaPRGWjdeYi48X17CkKQi5ihVno5HJiBdQ/BX+iLEjJl6cvHb0SrlhDljP
-X-Received: by 2002:a37:68a:: with SMTP id 132mr27583314qkg.89.1548840192690;
-        Wed, 30 Jan 2019 01:23:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548840192; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=fO9lml+l22jOIyAkjdHX9mgdNk63cVEuzFUCTmyVOGY=;
+        b=EoQiRNgxgRS/BDyt/P1rozuFpnImoQZIOBhGpuh2yywge0p4XDcLpQMFU9JwgDEq6H
+         10jI5cNw23wkPLQVcO78VIpySkdnSiua62tan7MSvex63HUZm+Z8YbnPMdBIKAaW11/K
+         2omFr8sN3wPyJDP2Ql9T7zbrPL905q6soZQ6FzGp7b6+aOMImQ27lABw38KAjqEK4Cio
+         p6veaisH24M5x+N4GdSMHqT9l4B+3ag6s1q6q4OoX/Zt5NBEyVtJE9XrH8DTr14Y1v7L
+         xbdDxlp/oukr5Jr6Bx1uunFac3tgBk8iEH3mW60xIIUcYTS+RWA/a9lD0+9xF/u/OmM6
+         bqBQ==
+X-Gm-Message-State: AJcUukdmoJZZpa+kOaXlILhtvFSvE/3iat7+wsdf3v2ZiHOMhjVDu9rl
+	r6oTUGV508P2gsExG8ROW1xvu0pmNrLnILP5sXSFqaP717CHkJfogHQwXDcUfIHddyN0FXo4XAS
+	LmaUEzWqTk4o0R1Afjw5tOKqfj95VeP2lquOR6LgyDM6aY6DTmclHEONozHfc00EZ/sCK476CnW
+	+ONkrWuGJ/mzqgNF7mt1mp3GVHslSqbdmexIAuwKCj1tNGlB68auNDp7HT0qmrhhPPeoD0fAYEs
+	77sW3sAMFMyhsLNxen32Jk5KozFpEIhW2Mbypr0uR3Cw3Olxo7df3rOOtY7EPMV6nTenq0vFORz
+	FJuLYKzV5wLSV3ab4JH+Z3jzsJp5PXnz9v+9QzvuOI+HBxQDPZjI5aQnB+znfeO9EXzD3o8YPEB
+	0
+X-Received: by 2002:a19:a28e:: with SMTP id l136mr23102092lfe.87.1548842349326;
+        Wed, 30 Jan 2019 01:59:09 -0800 (PST)
+X-Received: by 2002:a19:a28e:: with SMTP id l136mr23102034lfe.87.1548842348168;
+        Wed, 30 Jan 2019 01:59:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548842348; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jb+7VjMj1WHEVpVeEBPJ6rZMOrvTWxYHQ+3/3cPx1vXiMPEHBcGQsscoZHTs6FzZzM
-         s9/O+jWz65+UWRbktqstw5CjNlaWnsWJVis7EzGpjwbnrJsptKQmLv0Q0SiFrrEdVN7S
-         CsiDcoFitotmQbbk9AAcArH4+4FvdosaIDcFL2ZFm+OEw3+iB98UpDvpw6y+mFyAWOHg
-         XaVdLbM5cJ+hA/XrmLeNpablwcOEWv+f61pR21eOHtN8vFEfJcSimlPVi9t7Mff0afqI
-         Z9o9Npr+yz79VwY+HGaDlhtGLLvT3Qc8loQFbC09lEBUe5wEkM2dOfauIGY2bWlhF/+v
-         8+DA==
+        b=Uga5pNp1bH7YTjTWNIAAabxfzgx76k2n6MzKG6rDHjNmEoGJhcZIQ6CSLJBf9TBgOz
+         Wl2AVOO6WRoqG8Wyk/yIs5sChj0t+HgBOEjiZYbQI5qUe43fQ4eZXgyv7cJW0UL2yMWR
+         ooQ6jeg2C/MOjYymxXr8JevmLivWcRhlOnSNE+HmDXyEIRs/ferPYPSoxqIIPJaBYUlL
+         5c+3d7XfchAK80OpEvkGcdMsgTsOlHkVwevgZvalNIbEHLxBz4rlORESRQn5tbOH+ZWc
+         kUVdih1QoMLCbHDGhtFFEj0t7VpIigRMoL2JsyPDbdCyhLpwYp+ciUKnyhQkAmTNdQXA
+         aUsg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=VbAkpVm6aUtjplh15xW+8XFpBdphGmpE5hR4xv/5y9w=;
-        b=HjGOkh7eEK9ww2GsRERKJO+2aAXyNe/qXOXTRlCzGB+GZyf1GNmL7XCIMK+ZG8dHC/
-         Ss90BHPLmrIWqhQIniv3PXEJir69VxqBxgdFjQwdZoWY5SaFbhUKkrd/m0rfqyYdlJpf
-         /3K2CFhgSmqqGVV906MAj6aO3TuaOSrENRtUbks90EtccRDxc1bHsUU5Rx1bHn/Mc8VQ
-         Tj4RHnruNomRk5MQcOC5zkF3WhDudjaBmx6A4BqsX3m5uUtW/7Yn3EgbgD4ftkj8cUg2
-         jJsa/nYaJD44SEjVp8NLVPW3CF6YjJ7ij/cgJRSoQ5uZeUGJS9wwe+Me9X/k5xIbXJKn
-         gFBg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=fO9lml+l22jOIyAkjdHX9mgdNk63cVEuzFUCTmyVOGY=;
+        b=jtioXm6Kb13hKx6Nk/TofPzLGVsPSAB5dhddObkAzTNogDJMOOX1uE4Z4F1quDcTaX
+         gQ0y5lOdiHAKNKbsrskSkJMlkbZ3K5WGP1b+zaq8qRSqtfnQRRzWd9qyl6w0+YQc0tDC
+         pq+WRvKKTfgTr/L1szKyJB7NbsZA5Jo/6gnUZR2vhgR8pk0Um+541/PlDr3om58kxUvu
+         mZebCejoZ/mQh8Tbi8n8qL3Y+engbWMOJfy9exqMj21dPr3+BebgfB59jFSJ98Q+p7Gh
+         CbfwFxB73EwhvxI8kYZ1SgglwP4O5JWG2go8jqIp9Y/zUBPgno5sVtSjpY2nC1PKrP4I
+         EJog==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b129si675914qke.179.2019.01.30.01.23.12
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FgZnM72Z;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r10-v6sor691399lji.40.2019.01.30.01.59.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 01:23:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 30 Jan 2019 01:59:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9AEF98AE6F;
-	Wed, 30 Jan 2019 09:23:11 +0000 (UTC)
-Received: from xz-x1 (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 256A71A7CE;
-	Wed, 30 Jan 2019 09:23:04 +0000 (UTC)
-Date: Wed, 30 Jan 2019 17:23:02 +0800
-From: Peter Xu <peterx@redhat.com>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>,
-	lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Blake Caldwell <blake.caldwell@colorado.edu>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	David Rientjes <rientjes@google.com>,
-	Andrei Vagin <avagin@gmail.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>
-Subject: Re: [LSF/MM TOPIC]: userfaultfd (was: [LSF/MM TOPIC] NUMA remote THP
- vs NUMA local non-THP under MADV_HUGEPAGE)
-Message-ID: <20190130092302.GA25119@xz-x1>
-References: <20190129234058.GH31695@redhat.com>
- <20190130081336.GC17937@rapoport-lnx>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FgZnM72Z;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=fO9lml+l22jOIyAkjdHX9mgdNk63cVEuzFUCTmyVOGY=;
+        b=FgZnM72ZgZjEW0ORM0btMd9MaPOSZrwy4G9BeQws0rUHuJHemFIVbE0ZCoZpaoosFw
+         N3PdCNT6kXYw8DLArD26ROZeZzX8+8jjnLe36XfsiwPdVYaU43zXcTbDoeiwCN+mqekZ
+         zsoH+T/bie3kWtmE8bXeQ2qFizuDognaAGSBbIlF5jIr4yvCiyJNi5O0iEa6OXD864pj
+         BpkiZ0YjlrSKJQbkgDtZBfRpE+Ti0E2FKogNXGRbdJ+XauSFmM8wamMDzXg6IiWxAQg2
+         S+Sq6rxtBEO6tnO7W5lo0N1bX0uEQxNNNyjyTB1Ey2rgMaID4CY2GUA+/xaXoy8YJvrH
+         vAxg==
+X-Google-Smtp-Source: ALg8bN7/li39XaGpJQ6EMr2lSSqiHUCbw+mdn4YxxMLFOWbC7mmMJ4AR7eu7vhwFRP/Adj9lqWbSZT1zXyytNWz3m6c=
+X-Received: by 2002:a2e:5854:: with SMTP id x20-v6mr23772381ljd.31.1548842347483;
+ Wed, 30 Jan 2019 01:59:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190130081336.GC17937@rapoport-lnx>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Wed, 30 Jan 2019 09:23:11 +0000 (UTC)
+References: <20190111150834.GA2744@jordon-HP-15-Notebook-PC> <CAFqt6zYLDrC7CtLawWUAQPyB_M+5H8BikDR6LOm+v0qaq1GvZw@mail.gmail.com>
+In-Reply-To: <CAFqt6zYLDrC7CtLawWUAQPyB_M+5H8BikDR6LOm+v0qaq1GvZw@mail.gmail.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Wed, 30 Jan 2019 15:28:55 +0530
+Message-ID: <CAFqt6zY4YgsCUPFqR2yYegjqtHJ_aeE1Ao6p=fE92s2__3XTsA@mail.gmail.com>
+Subject: Re: [PATCH 3/9] drivers/firewire/core-iso.c: Convert to use vm_insert_range_buggy
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, stefanr@s5r6.in-berlin.de, 
+	Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com
+Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
+	linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2019 at 10:13:36AM +0200, Mike Rapoport wrote:
-> Hi,
-> 
-> (changed the subject and added CRIU folks)
-> 
-> On Tue, Jan 29, 2019 at 06:40:58PM -0500, Andrea Arcangeli wrote:
-> > Hello,
-> > 
+On Fri, Jan 25, 2019 at 11:55 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>
+> On Fri, Jan 11, 2019 at 8:34 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+> >
+> > Convert to use vm_insert_range_buggy to map range of kernel memory
+> > to user vma.
+> >
+> > This driver has ignored vm_pgoff and mapped the entire pages. We
+> > could later "fix" these drivers to behave according to the normal
+> > vm_pgoff offsetting simply by removing the _buggy suffix on the
+> > function name and if that causes regressions, it gives us an easy
+> > way to revert.
+> >
+> > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>
+> Any comment on this patch ?
+
+Any comment on this patch ?
+
+>
+> > ---
+> >  drivers/firewire/core-iso.c | 15 ++-------------
+> >  1 file changed, 2 insertions(+), 13 deletions(-)
+> >
+> > diff --git a/drivers/firewire/core-iso.c b/drivers/firewire/core-iso.c
+> > index 35e784c..99a6582 100644
+> > --- a/drivers/firewire/core-iso.c
+> > +++ b/drivers/firewire/core-iso.c
+> > @@ -107,19 +107,8 @@ int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
+> >  int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
+> >                           struct vm_area_struct *vma)
+> >  {
+> > -       unsigned long uaddr;
+> > -       int i, err;
+> > -
+> > -       uaddr = vma->vm_start;
+> > -       for (i = 0; i < buffer->page_count; i++) {
+> > -               err = vm_insert_page(vma, uaddr, buffer->pages[i]);
+> > -               if (err)
+> > -                       return err;
+> > -
+> > -               uaddr += PAGE_SIZE;
+> > -       }
+> > -
+> > -       return 0;
+> > +       return vm_insert_range_buggy(vma, buffer->pages,
+> > +                                       buffer->page_count);
+> >  }
+> >
+> >  void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 > > --
-> > 
-> > In addition to the above "NUMA remote THP vs NUMA local non-THP
-> > tradeoff" topic, there are other developments in "userfaultfd" land that
-> > are approaching merge readiness and that would be possible to provide a
-> > short overview about:
-> > 
-> > - Peter Xu made significant progress in finalizing the userfaultfd-WP
-> >   support over the last few months. That feature was planned from the
-> >   start and it will allow userland to do some new things that weren't
-> >   possible to achieve before. In addition to synchronously blocking
-> >   write faults to be resolved by an userland manager, it has also the
-> >   ability to obsolete the softdirty feature, because it can provide
-> >   the same information, but with O(1) complexity (as opposed of the
-> >   current softdirty O(N) complexity) similarly to what the Page
-> >   Modification Logging (PML) does in hardware for EPT write accesses.
->  
-> We (CRIU) have some concerns about obsoleting soft-dirty in favor of
-> uffd-wp. If there are other soft-dirty users these concerns would be
-> relevant to them as well.
-> 
-> With soft-dirty we collect the information about the changed memory every
-> pre-dump iteration in the following manner:
-> * freeze the tasks
-> * find entries in /proc/pid/pagemap with SOFT_DIRTY set
-> * unfreeze the tasks
-> * dump the modified pages to disk/remote host
-> 
-> While we do need to traverse the /proc/pid/pagemap to identify dirty pages,
-> in between the pre-dump iterations and during the actual memory dump the
-> tasks are running freely.
-> 
-> If we are to switch to uffd-wp, every write by the snapshotted/migrated
-> task will incur latency of uffd-wp processing by the monitor.
-> 
-> We'd need to see how this affects overall slowdown of the workload under
-> migration before moving forward with obsoleting soft-dirty.
-> 
-> > - Blake Caldwell maintained the UFFDIO_REMAP support to atomically
-> >   remove memory from a mapping with userfaultfd (which can't be done
-> >   with a copy as in UFFDIO_COPY and it requires a slow TLB flush to be
-> >   safe) as an alternative to host swapping (which of course also
-> >   requires a TLB flush for similar reasons). Notably UFFDIO_REMAP was
-> >   rightfully naked early on and quickly replaced by UFFDIO_COPY which
-> >   is more optimal to add memory to a mapping is small chunks, but we
-> >   can't remove memory with UFFDIO_COPY and UFFDIO_REMAP should be as
-> >   efficient as it gets when it comes to removing memory from a
-> >   mapping.
-> 
-> If we are to discuss userfaultfd, I'd like also to bring the subject of COW
-> mappings.
-> The pages populated with UFFDIO_COPY cannot be COW-shared between related
-> processes which unnecessarily increases memory footprint of a migrated
-> process tree.
-> I've posted a patch [1] a (real) while ago, but nobody reacted and I've put
-> this aside.
-> Maybe it's time to discuss it again :)
-
-Hi, Mike,
-
-It's interesting to know such a work...
-
-Since I really don't have much context on this, so sorry if I'm going
-to ask a silly question... but I'd say when reading this I'm thinking
-of KSM.  I think KSM does not suite in this case since when doing
-UFFDIO_COPY_COW it'll contain hinting information while KSM was only
-scanning over the pages between processes which seems to be O(N*N) if
-assuming there're two processes.  However, would it make any sense to
-provide a general interface to scan for same pages between any two
-processes within specific range and merge them if found (rather than a
-specific interface for userfaultfd only)?  Then it might even be used
-by KSM admins (just as an example) when the admin knows exactly that
-memory range (addr1, len) of process A should very probably has many
-same contents as the memory range (addr2, len) of process B?
-
-Thanks,
-
--- 
-Peter Xu
+> > 1.9.1
+> >
 
