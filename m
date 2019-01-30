@@ -2,114 +2,152 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B040C282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:48:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B3A3C282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:52:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67443218A4
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:48:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67443218A4
+	by mail.kernel.org (Postfix) with ESMTP id A6BE32087F
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:52:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dOHMTovA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6BE32087F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 019598E0003; Wed, 30 Jan 2019 12:48:51 -0500 (EST)
+	id 175968E0003; Wed, 30 Jan 2019 12:52:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F09068E0001; Wed, 30 Jan 2019 12:48:50 -0500 (EST)
+	id 0FD558E0001; Wed, 30 Jan 2019 12:52:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFACC8E0003; Wed, 30 Jan 2019 12:48:50 -0500 (EST)
+	id F08C88E0003; Wed, 30 Jan 2019 12:52:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B94F8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:48:50 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c18so117688edt.23
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:48:50 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BC06C8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:52:26 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id d72so200595ywe.9
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:52:26 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition:user-agent;
-        bh=FAICS1X5uNueQMhHI3a9DeQr2UwTRU34p4ZwdE7x/Bo=;
-        b=UZDG+aAbZg0kxHCHzRft1CZA+arZZNCA2ETN+w8AwXohHMzVBA1ug6tivciRTRv8kW
-         VRcvwwriuhMgBfnUj6jGgmQ1PiRT1gdIHU5+7ns/i5T1FCaF70CHVRwkateO1Y0d83MT
-         931ncjjM5TDF+fa0OZk9L2jj1obTVEeZR7Ogp+m/earzaorqri3eYVpXySZG3lNC6o1c
-         ATHeLHnbhxp6rKwD2ZenocPP9M/3r/ns8Zdfz7M3dlvsRXOnNS1a7Dho+m52D8Li+q4B
-         KomZkEi39DvHCV1EpyIa9NKNeD5GuGhfvXRLz53/ztQkEHc7WpUcle6T9Yp8RJoLRK75
-         8r9g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukdyW7IyPxMnIrE4RGqvTIKPtW1AfgPugSByMGHjqk3iVeb5ZtEX
-	jfh6L+RwxuNFw3KXDk+TDzvP0scSbH+Hrz4r0BCroA56sB50UuUd7PEgZi0SxCojT7tNxGitt7Y
-	s6yLFN7z5bsDbIK5Qgsx5Me6jVLxlgX4CqFJoSWQDd0FfcH8xwkk5QHfak6kgG68=
-X-Received: by 2002:a50:a2e5:: with SMTP id 92mr31299072edm.169.1548870530125;
-        Wed, 30 Jan 2019 09:48:50 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7tqWgweYR1kL1linlksrWkAdkxmyRy93Uw353/xZQHJ0jP5e3ZDOvZC6ZSyCMABH7+0VQR
-X-Received: by 2002:a50:a2e5:: with SMTP id 92mr31299019edm.169.1548870529224;
-        Wed, 30 Jan 2019 09:48:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548870529; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=nqKoowBhVNotvsktwsU7UZYX3ZVWVurI0845PhIUGvE=;
+        b=q3pvrB7SlmTz/8AC3ftDVta9tv5IfFCD6LhaTG6Rpojq2IoajkgSkZCBHBi4/gtj+4
+         YKW62ds9Vc2yY7UEh45Mli0ih0qB6t/tcOvlnShIoirsE3LQ8gCWwN+NS76uFmKICUkf
+         m9dU0xOQV7KXJk6f+fUe7GWJOrzrePoA8b6jWt5XJRh7g7E59jVPqfFsRGEnTzm0sMyb
+         jMBB6nnXGw3SfhPU3cAfHEELQY9wcGWpXMWNrgSt8CT+/X8scjkZ80+N6vsUoQ40w5uj
+         JVCIRL7mTbg6QV1rv0B7CR4LHNTQPal0KuFfE1dwjgtSOkeOVM6798L4fSXqIc9jpklt
+         jG6w==
+X-Gm-Message-State: AJcUukcoRuWz7YLESko5NrgIn1SIYDTlGzYy6EBrT1NWlbtNOmkqRFzr
+	ZYS8sLJH6KreDN7iNwAbuSAG8pelW9TBuEle2O7l5KLo41SROGzYZycRzeNyAXnXigahUVBfRMb
+	qucQOEvPoqIl/YaxAkoxzB2NWfBUwctF+5QITUg1bonxc1SwDelDhGypWGQ6JKyxFUstAmvqBw4
+	dkfSSzJqxfbOxOayWw9gjm7bmId7jtXVb4Yb9BIeaiqoSwHqntxT5WnopBWimxNBZBvUywLWMiA
+	cwUy5cHPMs9u6+vBtLeYHl3Bt+JmIGjeDRM8Dd0NS9L7ZYKuur51Vyud2eyhOsL8027NWdNyuoS
+	s3q5FWHoRaBigKSdB4p65K8Hv+SwgMpg2k5VHFnznOKd4k/tYMgByXwzoIxxB4D3xvqoVKyPCA=
+	=
+X-Received: by 2002:a25:3bd7:: with SMTP id i206mr29534279yba.145.1548870746486;
+        Wed, 30 Jan 2019 09:52:26 -0800 (PST)
+X-Received: by 2002:a25:3bd7:: with SMTP id i206mr29534248yba.145.1548870745933;
+        Wed, 30 Jan 2019 09:52:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548870745; cv=none;
         d=google.com; s=arc-20160816;
-        b=e7Th/7UWiZc4SnApzpwPxcDEr1NwJb8ftGge10bK2xl4wetR5k4N15GzQyM9kzbJDs
-         6npPjjxLSOuEnVHjtrjcOwXAwfBNNOlVhSxQ+HMhk/YxpaSRfeEfVkDzjjtNp5Z5sGKH
-         TIylq9dO13RIjb0Wn23I1otNmkgixHDlw1lLmUkVTrmw9Tfr5zCymcPj6gFamOL8HpHS
-         QxVoyTiPrKOvxp+Ay+Ksc194yJfhoOxUMfee8Bc8kFgKAEYixZcRyMNGvz+Tt516ykY9
-         5E2QVsRYaGir7cZkBzc74Hud1/m3fUP1/0rh9V52VizTdNNFx8mvXAJ9+3scFbOxnxys
-         zh8Q==
+        b=UOdB+nPdgb24Tj4p1ozMkePcjHnR5cNvQh2erkPNjw8uYEN93aExmgXS+r4WMHB/XP
+         9yaKr06ZLgUASCRuJUNTts7uhiZa2xoqUsOitENQBtR15//2iwLoxrWnfgH+IMazoLaY
+         8U1WCTPY+LyOWJf41HUu8hC4gCVyHww/M4p8+BQjZ+UOmTDkxI3RZ7Kwwl8RoVJ9rt8v
+         N6w8+/Sk+ZmiA9D0AM9ww30c63+espftHm006NAL8X4nS/EGZiM/RLUKEnt3xB8tE2XR
+         Ii8Cv9zQQEqXHhB9BwqlU9+djH0BwrIwjIlgSegXUUF1BKvgiDnb6NbCD2vt09ZGX7Sn
+         1aHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date;
-        bh=FAICS1X5uNueQMhHI3a9DeQr2UwTRU34p4ZwdE7x/Bo=;
-        b=z1/2Kch4DXJqY9VxCeknk7809TQgFbDzh6z3tCcxd5Mp2pNdaXuraFeASIBxWzxp7Z
-         CA5lIg8rLq1kt2tV6dH1cuIt0EvDpOri3kaYCkQlhyCvJlm4uQBu2j7DPDG+xfhoyAO6
-         E7Ey0C92JnZGuM0Jk9z71v9/+zLqLQVrizg3aOoVMX8qZm3tRKaSRD4j2eq6nIR3dKRP
-         ki59+6Xu50FMrhVrz5hhhyiDZyFoRjBzWiW3/w5g7fug9zSu8XRuDjU2hPsUBIYXfIs+
-         M9IMVc0AfI7ycYSjqMP7Abv3IIfSUpRHjePlKwNTM+pArMAEvr7mcVGeidlYzjaZxwzg
-         yg0g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=nqKoowBhVNotvsktwsU7UZYX3ZVWVurI0845PhIUGvE=;
+        b=b1K+U0qVRnrKaovqPhqc1qL+lZeTvZvZXGeQfMRl2316NPylSJU9YBPGmlwsyXdGZz
+         WdU6YsCoTZWIPXGX4ZfAmPNcMYFvF4uyOnLJsgW366hRZLbWDjn0dyLNXCbSc9oDOsB2
+         Z80GIuBJRjdu3q28R57ftzQsZeG4uwZtI+MaitdyPXgobwVpfytK37PaC6GoKknVqzYO
+         +Ka9r7SxXlEP91l/wBsxLy2JJvXaCRM/pVzmp1YJUQKFm0+SjSqQWqey+mvBsErky0sR
+         lRS16wRX/JAPmqLGgqjjxaYrVX6dLICK8P2zV9IB4eW77nOcayAlKrLdXniqWo3uQuki
+         KSpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dOHMTovA;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q4si1130930edr.173.2019.01.30.09.48.49
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w82sor965852ybw.32.2019.01.30.09.52.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 09:48:49 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 30 Jan 2019 09:52:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dOHMTovA;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 77E1DAF96;
-	Wed, 30 Jan 2019 17:48:48 +0000 (UTC)
-Date: Wed, 30 Jan 2019 18:48:47 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>,
-	linux-nvme@lists.infradead.org
-Subject: [LSF/MM TOPIC] memory reclaim with NUMA rebalancing
-Message-ID: <20190130174847.GD18811@dhcp22.suse.cz>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=nqKoowBhVNotvsktwsU7UZYX3ZVWVurI0845PhIUGvE=;
+        b=dOHMTovASZbHyzLMlsR1yiUz4PRvp4/poseV7ogwNMHv3/be5mx/yokv2EEwmfpd7T
+         FK/vMQcx4rU01+ILFFvVnmT19udKPJH0GBaWw3rzZ/59IhlxxwYzXEjCGPx8j4W0slD5
+         8mjqVJfR0n0h5oQFJ8Bj6WXWQd8hUGp1Pslh3smiu/WkeKL2wL8B4c5hxR30r+V9KW61
+         kO99vj4we+fQpeuEG3HgawSzwpSgLCBWejrCgd9CsRY1nniS3gTUf6b1YaunN5R0cS88
+         +9Gud7dyuD1S4gO7Z1GHVUnIdEahBP1feMONom808xwfS7aH2Rws+RibtI316+umNGgI
+         NpIA==
+X-Google-Smtp-Source: ALg8bN628JXeckvdJGB6xWOnV6HxuTUUu+k4Hb31FKkRaVS5OQhGSk9ocEMHOqrY6prvD44HHm13xA==
+X-Received: by 2002:a5b:98b:: with SMTP id c11mr22918439ybq.141.1548870745339;
+        Wed, 30 Jan 2019 09:52:25 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::7:e55d])
+        by smtp.gmail.com with ESMTPSA id s35sm3839343ywa.19.2019.01.30.09.52.24
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 09:52:24 -0800 (PST)
+Date: Wed, 30 Jan 2019 09:52:22 -0800
+From: Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, kernel-team@fb.com
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190130175222.GA50184@devbig004.ftw2.facebook.com>
+References: <20190128145407.GP50184@devbig004.ftw2.facebook.com>
+ <20190128151859.GO18811@dhcp22.suse.cz>
+ <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
+ <20190128170526.GQ18811@dhcp22.suse.cz>
+ <20190128174905.GU50184@devbig004.ftw2.facebook.com>
+ <20190129144306.GO18811@dhcp22.suse.cz>
+ <20190129145240.GX50184@devbig004.ftw2.facebook.com>
+ <20190130165058.GA18811@dhcp22.suse.cz>
+ <20190130170658.GY50184@devbig004.ftw2.facebook.com>
+ <20190130174117.GC18811@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190130174117.GC18811@dhcp22.suse.cz>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-I would like to propose the following topic for the MM track. Different
-group of people would like to use NVIDMMs as a low cost & slower memory
-which is presented to the system as a NUMA node. We do have a NUMA API
-but it doesn't really fit to "balance the memory between nodes" needs.
-People would like to have hot pages in the regular RAM while cold pages
-might be at lower speed NUMA nodes. We do have NUMA balancing for
-promotion path but there is notIhing for the other direction. Can we
-start considering memory reclaim to move pages to more distant and idle
-NUMA nodes rather than reclaim them? There are certainly details that
-will get quite complicated but I guess it is time to start discussing
-this at least.
+On Wed, Jan 30, 2019 at 06:41:17PM +0100, Michal Hocko wrote:
+> But we are discussing the file name effectively. I do not see a long
+> term maintenance burden. Confusing? Probably yes but that is were the
+
+Cost on user side.
+
+> documentation would be helpful.
+
+which is an a lot worse option with way higher total cost.
+
+If you aren't against making it a mount option (and you shouldn't),
+I think that'd be the best use of time for both of us.
+
+Thanks.
+
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
