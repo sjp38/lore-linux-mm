@@ -2,143 +2,177 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0A7FC282D8
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:13:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F2D5C282D8
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:14:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ADA8621473
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:13:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADA8621473
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
+	by mail.kernel.org (Postfix) with ESMTP id E532121473
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:14:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="rli5gtMI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E532121473
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3FDC28E0005; Wed, 30 Jan 2019 13:13:27 -0500 (EST)
+	id 8B9808E0004; Wed, 30 Jan 2019 13:14:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3AD518E0001; Wed, 30 Jan 2019 13:13:27 -0500 (EST)
+	id 867778E0001; Wed, 30 Jan 2019 13:14:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 276E28E0005; Wed, 30 Jan 2019 13:13:27 -0500 (EST)
+	id 72F218E0004; Wed, 30 Jan 2019 13:14:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F23278E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 13:13:26 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id a2so315539ioq.9
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 10:13:26 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EA088E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 13:14:34 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id u126so256002ywb.0
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 10:14:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:subject;
-        bh=tbPMNGt3rbr9kB68jl16lEBm3Q+tLFUQ270bqirHpk0=;
-        b=LDT4iFcmMqMfJrW3pYkLXiAiM1G7fXaFNpbvHQw5s0kGx6OpQnMXr5xPDKNOnjyXrv
-         Gt1XygYBThZif6gluO+j4EYZnAdEzBthN6OfO47l6raF6aUAR5GQIBENe/ZHJSk1u9BT
-         YFScN/Culzi9PbWMfwxXZfryLdQYFbiLYPj6mTPTdTtaczHph5tMy4rCHgWpriYR5Ef/
-         qa7kBFxTbH4I7GyHXhyzbXy0jlO8z9JT5St1VRfRM/fGdl51Sw/qq3tdKiZZHFQvWEaY
-         QK9VygPGXqAXuNOs+4+FY29p8EmV/+GFWgokQwUvWUzVSLKVG9iffRUxdNYDZMiSBi+x
-         s8vA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-X-Gm-Message-State: AHQUAuYlv0wtU9QXN/pm7rAcLg14xAMnEKlh2TW3qjeVzlDhYg0ZqB2s
-	1vBjiA5k3ZHhc/j51os4aKCoI8PNP0a8Gr+USIHpMXEo4KMhsJKsbQP1ftN7usFCKGHY6T7ky/z
-	glppeJqdSNHfY8VcNx5wQm9M9FkMvTUaiULDttGgzYwkH3cW4SXCOj5QDLOB7sl5U6w==
-X-Received: by 2002:a5d:8541:: with SMTP id b1mr18525221ios.214.1548872006772;
-        Wed, 30 Jan 2019 10:13:26 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4VwMi+OJBC6/DmSQBD9bwndJa0ADLWFNKMy9lzYnM2u6ZU552vge2EcbGSb+/XOii4aEob
-X-Received: by 2002:a5d:8541:: with SMTP id b1mr18525199ios.214.1548872006177;
-        Wed, 30 Jan 2019 10:13:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548872006; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=vRFnZGny9hUnD9eny/611Mn7d12FxGlSSC/uexCXw2o=;
+        b=WC7p/GUbiSTTtl7dmeLRLs8APfKgBrwW0sn2Nv1g8kUmmo/pGdzLIcwzBXrtQbmsTY
+         D/NIBYvC+s+gAo7YYqHHLzwWaV5oVuLMzsoZINaMwJB+wMDKTXtIa4xGW45p8CBNAE/b
+         3zbQGcOo6pEUprWYa0ykTDemD9j7Mofdvv42TszVOGclKsGhKPDTYFZiZPQ8A3RUNSB2
+         +trmoN8cvYKPSRHlI3fwVnL08UwJQMgKyoToDKnXw+3eABcYT9AU0aa2e0b9g5kZWe7b
+         uHu26oXm2tmL1sIKZNgCPT5pKAwLW1qh4yPidd5OxaQRu/wn3ekJmjoNEOeraEQbCykS
+         OkIA==
+X-Gm-Message-State: AJcUukcDhiWuUGHvnG5Gn8z8pmfO1xPaBsGzh8RDR089gqXOntjx4szH
+	XkJPTUzUAGn6yLCRd7H28r2UEZjyBv83j4daCKkjy7ihlhIXGkNbOddkosY9OLxj/Btgdl9wzAP
+	6IxGxt05EJfm3UEWj/tULfvQVWdB0dKZGBfcBjLMMNQHgWAVa2KuHsFKOLE/Xwqob0g==
+X-Received: by 2002:a0d:d454:: with SMTP id w81mr30820479ywd.110.1548872072415;
+        Wed, 30 Jan 2019 10:14:32 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6lYvFBwBn3s5nIh4pV9hnAWZxCNt2sS+2/y+ZZ26CDrUh2883xbweCmYPNLhM72g7WGqmX
+X-Received: by 2002:a0d:d454:: with SMTP id w81mr30820330ywd.110.1548872070197;
+        Wed, 30 Jan 2019 10:14:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548872070; cv=none;
         d=google.com; s=arc-20160816;
-        b=gYuaVmF4f57XH1581mrfEv5EReaP182OSQHpKxOPKLPevmSFBhV1o/+itLjhVxv06W
-         toGqv0H8IMmO2RMPmyCnQvuMp7AJCheYYSE4Xc8vbwlDCF6Y6lG8DFe+STGmMVY2kGBY
-         BFECXetMzhGwSI+MgMLdoYNLhDIfF1S6kiAJyzd+x4aXY3btOhiJ4v4dRrHGz18YwYVA
-         EI6s6ZGbbTCzuHKwMdYtch1HOfku7Sao2WKnaCN2/sDqqYPCqnmhM55JlGsa5R5gHXNn
-         NJAjeA5XpMJQ1II6mylQDWfT670moWSoyXQVU6MSNGerpvZJuXbtHSVGCw0v3bLI6O9U
-         QpGw==
+        b=mcDQWmAEltLecNIL6QDM2PcUWUCRB3WO3uuHygPv5mpPNhwbxUF7A89F5jfmqwrga1
+         tteN6Yo1W172PKKEOaA4zwKa/MpVPRZtcO9afbg7EQ3KUa5i20vUHMwg1LWjmn/eabnN
+         VtUSEk0ezGBg14il6rSKCx2oMwZTkImGx2M/EkREghIzHucTGg8a6WFkFZIWAtcmGqyN
+         KMbINC3hT3vY6V3h9MUppWPWEd8edR8lVjzQewUf7hWiWRWLphiPfWA3DulzNRj00/df
+         eabCJcJfWmkb8flFG+MXUHjW6PgrRolxapfHQ8i+BuJu9Euhb/i6eNSDiPVi6ejGxd8M
+         3/fw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=subject:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to;
-        bh=tbPMNGt3rbr9kB68jl16lEBm3Q+tLFUQ270bqirHpk0=;
-        b=YJGKZCL3VvL5/XlOiP4VIDyiT6bJtg6wItwjiqzxfG9e0ifqUkLm9kFWNtSJn94I8z
-         RGJC34GEUE2gCJHJNnJv9bOSZ7SAke0JxYqEPpg93jR0cbKWru3S6gJ+2d83j2FSwW9s
-         xonlks4OPpJAhIohMSehsBmTTlIQBRWxYcNhN87I0bvMzjABa+1uJiOL98t/eJ6h8Fwf
-         z621WtG0mDtS2AunpcpmG8CyyeL2QDvr84DDEIeeGeoobQl0QK075eZNLRcyPnJyfmnL
-         nmUXOAYqEy2+MrwWCKImVD2eqXV3QQIXpOsp5re0LGlg/Rzvb4E+hOZfD5S6H8b40+Kj
-         1qwQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=vRFnZGny9hUnD9eny/611Mn7d12FxGlSSC/uexCXw2o=;
+        b=fGkX5nac5L9Vnf1T72L0Vyh/Z2x+qbYy7PkYTMc1m0v+sPpV6XUUPHsyNHpONtivQa
+         Oud2IZf3vKBqH/w78x54G1gQAQEeGUMuMhV5Jg04xsBSj68UFg41HiTw2aG8uJSZwZJz
+         +Nf/ww5MjncqrQoIM385yhDx/bQN3cd4PhY69DH9t6WS5iyUIXBlWeHqEv9Qz388iZtx
+         IX9p7JfaHI5wdlIajOgrqmrNhx+TpbV5DbLYGJs5PxmlmbDi8qFYw2ADtEDxqd5WGdmk
+         LPTgJMsYdpFjGFLhvMfmXCM9LVNfxUdZPaBCfMHT6Wfkz61MB3kzYVq3CxxCobHL/YjX
+         zFnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id j15si1524099itk.24.2019.01.30.10.13.25
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=rli5gtMI;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id 23si1217534ywf.445.2019.01.30.10.14.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 Jan 2019 10:13:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 10:14:30 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from s01061831bf6ec98c.cg.shawcable.net ([68.147.80.180] helo=[192.168.6.205])
-	by ale.deltatee.com with esmtpsa (TLS1.2:ECDHE_RSA_AES_128_GCM_SHA256:128)
-	(Exim 4.89)
-	(envelope-from <logang@deltatee.com>)
-	id 1gouMO-0007KC-FJ; Wed, 30 Jan 2019 11:13:17 -0700
-To: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>
-Cc: Jerome Glisse <jglisse@redhat.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn Helgaas
- <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
- Felix Kuehling <Felix.Kuehling@amd.com>,
- "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
- "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
- Marek Szyprowski <m.szyprowski@samsung.com>,
- Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
- "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
-References: <20190129174728.6430-1-jglisse@redhat.com>
- <20190129174728.6430-4-jglisse@redhat.com>
- <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
- <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com>
- <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
- <20190129205827.GM10108@mellanox.com> <20190130080208.GC29665@lst.de>
- <20190130174424.GA17080@mellanox.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <bcbdfae6-cfc6-c34f-4ff2-7bb9a08f38af@deltatee.com>
-Date: Wed, 30 Jan 2019 11:13:11 -0700
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=rli5gtMI;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c51e9690000>; Wed, 30 Jan 2019 10:14:01 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Wed, 30 Jan 2019 10:14:29 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Wed, 30 Jan 2019 10:14:29 -0800
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Wed, 30 Jan
+ 2019 18:14:28 +0000
+Subject: Re: [v3 PATCH] mm: ksm: do not block on page lock when searching
+ stable tree
+To: Yang Shi <yang.shi@linux.alibaba.com>, <ktkhai@virtuozzo.com>,
+	<hughd@google.com>, <aarcange@redhat.com>, <akpm@linux-foundation.org>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
+References: <1548793753-62377-1-git-send-email-yang.shi@linux.alibaba.com>
+ <82ba1395-baab-3b95-a3f7-47e219551881@nvidia.com>
+ <7cf16cfb-3190-dfbd-ce72-92a94d9277f5@linux.alibaba.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <9bf60825-286f-d46c-b6d5-ee8bfffaaa48@nvidia.com>
+Date: Wed, 30 Jan 2019 10:14:28 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190130174424.GA17080@mellanox.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-SA-Exim-Connect-IP: 68.147.80.180
-X-SA-Exim-Rcpt-To: iommu@lists.linux-foundation.org, jroedel@suse.de, robin.murphy@arm.com, m.szyprowski@samsung.com, dri-devel@lists.freedesktop.org, linux-pci@vger.kernel.org, Felix.Kuehling@amd.com, christian.koenig@amd.com, bhelgaas@google.com, rafael@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, hch@lst.de, jgg@mellanox.com
-X-SA-Exim-Mail-From: logang@deltatee.com
-Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
-X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
+In-Reply-To: <7cf16cfb-3190-dfbd-ce72-92a94d9277f5@linux.alibaba.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1548872041; bh=vRFnZGny9hUnD9eny/611Mn7d12FxGlSSC/uexCXw2o=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=rli5gtMIAFpKXWV/KbzHzT5AIrb3FbVc7sMVRw+V8zZHiJE4y6MvNz1NiK9Hnx7Sl
+	 Zplal1p/QflKbl/jb6FEsKs0W2mVCTgC5XOWGn1cyT8phMAQHCe1ayZzol5rieXEzE
+	 ZKkGLyBNdeIccVbLZuT9iWpZKbJ0sLCH7SctfnEOil4gGOd6l1oJnEHiuel2EkjHlT
+	 eVlthmdkOgV2SM7Ho/uuOKn7iTbZnrOxTZphLT5lFm/CXapXf9RORKmH0ci3oHZAfY
+	 QXv/a+8oXTi255Avi9r7XdMI4bwhG3neFpS3GtoMes/ugRQUmYKQ9iCt+aCNA1vqxJ
+	 l8cRsAGO8TXVg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 1/30/19 9:47 AM, Yang Shi wrote:
+[...]
+>>> @@ -1673,7 +1688,12 @@ static struct page *stable_tree_search(struct pa=
+ge *page)
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0 * It would be more elegant to return stable_node
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0 * than kpage, but that involves more changes.
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0 */
+>>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 tre=
+e_page =3D get_ksm_page(stable_node_dup, true);
+>>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 tre=
+e_page =3D get_ksm_page(stable_node_dup,
+>>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+ GET_KSM_PAGE_TRYLOCK);
+>>> +
+>>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if =
+(PTR_ERR(tree_page) =3D=3D -EBUSY)
+>>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0 return ERR_PTR(-EBUSY);
+>>
+>> or just:
+>>
+>> =C2=A0=C2=A0=C2=A0=C2=A0if (PTR_ERR(tree_page) =3D=3D -EBUSY)
+>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return tree_page;
+>>
+>> right?
+>=20
+> Either looks fine to me. Returning errno may look more explicit? Anyway I=
+ really don't have preference.
+
+Yes, either one is fine. I like to see less code on the screen, all else be=
+ing equal,
+but it's an extremely minor point, and sometimes being explicit instead is =
+better anyway.
 
 
-On 2019-01-30 10:44 a.m., Jason Gunthorpe wrote:
-> I don't see why a special case with a VMA is really that different.
 
-Well one *really* big difference is the VMA changes necessarily expose
-specialized new functionality to userspace which has to be supported
-forever and may be difficult to change. The p2pdma code is largely
-in-kernel and we can rework and change the interfaces all we want as we
-improve our struct page infrastructure.
-
-I'd also argue that p2pdma isn't nearly as specialized as this VMA thing
-and can be used pretty generically to do other things. Though, the other
-ideas we've talked about doing are pretty far off and may have other
-challenges.
-
-Logan
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
