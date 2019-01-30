@@ -2,317 +2,223 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A034CC282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:34:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 33C17C282D9
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:52:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F3BE20844
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:34:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F3BE20844
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id E4283218AC
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:52:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4283218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E4DD88E0002; Wed, 30 Jan 2019 06:34:45 -0500 (EST)
+	id 827C18E0002; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DFF658E0001; Wed, 30 Jan 2019 06:34:45 -0500 (EST)
+	id 7D8358E0001; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEDA08E0002; Wed, 30 Jan 2019 06:34:45 -0500 (EST)
+	id 6EDA68E0002; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A8368E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 06:34:45 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id s27so16141686pgm.4
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:34:45 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 42BE68E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id 42so28077961qtr.7
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:52:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=lD1B27lkKnEmSZuh42qovztLBs3GuXWcSD6heOz7zTY=;
-        b=ZXCDfS+7VJuMsDWiYDARXkSpt/FzVzhvVGW2/oIJfre3az5MYiHD03xyM0geZQwX+y
-         E5KBkcnSgNhwD/+craEmzvCVy71DnRf1UuEPu2y4/H3JFN1qbDQ13BweJtQMQ6l35Qpu
-         y1/YJIeruiwd96QJZFmkBs3Lj0LSyKI4VgaKP81CUqbOSgG0ML0ahBPawP2sASwIVJ2+
-         E6OYpxPbEybHI6EBdY1vh0m4EW31lQciPotlDWuob8Dqhj62kiYJXfj3EHIhuzFral7c
-         h4gE1EMoO53E9/EYYoJ1rXvJB8NLV57APFJzO6IkdhRVsHGu6ksrvRjsD/DPZ7JPsoUQ
-         amXg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AJcUukdxxDUbIyG3YTlrBJJULS/bo8sSVrr+TCrM7ddW3WGsFbC5XAkp
-	CXBfR2tO1KsVWuRG/dEyZNfTBrZlv+848h/UEF9QlCzVkyYybrN6yGD5AnPan1+tFtVFl2WbWef
-	l7qxWAwfsVr1e0ALuuq8OeAgjBGWc0s/6dTKzlK3B+XNiwdeGad0TbIblgw7ccBY=
-X-Received: by 2002:a63:cd11:: with SMTP id i17mr27433095pgg.345.1548848085117;
-        Wed, 30 Jan 2019 03:34:45 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5jIzHrj6tjIw7bx7lolYzXjzAJ/i/oeqgup1L3ARDN2Sg0mTvYtm8hRS0mvkaxV7R8KpmX
-X-Received: by 2002:a63:cd11:: with SMTP id i17mr27433038pgg.345.1548848084031;
-        Wed, 30 Jan 2019 03:34:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548848084; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=OQLs5dpww+MxhRQxSxsfzgajn/aLBITrFiX1+3QcXFU=;
+        b=Nxm57Yl504dlRFXDN8rLfVXTdBnuzQJBG3g9DISwm3hRX1O2VOWhI2E9ISEGg3zPAD
+         sGQ3R7WMkyS46AypCMt9zjH8f5C2euScHySjYWwDEsN4FOLAVyyJ0FGl2OZLIoR7G1pk
+         k4SXo6KXhqvFbvG03YdGYhOGdIbiCsBpILvTHLqZzY/iHCdlrXrOoHjYsIzwUMoP+WWH
+         zQWRzl6PsQlfdpQ6RUnboLdbAcCD5cjnlww9StAUxSmfJ4cYdLhUa+hH60SVQKgJ6yvc
+         CF+DvZfe+XPSjZOJ4hbxjIlexBRtvZR+4QrtGPzTBvRqTSPnogbothTe23gOHnrLfA37
+         JXEw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUuke9DNLvwBqw/l0Rax+K8XBPNsNg88aP+PTJ8khQzx14/6eR5Ibt
+	kU9/NUeNXcFYu7CVR5rlZhiqyHcm+Wv3U+K2p7s6ZmLZhQCaaMv/9hjfWXKPvu3xl8dEUJETosA
+	jpR/wNW+Ddp7NblsDdLxwnsivc/GK/ZfcFLfABJf5qkmrZyapS3NaFWh8MDRzyUc9hQ==
+X-Received: by 2002:a0c:878d:: with SMTP id 13mr27968066qvj.8.1548849123997;
+        Wed, 30 Jan 2019 03:52:03 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7iyP4onEOrgXSKzlJHauiitbi/uHZIiwfpF9qfg0UkqNlvoLR/mKyUdl+lmUM+MSy9V8EC
+X-Received: by 2002:a0c:878d:: with SMTP id 13mr27968022qvj.8.1548849123111;
+        Wed, 30 Jan 2019 03:52:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548849123; cv=none;
         d=google.com; s=arc-20160816;
-        b=dM1rPUv1zRtUmEcsJQ7rCXKydzYqoZW7s7RrC99NUqfqS2VPlup2DLQYUCdQjrcaa7
-         25tLEXru37hgujWf9rXEqHcFEU2Db8ONcS9dLON6D3iPd6bAFz2QcO2nytUWiRAPqd5t
-         GvfrweMcsBkE5AusqPShcxORYwRDjRThAFxe8QicJz/hiuJ7+7YK+SJHYr4dPy/SISOF
-         iCM6mKBEDg7FvZD6cN5hsu9Qv8v3TQbDvG9Vkc1cASFwU1KahveTh4r7khqZIqCYAFCU
-         N12hXGs7NkEYYFdo1pEwYYRHvs5Bp/0AoULtzYnUpleEWg54nXdvWb7uHREk1q+8TX8Z
-         R1tg==
+        b=z44XT0YUpUTd7MIhN82DgHmHPnvO5X2lTiqPD4VBQ8GLwdI5fjkvHr7UVBtsN1lGUS
+         bPh4Glvcp9+0KBZ+isrf3vRZkBksauZ02T+l4qj/Jak48wXD2z/yQReL92xmMyq3CP67
+         k6X1xxUdfQ0zwFTDpmyffGgbolsTk+nPg3KgEGwIYNbnoeaiQBnPG9qvpJNw0FWZg5Qi
+         TlloPFZ4HhYWSFnk86uv2e4RFKZW5MHeK1PrG+vLygfyTT1SnIwHdBK52+8dO+DOurV0
+         uzselkLf4AeXSfr7x2ouUSq51YCE3txcu13CSYHRiUHe4l8NCM8+cbsL2g8HM459ZgpD
+         pWMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=lD1B27lkKnEmSZuh42qovztLBs3GuXWcSD6heOz7zTY=;
-        b=CYnqgwpU5rkVFZn12tbj4GECFf56HoJV7ljRuhJDHWTRauacAUNK4EUYSXjfI+2m+f
-         SeIlcohm1Kb35xbNetTKpct0l67kySZe8n+Tu9vwM9eR4aRzFi+3nzt61YHTTPbcTSSp
-         BvxIkHBYPD+2KxUqYA1VR0S7jnb4oGaXq2h6CjyRT7gWIBOcn6zr+vusnEMRhVQo3zMd
-         lM8cAjWlF/9M/YTQmkBrbT0sqgkzf/WO0JQVkD0lTch5MDLHhMwsO91N+M5btQ1fhEMv
-         ArHsDyPKxyG8V+eyMgquQf1Ue9dGkYcMnikH0Vmq9wf7i83eaxrPqTEpU5hjQbyYeQL7
-         DUIA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=OQLs5dpww+MxhRQxSxsfzgajn/aLBITrFiX1+3QcXFU=;
+        b=Ksal7/3JHuuWXRtrl55V+Cghyymrid2bzG1Ut+IwEOrO3MQqecNDz1A+sC7lOeq81r
+         4aS+ZlCU5KtAcMZpWgMnYKbo6DuC6mni3PXsBVIlo4dyGvp4gGOMeVS+a6vw6fxX2Goq
+         Thct2wDiAL7qRRRYgmW3WhMo2bpA+yqdr6zMOPREtL2CxFxiMILYUK1luigoD86ajmoI
+         W155DOgEnm1XHgCnNSddiFn9kBOfyjx9Ao69uwQEfe9NrfCoTfzG2JF4IQNyTxXv9FYz
+         zyeeT7+5pq08b0dPVOmRySNgRTRQ8Lw4f3BUMKhQRIg+fH7+5zV2QcKQXaGIWcpnMemu
+         3RqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id 33si1337247plt.228.2019.01.30.03.34.43
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o63si902583qka.164.2019.01.30.03.52.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 Jan 2019 03:34:43 -0800 (PST)
-Received-SPF: neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=203.11.71.1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 03:52:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 43qLqz6kSCz9s6w;
-	Wed, 30 Jan 2019 22:34:39 +1100 (AEDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, David Gibson <david@gibson.dropbear.id.au>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: Re: [PATCH V7 3/4] powerpc/mm/iommu: Allow migration of cma allocated pages during mm_iommu_do_alloc
-In-Reply-To: <20190114095438.32470-5-aneesh.kumar@linux.ibm.com>
-References: <20190114095438.32470-1-aneesh.kumar@linux.ibm.com> <20190114095438.32470-5-aneesh.kumar@linux.ibm.com>
-Date: Wed, 30 Jan 2019 22:34:39 +1100
-Message-ID: <874l9qqsz4.fsf@concordia.ellerman.id.au>
+	by mx1.redhat.com (Postfix) with ESMTPS id 0E6C0A7865;
+	Wed, 30 Jan 2019 11:52:02 +0000 (UTC)
+Received: from [10.36.117.149] (ovpn-117-149.ams2.redhat.com [10.36.117.149])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 156CB10A3944;
+	Wed, 30 Jan 2019 11:51:57 +0000 (UTC)
+Subject: Re: [LSF/MM TOPIC] Page flags, can we free up space ?
+To: Jerome Glisse <jglisse@redhat.com>, lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Michal Hocko <mhocko@kernel.org>
+References: <20190122201744.GA3939@redhat.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <596246f1-5ebc-7088-e303-00983984e864@redhat.com>
+Date: Wed, 30 Jan 2019 12:51:57 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.1
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20190122201744.GA3939@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 30 Jan 2019 11:52:02 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
-
-> The current code doesn't do page migration if the page allocated is a compound page.
-> With HugeTLB migration support, we can end up allocating hugetlb pages from
-> CMA region. Also, THP pages can be allocated from CMA region. This patch updates
-> the code to handle compound pages correctly. The patch also switches to a single
-> get_user_pages with the right count, instead of doing one get_user_pages per page.
-> That avoids reading page table multiple times.
-
-It's not very obvious from the above description that the migration
-logic is now being done by get_user_pages_longterm(), it just looks like
-it's all being deleted in this patch. Would be good to mention that.
-
-> Since these page reference updates are long term pin, switch to
-> get_user_pages_longterm. That makes sure we fail correctly if the guest RAM
-> is backed by DAX pages.
-
-Can you explain that in more detail?
-
-> The patch also converts the hpas member of mm_iommu_table_group_mem_t to a union.
-> We use the same storage location to store pointers to struct page. We cannot
-> update all the code path use struct page *, because we access hpas in real mode
-> and we can't do that struct page * to pfn conversion in real mode.
-
-That's a pain, it's asking for bugs mixing two different values in the
-same array. But I guess it's the least worst option.
-
-It sounds like that's a separate change you could do in a separate
-patch. But it's not, because it's tied to the fact that we're doing a
-single GUP call.
+On 22.01.19 21:17, Jerome Glisse wrote:
+> So lattely i have been looking at page flags and we are using 6 flags
+> for memory reclaim and compaction:
+> 
+>     PG_referenced
+>     PG_lru
+>     PG_active
+>     PG_workingset
+>     PG_reclaim
+>     PG_unevictable
+> 
+> On top of which you can add the page anonymous flag (anonymous or
+> share memory)
+>     PG_anon // does not exist, lower bit of page->mapping
+> 
+> And also the movable flag (which alias with KSM)
+>     PG_movable // does not exist, lower bit of page->mapping
 
 
-> diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-> index a712a650a8b6..f11a2f15071f 100644
-> --- a/arch/powerpc/mm/mmu_context_iommu.c
-> +++ b/arch/powerpc/mm/mmu_context_iommu.c
-> @@ -21,6 +21,7 @@
->  #include <linux/sizes.h>
->  #include <asm/mmu_context.h>
->  #include <asm/pte-walk.h>
-> +#include <linux/mm_inline.h>
->  
->  static DEFINE_MUTEX(mem_list_mutex);
->  
-> @@ -34,8 +35,18 @@ struct mm_iommu_table_group_mem_t {
->  	atomic64_t mapped;
->  	unsigned int pageshift;
->  	u64 ua;			/* userspace address */
-> -	u64 entries;		/* number of entries in hpas[] */
-> -	u64 *hpas;		/* vmalloc'ed */
-> +	u64 entries;		/* number of entries in hpas/hpages[] */
-> +	/*
-> +	 * in mm_iommu_get we temporarily use this to store
-> +	 * struct page address.
-> +	 *
-> +	 * We need to convert ua to hpa in real mode. Make it
-> +	 * simpler by storing physical address.
-> +	 */
-> +	union {
-> +		struct page **hpages;	/* vmalloc'ed */
-> +		phys_addr_t *hpas;
-> +	};
->  #define MM_IOMMU_TABLE_INVALID_HPA	((uint64_t)-1)
->  	u64 dev_hpa;		/* Device memory base address */
->  };
-> @@ -80,64 +91,15 @@ bool mm_iommu_preregistered(struct mm_struct *mm)
->  }
->  EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
->  
-> -/*
-> - * Taken from alloc_migrate_target with changes to remove CMA allocations
-> - */
-> -struct page *new_iommu_non_cma_page(struct page *page, unsigned long private)
-> -{
-> -	gfp_t gfp_mask = GFP_USER;
-> -	struct page *new_page;
-> -
-> -	if (PageCompound(page))
-> -		return NULL;
-> -
-> -	if (PageHighMem(page))
-> -		gfp_mask |= __GFP_HIGHMEM;
-> -
-> -	/*
-> -	 * We don't want the allocation to force an OOM if possibe
-> -	 */
-> -	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
-> -	return new_page;
-> -}
-> -
-> -static int mm_iommu_move_page_from_cma(struct page *page)
-> -{
-> -	int ret = 0;
-> -	LIST_HEAD(cma_migrate_pages);
-> -
-> -	/* Ignore huge pages for now */
-> -	if (PageCompound(page))
-> -		return -EBUSY;
-> -
-> -	lru_add_drain();
-> -	ret = isolate_lru_page(page);
-> -	if (ret)
-> -		return ret;
-> -
-> -	list_add(&page->lru, &cma_migrate_pages);
-> -	put_page(page); /* Drop the gup reference */
-> -
-> -	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
-> -				NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE);
-> -	if (ret) {
-> -		if (!list_empty(&cma_migrate_pages))
-> -			putback_movable_pages(&cma_migrate_pages);
-> -	}
-> -
-> -	return 0;
-> -}
-> -
->  static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
-> -		unsigned long entries, unsigned long dev_hpa,
-> -		struct mm_iommu_table_group_mem_t **pmem)
-> +			      unsigned long entries, unsigned long dev_hpa,
-> +			      struct mm_iommu_table_group_mem_t **pmem)
->  {
->  	struct mm_iommu_table_group_mem_t *mem;
-> -	long i, j, ret = 0, locked_entries = 0;
-> +	long i, ret = 0, locked_entries = 0;
+I would really like to see an easier way to spot if a page is movable.
 
-I'd prefer we didn't initialise ret here.
+__PageMovable() can produce way to many false positives.
 
->  	unsigned int pageshift;
->  	unsigned long flags;
->  	unsigned long cur_ua;
-> -	struct page *page = NULL;
->  
->  	mutex_lock(&mem_list_mutex);
->  
-> @@ -187,41 +149,27 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
->  		goto unlock_exit;
->  	}
->  
-> +	down_read(&mm->mmap_sem);
-> +	ret = get_user_pages_longterm(ua, entries, FOLL_WRITE, mem->hpages, NULL);
-> +	up_read(&mm->mmap_sem);
-> +	if (ret != entries) {
-> +		/* free the reference taken */
-> +		for (i = 0; i < ret; i++)
-> +			put_page(mem->hpages[i]);
-> +
-> +		vfree(mem->hpas);
-> +		kfree(mem);
-> +		ret = -EFAULT;
-> +		goto unlock_exit;
-> +	} else {
-> +		ret = 0;
+movable will usually not be paired with other flags you mentioned as of now.
 
-Or here.
+If many of these flags are not used in combination, we could merge some
+of the flags into a number field. Valid combinations would get a number
+assigned.
 
-Instead it should be set to 0 at good_exit.
+To keep it simple, only flags that are completely exclusive might be a
+candidate. But not sure if we really have many of these.
 
-> +	}
-> +
-> +	pageshift = PAGE_SHIFT;
->  	for (i = 0; i < entries; ++i) {
-> +		struct page *page = mem->hpages[i];
-> +
->  		cur_ua = ua + (i << PAGE_SHIFT);
-> -		if (1 != get_user_pages_fast(cur_ua,
-> -					1/* pages */, 1/* iswrite */, &page)) {
-> -			ret = -EFAULT;
-> -			for (j = 0; j < i; ++j)
-> -				put_page(pfn_to_page(mem->hpas[j] >>
-> -						PAGE_SHIFT));
-> -			vfree(mem->hpas);
-> -			kfree(mem);
-> -			goto unlock_exit;
-> -		}
-> -		/*
-> -		 * If we get a page from the CMA zone, since we are going to
-> -		 * be pinning these entries, we might as well move them out
-> -		 * of the CMA zone if possible. NOTE: faulting in + migration
-> -		 * can be expensive. Batching can be considered later
-> -		 */
-> -		if (is_migrate_cma_page(page)) {
-> -			if (mm_iommu_move_page_from_cma(page))
-> -				goto populate;
-> -			if (1 != get_user_pages_fast(cur_ua,
-> -						1/* pages */, 1/* iswrite */,
-> -						&page)) {
-> -				ret = -EFAULT;
-> -				for (j = 0; j < i; ++j)
-> -					put_page(pfn_to_page(mem->hpas[j] >>
-> -								PAGE_SHIFT));
-> -				vfree(mem->hpas);
-> -				kfree(mem);
-> -				goto unlock_exit;
-> -			}
-> -		}
-> -populate:
-> -		pageshift = PAGE_SHIFT;
->  		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
->  			pte_t *pte;
->  			struct page *head = compound_head(page);
-> @@ -239,6 +187,10 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
->  			local_irq_restore(flags);
->  		}
->  		mem->pageshift = min(mem->pageshift, pageshift);
-> +		/*
-> +		 * We don't need struct page reference any more, switch
-> +		 * to physical address.
-> +		 */
->  		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
->  	}
+> 
+> 
+> So i would like to explore if there is a way to express the same amount
+> of information with less bits. My methodology is to exhaustively list
+> all the possible states (valid combination of above flags) and then to
+> see how we change from one state to another (what event trigger the change
+> like mlock(), page being referenced, ...) and under which rules (ie do we
+> hold the page lock, zone lock, ...).
+> 
+> My hope is that there might be someway to use less bits to express the
+> same thing. I am doing this because for my work on generic page write
+> protection (ie KSM for file back page) which i talk about last year and
+> want to talk about again ;) I will need to unalias the movable bit from
+> KSM bit.
+> 
+> 
+> Right now this is more a temptative ie i do not know if i will succeed,
+> in any case i can report on failure or success and discuss my finding to
+> get people opinions on the matter.
+> 
+> 
+> I think everyone interested in mm will be interested in this topic :)
+> 
+> Cheers,
+> Jérôme
+> 
 
-I'm not any sort of expert on this code, but I don't see anything wrong.
 
-Reviewed-by: Michael Ellerman <mpe@ellerman.id.au>
+-- 
 
-cheers
+Thanks,
+
+David / dhildenb
 
