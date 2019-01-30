@@ -2,148 +2,205 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5781C282D4
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 07:18:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B847EC282D4
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 07:29:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D20221473
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 07:18:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D20221473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7265F2084C
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 07:29:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="r1zn6B8s"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7265F2084C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFF118E0002; Wed, 30 Jan 2019 02:18:04 -0500 (EST)
+	id 0FFCB8E0002; Wed, 30 Jan 2019 02:29:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DD5F68E0001; Wed, 30 Jan 2019 02:18:04 -0500 (EST)
+	id 0D6218E0001; Wed, 30 Jan 2019 02:29:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC59F8E0002; Wed, 30 Jan 2019 02:18:04 -0500 (EST)
+	id F06028E0002; Wed, 30 Jan 2019 02:29:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 87A7B8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 02:18:04 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 75so19015145pfq.8
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 23:18:04 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 992D48E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 02:29:34 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id e12so8977512edd.16
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2019 23:29:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=mmdDNS+DHTyOMjuCvROx/E6yPyWbz3WbKEsTLrej1y0=;
-        b=FU99M4W8CyeqApaw6DIdYrVQLzdgPW/XCMyNbjAvjkXvAEvrajH9F08lle3WFW/aE9
-         eaOQTFCJNhb2kvMvNuODvZQ+k4MT8yMS87o6xiTp8NmWqtqOlQ7dl3trWLjZMlDvMdFa
-         dYs4qkwEXtvdLqdToisaZ5FCOCqrCEkunIYhqNJWnwG78PqHq6Son60+ipv+HLoVHRAW
-         QxbcguTTIOEDFUyQbne4c5l1ig8GBBAkbqHdB4hgrdjyoqreMSa2vBrKE0f4CW+nYuFU
-         RM3ROMXPlJOqpt6o038ST/AOSrI7lSz1I6qU0tupNpE5us9d7XnDbD43ikpvXnKe9V0I
-         6ZqA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukdKGUTyaK8NgKZCxjUaRE7ylaOynvjmney1HyGpQ1l1ABLv3EK1
-	kyWANiZx1UNFitprLtOw5QTkkhGtzjigMxZ/4VxQdPYL1E5rXN+8CrkVtq+nc+MA7enlCtZcH4O
-	2AGSj6kFZrfbf2F0jFcsGKsKeZxyT5VKtQ1KZHP/g9xgLfRyUWYF3aJdR5FKttuI=
-X-Received: by 2002:a17:902:a03:: with SMTP id 3mr29529743plo.112.1548832684205;
-        Tue, 29 Jan 2019 23:18:04 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7ukgOakcq0Ch7Jj8KnMQ1zPddZnJHAMl43YSZDt89PDG2xGwHa+Q96JJROtFdSemFGAoUz
-X-Received: by 2002:a17:902:a03:: with SMTP id 3mr29529714plo.112.1548832683456;
-        Tue, 29 Jan 2019 23:18:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548832683; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=VT7MlOqFJ2aj+gRJdtq8yJKzK1geT4n0OhcSvRP4zPs=;
+        b=s1+f+THG/BIIYT5brovoeZSXXvyRe+JtPfnYxtR8tla0uAf/Y/n+mAom49NOboichC
+         gLL/g3VGromrP7x5eTpWup1M8WVT9mQ8qGEjKV3x3N5FjxFH2dZRV06ibEKy3ji9eH63
+         lGeK7TjuEM55vvrgnBfQbV8vceoQ86FBL7lLzU9TtcLc2VjGPFwab9jt0BXuZTcoFrbV
+         DFxpHUQSVI4OOnXmHYvstahcu1d5Feud0XpuuKqHcRlWzAaR6HWZV6UrUUcBCgw53WRw
+         TF2/87FkVfncpR50BXsp8A3jnDUlVIQAQZ/ceQORTseDntQXFR3xQ6VyDmMfHgAOxsXO
+         hBhg==
+X-Gm-Message-State: AJcUukczX5lD1iuYBhV3ewsOKMfndb3ZDaw4ULg+RTr8HddyvY7jky9j
+	6z8DXYv/3kcJTvXlaIqeSpXb8AVd0aS4oY23i2vHE6xxBXtKAbMWNjnP0Gbj6NzcXPmRzGa94u+
+	w8BgChCOulCsIcrnXJea3xK0yk8UBvBywfr84GPUFO6pyzqciyIJ86Tl1wd9kmyw0xg==
+X-Received: by 2002:a50:b286:: with SMTP id p6mr28716095edd.202.1548833374060;
+        Tue, 29 Jan 2019 23:29:34 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5BIt3OFBGevLgY5D9BMC1UDDGstA8ZUjhXjk1qOXubC45semRwQGyoj4OHU/GPlwPW3lQA
+X-Received: by 2002:a50:b286:: with SMTP id p6mr28716046edd.202.1548833373164;
+        Tue, 29 Jan 2019 23:29:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548833373; cv=none;
         d=google.com; s=arc-20160816;
-        b=CFNFrmGO5mjcA9eNFr8Uko3f9Cs2hyFDUthhOTak4VmRYN91Nt9y4l1nbX7mDEXX3Y
-         cdZRKt8JOeRb64pYJuB7h0wM6XYdIgWBOvbEPjGmqbJSjW3Z/Gv6k01Eyxqs14suby9j
-         tvDdLEEZPtosIt/rUa4yNiPfxMev7Vd3bVjSsgr2u1JeRaXQ/LKjIzJEV4VzzxsKMkN9
-         G1JS4OU5xHkeYDIiNs2t2Fhoc+jU5mmCHuPWAwoMpYN4FDPrUWwLiJuRnJvqz3CzgnjM
-         FuAPX8KHosZ2wgQRSeyMLBCKtfDma9Qbh6iFdBu9Vt2EQHxHVEZKd2dITSXBmxyvvZQC
-         b3dg==
+        b=lvHalad14zOLd785N6/ymTPpt91trd/vVJRR7fxwGmLfVJvUVfITYAk/E9eK+WCAXQ
+         Uf5W2vJGobQr4dFVGwRtzNBx+JrOuEGyBosOUORiAwdTshUId2ew49yTSjHcI6fwyYL/
+         1sRNNGYPdjg7tp3hHhEeoU5aQ0h1edXUyLUbJJBaFW7KU6mGCfndThnUXFxq77SaMxIv
+         TEETSIN0g07Pq38mj4eWUlQL6tFv3He20LyZW1YlGtGUgyqPDsyAegs/e2mpRmJcWOWH
+         hEw2js3YfHKe2Jkyon8PtqMTMtcAkiL22/p2K9MnltvkPEYrfbDjyAFG/9FhsputMBTI
+         Bl9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=mmdDNS+DHTyOMjuCvROx/E6yPyWbz3WbKEsTLrej1y0=;
-        b=EzSJdmLCBe0THep/uTmmcvXUF1VHmUL0feZNq3rtn1sVuNiS5bzOjsp07ZMgR9bThd
-         Wlps7ObYjZDJzUQs6nR/edBBHhMhMyHgUAtSL0cNJ0Hkd6aP7FocRYFpwqqyThvSQ4yK
-         WoD7yzGFyqi9bsZCp61t19PfsAQUSRjSgdqJlrJ4yG5hl2dy99XqFHDF7pKCq81zFjqF
-         WOpiFZC5oRFkKMkKjXryTF7JOxYfsFmjowsxMFJvinhn/vnY2KZ+IvY5N6c4GDmMIQVx
-         d9rn5C5KxqCCJR1ELZ0sVvHHhSbTOzVLP4bEKh0Df0DlUbTpKSdxh6n896KSzCYESuc7
-         VmDA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=VT7MlOqFJ2aj+gRJdtq8yJKzK1geT4n0OhcSvRP4zPs=;
+        b=QoSvh6fTPoAqD567teX9ayG1rIdnhdsF9IS1aGQp89G9hnI8jBds4sqO6qky49aAYt
+         GCWZtyUJ1GZDDQC5KGlIc7MWQX7rikcCWuOjI6rprU3Rkw0+q6g+VDCzsHai0y8YTUjP
+         Gf13z0qrs7956OccEgZHRVhYLq6LfUDjgjcKgMlXC5W8fJqRhDPnvxmYusEfte0jemMR
+         gyOCQv2t6Z3hZQldyQnlzmuk/s89Zkilcmn8MgYScq8BFUE/gvIb/1e8SGizRWfskrUi
+         ycApVA+0WGkJavVo3WEct3Cwks/8siLcPHRj+jVa5hw1KKVAcFBM3rAAoim+hxPIyn0Q
+         WdiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q20si681417pgl.268.2019.01.29.23.18.03
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=r1zn6B8s;
+       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id w26si565495edt.407.2019.01.29.23.29.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Jan 2019 23:18:03 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 29 Jan 2019 23:29:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CB835AC5B;
-	Wed, 30 Jan 2019 07:18:01 +0000 (UTC)
-Date: Wed, 30 Jan 2019 08:17:59 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Peter Xu <peterx@redhat.com>,
-	Blake Caldwell <blake.caldwell@colorado.edu>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>,
-	David Rientjes <rientjes@google.com>
-Subject: Re: [LSF/MM TOPIC] NUMA remote THP vs NUMA local non-THP under
- MADV_HUGEPAGE
-Message-ID: <20190130071759.GR18811@dhcp22.suse.cz>
-References: <20190129234058.GH31695@redhat.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=r1zn6B8s;
+       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x0U7SbrJ099867;
+	Wed, 30 Jan 2019 07:29:08 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=VT7MlOqFJ2aj+gRJdtq8yJKzK1geT4n0OhcSvRP4zPs=;
+ b=r1zn6B8sQqtOZ25/mPP8H/+iEpRZPEn4aTaYH8aoQZ92OxSJV6Xz0ca7QZ1sDOv8iRPF
+ SzO64Bk8uUnFzdsdi0GY7jDczz0My3M8MHGt1bw6ZO3lPzdPRqgCEhOo+UKHbot/BGJo
+ 0QBTDLOnAdCUxUvyaLupJRl7a7KdZ8DjCdfDQZy2ah6sh/gwGIZZrmE76nSTcjoG+ZOU
+ n7/6n7ZAKS3J/zyE5B8OI6B/G2MmO993n5/8MZ3fZR9woNtbSVYY8ZjG5iu02HRObZIi
+ ddRDVFipcCjjwneHO9h/AIvwDT0VRL+gZ4I0+tpN8fVtJIYW7ffq3xkkMIZrk5btQ4My dw== 
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp2120.oracle.com with ESMTP id 2q8g6r8qx7-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 30 Jan 2019 07:29:07 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x0U7T6xO023548
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 30 Jan 2019 07:29:06 GMT
+Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x0U7T1Ac000882;
+	Wed, 30 Jan 2019 07:29:01 GMT
+Received: from kadam (/197.157.0.43)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 29 Jan 2019 23:29:00 -0800
+Date: Wed, 30 Jan 2019 10:28:46 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: akpm@linux-foundation.org, andrea.parri@amarulasolutions.com,
+        shli@kernel.org, ying.huang@intel.com, dave.hansen@linux.intel.com,
+        sfr@canb.auug.org.au, osandov@fb.com, tj@kernel.org,
+        ak@linux.intel.com, linux-mm@kvack.org,
+        kernel-janitors@vger.kernel.org, paulmck@linux.ibm.com,
+        stern@rowland.harvard.edu, peterz@infradead.org, will.deacon@arm.com
+Subject: Re: [PATCH] mm, swap: bounds check swap_info accesses to avoid NULL
+ derefs
+Message-ID: <20190130072846.GA2010@kadam>
+References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
+ <20190115002305.15402-1-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190129234058.GH31695@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190115002305.15402-1-daniel.m.jordan@oracle.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9151 signatures=668682
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1901300058
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 29-01-19 18:40:58, Andrea Arcangeli wrote:
-> Hello,
+On Mon, Jan 14, 2019 at 07:23:05PM -0500, Daniel Jordan wrote:
+> Dan Carpenter reports a potential NULL dereference in
+> get_swap_page_of_type:
 > 
-> I'd like to attend the LSF/MM Summit 2019. I'm interested in most MM
-> topics and it's enlightening to listen to the common non-MM topics
-> too.
+>   Smatch complains that the NULL checks on "si" aren't consistent.  This
+>   seems like a real bug because we have not ensured that the type is
+>   valid and so "si" can be NULL.
 > 
-> One current topic that could be of interest is the THP / NUMA tradeoff
-> in subject.
+> Add the missing check for NULL, taking care to use a read barrier to
+> ensure CPU1 observes CPU0's updates in the correct order:
 > 
-> One issue about a change in MADV_HUGEPAGE behavior made ~3 years ago
-> kept floating around for the last 6 months (~12 months since it was
-> initially reported as regression through an enterprise-like workload)
-> and it was hot-fixed in commit
-> ac5b2c18911ffe95c08d69273917f90212cf5659, but it got quickly reverted
-> for various reasons.
+>         CPU0                           CPU1
+>         alloc_swap_info()              if (type >= nr_swapfiles)
+>           swap_info[type] = p              /* handle invalid entry */
+>           smp_wmb()                    smp_rmb()
+>           ++nr_swapfiles               p = swap_info[type]
 > 
-> I posted some benchmark results showing that for tasks without strong
-> NUMA locality the __GFP_THISNODE logic is not guaranteed to be optimal
-> (and here of course I mean even if we ignore the large slowdown with
-> swap storms at allocation time that might be caused by
-> __GFP_THISNODE). The results also show NUMA remote THPs help
-> intrasocket as well as intersocket.
+> Without smp_rmb, CPU1 might observe CPU0's write to nr_swapfiles before
+> CPU0's write to swap_info[type] and read NULL from swap_info[type].
 > 
-> https://lkml.kernel.org/r/20181210044916.GC24097@redhat.com
-> https://lkml.kernel.org/r/20181212104418.GE1130@redhat.com
+> Ying Huang noticed that other places don't order these reads properly.
+> Introduce swap_type_to_swap_info to encourage correct usage.
 > 
-> The following seems the interim conclusion which I happen to be in
-> agreement with Michal and Mel:
+> Use READ_ONCE and WRITE_ONCE to follow the Linux Kernel Memory Model
+> (see tools/memory-model/Documentation/explanation.txt).
 > 
-> https://lkml.kernel.org/r/20181212095051.GO1286@dhcp22.suse.cz
-> https://lkml.kernel.org/r/20181212170016.GG1130@redhat.com
+> This ordering need not be enforced in places where swap_lock is held
+> (e.g. si_swapinfo) because swap_lock serializes updates to nr_swapfiles
+> and the swap_info array.
+> 
+> This is a theoretical problem, no actual reports of it exist.
+> 
+> Fixes: ec8acf20afb8 ("swap: add per-partition lock for swapfile")
+> Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Cc: Alan Stern <stern@rowland.harvard.edu>
+> Cc: Andi Kleen <ak@linux.intel.com>
+> Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Omar Sandoval <osandov@fb.com>
+> Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>
+> Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> 
+> ---
+> 
+> I'd appreciate it if someone more familiar with memory barriers could
+> check this over.  Thanks.
+> 
+> Probably no need for stable, this is all theoretical.
+> 
 
-I am definitely interested in discussing this topic and actually wanted
-to propose it myself. I would add that part of the discussion was
-proposing a neww memory policy that would effectively enable per-vma
-node-reclaim like behavior.
--- 
-Michal Hocko
-SUSE Labs
+The NULL dereference part is not theoretical.  It require CAP_SYS_ADMIN
+so it's not a huge deal, but you could trigger it from snapshot_ioctl()
+with SNAPSHOT_ALLOC_SWAP_PAGE.
+
+regards,
+dan carpenter
+
 
